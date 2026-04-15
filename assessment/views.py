@@ -76,9 +76,9 @@ def take_exam(request, exam_id):
 
     # Ràng buộc B: Kiểm tra thời gian bắt đầu và kết thúc của kỳ thi
     if now < exam.start_time:
-        messages.warning(request, f"Kỳ thi chưa bắt đầu. Vui lòng quay lại lúc {exam.start_time|date:'H:i d/m/Y'}.")
+        messages.warning(request, f"Kỳ thi chưa bắt đầu. Vui lòng quay lại lúc {exam.start_time.strftime('%H:%M %d/%m/%Y')}.")
         return redirect('exam_list')
-    
+            
     if now > exam.end_time:
         messages.error(request, "Kỳ thi này đã kết thúc thời gian làm bài.")
         return redirect('exam_list')
