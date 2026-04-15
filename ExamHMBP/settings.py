@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'assessment',
     'django.contrib.humanize', # Để định dạng thời gian/số đẹp hơn
+    'training',
 ]
 
 MIDDLEWARE = [

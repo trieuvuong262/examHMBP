@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid mt-4 px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1"><i class="bi bi-speedometer2 me-2"></i>Bảng điều khiển Quản trị</h2>
+            <p class="text-muted small mb-0">Hệ thống đánh giá năng lực & Quản lý nhân sự nội bộ</p>
+        </div>
+        <div class="btn-group shadow-sm">
+            <a href="{% url 'exam_create' %}" class="btn btn-primary">
+                <i class="bi bi-plus-lg me-1"></i> Thêm kỳ thi
+            </a>
+            <a href="{% url 'user_list' %}" class="btn btn-dark border-start">
+                <i class="bi bi-people me-1"></i> Quản lý Nhân viên
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm bg-primary text-white p-3 h-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small opacity-75">Tổng kỳ thi</div>
+                        <h3 class="fw-bold mb-0">{{ total_exams|default:exams.count }}</h3>
+                    </div>
+                    <i class="bi bi-journal-text fs-1 opacity-25"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm bg-success text-white p-3 h-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small opacity-75">Kỳ thi đang mở</div>
+                        <h3 class="fw-bold mb-0">{{ active_exams_count|default:"--" }}</h3>
+                    </div>
+                    <i class="bi bi-play-circle fs-1 opacity-25"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm bg-warning text-dark p-3 h-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small opacity-75">Tổng nhân viên</div>
+                        <h3 class="fw-bold mb-0">{{ total_users|default:"--" }}</h3>
+                    </div>
+                    <i class="bi bi-person-badge fs-1 opacity-25"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm bg-info text-white p-3 h-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small opacity-75">Bài thi đã nộp</div>
+                        <h3 class="fw-bold mb-0">{{ total_submissions|default:"--" }}</h3>
+                    </div>
+                    <i class="bi bi-check2-all fs-1 opacity-25"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3">
+            <h5 class="mb-0 fw-bold text-secondary"><i class="bi bi-list-ul me-2"></i>Danh sách kỳ thi hiện có</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4" style="width: 35%">Tên kỳ thi</th>
+                            <th style="width: 20%">Thời gian làm bài</th>
+                            <th class="text-center">Số câu hỏi</th>
+                            <th class="text-center">Trạng thái</th>
+                            <th class="text-end pe-4">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for exam in exams %}
+                        <tr>
+                            <td class="ps-4">
+                                <div class="fw-bold text-dark">{{ exam.title }}</div>
+                                <div class="x-small text-muted">Bắt đầu: {{ exam.start_time|date:"d/m/Y H:i" }}</div>
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark border fw-normal">
+                                    <i class="bi bi-stopwatch me-1"></i>{{ exam.duration_minutes }} phút
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <span class="fw-bold text-secondary">{{ exam.questions.count }}</span>
+                            </td>
+                            <td class="text-center">
+                                {% if exam.is_active %}
+                                    <span class="badge rounded-pill bg-success-soft text-success">
+                                        <i class="bi bi-circle-fill me-1" style="font-size: 0.5rem;"></i> Đang mở
+                                    </span>
+                                {% else %}
+                                    <span class="badge rounded-pill bg-secondary-soft text-secondary">
+                                        <i class="bi bi-lock-fill me-1"></i> Đang khóa
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end pe-4">
+                                <div class="btn-group">
+                                    <a href="{% url 'exam_edit' exam.pk %}" class="btn btn-sm btn-outline-warning" title="Chỉnh sửa">
+                                        <i class="bi bi-pencil-square"></i> Sửa
+                                    </a>
+                                    <a href="{% url 'admin_results' %}?exam={{ exam.id }}" class="btn btn-sm btn-outline-info" title="Kết quả">
+                                        <i class="bi bi-graph-up"></i> Điểm
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-5">
+                                <i class="bi bi-clipboard-x display-4 text-muted opacity-25"></i>
+                                <p class="text-muted mt-3">Chưa có kỳ thi nào. Nhấn "Thêm kỳ thi" để bắt đầu.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Custom CSS để đồng bộ giao diện chuyên nghiệp */
+    .bg-success-soft { background-color: rgba(25, 135, 84, 0.12); }
+    .bg-secondary-soft { background-color: rgba(108, 117, 125, 0.12); }
+    .x-small { font-size: 0.75rem; }
+    .card { border-radius: 12px; }
+    .table thead th { 
+        font-size: 0.8rem; 
+        text-transform: uppercase; 
+        letter-spacing: 0.5px; 
+        padding: 1rem 0.5rem;
+    }
+    .btn-group .btn { padding: 0.35rem 0.7rem; }
+    .table tbody td { padding: 0.85rem 0.5rem; }
+</style>
+{% endblock %}

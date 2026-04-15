@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid mt-4 px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1"><i class="bi bi-people-fill me-2"></i>Quản lý nhân viên</h2>
+            <p class="text-muted small mb-0">Danh sách nhân sự tham gia hệ thống đánh giá</p>
+        </div>
+        <a href="{% url 'user_add' %}" class="btn btn-primary shadow-sm">
+            <i class="bi bi-person-plus-fill me-1"></i> Thêm nhân viên
+        </a>
+    </div>
+
+    <div class="card shadow border-0 overflow-hidden">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th class="ps-4">Tài khoản</th>
+                            <th>Họ và Tên</th>
+                            <th>Chức danh</th>
+                            <th>Email</th>
+                            <th class="text-end pe-4">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in users %}
+                        <tr>
+                            <td class="ps-4">
+                                <span class="fw-bold text-primary">{{ u.username }}</span>
+                                <div class="x-small text-muted">Tham gia: {{ u.date_joined|date:"d/m/Y" }}</div>
+                            </td>
+                            <td><div class="fw-bold">{{ u.profile.full_name|default:"Chưa cập nhật" }}</div></td>
+                            <td>
+                                <span class="badge bg-info-soft text-info fw-normal">
+                                    {{ u.profile.position|default:"-" }}
+                                </span>
+                            </td>
+                            <td>{{ u.email|default:"---" }}</td>
+                            <td class="text-end pe-4">
+                                <div class="btn-group shadow-sm">
+                                    <a href="{% url 'user_edit' u.id %}" class="btn btn-sm btn-outline-warning">
+                                        <i class="bi bi-pencil me-1"></i> Sửa
+                                    </a>
+
+                                    <form action="{% url 'user_password_reset' u.id %}" method="POST" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-info border-start-0" 
+                                                onclick="return confirm('Đặt lại mật khẩu cho {{ u.username }} về mặc định: {{ u.username }}@123?')">
+                                            <i class="bi bi-key me-1"></i> Reset
+                                        </button>
+                                    </form>
+
+                                    {% if u.id != request.user.id %}
+                                    <form action="{% url 'user_delete' u.id %}" method="POST" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-danger border-start-0" 
+                                                onclick="return confirm('Xác nhận xóa vĩnh viễn nhân viên này?')">
+                                            <i class="bi bi-trash me-1"></i> Xóa
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-5 text-muted">
+                                <i class="bi bi-people display-4 opacity-25"></i>
+                                <p class="mt-3">Chưa có nhân viên nào trong danh sách.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .bg-info-soft { background-color: rgba(13, 202, 240, 0.1); }
+    .x-small { font-size: 0.75rem; }
+    .table thead th { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; padding: 1rem; }
+</style>
+{% endblock %}

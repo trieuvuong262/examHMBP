@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid mt-4 px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1">Kết quả đánh giá</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}" class="text-decoration-none">Bảng điều khiển</a></li>
+                    <li class="breadcrumb-item active">Danh sách bài thi đã nộp</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="card shadow border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <td class="ps-4">
+                                <div class="fw-bold text-dark">{{ sub.user.profile.full_name }}</div>
+                                <div class="small text-muted">{{ sub.user.profile.position }}</div>
+                            </td>                            
+                            <th>Kỳ thi</th>
+                            <th>Thời gian nộp</th>
+                            <th class="text-center">Điểm trắc nghiệm</th>
+                            <th class="text-center">Điểm tự luận/Ảnh</th>
+                            <th class="text-center">Tổng điểm</th>
+                            <th class="text-center">Trạng thái</th>
+                            <th class="text-end pe-4">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sub in submissions %}
+                        <tr>
+                            <td class="ps-4">
+                                <div class="fw-bold text-dark">{{ sub.user.get_full_name|default:sub.user.username }}</div>
+                                <div class="small text-muted">{{ sub.user.email }}</div>
+                            </td>
+                            <td>
+                                <span class="text-truncate d-inline-block" style="max-width: 200px;">
+                                    {{ sub.exam.title }}
+                                </span>
+                            </td>
+                            <td class="small">
+                                {{ sub.submitted_at|date:"d/m/Y" }}<br>
+                                <span class="text-muted">{{ sub.submitted_at|date:"H:i" }}</span>
+                            </td>
+                            <td class="text-center fw-bold text-primary">
+                                {{ sub.auto_score|floatformat:1 }}
+                            </td>
+                            <td class="text-center">
+                                {% if sub.manual_score > 0 %}
+                                    <span class="badge bg-success-soft text-success">+{{ sub.manual_score|floatformat:1 }}</span>
+                                {% else %}
+                                    <span class="badge bg-warning-soft text-warning">Chờ chấm</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <div class="h5 mb-0 fw-bold text-dark">{{ sub.total_score|floatformat:1 }}</div>
+                            </td>
+                            <td class="text-center">
+                                {% if sub.is_completed %}
+                                    <span class="badge bg-success">Hoàn thành</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Đang làm</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end pe-4">
+                                <a href="{% url 'grade_submission' sub.id %}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                    <i class="bi bi-pencil-square me-1"></i> Chấm điểm
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5">
+                                <i class="bi bi-inbox display-4 text-muted d-block mb-3"></i>
+                                <p class="text-muted">Chưa có bài thi nào được nộp.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .bg-success-soft { background-color: rgba(25, 135, 84, 0.1); }
+    .bg-warning-soft { background-color: rgba(255, 193, 7, 0.1); }
+    .table thead th { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; padding: 15px 10px; }
+    .table tbody td { padding: 15px 10px; border-bottom: 1px solid #f0f0f0; }
+    .card { border-radius: 15px; }
+</style>
+{% endblock %}

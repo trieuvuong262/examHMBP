@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'user_list' %}" class="text-decoration-none">Danh sách</a></li>
+                    <li class="breadcrumb-item active">{{ title }}</li>
+                </ol>
+            </nav>
+
+            <div class="card shadow border-0 overflow-hidden">
+                <div class="card-header bg-dark text-white p-3">
+                    <h5 class="mb-0"><i class="bi bi-person-lines-fill me-2"></i>{{ title }}</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <h6 class="text-primary fw-bold border-bottom pb-2 mb-3">Tài khoản hệ thống</h6>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold small text-secondary">Tên đăng nhập (Username)</label>
+                                {{ form.username }}
+                                {% if form.username.errors %}<div class="text-danger small">{{ form.username.errors }}</div>{% endif %}
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold small text-secondary">Email</label>
+                                {{ form.email }}
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <h6 class="text-primary fw-bold border-bottom pb-2 mb-3">Thông tin cá nhân</h6>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold small text-secondary">Họ và Tên</label>
+                                {{ form.full_name }}
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold small text-secondary">Chức danh</label>
+                                {{ form.position }}
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg shadow-sm">
+                                <i class="bi bi-save me-2"></i>Lưu thông tin nhân viên
+                            </button>
+                            <a href="{% url 'user_list' %}" class="btn btn-light border">Hủy bỏ</a>
+                        </div>
+                    </form>
+                </div>
+                
+                {% if "edit" in request.path %}
+                <div class="card-footer bg-light border-0 py-3">
+                    <div class="d-flex align-items-center text-muted">
+                        <i class="bi bi-info-circle-fill me-2"></i>
+                        <span class="x-small">Mật khẩu chỉ có thể được Reset tại trang danh sách.</span>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .x-small { font-size: 0.75rem; }
+    .form-control:focus, .form-select:focus {
+        border-color: #198754;
+        box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.1);
+    }
+</style>
+{% endblock %}

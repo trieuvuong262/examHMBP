@@ -1,81 +1,314 @@
 {% extends "base.html" %}
 
 {% block content %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
 <div class="container mt-4 mb-5">
-    <div class="d-flex justify-content-between align-items-center bg-light p-3 sticky-top shadow-sm">
-        <h4>{{ exam.title }}</h4>
-        <div id="timer" class="badge bg-danger fs-5">00:00</div>
+    <div class="sticky-top bg-white shadow-sm rounded-bottom mb-4 p-3 animate__animated animate__fadeInDown" style="top: 0; z-index: 1020;">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <div>
+                <h4 class="fw-bold text-primary mb-0">{{ exam.title }}</h4>
+                <div class="d-flex align-items-center mt-1">
+                    <span class="badge bg-secondary-soft text-secondary me-2">
+                        <i class="bi bi-person-fill me-1"></i>{{ request.user.profile.full_name|default:request.user.username }}
+                    </span>
+                    <span class="badge bg-light text-dark border">
+                        <i class="bi bi-question-circle me-1"></i>{{ questions.count }} câu hỏi
+                    </span>
+                </div>
+            </div>
+            <div class="text-end">
+                <div id="timer" class="badge rounded-pill bg-danger fs-5 px-4 py-2 shadow-sm">00:00</div>
+            </div>
+        </div>
+        <div class="progress" style="height: 6px;">
+            <div id="timerProgress" class="progress-bar bg-danger progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+        </div>
     </div>
 
     <form id="examForm" method="POST" enctype="multipart/form-data" class="mt-4">
         {% csrf_token %}
         
         {% for q in questions %}
-        <div class="card mb-4">
-            <div class="card-body">
-                <h5 class="card-title">Câu {{ forloop.counter }}: {{ q.content }}</h5>
+        <div class="card mb-4 border-0 shadow-sm animate__animated animate__fadeInUp" style="animation-delay: {{ forloop.counter0 }}00ms;">
+            <div class="card-header bg-white border-0 pt-4 px-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <h5 class="fw-bold text-dark flex-grow-1 lh-base">
+                        <span class="badge bg-primary me-2 shadow-sm">Câu {{ forloop.counter }}</span> 
+                        {{ q.content }}
+                    </h5>
+                    <div class="text-end ms-3">
+                        <span class="badge bg-light text-primary border border-primary-subtle fw-semibold px-3 py-2">
+                            {{ q.points }} điểm
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="mt-2 mb-1">
+                    <small class="text-muted bg-light px-2 py-1 rounded border shadow-xs">
+                        <i class="bi bi-info-circle-fill me-1"></i>
+                        Hình thức: 
+                        <span class="fw-bold text-secondary">
+                            {% if q.q_type == 'single' %} Trắc nghiệm (Chọn 1 đáp án)
+                            {% elif q.q_type == 'multiple' %} Trắc nghiệm (Chọn nhiều đáp án)
+                            {% elif q.q_type == 'essay' %} Tự luận (Nhập văn bản)
+                            {% elif q.q_type == 'image' or q.q_type == 'image_upload' %} Trả lời bằng hình ảnh
+                            {% endif %}
+                        </span>
+                    </small>
+                </div>
+            </div>
+            
+            <div class="card-body px-4 pb-4">
                 {% if q.image_hint %}
-                    <img src="{{ q.image_hint.url }}" class="img-fluid mb-3" style="max-height: 300px;">
+                    <div class="text-center mb-4">
+                        <div class="magnifier-container border rounded shadow-sm overflow-hidden bg-white" 
+                            onmousemove="zoom(event)" 
+                            onmouseleave="resetZoom(event)">
+                            <img src="{{ q.image_hint.url }}" class="img-fluid magnifier-img" alt="Hình ảnh minh họa">
+                        </div>
+                        <small class="text-muted"><i class="bi bi-search me-1"></i>Rê chuột vào ảnh để phóng to chi tiết</small>
+                    </div>
                 {% endif %}
 
-                <hr>
+                <div class="options-container">
+                    {% if q.q_type == 'single' or q.q_type == 'multiple' %}
+                        <div class="row g-3">
+                        {% for choice in q.choices.all %}
+                            <div class="col-md-6">
+                                <label class="option-item d-flex align-items-center p-3 border rounded-3 h-100 cursor-pointer transition-all">
+                                    <input class="form-check-input me-3 flex-shrink-0" 
+                                           type="{% if q.q_type == 'multiple' %}checkbox{% else %}radio{% endif %}" 
+                                           name="q_{{ q.id }}" 
+                                           value="{{ choice.id }}">
+                                    <span class="option-text text-secondary">{{ choice.text }}</span>
+                                </label>
+                            </div>
+                        {% endfor %}
+                        </div>
 
-                {% if q.q_type == 'single' %}
-                    {% for choice in q.choices.all %}
-                    <div class="form-check">
-                        <input class="form-check-input" type="radio" name="q_{{ q.id }}" value="{{ choice.id }}">
-                        <label class="form-check-label">{{ choice.text }}</label>
-                    </div>
-                    {% endfor %}
+                    {% elif q.q_type == 'essay' %}
+                        <div class="form-floating">
+                            <textarea class="form-control shadow-none border-primary-subtle" name="q_{{ q.id }}" 
+                                      placeholder="Nhập câu trả lời..." style="height: 150px"></textarea>
+                            <label class="text-muted">Nhập nội dung trả lời tại đây...</label>
+                        </div>
 
-                {% elif q.q_type == 'multiple' %}
-                    {% for choice in q.choices.all %}
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="q_{{ q.id }}" value="{{ choice.id }}">
-                        <label class="form-check-label">{{ choice.text }}</label>
-                    </div>
-                    {% endfor %}
-
-                {% elif q.q_type == 'essay' %}
-                    <textarea class="form-control" name="q_{{ q.id }}" rows="4" placeholder="Nhập câu trả lời của bạn..."></textarea>
-
-                {% elif q.q_type == 'image' %}
-                    <div class="input-group">
-                        <input type="file" class="form-control" name="q_{{ q.id }}" accept="image/*">
-                    </div>
-                    <small class="text-muted">Chụp ảnh thao tác thực hành hoặc kết quả.</small>
-                {% endif %}
+                    {% elif q.q_type == 'image' or q.q_type == 'image_upload' %}
+                        <div class="upload-area p-4 border border-dashed rounded-3 text-center bg-light">
+                            <input type="file" class="form-control mt-3 shadow-sm" name="q_{{ q.id }}" accept="image/*">
+                            <p class="small text-muted mt-2 mb-0">Chọn tệp hình ảnh kết quả bài làm.</p>
+                        </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
         {% endfor %}
 
-        <button type="submit" class="btn btn-primary btn-lg w-100">Nộp bài thi</button>
+        <div class="card border-0 shadow-lg mb-5 animate__animated animate__pulse animate__infinite animate__slow">
+            <button type="button" class="btn btn-primary btn-lg fw-bold py-3" onclick="confirmSubmit()">
+                <i class="bi bi-send-check-fill me-2"></i>HOÀN THÀNH VÀ NỘP BÀI THI
+            </button>
+        </div>
     </form>
 </div>
 
+<style>
+    /* CSS Nâng cao giao diện */
+    .cursor-pointer { cursor: pointer; }
+    .transition-all { transition: all 0.25s ease-in-out; }
+    .bg-secondary-soft { background-color: rgba(108, 117, 125, 0.1); }
+    
+    .option-item { background-color: #fff; border: 2px solid #e9ecef !important; }
+    .option-item:hover {
+        background-color: #f8faff;
+        border-color: #0d6efd !important;
+        transform: translateY(-2px);
+    }
+    
+    /* Hiệu ứng khi được chọn */
+    .option-item:has(input:checked) {
+        background-color: #f0f7ff;
+        border-color: #0d6efd !important;
+        box-shadow: 0 4px 12px rgba(13, 110, 253, 0.12);
+    }
+    .option-item input:checked + .option-text {
+        color: #0d6efd !important;
+        font-weight: 600;
+    }
+
+    .border-dashed { border-style: dashed !important; border-width: 2px !important; border-color: #dee2e6 !important; }
+    .shadow-xs { box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    
+    /* Vô hiệu hóa click trực tiếp lên text để label xử lý */
+    .option-text { pointer-events: none; }
+    
+    #timer { min-width: 110px; font-family: 'Monaco', 'Consolas', monospace; letter-spacing: 1px; }
+
+    .magnifier-container {
+        position: relative;
+        cursor: zoom-in;
+        max-width: 1100px; /* Độ rộng tối đa của khung ảnh */
+        margin: 0 auto;
+        display: block;
+    }
+
+    .magnifier-img {
+        width: 100%;
+        height: auto;
+        max-height: 800px;
+        object-fit: contain;
+        transition: transform 0.1s ease-out; /* Phản hồi nhanh theo tay người dùng */
+        transform-origin: center center;
+    }
+
+    /* Hiệu ứng khi hover */
+    .magnifier-container:hover .magnifier-img {
+        transform: scale(2.5); /* Độ phóng to (2.5 lần) */
+    }
+
+    #examForm .card {
+        border: 2px solid #e9ecef !important; /* Viền bao ngoài rõ nét */
+        border-left: 6px solid #dee2e6 !important; /* Thanh màu bên trái để phân định block câu hỏi */
+        transition: all 0.3s ease-in-out;
+        border-radius: 12px !important;
+        margin-bottom: 2.5rem !important; /* Tăng khoảng cách giữa các câu */
+        background-color: #fff;
+    }
+
+    /* 2. Hiệu ứng nổi bật khi rê chuột hoặc tập trung vào câu hỏi */
+    #examForm .card:hover {
+        border-color: #0d6efd !important;
+        border-left-color: #0d6efd !important; /* Đổi màu thanh bên trái sang màu xanh chủ đạo */
+        transform: translateY(-4px); /* Nhấc nhẹ card lên */
+        box-shadow: 0 12px 24px rgba(13, 110, 253, 0.1) !important; /* Đổ bóng xanh nhẹ */
+    }
+
+    /* 3. Phân biệt phần đề bài (Header) và phần trả lời (Body) */
+    .card-header {
+        background-color: #f8f9fa !important; /* Nền xám cực nhẹ cho phần đề bài */
+        border-bottom: 1px solid #f1f3f5 !important;
+        padding: 1.5rem !important;
+    }
+
+    /* 4. Tùy chỉnh các Option trắc nghiệm */
+    .option-item {
+        border: 2px solid #f1f3f5 !important;
+        background-color: #fff;
+        transition: all 0.2s ease;
+    }
+
+    .option-item:hover {
+        border-color: #0d6efd !important;
+        background-color: #f0f7ff;
+    }
+
+    /* Highlight đáp án khi được chọn */
+    .option-item:has(input:checked) {
+        border-color: #0d6efd !important;
+        background-color: #e7f1ff;
+        border-left: 5px solid #0d6efd !important; /* Thêm gạch xanh cho đáp án đã chọn */
+    }
+
+    .option-item input:checked + .option-text {
+        color: #0d6efd !important;
+        font-weight: 600;
+    }
+
+    /* 5. Tùy chỉnh vùng Tải ảnh và Tự luận */
+    .upload-area {
+        border: 2px dashed #dee2e6 !important;
+        background-color: #fafbfc;
+    }
+
+    .form-control:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.05);
+    }
+
+
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-    let duration = {{ exam.duration_minutes }} * 60;
+    let totalSeconds = {{ exam.duration_minutes }} * 60;
+    let timeLeft = totalSeconds;
     const timerDisplay = document.getElementById('timer');
+    const timerProgress = document.getElementById('timerProgress');
     const form = document.getElementById('examForm');
 
     const countdown = setInterval(() => {
-        let mins = Math.floor(duration / 60);
-        let secs = duration % 60;
+        let mins = Math.floor(timeLeft / 60);
+        let secs = timeLeft % 60;
         
         timerDisplay.innerHTML = `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
         
-        if (duration <= 0) {
-            clearInterval(countdown);
-            alert("Hết giờ! Hệ thống sẽ tự động nộp bài.");
-            form.submit();
+        // Cập nhật thanh thời gian
+        let percent = (timeLeft / totalSeconds) * 100;
+        timerProgress.style.width = percent + '%';
+
+        // Đổi màu khi sắp hết giờ (dưới 5 phút)
+        if (timeLeft < 300) {
+            timerProgress.classList.add('bg-danger');
         }
-        duration--;
+
+        if (timeLeft <= 0) {
+            clearInterval(countdown);
+            window.onbeforeunload = null;
+            Swal.fire({
+                title: 'Hết giờ làm bài!',
+                text: 'Hệ thống đang tự động nộp bài của bạn...',
+                icon: 'warning',
+                showConfirmButton: false,
+                timer: 2000
+            }).then(() => form.submit());
+        }
+        timeLeft--;
     }, 1000);
 
-    // Chống F5/Thoát trang đột ngột
+    function confirmSubmit() {
+        Swal.fire({
+            title: 'Nộp bài thi?',
+            text: "Bạn chắc chắn đã kiểm tra kỹ các câu trả lời?",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#0d6efd',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Đồng ý nộp bài',
+            cancelButtonText: 'Hủy'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.onbeforeunload = null;
+                form.submit();
+            }
+        });
+    }
+
+    // Cảnh báo khi vô tình thoát trang
     window.onbeforeunload = function() {
-        return "Bạn có chắc chắn muốn rời khỏi bài thi? Kết quả có thể không được lưu.";
+        return "Dữ liệu bài làm của bạn có thể không được lưu nếu bạn rời khỏi trang này!";
     };
-    form.onsubmit = function() { window.onbeforeunload = null; };
+</script>
+<script>
+    function zoom(e) {
+        const container = e.currentTarget;
+        const img = container.querySelector('.magnifier-img');
+        
+        // Lấy kích thước và vị trí của container
+        const { left, top, width, height } = container.getBoundingClientRect();
+        
+        // Tính toán vị trí chuột tương đối bên trong container (tính bằng %)
+        const x = ((e.pageX - left - window.pageXOffset) / width) * 100;
+        const y = ((e.pageY - top - window.pageYOffset) / height) * 100;
+        
+        // Thay đổi tâm phóng to theo vị trí chuột
+        img.style.transformOrigin = `${x}% ${y}%`;
+    }
+
+    function resetZoom(e) {
+        const img = e.currentTarget.querySelector('.magnifier-img');
+        img.style.transformOrigin = `center center`;
+    }
 </script>
 {% endblock %}

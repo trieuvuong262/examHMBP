@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4 px-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb shadow-sm p-3 bg-white rounded border-0">
+            <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}" class="text-decoration-none">Bảng điều khiển</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'exam_edit' exam.id %}" class="text-decoration-none text-primary">Chỉnh sửa kỳ thi</a></li>
+            <li class="breadcrumb-item active fw-bold">{{ title }}</li>
+        </ol>
+    </nav>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-11">
+            <form method="post" enctype="multipart/form-data" id="questionForm">
+                {% csrf_token %}
+                
+                <div class="card shadow border-0 mb-4">
+                    <div class="card-header bg-dark text-white p-3">
+                        <h5 class="mb-0 fw-bold"><i class="bi bi-pencil-square me-2"></i>{{ title }}</h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="row">
+                            <div class="col-md-7 border-end">
+                                <h6 class="text-primary fw-bold mb-3 border-bottom pb-2">Thông tin chung</h6>
+                                
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <label class="form-label fw-bold small text-secondary mb-0">Năng lực / Danh mục</label>
+                                        <button type="button" class="btn btn-sm btn-link text-decoration-none p-0" data-bs-toggle="modal" data-bs-target="#compModal">
+                                            <i class="bi bi-gear-fill me-1"></i>Thiết lập danh mục
+                                        </button>
+                                    </div>
+                                    {{ form.competency }}
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold small text-secondary">Nội dung câu hỏi / Yêu cầu bài thi</label>
+                                    {{ form.content }}
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-7 mb-3">
+                                        <label class="form-label fw-bold small text-secondary">Loại hình trả lời</label>
+                                        {{ form.q_type }}
+                                    </div>
+                                    <div class="col-md-5 mb-3">
+                                        <label class="form-label fw-bold small text-secondary">Thang điểm</label>
+                                        {{ form.points }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-5 ps-4 text-center">
+                                <h6 class="text-primary fw-bold mb-3 border-bottom pb-2">Hình ảnh đính kèm</h6>
+                                <div class="mb-3">
+                                    {{ form.image_hint }}
+                                    <div class="form-text x-small text-muted mt-2">Định dạng hỗ trợ: JPG, PNG, GIF</div>
+                                </div>
+                                <div id="image-preview-container" class="border rounded p-3 bg-light d-flex align-items-center justify-content-center" style="min-height: 250px;">
+                                    {% if form.instance.image_hint %}
+                                        <img src="{{ form.instance.image_hint.url }}" id="preview-img" class="img-fluid rounded shadow-sm" style="max-height: 230px;">
+                                    {% else %}
+                                        <div class="text-muted small" id="no-img-text">
+                                            <i class="bi bi-card-image display-1 d-block opacity-25"></i>
+                                            Chưa có ảnh minh họa
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="choices-section" class="card shadow border-0 mb-4 animate__animated animate__fadeIn">
+                    <div class="card-header bg-secondary text-white py-2">
+                        <h6 class="mb-0 fw-bold"><i class="bi bi-list-check me-2"></i>Thiết lập đáp án trắc nghiệm</h6>
+                    </div>
+                    <div class="card-body">
+                        {{ choices.management_form }}
+                        <div class="table-responsive">
+                            <table class="table table-borderless align-middle">
+                                <thead>
+                                    <tr class="small text-muted text-uppercase">
+                                        <th style="width: 80px;" class="text-center">Đúng?</th>
+                                        <th>Nội dung đáp án</th>
+                                        <th style="width: 80px;" class="text-center">Xóa</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for choice_form in choices %}
+                                    <tr>
+                                        <td class="text-center">
+                                            {{ choice_form.is_correct }}
+                                        </td>
+                                        <td>
+                                            {{ choice_form.id }}
+                                            {{ choice_form.text }}
+                                        </td>
+                                        <td class="text-center">
+                                            {{ choice_form.DELETE }}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 mb-5">
+                    <button type="submit" class="btn btn-success px-5 py-2 shadow-sm fw-bold">
+                        <i class="bi bi-save2 me-2"></i>Lưu câu hỏi
+                    </button>
+                    <a href="{% url 'exam_edit' exam.id %}" class="btn btn-outline-secondary px-4">Hủy bỏ</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="compModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-tag-fill me-2"></i>Quản lý Năng lực</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <label class="form-label fw-bold small">Thêm mới</label>
+                <div class="input-group mb-4 shadow-sm">
+                    <input type="text" id="newCompName" class="form-control" placeholder="Tên năng lực...">
+                    <button class="btn btn-success" type="button" id="btnAddComp">Thêm</button>
+                </div>
+                
+                <label class="form-label fw-bold small">Danh sách hiện tại</label>
+                <div id="compScrollArea" class="border rounded bg-light" style="max-height: 250px; overflow-y: auto;">
+                    <ul class="list-group list-group-flush" id="modalCompList">
+                        {% for c in competencies %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center py-2 bg-transparent">
+                            <span class="small fw-semibold">{{ c.name }}</span>
+                            <button type="button" class="btn btn-sm btn-link text-danger btn-del-comp p-0" data-id="{{ c.id }}">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .x-small { font-size: 0.75rem; }
+    .form-control:focus, .form-select:focus { border-color: #198754; box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.1); }
+    .list-group-item:hover { background-color: rgba(0,0,0,0.02) !important; }
+</style>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document).ready(function() {
+    /** 1. LOGIC ẨN/HIỆN ĐÁP ÁN TRẮC NGHIỆM **/
+    function toggleChoices() {
+        const qType = $('select[name="q_type"]').val();
+        // Ẩn nếu là 'Tự luận' (essay) hoặc 'Trả lời bằng ảnh' (image_upload)
+        const noChoiceTypes = ['essay', 'image_upload'];
+
+        if (noChoiceTypes.includes(qType)) {
+            $('#choices-section').hide();
+        } else {
+            $('#choices-section').show();
+        }
+    }
+    
+    $('select[name="q_type"]').on('change', toggleChoices);
+    toggleChoices(); // Chạy khi load trang
+
+    /** 2. AJAX QUẢN LÝ NĂNG LỰC **/
+    $('#btnAddComp').on('click', function() {
+        const name = $('#newCompName').val();
+        if(!name) return;
+
+        $.ajax({
+            url: "{% url 'competency_add_ajax' %}",
+            method: "POST",
+            data: { 'name': name, 'csrfmiddlewaretoken': '{{ csrf_token }}' },
+            success: function(res) {
+                if(res.status === 'success') {
+                    $('#modalCompList').prepend(`
+                        <li class="list-group-item d-flex justify-content-between align-items-center py-2 bg-transparent">
+                            <span class="small fw-semibold">${res.name}</span>
+                            <button type="button" class="btn btn-sm btn-link text-danger btn-del-comp p-0" data-id="${res.id}"><i class="bi bi-trash"></i></button>
+                        </li>
+                    `);
+                    $('select[name="competency"]').append(`<option value="${res.id}">${res.name}</option>`);
+                    $('#newCompName').val('');
+                }
+            }
+        });
+    });
+
+    $(document).on('click', '.btn-del-comp', function() {
+        const id = $(this).data('id');
+        const item = $(this).closest('li');
+        if(!confirm("Xóa năng lực này?")) return;
+
+        $.ajax({
+            url: `/dashboard/competency/delete/${id}/`,
+            method: "POST",
+            data: { 'csrfmiddlewaretoken': '{{ csrf_token }}' },
+            success: function(res) {
+                if(res.status === 'success') {
+                    item.remove();
+                    $(`select[name="competency"] option[value="${id}"]`).remove();
+                }
+            }
+        });
+    });
+
+    /** 3. PREVIEW ẢNH KHI CHỌN FILE **/
+    $('input[name="image_hint"]').on('change', function() {
+        const file = this.files[0];
+        if (file) {
+            let reader = new FileReader();
+            reader.onload = function(e) {
+                $('#no-img-text').hide();
+                if($('#preview-img').length) {
+                    $('#preview-img').attr('src', e.target.result);
+                } else {
+                    $('#image-preview-container').html(`<img src="${e.target.result}" id="preview-img" class="img-fluid rounded shadow-sm" style="max-height: 230px;">`);
+                }
+            }
+            reader.readAsDataURL(file);
+        }
+    });
+});
+</script>
+{% endblock %}
