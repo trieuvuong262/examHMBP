@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center bg-light p-3 sticky-top shadow-sm">
+        <h4>{{ exam.title }}</h4>
+        <div id="timer" class="badge bg-danger fs-5">00:00</div>
+    </div>
+
+    <form id="examForm" method="POST" enctype="multipart/form-data" class="mt-4">
+        {% csrf_token %}
+        
+        {% for q in questions %}
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Câu {{ forloop.counter }}: {{ q.content }}</h5>
+                {% if q.image_hint %}
+                    <img src="{{ q.image_hint.url }}" class="img-fluid mb-3" style="max-height: 300px;">
+                {% endif %}
+
+                <hr>
+
+                {% if q.q_type == 'single' %}
+                    {% for choice in q.choices.all %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q_{{ q.id }}" value="{{ choice.id }}">
+                        <label class="form-check-label">{{ choice.text }}</label>
+                    </div>
+                    {% endfor %}
+
+                {% elif q.q_type == 'multiple' %}
+                    {% for choice in q.choices.all %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="q_{{ q.id }}" value="{{ choice.id }}">
+                        <label class="form-check-label">{{ choice.text }}</label>
+                    </div>
+                    {% endfor %}
+
+                {% elif q.q_type == 'essay' %}
+                    <textarea class="form-control" name="q_{{ q.id }}" rows="4" placeholder="Nhập câu trả lời của bạn..."></textarea>
+
+                {% elif q.q_type == 'image' %}
+                    <div class="input-group">
+                        <input type="file" class="form-control" name="q_{{ q.id }}" accept="image/*">
+                    </div>
+                    <small class="text-muted">Chụp ảnh thao tác thực hành hoặc kết quả.</small>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+
+        <button type="submit" class="btn btn-primary btn-lg w-100">Nộp bài thi</button>
+    </form>
+</div>
+
+<script>
+    let duration = {{ exam.duration_minutes }} * 60;
+    const timerDisplay = document.getElementById('timer');
+    const form = document.getElementById('examForm');
+
+    const countdown = setInterval(() => {
+        let mins = Math.floor(duration / 60);
+        let secs = duration % 60;
+        
+        timerDisplay.innerHTML = `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        
+        if (duration <= 0) {
+            clearInterval(countdown);
+            alert("Hết giờ! Hệ thống sẽ tự động nộp bài.");
+            form.submit();
+        }
+        duration--;
+    }, 1000);
+
+    // Chống F5/Thoát trang đột ngột
+    window.onbeforeunload = function() {
+        return "Bạn có chắc chắn muốn rời khỏi bài thi? Kết quả có thể không được lưu.";
+    };
+    form.onsubmit = function() { window.onbeforeunload = null; };
+</script>
+{% endblock %}

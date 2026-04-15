@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Danh sách kỳ thi năng lực</h2>
+    <div class="row">
+        {% for exam in active_exams %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title text-primary">{{ exam.title }}</h5>
+                    <p class="card-text text-muted">{{ exam.description|truncatewords:20 }}</p>
+                    <ul class="list-unstyled small">
+                        <li><strong>⏱ Thời gian:</strong> {{ exam.duration_minutes }} phút</li>
+                        <li><strong>📅 Kết thúc:</strong> {{ exam.end_time|date:"H:i d/m/Y" }}</li>
+                    </ul>
+                </div>
+                <div class="card-footer bg-white border-0">
+                    {% if exam.id in completed_exam_ids %}
+                        <button class="btn btn-secondary w-100" disabled>Đã hoàn thành</button>
+                    {% else %}
+                        <a href="{% url 'take_exam' exam.id %}" class="btn btn-success w-100">Bắt đầu thi ngay</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info">Hiện không có kỳ thi nào đang diễn ra.</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5 text-center">
+    <div class="card shadow p-5">
+        <h2 class="text-success">Nộp bài thành công!</h2>
+        <p class="lead">Cảm ơn {{ request.user.get_full_name }}, bài làm của bạn đã được ghi nhận.</p>
+        <div class="alert alert-info">
+            Điểm trắc nghiệm tạm thời: <strong>{{ submission.auto_score }}</strong><br>
+            <small>* Các câu hỏi tự luận và hình ảnh sẽ được hội đồng chuyên môn chấm sau.</small>
+        </div>
+        <a href="{% url 'exam_list' %}" class="btn btn-primary">Quay lại danh sách kỳ thi</a>
+    </div>
+</div>
+{% endblock %}
