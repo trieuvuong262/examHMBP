@@ -15,7 +15,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from django.utils import timezone
 from django.http import HttpResponseForbidden, JsonResponse
-
+from training.models import Course, Enrollment
 # 2. Thư viện xử lý User và Auth
 from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password # Dùng nếu muốn tạo pass mặc định khi thêm user
@@ -178,9 +178,15 @@ def take_exam(request, exam_id):
 @staff_member_required
 def admin_dashboard(request):
     now = timezone.now()
+    
+    # Lấy QuerySet cơ bản
     all_exams = Exam.objects.all().order_by('-id') 
+    all_courses = Course.objects.all().order_by('-created_at')
     
     context = {
+        # ==========================================
+        # 1. DỮ LIỆU MODULE ĐÁNH GIÁ (ASSESSMENT)
+        # ==========================================
         'total_exams': all_exams.count(),
         'active_exams_count': all_exams.filter(is_active=True, end_time__gt=now).count(),
         'total_users': User.objects.count(),
@@ -188,11 +194,34 @@ def admin_dashboard(request):
         'exams': all_exams,  # THÊM DÒNG NÀY ĐỂ FIX LỖI Failed lookup for key [exams]
         'recent_exams': all_exams[:5],
         'recent_submissions': ExamSubmission.objects.filter(is_completed=True).order_by('-submitted_at')[:5],
+        
+        # ==========================================
+        # 2. DỮ LIỆU MODULE ĐÀO TẠO (TRAINING)
+        # ==========================================
+        'total_courses': all_courses.count(),
+        'active_learners': Enrollment.objects.filter(is_completed=False).count(),
+        'completed_learners': Enrollment.objects.filter(is_completed=True).count(),
+        'recent_courses': all_courses[:5],
     }
     return render(request, 'assessment/admin/dashboard.html', context)
 
+import json
+from django.contrib.auth.models import User
+# (Nhớ đảm bảo bạn đã import các thư viện trên ở đầu file nhé)
+
 @staff_member_required
 def exam_create(request):
+    # 1. TẠO TỪ ĐIỂN MAP ID_NHÂN_VIÊN VÀ CHỨC DANH
+    user_positions = {}
+    users = User.objects.select_related('profile').all()
+    for u in users:
+        try:
+            if hasattr(u, 'profile') and u.profile.position:
+                user_positions[str(u.id)] = u.profile.position
+        except:
+            pass
+
+    # 2. XỬ LÝ FORM NHƯ CŨ
     if request.method == 'POST':
         form = ExamForm(request.POST)
         if form.is_valid():
@@ -203,7 +232,15 @@ def exam_create(request):
             print("Lỗi Form Exam:", form.errors)
     else:
         form = ExamForm()
-    return render(request, 'assessment/admin/exam_form.html', {'form': form, 'title': 'Tạo kỳ thi mới'})
+        
+    # 3. ĐÓNG GÓI VÀ TRUYỀN DỮ LIỆU RA GIAO DIỆN
+    context = {
+        'form': form, 
+        'title': 'Tạo kỳ thi mới',
+        'user_positions_json': json.dumps(user_positions)  # Thêm dòng này
+    }
+    
+    return render(request, 'assessment/admin/exam_form.html', context)
 
 # assessment/views.py
 

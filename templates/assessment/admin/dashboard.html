@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container-fluid mt-4 px-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+<div class="container-fluid mt-4 px-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
         <div>
             <h2 class="fw-bold text-dark mb-1"><i class="bi bi-speedometer2 me-2"></i>Bảng điều khiển Quản trị</h2>
-            <p class="text-muted small mb-0">Hệ thống đánh giá năng lực & Quản lý nhân sự nội bộ</p>
+            <p class="text-muted small mb-0">Hệ thống Đánh giá năng lực & Đào tạo nhân sự nội bộ</p>
         </div>
         <div class="btn-group shadow-sm">
             <a href="{% url 'exam_create' %}" class="btn btn-primary">
@@ -17,6 +17,8 @@
         </div>
     </div>
 
+    <h5 class="fw-bold mb-3 text-primary"><i class="bi bi-journal-check me-2"></i>Tổng quan Đánh giá năng lực</h5>
+    
     <div class="row g-3 mb-4">
         <div class="col-md-3">
             <div class="card border-0 shadow-sm bg-primary text-white p-3 h-100">
@@ -64,9 +66,9 @@
         </div>
     </div>
 
-    <div class="card shadow-sm border-0">
+    <div class="card shadow-sm border-0 mb-5">
         <div class="card-header bg-white py-3">
-            <h5 class="mb-0 fw-bold text-secondary"><i class="bi bi-list-ul me-2"></i>Danh sách kỳ thi hiện có</h5>
+            <h6 class="mb-0 fw-bold text-secondary"><i class="bi bi-list-ul me-2"></i>Danh sách kỳ thi hiện có</h6>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -122,6 +124,116 @@
                             <td colspan="5" class="text-center py-5">
                                 <i class="bi bi-clipboard-x display-4 text-muted opacity-25"></i>
                                 <p class="text-muted mt-3">Chưa có kỳ thi nào. Nhấn "Thêm kỳ thi" để bắt đầu.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold text-success mb-0"><i class="bi bi-mortarboard-fill me-2"></i>Tổng quan Đào tạo trực tuyến</h5>
+        <div class="btn-group shadow-sm">
+            <a href="{% url 'course_create' %}" class="btn btn-success">
+                <i class="bi bi-plus-lg me-1"></i> Thêm Khóa học
+            </a>
+            <a href="/admin/training/course/" class="btn btn-outline-success bg-white border-start">
+                <i class="bi bi-list-task me-1"></i> Quản lý Khóa học
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm border-start border-success border-4 h-100 p-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small text-muted fw-bold text-uppercase">Tổng số Khóa học</div>
+                        <h3 class="fw-bold text-dark mb-0 mt-1">{{ total_courses|default:"0" }}</h3>
+                    </div>
+                    <div class="bg-success-soft p-3 rounded-circle text-success d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                        <i class="bi bi-book fs-3"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm border-start border-warning border-4 h-100 p-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small text-muted fw-bold text-uppercase">Học viên đang học</div>
+                        <h3 class="fw-bold text-dark mb-0 mt-1">{{ active_learners|default:"0" }}</h3>
+                    </div>
+                    <div class="bg-warning text-dark p-3 rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px; --bs-bg-opacity: .2;">
+                        <i class="bi bi-person-video3 fs-3"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm border-start border-primary border-4 h-100 p-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small text-muted fw-bold text-uppercase">Chứng nhận đã cấp</div>
+                        <h3 class="fw-bold text-dark mb-0 mt-1">{{ completed_learners|default:"0" }}</h3>
+                    </div>
+                    <div class="bg-primary text-primary p-3 rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px; --bs-bg-opacity: .12;">
+                        <i class="bi bi-award fs-3"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3">
+            <h6 class="mb-0 fw-bold text-secondary"><i class="bi bi-clock-history me-2"></i>Khóa học cập nhật gần đây</h6>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4" style="width: 40%">Tên Khóa học</th>
+                            <th>Danh mục</th>
+                            <th class="text-center">Trạng thái</th>
+                            <th class="text-end pe-4">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for course in recent_courses %}
+                        <tr>
+                            <td class="ps-4">
+                                <div class="fw-bold text-dark">{{ course.title }}</div>
+                                <div class="x-small text-muted">Ngày tạo: {{ course.created_at|date:"d/m/Y" }}</div>
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-primary border">{{ course.category.name|default:"Chung" }}</span>
+                            </td>
+                            <td class="text-center">
+                                {% if course.is_active %}
+                                    <span class="badge rounded-pill bg-success-soft text-success">
+                                        <i class="bi bi-check-circle-fill me-1" style="font-size: 0.5rem;"></i> Hoạt động
+                                    </span>
+                                {% else %}
+                                    <span class="badge rounded-pill bg-secondary-soft text-secondary">
+                                        <i class="bi bi-eye-slash-fill me-1"></i> Ẩn
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end pe-4">
+                                <a href="/admin/training/course/{{ course.id }}/change/" class="btn btn-sm btn-outline-success" title="Quản lý cấu trúc bài học">
+                                    <i class="bi bi-gear"></i> Cấu hình
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center py-5">
+                                <i class="bi bi-folder-x display-4 text-muted opacity-25"></i>
+                                <p class="text-muted mt-3">Chưa có khóa học nào được tạo.</p>
                             </td>
                         </tr>
                         {% endfor %}

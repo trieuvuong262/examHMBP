@@ -71,11 +71,11 @@
                             </button>
                         {% endif %}
                     {% elif item.status == 'in_progress' %}
-                        <a href="#" class="btn btn-primary w-100 fw-bold shadow-sm">
+                        <a href="{% url 'course_start' item.course.id %}" class="btn btn-primary w-100 fw-bold shadow-sm">
                             <i class="bi bi-play-circle-fill me-2"></i>Tiếp tục học
                         </a>
                     {% else %}
-                        <a href="#" class="btn btn-outline-primary w-100 fw-bold shadow-sm">
+                        <a href="{% url 'course_start' item.course.id %}" class="btn btn-outline-primary w-100 fw-bold shadow-sm">
                             Bắt đầu học ngay
                         </a>
                     {% endif %}

@@ -3,7 +3,7 @@ from . import views
 
 urlpatterns = [
     # --- Dành cho nhân viên ---
-    path('exams/', views.exam_list, name='exam_list'),
+    path('', views.exam_list, name='exam_list'),
     path('exams/<int:exam_id>/take/', views.take_exam, name='take_exam'),
     
     # --- Dành cho Admin (Dashboard & Kỳ thi) ---

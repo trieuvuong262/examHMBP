@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="bg-dark text-white p-3 sticky-top" style="z-index: 1020;">
+    <div class="container-fluid d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center">
+            <a href="{% url 'my_courses' %}" class="btn btn-sm btn-outline-light me-3"><i class="bi bi-arrow-left"></i> Thoát</a>
+            <h5 class="mb-0 fw-bold">{{ course.title }}</h5>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+            <span class="small fw-bold" id="progress-text">{{ enrollment.progress_percent }}% Hoàn thành</span>
+            <div class="progress" style="width: 150px; height: 10px;">
+                <div class="progress-bar bg-success" id="top-progress-bar" style="width: {{ enrollment.progress_percent }}%"></div>
+            </div>
+            {% if course.final_exam %}
+                <a href="{% url 'take_exam' course.final_exam.id %}" id="exam-btn" class="btn btn-sm btn-danger fw-bold {% if enrollment.progress_percent < 100 %}d-none{% endif %}">
+                    <i class="bi bi-pencil-square me-1"></i>Làm bài thi cuối khóa
+                </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid p-0">
+    <div class="row g-0" style="min-height: calc(100vh - 70px);">
+        <div class="col-lg-8 col-xl-9 bg-light p-4 overflow-auto">
+            {% if current_lesson %}
+                <div class="bg-white p-4 rounded shadow-sm border mb-4">
+                    <h3 class="fw-bold mb-3">{{ current_lesson.title }}</h3>
+                    <hr>
+                    
+                    {% if current_lesson.lesson_type == 'video' and current_lesson.video_url %}
+                        <div class="ratio ratio-16x9 bg-dark rounded mb-4">
+                            <iframe src="{{ current_lesson.video_url }}" allowfullscreen class="rounded"></iframe>
+                        </div>
+                    {% endif %}
+
+                    {% if current_lesson.lesson_type == 'pdf' and current_lesson.attachment %}
+                        <div class="mb-4">
+                            <a href="{{ current_lesson.attachment.url }}" target="_blank" class="btn btn-outline-primary mb-3">
+                                <i class="bi bi-file-earmark-pdf me-1"></i>Mở tài liệu PDF ở tab mới
+                            </a>
+                        </div>
+                    {% endif %}
+
+                    {% if current_lesson.content %}
+                        <div class="fs-5 lh-lg text-dark">
+                            {{ current_lesson.content|safe }}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="d-flex justify-content-between bg-white p-3 rounded shadow-sm border border-top-0 border-primary border-4">
+                    <div>
+                        {% if current_lesson.id in completed_lesson_ids %}
+                            <button class="btn btn-success fw-bold disabled">
+                                <i class="bi bi-check-circle-fill me-2"></i>Đã hoàn thành bài này
+                            </button>
+                        {% else %}
+                            <button id="btn-complete" class="btn btn-primary fw-bold" onclick="markComplete({{ current_lesson.id }})">
+                                <i class="bi bi-circle me-2"></i>Đánh dấu hoàn thành
+                            </button>
+                        {% endif %}
+                    </div>
+                    <div>
+                        {% if next_lesson %}
+                            <a href="{% url 'learning_space' course.id next_lesson.id %}" class="btn btn-outline-dark fw-bold">
+                                Bài tiếp theo <i class="bi bi-chevron-right ms-1"></i>
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <h4 class="text-muted">Khóa học này chưa có nội dung.</h4>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-4 col-xl-3 bg-white border-start overflow-auto" style="height: calc(100vh - 70px);">
+            <div class="p-3 bg-light border-bottom sticky-top">
+                <h6 class="fw-bold mb-0 text-uppercase text-secondary">Nội dung khóa học</h6>
+            </div>
+            
+            <div class="accordion accordion-flush" id="courseAccordion">
+                {% for chapter in chapters %}
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button fw-bold bg-white" type="button" data-bs-toggle="collapse" data-bs-target="#chapter{{ chapter.id }}">
+                            Chương {{ forloop.counter }}: {{ chapter.title }}
+                        </button>
+                    </h2>
+                    <div id="chapter{{ chapter.id }}" class="accordion-collapse collapse show">
+                        <div class="accordion-body p-0">
+                            <ul class="list-group list-group-flush">
+                                {% for lesson in chapter.lessons.all %}
+                                <a href="{% url 'learning_space' course.id lesson.id %}" 
+                                   class="list-group-item list-group-item-action py-3 {% if current_lesson.id == lesson.id %}bg-primary-subtle border-start border-primary border-4{% endif %}">
+                                    <div class="d-flex align-items-center">
+                                        <div class="me-3">
+                                            {% if lesson.id in completed_lesson_ids %}
+                                                <i class="bi bi-check-circle-fill text-success fs-5"></i>
+                                            {% else %}
+                                                {% if lesson.lesson_type == 'video' %}<i class="bi bi-play-circle text-muted fs-5"></i>
+                                                {% elif lesson.lesson_type == 'pdf' %}<i class="bi bi-file-pdf text-muted fs-5"></i>
+                                                {% else %}<i class="bi bi-file-text text-muted fs-5"></i>{% endif %}
+                                            {% endif %}
+                                        </div>
+                                        <div>
+                                            <div class="small fw-bold text-dark">{{ lesson.title }}</div>
+                                            <div class="text-muted" style="font-size: 0.75rem;">{{ lesson.duration_estimate }} phút</div>
+                                        </div>
+                                    </div>
+                                </a>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    function markComplete(lessonId) {
+        $.ajax({
+            url: `/training/lesson/${lessonId}/complete/`,
+            method: "POST",
+            data: { 'csrfmiddlewaretoken': '{{ csrf_token }}' },
+            success: function(res) {
+                if(res.status === 'success') {
+                    // 1. Đổi nút thành "Đã hoàn thành"
+                    const btn = $('#btn-complete');
+                    btn.removeClass('btn-primary').addClass('btn-success disabled');
+                    btn.html('<i class="bi bi-check-circle-fill me-2"></i>Đã hoàn thành bài này');
+
+                    // 2. Cập nhật thanh Progress trên Navbar
+                    $('#top-progress-bar').css('width', res.progress_percent + '%');
+                    $('#progress-text').text(res.progress_percent + '% Hoàn thành');
+
+                    // 3. Đánh dấu tích xanh ở cột phải (TOC)
+                    // Cần load lại trang hoặc có thể dùng JS để đổi icon (load lại trang sẽ an toàn và dễ làm nhất)
+                    setTimeout(() => location.reload(), 800);
+                }
+            }
+        });
+    }
+</script>
+{% endblock %}

@@ -2,12 +2,14 @@
 
 {% block content %}
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css"
+    rel="stylesheet" />
 
 <div class="container-fluid mt-4 px-4">
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb shadow-sm p-3 bg-white rounded border-0">
-            <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}" class="text-decoration-none">Bảng điều khiển</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}" class="text-decoration-none">Bảng điều
+                    khiển</a></li>
             <li class="breadcrumb-item active fw-bold">{{ title }}</li>
         </ol>
     </nav>
@@ -21,31 +23,61 @@
                 <div class="card-body">
                     <form method="post" id="examMainForm">
                         {% csrf_token %}
-                        
+
                         {% if form.non_field_errors %}
-                            <div class="alert alert-danger small">{{ form.non_field_errors }}</div>
+                        <div class="alert alert-danger small">{{ form.non_field_errors }}</div>
                         {% endif %}
 
                         {% for field in form %}
-                            {% if field.name != 'questions' and field.name != 'assigned_users' %}
-                            <div class="mb-3">
-                                <label class="form-label fw-bold small text-secondary">{{ field.label }}</label>
-                                {{ field }}
-                                {% if field.errors %}
-                                    <div class="text-danger fw-bold mt-1" style="font-size: 0.75rem;">
-                                        {% for error in field.errors %}<i class="bi bi-x-circle"></i> {{ error }}{% endfor %}
-                                    </div>
-                                {% endif %}
+                        {% if field.name != 'questions' and field.name != 'assigned_users' %}
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-secondary">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.errors %}
+                            <div class="text-danger fw-bold mt-1" style="font-size: 0.75rem;">
+                                {% for error in field.errors %}<i class="bi bi-x-circle"></i> {{ error }}{% endfor %}
                             </div>
                             {% endif %}
+                        </div>
+                        {% endif %}
                         {% endfor %}
+                        <div class="mb-3 border-top pt-4 mt-4">
+                            <label class="form-label fw-bold text-primary mb-3">
+                                <i class="bi bi-person-check-fill me-1"></i>Chỉ định nhân viên dự thi
+                            </label>
 
-                        <div class="mb-3 border-top pt-3">
-                            <label class="form-label fw-bold text-primary"><i class="bi bi-person-check-fill me-1"></i>Chỉ định nhân viên dự thi</label>
+                            <div class="mb-3 p-3 bg-light rounded border border-info-subtle">
+                                <div class="x-small text-muted mb-2 fw-bold">
+                                    <i class="bi bi-lightning-charge-fill text-warning me-1"></i>CHỌN NHANH THEO NHÓM:
+                                </div>
+                                <div class="d-flex flex-wrap gap-2">
+                                    <button type="button"
+                                        class="btn btn-sm btn-outline-primary btn-quick-select shadow-sm"
+                                        data-pos="Bác Sĩ">+ Bác Sĩ</button>
+                                    <button type="button"
+                                        class="btn btn-sm btn-outline-success btn-quick-select shadow-sm"
+                                        data-pos="Điều Dưỡng">+ Điều Dưỡng</button>
+                                    <button type="button" class="btn btn-sm btn-outline-info btn-quick-select shadow-sm"
+                                        data-pos="Dược Sĩ">+ Dược Sĩ</button>
+                                    <button type="button"
+                                        class="btn btn-sm btn-outline-warning text-dark btn-quick-select shadow-sm"
+                                        data-pos="Kỹ Thuật viên">+ Kỹ Thuật viên</button>
+                                    <button type="button"
+                                        class="btn btn-sm btn-outline-secondary btn-quick-select shadow-sm"
+                                        data-pos="Khối Hỗ trợ">+ Khối Hỗ trợ</button>
+
+                                    <button type="button" class="btn btn-sm btn-danger ms-auto shadow-sm"
+                                        id="btn-clear-users">
+                                        <i class="bi bi-x-circle me-1"></i>Bỏ chọn hết
+                                    </button>
+                                </div>
+                            </div>
+
                             {{ form.assigned_users }}
-                            <div class="form-text x-small text-muted mt-2">Tìm tên hoặc chức danh (Gõ để tìm kiếm).</div>
+                            <div class="form-text x-small text-muted mt-2">Tìm tên hoặc chức danh (Gõ để tìm kiếm). Nhấn
+                                các nút trên để thêm hàng loạt.</div>
                             {% if form.assigned_users.errors %}
-                                <div class="text-danger small mt-1">{{ form.assigned_users.errors }}</div>
+                            <div class="text-danger small mt-1">{{ form.assigned_users.errors }}</div>
                             {% endif %}
                         </div>
 
@@ -64,10 +96,12 @@
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center p-3">
                     <h5 class="mb-0"><i class="bi bi-list-ol me-2"></i>Câu hỏi trong đề</h5>
                     <div class="btn-group">
-                        <button type="button" class="btn btn-light btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#bankModal">
+                        <button type="button" class="btn btn-light btn-sm fw-bold" data-bs-toggle="modal"
+                            data-bs-target="#bankModal">
                             <i class="bi bi-search me-1"></i>Chọn từ ngân hàng
                         </button>
-                        <a href="{% url 'question_add' exam.id %}" class="btn btn-info btn-sm fw-bold text-white border-start">
+                        <a href="{% url 'question_add' exam.id %}"
+                            class="btn btn-info btn-sm fw-bold text-white border-start">
                             + Tạo câu mới
                         </a>
                     </div>
@@ -90,20 +124,27 @@
                                         <div class="small fw-semibold text-dark">{{ q.content|truncatewords:15 }}</div>
                                         <div class="x-small text-muted">{{ q.competency.name }}</div>
                                     </td>
-                                    <td><span class="badge bg-light text-dark border x-small">{{ q.get_q_type_display }}</span></td>
+                                    <td><span class="badge bg-light text-dark border x-small">{{ q.get_q_type_display
+                                            }}</span></td>
                                     <td class="text-center fw-bold text-primary">{{ q.points }}</td>
                                     <td class="text-end pe-3">
                                         <div class="btn-group">
-                                            <a href="{% url 'question_edit_detail' exam.id q.id %}" class="btn btn-sm btn-outline-warning">Sửa</a>
-                                            <form action="{% url 'question_remove' exam.id q.id %}" method="POST" class="d-inline">
+                                            <a href="{% url 'question_edit_detail' exam.id q.id %}"
+                                                class="btn btn-sm btn-outline-warning">Sửa</a>
+                                            <form action="{% url 'question_remove' exam.id q.id %}" method="POST"
+                                                class="d-inline">
                                                 {% csrf_token %}
-                                                <button type="submit" class="btn btn-sm btn-outline-danger border-start-0" onclick="return confirm('Gỡ câu hỏi?')">Gỡ</button>
+                                                <button type="submit"
+                                                    class="btn btn-sm btn-outline-danger border-start-0"
+                                                    onclick="return confirm('Gỡ câu hỏi?')">Gỡ</button>
                                             </form>
                                         </div>
                                     </td>
                                 </tr>
                                 {% empty %}
-                                <tr><td colspan="4" class="text-center py-5 text-muted">Đề thi chưa có câu hỏi.</td></tr>
+                                <tr>
+                                    <td colspan="4" class="text-center py-5 text-muted">Đề thi chưa có câu hỏi.</td>
+                                </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
@@ -126,12 +167,13 @@
         <div class="modal-content shadow-lg border-0" style="height: 85vh;">
             <form method="post" class="d-flex flex-column" style="height: 100%; overflow: hidden;">
                 {% csrf_token %}
-                
+
                 <div class="modal-header bg-dark text-white flex-shrink-0">
                     <h5 class="modal-title" id="bankModalLabel">
                         <i class="bi bi-database-fill me-2"></i>Ngân hàng câu hỏi hệ thống
                     </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
                 </div>
 
                 <div class="modal-body p-0 flex-grow-1" style="overflow-y: auto; background: #f8f9fa;">
@@ -149,8 +191,8 @@
                                 {% for q_bank in question_bank %}
                                 <tr>
                                     <td class="ps-4">
-                                        <input type="checkbox" name="selected_questions" value="{{ q_bank.id }}" 
-                                               class="form-check-input border-primary shadow-sm">
+                                        <input type="checkbox" name="selected_questions" value="{{ q_bank.id }}"
+                                            class="form-check-input border-primary shadow-sm">
                                     </td>
                                     <td>
                                         <div class="small fw-bold text-dark">{{ q_bank.content|truncatewords:20 }}</div>
@@ -201,34 +243,73 @@
         display: flex !important;
         flex-direction: column !important;
     }
-    
+
     /* Đảm bảo Select2 không làm vỡ giao diện cột trái */
     .select2-container--bootstrap-5 .select2-selection--multiple {
         max-height: 150px;
         overflow-y: auto;
     }
 
-    .bg-secondary-soft { background-color: rgba(108, 117, 125, 0.1); }
-    .x-small { font-size: 0.75rem; }
-    
+    .bg-secondary-soft {
+        background-color: rgba(108, 117, 125, 0.1);
+    }
+
+    .x-small {
+        font-size: 0.75rem;
+    }
+
     /* Tạo độ mượt khi cuộn */
-    .modal-body::-webkit-scrollbar { width: 6px; }
-    .modal-body::-webkit-scrollbar-thumb { background-color: #ced4da; border-radius: 10px; }
+    .modal-body::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .modal-body::-webkit-scrollbar-thumb {
+        background-color: #ced4da;
+        border-radius: 10px;
+    }
 </style>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 <script>
-$(document).ready(function() {
-    $('.select2-user').select2({
-        theme: 'bootstrap-5',
-        placeholder: ' Chọn nhân viên dự thi...',
-        allowClear: true,
-        closeOnSelect: false,
-        width: '100%'
+    $(document).ready(function () {
+        // Select2 đã có sẵn của bạn
+        $('.select2-user').select2({
+            theme: 'bootstrap-5',
+            placeholder: ' Chọn nhân viên dự thi...',
+            allowClear: true,
+            closeOnSelect: false,
+            width: '100%'
+        });
+
+        // --- SCRIPT XỬ LÝ CHỌN NHANH THÊM MỚI ---
+        const userPositions = JSON.parse('{{ user_positions_json|escapejs }}');
+
+        $('.btn-quick-select').click(function () {
+            const targetPos = $(this).data('pos');
+            const selectEl = $('.select2-user');
+
+            let currentValues = selectEl.val() || [];
+
+            for (const [userId, pos] of Object.entries(userPositions)) {
+                if (pos === targetPos && !currentValues.includes(userId)) {
+                    currentValues.push(userId);
+                }
+            }
+
+            selectEl.val(currentValues).trigger('change');
+
+            let $btn = $(this);
+            let originalText = $btn.text();
+            $btn.text('✓ Đã thêm').addClass('active');
+            setTimeout(() => { $btn.text(originalText).removeClass('active'); }, 1000);
+        });
+
+        $('#btn-clear-users').click(function () {
+            $('.select2-user').val(null).trigger('change');
+        });
     });
-});
 </script>
 
 {% endblock %}
