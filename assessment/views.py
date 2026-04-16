@@ -63,16 +63,23 @@ def exam_list(request):
         end_time__gte=now
     ).distinct()
 
-    # 2. [ĐÃ SỬA QUAN TRỌNG]: Lấy ID các bài thi ĐÃ NỘP BÀI
-    # Dùng submitted_at__isnull=False để đảm bảo hễ bấm nộp là khóa, mặc kệ Admin chấm chưa
-    completed_exam_ids = ExamSubmission.objects.filter(
+    # 2. Lấy dữ liệu nộp bài của User này
+    submissions = ExamSubmission.objects.filter(
         user=request.user, 
-        submitted_at__isnull=False 
-    ).values_list('exam_id', flat=True)
+        submitted_at__isnull=False
+    )
+
+    # 3. Tạo ID List để check trạng thái (Chưa thi/Đã thi)
+    completed_exam_ids = submissions.values_list('exam_id', flat=True)
+
+    # 4. [QUAN TRỌNG]: Tạo Map {id_bai_thi: thoi_gian_nop} để tra cứu ở HTML
+    # Dùng dictionary comprehension cho nhanh và gọn
+    submission_map = {s.exam_id: s.submitted_at for s in submissions}
 
     return render(request, 'assessment/exam_list.html', {
         'active_exams': active_exams,
-        'completed_exam_ids': completed_exam_ids
+        'completed_exam_ids': completed_exam_ids,
+        'submission_map': submission_map  # Gửi Map này sang HTML
     })
 @login_required
 def take_exam(request, exam_id):

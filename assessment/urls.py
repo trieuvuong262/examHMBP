@@ -46,4 +46,5 @@ urlpatterns = [
     path('dashboard/users/import/', views.user_import_excel, name='user_import_excel'),
     path('dashboard/users/export/', views.user_export_excel, name='user_export_excel'),
      path('dashboard/users/download-template/', views.user_download_template, name='user_download_template'),
+     path('dashboard/results/<int:exam_id>/', views.admin_results, name='admin_results'),
 ]

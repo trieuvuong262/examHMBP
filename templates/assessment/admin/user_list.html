@@ -56,9 +56,9 @@
                     <tr>
                         <td class="ps-4">
                             <div class="d-flex align-items-center">
-                                <div class="avatar-circle me-3">{{ u.first_name|first|upper }}</div>
+                                <div class="avatar-circle me-3">{{ u.profile.full_name|default:u.first_name|default:u.username|make_list|first|upper }}</div>
                                 <div>
-                                    <div class="fw-bold text-dark">{{ u.last_name }} {{ u.first_name }}</div>
+                                    <div class="fw-bold text-dark">{{ u.profile.full_name|default:u.first_name|default:u.username }}</div>
                                     {% if u.is_staff %}
                                         <span class="badge bg-danger-subtle text-danger rounded-pill x-small">Admin</span>
                                     {% else %}
@@ -107,25 +107,9 @@
         </div>
     </div>
 </div>
-{% if messages %}
-    <div class="mb-4">
-        {% for message in messages %}
-            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show shadow-sm border-0 rounded-3" role="alert">
-                <div class="d-flex align-items-center">
-                    {% if message.tags == 'success' %}
-                        <i class="bi bi-check-circle-fill text-success fs-4 me-3"></i>
-                    {% elif message.tags == 'error' or message.tags == 'danger' %}
-                        <i class="bi bi-exclamation-triangle-fill text-danger fs-4 me-3"></i>
-                    {% else %}
-                        <i class="bi bi-info-circle-fill text-info fs-4 me-3"></i>
-                    {% endif %}
-                    <strong class="mb-0">{{ message }}</strong>
-                </div>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        {% endfor %}
-    </div>
-{% endif %}
+
+
+
 <div class="modal fade" id="importExcelModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <form action="{% url 'user_import_excel' %}" method="POST" enctype="multipart/form-data" class="modal-content border-0 shadow-lg rounded-4">
@@ -152,7 +136,7 @@
                     <ul class="x-small text-dark mb-0 ps-3">
                         <li>Không thay đổi tên các cột trong file mẫu.</li>
                         <li>Trường <strong>username</strong> là duy nhất, nếu trùng sẽ tự động bỏ qua.</li>
-                        <li>Mật khẩu mặc định: <code>Hm@12345</code> (nếu để trống).</li>
+                        <li>Mật khẩu mặc định: <code>Hoanmy@123</code> (nếu để trống).</li>
                     </ul>
                 </div>
             </div>

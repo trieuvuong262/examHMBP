@@ -24,11 +24,43 @@
     /* Breadcrumb Custom */
     .breadcrumb-hm { background: white; border-radius: 12px; padding: 1rem 1.5rem; border: 1px solid #f1f5f9; }
 
-    /* Select2 Tweaks */
+    /* Custom Switch Toggle chuẩn Hoàn Mỹ */
+    .form-switch-hm .form-check-input {
+        width: 3.5rem;
+        height: 1.75rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 2px solid #ced4da;
+    }
+    .form-switch-hm .form-check-input:checked {
+        background-color: var(--hm-primary);
+        border-color: var(--hm-primary);
+    }
+    .form-switch-hm .form-check-label {
+        cursor: pointer;
+        user-select: none;
+        min-width: 120px;
+    }
+
+    /* Thẻ Tag chức danh nâng cấp */
+    .custom-tag {
+        transition: all 0.2s ease;
+        padding: 6px 14px;
+        letter-spacing: 0.3px;
+        cursor: pointer;
+    }
+    .custom-tag:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+        filter: brightness(0.95);
+    }
+
+    /* Select2 Tweaks - Fix giao diện */
     .select2-container--bootstrap-5 .select2-selection {
         border-radius: 10px;
-        border-color: #e2e8f0;
+        border: 2px solid #e2e8f0;
         min-height: 45px;
+        padding: 4px;
     }
     .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice {
         background-color: var(--hm-primary);
@@ -40,6 +72,8 @@
 
     .x-small { font-size: 0.75rem; }
     .sticky-header { position: sticky; top: 0; z-index: 100; background: white; }
+    .btn-hover-lift { transition: transform 0.2s ease; }
+    .btn-hover-lift:hover { transform: translateY(-2px); }
 </style>
 
 <div class="container-fluid mt-4 px-4 pb-5">
@@ -65,7 +99,7 @@
                         {% endif %}
 
                         {% for field in form %}
-                            {% if field.name != 'questions' and field.name != 'assigned_users' %}
+                            {% if field.name != 'questions' and field.name != 'assigned_users' and field.name != 'is_active' %}
                                 <div class="mb-3">
                                     <label class="form-label fw-bold small text-muted text-uppercase">{{ field.label }}</label>
                                     <div class="input-group-custom">
@@ -80,35 +114,72 @@
                             {% endif %}
                         {% endfor %}
 
-                        <div class="mt-4 pt-4 border-top">
-                            <label class="form-label fw-bold text-hm mb-3">
-                                <i class="bi bi-people-fill me-2"></i>ĐỐI TƯỢNG DỰ THI
-                            </label>
-
-                        <div class="p-3 rounded-4 border bg-light mb-3">
-                            <div class="x-small text-muted mb-2 fw-bold text-uppercase">Chọn nhanh theo chức danh:</div>
-                            <div class="d-flex flex-wrap gap-2">
-                                <button type="button" class="btn btn-sm btn-outline-primary btn-quick-select rounded-pill" data-pos="Bác Sĩ">Bác Sĩ</button>
-                                <button type="button" class="btn btn-sm btn-outline-success btn-quick-select rounded-pill" data-pos="Điều Dưỡng">Điều Dưỡng</button>
-                                <button type="button" class="btn btn-sm btn-outline-info btn-quick-select rounded-pill" data-pos="Dược Sĩ">Dược Sĩ</button>
-                                <button type="button" class="btn btn-sm btn-outline-warning text-dark btn-quick-select rounded-pill" data-pos="Kỹ Thuật viên">KTV</button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary btn-quick-select rounded-pill" data-pos="Khối Hỗ trợ">Khối Hỗ trợ</button>
-                                
-                                <button type="button" class="btn btn-sm btn-danger ms-auto rounded-pill px-3" id="btn-clear-users">
-                                    <i class="bi bi-trash3 me-1"></i>Xóa sạch
-                                </button>
+                        <div class="mt-4 p-3 bg-light rounded-4 border d-flex align-items-center justify-content-between">
+                            <div>
+                                <h6 class="mb-1 fw-bold text-dark"><i class="bi bi-power text-hm me-2"></i>Trạng thái kỳ thi</h6>
+                                <div class="small text-muted" style="font-size: 0.75rem;">Mở để học viên bắt đầu thi</div>
+                            </div>
+                            
+                            <div class="form-check form-switch form-switch-hm mb-0 d-flex align-items-center">
+                                <input class="form-check-input mt-0 shadow-none" type="checkbox" role="switch" id="isActiveSwitch" name="is_active" {% if exam.is_active or not exam.id %}checked{% endif %}>
+                                <label class="form-check-label fw-bold ms-3 mb-0" for="isActiveSwitch" id="statusLabel">
+                                    {% if exam.is_active or not exam.id %}
+                                        <span class="text-success"><i class="bi bi-circle-fill small me-1"></i>Đang mở</span>
+                                    {% else %}
+                                        <span class="text-secondary"><i class="bi bi-circle small me-1"></i>Đang khóa</span>
+                                    {% endif %}
+                                </label>
                             </div>
                         </div>
 
-                            {{ form.assigned_users }}
-                            <div class="form-text x-small mt-2"><i class="bi bi-info-circle me-1"></i>Gõ tên nhân viên hoặc chức danh để tìm nhanh.</div>
+                        <div class="mt-5">
+                            <h6 class="fw-bold text-dark mb-3">
+                                <i class="bi bi-person-lines-fill text-hm me-2"></i>Phân bổ Đối tượng Dự thi
+                            </h6>
+                            
+                            <div class="p-4 rounded-4 border bg-white shadow-sm">
+                                <div class="mb-4 pb-3 border-bottom border-light">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <span class="small text-muted fw-bold text-uppercase"><i class="bi bi-lightning-charge-fill text-warning me-1"></i>Chọn nhanh:</span>
+                                        <button type="button" class="btn btn-sm btn-light text-danger fw-bold rounded-pill px-3 border shadow-sm btn-hover-lift" id="btn-clear-users">
+                                            <i class="bi bi-eraser-fill me-1"></i>Xóa sạch
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <button type="button" class="btn btn-sm rounded-pill fw-bold btn-quick-select custom-tag bg-primary-subtle text-primary border border-primary-subtle" data-pos="Bác Sĩ">
+                                            <i class="bi bi-plus-circle me-1"></i>Bác Sĩ
+                                        </button>
+                                        <button type="button" class="btn btn-sm rounded-pill fw-bold btn-quick-select custom-tag bg-success-subtle text-success border border-success-subtle" data-pos="Điều Dưỡng">
+                                            <i class="bi bi-plus-circle me-1"></i>Điều Dưỡng
+                                        </button>
+                                        <button type="button" class="btn btn-sm rounded-pill fw-bold btn-quick-select custom-tag bg-info-subtle text-info border border-info-subtle" data-pos="Dược Sĩ">
+                                            <i class="bi bi-plus-circle me-1"></i>Dược Sĩ
+                                        </button>
+                                        <button type="button" class="btn btn-sm rounded-pill fw-bold btn-quick-select custom-tag bg-warning-subtle text-warning border border-warning-subtle text-dark" data-pos="Kỹ Thuật viên">
+                                            <i class="bi bi-plus-circle me-1"></i>KTV
+                                        </button>
+                                        <button type="button" class="btn btn-sm rounded-pill fw-bold btn-quick-select custom-tag bg-secondary-subtle text-secondary border border-secondary-subtle" data-pos="Khối Hỗ trợ">
+                                            <i class="bi bi-plus-circle me-1"></i>Hỗ trợ
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="select2-hm-wrapper">
+                                    <label class="form-label fw-bold small text-dark mb-2">Danh sách nhân viên dự thi <span class="text-danger">*</span></label>
+                                    {{ form.assigned_users }}
+                                    <div class="form-text x-small mt-2 text-muted">
+                                        <i class="bi bi-info-circle me-1"></i>Gõ tên hoặc chức danh để tìm kiếm.
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="d-grid gap-2 mt-5">
-                            <button type="submit" class="btn btn-hm btn-lg fw-bold rounded-3 py-3">
+                            <button type="submit" class="btn btn-hm btn-lg fw-bold rounded-3 py-3 shadow">
                                 <i class="bi bi-cloud-check me-2"></i>LƯU THÔNG TIN KỲ THI
                             </button>
-                            <a href="{% url 'admin_dashboard' %}" class="btn btn-light border py-2 text-muted fw-bold">Hủy bỏ</a>
+                            <a href="{% url 'admin_dashboard' %}?tab=assessment" class="btn btn-light border py-2 text-muted fw-bold">Hủy bỏ</a>
                         </div>
                     </form>
                 </div>
@@ -121,16 +192,16 @@
                 <div class="card-header-hm d-flex justify-content-between align-items-center">
                     <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-journal-text me-2 text-hm"></i>DANH SÁCH CÂU HỎI TRONG ĐỀ</h6>
                     <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-sm btn-outline-hm fw-bold px-3 rounded-3" data-bs-toggle="modal" data-bs-target="#bankModal">
+                        <button type="button" class="btn btn-sm btn-outline-hm fw-bold px-3 rounded-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#bankModal">
                             <i class="bi bi-database-add me-1"></i> Ngân hàng câu hỏi
                         </button>
-                        <a href="{% url 'question_add' exam.id %}" class="btn btn-sm btn-hm fw-bold px-3 rounded-3">
+                        <a href="{% url 'question_add' exam.id %}" class="btn btn-sm btn-hm fw-bold px-3 rounded-3 shadow-sm">
                             <i class="bi bi-plus-lg me-1"></i> Tạo câu mới
                         </a>
                     </div>
                 </div>
                 <div class="card-body p-0">
-                    <div class="table-responsive" style="max-height: 65vh;">
+                    <div class="table-responsive" style="max-height: 70vh;">
                         <table class="table table-hover align-middle mb-0">
                             <thead class="bg-light sticky-header shadow-sm">
                                 <tr>
@@ -145,16 +216,16 @@
                                 <tr>
                                     <td class="ps-4 py-3">
                                         <div class="fw-bold text-dark mb-1">{{ q.content|truncatewords:15 }}</div>
-                                        <div class="badge bg-primary-soft text-hm x-small fw-bold">{{ q.competency.name }}</div>
+                                        <span class="badge bg-primary-soft text-hm x-small fw-bold">{{ q.competency.name }}</span>
                                     </td>
                                     <td><span class="badge bg-white border text-muted x-small">{{ q.get_q_type_display }}</span></td>
                                     <td class="text-center"><strong class="text-hm">{{ q.points }}</strong></td>
                                     <td class="text-end pe-4">
-                                        <div class="btn-group shadow-sm rounded-3 overflow-hidden">
-                                            <a href="{% url 'question_edit_detail' exam.id q.id %}" class="btn btn-sm btn-white border"><i class="bi bi-pencil-square text-warning"></i></a>
+                                        <div class="btn-group shadow-sm rounded-3 overflow-hidden border">
+                                            <a href="{% url 'question_edit_detail' exam.id q.id %}" class="btn btn-sm btn-white"><i class="bi bi-pencil-square text-warning"></i></a>
                                             <form action="{% url 'question_remove' exam.id q.id %}" method="POST" class="d-inline">
                                                 {% csrf_token %}
-                                                <button type="submit" class="btn btn-sm btn-white border-start-0" onclick="return confirm('Gỡ câu hỏi khỏi đề?')">
+                                                <button type="submit" class="btn btn-sm btn-white border-start" onclick="return confirm('Gỡ câu hỏi khỏi đề?')">
                                                     <i class="bi bi-trash text-danger"></i>
                                                 </button>
                                             </form>
@@ -164,10 +235,8 @@
                                 {% empty %}
                                 <tr>
                                     <td colspan="4" class="text-center py-5">
-                                        <div class="py-4">
-                                            <i class="bi bi-inbox-fill display-1 text-light"></i>
-                                            <p class="text-muted mt-3 fw-bold">Chưa có câu hỏi nào được chọn cho đề thi này.</p>
-                                        </div>
+                                        <i class="bi bi-inbox-fill display-1 text-light opacity-50"></i>
+                                        <p class="text-muted mt-3 fw-bold">Đề thi chưa có câu hỏi nào.</p>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -176,15 +245,15 @@
                     </div>
                 </div>
                 <div class="card-footer bg-white py-3 border-0 text-end">
-                    <span class="text-muted small fw-bold">Tổng số câu hỏi: <span class="text-hm">{{ questions.count }}</span></span>
+                    <span class="text-muted small fw-bold">Tổng: <span class="text-hm fs-5">{{ questions.count }}</span> câu hỏi</span>
                 </div>
             </div>
             {% else %}
-            <div class="card card-hm border-dashed bg-light py-5 text-center">
+            <div class="card card-hm border-dashed bg-light py-5 text-center" style="border: 2px dashed #cbd5e1 !important;">
                 <div class="card-body">
                     <i class="bi bi-info-circle display-4 text-muted opacity-25"></i>
                     <h5 class="mt-3 fw-bold text-dark">Khởi tạo kỳ thi</h5>
-                    <p class="text-muted mx-auto" style="max-width: 400px;">Vui lòng thiết lập và lưu thông tin kỳ thi ở cột bên trái trước khi bắt đầu chọn câu hỏi từ ngân hàng.</p>
+                    <p class="text-muted mx-auto" style="max-width: 400px;">Lưu thông tin cơ bản ở cột bên trái để bắt đầu thêm câu hỏi.</p>
                 </div>
             </div>
             {% endif %}
@@ -199,10 +268,9 @@
             <form method="post" class="d-flex flex-column h-100">
                 {% csrf_token %}
                 <div class="modal-header bg-dark text-white p-4">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-database-fill-gear me-2"></i>NGÂN HÀNG CÂU HỎI HỆ THỐNG</h5>
+                    <h5 class="modal-title fw-bold"><i class="bi bi-database-fill-gear me-2 text-info"></i>NGÂN HÀNG CÂU HỎI HỆ THỐNG</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-
                 <div class="modal-body p-0 bg-light">
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0 bg-white">
@@ -218,37 +286,26 @@
                                 {% for q_bank in question_bank %}
                                 <tr>
                                     <td class="ps-4">
-                                        <div class="form-check">
-                                            <input type="checkbox" name="selected_questions" value="{{ q_bank.id }}" class="form-check-input border-primary shadow-sm">
-                                        </div>
+                                        <input type="checkbox" name="selected_questions" value="{{ q_bank.id }}" class="form-check-input border-primary">
                                     </td>
                                     <td>
                                         <div class="small fw-bold text-dark">{{ q_bank.content|truncatewords:20 }}</div>
-                                        <div class="text-muted x-small">Mức điểm: <span class="text-hm fw-bold">{{ q_bank.points }}</span></div>
+                                        <div class="text-muted x-small">Điểm: <span class="text-hm fw-bold">{{ q_bank.points }}</span></div>
                                     </td>
-                                    <td>
-                                        <span class="badge rounded-pill bg-secondary-soft text-secondary fw-bold">{{ q_bank.competency.name }}</span>
-                                    </td>
-                                    <td class="pe-4 text-end">
-                                        <span class="badge bg-light text-dark border x-small">{{ q_bank.get_q_type_display }}</span>
-                                    </td>
+                                    <td><span class="badge rounded-pill bg-secondary-subtle text-secondary fw-bold px-2">{{ q_bank.competency.name }}</span></td>
+                                    <td class="pe-4 text-end"><span class="badge bg-light text-dark border x-small">{{ q_bank.get_q_type_display }}</span></td>
                                 </tr>
                                 {% empty %}
-                                <tr>
-                                    <td colspan="4" class="text-center py-5">
-                                        <p class="text-muted fw-bold">Tất cả câu hỏi trong kho đã có trong đề thi này.</p>
-                                    </td>
-                                </tr>
+                                <tr><td colspan="4" class="text-center py-5 text-muted fw-bold">Kho câu hỏi hiện tại đã hết.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
                 </div>
-
-                <div class="modal-footer p-4 border-top bg-white shadow-sm">
+                <div class="modal-footer p-4 border-top bg-white">
                     <button type="button" class="btn btn-light border fw-bold px-4" data-bs-dismiss="modal">Hủy bỏ</button>
                     <button type="submit" name="add_from_bank" class="btn btn-hm px-4 fw-bold shadow">
-                        <i class="bi bi-plus-circle me-2"></i> THÊM CÂU HỎI VÀO ĐỀ
+                        <i class="bi bi-plus-circle me-2"></i> THÊM VÀO ĐỀ THI
                     </button>
                 </div>
             </form>
@@ -262,43 +319,77 @@
 
 <script>
     $(document).ready(function() {
-        // Khởi tạo Select2 cho assigned_users
+        // Init Select2 với cấu hình Fix lỗi tìm kiếm khi xóa
         $('select[name="assigned_users"]').select2({
             theme: 'bootstrap-5',
-            placeholder: "Gõ để tìm kiếm nhân viên...",
+            placeholder: "🔍 Tìm nhân viên hoặc chức danh...",
             allowClear: true,
-            width: '100%'
+            width: '100%',
+            closeOnSelect: false // Giữ menu mở khi chọn nhiều
+        }).on('select2:unselecting', function (e) {
+            // ĐÂY LÀ PHẦN FIX: Khi xóa 1 nhân viên, dọn sạch ô search
+            $(this).data('state', 'unselecting');
+        }).on('select2:open', function(e) {
+            if ($(this).data('state') === 'unselecting') {
+                $(this).removeData('state');
+                const self = $(this);
+                setTimeout(function() {
+                    self.parent().find('.select2-search__field').val('').trigger('input');
+                    self.select2('close'); // Đóng lại cho sạch, không hiện tên cũ
+                }, 1);
+            }
         });
 
-        // Xử lý nút chọn nhanh theo chức danh
+        // Quick Select Logic
         $('.btn-quick-select').click(function() {
-            const position = $(this).data('pos');
+            const btn = $(this);
+            const position = btn.data('pos');
             const selectElement = $('select[name="assigned_users"]');
             const currentValues = selectElement.val() || [];
+            let addedCount = 0;
 
-            // Duyệt qua tất cả các option trong Select2
             selectElement.find('option').each(function() {
                 const text = $(this).text();
-                // Nếu text của option chứa từ khóa chức danh
                 if (text.includes(position)) {
                     if (!currentValues.includes($(this).val())) {
                         currentValues.push($(this).val());
+                        addedCount++;
                     }
                 }
             });
 
-            selectElement.val(currentValues).trigger('change');
-            
-            // Hiệu ứng feedback nhẹ
-            $(this).fadeOut(100).fadeIn(100);
+            if (addedCount > 0) {
+                selectElement.val(currentValues).trigger('change');
+                const originalHtml = btn.html();
+                btn.html('<i class="bi bi-check-circle-fill me-1"></i>Đã thêm');
+                btn.css('opacity', '0.7');
+                setTimeout(() => { btn.html(originalHtml).css('opacity', '1'); }, 1200);
+            } else {
+                const originalHtml = btn.html();
+                btn.html('<i class="bi bi-info-circle me-1"></i>Đã chọn');
+                setTimeout(() => { btn.html(originalHtml); }, 1200);
+            }
         });
 
-        // Nút xóa sạch
+        // Clear Selection
         $('#btn-clear-users').click(function() {
-            if(confirm('Xóa tất cả nhân viên đã chọn?')) {
+            if(confirm('Xác nhận xóa toàn bộ danh sách đã chọn?')) {
                 $('select[name="assigned_users"]').val(null).trigger('change');
             }
         });
+
+        // Switch Toggle Sync
+        const isActiveSwitch = document.getElementById('isActiveSwitch');
+        const statusLabel = document.getElementById('statusLabel');
+        if (isActiveSwitch && statusLabel) {
+            isActiveSwitch.addEventListener('change', function() {
+                if (this.checked) {
+                    statusLabel.innerHTML = '<span class="text-success"><i class="bi bi-circle-fill small me-1"></i>Đang mở</span>';
+                } else {
+                    statusLabel.innerHTML = '<span class="text-secondary"><i class="bi bi-circle small me-1"></i>Đang khóa</span>';
+                }
+            });
+        }
     });
 </script>
 {% endblock %}
