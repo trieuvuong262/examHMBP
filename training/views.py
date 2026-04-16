@@ -1,5 +1,7 @@
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
+
+from assessment.models import ExamSubmission
 from .models import Course, Enrollment
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
@@ -23,29 +25,44 @@ def my_courses(request):
     # 1. Lấy tất cả khóa học đang active và được giao cho user này
     assigned_courses = Course.objects.filter(assigned_users=user, is_active=True).order_by('-created_at')
     
+    # 2. Lấy danh sách ID các kỳ thi mà nhân viên này ĐÃ NỘP BÀI thực tế
+    submitted_exam_ids = ExamSubmission.objects.filter(
+        user=user, 
+        submitted_at__isnull=False
+    ).values_list('exam_id', flat=True)
+
     course_data = []
     for course in assigned_courses:
-        # 2. Lấy hoặc tự động tạo Enrollment (Ghi danh) để theo dõi tiến độ
+        # Lấy hoặc tự động tạo Enrollment
         enrollment, created = Enrollment.objects.get_or_create(user=user, course=course)
         
-        # 3. Phân loại trạng thái để hiển thị nút bấm cho đúng
+        # Phân loại trạng thái học tập
         status = 'not_started'
         if enrollment.is_completed:
             status = 'completed'
         elif enrollment.progress_percent > 0:
             status = 'in_progress'
 
+        # KIỂM TRA BÀI THI CUỐI KHÓA
+        has_taken_exam = False
+        final_exam_id = None
+        if course.final_exam:
+            final_exam_id = course.final_exam.id
+            if final_exam_id in submitted_exam_ids:
+                has_taken_exam = True
+
         course_data.append({
             'course': course,
             'progress': enrollment.progress_percent,
-            'status': status
+            'status': status,
+            'has_taken_exam': has_taken_exam,  # Trạng thái đã thi chưa
+            'final_exam_id': final_exam_id     # ID bài thi để gắn link
         })
 
     return render(request, 'training/my_courses.html', {
         'course_data': course_data,
         'title': 'Không gian học tập của tôi'
     })
-    
 
 @login_required
 def learning_space(request, course_id, lesson_id=None):

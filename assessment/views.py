@@ -85,16 +85,20 @@ def exam_list(request):
             else:
                 essay_score += score_val
         
-        # 🎯 FIX LỖI TẠI ĐÂY: Tính tổng điểm trực tiếp từ các trường có sẵn
-        # Thay vì gọi s.score, mình lấy s.auto_score + s.manual_score
-        total_score = (s.auto_score or 0) + (s.manual_score or 0)
-        
+        # 🎯 TÍNH THỜI GIAN LÀM BÀI: Dùng start_at theo Model của ní
+        duration_spent = 0
+        if s.submitted_at and s.start_at:
+            diff = s.submitted_at - s.start_at
+            duration_spent = int(diff.total_seconds() / 60)
+            if duration_spent < 1: duration_spent = 1
+
         submission_results[s.exam_id] = {
-            'total_score': total_score,
+            'total_score': s.total_score, # Gọi property từ Model của ní
             'mc_score': mc_score,
             'essay_score': essay_score,
             'is_completed': s.is_completed,
             'submitted_at': s.submitted_at,
+            'duration_spent': duration_spent,
         }
 
     return render(request, 'assessment/exam_list.html', {
@@ -104,42 +108,49 @@ def exam_list(request):
     })
 @login_required
 def take_exam(request, exam_id):
-    # 1. Lấy thông tin kỳ thi
     exam = get_object_or_404(Exam, id=exam_id)
     now = timezone.now()
 
-    # 2. KIỂM TRA RÀNG BUỘC (GUARDS)
+    # --- RÀNG BUỘC CẢI TIẾN ---
     
-    # Ràng buộc A: Kiểm tra nhân viên có được giao bài thi này không
-    if request.user not in exam.assigned_users.all() and not request.user.is_staff:
-        messages.error(request, "Bạn không có tên trong danh sách nhân viên dự thi kỳ thi này.")
+    # 1. Kiểm tra quyền truy cập (Hỗ trợ truy cập từ Khóa học)
+    is_assigned_directly = exam.assigned_users.filter(id=request.user.id).exists()
+    
+    # Kiểm tra xem có khóa học nào chứa bài thi này mà User được giao không
+    is_assigned_via_course = Course.objects.filter(
+        final_exam=exam, 
+        assigned_users=request.user
+    ).exists()
+
+    if not (is_assigned_directly or is_assigned_via_course or request.user.is_staff):
+        messages.error(request, "Bạn không có quyền tham gia kỳ thi này.")
         return redirect('exam_list')
 
-    # Ràng buộc B: Kiểm tra thời gian bắt đầu và kết thúc của kỳ thi
-    if now < exam.start_time:
-        messages.warning(request, f"Kỳ thi chưa bắt đầu. Vui lòng quay lại lúc {exam.start_time.strftime('%H:%M %d/%m/%Y')}.")
-        return redirect('exam_list')
-            
-    if now > exam.end_time:
-        messages.error(request, "Kỳ thi này đã kết thúc thời gian làm bài.")
-        return redirect('exam_list')
-
-    # Ràng buộc C: Kiểm tra bài thi có đang bị khóa (is_active) không
+    # 2. Kiểm tra Trạng thái Active
     if not exam.is_active:
-        messages.error(request, "Kỳ thi hiện đang bị khóa bởi quản trị viên.")
+        messages.error(request, "Kỳ thi hiện đang bị tạm khóa.")
         return redirect('exam_list')
 
-    # Ràng buộc D (ĐÃ SỬA): Dùng 'submitted_at' để chặn thi lại tuyệt đối
+    # 3. Kiểm tra Thời gian (Nên linh hoạt hơn nếu là bài thi cuối khóa)
+    if now < exam.start_time:
+        messages.warning(request, f"Kỳ thi chưa đến giờ bắt đầu ({exam.start_time|date:'H:i'})")
+        return redirect('exam_list')
+    
+    if now > exam.end_time:
+        messages.error(request, "Kỳ thi đã kết thúc thời gian hiệu lực.")
+        return redirect('exam_list')
+
+    # --- LOGIC NỘP BÀI (GIỮ NGUYÊN) ---
     existing_submission = ExamSubmission.objects.filter(
         user=request.user, 
         exam=exam, 
-        submitted_at__isnull=False # Bất cứ ai đã có giờ nộp bài là bị chặn
+        submitted_at__isnull=False
     ).first()
     
     if existing_submission:
         return render(request, 'assessment/result_notice.html', {
             'submission': existing_submission,
-            'message': 'Bạn đã nộp bài thi này rồi. Đang chờ kết quả hoặc đã có điểm.'
+            'message': 'Bạn đã hoàn tất bài thi này.'
         })
 
     # 3. KHỞI TẠO HOẶC LẤY LƯỢT LÀM BÀI (Dành cho trường hợp đang làm thì rớt mạng)

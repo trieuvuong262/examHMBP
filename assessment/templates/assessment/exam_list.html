@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-4 mb-5">
+<div class="container mt-4 mb-5 px-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="fw-bold text-dark mb-1">
                 <i class="bi bi-card-checklist text-hm me-2"></i>Đánh giá Năng lực
             </h2>
-            <p class="text-muted mb-0 small">Danh sách các kỳ thi năng lực dành cho bạn.</p>
+            <p class="text-muted mb-0 small">Hoàn thành các bài thi để đánh giá năng lực định kỳ.</p>
         </div>
     </div>
 
@@ -22,12 +22,12 @@
                         </div>
                         
                         {% if exam.id in completed_exam_ids %}
-                            <span class="badge bg-success shadow-sm rounded-pill py-2 px-3 fw-bold">
-                                <i class="bi bi-check-lg me-1"></i>ĐÃ THI
+                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill py-2 px-3 fw-bold">
+                                <i class="bi bi-check-lg me-1"></i>HOÀN THÀNH
                             </span>
                         {% else %}
                             <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill py-2 px-3 fw-bold">
-                                <i class="bi bi-clock-history me-1"></i>ĐANG MỞ
+                                <i class="bi bi-clock me-1"></i>ĐANG MỞ
                             </span>
                         {% endif %}
                     </div>
@@ -35,29 +35,41 @@
                     <h5 class="card-title fw-bold text-dark mb-2 lh-base exam-title">{{ exam.title }}</h5>
 
                     {% if exam.id in completed_exam_ids %}
-                        <div class="mb-4">
-                            {% for eid, res in submission_results.items %}
-                                {% if eid == exam.id %}
+                        {% for eid, res in submission_results.items %}
+                            {% if eid == exam.id %}
+                            <div class="mb-4">
                                 <div class="d-flex justify-content-between align-items-center mb-1">
                                     <span class="small fw-bold text-muted">Điểm hiện tại:</span>
-                                    <span class="fw-bold text-success">{{ res.total_score|floatformat:1 }}đ</span>
+                                    <span class="fw-bold text-success fs-5">{{ res.total_score|floatformat:1 }}đ</span>
                                 </div>
-                                <div class="progress shadow-sm" style="height: 6px;">
-                                    <div class="progress-bar bg-success" style="width: {{ res.total_score }}%"></div>
+                                <div class="progress shadow-sm" style="height: 8px; border-radius: 10px;">
+                                    <div class="progress-bar bg-success progress-bar-striped progress-bar-animated" style="width: {{ res.total_score }}%"></div>
                                 </div>
-                                {% endif %}
-                            {% endfor %}
-                        </div>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
                     {% else %}
-                        <p class="card-text text-muted small mb-4">{{ exam.description|truncatewords:12|default:"Kỳ thi đánh giá định kỳ." }}</p>
+                        <p class="card-text text-muted small mb-4">{{ exam.description|truncatewords:12|default:"Kỳ thi đánh giá chuyên môn." }}</p>
                     {% endif %}
 
                     <div class="bg-light p-3 rounded-4 border shadow-sm">
-                        <div class="d-flex align-items-center mb-2">
-                            <i class="bi bi-stopwatch text-hm me-2 fs-5"></i>
-                            <span class="small fw-bold text-secondary">Thời lượng:</span>
-                            <span class="small ms-auto fw-bold text-dark">{{ exam.duration_minutes }} phút</span>
-                        </div>
+                        {% if exam.id in completed_exam_ids %}
+                            {% for eid, res in submission_results.items %}
+                                {% if eid == exam.id %}
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="bi bi-clock-history text-hm me-2 fs-5"></i>
+                                    <span class="small fw-bold text-secondary">Thời gian đã làm:</span>
+                                    <span class="small ms-auto fw-bold text-dark">{{ res.duration_spent }} phút</span>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="bi bi-stopwatch text-hm me-2 fs-5"></i>
+                                <span class="small fw-bold text-secondary">Thời gian làm bài:</span>
+                                <span class="small ms-auto fw-bold text-dark">{{ exam.duration_minutes }} phút</span>
+                            </div>
+                        {% endif %}
 
                         <div class="pt-2 border-top">
                             {% if exam.id in completed_exam_ids %}
@@ -75,7 +87,7 @@
                             {% else %}
                                 <div class="d-flex align-items-center mb-1 text-danger">
                                     <i class="bi bi-hourglass-split me-2 fs-5"></i>
-                                    <span class="small fw-bold">Hạn chót:</span>
+                                    <span class="small fw-bold">Hạn chót nộp:</span>
                                 </div>
                                 <div class="text-end text-danger fw-bold small">{{ exam.end_time|date:"H:i - d/m/Y" }}</div>
                             {% endif %}
@@ -95,8 +107,9 @@
                                     data-mc="{{ res.mc_score }}"
                                     data-essay="{{ res.essay_score }}"
                                     data-graded="{{ res.is_completed }}"
+                                    data-duration="{{ res.duration_spent }}"
                                     data-total="{{ res.total_score }}">
-                                <i class="bi bi-eye-fill me-2"></i>XEM CHI TIẾT ĐIỂM
+                                <i class="bi bi-eye-fill me-2"></i>XEM KẾT QUẢ CHI TIẾT
                             </button>
                             {% endif %}
                         {% endfor %}
@@ -108,19 +121,25 @@
                 </div>
             </div>
         </div>
+        {% empty %}
+        <div class="col-12 text-center py-5 my-5">
+            <i class="bi bi-clipboard-x display-1 text-muted opacity-25"></i>
+            <h4 class="fw-bold text-dark mt-3">Hiện không có kỳ thi nào dành cho bạn</h4>
+        </div>
         {% endfor %}
     </div>
 </div>
 
 <div class="modal fade" id="resultModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg rounded-4">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
             <div class="modal-header bg-dark text-white border-0 py-3">
-                <h5 class="modal-title fw-bold"><i class="bi bi-award-fill me-2 text-warning"></i>BẢNG ĐIỂM CHI TIẾT</h5>
+                <h5 class="modal-title fw-bold"><i class="bi bi-award-fill me-2 text-warning"></i>KẾT QUẢ CHI TIẾT</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4 text-center">
-                <h5 id="modalExamTitle" class="fw-bold text-dark mb-4"></h5>
+                <h5 id="modalExamTitle" class="fw-bold text-dark mb-2"></h5>
+                <div id="modalDurationText" class="small text-muted mb-4"></div>
                 
                 <div class="row g-3 mb-4">
                     <div class="col-6">
@@ -137,10 +156,10 @@
                     </div>
                 </div>
 
-                <div class="py-3 px-4 rounded-4 bg-success bg-opacity-10 border border-success border-dashed">
+                <div class="py-4 px-4 rounded-4 bg-success bg-opacity-10 border border-success border-dashed shadow-sm">
                     <div class="small text-success fw-bold uppercase">Tổng điểm đạt được</div>
-                    <div class="display-3 fw-bold text-success" id="modalTotalScore">0</div>
-                    <div class="small text-muted" id="gradingStatus"></div>
+                    <div class="display-2 fw-bold text-success" id="modalTotalScore">0</div>
+                    <div class="small mt-2" id="gradingStatus"></div>
                 </div>
             </div>
             <div class="modal-footer border-0 pb-4 justify-content-center">
@@ -160,6 +179,8 @@
     .exam-card:hover { transform: translateY(-8px); box-shadow: 0 15px 35px rgba(0,0,0,0.1) !important; border-color: var(--hm-primary) !important; }
     .btn-hover-lift:hover { transform: translateY(-2px); }
     .exam-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 48px; }
+    .bg-success-subtle { background-color: rgba(25, 135, 84, 0.1) !important; }
+    .bg-danger-subtle { background-color: rgba(220, 53, 69, 0.1) !important; }
 </style>
 
 <script>
@@ -168,27 +189,26 @@ document.addEventListener('DOMContentLoaded', function () {
     if (resultModal) {
         resultModal.addEventListener('show.bs.modal', function (event) {
             const btn = event.relatedTarget;
-            const title = btn.getAttribute('data-title');
             
-            // Lấy dữ liệu dạng chuỗi
-            let mcRaw = btn.getAttribute('data-mc');
-            let essayRaw = btn.getAttribute('data-essay');
-            let totalRaw = btn.getAttribute('data-total');
-
-            // 🎯 XỬ LÝ LỖI DẤU PHẨY: Chuyển "7,9" thành "7.9" trước khi parse
-            const parseScore = (str) => {
-                if (!str) return 0;
-                let cleanStr = str.replace(',', '.'); 
-                return parseFloat(cleanStr);
-            };
-
-            const mc = parseScore(mcRaw);
-            const essay = parseScore(essayRaw);
-            const total = parseScore(totalRaw);
+            // Lấy dữ liệu thô (có thể chứa dấu phẩy từ Django localization)
+            const rawMC = btn.getAttribute('data-mc');
+            const rawEssay = btn.getAttribute('data-essay');
+            const rawTotal = btn.getAttribute('data-total');
+            const duration = btn.getAttribute('data-duration');
             const isGraded = btn.getAttribute('data-graded') === 'True';
 
-            // Đổ dữ liệu vào Modal
-            document.getElementById('modalExamTitle').textContent = title;
+            // Hàm chuẩn hóa số để Javascript không bị lỗi khi gặp dấu phẩy (7,9 -> 7.9)
+            const normalize = (val) => parseFloat(String(val).replace(',', '.')) || 0;
+
+            const mc = normalize(rawMC);
+            const essay = normalize(rawEssay);
+            const total = normalize(rawTotal);
+
+            // Đổ dữ liệu vào giao diện
+            document.getElementById('modalExamTitle').textContent = btn.getAttribute('data-title');
+            document.getElementById('modalDurationText').innerHTML = `Thời gian thực hiện: <b>${duration} phút</b>`;
+            
+            // Hiển thị dạng tiếng Việt (dấu phẩy) cho người dùng
             document.getElementById('modalMCScore').textContent = mc.toFixed(1).replace('.', ',');
             document.getElementById('modalTotalScore').textContent = total.toFixed(1).replace('.', ',');
             
@@ -201,7 +221,7 @@ document.addEventListener('DOMContentLoaded', function () {
             } else {
                 essayEl.textContent = "Đang chấm";
                 essayEl.className = 'small text-muted mb-0 pt-2';
-                statusEl.textContent = "⏳ Phần tự luận đang được chờ chấm";
+                statusEl.innerHTML = "<span class='text-muted italic'>⏳ Phần tự luận đang được chờ chấm...</span>";
             }
         });
     }

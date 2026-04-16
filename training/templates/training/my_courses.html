@@ -11,22 +11,22 @@
 
     <div class="bg-white p-2 rounded-pill shadow-sm border mb-4 d-inline-flex overflow-hidden">
         <ul class="nav nav-pills custom-pills" id="courseFilter" role="tablist">
-            <li class="nav-item" role="presentation">
+            <li class="nav-item">
                 <button class="nav-link active fw-bold px-4 rounded-pill filter-btn" data-filter="all">
                     <i class="bi bi-grid-fill me-1"></i> Tất cả
                 </button>
             </li>
-            <li class="nav-item" role="presentation">
+            <li class="nav-item">
                 <button class="nav-link fw-bold px-4 rounded-pill filter-btn" data-filter="in_progress">
                     <i class="bi bi-clock-history me-1"></i> Đang học
                 </button>
             </li>
-            <li class="nav-item" role="presentation">
+            <li class="nav-item">
                 <button class="nav-link fw-bold px-4 rounded-pill filter-btn" data-filter="not_started">
                     <i class="bi bi-play-circle me-1"></i> Chưa bắt đầu
                 </button>
             </li>
-            <li class="nav-item" role="presentation">
+            <li class="nav-item">
                 <button class="nav-link fw-bold px-4 rounded-pill filter-btn" data-filter="completed">
                     <i class="bi bi-check-circle-fill me-1"></i> Đã hoàn thành
                 </button>
@@ -36,7 +36,7 @@
 
     <div class="row g-4" id="courseGrid">
         {% for item in course_data %}
-        <div class="col-md-6 col-lg-4 course-item" data-status="{% if item.status == 'completed' %}completed{% elif item.status == 'in_progress' %}in_progress{% else %}not_started{% endif %}">
+        <div class="col-md-6 col-lg-4 course-item" data-status="{{ item.status }}">
             <div class="card h-100 border-0 shadow-sm course-card transition-all rounded-4 overflow-hidden">
                 <div class="position-relative bg-light overflow-hidden" style="height: 190px;">
                     {% if item.course.thumbnail %}
@@ -49,7 +49,7 @@
                     
                     <div class="position-absolute top-0 end-0 m-3">
                         {% if item.status == 'completed' %}
-                            <span class="badge bg-success shadow-sm px-3 py-2 rounded-pill"><i class="bi bi-check-circle-fill me-1"></i>Đã hoàn thành</span>
+                            <span class="badge bg-success shadow-sm px-3 py-2 rounded-pill"><i class="bi bi-check-circle-fill me-1"></i>Đã học xong</span>
                         {% elif item.status == 'in_progress' %}
                             <span class="badge bg-warning text-dark shadow-sm px-3 py-2 rounded-pill"><i class="bi bi-clock-history me-1"></i>Đang học</span>
                         {% else %}
@@ -68,12 +68,11 @@
                     
                     <div class="mt-auto">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <small class="text-muted fw-bold">Tiến độ hoàn thành</small>
+                            <small class="text-muted fw-bold">Tiến độ bài học</small>
                             <small class="{% if item.status == 'completed' %}text-success{% else %}text-hm{% endif %} fw-bold fs-6">{{ item.progress }}%</small>
                         </div>
                         <div class="progress shadow-sm" style="height: 10px; border-radius: 10px; background-color: #e9ecef;">
                             <div class="progress-bar {% if item.status == 'completed' %}bg-success{% else %}bg-hm{% endif %} progress-bar-striped progress-bar-animated" 
-                                 role="progressbar" 
                                  style="width: {{ item.progress }}%">
                             </div>
                         </div>
@@ -83,9 +82,15 @@
                 <div class="card-footer bg-white border-top-0 p-4 pt-0">
                     {% if item.status == 'completed' %}
                         {% if item.course.final_exam %}
-                            <a href="{% url 'take_exam' item.course.final_exam.id %}" class="btn btn-danger w-100 fw-bold shadow-sm rounded-pill btn-hover-lift">
-                                <i class="bi bi-pencil-square me-2"></i>LÀM BÀI THI CUỐI KHÓA
-                            </a>
+                            {% if item.has_taken_exam %}
+                                <a href="{% url 'exam_list' %}" class="btn btn-outline-success w-100 fw-bold shadow-sm rounded-pill btn-hover-lift">
+                                    <i class="bi bi-eye-fill me-2"></i>XEM KẾT QUẢ THI
+                                </a>
+                            {% else %}
+                                <a href="{% url 'take_exam' item.final_exam_id %}" class="btn btn-danger w-100 fw-bold shadow-sm rounded-pill btn-hover-lift">
+                                    <i class="bi bi-pencil-square me-2"></i>LÀM BÀI THI CUỐI KHÓA
+                                </a>
+                            {% endif %}
                         {% else %}
                             <button class="btn btn-light text-success border border-success w-100 fw-bold disabled rounded-pill">
                                 <i class="bi bi-award-fill me-2"></i>Khóa học hoàn tất
@@ -105,10 +110,8 @@
         </div>
         {% empty %}
         <div class="col-12 text-center py-5 my-5">
-            <div class="d-inline-flex align-items-center justify-content-center bg-light rounded-circle mb-4" style="width: 120px; height: 120px;">
-                <i class="bi bi-inbox-fill display-3 text-muted opacity-50"></i>
-            </div>
-            <h4 class="fw-bold text-dark mb-2">Chưa có khóa học nào</h4>
+            <i class="bi bi-inbox-fill display-3 text-muted opacity-50 mb-3"></i>
+            <h4 class="fw-bold text-dark">Chưa có khóa học nào</h4>
             <p class="text-muted">Bạn hiện chưa được giao khóa học nào. Hãy quay lại sau nhé!</p>
         </div>
         {% endfor %}
@@ -145,7 +148,6 @@
         background-color: var(--hm-primary);
     }
 
-    /* Hiệu ứng mượt cho Card */
     .course-card {
         border: 1px solid #e9ecef !important;
         transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
@@ -156,11 +158,9 @@
         border-color: var(--hm-primary) !important;
     }
     
-    /* Zoom nhẹ hình ảnh khi hover card */
     .course-img { transition: transform 0.5s ease; }
     .course-card:hover .course-img { transform: scale(1.05); }
 
-    .object-fit-cover { object-fit: cover; }
     .btn-hover-lift { transition: transform 0.2s ease; }
     .btn-hover-lift:hover { transform: translateY(-2px); }
     
@@ -169,49 +169,48 @@
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
+        min-height: 3rem;
     }
-/* Tùy chỉnh Nav Pills - Nổi bật 100% */
+
     .custom-pills .nav-link {
-        color: #495057 !important; /* Màu chữ xám đậm, cực rõ */
-        background-color: #f1f5f9 !important; /* Nền xám nhạt cho nút chưa chọn */
-        border: 1px solid #e2e8f0; /* Viền mỏng để phân tách nút */
-        margin: 0 4px; /* Khoảng cách giữa các nút */
+        color: #495057 !important;
+        background-color: #f1f5f9 !important;
+        margin: 0 4px;
         transition: all 0.3s ease;
     }
     
     .custom-pills .nav-link:hover { 
         color: var(--hm-primary) !important; 
         background-color: rgba(0, 144, 161, 0.08) !important; 
-        border-color: var(--hm-primary);
     }
     
     .custom-pills .nav-link.active { 
         color: white !important; 
         background-color: var(--hm-primary) !important; 
-        border-color: var(--hm-primary);
         box-shadow: 0 4px 10px rgba(0, 144, 161, 0.3); 
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
     }
 </style>
 
 <script>
-    // Xử lý bộ lọc khóa học tại Frontend
     document.addEventListener("DOMContentLoaded", function() {
         const filterBtns = document.querySelectorAll('.filter-btn');
         const courseItems = document.querySelectorAll('.course-item');
 
         filterBtns.forEach(btn => {
             btn.addEventListener('click', function() {
-                // 1. Cập nhật nút active
                 filterBtns.forEach(b => b.classList.remove('active'));
                 this.classList.add('active');
 
-                // 2. Lọc danh sách
                 const filterValue = this.getAttribute('data-filter');
                 
                 courseItems.forEach(item => {
                     if (filterValue === 'all' || item.getAttribute('data-status') === filterValue) {
                         item.style.display = 'block';
-                        // Hiệu ứng fade in nhẹ
                         item.style.animation = 'fadeIn 0.5s ease';
                     } else {
                         item.style.display = 'none';
@@ -221,11 +220,4 @@
         });
     });
 </script>
-
-<style>
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-</style>
 {% endblock %}
