@@ -1,262 +1,582 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container-fluid mt-4 px-4 mb-5">
-    <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
-        <div>
-            <h2 class="fw-bold text-dark mb-1"><i class="bi bi-speedometer2 me-2"></i>Bảng điều khiển Quản trị</h2>
-            <p class="text-muted small mb-0">Hệ thống Đánh giá năng lực & Đào tạo nhân sự nội bộ</p>
-        </div>
-        <div class="btn-group shadow-sm">
-            <a href="{% url 'exam_create' %}" class="btn btn-primary">
-                <i class="bi bi-plus-lg me-1"></i> Thêm kỳ thi
-            </a>
-            <a href="{% url 'user_list' %}" class="btn btn-dark border-start">
-                <i class="bi bi-people me-1"></i> Quản lý Nhân viên
-            </a>
-        </div>
-    </div>
+<style>
+    /* 1. Cấu hình bảng màu sắc độ HM */
+    :root {
+        --hm-primary: rgb(0, 144, 161);
+        --hm-primary-hover: rgb(0, 115, 129);
+        --hm-primary-soft: rgba(0, 144, 161, 0.08);
+        --hm-primary-subtle: rgba(0, 144, 161, 0.15);
+        --hm-bg-light: #f8fafc;
+        --hm-card-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    }
 
-    <h5 class="fw-bold mb-3 text-primary"><i class="bi bi-journal-check me-2"></i>Tổng quan Đánh giá năng lực</h5>
-    
-    <div class="row g-3 mb-4">
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm bg-primary text-white p-3 h-100">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <div class="small opacity-75">Tổng kỳ thi</div>
-                        <h3 class="fw-bold mb-0">{{ total_exams|default:exams.count }}</h3>
-                    </div>
-                    <i class="bi bi-journal-text fs-1 opacity-25"></i>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm bg-success text-white p-3 h-100">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <div class="small opacity-75">Kỳ thi đang mở</div>
-                        <h3 class="fw-bold mb-0">{{ active_exams_count|default:"--" }}</h3>
-                    </div>
-                    <i class="bi bi-play-circle fs-1 opacity-25"></i>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm bg-warning text-dark p-3 h-100">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <div class="small opacity-75">Tổng nhân viên</div>
-                        <h3 class="fw-bold mb-0">{{ total_users|default:"--" }}</h3>
-                    </div>
-                    <i class="bi bi-person-badge fs-1 opacity-25"></i>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm bg-info text-white p-3 h-100">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <div class="small opacity-75">Bài thi đã nộp</div>
-                        <h3 class="fw-bold mb-0">{{ total_submissions|default:"--" }}</h3>
-                    </div>
-                    <i class="bi bi-check2-all fs-1 opacity-25"></i>
-                </div>
-            </div>
-        </div>
-    </div>
+    body { background-color: var(--hm-bg-light); }
 
-    <div class="card shadow-sm border-0 mb-5">
-        <div class="card-header bg-white py-3">
-            <h6 class="mb-0 fw-bold text-secondary"><i class="bi bi-list-ul me-2"></i>Danh sách kỳ thi hiện có</h6>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th class="ps-4" style="width: 35%">Tên kỳ thi</th>
-                            <th style="width: 20%">Thời gian làm bài</th>
-                            <th class="text-center">Số câu hỏi</th>
-                            <th class="text-center">Trạng thái</th>
-                            <th class="text-end pe-4">Thao tác</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for exam in exams %}
-                        <tr>
-                            <td class="ps-4">
-                                <div class="fw-bold text-dark">{{ exam.title }}</div>
-                                <div class="x-small text-muted">Bắt đầu: {{ exam.start_time|date:"d/m/Y H:i" }}</div>
-                            </td>
-                            <td>
-                                <span class="badge bg-light text-dark border fw-normal">
-                                    <i class="bi bi-stopwatch me-1"></i>{{ exam.duration_minutes }} phút
-                                </span>
-                            </td>
-                            <td class="text-center">
-                                <span class="fw-bold text-secondary">{{ exam.questions.count }}</span>
-                            </td>
-                            <td class="text-center">
-                                {% if exam.is_active %}
-                                    <span class="badge rounded-pill bg-success-soft text-success">
-                                        <i class="bi bi-circle-fill me-1" style="font-size: 0.5rem;"></i> Đang mở
-                                    </span>
-                                {% else %}
-                                    <span class="badge rounded-pill bg-secondary-soft text-secondary">
-                                        <i class="bi bi-lock-fill me-1"></i> Đang khóa
-                                    </span>
-                                {% endif %}
-                            </td>
-                            <td class="text-end pe-4">
-                                <div class="btn-group">
-                                    <a href="{% url 'exam_edit' exam.pk %}" class="btn btn-sm btn-outline-warning" title="Chỉnh sửa">
-                                        <i class="bi bi-pencil-square"></i> Sửa
-                                    </a>
-                                    <a href="{% url 'admin_results' %}?exam={{ exam.id }}" class="btn btn-sm btn-outline-info" title="Kết quả">
-                                        <i class="bi bi-graph-up"></i> Điểm
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="5" class="text-center py-5">
-                                <i class="bi bi-clipboard-x display-4 text-muted opacity-25"></i>
-                                <p class="text-muted mt-3">Chưa có kỳ thi nào. Nhấn "Thêm kỳ thi" để bắt đầu.</p>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+    /* 2. Tinh chỉnh Header & Tab */
+    .dashboard-header {
+        background: white;
+        padding: 1.5rem 2rem;
+        border-radius: 0 0 20px 20px;
+        box-shadow: var(--hm-card-shadow);
+        margin-bottom: 2rem;
+    }
+    .nav-pills-hm {
+        display: inline-flex; /* Quan trọng để căn giữa */
+        background: white;
+        padding: 8px;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+        border: 1px solid rgba(0,0,0,0.05);
+    }
+
+    .nav-pills-hm .nav-link {
+        color: #475569 !important; /* Chữ xám đậm khi chưa chọn */
+        font-weight: 700;
+        white-space: nowrap; /* Tránh việc chữ bị xuống dòng khi co màn hình */
+        padding: 12px 28px;
+    }
+
+    .nav-pills-hm .nav-link.active {
+        background-color: rgb(0, 144, 161) !important;
+        color: #ffffff !important; /* Chữ trắng khi được chọn */
+    }
+
+    /* 3. Stat Cards */
+    .stat-card {
+        background: white;
+        border: none;
+        border-radius: 20px;
+        padding: 1.5rem;
+        box-shadow: var(--hm-card-shadow);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    }
+
+    .icon-box {
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+
+    /* 4. Table Styling */
+    .card-table {
+        border-radius: 20px;
+        border: none;
+        box-shadow: var(--hm-card-shadow);
+        overflow: hidden;
+    }
+
+    .table thead th {
+        background: #f1f5f9;
+        color: #475569;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding: 1.2rem 1rem;
+        border: none;
+    }
+
+    .table tbody td {
+        padding: 1.2rem 1rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    /* 5. Badge sắc độ */
+    .badge-soft {
+        font-weight: 600;
+        padding: 6px 12px;
+        border-radius: 8px;
+    }
+    .bg-primary-soft { background: var(--hm-primary-soft); color: var(--hm-primary); }
+    .bg-success-soft { background: rgba(34, 197, 94, 0.1); color: #16a34a; }
+    .bg-warning-soft { background: rgba(234, 179, 8, 0.1); color: #a16207; }
+    .bg-info-soft { background: rgba(6, 182, 212, 0.1); color: #0891b2; }
+
+    /* 6. Button HM */
+    .btn-hm {
+        background-color: var(--hm-primary);
+        color: white;
+        border-radius: 10px;
+        font-weight: 600;
+        padding: 10px 20px;
+        border: none;
+        transition: all 0.3s;
+    }
+    .btn-hm:hover {
+        background-color: var(--hm-primary-hover);
+        color: white;
+        box-shadow: 0 4px 12px rgba(0, 144, 161, 0.2);
+    }
+</style>
+<div class="container-fluid mt-4 mb-5">
+    <ul class="nav nav-pills d-none" id="dashboardTabs" role="tablist">
+    <li class="nav-item shadow-none">
+        <button class="nav-link active" id="recruitment-tab" data-bs-toggle="pill" data-bs-target="#recruitment" type="button" role="tab"></button>
+    </li>
+    <li class="nav-item shadow-none">
+        <button class="nav-link" id="training-tab" data-bs-toggle="pill" data-bs-target="#training" type="button" role="tab"></button>
+    </li>
+    <li class="nav-item shadow-none">
+        <button class="nav-link" id="assessment-tab" data-bs-toggle="pill" data-bs-target="#assessment" type="button" role="tab"></button>
+    </li>
+</ul>
+
+<div class="tab-content" id="dashboardTabsContent">
+   </div>
+    <div class="tab-content" id="dashboardTabsContent">
+        
+        <div class="tab-pane fade show active" id="recruitment" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="fw-bold text-dark mb-0"><i class="bi bi-activity text-hm me-2"></i>Tổng quan Tuyển dụng</h5>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'job_posting_list' %}" class="btn btn-hm">
+                        <i class="bi bi-megaphone me-2"></i>Đăng tin tuyển dụng
+                    </a>
+                    <button type="button" class="btn btn-outline-hm fw-bold bg-white" data-bs-toggle="modal" data-bs-target="#addCandidateModal">
+                        <i class="bi bi-person-plus-fill me-2"></i>Thêm ứng viên
+                    </button>
+                </div>
             </div>
-        </div>
-    </div>
 
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="fw-bold text-success mb-0"><i class="bi bi-mortarboard-fill me-2"></i>Tổng quan Đào tạo trực tuyến</h5>
-        <div class="btn-group shadow-sm">
-            <a href="{% url 'course_create' %}" class="btn btn-success">
-                <i class="bi bi-plus-lg me-1"></i> Thêm Khóa học
-            </a>
-            <a href="/admin/training/course/" class="btn btn-outline-success bg-white border-start">
-                <i class="bi bi-list-task me-1"></i> Quản lý Khóa học
-            </a>
-        </div>
-    </div>
-
-    <div class="row g-3 mb-4">
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm border-start border-success border-4 h-100 p-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <div class="small text-muted fw-bold text-uppercase">Tổng số Khóa học</div>
-                        <h3 class="fw-bold text-dark mb-0 mt-1">{{ total_courses|default:"0" }}</h3>
+            <div class="row g-4 mb-5">
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <div class="d-flex align-items-center">
+                            <div class="icon-box bg-info-soft text-info"><i class="bi bi-briefcase-fill"></i></div>
+                            <div class="ms-3">
+                                <div class="small text-muted fw-bold">VỊ TRÍ ĐANG MỞ</div>
+                                <h2 class="fw-bold mb-0 text-dark">{{ active_jobs|default:"3" }}</h2>
+                            </div>
+                        </div>
                     </div>
-                    <div class="bg-success-soft p-3 rounded-circle text-success d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
-                        <i class="bi bi-book fs-3"></i>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <div class="d-flex align-items-center">
+                            <div class="icon-box bg-primary-soft text-hm"><i class="bi bi-file-earmark-person-fill"></i></div>
+                            <div class="ms-3">
+                                <div class="small text-muted fw-bold">HỒ SƠ ỨNG VIÊN</div>
+                                <h2 class="fw-bold mb-0 text-dark">{{ total_candidates|default:"10" }}</h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <div class="d-flex align-items-center">
+                            <div class="icon-box bg-warning-soft text-warning"><i class="bi bi-calendar-check-fill"></i></div>
+                            <div class="ms-3">
+                                <div class="small text-muted fw-bold">LỊCH PHỎNG VẤN</div>
+                                <h2 class="fw-bold mb-0 text-dark">{{ upcoming_interviews|default:"2" }}</h2>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm border-start border-warning border-4 h-100 p-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <div class="small text-muted fw-bold text-uppercase">Học viên đang học</div>
-                        <h3 class="fw-bold text-dark mb-0 mt-1">{{ active_learners|default:"0" }}</h3>
-                    </div>
-                    <div class="bg-warning text-dark p-3 rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px; --bs-bg-opacity: .2;">
-                        <i class="bi bi-person-video3 fs-3"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm border-start border-primary border-4 h-100 p-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <div class="small text-muted fw-bold text-uppercase">Chứng nhận đã cấp</div>
-                        <h3 class="fw-bold text-dark mb-0 mt-1">{{ completed_learners|default:"0" }}</h3>
-                    </div>
-                    <div class="bg-primary text-primary p-3 rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px; --bs-bg-opacity: .12;">
-                        <i class="bi bi-award fs-3"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <div class="card shadow-sm border-0">
-        <div class="card-header bg-white py-3">
-            <h6 class="mb-0 fw-bold text-secondary"><i class="bi bi-clock-history me-2"></i>Khóa học cập nhật gần đây</h6>
+            <div class="card card-table shadow-sm">
+                <div class="card-header bg-white py-4 px-4 border-0 d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-clock-history me-2 text-hm"></i>Hồ sơ mới tiếp nhận</h6>
+                    <a href="{% url 'kanban_board' %}" class="btn btn-sm btn-outline-hm fw-bold px-3">
+                        <i class="bi bi-kanban me-1"></i> Bảng Kanban
+                    </a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th class="ps-4">Thông tin Ứng viên</th>
+                                <th>Vị trí ứng tuyển</th>
+                                <th class="text-center">Trạng thái</th>
+                                <th class="text-center">Ngày nộp</th>
+                                <th class="text-end pe-4">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for candidate in recent_candidates %}
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="fw-bold text-dark">{{ candidate.full_name }}</div>
+                                    <div class="small text-muted"><i class="bi bi-envelope me-1"></i>{{ candidate.email }}</div>
+                                </td>
+                                <td>
+                                    <div class="fw-bold text-hm">{{ candidate.job_posting.title }}</div>
+                                    <div class="small text-muted">{{ candidate.job_posting.department }}</div>
+                                </td>
+                                <td class="text-center">
+                                    {% if candidate.status == 'new' %}
+                                        <span class="badge-soft bg-primary-soft">Mới nộp</span>
+                                    {% elif candidate.status == 'reviewing' %}
+                                        <span class="badge-soft bg-warning-soft">Đang xem xét</span>
+                                    {% elif candidate.status == 'offered' or candidate.status == 'hired' %}
+                                        <span class="badge-soft bg-success-soft">Trúng tuyển</span>
+                                    {% else %}
+                                        <span class="badge-soft bg-light text-muted border">Khác</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center text-muted small">{{ candidate.applied_at|date:"d/m/Y" }}</td>
+                                <td class="text-end pe-4">
+                                    <div class="btn-group shadow-sm">
+                                        {% if candidate.cv_file %}
+                                        <a href="{{ candidate.cv_file.url }}" target="_blank" class="btn btn-sm btn-light border"><i class="bi bi-file-pdf text-danger"></i></a>
+                                        {% endif %}
+                                        <button class="btn btn-sm btn-light border view-candidate-detail" data-id="{{ candidate.id }}" title="Chi tiết ứng viên">
+                                            <i class="bi bi-eye text-hm"></i>
+                                        </button>                                    
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="5" class="text-center py-5 text-muted">Chưa có ứng viên mới.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th class="ps-4" style="width: 40%">Tên Khóa học</th>
-                            <th>Danh mục</th>
-                            <th class="text-center">Trạng thái</th>
-                            <th class="text-end pe-4">Thao tác</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for course in recent_courses %}
-                        <tr>
-                            <td class="ps-4">
-                                <div class="fw-bold text-dark">{{ course.title }}</div>
-                                <div class="x-small text-muted">Ngày tạo: {{ course.created_at|date:"d/m/Y" }}</div>
-                            </td>
-                            <td>
-                                <span class="badge bg-light text-primary border">{{ course.category.name|default:"Chung" }}</span>
-                            </td>
-                            <td class="text-center">
-                                {% if course.is_active %}
-                                    <span class="badge rounded-pill bg-success-soft text-success">
-                                        <i class="bi bi-check-circle-fill me-1" style="font-size: 0.5rem;"></i> Hoạt động
-                                    </span>
-                                {% else %}
-                                    <span class="badge rounded-pill bg-secondary-soft text-secondary">
-                                        <i class="bi bi-eye-slash-fill me-1"></i> Ẩn
-                                    </span>
-                                {% endif %}
-                            </td>
-                            <td class="text-end pe-4">
-                                <a href="/admin/training/course/{{ course.id }}/change/" class="btn btn-sm btn-outline-success" title="Quản lý cấu trúc bài học">
-                                    <i class="bi bi-gear"></i> Cấu hình
-                                </a>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="4" class="text-center py-5">
-                                <i class="bi bi-folder-x display-4 text-muted opacity-25"></i>
-                                <p class="text-muted mt-3">Chưa có khóa học nào được tạo.</p>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+
+        <div class="tab-pane fade" id="training" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="fw-bold text-dark mb-0"><i class="bi bi-mortarboard-fill text-hm me-2"></i>Học viện Trực tuyến</h5>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'course_create' %}" class="btn btn-hm"><i class="bi bi-plus-lg me-1"></i>Thêm Khóa học</a>
+                    <a href="{% url 'course_list' %}" class="btn btn-outline-hm fw-bold bg-white">Quản lý Khóa học</a>
+                </div>
+            </div>
+            
+            <div class="row g-4 mb-4">
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <div class="d-flex align-items-center">
+                            <div class="icon-box bg-success-soft text-success"><i class="bi bi-book"></i></div>
+                            <div class="ms-3">
+                                <div class="small text-muted fw-bold">KHÓA HỌC</div>
+                                <h2 class="fw-bold mb-0 text-dark">{{ total_courses|default:"0" }}</h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <div class="d-flex align-items-center">
+                            <div class="icon-box bg-warning-soft text-warning"><i class="bi bi-person-video3"></i></div>
+                            <div class="ms-3">
+                                <div class="small text-muted fw-bold">ĐANG HỌC</div>
+                                <h2 class="fw-bold mb-0 text-dark">{{ active_learners|default:"0" }}</h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <div class="d-flex align-items-center">
+                            <div class="icon-box bg-primary-soft text-hm"><i class="bi bi-award"></i></div>
+                            <div class="ms-3">
+                                <div class="small text-muted fw-bold">CHỨNG NHẬN</div>
+                                <h2 class="fw-bold mb-0 text-dark">{{ completed_learners|default:"0" }}</h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card card-table shadow-sm">
+                <div class="card-header bg-white py-4 border-0">
+                    <h6 class="mb-0 fw-bold text-dark">Khóa học cập nhật gần đây</h6>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th class="ps-4">Tên Khóa học</th>
+                                <th>Danh mục</th>
+                                <th class="text-center">Trạng thái</th>
+                                <th class="text-end pe-4">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for course in recent_courses %}
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="fw-bold text-dark">{{ course.title }}</div>
+                                    <div class="x-small text-muted">Ngày tạo: {{ course.created_at|date:"d/m/Y" }}</div>
+                                </td>
+                                <td><span class="badge bg-light text-hm border">{{ course.category.name|default:"Chung" }}</span></td>
+                                <td class="text-center">
+                                    {% if course.is_active %}
+                                        <span class="badge-soft bg-success-soft">Hoạt động</span>
+                                    {% else %}
+                                        <span class="badge-soft bg-light text-muted border">Ẩn</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end pe-4">
+                                    <a href="{% url 'course_builder' course.id %}" class="btn btn-sm btn-outline-hm fw-bold"><i class="bi bi-gear"></i></a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="assessment" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="fw-bold text-dark mb-0"><i class="bi bi-journal-check text-hm me-2"></i>Kỳ thi & Đánh giá</h5>
+                <a href="{% url 'exam_create' %}" class="btn btn-hm"><i class="bi bi-plus-lg me-1"></i>Thêm kỳ thi</a>
+            </div>
+            
+            <div class="row g-4 mb-4">
+                <div class="col-md-3">
+                    <div class="stat-card" style="background: var(--hm-primary);">
+                        <div class="d-flex justify-content-between align-items-center text-white">
+                            <div>
+                                <div class="small opacity-75 fw-bold">TỔNG KỲ THI</div>
+                                <h2 class="fw-bold mb-0">{{ total_exams|default:exams.count }}</h2>
+                            </div>
+                            <i class="bi bi-journal-text fs-1 opacity-25"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="d-flex align-items-center">
+                            <div class="icon-box bg-success-soft text-success"><i class="bi bi-play-circle"></i></div>
+                            <div class="ms-3">
+                                <div class="small text-muted fw-bold">ĐANG MỞ</div>
+                                <h2 class="fw-bold mb-0 text-dark">{{ active_exams_count|default:"0" }}</h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="d-flex align-items-center">
+                            <div class="icon-box bg-warning-soft text-warning"><i class="bi bi-people"></i></div>
+                            <div class="ms-3">
+                                <div class="small text-muted fw-bold">NHÂN VIÊN</div>
+                                <h2 class="fw-bold mb-0 text-dark">{{ total_users|default:"0" }}</h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="d-flex align-items-center">
+                            <div class="icon-box bg-info-soft text-info"><i class="bi bi-check2-all"></i></div>
+                            <div class="ms-3">
+                                <div class="small text-muted fw-bold">BÀI NỘP</div>
+                                <h2 class="fw-bold mb-0 text-dark">{{ total_submissions|default:"0" }}</h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card card-table shadow-sm">
+                <div class="card-header bg-white py-4 border-0">
+                    <h6 class="mb-0 fw-bold text-dark">Danh sách kỳ thi hiện có</h6>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th class="ps-4">Tên kỳ thi</th>
+                                <th>Thời gian</th>
+                                <th class="text-center">Trạng thái</th>
+                                <th class="text-end pe-4">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for exam in exams %}
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="fw-bold text-dark">{{ exam.title }}</div>
+                                    <div class="x-small text-muted">Bắt đầu: {{ exam.start_time|date:"d/m/Y H:i" }}</div>
+                                </td>
+                                <td><span class="text-dark fw-bold"><i class="bi bi-stopwatch me-1"></i>{{ exam.duration_minutes }} phút</span></td>
+                                <td class="text-center">
+                                    {% if exam.is_active %}
+                                        <span class="badge-soft bg-success-soft">Đang mở</span>
+                                    {% else %}
+                                        <span class="badge-soft bg-light text-muted border">Đang khóa</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end pe-4">
+                                    <div class="btn-group">
+                                        <a href="{% url 'exam_edit' exam.pk %}" class="btn btn-sm btn-light border"><i class="bi bi-pencil"></i></a>
+                                        <a href="{% url 'admin_results' %}?exam={{ exam.id }}" class="btn btn-sm btn-light border"><i class="bi bi-bar-chart"></i></a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<style>
-    /* Custom CSS để đồng bộ giao diện chuyên nghiệp */
-    .bg-success-soft { background-color: rgba(25, 135, 84, 0.12); }
-    .bg-secondary-soft { background-color: rgba(108, 117, 125, 0.12); }
-    .x-small { font-size: 0.75rem; }
-    .card { border-radius: 12px; }
-    .table thead th { 
-        font-size: 0.8rem; 
-        text-transform: uppercase; 
-        letter-spacing: 0.5px; 
-        padding: 1rem 0.5rem;
+<div class="modal fade" id="addCandidateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form action="{% url 'add_candidate' %}" method="POST" enctype="multipart/form-data" class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+            {% csrf_token %}
+            <div class="modal-header bg-white border-0 pt-4 px-4">
+                <h5 class="modal-title fw-bold text-dark"><i class="bi bi-person-plus text-hm me-2"></i>Thêm Hồ sơ Ứng viên</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <div class="modal-body p-4">
+                <div class="mb-3">
+                    <label class="form-label fw-bold small text-muted text-uppercase">Vị trí ứng tuyển <span class="text-danger">*</span></label>
+                    <select name="job_posting" class="form-select border-0 bg-light py-2 px-3 rounded-3" required>
+                        <option value="">-- Chọn vị trí đang tuyển --</option>
+                        {% for job in jobs %}
+                            <option value="{{ job.id }}">{{ job.title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-bold small text-muted text-uppercase">Họ và tên <span class="text-danger">*</span></label>
+                    <input type="text" name="full_name" class="form-control border-0 bg-light py-2 px-3 rounded-3" required placeholder="Nhập tên ứng viên">
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small text-muted text-uppercase">Số điện thoại</label>
+                        <input type="text" name="phone" class="form-control border-0 bg-light py-2 px-3 rounded-3" required placeholder="09xxxx">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small text-muted text-uppercase">Email</label>
+                        <input type="email" name="email" class="form-control border-0 bg-light py-2 px-3 rounded-3" required placeholder="email@example.com">
+                    </div>
+                </div>
+
+                <div class="mb-1">
+                    <label class="form-label fw-bold small text-muted text-uppercase">Hồ sơ (CV) đính kèm</label>
+                    <input type="file" name="cv_file" class="form-control border-0 bg-light py-2 px-3 rounded-3" accept=".pdf,.doc,.docx">
+                </div>
+            </div>
+            
+            <div class="modal-footer border-0 p-4 pt-0">
+                <button type="button" class="btn btn-light fw-bold px-4 rounded-3" data-bs-dismiss="modal">Hủy</button>
+                <button type="submit" class="btn btn-hm px-4 py-2">Lưu hồ sơ ứng viên</button>
+            </div>
+        </form>
+    </div>
+</div></div>
+<div class="modal fade" id="candidateDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-hm"><i class="bi bi-person-vcard me-2"></i>Chi tiết hồ sơ</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="text-center mb-4">
+                    <div class="bg-hm-light d-inline-block p-3 rounded-circle mb-2">
+                        <i class="bi bi-person-fill fs-1 text-hm"></i>
+                    </div>
+                    <h4 class="fw-bold mb-0" id="det_full_name"></h4>
+                    <span class="badge bg-primary-soft text-hm" id="det_job"></span>
+                </div>
+                
+                <div class="row g-3">
+                    <div class="col-6">
+                        <label class="small text-muted fw-bold">ĐIỆN THOẠI</label>
+                        <p class="mb-0 fw-bold" id="det_phone"></p>
+                    </div>
+                    <div class="col-6">
+                        <label class="small text-muted fw-bold">EMAIL</label>
+                        <p class="mb-0 fw-bold text-break" id="det_email"></p>
+                    </div>
+                    <div class="col-6">
+                        <label class="small text-muted fw-bold">NGÀY NỘP</label>
+                        <p class="mb-0" id="det_date"></p>
+                    </div>
+                    <div class="col-6">
+                        <label class="small text-muted fw-bold">TRẠNG THÁI</label>
+                        <p class="mb-0"><span class="badge bg-info-soft" id="det_status"></span></p>
+                    </div>
+                    <div class="col-12 mt-3">
+                        <label class="small text-muted fw-bold">GHI CHÚ CỦA HR</label>
+                        <div class="p-3 bg-light rounded-3 small italic" id="det_note"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 p-4 pt-0">
+                <a href="#" id="det_cv_link" target="_blank" class="btn btn-danger fw-bold w-100 rounded-3">
+                    <i class="bi bi-file-pdf me-2"></i>Xem CV chi tiết
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+
+    if (tabParam) {
+        // 1. Tìm nút bấm ẩn
+        const tabTriggerEl = document.querySelector(`#${tabParam}-tab`);
+        if (tabTriggerEl) {
+            // Kích hoạt qua trigger
+            const tab = new bootstrap.Tab(tabTriggerEl);
+            tab.show();
+        } else {
+            // 2. Nếu không thấy nút, ép cái pane hiện lên bằng tay
+            // Xóa active cũ
+            document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('show', 'active'));
+            // Hiện cái mới
+            const targetPane = document.getElementById(tabParam);
+            if (targetPane) {
+                targetPane.classList.add('show', 'active');
+            }
+        }
     }
-    .btn-group .btn { padding: 0.35rem 0.7rem; }
-    .table tbody td { padding: 0.85rem 0.5rem; }
-</style>
+});
+    document.querySelectorAll('.view-candidate-detail').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const id = this.getAttribute('data-id');
+        
+        fetch(`/hr/admin/candidate/${id}/detail/`)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('det_full_name').innerText = data.full_name;
+                document.getElementById('det_job').innerText = data.job_title;
+                document.getElementById('det_phone').innerText = data.phone;
+                document.getElementById('det_email').innerText = data.email;
+                document.getElementById('det_date').innerText = data.applied_at;
+                document.getElementById('det_status').innerText = data.status;
+                document.getElementById('det_note').innerText = data.hr_note;
+                
+                const cvLink = document.getElementById('det_cv_link');
+                if(data.cv_url) {
+                    cvLink.href = data.cv_url;
+                    cvLink.classList.remove('d-none');
+                } else {
+                    cvLink.classList.add('d-none');
+                }
+                
+                new bootstrap.Modal(document.getElementById('candidateDetailModal')).show();
+            });
+    });
+});
+</script>
+
 {% endblock %}

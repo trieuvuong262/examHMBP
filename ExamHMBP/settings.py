@@ -39,10 +39,28 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'assessment',
-    'django.contrib.humanize', # Để định dạng thời gian/số đẹp hơn
+    'django.contrib.humanize', 
     'training',
+    'recruitment',
+    'ckeditor',
 ]
-
+CKEDITOR_CONFIGS = {
+    'default': {
+        'toolbar': 'Custom',
+        'toolbar_Custom': [
+            ['Bold', 'Italic', 'Underline', 'Strike'], # In đậm, nghiêng, gạch chân...
+            ['NumberedList', 'BulletedList'],           # Gạch đầu dòng, số thứ tự
+            ['JustifyLeft', 'JustifyCenter', 'JustifyRight', 'JustifyBlock'], # Căn lề
+            ['Link', 'Unlink'],                        # Chèn link
+            ['RemoveFormat', 'Source'],                # Xóa định dạng, xem code HTML
+            ['TextColor', 'BGColor'],                  # Màu chữ, màu nền
+            ['Format', 'FontSize'],                    # Định dạng tiêu đề, cỡ chữ
+        ],
+        'width': '100%',
+        'height': 300,
+    },
+}
+X_FRAME_OPTIONS = 'SAMEORIGIN'
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -135,5 +153,5 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-LOGIN_REDIRECT_URL = 'exam_list'
+LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = 'login'

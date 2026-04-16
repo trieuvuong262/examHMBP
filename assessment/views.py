@@ -19,6 +19,13 @@ from training.models import Course, Enrollment
 # 2. Thư viện xử lý User và Auth
 from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password # Dùng nếu muốn tạo pass mặc định khi thêm user
+from recruitment.models import JobPosting, Candidate, Interview
+import pandas as pd
+from django.contrib.auth.models import User
+from django.contrib import messages
+from django.shortcuts import redirect
+from django.http import HttpResponse
+import io
 
 # 3. Import các Model của bạn
 from .models import (
@@ -39,6 +46,9 @@ from .forms import (
     UserForm # Form quản lý nhân viên vừa tạo
 )
 # ================= USER VIEWS (NHÂN VIÊN) =================
+@login_required
+def home_portal(request):
+    return render(request, 'portal.html')
 
 @login_required
 def exam_list(request):
@@ -182,19 +192,26 @@ def admin_dashboard(request):
     # Lấy QuerySet cơ bản
     all_exams = Exam.objects.all().order_by('-id') 
     all_courses = Course.objects.all().order_by('-created_at')
-    
+    active_jobs = JobPosting.objects.filter(is_active=True).count()
+    total_candidates = Candidate.objects.count()
+    upcoming_interviews = Interview.objects.filter(interview_time__gte=timezone.now()).count()
+    recent_candidates = Candidate.objects.select_related('job_posting').order_by('-applied_at')
     context = {
         # ==========================================
         # 1. DỮ LIỆU MODULE ĐÁNH GIÁ (ASSESSMENT)
-        # ==========================================
+        'jobs': JobPosting.objects.filter(is_active=True), # Thêm dòng này để Modal lấy được danh sách Job
         'total_exams': all_exams.count(),
         'active_exams_count': all_exams.filter(is_active=True, end_time__gt=now).count(),
         'total_users': User.objects.count(),
         'total_submissions': ExamSubmission.objects.filter(is_completed=True).count(),
         'exams': all_exams,  # THÊM DÒNG NÀY ĐỂ FIX LỖI Failed lookup for key [exams]
         'recent_exams': all_exams[:5],
-        'recent_submissions': ExamSubmission.objects.filter(is_completed=True).order_by('-submitted_at')[:5],
-        
+        'recent_submissions': ExamSubmission.objects.filter(is_completed=True).order_by('-submitted_at'),
+        # Biến mới cho HR
+        'active_jobs': active_jobs,
+        'total_candidates': total_candidates,
+        'upcoming_interviews': upcoming_interviews,
+        'recent_candidates': recent_candidates,
         # ==========================================
         # 2. DỮ LIỆU MODULE ĐÀO TẠO (TRAINING)
         # ==========================================
@@ -443,3 +460,80 @@ def user_password_reset(request, user_id):
         user.save()
         messages.success(request, f"Đã reset mật khẩu cho {user.username} về mặc định: {default_password}")
     return redirect('user_list')
+
+
+@staff_member_required
+def user_import_excel(request):
+    if request.method == 'POST' and request.FILES.get('excel_file'):
+        file = request.FILES['excel_file']
+        
+        try:
+            # Đọc file excel
+            df = pd.read_excel(file)
+            
+            # Giả sử file Excel có các cột: username, password, first_name, last_name, email
+            success_count = 0
+            error_count = 0
+            
+            for index, row in df.iterrows():
+                username = str(row.get('username')).strip()
+                password = str(row.get('password')).strip()
+                email = str(row.get('email', ''))
+                first_name = str(row.get('first_name', ''))
+                last_name = str(row.get('last_name', ''))
+
+                if not User.objects.filter(username=username).exists():
+                    User.objects.create_user(
+                        username=username,
+                        password=password,
+                        email=email,
+                        first_name=first_name,
+                        last_name=last_name
+                    )
+                    success_count += 1
+                else:
+                    error_count += 1
+            
+            messages.success(request, f'Đã import thành công {success_count} nhân viên. (Bỏ qua {error_count} nhân viên đã tồn tại)')
+            
+        except Exception as e:
+            messages.error(request, f'Lỗi khi xử lý file: {str(e)}')
+            
+    return redirect('user_list')
+
+
+# 1. Hàm Xuất toàn bộ danh sách nhân viên ra Excel
+@staff_member_required
+def user_export_excel(request):
+    users = User.objects.all().values('username', 'email', 'first_name', 'last_name', 'date_joined')
+    df = pd.DataFrame(list(users))
+    
+    # Định dạng lại cột ngày tháng
+    df['date_joined'] = df['date_joined'].dt.strftime('%d/%m/%Y')
+    
+    # Xuất file ra bộ nhớ đệm
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Danh sach nhan vien')
+    
+    response = HttpResponse(output.getvalue(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename=Danh_sach_nhan_vien.xlsx'
+    return response
+
+# 2. Hàm Tải File Excel Mẫu (Template)
+@staff_member_required
+def user_download_template(request):
+    # Tạo DataFrame trống với các tiêu đề chuẩn
+    columns = ['username', 'password', 'first_name', 'last_name', 'email']
+    df = pd.DataFrame(columns=columns)
+    
+    # Thêm 1 dòng ví dụ
+    df.loc[0] = ['nv001', 'Hm@12345', 'An', 'Nguyễn Văn', 'an.nv@hoanmy.com']
+    
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Template_Import')
+    
+    response = HttpResponse(output.getvalue(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename=Mau_Import_Nhan_Vien.xlsx'
+    return response

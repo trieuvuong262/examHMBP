@@ -3,8 +3,9 @@ from . import views
 
 urlpatterns = [
     # --- Dành cho nhân viên ---
-    path('', views.exam_list, name='exam_list'),
-    path('exams/<int:exam_id>/take/', views.take_exam, name='take_exam'),
+     path('', views.home_portal, name='home_portal'), # Trang chủ bây giờ là Portal
+     path('exams/', views.exam_list, name='exam_list'), # Trang thi dời vào đường dẫn /exams/
+     path('exams/<int:exam_id>/take/', views.take_exam, name='take_exam'),
     
     # --- Dành cho Admin (Dashboard & Kỳ thi) ---
     path('dashboard/', views.admin_dashboard, name='admin_dashboard'),
@@ -41,4 +42,8 @@ urlpatterns = [
     
     path('dashboard/competency/add-ajax/', views.competency_add_ajax, name='competency_add_ajax'),
     path('dashboard/competency/delete/<int:pk>/', views.competency_delete_ajax, name='competency_delete_ajax'),
+    
+    path('dashboard/users/import/', views.user_import_excel, name='user_import_excel'),
+    path('dashboard/users/export/', views.user_export_excel, name='user_export_excel'),
+     path('dashboard/users/download-template/', views.user_download_template, name='user_download_template'),
 ]

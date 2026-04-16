@@ -2,218 +2,241 @@
 
 {% block content %}
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css"
-    rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
 
-<div class="container-fluid mt-4 px-4">
+<style>
+    :root {
+        --hm-primary: rgb(0, 144, 161);
+        --hm-primary-hover: rgb(0, 115, 129);
+        --hm-soft-bg: rgba(0, 144, 161, 0.05);
+    }
+
+    body { background-color: #f8fafc; }
+
+    /* Custom Buttons */
+    .btn-hm { background-color: var(--hm-primary); color: white; border: none; }
+    .btn-hm:hover { background-color: var(--hm-primary-hover); color: white; box-shadow: 0 4px 12px rgba(0, 144, 161, 0.2); }
+    
+    /* Card Styles */
+    .card-hm { border: none; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); overflow: hidden; }
+    .card-header-hm { background: white; border-bottom: 1px solid #f1f5f9; padding: 1.25rem; }
+
+    /* Breadcrumb Custom */
+    .breadcrumb-hm { background: white; border-radius: 12px; padding: 1rem 1.5rem; border: 1px solid #f1f5f9; }
+
+    /* Select2 Tweaks */
+    .select2-container--bootstrap-5 .select2-selection {
+        border-radius: 10px;
+        border-color: #e2e8f0;
+        min-height: 45px;
+    }
+    .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice {
+        background-color: var(--hm-primary);
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 2px 8px;
+    }
+
+    .x-small { font-size: 0.75rem; }
+    .sticky-header { position: sticky; top: 0; z-index: 100; background: white; }
+</style>
+
+<div class="container-fluid mt-4 px-4 pb-5">
     <nav aria-label="breadcrumb" class="mb-4">
-        <ol class="breadcrumb shadow-sm p-3 bg-white rounded border-0">
-            <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}" class="text-decoration-none">Bảng điều
-                    khiển</a></li>
-            <li class="breadcrumb-item active fw-bold">{{ title }}</li>
+        <ol class="breadcrumb breadcrumb-hm shadow-sm">
+            <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}" class="text-decoration-none text-muted">Dashboard</a></li>
+            <li class="breadcrumb-item active fw-bold text-hm">{{ title }}</li>
         </ol>
     </nav>
 
-    <div class="row">
-        <div class="col-lg-4 col-md-5 mb-4">
-            <div class="card shadow border-0 overflow-hidden">
-                <div class="card-header bg-dark text-white p-3">
-                    <h5 class="mb-0 small-caps"><i class="bi bi-gear-fill me-2"></i>Thông tin kỳ thi</h5>
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="card card-hm shadow-sm">
+                <div class="card-header-hm bg-dark">
+                    <h6 class="mb-0 fw-bold text-white"><i class="bi bi-sliders2-vertical me-2 text-info"></i>CẤU HÌNH KỲ THI</h6>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-4">
                     <form method="post" id="examMainForm">
                         {% csrf_token %}
 
                         {% if form.non_field_errors %}
-                        <div class="alert alert-danger small">{{ form.non_field_errors }}</div>
+                            <div class="alert alert-danger small">{{ form.non_field_errors }}</div>
                         {% endif %}
 
                         {% for field in form %}
-                        {% if field.name != 'questions' and field.name != 'assigned_users' %}
-                        <div class="mb-3">
-                            <label class="form-label fw-bold small text-secondary">{{ field.label }}</label>
-                            {{ field }}
-                            {% if field.errors %}
-                            <div class="text-danger fw-bold mt-1" style="font-size: 0.75rem;">
-                                {% for error in field.errors %}<i class="bi bi-x-circle"></i> {{ error }}{% endfor %}
-                            </div>
+                            {% if field.name != 'questions' and field.name != 'assigned_users' %}
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold small text-muted text-uppercase">{{ field.label }}</label>
+                                    <div class="input-group-custom">
+                                        {{ field }}
+                                    </div>
+                                    {% if field.errors %}
+                                        <div class="text-danger x-small mt-1 fw-bold">
+                                            {% for error in field.errors %}<i class="bi bi-exclamation-circle me-1"></i>{{ error }}{% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
                             {% endif %}
-                        </div>
-                        {% endif %}
                         {% endfor %}
-                        <div class="mb-3 border-top pt-4 mt-4">
-                            <label class="form-label fw-bold text-primary mb-3">
-                                <i class="bi bi-person-check-fill me-1"></i>Chỉ định nhân viên dự thi
+
+                        <div class="mt-4 pt-4 border-top">
+                            <label class="form-label fw-bold text-hm mb-3">
+                                <i class="bi bi-people-fill me-2"></i>ĐỐI TƯỢNG DỰ THI
                             </label>
 
-                            <div class="mb-3 p-3 bg-light rounded border border-info-subtle">
-                                <div class="x-small text-muted mb-2 fw-bold">
-                                    <i class="bi bi-lightning-charge-fill text-warning me-1"></i>CHỌN NHANH THEO NHÓM:
-                                </div>
-                                <div class="d-flex flex-wrap gap-2">
-                                    <button type="button"
-                                        class="btn btn-sm btn-outline-primary btn-quick-select shadow-sm"
-                                        data-pos="Bác Sĩ">+ Bác Sĩ</button>
-                                    <button type="button"
-                                        class="btn btn-sm btn-outline-success btn-quick-select shadow-sm"
-                                        data-pos="Điều Dưỡng">+ Điều Dưỡng</button>
-                                    <button type="button" class="btn btn-sm btn-outline-info btn-quick-select shadow-sm"
-                                        data-pos="Dược Sĩ">+ Dược Sĩ</button>
-                                    <button type="button"
-                                        class="btn btn-sm btn-outline-warning text-dark btn-quick-select shadow-sm"
-                                        data-pos="Kỹ Thuật viên">+ Kỹ Thuật viên</button>
-                                    <button type="button"
-                                        class="btn btn-sm btn-outline-secondary btn-quick-select shadow-sm"
-                                        data-pos="Khối Hỗ trợ">+ Khối Hỗ trợ</button>
-
-                                    <button type="button" class="btn btn-sm btn-danger ms-auto shadow-sm"
-                                        id="btn-clear-users">
-                                        <i class="bi bi-x-circle me-1"></i>Bỏ chọn hết
-                                    </button>
-                                </div>
+                        <div class="p-3 rounded-4 border bg-light mb-3">
+                            <div class="x-small text-muted mb-2 fw-bold text-uppercase">Chọn nhanh theo chức danh:</div>
+                            <div class="d-flex flex-wrap gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary btn-quick-select rounded-pill" data-pos="Bác Sĩ">Bác Sĩ</button>
+                                <button type="button" class="btn btn-sm btn-outline-success btn-quick-select rounded-pill" data-pos="Điều Dưỡng">Điều Dưỡng</button>
+                                <button type="button" class="btn btn-sm btn-outline-info btn-quick-select rounded-pill" data-pos="Dược Sĩ">Dược Sĩ</button>
+                                <button type="button" class="btn btn-sm btn-outline-warning text-dark btn-quick-select rounded-pill" data-pos="Kỹ Thuật viên">KTV</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary btn-quick-select rounded-pill" data-pos="Khối Hỗ trợ">Khối Hỗ trợ</button>
+                                
+                                <button type="button" class="btn btn-sm btn-danger ms-auto rounded-pill px-3" id="btn-clear-users">
+                                    <i class="bi bi-trash3 me-1"></i>Xóa sạch
+                                </button>
                             </div>
-
-                            {{ form.assigned_users }}
-                            <div class="form-text x-small text-muted mt-2">Tìm tên hoặc chức danh (Gõ để tìm kiếm). Nhấn
-                                các nút trên để thêm hàng loạt.</div>
-                            {% if form.assigned_users.errors %}
-                            <div class="text-danger small mt-1">{{ form.assigned_users.errors }}</div>
-                            {% endif %}
                         </div>
 
-                        <div class="d-grid gap-2 mt-4 pt-3 border-top">
-                            <button type="submit" class="btn btn-success btn-lg shadow">Lưu kỳ thi</button>
-                            <a href="{% url 'admin_dashboard' %}" class="btn btn-light border">Quay lại</a>
+                            {{ form.assigned_users }}
+                            <div class="form-text x-small mt-2"><i class="bi bi-info-circle me-1"></i>Gõ tên nhân viên hoặc chức danh để tìm nhanh.</div>
+                        </div>
+
+                        <div class="d-grid gap-2 mt-5">
+                            <button type="submit" class="btn btn-hm btn-lg fw-bold rounded-3 py-3">
+                                <i class="bi bi-cloud-check me-2"></i>LƯU THÔNG TIN KỲ THI
+                            </button>
+                            <a href="{% url 'admin_dashboard' %}" class="btn btn-light border py-2 text-muted fw-bold">Hủy bỏ</a>
                         </div>
                     </form>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg-8 col-md-7">
+        <div class="col-lg-8">
             {% if exam.id %}
-            <div class="card shadow border-0 overflow-hidden">
-                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center p-3">
-                    <h5 class="mb-0"><i class="bi bi-list-ol me-2"></i>Câu hỏi trong đề</h5>
-                    <div class="btn-group">
-                        <button type="button" class="btn btn-light btn-sm fw-bold" data-bs-toggle="modal"
-                            data-bs-target="#bankModal">
-                            <i class="bi bi-search me-1"></i>Chọn từ ngân hàng
+            <div class="card card-hm shadow-sm">
+                <div class="card-header-hm d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-journal-text me-2 text-hm"></i>DANH SÁCH CÂU HỎI TRONG ĐỀ</h6>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-hm fw-bold px-3 rounded-3" data-bs-toggle="modal" data-bs-target="#bankModal">
+                            <i class="bi bi-database-add me-1"></i> Ngân hàng câu hỏi
                         </button>
-                        <a href="{% url 'question_add' exam.id %}"
-                            class="btn btn-info btn-sm fw-bold text-white border-start">
-                            + Tạo câu mới
+                        <a href="{% url 'question_add' exam.id %}" class="btn btn-sm btn-hm fw-bold px-3 rounded-3">
+                            <i class="bi bi-plus-lg me-1"></i> Tạo câu mới
                         </a>
                     </div>
                 </div>
                 <div class="card-body p-0">
-                    <div class="table-responsive" style="max-height: 60vh; overflow-y: auto;">
+                    <div class="table-responsive" style="max-height: 65vh;">
                         <table class="table table-hover align-middle mb-0">
-                            <thead class="table-light sticky-top" style="z-index: 10;">
+                            <thead class="bg-light sticky-header shadow-sm">
                                 <tr>
-                                    <th class="ps-3">Nội dung câu hỏi</th>
+                                    <th class="ps-4 py-3" style="width: 50%;">Nội dung câu hỏi</th>
                                     <th>Loại</th>
                                     <th class="text-center">Điểm</th>
-                                    <th class="text-end pe-3">Thao tác</th>
+                                    <th class="text-end pe-4">Thao tác</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for q in questions %}
                                 <tr>
-                                    <td class="ps-3">
-                                        <div class="small fw-semibold text-dark">{{ q.content|truncatewords:15 }}</div>
-                                        <div class="x-small text-muted">{{ q.competency.name }}</div>
+                                    <td class="ps-4 py-3">
+                                        <div class="fw-bold text-dark mb-1">{{ q.content|truncatewords:15 }}</div>
+                                        <div class="badge bg-primary-soft text-hm x-small fw-bold">{{ q.competency.name }}</div>
                                     </td>
-                                    <td><span class="badge bg-light text-dark border x-small">{{ q.get_q_type_display
-                                            }}</span></td>
-                                    <td class="text-center fw-bold text-primary">{{ q.points }}</td>
-                                    <td class="text-end pe-3">
-                                        <div class="btn-group">
-                                            <a href="{% url 'question_edit_detail' exam.id q.id %}"
-                                                class="btn btn-sm btn-outline-warning">Sửa</a>
-                                            <form action="{% url 'question_remove' exam.id q.id %}" method="POST"
-                                                class="d-inline">
+                                    <td><span class="badge bg-white border text-muted x-small">{{ q.get_q_type_display }}</span></td>
+                                    <td class="text-center"><strong class="text-hm">{{ q.points }}</strong></td>
+                                    <td class="text-end pe-4">
+                                        <div class="btn-group shadow-sm rounded-3 overflow-hidden">
+                                            <a href="{% url 'question_edit_detail' exam.id q.id %}" class="btn btn-sm btn-white border"><i class="bi bi-pencil-square text-warning"></i></a>
+                                            <form action="{% url 'question_remove' exam.id q.id %}" method="POST" class="d-inline">
                                                 {% csrf_token %}
-                                                <button type="submit"
-                                                    class="btn btn-sm btn-outline-danger border-start-0"
-                                                    onclick="return confirm('Gỡ câu hỏi?')">Gỡ</button>
+                                                <button type="submit" class="btn btn-sm btn-white border-start-0" onclick="return confirm('Gỡ câu hỏi khỏi đề?')">
+                                                    <i class="bi bi-trash text-danger"></i>
+                                                </button>
                                             </form>
                                         </div>
                                     </td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="4" class="text-center py-5 text-muted">Đề thi chưa có câu hỏi.</td>
+                                    <td colspan="4" class="text-center py-5">
+                                        <div class="py-4">
+                                            <i class="bi bi-inbox-fill display-1 text-light"></i>
+                                            <p class="text-muted mt-3 fw-bold">Chưa có câu hỏi nào được chọn cho đề thi này.</p>
+                                        </div>
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
                 </div>
+                <div class="card-footer bg-white py-3 border-0 text-end">
+                    <span class="text-muted small fw-bold">Tổng số câu hỏi: <span class="text-hm">{{ questions.count }}</span></span>
+                </div>
             </div>
             {% else %}
-            <div class="alert alert-secondary py-5 text-center border-0 shadow-sm">
-                <i class="bi bi-info-circle display-4 opacity-25"></i>
-                <h5 class="mt-3">Kỳ thi mới</h5>
-                <p class="text-muted mb-0">Vui lòng điền và Lưu thông tin ở cột bên trái trước khi thêm câu hỏi.</p>
+            <div class="card card-hm border-dashed bg-light py-5 text-center">
+                <div class="card-body">
+                    <i class="bi bi-info-circle display-4 text-muted opacity-25"></i>
+                    <h5 class="mt-3 fw-bold text-dark">Khởi tạo kỳ thi</h5>
+                    <p class="text-muted mx-auto" style="max-width: 400px;">Vui lòng thiết lập và lưu thông tin kỳ thi ở cột bên trái trước khi bắt đầu chọn câu hỏi từ ngân hàng.</p>
+                </div>
             </div>
             {% endif %}
         </div>
     </div>
 </div>
-{% if exam.id %}
-<div class="modal fade" id="bankModal" tabindex="-1" aria-labelledby="bankModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content shadow-lg border-0" style="height: 85vh;">
-            <form method="post" class="d-flex flex-column" style="height: 100%; overflow: hidden;">
-                {% csrf_token %}
 
-                <div class="modal-header bg-dark text-white flex-shrink-0">
-                    <h5 class="modal-title" id="bankModalLabel">
-                        <i class="bi bi-database-fill me-2"></i>Ngân hàng câu hỏi hệ thống
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
-                        aria-label="Close"></button>
+{% if exam.id %}
+<div class="modal fade" id="bankModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0 rounded-4" style="height: 85vh;">
+            <form method="post" class="d-flex flex-column h-100">
+                {% csrf_token %}
+                <div class="modal-header bg-dark text-white p-4">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-database-fill-gear me-2"></i>NGÂN HÀNG CÂU HỎI HỆ THỐNG</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
 
-                <div class="modal-body p-0 flex-grow-1" style="overflow-y: auto; background: #f8f9fa;">
+                <div class="modal-body p-0 bg-light">
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0 bg-white">
-                            <thead class="table-light sticky-top" style="top: -1px; z-index: 10;">
+                            <thead class="table-light sticky-top shadow-sm">
                                 <tr>
-                                    <th class="ps-4" style="width: 60px;">Chọn</th>
+                                    <th class="ps-4 py-3" style="width: 60px;">Chọn</th>
                                     <th>Nội dung câu hỏi</th>
                                     <th>Năng lực</th>
-                                    <th class="pe-4 text-end">Loại câu hỏi</th>
+                                    <th class="pe-4 text-end">Phân loại</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for q_bank in question_bank %}
                                 <tr>
                                     <td class="ps-4">
-                                        <input type="checkbox" name="selected_questions" value="{{ q_bank.id }}"
-                                            class="form-check-input border-primary shadow-sm">
+                                        <div class="form-check">
+                                            <input type="checkbox" name="selected_questions" value="{{ q_bank.id }}" class="form-check-input border-primary shadow-sm">
+                                        </div>
                                     </td>
                                     <td>
                                         <div class="small fw-bold text-dark">{{ q_bank.content|truncatewords:20 }}</div>
-                                        <div class="text-muted x-small">Điểm: {{ q_bank.points }}</div>
+                                        <div class="text-muted x-small">Mức điểm: <span class="text-hm fw-bold">{{ q_bank.points }}</span></div>
                                     </td>
                                     <td>
-                                        <span class="badge bg-secondary-soft text-secondary fw-normal">
-                                            {{ q_bank.competency.name }}
-                                        </span>
+                                        <span class="badge rounded-pill bg-secondary-soft text-secondary fw-bold">{{ q_bank.competency.name }}</span>
                                     </td>
                                     <td class="pe-4 text-end">
-                                        <span class="badge bg-light text-dark border x-small">
-                                            {{ q_bank.get_q_type_display }}
-                                        </span>
+                                        <span class="badge bg-light text-dark border x-small">{{ q_bank.get_q_type_display }}</span>
                                     </td>
                                 </tr>
                                 {% empty %}
                                 <tr>
                                     <td colspan="4" class="text-center py-5">
-                                        <i class="bi bi-inbox display-4 text-muted opacity-25"></i>
-                                        <p class="mt-3 text-muted">Ngân hàng đã hết câu hỏi mới cho đề thi này.</p>
+                                        <p class="text-muted fw-bold">Tất cả câu hỏi trong kho đã có trong đề thi này.</p>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -222,13 +245,10 @@
                     </div>
                 </div>
 
-                <div class="modal-footer bg-white border-top flex-shrink-0 shadow-sm">
-                    <div class="me-auto small text-muted d-none d-md-block">
-                        <i class="bi bi-info-circle me-1"></i> Tích chọn các câu hỏi muốn thêm vào đề.
-                    </div>
-                    <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Đóng</button>
-                    <button type="submit" name="add_from_bank" class="btn btn-primary px-4 shadow">
-                        <i class="bi bi-plus-lg me-1"></i> Thêm vào đề thi
+                <div class="modal-footer p-4 border-top bg-white shadow-sm">
+                    <button type="button" class="btn btn-light border fw-bold px-4" data-bs-dismiss="modal">Hủy bỏ</button>
+                    <button type="submit" name="add_from_bank" class="btn btn-hm px-4 fw-bold shadow">
+                        <i class="bi bi-plus-circle me-2"></i> THÊM CÂU HỎI VÀO ĐỀ
                     </button>
                 </div>
             </form>
@@ -237,79 +257,48 @@
 </div>
 {% endif %}
 
-<style>
-    /* Ép Modal hiển thị đúng cấu trúc flexbox */
-    #bankModal .modal-content {
-        display: flex !important;
-        flex-direction: column !important;
-    }
-
-    /* Đảm bảo Select2 không làm vỡ giao diện cột trái */
-    .select2-container--bootstrap-5 .select2-selection--multiple {
-        max-height: 150px;
-        overflow-y: auto;
-    }
-
-    .bg-secondary-soft {
-        background-color: rgba(108, 117, 125, 0.1);
-    }
-
-    .x-small {
-        font-size: 0.75rem;
-    }
-
-    /* Tạo độ mượt khi cuộn */
-    .modal-body::-webkit-scrollbar {
-        width: 6px;
-    }
-
-    .modal-body::-webkit-scrollbar-thumb {
-        background-color: #ced4da;
-        border-radius: 10px;
-    }
-</style>
-
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 <script>
-    $(document).ready(function () {
-        // Select2 đã có sẵn của bạn
-        $('.select2-user').select2({
+    $(document).ready(function() {
+        // Khởi tạo Select2 cho assigned_users
+        $('select[name="assigned_users"]').select2({
             theme: 'bootstrap-5',
-            placeholder: ' Chọn nhân viên dự thi...',
+            placeholder: "Gõ để tìm kiếm nhân viên...",
             allowClear: true,
-            closeOnSelect: false,
             width: '100%'
         });
 
-        // --- SCRIPT XỬ LÝ CHỌN NHANH THÊM MỚI ---
-        const userPositions = JSON.parse('{{ user_positions_json|escapejs }}');
+        // Xử lý nút chọn nhanh theo chức danh
+        $('.btn-quick-select').click(function() {
+            const position = $(this).data('pos');
+            const selectElement = $('select[name="assigned_users"]');
+            const currentValues = selectElement.val() || [];
 
-        $('.btn-quick-select').click(function () {
-            const targetPos = $(this).data('pos');
-            const selectEl = $('.select2-user');
-
-            let currentValues = selectEl.val() || [];
-
-            for (const [userId, pos] of Object.entries(userPositions)) {
-                if (pos === targetPos && !currentValues.includes(userId)) {
-                    currentValues.push(userId);
+            // Duyệt qua tất cả các option trong Select2
+            selectElement.find('option').each(function() {
+                const text = $(this).text();
+                // Nếu text của option chứa từ khóa chức danh
+                if (text.includes(position)) {
+                    if (!currentValues.includes($(this).val())) {
+                        currentValues.push($(this).val());
+                    }
                 }
-            }
+            });
 
-            selectEl.val(currentValues).trigger('change');
-
-            let $btn = $(this);
-            let originalText = $btn.text();
-            $btn.text('✓ Đã thêm').addClass('active');
-            setTimeout(() => { $btn.text(originalText).removeClass('active'); }, 1000);
+            selectElement.val(currentValues).trigger('change');
+            
+            // Hiệu ứng feedback nhẹ
+            $(this).fadeOut(100).fadeIn(100);
         });
 
-        $('#btn-clear-users').click(function () {
-            $('.select2-user').val(null).trigger('change');
+        // Nút xóa sạch
+        $('#btn-clear-users').click(function() {
+            if(confirm('Xóa tất cả nhân viên đã chọn?')) {
+                $('select[name="assigned_users"]').val(null).trigger('change');
+            }
         });
     });
 </script>
-
 {% endblock %}

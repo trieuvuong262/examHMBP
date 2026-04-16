@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .portal-container {
+        min-height: 70vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .portal-card {
+        transition: all 0.3s ease;
+        border: none;
+        border-radius: 20px;
+        overflow: hidden;
+        cursor: pointer;
+        text-decoration: none;
+        background: white;
+    }
+    .portal-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 15px 30px rgba(0, 144, 161, 0.2) !important;
+    }
+    .icon-circle {
+        width: 80px;
+        height: 80px;
+        background: rgba(0, 144, 161, 0.1);
+        color: rgb(0, 144, 161);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        margin: 0 auto 1.5rem;
+    }
+</style>
+
+<div class="container portal-container">
+    <div class="row w-100 justify-content-center g-4">
+        <div class="col-12 text-center mb-4">
+            <h2 class="fw-bold text-dark">Xin chào, {{ user.first_name|default:user.username }}!</h2>
+            <p class="text-muted">Vui lòng chọn phân hệ bạn muốn truy cập</p>
+        </div>
+
+        <div class="col-md-5 col-lg-4">
+            <a href="{% url 'my_courses' %}" class="card portal-card shadow-sm h-100 p-5 text-center">
+                <div class="icon-circle">
+                    <i class="bi bi-mortarboard-fill"></i>
+                </div>
+                <h3 class="fw-bold text-dark">Học tập</h3>
+                <p class="text-muted">Truy cập kho khóa học và tài liệu đào tạo nội bộ.</p>
+                <div class="btn btn-hm rounded-pill px-4 mt-auto">Vào học ngay</div>
+            </a>
+        </div>
+
+        <div class="col-md-5 col-lg-4">
+            <a href="{% url 'exam_list' %}" class="card portal-card shadow-sm h-100 p-5 text-center">
+                <div class="icon-circle">
+                    <i class="bi bi-journal-check"></i>
+                </div>
+                <h3 class="fw-bold text-dark">Đánh giá</h3>
+                <p class="text-muted">Thực hiện các bài thi năng lực và kiểm tra định kỳ.</p>
+                <div class="btn btn-outline-hm rounded-pill px-4 mt-auto">Vào thi ngay</div>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

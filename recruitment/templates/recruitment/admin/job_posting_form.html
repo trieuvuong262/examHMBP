@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4 mb-5" style="max-width: 800px;">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold text-dark mb-0"><i class="bi bi-pencil-square text-info me-2"></i>{{ title }}</h3>
+        <a href="{% url 'job_posting_list' %}" class="btn btn-outline-secondary shadow-sm"><i class="bi bi-arrow-left me-1"></i> Hủy & Quay lại</a>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+            <form method="POST">
+                {% csrf_token %}
+                <div class="row mb-3">
+                    <div class="col-md-12 mb-3">
+                        <label class="form-label fw-bold">Tiêu đề (Vị trí tuyển dụng) <span class="text-danger">*</span></label>
+                        {{ form.title }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Khoa / Phòng ban <span class="text-danger">*</span></label>
+                        {{ form.department }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Nhóm Chức danh <span class="text-danger">*</span></label>
+                        {{ form.position }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Số lượng cần tuyển <span class="text-danger">*</span></label>
+                        {{ form.quantity }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Hạn nộp hồ sơ <span class="text-danger">*</span></label>
+                        {{ form.deadline }}
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Mô tả công việc</label>
+                    {{ form.description }}
+                </div>
+                
+                <div class="mb-4">
+                    <label class="form-label fw-bold">Yêu cầu ứng viên</label>
+                    {{ form.requirements }}
+                </div>
+
+                <div class="mb-4 form-check form-switch fs-5">
+                    {{ form.is_active }}
+                    <label class="form-check-label ms-2 text-success fw-bold" for="{{ form.is_active.id_for_label }}">Đang mở tuyển (Hiển thị công khai)</label>
+                </div>
+
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-info text-white btn-lg fw-bold"><i class="bi bi-save me-2"></i> Lưu Tin Tuyển Dụng</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-dark mb-1"><i class="bi bi-megaphone text-info me-2"></i>Quản lý Vị trí Tuyển dụng</h3>
+            <p class="text-muted mb-0">Thêm, sửa, xóa các chiến dịch tuyển nhân sự</p>
+        </div>
+        <div class="btn-group shadow-sm">
+            <a href="{% url 'job_posting_create' %}" class="btn btn-info text-white fw-bold">
+                <i class="bi bi-plus-lg me-1"></i> Đăng tin mới
+            </a>
+            <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary bg-white border-start">
+                <i class="bi bi-arrow-left"></i> Quay lại
+            </a>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Vị trí Tuyển dụng</th>
+                        <th>Khoa / Phòng</th>
+                        <th class="text-center">Số lượng</th>
+                        <th class="text-center">Hạn nộp</th>
+                        <th class="text-center">Trạng thái</th>
+                        <th class="text-end pe-4">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for job in jobs %}
+                    <tr>
+                        <td class="ps-4 fw-bold text-primary">{{ job.title }}</td>
+                        <td>{{ job.department }}</td>
+                        <td class="text-center fw-bold">{{ job.quantity }}</td>
+                        <td class="text-center text-muted small">{{ job.deadline|date:"d/m/Y" }}</td>
+                        <td class="text-center">
+                            {% if job.is_active and not job.is_expired %}
+                                <span class="badge bg-success">Đang mở</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Đã đóng</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <div class="btn-group shadow-sm">
+                                <a href="{% url 'job_posting_edit' job.id %}" class="btn btn-sm btn-outline-warning" title="Sửa"><i class="bi bi-pencil-square"></i> Sửa</a>
+                                <form action="{% url 'job_posting_delete' job.id %}" method="POST" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger border-start-0" onclick="return confirm('Bạn có chắc muốn xóa tin tuyển dụng này?');" title="Xóa"><i class="bi bi-trash"></i> Xóa</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-center py-5 text-muted">Chưa có vị trí tuyển dụng nào.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

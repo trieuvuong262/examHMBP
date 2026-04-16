@@ -16,6 +16,7 @@ urlpatterns = [
     # Để trống '' để khi vào trang chủ nó sẽ dẫn thẳng vào app này
     path('', include('assessment.urls')),
     path('training/', include('training.urls')),
+    path('hr/', include('recruitment.urls')), # Thêm dòng này
 ]
 
 # 4. Cấu hình để phục vụ file Media (Ảnh câu hỏi, Ảnh bài làm) trong quá trình phát triển (DEBUG=True)

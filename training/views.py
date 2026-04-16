@@ -11,6 +11,10 @@ from django.contrib import messages
 from .forms import CourseForm
 import json
 from django.contrib.auth.models import User
+from django.db.models import Count
+from .forms import ChapterForm, LessonForm
+from django.views.decorators.http import require_POST
+
 
 @login_required
 def my_courses(request):
@@ -144,4 +148,146 @@ def course_create(request):
     return render(request, 'training/admin/course_form.html', {
         'form': form,
         'user_positions_json': json.dumps(user_positions) # Gửi dữ liệu ra frontend
+    })
+    
+@staff_member_required
+def course_list(request):
+    # Lấy danh sách khóa học, đếm luôn số học viên và số chương để hiển thị cho tiện
+    courses = Course.objects.annotate(
+        student_count=Count('assigned_users', distinct=True),
+        chapter_count=Count('chapters', distinct=True)
+    ).order_by('-created_at')
+
+    return render(request, 'training/admin/course_list.html', {
+        'courses': courses,
+        'title': 'Quản lý danh sách khóa học'
+    })
+@staff_member_required
+def course_edit(request, course_id):
+    # Lấy khóa học từ DB
+    course = get_object_or_404(Course, id=course_id)
+    
+    # 1. TẠO TỪ ĐIỂN CHỨC DANH ĐỂ DÙNG SELECT2 (giống hệt bên tạo mới)
+    user_positions = {}
+    users = User.objects.select_related('profile').all()
+    for u in users:
+        try:
+            if hasattr(u, 'profile') and u.profile.position:
+                user_positions[str(u.id)] = u.profile.position
+        except:
+            pass
+
+    # 2. XỬ LÝ FORM SỬA DỮ LIỆU
+    if request.method == 'POST':
+        # Thêm instance=course để ghi đè dữ liệu cũ
+        form = CourseForm(request.POST, request.FILES, instance=course)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Đã cập nhật thông tin khóa học: {course.title}')
+            return redirect('course_list')
+    else:
+        # Load dữ liệu cũ vào form
+        form = CourseForm(instance=course)
+
+    # 3. DÙNG CHUNG FILE GIAO DIỆN course_form.html
+    return render(request, 'training/admin/course_form.html', {
+        'form': form,
+        'user_positions_json': json.dumps(user_positions)
+    })
+    
+@staff_member_required
+def course_builder(request, course_id):
+    # Lấy thông tin khóa học hiện tại
+    course = get_object_or_404(Course, id=course_id)
+    
+    # Lấy tất cả các chương của khóa học này, kèm theo các bài học bên trong (dùng prefetch_related để tối ưu truy vấn)
+    chapters = course.chapters.prefetch_related('lessons').all().order_by('order')
+
+    return render(request, 'training/admin/course_builder.html', {
+        'course': course,
+        'chapters': chapters,
+    })
+    
+
+@staff_member_required
+def chapter_create(request, course_id):
+    course = get_object_or_404(Course, id=course_id)
+    if request.method == 'POST':
+        form = ChapterForm(request.POST)
+        if form.is_valid():
+            chapter = form.save(commit=False)
+            chapter.course = course
+            chapter.save()
+            return redirect('course_builder', course_id=course.id)
+    return redirect('course_builder', course_id=course.id)
+
+@staff_member_required
+def lesson_create(request, chapter_id):
+    chapter = get_object_or_404(Chapter, id=chapter_id)
+    if request.method == 'POST':
+        form = LessonForm(request.POST, request.FILES)
+        if form.is_valid():
+            lesson = form.save(commit=False)
+            lesson.chapter = chapter
+            lesson.save()
+            return redirect('course_builder', course_id=chapter.course.id)
+    return redirect('course_builder', course_id=chapter.course.id)
+
+
+
+# --- XÓA BÀI HỌC ---
+@staff_member_required
+@require_POST
+def lesson_delete(request, lesson_id):
+    lesson = get_object_or_404(Lesson, id=lesson_id)
+    course_id = lesson.chapter.course.id
+    lesson_title = lesson.title
+    lesson.delete()
+    messages.success(request, f'Đã xóa bài học: {lesson_title}')
+    return redirect('course_builder', course_id=course_id)
+
+# --- CẬP NHẬT THỨ TỰ BÀI HỌC (AJAX KÉO THẢ) ---
+@staff_member_required
+@require_POST
+def update_lesson_order(request):
+    try:
+        data = json.loads(request.body)
+        lesson_ids = data.get('lesson_ids', [])
+        
+        # Cập nhật lại cột 'order' cho từng ID gửi lên
+        for index, l_id in enumerate(lesson_ids):
+            Lesson.objects.filter(id=l_id).update(order=index + 1)
+            
+        return JsonResponse({'status': 'success'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    
+# Đảm bảo bạn đã import messages ở đầu file: from django.contrib import messages
+
+@staff_member_required
+def lesson_edit(request, lesson_id):
+    lesson = get_object_or_404(Lesson, id=lesson_id)
+    course_id = lesson.chapter.course.id 
+    
+    if request.method == 'POST':
+        form = LessonForm(request.POST, request.FILES, instance=lesson)
+        if form.is_valid():
+            # --- ĐOẠN SỬA LỖI VIDEO 153 TẠI ĐÂY ---
+            new_lesson = form.save(commit=False)
+            video_url = form.cleaned_data.get('video_url')
+            if video_url and "youtube.com/watch?v=" in video_url:
+                video_id = video_url.split("v=")[1].split("&")[0]
+                # Sử dụng youtube-nocookie để tránh lỗi 153 do chặn cookie bên thứ 3
+                new_lesson.video_url = f"https://www.youtube-nocookie.com/embed/{video_id}"
+            new_lesson.save()
+            # --------------------------------------
+            messages.success(request, f'Đã cập nhật bài học: {lesson.title}')
+            return redirect('course_builder', course_id=course_id)
+    else:
+        form = LessonForm(instance=lesson)
+
+    return render(request, 'training/admin/lesson_form.html', {
+        'form': form,
+        'lesson': lesson,
+        'course_id': course_id
     })

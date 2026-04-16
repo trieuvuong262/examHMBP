@@ -62,7 +62,7 @@
                 <div class="card-footer bg-white border-top-0 p-4 pt-0">
                     {% if item.status == 'completed' %}
                         {% if item.course.final_exam %}
-                            <a href="{% url 'exam_detail' item.course.final_exam.id %}" class="btn btn-danger w-100 fw-bold shadow-sm">
+                            <a href="{% url 'take_exam' item.course.final_exam.id %}" class="btn btn-danger w-100 fw-bold shadow-sm">
                                 <i class="bi bi-pencil-square me-2"></i>LÀM BÀI THI CUỐI KHÓA
                             </a>
                         {% else %}

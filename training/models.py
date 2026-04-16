@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from assessment.models import Exam 
-
+from ckeditor.fields import RichTextField
 # 1. Danh mục khóa học
 class CourseCategory(models.Model):
     name = models.CharField(max_length=255, verbose_name="Tên danh mục")
@@ -62,8 +62,7 @@ class Lesson(models.Model):
     chapter = models.ForeignKey(Chapter, on_delete=models.CASCADE, related_name='lessons', verbose_name="Chương")
     title = models.CharField(max_length=255, verbose_name="Tiêu đề bài học")
     lesson_type = models.CharField(max_length=20, choices=LESSON_TYPES, verbose_name="Loại bài học")
-    
-    content = models.TextField(blank=True, verbose_name="Nội dung văn bản")
+    content = RichTextField(blank=True, null=True, verbose_name="Nội dung bài học")
     video_url = models.URLField(blank=True, null=True, verbose_name="Đường dẫn Video (YouTube/Drive)")
     attachment = models.FileField(upload_to='course_materials/', null=True, blank=True, verbose_name="Tài liệu đính kèm")
     

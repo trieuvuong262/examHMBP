@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block content %}
+{{ form.media }}
+<div class="container mt-4 mb-5" style="max-width: 900px;">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-dark mb-1"><i class="bi bi-pencil-square text-warning me-2"></i>Chỉnh sửa bài học</h3>
+            <p class="text-muted mb-0">Chương: <span class="fw-bold text-primary">{{ lesson.chapter.title }}</span></p>
+        </div>
+        <a href="{% url 'course_builder' course_id %}" class="btn btn-outline-secondary shadow-sm">
+            <i class="bi bi-arrow-left me-1"></i>Quay lại
+        </a>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <form method="POST" enctype="multipart/form-data" class="card-body p-4">
+            {% csrf_token %}
+            
+            <div class="row">
+                <div class="col-md-8 mb-3">
+                    <label class="form-label fw-bold">Tiêu đề bài học</label>
+                    {{ form.title }}
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label fw-bold">Loại bài học</label>
+                    {{ form.lesson_type }}
+                </div>
+            </div>
+
+            <div id="content_field" class="mb-3 d-none">
+                <label class="form-label fw-bold">Nội dung bài học</label>
+                {{ form.content }}
+            </div>
+
+            <div id="video_field" class="mb-3 d-none">
+                <label class="form-label fw-bold">Đường dẫn Video (YouTube/Vimeo)</label>
+                {{ form.video_url }}
+            </div>
+
+            <div id="file_field" class="mb-3 d-none">
+                <label class="form-label fw-bold">Tải lên tài liệu (PDF/Slide)</label>
+                {{ form.attachment }}
+                {% if lesson.attachment %}
+                    <div class="form-text mt-2">
+                        <i class="bi bi-file-earmark-check text-success me-1"></i> File hiện tại: <a href="{{ lesson.attachment.url }}" target="_blank">{{ lesson.attachment.name }}</a>
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="row border-top pt-4 mt-2">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-bold">Thời gian dự kiến (phút)</label>
+                    {{ form.duration_estimate }}
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-bold">Thứ tự ưu tiên</label>
+                    {{ form.order }}
+                </div>
+            </div>
+
+            <div class="text-end mt-2">
+                <button type="submit" class="btn btn-warning fw-bold text-dark px-5 shadow">
+                    <i class="bi bi-save me-1"></i>CẬP NHẬT
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const typeSelect = document.getElementById('id_lesson_type'); // Django tự sinh id này
+        const contentField = document.getElementById('content_field');
+        const videoField = document.getElementById('video_field');
+        const fileField = document.getElementById('file_field');
+
+        // Hàm xử lý ẩn/hiện
+        function toggleFields() {
+            contentField.classList.add('d-none');
+            videoField.classList.add('d-none');
+            fileField.classList.add('d-none');
+
+            if (typeSelect.value === 'reading') contentField.classList.remove('d-none');
+            else if (typeSelect.value === 'video') videoField.classList.remove('d-none');
+            else if (typeSelect.value === 'pdf') fileField.classList.remove('d-none');
+        }
+
+        // Chạy lần đầu tiên khi load trang để hiển thị đúng trường dữ liệu cũ
+        toggleFields();
+
+        // Chạy khi người dùng thay đổi loại bài học
+        typeSelect.addEventListener('change', toggleFields);
+    });
+</script>
+{% endblock %}

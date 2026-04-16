@@ -1,88 +1,177 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container-fluid mt-4 px-4">
+<div class="container-fluid py-4 px-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="fw-bold text-dark mb-1"><i class="bi bi-people-fill me-2"></i>Quản lý nhân viên</h2>
-            <p class="text-muted small mb-0">Danh sách nhân sự tham gia hệ thống đánh giá</p>
+            <h2 class="fw-bold text-dark mb-1">
+                <i class="bi bi-people-fill text-hm me-2"></i>Quản lý Nhân sự
+            </h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}" class="text-decoration-none text-muted">Dashboard</a></li>
+                    <li class="breadcrumb-item active fw-bold text-hm">Danh sách nhân viên</li>
+                </ol>
+            </nav>
         </div>
-        <a href="{% url 'user_add' %}" class="btn btn-primary shadow-sm">
-            <i class="bi bi-person-plus-fill me-1"></i> Thêm nhân viên
-        </a>
+        
+        <div class="d-flex gap-2">
+            <a href="{% url 'user_export_excel' %}" class="btn btn-outline-primary fw-bold shadow-sm px-3 border-2">
+                <i class="bi bi-download me-1"></i> Xuất Excel
+            </a>
+
+            <button type="button" class="btn btn-outline-success fw-bold shadow-sm px-3 border-2" data-bs-toggle="modal" data-bs-target="#importExcelModal">
+                <i class="bi bi-file-earmark-excel-fill me-1"></i> Import Excel
+            </button>
+            
+            <a href="{% url 'user_add' %}" class="btn btn-hm shadow-sm text-white px-4 fw-bold">
+                <i class="bi bi-person-plus-fill me-1"></i> Thêm nhân viên
+            </a>
+        </div>
     </div>
 
-    <div class="card shadow border-0 overflow-hidden">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-dark">
-                        <tr>
-                            <th class="ps-4">Tài khoản</th>
-                            <th>Họ và Tên</th>
-                            <th>Chức danh</th>
-                            <th>Email</th>
-                            <th class="text-end pe-4">Thao tác</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for u in users %}
-                        <tr>
-                            <td class="ps-4">
-                                <span class="fw-bold text-primary">{{ u.username }}</span>
-                                <div class="x-small text-muted">Tham gia: {{ u.date_joined|date:"d/m/Y" }}</div>
-                            </td>
-                            <td><div class="fw-bold">{{ u.profile.full_name|default:"Chưa cập nhật" }}</div></td>
-                            <td>
-                                <span class="badge bg-info-soft text-info fw-normal">
-                                    {{ u.profile.position|default:"-" }}
-                                </span>
-                            </td>
-                            <td>{{ u.email|default:"---" }}</td>
-                            <td class="text-end pe-4">
-                                <div class="btn-group shadow-sm">
-                                    <a href="{% url 'user_edit' u.id %}" class="btn btn-sm btn-outline-warning">
-                                        <i class="bi bi-pencil me-1"></i> Sửa
-                                    </a>
-
-                                    <form action="{% url 'user_password_reset' u.id %}" method="POST" class="d-inline">
-                                        {% csrf_token %}
-                                        <button type="submit" class="btn btn-sm btn-outline-info border-start-0" 
-                                                onclick="return confirm('Đặt lại mật khẩu cho {{ u.username }} về mặc định: {{ u.username }}@123?')">
-                                            <i class="bi bi-key me-1"></i> Reset
-                                        </button>
-                                    </form>
-
-                                    {% if u.id != request.user.id %}
-                                    <form action="{% url 'user_delete' u.id %}" method="POST" class="d-inline">
-                                        {% csrf_token %}
-                                        <button type="submit" class="btn btn-sm btn-outline-danger border-start-0" 
-                                                onclick="return confirm('Xác nhận xóa vĩnh viễn nhân viên này?')">
-                                            <i class="bi bi-trash me-1"></i> Xóa
-                                        </button>
-                                    </form>
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 fw-bold text-dark">Dữ liệu nhân sự ({{ users.count }})</h5>
+            
+            <div class="input-group input-group-sm w-auto" style="min-width: 350px;">
+                <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" id="userSearch" class="form-control bg-light border-start-0 py-2" placeholder="Tìm tên, username hoặc email...">
+            </div>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="userTable">
+                <thead class="bg-light text-uppercase">
+                    <tr style="font-size: 0.85rem; letter-spacing: 0.5px;">
+                        <th class="ps-4 py-3 text-muted">Nhân viên</th>
+                        <th class="text-muted">Username</th>
+                        <th class="text-muted">Email</th>
+                        <th class="text-muted">Ngày tham gia</th>
+                        <th class="text-end pe-4 text-muted">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr>
+                        <td class="ps-4">
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-circle me-3">{{ u.first_name|first|upper }}</div>
+                                <div>
+                                    <div class="fw-bold text-dark">{{ u.last_name }} {{ u.first_name }}</div>
+                                    {% if u.is_staff %}
+                                        <span class="badge bg-danger-subtle text-danger rounded-pill x-small">Admin</span>
+                                    {% else %}
+                                        <span class="badge bg-primary-subtle text-hm rounded-pill x-small">Nhân viên</span>
                                     {% endif %}
                                 </div>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="5" class="text-center py-5 text-muted">
-                                <i class="bi bi-people display-4 opacity-25"></i>
-                                <p class="mt-3">Chưa có nhân viên nào trong danh sách.</p>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+                            </div>
+                        </td>
+                        <td><code class="text-primary fw-bold">{{ u.username }}</code></td>
+                        <td class="text-muted">{{ u.email|default:"---" }}</td>
+                        <td class="text-muted small">{{ u.date_joined|date:"d/m/Y" }}</td>
+                        <td class="text-end pe-4">
+                            <div class="btn-group shadow-sm rounded-3">
+                                <a href="{% url 'user_edit' u.id %}" class="btn btn-sm btn-white border px-3" title="Sửa thông tin">
+                                    <i class="bi bi-pencil-square text-warning"></i>
+                                </a>
+                                <a href="{% url 'user_password_reset' u.id %}" class="btn btn-sm btn-white border px-3 border-start-0" title="Đặt lại mật khẩu">
+                                    <i class="bi bi-key-fill text-primary"></i>
+                                </a>
+                                <a href="{% url 'user_delete' u.id %}" class="btn btn-sm btn-white border px-3 border-start-0" 
+                                   onclick="return confirm('Bạn có chắc chắn muốn xóa nhân viên này khỏi hệ thống?')" title="Xóa">
+                                    <i class="bi bi-trash-fill text-danger"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5">
+                            <div class="py-4">
+                                <i class="bi bi-person-exclamation display-1 text-muted opacity-25"></i>
+                                <p class="mt-3 text-muted fs-5">Chưa có nhân viên nào trong hệ thống.</p>
+                                <a href="{% url 'user_add' %}" class="btn btn-hm btn-sm">Thêm nhân viên ngay</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
 
+<div class="modal fade" id="importExcelModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form action="{% url 'user_import_excel' %}" method="POST" enctype="multipart/form-data" class="modal-content border-0 shadow-lg rounded-4">
+            {% csrf_token %}
+            <div class="modal-header bg-dark text-white p-4">
+                <h5 class="modal-title fw-bold"><i class="bi bi-file-earmark-excel me-2 text-success"></i>IMPORT TỪ EXCEL</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="text-center p-3 mb-4 rounded-4 border-2 border-dashed bg-light">
+                    <p class="small text-muted mb-2 fw-bold">Bước 1: Sử dụng đúng định dạng file mẫu</p>
+                    <a href="{% url 'user_download_template' %}" class="btn btn-primary btn-sm rounded-pill px-4 shadow-sm">
+                        <i class="bi bi-cloud-arrow-down-fill me-1"></i> Tải File Excel Mẫu
+                    </a>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Bước 2: Chọn file đã điền dữ liệu</label>
+                    <input type="file" name="excel_file" class="form-control form-control-lg border-2" accept=".xlsx, .xls" required>
+                </div>
+                
+                <div class="p-3 rounded-3 bg-warning bg-opacity-10 border-start border-warning border-4 mt-4">
+                    <h6 class="fw-bold mb-1 small text-dark"><i class="bi bi-exclamation-triangle-fill me-1 text-warning"></i> Lưu ý quan trọng:</h6>
+                    <ul class="x-small text-dark mb-0 ps-3">
+                        <li>Không thay đổi tên các cột trong file mẫu.</li>
+                        <li>Trường <strong>username</strong> là duy nhất, nếu trùng sẽ tự động bỏ qua.</li>
+                        <li>Mật khẩu mặc định: <code>Hm@12345</code> (nếu để trống).</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer p-4 border-0 pt-0">
+                <button type="button" class="btn btn-light fw-bold px-4 rounded-pill" data-bs-dismiss="modal">Hủy bỏ</button>
+                <button type="submit" class="btn btn-hm px-5 fw-bold rounded-pill shadow">XỬ LÝ DỮ LIỆU</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <style>
-    .bg-info-soft { background-color: rgba(13, 202, 240, 0.1); }
-    .x-small { font-size: 0.75rem; }
-    .table thead th { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; padding: 1rem; }
+    :root { --hm-primary: rgb(0, 144, 161); }
+    .text-hm { color: var(--hm-primary); }
+    .btn-hm { background-color: var(--hm-primary); color: white; border: none; transition: all 0.3s; }
+    .btn-hm:hover { background-color: rgb(0, 115, 129); color: white; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0, 144, 161, 0.3); }
+    
+    .avatar-circle {
+        width: 42px; height: 42px;
+        background: linear-gradient(135deg, var(--hm-primary), #00b4cc);
+        color: white;
+        display: flex; align-items: center; justify-content: center;
+        border-radius: 12px; font-weight: bold; font-size: 1.1rem;
+        box-shadow: 0 3px 6px rgba(0, 144, 161, 0.1);
+    }
+    .x-small { font-size: 0.7rem; font-weight: 700; text-uppercase; letter-spacing: 0.5px; }
+    .border-dashed { border-style: dashed !important; }
+    .btn-white:hover { background-color: #f8f9fa; }
+    
+    /* Tùy chỉnh bảng */
+    .table thead th { border-top: none; }
+    .table tbody tr { transition: background 0.2s; }
 </style>
+
+<script>
+    // Tìm kiếm nhanh (Frontend Filter)
+    document.getElementById('userSearch').addEventListener('keyup', function() {
+        let keyword = this.value.toLowerCase();
+        let rows = document.querySelectorAll('#userTable tbody tr');
+        rows.forEach(row => {
+            let text = row.innerText.toLowerCase();
+            row.style.display = text.includes(keyword) ? '' : 'none';
+        });
+    });
+</script>
 {% endblock %}

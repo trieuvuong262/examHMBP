@@ -1,0 +1,355 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    :root {
+        --hm-primary: rgb(0, 144, 161);
+        --hm-primary-hover: rgb(0, 115, 129);
+        --hm-bg-light: #f8fafc;
+        --hm-card-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    body { background-color: var(--hm-bg-light); }
+
+    /* Breadcrumb Custom */
+    .breadcrumb-hm {
+        background: white;
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        box-shadow: var(--hm-card-shadow);
+        border: none;
+    }
+
+    /* Accordion Styling */
+    .course-accordion .accordion-item {
+        border: none;
+        margin-bottom: 1.5rem;
+        border-radius: 12px !important;
+        box-shadow: var(--hm-card-shadow);
+        overflow: hidden;
+    }
+
+    .accordion-header-hm .accordion-button {
+        background-color: white !important;
+        color: #334155 !important;
+        font-weight: 700;
+        padding: 1.25rem;
+        font-size: 1.1rem;
+    }
+
+    .accordion-header-hm .accordion-button:not(.collapsed) {
+        background-color: #f1f5f9 !important;
+        color: var(--hm-primary) !important;
+        box-shadow: none;
+    }
+
+    .accordion-button:focus { box-shadow: none; }
+
+    /* Lesson List Styling */
+    .lesson-list-item {
+        transition: all 0.2s ease;
+        border-left: 4px solid transparent;
+        background-color: white;
+    }
+
+    .lesson-list-item:hover {
+        background-color: #f8fafc;
+        border-left: 4px solid var(--hm-primary);
+    }
+
+    .drag-handle {
+        color: #cbd5e1;
+        transition: color 0.2s;
+    }
+
+    .lesson-list-item:hover .drag-handle {
+        color: var(--hm-primary);
+    }
+
+    /* Buttons */
+    .btn-hm {
+        background-color: var(--hm-primary);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.3s;
+    }
+
+    .btn-hm:hover {
+        background-color: var(--hm-primary-hover);
+        color: white;
+        box-shadow: 0 4px 12px rgba(0, 144, 161, 0.2);
+    }
+
+    .btn-action {
+        border-radius: 6px;
+        padding: 0.4rem 0.8rem;
+    }
+
+    .badge-time {
+        background-color: #f1f5f9;
+        color: #64748b;
+        font-weight: 600;
+        font-size: 0.75rem;
+    }
+</style>
+
+<div class="container mt-4 mb-5">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb breadcrumb-hm mb-0">
+            <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}" class="text-decoration-none text-muted">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'course_list' %}" class="text-decoration-none text-muted">Khóa học</a></li>
+            <li class="breadcrumb-item active fw-bold text-hm">Cấu trúc bài giảng</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center mb-4 px-2">
+        <div>
+            <h3 class="fw-bold text-dark mb-1"><i class="bi bi-diagram-3-fill text-hm me-2"></i>Quản lý Nội dung</h3>
+            <p class="text-muted mb-0 small">Khóa học: <span class="fw-bold text-hm">{{ course.title }}</span></p>
+        </div>
+        <button type="button" class="btn btn-hm shadow-sm px-4" data-bs-toggle="modal" data-bs-target="#addChapterModal">
+            <i class="bi bi-folder-plus me-1"></i> Thêm Chương mới
+        </button>
+    </div>
+
+    <div class="accordion course-accordion" id="courseAccordion">
+        {% for chapter in chapters %}
+        <div class="accordion-item">
+            <h2 class="accordion-header accordion-header-hm" id="heading-{{ chapter.id }}">
+                <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}"
+                        type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ chapter.id }}">
+                    <div class="d-flex align-items-center w-100">
+                        <i class="bi bi-collection-play-fill text-hm me-3"></i>
+                        <span>Chương {{ forloop.counter }}: {{ chapter.title }}</span>
+                        <span class="badge badge-time ms-auto me-3">{{ chapter.lessons.count }} bài học</span>
+                    </div>
+                </button>
+            </h2>
+            <div id="collapse-{{ chapter.id }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
+                 data-bs-parent="#courseAccordion">
+                <div class="accordion-body p-0 border-top bg-white">
+                    <div class="bg-light p-2 text-end border-bottom px-3">
+                        <button class="btn btn-sm btn-success fw-bold px-3 rounded-pill" data-bs-toggle="modal"
+                                data-bs-target="#addLessonModal" data-chapter-id="{{ chapter.id }}">
+                            <i class="bi bi-plus-circle me-1"></i> Thêm bài học
+                        </button>
+                    </div>
+
+                    <ul class="list-group list-group-flush sortable-lessons" id="chapter-list-{{ chapter.id }}">
+                        {% for lesson in chapter.lessons.all %}
+                        <li class="list-group-item lesson-list-item d-flex justify-content-between align-items-center py-3 px-4"
+                            data-lesson-id="{{ lesson.id }}">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-grip-vertical drag-handle me-3" style="font-size: 1.4rem; cursor: grab;"></i>
+                                <div class="me-3 fs-4 d-flex align-items-center justify-content-center bg-light rounded-circle" style="width: 45px; height: 45px;">
+                                    {% if lesson.lesson_type == 'video' %}
+                                        <i class="bi bi-play-circle-fill text-danger"></i>
+                                    {% elif lesson.lesson_type == 'pdf' %}
+                                        <i class="bi bi-file-earmark-pdf-fill text-danger"></i>
+                                    {% else %}
+                                        <i class="bi bi-file-earmark-text-fill text-primary"></i>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <h6 class="mb-0 fw-bold text-dark">{{ lesson.title }}</h6>
+                                    <div class="d-flex gap-3">
+                                        <span class="text-muted x-small"><i class="bi bi-clock me-1"></i>{{ lesson.duration_estimate }} phút</span>
+                                        <span class="text-muted x-small text-uppercase fw-bold">{{ lesson.get_lesson_type_display }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="btn-group shadow-sm rounded-3 overflow-hidden">
+                                <a href="{% url 'lesson_edit' lesson.id %}" class="btn btn-sm btn-white border px-3 btn-action" title="Sửa bài học">
+                                    <i class="bi bi-pencil-square text-warning"></i>
+                                </a>
+                                <form action="{% url 'lesson_delete' lesson.id %}" method="POST" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-white border-start-0 px-3 btn-action" 
+                                            onclick="return confirm('Bạn có chắc chắn muốn xóa bài học này?');" title="Xóa bài học">
+                                        <i class="bi bi-trash3 text-danger"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </li>
+                        {% empty %}
+                        <li class="list-group-item text-center py-5 text-muted bg-white italic">
+                            <i class="bi bi-inbox display-6 d-block mb-3 opacity-25"></i>
+                            Chương này chưa có bài học. Bấm "Thêm bài học" để bắt đầu.
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="card border-0 shadow-sm text-center py-5 rounded-4 bg-white">
+            <div class="card-body">
+                <i class="bi bi-diagram-3 display-1 text-hm opacity-10 mb-4 d-block"></i>
+                <h4 class="fw-bold text-dark mb-3">Khởi tạo bài giảng</h4>
+                <p class="text-muted mb-4 mx-auto" style="max-width: 450px;">Khóa học này chưa có nội dung. Hãy tạo chương đầu tiên để bắt đầu xây dựng lộ trình học tập.</p>
+                <button type="button" class="btn btn-hm px-5 py-2 shadow-lg" data-bs-toggle="modal" data-bs-target="#addChapterModal">
+                    <i class="bi bi-plus-lg me-2"></i> Tạo Chương đầu tiên
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="modal fade" id="addChapterModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form action="{% url 'chapter_create' course.id %}" method="POST" class="modal-content border-0 shadow-lg rounded-4">
+            {% csrf_token %}
+            <div class="modal-header bg-dark text-white border-0 py-3 px-4">
+                <h5 class="modal-title fw-bold">Thêm Chương mới</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Tên chương</label>
+                    <input type="text" name="title" class="form-control py-2" required placeholder="Ví dụ: Chương 1: Giới thiệu chung">
+                </div>
+                <div class="mb-0">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Thứ tự ưu tiên</label>
+                    <input type="number" name="order" class="form-control py-2" value="{{ chapters.count|add:1 }}">
+                </div>
+            </div>
+            <div class="modal-footer border-0 p-4 pt-0">
+                <button type="button" class="btn btn-light fw-bold px-4" data-bs-dismiss="modal">Đóng</button>
+                <button type="submit" class="btn btn-hm px-4">Lưu chương</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade" id="addLessonModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <form id="lessonForm" method="POST" enctype="multipart/form-data" class="modal-content border-0 shadow-lg rounded-4">
+            {% csrf_token %}
+            <div class="modal-header bg-success text-white border-0 py-3 px-4">
+                <h5 class="modal-title fw-bold">Thêm Bài học mới</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <label class="form-label fw-bold text-muted small text-uppercase">Tiêu đề bài học</label>
+                        <input type="text" name="title" class="form-control py-2" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold text-muted small text-uppercase">Loại bài học</label>
+                        <select name="lesson_type" id="lesson_type_select" class="form-select py-2">
+                            <option value="reading">Bài viết / Văn bản</option>
+                            <option value="video">Video bài giảng</option>
+                            <option value="pdf">Tài liệu PDF</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="content_field" class="mt-3">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Nội dung bài viết (HTML được chấp nhận)</label>
+                    <textarea name="content" class="form-control" rows="8"></textarea>
+                </div>
+
+                <div id="video_field" class="mt-3 d-none">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Đường dẫn Video (YouTube/Vimeo)</label>
+                    <input type="url" name="video_url" class="form-control py-2" placeholder="https://www.youtube.com/watch?v=...">
+                </div>
+
+                <div id="file_field" class="mt-3 d-none">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Tải lên tài liệu (PDF/Slide)</label>
+                    <input type="file" name="attachment" class="form-control py-2">
+                </div>
+
+                <div class="row g-3 mt-1 border-top pt-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold text-muted small text-uppercase">Thời gian dự kiến (phút)</label>
+                        <input type="number" name="duration_estimate" class="form-control py-2" value="15">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold text-muted small text-uppercase">Thứ tự hiển thị</label>
+                        <input type="number" name="order" class="form-control py-2" value="1">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 p-4 pt-0">
+                <button type="button" class="btn btn-light fw-bold px-4" data-bs-dismiss="modal">Hủy</button>
+                <button type="submit" class="btn btn-success fw-bold px-4">Lưu bài học</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+
+        // 1. XỬ LÝ MODAL THÊM BÀI HỌC
+        const addLessonModal = document.getElementById('addLessonModal');
+        if (addLessonModal) {
+            addLessonModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const chapterId = button.getAttribute('data-chapter-id');
+                const form = document.getElementById('lessonForm');
+                form.action = `/training/admin/chapter/${chapterId}/lesson/add/`;
+            });
+        }
+
+        // 2. ẨN/HIỆN TRƯỜNG DỮ LIỆU THEO LOẠI BÀI HỌC
+        const typeSelect = document.getElementById('lesson_type_select');
+        const contentField = document.getElementById('content_field');
+        const videoField = document.getElementById('video_field');
+        const fileField = document.getElementById('file_field');
+
+        if (typeSelect) {
+            typeSelect.addEventListener('change', function () {
+                contentField.classList.add('d-none');
+                videoField.classList.add('d-none');
+                fileField.classList.add('d-none');
+
+                if (this.value === 'reading') contentField.classList.remove('d-none');
+                else if (this.value === 'video') videoField.classList.remove('d-none');
+                else if (this.value === 'pdf') fileField.classList.remove('d-none');
+            });
+        }
+
+        // 3. XỬ LÝ KÉO THẢ SẮP XẾP BÀI HỌC
+        var sortables = document.querySelectorAll('.sortable-lessons');
+        sortables.forEach(function (el) {
+            new Sortable(el, {
+                handle: '.drag-handle',
+                animation: 200,
+                ghostClass: 'bg-light',
+                onEnd: function (evt) {
+                    let list = evt.to;
+                    let items = list.querySelectorAll('li');
+                    let lessonIds = [];
+
+                    items.forEach(function (item) {
+                        lessonIds.push(item.getAttribute('data-lesson-id'));
+                    });
+
+                    fetch("{% url 'update_lesson_order' %}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        },
+                        body: JSON.stringify({ 'lesson_ids': lessonIds })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status !== 'success') {
+                            alert('Lỗi khi lưu thứ tự: ' + data.message);
+                        }
+                    })
+                    .catch(error => console.error('Error:', error));
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

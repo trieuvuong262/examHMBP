@@ -13,4 +13,15 @@ urlpatterns = [
     path('lesson/<int:lesson_id>/complete/', views.mark_lesson_complete, name='mark_lesson_complete'),
     
     path('admin/course/create/', views.course_create, name='course_create'),
+    path('admin/course/', views.course_list, name='course_list'),
+    
+    # Path tạo khóa học (đã làm ở bước trước)
+    path('admin/course/create/', views.course_create, name='course_create'),
+    path('admin/course/<int:course_id>/builder/', views.course_builder, name='course_builder'),
+    path('admin/course/<int:course_id>/edit/', views.course_edit, name='course_edit'),
+    path('admin/course/<int:course_id>/chapter/add/', views.chapter_create, name='chapter_create'),
+    path('admin/chapter/<int:chapter_id>/lesson/add/', views.lesson_create, name='lesson_create'),
+    path('admin/lesson/<int:lesson_id>/delete/', views.lesson_delete, name='lesson_delete'),
+    path('admin/lesson/update-order/', views.update_lesson_order, name='update_lesson_order'),
+    path('admin/lesson/<int:lesson_id>/edit/', views.lesson_edit, name='lesson_edit'),
 ]
