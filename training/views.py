@@ -14,7 +14,7 @@ from django.contrib.auth.models import User
 from django.db.models import Count
 from .forms import ChapterForm, LessonForm
 from django.views.decorators.http import require_POST
-
+from assessment.decorators import admin_only
 
 @login_required
 def my_courses(request):
@@ -121,7 +121,7 @@ def mark_lesson_complete(request, lesson_id):
         })
     return JsonResponse({'status': 'error'}, status=400)
 
-@staff_member_required
+@admin_only
 def course_create(request):
     # 1. TẠO TỪ ĐIỂN MAP ID_NHÂN_VIÊN VÀ CHỨC DANH
     user_positions = {}
@@ -150,7 +150,7 @@ def course_create(request):
         'user_positions_json': json.dumps(user_positions) # Gửi dữ liệu ra frontend
     })
     
-@staff_member_required
+@admin_only
 def course_list(request):
     # Lấy danh sách khóa học, đếm luôn số học viên và số chương để hiển thị cho tiện
     courses = Course.objects.annotate(
@@ -162,7 +162,7 @@ def course_list(request):
         'courses': courses,
         'title': 'Quản lý danh sách khóa học'
     })
-@staff_member_required
+@admin_only
 def course_edit(request, course_id):
     # Lấy khóa học từ DB
     course = get_object_or_404(Course, id=course_id)
@@ -195,7 +195,7 @@ def course_edit(request, course_id):
         'user_positions_json': json.dumps(user_positions)
     })
     
-@staff_member_required
+@admin_only
 def course_builder(request, course_id):
     # Lấy thông tin khóa học hiện tại
     course = get_object_or_404(Course, id=course_id)
@@ -209,7 +209,7 @@ def course_builder(request, course_id):
     })
     
 
-@staff_member_required
+@admin_only
 def chapter_create(request, course_id):
     course = get_object_or_404(Course, id=course_id)
     if request.method == 'POST':
@@ -221,7 +221,7 @@ def chapter_create(request, course_id):
             return redirect('course_builder', course_id=course.id)
     return redirect('course_builder', course_id=course.id)
 
-@staff_member_required
+@admin_only
 def lesson_create(request, chapter_id):
     chapter = get_object_or_404(Chapter, id=chapter_id)
     if request.method == 'POST':
@@ -236,7 +236,7 @@ def lesson_create(request, chapter_id):
 
 
 # --- XÓA BÀI HỌC ---
-@staff_member_required
+@admin_only
 @require_POST
 def lesson_delete(request, lesson_id):
     lesson = get_object_or_404(Lesson, id=lesson_id)
@@ -247,7 +247,7 @@ def lesson_delete(request, lesson_id):
     return redirect('course_builder', course_id=course_id)
 
 # --- CẬP NHẬT THỨ TỰ BÀI HỌC (AJAX KÉO THẢ) ---
-@staff_member_required
+@admin_only
 @require_POST
 def update_lesson_order(request):
     try:
@@ -264,7 +264,7 @@ def update_lesson_order(request):
     
 # Đảm bảo bạn đã import messages ở đầu file: from django.contrib import messages
 
-@staff_member_required
+@admin_only
 def lesson_edit(request, lesson_id):
     lesson = get_object_or_404(Lesson, id=lesson_id)
     course_id = lesson.chapter.course.id 

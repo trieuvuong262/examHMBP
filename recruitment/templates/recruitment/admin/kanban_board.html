@@ -102,7 +102,7 @@
     /* Ghost Class khi kéo */
     .sortable-ghost { 
         opacity: 0.4; 
-        background-color: var(--hm-primary-soft) !important; 
+        background-color: rgba(0, 144, 161, 0.1) !important; 
         border: 2px dashed var(--hm-primary) !important;
     }
 
@@ -155,7 +155,7 @@
                                 <p class="x-small text-hm mb-2 fw-semibold">{{ cand.job_posting.title }}</p>
                                 <div class="d-flex justify-content-between align-items-center mt-2 border-top pt-2">
                                     <span class="x-small text-muted"><i class="bi bi-clock me-1"></i>{{ cand.applied_at|date:"d/m" }}</span>
-                                    <button class="btn btn-sm btn-light border x-small py-0 px-2" title="{{ cand.hr_note|default:'Chưa có ghi chú' }}"><i class="bi bi-chat-text text-secondary"></i></button>
+                                    <button type="button" class="btn btn-sm btn-light border x-small py-0 px-2" title="Xem/Sửa Ghi chú" onclick="openNoteModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}', '{{ cand.hr_note|escapejs|default:'' }}')"><i class="bi bi-chat-text-fill text-warning"></i></button>
                                 </div>
                             </div>
                         </div>
@@ -183,7 +183,7 @@
                                 <p class="x-small text-hm mb-2 fw-semibold">{{ cand.job_posting.title }}</p>
                                 <div class="d-flex justify-content-between align-items-center mt-2 border-top pt-2">
                                     <span class="x-small text-muted"><i class="bi bi-clock me-1"></i>{{ cand.applied_at|date:"d/m" }}</span>
-                                    <button class="btn btn-sm btn-light border x-small py-0 px-2" title="{{ cand.hr_note }}"><i class="bi bi-chat-text text-secondary"></i></button>
+                                    <button type="button" class="btn btn-sm btn-light border x-small py-0 px-2" title="Xem/Sửa Ghi chú" onclick="openNoteModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}', '{{ cand.hr_note|escapejs|default:'' }}')"><i class="bi bi-chat-text-fill text-warning"></i></button>
                                 </div>
                             </div>
                         </div>
@@ -211,7 +211,7 @@
                                 <p class="x-small text-hm mb-2 fw-semibold">{{ cand.job_posting.title }}</p>
                                 <div class="d-flex justify-content-between align-items-center mt-2 border-top pt-2">
                                     <span class="x-small text-muted"><i class="bi bi-clock me-1"></i>{{ cand.applied_at|date:"d/m" }}</span>
-                                    <button class="btn btn-sm btn-light border x-small py-0 px-2" title="{{ cand.hr_note }}"><i class="bi bi-chat-text text-secondary"></i></button>
+                                    <button type="button" class="btn btn-sm btn-light border x-small py-0 px-2" title="Xem/Sửa Ghi chú" onclick="openNoteModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}', '{{ cand.hr_note|escapejs|default:'' }}')"><i class="bi bi-chat-text-fill text-warning"></i></button>
                                 </div>
                             </div>
                         </div>
@@ -308,9 +308,50 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+<div class="modal fade" id="hrNoteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form action="{% url 'update_hr_note' %}" method="POST" class="modal-content border-0 shadow-lg rounded-4">
+            {% csrf_token %}
+            <input type="hidden" name="candidate_id" id="modalNoteCandidateId">
+            
+            <div class="modal-header bg-warning bg-opacity-25 border-0 py-3 px-4">
+                <h6 class="modal-title fw-bold text-dark mb-0">
+                    <i class="bi bi-pencil-square text-warning me-2 fs-5"></i>Ghi chú: <span id="modalNoteCandidateName" class="text-primary ms-1"></span>
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            
+            <div class="modal-body p-4 bg-white">
+                <label class="form-label fw-bold small text-muted text-uppercase mb-2">Nội dung đánh giá / Ghi chú phỏng vấn</label>
+                <textarea name="hr_note" id="modalHrNoteContent" class="form-control bg-light border-0 py-3 rounded-3" rows="6" placeholder="Nhập nhận xét, lý do đánh giá, đề xuất lương..."></textarea>
+            </div>
+            
+            <div class="modal-footer p-3 border-0 bg-light rounded-bottom-4">
+                <button type="button" class="btn btn-white border px-4 rounded-3 fw-bold" data-bs-dismiss="modal">Đóng</button>
+                <button type="submit" class="btn btn-warning px-4 fw-bold rounded-3 shadow-sm text-dark">
+                    <i class="bi bi-save me-1"></i> LƯU GHI CHÚ
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 <script>
+    // Hàm mở Modal Ghi chú
+    function openNoteModal(id, name, note) {
+        document.getElementById('modalNoteCandidateId').value = id;
+        document.getElementById('modalNoteCandidateName').innerText = name;
+        
+        // Chuyển đổi ký tự xuống dòng bị mã hóa
+        let cleanNote = note.replace(/\\n/g, '\n').replace(/\\r/g, '\r');
+        document.getElementById('modalHrNoteContent').value = cleanNote;
+        
+        var noteModal = new bootstrap.Modal(document.getElementById('hrNoteModal'));
+        noteModal.show();
+    }
+
+    // Logic kéo thả Kanban
     document.addEventListener('DOMContentLoaded', function () {
         const columns = document.querySelectorAll('.kanban-column');
         
@@ -327,7 +368,6 @@
                     const candidateId = evt.item.getAttribute('data-id');
                     const newStatus = toColumn.getAttribute('data-status');
                     
-                    // CẬP NHẬT BADGE NGAY LẬP TỨC TRÊN UI
                     updateBadgeCount(fromColumn);
                     updateBadgeCount(toColumn);
 
@@ -342,7 +382,68 @@
                             'status': newStatus
                         })
                     }).then(res => {
-                        if(!res.ok) alert("Lỗi khi lưu trạng thái lên server.");
+                        if(!res.ok) {
+                            alert("Lỗi khi lưu trạng thái lên server.");
+                        } else {
+                            // ==========================================
+                            // 🎯 LOGIC TỰ CẬP NHẬT GIAO DIỆN TOÀN DIỆN
+                            // ==========================================
+                            const cardEl = evt.item;
+                            const nameEl = cardEl.querySelector('.fw-bold');
+                            const badgeEl = cardEl.querySelector('.badge-soft'); // Tem trạng thái
+                            const convertBtn = cardEl.querySelector('.convert-user-btn'); // Nút tạo User
+
+                            // 1. Dọn dẹp màu nền và chữ cũ
+                            cardEl.classList.remove('opacity-50', 'bg-light', 'bg-white');
+                            if (nameEl) nameEl.classList.remove('text-decoration-line-through', 'text-muted', 'text-dark');
+                            
+                            // 2. Cập nhật cái Tem (Badge) cho đúng chữ và màu của cột
+                            if (badgeEl) {
+                                // Xóa sạch class màu cũ
+                                badgeEl.classList.remove('bg-primary-soft', 'bg-warning-soft', 'bg-info-soft', 'bg-success-soft', 'bg-danger-soft');
+                                
+                                if (newStatus === 'new' || newStatus === 'applied') {
+                                    badgeEl.classList.add('bg-primary-soft');
+                                    badgeEl.innerText = 'Mới nộp';
+                                } else if (newStatus === 'reviewing') {
+                                    badgeEl.classList.add('bg-warning-soft');
+                                    badgeEl.innerText = 'Đang xem xét';
+                                } else if (newStatus === 'interviewing' || newStatus === 'interview') {
+                                    badgeEl.classList.add('bg-info-soft');
+                                    badgeEl.innerText = 'Phỏng vấn';
+                                } else if (newStatus === 'offered' || newStatus === 'hired') {
+                                    badgeEl.classList.add('bg-success-soft');
+                                    badgeEl.innerText = 'Trúng tuyển';
+                                } else if (newStatus === 'rejected') {
+                                    badgeEl.classList.add('bg-danger-soft');
+                                    badgeEl.innerText = 'Đã loại';
+                                }
+                            }
+
+                            // 3. Xử lý style của thẻ và Ẩn/Hiện nút "Tạo User"
+                            if (newStatus === 'rejected') {
+                                // Nếu RỚT: Thẻ xám mờ, gạch ngang tên
+                                cardEl.classList.add('opacity-50', 'bg-light');
+                                if (nameEl) nameEl.classList.add('text-decoration-line-through', 'text-muted');
+                                
+                                // Ẩn luôn nút Tạo User (dùng d-none của Bootstrap)
+                                if (convertBtn) convertBtn.classList.add('d-none');
+                                
+                            } else {
+                                // Nếu ĐẬU hoặc ĐANG XÉT: Thẻ sáng, tên đậm
+                                cardEl.classList.add('bg-white');
+                                if (nameEl) nameEl.classList.add('text-dark');
+                                
+                                // ĐẶC BIỆT: Chỉ hiện nút "Tạo User" khi ở cột Trúng Tuyển
+                                if (convertBtn) {
+                                    if (newStatus === 'offered' || newStatus === 'hired') {
+                                        convertBtn.classList.remove('d-none'); // Bật nút lên
+                                    } else {
+                                        convertBtn.classList.add('d-none'); // Cột khác thì giấu đi
+                                    }
+                                }
+                            }
+                        }
                     });
                 }
             });

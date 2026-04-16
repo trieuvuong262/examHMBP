@@ -53,12 +53,23 @@
         transition: transform 0.3s ease, box-shadow 0.3s ease;
         position: relative;
         overflow: hidden;
+        height: 100%;
     }
 
-    .stat-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    /* Hiệu ứng di chuột nổi bật hơn vì giờ nó là nút bấm */
+    .stat-card-link {
+        display: block;
+        text-decoration: none;
+        color: inherit;
     }
+    
+    .stat-card-link:hover .stat-card {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0, 144, 161, 0.2);
+        border: 1px solid rgba(0, 144, 161, 0.3);
+    }
+    
+    .stat-card-link:hover h2 { color: var(--hm-primary) !important; }
 
     .icon-box {
         width: 56px;
@@ -94,15 +105,12 @@
     }
 
     /* 5. Badge sắc độ */
-    .badge-soft {
-        font-weight: 600;
-        padding: 6px 12px;
-        border-radius: 8px;
-    }
     .bg-primary-soft { background: var(--hm-primary-soft); color: var(--hm-primary); }
     .bg-success-soft { background: rgba(34, 197, 94, 0.1); color: #16a34a; }
     .bg-warning-soft { background: rgba(234, 179, 8, 0.1); color: #a16207; }
     .bg-info-soft { background: rgba(6, 182, 212, 0.1); color: #0891b2; }
+    /* THÊM DÒNG NÀY CHO TRẠNG THÁI LOẠI */
+    .bg-danger-soft { background: rgba(239, 68, 68, 0.1); color: #dc2626; }
 
     /* 6. Button HM */
     .btn-hm {
@@ -120,6 +128,7 @@
         box-shadow: 0 4px 12px rgba(0, 144, 161, 0.2);
     }
 </style>
+
 <div class="container-fluid mt-4 mb-5">
     <ul class="nav nav-pills d-none" id="dashboardTabs" role="tablist">
     <li class="nav-item shadow-none">
@@ -133,8 +142,6 @@
     </li>
 </ul>
 
-<div class="tab-content" id="dashboardTabsContent">
-   </div>
     <div class="tab-content" id="dashboardTabsContent">
         
         <div class="tab-pane fade show active" id="recruitment" role="tabpanel">
@@ -152,37 +159,43 @@
 
             <div class="row g-4 mb-5">
                 <div class="col-md-4">
-                    <div class="stat-card">
-                        <div class="d-flex align-items-center">
-                            <div class="icon-box bg-info-soft text-info"><i class="bi bi-briefcase-fill"></i></div>
-                            <div class="ms-3">
-                                <div class="small text-muted fw-bold">VỊ TRÍ ĐANG MỞ</div>
-                                <h2 class="fw-bold mb-0 text-dark">{{ active_jobs|default:"3" }}</h2>
+                    <a href="{% url 'job_posting_list' %}" class="stat-card-link">
+                        <div class="stat-card">
+                            <div class="d-flex align-items-center">
+                                <div class="icon-box bg-info-soft text-info"><i class="bi bi-briefcase-fill"></i></div>
+                                <div class="ms-3">
+                                    <div class="small text-muted fw-bold">VỊ TRÍ ĐANG MỞ</div>
+                                    <h2 class="fw-bold mb-0 text-dark transition">{{ active_jobs|default:"3" }}</h2>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
                 <div class="col-md-4">
-                    <div class="stat-card">
-                        <div class="d-flex align-items-center">
-                            <div class="icon-box bg-primary-soft text-hm"><i class="bi bi-file-earmark-person-fill"></i></div>
-                            <div class="ms-3">
-                                <div class="small text-muted fw-bold">HỒ SƠ ỨNG VIÊN</div>
-                                <h2 class="fw-bold mb-0 text-dark">{{ total_candidates|default:"10" }}</h2>
+                    <a href="{% url 'kanban_board' %}" class="stat-card-link">
+                        <div class="stat-card">
+                            <div class="d-flex align-items-center">
+                                <div class="icon-box bg-primary-soft text-hm"><i class="bi bi-file-earmark-person-fill"></i></div>
+                                <div class="ms-3">
+                                    <div class="small text-muted fw-bold">HỒ SƠ ỨNG VIÊN</div>
+                                    <h2 class="fw-bold mb-0 text-dark">{{ total_candidates|default:"10" }}</h2>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
                 <div class="col-md-4">
-                    <div class="stat-card">
-                        <div class="d-flex align-items-center">
-                            <div class="icon-box bg-warning-soft text-warning"><i class="bi bi-calendar-check-fill"></i></div>
-                            <div class="ms-3">
-                                <div class="small text-muted fw-bold">LỊCH PHỎNG VẤN</div>
-                                <h2 class="fw-bold mb-0 text-dark">{{ upcoming_interviews|default:"2" }}</h2>
+                    <a href="{% url 'kanban_board' %}" class="stat-card-link">
+                        <div class="stat-card">
+                            <div class="d-flex align-items-center">
+                                <div class="icon-box bg-warning-soft text-warning"><i class="bi bi-calendar-check-fill"></i></div>
+                                <div class="ms-3">
+                                    <div class="small text-muted fw-bold">LỊCH PHỎNG VẤN</div>
+                                    <h2 class="fw-bold mb-0 text-dark">{{ upcoming_interviews|default:"2" }}</h2>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
             </div>
 
@@ -190,7 +203,7 @@
                 <div class="card-header bg-white py-4 px-4 border-0 d-flex justify-content-between align-items-center">
                     <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-clock-history me-2 text-hm"></i>Hồ sơ mới tiếp nhận</h6>
                     <a href="{% url 'kanban_board' %}" class="btn btn-sm btn-outline-hm fw-bold px-3">
-                        <i class="bi bi-kanban me-1"></i> Bảng Kanban
+                        <i class="bi bi-kanban me-1"></i> Bảng theo dõi Ứng viên
                     </a>
                 </div>
                 <div class="table-responsive">
@@ -216,14 +229,25 @@
                                     <div class="small text-muted">{{ candidate.job_posting.department }}</div>
                                 </td>
                                 <td class="text-center">
-                                    {% if candidate.status == 'new' %}
+                                    {% if candidate.status == 'new' or candidate.status == 'applied' %}
                                         <span class="badge-soft bg-primary-soft">Mới nộp</span>
+                                        
                                     {% elif candidate.status == 'reviewing' %}
                                         <span class="badge-soft bg-warning-soft">Đang xem xét</span>
+                                        
+                                    {% elif candidate.status == 'interviewing' or candidate.status == 'interview' %}
+                                        <span class="badge-soft bg-info-soft">Phỏng vấn</span>
+                                        
                                     {% elif candidate.status == 'offered' or candidate.status == 'hired' %}
                                         <span class="badge-soft bg-success-soft">Trúng tuyển</span>
+                                        
+                                    {% elif candidate.status == 'rejected' %}
+                                        <span class="badge-soft bg-danger-soft">Đã loại</span>
+                                        
                                     {% else %}
-                                        <span class="badge-soft bg-light text-muted border">Khác</span>
+                                        <span class="badge-soft bg-light text-muted border">
+                                            {{ candidate.get_status_display|default:candidate.status }}
+                                        </span>
                                     {% endif %}
                                 </td>
                                 <td class="text-center text-muted small">{{ candidate.applied_at|date:"d/m/Y" }}</td>
@@ -258,37 +282,43 @@
             
             <div class="row g-4 mb-4">
                 <div class="col-md-4">
-                    <div class="stat-card">
-                        <div class="d-flex align-items-center">
-                            <div class="icon-box bg-success-soft text-success"><i class="bi bi-book"></i></div>
-                            <div class="ms-3">
-                                <div class="small text-muted fw-bold">KHÓA HỌC</div>
-                                <h2 class="fw-bold mb-0 text-dark">{{ total_courses|default:"0" }}</h2>
+                    <a href="{% url 'course_list' %}" class="stat-card-link">
+                        <div class="stat-card">
+                            <div class="d-flex align-items-center">
+                                <div class="icon-box bg-success-soft text-success"><i class="bi bi-book"></i></div>
+                                <div class="ms-3">
+                                    <div class="small text-muted fw-bold">KHÓA HỌC</div>
+                                    <h2 class="fw-bold mb-0 text-dark">{{ total_courses|default:"0" }}</h2>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
                 <div class="col-md-4">
-                    <div class="stat-card">
-                        <div class="d-flex align-items-center">
-                            <div class="icon-box bg-warning-soft text-warning"><i class="bi bi-person-video3"></i></div>
-                            <div class="ms-3">
-                                <div class="small text-muted fw-bold">ĐANG HỌC</div>
-                                <h2 class="fw-bold mb-0 text-dark">{{ active_learners|default:"0" }}</h2>
+                    <a href="{% url 'course_list' %}" class="stat-card-link">
+                        <div class="stat-card">
+                            <div class="d-flex align-items-center">
+                                <div class="icon-box bg-warning-soft text-warning"><i class="bi bi-person-video3"></i></div>
+                                <div class="ms-3">
+                                    <div class="small text-muted fw-bold">ĐANG HỌC</div>
+                                    <h2 class="fw-bold mb-0 text-dark">{{ active_learners|default:"0" }}</h2>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
                 <div class="col-md-4">
-                    <div class="stat-card">
-                        <div class="d-flex align-items-center">
-                            <div class="icon-box bg-primary-soft text-hm"><i class="bi bi-award"></i></div>
-                            <div class="ms-3">
-                                <div class="small text-muted fw-bold">CHỨNG NHẬN</div>
-                                <h2 class="fw-bold mb-0 text-dark">{{ completed_learners|default:"0" }}</h2>
+                    <a href="{% url 'course_list' %}" class="stat-card-link">
+                        <div class="stat-card">
+                            <div class="d-flex align-items-center">
+                                <div class="icon-box bg-primary-soft text-hm"><i class="bi bi-award"></i></div>
+                                <div class="ms-3">
+                                    <div class="small text-muted fw-bold">CHỨNG NHẬN</div>
+                                    <h2 class="fw-bold mb-0 text-dark">{{ completed_learners|default:"0" }}</h2>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
             </div>
 
@@ -340,52 +370,60 @@
             
             <div class="row g-4 mb-4">
                 <div class="col-md-3">
-                    <div class="stat-card" style="background: var(--hm-primary);">
-                        <div class="d-flex justify-content-between align-items-center text-white">
-                            <div>
-                                <div class="small opacity-75 fw-bold">TỔNG KỲ THI</div>
-                                <h2 class="fw-bold mb-0">{{ total_exams|default:exams.count }}</h2>
+                    <a href="#examListTable" class="stat-card-link">
+                        <div class="stat-card" style="background: var(--hm-primary);">
+                            <div class="d-flex justify-content-between align-items-center text-white">
+                                <div>
+                                    <div class="small opacity-75 fw-bold">TỔNG KỲ THI</div>
+                                    <h2 class="fw-bold mb-0" style="color: white !important;">{{ total_exams|default:exams.count }}</h2>
+                                </div>
+                                <i class="bi bi-journal-text fs-1 opacity-25"></i>
                             </div>
-                            <i class="bi bi-journal-text fs-1 opacity-25"></i>
                         </div>
-                    </div>
+                    </a>
                 </div>
                 <div class="col-md-3">
-                    <div class="stat-card">
-                        <div class="d-flex align-items-center">
-                            <div class="icon-box bg-success-soft text-success"><i class="bi bi-play-circle"></i></div>
-                            <div class="ms-3">
-                                <div class="small text-muted fw-bold">ĐANG MỞ</div>
-                                <h2 class="fw-bold mb-0 text-dark">{{ active_exams_count|default:"0" }}</h2>
+                    <a href="#examListTable" class="stat-card-link">
+                        <div class="stat-card">
+                            <div class="d-flex align-items-center">
+                                <div class="icon-box bg-success-soft text-success"><i class="bi bi-play-circle"></i></div>
+                                <div class="ms-3">
+                                    <div class="small text-muted fw-bold">ĐANG MỞ</div>
+                                    <h2 class="fw-bold mb-0 text-dark">{{ active_exams_count|default:"0" }}</h2>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
                 <div class="col-md-3">
-                    <div class="stat-card">
-                        <div class="d-flex align-items-center">
-                            <div class="icon-box bg-warning-soft text-warning"><i class="bi bi-people"></i></div>
-                            <div class="ms-3">
-                                <div class="small text-muted fw-bold">NHÂN VIÊN</div>
-                                <h2 class="fw-bold mb-0 text-dark">{{ total_users|default:"0" }}</h2>
+                    <a href="{% url 'user_list' %}" class="stat-card-link">
+                        <div class="stat-card">
+                            <div class="d-flex align-items-center">
+                                <div class="icon-box bg-warning-soft text-warning"><i class="bi bi-people"></i></div>
+                                <div class="ms-3">
+                                    <div class="small text-muted fw-bold">NHÂN VIÊN</div>
+                                    <h2 class="fw-bold mb-0 text-dark">{{ total_users|default:"0" }}</h2>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
                 <div class="col-md-3">
-                    <div class="stat-card">
-                        <div class="d-flex align-items-center">
-                            <div class="icon-box bg-info-soft text-info"><i class="bi bi-check2-all"></i></div>
-                            <div class="ms-3">
-                                <div class="small text-muted fw-bold">BÀI NỘP</div>
-                                <h2 class="fw-bold mb-0 text-dark">{{ total_submissions|default:"0" }}</h2>
+                    <a href="{% url 'admin_results' %}" class="stat-card-link">
+                        <div class="stat-card">
+                            <div class="d-flex align-items-center">
+                                <div class="icon-box bg-info-soft text-info"><i class="bi bi-check2-all"></i></div>
+                                <div class="ms-3">
+                                    <div class="small text-muted fw-bold">BÀI NỘP</div>
+                                    <h2 class="fw-bold mb-0 text-dark">{{ total_submissions|default:"0" }}</h2>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
             </div>
 
-            <div class="card card-table shadow-sm">
+            <div class="card card-table shadow-sm" id="examListTable">
                 <div class="card-header bg-white py-4 border-0">
                     <h6 class="mb-0 fw-bold text-dark">Danh sách kỳ thi hiện có</h6>
                 </div>
@@ -478,7 +516,8 @@
             </div>
         </form>
     </div>
-</div></div>
+</div>
+
 <div class="modal fade" id="candidateDetailModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg rounded-4">
@@ -526,6 +565,7 @@
         </div>
     </div>
 </div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -540,9 +580,7 @@ document.addEventListener('DOMContentLoaded', function() {
             tab.show();
         } else {
             // 2. Nếu không thấy nút, ép cái pane hiện lên bằng tay
-            // Xóa active cũ
             document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('show', 'active'));
-            // Hiện cái mới
             const targetPane = document.getElementById(tabParam);
             if (targetPane) {
                 targetPane.classList.add('show', 'active');
@@ -550,7 +588,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 });
-    document.querySelectorAll('.view-candidate-detail').forEach(btn => {
+
+document.querySelectorAll('.view-candidate-detail').forEach(btn => {
     btn.addEventListener('click', function() {
         const id = this.getAttribute('data-id');
         
@@ -578,5 +617,4 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
-
 {% endblock %}

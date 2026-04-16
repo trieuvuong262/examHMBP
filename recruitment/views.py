@@ -12,8 +12,9 @@ import unicodedata
 from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password
 from assessment.models import Exam
+from assessment.decorators import admin_only
 
-@staff_member_required
+@admin_only
 def kanban_board(request):
     # NÂNG CẤP 1: Mặc định CHỈ HIỂN THỊ ứng viên của các Job ĐANG MỞ (is_active=True)
     # Nếu HR đóng Job, ứng viên sẽ tự động rút khỏi bảng Kanban cho gọn
@@ -41,7 +42,7 @@ def kanban_board(request):
     }
     return render(request, 'recruitment/admin/kanban_board.html', context)
 
-@staff_member_required
+@admin_only
 @require_POST
 def update_candidate_status(request):
     try:
@@ -58,7 +59,7 @@ def update_candidate_status(request):
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
     
-@staff_member_required
+@admin_only
 @require_POST
 def add_candidate(request):
     try:
@@ -92,12 +93,12 @@ def add_candidate(request):
 # ==========================================
 # QUẢN LÝ VỊ TRÍ TUYỂN DỤNG (JOB POSTINGS)
 # ==========================================
-@staff_member_required
+@admin_only
 def job_posting_list(request):
     jobs = JobPosting.objects.all().order_by('-created_at')
     return render(request, 'recruitment/admin/job_posting_list.html', {'jobs': jobs})
 
-@staff_member_required
+@admin_only
 def job_posting_create(request):
     if request.method == 'POST':
         form = JobPostingForm(request.POST)
@@ -109,7 +110,7 @@ def job_posting_create(request):
         form = JobPostingForm()
     return render(request, 'recruitment/admin/job_posting_form.html', {'form': form, 'title': 'Đăng tin Tuyển dụng mới'})
 
-@staff_member_required
+@admin_only
 def job_posting_edit(request, pk):
     job = get_object_or_404(JobPosting, pk=pk)
     if request.method == 'POST':
@@ -122,7 +123,7 @@ def job_posting_edit(request, pk):
         form = JobPostingForm(instance=job)
     return render(request, 'recruitment/admin/job_posting_form.html', {'form': form, 'title': 'Chỉnh sửa Vị trí Tuyển dụng', 'job': job})
 
-@staff_member_required
+@admin_only
 @require_POST
 def job_posting_delete(request, pk):
     job = get_object_or_404(JobPosting, pk=pk)
@@ -166,8 +167,8 @@ def generate_employee_username(full_name):
     next_seq = max_seq + 1
     return f"{prefix}{next_seq:03d}-bp"
 
-# Hàm View chính xử lý khi bấm nút "Nhận việc"
-@staff_member_required
+
+@admin_only
 @require_POST
 def convert_to_employee(request, candidate_id):
     candidate = get_object_or_404(Candidate, id=candidate_id)
@@ -176,27 +177,26 @@ def convert_to_employee(request, candidate_id):
         return JsonResponse({'status': 'error', 'message': 'Ứng viên này đã có tài khoản!'})
         
     try:
-        # 1. Tạo Username (ltv002-bp...) - Giữ nguyên logic cũ
+        # 1. Tạo Username (ltv002-bp...)
         username = generate_employee_username(candidate.full_name)
         
-        # 2. Tạo User mặc định
+        # 2. TẠO TÀI KHOẢN VÀ PHÂN QUYỀN TRỰC TIẾP TẠI ĐÂY
         user = User.objects.create(
             username=username,
             email=candidate.email,
-            first_name=candidate.full_name, # Lưu vào User model
-            password=make_password('Hoanmy@123')
+            first_name=candidate.full_name,
+            password=make_password('Hoanmy@123'),
+            is_staff=False,       # Đặt False => Chắc chắn đây là USER THƯỜNG (Chỉ vào được Portal)
+            is_superuser=False    # Không có quyền Admin hệ thống tối cao
         )
         
-        # 3. CẬP NHẬT PROFILE (Đây là phần quan trọng để hiện tên trên Dashboard)
-        # Import Profile từ app assessment của bạn
+        # 3. CẬP NHẬT PROFILE
         from assessment.models import Profile
-        
-        # Sử dụng update_or_create để đảm bảo Profile luôn có dữ liệu đúng
         profile, created = Profile.objects.update_or_create(
             user=user,
             defaults={
-                'full_name': candidate.full_name,      # ĐIỀN TÊN NHÂN VIÊN VÀO ĐÂY
-                'position': candidate.job_posting.position # Điền chức danh từ tin tuyển dụng
+                'full_name': candidate.full_name,
+                'position': candidate.job_posting.position
             }
         )
         
@@ -218,8 +218,7 @@ def convert_to_employee(request, candidate_id):
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)})
     
-
-@staff_member_required
+@admin_only
 def candidate_detail_ajax(request, pk):
     candidate = get_object_or_404(Candidate, pk=pk)
     data = {
@@ -234,91 +233,19 @@ def candidate_detail_ajax(request, pk):
     }
     return JsonResponse(data)
 
-import pandas as pd
-from django.contrib.auth.models import User
-from django.contrib import messages
-from django.shortcuts import redirect
-
-@staff_member_required
-def user_import_excel(request):
-    if request.method == 'POST' and request.FILES.get('excel_file'):
-        file = request.FILES['excel_file']
+@admin_only
+@require_POST
+def update_hr_note(request):
+    candidate_id = request.POST.get('candidate_id')
+    new_note = request.POST.get('hr_note', '')
+    
+    try:
+        candidate = get_object_or_404(Candidate, id=candidate_id)
+        candidate.hr_note = new_note
+        candidate.save()
+        messages.success(request, f'Đã cập nhật ghi chú cho ứng viên {candidate.full_name}!')
+    except Exception as e:
+        messages.error(request, f'Lỗi khi lưu ghi chú: {str(e)}')
         
-        try:
-            # Đọc file excel
-            df = pd.read_excel(file)
-            
-            # Giả sử file Excel có các cột: username, password, first_name, last_name, email
-            success_count = 0
-            error_count = 0
-            
-            for index, row in df.iterrows():
-                username = str(row.get('username')).strip()
-                password = str(row.get('password')).strip()
-                email = str(row.get('email', ''))
-                first_name = str(row.get('first_name', ''))
-                last_name = str(row.get('last_name', ''))
-
-                if not User.objects.filter(username=username).exists():
-                    User.objects.create_user(
-                        username=username,
-                        password=password,
-                        email=email,
-                        first_name=first_name,
-                        last_name=last_name
-                    )
-                    success_count += 1
-                else:
-                    error_count += 1
-            
-            messages.success(request, f'Đã import thành công {success_count} nhân viên. (Bỏ qua {error_count} nhân viên đã tồn tại)')
-            
-        except Exception as e:
-            messages.error(request, f'Lỗi khi xử lý file: {str(e)}')
-            
-    return redirect('user_list')
-
-
-import pandas as pd
-from django.contrib.auth.models import User
-from django.contrib import messages
-from django.shortcuts import redirect
-
-@staff_member_required
-def user_import_excel(request):
-    if request.method == 'POST' and request.FILES.get('excel_file'):
-        file = request.FILES['excel_file']
-        
-        try:
-            # Đọc file excel
-            df = pd.read_excel(file)
-            
-            # Giả sử file Excel có các cột: username, password, first_name, last_name, email
-            success_count = 0
-            error_count = 0
-            
-            for index, row in df.iterrows():
-                username = str(row.get('username')).strip()
-                password = str(row.get('password')).strip()
-                email = str(row.get('email', ''))
-                first_name = str(row.get('first_name', ''))
-                last_name = str(row.get('last_name', ''))
-
-                if not User.objects.filter(username=username).exists():
-                    User.objects.create_user(
-                        username=username,
-                        password=password,
-                        email=email,
-                        first_name=first_name,
-                        last_name=last_name
-                    )
-                    success_count += 1
-                else:
-                    error_count += 1
-            
-            messages.success(request, f'Đã import thành công {success_count} nhân viên. (Bỏ qua {error_count} nhân viên đã tồn tại)')
-            
-        except Exception as e:
-            messages.error(request, f'Lỗi khi xử lý file: {str(e)}')
-            
-    return redirect('user_list')
+    # Lưu xong quay lại đúng cái bảng Kanban
+    return redirect('kanban_board')

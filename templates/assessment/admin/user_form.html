@@ -1,65 +1,101 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-5">
+<div class="container mt-4 mb-5">
     <div class="row justify-content-center">
-        <div class="col-md-6">
+        <div class="col-lg-7 col-md-9">
             <nav aria-label="breadcrumb" class="mb-4">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{% url 'user_list' %}" class="text-decoration-none">Danh sách</a></li>
-                    <li class="breadcrumb-item active">{{ title }}</li>
+                <ol class="breadcrumb bg-white p-3 rounded-4 shadow-sm">
+                    <li class="breadcrumb-item"><a href="{% url 'user_list' %}" class="text-decoration-none text-muted">Danh sách nhân sự</a></li>
+                    <li class="breadcrumb-item active fw-bold text-hm">{{ title }}</li>
                 </ol>
             </nav>
 
-            <div class="card shadow border-0 overflow-hidden">
-                <div class="card-header bg-dark text-white p-3">
-                    <h5 class="mb-0"><i class="bi bi-person-lines-fill me-2"></i>{{ title }}</h5>
+            <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
+                <div class="card-header bg-dark text-white p-4 border-0 d-flex align-items-center">
+                    <div class="bg-white bg-opacity-10 p-2 rounded-circle me-3">
+                        <i class="bi bi-person-lines-fill fs-4 text-white"></i>
+                    </div>
+                    <h4 class="mb-0 fw-bold">{{ title }}</h4>
                 </div>
-                <div class="card-body p-4">
-                    <form method="post">
+                
+                <div class="card-body p-4 p-md-5">
+                    <form method="post" id="userForm">
                         {% csrf_token %}
                         
-                        <div class="mb-4">
-                            <h6 class="text-primary fw-bold border-bottom pb-2 mb-3">Tài khoản hệ thống</h6>
-                            <div class="mb-3">
-                                <label class="form-label fw-bold small text-secondary">Tên đăng nhập (Username)</label>
-                                {{ form.username }}
-                                {% if form.username.errors %}<div class="text-danger small">{{ form.username.errors }}</div>{% endif %}
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label fw-bold small text-secondary">Email</label>
-                                {{ form.email }}
+                        <div class="mb-5">
+                            <h6 class="text-hm fw-bold border-bottom border-2 border-hm pb-2 mb-4 text-uppercase letter-spacing">
+                                <i class="bi bi-shield-lock me-2"></i>Tài khoản hệ thống
+                            </h6>
+                            <div class="row g-3">
+                                <div class="col-md-12 mb-2">
+                                    <label class="form-label fw-bold small text-secondary">Tên đăng nhập (Username) <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-person"></i></span>
+                                        <div class="form-control-wrapper flex-grow-1">
+                                            {{ form.username }}
+                                        </div>
+                                    </div>
+                                    {% if form.username.errors %}
+                                        <div class="text-danger small mt-1 fw-medium"><i class="bi bi-exclamation-circle me-1"></i>{{ form.username.errors|striptags }}</div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="col-md-12 mb-2">
+                                    <label class="form-label fw-bold small text-secondary">Địa chỉ Email</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-envelope"></i></span>
+                                        <div class="form-control-wrapper flex-grow-1">
+                                            {{ form.email }}
+                                        </div>
+                                    </div>
+                                    {% if form.email.errors %}
+                                        <div class="text-danger small mt-1 fw-medium">{{ form.email.errors|striptags }}</div>
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
 
-                        <div class="mb-4">
-                            <h6 class="text-primary fw-bold border-bottom pb-2 mb-3">Thông tin cá nhân</h6>
-                            <div class="mb-3">
-                                <label class="form-label fw-bold small text-secondary">Họ và Tên</label>
-                                {{ form.full_name }}
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label fw-bold small text-secondary">Chức danh</label>
-                                {{ form.position }}
+                        <div class="mb-5">
+                            <h6 class="text-hm fw-bold border-bottom border-2 border-hm pb-2 mb-4 text-uppercase letter-spacing">
+                                <i class="bi bi-person-badge me-2"></i>Thông tin cá nhân
+                            </h6>
+                            <div class="row g-3">
+                                <div class="col-md-12 mb-2">
+                                    <label class="form-label fw-bold small text-secondary">Họ và Tên <span class="text-danger">*</span></label>
+                                    {{ form.full_name }}
+                                    {% if form.full_name.errors %}
+                                        <div class="text-danger small mt-1 fw-medium">{{ form.full_name.errors|striptags }}</div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="col-md-12 mb-2">
+                                    <label class="form-label fw-bold small text-secondary">Chức danh / Vị trí công tác</label>
+                                    {{ form.position }}
+                                    <div class="form-text x-small mt-1 text-muted">Ví dụ: Điều dưỡng viên, Bác sĩ Đa khoa, Trưởng phòng Nhân sự...</div>
+                                </div>
                             </div>
                         </div>
 
-                        <hr class="my-4">
-
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-success btn-lg shadow-sm">
-                                <i class="bi bi-save me-2"></i>Lưu thông tin nhân viên
+                        <div class="d-flex gap-3 pt-3 border-top">
+                            <button type="submit" class="btn btn-hm btn-lg px-5 shadow-sm fw-bold rounded-pill">
+                                <i class="bi bi-check-circle-fill me-2"></i>Lưu thông tin
                             </button>
-                            <a href="{% url 'user_list' %}" class="btn btn-light border">Hủy bỏ</a>
+                            <a href="{% url 'user_list' %}" class="btn btn-light btn-lg px-4 border rounded-pill fw-bold text-muted">
+                                Hủy bỏ
+                            </a>
                         </div>
                     </form>
                 </div>
                 
                 {% if "edit" in request.path %}
-                <div class="card-footer bg-light border-0 py-3">
-                    <div class="d-flex align-items-center text-muted">
-                        <i class="bi bi-info-circle-fill me-2"></i>
-                        <span class="x-small">Mật khẩu chỉ có thể được Reset tại trang danh sách.</span>
+                <div class="card-footer bg-warning bg-opacity-10 border-0 p-3">
+                    <div class="d-flex align-items-center text-dark">
+                        <i class="bi bi-info-circle-fill text-warning fs-4 me-3"></i>
+                        <div>
+                            <span class="fw-bold d-block small">Lưu ý bảo mật:</span>
+                            <span class="x-small text-muted">Mật khẩu của tài khoản chỉ có thể được thiết lập lại (Reset) tại bảng danh sách nhân sự để đảm bảo an toàn.</span>
+                        </div>
                     </div>
                 </div>
                 {% endif %}
@@ -69,10 +105,73 @@
 </div>
 
 <style>
-    .x-small { font-size: 0.75rem; }
-    .form-control:focus, .form-select:focus {
-        border-color: #198754;
-        box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.1);
+    :root {
+        --hm-primary: rgb(0, 144, 161);
+        --hm-primary-hover: rgb(0, 115, 129);
     }
+    
+    .text-hm { color: var(--hm-primary) !important; }
+    .border-hm { border-color: var(--hm-primary) !important; }
+    
+    .btn-hm { 
+        background-color: var(--hm-primary); 
+        color: white; 
+        border: none; 
+        transition: all 0.3s; 
+    }
+    .btn-hm:hover { 
+        background-color: var(--hm-primary-hover); 
+        color: white; 
+        transform: translateY(-2px); 
+        box-shadow: 0 5px 15px rgba(0, 144, 161, 0.3); 
+    }
+    
+    /* Ép style cho các input được render từ Django Form */
+    form input[type="text"], 
+    form input[type="email"], 
+    form select {
+        width: 100%;
+        padding: 0.6rem 1rem;
+        font-size: 1rem;
+        font-weight: 400;
+        line-height: 1.5;
+        color: #212529;
+        background-color: #fff;
+        background-clip: padding-box;
+        border: 1px solid #ced4da;
+        appearance: none;
+        border-radius: 0.5rem;
+        transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+    }
+    
+    .input-group .form-control-wrapper input {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+        border-left: 0;
+    }
+    
+    form input:focus, 
+    form select:focus {
+        border-color: var(--hm-primary);
+        outline: 0;
+        box-shadow: 0 0 0 0.25rem rgba(0, 144, 161, 0.15);
+    }
+
+    .letter-spacing { letter-spacing: 0.5px; }
+    .x-small { font-size: 0.75rem; }
+    
+    body { background-color: #f8fafc; }
 </style>
+
+<script>
+    // Xóa border trái của input khi focus để tạo cảm giác liền mạch với icon
+    document.querySelectorAll('.input-group input').forEach(item => {
+        item.addEventListener('focus', event => {
+            event.target.parentElement.previousElementSibling.style.borderColor = 'var(--hm-primary)';
+        })
+        item.addEventListener('blur', event => {
+            event.target.parentElement.previousElementSibling.style.borderColor = '#ced4da';
+        })
+    })
+</script>
 {% endblock %}

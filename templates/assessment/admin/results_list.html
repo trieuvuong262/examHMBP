@@ -1,85 +1,312 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container-fluid mt-4 px-4">
+<div class="container-fluid py-4 px-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="fw-bold text-dark mb-1">Kết quả đánh giá</h2>
+            <h2 class="fw-bold text-dark mb-1">
+                <i class="bi bi-clipboard2-data-fill text-hm me-2"></i>Kết quả Đánh giá
+            </h2>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}" class="text-decoration-none">Bảng điều khiển</a></li>
-                    <li class="breadcrumb-item active">Danh sách bài thi đã nộp</li>
+                    <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}" class="text-decoration-none text-muted">Bảng điều khiển</a></li>
+                    <li class="breadcrumb-item active fw-bold text-hm">Danh sách bài thi đã nộp</li>
                 </ol>
             </nav>
         </div>
+        
+        <div class="d-flex gap-2">
+            <div class="input-group shadow-sm border-0 rounded-3 overflow-hidden me-2" style="width: 250px;">
+                <span class="input-group-text bg-white border-0 text-muted"><i class="bi bi-search"></i></span>
+                <input type="text" id="searchInput" class="form-control border-0 shadow-none" placeholder="Tìm thí sinh...">
+            </div>
+
+            <button onclick="exportTableToCSV('Ket_Qua_Thi.csv')" class="btn btn-outline-success fw-bold shadow-sm px-3 rounded-3">
+                <i class="bi bi-file-earmark-excel-fill me-1"></i> Xuất dữ liệu
+            </button>
+        </div>
     </div>
 
-    <div class="card shadow border-0">
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 border-start border-hm border-4">
+                <div class="d-flex align-items-center">
+                    <div class="bg-hm bg-opacity-10 p-3 rounded-circle me-3">
+                        <i class="bi bi-file-earmark-text text-hm fs-4"></i>
+                    </div>
+                    <div>
+                        <small class="text-muted d-block fw-bold text-uppercase x-small">Tổng bài nộp</small>
+                        <span class="fs-4 fw-bold text-dark" id="statTotal">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 border-start border-warning border-4">
+                <div class="d-flex align-items-center">
+                    <div class="bg-warning bg-opacity-10 p-3 rounded-circle me-3">
+                        <i class="bi bi-hourglass-split text-warning fs-4"></i>
+                    </div>
+                    <div>
+                        <small class="text-muted d-block fw-bold text-uppercase x-small">Chờ chấm điểm</small>
+                        <span class="fs-4 fw-bold text-dark" id="statPending">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 border-start border-primary border-4">
+                <div class="d-flex align-items-center">
+                    <div class="bg-primary bg-opacity-10 p-3 rounded-circle me-3">
+                        <i class="bi bi-bar-chart-fill text-primary fs-4"></i>
+                    </div>
+                    <div>
+                        <small class="text-muted d-block fw-bold text-uppercase x-small">Điểm Trung Bình</small>
+                        <span class="fs-4 fw-bold text-dark" id="statAvg">0.0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 border-start border-success border-4">
+                <div class="d-flex align-items-center">
+                    <div class="bg-success bg-opacity-10 p-3 rounded-circle me-3">
+                        <i class="bi bi-shield-check text-success fs-4"></i>
+                    </div>
+                    <div>
+                        <small class="text-muted d-block fw-bold text-uppercase x-small">Tỷ lệ Đạt (>=5đ)</small>
+                        <span class="fs-4 fw-bold text-dark" id="statPassRate">0%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-dark">
+                <table class="table table-hover align-middle mb-0" id="resultsTable">
+                    <thead class="bg-light text-uppercase text-muted" style="font-size: 0.8rem; letter-spacing: 0.5px;">
                         <tr>
-                            <td class="ps-4">
-                                <div class="fw-bold text-dark">{{ sub.user.profile.full_name }}</div>
-                                <div class="small text-muted">{{ sub.user.profile.position }}</div>
-                            </td>                            
+                            <th class="ps-4 py-3">Thí sinh / Chức danh</th>
                             <th>Kỳ thi</th>
-                            <th>Thời gian nộp</th>
-                            <th class="text-center">Điểm trắc nghiệm</th>
-                            <th class="text-center">Điểm tự luận/Ảnh</th>
+                            <th>Nộp bài lúc</th>
+                            <th class="text-center">Máy chấm</th>
+                            <th class="text-center">Tự luận</th>
                             <th class="text-center">Tổng điểm</th>
-                            <th class="text-center">Trạng thái</th>
+                            <th class="text-center">Đánh giá</th>
                             <th class="text-end pe-4">Thao tác</th>
                         </tr>
                     </thead>
-                    <tbody>
+<tbody>
                         {% for sub in submissions %}
-                        <tr>
+                        <tr class="submission-row" data-total="{{ sub.total_score }}" data-completed="{{ sub.is_completed|yesno:'true,false' }}" data-manual="{{ sub.manual_score }}" data-submitted="{{ sub.submitted_at|yesno:'true,false' }}">
                             <td class="ps-4">
-                                <div class="fw-bold text-dark">{{ sub.user.get_full_name|default:sub.user.username }}</div>
-                                <div class="small text-muted">{{ sub.user.email }}</div>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-circle me-3 bg-hm-subtle text-hm fw-bold">
+                                        {{ sub.user.first_name|first|upper|default:sub.user.username|first|upper }}
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold text-dark search-name">{{ sub.user.profile.full_name|default:sub.user.first_name|default:sub.user.username }}</div>
+                                        <div class="small text-muted">{{ sub.user.profile.position|default:sub.user.email }}</div>
+                                    </div>
+                                </div>
                             </td>
                             <td>
-                                <span class="text-truncate d-inline-block" style="max-width: 200px;">
+                                <span class="text-truncate d-inline-block fw-medium text-dark" style="max-width: 220px;" title="{{ sub.exam.title }}">
                                     {{ sub.exam.title }}
                                 </span>
                             </td>
+                            
                             <td class="small">
-                                {{ sub.submitted_at|date:"d/m/Y" }}<br>
-                                <span class="text-muted">{{ sub.submitted_at|date:"H:i" }}</span>
+                                {% if sub.submitted_at %}
+                                    <span class="fw-medium text-dark">{{ sub.submitted_at|date:"d/m/Y" }}</span><br>
+                                    <span class="text-muted">{{ sub.submitted_at|date:"H:i" }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary-subtle text-secondary border px-2 py-1">Chưa nộp</span>
+                                {% endif %}
                             </td>
-                            <td class="text-center fw-bold text-primary">
+                            
+                            <td class="text-center fw-bold text-secondary">
                                 {{ sub.auto_score|floatformat:1 }}
                             </td>
+                            
                             <td class="text-center">
-                                {% if sub.manual_score > 0 %}
-                                    <span class="badge bg-success-soft text-success">+{{ sub.manual_score|floatformat:1 }}</span>
+                                {% if not sub.submitted_at %}
+                                    <span class="text-muted">-</span>
+                                {% elif not sub.is_completed %}
+                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1 pending-badge">Chờ chấm</span>
                                 {% else %}
-                                    <span class="badge bg-warning-soft text-warning">Chờ chấm</span>
+                                    {% if sub.manual_score > 0 %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">+{{ sub.manual_score|floatformat:1 }}</span>
+                                    {% else %}
+                                        <span class="badge bg-light text-muted border px-2 py-1">0.0</span>
+                                    {% endif %}
                                 {% endif %}
                             </td>
+                            
                             <td class="text-center">
-                                <div class="h5 mb-0 fw-bold text-dark">{{ sub.total_score|floatformat:1 }}</div>
+                                <div class="h5 mb-0 fw-bold text-hm">{{ sub.total_score|floatformat:1 }}</div>
                             </td>
+                            
                             <td class="text-center">
-                                {% if sub.is_completed %}
-                                    <span class="badge bg-success">Hoàn thành</span>
+                                {% if not sub.submitted_at %}
+                                    <span class="badge bg-secondary px-2 py-1">Đang thi</span>
+                                {% elif not sub.is_completed %}
+                                    <span class="badge bg-warning text-dark px-2 py-1">Chờ chấm</span>
                                 {% else %}
-                                    <span class="badge bg-secondary">Đang làm</span>
+                                    {% if sub.total_score >= 8.5 %}
+                                        <span class="badge bg-success px-2 py-1"><i class="bi bi-star-fill me-1"></i>Xuất sắc</span>
+                                    {% elif sub.total_score >= 7.0 %}
+                                        <span class="badge bg-primary px-2 py-1">Khá</span>
+                                    {% elif sub.total_score >= 5.0 %}
+                                        <span class="badge bg-info text-dark px-2 py-1">Đạt</span>
+                                    {% else %}
+                                        <span class="badge bg-danger px-2 py-1">Chưa đạt</span>
+                                    {% endif %}
                                 {% endif %}
                             </td>
+                            
                             <td class="text-end pe-4">
-                                <a href="{% url 'grade_submission' sub.id %}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
-                                    <i class="bi bi-pencil-square me-1"></i> Chấm điểm
-                                </a>
+                                {% if sub.submitted_at %}
+                                    {% if not sub.is_completed %}
+                                        <a href="{% url 'grade_submission' sub.id %}" class="btn btn-sm btn-warning text-dark fw-bold rounded-pill px-3 shadow-sm btn-hover-lift">
+                                            <i class="bi bi-pencil-square me-1"></i> Chấm bài
+                                        </a>
+                                    {% else %}
+                                        <button type="button" class="btn btn-sm btn-hm fw-bold rounded-pill px-3 shadow-sm btn-hover-lift" data-bs-toggle="modal" data-bs-target="#viewModal{{ sub.id }}">
+                                            <i class="bi bi-eye-fill me-1"></i> Xem lại
+                                        </button>
+
+                                        <div class="modal fade text-start" id="viewModal{{ sub.id }}" tabindex="-1" aria-hidden="true">
+                                            <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+                                                <div class="modal-content border-0 shadow-lg rounded-4">
+                                                    
+                                                    <div class="modal-header bg-hm text-white border-0 py-3 px-4">
+                                                        <div>
+                                                            <h5 class="modal-title fw-bold mb-0"><i class="bi bi-file-earmark-check-fill me-2"></i>Chi tiết bài thi</h5>
+                                                            <small class="opacity-75">Thí sinh: {{ sub.user.profile.full_name|default:sub.user.username }}</small>
+                                                        </div>
+                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    
+                                                    <div class="modal-body p-4 bg-light">
+                                                        {% for ans in sub.answers.all %}
+                                                        <div class="mb-4 p-4 bg-white border rounded-4 shadow-sm">
+                                                            
+                                                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                                                <h6 class="fw-bold text-dark mb-0 lh-base pe-3">
+                                                                    <span class="badge bg-hm me-2 fs-6 shadow-sm">Câu {{ forloop.counter }}</span>
+                                                                    {{ ans.question.content }}
+                                                                </h6>
+                                                                <span class="badge bg-light text-muted border flex-shrink-0 px-2 py-1">Tối đa: {{ ans.question.points }}đ</span>
+                                                            </div>
+                                                            
+                                                            <div class="ps-3 border-start border-4 border-hm-subtle py-2 mt-3">
+                                                                
+                                                                {% if ans.question.q_type == 'single' or ans.question.q_type == 'multiple' %}
+                                                                    <div class="mb-2"><span class="fw-bold small text-muted text-uppercase"><i class="bi bi-list-check me-1"></i>Chi tiết đáp án:</span></div>
+                                                                    <ul class="list-unstyled mb-0">
+                                                                    {% for choice in ans.question.choices.all %}
+                                                                        <li class="mb-2 px-3 py-2 rounded-3 border {% if choice in ans.selected_choices.all %}{% if choice.is_correct %}bg-success-subtle border-success-subtle{% else %}bg-danger-subtle border-danger-subtle{% endif %}{% else %}border-light{% endif %}">
+                                                                            <div class="d-flex align-items-start">
+                                                                                
+                                                                                {% if choice in ans.selected_choices.all %}
+                                                                                    {% if choice.is_correct %}
+                                                                                        <i class="bi bi-check-circle-fill text-success fs-5 me-2"></i>
+                                                                                    {% else %}
+                                                                                        <i class="bi bi-x-circle-fill text-danger fs-5 me-2"></i>
+                                                                                    {% endif %}
+                                                                                {% else %}
+                                                                                    {% if choice.is_correct %}
+                                                                                        <i class="bi bi-check2-circle text-success fs-5 me-2 opacity-75"></i>
+                                                                                    {% else %}
+                                                                                        <i class="bi bi-circle text-muted fs-5 me-2 opacity-25"></i>
+                                                                                    {% endif %}
+                                                                                {% endif %}
+
+                                                                                <div class="pt-1">
+                                                                                    <span class="{% if choice.is_correct %}fw-bold text-success{% elif choice in ans.selected_choices.all %}fw-bold text-danger text-decoration-line-through{% else %}text-muted{% endif %}">
+                                                                                        {{ choice.text }}
+                                                                                    </span>
+
+                                                                                    <div class="mt-1">
+                                                                                        {% if choice in ans.selected_choices.all and choice.is_correct %}
+                                                                                            <span class="badge bg-success" style="font-size: 0.7rem;">Học viên chọn (Đúng)</span>
+                                                                                        {% elif choice in ans.selected_choices.all and not choice.is_correct %}
+                                                                                            <span class="badge bg-danger" style="font-size: 0.7rem;">Học viên chọn (Sai)</span>
+                                                                                        {% elif choice.is_correct %}
+                                                                                            <span class="badge bg-white border border-success text-success" style="font-size: 0.7rem;">Đây là Đáp án đúng</span>
+                                                                                        {% endif %}
+                                                                                    </div>
+                                                                                </div>
+                                                                                
+                                                                            </div>
+                                                                        </li>
+                                                                    {% endfor %}
+                                                                    </ul>
+
+                                                                {% elif ans.question.q_type == 'essay' %}
+                                                                    <div class="mb-2"><span class="fw-bold small text-muted text-uppercase"><i class="bi bi-textarea-t me-1"></i>Bài làm của thí sinh:</span></div>
+                                                                    <div class="text-dark font-monospace small bg-light p-3 rounded-3 border" style="white-space: pre-wrap;">{{ ans.essay_answer|default:"<span class='text-muted fst-italic'>Thí sinh bỏ trống</span>"|safe }}</div>
+                                                                    
+                                                                {% elif ans.question.q_type == 'image' or ans.question.q_type == 'image_upload' %}
+                                                                    <div class="mb-2"><span class="fw-bold small text-muted text-uppercase"><i class="bi bi-image me-1"></i>Hình ảnh đã tải lên:</span></div>
+                                                                    {% if ans.image_answer %}
+                                                                        <img src="{{ ans.image_answer.url }}" class="img-thumbnail shadow-sm mt-1 rounded-3" style="max-height: 250px; object-fit: contain;">
+                                                                    {% else %}
+                                                                        <span class="text-muted fst-italic d-block mt-1">Không có hình ảnh.</span>
+                                                                    {% endif %}
+                                                                {% endif %}
+                                                                
+                                                            </div>
+                                                            
+                                                            <div class="mt-3 text-end border-top pt-3">
+                                                                {% if ans.question.q_type == 'essay' or ans.question.q_type == 'image' or ans.question.q_type == 'image_upload' %}
+                                                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 fs-6 rounded-pill">
+                                                                        Điểm Admin chấm: <strong>{{ ans.graded_score|default:0 }}</strong> / {{ ans.question.points }}
+                                                                    </span>
+                                                                {% else %}
+                                                                    <span class="badge bg-hm-subtle text-hm border border-hm-subtle px-3 py-2 fs-6 rounded-pill">
+                                                                        Điểm trắc nghiệm (Máy chấm): <strong>{{ ans.graded_score|default:0 }}</strong> / {{ ans.question.points }}
+                                                                    </span>
+                                                                {% endif %}
+                                                            </div>
+                                                            
+                                                        </div>
+                                                        {% empty %}
+                                                        <div class="text-center text-muted py-5">
+                                                            <i class="bi bi-x-circle display-4 d-block mb-3 opacity-50"></i>
+                                                            Không tìm thấy dữ liệu câu trả lời.
+                                                        </div>
+                                                        {% endfor %}
+                                                    </div>
+                                                    
+                                                    <div class="modal-footer border-0 p-3 bg-white">
+                                                        <div class="w-100 d-flex justify-content-between align-items-center">
+                                                            <span class="fw-bold text-hm h5 mb-0">Tổng điểm: {{ sub.total_score|floatformat:1 }}</span>
+                                                            <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Đóng</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                {% else %}
+                                    <button class="btn btn-sm btn-light text-muted rounded-pill px-3 border shadow-none disabled">
+                                        <i class="bi bi-hourglass-split me-1"></i>Đang làm...
+                                    </button>
+                                {% endif %}
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
                             <td colspan="8" class="text-center py-5">
-                                <i class="bi bi-inbox display-4 text-muted d-block mb-3"></i>
-                                <p class="text-muted">Chưa có bài thi nào được nộp.</p>
+                                <div class="py-4">
+                                    <i class="bi bi-inbox display-1 text-muted opacity-25 d-block mb-3"></i>
+                                    <h5 class="text-dark fw-bold">Chưa có dữ liệu</h5>
+                                    <p class="text-muted">Hiện tại chưa có bài thi nào được ghi nhận trên hệ thống.</p>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -91,10 +318,104 @@
 </div>
 
 <style>
-    .bg-success-soft { background-color: rgba(25, 135, 84, 0.1); }
-    .bg-warning-soft { background-color: rgba(255, 193, 7, 0.1); }
-    .table thead th { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; padding: 15px 10px; }
-    .table tbody td { padding: 15px 10px; border-bottom: 1px solid #f0f0f0; }
-    .card { border-radius: 15px; }
+    :root {
+        --hm-primary: rgb(0, 144, 161);
+        --hm-primary-hover: rgb(0, 115, 129);
+    }
+    .text-hm { color: var(--hm-primary) !important; }
+    .bg-hm { background-color: var(--hm-primary) !important; }
+    .bg-hm-subtle { background-color: rgba(0, 144, 161, 0.1) !important; }
+    .border-hm { border-color: var(--hm-primary) !important; }
+    
+    .btn-hm { background-color: var(--hm-primary); color: white; border: none; }
+    .btn-hm:hover { background-color: var(--hm-primary-hover); color: white; }
+    .btn-hover-lift { transition: transform 0.2s; }
+    .btn-hover-lift:hover { transform: translateY(-2px); }
+
+    .x-small { font-size: 0.75rem; }
+    .avatar-circle {
+        width: 40px; height: 40px;
+        display: flex; align-items: center; justify-content: center;
+        border-radius: 50%; font-size: 1.1rem;
+    }
+    .table thead th { border-bottom: 2px solid #f0f0f0; border-top: none; }
+    .table tbody tr { transition: background-color 0.2s; }
+    .table tbody tr:hover { background-color: #f8fafc; }
 </style>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // 1. TÌM KIẾM NHANH (Frontend)
+        document.getElementById('searchInput').addEventListener('keyup', function() {
+            let filter = this.value.toLowerCase();
+            let rows = document.querySelectorAll('.submission-row');
+            rows.forEach(row => {
+                let name = row.querySelector('.search-name').textContent.toLowerCase();
+                row.style.display = name.includes(filter) ? '' : 'none';
+            });
+        });
+
+        // 2. TỰ ĐỘNG TÍNH TOÁN THỐNG KÊ
+        let rows = document.querySelectorAll('.submission-row');
+        let totalCount = rows.length;
+        let pendingCount = 0;
+        let sumScore = 0;
+        let passCount = 0;
+        let completedCount = 0;
+
+        rows.forEach(row => {
+            let isCompleted = row.getAttribute('data-completed') === 'true';
+            let isSubmitted = row.getAttribute('data-submitted') === 'true'; // Thêm dòng này
+            let totalScore = parseFloat(row.getAttribute('data-total')) || 0;
+            let manualScore = parseFloat(row.getAttribute('data-manual')) || 0;
+            
+            // Chỉ đếm "Chờ chấm" khi ĐÃ NỘP BÀI và CHƯA CHẤM XONG
+            let isPending = isSubmitted && !isCompleted; 
+
+            if (isPending) pendingCount++;
+            
+            if (isCompleted) {
+                completedCount++;
+                sumScore += totalScore;
+                if (totalScore >= 5.0) passCount++; 
+            }
+        });
+
+        document.getElementById('statTotal').innerText = totalCount;
+        document.getElementById('statPending').innerText = pendingCount;
+        
+        if (completedCount > 0) {
+            let avg = sumScore / completedCount;
+            let passRate = (passCount / completedCount) * 100;
+            document.getElementById('statAvg').innerText = avg.toFixed(1);
+            document.getElementById('statPassRate').innerText = passRate.toFixed(1) + "%";
+        }
+    });
+
+    // 3. XUẤT EXCEL ĐƠN GIẢN
+    function exportTableToCSV(filename) {
+        let csv = [];
+        let rows = document.querySelectorAll("#resultsTable tr");
+        
+        for (let i = 0; i < rows.length; i++) {
+            let row = [], cols = rows[i].querySelectorAll("td, th");
+            for (let j = 0; j < cols.length; j++) {
+                // Xóa khoảng trắng thừa và dấu phẩy để tránh lỗi CSV
+                let data = cols[j].innerText.replace(/(\r\n|\n|\r)/gm, " ").replace(/,/g, " ");
+                row.push('"' + data.trim() + '"');
+            }
+            if(row.length > 0) csv.push(row.join(","));
+        }
+
+        // Tạo file và tải xuống
+        let csvFile = new Blob(["\ufeff" + csv.join("\n")], {type: "text/csv;charset=utf-8;"});
+        let downloadLink = document.createElement("a");
+        downloadLink.download = filename;
+        downloadLink.href = window.URL.createObjectURL(csvFile);
+        downloadLink.style.display = "none";
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+    }
+</script>
 {% endblock %}

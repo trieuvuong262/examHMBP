@@ -1,34 +1,121 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4">Danh sách kỳ thi năng lực</h2>
-    <div class="row">
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1">
+                <i class="bi bi-card-checklist text-hm me-2"></i>Đánh giá Năng lực
+            </h2>
+            <p class="text-muted mb-0 small">Danh sách các kỳ thi và bài kiểm tra bạn cần hoàn thành.</p>
+        </div>
+    </div>
+
+    <div class="row g-4">
         {% for exam in active_exams %}
-        <div class="col-md-4 mb-4">
-            <div class="card h-100 shadow-sm">
-                <div class="card-body">
-                    <h5 class="card-title text-primary">{{ exam.title }}</h5>
-                    <p class="card-text text-muted">{{ exam.description|truncatewords:20 }}</p>
-                    <ul class="list-unstyled small">
-                        <li><strong>⏱ Thời gian:</strong> {{ exam.duration_minutes }} phút</li>
-                        <li><strong>📅 Kết thúc:</strong> {{ exam.end_time|date:"H:i d/m/Y" }}</li>
-                    </ul>
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 border-0 shadow-sm exam-card transition-all rounded-4 overflow-hidden">
+                
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="bg-hm-subtle text-hm rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                            <i class="bi bi-ui-checks fs-4"></i>
+                        </div>
+                        {% if exam.id in completed_exam_ids %}
+                            <span class="badge bg-success shadow-sm rounded-pill py-2 px-3">
+                                <i class="bi bi-check-circle-fill me-1"></i>Đã thi
+                            </span>
+                        {% else %}
+                            <span class="badge bg-danger shadow-sm rounded-pill py-2 px-3">
+                                <i class="bi bi-exclamation-circle-fill me-1"></i>Chưa thi
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <h5 class="card-title fw-bold text-dark mb-2 lh-base exam-title">{{ exam.title }}</h5>
+                    <p class="card-text text-muted small mb-4">{{ exam.description|truncatewords:20|default:"Chưa có mô tả chi tiết cho kỳ thi này." }}</p>
+
+                    <div class="bg-light p-3 rounded-3 mb-0 border">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="bi bi-stopwatch text-hm me-2 fs-5"></i>
+                            <span class="small fw-semibold text-secondary">Thời gian:</span>
+                            <span class="small ms-auto fw-bold text-dark">{{ exam.duration_minutes }} phút</span>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-calendar-x text-danger me-2 fs-5"></i>
+                            <span class="small fw-semibold text-secondary">Kết thúc:</span>
+                            <span class="small ms-auto fw-bold text-danger">{{ exam.end_time|date:"H:i - d/m/Y" }}</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-footer bg-white border-0">
+
+                <div class="card-footer bg-white border-top-0 p-4 pt-0">
                     {% if exam.id in completed_exam_ids %}
-                        <button class="btn btn-secondary w-100" disabled>Đã hoàn thành</button>
+                        <button class="btn btn-light text-success border border-success w-100 fw-bold rounded-pill disabled">
+                            <i class="bi bi-shield-check-fill me-1"></i> Đã hoàn thành
+                        </button>
                     {% else %}
-                        <a href="{% url 'take_exam' exam.id %}" class="btn btn-success w-100">Bắt đầu thi ngay</a>
+                        <a href="{% url 'take_exam' exam.id %}" class="btn btn-hm w-100 fw-bold shadow-sm rounded-pill btn-hover-lift">
+                            <i class="bi bi-pencil-square me-2"></i> BẮT ĐẦU THI NGAY
+                        </a>
                     {% endif %}
                 </div>
             </div>
         </div>
         {% empty %}
-        <div class="col-12">
-            <div class="alert alert-info">Hiện không có kỳ thi nào đang diễn ra.</div>
+        <div class="col-12 text-center py-5 my-5">
+            <div class="d-inline-flex align-items-center justify-content-center bg-light rounded-circle mb-4" style="width: 120px; height: 120px;">
+                <i class="bi bi-cup-hot-fill display-3 text-muted opacity-50"></i>
+            </div>
+            <h4 class="fw-bold text-dark mb-2">Không có kỳ thi nào</h4>
+            <p class="text-muted">Hiện tại bạn không có kỳ thi năng lực nào đang mở hoặc cần phải hoàn thành.</p>
         </div>
         {% endfor %}
     </div>
 </div>
+
+<style>
+    :root {
+        --hm-primary: rgb(0, 144, 161);
+        --hm-primary-hover: rgb(0, 115, 129);
+    }
+    
+    .bg-hm { background-color: var(--hm-primary) !important; }
+    .text-hm { color: var(--hm-primary) !important; }
+    .bg-hm-subtle { background-color: rgba(0, 144, 161, 0.1) !important; }
+
+    .btn-hm {
+        background-color: var(--hm-primary);
+        color: white;
+        border: none;
+    }
+    .btn-hm:hover {
+        background-color: var(--hm-primary-hover);
+        color: white;
+    }
+
+    /* Hiệu ứng Hover cho Card */
+    .exam-card {
+        border: 1px solid #e9ecef !important;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+    .exam-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.1) !important;
+        border-color: var(--hm-primary) !important;
+    }
+
+    /* Hiệu ứng Nút bấm */
+    .btn-hover-lift { transition: transform 0.2s ease; }
+    .btn-hover-lift:hover { transform: translateY(-2px); }
+    
+    /* Giới hạn độ dài tiêu đề để các thẻ cao bằng nhau */
+    .exam-title {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        min-height: 48px;
+    }
+</style>
 {% endblock %}

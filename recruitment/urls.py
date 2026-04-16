@@ -11,4 +11,5 @@ urlpatterns = [
     path('admin/recruitment/jobs/<int:pk>/delete/', views.job_posting_delete, name='job_posting_delete'),
     path('admin/recruitment/candidate/<int:candidate_id>/convert/', views.convert_to_employee, name='convert_to_employee'),
     path('admin/candidate/<int:pk>/detail/', views.candidate_detail_ajax, name='candidate_detail_ajax'),
+    path('admin/recruitment/update-note/', views.update_hr_note, name='update_hr_note'),
 ]

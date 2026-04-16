@@ -75,9 +75,15 @@
                                 <a href="{% url 'user_edit' u.id %}" class="btn btn-sm btn-white border px-3" title="Sửa thông tin">
                                     <i class="bi bi-pencil-square text-warning"></i>
                                 </a>
-                                <a href="{% url 'user_password_reset' u.id %}" class="btn btn-sm btn-white border px-3 border-start-0" title="Đặt lại mật khẩu">
-                                    <i class="bi bi-key-fill text-primary"></i>
-                                </a>
+                                <form action="{% url 'user_password_reset' u.id %}" method="POST" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" 
+                                            class="btn btn-sm btn-white border px-3 border-start-0" 
+                                            onclick="return confirm('Xác nhận ĐẶT LẠI MẬT KHẨU cho tài khoản {{ u.username }}?\n\nMật khẩu mới sẽ là: Hoanmy@123')" 
+                                            title="Đặt lại mật khẩu">
+                                        <i class="bi bi-key-fill text-primary"></i>
+                                    </button>
+                                </form>
                                 <a href="{% url 'user_delete' u.id %}" class="btn btn-sm btn-white border px-3 border-start-0" 
                                    onclick="return confirm('Bạn có chắc chắn muốn xóa nhân viên này khỏi hệ thống?')" title="Xóa">
                                     <i class="bi bi-trash-fill text-danger"></i>
@@ -101,7 +107,25 @@
         </div>
     </div>
 </div>
-
+{% if messages %}
+    <div class="mb-4">
+        {% for message in messages %}
+            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show shadow-sm border-0 rounded-3" role="alert">
+                <div class="d-flex align-items-center">
+                    {% if message.tags == 'success' %}
+                        <i class="bi bi-check-circle-fill text-success fs-4 me-3"></i>
+                    {% elif message.tags == 'error' or message.tags == 'danger' %}
+                        <i class="bi bi-exclamation-triangle-fill text-danger fs-4 me-3"></i>
+                    {% else %}
+                        <i class="bi bi-info-circle-fill text-info fs-4 me-3"></i>
+                    {% endif %}
+                    <strong class="mb-0">{{ message }}</strong>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
 <div class="modal fade" id="importExcelModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <form action="{% url 'user_import_excel' %}" method="POST" enctype="multipart/form-data" class="modal-content border-0 shadow-lg rounded-4">
