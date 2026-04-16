@@ -55,7 +55,7 @@ def home_portal(request):
 def exam_list(request):
     now = timezone.now()
     
-    # 1. Lọc các kỳ thi: Được giao cho User + Đang mở + Đang trong khung giờ
+    # 1. Lọc các kỳ thi đang mở
     active_exams = Exam.objects.filter(
         assigned_users=request.user, 
         is_active=True,
@@ -63,23 +63,44 @@ def exam_list(request):
         end_time__gte=now
     ).distinct()
 
-    # 2. Lấy dữ liệu nộp bài của User này
+    # 2. Lấy dữ liệu nộp bài
     submissions = ExamSubmission.objects.filter(
         user=request.user, 
         submitted_at__isnull=False
-    )
+    ).prefetch_related('answers__question')
 
-    # 3. Tạo ID List để check trạng thái (Chưa thi/Đã thi)
     completed_exam_ids = submissions.values_list('exam_id', flat=True)
 
-    # 4. [QUAN TRỌNG]: Tạo Map {id_bai_thi: thoi_gian_nop} để tra cứu ở HTML
-    # Dùng dictionary comprehension cho nhanh và gọn
-    submission_map = {s.exam_id: s.submitted_at for s in submissions}
+    # 3. Tạo Map kết quả
+    submission_results = {}
+    for s in submissions:
+        mc_score = 0
+        essay_score = 0
+        
+        # Duyệt qua các câu trả lời để tách điểm thành phần
+        for ans in s.answers.all():
+            score_val = ans.graded_score or 0
+            if ans.question.q_type in ['single', 'multiple']:
+                mc_score += score_val
+            else:
+                essay_score += score_val
+        
+        # 🎯 FIX LỖI TẠI ĐÂY: Tính tổng điểm trực tiếp từ các trường có sẵn
+        # Thay vì gọi s.score, mình lấy s.auto_score + s.manual_score
+        total_score = (s.auto_score or 0) + (s.manual_score or 0)
+        
+        submission_results[s.exam_id] = {
+            'total_score': total_score,
+            'mc_score': mc_score,
+            'essay_score': essay_score,
+            'is_completed': s.is_completed,
+            'submitted_at': s.submitted_at,
+        }
 
     return render(request, 'assessment/exam_list.html', {
         'active_exams': active_exams,
         'completed_exam_ids': completed_exam_ids,
-        'submission_map': submission_map  # Gửi Map này sang HTML
+        'submission_results': submission_results 
     })
 @login_required
 def take_exam(request, exam_id):
