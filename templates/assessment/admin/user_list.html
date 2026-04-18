@@ -16,15 +16,15 @@
         </div>
         
         <div class="d-flex gap-2">
-            <a href="{% url 'user_export_excel' %}" class="btn btn-outline-primary fw-bold shadow-sm px-3 border-2">
+            <a href="{% url 'user_export_excel' %}" class="btn btn-outline-primary fw-bold shadow-sm px-3 border-2 btn-hover-lift">
                 <i class="bi bi-download me-1"></i> Xuất Excel
             </a>
 
-            <button type="button" class="btn btn-outline-success fw-bold shadow-sm px-3 border-2" data-bs-toggle="modal" data-bs-target="#importExcelModal">
+            <button type="button" class="btn btn-outline-success fw-bold shadow-sm px-3 border-2 btn-hover-lift" data-bs-toggle="modal" data-bs-target="#importExcelModal">
                 <i class="bi bi-file-earmark-excel-fill me-1"></i> Import Excel
             </button>
             
-            <a href="{% url 'user_add' %}" class="btn btn-hm shadow-sm text-white px-4 fw-bold">
+            <a href="{% url 'user_add' %}" class="btn btn-hm shadow-sm text-white px-4 fw-bold btn-hover-lift">
                 <i class="bi bi-person-plus-fill me-1"></i> Thêm nhân viên
             </a>
         </div>
@@ -36,7 +36,7 @@
             
             <div class="input-group input-group-sm w-auto" style="min-width: 350px;">
                 <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
-                <input type="text" id="userSearch" class="form-control bg-light border-start-0 py-2" placeholder="Tìm tên, username hoặc email...">
+                <input type="text" id="userSearch" class="form-control bg-light border-start-0 py-2" placeholder="Tìm tên, chức danh, username...">
             </div>
         </div>
         
@@ -46,6 +46,7 @@
                     <tr style="font-size: 0.85rem; letter-spacing: 0.5px;">
                         <th class="ps-4 py-3 text-muted">Nhân viên</th>
                         <th class="text-muted">Username</th>
+                        <th class="text-muted">Chức danh</th>
                         <th class="text-muted">Email</th>
                         <th class="text-muted">Ngày tham gia</th>
                         <th class="text-end pe-4 text-muted">Thao tác</th>
@@ -60,14 +61,23 @@
                                 <div>
                                     <div class="fw-bold text-dark">{{ u.profile.full_name|default:u.first_name|default:u.username }}</div>
                                     {% if u.is_staff %}
-                                        <span class="badge bg-danger-subtle text-danger rounded-pill x-small">Admin</span>
+                                        <span class="badge bg-danger-subtle text-danger rounded-pill x-small mt-1">Admin Quản trị</span>
                                     {% else %}
-                                        <span class="badge bg-primary-subtle text-hm rounded-pill x-small">Nhân viên</span>
+                                        <span class="badge bg-primary-subtle text-hm rounded-pill x-small mt-1">Nhân viên</span>
                                     {% endif %}
                                 </div>
                             </div>
                         </td>
-                        <td><code class="text-primary fw-bold">{{ u.username }}</code></td>
+                        <td><code class="text-primary fw-bold px-2 py-1 bg-light rounded-2">{{ u.username }}</code></td>
+                        
+                        <td>
+                            {% if u.profile.position %}
+                                <span class="fw-medium text-dark">{{ u.profile.position }}</span>
+                            {% else %}
+                                <span class="text-muted small fst-italic">---</span>
+                            {% endif %}
+                        </td>
+                        
                         <td class="text-muted">{{ u.email|default:"---" }}</td>
                         <td class="text-muted small">{{ u.date_joined|date:"d/m/Y" }}</td>
                         <td class="text-end pe-4">
@@ -93,11 +103,11 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="text-center py-5">
+                        <td colspan="6" class="text-center py-5">
                             <div class="py-4">
                                 <i class="bi bi-person-exclamation display-1 text-muted opacity-25"></i>
                                 <p class="mt-3 text-muted fs-5">Chưa có nhân viên nào trong hệ thống.</p>
-                                <a href="{% url 'user_add' %}" class="btn btn-hm btn-sm">Thêm nhân viên ngay</a>
+                                <a href="{% url 'user_add' %}" class="btn btn-hm btn-sm rounded-pill px-4">Thêm nhân viên ngay</a>
                             </div>
                         </td>
                     </tr>
@@ -108,11 +118,9 @@
     </div>
 </div>
 
-
-
 <div class="modal fade" id="importExcelModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <form action="{% url 'user_import_excel' %}" method="POST" enctype="multipart/form-data" class="modal-content border-0 shadow-lg rounded-4">
+        <form id="importExcelForm" action="{% url 'user_import_excel' %}" method="POST" enctype="multipart/form-data" class="modal-content border-0 shadow-lg rounded-4">
             {% csrf_token %}
             <div class="modal-header bg-dark text-white p-4">
                 <h5 class="modal-title fw-bold"><i class="bi bi-file-earmark-excel me-2 text-success"></i>IMPORT TỪ EXCEL</h5>
@@ -121,7 +129,7 @@
             <div class="modal-body p-4">
                 <div class="text-center p-3 mb-4 rounded-4 border-2 border-dashed bg-light">
                     <p class="small text-muted mb-2 fw-bold">Bước 1: Sử dụng đúng định dạng file mẫu</p>
-                    <a href="{% url 'user_download_template' %}" class="btn btn-primary btn-sm rounded-pill px-4 shadow-sm">
+                    <a href="{% url 'user_download_template' %}" class="btn btn-primary btn-sm rounded-pill px-4 shadow-sm btn-hover-lift">
                         <i class="bi bi-cloud-arrow-down-fill me-1"></i> Tải File Excel Mẫu
                     </a>
                 </div>
@@ -133,7 +141,7 @@
                 
                 <div class="p-3 rounded-3 bg-warning bg-opacity-10 border-start border-warning border-4 mt-4">
                     <h6 class="fw-bold mb-1 small text-dark"><i class="bi bi-exclamation-triangle-fill me-1 text-warning"></i> Lưu ý quan trọng:</h6>
-                    <ul class="x-small text-dark mb-0 ps-3">
+                    <ul class="x-small text-dark mb-0 ps-3 lh-lg">
                         <li>Không thay đổi tên các cột trong file mẫu.</li>
                         <li>Trường <strong>username</strong> là duy nhất, nếu trùng sẽ tự động bỏ qua.</li>
                         <li>Mật khẩu mặc định: <code>Hoanmy@123</code> (nếu để trống).</li>
@@ -142,17 +150,44 @@
             </div>
             <div class="modal-footer p-4 border-0 pt-0">
                 <button type="button" class="btn btn-light fw-bold px-4 rounded-pill" data-bs-dismiss="modal">Hủy bỏ</button>
-                <button type="submit" class="btn btn-hm px-5 fw-bold rounded-pill shadow">XỬ LÝ DỮ LIỆU</button>
+                <button type="submit" id="submitImportBtn" class="btn btn-hm px-5 fw-bold rounded-pill shadow btn-hover-lift">XỬ LÝ DỮ LIỆU</button>
             </div>
         </form>
     </div>
 </div>
 
+<div id="importLoadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="loading-box text-center bg-white p-5 rounded-4 shadow-lg">
+        <div class="spinner-border text-hm mb-3" style="width: 3.5rem; height: 3.5rem; border-width: 0.25em;" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <h5 class="fw-bold text-dark mb-1">Đang xử lý dữ liệu...</h5>
+        <p class="text-muted small mb-0">Hệ thống đang nhập danh sách, vui lòng không đóng cửa sổ này!</p>
+    </div>
+</div>
+
 <style>
-    :root { --hm-primary: rgb(0, 144, 161); }
-    .text-hm { color: var(--hm-primary); }
-    .btn-hm { background-color: var(--hm-primary); color: white; border: none; transition: all 0.3s; }
-    .btn-hm:hover { background-color: rgb(0, 115, 129); color: white; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0, 144, 161, 0.3); }
+    :root { 
+        --hm-primary: rgb(0, 144, 161); 
+        --hm-primary-hover: rgb(0, 115, 129);
+    }
+    
+    .text-hm { color: var(--hm-primary) !important; }
+    .bg-hm-subtle { background-color: rgba(0, 144, 161, 0.1) !important; }
+    
+    .btn-hm { 
+        background-color: var(--hm-primary); 
+        color: white; 
+        border: none; 
+        transition: all 0.3s; 
+    }
+    .btn-hm:hover { 
+        background-color: var(--hm-primary-hover); 
+        color: white; 
+    }
+    
+    .btn-hover-lift { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+    .btn-hover-lift:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
     
     .avatar-circle {
         width: 42px; height: 42px;
@@ -160,19 +195,45 @@
         color: white;
         display: flex; align-items: center; justify-content: center;
         border-radius: 12px; font-weight: bold; font-size: 1.1rem;
-        box-shadow: 0 3px 6px rgba(0, 144, 161, 0.1);
+        box-shadow: 0 3px 6px rgba(0, 144, 161, 0.15);
     }
-    .x-small { font-size: 0.7rem; font-weight: 700; text-uppercase; letter-spacing: 0.5px; }
+    
+    .x-small { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
     .border-dashed { border-style: dashed !important; }
+    .btn-white { background-color: white; }
     .btn-white:hover { background-color: #f8f9fa; }
     
-    /* Tùy chỉnh bảng */
     .table thead th { border-top: none; }
     .table tbody tr { transition: background 0.2s; }
+    
+    /* STYLE CHO LOADING OVERLAY */
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .loading-box {
+        animation: popIn 0.3s ease-out forwards;
+        min-width: 300px;
+    }
+    
+    @keyframes popIn {
+        0% { transform: scale(0.8); opacity: 0; }
+        100% { transform: scale(1); opacity: 1; }
+    }
 </style>
 
 <script>
-    // Tìm kiếm nhanh (Frontend Filter)
+    // 1. TÍNH NĂNG TÌM KIẾM NHANH
     document.getElementById('userSearch').addEventListener('keyup', function() {
         let keyword = this.value.toLowerCase();
         let rows = document.querySelectorAll('#userTable tbody tr');
@@ -181,5 +242,24 @@
             row.style.display = text.includes(keyword) ? '' : 'none';
         });
     });
+
+    // 2. TÍNH NĂNG LOADING KHI IMPORT
+    const importForm = document.getElementById('importExcelForm');
+    if (importForm) {
+        importForm.addEventListener('submit', function() {
+            // Hiển thị màn hình Loading
+            document.getElementById('importLoadingOverlay').style.display = 'flex';
+            
+            // Đóng Modal hiện tại lại cho đỡ rối mắt
+            const modalEl = document.getElementById('importExcelModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            if(modal) { modal.hide(); }
+            
+            // Tắt nút Submit chống double-click
+            const submitBtn = document.getElementById('submitImportBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>ĐANG XỬ LÝ...';
+        });
+    }
 </script>
 {% endblock %}

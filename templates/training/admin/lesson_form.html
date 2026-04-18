@@ -93,49 +93,5 @@
         typeSelect.addEventListener('change', toggleFields);
     });
 </script>
-<script>
-$(document).ready(function() {
-    // 1. Nhận dữ liệu từ Backend
-    const userPositions = JSON.parse('{{ user_positions_json|escapejs }}');
-    const userData = JSON.parse('{{ user_data_json|escapejs }}');
 
-    // 2. Khởi tạo Select2
-    const selectEl = $('select[name="assigned_users"]');
-    
-    selectEl.select2({
-        theme: 'bootstrap-5',
-        placeholder: '🔍 Tìm theo tên hoặc chức danh...',
-        allowClear: true,
-        width: '100%',
-        data: userData, // Đổ dữ liệu có chứa Họ tên (Chức danh) vào đây
-        templateResult: function(data) {
-            // Hiển thị trong danh sách xổ xuống
-            return data.text;
-        },
-        templateSelection: function(data) {
-            // Hiển thị khi đã chọn (Thẻ tag)
-            return data.text;
-        }
-    });
-
-    // 3. Logic Nút Chọn Nhanh (Giữ nguyên logic nhưng dùng userPositions)
-    $('.btn-quick-select').click(function() {
-        const targetPos = $(this).data('pos');
-        let currentValues = selectEl.val() || [];
-        
-        for (const [userId, pos] of Object.entries(userPositions)) {
-            if (pos === targetPos && !currentValues.includes(userId)) {
-                currentValues.push(userId);
-            }
-        }
-        selectEl.val(currentValues).trigger('change');
-    });
-
-    $('#btn-clear-users').click(function() {
-        if(confirm('Xóa sạch danh sách nhân viên đã chọn?')) {
-            selectEl.val(null).trigger('change');
-        }
-    });
-});
-</script>
 {% endblock %}

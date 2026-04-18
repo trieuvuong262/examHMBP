@@ -572,7 +572,6 @@ def user_import_excel(request):
             df = pd.read_excel(file)
             
             # 2. CHUẨN HÓA TÊN CỘT: Biến tất cả tên cột thành chữ thường, xóa khoảng trắng dư
-            # (Giúp HR gõ "Email", " EMAIL ", hay "email" thì máy đều hiểu)
             df.columns = [str(c).strip().lower() for c in df.columns]
             
             # Kiểm tra sống còn: Bắt buộc phải có cột username
@@ -598,9 +597,11 @@ def user_import_excel(request):
                 password = str(row.get('password', '')).strip() or 'Hoanmy@123'
                 email = str(row.get('email', '')).strip()
                 full_name = str(row.get('full_name', '')).strip()
+                # THÊM MỚI: Lấy dữ liệu cột chuc_danh
+                chuc_danh = str(row.get('chuc_danh', '')).strip()
 
                 if not User.objects.filter(username=username).exists():
-                    # Tạo User (Ngày tham gia tự động được tính là lúc bấm nút Import)
+                    # Tạo User 
                     user = User.objects.create_user(
                         username=username,
                         password=password,
@@ -609,10 +610,13 @@ def user_import_excel(request):
                         is_staff=False
                     )
                     
-                    # Tạo Profile hiển thị tên
+                    # Tạo Profile hiển thị tên VÀ chức danh
                     Profile.objects.update_or_create(
                         user=user,
-                        defaults={'full_name': full_name}
+                        defaults={
+                            'full_name': full_name,
+                            'position': chuc_danh  # Lưu chức danh vào DB
+                        }
                     )
                     
                     success_count += 1
@@ -625,23 +629,28 @@ def user_import_excel(request):
             messages.error(request, f'Lỗi hệ thống khi xử lý file: {str(e)}')
             
     return redirect('user_list')
+
+
 # 1. Hàm Xuất danh sách nhân viên hiện có
 @admin_only
 def user_export_excel(request):
-    # Lấy dữ liệu, ta lấy 'first_name' vì logic trước đó mình lưu full_name vào đây
-    users = User.objects.all().values('username', 'first_name', 'email', 'date_joined')
+    # Lấy dữ liệu: Lấy thêm profile__position để xuất ra chức danh
+    users = User.objects.all().values('username', 'first_name', 'email', 'date_joined', 'profile__position')
     df = pd.DataFrame(list(users))
     
-    # ĐỔI TÊN CỘT ĐỂ ĐỒNG BỘ: từ 'first_name' thành 'full_name'
+    # ĐỔI TÊN CỘT ĐỂ ĐỒNG BỘ: từ 'first_name' thành 'full_name', 'profile__position' thành 'chuc_danh'
     df = df.rename(columns={
         'first_name': 'full_name',
         'username': 'username',
         'email': 'email',
-        'date_joined': 'Ngày tham gia'
+        'date_joined': 'Ngày tham gia',
+        'profile__position': 'chuc_danh'
     })
     
-    # Định dạng lại ngày tháng
+    # Sắp xếp lại thứ tự cột cho đẹp mắt
+    # Đảm bảo DataFrame không trống trước khi xử lý tiếp
     if not df.empty:
+        df = df[['username', 'full_name', 'chuc_danh', 'email', 'Ngày tham gia']]
         df['Ngày tham gia'] = df['Ngày tham gia'].dt.strftime('%d/%m/%Y')
     
     output = io.BytesIO()
@@ -652,15 +661,17 @@ def user_export_excel(request):
     response['Content-Disposition'] = 'attachment; filename=Danh_sach_nhan_vien.xlsx'
     return response
 
-# 2. Hàm Tải File Mẫu (Cũng phải bỏ last_name đi)
+
+# 2. Hàm Tải File Mẫu 
 @admin_only
 def user_download_template(request):
-    # Chỉ để lại các cột cần thiết cho việc Import
-    columns = ['username', 'password', 'full_name', 'email']
+    # Bổ sung 'chuc_danh' vào danh sách các cột
+    columns = ['username', 'password', 'full_name', 'email', 'chuc_danh']
     df = pd.DataFrame(columns=columns)
     
-    # Dòng dữ liệu mẫu để HR biết cách điền
-    df.loc[0] = ['nv001', 'Hoanmy@123', 'Nguyễn Văn An', 'an.nv@hoanmy.com']
+    # Cập nhật dòng dữ liệu mẫu có thêm ví dụ về chức danh
+    df.loc[0] = ['nv001', 'Hoanmy@123', 'Nguyễn Văn An', 'an.nv@hoanmy.com', 'Bác Sĩ']
+    df.loc[1] = ['nv002', '', 'Trần Thị Bình', '', 'Điều Dưỡng'] # Thêm dòng 2 cho nhân viên thấy cột pass/email k bắt buộc
     
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
