@@ -28,7 +28,7 @@ SECRET_KEY = 'django-insecure-(!a8@%1h4ju=ft!kg_gmx)x6o-!$8&xc*h@omr@n=)5_w#1_ok
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'training',
     'recruitment',
     'ckeditor',
+    'reports',
 ]
 CKEDITOR_CONFIGS = {
     'default': {

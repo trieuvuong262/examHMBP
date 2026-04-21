@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h3 class="mb-4 text-primary font-weight-bold">📊 Dashboard Cố Vấn Chiến Lược</h3>
+
+    <ul class="nav nav-tabs shadow-sm bg-white rounded" id="reportTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active font-weight-bold" data-bs-toggle="tab" data-bs-target="#recruitment" type="button">🎯 Tuyển dụng</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link font-weight-bold text-secondary" data-bs-toggle="tab" data-bs-target="#core-hr" type="button">👥 Core HR</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link font-weight-bold text-secondary" data-bs-toggle="tab" data-bs-target="#training" type="button">📚 Đào tạo (LMS)</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link font-weight-bold text-secondary" data-bs-toggle="tab" data-bs-target="#assessment" type="button">📝 Đánh giá</button>
+        </li>
+    </ul>
+
+    <div class="tab-content mt-4" id="reportTabsContent">
+        
+        <div class="tab-pane fade show active" id="recruitment">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="text-success">Phân Tích Hiệu Quả Tuyển Dụng</h5>
+                <div class="badge bg-info p-2 text-white">Thời gian lấp đầy vị trí TB: <span id="avgDays">0</span> ngày</div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-7 mb-4">
+                    <div class="card shadow h-100 border-left-success">
+                        <div class="card-header bg-white py-3"><h6 class="m-0 font-weight-bold text-success">Phễu Tuyển Dụng Toàn Viện</h6></div>
+                        <div class="card-body">
+                            <div id="funnelChart"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-5 mb-4">
+                    <div class="card shadow h-100 border-left-info">
+                        <div class="card-header bg-white py-3"><h6 class="m-0 font-weight-bold text-info">Nguồn Ứng Viên</h6></div>
+                        <div class="card-body">
+                            <div id="sourceChart"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-8 mb-4">
+                    <div class="card shadow h-100 border-left-primary">
+                        <div class="card-header bg-white py-3"><h6 class="m-0 font-weight-bold text-primary">Tỷ Lệ Đáp Ứng Nhu Cầu (Thực tế vs Chỉ tiêu)</h6></div>
+                        <div class="card-body">
+                            <div id="fulfillmentChart"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="card shadow h-100 border-left-danger">
+                        <div class="card-header bg-white py-3"><h6 class="m-0 font-weight-bold text-danger">Tỷ Lệ Nhận/Từ Chối Offer</h6></div>
+                        <div class="card-body">
+                            <div id="dropChart"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="core-hr">
+            <div class="alert alert-secondary text-center py-5">
+                <h4>Đang thiết lập Biểu đồ Quản trị Nhân sự (Core HR)...</h4>
+                <p>Khu vực này sẽ chứa 5 biểu đồ: Biến động, Tỷ lệ nghỉ việc, Cơ cấu, Thâm niên, Giữ chân nhân tài.</p>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="training">
+            <div class="alert alert-secondary text-center py-5">
+                <h4>Đang thiết lập Biểu đồ Đào tạo nội bộ (LMS)...</h4>
+                <p>Khu vực này sẽ chứa 5 biểu đồ: Tuân thủ, Tiến độ, Tương tác, Điểm nghẽn, Khung giờ học.</p>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="assessment">
+            <div class="alert alert-secondary text-center py-5">
+                <h4>Đang thiết lập Biểu đồ Đánh giá Năng lực...</h4>
+                <p>Khu vực này sẽ chứa 5 biểu đồ: Phổ điểm, Top câu sai, Bản đồ năng lực, Ma trận tốc độ, Xu hướng phát triển.</p>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script>
+    // --- LẤY DỮ LIỆU TỪ BACKEND ---
+    const recData = {{ rec_data|safe }};
+    document.getElementById('avgDays').innerText = recData.avg_fill_time;
+
+    // --- CẤU HÌNH BIỂU ĐỒ TAB TUYỂN DỤNG ---
+    const funnelOptions = {
+        series: [{ name: "Ứng viên", data: recData.funnel_values }],
+        chart: { type: 'bar', height: 320 },
+        plotOptions: { bar: { horizontal: true, isFunnel: true, borderRadius: 0 } },
+        colors: ['#1cc88a'], xaxis: { categories: recData.funnel_labels }
+    };
+
+    const sourceOptions = {
+        series: recData.source_values, labels: recData.source_labels,
+        chart: { type: 'donut', height: 300 },
+        legend: { position: 'bottom' }, colors: ['#36b9cc', '#f6c23e', '#1cc88a', '#e74a3b']
+    };
+
+    const fullOptions = {
+        series: [{ name: 'Chỉ tiêu', data: recData.full_target }, { name: 'Thực tế đã tuyển', data: recData.full_actual }],
+        chart: { type: 'bar', height: 320 },
+        plotOptions: { bar: { horizontal: false, columnWidth: '60%' } },
+        xaxis: { categories: recData.full_labels }, colors: ['#dddfeb', '#4e73df']
+    };
+
+    const dropOptions = {
+        series: recData.drop_values, labels: recData.drop_labels,
+        chart: { type: 'pie', height: 300 },
+        legend: { position: 'bottom' }, colors: ['#1cc88a', '#e74a3b']
+    };
+
+    // Khởi tạo biến lưu biểu đồ
+    let funnelChart = new ApexCharts(document.querySelector("#funnelChart"), funnelOptions);
+    let sourceChart = new ApexCharts(document.querySelector("#sourceChart"), sourceOptions);
+    let fullChart = new ApexCharts(document.querySelector("#fulfillmentChart"), fullOptions);
+    let dropChart = new ApexCharts(document.querySelector("#dropChart"), dropOptions);
+
+    // Render ngay các biểu đồ của Tab đang active
+    funnelChart.render(); sourceChart.render(); fullChart.render(); dropChart.render();
+
+    // 💡 TRICK CHỐNG MÓP BIỂU ĐỒ KHI ĐỔI TAB (Cực kỳ quan trọng)
+    document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(tab => {
+        tab.addEventListener('shown.bs.tab', function (event) {
+            // Resize lại toàn bộ cửa sổ để ApexCharts tự giãn ra đúng kích thước
+            window.dispatchEvent(new Event('resize'));
+        });
+    });
+</script>
+{% endblock %}
