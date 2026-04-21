@@ -172,5 +172,3 @@ sudo ufw allow 'Nginx Full'
 ```
 
 ---
-**Người chịu trách nhiệm:** Vương - Bộ phận IT/HR
-**Ngày cập nhật:** 21/04/2026
