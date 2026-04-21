@@ -138,7 +138,6 @@
     .btn-hover-lift { transition: transform 0.2s ease, box-shadow 0.2s ease; }
     .btn-hover-lift:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
 
-    /* Chỉnh sửa giao diện thẻ chấm điểm */
     .question-grade-card { 
         border-radius: 20px; 
         border: 1px solid #f0f0f0 !important;
@@ -151,7 +150,6 @@
     .bg-grading-panel { background-color: rgba(0, 144, 161, 0.03); }
     .shadow-inner { box-shadow: inset 0 2px 10px rgba(0,0,0,0.03); }
 
-    /* CSS Kính lúp cho trang chấm điểm */
     .magnifier-container { 
         max-width: 600px; 
         cursor: zoom-in; 
@@ -168,7 +166,6 @@
 
     .sticky-bottom { position: sticky; bottom: 0; z-index: 1020; }
     
-    /* Input custom */
     .score-input:focus {
         border-color: var(--hm-primary);
         box-shadow: none;
@@ -176,7 +173,6 @@
 </style>
 
 <script>
-    // Hàm phóng to ảnh tại vị trí chuột
     function zoomGrade(e) {
         const container = e.currentTarget;
         const img = container.querySelector('.magnifier-img-grade');
@@ -191,7 +187,6 @@
         img.style.transformOrigin = `center center`;
     }
 
-    // Chặn nhập điểm vượt mức
     document.querySelectorAll('.score-input').forEach(input => {
         input.addEventListener('input', function() {
             const max = parseFloat(this.getAttribute('max'));
@@ -203,9 +198,8 @@
                 this.classList.remove('text-hm');
                 this.classList.add('text-danger');
                 feedback.style.display = 'block';
-                this.value = max; // Tự động trả về max
+                this.value = max;
                 
-                // Trả lại trạng thái bình thường sau 1.5s
                 setTimeout(() => {
                     this.classList.remove('is-invalid');
                     this.classList.add('text-hm');

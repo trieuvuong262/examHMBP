@@ -2,7 +2,6 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 
-# 1. Vị trí tuyển dụng
 class JobPosting(models.Model):
     POSITION_CHOICES = [
         ('Bác Sĩ', 'Bác Sĩ'),
@@ -16,10 +15,8 @@ class JobPosting(models.Model):
     department = models.CharField(max_length=100, verbose_name="Khoa/Phòng ban")
     position = models.CharField(max_length=50, choices=POSITION_CHOICES, verbose_name="Chức danh")
     quantity = models.PositiveIntegerField(default=1, verbose_name="Số lượng cần tuyển")
-    
     description = models.TextField(verbose_name="Mô tả công việc")
     requirements = models.TextField(verbose_name="Yêu cầu ứng viên", blank=True)
-    
     deadline = models.DateField(verbose_name="Hạn nộp hồ sơ")
     is_active = models.BooleanField(default=True, verbose_name="Đang mở tuyển")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -36,7 +33,6 @@ class JobPosting(models.Model):
     def is_expired(self):
         return timezone.now().date() > self.deadline
 
-# 2. Hồ sơ ứng viên
 class Candidate(models.Model):
     STATUS_CHOICES = [
         ('new', 'Mới nộp'),
@@ -51,13 +47,9 @@ class Candidate(models.Model):
     full_name = models.CharField(max_length=255, verbose_name="Họ và tên")
     email = models.EmailField(verbose_name="Email")
     phone = models.CharField(max_length=20, verbose_name="Số điện thoại")
-    
-    # File CV ứng viên nộp lên
     cv_file = models.FileField(upload_to='candidate_cvs/', verbose_name="Hồ sơ CV (PDF/Word)")
-    
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new', verbose_name="Trạng thái")
     hr_note = models.TextField(blank=True, verbose_name="Ghi chú của HR")
-    
     applied_at = models.DateTimeField(auto_now_add=True, verbose_name="Ngày nộp")
 
     class Meta:
@@ -68,15 +60,11 @@ class Candidate(models.Model):
     def __str__(self):
         return f"{self.full_name} - {self.job_posting.title}"
 
-# 3. Lịch phỏng vấn
 class Interview(models.Model):
     candidate = models.OneToOneField(Candidate, on_delete=models.CASCADE, related_name='interview', verbose_name="Ứng viên")
     interview_time = models.DateTimeField(verbose_name="Thời gian phỏng vấn")
     location = models.CharField(max_length=255, default="Phòng Họp Nhân sự", verbose_name="Địa điểm / Link Online")
-    
-    # Hội đồng phỏng vấn (Liên kết với User hệ thống)
     interviewers = models.ManyToManyField(User, related_name='interviews_assigned', verbose_name="Hội đồng phỏng vấn")
-    
     result_notes = models.TextField(blank=True, verbose_name="Đánh giá sau phỏng vấn")
     passed = models.BooleanField(null=True, blank=True, verbose_name="Kết quả (Đạt/Không Đạt)")
 

@@ -13,15 +13,12 @@
 
     body { background-color: #f8fafc; }
 
-    /* Custom Buttons */
     .btn-hm { background-color: var(--hm-primary); color: white; border: none; }
     .btn-hm:hover { background-color: var(--hm-primary-hover); color: white; box-shadow: 0 4px 12px rgba(0, 144, 161, 0.2); }
     
-    /* Card Styles */
     .card-hm { border: none; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); overflow: hidden; }
     .card-header-hm { background: white; border-bottom: 1px solid #f1f5f9; padding: 1.25rem; }
 
-    /* Custom Switch Toggle chuẩn Hoàn Mỹ */
     .form-switch-hm .form-check-input {
         width: 3.5rem;
         height: 1.75rem;
@@ -39,7 +36,6 @@
         min-width: 120px;
     }
 
-    /* Thẻ Tag chức danh nâng cấp */
     .custom-tag {
         transition: all 0.2s ease;
         padding: 6px 14px;
@@ -52,7 +48,6 @@
         filter: brightness(0.95);
     }
 
-    /* Select2 Tweaks */
     .select2-container--bootstrap-5 .select2-selection {
         border-radius: 10px;
         border: 2px solid #e2e8f0;
@@ -209,10 +204,8 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 $(document).ready(function() {
-    // Nhận dữ liệu JSON từ View
     const userPositions = JSON.parse('{{ user_positions_json|escapejs }}');
 
-    // Khởi tạo Select2 với Fix lỗi tìm kiếm khi xóa
     const selectEl = $('select[name="assigned_users"]');
     selectEl.select2({
         theme: 'bootstrap-5',
@@ -233,7 +226,6 @@ $(document).ready(function() {
         }
     });
 
-    // --- SCRIPT XỬ LÝ CHỌN NHANH ---
     $('.btn-quick-select').click(function() {
         const btn = $(this);
         const targetPos = btn.data('pos');
@@ -260,14 +252,12 @@ $(document).ready(function() {
         }
     });
 
-    // Sự kiện nút Bỏ chọn hết
     $('#btn-clear-users').click(function() {
         if(confirm('Xác nhận xóa toàn bộ danh sách đã chọn?')) {
             selectEl.val(null).trigger('change');
         }
     });
 
-    // Switch Toggle Label Sync
     const isActiveSwitch = document.getElementById('isActiveSwitch');
     const statusLabel = document.getElementById('statusLabel');
     if (isActiveSwitch && statusLabel) {

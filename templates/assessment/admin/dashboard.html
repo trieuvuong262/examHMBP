@@ -2,7 +2,6 @@
 
 {% block content %}
 <style>
-    /* 1. Cấu hình bảng màu sắc độ HM */
     :root {
         --hm-primary: rgb(0, 144, 161);
         --hm-primary-hover: rgb(0, 115, 129);
@@ -14,7 +13,6 @@
 
     body { background-color: var(--hm-bg-light); }
 
-    /* 2. Tinh chỉnh Header & Tab */
     .dashboard-header {
         background: white;
         padding: 1.5rem 2rem;
@@ -23,7 +21,7 @@
         margin-bottom: 2rem;
     }
     .nav-pills-hm {
-        display: inline-flex; /* Quan trọng để căn giữa */
+        display: inline-flex;
         background: white;
         padding: 8px;
         border-radius: 15px;
@@ -32,18 +30,17 @@
     }
 
     .nav-pills-hm .nav-link {
-        color: #475569 !important; /* Chữ xám đậm khi chưa chọn */
+        color: #475569 !important;
         font-weight: 700;
-        white-space: nowrap; /* Tránh việc chữ bị xuống dòng khi co màn hình */
+        white-space: nowrap;
         padding: 12px 28px;
     }
 
     .nav-pills-hm .nav-link.active {
         background-color: rgb(0, 144, 161) !important;
-        color: #ffffff !important; /* Chữ trắng khi được chọn */
+        color: #ffffff !important;
     }
 
-    /* 3. Stat Cards */
     .stat-card {
         background: white;
         border: none;
@@ -56,7 +53,6 @@
         height: 100%;
     }
 
-    /* Hiệu ứng di chuột nổi bật hơn vì giờ nó là nút bấm */
     .stat-card-link {
         display: block;
         text-decoration: none;
@@ -81,7 +77,6 @@
         font-size: 1.5rem;
     }
 
-    /* 4. Table Styling */
     .card-table {
         border-radius: 20px;
         border: none;
@@ -104,15 +99,12 @@
         border-bottom: 1px solid #f1f5f9;
     }
 
-    /* 5. Badge sắc độ */
     .bg-primary-soft { background: var(--hm-primary-soft); color: var(--hm-primary); }
     .bg-success-soft { background: rgba(34, 197, 94, 0.1); color: #16a34a; }
     .bg-warning-soft { background: rgba(234, 179, 8, 0.1); color: #a16207; }
     .bg-info-soft { background: rgba(6, 182, 212, 0.1); color: #0891b2; }
-    /* THÊM DÒNG NÀY CHO TRẠNG THÁI LOẠI */
     .bg-danger-soft { background: rgba(239, 68, 68, 0.1); color: #dc2626; }
 
-    /* 6. Button HM */
     .btn-hm {
         background-color: var(--hm-primary);
         color: white;
@@ -572,14 +564,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const tabParam = urlParams.get('tab');
 
     if (tabParam) {
-        // 1. Tìm nút bấm ẩn
         const tabTriggerEl = document.querySelector(`#${tabParam}-tab`);
         if (tabTriggerEl) {
-            // Kích hoạt qua trigger
             const tab = new bootstrap.Tab(tabTriggerEl);
             tab.show();
         } else {
-            // 2. Nếu không thấy nút, ép cái pane hiện lên bằng tay
             document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('show', 'active'));
             const targetPane = document.getElementById(tabParam);
             if (targetPane) {

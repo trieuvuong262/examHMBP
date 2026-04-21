@@ -190,25 +190,21 @@ document.addEventListener('DOMContentLoaded', function () {
         resultModal.addEventListener('show.bs.modal', function (event) {
             const btn = event.relatedTarget;
             
-            // Lấy dữ liệu thô (có thể chứa dấu phẩy từ Django localization)
             const rawMC = btn.getAttribute('data-mc');
             const rawEssay = btn.getAttribute('data-essay');
             const rawTotal = btn.getAttribute('data-total');
             const duration = btn.getAttribute('data-duration');
             const isGraded = btn.getAttribute('data-graded') === 'True';
 
-            // Hàm chuẩn hóa số để Javascript không bị lỗi khi gặp dấu phẩy (7,9 -> 7.9)
             const normalize = (val) => parseFloat(String(val).replace(',', '.')) || 0;
 
             const mc = normalize(rawMC);
             const essay = normalize(rawEssay);
             const total = normalize(rawTotal);
 
-            // Đổ dữ liệu vào giao diện
             document.getElementById('modalExamTitle').textContent = btn.getAttribute('data-title');
             document.getElementById('modalDurationText').innerHTML = `Thời gian thực hiện: <b>${duration} phút</b>`;
             
-            // Hiển thị dạng tiếng Việt (dấu phẩy) cho người dùng
             document.getElementById('modalMCScore').textContent = mc.toFixed(1).replace('.', ',');
             document.getElementById('modalTotalScore').textContent = total.toFixed(1).replace('.', ',');
             

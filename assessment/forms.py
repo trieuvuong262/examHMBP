@@ -1,8 +1,8 @@
 from django import forms
-
-from .models import Exam, Question, Choice
+from .models import Exam, Question, Choice, User
 from django.forms import inlineformset_factory
-from .models import Exam, User
+from django.contrib.auth.models import User
+from .models import Profile
 
 class ExamForm(forms.ModelForm):
     class Meta:
@@ -24,14 +24,11 @@ class ExamForm(forms.ModelForm):
             'assigned_users': forms.SelectMultiple(attrs={'class': 'form-select select2-user'}),
         }
 
-# assessment/forms.py
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         user_qs = User.objects.all().select_related('profile')
         self.fields['assigned_users'].queryset = user_qs
         
-        # Hàm hiển thị an toàn: Nếu không có profile thì hiện Username
         def get_user_label(obj):
             try:
                 return f"{obj.profile.full_name} ({obj.profile.position})"
@@ -64,13 +61,9 @@ ChoiceFormSet = inlineformset_factory(
         'is_correct': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
     }
 )
-# assessment/forms.py
-from django import forms
-from django.contrib.auth.models import User
-from .models import Profile
+
 
 class UserForm(forms.ModelForm):
-    # Định nghĩa danh sách chức danh cố định
     POSITION_CHOICES = [
         ('', '--- Chọn chức danh ---'),
         ('Bác Sĩ', 'Bác Sĩ'),
@@ -85,12 +78,11 @@ class UserForm(forms.ModelForm):
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nhập họ và tên...'})
     )
     
-    # Chuyển position từ TextInput sang ChoiceField (Select)
     position = forms.ChoiceField(
         label="Chức danh",
         choices=POSITION_CHOICES,
         required=True,
-        widget=forms.Select(attrs={'class': 'form-select'}) # Dùng form-select của Bootstrap
+        widget=forms.Select(attrs={'class': 'form-select'}) 
     )
 
     class Meta:

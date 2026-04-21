@@ -206,7 +206,6 @@
     .table thead th { border-top: none; }
     .table tbody tr { transition: background 0.2s; }
     
-    /* STYLE CHO LOADING OVERLAY */
     .loading-overlay {
         position: fixed;
         top: 0;
@@ -233,7 +232,6 @@
 </style>
 
 <script>
-    // 1. TÍNH NĂNG TÌM KIẾM NHANH
     document.getElementById('userSearch').addEventListener('keyup', function() {
         let keyword = this.value.toLowerCase();
         let rows = document.querySelectorAll('#userTable tbody tr');
@@ -243,19 +241,15 @@
         });
     });
 
-    // 2. TÍNH NĂNG LOADING KHI IMPORT
     const importForm = document.getElementById('importExcelForm');
     if (importForm) {
         importForm.addEventListener('submit', function() {
-            // Hiển thị màn hình Loading
             document.getElementById('importLoadingOverlay').style.display = 'flex';
             
-            // Đóng Modal hiện tại lại cho đỡ rối mắt
             const modalEl = document.getElementById('importExcelModal');
             const modal = bootstrap.Modal.getInstance(modalEl);
             if(modal) { modal.hide(); }
             
-            // Tắt nút Submit chống double-click
             const submitBtn = document.getElementById('submitImportBtn');
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>ĐANG XỬ LÝ...';

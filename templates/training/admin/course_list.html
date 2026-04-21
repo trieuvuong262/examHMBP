@@ -142,7 +142,6 @@
 </div>
 
 <style>
-    /* Bảng màu chuẩn Hoàn Mỹ */
     :root {
         --hm-primary: rgb(0, 144, 161);
         --hm-primary-hover: rgb(0, 115, 129);
@@ -159,7 +158,6 @@
     .btn-hover-lift { transition: transform 0.2s ease, box-shadow 0.2s ease; }
     .btn-hover-lift:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
 
-    /* CSS Table & Hình ảnh */
     .object-fit-cover { object-fit: cover; }
     .transition-scale { transition: transform 0.3s ease; }
     .course-row:hover .transition-scale { transform: scale(1.1); }
@@ -184,7 +182,6 @@
         const resetBtn = document.getElementById('resetFilterBtn');
         const rows = document.querySelectorAll('.course-row');
 
-        // Hàm lọc chung
         function filterCourses() {
             const searchTerm = searchInput.value.toLowerCase().trim();
             const categoryTerm = categoryFilter.value.toLowerCase().trim();
@@ -207,12 +204,10 @@
             });
         }
 
-        // Bắt sự kiện
         searchInput.addEventListener('keyup', filterCourses);
         categoryFilter.addEventListener('change', filterCourses);
         statusFilter.addEventListener('change', filterCourses);
 
-        // Nút đặt lại (Reset)
         resetBtn.addEventListener('click', function() {
             searchInput.value = '';
             categoryFilter.value = '';

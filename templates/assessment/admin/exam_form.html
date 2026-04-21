@@ -13,18 +13,14 @@
 
     body { background-color: #f8fafc; }
 
-    /* Custom Buttons */
     .btn-hm { background-color: var(--hm-primary); color: white; border: none; }
     .btn-hm:hover { background-color: var(--hm-primary-hover); color: white; box-shadow: 0 4px 12px rgba(0, 144, 161, 0.2); }
     
-    /* Card Styles */
     .card-hm { border: none; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); overflow: hidden; }
     .card-header-hm { background: white; border-bottom: 1px solid #f1f5f9; padding: 1.25rem; }
 
-    /* Breadcrumb Custom */
     .breadcrumb-hm { background: white; border-radius: 12px; padding: 1rem 1.5rem; border: 1px solid #f1f5f9; }
 
-    /* Custom Switch Toggle chuẩn Hoàn Mỹ */
     .form-switch-hm .form-check-input {
         width: 3.5rem;
         height: 1.75rem;
@@ -42,7 +38,6 @@
         min-width: 120px;
     }
 
-    /* Thẻ Tag chức danh nâng cấp */
     .custom-tag {
         transition: all 0.2s ease;
         padding: 6px 14px;
@@ -55,7 +50,6 @@
         filter: brightness(0.95);
     }
 
-    /* Select2 Tweaks - Fix giao diện */
     .select2-container--bootstrap-5 .select2-selection {
         border-radius: 10px;
         border: 2px solid #e2e8f0;
@@ -319,15 +313,13 @@
 
 <script>
     $(document).ready(function() {
-        // Init Select2 với cấu hình Fix lỗi tìm kiếm khi xóa
         $('select[name="assigned_users"]').select2({
             theme: 'bootstrap-5',
             placeholder: "🔍 Tìm nhân viên hoặc chức danh...",
             allowClear: true,
             width: '100%',
-            closeOnSelect: false // Giữ menu mở khi chọn nhiều
+            closeOnSelect: false
         }).on('select2:unselecting', function (e) {
-            // ĐÂY LÀ PHẦN FIX: Khi xóa 1 nhân viên, dọn sạch ô search
             $(this).data('state', 'unselecting');
         }).on('select2:open', function(e) {
             if ($(this).data('state') === 'unselecting') {
@@ -335,12 +327,11 @@
                 const self = $(this);
                 setTimeout(function() {
                     self.parent().find('.select2-search__field').val('').trigger('input');
-                    self.select2('close'); // Đóng lại cho sạch, không hiện tên cũ
+                    self.select2('close');
                 }, 1);
             }
         });
 
-        // Quick Select Logic
         $('.btn-quick-select').click(function() {
             const btn = $(this);
             const position = btn.data('pos');
@@ -371,14 +362,12 @@
             }
         });
 
-        // Clear Selection
         $('#btn-clear-users').click(function() {
             if(confirm('Xác nhận xóa toàn bộ danh sách đã chọn?')) {
                 $('select[name="assigned_users"]').val(null).trigger('change');
             }
         });
 
-        // Switch Toggle Sync
         const isActiveSwitch = document.getElementById('isActiveSwitch');
         const statusLabel = document.getElementById('statusLabel');
         if (isActiveSwitch && statusLabel) {

@@ -131,7 +131,6 @@
         box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1); 
     }
 
-    /* ĐỊNH DẠNG FORM CHUẨN BOOTSTRAP DÀNH CHO DJANGO */
     form input[type="text"], 
     form input[type="email"], 
     form select {
@@ -154,7 +153,6 @@
         box-shadow: 0 0 0 0.25rem var(--hm-primary-light);
     }
 
-    /* CUSTOM INPUT GROUP (Tự động đổi màu icon khi Focus, không cần Javascript) */
     .custom-input-group {
         display: flex;
         border-radius: 0.5rem;
@@ -169,10 +167,9 @@
     .custom-input-group input {
         border-top-left-radius: 0;
         border-bottom-left-radius: 0;
-        border-left: 0; /* Xóa viền trái của input để liền với icon */
+        border-left: 0;
     }
 
-    /* Hiệu ứng khi nhấp chuột vào ô Input */
     .custom-input-group:focus-within .input-group-text {
         border-color: var(--hm-primary);
         color: var(--hm-primary) !important;
@@ -181,10 +178,9 @@
     
     .custom-input-group:focus-within input {
         border-color: var(--hm-primary);
-        box-shadow: none; /* Dồn shadow ra ngoài hoặc bỏ đi để mượt hơn */
+        box-shadow: none;
     }
 
-    /* Style cho trường hợp có lỗi */
     .is-invalid-group .input-group-text,
     .is-invalid-group input {
         border-color: #dc3545 !important;

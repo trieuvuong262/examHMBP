@@ -11,7 +11,6 @@
 
     body { background-color: var(--hm-bg-light); }
 
-    /* Breadcrumb Custom */
     .breadcrumb-hm {
         background: white;
         padding: 1rem 1.5rem;
@@ -20,7 +19,6 @@
         border: none;
     }
 
-    /* Accordion Styling */
     .course-accordion .accordion-item {
         border: none;
         margin-bottom: 1.5rem;
@@ -45,7 +43,6 @@
 
     .accordion-button:focus { box-shadow: none; }
 
-    /* Lesson List Styling */
     .lesson-list-item {
         transition: all 0.2s ease;
         border-left: 4px solid transparent;
@@ -66,7 +63,6 @@
         color: var(--hm-primary);
     }
 
-    /* Buttons */
     .btn-hm {
         background-color: var(--hm-primary);
         color: white;
@@ -287,7 +283,6 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
 
-        // 1. XỬ LÝ MODAL THÊM BÀI HỌC
         const addLessonModal = document.getElementById('addLessonModal');
         if (addLessonModal) {
             addLessonModal.addEventListener('show.bs.modal', function (event) {
@@ -298,7 +293,6 @@
             });
         }
 
-        // 2. ẨN/HIỆN TRƯỜNG DỮ LIỆU THEO LOẠI BÀI HỌC
         const typeSelect = document.getElementById('lesson_type_select');
         const contentField = document.getElementById('content_field');
         const videoField = document.getElementById('video_field');
@@ -316,7 +310,6 @@
             });
         }
 
-        // 3. XỬ LÝ KÉO THẢ SẮP XẾP BÀI HỌC
         var sortables = document.querySelectorAll('.sortable-lessons');
         sortables.forEach(function (el) {
             new Sortable(el, {

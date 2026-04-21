@@ -115,7 +115,6 @@
 </div>
 
 <style>
-    /* CSS Nâng cao giao diện */
     .cursor-pointer { cursor: pointer; }
     .transition-all { transition: all 0.25s ease-in-out; }
     .bg-secondary-soft { background-color: rgba(108, 117, 125, 0.1); }
@@ -127,7 +126,6 @@
         transform: translateY(-2px);
     }
     
-    /* Hiệu ứng khi được chọn */
     .option-item:has(input:checked) {
         background-color: #f0f7ff;
         border-color: #0d6efd !important;
@@ -141,7 +139,6 @@
     .border-dashed { border-style: dashed !important; border-width: 2px !important; border-color: #dee2e6 !important; }
     .shadow-xs { box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
     
-    /* Vô hiệu hóa click trực tiếp lên text để label xử lý */
     .option-text { pointer-events: none; }
     
     #timer { min-width: 110px; font-family: 'Monaco', 'Consolas', monospace; letter-spacing: 1px; }
@@ -149,7 +146,7 @@
     .magnifier-container {
         position: relative;
         cursor: zoom-in;
-        max-width: 1100px; /* Độ rộng tối đa của khung ảnh */
+        max-width: 1100px;
         margin: 0 auto;
         display: block;
     }
@@ -159,40 +156,36 @@
         height: auto;
         max-height: 800px;
         object-fit: contain;
-        transition: transform 0.1s ease-out; /* Phản hồi nhanh theo tay người dùng */
+        transition: transform 0.1s ease-out;
         transform-origin: center center;
     }
 
-    /* Hiệu ứng khi hover */
     .magnifier-container:hover .magnifier-img {
-        transform: scale(2.5); /* Độ phóng to (2.5 lần) */
+        transform: scale(2.5);
     }
 
     #examForm .card {
-        border: 2px solid #e9ecef !important; /* Viền bao ngoài rõ nét */
-        border-left: 6px solid #dee2e6 !important; /* Thanh màu bên trái để phân định block câu hỏi */
+        border: 2px solid #e9ecef !important;
+        border-left: 6px solid #dee2e6 !important;
         transition: all 0.3s ease-in-out;
         border-radius: 12px !important;
-        margin-bottom: 2.5rem !important; /* Tăng khoảng cách giữa các câu */
+        margin-bottom: 2.5rem !important;
         background-color: #fff;
     }
 
-    /* 2. Hiệu ứng nổi bật khi rê chuột hoặc tập trung vào câu hỏi */
     #examForm .card:hover {
         border-color: #0d6efd !important;
-        border-left-color: #0d6efd !important; /* Đổi màu thanh bên trái sang màu xanh chủ đạo */
-        transform: translateY(-4px); /* Nhấc nhẹ card lên */
-        box-shadow: 0 12px 24px rgba(13, 110, 253, 0.1) !important; /* Đổ bóng xanh nhẹ */
+        border-left-color: #0d6efd !important;
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(13, 110, 253, 0.1) !important;
     }
 
-    /* 3. Phân biệt phần đề bài (Header) và phần trả lời (Body) */
     .card-header {
-        background-color: #f8f9fa !important; /* Nền xám cực nhẹ cho phần đề bài */
+        background-color: #f8f9fa !important;
         border-bottom: 1px solid #f1f3f5 !important;
         padding: 1.5rem !important;
     }
 
-    /* 4. Tùy chỉnh các Option trắc nghiệm */
     .option-item {
         border: 2px solid #f1f3f5 !important;
         background-color: #fff;
@@ -204,11 +197,10 @@
         background-color: #f0f7ff;
     }
 
-    /* Highlight đáp án khi được chọn */
     .option-item:has(input:checked) {
         border-color: #0d6efd !important;
         background-color: #e7f1ff;
-        border-left: 5px solid #0d6efd !important; /* Thêm gạch xanh cho đáp án đã chọn */
+        border-left: 5px solid #0d6efd !important; 
     }
 
     .option-item input:checked + .option-text {
@@ -216,7 +208,6 @@
         font-weight: 600;
     }
 
-    /* 5. Tùy chỉnh vùng Tải ảnh và Tự luận */
     .upload-area {
         border: 2px dashed #dee2e6 !important;
         background-color: #fafbfc;
@@ -244,11 +235,9 @@
         
         timerDisplay.innerHTML = `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
         
-        // Cập nhật thanh thời gian
         let percent = (timeLeft / totalSeconds) * 100;
         timerProgress.style.width = percent + '%';
 
-        // Đổi màu khi sắp hết giờ (dưới 5 phút)
         if (timeLeft < 300) {
             timerProgress.classList.add('bg-danger');
         }
@@ -285,7 +274,6 @@
         });
     }
 
-    // Cảnh báo khi vô tình thoát trang
     window.onbeforeunload = function() {
         return "Dữ liệu bài làm của bạn có thể không được lưu nếu bạn rời khỏi trang này!";
     };
@@ -295,14 +283,11 @@
         const container = e.currentTarget;
         const img = container.querySelector('.magnifier-img');
         
-        // Lấy kích thước và vị trí của container
         const { left, top, width, height } = container.getBoundingClientRect();
         
-        // Tính toán vị trí chuột tương đối bên trong container (tính bằng %)
         const x = ((e.pageX - left - window.pageXOffset) / width) * 100;
         const y = ((e.pageY - top - window.pageYOffset) / height) * 100;
         
-        // Thay đổi tâm phóng to theo vị trí chuột
         img.style.transformOrigin = `${x}% ${y}%`;
     }
 

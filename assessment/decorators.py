@@ -9,11 +9,9 @@ def admin_only(view_func):
     """
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
-        # Kiểm tra nếu là Admin (is_staff = True) thì cho qua
         if request.user.is_authenticated and request.user.is_staff:
             return view_func(request, *args, **kwargs)
         else:
-            # Nếu là User thường, báo lỗi và đá về trang chủ
-            messages.error(request, "🚫 CẢNH BÁO: Khu vực này chỉ dành cho Ban Quản Trị Hệ Thống!")
-            return redirect('home_portal') # Nhớ thay bằng tên URL trang Portal của ní
+            messages.error(request, "Chức năng này chỉ dành cho Ban Quản Trị Hệ Thống!")
+            return redirect('home_portal') 
     return wrapper

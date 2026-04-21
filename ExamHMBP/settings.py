@@ -50,13 +50,13 @@ CKEDITOR_CONFIGS = {
     'default': {
         'toolbar': 'Custom',
         'toolbar_Custom': [
-            ['Bold', 'Italic', 'Underline', 'Strike'], # In đậm, nghiêng, gạch chân...
-            ['NumberedList', 'BulletedList'],           # Gạch đầu dòng, số thứ tự
-            ['JustifyLeft', 'JustifyCenter', 'JustifyRight', 'JustifyBlock'], # Căn lề
-            ['Link', 'Unlink'],                        # Chèn link
-            ['RemoveFormat', 'Source'],                # Xóa định dạng, xem code HTML
-            ['TextColor', 'BGColor'],                  # Màu chữ, màu nền
-            ['Format', 'FontSize'],                    # Định dạng tiêu đề, cỡ chữ
+            ['Bold', 'Italic', 'Underline', 'Strike'],
+            ['NumberedList', 'BulletedList'],
+            ['JustifyLeft', 'JustifyCenter', 'JustifyRight', 'JustifyBlock'],
+            ['Link', 'Unlink'],
+            ['RemoveFormat', 'Source'], 
+            ['TextColor', 'BGColor'],
+            ['Format', 'FontSize'],
         ],
         'width': '100%',
         'height': 300,
@@ -78,7 +78,7 @@ ROOT_URLCONF = 'ExamHMBP.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'], # Dùng dấu xuyệt này thay vì os.path nếu BASE_DIR là Path
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -100,11 +100,11 @@ WSGI_APPLICATION = 'ExamHMBP.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'hrms_db',          # Tên database Vương vừa tạo ở Bước 1
-        'USER': 'postgres',         # Tên user mặc định của Postgres
+        'NAME': 'hrms_db',
+        'USER': 'postgres',
         'PASSWORD': os.getenv('DB_PASSWORD'),
-        'HOST': '127.0.0.1',        # Chạy trên máy cá nhân (localhost)
-        'PORT': '5432',             # Cổng mặc định của Postgres
+        'HOST': '127.0.0.1',
+        'PORT': '5432', 
     }
 }
 

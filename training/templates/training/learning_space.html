@@ -149,14 +149,13 @@
 </div>
 <style>
     .ratio-4x3 {
-    --bs-aspect-ratio: 130%; /* Tăng chiều cao để đọc được nhiều nội dung hơn */
+    --bs-aspect-ratio: 130%;
 }
 
 .pdf-container iframe {
-    background-color: #525659; /* Màu nền xám đậm giống Adobe Reader */
+    background-color: #525659;
 }
 
-/* Hiệu ứng cho nút HM đồng bộ với hệ thống */
 .btn-hm {
     background-color: rgb(0, 144, 161);
     color: white;
@@ -176,17 +175,13 @@
             data: { 'csrfmiddlewaretoken': '{{ csrf_token }}' },
             success: function(res) {
                 if(res.status === 'success') {
-                    // 1. Đổi nút thành "Đã hoàn thành"
                     const btn = $('#btn-complete');
                     btn.removeClass('btn-primary').addClass('btn-success disabled');
                     btn.html('<i class="bi bi-check-circle-fill me-2"></i>Đã hoàn thành bài này');
 
-                    // 2. Cập nhật thanh Progress trên Navbar
                     $('#top-progress-bar').css('width', res.progress_percent + '%');
                     $('#progress-text').text(res.progress_percent + '% Hoàn thành');
 
-                    // 3. Đánh dấu tích xanh ở cột phải (TOC)
-                    // Cần load lại trang hoặc có thể dùng JS để đổi icon (load lại trang sẽ an toàn và dễ làm nhất)
                     setTimeout(() => location.reload(), 800);
                 }
             }

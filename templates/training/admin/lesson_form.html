@@ -70,12 +70,11 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const typeSelect = document.getElementById('id_lesson_type'); // Django tự sinh id này
+        const typeSelect = document.getElementById('id_lesson_type');
         const contentField = document.getElementById('content_field');
         const videoField = document.getElementById('video_field');
         const fileField = document.getElementById('file_field');
 
-        // Hàm xử lý ẩn/hiện
         function toggleFields() {
             contentField.classList.add('d-none');
             videoField.classList.add('d-none');
@@ -86,10 +85,8 @@
             else if (typeSelect.value === 'pdf') fileField.classList.remove('d-none');
         }
 
-        // Chạy lần đầu tiên khi load trang để hiển thị đúng trường dữ liệu cũ
         toggleFields();
 
-        // Chạy khi người dùng thay đổi loại bài học
         typeSelect.addEventListener('change', toggleFields);
     });
 </script>

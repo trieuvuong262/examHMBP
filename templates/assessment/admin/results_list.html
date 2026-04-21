@@ -345,7 +345,6 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        // 1. TÌM KIẾM NHANH (Frontend)
         document.getElementById('searchInput').addEventListener('keyup', function() {
             let filter = this.value.toLowerCase();
             let rows = document.querySelectorAll('.submission-row');
@@ -355,7 +354,6 @@
             });
         });
 
-        // 2. TỰ ĐỘNG TÍNH TOÁN THỐNG KÊ
         let rows = document.querySelectorAll('.submission-row');
         let totalCount = rows.length;
         let pendingCount = 0;
@@ -365,11 +363,10 @@
 
         rows.forEach(row => {
             let isCompleted = row.getAttribute('data-completed') === 'true';
-            let isSubmitted = row.getAttribute('data-submitted') === 'true'; // Thêm dòng này
+            let isSubmitted = row.getAttribute('data-submitted') === 'true';
             let totalScore = parseFloat(row.getAttribute('data-total')) || 0;
             let manualScore = parseFloat(row.getAttribute('data-manual')) || 0;
             
-            // Chỉ đếm "Chờ chấm" khi ĐÃ NỘP BÀI và CHƯA CHẤM XONG
             let isPending = isSubmitted && !isCompleted; 
 
             if (isPending) pendingCount++;
@@ -392,7 +389,6 @@
         }
     });
 
-    // 3. XUẤT EXCEL ĐƠN GIẢN
     function exportTableToCSV(filename) {
         let csv = [];
         let rows = document.querySelectorAll("#resultsTable tr");
@@ -400,14 +396,12 @@
         for (let i = 0; i < rows.length; i++) {
             let row = [], cols = rows[i].querySelectorAll("td, th");
             for (let j = 0; j < cols.length; j++) {
-                // Xóa khoảng trắng thừa và dấu phẩy để tránh lỗi CSV
                 let data = cols[j].innerText.replace(/(\r\n|\n|\r)/gm, " ").replace(/,/g, " ");
                 row.push('"' + data.trim() + '"');
             }
             if(row.length > 0) csv.push(row.join(","));
         }
 
-        // Tạo file và tải xuống
         let csvFile = new Blob(["\ufeff" + csv.join("\n")], {type: "text/csv;charset=utf-8;"});
         let downloadLink = document.createElement("a");
         downloadLink.download = filename;
