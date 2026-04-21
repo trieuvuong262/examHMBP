@@ -47,7 +47,7 @@ pip install -r requirements.txt
 # Thực hiện lệnh trong CMD tại thư mục gốc của dự án
 psql -U postgres -d hrms_db < HRMS_Backup_21042026.sql
 ```
-> **Lưu ý:** Cấu hình kết nối Database (User/Password) nằm trong file `.env`.
+> **Lưu ý:** Password nằm trong file `.env`.
 
 ### 4. Phân quyền & Tài khoản truy cập
 
