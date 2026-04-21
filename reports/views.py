@@ -2,15 +2,12 @@ import json
 from django.shortcuts import render
 from django.db.models import Count, Avg, F, ExpressionWrapper, fields
 from django.utils import timezone
-from datetime import timedelta
-
-import json
-from django.shortcuts import render
-from django.db.models import Count
-from django.utils import timezone
 
 from recruitment.models import Candidate, JobPosting
+from assessment.decorators import admin_only
 
+
+@admin_only
 def main_dashboard(request):
     # ==========================================
     # 1. DATA CHO TAB: TUYỂN DỤNG (RECRUITMENT)
