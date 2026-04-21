@@ -6,7 +6,7 @@ Hệ thống cung cấp giải pháp chuyển đổi số toàn diện cho vòng
 
 ## 1. CÔNG NGHỆ SỬ DỤNG (Tech Stack)
 
-* **Backend:** Python 3.13.2, Framework Django
+* **Backend:** Python 3.13.12, Framework Django
 * **Database:** PostgreSQL (Version 12+) - Kết nối qua thư viện `psycopg2-binary`
 * **Web Server (Production):** Waitress (WSGI) kết hợp NSSM (chạy Windows Service)
 * **Frontend:** HTML5, CSS3, Bootstrap 5, Javascript, jQuery
@@ -30,7 +30,7 @@ Hệ thống cung cấp giải pháp chuyển đổi số toàn diện cho vòng
 ## 3. HƯỚNG DẪN CÀI ĐẶT VÀ TRIỂN KHAI (DÀNH CHO IT)
 
 ### Bước 3.1: Chuẩn bị môi trường
-1.  Cài đặt **Python 3.13.2** (Lưu ý tích chọn "Add Python to PATH").
+1.  Cài đặt **Python 3.13.12** (Lưu ý tích chọn "Add Python to PATH").
 2.  Cài đặt **PostgreSQL** và trình quản lý **pgAdmin 4**.
 3.  Tạo một Database trống trên PostgreSQL với tên: `hrms_db`
 
