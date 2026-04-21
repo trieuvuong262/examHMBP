@@ -6,7 +6,7 @@ Hệ thống cung cấp giải pháp chuyển đổi số toàn diện cho vòng
 
 ## 🛠️ 1. CÔNG NGHỆ SỬ DỤNG (Tech Stack)
 
-* **Backend:** Python 3.11, Framework Django
+* **Backend:** Python 3.13.12, Framework Django
 * **Database:** PostgreSQL (Version 12+) - Kết nối qua thư viện `psycopg2-binary`
 * **Web Server (Production):** Waitress (WSGI) kết hợp NSSM (chạy Windows Service)
 * **Frontend:** HTML5, CSS3, Bootstrap 5, Javascript, jQuery
@@ -28,9 +28,9 @@ Hệ thống cung cấp giải pháp chuyển đổi số toàn diện cho vòng
 ## 🚀 3. HƯỚNG DẪN CÀI ĐẶT VÀ TRIỂN KHAI (DÀNH CHO IT)
 
 ### Bước 3.1: Chuẩn bị môi trường
-1. Cài đặt Python (3.10 trở lên) và thêm vào PATH.
+1. Cài đặt Python 3.13.12  và thêm vào PATH.
 2. Cài đặt **PostgreSQL** (Kèm theo pgAdmin để dễ quản lý nếu cần).
-3. Tạo Database trống (Ví dụ: `hrms_db`).
+3. Tạo Database mới  `hrms_db`
 
 ### Bước 3.2: Cài đặt ứng dụng
 ```bash
@@ -40,3 +40,23 @@ venv\Scripts\activate
 
 # 2. Cài đặt thư viện
 pip install -r requirements.txt
+
+
+# 3. Import database demo vào pdAdmin
+psql -U postgres -d hrms_db < HRMS_Backup_21042026.sql (trong source)
+---- Lưu ý: mật khẩu db trong file .env ----
+
+#4. Quy trình web
+User thường truy cập váo link http://ip
+    Account test là Username: ltv002-bp, Password: Hoanmy@123
+    Sẽ chỉ truy cập được màn hình có các khóa đào tạo và khóa học được set sẳn
+    Các menu sẽ bị khóa lại
+
+Admin (Nhân viên HR) truy cập link http://ip/dashboard
+    Account admin là Username: admin, Password: 123123
+    Truy cập được tất cả chức năng
+
+
+IT (IT) http://ip/admin
+    Account admin là Username: admin, Password: 123123
+    có thể set quyền cho nhân viên HR
