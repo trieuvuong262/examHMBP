@@ -12,7 +12,9 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
+load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -97,15 +99,12 @@ WSGI_APPLICATION = 'ExamHMBP.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'db_benhvien',
-        'USER': 'root',         # Thay bằng user MySQL của bạn
-        'PASSWORD': '123123', # Thay bằng password MySQL của bạn
-        'HOST': '127.0.0.1',
-        'PORT': '3306',
-        'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-        }
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'hrms_db',          # Tên database Vương vừa tạo ở Bước 1
+        'USER': 'postgres',         # Tên user mặc định của Postgres
+        'PASSWORD': os.getenv('DB_PASSWORD'),
+        'HOST': '127.0.0.1',        # Chạy trên máy cá nhân (localhost)
+        'PORT': '5432',             # Cổng mặc định của Postgres
     }
 }
 

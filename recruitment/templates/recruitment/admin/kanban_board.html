@@ -11,19 +11,17 @@
 
     body { background-color: var(--hm-bg-light); }
 
-    /* Container bao ngoài căn giữa */
     .kanban-wrapper {
         padding: 2rem 1rem;
         max-width: 1600px;
         margin: 0 auto;
     }
 
-    /* Căn giữa các cột trạng thái */
     .kanban-container { 
         min-height: 80vh; 
         overflow-x: auto; 
         display: flex;
-        justify-content: center; /* Đẩy các cột vào giữa */
+        justify-content: center;
         gap: 1.25rem;
         padding-bottom: 2rem;
         align-items: flex-start;
@@ -34,7 +32,6 @@
         min-width: 280px; 
     }
 
-    /* Column Styling */
     .column-card {
         background-color: #f1f5f9;
         border-radius: 16px;
@@ -67,7 +64,6 @@
         gap: 0.75rem; 
     }
 
-    /* Card ứng viên */
     .kanban-card { 
         cursor: grab; 
         border: 1px solid #e2e8f0 !important;
@@ -84,7 +80,6 @@
 
     .kanban-card:active { cursor: grabbing; }
 
-    /* Badge số lượng */
     .badge-count {
         background: rgba(255,255,255,0.2);
         padding: 4px 10px;
@@ -92,14 +87,12 @@
         font-size: 0.75rem;
     }
 
-    /* Màu sắc Header */
     .bg-new { background-color: #0d6efd; }
     .bg-reviewing { background-color: #ffc107; color: #423100 !important; }
     .bg-interviewing { background-color: #0dcaf0; }
     .bg-offered { background-color: #198754; }
     .bg-rejected { background-color: #64748b; }
 
-    /* Ghost Class khi kéo */
     .sortable-ghost { 
         opacity: 0.4; 
         background-color: rgba(0, 144, 161, 0.1) !important; 
@@ -338,12 +331,10 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 <script>
-    // Hàm mở Modal Ghi chú
     function openNoteModal(id, name, note) {
         document.getElementById('modalNoteCandidateId').value = id;
         document.getElementById('modalNoteCandidateName').innerText = name;
         
-        // Chuyển đổi ký tự xuống dòng bị mã hóa
         let cleanNote = note.replace(/\\n/g, '\n').replace(/\\r/g, '\r');
         document.getElementById('modalHrNoteContent').value = cleanNote;
         
@@ -351,7 +342,6 @@
         noteModal.show();
     }
 
-    // Logic kéo thả Kanban
     document.addEventListener('DOMContentLoaded', function () {
         const columns = document.querySelectorAll('.kanban-column');
         
@@ -385,21 +375,15 @@
                         if(!res.ok) {
                             alert("Lỗi khi lưu trạng thái lên server.");
                         } else {
-                            // ==========================================
-                            // 🎯 LOGIC TỰ CẬP NHẬT GIAO DIỆN TOÀN DIỆN
-                            // ==========================================
                             const cardEl = evt.item;
                             const nameEl = cardEl.querySelector('.fw-bold');
-                            const badgeEl = cardEl.querySelector('.badge-soft'); // Tem trạng thái
-                            const convertBtn = cardEl.querySelector('.convert-user-btn'); // Nút tạo User
+                            const badgeEl = cardEl.querySelector('.badge-soft');
+                            const convertBtn = cardEl.querySelector('.convert-user-btn');
 
-                            // 1. Dọn dẹp màu nền và chữ cũ
                             cardEl.classList.remove('opacity-50', 'bg-light', 'bg-white');
                             if (nameEl) nameEl.classList.remove('text-decoration-line-through', 'text-muted', 'text-dark');
                             
-                            // 2. Cập nhật cái Tem (Badge) cho đúng chữ và màu của cột
                             if (badgeEl) {
-                                // Xóa sạch class màu cũ
                                 badgeEl.classList.remove('bg-primary-soft', 'bg-warning-soft', 'bg-info-soft', 'bg-success-soft', 'bg-danger-soft');
                                 
                                 if (newStatus === 'new' || newStatus === 'applied') {
@@ -420,26 +404,21 @@
                                 }
                             }
 
-                            // 3. Xử lý style của thẻ và Ẩn/Hiện nút "Tạo User"
                             if (newStatus === 'rejected') {
-                                // Nếu RỚT: Thẻ xám mờ, gạch ngang tên
                                 cardEl.classList.add('opacity-50', 'bg-light');
                                 if (nameEl) nameEl.classList.add('text-decoration-line-through', 'text-muted');
                                 
-                                // Ẩn luôn nút Tạo User (dùng d-none của Bootstrap)
                                 if (convertBtn) convertBtn.classList.add('d-none');
                                 
                             } else {
-                                // Nếu ĐẬU hoặc ĐANG XÉT: Thẻ sáng, tên đậm
                                 cardEl.classList.add('bg-white');
                                 if (nameEl) nameEl.classList.add('text-dark');
                                 
-                                // ĐẶC BIỆT: Chỉ hiện nút "Tạo User" khi ở cột Trúng Tuyển
                                 if (convertBtn) {
                                     if (newStatus === 'offered' || newStatus === 'hired') {
-                                        convertBtn.classList.remove('d-none'); // Bật nút lên
+                                        convertBtn.classList.remove('d-none');
                                     } else {
-                                        convertBtn.classList.add('d-none'); // Cột khác thì giấu đi
+                                        convertBtn.classList.add('d-none');
                                     }
                                 }
                             }
@@ -455,7 +434,6 @@
             if (badge) badge.textContent = count;
         }
 
-        // Tạo tài khoản User nhanh
         document.querySelectorAll('.convert-user-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 const candId = this.getAttribute('data-id');
