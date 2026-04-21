@@ -14,7 +14,8 @@ from django.contrib.auth.models import User
 from django.http import HttpResponse
 import io
 from assessment.decorators import admin_only
-
+import secrets 
+import logging
 from .models import (
     Exam, 
     Question, 
@@ -133,16 +134,27 @@ def take_exam(request, exam_id):
     )
 
     if request.method == 'POST':
+        if submission.start_at:
+            elapsed_time = timezone.now() - submission.start_at
+            allowed_time = (exam.duration_minutes + 2) * 60 
+            
+            if elapsed_time.total_seconds() > allowed_time:
+                submission.is_completed = True
+                submission.submitted_at = timezone.now()
+                submission.save()
+                messages.error(request, "Bạn đã làm bài quá thời gian quy định. Hệ thống đã tự động thu bài!")
+                return redirect('exam_list')
+
         if timezone.now() > exam.end_time:
             submission.is_completed = True
             submission.submitted_at = timezone.now()
             submission.save()
-            messages.error(request, "Hệ thống đã tự động nộp bài vì hết giờ quy định.")
+            messages.error(request, "Đã hết thời gian hiệu lực của kỳ thi.")
             return redirect('exam_list')
 
         questions = exam.questions.all()
         total_auto_score = 0
-        needs_manual_grading = False # THÊM CỜ NÀY ĐỂ THEO DÕI
+        needs_manual_grading = False 
 
         for q in questions:
             answer_obj, _ = UserAnswer.objects.get_or_create(submission=submission, question=q)
@@ -441,9 +453,10 @@ def user_add(request):
         form = UserForm(request.POST)
         if form.is_valid():
             user = form.save()
-            user.set_password(user.username + "123")
+            random_pass = secrets.token_urlsafe(8) 
+            user.set_password(random_pass)
             user.save()
-            messages.success(request, f"Đã thêm nhân viên {user.username} thành công!")
+            messages.success(request, f"Đã thêm {user.username}. Mật khẩu tạm thời là: {random_pass}")
             return redirect('user_list')
     else:
         form = UserForm()
@@ -476,12 +489,16 @@ def user_delete(request, user_id):
 def user_password_reset(request, user_id):
     user = get_object_or_404(User, id=user_id)
     if request.method == 'POST':
-        default_password = f"Hoanmy@123"
-        user.set_password(default_password)
+        random_pass = secrets.token_urlsafe(8)
+        user.set_password(random_pass)
         user.save()
-        messages.success(request, f"Đã reset mật khẩu cho {user.username} về mặc định: {default_password}")
+        messages.success(request, f"Đã reset mật khẩu cho {user.username}. Mật khẩu mới là: {random_pass}")
     return redirect('user_list')
 
+
+
+# Khởi tạo logger để ghi lỗi hệ thống
+logger = logging.getLogger(__name__)
 
 @admin_only
 def user_import_excel(request):
@@ -489,31 +506,39 @@ def user_import_excel(request):
         file = request.FILES['excel_file']
         
         try:
+            # 1. Đọc file Excel
             df = pd.read_excel(file)
             
+            # Chuẩn hóa tên cột: viết chữ thường, xóa khoảng trắng thừa
             df.columns = [str(c).strip().lower() for c in df.columns]
             
+            # 2. Kiểm tra cột bắt buộc
             if 'username' not in df.columns:
                 messages.error(request, 'Lỗi: File Excel bắt buộc phải có cột "username".')
                 return redirect('user_list')
             
+            # Thay thế các ô trống (NaN) bằng chuỗi rỗng
             df = df.fillna('')
             
             success_count = 0
             skipped_count = 0
             
-            from assessment.models import Profile
-            
+            # 3. Lặp qua từng dòng để tạo User
             for _, row in df.iterrows():
                 username = str(row['username']).strip()
                 if not username:
                     continue
                 
-                password = str(row.get('password', '')).strip() or 'Hoanmy@123'
                 email = str(row.get('email', '')).strip()
                 full_name = str(row.get('full_name', '')).strip()
                 chuc_danh = str(row.get('chuc_danh', '')).strip()
 
+                # VÁ LỖI 9 (Mật khẩu yếu): Lấy pass từ file, nếu để trống -> Tạo pass ngẫu nhiên 8 ký tự
+                password = str(row.get('password', '')).strip()
+                if not password:
+                    password = secrets.token_urlsafe(8)
+
+                # Kiểm tra xem user đã tồn tại chưa
                 if not User.objects.filter(username=username).exists():
                     user = User.objects.create_user(
                         username=username,
@@ -523,6 +548,7 @@ def user_import_excel(request):
                         is_staff=False
                     )
                     
+                    # Tạo Profile đi kèm
                     Profile.objects.update_or_create(
                         user=user,
                         defaults={
@@ -535,13 +561,18 @@ def user_import_excel(request):
                 else:
                     skipped_count += 1
             
+            # 4. Báo cáo kết quả thành công
             messages.success(request, f'Thành công: Thêm mới {success_count} nhân viên. Bỏ qua {skipped_count} người đã tồn tại.')
             
         except Exception as e:
-            messages.error(request, f'Lỗi hệ thống khi xử lý file: {str(e)}')
+            # VÁ LỖI 12 (Rò rỉ thông tin lỗi): Không in str(e) ra màn hình nữa!
+            # Ghi lỗi thực sự vào file log của Server để IT (là ní đó) vào đọc khi cần
+            logger.error(f"Lỗi Import Excel User: {str(e)}")
+            
+            # Chỉ hiển thị thông báo lịch sự, chung chung cho Admin
+            messages.error(request, 'Đã xảy ra lỗi khi đọc file Excel. Vui lòng kiểm tra lại định dạng file (ví dụ: file bị hỏng, sai cấu trúc cột).')
             
     return redirect('user_list')
-
 
 @admin_only
 def user_export_excel(request):
