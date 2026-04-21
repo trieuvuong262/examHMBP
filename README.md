@@ -63,11 +63,113 @@ Hệ thống được phân cấp quyền truy cập chặt chẽ theo 3 đối 
 
 ## 5. TRIỂN KHAI VẬN HÀNH (PRODUCTION)
 
-Để hệ thống chạy ổn định trên Windows Server dưới dạng dịch vụ ngầm:
-1.  Sử dụng **Waitress** làm WSGI Server: 
-    `waitress-serve --listen=0.0.0.0:80 hmc_hrms.wsgi:application`
-2.  Sử dụng công cụ **NSSM** để đăng ký lệnh khởi chạy dự án thành một **Windows Service**.
-3.  Cấu hình Firewall cho phép truy cập qua cổng 80 (hoặc cổng chỉ định).
+Kiến trúc triển khai chuẩn: **Gunicorn (WSGI)** chạy ngầm bằng **systemd**, và **Nginx** đóng vai trò Reverse Proxy & phục vụ Static/Media files.
+
+### 5.1 Cài đặt Gunicorn và gom file tĩnh
+Bật môi trường ảo (`venv`), cài Gunicorn và gom các file CSS/JS:
+```bash
+pip install gunicorn
+python manage.py collectstatic
+```
+
+### 5.2 Cấu hình systemd cho Gunicorn
+Tạo file socket để Nginx giao tiếp với Gunicorn:
+```bash
+sudo nano /etc/systemd/system/hrms.socket
+```
+*Nội dung file `hrms.socket`:*
+```ini
+[Unit]
+Description=gunicorn socket for HRMS
+
+[Socket]
+ListenStream=/run/hrms.sock
+
+[Install]
+WantedBy=sockets.target
+```
+
+Tạo file service để quản lý tiến trình Django:
+```bash
+sudo nano /etc/systemd/system/hrms.service
+```
+*Nội dung file `hrms.service` (Thay `<user>` và đường dẫn phù hợp với Server):*
+```ini
+[Unit]
+Description=gunicorn daemon for HRMS
+Requires=hrms.socket
+After=network.target
+
+[Service]
+User=<user_ubuntu>
+Group=www-data
+WorkingDirectory=/home/<user_ubuntu>/hrms_project
+ExecStart=/home/<user_ubuntu>/hrms_project/venv/bin/gunicorn \
+          --access-logfile - \
+          --workers 3 \
+          --bind unix:/run/hrms.sock \
+          hmc_hrms.wsgi:application
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Khởi động dịch vụ:
+```bash
+sudo systemctl start hrms.socket
+sudo systemctl enable hrms.socket
+sudo systemctl restart hrms.service
+```
+
+### 5.3 Cấu hình Nginx (Web Server)
+Cài đặt Nginx:
+```bash
+sudo apt install nginx
+```
+
+Tạo file cấu hình Server Block cho project:
+```bash
+sudo nano /etc/nginx/sites-available/hrms
+```
+*Nội dung file `hrms` (Cấu hình route và proxy):*
+```nginx
+server {
+    listen 80;
+    server_name <dia_chi_ip_server_hoac_domain>;
+
+    # Bỏ qua log lỗi khi tìm kiếm favicon
+    location = /favicon.ico { access_log off; log_not_found off; }
+
+    # Phục vụ file Static (CSS, JS, Images hệ thống)
+    location /static/ {
+        root /home/<user_ubuntu>/hrms_project;
+    }
+
+    # Phục vụ file Media (Ảnh upload, CV ứng viên)
+    location /media/ {
+        root /home/<user_ubuntu>/hrms_project;
+    }
+
+    # Chuyển hướng các request còn lại vào Gunicorn
+    location / {
+        include proxy_params;
+        proxy_pass http://unix:/run/hrms.sock;
+    }
+}
+```
+
+Kích hoạt cấu hình và khởi động lại Nginx:
+```bash
+sudo ln -s /etc/nginx/sites-available/hrms /etc/nginx/sites-enabled
+sudo nginx -t
+sudo systemctl restart nginx
+```
+
+### 5.4 Cấu hình Firewall (UFW)
+Mở port 80 cho phép truy cập Web:
+```bash
+sudo ufw allow 'Nginx Full'
+```
 
 ---
 **Người chịu trách nhiệm:** Vương - Bộ phận IT/HR
