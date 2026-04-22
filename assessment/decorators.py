@@ -1,20 +1,17 @@
-from django.contrib.auth.views import redirect_to_login
+from django.shortcuts import redirect
 from django.contrib import messages
 from functools import wraps
-from django.shortcuts import redirect
 
 def admin_only(view_func):
+    """
+    Decorator này chặn không cho User thường vào.
+    Nếu cố tình vào, sẽ bị đá về trang Portal (home_portal) kèm cảnh báo.
+    """
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
-        # 1. Chưa đăng nhập -> Đá ra trang Login
-        if not request.user.is_authenticated:
-            return redirect_to_login(request.get_full_path())
-        
-        # 2. Đăng nhập rồi nhưng không phải Staff -> Đá về trang chủ portal
-        if not request.user.is_staff:
-            messages.error(request, "Truy cập bị từ chối: Chức năng này chỉ dành cho Ban Quản Trị!")
-            return redirect('home_portal')
-            
-        # 3. Hợp lệ -> Cho đi tiếp
-        return view_func(request, *args, **kwargs)
+        if request.user.is_authenticated and request.user.is_staff:
+            return view_func(request, *args, **kwargs)
+        else:
+            messages.error(request, "Chức năng này chỉ dành cho Ban Quản Trị Hệ Thống!")
+            return redirect('home_portal') 
     return wrapper

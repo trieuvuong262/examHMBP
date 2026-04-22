@@ -57,7 +57,7 @@ Hệ thống được phân cấp quyền truy cập chặt chẽ theo 3 đối 
 | :--- | :--- | :--- | :--- |
 | **Nhân viên (User)** | `http://ip` | `ltv002-bp` / `Hoanmy@123` | Xem bài giảng, thực hiện bài thi được giao. Menu quản trị bị khóa. |
 | **Quản trị HR (Admin)** | `http://ip/dashboard` | `admin` / `123123` | Quản lý tuyển dụng, hồ sơ nhân sự, tạo khóa học và xem báo cáo. |
-| **Kỹ thuật (IT)** | `http://ip/hm-management-2026` | `admin` / `123123` | Can thiệp dữ liệu gốc, phân quyền chi tiết cho nhóm nhân sự (HR). |
+| **Kỹ thuật (IT)** | `http://ip/admin` | `admin` / `123123` | Can thiệp dữ liệu gốc, phân quyền chi tiết cho nhóm nhân sự (HR). |
 
 ---
 

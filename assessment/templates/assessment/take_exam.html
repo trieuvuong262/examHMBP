@@ -223,28 +223,22 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-    // VÁ LỖI 7: Lấy thời gian CÒN LẠI THỰC TẾ từ Backend, thay vì lấy tổng thời lượng
-    // Nếu time_remaining không tồn tại thì mới dùng tổng thời gian
     let totalSeconds = {{ exam.duration_minutes }} * 60;
-    let timeLeft = {{ time_remaining|default:"totalSeconds" }}; 
-    
-    // Nếu thời gian còn lại lớn hơn tổng thời gian (do lỗi logic), set lại cho chuẩn
-    if (timeLeft > totalSeconds) timeLeft = totalSeconds;
-
+    let timeLeft = totalSeconds;
     const timerDisplay = document.getElementById('timer');
     const timerProgress = document.getElementById('timerProgress');
     const form = document.getElementById('examForm');
 
     const countdown = setInterval(() => {
         let mins = Math.floor(timeLeft / 60);
-        let secs = Math.floor(timeLeft % 60);
+        let secs = timeLeft % 60;
         
         timerDisplay.innerHTML = `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
         
         let percent = (timeLeft / totalSeconds) * 100;
         timerProgress.style.width = percent + '%';
 
-        if (timeLeft < 300) { // Dưới 5 phút chuyển màu đỏ
+        if (timeLeft < 300) {
             timerProgress.classList.add('bg-danger');
         }
 
@@ -262,37 +256,7 @@
         timeLeft--;
     }, 1000);
 
-    // VÁ LỖI 5 & 10: Hàm kiểm tra file upload trước khi nộp
-    function validateFiles() {
-        const fileInputs = document.querySelectorAll('input[type="file"]');
-        for (let i = 0; i < fileInputs.length; i++) {
-            const file = fileInputs[i].files[0];
-            if (file) {
-                // 1. Kiểm tra dung lượng (Tối đa 5MB)
-                const maxSize = 5 * 1024 * 1024;
-                if (file.size > maxSize) {
-                    Swal.fire('Lỗi dung lượng', 'File tải lên quá lớn. Vui lòng nén ảnh dưới 5MB.', 'error');
-                    return false;
-                }
-                
-                // 2. Kiểm tra đuôi file an toàn
-                const ext = file.name.split('.').pop().toLowerCase();
-                const validExts = ['jpg', 'jpeg', 'png', 'webp'];
-                if (!validExts.includes(ext)) {
-                    Swal.fire('Lỗi định dạng', 'Chỉ cho phép tải lên file hình ảnh (JPG, PNG, WEBP).', 'error');
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
     function confirmSubmit() {
-        // Chạy rà soát file trước, nếu có file lỗi thì chặn lại không cho nộp
-        if (!validateFiles()) {
-            return;
-        }
-
         Swal.fire({
             title: 'Nộp bài thi?',
             text: "Bạn chắc chắn đã kiểm tra kỹ các câu trả lời?",
@@ -314,7 +278,6 @@
         return "Dữ liệu bài làm của bạn có thể không được lưu nếu bạn rời khỏi trang này!";
     };
 </script>
-
 <script>
     function zoom(e) {
         const container = e.currentTarget;

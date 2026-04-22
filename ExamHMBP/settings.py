@@ -160,17 +160,16 @@ CKEDITOR_CONFIGS = {
 # 7. CẤU HÌNH BẢO MẬT CHUYÊN SÂU KHI CHẠY PRODUCTION
 # ==============================================================================
 if not DEBUG:
-    # Chỉ gửi cookie qua HTTPS
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
-    
-    # Chặn JavaScript đọc Cookie (Chống XSS lấy trộm phiên đăng nhập)
+    # Tắt ép buộc HTTPS để test bằng HTTP trước
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
     SESSION_COOKIE_HTTPONLY = True
     
-    # Ép trình duyệt luôn dùng HTTPS
-    SECURE_HSTS_SECONDS = 31536000 # 1 năm
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_SSL_REDIRECT = True
+    # Tắt chuyển hướng SSL
+    SECURE_SSL_REDIRECT = False 
     
-    # Chống trình duyệt tự ý đoán định dạng file
+    # Tạm thời tắt hoặc comment dòng HSTS
+    # SECURE_HSTS_SECONDS = 31536000 
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+    
     SECURE_CONTENT_TYPE_NOSNIFF = True

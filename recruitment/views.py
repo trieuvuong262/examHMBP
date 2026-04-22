@@ -1,20 +1,18 @@
 import json
-import unicodedata
-import secrets # Dùng để tạo pass ngẫu nhiên (Lỗi 9)
-import logging # Dùng để ghi log lỗi (Lỗi 12)
-import os
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
+from django.contrib.admin.views.decorators import staff_member_required
+from .models import JobPosting, Candidate
+from django.shortcuts import render, redirect
 from django.contrib import messages
+from django.shortcuts import render, redirect, get_object_or_404
+from .forms import JobPostingForm
+import unicodedata
 from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password
-from .models import JobPosting, Candidate
-from .forms import JobPostingForm
 from assessment.models import Exam
 from assessment.decorators import admin_only
-
-logger = logging.getLogger(__name__) # Khởi tạo bộ ghi log
 
 @admin_only
 def kanban_board(request):
@@ -54,27 +52,7 @@ def update_candidate_status(request):
         
         return JsonResponse({'status': 'success'})
     except Exception as e:
-        # VÁ LỖI 12: Không trả str(e) ra frontend
-        logger.error(f"Lỗi update status: {str(e)}")
-        return JsonResponse({'status': 'error', 'message': 'Không thể cập nhật trạng thái lúc này.'}, status=400)
-
-@admin_only
-@require_POST
-def update_hr_note(request):
-    candidate_id = request.POST.get('candidate_id')
-    new_note = request.POST.get('hr_note', '')
-    
-    try:
-        candidate = get_object_or_404(Candidate, id=candidate_id)
-        candidate.hr_note = new_note
-        candidate.save()
-        messages.success(request, f'Đã cập nhật ghi chú cho ứng viên {candidate.full_name}!')
-    except Exception as e:
-        # VÁ LỖI 12
-        logger.error(f"Lỗi update HR note: {str(e)}")
-        messages.error(request, 'Đã xảy ra lỗi khi lưu ghi chú.')
-        
-    return redirect('kanban_board')
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
     
 @admin_only
 @require_POST
@@ -87,20 +65,6 @@ def add_candidate(request):
         hr_note = request.POST.get('hr_note', '')
         cv_file = request.FILES.get('cv_file')
 
-        # VÁ LỖI 5 & 10: Kiểm tra File Upload
-        if cv_file:
-            # 1. Kiểm tra dung lượng (Max 5MB)
-            if cv_file.size > 5 * 1024 * 1024:
-                messages.error(request, "Dung lượng CV không được vượt quá 5MB.")
-                return redirect('kanban_board')
-            
-            # 2. Kiểm tra đuôi file an toàn
-            ext = os.path.splitext(cv_file.name)[1].lower()
-            valid_extensions = ['.pdf', '.doc', '.docx']
-            if ext not in valid_extensions:
-                messages.error(request, "Chỉ chấp nhận file CV định dạng PDF hoặc Word.")
-                return redirect('kanban_board')
-
         Candidate.objects.create(
             job_posting_id=job_posting_id,
             full_name=full_name,
@@ -110,12 +74,9 @@ def add_candidate(request):
             cv_file=cv_file,
             status='new'
         )
-        messages.success(request, "Đã thêm ứng viên thành công!")
         
     except Exception as e:
-        # VÁ LỖI 12: Ghi log thay vì dùng "pass" im lặng
-        logger.error(f"Lỗi thêm ứng viên: {str(e)}")
-        messages.error(request, "Đã xảy ra lỗi khi lưu hồ sơ ứng viên.")
+        pass
         
     return redirect('kanban_board')
 
@@ -200,14 +161,11 @@ def convert_to_employee(request, candidate_id):
     try:
         username = generate_employee_username(candidate.full_name)
         
-        # VÁ LỖI 9: Mật khẩu ngẫu nhiên an toàn
-        random_password = secrets.token_urlsafe(8)
-        
         user = User.objects.create(
             username=username,
             email=candidate.email,
             first_name=candidate.full_name,
-            password=make_password(random_password), # Dùng pass ngẫu nhiên
+            password=make_password('Hoanmy@123'),
             is_staff=False, 
             is_superuser=False
         )
@@ -224,23 +182,18 @@ def convert_to_employee(request, candidate_id):
         candidate.status = 'hired'
         candidate.save()
         
-        # VÁ LỖI 15: Chỉnh lại Query để lấy ĐÚNG bài thi Hội nhập (Onboarding)
-        # Giả sử ní đặt tên bài thi có chữ "Hội nhập" hoặc "Onboard"
-        onboarding_exam = Exam.objects.filter(is_active=True, title__icontains='hội nhập').first()
+        onboarding_exam = Exam.objects.filter(is_active=True).first()
         if onboarding_exam:
             onboarding_exam.assigned_users.add(user)
 
-        # Trả về pass ngẫu nhiên để HR gửi cho nhân viên mới
         return JsonResponse({
             'status': 'success', 
-            'message': f'Đã tạo tài khoản {username}. Mật khẩu tạm: {random_password}',
+            'message': f'Đã tạo tài khoản {username} cho nhân viên {candidate.full_name}',
             'username': username
         })
         
     except Exception as e:
-        logger.error(f"Lỗi convert_to_employee: {str(e)}")
-        return JsonResponse({'status': 'error', 'message': 'Đã xảy ra lỗi hệ thống khi chuyển đổi.'})
-    
+        return JsonResponse({'status': 'error', 'message': str(e)})
     
 @admin_only
 def candidate_detail_ajax(request, pk):
@@ -256,3 +209,19 @@ def candidate_detail_ajax(request, pk):
         'cv_url': candidate.cv_file.url if candidate.cv_file else None,
     }
     return JsonResponse(data)
+
+@admin_only
+@require_POST
+def update_hr_note(request):
+    candidate_id = request.POST.get('candidate_id')
+    new_note = request.POST.get('hr_note', '')
+    
+    try:
+        candidate = get_object_or_404(Candidate, id=candidate_id)
+        candidate.hr_note = new_note
+        candidate.save()
+        messages.success(request, f'Đã cập nhật ghi chú cho ứng viên {candidate.full_name}!')
+    except Exception as e:
+        messages.error(request, f'Lỗi khi lưu ghi chú: {str(e)}')
+        
+    return redirect('kanban_board')

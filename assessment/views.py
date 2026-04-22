@@ -14,8 +14,7 @@ from django.contrib.auth.models import User
 from django.http import HttpResponse
 import io
 from assessment.decorators import admin_only
-import secrets 
-import logging
+
 from .models import (
     Exam, 
     Question, 
@@ -32,11 +31,6 @@ from .forms import (
     ChoiceFormSet,
     UserForm 
 )
-import os
-from django.conf import settings
-from django.http import HttpResponse, Http404
-
-
 @login_required
 def home_portal(request):
     return render(request, 'portal.html')
@@ -91,14 +85,18 @@ def exam_list(request):
         'completed_exam_ids': completed_exam_ids,
         'submission_results': submission_results 
     })
-
 @login_required
 def take_exam(request, exam_id):
     exam = get_object_or_404(Exam, id=exam_id)
     now = timezone.now()
 
+    
     is_assigned_directly = exam.assigned_users.filter(id=request.user.id).exists()
-    is_assigned_via_course = Course.objects.filter(final_exam=exam, assigned_users=request.user).exists()
+    
+    is_assigned_via_course = Course.objects.filter(
+        final_exam=exam, 
+        assigned_users=request.user
+    ).exists()
 
     if not (is_assigned_directly or is_assigned_via_course or request.user.is_staff):
         messages.error(request, "Bạn không có quyền tham gia kỳ thi này.")
@@ -117,7 +115,9 @@ def take_exam(request, exam_id):
         return redirect('exam_list')
 
     existing_submission = ExamSubmission.objects.filter(
-        user=request.user, exam=exam, submitted_at__isnull=False
+        user=request.user, 
+        exam=exam, 
+        submitted_at__isnull=False
     ).first()
     
     if existing_submission:
@@ -126,35 +126,23 @@ def take_exam(request, exam_id):
             'message': 'Bạn đã hoàn tất bài thi này.'
         })
 
-    # Nếu chưa có thì tạo mới, lúc này submission.start_at sẽ được lưu là giờ hiện tại
     submission, created = ExamSubmission.objects.get_or_create(
-        user=request.user, exam=exam, defaults={'is_completed': False}
+        user=request.user, 
+        exam=exam, 
+        defaults={'is_completed': False}
     )
 
     if request.method == 'POST':
-        # 1. KIỂM TRA THỜI GIAN CÁ NHÂN CỦA USER
-        if submission.start_at:
-            elapsed_time = timezone.now() - submission.start_at
-            allowed_time = (exam.duration_minutes + 2) * 60 
-            
-            if elapsed_time.total_seconds() > allowed_time:
-                submission.is_completed = True
-                submission.submitted_at = timezone.now()
-                submission.save()
-                messages.error(request, "Bạn đã làm bài quá thời gian quy định. Hệ thống đã tự động thu bài!")
-                return redirect('exam_list')
-
-        # 2. KIỂM TRA THỜI HẠN CHUNG CỦA ĐỀ THI
         if timezone.now() > exam.end_time:
             submission.is_completed = True
             submission.submitted_at = timezone.now()
             submission.save()
-            messages.error(request, "Đã hết thời gian hiệu lực của kỳ thi.")
+            messages.error(request, "Hệ thống đã tự động nộp bài vì hết giờ quy định.")
             return redirect('exam_list')
 
         questions = exam.questions.all()
         total_auto_score = 0
-        needs_manual_grading = False 
+        needs_manual_grading = False # THÊM CỜ NÀY ĐỂ THEO DÕI
 
         for q in questions:
             answer_obj, _ = UserAnswer.objects.get_or_create(submission=submission, question=q)
@@ -185,19 +173,7 @@ def take_exam(request, exam_id):
             
             elif q.q_type in ['image', 'image_upload']:
                 if f'q_{q.id}' in request.FILES:
-                    uploaded_file = request.FILES[f'q_{q.id}']
-                    
-                    # VÁ LỖI 5 & 10: KIỂM TRA FILE NGAY TẠI BACKEND
-                    if uploaded_file.size > 5 * 1024 * 1024:
-                        messages.error(request, f"Lỗi ở Câu {q.id}: Kích thước ảnh tải lên vượt quá 5MB.")
-                        return redirect('take_exam', exam_id=exam.id)
-                        
-                    ext = os.path.splitext(uploaded_file.name)[1].lower()
-                    if ext not in ['.jpg', '.jpeg', '.png', '.webp']:
-                        messages.error(request, f"Lỗi ở Câu {q.id}: Chỉ chấp nhận file định dạng hình ảnh (JPG, PNG).")
-                        return redirect('take_exam', exam_id=exam.id)
-                    
-                    answer_obj.image_answer = uploaded_file
+                    answer_obj.image_answer = request.FILES[f'q_{q.id}']
                     needs_manual_grading = True
             
             answer_obj.save()
@@ -212,21 +188,17 @@ def take_exam(request, exam_id):
             submission.manual_score = 0.0
 
         submission.save()
-        return render(request, 'assessment/result_notice.html', {'submission': submission})
 
-    # VÁ LỖI 7 (PHẦN HIỂN THỊ): TÍNH TOÁN LẠI GIÂY CÒN LẠI ĐỂ TRUYỀN RA HTML CHUẨN XÁC
-    time_remaining = exam.duration_minutes * 60
-    if submission.start_at:
-        elapsed = (timezone.now() - submission.start_at).total_seconds()
-        time_remaining = max(0, int((exam.duration_minutes * 60) - elapsed))
+        return render(request, 'assessment/result_notice.html', {'submission': submission})
 
     context = {
         'exam': exam,
         'questions': exam.questions.all().prefetch_related('choices'),
         'submission': submission,
-        'time_remaining': time_remaining # Truyền số giây thực tế còn lại ra đây
+        'time_remaining': exam.duration_minutes * 60 
     }
     return render(request, 'assessment/take_exam.html', context)
+
 
 @admin_only
 def admin_dashboard(request):
@@ -469,10 +441,9 @@ def user_add(request):
         form = UserForm(request.POST)
         if form.is_valid():
             user = form.save()
-            random_pass = secrets.token_urlsafe(8) 
-            user.set_password(random_pass)
+            user.set_password(user.username + "123")
             user.save()
-            messages.success(request, f"Đã thêm {user.username}. Mật khẩu tạm thời là: {random_pass}")
+            messages.success(request, f"Đã thêm nhân viên {user.username} thành công!")
             return redirect('user_list')
     else:
         form = UserForm()
@@ -505,16 +476,12 @@ def user_delete(request, user_id):
 def user_password_reset(request, user_id):
     user = get_object_or_404(User, id=user_id)
     if request.method == 'POST':
-        random_pass = secrets.token_urlsafe(8)
-        user.set_password(random_pass)
+        default_password = f"Hoanmy@123"
+        user.set_password(default_password)
         user.save()
-        messages.success(request, f"Đã reset mật khẩu cho {user.username}. Mật khẩu mới là: {random_pass}")
+        messages.success(request, f"Đã reset mật khẩu cho {user.username} về mặc định: {default_password}")
     return redirect('user_list')
 
-
-
-# Khởi tạo logger để ghi lỗi hệ thống
-logger = logging.getLogger(__name__)
 
 @admin_only
 def user_import_excel(request):
@@ -522,39 +489,31 @@ def user_import_excel(request):
         file = request.FILES['excel_file']
         
         try:
-            # 1. Đọc file Excel
             df = pd.read_excel(file)
             
-            # Chuẩn hóa tên cột: viết chữ thường, xóa khoảng trắng thừa
             df.columns = [str(c).strip().lower() for c in df.columns]
             
-            # 2. Kiểm tra cột bắt buộc
             if 'username' not in df.columns:
                 messages.error(request, 'Lỗi: File Excel bắt buộc phải có cột "username".')
                 return redirect('user_list')
             
-            # Thay thế các ô trống (NaN) bằng chuỗi rỗng
             df = df.fillna('')
             
             success_count = 0
             skipped_count = 0
             
-            # 3. Lặp qua từng dòng để tạo User
+            from assessment.models import Profile
+            
             for _, row in df.iterrows():
                 username = str(row['username']).strip()
                 if not username:
                     continue
                 
+                password = str(row.get('password', '')).strip() or 'Hoanmy@123'
                 email = str(row.get('email', '')).strip()
                 full_name = str(row.get('full_name', '')).strip()
                 chuc_danh = str(row.get('chuc_danh', '')).strip()
 
-                # VÁ LỖI 9 (Mật khẩu yếu): Lấy pass từ file, nếu để trống -> Tạo pass ngẫu nhiên 8 ký tự
-                password = str(row.get('password', '')).strip()
-                if not password:
-                    password = secrets.token_urlsafe(8)
-
-                # Kiểm tra xem user đã tồn tại chưa
                 if not User.objects.filter(username=username).exists():
                     user = User.objects.create_user(
                         username=username,
@@ -564,7 +523,6 @@ def user_import_excel(request):
                         is_staff=False
                     )
                     
-                    # Tạo Profile đi kèm
                     Profile.objects.update_or_create(
                         user=user,
                         defaults={
@@ -577,18 +535,13 @@ def user_import_excel(request):
                 else:
                     skipped_count += 1
             
-            # 4. Báo cáo kết quả thành công
             messages.success(request, f'Thành công: Thêm mới {success_count} nhân viên. Bỏ qua {skipped_count} người đã tồn tại.')
             
         except Exception as e:
-            # VÁ LỖI 12 (Rò rỉ thông tin lỗi): Không in str(e) ra màn hình nữa!
-            # Ghi lỗi thực sự vào file log của Server để IT (là ní đó) vào đọc khi cần
-            logger.error(f"Lỗi Import Excel User: {str(e)}")
-            
-            # Chỉ hiển thị thông báo lịch sự, chung chung cho Admin
-            messages.error(request, 'Đã xảy ra lỗi khi đọc file Excel. Vui lòng kiểm tra lại định dạng file (ví dụ: file bị hỏng, sai cấu trúc cột).')
+            messages.error(request, f'Lỗi hệ thống khi xử lý file: {str(e)}')
             
     return redirect('user_list')
+
 
 @admin_only
 def user_export_excel(request):
@@ -631,33 +584,3 @@ def user_download_template(request):
     response = HttpResponse(output.getvalue(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = 'attachment; filename=Mau_Import_Nhan_Vien.xlsx'
     return response
-
-
-
-
-@login_required # <
-def protected_media_serve(request, path):
-    """
-    Hàm này chặn trước đường dẫn /media/. Chỉ user đã đăng nhập mới được tải file.
-    """
-    # Lấy đường dẫn file vật lý trên máy chủ
-    document_root = settings.MEDIA_ROOT
-    file_path = os.path.join(document_root, path)
-
-    if os.path.exists(file_path):
-        with open(file_path, 'rb') as fh:
-            # Xác định loại file (MIME type)
-            content_type = 'application/octet-stream'
-            if path.endswith('.pdf'):
-                content_type = 'application/pdf'
-            elif path.endswith('.png'):
-                content_type = 'image/png'
-            elif path.endswith(('.jpg', '.jpeg')):
-                content_type = 'image/jpeg'
-                
-            response = HttpResponse(fh.read(), content_type=content_type)
-            # Không ép tải về (attachment), cho phép xem trực tiếp trên trình duyệt (inline)
-            response['Content-Disposition'] = f'inline; filename={os.path.basename(file_path)}'
-            return response
-    
-    raise Http404("File không tồn tại hoặc bạn không có quyền truy cập.")
