@@ -8,7 +8,12 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 
 # Cài đặt thư viện hệ thống cần thiết cho PostgreSQL
-RUN apt-get update && apt-get install -y libpq-dev gcc && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    gcc \
+    pkg-config \
+    libcairo2-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Cài đặt requirements
 COPY requirements.txt /app/
