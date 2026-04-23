@@ -17,6 +17,8 @@ from assessment.decorators import admin_only
 from django.contrib.auth.views import PasswordChangeView
 from django.urls import reverse_lazy
 from django.contrib import messages
+from django.contrib.auth import logout
+
 
 from .models import (
     Exam, 
@@ -684,3 +686,10 @@ class MyPasswordChangeView(PasswordChangeView):
             
         messages.success(self.request, "Mật khẩu đã được thay đổi thành công!")
         return super().form_valid(form)
+    
+
+
+# Hàm xử lý đăng xuất bằng GET (Bấm link là out luôn)
+def custom_logout(request):
+    logout(request) # Xóa sạch session của user hiện tại
+    return redirect('login') # Đăng xuất xong thì đá về trang đăng nhập
