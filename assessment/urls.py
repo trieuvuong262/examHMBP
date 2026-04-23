@@ -1,6 +1,6 @@
 from django.urls import path
 from . import views
-
+from hrm import views as hrm_views
 urlpatterns = [
      
     path('', views.home_portal, name='home_portal'), 
@@ -15,15 +15,16 @@ urlpatterns = [
     path('dashboard/exam/<int:exam_id>/question/<int:question_id>/remove/', views.question_remove, name='question_remove'),
     path('dashboard/results/', views.admin_results, name='admin_results'),
     path('dashboard/submission/<int:submission_id>/grade/', views.grade_submission, name='grade_submission'),
-    path('dashboard/users/', views.user_list, name='user_list'),
-    path('dashboard/users/add/', views.user_add, name='user_add'),
-    path('dashboard/users/edit/<int:user_id>/', views.user_edit, name='user_edit'),
-    path('dashboard/users/delete/<int:user_id>/', views.user_delete, name='user_delete'),
-    path('dashboard/users/<int:user_id>/reset-password/', views.user_password_reset, name='user_password_reset'),
     path('dashboard/competency/add-ajax/', views.competency_add_ajax, name='competency_add_ajax'),
     path('dashboard/competency/delete/<int:pk>/', views.competency_delete_ajax, name='competency_delete_ajax'),
-    path('dashboard/users/import/', views.user_import_excel, name='user_import_excel'),
-    path('dashboard/users/export/', views.user_export_excel, name='user_export_excel'),
-    path('dashboard/users/download-template/', views.user_download_template, name='user_download_template'),
     path('dashboard/results/<int:exam_id>/', views.admin_results, name='admin_results'),
+    
+    path('dashboard/users/', hrm_views.user_list, name='user_list'),
+    path('dashboard/users/add/', hrm_views.user_add, name='user_add'),
+    path('dashboard/users/edit/<int:user_id>/', hrm_views.user_edit, name='user_edit'),
+    path('dashboard/users/delete/<int:user_id>/', hrm_views.user_delete, name='user_delete'),
+    path('dashboard/users/<int:user_id>/reset-password/', hrm_views.user_password_reset, name='user_password_reset'),
+    path('dashboard/users/import/', hrm_views.user_import_excel, name='user_import_excel'),
+    path('dashboard/users/export/', hrm_views.user_export_excel, name='user_export_excel'),
+    path('dashboard/users/download-template/', hrm_views.user_download_template, name='user_download_template'),
 ]

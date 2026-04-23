@@ -16,8 +16,9 @@ from assessment.decorators import admin_only
 import unicodedata
 import secrets
 import string
-import re
 
+from assessment.models import Exam
+from hrm.models import Profile
 
 @admin_only
 def kanban_board(request):

@@ -2,7 +2,7 @@ from django import forms
 from .models import Exam, Question, Choice, User
 from django.forms import inlineformset_factory
 from django.contrib.auth.models import User
-from .models import Profile
+from hrm.models import Profile
 
 class ExamForm(forms.ModelForm):
     class Meta:

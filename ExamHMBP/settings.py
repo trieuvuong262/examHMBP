@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'recruitment',
     'reports',
     'axes',
+    'hrm',
 ]
 
 MIDDLEWARE = [

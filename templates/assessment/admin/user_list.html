@@ -1,6 +1,28 @@
 {% extends "base.html" %}
 
 {% block content %}
+
+<div class="modal fade" id="passwordResultModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header bg-hm text-white p-4 border-0 rounded-top-4">
+                <h5 class="modal-title fw-bold"><i class="bi bi-check-circle-fill me-2"></i>ĐẶT LẠI MẬT KHẨU THÀNH CÔNG</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <p class="mb-3 text-secondary fs-6" id="msgFullText">Hệ thống đã tạo mật khẩu mới cho nhân viên.</p>
+                <div class="p-4 bg-hm-subtle rounded-4 border border-hm border-2 border-opacity-50 mb-4 shadow-sm">
+                    <p class="small text-hm fw-bold mb-1 text-uppercase"><i class="bi bi-key-fill me-1"></i>Mật khẩu mới</p>
+                    <h2 class="fw-bold text-dark mb-0 user-select-all" id="newPasswordText" style="letter-spacing: 3px; font-family: monospace;">...</h2>
+                </div>
+                <button class="btn btn-hm fw-bold px-5 py-3 rounded-pill shadow btn-hover-lift w-100 fs-5 text-white" onclick="copyModalPassword(this)">
+                    <i class="bi bi-clipboard-check fs-4 me-2 align-middle"></i> COPY MẬT KHẨU
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="container-fluid py-4 px-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -45,7 +67,7 @@
                 <thead class="bg-light text-uppercase">
                     <tr style="font-size: 0.85rem; letter-spacing: 0.5px;">
                         <th class="ps-4 py-3 text-muted">Nhân viên</th>
-                        <th class="text-muted">Username</th>
+                        <th class="text-muted">Account</th>
                         <th class="text-muted">Chức danh</th>
                         <th class="text-muted">Email</th>
                         <th class="text-muted">Ngày tham gia</th>
@@ -89,13 +111,14 @@
                                 <form action="{% url 'user_password_reset' u.id %}" method="POST" class="m-0">
                                     {% csrf_token %}
                                     <button type="submit" class="btn btn-sm btn-white border shadow-sm px-3" 
-                                            onclick="return confirm('...')" title="Đặt lại mật khẩu">
+                                            onclick="return confirm('Hệ thống sẽ TỰ ĐỘNG TẠO mật khẩu ngẫu nhiên cho {{ u.username }}.\nBạn có chắc chắn muốn làm mới mật khẩu?')" 
+                                            title="Đặt lại mật khẩu">
                                         <i class="bi bi-key-fill text-primary"></i>
                                     </button>
                                 </form>
 
                                 <a href="{% url 'user_delete' u.id %}" class="btn btn-sm btn-white border shadow-sm px-3" 
-                                onclick="return confirm('...')" title="Xóa">
+                                onclick="return confirm('Xóa tài khoản này?')" title="Xóa">
                                     <i class="bi bi-trash-fill text-danger"></i>
                                 </a>
                             </div>
@@ -172,19 +195,13 @@
         --hm-primary-hover: rgb(0, 115, 129);
     }
     
+    .bg-hm { background-color: var(--hm-primary) !important; }
     .text-hm { color: var(--hm-primary) !important; }
+    .border-hm { border-color: var(--hm-primary) !important; }
     .bg-hm-subtle { background-color: rgba(0, 144, 161, 0.1) !important; }
     
-    .btn-hm { 
-        background-color: var(--hm-primary); 
-        color: white; 
-        border: none; 
-        transition: all 0.3s; 
-    }
-    .btn-hm:hover { 
-        background-color: var(--hm-primary-hover); 
-        color: white; 
-    }
+    .btn-hm { background-color: var(--hm-primary); color: white; border: none; transition: all 0.3s; }
+    .btn-hm:hover { background-color: var(--hm-primary-hover); color: white; }
     
     .btn-hover-lift { transition: transform 0.2s ease, box-shadow 0.2s ease; }
     .btn-hover-lift:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
@@ -192,8 +209,7 @@
     .avatar-circle {
         width: 42px; height: 42px;
         background: linear-gradient(135deg, var(--hm-primary), #00b4cc);
-        color: white;
-        display: flex; align-items: center; justify-content: center;
+        color: white; display: flex; align-items: center; justify-content: center;
         border-radius: 12px; font-weight: bold; font-size: 1.1rem;
         box-shadow: 0 3px 6px rgba(0, 144, 161, 0.15);
     }
@@ -204,34 +220,91 @@
     .btn-white:hover { background-color: #f8f9fa; }
     
     .table thead th { border-top: none; }
-    .table tbody tr { transition: background 0.2s; }
     
     .loading-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background-color: rgba(0, 0, 0, 0.6);
-        backdrop-filter: blur(4px);
-        z-index: 9999;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px);
+        z-index: 9999; display: flex; align-items: center; justify-content: center;
     }
-    
-    .loading-box {
-        animation: popIn 0.3s ease-out forwards;
-        min-width: 300px;
-    }
-    
-    @keyframes popIn {
-        0% { transform: scale(0.8); opacity: 0; }
-        100% { transform: scale(1); opacity: 1; }
-    }
+    .loading-box { animation: popIn 0.3s ease-out forwards; min-width: 300px; }
+    @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 </style>
-
 <script>
+    // XỬ LÝ LẤY THÔNG BÁO VÀ HIỂN THỊ POPUP TO Ở GIỮA
+    document.addEventListener("DOMContentLoaded", function() {
+        var bodyText = document.body.innerText;
+        if(bodyText.includes('Mật khẩu mới là:')) {
+            var alertBoxes = document.querySelectorAll('.alert');
+            alertBoxes.forEach(function(box) {
+                var text = box.innerText;
+                if(text.includes('Mật khẩu mới là:')) {
+                    var password = text.split('Mật khẩu mới là:')[1].trim();
+                    var msgBefore = text.split('Mật khẩu mới là:')[0].trim();
+                    
+                    document.getElementById('msgFullText').innerText = msgBefore;
+                    document.getElementById('newPasswordText').innerText = password;
+                    box.style.display = 'none';
+                    
+                    var pwdModal = new bootstrap.Modal(document.getElementById('passwordResultModal'));
+                    pwdModal.show();
+                }
+            });
+        }
+    });
+
+    // HÀM COPY MẬT KHẨU TỪ POPUP (ĐÃ NÂNG CẤP CHUẨN HIỆN ĐẠI)
+    function copyModalPassword(btn) {
+        var pwd = document.getElementById('newPasswordText').innerText;
+
+        // Cách 1: Dùng Clipboard API hiện đại (Dành cho trình duyệt đời mới)
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(pwd).then(function() {
+                showCopySuccess(btn);
+            }).catch(function(err) {
+                // Nếu lỗi thì tự động nhảy sang Cách 2
+                fallbackCopy(pwd, btn);
+            });
+        } else {
+            // Cách 2: Fallback cho trình duyệt cũ hoặc khi không có HTTPS
+            fallbackCopy(pwd, btn);
+        }
+    }
+
+    // Hàm dự phòng khi trình duyệt chặn cách 1
+    function fallbackCopy(text, btn) {
+        var tempInput = document.createElement("textarea");
+        tempInput.value = text;
+        
+        // Mẹo: Cố định ô text ẩn để Modal không bị giật và mất Focus
+        tempInput.style.position = "fixed";
+        tempInput.style.left = "-9999px";
+        tempInput.style.top = "0";
+        document.body.appendChild(tempInput);
+        
+        tempInput.focus();
+        tempInput.select();
+        
+        try {
+            document.execCommand("copy");
+            showCopySuccess(btn);
+        } catch (err) {
+            alert("Trình duyệt của bạn đang chặn copy tự động. Vui lòng bôi đen và copy thủ công nhé!");
+        }
+        document.body.removeChild(tempInput);
+    }
+
+    // Hiệu ứng nút bấm xịn xò
+    function showCopySuccess(btn) {
+        var originalHTML = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check2-all fs-4 me-2 align-middle"></i> ĐÃ SAO CHÉP!';
+        btn.classList.replace('btn-hm', 'btn-dark');
+        setTimeout(function() {
+            btn.innerHTML = originalHTML;
+            btn.classList.replace('btn-dark', 'btn-hm');
+        }, 2000);
+    }
+
+    // TÌM KIẾM
     document.getElementById('userSearch').addEventListener('keyup', function() {
         let keyword = this.value.toLowerCase();
         let rows = document.querySelectorAll('#userTable tbody tr');
@@ -241,15 +314,14 @@
         });
     });
 
+    // LOADING KHI IMPORT
     const importForm = document.getElementById('importExcelForm');
     if (importForm) {
         importForm.addEventListener('submit', function() {
             document.getElementById('importLoadingOverlay').style.display = 'flex';
-            
             const modalEl = document.getElementById('importExcelModal');
             const modal = bootstrap.Modal.getInstance(modalEl);
             if(modal) { modal.hide(); }
-            
             const submitBtn = document.getElementById('submitImportBtn');
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>ĐANG XỬ LÝ...';
