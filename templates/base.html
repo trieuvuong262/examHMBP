@@ -5,11 +5,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hoàn Mỹ Portal - HRM & E-Learning</title>
     
+    <title>Hoàn Mỹ Portal - HRM & E-Learning</title>
+    <meta name="description" content="Hệ thống Quản trị Nhân sự & Đào tạo trực tuyến - Bệnh viện Hoàn Mỹ Bình Phước. Giải pháp tối ưu quy trình tuyển dụng và nâng cao năng lực nhân sự.">
+    <meta name="author" content="Hoan My IT Team">
+
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ request.build_absolute_uri }}">
+    <meta property="og:title" content="Hoàn Mỹ Portal - Hệ Thống Quản Trị Nhân Sự & Đào Tạo">
+    <meta property="og:description" content="Hệ thống nội bộ giúp số hóa quy trình Tuyển dụng, Đào tạo và Đánh giá năng lực nhân viên tại Hoàn Mỹ Bình Phước.">
+    
+    <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'images/logo/thumbnail-share.png' %}">
+
     <link rel="icon" type="image/png" href="{% static 'images/logo/logo.png' %}">
-    <link rel="shortcut icon" type="image/png" href="{% static 'images/logo/logo.png' %}">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="apple-touch-icon" href="{% static 'images/logo/logo.png' %}">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
