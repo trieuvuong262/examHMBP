@@ -13,6 +13,11 @@ from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password
 from assessment.models import Exam
 from assessment.decorators import admin_only
+import unicodedata
+import secrets
+import string
+import re
+
 
 @admin_only
 def kanban_board(request):
@@ -155,21 +160,37 @@ def generate_employee_username(full_name):
 def convert_to_employee(request, candidate_id):
     candidate = get_object_or_404(Candidate, id=candidate_id)
     
+    # --- ĐOẠN CODE NÂNG CẤP KIỂM TRA TÀI KHOẢN ---
     if candidate.status == 'hired':
-        return JsonResponse({'status': 'error', 'message': 'Ứng viên này đã có tài khoản!'})
+        # Quét xem thực tế có tài khoản nào xài Email này đang tồn tại không
+        user_exists = False
+        if candidate.email:
+            user_exists = User.objects.filter(email=candidate.email).exists()
+        
+        # Nếu thực sự có tài khoản rồi thì mới chặn
+        if user_exists:
+            return JsonResponse({'status': 'error', 'message': 'Ứng viên này đã có tài khoản đang hoạt động!'})
+        # Nếu không có (do HR đã xóa bên Quản lý nhân sự) thì cứ cho code đi tiếp để tạo lại!
+    # ----------------------------------------------
         
     try:
-        username = generate_employee_username(candidate.full_name)
+        # 1. Sinh Username và Password theo quy tắc mới
+        new_username = generate_hm_username(candidate.full_name)
+        new_password = generate_secure_password()
         
+        # 2. Tạo User trong Database
         user = User.objects.create(
-            username=username,
-            email=candidate.email,
+            username=new_username,
+            email=candidate.email or new_username, # Lấy email ứng viên, nếu không có thì lấy username làm email
             first_name=candidate.full_name,
-            password=make_password('Hoanmy@123'),
             is_staff=False, 
             is_superuser=False
         )
+        # Set mật khẩu ngẫu nhiên
+        user.set_password(new_password)
+        user.save()
         
+        # 3. Tạo Profile
         from assessment.models import Profile
         profile, created = Profile.objects.update_or_create(
             user=user,
@@ -179,17 +200,21 @@ def convert_to_employee(request, candidate_id):
             }
         )
         
+        # 4. Đổi trạng thái Ứng viên
         candidate.status = 'hired'
         candidate.save()
         
+        # 5. Giao bài thi hội nhập
         onboarding_exam = Exam.objects.filter(is_active=True).first()
         if onboarding_exam:
             onboarding_exam.assigned_users.add(user)
 
+        # 6. QUAN TRỌNG: Trả về cả username và password cho Frontend hiển thị
         return JsonResponse({
             'status': 'success', 
-            'message': f'Đã tạo tài khoản {username} cho nhân viên {candidate.full_name}',
-            'username': username
+            'message': f'Đã tạo tài khoản cho nhân viên {candidate.full_name}',
+            'username': new_username,
+            'password': new_password  # <-- Frontend sẽ lấy cục này để show Popup
         })
         
     except Exception as e:
@@ -225,3 +250,36 @@ def update_hr_note(request):
         messages.error(request, f'Lỗi khi lưu ghi chú: {str(e)}')
         
     return redirect('kanban_board')
+
+
+
+def remove_vietnamese_accents(text):
+    text = str(text).replace('đ', 'd').replace('Đ', 'D')
+    text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8')
+    return text.lower().strip()
+
+def generate_hm_username(full_name):
+    """ Tạo username dạng ten.ho1@hoanmy.com """
+    clean_name = remove_vietnamese_accents(full_name)
+    parts = clean_name.split()
+    
+    if not parts:
+        base = "user.hm"
+    elif len(parts) == 1:
+        base = parts[0]
+    else:
+        ho = parts[0]
+        ten = parts[-1]
+        base = f"{ten}.{ho}"
+    
+    counter = 1
+    username = f"{base}{counter}@hoanmy.com"
+    while User.objects.filter(username=username).exists():
+        counter += 1
+        username = f"{base}{counter}@hoanmy.com"
+        
+    return username
+
+def generate_secure_password(length=8):
+    alphabet = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(alphabet) for _ in range(length))

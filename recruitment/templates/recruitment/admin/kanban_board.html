@@ -427,38 +427,74 @@
                 }
             });
         });
-
         function updateBadgeCount(columnElement) {
             const count = columnElement.querySelectorAll('.kanban-card').length;
             const badge = columnElement.closest('.column-card').querySelector('.badge-count');
             if (badge) badge.textContent = count;
         }
-
         document.querySelectorAll('.convert-user-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 const candId = this.getAttribute('data-id');
                 const card = this.closest('.kanban-card');
                 const column = card.closest('.kanban-column');
-                if(!confirm(`Tạo tài khoản nhân viên cho ứng viên này?`)) return;
                 
+                // 1. Cảnh báo rõ ràng cho HR biết hệ thống sẽ tự sinh pass
+                if(!confirm(`Hệ thống sẽ TỰ ĐỘNG tạo Tài khoản và Mật khẩu ngẫu nhiên cho ứng viên này.\nBạn có chắc chắn muốn tiếp tục?`)) return;
+                
+                // 2. Hiệu ứng loading
                 this.disabled = true;
-                this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+                this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Đang xử lý...';
 
                 fetch(`/hr/admin/recruitment/candidate/${candId}/convert/`, {
                     method: 'POST',
-                    headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+                    headers: { 
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'Content-Type': 'application/json' 
+                    }
                 })
                 .then(res => res.json())
                 .then(data => {
                     if(data.status === 'success') {
+                        // Xóa thẻ khỏi cột và cập nhật số lượng
                         card.remove();
                         updateBadgeCount(column);
-                        alert(`Thành công! Username: ${data.username}`);
+                        
+                        // 3. Chuẩn bị nội dung để copy
+                        const textToCopy = `Tài khoản: ${data.username}\nMật khẩu: ${data.password}`;
+                        
+                        // 4. Lệnh tự động Copy vào Clipboard
+                        navigator.clipboard.writeText(textToCopy).then(() => {
+                            // Báo thành công và báo đã copy
+                            alert(`🎉 TẠO TÀI KHOẢN THÀNH CÔNG!\n\n` +
+                                  `Hệ thống đã TỰ ĐỘNG COPY thông tin đăng nhập.\n` +
+                                  `Bạn chỉ cần ấn Ctrl+V (hoặc Paste) để gửi ngay cho nhân sự mới:\n` +
+                                  `----------------------------------------\n` +
+                                  `Tài khoản : ${data.username}\n` +
+                                  `Mật khẩu  : ${data.password}\n` +
+                                  `----------------------------------------\n`);
+                        }).catch(err => {
+                            // Phòng trường hợp trình duyệt cũ chặn quyền copy
+                            alert(`TẠO TÀI KHOẢN THÀNH CÔNG!\n\n` +
+                                  `Vui lòng copy thông tin dưới đây để gửi cho nhân sự mới:\n` +
+                                  `----------------------------------------\n` +
+                                  `Tài khoản : ${data.username}\n` +
+                                  `Mật khẩu  : ${data.password}\n` +
+                                  `----------------------------------------\n`);
+                        });
+                        
                     } else {
                         alert("Lỗi: " + data.message);
+                        // Trả lại nút ban đầu nếu lỗi
                         this.disabled = false;
                         this.innerHTML = '<i class="bi bi-person-check-fill me-1"></i> Tạo User';
                     }
+                })
+                .catch(err => {
+                    // Bắt lỗi nếu mất mạng hoặc sập server
+                    alert("Lỗi kết nối đến máy chủ! Vui lòng thử lại.");
+                    this.disabled = false;
+                    this.innerHTML = '<i class="bi bi-person-check-fill me-1"></i> Tạo User';
+                    console.error(err);
                 });
             });
         });

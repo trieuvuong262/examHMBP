@@ -440,10 +440,21 @@ def user_add(request):
     if request.method == 'POST':
         form = UserForm(request.POST)
         if form.is_valid():
-            user = form.save()
-            user.set_password(user.username + "123")
+            user = form.save(commit=False)
+            
+            # 1. Sinh Username tự động từ Full Name (giả sử lưu ở first_name)
+            full_name = user.first_name 
+            new_username = generate_hm_username(full_name)
+            user.username = new_username
+            user.email = new_username  # Lấy email làm username luôn cho tiện
+            
+            # 2. Sinh mật khẩu ngẫu nhiên
+            new_password = generate_secure_password()
+            user.set_password(new_password)
             user.save()
-            messages.success(request, f"Đã thêm nhân viên {user.username} thành công!")
+            
+            # Cảnh báo: Hiện mật khẩu ngay lên màn hình để Admin copy gửi cho nhân viên
+            messages.success(request, f"Thêm nhân viên thành công! Tài khoản: {new_username} | Mật khẩu: {new_password}")
             return redirect('user_list')
     else:
         form = UserForm()
@@ -468,20 +479,88 @@ def user_delete(request, user_id):
     if user.is_superuser:
         messages.error(request, "Không thể xóa tài khoản Quản trị tối cao!")
     else:
+        # 1. Lưu lại email của người này trước khi xóa
+        deleted_email = user.email 
+        
+        # 2. Búng tay bay màu tài khoản
         user.delete()
-        messages.success(request, "Đã xóa nhân viên.")
+        
+        # 3. ĐỒNG BỘ KANBAN: Nếu người này từng là ứng viên (quét theo email), 
+        # nhả trạng thái của họ từ 'hired' về lại 'interviewing' (Đang phỏng vấn)
+        if deleted_email:
+            from recruitment.models import Candidate # Có thể import thẳng trong hàm cũng được
+            Candidate.objects.filter(email=deleted_email, status='hired').update(status='interviewing')
+            
+        messages.success(request, "Đã xóa nhân viên và đồng bộ lại thẻ Ứng viên (nếu có).")
+        
     return redirect('user_list')
 
 @admin_only
 def user_password_reset(request, user_id):
     user = get_object_or_404(User, id=user_id)
     if request.method == 'POST':
-        default_password = f"Hoanmy@123"
-        user.set_password(default_password)
+        # 1. Gọi hàm tạo pass ngẫu nhiên (Hàm này tui đã dặn thêm ở đầu file)
+        new_password = generate_secure_password()
+        
+        # 2. Cài pass mới
+        user.set_password(new_password)
         user.save()
-        messages.success(request, f"Đã reset mật khẩu cho {user.username} về mặc định: {default_password}")
+        
+        # 3. Bắn thông báo lên màn hình xanh
+        messages.success(request, f"Đã Reset mật khẩu cho {user.username}. Mật khẩu mới là: {new_password}")
     return redirect('user_list')
 
+@admin_only
+def user_import_excel(request):
+    if request.method == 'POST' and request.FILES.get('excel_file'):
+        file = request.FILES['excel_file']
+        try:
+            df = pd.read_excel(file)
+            df.columns = [str(c).strip().lower() for c in df.columns]
+            df = df.fillna('')
+            
+            success_count = 0
+            skipped_count = 0
+            from assessment.models import Profile
+            
+            for _, row in df.iterrows():
+                full_name = str(row.get('full_name', '')).strip()
+                if not full_name:
+                    continue # Bỏ qua nếu không có tên
+                
+                # 1. Tự động gen Username/Email nếu trong file Excel không nhập
+                raw_username = str(row.get('username', '')).strip()
+                username = raw_username if raw_username else generate_hm_username(full_name)
+                email = str(row.get('email', '')).strip() or username
+                
+                # 2. Tự động gen mật khẩu nếu file Excel để trống
+                raw_password = str(row.get('password', '')).strip()
+                password = raw_password if raw_password else generate_secure_password()
+                
+                chuc_danh = str(row.get('chuc_danh', '')).strip()
+
+                if not User.objects.filter(username=username).exists():
+                    user = User.objects.create_user(
+                        username=username,
+                        password=password,
+                        email=email,
+                        first_name=full_name,
+                        is_staff=False
+                    )
+                    Profile.objects.update_or_create(
+                        user=user,
+                        defaults={'full_name': full_name, 'position': chuc_danh}
+                    )
+                    success_count += 1
+                else:
+                    skipped_count += 1
+            
+            messages.success(request, f'Thành công: Thêm mới {success_count} nhân viên. Bỏ qua {skipped_count} do trùng lặp.')
+            
+        except Exception as e:
+            messages.error(request, f'Lỗi hệ thống khi xử lý file: {str(e)}')
+            
+    return redirect('user_list')
 
 @admin_only
 def user_import_excel(request):

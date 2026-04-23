@@ -1,142 +1,143 @@
 {% load static %}
-<!DOCTYPE html>
-<html lang="vi">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
+
     <title>Hoàn Mỹ Portal - HRM & E-Learning</title>
-    <meta name="description" content="Hệ thống Quản trị Nhân sự & Đào tạo trực tuyến - Bệnh viện Hoàn Mỹ Bình Phước. Giải pháp tối ưu quy trình tuyển dụng và nâng cao năng lực nhân sự.">
+    <meta name="description"
+        content="Hệ thống Quản trị Nhân sự & Đào tạo trực tuyến - Bệnh viện Hoàn Mỹ Bình Phước. Giải pháp tối ưu quy trình tuyển dụng và nâng cao năng lực nhân sự.">
     <meta name="author" content="Hoan My IT Team">
 
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ request.build_absolute_uri }}">
     <meta property="og:title" content="Hoàn Mỹ Portal - Hệ Thống Quản Trị Nhân Sự & Đào Tạo">
-    <meta property="og:description" content="Hệ thống nội bộ giúp số hóa quy trình Tuyển dụng, Đào tạo và Đánh giá năng lực nhân viên tại Hoàn Mỹ Bình Phước.">
-    
-    <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'images/logo/thumbnail-share.png' %}">
+    <meta property="og:description"
+        content="Hệ thống nội bộ giúp số hóa quy trình Tuyển dụng, Đào tạo và Đánh giá năng lực nhân viên tại Hoàn Mỹ Bình Phước.">
+
+    <meta property="og:image"
+        content="{{ request.scheme }}://{{ request.get_host }}{% static 'images/logo/thumbnail-share.png' %}">
 
     <link rel="icon" type="image/png" href="{% static 'images/logo/logo.png' %}">
     <link rel="apple-touch-icon" href="{% static 'images/logo/logo.png' %}">
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
-    <style>
-        :root {
-            --hm-primary: rgb(0, 144, 161);
-            --hm-primary-dark: rgb(0, 115, 129);
-            --hm-primary-light: rgba(0, 144, 161, 0.1);
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f8f9fc;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-        }
-
-        .bg-hm {
-            background-color: var(--hm-primary) !important;
-        }
-
-        .text-hm {
-            color: var(--hm-primary) !important;
-        }
-
-        .btn-hm {
-            background-color: var(--hm-primary);
-            color: white;
-            border: none;
-            transition: all 0.3s ease;
-        }
-
-        .btn-hm:hover {
-            background-color: var(--hm-primary-dark);
-            color: white;
-            transform: translateY(-1px);
-        }
-
-        .btn-outline-hm {
-            color: var(--hm-primary);
-            border-color: var(--hm-primary);
-        }
-
-        .btn-outline-hm:hover {
-            background-color: var(--hm-primary);
-            color: white;
-        }
-
-        .navbar {
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
-            padding-top: 0.8rem;
-            padding-bottom: 0.8rem;
-        }
-
-        .navbar-brand {
-            font-weight: 700;
-            letter-spacing: 0.5px;
-        }
-
-        .nav-link {
-            font-weight: 500;
-            color: rgba(255, 255, 255, 0.85) !important;
-            transition: all 0.2s;
-            margin: 0 5px;
-            border-radius: 6px;
-        }
-
-        .nav-link:hover,
-        .nav-link.active {
-            color: white !important;
-            background-color: rgba(255, 255, 255, 0.15);
-        }
-
-
-        .footer {
-            background-color: #1e293b;
-            color: #94a3b8;
-            margin-top: auto;
-        }
-
-        .footer-heading {
-            color: white;
-            font-weight: 600;
-            margin-bottom: 1.2rem;
-            font-size: 1.1rem;
-        }
-
-        .footer a {
-            color: #94a3b8;
-            text-decoration: none;
-            transition: color 0.2s;
-        }
-
-        .footer a:hover {
-            color: var(--hm-primary);
-        }
-
-        .footer-bottom {
-            background-color: #0f172a;
-            padding: 1rem 0;
-            font-size: 0.85rem;
-        }
-    </style>
 </head>
+
+<style>
+    :root {
+        --hm-primary: rgb(0, 144, 161);
+        --hm-primary-dark: rgb(0, 115, 129);
+        --hm-primary-light: rgba(0, 144, 161, 0.1);
+    }
+
+    body {
+        font-family: 'Inter', sans-serif;
+        background-color: #f8f9fc;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+
+    .bg-hm {
+        background-color: var(--hm-primary) !important;
+    }
+
+    .text-hm {
+        color: var(--hm-primary) !important;
+    }
+
+    .btn-hm {
+        background-color: var(--hm-primary);
+        color: white;
+        border: none;
+        transition: all 0.3s ease;
+    }
+
+    .btn-hm:hover {
+        background-color: var(--hm-primary-dark);
+        color: white;
+        transform: translateY(-1px);
+    }
+
+    .btn-outline-hm {
+        color: var(--hm-primary);
+        border-color: var(--hm-primary);
+    }
+
+    .btn-outline-hm:hover {
+        background-color: var(--hm-primary);
+        color: white;
+    }
+
+    .navbar {
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+        padding-top: 0.8rem;
+        padding-bottom: 0.8rem;
+    }
+
+    .navbar-brand {
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
+
+    .nav-link {
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.85) !important;
+        transition: all 0.2s;
+        margin: 0 5px;
+        border-radius: 6px;
+    }
+
+    .nav-link:hover,
+    .nav-link.active {
+        color: white !important;
+        background-color: rgba(255, 255, 255, 0.15);
+    }
+
+
+    .footer {
+        background-color: #1e293b;
+        color: #94a3b8;
+        margin-top: auto;
+    }
+
+    .footer-heading {
+        color: white;
+        font-weight: 600;
+        margin-bottom: 1.2rem;
+        font-size: 1.1rem;
+    }
+
+    .footer a {
+        color: #94a3b8;
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+
+    .footer a:hover {
+        color: var(--hm-primary);
+    }
+
+    .footer-bottom {
+        background-color: #0f172a;
+        padding: 1rem 0;
+        font-size: 0.85rem;
+    }
+</style>
+
 
 <body>
 
-<nav class="navbar navbar-expand-lg bg-hm sticky-top shadow-sm">
+    <nav class="navbar navbar-expand-lg bg-hm sticky-top shadow-sm">
         <div class="container-fluid px-4">
             <a class="navbar-brand text-white d-flex align-items-center" href="{% url 'admin_dashboard' %}">
-                
-                <img src="{% static 'images/logo/logo.png' %}" 
-                     alt="Logo Hoàn Mỹ" 
-                     class="me-2" 
-                     style="height: 45px; width: auto; object-fit: contain; filter: brightness(0) invert(1);">
+
+                <img src="{% static 'images/logo/logo.png' %}" alt="Logo Hoàn Mỹ" class="me-2"
+                    style="height: 45px; width: auto; object-fit: contain; filter: brightness(0) invert(1);">
                 <div>
                     <div class="fs-5 lh-1 fw-bold">Hoàn Mỹ</div>
                     <div style="font-size: 0.7rem; font-weight: 400; opacity: 0.8;">HRM & E-Learning System</div>
@@ -156,9 +157,10 @@
                             <i class="bi bi-person-lines-fill me-1"></i> Tuyển dụng
                         </a>
                         {% else %}
-                            <a href="#" class="nav-link text-muted" onclick="alert('Vui lòng không truy cập vào chức năng này'); return false;">
-                                <i class="bi bi-lock-fill me-1"></i>Tuyển dụng
-                            </a>
+                        <a href="#" class="nav-link text-muted"
+                            onclick="alert('Vui lòng không truy cập vào chức năng này'); return false;">
+                            <i class="bi bi-lock-fill me-1"></i>Tuyển dụng
+                        </a>
                         {% endif %}
                     </li>
                     <li class="nav-item">
@@ -167,9 +169,10 @@
                             <i class="bi bi-mortarboard-fill me-1"></i> Đào tạo
                         </a>
                         {% else %}
-                            <a href="#" class="nav-link text-muted" onclick="alert('Vui lòng không truy cập vào chức năng này'); return false;">
-                                <i class="bi bi-lock-fill me-1"></i>Đào tạo
-                            </a>
+                        <a href="#" class="nav-link text-muted"
+                            onclick="alert('Vui lòng không truy cập vào chức năng này'); return false;">
+                            <i class="bi bi-lock-fill me-1"></i>Đào tạo
+                        </a>
                         {% endif %}
                     </li>
                     <li class="nav-item">
@@ -178,9 +181,10 @@
                             <i class="bi bi-journal-check me-1"></i> Đánh giá
                         </a>
                         {% else %}
-                            <a href="#" class="nav-link text-muted" onclick="alert('Vui lòng không truy cập vào chức năng này'); return false;">
-                                <i class="bi bi-lock-fill me-1"></i>Đánh giá
-                            </a>
+                        <a href="#" class="nav-link text-muted"
+                            onclick="alert('Vui lòng không truy cập vào chức năng này'); return false;">
+                            <i class="bi bi-lock-fill me-1"></i>Đánh giá
+                        </a>
                         {% endif %}
                     </li>
                     <li class="nav-item">
@@ -189,9 +193,10 @@
                             <i class="bi bi-people-fill me-1"></i> Quản lý Nhân sự
                         </a>
                         {% else %}
-                            <a href="#" class="nav-link text-muted" onclick="alert('Vui lòng không truy cập vào chức năng này'); return false;">
-                                <i class="bi bi-lock-fill me-1"></i>Quản lý nhân sự
-                            </a>
+                        <a href="#" class="nav-link text-muted"
+                            onclick="alert('Vui lòng không truy cập vào chức năng này'); return false;">
+                            <i class="bi bi-lock-fill me-1"></i>Quản lý nhân sự
+                        </a>
                         {% endif %}
                     </li>
                 </ul>
@@ -235,22 +240,21 @@
     </main>
 
     <footer class="footer pt-5">
-    <div class="container-fluid px-4">
-        <div class="row mb-4">
-            <div class="col-lg-4 mb-4 mb-lg-0">
-                <h5 class="text-white fw-bold mb-3 d-flex align-items-center">
-                    
-                    <img src="{% static 'images/logo/logo.png' %}" 
-                         alt="Logo Hoàn Mỹ Bình Phước" 
-                         class="me-3" 
-                         style="height: 40px; width: auto; object-fit: contain; filter: brightness(0) invert(1);">
-                         
-                    BỆNH VIỆN HOÀN MỸ BÌNH PHƯỚC
-                </h5>
-                <p class="small lh-lg text-white-50"> Hệ thống Quản trị Nhân sự & Đào tạo trực tuyến hiện đại. Giải pháp số hóa toàn diện giúp tối ưu
-                    hóa quy trình tuyển dụng, nâng cao năng lực nhân sự và đánh giá KPI hiệu quả.
-                </p>
-            </div>
+        <div class="container-fluid px-4">
+            <div class="row mb-4">
+                <div class="col-lg-4 mb-4 mb-lg-0">
+                    <h5 class="text-white fw-bold mb-3 d-flex align-items-center">
+
+                        <img src="{% static 'images/logo/logo.png' %}" alt="Logo Hoàn Mỹ Bình Phước" class="me-3"
+                            style="height: 40px; width: auto; object-fit: contain; filter: brightness(0) invert(1);">
+
+                        BỆNH VIỆN HOÀN MỸ BÌNH PHƯỚC
+                    </h5>
+                    <p class="small lh-lg text-white-50"> Hệ thống Quản trị Nhân sự & Đào tạo trực tuyến hiện đại. Giải
+                        pháp số hóa toàn diện giúp tối ưu
+                        hóa quy trình tuyển dụng, nâng cao năng lực nhân sự và đánh giá KPI hiệu quả.
+                    </p>
+                </div>
 
                 <div class="col-lg-2 col-md-4 mb-4 mb-md-0">
                     <div class="footer-heading">Phân hệ</div>

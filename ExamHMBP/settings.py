@@ -122,15 +122,32 @@ USE_TZ = True
 # 5. STATIC & MEDIA FILES
 # ==============================================================================
 
+# ==============================================================================
+# 5. STATIC & MEDIA FILES
+# ==============================================================================
+
+# ==============================================================================
+# 5. STATIC & MEDIA FILES
+# ==============================================================================
+
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [ BASE_DIR / 'static' ]
-# Thư mục gom file tĩnh khi chạy lệnh collectstatic trên Production
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Đảm bảo đường dẫn này chuẩn đét dù có OneDrive hay không
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
+
+# Thư mục gom file tĩnh cho Production
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-
+# Ép Django tìm file tĩnh đúng thứ tự
+STATICFILES_FINDERS = [
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+]
 # ==============================================================================
 # 6. CẤU HÌNH KHÁC (AUTH, CKEDITOR)
 # ==============================================================================
@@ -175,7 +192,7 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = False
     
     SECURE_CONTENT_TYPE_NOSNIFF = True
-    
+    AXES_FAILURE_LIMIT = 10
 AUTHENTICATION_BACKENDS = [
     # 1. Trạm gác ngoài cùng: Bắt buộc dùng AxesBackend (đã sửa) để đếm số lần sai
     'axes.backends.AxesBackend', 
