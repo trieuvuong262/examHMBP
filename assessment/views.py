@@ -14,7 +14,9 @@ from django.contrib.auth.models import User
 from django.http import HttpResponse
 import io
 from assessment.decorators import admin_only
-
+from django.contrib.auth.views import PasswordChangeView
+from django.urls import reverse_lazy
+from django.contrib import messages
 from .models import (
     Exam, 
     Question, 
@@ -663,3 +665,21 @@ def user_download_template(request):
     response = HttpResponse(output.getvalue(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = 'attachment; filename=Mau_Import_Nhan_Vien.xlsx'
     return response
+
+
+
+
+class MyPasswordChangeView(PasswordChangeView):
+    template_name = 'registration/password_change_form.html'
+    success_url = reverse_lazy('password_change_done')
+
+    def form_valid(self, form):
+        # Đây là khúc quan trọng nhất:
+        # Khi người dùng đổi mật khẩu thành công, ta tắt cờ "đăng nhập lần đầu"
+        user = self.request.user
+        if hasattr(user, 'is_first_login'):
+            user.is_first_login = False
+            user.save()
+            
+        messages.success(self.request, "Mật khẩu đã được thay đổi thành công!")
+        return super().form_valid(form)

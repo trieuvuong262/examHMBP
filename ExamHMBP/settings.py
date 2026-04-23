@@ -62,6 +62,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'axes.middleware.AxesMiddleware',
+    'ExamHMBP.middleware.ForcePasswordChangeMiddleware',
 ]
 
 ROOT_URLCONF = 'ExamHMBP.urls'
@@ -117,18 +118,6 @@ TIME_ZONE = 'Asia/Ho_Chi_Minh'
 USE_I18N = True
 USE_TZ = True
 
-
-# ==============================================================================
-# 5. STATIC & MEDIA FILES
-# ==============================================================================
-
-# ==============================================================================
-# 5. STATIC & MEDIA FILES
-# ==============================================================================
-
-# ==============================================================================
-# 5. STATIC & MEDIA FILES
-# ==============================================================================
 
 STATIC_URL = '/static/'
 
@@ -193,6 +182,7 @@ if not DEBUG:
     
     SECURE_CONTENT_TYPE_NOSNIFF = True
     AXES_FAILURE_LIMIT = 10
+    
 AUTHENTICATION_BACKENDS = [
     # 1. Trạm gác ngoài cùng: Bắt buộc dùng AxesBackend (đã sửa) để đếm số lần sai
     'axes.backends.AxesBackend', 

@@ -213,8 +213,19 @@
                             <span>{{ user.first_name|default:user.username }}</span>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2">
-                            <li><a class="dropdown-item py-2 text-danger fw-bold" href="{% url 'login' %}"><i
-                                        class="bi bi-box-arrow-right me-2"></i>Đăng xuất</a></li>
+                            <li>
+                                <a class="dropdown-item py-2" href="{% url 'password_change' %}">
+                                    <i class="bi bi-shield-lock me-2 text-hm"></i>Đổi mật khẩu
+                                </a>
+                            </li>
+                            
+                            <li><hr class="dropdown-divider opacity-50"></li>
+                            
+                            <li>
+                                <a class="dropdown-item py-2 text-danger fw-bold" href="{% url 'logout' %}">
+                                    <i class="bi bi-box-arrow-right me-2"></i>Đăng xuất
+                                </a>
+                            </li>
                         </ul>
                     </li>
                     {% endif %}
