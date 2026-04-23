@@ -2,13 +2,15 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from django.contrib.staticfiles.urls import staticfiles_urlpatterns # Thêm dòng này
+from django.contrib.staticfiles.urls import staticfiles_urlpatterns 
 from django.contrib.auth import views as auth_views
 from assessment.views import MyPasswordChangeView
+from assessment.views import custom_logout
 urlpatterns = [
     path('admin-panel/', admin.site.urls),
-    path('accounts/', include('django.contrib.auth.urls')),
-    path('', include('assessment.urls')),
+    path('accounts/logout/', custom_logout, name='logout'),
+    
+    path('accounts/', include('django.contrib.auth.urls')),    path('', include('assessment.urls')),
     path('training/', include('training.urls')),
     path('hr/', include('recruitment.urls')),
 

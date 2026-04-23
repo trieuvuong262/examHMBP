@@ -214,9 +214,12 @@
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2">
                             <li>
-                                <a class="dropdown-item py-2" href="{% url 'password_change' %}">
-                                    <i class="bi bi-shield-lock me-2 text-hm"></i>Đổi mật khẩu
-                                </a>
+                                <form action="{% url 'logout' %}" method="POST" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="dropdown-item text-danger w-100 text-start">
+                                        <i class="bi bi-box-arrow-right me-2"></i>Đăng xuất
+                                    </button>
+                                </form>
                             </li>
                             
                             <li><hr class="dropdown-divider opacity-50"></li>
