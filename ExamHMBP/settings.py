@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'training',
     'recruitment',
     'reports',
+    'axes',
 ]
 
 MIDDLEWARE = [
@@ -60,6 +61,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'axes.middleware.AxesMiddleware',
 ]
 
 ROOT_URLCONF = 'ExamHMBP.urls'
@@ -169,7 +171,18 @@ if not DEBUG:
     SECURE_SSL_REDIRECT = False 
     
     # Tạm thời tắt hoặc comment dòng HSTS
-    # SECURE_HSTS_SECONDS = 31536000 
+    SECURE_HSTS_SECONDS = 0 
     SECURE_HSTS_INCLUDE_SUBDOMAINS = False
     
     SECURE_CONTENT_TYPE_NOSNIFF = True
+    
+AUTHENTICATION_BACKENDS = [
+    # 1. Trạm gác ngoài cùng: Bắt buộc dùng AxesBackend (đã sửa) để đếm số lần sai
+    'axes.backends.AxesBackend', 
+    
+    # 2. Trạm gác số 2: Bộ Custom mà ní tự viết (Cho phép dùng Email hoặc Username)
+    'assessment.backends.EmailOrUsernameModelBackend', 
+    
+    # 3. Trạm gác cuối cùng: Dự phòng mặc định của Django (Giúp tài khoản Admin/Superuser không bao giờ bị kẹt)
+    'django.contrib.auth.backends.ModelBackend', 
+]
