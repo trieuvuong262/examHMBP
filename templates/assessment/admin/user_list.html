@@ -81,21 +81,21 @@
                         <td class="text-muted">{{ u.email|default:"---" }}</td>
                         <td class="text-muted small">{{ u.date_joined|date:"d/m/Y" }}</td>
                         <td class="text-end pe-4">
-                            <div class="btn-group shadow-sm rounded-3">
-                                <a href="{% url 'user_edit' u.id %}" class="btn btn-sm btn-white border px-3" title="Sửa thông tin">
+                            <div class="d-inline-flex align-items-center gap-1">
+                                <a href="{% url 'user_edit' u.id %}" class="btn btn-sm btn-white border shadow-sm px-3" title="Sửa thông tin">
                                     <i class="bi bi-pencil-square text-warning"></i>
                                 </a>
-                                <form action="{% url 'user_password_reset' u.id %}" method="POST" class="d-inline">
+
+                                <form action="{% url 'user_password_reset' u.id %}" method="POST" class="m-0">
                                     {% csrf_token %}
-                                    <button type="submit" 
-                                            class="btn btn-sm btn-white border px-3 border-start-0" 
-                                            onclick="return confirm('Hệ thống sẽ TỰ ĐỘNG TẠO mật khẩu ngẫu nhiên. Bạn có chắc chắn muốn làm mới mật khẩu cho nhân viên này?')" 
-                                            title="Đặt lại mật khẩu">
+                                    <button type="submit" class="btn btn-sm btn-white border shadow-sm px-3" 
+                                            onclick="return confirm('...')" title="Đặt lại mật khẩu">
                                         <i class="bi bi-key-fill text-primary"></i>
                                     </button>
                                 </form>
-                                <a href="{% url 'user_delete' u.id %}" class="btn btn-sm btn-white border px-3 border-start-0" 
-                                   onclick="return confirm('Bạn có chắc chắn muốn xóa nhân viên này khỏi hệ thống?')" title="Xóa">
+
+                                <a href="{% url 'user_delete' u.id %}" class="btn btn-sm btn-white border shadow-sm px-3" 
+                                onclick="return confirm('...')" title="Xóa">
                                     <i class="bi bi-trash-fill text-danger"></i>
                                 </a>
                             </div>
