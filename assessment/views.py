@@ -135,6 +135,16 @@ def take_exam(request, exam_id):
         exam=exam, 
         defaults={'is_completed': False}
     )
+    if not submission.start_at:
+        submission.start_at = timezone.now()
+        submission.save()
+
+    # Tính toán chính xác thời gian còn lại (bất chấp thí sinh F5)
+    elapsed_seconds = (timezone.now() - submission.start_at).total_seconds()
+    real_time_remaining = int(exam.duration_minutes * 60 - elapsed_seconds)
+    
+    if real_time_remaining <= 0:
+        real_time_remaining = 0 # Ép nộp bài nếu lố giờ
 
     if request.method == 'POST':
         if timezone.now() > exam.end_time:
@@ -199,7 +209,7 @@ def take_exam(request, exam_id):
         'exam': exam,
         'questions': exam.questions.all().prefetch_related('choices'),
         'submission': submission,
-        'time_remaining': exam.duration_minutes * 60 
+        'time_remaining': real_time_remaining 
     }
     return render(request, 'assessment/take_exam.html', context)
 

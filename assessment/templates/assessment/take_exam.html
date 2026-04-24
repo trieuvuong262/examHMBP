@@ -223,11 +223,16 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+    // 1. ĐỒNG HỒ ĐẾM NGƯỢC (Đã chống hack F5)
     let totalSeconds = {{ exam.duration_minutes }} * 60;
-    let timeLeft = totalSeconds;
+    let timeLeft = {{ time_remaining }}; // Lấy thời gian THẬT từ Server gửi ra
+    
     const timerDisplay = document.getElementById('timer');
     const timerProgress = document.getElementById('timerProgress');
     const form = document.getElementById('examForm');
+
+    // Chìa khóa lưu bài nháp riêng cho từng user và từng đề thi
+    const draftKey = `draft_exam_{{ exam.id }}_user_{{ request.user.id }}`;
 
     const countdown = setInterval(() => {
         let mins = Math.floor(timeLeft / 60);
@@ -245,6 +250,7 @@
         if (timeLeft <= 0) {
             clearInterval(countdown);
             window.onbeforeunload = null;
+            localStorage.removeItem(draftKey); // Hết giờ thì xóa nháp, tự động nộp
             Swal.fire({
                 title: 'Hết giờ làm bài!',
                 text: 'Hệ thống đang tự động nộp bài của bạn...',
@@ -256,6 +262,62 @@
         timeLeft--;
     }, 1000);
 
+    // 2. CHỨC NĂNG LƯU BÀI NHÁP (Autosave vào LocalStorage)
+    function saveDraft() {
+        const formData = new FormData(form);
+        const draft = {};
+        for (let [key, value] of formData.entries()) {
+            if (key === 'csrfmiddlewaretoken') continue;
+            
+            // Không lưu được file ảnh vì bảo mật trình duyệt
+            const inputType = form.querySelector(`[name="${key}"]`)?.type;
+            if (inputType === 'file') continue;
+
+            // Xử lý Checkbox chọn nhiều đáp án
+            if (draft[key]) {
+                if (!Array.isArray(draft[key])) draft[key] = [draft[key]];
+                draft[key].push(value);
+            } else {
+                draft[key] = value;
+            }
+        }
+        localStorage.setItem(draftKey, JSON.stringify(draft));
+    }
+
+    // 3. CHỨC NĂNG PHỤC HỒI BÀI NHÁP SAU KHI F5
+    function restoreDraft() {
+        const savedDraft = localStorage.getItem(draftKey);
+        if (savedDraft) {
+            const draft = JSON.parse(savedDraft);
+            for (let key in draft) {
+                const val = draft[key];
+                const inputs = form.querySelectorAll(`[name="${key}"]`);
+                if (!inputs.length) continue;
+
+                if (inputs[0].type === 'radio') {
+                    const radio = form.querySelector(`[name="${key}"][value="${val}"]`);
+                    if (radio) radio.checked = true;
+                } else if (inputs[0].type === 'checkbox') {
+                    const vals = Array.isArray(val) ? val : [val];
+                    vals.forEach(v => {
+                        const cb = form.querySelector(`[name="${key}"][value="${v}"]`);
+                        if (cb) cb.checked = true;
+                    });
+                } else if (inputs[0].tagName === 'TEXTAREA' || inputs[0].type === 'text') {
+                    inputs[0].value = val;
+                }
+            }
+        }
+    }
+
+    // Bắt sự kiện: Cứ gõ phím hoặc tích vào đáp án là Lưu nháp ngay lập tức
+    form.addEventListener('change', saveDraft);
+    form.addEventListener('keyup', saveDraft);
+    
+    // Phục hồi dữ liệu ngay khi trang vừa tải xong
+    document.addEventListener('DOMContentLoaded', restoreDraft);
+
+    // 4. XÁC NHẬN NỘP BÀI THỦ CÔNG
     function confirmSubmit() {
         Swal.fire({
             title: 'Nộp bài thi?',
@@ -269,6 +331,7 @@
         }).then((result) => {
             if (result.isConfirmed) {
                 window.onbeforeunload = null;
+                localStorage.removeItem(draftKey); // Xóa nháp sau khi nộp thành công
                 form.submit();
             }
         });
@@ -278,19 +341,17 @@
         return "Dữ liệu bài làm của bạn có thể không được lưu nếu bạn rời khỏi trang này!";
     };
 </script>
+
 <script>
+    /* Script Zoom ảnh giữ nguyên của ní */
     function zoom(e) {
         const container = e.currentTarget;
         const img = container.querySelector('.magnifier-img');
-        
         const { left, top, width, height } = container.getBoundingClientRect();
-        
         const x = ((e.pageX - left - window.pageXOffset) / width) * 100;
         const y = ((e.pageY - top - window.pageYOffset) / height) * 100;
-        
         img.style.transformOrigin = `${x}% ${y}%`;
     }
-
     function resetZoom(e) {
         const img = e.currentTarget.querySelector('.magnifier-img');
         img.style.transformOrigin = `center center`;
