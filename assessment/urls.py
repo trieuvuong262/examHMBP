@@ -27,4 +27,6 @@ urlpatterns = [
     path('dashboard/users/import/', hrm_views.user_import_excel, name='user_import_excel'),
     path('dashboard/users/export/', hrm_views.user_export_excel, name='user_export_excel'),
     path('dashboard/users/download-template/', hrm_views.user_download_template, name='user_download_template'),
+    
+    path('login-redirect/', views.login_redirect_view, name='login_redirect'),
 ]
