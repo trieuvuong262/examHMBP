@@ -119,8 +119,9 @@
 
                                 <form action="{% url 'user_password_reset' u.id %}" method="POST" class="m-0">
                                     {% csrf_token %}
-                                    <button type="submit" class="btn btn-sm btn-white border shadow-sm px-3" 
-                                            onclick="return confirm('Hệ thống sẽ TỰ ĐỘNG TẠO mật khẩu ngẫu nhiên cho {{ u.username }}.\nBạn có chắc chắn muốn làm mới mật khẩu?')" 
+                                    <button type="button" class="btn btn-sm btn-white border shadow-sm px-3 reset-pwd-btn" 
+                                            data-url="{% url 'user_password_reset' u.id %}" 
+                                            data-username="{{ u.username }}" 
                                             title="Đặt lại mật khẩu">
                                         <i class="bi bi-key-fill text-primary"></i>
                                     </button>
@@ -239,32 +240,86 @@
 </style>
 
 <script>
-    // XỬ LÝ LẤY THÔNG BÁO TỪ BACKEND ĐỂ SHOW LÊN MODAL
-    document.addEventListener("DOMContentLoaded", function() {
-        var alertBoxes = document.querySelectorAll('.alert');
-        alertBoxes.forEach(function(box) {
-            var text = box.innerText;
-            if(text.includes('Tài khoản:') && text.includes('Mật khẩu mới là:')) {
-                try {
-                    // Regex bóc tách đúng vị trí
-                    var userMatch = text.match(/Tài khoản:\s*(.*?)\s*\|/);
-                    var passMatch = text.match(/Mật khẩu mới là:\s*(.*)/);
-                    var nameMatch = text.match(/(?:cho|công)\s*(.*?)\.\s*Tài khoản/); 
-                    
-                    if(userMatch && passMatch) {
-                        var finalName = nameMatch ? nameMatch[1].trim() : 'Nhân viên';
-                        document.getElementById('modalDisplayName').innerText = finalName;
-                        document.getElementById('modalUsernameText').innerText = userMatch[1].trim();
-                        document.getElementById('modalPasswordText').innerText = passMatch[1].trim();
-                        
-                        box.style.display = 'none'; // Ẩn thông báo gốc
-                        var pwdModal = new bootstrap.Modal(document.getElementById('passwordResultModal'));
-                        pwdModal.show();
-                    }
-                } catch (e) { console.error("Lỗi Regex JS: ", e); }
+// BẮT SỰ KIỆN CLICK VÀO NÚT RESET PASS
+document.querySelectorAll('.reset-pwd-btn').forEach(btn => {
+    btn.addEventListener('click', async function() {
+        const url = this.getAttribute('data-url');
+        const username = this.getAttribute('data-username');
+
+        // Hỏi xác nhận
+        if(!confirm(`Hệ thống sẽ TỰ ĐỘNG TẠO mật khẩu ngẫu nhiên cho ${username}.\nBạn có chắc chắn muốn làm mới mật khẩu?`)) return;
+
+        // Lấy CSRF token có sẵn trên trang
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        // Đổi nút thành icon xoay xoay cho chuyên nghiệp
+        const originalHtml = this.innerHTML;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm text-primary"></span>';
+        this.disabled = true;
+
+        try {
+            // Gửi lệnh ngầm xuống Backend
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                // 1. ÉP BẮT BUỘC COPY NGAY TRONG LUỒNG CLICK NÀY
+                const textToCopy = `Tài khoản: ${data.username}\r\nMật khẩu: ${data.password}`;
+                autoCopySync(textToCopy);
+
+                // 2. CHÈN DATA VÀO MODAL
+                document.getElementById('modalDisplayName').innerText = data.full_name || 'Nhân viên';
+                document.getElementById('modalUsernameText').innerText = data.username;
+                document.getElementById('modalPasswordText').innerText = data.password;
+
+                // 3. ĐỔI GIAO DIỆN NÚT TRONG MODAL THÀNH "ĐÃ TỰ ĐỘNG COPY"
+                const modalBtn = document.querySelector('#passwordResultModal .btn-hm');
+                if (modalBtn) {
+                    modalBtn.innerHTML = '<i class="bi bi-check-all me-2"></i>HỆ THỐNG ĐÃ TỰ ĐỘNG COPY';
+                    modalBtn.classList.replace('btn-hm', 'btn-success');
+                }
+
+                // 4. MỞ MODAL LÊN ĐỂ SHOW HÀNG
+                const pwdModal = new bootstrap.Modal(document.getElementById('passwordResultModal'));
+                pwdModal.show();
+            } else {
+                alert("Lỗi khi reset mật khẩu!");
             }
-        });
+        } catch (err) {
+            alert("Lỗi kết nối máy chủ! Vui lòng thử lại.");
+        }
+
+        // Trả lại nút như cũ
+        this.innerHTML = originalHtml;
+        this.disabled = false;
     });
+});
+
+// Hàm Copy câm nín (Chạy chìm không cần hỏi)
+function autoCopySync(text) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.left = "-9999px";
+    textArea.style.top = "0";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    textArea.setSelectionRange(0, 99999);
+    try {
+        document.execCommand('copy');
+    } catch (e) {
+        console.error("Auto copy failed");
+    }
+    document.body.removeChild(textArea);
+}
 
     // ----------------------------------------------------
     // HỆ THỐNG COPY BẤT TỬ (HỖ TRỢ HTTP / HTTPS / LOCALHOST)

@@ -14,7 +14,9 @@ from assessment.forms import UserForm # Tạm thời Form vẫn để ở nhà c
 from hrm.models import Profile
 from ExamHMBP.utils import generate_hm_username, generate_secure_password # File dùng chung hôm trước
 from .forms import CustomUserForm
-
+from django.http import JsonResponse
+import random
+import string
 # ==========================================
 # 1. QUẢN LÝ DANH SÁCH NHÂN VIÊN
 # ==========================================
@@ -196,24 +198,31 @@ def user_download_template(request):
     response['Content-Disposition'] = 'attachment; filename=Mau_Import_Nhan_Vien.xlsx'
     return response
 
-@admin_only
+@admin_only # Giữ nguyên các khai báo quyền của ní
 def user_password_reset(request, user_id):
     if request.method == 'POST':
-        user = get_object_or_404(User, id=user_id)
-        new_password = generate_secure_password()
+        user = User.objects.get(id=user_id)
+        
+        # Tạo mật khẩu ngẫu nhiên mới (Nếu code cũ của ní khác thì thay vào đây)
+        characters = string.ascii_letters + string.digits
+        new_password = ''.join(random.choice(characters) for i in range(8))
         
         user.set_password(new_password)
         user.save()
         
-        try:
-            display_name = user.profile.full_name if hasattr(user, 'profile') and user.profile.full_name else user.username
-        except:
-            display_name = user.username
-        
-        # DÒNG NÀY LÀ QUAN TRỌNG NHẤT: Bắt buộc phải viết đúng format này
-        messages.success(request, f"Đã đặt lại mật khẩu cho {display_name}. Tài khoản: {user.username} | Mật khẩu mới là: {new_password}")
-        
-    return redirect('user_list')
+        # Lấy tên hiển thị
+        full_name = user.first_name
+        if hasattr(user, 'profile') and user.profile.full_name:
+            full_name = user.profile.full_name
+            
+        # QUAN TRỌNG: Trả về JSON để Frontend tự động Copy
+        return JsonResponse({
+            'status': 'success',
+            'username': user.username,
+            'password': new_password,
+            'full_name': full_name
+        })
+    return JsonResponse({'status': 'error'})
 
 class MyPasswordChangeView(PasswordChangeView):
     template_name = 'registration/password_change_form.html'
