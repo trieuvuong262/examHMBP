@@ -13,6 +13,7 @@ from assessment.decorators import admin_only
 from assessment.forms import UserForm # Tạm thời Form vẫn để ở nhà cũ, mốt mình dời sau
 from hrm.models import Profile
 from ExamHMBP.utils import generate_hm_username, generate_secure_password # File dùng chung hôm trước
+from .forms import CustomUserForm
 
 # ==========================================
 # 1. QUẢN LÝ DANH SÁCH NHÂN VIÊN
@@ -23,52 +24,43 @@ def user_list(request):
     # Tạm thời vẫn dùng template cũ ở assessment để khỏi phải copy file HTML lằng nhằng
     return render(request, 'assessment/admin/user_list.html', {'users': users})
 
+
 @admin_only
 def user_add(request):
     if request.method == 'POST':
-        # 1. Bắt buộc lấy đủ 5 trường từ form
-        username = request.POST.get('username', '').strip()
-        email = request.POST.get('email', '').strip()
-        full_name = request.POST.get('full_name', '').strip()
-        position = request.POST.get('position', '').strip()
-        password = request.POST.get('password', '').strip()
+        form = CustomUserForm(request.POST)
+        if form.is_valid():
+            u = form.cleaned_data['username']
+            p = form.cleaned_data['password']
+            e = form.cleaned_data['email']
+            f = form.cleaned_data['full_name']
+            pos = form.cleaned_data['position']
 
-        # 2. Kiểm tra nhập thiếu
-        if not all([username, email, full_name, position, password]):
-            messages.error(request, "Vui lòng nhập đầy đủ 5 trường thông tin bắt buộc.")
-            return render(request, 'assessment/admin/user_form.html')
-
-        # 3. Kiểm tra trùng Username
-        if User.objects.filter(username=username).exists():
-            messages.error(request, f"Lỗi: Tên đăng nhập '{username}' đã có người sử dụng!")
-            return render(request, 'assessment/admin/user_form.html')
-
-        try:
-            # 4. Tạo tài khoản đúng ý Admin (không random)
-            user = User.objects.create_user(
-                username=username,
-                email=email,
-                password=password,
-                first_name=full_name,
-                is_staff=False
-            )
-            
-            # 5. Lưu Profile chức danh
-            from hrm.models import Profile
-            Profile.objects.update_or_create(
-                user=user,
-                defaults={'full_name': full_name, 'position': position}
-            )
-            
-            # 6. Gửi thông báo (Dùng đúng format này để Modal tự động bật lên)
-            messages.success(request, f"Thêm thành công {full_name}. Tài khoản: {username} | Mật khẩu mới là: {password}")
-            return redirect('user_list')
-            
-        except Exception as e:
-            messages.error(request, f"Lỗi hệ thống: {str(e)}")
-            
-    return render(request, 'assessment/admin/user_form.html', {'title': 'Thêm nhân viên mới'})
-
+            if User.objects.filter(username=u).exists():
+                messages.error(request, f"Tên đăng nhập '{u}' đã tồn tại!")
+            else:
+                # Tạo User mới
+                user = User.objects.create_user(
+                    username=u, 
+                    email=e, 
+                    password=p, 
+                    first_name=f
+                )
+                # Tạo hoặc cập nhật Profile đi kèm
+                Profile.objects.update_or_create(
+                    user=user, 
+                    defaults={'full_name': f, 'position': pos}
+                )
+                # Thông báo thành công (Dùng format này để script copy ở trang list bắt được)
+                messages.success(request, f"Thành công: Đã thêm {f}. Tài khoản: {u} | Mật khẩu mới là: {p}")
+                return redirect('user_list')
+    else:
+        form = CustomUserForm()
+    
+    return render(request, 'assessment/admin/user_form.html', {
+        'form': form, 
+        'title': 'Thêm nhân viên mới'
+    })
 @admin_only
 def user_edit(request, user_id):
     user = get_object_or_404(User, id=user_id)

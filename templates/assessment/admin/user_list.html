@@ -266,28 +266,51 @@
         });
     });
 
-    // HÀM COPY ÉP CHUẨN XUỐNG DÒNG
-    function copyAccountInfo(btn) {
-        var user = document.getElementById('modalUsernameText').innerText.trim();
-        var pass = document.getElementById('modalPasswordText').innerText.trim();
-        
-        var textToCopy = "Tài Khoản: " + user + "\nMật khẩu: " + pass;
-        
-        var tempInput = document.createElement("textarea");
-        tempInput.value = textToCopy;
-        document.body.appendChild(tempInput);
-        tempInput.select();
-        document.execCommand("copy");
-        document.body.removeChild(tempInput);
-        
-        var originalHTML = btn.innerHTML;
-        btn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>ĐÃ COPY THÀNH CÔNG!';
-        btn.classList.replace('btn-hm', 'btn-success');
-        setTimeout(() => {
-            btn.innerHTML = originalHTML;
-            btn.classList.replace('btn-success', 'btn-hm');
-        }, 2000);
+function copyAccountInfo(btn) {
+    // 1. Lấy dữ liệu từ Modal
+    const user = document.getElementById('modalUsernameText').innerText.trim();
+    const pass = document.getElementById('modalPasswordText').innerText.trim();
+    
+    // 2. Tạo nội dung với xuống dòng thật sự
+    const textToCopy = `Tài khoản: ${user}
+Mật khẩu: ${pass}`;
+
+    // 3. Sử dụng Clipboard API hiện đại
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            showSuccessEffect(btn);
+        });
+    } else {
+        // Cách dự phòng cho trình duyệt cũ hoặc môi trường không secure
+        const textArea = document.createElement("textarea");
+        textArea.value = textToCopy;
+        textArea.style.position = "fixed"; 
+        textArea.style.left = "-9999px";
+        textArea.style.top = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            showSuccessEffect(btn);
+        } catch (err) {
+            console.error('Không thể copy', err);
+        }
+        document.body.removeChild(textArea);
     }
+}
+
+// Hàm tạo hiệu ứng đổi màu nút khi bấm thành công
+function showSuccessEffect(btn) {
+    const originalHTML = btn.innerHTML;
+    btn.innerHTML = '<i class="bi bi-check-all me-2"></i>ĐÃ COPY XUỐNG DÒNG';
+    btn.classList.replace('btn-hm', 'btn-success');
+    
+    setTimeout(() => {
+        btn.innerHTML = originalHTML;
+        btn.classList.replace('btn-success', 'btn-hm');
+    }, 2000);
+}
     function fallbackCopy(text, btn) {
         var textArea = document.createElement("textarea");
         textArea.value = text;
