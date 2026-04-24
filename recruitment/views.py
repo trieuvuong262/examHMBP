@@ -22,7 +22,7 @@ from hrm.models import Profile
 @admin_only
 def kanban_board(request):
     candidates = Candidate.objects.select_related('job_posting').filter(job_posting__is_active=True)
-    
+    not_onboarded_candidates = candidates.filter(status='not_onboarded')
     job_id_str = request.GET.get('job_id')
     selected_job_id = None
     
@@ -33,7 +33,7 @@ def kanban_board(request):
     context = {
         'jobs': JobPosting.objects.filter(is_active=True),
         'selected_job': selected_job_id,
-        
+        'not_onboarded_candidates': not_onboarded_candidates,
         'new_candidates': candidates.filter(status='new'),
         'reviewing_candidates': candidates.filter(status='reviewing'),
         'interviewing_candidates': candidates.filter(status='interviewing'),

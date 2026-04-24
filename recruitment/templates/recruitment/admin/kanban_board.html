@@ -13,7 +13,7 @@
 
     .kanban-wrapper {
         padding: 2rem 1rem;
-        max-width: 1600px;
+        max-width: 1800px; /* Tăng độ rộng ra một chút để chứa 6 cột */
         margin: 0 auto;
     }
 
@@ -21,7 +21,7 @@
         min-height: 80vh; 
         overflow-x: auto; 
         display: flex;
-        justify-content: center;
+        justify-content: flex-start; /* Sửa từ center thành flex-start để cuộn mượt hơn */
         gap: 1.25rem;
         padding-bottom: 2rem;
         align-items: flex-start;
@@ -87,10 +87,12 @@
         font-size: 0.75rem;
     }
 
+    /* BẢNG MÀU CÁC CỘT KANBAN */
     .bg-new { background-color: #0d6efd; }
     .bg-reviewing { background-color: #ffc107; color: #423100 !important; }
     .bg-interviewing { background-color: #0dcaf0; }
     .bg-offered { background-color: #198754; }
+    .bg-not-onboarded { background-color: #fd7e14; } /* Màu Cam cho ông nào Boom job */
     .bg-rejected { background-color: #64748b; }
 
     .sortable-ghost { 
@@ -108,23 +110,26 @@
             <h3 class="fw-bold text-dark mb-1"><i class="bi bi-kanban text-hm me-2"></i>Bảng theo dõi Ứng viên</h3>
             <p class="text-muted mb-0 small">Kéo thả thẻ ứng viên để cập nhật trạng thái tuyển dụng.</p>
         </div>
-        <div class="d-flex gap-2">
-            <button class="btn btn-hm shadow-sm fw-bold px-4 rounded-3" data-bs-toggle="modal" data-bs-target="#addCandidateModal">
-                <i class="bi bi-person-plus-fill me-1"></i> Thêm Ứng viên
+        <div class="d-flex gap-2 align-items-center">
+            
+            <button class="btn btn-hm shadow-sm fw-bold px-4 rounded-3 d-flex align-items-center" data-bs-toggle="modal" data-bs-target="#addCandidateModal" style="height: 42px;">
+                <i class="bi bi-person-plus-fill me-2"></i> Thêm Ứng viên
             </button>
 
-            <form method="GET" class="d-flex align-items-center bg-white shadow-sm rounded-3 px-2 border">
+            <form method="GET" class="d-flex align-items-center bg-white shadow-sm rounded-3 px-2 border mb-0" style="height: 42px;">
                 <i class="bi bi-funnel text-muted me-2 ms-1"></i>
-                <select name="job_id" class="form-select border-0 shadow-none bg-transparent py-2" onchange="this.form.submit()" style="min-width: 250px;">
+                <select name="job_id" class="form-select border-0 shadow-none bg-transparent py-0 h-100 w-100" onchange="this.form.submit()" style="min-width: 250px; cursor: pointer;">
                     <option value="">-- Tất cả vị trí đang mở --</option>
                     {% for job in jobs %}
                         <option value="{{ job.id }}" {% if selected_job == job.id %}selected{% endif %}>{{ job.title }}</option>
                     {% endfor %}
                 </select>
             </form>
-            <a href="{% url 'admin_dashboard' %}" class="btn btn-white border shadow-sm px-3 rounded-3">
-                <i class="bi bi-arrow-left"></i>
+
+            <a href="{% url 'admin_dashboard' %}" class="btn btn-white border shadow-sm px-3 rounded-3 d-flex align-items-center justify-content-center" style="height: 42px; width: 42px;" title="Quay lại">
+                <i class="bi bi-arrow-left fs-5 text-dark"></i>
             </a>
+            
         </div>
     </div>
 
@@ -132,8 +137,7 @@
         <div class="col-kanban">
             <div class="card column-card">
                 <div class="column-header bg-new">
-                    MỚI NỘP 
-                    <span class="badge-count">{{ new_candidates.count }}</span>
+                    MỚI NỘP <span class="badge-count">{{ new_candidates.count }}</span>
                 </div>
                 <div class="card-body kanban-column" data-status="new">
                     {% for cand in new_candidates %}
@@ -160,8 +164,7 @@
         <div class="col-kanban">
             <div class="card column-card">
                 <div class="column-header bg-reviewing">
-                    XEM XÉT 
-                    <span class="badge-count">{{ reviewing_candidates.count }}</span>
+                    XEM XÉT <span class="badge-count">{{ reviewing_candidates.count }}</span>
                 </div>
                 <div class="card-body kanban-column" data-status="reviewing">
                     {% for cand in reviewing_candidates %}
@@ -188,8 +191,7 @@
         <div class="col-kanban">
             <div class="card column-card">
                 <div class="column-header bg-interviewing">
-                    PHỎNG VẤN 
-                    <span class="badge-count">{{ interviewing_candidates.count }}</span>
+                    PHỎNG VẤN <span class="badge-count">{{ interviewing_candidates.count }}</span>
                 </div>
                 <div class="card-body kanban-column" data-status="interviewing">
                     {% for cand in interviewing_candidates %}
@@ -216,8 +218,7 @@
         <div class="col-kanban">
             <div class="card column-card">
                 <div class="column-header bg-offered">
-                    TRÚNG TUYỂN 
-                    <span class="badge-count">{{ offered_candidates.count }}</span>
+                    TRÚNG TUYỂN <span class="badge-count">{{ offered_candidates.count }}</span>
                 </div>
                 <div class="card-body kanban-column" data-status="offered">
                     {% for cand in offered_candidates %}
@@ -237,9 +238,26 @@
 
         <div class="col-kanban">
             <div class="card column-card">
+                <div class="column-header bg-not-onboarded">
+                    KHÔNG ONBOARD <span class="badge-count">{{ not_onboarded_candidates.count }}</span>
+                </div>
+                <div class="card-body kanban-column" data-status="not_onboarded">
+                    {% for cand in not_onboarded_candidates %}
+                        <div class="card kanban-card shadow-sm opacity-75" data-id="{{ cand.id }}">
+                            <div class="card-body p-3">
+                                <h6 class="fw-bold text-muted mb-1 text-decoration-line-through">{{ cand.full_name }}</h6>
+                                <p class="x-small text-muted mb-0">{{ cand.job_posting.title }}</p>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-kanban">
+            <div class="card column-card">
                 <div class="column-header bg-rejected">
-                    TỪ CHỐI 
-                    <span class="badge-count">{{ rejected_candidates.count }}</span>
+                    TỪ CHỐI <span class="badge-count">{{ rejected_candidates.count }}</span>
                 </div>
                 <div class="card-body kanban-column" data-status="rejected">
                     {% for cand in rejected_candidates %}
@@ -253,6 +271,7 @@
                 </div>
             </div>
         </div>
+
     </div>
 </div>
 
@@ -380,37 +399,42 @@
                             const badgeEl = cardEl.querySelector('.badge-soft');
                             const convertBtn = cardEl.querySelector('.convert-user-btn');
 
-                            cardEl.classList.remove('opacity-50', 'bg-light', 'bg-white');
+                            // Xóa các class định dạng thẻ cũ
+                            cardEl.classList.remove('opacity-50', 'opacity-75', 'bg-light', 'bg-white');
                             if (nameEl) nameEl.classList.remove('text-decoration-line-through', 'text-muted', 'text-dark');
                             
                             if (badgeEl) {
                                 badgeEl.classList.remove('bg-primary-soft', 'bg-warning-soft', 'bg-info-soft', 'bg-success-soft', 'bg-danger-soft');
                                 
-                                if (newStatus === 'new' || newStatus === 'applied') {
+                                if (newStatus === 'new') {
                                     badgeEl.classList.add('bg-primary-soft');
                                     badgeEl.innerText = 'Mới nộp';
                                 } else if (newStatus === 'reviewing') {
                                     badgeEl.classList.add('bg-warning-soft');
                                     badgeEl.innerText = 'Đang xem xét';
-                                } else if (newStatus === 'interviewing' || newStatus === 'interview') {
+                                } else if (newStatus === 'interviewing') {
                                     badgeEl.classList.add('bg-info-soft');
                                     badgeEl.innerText = 'Phỏng vấn';
                                 } else if (newStatus === 'offered' || newStatus === 'hired') {
                                     badgeEl.classList.add('bg-success-soft');
                                     badgeEl.innerText = 'Trúng tuyển';
+                                } else if (newStatus === 'not_onboarded') {
+                                    badgeEl.classList.add('bg-warning-soft');
+                                    badgeEl.innerText = 'Không Onboard';
                                 } else if (newStatus === 'rejected') {
                                     badgeEl.classList.add('bg-danger-soft');
                                     badgeEl.innerText = 'Đã loại';
                                 }
                             }
 
-                            if (newStatus === 'rejected') {
-                                cardEl.classList.add('opacity-50', 'bg-light');
+                            // Nếu thẻ bị rơi vào ô Không Onboard hoặc Từ Chối (Mờ đi, gạch ngang tên, xóa nút Tạo User)
+                            if (newStatus === 'rejected' || newStatus === 'not_onboarded') {
+                                cardEl.classList.add('opacity-75', 'bg-light');
                                 if (nameEl) nameEl.classList.add('text-decoration-line-through', 'text-muted');
-                                
                                 if (convertBtn) convertBtn.classList.add('d-none');
                                 
                             } else {
+                                // Khôi phục lại trạng thái sáng, hiển thị lại các nút
                                 cardEl.classList.add('bg-white');
                                 if (nameEl) nameEl.classList.add('text-dark');
                                 
@@ -427,21 +451,21 @@
                 }
             });
         });
+
         function updateBadgeCount(columnElement) {
             const count = columnElement.querySelectorAll('.kanban-card').length;
             const badge = columnElement.closest('.column-card').querySelector('.badge-count');
             if (badge) badge.textContent = count;
         }
+
         document.querySelectorAll('.convert-user-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 const candId = this.getAttribute('data-id');
                 const card = this.closest('.kanban-card');
                 const column = card.closest('.kanban-column');
                 
-                // 1. Cảnh báo rõ ràng cho HR biết hệ thống sẽ tự sinh pass
                 if(!confirm(`Hệ thống sẽ TỰ ĐỘNG tạo Tài khoản và Mật khẩu ngẫu nhiên cho ứng viên này.\nBạn có chắc chắn muốn tiếp tục?`)) return;
                 
-                // 2. Hiệu ứng loading
                 this.disabled = true;
                 this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Đang xử lý...';
 
@@ -455,16 +479,12 @@
                 .then(res => res.json())
                 .then(data => {
                     if(data.status === 'success') {
-                        // Xóa thẻ khỏi cột và cập nhật số lượng
                         card.remove();
                         updateBadgeCount(column);
                         
-                        // 3. Chuẩn bị nội dung để copy
                         const textToCopy = `Tài khoản: ${data.username}\nMật khẩu: ${data.password}`;
                         
-                        // 4. Lệnh tự động Copy vào Clipboard
                         navigator.clipboard.writeText(textToCopy).then(() => {
-                            // Báo thành công và báo đã copy
                             alert(`🎉 TẠO TÀI KHOẢN THÀNH CÔNG!\n\n` +
                                   `Hệ thống đã TỰ ĐỘNG COPY thông tin đăng nhập.\n` +
                                   `Bạn chỉ cần ấn Ctrl+V (hoặc Paste) để gửi ngay cho nhân sự mới:\n` +
@@ -473,7 +493,6 @@
                                   `Mật khẩu  : ${data.password}\n` +
                                   `----------------------------------------\n`);
                         }).catch(err => {
-                            // Phòng trường hợp trình duyệt cũ chặn quyền copy
                             alert(`TẠO TÀI KHOẢN THÀNH CÔNG!\n\n` +
                                   `Vui lòng copy thông tin dưới đây để gửi cho nhân sự mới:\n` +
                                   `----------------------------------------\n` +
@@ -484,13 +503,11 @@
                         
                     } else {
                         alert("Lỗi: " + data.message);
-                        // Trả lại nút ban đầu nếu lỗi
                         this.disabled = false;
                         this.innerHTML = '<i class="bi bi-person-check-fill me-1"></i> Tạo User';
                     }
                 })
                 .catch(err => {
-                    // Bắt lỗi nếu mất mạng hoặc sập server
                     alert("Lỗi kết nối đến máy chủ! Vui lòng thử lại.");
                     this.disabled = false;
                     this.innerHTML = '<i class="bi bi-person-check-fill me-1"></i> Tạo User';

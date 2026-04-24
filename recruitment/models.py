@@ -40,6 +40,7 @@ class Candidate(models.Model):
         ('interviewing', 'Đang phỏng vấn'),
         ('offered', 'Trúng tuyển (Chờ nhận việc)'),
         ('hired', 'Đã nhận việc (Onboard)'),
+        ('not_onboarded', 'Không Onboard'), 
         ('rejected', 'Từ chối'),
     ]
 
