@@ -266,67 +266,60 @@
         });
     });
 
-function copyAccountInfo(btn) {
-    // 1. Lấy dữ liệu từ Modal
+async function copyAccountInfo(btn) {
     const user = document.getElementById('modalUsernameText').innerText.trim();
     const pass = document.getElementById('modalPasswordText').innerText.trim();
-    
-    // 2. Định dạng chuỗi (Sử dụng \r\n để ép xuống dòng trên Windows/Zalo)
-    const textToCopy = "Tài khoản: " + user + "\r\n" + "Mật khẩu: " + pass;
+    const textToCopy = `Tài khoản: ${user}\nMật khẩu: ${pass}`;
 
-    // 3. Tạo thẻ textarea ẩn (Dùng textarea mới giữ được định dạng xuống dòng)
-    const textArea = document.createElement("textarea");
-    textArea.value = textToCopy;
-
-    // Ép style để nó không hiển thị và không làm nhảy trang
-    textArea.style.position = "fixed";
-    textArea.style.left = "-9999px";
-    textArea.style.top = "0";
-    textArea.style.width = "2em";
-    textArea.style.height = "2em";
-    textArea.style.padding = "0";
-    textArea.style.border = "none";
-    textArea.style.outline = "none";
-    textArea.style.boxShadow = "none";
-    textArea.style.background = "transparent";
-
-    document.body.appendChild(textArea);
-
-    // 4. Thủ thuật quan trọng: Focus và Chọn toàn bộ nội dung
-    textArea.focus();
-    textArea.select();
-    textArea.setSelectionRange(0, 99999); // Hỗ trợ cả mobile
-
-    try {
-        // Lệnh này hoạt động được trên cả HTTP (Production không SSL)
-        const successful = document.execCommand('copy');
-        if (successful) {
-            // Hiệu ứng thông báo cho người dùng
-            const originalHTML = btn.innerHTML;
-            btn.innerHTML = '<i class="bi bi-check-all me-2"></i>ĐÃ SAO CHÉP XUỐNG DÒNG';
-            btn.classList.replace('btn-hm', 'btn-success');
-            
-            setTimeout(() => {
-                btn.innerHTML = originalHTML;
-                btn.classList.replace('btn-success', 'btn-hm');
-            }, 2000);
-        } else {
-            console.error("Lệnh copy không thành công");
-            alert("Lỗi: Trình duyệt chặn quyền truy cập Clipboard.");
+    // 1. Thử dùng Clipboard API (Ưu tiên cho Localhost/HTTPS)
+    if (navigator.clipboard && window.isSecureContext) {
+        try {
+            await navigator.clipboard.writeText(textToCopy);
+            showSuccessEffect(btn);
+            return;
+        } catch (err) {
+            console.error("Clipboard API failed, falling back...");
         }
-    } catch (err) {
-        console.error("Lỗi thực thi copy: ", err);
     }
 
-    // 5. Dọn dẹp
+    // 2. Chiêu dự phòng "Tà Đạo" cho môi trường HTTP Production (IP trần)
+    // Tạo một thẻ pre để giữ nguyên định dạng xuống dòng \n
+    const textArea = document.createElement("textarea");
+    textArea.value = textToCopy;
+    
+    // Ép style tàng hình
+    Object.assign(textArea.style, {
+        position: "fixed",
+        left: "-9999px",
+        top: "0",
+        opacity: "0"
+    });
+
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+
+    try {
+        // Ép lệnh copy của trình duyệt
+        const successful = document.execCommand('copy');
+        if (successful) {
+            showSuccessEffect(btn);
+        } else {
+            throw new Error('Copy command was unsuccessful');
+        }
+    } catch (err) {
+        // Cách cuối cùng: Hiển thị prompt để user tự copy nếu mọi thứ đều thất bại
+        window.prompt("Trình duyệt chặn copy tự động. Ní hãy nhấn Ctrl+C để copy nha:", textToCopy);
+    }
+
     document.body.removeChild(textArea);
 }
-// Hàm tạo hiệu ứng đổi màu nút khi bấm thành công
+
+// Hàm tạo hiệu ứng xanh cho nút
 function showSuccessEffect(btn) {
     const originalHTML = btn.innerHTML;
-    btn.innerHTML = '<i class="bi bi-check-all me-2"></i>ĐÃ COPY';
+    btn.innerHTML = '<i class="bi bi-check-all me-2"></i>ĐÃ SAO CHÉP!';
     btn.classList.replace('btn-hm', 'btn-success');
-    
     setTimeout(() => {
         btn.innerHTML = originalHTML;
         btn.classList.replace('btn-success', 'btn-hm');
