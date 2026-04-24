@@ -247,7 +247,7 @@ document.querySelectorAll('.reset-pwd-btn').forEach(btn => {
         const username = this.getAttribute('data-username');
 
         // Hỏi xác nhận
-        if(!confirm(`Hệ thống sẽ TỰ ĐỘNG TẠO mật khẩu ngẫu nhiên cho ${username}.\nBạn có chắc chắn muốn làm mới mật khẩu?`)) return;
+        if(!confirm(`Bạn có chắc chắn muốn làm mới mật khẩu cho ${username}.?`)) return;
 
         // Lấy CSRF token có sẵn trên trang
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
@@ -282,7 +282,7 @@ document.querySelectorAll('.reset-pwd-btn').forEach(btn => {
                 // 3. ĐỔI GIAO DIỆN NÚT TRONG MODAL THÀNH "ĐÃ TỰ ĐỘNG COPY"
                 const modalBtn = document.querySelector('#passwordResultModal .btn-hm');
                 if (modalBtn) {
-                    modalBtn.innerHTML = '<i class="bi bi-check-all me-2"></i>HỆ THỐNG ĐÃ TỰ ĐỘNG COPY';
+                    modalBtn.innerHTML = '<i class="bi bi-check-all me-2"></i>COPY';
                     modalBtn.classList.replace('btn-hm', 'btn-success');
                 }
 

@@ -31,14 +31,16 @@
                                 <i class="bi bi-shield-lock-fill me-2"></i>Tài khoản hệ thống
                             </h6>
                             <div class="row g-4">
-                                <div class="col-md-6">
+                                
+                                <div class="{% if is_edit %}col-md-12{% else %}col-md-6{% endif %}">
                                     <label class="form-label fw-bold small text-secondary">Tên đăng nhập (Username) <span class="text-danger">*</span></label>
                                     <div class="input-group custom-input-group">
                                         <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-person"></i></span>
                                         {{ form.username }}
                                     </div>
                                 </div>
-                                
+
+                                {% if not is_edit %}
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold small text-secondary">Mật khẩu <span class="text-danger">*</span></label>
                                     <div class="input-group custom-input-group">
@@ -46,6 +48,7 @@
                                         {{ form.password }}
                                     </div>
                                 </div>
+                                {% endif %}
 
                                 <div class="col-md-12">
                                     <label class="form-label fw-bold small text-secondary">Địa chỉ Email <span class="text-danger">*</span></label>

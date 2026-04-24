@@ -66,15 +66,45 @@ def user_add(request):
 @admin_only
 def user_edit(request, user_id):
     user = get_object_or_404(User, id=user_id)
+    # Lấy profile, nếu lỡ nhân viên này chưa có profile thì tự động tạo rỗng để tránh lỗi
+    profile, created = Profile.objects.get_or_create(user=user)
+
     if request.method == 'POST':
-        form = UserForm(request.POST, instance=user)
+        form = CustomUserForm(request.POST)
+        
+        # TUYỆT CHIÊU: Đang sửa nên không bắt buộc nhập mật khẩu nữa
+        form.fields['password'].required = False 
+
         if form.is_valid():
-            form.save()
+            # 1. Cập nhật bảng User
+            user.username = form.cleaned_data['username']
+            user.email = form.cleaned_data['email']
+            user.first_name = form.cleaned_data['full_name']
+            user.save()
+
+            # 2. Cập nhật bảng Profile
+            profile.full_name = form.cleaned_data['full_name']
+            profile.position = form.cleaned_data['position']
+            profile.save()
+
             messages.success(request, "Cập nhật thông tin nhân viên thành công!")
             return redirect('user_list')
     else:
-        form = UserForm(instance=user)
-    return render(request, 'assessment/admin/user_form.html', {'form': form, 'title': 'Sửa thông tin nhân viên'})
+        # Đổ dữ liệu cũ của nhân viên vào Form để hiển thị lên web
+        initial_data = {
+            'username': user.username,
+            'email': user.email,
+            'full_name': profile.full_name,
+            'position': profile.position,
+        }
+        form = CustomUserForm(initial=initial_data)
+        form.fields['password'].required = False
+
+    return render(request, 'assessment/admin/user_form.html', {
+        'form': form, 
+        'title': 'Sửa thông tin nhân viên',
+        'is_edit': True # Truyền biến này ra để file HTML biết mà giấu ô Mật khẩu đi
+    })
 
 @admin_only
 def user_delete(request, user_id):
