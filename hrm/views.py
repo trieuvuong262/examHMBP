@@ -29,23 +29,40 @@ def user_add(request):
         form = UserForm(request.POST)
         if form.is_valid():
             user = form.save(commit=False)
-            full_name = user.first_name 
             
+            # --- KHÚC BẮT LỖI TÊN Ở ĐÂY ---
+            # Tìm mọi ngóc ngách xem cái tên đang nằm ở biến nào
+            full_name = request.POST.get('full_name') or request.POST.get('first_name') or user.first_name
+            
+            # Nếu người dùng quên nhập, gán tạm để khỏi lỗi
+            if not full_name or str(full_name).strip() == '':
+                full_name = "Người Dùng Ẩn Danh" 
+                
+            # In ra màn hình Terminal đen đen để ní kiểm tra xem có bắt được chữ chưa
+            print(f"======== TÊN BẮT ĐƯỢC TỪ FORM: '{full_name}' ========")
+            # ------------------------------
+            
+            # Lúc này full_name đã có chữ, quăng vào hàm là bao chuẩn
             new_username = generate_hm_username(full_name)
             user.username = new_username
-            user.email = f"{new_username}@hoanmy.com"
+            user.email = new_username  # Đuôi @hoanmy.com đã có sẵn trong username rồi
             
             new_password = generate_secure_password()
             user.set_password(new_password)
             user.save()
             
+            from hrm.models import Profile
+            # Lấy luôn chức danh từ form (nếu có)
+            chuc_danh = request.POST.get('position', 'Khối Hỗ trợ')
             Profile.objects.update_or_create(
                 user=user,
-                defaults={'full_name': full_name, 'position': 'Khối Hỗ trợ'}
+                defaults={'full_name': full_name, 'position': chuc_danh}
             )
             
             messages.success(request, f"Thêm nhân viên thành công! Tài khoản: {new_username} | Mật khẩu mới là: {new_password}")
             return redirect('user_list')
+        else:
+            messages.error(request, "Vui lòng điền đầy đủ thông tin.")
     else:
         form = UserForm()
     return render(request, 'assessment/admin/user_form.html', {'form': form, 'title': 'Thêm nhân viên mới'})
@@ -83,38 +100,54 @@ def user_delete(request, user_id):
         messages.success(request, "Đã xóa nhân viên khỏi hệ thống.")
     return redirect('user_list')
 
-# ==========================================
-# 2. IMPORT / EXCEL EXCEL
-# ==========================================
+
 @admin_only
 def user_import_excel(request):
     if request.method == 'POST' and request.FILES.get('excel_file'):
         file = request.FILES['excel_file']
         try:
             df = pd.read_excel(file)
+            # Chuẩn hóa tên cột thành chữ thường, xóa khoảng trắng thừa
             df.columns = [str(c).strip().lower() for c in df.columns]
-            
-            if 'username' not in df.columns:
-                messages.error(request, 'Lỗi: File Excel bắt buộc phải có cột "username".')
-                return redirect('user_list')
-            
             df = df.fillna('')
+            
             success_count = 0
             skipped_count = 0
             
+            from hrm.models import Profile
+            
             for _, row in df.iterrows():
-                username = str(row['username']).strip()
-                if not username: continue
-                
-                password = str(row.get('password', '')).strip() or 'Hoanmy@123'
-                email = str(row.get('email', '')).strip()
+                # 1. LẤY HỌ VÀ TÊN (Bắt buộc phải có, không có thì bỏ qua dòng)
                 full_name = str(row.get('full_name', '')).strip()
-                chuc_danh = str(row.get('chuc_danh', '')).strip()
+                if not full_name:
+                    continue 
 
+                # 2. XỬ LÝ USERNAME
+                raw_username = str(row.get('username', '')).strip()
+                if raw_username:
+                    # Nếu trong Excel có nhập, lấy đúng trong Excel
+                    username = raw_username
+                else:
+                    # Nếu Excel để trống, tự động sinh ten.ho@hoanmy.com
+                    username = generate_hm_username(full_name)
+
+                # 3. XỬ LÝ MẬT KHẨU
+                raw_password = str(row.get('password', '')).strip()
+                # Nếu Excel để trống pass, tự tạo pass bảo mật
+                password = raw_password if raw_password else generate_secure_password()
+                
+                # 4. Email và Chức danh
+                email = str(row.get('email', '')).strip() or username
+                chuc_danh = str(row.get('chuc_danh', '')).strip() or 'Khối Hỗ trợ'
+
+                # 5. LƯU VÀO DATABASE
                 if not User.objects.filter(username=username).exists():
                     user = User.objects.create_user(
-                        username=username, password=password, email=email,
-                        first_name=full_name, is_staff=False
+                        username=username,
+                        password=password,
+                        email=email,
+                        first_name=full_name,
+                        is_staff=False
                     )
                     Profile.objects.update_or_create(
                         user=user,
@@ -124,12 +157,12 @@ def user_import_excel(request):
                 else:
                     skipped_count += 1
             
-            messages.success(request, f'Thành công: Thêm mới {success_count} nhân viên. Bỏ qua {skipped_count} người đã tồn tại.')
+            messages.success(request, f'Thành công: Thêm mới {success_count} nhân viên. Bỏ qua {skipped_count} người do trùng lặp.')
+            
         except Exception as e:
             messages.error(request, f'Lỗi hệ thống khi xử lý file: {str(e)}')
             
     return redirect('user_list')
-
 @admin_only
 def user_export_excel(request):
     users = User.objects.all().values('username', 'first_name', 'email', 'date_joined', 'profile__position')
@@ -167,9 +200,6 @@ def user_download_template(request):
     response['Content-Disposition'] = 'attachment; filename=Mau_Import_Nhan_Vien.xlsx'
     return response
 
-# ==========================================
-# 3. MẬT KHẨU & ĐĂNG XUẤT
-# ==========================================
 @admin_only
 def user_password_reset(request, user_id):
     if request.method == 'POST':
@@ -184,7 +214,9 @@ def user_password_reset(request, user_id):
         except:
             display_name = user.username
         
-        messages.success(request, f"Đã đặt lại mật khẩu cho {display_name}. Mật khẩu mới là: {new_password}")
+        # DÒNG NÀY LÀ QUAN TRỌNG NHẤT: Bắt buộc phải viết đúng format này
+        messages.success(request, f"Đã đặt lại mật khẩu cho {display_name}. Tài khoản: {user.username} | Mật khẩu mới là: {new_password}")
+        
     return redirect('user_list')
 
 class MyPasswordChangeView(PasswordChangeView):

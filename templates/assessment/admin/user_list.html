@@ -6,17 +6,26 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg rounded-4">
             <div class="modal-header bg-hm text-white p-4 border-0 rounded-top-4">
-                <h5 class="modal-title fw-bold"><i class="bi bi-check-circle-fill me-2"></i>ĐẶT LẠI MẬT KHẨU THÀNH CÔNG</h5>
+                <h5 class="modal-title fw-bold"><i class="bi bi-shield-check me-2"></i>THÔNG TIN TÀI KHOẢN</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body p-4 text-center">
-                <p class="mb-3 text-secondary fs-6" id="msgFullText">Hệ thống đã tạo mật khẩu mới cho nhân viên.</p>
-                <div class="p-4 bg-hm-subtle rounded-4 border border-hm border-2 border-opacity-50 mb-4 shadow-sm">
-                    <p class="small text-hm fw-bold mb-1 text-uppercase"><i class="bi bi-key-fill me-1"></i>Mật khẩu mới</p>
-                    <h2 class="fw-bold text-dark mb-0 user-select-all" id="newPasswordText" style="letter-spacing: 3px; font-family: monospace;">...</h2>
+            <div class="modal-body p-4">
+                <div class="mb-3 text-center">
+                    <p class="text-secondary small mb-1">Nhân viên: <strong id="modalDisplayName" class="text-dark fs-5">...</strong></p>
                 </div>
-                <button class="btn btn-hm fw-bold px-5 py-3 rounded-pill shadow btn-hover-lift w-100 fs-5 text-white" onclick="copyModalPassword(this)">
-                    <i class="bi bi-clipboard-check fs-4 me-2 align-middle"></i> COPY MẬT KHẨU
+                
+                <div class="p-3 bg-light rounded-3 border mb-3 text-center">
+                    <p class="small text-muted mb-1 text-uppercase fw-bold"><i class="bi bi-person-badge me-1"></i>Tài khoản đăng nhập</p>
+                    <h5 class="fw-bold text-hm mb-0 user-select-all" id="modalUsernameText">...</h5>
+                </div>
+
+                <div class="p-4 bg-hm-subtle rounded-4 border border-hm border-2 border-opacity-50 mb-4 shadow-sm text-center">
+                    <p class="small text-hm mb-1 text-uppercase fw-bold"><i class="bi bi-key-fill me-1"></i>Mật khẩu mới</p>
+                    <h2 class="fw-bold text-dark mb-0 user-select-all" id="modalPasswordText" style="letter-spacing: 3px; font-family: monospace;">...</h2>
+                </div>
+
+                <button class="btn btn-hm fw-bold px-5 py-3 rounded-pill shadow btn-hover-lift w-100 fs-5 text-white" onclick="copyAccountInfo(this)">
+                    <i class="bi bi-clipboard-plus fs-4 me-2 align-middle"></i> SAO CHÉP THÔNG TIN
                 </button>
             </div>
         </div>
@@ -229,74 +238,85 @@
     .loading-box { animation: popIn 0.3s ease-out forwards; min-width: 300px; }
     @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 </style>
+
 <script>
-    // XỬ LÝ LẤY THÔNG BÁO VÀ HIỂN THỊ POPUP TO Ở GIỮA
+    // XỬ LÝ LẤY THÔNG BÁO TỪ BACKEND ĐỂ SHOW LÊN MODAL
     document.addEventListener("DOMContentLoaded", function() {
         var bodyText = document.body.innerText;
-        if(bodyText.includes('Mật khẩu mới là:')) {
+        // Kiểm tra xem trang web có đang in ra câu thông báo chứa "Tài khoản" và "Mật khẩu" không
+        if(bodyText.includes('Tài khoản:') && bodyText.includes('Mật khẩu mới là:')) {
             var alertBoxes = document.querySelectorAll('.alert');
             alertBoxes.forEach(function(box) {
                 var text = box.innerText;
-                if(text.includes('Mật khẩu mới là:')) {
-                    var password = text.split('Mật khẩu mới là:')[1].trim();
-                    var msgBefore = text.split('Mật khẩu mới là:')[0].trim();
-                    
-                    document.getElementById('msgFullText').innerText = msgBefore;
-                    document.getElementById('newPasswordText').innerText = password;
-                    box.style.display = 'none';
-                    
-                    var pwdModal = new bootstrap.Modal(document.getElementById('passwordResultModal'));
-                    pwdModal.show();
+                if(text.includes('Tài khoản:') && text.includes('Mật khẩu mới là:')) {
+                    try {
+                        // Cắt chuỗi thông báo từ Backend
+                        // Dạng chuỗi: Đã đặt lại mật khẩu cho Tên NV. Tài khoản: xxxx | Mật khẩu mới là: yyyy
+                        var namePart = text.split('Đã đặt lại mật khẩu cho ')[1].split('. Tài khoản:')[0].trim();
+                        var userPart = text.split('Tài khoản:')[1].split('|')[0].trim();
+                        var passPart = text.split('Mật khẩu mới là:')[1].trim();
+                        
+                        // Gắn vào HTML của Modal
+                        document.getElementById('modalDisplayName').innerText = namePart;
+                        document.getElementById('modalUsernameText').innerText = userPart;
+                        document.getElementById('modalPasswordText').innerText = passPart;
+                        
+                        // Ẩn thanh Alert gốc màu xanh lá cây đi cho gọn
+                        box.style.display = 'none';
+                        
+                        // Kích hoạt Modal bật lên giữa màn hình
+                        var pwdModal = new bootstrap.Modal(document.getElementById('passwordResultModal'));
+                        pwdModal.show();
+                    } catch (e) {
+                        console.error("Lỗi cắt chuỗi Javascript: ", e);
+                    }
                 }
             });
         }
     });
 
-    // HÀM COPY MẬT KHẨU TỪ POPUP (ĐÃ NÂNG CẤP CHUẨN HIỆN ĐẠI)
-    function copyModalPassword(btn) {
-        var pwd = document.getElementById('newPasswordText').innerText;
+    // HÀM COPY ĐÚNG FORMAT TÀI KHOẢN VÀ MẬT KHẨU
+    function copyAccountInfo(btn) {
+        var user = document.getElementById('modalUsernameText').innerText;
+        var pass = document.getElementById('modalPasswordText').innerText;
 
-        // Cách 1: Dùng Clipboard API hiện đại (Dành cho trình duyệt đời mới)
+        // Tạo chuỗi có ký tự xuống dòng (\n)
+        var textToCopy = "Tài Khoản: " + user + "\nMật khẩu: " + pass;
+
+        // Cách 1: Copy hiện đại (Dành cho Chrome, Edge mới)
         if (navigator.clipboard && window.isSecureContext) {
-            navigator.clipboard.writeText(pwd).then(function() {
+            navigator.clipboard.writeText(textToCopy).then(function() {
                 showCopySuccess(btn);
-            }).catch(function(err) {
-                // Nếu lỗi thì tự động nhảy sang Cách 2
-                fallbackCopy(pwd, btn);
+            }).catch(function() {
+                fallbackCopy(textToCopy, btn);
             });
         } else {
-            // Cách 2: Fallback cho trình duyệt cũ hoặc khi không có HTTPS
-            fallbackCopy(pwd, btn);
+            // Cách 2: Copy cổ điển
+            fallbackCopy(textToCopy, btn);
         }
     }
 
-    // Hàm dự phòng khi trình duyệt chặn cách 1
     function fallbackCopy(text, btn) {
-        var tempInput = document.createElement("textarea");
-        tempInput.value = text;
-        
-        // Mẹo: Cố định ô text ẩn để Modal không bị giật và mất Focus
-        tempInput.style.position = "fixed";
-        tempInput.style.left = "-9999px";
-        tempInput.style.top = "0";
-        document.body.appendChild(tempInput);
-        
-        tempInput.focus();
-        tempInput.select();
-        
+        var textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-9999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
         try {
             document.execCommand("copy");
             showCopySuccess(btn);
         } catch (err) {
-            alert("Trình duyệt của bạn đang chặn copy tự động. Vui lòng bôi đen và copy thủ công nhé!");
+            alert("Trình duyệt chặn copy tự động. Vui lòng bôi đen và copy thủ công!");
         }
-        document.body.removeChild(tempInput);
+        document.body.removeChild(textArea);
     }
 
-    // Hiệu ứng nút bấm xịn xò
+    // Hiệu ứng nút bấm sau khi copy
     function showCopySuccess(btn) {
         var originalHTML = btn.innerHTML;
-        btn.innerHTML = '<i class="bi bi-check2-all fs-4 me-2 align-middle"></i> ĐÃ SAO CHÉP!';
+        btn.innerHTML = '<i class="bi bi-check2-all fs-4 me-2 align-middle"></i> ĐÃ COPY THÔNG TIN!';
         btn.classList.replace('btn-hm', 'btn-dark');
         setTimeout(function() {
             btn.innerHTML = originalHTML;
@@ -304,7 +324,7 @@
         }, 2000);
     }
 
-    // TÌM KIẾM
+    // TÌM KIẾM THEO BẢNG
     document.getElementById('userSearch').addEventListener('keyup', function() {
         let keyword = this.value.toLowerCase();
         let rows = document.querySelectorAll('#userTable tbody tr');
