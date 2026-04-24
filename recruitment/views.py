@@ -191,7 +191,7 @@ def convert_to_employee(request, candidate_id):
         user.save()
         
         # 3. Tạo Profile
-        from assessment.models import Profile
+        from hrm.models import Profile
         profile, created = Profile.objects.update_or_create(
             user=user,
             defaults={
