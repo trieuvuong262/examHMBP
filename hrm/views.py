@@ -26,46 +26,48 @@ def user_list(request):
 @admin_only
 def user_add(request):
     if request.method == 'POST':
-        form = UserForm(request.POST)
-        if form.is_valid():
-            user = form.save(commit=False)
-            
-            # --- KHÚC BẮT LỖI TÊN Ở ĐÂY ---
-            # Tìm mọi ngóc ngách xem cái tên đang nằm ở biến nào
-            full_name = request.POST.get('full_name') or request.POST.get('first_name') or user.first_name
-            
-            # Nếu người dùng quên nhập, gán tạm để khỏi lỗi
-            if not full_name or str(full_name).strip() == '':
-                full_name = "Người Dùng Ẩn Danh" 
-                
-            # In ra màn hình Terminal đen đen để ní kiểm tra xem có bắt được chữ chưa
-            print(f"======== TÊN BẮT ĐƯỢC TỪ FORM: '{full_name}' ========")
-            # ------------------------------
-            
-            # Lúc này full_name đã có chữ, quăng vào hàm là bao chuẩn
-            new_username = generate_hm_username(full_name)
-            user.username = new_username
-            user.email = new_username  # Đuôi @hoanmy.com đã có sẵn trong username rồi
-            
-            new_password = generate_secure_password()
-            user.set_password(new_password)
-            user.save()
-            
-            from hrm.models import Profile
-            # Lấy luôn chức danh từ form (nếu có)
-            chuc_danh = request.POST.get('position', 'Khối Hỗ trợ')
-            Profile.objects.update_or_create(
-                user=user,
-                defaults={'full_name': full_name, 'position': chuc_danh}
+        # 1. Bắt buộc lấy đủ 5 trường từ form
+        username = request.POST.get('username', '').strip()
+        email = request.POST.get('email', '').strip()
+        full_name = request.POST.get('full_name', '').strip()
+        position = request.POST.get('position', '').strip()
+        password = request.POST.get('password', '').strip()
+
+        # 2. Kiểm tra nhập thiếu
+        if not all([username, email, full_name, position, password]):
+            messages.error(request, "Vui lòng nhập đầy đủ 5 trường thông tin bắt buộc.")
+            return render(request, 'assessment/admin/user_form.html')
+
+        # 3. Kiểm tra trùng Username
+        if User.objects.filter(username=username).exists():
+            messages.error(request, f"Lỗi: Tên đăng nhập '{username}' đã có người sử dụng!")
+            return render(request, 'assessment/admin/user_form.html')
+
+        try:
+            # 4. Tạo tài khoản đúng ý Admin (không random)
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password,
+                first_name=full_name,
+                is_staff=False
             )
             
-            messages.success(request, f"Thêm nhân viên thành công! Tài khoản: {new_username} | Mật khẩu mới là: {new_password}")
+            # 5. Lưu Profile chức danh
+            from hrm.models import Profile
+            Profile.objects.update_or_create(
+                user=user,
+                defaults={'full_name': full_name, 'position': position}
+            )
+            
+            # 6. Gửi thông báo (Dùng đúng format này để Modal tự động bật lên)
+            messages.success(request, f"Thêm thành công {full_name}. Tài khoản: {username} | Mật khẩu mới là: {password}")
             return redirect('user_list')
-        else:
-            messages.error(request, "Vui lòng điền đầy đủ thông tin.")
-    else:
-        form = UserForm()
-    return render(request, 'assessment/admin/user_form.html', {'form': form, 'title': 'Thêm nhân viên mới'})
+            
+        except Exception as e:
+            messages.error(request, f"Lỗi hệ thống: {str(e)}")
+            
+    return render(request, 'assessment/admin/user_form.html', {'title': 'Thêm nhân viên mới'})
 
 @admin_only
 def user_edit(request, user_id):

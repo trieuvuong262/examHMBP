@@ -241,60 +241,53 @@
 <script>
     // XỬ LÝ LẤY THÔNG BÁO TỪ BACKEND ĐỂ SHOW LÊN MODAL
     document.addEventListener("DOMContentLoaded", function() {
-        var bodyText = document.body.innerText;
-        // Kiểm tra xem trang web có đang in ra câu thông báo chứa "Tài khoản" và "Mật khẩu" không
-        if(bodyText.includes('Tài khoản:') && bodyText.includes('Mật khẩu mới là:')) {
-            var alertBoxes = document.querySelectorAll('.alert');
-            alertBoxes.forEach(function(box) {
-                var text = box.innerText;
-                if(text.includes('Tài khoản:') && text.includes('Mật khẩu mới là:')) {
-                    try {
-                        // Cắt chuỗi thông báo từ Backend
-                        // Dạng chuỗi: Đã đặt lại mật khẩu cho Tên NV. Tài khoản: xxxx | Mật khẩu mới là: yyyy
-                        var namePart = text.split('Đã đặt lại mật khẩu cho ')[1].split('. Tài khoản:')[0].trim();
-                        var userPart = text.split('Tài khoản:')[1].split('|')[0].trim();
-                        var passPart = text.split('Mật khẩu mới là:')[1].trim();
+        var alertBoxes = document.querySelectorAll('.alert');
+        alertBoxes.forEach(function(box) {
+            var text = box.innerText;
+            if(text.includes('Tài khoản:') && text.includes('Mật khẩu mới là:')) {
+                try {
+                    // Regex bóc tách đúng vị trí
+                    var userMatch = text.match(/Tài khoản:\s*(.*?)\s*\|/);
+                    var passMatch = text.match(/Mật khẩu mới là:\s*(.*)/);
+                    var nameMatch = text.match(/(?:cho|công)\s*(.*?)\.\s*Tài khoản/); 
+                    
+                    if(userMatch && passMatch) {
+                        var finalName = nameMatch ? nameMatch[1].trim() : 'Nhân viên';
+                        document.getElementById('modalDisplayName').innerText = finalName;
+                        document.getElementById('modalUsernameText').innerText = userMatch[1].trim();
+                        document.getElementById('modalPasswordText').innerText = passMatch[1].trim();
                         
-                        // Gắn vào HTML của Modal
-                        document.getElementById('modalDisplayName').innerText = namePart;
-                        document.getElementById('modalUsernameText').innerText = userPart;
-                        document.getElementById('modalPasswordText').innerText = passPart;
-                        
-                        // Ẩn thanh Alert gốc màu xanh lá cây đi cho gọn
-                        box.style.display = 'none';
-                        
-                        // Kích hoạt Modal bật lên giữa màn hình
+                        box.style.display = 'none'; // Ẩn thông báo gốc
                         var pwdModal = new bootstrap.Modal(document.getElementById('passwordResultModal'));
                         pwdModal.show();
-                    } catch (e) {
-                        console.error("Lỗi cắt chuỗi Javascript: ", e);
                     }
-                }
-            });
-        }
+                } catch (e) { console.error("Lỗi Regex JS: ", e); }
+            }
+        });
     });
 
-    // HÀM COPY ĐÚNG FORMAT TÀI KHOẢN VÀ MẬT KHẨU
+    // HÀM COPY ÉP CHUẨN XUỐNG DÒNG
     function copyAccountInfo(btn) {
-        var user = document.getElementById('modalUsernameText').innerText;
-        var pass = document.getElementById('modalPasswordText').innerText;
-
-        // Tạo chuỗi có ký tự xuống dòng (\n)
+        var user = document.getElementById('modalUsernameText').innerText.trim();
+        var pass = document.getElementById('modalPasswordText').innerText.trim();
+        
         var textToCopy = "Tài Khoản: " + user + "\nMật khẩu: " + pass;
-
-        // Cách 1: Copy hiện đại (Dành cho Chrome, Edge mới)
-        if (navigator.clipboard && window.isSecureContext) {
-            navigator.clipboard.writeText(textToCopy).then(function() {
-                showCopySuccess(btn);
-            }).catch(function() {
-                fallbackCopy(textToCopy, btn);
-            });
-        } else {
-            // Cách 2: Copy cổ điển
-            fallbackCopy(textToCopy, btn);
-        }
+        
+        var tempInput = document.createElement("textarea");
+        tempInput.value = textToCopy;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand("copy");
+        document.body.removeChild(tempInput);
+        
+        var originalHTML = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>ĐÃ COPY THÀNH CÔNG!';
+        btn.classList.replace('btn-hm', 'btn-success');
+        setTimeout(() => {
+            btn.innerHTML = originalHTML;
+            btn.classList.replace('btn-success', 'btn-hm');
+        }, 2000);
     }
-
     function fallbackCopy(text, btn) {
         var textArea = document.createElement("textarea");
         textArea.value = text;

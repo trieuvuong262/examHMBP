@@ -1,55 +1,57 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-4 mb-5" style="max-width: 800px;">
+<div class="container mt-4 mb-5" style="max-width: 900px;">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3 class="fw-bold text-dark mb-0"><i class="bi bi-pencil-square text-info me-2"></i>{{ title }}</h3>
-        <a href="{% url 'job_posting_list' %}" class="btn btn-outline-secondary shadow-sm"><i class="bi bi-arrow-left me-1"></i> Hủy & Quay lại</a>
+        <div>
+            <h3 class="fw-bold text-dark mb-1"><i class="bi bi-person-badge-fill text-hm me-2"></i>Thêm Nhân Viên Mới</h3>
+            <p class="text-muted mb-0 small">Tạo tài khoản thủ công, bắt buộc điền đầy đủ 5 trường thông tin.</p>
+        </div>
+        <a href="{% url 'user_list' %}" class="btn btn-light border shadow-sm px-3 rounded-3 fw-bold">
+            <i class="bi bi-arrow-left me-1"></i> Quay lại
+        </a>
     </div>
 
-    <div class="card border-0 shadow-sm">
-        <div class="card-body p-4">
+    <div class="card shadow-sm border-0 rounded-4">
+        <div class="card-body p-4 p-md-5">
             <form method="POST">
                 {% csrf_token %}
-                <div class="row mb-3">
-                    <div class="col-md-12 mb-3">
-                        <label class="form-label fw-bold">Tiêu đề (Vị trí tuyển dụng) <span class="text-danger">*</span></label>
-                        {{ form.title }}
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label fw-bold">Khoa / Phòng ban <span class="text-danger">*</span></label>
-                        {{ form.department }}
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label fw-bold">Nhóm Chức danh <span class="text-danger">*</span></label>
-                        {{ form.position }}
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label fw-bold">Số lượng cần tuyển <span class="text-danger">*</span></label>
-                        {{ form.quantity }}
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label fw-bold">Hạn nộp hồ sơ <span class="text-danger">*</span></label>
-                        {{ form.deadline }}
-                    </div>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Mô tả công việc</label>
-                    {{ form.description }}
-                </div>
                 
-                <div class="mb-4">
-                    <label class="form-label fw-bold">Yêu cầu ứng viên</label>
-                    {{ form.requirements }}
+                <h6 class="fw-bold text-hm mb-3 text-uppercase border-bottom pb-2"><i class="bi bi-shield-lock me-2"></i>Thông tin đăng nhập</h6>
+                
+                <div class="row mb-4">
+                    <div class="col-md-6 mb-3 mb-md-0">
+                        <label class="form-label fw-bold small text-muted text-uppercase">Tên đăng nhập <span class="text-danger">*</span></label>
+                        <input type="text" name="username" class="form-control bg-light border-0 py-2 rounded-3" placeholder="VD: an.nguyen" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small text-muted text-uppercase">Mật khẩu <span class="text-danger">*</span></label>
+                        <input type="text" name="password" class="form-control bg-light border-0 py-2 rounded-3" placeholder="Nhập mật khẩu..." required>
+                    </div>
                 </div>
 
-                <div class="mb-4 form-check form-switch fs-5">
-                    {{ form.is_active }}
-                    <label class="form-check-label ms-2 text-success fw-bold" for="{{ form.is_active.id_for_label }}">Đang mở tuyển (Hiển thị công khai)</label>
+                <h6 class="fw-bold text-hm mb-3 text-uppercase border-bottom pb-2 mt-4"><i class="bi bi-person-lines-fill me-2"></i>Thông tin cá nhân</h6>
+
+                <div class="row mb-3">
+                    <div class="col-md-6 mb-3 mb-md-0">
+                        <label class="form-label fw-bold small text-muted text-uppercase">Họ và Tên <span class="text-danger">*</span></label>
+                        <input type="text" name="full_name" class="form-control bg-light border-0 py-2 rounded-3" placeholder="Ví dụ: Nguyễn Văn An" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small text-muted text-uppercase">Địa chỉ Email <span class="text-danger">*</span></label>
+                        <input type="email" name="email" class="form-control bg-light border-0 py-2 rounded-3" placeholder="email@hoanmy.com" required>
+                    </div>
                 </div>
 
-                <div class="d-grid">
-                    <button type="submit" class="btn btn-info text-white btn-lg fw-bold"><i class="bi bi-save me-2"></i> Lưu Tin Tuyển Dụng</button>
+                <div class="mb-5">
+                    <label class="form-label fw-bold small text-muted text-uppercase">Chức danh / Vị trí công tác <span class="text-danger">*</span></label>
+                    <input type="text" name="position" class="form-control bg-light border-0 py-2 rounded-3" placeholder="VD: Điều dưỡng Cấp cứu" required>
+                </div>
+
+                <div class="text-end pt-3 border-top">
+                    <a href="{% url 'user_list' %}" class="btn btn-light px-4 py-2 rounded-3 fw-bold me-2">Hủy bỏ</a>
+                    <button type="submit" class="btn btn-hm px-5 py-2 rounded-3 fw-bold shadow-sm">
+                        <i class="bi bi-save-fill me-2"></i>LƯU NHÂN VIÊN
+                    </button>
                 </div>
             </form>
         </div>
