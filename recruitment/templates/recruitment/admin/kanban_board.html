@@ -11,25 +11,37 @@
 
     body { background-color: var(--hm-bg-light); }
 
+    /* Trải dài 100% màn hình */
     .kanban-wrapper {
-        padding: 2rem 1rem;
-        max-width: 1800px; /* Tăng độ rộng ra một chút để chứa 6 cột */
-        margin: 0 auto;
+        padding: 2rem 1.5rem;
+        width: 100%;
+        max-width: 100%;
     }
 
+    /* KHUNG CHỨA CÁC CỘT: Ép các cột cao bằng nhau */
     .kanban-container { 
         min-height: 80vh; 
         overflow-x: auto; 
+        overflow-y: hidden; 
         display: flex;
-        justify-content: flex-start; /* Sửa từ center thành flex-start để cuộn mượt hơn */
-        gap: 1.25rem;
-        padding-bottom: 2rem;
-        align-items: flex-start;
+        flex-wrap: nowrap; 
+        justify-content: flex-start; 
+        gap: 1.25rem; 
+        padding-bottom: 1rem;
+        align-items: stretch; /* VŨ KHÍ BÍ MẬT: Ép tất cả các cột phải cao bằng nhau */
     }
 
+    /* TÙY CHỈNH THANH CUỘN NGANG */
+    .kanban-container::-webkit-scrollbar { height: 10px; }
+    .kanban-container::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
+    .kanban-container::-webkit-scrollbar-thumb { background: var(--hm-primary); border-radius: 10px; }
+    .kanban-container::-webkit-scrollbar-thumb:hover { background: var(--hm-primary-hover); }
+
+    /* ĐỊNH DẠNG TỪNG CỘT: Co giãn thông minh */
     .col-kanban { 
-        flex: 0 0 280px; 
-        min-width: 280px; 
+        /* Tự động giãn lấp đầy khoảng trống (flex-grow: 1), tối thiểu 280px, tối đa 400px */
+        flex: 1 0 280px; 
+        max-width: 400px; 
     }
 
     .column-card {
@@ -38,12 +50,13 @@
         border: none;
         display: flex;
         flex-direction: column;
-        max-height: 85vh;
+        height: 100%; /* Chiếm trọn 100% chiều cao của col-kanban */
+        max-height: 82vh; 
         box-shadow: var(--hm-card-shadow);
     }
 
     .column-header {
-        padding: 1.25rem;
+        padding: 1rem;
         font-weight: 700;
         font-size: 0.85rem;
         letter-spacing: 0.05em;
@@ -56,14 +69,16 @@
     }
 
     .kanban-column { 
+        flex: 1; /* Khu vực chứa thẻ tự động kéo dài xuống tận đáy cột */
         min-height: 200px; 
         padding: 0.75rem;
-        overflow-y: auto;
+        overflow-y: auto; 
         display: flex; 
         flex-direction: column; 
         gap: 0.75rem; 
     }
 
+    /* ĐỊNH DẠNG THẺ (CARD) */
     .kanban-card { 
         cursor: grab; 
         border: 1px solid #e2e8f0 !important;
@@ -92,7 +107,7 @@
     .bg-reviewing { background-color: #ffc107; color: #423100 !important; }
     .bg-interviewing { background-color: #0dcaf0; }
     .bg-offered { background-color: #198754; }
-    .bg-not-onboarded { background-color: #fd7e14; } /* Màu Cam cho ông nào Boom job */
+    .bg-not-onboarded { background-color: #fd7e14; }
     .bg-rejected { background-color: #64748b; }
 
     .sortable-ghost { 
@@ -102,6 +117,12 @@
     }
 
     .x-small { font-size: 0.75rem; }
+    
+    /* Tùy chỉnh thanh cuộn dọc bên trong từng cột Kanban */
+    .kanban-column::-webkit-scrollbar { width: 6px; }
+    .kanban-column::-webkit-scrollbar-track { background: transparent; }
+    .kanban-column::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    .kanban-column::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 </style>
 
 <div class="container-fluid mt-4 mb-5 kanban-wrapper">
