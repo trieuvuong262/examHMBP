@@ -266,93 +266,74 @@
         });
     });
 
-async function copyAccountInfo(btn) {
-    const user = document.getElementById('modalUsernameText').innerText.trim();
-    const pass = document.getElementById('modalPasswordText').innerText.trim();
-    const textToCopy = `Tài khoản: ${user}\nMật khẩu: ${pass}`;
+    // ----------------------------------------------------
+    // HỆ THỐNG COPY BẤT TỬ (HỖ TRỢ HTTP / HTTPS / LOCALHOST)
+    // ----------------------------------------------------
+    function copyAccountInfo(btn) {
+        const user = document.getElementById('modalUsernameText').innerText.trim();
+        const pass = document.getElementById('modalPasswordText').innerText.trim();
+        // Dùng \r\n để đảm bảo xuống dòng chuẩn trên mọi phần mềm (Zalo, Word, Notepad)
+        const textToCopy = "Tài khoản: " + user + "\r\n" + "Mật khẩu: " + pass;
 
-    // 1. Thử dùng Clipboard API (Ưu tiên cho Localhost/HTTPS)
-    if (navigator.clipboard && window.isSecureContext) {
-        try {
-            await navigator.clipboard.writeText(textToCopy);
-            showSuccessEffect(btn);
-            return;
-        } catch (err) {
-            console.error("Clipboard API failed, falling back...");
-        }
-    }
-
-    // 2. Chiêu dự phòng "Tà Đạo" cho môi trường HTTP Production (IP trần)
-    // Tạo một thẻ pre để giữ nguyên định dạng xuống dòng \n
-    const textArea = document.createElement("textarea");
-    textArea.value = textToCopy;
-    
-    // Ép style tàng hình
-    Object.assign(textArea.style, {
-        position: "fixed",
-        left: "-9999px",
-        top: "0",
-        opacity: "0"
-    });
-
-    document.body.appendChild(textArea);
-    textArea.focus();
-    textArea.select();
-
-    try {
-        // Ép lệnh copy của trình duyệt
-        const successful = document.execCommand('copy');
-        if (successful) {
-            showSuccessEffect(btn);
+        // Nếu là môi trường bảo mật (HTTPS) -> Dùng API xịn
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                showSuccessEffect(btn);
+            }).catch(err => {
+                // Lỗi bất ngờ thì lùi về dùng cách thủ công
+                fallbackCopySync(textToCopy, btn);
+            });
         } else {
-            throw new Error('Copy command was unsuccessful');
+            // Nếu là HTTP (Production IP trần) -> Dùng chiêu tàng hình ngay lập tức
+            fallbackCopySync(textToCopy, btn);
         }
-    } catch (err) {
-        // Cách cuối cùng: Hiển thị prompt để user tự copy nếu mọi thứ đều thất bại
-        window.prompt("Trình duyệt chặn copy tự động. Ní hãy nhấn Ctrl+C để copy nha:", textToCopy);
     }
 
-    document.body.removeChild(textArea);
-}
-
-// Hàm tạo hiệu ứng xanh cho nút
-function showSuccessEffect(btn) {
-    const originalHTML = btn.innerHTML;
-    btn.innerHTML = '<i class="bi bi-check-all me-2"></i>ĐÃ SAO CHÉP!';
-    btn.classList.replace('btn-hm', 'btn-success');
-    setTimeout(() => {
-        btn.innerHTML = originalHTML;
-        btn.classList.replace('btn-success', 'btn-hm');
-    }, 2000);
-}
-    function fallbackCopy(text, btn) {
-        var textArea = document.createElement("textarea");
+    // Hàm copy dự phòng (Chạy đồng bộ, ép trình duyệt phải nghe lời)
+    function fallbackCopySync(text, btn) {
+        const textArea = document.createElement("textarea");
         textArea.value = text;
+        
+        // CSS tàng hình tuyệt đối
         textArea.style.position = "fixed";
         textArea.style.left = "-9999px";
+        textArea.style.top = "0";
         document.body.appendChild(textArea);
+        
+        // Focus và chọn toàn bộ text
         textArea.focus();
         textArea.select();
+        textArea.setSelectionRange(0, 99999); // Cho mobile
+
         try {
-            document.execCommand("copy");
-            showCopySuccess(btn);
+            const successful = document.execCommand('copy');
+            if (successful) {
+                showSuccessEffect(btn);
+            } else {
+                window.prompt("Trình duyệt bảo mật quá cao. Vui lòng copy thủ công:", text);
+            }
         } catch (err) {
-            alert("Trình duyệt chặn copy tự động. Vui lòng bôi đen và copy thủ công!");
+            window.prompt("Lỗi trình duyệt. Vui lòng copy thủ công:", text);
         }
+        
         document.body.removeChild(textArea);
     }
 
-    // Hiệu ứng nút bấm sau khi copy
-    function showCopySuccess(btn) {
-        var originalHTML = btn.innerHTML;
-        btn.innerHTML = '<i class="bi bi-check2-all fs-4 me-2 align-middle"></i> ĐÃ COPY THÔNG TIN!';
-        btn.classList.replace('btn-hm', 'btn-dark');
-        setTimeout(function() {
+    // Hiệu ứng xanh lá báo thành công
+    function showSuccessEffect(btn) {
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check-all me-2"></i>ĐÃ SAO CHÉP!';
+        btn.classList.replace('btn-hm', 'btn-success');
+        setTimeout(() => {
             btn.innerHTML = originalHTML;
-            btn.classList.replace('btn-dark', 'btn-hm');
+            btn.classList.replace('btn-success', 'btn-hm');
         }, 2000);
     }
 
+    // ----------------------------------------------------
+    // CÁC CHỨC NĂNG TÌM KIẾM & IMPORT
+    // ----------------------------------------------------
+    
     // TÌM KIẾM THEO BẢNG
     document.getElementById('userSearch').addEventListener('keyup', function() {
         let keyword = this.value.toLowerCase();
