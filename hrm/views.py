@@ -7,7 +7,7 @@ from django.contrib.auth.views import PasswordChangeView
 from django.urls import reverse_lazy
 from django.contrib.auth import logout
 from django.http import HttpResponse
-
+from django.db import transaction # BẮT BUỘC PHẢI CÓ IMPORT NÀY Ở ĐẦU FILE HOẶC TRONG HÀM
 # Import từ các app khác sang
 from assessment.decorators import admin_only
 from assessment.forms import UserForm # Tạm thời Form vẫn để ở nhà cũ, mốt mình dời sau
@@ -100,7 +100,6 @@ def user_delete(request, user_id):
         messages.success(request, "Đã xóa nhân viên khỏi hệ thống.")
     return redirect('user_list')
 
-
 @admin_only
 def user_import_excel(request):
     if request.method == 'POST' and request.FILES.get('excel_file'):
@@ -116,46 +115,48 @@ def user_import_excel(request):
             
             from hrm.models import Profile
             
-            for _, row in df.iterrows():
-                # 1. LẤY HỌ VÀ TÊN (Bắt buộc phải có, không có thì bỏ qua dòng)
-                full_name = str(row.get('full_name', '')).strip()
-                if not full_name:
-                    continue 
+            # KÍCH HOẠT SỨC MẠNH GỘP ĐƠN - GIẢI QUYẾT LỖI 504 TIMEOUT
+            with transaction.atomic():
+                for _, row in df.iterrows():
+                    # 1. LẤY HỌ VÀ TÊN (Bắt buộc phải có, không có thì bỏ qua dòng)
+                    full_name = str(row.get('full_name', '')).strip()
+                    if not full_name:
+                        continue 
 
-                # 2. XỬ LÝ USERNAME
-                raw_username = str(row.get('username', '')).strip()
-                if raw_username:
-                    # Nếu trong Excel có nhập, lấy đúng trong Excel
-                    username = raw_username
-                else:
-                    # Nếu Excel để trống, tự động sinh ten.ho@hoanmy.com
-                    username = generate_hm_username(full_name)
+                    # 2. XỬ LÝ USERNAME
+                    raw_username = str(row.get('username', '')).strip()
+                    if raw_username:
+                        # Nếu trong Excel có nhập, lấy đúng trong Excel
+                        username = raw_username
+                    else:
+                        # Nếu Excel để trống, tự động sinh ten.ho@hoanmy.com
+                        username = generate_hm_username(full_name)
 
-                # 3. XỬ LÝ MẬT KHẨU
-                raw_password = str(row.get('password', '')).strip()
-                # Nếu Excel để trống pass, tự tạo pass bảo mật
-                password = raw_password if raw_password else generate_secure_password()
-                
-                # 4. Email và Chức danh
-                email = str(row.get('email', '')).strip() or username
-                chuc_danh = str(row.get('chuc_danh', '')).strip() or 'Khối Hỗ trợ'
+                    # 3. XỬ LÝ MẬT KHẨU (Đã giữ nguyên logic của ní)
+                    raw_password = str(row.get('password', '')).strip()
+                    # Nếu Excel để trống pass, tự tạo pass bảo mật
+                    password = raw_password if raw_password else generate_secure_password()
+                    
+                    # 4. Email và Chức danh
+                    email = str(row.get('email', '')).strip() or username
+                    chuc_danh = str(row.get('chuc_danh', '')).strip() or 'Khối Hỗ trợ'
 
-                # 5. LƯU VÀO DATABASE
-                if not User.objects.filter(username=username).exists():
-                    user = User.objects.create_user(
-                        username=username,
-                        password=password,
-                        email=email,
-                        first_name=full_name,
-                        is_staff=False
-                    )
-                    Profile.objects.update_or_create(
-                        user=user,
-                        defaults={'full_name': full_name, 'position': chuc_danh}
-                    )
-                    success_count += 1
-                else:
-                    skipped_count += 1
+                    # 5. LƯU VÀO DATABASE
+                    if not User.objects.filter(username=username).exists():
+                        user = User.objects.create_user(
+                            username=username,
+                            password=password,
+                            email=email,
+                            first_name=full_name,
+                            is_staff=False
+                        )
+                        Profile.objects.update_or_create(
+                            user=user,
+                            defaults={'full_name': full_name, 'position': chuc_danh}
+                        )
+                        success_count += 1
+                    else:
+                        skipped_count += 1
             
             messages.success(request, f'Thành công: Thêm mới {success_count} nhân viên. Bỏ qua {skipped_count} người do trùng lặp.')
             
@@ -163,6 +164,7 @@ def user_import_excel(request):
             messages.error(request, f'Lỗi hệ thống khi xử lý file: {str(e)}')
             
     return redirect('user_list')
+
 @admin_only
 def user_export_excel(request):
     users = User.objects.all().values('username', 'first_name', 'email', 'date_joined', 'profile__position')

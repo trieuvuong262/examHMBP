@@ -16,7 +16,6 @@ from assessment.decorators import admin_only
 import unicodedata
 import secrets
 import string
-
 from assessment.models import Exam
 from hrm.models import Profile
 
