@@ -1,5 +1,6 @@
 {% load static %}
-
+<!DOCTYPE html>
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -87,7 +88,7 @@
         font-weight: 500;
         color: rgba(255, 255, 255, 0.85) !important;
         transition: all 0.2s;
-        margin: 0 5px;
+        margin: 0 2px;
         border-radius: 6px;
     }
 
@@ -95,6 +96,12 @@
     .nav-link.active {
         color: white !important;
         background-color: rgba(255, 255, 255, 0.15);
+    }
+
+    /* Override cho các link active có bo tròn (như KPI, Báo cáo) */
+    .nav-link.active.bg-hm {
+        background-color: white !important;
+        color: var(--hm-primary) !important;
     }
 
     .footer {
@@ -126,7 +133,7 @@
         font-size: 0.85rem;
     }
 </style>
-
+</head>
 
 <body>
 
@@ -196,17 +203,21 @@
                         </a>
                         {% endif %}
                     </li>
+
+                    {% if request.user.is_staff %}
                     <li class="nav-item">
-                        {% if request.user.is_staff %}
-                        <a class="nav-link {% if 'kpi' in request.path %}active fw-bold text-hm{% endif %}" href="{% url 'kpi_list' %}">
+                        <a class="nav-link px-3 rounded-pill {% if 'kpi' in request.resolver_match.url_name %}active bg-hm fw-bold shadow-sm{% endif %}" 
+                           href="{% url 'kpi_list' %}">
                             <i class="bi bi-graph-up-arrow me-1"></i> Đánh giá KPI
                         </a>
-                        {% else %}
-                        <a href="{% url 'kpi_list' %}" class="nav-link {% if 'kpi' in request.path %}active fw-bold text-hm{% endif %}">
-                            <i class="bi bi-graph-up-arrow me-1"></i> Đánh giá KPI
-                        </a>
-                        {% endif %}
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 rounded-pill {% if request.resolver_match.view_name == 'reports:dashboard_view' %}active bg-hm fw-bold text-white shadow-sm{% endif %}" 
+                        href="{% url 'reports:dashboard_view' %}">
+                            <i class="bi bi-pie-chart-fill me-1"></i> Báo Cáo
+                        </a>
+                    </li>
+                    {% endif %}
                 </ul>
 
                 <ul class="navbar-nav">

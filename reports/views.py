@@ -1,124 +1,81 @@
 import json
 from django.shortcuts import render
-from django.db.models import Count, Avg, F, ExpressionWrapper, fields
-from django.utils import timezone
+from django.contrib.auth.decorators import login_required
+from django.db.models import Avg, Count, Q
+from kpi.models import YearlyKpi, YearlyKpiItem 
 
-from recruitment.models import Candidate, JobPosting
-from assessment.decorators import admin_only
+@login_required
+def dashboard_view(request):
+    user = request.user
+    is_staff = user.is_staff or user.is_superuser
 
+    # 1. PHÂN QUYỀN TRUY VẤN
+    if is_staff:
+        base_query = YearlyKpi.objects.all()
+        item_query = YearlyKpiItem.objects.all()
+    else:
+        base_query = YearlyKpi.objects.filter(Q(employee=user) | Q(direct_manager=user))
+        item_query = YearlyKpiItem.objects.filter(yearly_kpi__in=base_query)
 
-@admin_only
-def main_dashboard(request):
-    # ==========================================
-    # 1. DATA CHO TAB: TUYỂN DỤNG (RECRUITMENT)
-    # ==========================================
-    status_order = ['new', 'reviewing', 'interviewing', 'offered', 'hired']
-    funnel_labels = ['CV Mới', 'Xem xét', 'Phỏng vấn', 'Gửi Offer', 'Nhận việc'] # <-- Tui đã sửa tên biến ở đây!
+    # 2. THỐNG KÊ SỐ LIỆU (Sửa lỗi 'status' thành 'y_status')
+    total_kpis = base_query.count()
+    # Ở đây tui dùng y_status (trạng thái năm) làm chuẩn để đếm hoàn thành
+    completed_kpis = base_query.filter(y_status='completed').count()
+    pending_kpis = total_kpis - completed_kpis
     
-    cand_counts = Candidate.objects.values('status').annotate(total=Count('id'))
-    counts_dict = {item['status']: item['total'] for item in cand_counts}
-    funnel_values = [counts_dict.get(s, 0) for s in status_order]
+    # Tính điểm trung bình (Sửa field thành y_gm - Điểm GM chốt cuối năm)
+    avg_score_data = item_query.aggregate(Avg('y_gm'))['y_gm__avg']
+    avg_score = round(avg_score_data, 1) if avg_score_data else 0
 
-    # Tính Time-to-Fill (TB số ngày tuyển dụng)
-    hired_candidates = Candidate.objects.filter(status='hired')
-    avg_days = 0
-    if hired_candidates.exists():
-        total_days = sum([(timezone.now() - c.applied_at).days for c in hired_candidates])
-        avg_days = round(total_days / hired_candidates.count(), 1)
-
-    # Hiệu quả nguồn (Giả lập nếu chưa có field 'source')
-    source_labels = ['Website', 'Facebook', 'Nội bộ', 'TopCV']
-    source_values = [40, 25, 15, 20] 
-
-    # Tỷ lệ đáp ứng
-    jobs = JobPosting.objects.filter(is_active=True)
-    fulfillment_labels = [j.title[:15] + '...' for j in jobs]
-    full_target = [getattr(j, 'vacancies', 5) for j in jobs] # Giả định mục tiêu là 5
-    full_actual = [Candidate.objects.filter(job_posting=j, status='hired').count() for j in jobs]
-
-    # Tỷ lệ rớt Offer
-    rejected_after_offer = Candidate.objects.filter(status='rejected', hr_note__icontains='offer').count()
-    drop_labels = ['Chấp nhận Offer', 'Từ chối Offer']
-    drop_values = [hired_candidates.count(), rejected_after_offer or 2] # Dummy 2 nếu ko có data
-
-    # Gói gọn Data Tuyển dụng
-    rec_data = {
-        'funnel_labels': funnel_labels, 
-        'funnel_values': funnel_values,
-        'avg_fill_time': avg_days,
-        'source_labels': source_labels, 
-        'source_values': source_values,
-        'full_labels': fulfillment_labels, 
-        'full_target': full_target, 
-        'full_actual': full_actual,
-        'drop_labels': drop_labels, 
-        'drop_values': drop_values,
+    # 3. DỮ LIỆU CHO BIỂU ĐỒ TRÒN (Trạng thái năm)
+    status_counts = base_query.values('y_status').annotate(count=Count('id'))
+    # Tạo từ điển dịch trạng thái thủ công nếu ní chưa có STATUS_CHOICES trong model
+    status_map = {
+        'draft': 'Bản nháp',
+        'self_evaluating': 'NV Đang làm',
+        'manager_evaluating': 'Sếp đang chấm',
+        'completed': 'Hoàn tất'
     }
+    
+    status_labels = []
+    status_data = []
+    for item in status_counts:
+        label = status_map.get(item['y_status'], item['y_status'])
+        status_labels.append(label)
+        status_data.append(item['count'])
 
-    # ==========================================
-    # 2. TRUYỀN RA TEMPLATE
-    # ==========================================
+    # 4. DỮ LIỆU CHO BIỂU ĐỒ CỘT (Điểm theo chức danh)
+    # Lưu ý: tui dùng 'yearly_kpi__employee__profile__position' dựa trên quan hệ Model của ní
+    position_scores = item_query.values('yearly_kpi__employee__profile__position').annotate(
+        avg=Avg('y_gm')
+    ).exclude(yearly_kpi__employee__profile__position='')
+
+    pos_labels = []
+    pos_data = []
+    for item in position_scores:
+        pos_labels.append(item['yearly_kpi__employee__profile__position'])
+        pos_data.append(round(item['avg'] or 0, 1))
+
+    # 5. CẤU HÌNH NHÚNG METABASE
+    # Thay UUID thật của ní vào đây
+    UUID_BAO_CAO_CHOT = "808f9c1e-b83c-4d57-8975-d227f6e80689"
+
+    if is_staff:
+        metabase_url = "http://127.0.0.1:3000/collection/root"
+    else:
+        metabase_url = f"http://127.0.0.1:3000/public/dashboard/{UUID_BAO_CAO_CHOT}"
+
     context = {
-        'rec_data': json.dumps(rec_data),
+        'total_kpis': total_kpis,
+        'completed_kpis': completed_kpis,
+        'pending_kpis': pending_kpis,
+        'avg_score': avg_score,
+        'status_labels': json.dumps(status_labels),
+        'status_data': json.dumps(status_data),
+        'pos_labels': json.dumps(pos_labels),
+        'pos_data': json.dumps(pos_data),
+        'metabase_url': metabase_url,
+        'is_admin': is_staff,
     }
-    return render(request, 'reports/dashboard.html', context)
-
-def recruitment_report_view(request):
-    # --- 1. PHỄU TUYỂN DỤNG (Conversion Funnel) ---
-    status_order = ['new', 'reviewing', 'interviewing', 'offered', 'hired']
-    status_labels = ['CV Mới', 'Xem xét', 'Phỏng vấn', 'Gửi Offer', 'Nhận việc']
-    cand_counts = Candidate.objects.values('status').annotate(total=Count('id'))
-    counts_dict = {item['status']: item['total'] for item in cand_counts}
-    funnel_values = [counts_dict.get(s, 0) for s in status_order]
-
-    # --- 2. THỜI GIAN TUYỂN DỤNG (Time-to-Fill) ---
-    # Tính trung bình số ngày từ lúc ứng tuyển đến lúc nhận việc (status='hired')
-    # Giả sử file models của ní có trường applied_at và ta dùng auto_now của status update
-    # Ở đây tui demo tính trung bình dựa trên dữ liệu hired
-    hired_candidates = Candidate.objects.filter(status='hired')
-    # Logic: avg(ngày_hiện_tại - ngày_nộp) cho những người đã đậu
-    # (Lưu ý: Nếu ní có trường hired_date thì sẽ chính xác hơn)
-    avg_days = 0
-    if hired_candidates.exists():
-        total_days = sum([(timezone.now() - c.applied_at).days for c in hired_candidates])
-        avg_days = round(total_days / hired_candidates.count(), 1)
-
-    # --- 3. HIỆU QUẢ NGUỒN TUYỂN (Source of Hire) ---
-    # Giả sử ní thêm trường 'source' vào model Candidate (Facebook, LinkedIn, Website...)
-    # Nếu chưa có, ní có thể fake data hoặc dùng tạm trường job_posting để demo
-    source_data = Candidate.objects.values('source').annotate(total=Count('id')) if hasattr(Candidate, 'source') else []
-    source_labels = [s['source'] for s in source_data] or ['Website', 'Facebook', 'Nội bộ', 'TopCV']
-    source_values = [s['total'] for s in source_data] or [40, 25, 15, 20] # Data demo nếu chưa có field
-
-    # --- 4. TỶ LỆ ĐÁP ỨNG NHU CẦU (Fulfillment Rate) ---
-    # So sánh Số lượng cần tuyển (vacancies) vs Số lượng đã tuyển (status='hired')
-    jobs = JobPosting.objects.filter(is_active=True)
-    fulfillment_labels = [j.title[:15] + '...' for j in jobs]
-    target_values = [getattr(j, 'vacancies', 5) for j in jobs] # Giả sử có trường vacancies
-    actual_values = []
-    for j in jobs:
-        actual = Candidate.objects.filter(job_posting=j, status='hired').count()
-        actual_values.append(actual)
-
-    # --- 5. TỶ LỆ RỚT OFFER (Drop-out Rate) ---
-    # So sánh số người được 'offered' nhưng trạng thái cuối là 'rejected'
-    offered_count = Candidate.objects.filter(status='offered').count() + Candidate.objects.filter(status='hired').count()
-    rejected_after_offer = Candidate.objects.filter(status='rejected', hr_note__icontains='offer').count()
     
-    drop_out_labels = ['Chấp nhận Offer', 'Từ chối Offer']
-    drop_out_values = [hired_candidates.count(), rejected_after_offer or 5]
-
-    rec_data = {
-        'funnel_labels': status_labels,
-        'funnel_values': funnel_values,
-        'avg_fill_time': avg_days,
-        'source_labels': source_labels,
-        'source_values': source_values,
-        'full_labels': fulfillment_labels,
-        'full_target': target_values,
-        'full_actual': actual_values,
-        'drop_labels': drop_out_labels,
-        'drop_values': drop_out_values,
-    }
-
-    return render(request, 'reports/recruitment_dashboard.html', {'data_json': json.dumps(rec_data)})
+    return render(request, 'reports/dashboard.html', context)
