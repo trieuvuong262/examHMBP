@@ -1,80 +1,57 @@
-import json
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from django.db.models import Avg, Count, Q
-from kpi.models import YearlyKpi, YearlyKpiItem 
+from django.contrib import messages
+from .models import MetabaseReport 
 
 @login_required
-def dashboard_view(request):
+def dashboard(request):
     user = request.user
     is_staff = user.is_staff or user.is_superuser
 
-    # 1. PHÂN QUYỀN TRUY VẤN
-    if is_staff:
-        base_query = YearlyKpi.objects.all()
-        item_query = YearlyKpiItem.objects.all()
-    else:
-        base_query = YearlyKpi.objects.filter(Q(employee=user) | Q(direct_manager=user))
-        item_query = YearlyKpiItem.objects.filter(yearly_kpi__in=base_query)
+    # ==========================================
+    # XỬ LÝ FORM THÊM & XÓA BÁO CÁO (CHỈ ADMIN)
+    # ==========================================
+    if request.method == 'POST' and is_staff:
+        action = request.POST.get('action')
 
-    # 2. THỐNG KÊ SỐ LIỆU (Sửa lỗi 'status' thành 'y_status')
-    total_kpis = base_query.count()
-    # Ở đây tui dùng y_status (trạng thái năm) làm chuẩn để đếm hoàn thành
-    completed_kpis = base_query.filter(y_status='completed').count()
-    pending_kpis = total_kpis - completed_kpis
-    
-    # Tính điểm trung bình (Sửa field thành y_gm - Điểm GM chốt cuối năm)
-    avg_score_data = item_query.aggregate(Avg('y_gm'))['y_gm__avg']
-    avg_score = round(avg_score_data, 1) if avg_score_data else 0
+        # XỬ LÝ XÓA
+        if action == 'delete':
+            report_id = request.POST.get('report_id')
+            if report_id:
+                MetabaseReport.objects.filter(id=report_id).delete()
+                messages.success(request, "Đã xóa báo cáo thành công!")
+            return redirect('reports:dashboard')
 
-    # 3. DỮ LIỆU CHO BIỂU ĐỒ TRÒN (Trạng thái năm)
-    status_counts = base_query.values('y_status').annotate(count=Count('id'))
-    # Tạo từ điển dịch trạng thái thủ công nếu ní chưa có STATUS_CHOICES trong model
-    status_map = {
-        'draft': 'Bản nháp',
-        'self_evaluating': 'NV Đang làm',
-        'manager_evaluating': 'Sếp đang chấm',
-        'completed': 'Hoàn tất'
-    }
-    
-    status_labels = []
-    status_data = []
-    for item in status_counts:
-        label = status_map.get(item['y_status'], item['y_status'])
-        status_labels.append(label)
-        status_data.append(item['count'])
+        # XỬ LÝ THÊM MỚI
+        elif action == 'add':
+            title = request.POST.get('title')
+            raw_link = request.POST.get('link')
+            report_type = request.POST.get('report_type')
+            is_active = request.POST.get('is_active') == 'on'
 
-    # 4. DỮ LIỆU CHO BIỂU ĐỒ CỘT (Điểm theo chức danh)
-    # Lưu ý: tui dùng 'yearly_kpi__employee__profile__position' dựa trên quan hệ Model của ní
-    position_scores = item_query.values('yearly_kpi__employee__profile__position').annotate(
-        avg=Avg('y_gm')
-    ).exclude(yearly_kpi__employee__profile__position='')
+            uuid = raw_link.strip()
+            if '/public/dashboard/' in uuid:
+                uuid = uuid.split('/public/dashboard/')[-1].split('?')[0]
+            elif '/public/question/' in uuid:
+                uuid = uuid.split('/public/question/')[-1].split('?')[0]
 
-    pos_labels = []
-    pos_data = []
-    for item in position_scores:
-        pos_labels.append(item['yearly_kpi__employee__profile__position'])
-        pos_data.append(round(item['avg'] or 0, 1))
+            if title and uuid:
+                MetabaseReport.objects.create(
+                    title=title, uuid=uuid, report_type=report_type, is_active=is_active
+                )
+                messages.success(request, f"Đã thêm báo cáo '{title}' thành công!")
+            return redirect('reports:dashboard')
 
-    # 5. CẤU HÌNH NHÚNG METABASE
-    # Thay UUID thật của ní vào đây
-    UUID_BAO_CAO_CHOT = "808f9c1e-b83c-4d57-8975-d227f6e80689"
-
-    if is_staff:
-        metabase_url = "http://127.0.0.1:3000/collection/root"
-    else:
-        metabase_url = f"http://127.0.0.1:3000/public/dashboard/{UUID_BAO_CAO_CHOT}"
+    # ==========================================
+    # LẤY DANH SÁCH BÁO CÁO METABASE
+    # ==========================================
+    reports_list = MetabaseReport.objects.filter(is_active=True).order_by('-created_at')
+    all_reports = MetabaseReport.objects.all().order_by('-created_at') if is_staff else []
 
     context = {
-        'total_kpis': total_kpis,
-        'completed_kpis': completed_kpis,
-        'pending_kpis': pending_kpis,
-        'avg_score': avg_score,
-        'status_labels': json.dumps(status_labels),
-        'status_data': json.dumps(status_data),
-        'pos_labels': json.dumps(pos_labels),
-        'pos_data': json.dumps(pos_data),
-        'metabase_url': metabase_url,
+        'reports_list': reports_list,
+        'all_reports': all_reports, 
+        'design_url': "http://127.0.0.1:3000/question/new",
         'is_admin': is_staff,
     }
     

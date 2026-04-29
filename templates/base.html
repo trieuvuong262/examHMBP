@@ -15,7 +15,6 @@
     <meta property="og:title" content="Hoàn Mỹ Portal - Hệ Thống Quản Trị Nhân Sự & Đào Tạo">
     <meta property="og:description"
         content="Hệ thống nội bộ giúp số hóa quy trình Tuyển dụng, Đào tạo và Đánh giá năng lực nhân viên tại Hoàn Mỹ Bình Phước.">
-
     <meta property="og:image"
         content="{{ request.scheme }}://{{ request.get_host }}{% static 'images/logo/thumbnail-share.png' %}">
 
@@ -42,13 +41,8 @@
         min-height: 100vh;
     }
 
-    .bg-hm {
-        background-color: var(--hm-primary) !important;
-    }
-
-    .text-hm {
-        color: var(--hm-primary) !important;
-    }
+    .bg-hm { background-color: var(--hm-primary) !important; }
+    .text-hm { color: var(--hm-primary) !important; }
 
     .btn-hm {
         background-color: var(--hm-primary);
@@ -84,24 +78,37 @@
         letter-spacing: 0.5px;
     }
 
+    /* ĐỒNG BỘ STYLE CHO TẤT CẢ MENU LIKS */
     .nav-link {
         font-weight: 500;
         color: rgba(255, 255, 255, 0.85) !important;
-        transition: all 0.2s;
-        margin: 0 2px;
-        border-radius: 6px;
+        transition: all 0.2s ease;
+        margin: 0 4px;
+        padding: 8px 16px !important;
+        border-radius: 50rem; /* Chuyển tất cả thành bo tròn pill */
     }
 
-    .nav-link:hover,
-    .nav-link.active {
+    .nav-link:hover {
         color: white !important;
         background-color: rgba(255, 255, 255, 0.15);
     }
 
-    /* Override cho các link active có bo tròn (như KPI, Báo cáo) */
-    .nav-link.active.bg-hm {
+    /* Style chuẩn khi một menu đang được chọn (active) */
+    .nav-link.active {
         background-color: white !important;
         color: var(--hm-primary) !important;
+        font-weight: 700;
+        box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075); /* Bóng đổ nhẹ */
+    }
+
+    /* Style cho các menu bị khóa */
+    .nav-link.locked {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    .nav-link.locked:hover {
+        background-color: transparent;
+        color: rgba(255, 255, 255, 0.85) !important;
     }
 
     .footer {
@@ -123,9 +130,7 @@
         transition: color 0.2s;
     }
 
-    .footer a:hover {
-        color: var(--hm-primary);
-    }
+    .footer a:hover { color: var(--hm-primary); }
 
     .footer-bottom {
         background-color: #0f172a;
@@ -140,7 +145,6 @@
     <nav class="navbar navbar-expand-lg bg-hm sticky-top shadow-sm">
         <div class="container-fluid px-4">
             <a class="navbar-brand text-white d-flex align-items-center" href="{% url 'admin_dashboard' %}">
-
                 <img src="{% static 'images/logo/logo.png' %}" alt="Logo Hoàn Mỹ" class="me-2"
                     style="height: 45px; width: auto; object-fit: contain; filter: brightness(0) invert(1);">
                 <div>
@@ -157,63 +161,66 @@
                 <ul class="navbar-nav mx-auto mb-2 mb-lg-0">
                     <li class="nav-item">
                         {% if request.user.is_staff %}
-                        <a class="nav-link px-3" href="{% url 'admin_dashboard' %}?tab=recruitment">
+                        <a class="nav-link {% if request.GET.tab == 'recruitment' or request.resolver_match.url_name == 'admin_dashboard' and not request.GET.tab %}active{% endif %}" 
+                           href="{% url 'admin_dashboard' %}?tab=recruitment">
                             <i class="bi bi-person-lines-fill me-1"></i> Tuyển dụng
                         </a>
                         {% else %}
-                        <a href="#" class="nav-link text-muted"
-                            onclick="alert('Vui lòng không truy cập vào chức năng này'); return false;">
-                            <i class="bi bi-lock-fill me-1"></i>Tuyển dụng
+                        <a href="#" class="nav-link locked" onclick="alert('Vui lòng không truy cập vào chức năng này'); return false;">
+                            <i class="bi bi-lock-fill me-1"></i> Tuyển dụng
                         </a>
                         {% endif %}
                     </li>
+
                     <li class="nav-item">
                         {% if request.user.is_staff %}
-                        <a class="nav-link px-3" href="{% url 'admin_dashboard' %}?tab=training">
-                            <i class="bi bi-mortarboard-fill me-1"></i> Đào tạo - Học tập
+                        <a class="nav-link {% if request.GET.tab == 'training' %}active{% endif %}" 
+                           href="{% url 'admin_dashboard' %}?tab=training">
+                            <i class="bi bi-mortarboard-fill me-1"></i> Đào tạo
                         </a>
                         {% else %}
-                        <a href="#" class="nav-link text-muted"
-                            onclick="alert('Vui lòng không truy cập vào chức năng này'); return false;">
-                            <i class="bi bi-lock-fill me-1"></i>Đào tạo - Học tập
+                        <a href="#" class="nav-link locked" onclick="alert('Vui lòng không truy cập vào chức năng này'); return false;">
+                            <i class="bi bi-lock-fill me-1"></i> Đào tạo
                         </a>
                         {% endif %}
                     </li>
+
                     <li class="nav-item">
                         {% if request.user.is_staff %}
-                        <a class="nav-link px-3" href="{% url 'admin_dashboard' %}?tab=assessment">
-                            <i class="bi bi-journal-check me-1"></i> Kiểm tra chất lượng
+                        <a class="nav-link {% if request.GET.tab == 'assessment' %}active{% endif %}" 
+                           href="{% url 'admin_dashboard' %}?tab=assessment">
+                            <i class="bi bi-journal-check me-1"></i> Kiểm tra
                         </a>
                         {% else %}
-                        <a href="#" class="nav-link text-muted"
-                            onclick="alert('Vui lòng không truy cập vào chức năng này'); return false;">
-                            <i class="bi bi-lock-fill me-1"></i>Kiểm tra chất lượng
+                        <a href="#" class="nav-link locked" onclick="alert('Vui lòng không truy cập vào chức năng này'); return false;">
+                            <i class="bi bi-lock-fill me-1"></i> Kiểm tra
                         </a>
                         {% endif %}
                     </li>
+
                     <li class="nav-item">
                         {% if request.user.is_staff %}
-                        <a class="nav-link px-3" href="{% url 'user_list' %}">
-                            <i class="bi bi-people-fill me-1"></i> Quản lý Nhân sự
+                        <a class="nav-link {% if 'user' in request.resolver_match.url_name %}active{% endif %}" 
+                           href="{% url 'user_list' %}">
+                            <i class="bi bi-people-fill me-1"></i> Nhân sự
                         </a>
                         {% else %}
-                        <a href="#" class="nav-link text-muted"
-                            onclick="alert('Vui lòng không truy cập vào chức năng này'); return false;">
-                            <i class="bi bi-lock-fill me-1"></i>Quản lý nhân sự
+                        <a href="#" class="nav-link locked" onclick="alert('Vui lòng không truy cập vào chức năng này'); return false;">
+                            <i class="bi bi-lock-fill me-1"></i> Nhân sự
                         </a>
                         {% endif %}
                     </li>
 
                     {% if request.user.is_staff %}
                     <li class="nav-item">
-                        <a class="nav-link px-3 rounded-pill {% if 'kpi' in request.resolver_match.url_name %}active bg-hm fw-bold shadow-sm{% endif %}" 
+                        <a class="nav-link {% if 'kpi' in request.resolver_match.url_name %}active{% endif %}" 
                            href="{% url 'kpi_list' %}">
                             <i class="bi bi-graph-up-arrow me-1"></i> Đánh giá KPI
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link px-3 rounded-pill {% if request.resolver_match.view_name == 'reports:dashboard_view' %}active bg-hm fw-bold text-white shadow-sm{% endif %}" 
-                        href="{% url 'reports:dashboard_view' %}">
+                        <a class="nav-link {% if request.resolver_match.view_name == 'reports:dashboard' %}active{% endif %}" 
+                           href="{% url 'reports:dashboard' %}">
                             <i class="bi bi-pie-chart-fill me-1"></i> Báo Cáo
                         </a>
                     </li>
@@ -223,8 +230,8 @@
                 <ul class="navbar-nav">
                     {% if user.is_authenticated %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="userDropdown"
-                            role="button" data-bs-toggle="dropdown">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center bg-transparent shadow-none" href="#" id="userDropdown"
+                            role="button" data-bs-toggle="dropdown" style="color: white !important;">
                             <div class="bg-white text-hm rounded-circle d-flex justify-content-center align-items-center me-2 fw-bold"
                                 style="width: 35px; height: 35px;">
                                 {{ user.first_name|default:user.username|make_list|first|upper }}
@@ -235,7 +242,7 @@
                             <li><h6 class="dropdown-header small text-uppercase">Tài khoản cá nhân</h6></li>
                             
                             <li>
-                                <a class="dropdown-item py-2" href="{% url 'password_change' %}">
+                                <a class="dropdown-item py-2 rounded" href="{% url 'password_change' %}">
                                     <i class="bi bi-shield-lock me-2 text-hm"></i>Đổi mật khẩu
                                 </a>
                             </li>
@@ -245,7 +252,7 @@
                             <li>
                                 <form action="{% url 'logout' %}" method="POST" class="d-inline">
                                     {% csrf_token %}
-                                    <button type="submit" class="dropdown-item py-2 text-danger fw-bold w-100 text-start">
+                                    <button type="submit" class="dropdown-item py-2 rounded text-danger fw-bold w-100 text-start">
                                         <i class="bi bi-box-arrow-right me-2"></i>Đăng xuất
                                     </button>
                                 </form>
@@ -279,29 +286,20 @@
             <div class="row mb-4">
                 <div class="col-lg-4 mb-4 mb-lg-0">
                     <h5 class="text-white fw-bold mb-3 d-flex align-items-center">
-
                         <img src="{% static 'images/logo/logo.png' %}" alt="Logo Hoàn Mỹ Bình Phước" class="me-3"
                             style="height: 40px; width: auto; object-fit: contain; filter: brightness(0) invert(1);">
-
                         BỆNH VIỆN HOÀN MỸ BÌNH PHƯỚC
                     </h5>
-                    <p class="small lh-lg text-white-50"> Hệ thống Quản trị Nhân sự & Đào tạo trực tuyến hiện đại. Giải
-                        pháp số hóa toàn diện giúp tối ưu
-                        hóa quy trình tuyển dụng, nâng cao năng lực nhân sự và đánh giá KPI hiệu quả.
-                    </p>
+                    <p class="small lh-lg text-white-50"> Hệ thống Quản trị Nhân sự & Đào tạo trực tuyến hiện đại. Giải pháp số hóa toàn diện giúp tối ưu hóa quy trình tuyển dụng, nâng cao năng lực nhân sự và đánh giá KPI hiệu quả.</p>
                 </div>
 
                 <div class="col-lg-2 col-md-4 mb-4 mb-md-0">
                     <div class="footer-heading">Phân hệ</div>
                     <ul class="list-unstyled small lh-lg">
-                        <li><a href="#"><i class="bi bi-chevron-right me-1" style="font-size: 0.7rem;"></i> Quản lý
-                                Tuyển dụng</a></li>
-                        <li><a href="#"><i class="bi bi-chevron-right me-1" style="font-size: 0.7rem;"></i> Đào tạo
-                                E-Learning</a></li>
-                        <li><a href="#"><i class="bi bi-chevron-right me-1" style="font-size: 0.7rem;"></i> Đánh giá
-                                Năng lực</a></li>
-                        <li><a href="#"><i class="bi bi-chevron-right me-1" style="font-size: 0.7rem;"></i> Cổng thông
-                                tin NV</a></li>
+                        <li><a href="#"><i class="bi bi-chevron-right me-1" style="font-size: 0.7rem;"></i> Quản lý Tuyển dụng</a></li>
+                        <li><a href="#"><i class="bi bi-chevron-right me-1" style="font-size: 0.7rem;"></i> Đào tạo E-Learning</a></li>
+                        <li><a href="#"><i class="bi bi-chevron-right me-1" style="font-size: 0.7rem;"></i> Đánh giá Năng lực</a></li>
+                        <li><a href="#"><i class="bi bi-chevron-right me-1" style="font-size: 0.7rem;"></i> Cổng thông tin NV</a></li>
                     </ul>
                 </div>
 
