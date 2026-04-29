@@ -163,24 +163,24 @@
                     <li class="nav-item">
                         {% if request.user.is_staff %}
                         <a class="nav-link px-3" href="{% url 'admin_dashboard' %}?tab=training">
-                            <i class="bi bi-mortarboard-fill me-1"></i> Đào tạo
+                            <i class="bi bi-mortarboard-fill me-1"></i> Đào tạo - Học tập
                         </a>
                         {% else %}
                         <a href="#" class="nav-link text-muted"
                             onclick="alert('Vui lòng không truy cập vào chức năng này'); return false;">
-                            <i class="bi bi-lock-fill me-1"></i>Đào tạo
+                            <i class="bi bi-lock-fill me-1"></i>Đào tạo - Học tập
                         </a>
                         {% endif %}
                     </li>
                     <li class="nav-item">
                         {% if request.user.is_staff %}
                         <a class="nav-link px-3" href="{% url 'admin_dashboard' %}?tab=assessment">
-                            <i class="bi bi-journal-check me-1"></i> Đánh giá
+                            <i class="bi bi-journal-check me-1"></i> Kiểm tra chất lượng
                         </a>
                         {% else %}
                         <a href="#" class="nav-link text-muted"
                             onclick="alert('Vui lòng không truy cập vào chức năng này'); return false;">
-                            <i class="bi bi-lock-fill me-1"></i>Đánh giá
+                            <i class="bi bi-lock-fill me-1"></i>Kiểm tra chất lượng
                         </a>
                         {% endif %}
                     </li>
