@@ -58,6 +58,7 @@ def kpi_list_view(request):
         'is_manager_or_gm': is_manager_or_gm,  # <--- Bắt buộc phải có dòng này nha ní!
         'admin_periods': admin_periods,
     })
+    
 @login_required
 def kpi_detail_view(request, kpi_id):
     # 1. Lấy bảng KPI và các chỉ tiêu liên quan
