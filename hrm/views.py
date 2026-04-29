@@ -63,49 +63,69 @@ def user_add(request):
         'form': form, 
         'title': 'Thêm nhân viên mới'
     })
+
 @admin_only
 def user_edit(request, user_id):
-    user = get_object_or_404(User, id=user_id)
-    # Lấy profile, nếu lỡ nhân viên này chưa có profile thì tự động tạo rỗng để tránh lỗi
-    profile, created = Profile.objects.get_or_create(user=user)
+    user_obj = get_object_or_404(User, id=user_id)
+    # Lấy profile, tự động tạo nếu chưa có
+    profile, created = Profile.objects.get_or_create(user=user_obj)
 
     if request.method == 'POST':
-        form = CustomUserForm(request.POST)
+        # TRUYỀN user_id VÀO ĐÂY: Để hàm clean_username trong forms.py không báo lỗi trùng chính mình
+        form = CustomUserForm(request.POST, user_id=user_obj.id)
         
-        # TUYỆT CHIÊU: Đang sửa nên không bắt buộc nhập mật khẩu nữa
+        # Đang sửa nên không bắt buộc nhập mật khẩu
         form.fields['password'].required = False 
 
         if form.is_valid():
-            # 1. Cập nhật bảng User
-            user.username = form.cleaned_data['username']
-            user.email = form.cleaned_data['email']
-            user.first_name = form.cleaned_data['full_name']
-            user.save()
+            # 1. Cập nhật bảng User mặc định của Django
+            user_obj.username = form.cleaned_data['username']
+            user_obj.email = form.cleaned_data['email']
+            user_obj.first_name = form.cleaned_data['full_name']
+            
+            # Chỉ cập nhật mật khẩu nếu sếp có nhập vào ô password
+            new_password = form.cleaned_data.get('password')
+            if new_password:
+                user_obj.set_password(new_password)
+            
+            user_obj.save()
 
-            # 2. Cập nhật bảng Profile
+            # 2. Cập nhật bảng Profile (Logic HRM của mình)
             profile.full_name = form.cleaned_data['full_name']
             profile.position = form.cleaned_data['position']
+            profile.role = form.cleaned_data['role']
+            
+            # QUAN TRỌNG: Lưu danh sách nhân viên cấp dưới (ManyToMany)
+            # Dùng .set() để ghi đè danh sách mới từ form
+            profile.subordinates.set(form.cleaned_data['subordinates'])
+            
+            # Hàm save() của profile sẽ tự xử lý việc cấp quyền Admin nếu role là GM
             profile.save()
 
-            messages.success(request, "Cập nhật thông tin nhân viên thành công!")
+            messages.success(request, f"Cập nhật {profile.full_name} thành công!")
             return redirect('user_list')
+        else:
+            messages.error(request, "Vui lòng kiểm tra lại dữ liệu nhập vào.")
     else:
-        # Đổ dữ liệu cũ của nhân viên vào Form để hiển thị lên web
+        # Đổ dữ liệu hiện tại vào Form để sếp thấy mà sửa
         initial_data = {
-            'username': user.username,
-            'email': user.email,
+            'username': user_obj.username,
+            'email': user_obj.email,
             'full_name': profile.full_name,
             'position': profile.position,
+            'role': profile.role,
+            'subordinates': profile.subordinates.all(), # Lấy danh sách lính hiện tại
         }
-        form = CustomUserForm(initial=initial_data)
+        # Truyền user_id để form biết đường loại trừ chính mình khỏi danh sách chọn cấp dưới
+        form = CustomUserForm(initial=initial_data, user_id=user_obj.id)
         form.fields['password'].required = False
 
     return render(request, 'assessment/admin/user_form.html', {
         'form': form, 
-        'title': 'Sửa thông tin nhân viên',
-        'is_edit': True # Truyền biến này ra để file HTML biết mà giấu ô Mật khẩu đi
+        'title': 'Chỉnh sửa nhân sự',
+        'is_edit': True,
+        'user_instance': user_obj # Truyền thêm để template nếu cần dùng ID
     })
-
 @admin_only
 def user_delete(request, user_id):
     user = get_object_or_404(User, id=user_id)

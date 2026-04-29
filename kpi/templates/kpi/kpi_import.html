@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-lg border-0 rounded-4">
+                <div class="card-header bg-dark text-white p-4">
+                    <h4 class="mb-0 fw-bold"><i class="bi bi-file-earmark-excel-fill text-success me-2"></i>Import Mục tiêu KPI từ Excel</h4>
+                    <p class="mb-0 text-white-50 mt-1">Thiết lập hàng loạt Bảng mục tiêu năm (Yearly KPI) cho nhân sự</p>
+                </div>
+                <div class="card-body p-5">
+                    
+                    <div class="alert border border-info bg-info bg-opacity-10 rounded-3 mb-4 shadow-sm position-relative">
+                        <div class="position-absolute top-0 end-0 p-3">
+                            <a href="{% url 'download_kpi_sample' %}" class="btn btn-sm btn-info text-dark fw-bold rounded-pill shadow-sm">
+                                <i class="bi bi-download me-1"></i> Tải file mẫu (.xlsx)
+                            </a>
+                        </div>
+
+                        <h6 class="fw-bold text-info-emphasis"><i class="bi bi-info-circle-fill me-2"></i>Cấu trúc file Excel bắt buộc:</h6>
+                        <p class="small mb-2 text-dark">Hệ thống đọc dữ liệu từ <strong>Sheet đầu tiên</strong>. Dòng 1 là tiêu đề (Header). Các cột theo thứ tự sau (A -> I):</p>
+                        
+                        <div class="table-responsive bg-white rounded border mt-3">
+                            <table class="table table-sm table-bordered mb-0 small text-nowrap">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>A: Email NV</th><th>B: Năm</th><th>C: Lĩnh vực</th><th>D: Mục tiêu</th><th>E: Chỉ số đo</th><th>F: Trọng số</th><th>G: Chỉ tiêu</th><th>H: Đơn vị</th><th>I: Xu hướng</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="text-muted">
+                                        <td>luu.dao@hoanmy.com</td><td>2026</td><td>FINANCE</td><td>Đạt doanh thu...</td><td>Doanh thu...</td><td>20</td><td>100</td><td>%</td><td>HIGHER</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <ul class="small mt-3 mb-0 text-danger fw-medium">
+                            <li>Lĩnh vực (Cột C) chỉ nhận: PEOPLE, FINANCE, CUSTOMER, OPERATION.</li>
+                            <li>Xu hướng (Cột I) chỉ nhận: HIGHER, LOWER, EXACT.</li>
+                        </ul>
+                    </div>
+
+                    <form method="POST" enctype="multipart/form-data" class="text-center p-4 border border-2 border-dashed rounded-4 bg-light">
+                        {% csrf_token %}
+                        <i class="bi bi-cloud-arrow-up display-1 text-hm mb-3 d-block"></i>
+                        <h5 class="fw-bold text-dark">Tải file Excel lên đây</h5>
+                        <p class="text-muted small mb-4">Chỉ chấp nhận định dạng .xlsx</p>
+                        
+                        <div class="mb-4 w-75 mx-auto">
+                            <input class="form-control form-control-lg border-primary shadow-sm" type="file" name="excel_file" accept=".xlsx" required>
+                        </div>
+                        
+                        <div class="d-flex justify-content-center gap-3">
+                            <button type="submit" class="btn btn-hm btn-lg px-5 rounded-pill shadow-sm fw-bold">
+                                <i class="bi bi-upload me-2"></i>Tiến hành Import
+                            </button>
+                            <a href="{% url 'kpi_list' %}" class="btn btn-outline-secondary btn-lg px-4 rounded-pill">Hủy bỏ</a>
+                        </div>
+                    </form>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+    .border-dashed { border-style: dashed !important; border-color: #cbd5e1 !important;}
+</style>
+{% endblock %}

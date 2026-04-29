@@ -18,7 +18,7 @@
                     </div>
                     <div>
                         <h4 class="mb-0 fw-bold">{{ title }}</h4>
-                        <p class="mb-0 text-white-50 small mt-1">Cấp tài khoản và chức danh nhân sự mới</p>
+                        <p class="mb-0 text-white-50 small mt-1">Quản lý tài khoản và phân quyền hệ thống</p>
                     </div>
                 </div>
                 
@@ -31,13 +31,13 @@
                                 <i class="bi bi-shield-lock-fill me-2"></i>Tài khoản hệ thống
                             </h6>
                             <div class="row g-4">
-                                
                                 <div class="{% if is_edit %}col-md-12{% else %}col-md-6{% endif %}">
                                     <label class="form-label fw-bold small text-secondary">Tên đăng nhập (Username) <span class="text-danger">*</span></label>
                                     <div class="input-group custom-input-group">
                                         <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-person"></i></span>
                                         {{ form.username }}
                                     </div>
+                                    {% if form.username.errors %}<div class="text-danger small mt-1">{{ form.username.errors }}</div>{% endif %}
                                 </div>
 
                                 {% if not is_edit %}
@@ -62,7 +62,7 @@
 
                         <div class="mb-5">
                             <h6 class="text-hm fw-bold border-bottom border-2 border-hm pb-2 mb-4 text-uppercase letter-spacing">
-                                <i class="bi bi-person-vcard-fill me-2"></i>Thông tin nhân sự
+                                <i class="bi bi-person-vcard-fill me-2"></i>Thông tin & Phân quyền
                             </h6>
                             <div class="row g-4">
                                 <div class="col-md-12">
@@ -70,12 +70,29 @@
                                     {{ form.full_name }}
                                 </div>
                                 
-                                <div class="col-md-12">
-                                    <label class="form-label fw-bold small text-secondary">Chức danh / Vị trí công tác <span class="text-danger">*</span></label>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small text-secondary">Chức danh / Vị trí <span class="text-danger">*</span></label>
                                     <div class="input-group custom-input-group">
                                         <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-briefcase"></i></span>
                                         {{ form.position }}
                                     </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small text-secondary">Vai trò hệ thống <span class="text-danger">*</span></label>
+                                    <div class="input-group custom-input-group">
+                                        <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-shield-shaded"></i></span>
+                                        {{ form.role }}
+                                    </div>
+                                </div>
+
+                                <div class="col-md-12" id="subordinates_section" style="display: none;">
+                                    <label class="form-label fw-bold small text-secondary">Nhân viên dưới quyền (Dành cho HOD) <span class="text-danger">*</span></label>
+                                    <div class="p-3 border rounded-3 bg-light">
+                                        <p class="small text-muted mb-2"><i class="bi bi-info-circle me-1"></i>Giữ Ctrl để chọn nhiều nhân viên</p>
+                                        {{ form.subordinates }}
+                                    </div>
+                                    {% if form.subordinates.errors %}<div class="text-danger small mt-1">{{ form.subordinates.errors }}</div>{% endif %}
                                 </div>
                             </div>
                         </div>
@@ -104,12 +121,71 @@
     .btn-hm:hover { background-color: var(--hm-primary-hover); color: white; }
     .btn-hover-lift:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1); }
     
-    /* Custom style cho input và select render từ Django form */
     .custom-input-group input, .custom-input-group select {
         border-top-left-radius: 0 !important;
         border-bottom-left-radius: 0 !important;
         border-left: 0 !important;
     }
+    /* Style cho ô chọn nhiều subordinates */
+    select[multiple] { min-height: 150px; border: 1px solid #dee2e6 !important; border-radius: 8px !important; padding: 10px; }
     .letter-spacing { letter-spacing: 0.5px; }
 </style>
+
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+
+<style>
+    /* Tùy chỉnh để Select2 khớp với style Hoàn Mỹ của ní */
+    .select2-container--bootstrap-5 .select2-selection {
+        border-radius: 12px;
+        border: 1px solid #dee2e6;
+        padding: 0.3rem;
+        min-height: 45px;
+    }
+    .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice {
+        background-color: var(--hm-primary);
+        color: white;
+        border: none;
+        border-radius: 20px;
+        padding: 2px 10px;
+        font-size: 0.85rem;
+    }
+    .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice__remove {
+        color: white;
+        margin-right: 5px;
+    }
+</style>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+    $(document).ready(function() {
+        // Khởi tạo Select2 cho ô chọn subordinates
+        $('select[name="subordinates"]').select2({
+            theme: 'bootstrap-5',
+            placeholder: ' Nhập tên hoặc username để tìm nhân viên...',
+            allowClear: true,
+            closeOnSelect: false, // Giữ menu mở để chọn nhiều người cho nhanh
+            language: {
+                noResults: function() { return "Không tìm thấy nhân viên nào"; }
+            }
+        });
+
+        // Logic ẩn hiện section như cũ nhưng tương thích với Select2
+        const roleSelect = document.querySelector('select[name="role"]');
+        const subSection = document.getElementById('subordinates_section');
+
+        function toggleSubordinates() {
+            if (roleSelect.value === 'HOD') {
+                $(subSection).fadeIn();
+            } else {
+                $(subSection).fadeOut();
+            }
+        }
+
+        roleSelect.addEventListener('change', toggleSubordinates);
+        toggleSubordinates();
+    });
+</script>
 {% endblock %}

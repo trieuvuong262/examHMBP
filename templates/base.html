@@ -196,6 +196,17 @@
                         </a>
                         {% endif %}
                     </li>
+                    <li class="nav-item">
+                        {% if request.user.is_staff %}
+                        <a class="nav-link {% if 'kpi' in request.path %}active fw-bold text-hm{% endif %}" href="{% url 'kpi_list' %}">
+                            <i class="bi bi-graph-up-arrow me-1"></i> Hiệu suất (KPI)
+                        </a>
+                        {% else %}
+                        <a href="{% url 'kpi_list' %}" class="nav-link {% if 'kpi' in request.path %}active fw-bold text-hm{% endif %}">
+                            <i class="bi bi-graph-up-arrow me-1"></i> Hiệu suất (KPI)
+                        </a>
+                        {% endif %}
+                    </li>
                 </ul>
 
                 <ul class="navbar-nav">

@@ -18,8 +18,8 @@ from django.contrib.auth.views import PasswordChangeView
 from django.urls import reverse_lazy
 from django.contrib import messages
 from django.contrib.auth import logout
-
-
+from django.db.models import Q
+from kpi.models import YearlyKpi, KpiPeriod  # Import đúng Model mới
 from .models import (
     Exam, 
     Question, 
@@ -50,10 +50,35 @@ def login_redirect_view(request):
     # Nếu là User bình thường
     return redirect('home_portal') # Chuyển qua http://ip/ (Trang gốc của ní)
 
-
 @login_required
 def home_portal(request):
-    return render(request, 'portal.html')
+    profile = request.user.profile
+    
+    # 1. Lấy Bảng KPI cá nhân của nhân viên (All-in-one Board)
+    my_kpis = YearlyKpi.objects.filter(employee=request.user).order_by('-year')
+    
+    # 2. Lấy danh sách KPI của cấp dưới (Nếu user là HOD hoặc GM)
+    team_kpis = YearlyKpi.objects.none()
+    
+    if profile.role == 'GM' or request.user.is_superuser:
+        # GM thấy tất cả trừ chính mình
+        team_kpis = YearlyKpi.objects.exclude(employee=request.user).order_by('-year')
+    elif profile.role == 'HOD':
+        # HOD thấy nhân viên thuộc subordinates hoặc mình là direct_manager
+        subordinates = profile.subordinates.all()
+        team_kpis = YearlyKpi.objects.filter(
+            Q(employee__in=subordinates) | Q(direct_manager=request.user)
+        ).exclude(employee=request.user).distinct().order_by('-year')
+
+    # 3. Lấy thông tin các kỳ đang mở để hiển thị thông báo nhắc nhở (nếu cần)
+    active_periods = KpiPeriod.objects.filter(is_active=True)
+
+    return render(request, 'portal.html', {
+        'my_kpis': my_kpis,
+        'team_kpis': team_kpis,
+        'active_periods': active_periods,
+        'is_manager_or_gm': profile.role in ['HOD', 'GM'] or request.user.is_superuser
+    })
 
 @login_required
 def exam_list(request):
@@ -234,32 +259,50 @@ def take_exam(request, exam_id):
 def admin_dashboard(request):
     now = timezone.now()
     
+    # --- PHẦN KPI (CẬP NHẬT THEO MODEL MỚI) ---
+    # Đếm số kỳ đánh giá đang được Admin bật (Q1, Q2...)
+    active_kpi_periods = KpiPeriod.objects.filter(is_active=True).count()
+    # Đếm tổng số Bảng mục tiêu năm đã được thiết lập cho nhân viên
+    total_yearly_kpis = YearlyKpi.objects.count()
+    
+    # --- PHẦN ĐÀO TẠO & THI CỬ ---
     all_exams = Exam.objects.all().order_by('-id') 
     all_courses = Course.objects.all().order_by('-created_at')
+    
+    # --- PHẦN TUYỂN DỤNG ---
     active_jobs = JobPosting.objects.filter(is_active=True).count()
     total_candidates = Candidate.objects.count()
-    upcoming_interviews = Interview.objects.filter(interview_time__gte=timezone.now()).count()
+    upcoming_interviews = Interview.objects.filter(interview_time__gte=now).count()
     recent_candidates = Candidate.objects.select_related('job_posting').order_by('-applied_at')
+
     context = {
+        # KPI Dashboard
+        'active_kpi_periods': active_kpi_periods,
+        'total_yearly_kpis': total_yearly_kpis, # Thay cho total_employee_kpis cũ
+        
+        # Exams & Users
         'jobs': JobPosting.objects.filter(is_active=True), 
         'total_exams': all_exams.count(),
         'active_exams_count': all_exams.filter(is_active=True, end_time__gt=now).count(),
         'total_users': User.objects.count(),
         'total_submissions': ExamSubmission.objects.filter(is_completed=True).count(),
-        'exams': all_exams,  # THÊM DÒNG NÀY ĐỂ FIX LỖI Failed lookup for key [exams]
+        'exams': all_exams,
         'recent_exams': all_exams[:5],
-        'recent_submissions': ExamSubmission.objects.filter(is_completed=True).order_by('-submitted_at'),
+        'recent_submissions': ExamSubmission.objects.filter(is_completed=True).order_by('-submitted_at')[:5],
+        
+        # Recruitment
         'active_jobs': active_jobs,
         'total_candidates': total_candidates,
         'upcoming_interviews': upcoming_interviews,
-        'recent_candidates': recent_candidates,
+        'recent_candidates': recent_candidates[:5],
+        
+        # Training
         'total_courses': all_courses.count(),
         'active_learners': Enrollment.objects.filter(is_completed=False).count(),
         'completed_learners': Enrollment.objects.filter(is_completed=True).count(),
         'recent_courses': all_courses[:5],
     }
     return render(request, 'assessment/admin/dashboard.html', context)
-
 import json
 from django.contrib.auth.models import User
 

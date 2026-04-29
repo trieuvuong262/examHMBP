@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    :root {
+        --hm-primary: rgb(0, 144, 161);
+        --hm-primary-hover: rgb(0, 115, 129);
+    }
+    .text-hm { color: var(--hm-primary) !important; }
+    .bg-hm { background-color: var(--hm-primary) !important; color: white; }
+    .btn-hm { background-color: var(--hm-primary); color: white; border: none; }
+    .btn-hm:hover { background-color: var(--hm-primary-hover); color: white; }
+    .table th { background-color: #f8fafc !important; }
+</style>
+
+<div class="container-fluid mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold text-hm mb-1"><i class="bi bi-file-earmark-plus-fill me-2"></i>Thiết lập KPI Năm</h4>
+            <p class="text-muted small">Giao chỉ tiêu và chọn chế độ đánh giá cho nhân sự</p>
+        </div>
+        <a href="{% url 'kpi_list' %}" class="btn btn-light border fw-bold shadow-sm rounded-pill px-4">Quay lại</a>
+    </div>
+
+    <form method="POST" id="kpiForm">
+        {% csrf_token %}
+        
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-body p-4">
+                <div class="row g-3">
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-muted text-uppercase">Năm <span class="text-danger">*</span></label>
+                        <input type="number" name="year" class="form-control bg-light" value="2026" required>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted text-uppercase">Nhân viên <span class="text-danger">*</span></label>
+                        <select name="employee_id" class="form-select bg-light" required>
+                            <option value="">-- Chọn nhân viên --</option>
+                            {% for u in target_employees %}
+                            <option value="{{ u.id }}">{{ u.profile.full_name|default:u.username }} ({{ u.profile.position }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted text-uppercase">Chế độ <span class="text-danger">*</span></label>
+                        <select name="eval_type" class="form-select bg-light border-primary" required>
+                            <option value="QUARTER" selected>Đánh giá theo Quý (4 cột)</option>
+                            <option value="HALF">Đánh giá theo Bán niên (2 cột)</option>
+                            <option value="YEAR">Đánh giá Cả năm (1 cột)</option> </select>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-muted text-uppercase">QL Trực tiếp</label>
+                        {% if is_hod %}
+                            <input type="text" class="form-control bg-light fw-bold text-hm" value="{{ request.user.profile.full_name|default:request.user.username }}" readonly>
+                            <input type="hidden" name="direct_manager_id" value="{{ request.user.id }}">
+                        {% else %}
+                            <select name="direct_manager_id" class="form-select bg-light">
+                                <option value="">-- Chọn QLTT --</option>
+                                {% for u in hod_list %}
+                                <option value="{{ u.id }}">{{ u.profile.full_name|default:u.username }}</option>
+                                {% endfor %}
+                            </select>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-muted text-uppercase">QL Chung</label>
+                        <select name="general_manager_id" class="form-select bg-light">
+                            <option value="">-- Chọn QLC --</option>
+                            {% for u in gm_list %}
+                            <option value="{{ u.id }}">{{ u.profile.full_name|default:u.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div class="card-header bg-hm text-white p-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold">Chi tiết Mục tiêu & Chỉ tiêu (1 Năm)</h6>
+                <button type="button" class="btn btn-sm btn-light fw-bold text-hm rounded-pill px-3 shadow-sm" onclick="addRow()">
+                    <i class="bi bi-plus-circle-fill me-1"></i> Thêm mục tiêu
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-bordered mb-0 align-middle" id="kpiTable">
+                    <thead class="text-center small text-muted">
+                        <tr>
+                            <th style="width: 15%">Lĩnh vực (Pillar)</th>
+                            <th style="width: 25%">Mục tiêu cá nhân</th>
+                            <th style="width: 25%">Chỉ số đo lường</th>
+                            <th style="width: 8%">Trọng số (%)</th>
+                            <th style="width: 10%">Chỉ tiêu (Năm)</th>
+                            <th style="width: 7%">Đơn vị</th>
+                            <th style="width: 10%">Xu hướng</th>
+                            <th style="width: 5%">Xóa</th>
+                        </tr>
+                    </thead>
+                    <tbody id="kpiBody">
+                        <tr>
+                            <td>
+                                <select name="pillar[]" class="form-select form-select-sm border-0 bg-light">
+                                    <option value="PEOPLE">Quản trị Nguồn NL</option>
+                                    <option value="FINANCE">Tài chính</option>
+                                    <option value="CUSTOMER">Khách hàng</option>
+                                    <option value="OPERATION" selected>Vận hành</option>
+                                </select>
+                            </td>
+                            <td><textarea name="personal_objective[]" rows="2" class="form-control form-control-sm border-0" placeholder="Nhập mục tiêu..." required></textarea></td>
+                            <td><textarea name="kpi_indicator[]" rows="2" class="form-control form-control-sm border-0" placeholder="Công thức tính..."></textarea></td>
+                            <td><input type="number" step="0.1" name="weightage[]" class="form-control form-control-sm border-0 text-center fw-bold text-hm" value="0"></td>
+                            <td><input type="number" step="0.1" name="yearly_target[]" class="form-control form-control-sm border-0 text-center fw-bold text-danger" value="0"></td>
+                            <td><input type="text" name="unit[]" class="form-control form-control-sm border-0 text-center" value="%"></td>
+                            <td>
+                                <select name="trend[]" class="form-select form-select-sm border-0 text-center bg-light">
+                                    <option value="HIGHER">Cao hơn</option>
+                                    <option value="LOWER">Thấp hơn</option>
+                                    <option value="EXACT">Chính xác</option>
+                                </select>
+                            </td>
+                            <td class="text-center">
+                                <button type="button" class="btn btn-sm btn-outline-danger border-0" onclick="removeRow(this)"><i class="bi bi-trash"></i></button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-footer bg-white p-4 d-flex justify-content-end align-items-center">
+                <div class="me-3 small text-muted">Vui lòng kiểm tra kỹ trọng số trước khi lưu.</div>
+                <button type="submit" class="btn btn-hm fw-bold px-5 py-2 rounded-pill shadow-sm">
+                    <i class="bi bi-save me-1"></i> LƯU BẢNG MỤC TIÊU
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+    function addRow() {
+        const tbody = document.getElementById('kpiBody');
+        const firstRow = tbody.querySelector('tr');
+        const newRow = firstRow.cloneNode(true);
+        
+        newRow.querySelectorAll('textarea').forEach(input => input.value = '');
+        newRow.querySelectorAll('input[type="number"]').forEach(input => input.value = '0');
+        
+        tbody.appendChild(newRow);
+    }
+
+    function removeRow(btn) {
+        const tbody = document.getElementById('kpiBody');
+        if (tbody.children.length > 1) {
+            btn.closest('tr').remove();
+        } else {
+            alert("Bắt buộc phải có ít nhất 1 mục tiêu!");
+        }
+    }
+</script>
+{% endblock %}

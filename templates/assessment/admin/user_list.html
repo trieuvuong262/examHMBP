@@ -78,7 +78,7 @@
                         <th class="ps-4 py-3 text-muted">Nhân viên</th>
                         <th class="text-muted">Account</th>
                         <th class="text-muted">Chức danh</th>
-                        <th class="text-muted">Email</th>
+                        <th class="text-muted text-center">Vai trò hệ thống</th> <th class="text-muted">Email</th>
                         <th class="text-muted">Ngày tham gia</th>
                         <th class="text-end pe-4 text-muted">Thao tác</th>
                     </tr>
@@ -88,17 +88,16 @@
                     <tr>
                         <td class="ps-4">
                             <div class="d-flex align-items-center">
-                                <div class="avatar-circle me-3">{{ u.profile.full_name|default:u.first_name|default:u.username|make_list|first|upper }}</div>
+                                <div class="avatar-circle me-3" style="width: 40px; height: 40px; background: rgba(0, 144, 161, 0.1); color: #0090a1; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold;">
+                                    {{ u.profile.full_name|default:u.first_name|default:u.username|make_list|first|upper }}
+                                </div>
                                 <div>
                                     <div class="fw-bold text-dark">{{ u.profile.full_name|default:u.first_name|default:u.username }}</div>
-                                    {% if u.is_staff %}
-                                        <span class="badge bg-danger-subtle text-danger rounded-pill x-small mt-1">Admin Quản trị</span>
-                                    {% else %}
-                                        <span class="badge bg-primary-subtle text-hm rounded-pill x-small mt-1">Nhân viên</span>
-                                    {% endif %}
+                                    <div class="small text-muted" style="font-size: 0.75rem;">ID: #{{ u.id }}</div>
                                 </div>
                             </div>
                         </td>
+                        
                         <td><code class="text-primary fw-bold px-2 py-1 bg-light rounded-2">{{ u.username }}</code></td>
                         
                         <td>
@@ -108,9 +107,26 @@
                                 <span class="text-muted small fst-italic">---</span>
                             {% endif %}
                         </td>
+
+                        <td class="text-center">
+                            {% if u.profile.role == 'GM' %}
+                                <span class="badge bg-danger-subtle text-danger rounded-pill px-3" style="font-size: 0.7rem;">
+                                    <i class="bi bi-shield-fill-check me-1"></i>Giám đốc (GM)
+                                </span>
+                            {% elif u.profile.role == 'HOD' %}
+                                <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-3" style="font-size: 0.7rem;">
+                                    <i class="bi bi-person-badge-fill me-1"></i>Trưởng phòng (HOD)
+                                </span>
+                            {% else %}
+                                <span class="badge bg-primary-subtle text-hm rounded-pill px-3" style="font-size: 0.7rem;">
+                                    <i class="bi bi-person-fill me-1"></i>Nhân viên
+                                </span>
+                            {% endif %}
+                        </td>
                         
                         <td class="text-muted">{{ u.email|default:"---" }}</td>
                         <td class="text-muted small">{{ u.date_joined|date:"d/m/Y" }}</td>
+                        
                         <td class="text-end pe-4">
                             <div class="d-inline-flex align-items-center gap-1">
                                 <a href="{% url 'user_edit' u.id %}" class="btn btn-sm btn-white border shadow-sm px-3" title="Sửa thông tin">
@@ -128,7 +144,7 @@
                                 </form>
 
                                 <a href="{% url 'user_delete' u.id %}" class="btn btn-sm btn-white border shadow-sm px-3" 
-                                onclick="return confirm('Xóa tài khoản này?')" title="Xóa">
+                                onclick="return confirm('Xác nhận xóa vĩnh viễn tài khoản này?')" title="Xóa">
                                     <i class="bi bi-trash-fill text-danger"></i>
                                 </a>
                             </div>
@@ -136,7 +152,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center py-5">
+                        <td colspan="7" class="text-center py-5">
                             <div class="py-4">
                                 <i class="bi bi-person-exclamation display-1 text-muted opacity-25"></i>
                                 <p class="mt-3 text-muted fs-5">Chưa có nhân viên nào trong hệ thống.</p>

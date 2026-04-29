@@ -120,19 +120,21 @@
         box-shadow: 0 4px 12px rgba(0, 144, 161, 0.2);
     }
 </style>
-
 <div class="container-fluid mt-4 mb-5">
     <ul class="nav nav-pills d-none" id="dashboardTabs" role="tablist">
-    <li class="nav-item shadow-none">
-        <button class="nav-link active" id="recruitment-tab" data-bs-toggle="pill" data-bs-target="#recruitment" type="button" role="tab"></button>
-    </li>
-    <li class="nav-item shadow-none">
-        <button class="nav-link" id="training-tab" data-bs-toggle="pill" data-bs-target="#training" type="button" role="tab"></button>
-    </li>
-    <li class="nav-item shadow-none">
-        <button class="nav-link" id="assessment-tab" data-bs-toggle="pill" data-bs-target="#assessment" type="button" role="tab"></button>
-    </li>
-</ul>
+        <li class="nav-item shadow-none">
+            <button class="nav-link active" id="recruitment-tab" data-bs-toggle="pill" data-bs-target="#recruitment" type="button" role="tab"></button>
+        </li>
+        <li class="nav-item shadow-none">
+            <button class="nav-link" id="training-tab" data-bs-toggle="pill" data-bs-target="#training" type="button" role="tab"></button>
+        </li>
+        <li class="nav-item shadow-none">
+            <button class="nav-link" id="assessment-tab" data-bs-toggle="pill" data-bs-target="#assessment" type="button" role="tab"></button>
+        </li>
+        <li class="nav-item shadow-none">
+            <button class="nav-link" id="kpi-tab" data-bs-toggle="pill" data-bs-target="#kpi" type="button" role="tab"></button>
+        </li>
+    </ul>
 
     <div class="tab-content" id="dashboardTabsContent">
         
@@ -223,23 +225,16 @@
                                 <td class="text-center">
                                     {% if candidate.status == 'new' or candidate.status == 'applied' %}
                                         <span class="badge-soft bg-primary-soft">Mới nộp</span>
-                                        
                                     {% elif candidate.status == 'reviewing' %}
                                         <span class="badge-soft bg-warning-soft">Đang xem xét</span>
-                                        
                                     {% elif candidate.status == 'interviewing' or candidate.status == 'interview' %}
                                         <span class="badge-soft bg-info-soft">Phỏng vấn</span>
-                                        
                                     {% elif candidate.status == 'offered' or candidate.status == 'hired' %}
                                         <span class="badge-soft bg-success-soft">Trúng tuyển</span>
-                                        
                                     {% elif candidate.status == 'rejected' %}
                                         <span class="badge-soft bg-danger-soft">Đã loại</span>
-                                        
                                     {% else %}
-                                        <span class="badge-soft bg-light text-muted border">
-                                            {{ candidate.get_status_display|default:candidate.status }}
-                                        </span>
+                                        <span class="badge-soft bg-light text-muted border">{{ candidate.get_status_display|default:candidate.status }}</span>
                                     {% endif %}
                                 </td>
                                 <td class="text-center text-muted small">{{ candidate.applied_at|date:"d/m/Y" }}</td>
@@ -457,6 +452,54 @@
                 </div>
             </div>
         </div>
+
+        <div class="tab-pane fade" id="kpi" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="fw-bold text-dark mb-0"><i class="bi bi-graph-up-arrow text-hm me-2"></i>Quản trị Hiệu suất (KPI)</h5>
+                <a href="#" class="btn btn-hm"><i class="bi bi-plus-lg me-1"></i>Tạo Kỳ Đánh giá mới</a>
+            </div>
+            
+            <div class="row g-4 mb-4">
+                <div class="col-md-6">
+                    <a href="#" class="stat-card-link">
+                        <div class="stat-card" style="background: var(--hm-primary);">
+                            <div class="d-flex align-items-center text-white">
+                                <div class="icon-box bg-white bg-opacity-25 text-white border-0"><i class="bi bi-file-earmark-bar-graph"></i></div>
+                                <div class="ms-3">
+                                    <div class="small opacity-75 fw-bold">TỔNG SỐ BẢNG ĐÁNH GIÁ</div>
+                                    <h2 class="fw-bold mb-0" style="color: white !important;">{{ total_employee_kpis|default:"0" }}</h2>
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                
+                <div class="col-md-6">
+                    <a href="#" class="stat-card-link">
+                        <div class="stat-card">
+                            <div class="d-flex align-items-center">
+                                <div class="icon-box bg-warning-soft text-warning"><i class="bi bi-unlock"></i></div>
+                                <div class="ms-3">
+                                    <div class="small text-muted fw-bold">KỲ ĐÁNH GIÁ ĐANG MỞ</div>
+                                    <h2 class="fw-bold mb-0 text-dark">{{ active_kpi_periods|default:"0" }}</h2>
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <div class="card card-table shadow-sm">
+                <div class="card-header bg-white py-4 border-0">
+                    <h6 class="mb-0 fw-bold text-dark">Các kỳ đánh giá gần đây</h6>
+                </div>
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-bar-chart-steps text-muted opacity-25" style="font-size: 4rem;"></i>
+                    <p class="text-muted mt-3 mb-0">Tính năng quản lý KPI dành cho Admin đang được phát triển...</p>
+                </div>
+            </div>
+        </div>
+
     </div>
 </div>
 
