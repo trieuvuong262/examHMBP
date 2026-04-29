@@ -211,20 +211,31 @@
                         {% endif %}
                     </li>
 
-                    {% if request.user.is_staff %}
                     <li class="nav-item">
+                        {% if request.user.is_staff %}
                         <a class="nav-link {% if 'kpi' in request.resolver_match.url_name %}active{% endif %}" 
                            href="{% url 'kpi_list' %}">
                             <i class="bi bi-graph-up-arrow me-1"></i> Đánh giá KPI
                         </a>
+                        {% else %}
+                        <a href="#" class="nav-link locked" onclick="alert('Vui lòng không truy cập vào chức năng này'); return false;">
+                            <i class="bi bi-lock-fill me-1"></i> Đánh giá KPI
+                        </a>
+                        {% endif %}
                     </li>
+
                     <li class="nav-item">
+                        {% if request.user.is_staff %}
                         <a class="nav-link {% if request.resolver_match.view_name == 'reports:dashboard' %}active{% endif %}" 
                            href="{% url 'reports:dashboard' %}">
                             <i class="bi bi-pie-chart-fill me-1"></i> Báo Cáo
                         </a>
+                        {% else %}
+                        <a href="#" class="nav-link locked" onclick="alert('Vui lòng không truy cập vào chức năng này'); return false;">
+                            <i class="bi bi-lock-fill me-1"></i> Báo Cáo
+                        </a>
+                        {% endif %}
                     </li>
-                    {% endif %}
                 </ul>
 
                 <ul class="navbar-nav">
