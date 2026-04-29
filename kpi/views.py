@@ -13,44 +13,51 @@ import datetime
 # ========================================================
 @login_required
 def kpi_list_view(request):
-    # 1. Lấy danh sách KPI của cá nhân và đội nhóm (giữ nguyên code cũ của ní)
+    # 1. Lấy danh sách KPI của cá nhân và đội nhóm
     my_kpis = YearlyKpi.objects.filter(employee=request.user)
     team_kpis = YearlyKpi.objects.filter(direct_manager=request.user)
-    # Nếu là GM hoặc Admin thì thấy toàn bộ (tuỳ logic cũ của ní)
-    if request.user.profile.role == 'GM' or request.user.is_superuser:
+    
+    # Lấy Role của User hiện tại (tránh lỗi nếu user chưa có profile)
+    user_role = request.user.profile.role if hasattr(request.user, 'profile') else ''
+
+    # Nếu là GM hoặc Admin thì thấy toàn bộ
+    if user_role == 'GM' or request.user.is_superuser:
         team_kpis = YearlyKpi.objects.exclude(employee=request.user)
 
+    # =================================================================
+    # 🔥 FIX LỖI Ở ĐÂY: Xác định ai là Manager/GM để hiện nút thêm KPI
+    # =================================================================
+    is_admin = request.user.is_superuser
+    is_manager_or_gm = is_admin or user_role in ['HOD', 'GM']
+
     # 2. XỬ LÝ QUYỀN ADMIN: Đóng/Mở kỳ đánh giá
-    is_admin = request.user.is_superuser # Hoặc thêm điều kiện request.user.profile.role == 'HR'
     current_year = datetime.datetime.now().year
     admin_periods = []
 
     if is_admin:
-        # Nếu Admin bấm nút Bật/Tắt
         if request.method == 'POST' and 'toggle_period' in request.POST:
             p_type = request.POST.get('period_type')
-            is_active = request.POST.get('is_active') == 'on' # Checkbox HTML
+            is_active = request.POST.get('is_active') == 'on' 
             
-            # Tìm hoặc tạo mới kỳ đó rồi cập nhật trạng thái
             period, created = KpiPeriod.objects.get_or_create(year=current_year, period_type=p_type)
             period.is_active = is_active
             period.save()
             messages.success(request, f"Đã {'MỞ' if is_active else 'ĐÓNG'} kỳ đánh giá {p_type}!")
             return redirect('kpi_list')
         
-        # Load danh sách 7 kỳ mặc định để hiển thị lên bảng điều khiển cho Admin
         standard_types = ['Q1', 'Q2', 'Q3', 'Q4', 'H1', 'H2', 'Y']
         for pt in standard_types:
             p, _ = KpiPeriod.objects.get_or_create(year=current_year, period_type=pt)
             admin_periods.append(p)
 
+    # TRUYỀN BIẾN is_manager_or_gm RA HTML
     return render(request, 'kpi/kpi_list.html', {
         'my_kpis': my_kpis,
         'team_kpis': team_kpis,
         'is_admin': is_admin,
+        'is_manager_or_gm': is_manager_or_gm,  # <--- Bắt buộc phải có dòng này nha ní!
         'admin_periods': admin_periods,
     })
-
 @login_required
 def kpi_detail_view(request, kpi_id):
     # 1. Lấy bảng KPI và các chỉ tiêu liên quan
