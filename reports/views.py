@@ -51,7 +51,7 @@ def dashboard(request):
     context = {
         'reports_list': reports_list,
         'all_reports': all_reports, 
-        'design_url': "http://127.0.0.1:3000/question/new",
+        'design_url': "http://10.31.10.17:3000/question/new",
         'is_admin': is_staff,
     }
     
