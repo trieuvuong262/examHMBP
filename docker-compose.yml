@@ -10,7 +10,13 @@ services:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     restart: always
-
+  metabase:
+    image: metabase/metabase
+    container_name: metabase
+    restart: always  # <--- DÒNG QUAN TRỌNG NHẤT NẰM Ở ĐÂY
+    ports:
+      - "3000:3000"
+      
   web:
     build: .
     # Đã thêm --timeout 300 ở cuối dòng command này nha ní
