@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'axes',
     'hrm',
     'kpi',
+    'django_cleanup.apps.CleanupConfig', # 👉 Thêm dòng này vào cuối
 ]
 
 MIDDLEWARE = [
