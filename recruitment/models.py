@@ -52,6 +52,13 @@ class Candidate(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new', verbose_name="Trạng thái")
     hr_note = models.TextField(blank=True, verbose_name="Ghi chú của HR")
     applied_at = models.DateTimeField(auto_now_add=True, verbose_name="Ngày nộp")
+# THÔNG TIN ĐĂNG KÝ HÀNH NGHỀ (Dành cho nhân viên y tế)
+    license_number = models.CharField(max_length=255, blank=True, null=True, verbose_name="Số GPHN/CCHN")
+    scope_of_practice = models.CharField(max_length=255, blank=True, null=True, verbose_name="Phạm vi hành nghề")
+    practice_time = models.CharField(max_length=255, blank=True, null=True, verbose_name="TG hành nghề tại CS KBCB")
+    professional_position = models.CharField(max_length=255, blank=True, null=True, verbose_name="Vị trí chuyên môn")
+    other_practice_time = models.CharField(max_length=255, blank=True, null=True, verbose_name="TG hành nghề tại CS khác")
+    license_note = models.TextField(blank=True, null=True, verbose_name="Ghi chú CCHN")
 
     class Meta:
         verbose_name = "Ứng viên"

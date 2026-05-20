@@ -47,12 +47,12 @@ class ChapterForm(forms.ModelForm):
 class LessonForm(forms.ModelForm):
     class Meta:
         model = Lesson
-        fields = ['title', 'lesson_type', 'content', 'video_url', 'attachment', 'order', 'duration_estimate']
+        fields = ['title', 'lesson_type', 'content', 'video_file', 'attachment', 'order', 'duration_estimate']
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control'}),
             'lesson_type': forms.Select(attrs={'class': 'form-select', 'id': 'id_lesson_type'}),
             'content': forms.Textarea(attrs={'class': 'form-control', 'rows': 5}),
-            'video_url': forms.URLInput(attrs={'class': 'form-control', 'placeholder': 'Link YouTube/Drive...'}),
+            'video_file': forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'video/*'}),
             'attachment': forms.ClearableFileInput(attrs={'class': 'form-control'}),
             'order': forms.NumberInput(attrs={'class': 'form-control'}),
             'duration_estimate': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Phút'}),

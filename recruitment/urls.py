@@ -12,4 +12,12 @@ urlpatterns = [
     path('admin/recruitment/candidate/<int:candidate_id>/convert/', views.convert_to_employee, name='convert_to_employee'),
     path('admin/candidate/<int:pk>/detail/', views.candidate_detail_ajax, name='candidate_detail_ajax'),
     path('admin/recruitment/update-note/', views.update_hr_note, name='update_hr_note'),
+    path('admin/recruitment/set-interview/', views.set_interview_schedule, name='set_interview_schedule'),
+    path('admin/recruitment/interviews/all/', views.get_all_interviews, name='get_all_interviews'),
+    path('admin/recruitment/candidate/<int:pk>/interview/', views.get_candidate_interview, name='get_candidate_interview'),
+    path('admin/recruitment/candidate/update-license/', views.update_practice_license, name='update_practice_license'),
+    path('admin/recruitment/candidate/<int:pk>/license/', views.get_candidate_license, name='get_candidate_license'),
+    path('admin/recruitment/licenses/all/', views.get_all_licenses, name='get_all_licenses'),
+    path('admin/recruitment/interviews/export/', views.export_interviews_excel, name='export_interviews_excel'),
+    path('admin/recruitment/licenses/export/', views.export_licenses_excel, name='export_licenses_excel'),
 ]

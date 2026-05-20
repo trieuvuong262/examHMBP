@@ -18,7 +18,9 @@ import secrets
 import string
 from assessment.models import Exam
 from hrm.models import Profile
-
+from .models import Interview
+import openpyxl
+from django.http import HttpResponse
 @admin_only
 def kanban_board(request):
     candidates = Candidate.objects.select_related('job_posting').filter(job_posting__is_active=True)
@@ -37,7 +39,7 @@ def kanban_board(request):
         'new_candidates': candidates.filter(status='new'),
         'reviewing_candidates': candidates.filter(status='reviewing'),
         'interviewing_candidates': candidates.filter(status='interviewing'),
-        
+        'users': User.objects.filter(is_active=True), # Thêm dòng này để form set lịch có danh sách User
         'offered_candidates': candidates.filter(status__in=['offered', 'hired']).order_by('-id')[:15], 
         'rejected_candidates': candidates.filter(status='rejected').order_by('-id')[:15],
     }
@@ -283,3 +285,192 @@ def generate_hm_username(full_name):
 def generate_secure_password(length=8):
     alphabet = string.ascii_letters + string.digits
     return ''.join(secrets.choice(alphabet) for _ in range(length))
+# Sửa lại 2 hàm này ở cuối file views.py của ní:
+
+@admin_only
+@require_POST
+def set_interview_schedule(request):
+    candidate_id = request.POST.get('candidate_id')
+    interview_time = request.POST.get('interview_time')
+    candidate = get_object_or_404(Candidate, id=candidate_id)
+
+    # Bỏ phần interviewer_ids, chỉ lưu thời gian và địa điểm
+    interview, created = Interview.objects.update_or_create(
+        candidate=candidate,
+        defaults={
+            'interview_time': interview_time,
+        }
+    )
+
+    messages.success(request, f'Đã lưu lịch phỏng vấn cho ứng viên {candidate.full_name}!')
+    return redirect('kanban_board')
+
+@admin_only
+def get_all_interviews(request):
+    # 1. Bắt lấy ID của vị trí đang được lọc trên trình duyệt
+    job_id = request.GET.get('job_id')
+    
+    interviews = Interview.objects.select_related('candidate__job_posting')
+    
+    # 2. Nếu có lọc theo vị trí thì bóp data lại
+    if job_id and job_id.isdigit():
+        interviews = interviews.filter(candidate__job_posting_id=job_id)
+        
+    interviews = interviews.order_by('-interview_time')
+    
+    data = []
+    for inv in interviews:
+        time_str = inv.interview_time.strftime('%H:%M - %d/%m/%Y') if inv.interview_time else ''
+        data.append({
+            'candidate_name': inv.candidate.full_name,
+            'job_title': inv.candidate.job_posting.title,
+            'time': time_str,
+            'status': inv.candidate.get_status_display()
+        })
+    return JsonResponse({'interviews': data})
+@admin_only
+def get_candidate_interview(request, pk):
+    candidate = get_object_or_404(Candidate, pk=pk)
+    
+    # Kiểm tra xem ứng viên này đã có lịch phỏng vấn trong Database chưa
+    if hasattr(candidate, 'interview'):
+        # ⚠️ BẮT BUỘC: Ép định dạng ngày giờ chuẩn ISO (YYYY-MM-DDTHH:MM) để thẻ HTML5 hiểu
+        time_str = candidate.interview.interview_time.strftime('%Y-%m-%dT%H:%M') if candidate.interview.interview_time else ''
+        data = {
+            'interview_time': time_str,
+        }
+    else:
+        # Nếu chưa có lịch thì trả về rỗng
+        data = {
+            'interview_time': '',
+        }
+        
+    return JsonResponse(data)
+
+@admin_only
+@require_POST
+def update_practice_license(request):
+    candidate_id = request.POST.get('candidate_id')
+    candidate = get_object_or_404(Candidate, id=candidate_id)
+    
+    candidate.license_number = request.POST.get('license_number', '')
+    candidate.scope_of_practice = request.POST.get('scope_of_practice', '')
+    candidate.practice_time = request.POST.get('practice_time', '')
+    candidate.professional_position = request.POST.get('professional_position', '')
+    candidate.other_practice_time = request.POST.get('other_practice_time', '')
+    candidate.license_note = request.POST.get('license_note', '')
+    candidate.save()
+    
+    messages.success(request, f'Đã cập nhật thông tin Hành nghề cho {candidate.full_name}')
+    return redirect('kanban_board')
+
+@admin_only
+def get_candidate_license(request, pk):
+    candidate = get_object_or_404(Candidate, pk=pk)
+    data = {
+        'license_number': candidate.license_number or '',
+        'scope_of_practice': candidate.scope_of_practice or '',
+        'practice_time': candidate.practice_time or '',
+        'professional_position': candidate.professional_position or '',
+        'other_practice_time': candidate.other_practice_time or '',
+        'license_note': candidate.license_note or '',
+    }
+    return JsonResponse(data)
+
+@admin_only
+def get_all_licenses(request):
+    # 1. Bắt lấy ID của vị trí đang được lọc trên trình duyệt
+    job_id = request.GET.get('job_id')
+    
+    candidates = Candidate.objects.filter(status='hired').select_related('job_posting')
+    
+    # 2. Nếu có lọc theo vị trí thì bóp data lại
+    if job_id and job_id.isdigit():
+        candidates = candidates.filter(job_posting_id=job_id)
+        
+    candidates = candidates.order_by('-applied_at')
+    
+    data = []
+    for cand in candidates:
+        data.append({
+            'full_name': cand.full_name,
+            'professional_position': cand.professional_position or cand.job_posting.title,
+            'license_number': cand.license_number or '<span class="badge bg-light text-muted border">Chưa nhập</span>',
+            'scope_of_practice': cand.scope_of_practice or '',
+            'practice_time': cand.practice_time or '',
+            'other_practice_time': cand.other_practice_time or '',
+        })
+    return JsonResponse({'licenses': data})
+
+@admin_only
+def export_interviews_excel(request):
+    job_id = request.GET.get('job_id')
+    interviews = Interview.objects.select_related('candidate__job_posting')
+    
+    if job_id and job_id.isdigit():
+        interviews = interviews.filter(candidate__job_posting_id=job_id)
+        
+    interviews = interviews.order_by('-interview_time')
+
+    # Khởi tạo file Excel
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Lịch Phỏng Vấn"
+
+    # Tạo hàng Header (Tiêu đề cột)
+    headers = ["Thời gian phỏng vấn", "Họ và tên Ứng viên", "Trạng thái", "Vị trí ứng tuyển"]
+    ws.append(headers)
+
+    # Đổ dữ liệu vào các hàng tiếp theo
+    for inv in interviews:
+        time_str = inv.interview_time.strftime('%H:%M - %d/%m/%Y') if inv.interview_time else ''
+        ws.append([
+            time_str,
+            inv.candidate.full_name,
+            inv.candidate.get_status_display(),
+            inv.candidate.job_posting.title
+        ])
+
+    # Thiết lập Response để trình duyệt tự hiểu đây là file tải về
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="Danh_sach_lich_phong_van.xlsx"'
+    wb.save(response)
+    return response
+
+
+@admin_only
+def export_licenses_excel(request):
+    job_id = request.GET.get('job_id')
+    candidates = Candidate.objects.filter(status='hired').select_related('job_posting')
+    
+    if job_id and job_id.isdigit():
+        candidates = candidates.filter(job_posting_id=job_id)
+        
+    candidates = candidates.order_by('-applied_at')
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Đăng Ký Hành Nghề"
+
+    headers = [
+        "Họ và tên", "Số GPHN/CCHN", "Phạm vi hành nghề", 
+        "Thời gian ĐKHN tại cơ sở này", "Vị trí chuyên môn", 
+        "Thời gian ĐKHN tại cơ sở khác", "Ghi chú"
+    ]
+    ws.append(headers)
+
+    for cand in candidates:
+        ws.append([
+            cand.full_name,
+            cand.license_number or '',
+            cand.scope_of_practice or '',
+            cand.practice_time or '',
+            cand.professional_position or cand.job_posting.title,
+            cand.other_practice_time or '',
+            cand.license_note or ''
+        ])
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="Danh_sach_dang_ky_hanh_nghe.xlsx"'
+    wb.save(response)
+    return response

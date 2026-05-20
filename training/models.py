@@ -56,7 +56,7 @@ class Lesson(models.Model):
     title = models.CharField(max_length=255, verbose_name="Tiêu đề bài học")
     lesson_type = models.CharField(max_length=20, choices=LESSON_TYPES, verbose_name="Loại bài học")
     content = RichTextField(blank=True, null=True, verbose_name="Nội dung bài học")
-    video_url = models.URLField(blank=True, null=True, verbose_name="Đường dẫn Video (YouTube/Drive)")
+    video_file = models.FileField(upload_to='course_videos/', blank=True, null=True, verbose_name="Upload Video")
     attachment = models.FileField(upload_to='course_materials/', null=True, blank=True, verbose_name="Tài liệu đính kèm")
     
     order = models.PositiveIntegerField(default=0, verbose_name="Thứ tự bài học")

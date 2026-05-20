@@ -136,6 +136,12 @@
             <button class="btn btn-hm shadow-sm fw-bold px-4 rounded-3 d-flex align-items-center" data-bs-toggle="modal" data-bs-target="#addCandidateModal" style="height: 42px;">
                 <i class="bi bi-person-plus-fill me-2"></i> Thêm Ứng viên
             </button>
+            <button class="btn btn-hm shadow-sm fw-bold px-4 rounded-3 d-flex align-items-center" onclick="openAllInterviewsModal()" style="height: 42px;">
+                <i class="bi bi-calendar-week me-2"></i> Lịch Phỏng vấn
+            </button>
+            <button class="btn btn-hm shadow-sm fw-bold px-4 rounded-3 d-flex align-items-center" onclick="openAllLicensesModal()" style="height: 42px;">
+                <i class="bi bi-file-medical me-2"></i> Tổng CCHN
+            </button>
 
             <form method="GET" class="d-flex align-items-center bg-white shadow-sm rounded-3 px-2 border mb-0" style="height: 42px;">
                 <i class="bi bi-funnel text-muted me-2 ms-1"></i>
@@ -175,6 +181,11 @@
                                     <span class="x-small text-muted"><i class="bi bi-clock me-1"></i>{{ cand.applied_at|date:"d/m" }}</span>
                                     <button type="button" class="btn btn-sm btn-light border x-small py-0 px-2" title="Xem/Sửa Ghi chú" onclick="openNoteModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}', '{{ cand.hr_note|escapejs|default:'' }}')"><i class="bi bi-chat-text-fill text-warning"></i></button>
                                 </div>
+                                
+                                <button type="button" class="btn btn-sm btn-outline-info w-100 fw-bold mt-2 set-interview-btn {% if cand.status != 'interviewing' %}d-none{% endif %}" onclick="openSetInterviewModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}')">
+                                    <i class="bi bi-calendar-plus me-1"></i> Lịch phỏng vấn
+                                </button>
+                                
                             </div>
                         </div>
                     {% endfor %}
@@ -229,6 +240,11 @@
                                     <span class="x-small text-muted"><i class="bi bi-clock me-1"></i>{{ cand.applied_at|date:"d/m" }}</span>
                                     <button type="button" class="btn btn-sm btn-light border x-small py-0 px-2" title="Xem/Sửa Ghi chú" onclick="openNoteModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}', '{{ cand.hr_note|escapejs|default:'' }}')"><i class="bi bi-chat-text-fill text-warning"></i></button>
                                 </div>
+
+                                <button type="button" class="btn btn-sm btn-outline-info w-100 fw-bold mt-2 set-interview-btn {% if cand.status != 'interviewing' %}d-none{% endif %}" onclick="openSetInterviewModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}')">
+                                    <i class="bi bi-calendar-plus me-1"></i> Lịch phỏng vấn
+                                </button>
+                                
                             </div>
                         </div>
                     {% endfor %}
@@ -247,9 +263,22 @@
                             <div class="card-body p-3">
                                 <h6 class="fw-bold text-dark mb-2">{{ cand.full_name }}</h6>
                                 <p class="x-small text-hm mb-3 fw-semibold">{{ cand.job_posting.title }}</p>
-                                <button class="btn btn-sm btn-success w-100 fw-bold convert-user-btn rounded-2" data-id="{{ cand.id }}" data-name="{{ cand.full_name }}">
-                                    <i class="bi bi-person-check-fill me-1"></i> Tạo User
-                                </button>
+                                
+                                {% if cand.status == 'hired' %}
+                                    <button class="btn btn-sm btn-secondary w-100 fw-bold rounded-2 opacity-75 mb-2" disabled>
+                                        <i class="bi bi-check-circle-fill me-1"></i> Đã tạo User
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary w-100 fw-bold rounded-2 license-btn" onclick="openLicenseModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}')">
+                                        <i class="bi bi-file-medical-fill me-1"></i> ĐK Hành nghề
+                                    </button>
+                                {% else %}
+                                    <button class="btn btn-sm btn-success w-100 fw-bold convert-user-btn rounded-2 mb-2" data-id="{{ cand.id }}" data-name="{{ cand.full_name }}">
+                                        <i class="bi bi-person-check-fill me-1"></i> Tạo User
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary w-100 fw-bold rounded-2 license-btn d-none" onclick="openLicenseModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}')">
+                                        <i class="bi bi-file-medical-fill me-1"></i> ĐK Hành nghề
+                                    </button>
+                                {% endif %}
                             </div>
                         </div>
                     {% endfor %}
@@ -368,9 +397,273 @@
         </form>
     </div>
 </div>
+<div class="modal fade" id="licenseModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <form action="{% url 'update_practice_license' %}" method="POST" class="modal-content border-0 shadow-lg rounded-4">
+            {% csrf_token %}
+            <input type="hidden" name="candidate_id" id="modalLicenseCandId">
+            <div class="modal-header bg-hm text-white border-0 py-3 px-4">
+                <h6 class="modal-title fw-bold"><i class="bi bi-file-medical me-2"></i>Đăng ký Hành Nghề: <span id="modalLicenseCandName"></span></h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4 bg-light">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold text-muted">Số GPHN / CCHN</label>
+                        <input type="text" name="license_number" id="input_license_number" class="form-control shadow-sm border-0">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold text-muted">Vị trí chuyên môn</label>
+                        <input type="text" name="professional_position" id="input_professional_position" class="form-control shadow-sm border-0">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small fw-bold text-muted">Phạm vi hành nghề</label>
+                        <input type="text" name="scope_of_practice" id="input_scope_of_practice" class="form-control shadow-sm border-0">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold text-muted">Thời gian ĐK Hành nghề (CS KBCB hiện tại)</label>
+                        <input type="text" name="practice_time" id="input_practice_time" class="form-control shadow-sm border-0" placeholder="VD: T2-T6 (7h00 - 16h30)">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold text-muted">Thời gian ĐK Hành nghề (CS KBCB khác)</label>
+                        <input type="text" name="other_practice_time" id="input_other_practice_time" class="form-control shadow-sm border-0" placeholder="VD: Ngoài giờ HC">
+                    </div>
+                    <div class="col-12 mt-3">
+                        <label class="form-label fw-bold small text-muted">Ghi chú</label>
+                        <textarea name="license_note" id="input_license_note" class="form-control border-0 shadow-sm" rows="2" placeholder="Nhập ghi chú..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 p-3 bg-white rounded-bottom-4">
+                <button type="submit" class="btn btn-primary text-white px-5 fw-bold rounded-3 shadow-sm">Lưu Thông Tin</button>
+            </div>
+        </form>
+    </div>
+</div>
 
+<div class="modal fade" id="allLicensesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header bg-hm text-white border-0 py-3 px-4">
+                <h5 class="modal-title fw-bold"><i class="bi bi-card-checklist me-2"></i>Tổng hợp Đăng ký Hành Nghề   -</h5>
+                <button class="btn btn-sm btn-success fw-bold px-3 rounded-3 d-flex align-items-center" onclick="exportLicensesExcel()">
+                    <i class="bi bi-file-earmark-excel me-1"></i> Xuất Excel
+                </button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="px-3">Họ và tên</th>
+                                <th>Vị trí CM</th>
+                                <th>Số CCHN</th>
+                                <th>Phạm vi HN</th>
+                                <th>TG tại CS này</th>
+                                <th>TG tại CS khác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="licenseTableBody">
+                            <tr><td colspan="6" class="text-center py-4 text-muted">Đang tải dữ liệu...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="setInterviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form action="{% url 'set_interview_schedule' %}" method="POST" class="modal-content border-0 shadow-lg rounded-4">
+            {% csrf_token %}
+            <input type="hidden" name="candidate_id" id="modalInterviewCandId">
+            <div class="modal-header bg-hm text-white border-0 py-3 px-4">
+                <h6 class="modal-title fw-bold"><i class="bi bi-calendar-plus me-2"></i>Set lịch: <span id="modalInterviewCandName"></span></h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3">
+                    <label class="form-label fw-bold small text-muted">Thời gian phỏng vấn</label>
+                    <input type="datetime-local" name="interview_time" id="input_interview_time" class="form-control bg-light border-0" required>
+                </div>
+            </div>
+            <div class="modal-footer border-0 p-3 bg-light rounded-bottom-4">
+                <button type="submit" class="btn btn-info text-white px-4 fw-bold w-100 rounded-3">Lưu Lịch</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade" id="allInterviewsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header bg-hm text-white border-0 py-3 px-4">
+                <h5 class="modal-title fw-bold"><i class="bi bi-calendar-week me-2"></i>Tổng lịch Phỏng Vấn   -</h5>
+                <button class="btn btn-sm btn-success fw-bold px-3 rounded-3 d-flex align-items-center" onclick="exportInterviewsExcel()">
+                    <i class="bi bi-file-earmark-excel me-1"></i> Xuất Excel
+                </button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="px-4">Thời gian</th>
+                                <th>Ứng viên</th>
+                                <th>Vị trí</th>
+                            </tr>
+                        </thead>
+                        <tbody id="interviewTableBody">
+                            <tr><td colspan="3" class="text-center py-4 text-muted">Đang tải dữ liệu...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 <script>
+function openLicenseModal(candId, candName) {
+    // 1. Gắn ID và Tên ứng viên lên tiêu đề Modal
+    document.getElementById('modalLicenseCandId').value = candId;
+    document.getElementById('modalLicenseCandName').innerText = candName;
+    
+    // 2. Tạm thời xóa trắng hoặc hiện chữ "Đang tải..." để tránh hiện dữ liệu của người bấm trước đó
+    document.getElementById('input_license_number').value = 'Đang tải dữ liệu cũ...';
+    document.getElementById('input_scope_of_practice').value = '';
+    document.getElementById('input_practice_time').value = '';
+    document.getElementById('input_professional_position').value = '';
+    document.getElementById('input_other_practice_time').value = '';
+    document.getElementById('input_license_note').value = '';
+
+    // 3. Bật cái Modal lên trước cho mượt giao diện
+    var myModal = new bootstrap.Modal(document.getElementById('licenseModal'));
+    myModal.show();
+
+    // 4. Gọi API đập thẳng vào Backend lấy dữ liệu đã lưu
+    const fetchUrl = "{% url 'get_candidate_license' 999999 %}".replace('999999', candId);
+    
+    fetch(fetchUrl)
+        .then(res => {
+            if (!res.ok) throw new Error('Mạng lỗi hoặc không tìm thấy ứng viên');
+            return res.json();
+        })
+        .then(data => {
+            console.log("Dữ liệu cũ từ Server trả về:", data); // Dòng này để ní F12 lên kiểm tra kiểm tra xem server có trả về đúng dữ liệu không
+            
+            // 5. Điền chính xác dữ liệu cũ vào form (Kiểm tra kỹ ID phải trùng khớp với thẻ HTML)
+            document.getElementById('input_license_number').value = data.license_number || '';
+            document.getElementById('input_scope_of_practice').value = data.scope_of_practice || '';
+            document.getElementById('input_practice_time').value = data.practice_time || '';
+            document.getElementById('input_professional_position').value = data.professional_position || '';
+            document.getElementById('input_other_practice_time').value = data.other_practice_time || '';
+            document.getElementById('input_license_note').value = data.license_note || '';
+        })
+        .catch(err => {
+            console.error("Lỗi Fetch dữ liệu hành nghề:", err);
+            document.getElementById('input_license_number').value = 'Lỗi không tải được dữ liệu!';
+        });
+}
+function openAllLicensesModal() {
+    new bootstrap.Modal(document.getElementById('allLicensesModal')).show();
+    
+    const currentJobId = "{{ selected_job|default_if_none:'' }}";
+    let fetchUrl = "{% url 'get_all_licenses' %}";
+    
+    if (currentJobId) {
+        fetchUrl += `?job_id=${currentJobId}`;
+    }
+    
+    fetch(fetchUrl)
+        .then(res => res.json())
+        .then(data => {
+            const tbody = document.getElementById('licenseTableBody');
+            tbody.innerHTML = '';
+            if(data.licenses.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">Chưa có nhân sự nào được onboard ở vị trí này.</td></tr>';
+                return;
+            }
+            
+            data.licenses.forEach(lic => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="px-3 fw-bold text-primary">${lic.full_name}</td>
+                        <td class="small fw-semibold">${lic.professional_position}</td>
+                        <td class="fw-bold">${lic.license_number}</td>
+                        <td class="small text-muted">${lic.scope_of_practice}</td>
+                        <td class="small">${lic.practice_time}</td>
+                        <td class="small">${lic.other_practice_time}</td>
+                    </tr>
+                `;
+            });
+        });
+}
+// Hàm mở form đặt lịch
+// Hàm mở form đặt lịch có bốc dữ liệu cũ
+function openSetInterviewModal(candId, candName) {
+    // Gắn thông tin ứng viên lên popup
+    document.getElementById('modalInterviewCandId').value = candId;
+    document.getElementById('modalInterviewCandName').innerText = candName;
+    
+    // Reset ô thời gian cho nó trống trước khi bốc dữ liệu mới
+    const timeInput = document.getElementById('input_interview_time');
+    if(timeInput) timeInput.value = '';
+    
+    // Hiển thị Popup lên
+    new bootstrap.Modal(document.getElementById('setInterviewModal')).show();
+
+    // Gọi API lấy dữ liệu lịch cũ về
+    const fetchUrl = "{% url 'get_candidate_interview' 999999 %}".replace('999999', candId);
+    
+    fetch(fetchUrl)
+        .then(res => res.json())
+        .then(data => {
+            // Nếu server báo có lịch cũ thì tự động điền vào ô ngày giờ
+            if (data.interview_time && timeInput) {
+                timeInput.value = data.interview_time;
+            }
+        })
+        .catch(err => console.error("Lỗi tải lịch phỏng vấn:", err));
+}
+
+// Hàm fetch danh sách lịch và mở popup Tổng lịch
+// Hàm fetch danh sách lịch và mở popup Tổng lịch
+function openAllInterviewsModal() {
+    new bootstrap.Modal(document.getElementById('allInterviewsModal')).show();
+    
+    // Lấy ID vị trí đang lọc từ Django (Nếu đang ở "Tất cả vị trí" thì nó sẽ rỗng)
+    const currentJobId = "{{ selected_job|default_if_none:'' }}";
+    let fetchUrl = "{% url 'get_all_interviews' %}";
+    
+    // Nối thêm đuôi ?job_id=... vào link để báo cho Server biết
+    if (currentJobId) {
+        fetchUrl += `?job_id=${currentJobId}`;
+    }
+    
+    fetch(fetchUrl)
+        .then(res => res.json())
+        .then(data => {
+            const tbody = document.getElementById('interviewTableBody');
+            tbody.innerHTML = '';
+            if(data.interviews.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-muted">Chưa có lịch phỏng vấn nào được xếp cho vị trí này.</td></tr>';
+                return;
+            }
+            
+            data.interviews.forEach(inv => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="px-4 fw-bold text-info">${inv.time}</td>
+                        <td class="fw-bold">${inv.candidate_name}<br><small class="text-muted fw-normal">${inv.status}</small></td>
+                        <td><span class="badge bg-light text-dark border">${inv.job_title}</span></td>
+                    </tr>
+                `;
+            });
+        });
+}
     function openNoteModal(id, name, note) {
         document.getElementById('modalNoteCandidateId').value = id;
         document.getElementById('modalNoteCandidateName').innerText = name;
@@ -448,11 +741,14 @@
                                 }
                             }
 
-                            // Nếu thẻ bị rơi vào ô Không Onboard hoặc Từ Chối (Mờ đi, gạch ngang tên, xóa nút Tạo User)
                             if (newStatus === 'rejected' || newStatus === 'not_onboarded') {
                                 cardEl.classList.add('opacity-75', 'bg-light');
                                 if (nameEl) nameEl.classList.add('text-decoration-line-through', 'text-muted');
                                 if (convertBtn) convertBtn.classList.add('d-none');
+                                
+                                // Thêm dòng này để lỡ bị rớt/loại thì nút Lịch cũng biến mất luôn
+                                const setInterviewBtn = cardEl.querySelector('.set-interview-btn');
+                                if (setInterviewBtn) setInterviewBtn.classList.add('d-none');
                                 
                             } else {
                                 // Khôi phục lại trạng thái sáng, hiển thị lại các nút
@@ -464,6 +760,16 @@
                                         convertBtn.classList.remove('d-none');
                                     } else {
                                         convertBtn.classList.add('d-none');
+                                    }
+                                }
+
+                                // 👉 DÁN ĐOẠN CODE CỦA NÍ VÀO CHÍNH CHỖ NÀY NÈ:
+                                const setInterviewBtn = cardEl.querySelector('.set-interview-btn');
+                                if (setInterviewBtn) {
+                                    if (newStatus === 'interviewing') {
+                                        setInterviewBtn.classList.remove('d-none'); // Kéo vào ô Phỏng vấn -> Hiện nút
+                                    } else {
+                                        setInterviewBtn.classList.add('d-none');    // Kéo ra ô khác -> Ẩn nút
                                     }
                                 }
                             }
@@ -490,7 +796,9 @@
                 this.disabled = true;
                 this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Đang xử lý...';
 
-                fetch(`/hr/admin/recruitment/candidate/${candId}/convert/`, {
+                const convertUrl = "{% url 'convert_to_employee' 999999 %}".replace('999999', candId);
+
+                fetch(convertUrl, {
                     method: 'POST',
                     headers: { 
                         'X-CSRFToken': '{{ csrf_token }}',
@@ -500,7 +808,12 @@
                 .then(res => res.json())
                 .then(data => {
                     if(data.status === 'success') {
-                        card.remove();
+                    this.classList.remove('btn-success', 'convert-user-btn');
+                    this.classList.add('btn-secondary', 'opacity-75');
+                    this.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Đã tạo User';
+                    this.disabled = true;
+                    const licenseBtn = card.querySelector('.license-btn');
+                    if (licenseBtn) licenseBtn.classList.remove('d-none');
                         updateBadgeCount(column);
                         
                         const textToCopy = `Tài khoản: ${data.username}\nMật khẩu: ${data.password}`;
@@ -537,5 +850,27 @@
             });
         });
     });
+// Hàm kích hoạt tải file Excel Lịch phỏng vấn (có ăn theo bộ lọc vị trí)
+function exportInterviewsExcel() {
+    const currentJobId = "{{ selected_job|default_if_none:'' }}";
+    let url = "{% url 'export_interviews_excel' %}";
+    
+    if (currentJobId) {
+        url += `?job_id=${currentJobId}`;
+    }
+    // Chuyển hướng trình duyệt đến link tải file
+    window.location.href = url;
+}
+
+// Hàm kích hoạt tải file Excel Chứng chỉ hành nghề (có ăn theo bộ lọc vị trí)
+function exportLicensesExcel() {
+    const currentJobId = "{{ selected_job|default_if_none:'' }}";
+    let url = "{% url 'export_licenses_excel' %}";
+    
+    if (currentJobId) {
+        url += `?job_id=${currentJobId}`;
+    }
+    window.location.href = url;
+}
 </script>
 {% endblock %}

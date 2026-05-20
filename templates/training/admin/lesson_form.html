@@ -34,8 +34,18 @@
             </div>
 
             <div id="video_field" class="mb-3 d-none">
-                <label class="form-label fw-bold">Đường dẫn Video (YouTube/Vimeo)</label>
-                {{ form.video_url }}
+                <label class="form-label fw-bold">Tải lên Video (Định dạng MP4)</label>
+                {{ form.video_file }}
+                
+                {% if lesson.video_file %}
+                    <div class="form-text mt-2">
+                        <i class="bi bi-camera-video-fill text-primary me-1"></i> Video hiện tại: 
+                        <a href="{{ lesson.video_file.url }}" target="_blank">Xem video</a>
+                    </div>
+                {% endif %}
+                <div class="form-text text-danger mt-1">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i> Dung lượng tối đa khuyến nghị: dưới 50MB để tránh nặng máy chủ.
+                </div>
             </div>
 
             <div id="file_field" class="mb-3 d-none">

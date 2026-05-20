@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="bg-dark text-white p-3 sticky-top" style="z-index: 1020;">
+<div class="text-white p-3 sticky-top" style="background-color: rgb(0, 144, 161); z-index: 1020;">
     <div class="container-fluid d-flex justify-content-between align-items-center">
         <div class="d-flex align-items-center">
             <a href="{% url 'my_courses' %}" class="btn btn-sm btn-outline-light me-3"><i class="bi bi-arrow-left"></i> Thoát</a>
@@ -9,7 +9,7 @@
         </div>
         <div class="d-flex align-items-center gap-3">
             <span class="small fw-bold" id="progress-text">{{ enrollment.progress_percent }}% Hoàn thành</span>
-            <div class="progress" style="width: 150px; height: 10px;">
+            <div class="progress" style="width: 150px; height: 10px; background-color: rgba(255,255,255,0.3);">
                 <div class="progress-bar bg-success" id="top-progress-bar" style="width: {{ enrollment.progress_percent }}%"></div>
             </div>
             {% if course.final_exam %}
@@ -26,24 +26,21 @@
         <div class="col-lg-8 col-xl-9 bg-light p-4 overflow-auto">
             {% if current_lesson %}
                 <div class="bg-white p-4 rounded shadow-sm border mb-4">
-                    <h3 class="fw-bold mb-3">{{ current_lesson.title }}</h3>
+                    <h3 class="fw-bold mb-3 text-dark">{{ current_lesson.title }}</h3>
                     <hr>
                     
-                    {% if current_lesson.lesson_type == 'video' and current_lesson.video_url %}
-                        <div class="ratio ratio-16x9 bg-dark rounded mb-4">
-                            <iframe 
-                                src="{{ current_lesson.video_url }}?rel=0&modestbranding=1&enablejsapi=1&origin={{ request.scheme }}://{{ request.get_host }}" 
-                                allowfullscreen 
-                                class="rounded"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-                                referrerpolicy="strict-origin-when-cross-origin">
-                            </iframe>                        
+                    {% if current_lesson.lesson_type == 'video' and current_lesson.video_file %}
+                        <div class="plyr-wrapper mb-4 shadow-sm rounded-4 border">
+                            <video id="player" playsinline controls controlsList="nodownload" class="w-100 h-100">
+                                <source src="{{ current_lesson.video_file.url }}" type="video/mp4">
+                                Trình duyệt của bạn không hỗ trợ phát video HTML5. Vui lòng cập nhật trình duyệt.
+                            </video>
                         </div>
                     {% endif %}
 
                     {% if current_lesson.lesson_type == 'pdf' and current_lesson.attachment %}
                     <div class="pdf-container mb-4 shadow-sm rounded-4 overflow-hidden border">
-                        <div class="d-flex justify-content-between align-items-center bg-dark text-white p-2 px-3">
+                        <div class="d-flex justify-content-between align-items-center text-white p-2 px-3" style="background-color: #343a40;">
                             <div class="small fw-bold">
                                 <i class="bi bi-file-earmark-pdf text-danger me-2"></i>TÀI LIỆU
                             </div>
@@ -69,20 +66,20 @@
                     {% endif %}
 
                     {% if current_lesson.content %}
-                        <div class="fs-5 lh-lg text-dark">
+                        <div class="fs-5 lh-lg text-dark mb-4">
                             {{ current_lesson.content|safe }}
                         </div>
                     {% endif %}
                 </div>
 
-                <div class="d-flex justify-content-between bg-white p-3 rounded shadow-sm border border-top-0 border-primary border-4">
+                <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm border border-top-0 border-4" style="border-color: rgb(0, 144, 161) !important;">
                     <div>
                         {% if current_lesson.id in completed_lesson_ids %}
                             <button class="btn btn-success fw-bold disabled">
                                 <i class="bi bi-check-circle-fill me-2"></i>Đã hoàn thành bài này
                             </button>
                         {% else %}
-                            <button id="btn-complete" class="btn btn-primary fw-bold" onclick="markComplete({{ current_lesson.id }})">
+                            <button id="btn-complete" class="btn btn-hm fw-bold" onclick="markComplete({{ current_lesson.id }})">
                                 <i class="bi bi-circle me-2"></i>Đánh dấu hoàn thành
                             </button>
                         {% endif %}
@@ -104,7 +101,7 @@
 
         <div class="col-lg-4 col-xl-3 bg-white border-start overflow-auto" style="height: calc(100vh - 70px);">
             <div class="p-3 bg-light border-bottom sticky-top">
-                <h6 class="fw-bold mb-0 text-uppercase text-secondary">Nội dung khóa học</h6>
+                <h6 class="fw-bold mb-0 text-uppercase" style="color: rgb(0, 144, 161);">Nội dung khóa học</h6>
             </div>
             
             <div class="accordion accordion-flush" id="courseAccordion">
@@ -120,7 +117,7 @@
                             <ul class="list-group list-group-flush">
                                 {% for lesson in chapter.lessons.all %}
                                 <a href="{% url 'learning_space' course.id lesson.id %}" 
-                                   class="list-group-item list-group-item-action py-3 {% if current_lesson.id == lesson.id %}bg-primary-subtle border-start border-primary border-4{% endif %}">
+                                   class="list-group-item list-group-item-action py-3 {% if current_lesson.id == lesson.id %}bg-light border-start border-4 active-lesson-border{% endif %}">
                                     <div class="d-flex align-items-center">
                                         <div class="me-3">
                                             {% if lesson.id in completed_lesson_ids %}
@@ -132,7 +129,7 @@
                                             {% endif %}
                                         </div>
                                         <div>
-                                            <div class="small fw-bold text-dark">{{ lesson.title }}</div>
+                                            <div class="small fw-bold {% if current_lesson.id == lesson.id %}text-dark{% else %}text-secondary{% endif %}">{{ lesson.title }}</div>
                                             <div class="text-muted" style="font-size: 0.75rem;">{{ lesson.duration_estimate }} phút</div>
                                         </div>
                                     </div>
@@ -147,15 +144,25 @@
         </div>
     </div>
 </div>
+
 <style>
-    .ratio-4x3 {
-    --bs-aspect-ratio: 130%;
+/* Bo góc Plyr */
+.plyr-wrapper {
+    border-radius: 1rem;
+    overflow: hidden;
+    background-color: #000;
+}
+
+/* Đổi màu nhấn của Plyr sang màu HM */
+:root {
+    --plyr-color-main: rgb(0, 144, 161);
 }
 
 .pdf-container iframe {
     background-color: #525659;
 }
 
+/* Button chuẩn màu HM */
 .btn-hm {
     background-color: rgb(0, 144, 161);
     color: white;
@@ -165,9 +172,28 @@
     background-color: rgb(0, 115, 129);
     color: white;
 }
+
+/* Border bài học đang chọn */
+.active-lesson-border {
+    border-color: rgb(0, 144, 161) !important;
+}
 </style>
+
+<link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+<script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
 <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Khởi tạo Plyr nếu có thẻ video trên trang
+        if (document.getElementById('player')) {
+            const player = new Plyr('#player', {
+                tooltips: { controls: true, seek: true },
+                download: false, // Tắt chức năng download
+            });
+        }
+    });
+
     function markComplete(lessonId) {
         $.ajax({
             url: `/training/lesson/${lessonId}/complete/`,
@@ -176,7 +202,7 @@
             success: function(res) {
                 if(res.status === 'success') {
                     const btn = $('#btn-complete');
-                    btn.removeClass('btn-primary').addClass('btn-success disabled');
+                    btn.removeClass('btn-hm').addClass('btn-success disabled');
                     btn.html('<i class="bi bi-check-circle-fill me-2"></i>Đã hoàn thành bài này');
 
                     $('#top-progress-bar').css('width', res.progress_percent + '%');

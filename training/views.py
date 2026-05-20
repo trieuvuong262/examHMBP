@@ -256,12 +256,8 @@ def lesson_edit(request, lesson_id):
     if request.method == 'POST':
         form = LessonForm(request.POST, request.FILES, instance=lesson)
         if form.is_valid():
-            new_lesson = form.save(commit=False)
-            video_url = form.cleaned_data.get('video_url')
-            if video_url and "youtube.com/watch?v=" in video_url:
-                video_id = video_url.split("v=")[1].split("&")[0]
-                new_lesson.video_url = f"https://www.youtube-nocookie.com/embed/{video_id}"
-            new_lesson.save()
+
+            form.save() 
             messages.success(request, f'Đã cập nhật bài học: {lesson.title}')
             return redirect('course_builder', course_id=course_id)
     else:

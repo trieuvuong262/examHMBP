@@ -4,7 +4,7 @@ from .models import CourseCategory, Course, Chapter, Lesson, Enrollment, LessonP
 class LessonInline(admin.StackedInline):
     model = Lesson
     extra = 1 
-    fields = ('title', 'lesson_type', 'video_url', 'attachment', 'content', 'order', 'duration_estimate')
+    fields = ('title', 'lesson_type', 'video_file', 'attachment', 'content', 'order', 'duration_estimate')
 
 
 class ChapterAdmin(admin.ModelAdmin):
