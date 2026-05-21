@@ -3,7 +3,7 @@ from assessment.models import ExamSubmission
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
 from django.utils import timezone
-from .models import Course, Chapter, Lesson, Enrollment, LessonProgress
+from .models import Course, Chapter, Lesson, Enrollment, LessonProgress, CourseCategory # Thêm CourseCategory vào đây
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from .forms import CourseForm
@@ -13,7 +13,6 @@ from django.db.models import Count
 from .forms import ChapterForm, LessonForm
 from django.views.decorators.http import require_POST
 from assessment.decorators import admin_only
-
 @login_required
 def my_courses(request):
     user = request.user
@@ -268,3 +267,39 @@ def lesson_edit(request, lesson_id):
         'lesson': lesson,
         'course_id': course_id
     })
+
+
+@admin_only
+def api_get_categories(request):
+    """API lấy danh sách danh mục (Dùng cho Modal AJAX)"""
+    categories = CourseCategory.objects.all().order_by('-id').values('id', 'name')
+    return JsonResponse({'categories': list(categories)})
+
+@admin_only
+@require_POST
+def api_add_category(request):
+    """API thêm danh mục mới"""
+    name = request.POST.get('name', '').strip()
+    if name:
+        cat = CourseCategory.objects.create(name=name)
+        return JsonResponse({'status': 'success', 'id': cat.id, 'name': cat.name})
+    return JsonResponse({'status': 'error', 'message': 'Tên không được để trống'}, status=400)
+
+@admin_only
+@require_POST
+def api_edit_category(request, pk):
+    """API sửa tên danh mục"""
+    cat = get_object_or_404(CourseCategory, pk=pk)
+    name = request.POST.get('name', '').strip()
+    if name:
+        cat.name = name
+        cat.save()
+        return JsonResponse({'status': 'success'})
+    return JsonResponse({'status': 'error', 'message': 'Tên không được để trống'}, status=400)
+
+@admin_only
+@require_POST
+def api_delete_category(request, pk):
+    """API xóa danh mục"""
+    CourseCategory.objects.filter(pk=pk).delete()
+    return JsonResponse({'status': 'success'})

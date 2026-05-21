@@ -7,9 +7,14 @@
             <h3 class="fw-bold text-dark mb-1"><i class="bi bi-collection-play-fill text-hm me-2"></i>Quản lý Khóa học</h3>
             <p class="text-muted mb-0 small">Theo dõi, chỉnh sửa và cấu hình nội dung bài giảng E-Learning.</p>
         </div>
-        <a href="{% url 'course_create' %}" class="btn btn-hm shadow-sm fw-bold rounded-3 px-4 btn-hover-lift">
-            <i class="bi bi-plus-lg me-1"></i> Thêm Khóa học mới
-        </a>
+        <div class="d-flex gap-2">
+            <a href="{% url 'course_create' %}" class="btn btn-hm shadow-sm fw-bold rounded-3 px-4 btn-hover-lift">
+                <i class="bi bi-plus-lg me-1"></i> Thêm Khóa học mới
+            </a>
+            <button class="btn btn-outline-hm fw-bold rounded-3 px-4 shadow-sm" onclick="openCategoryModal()">
+                <i class="bi bi-tags-fill me-1"></i> Quản lý Danh mục
+            </button>
+        </div>
     </div>
 
     <div class="card border-0 shadow-sm mb-4 rounded-4">
@@ -24,8 +29,12 @@
                 <div class="col-md-3">
                     <select id="categoryFilter" class="form-select border shadow-none bg-white">
                         <option value="">Tất cả danh mục</option>
-                        <option value="Chung">Đào tạo Chung</option>
-                        <option value="Chuyên môn">Đào tạo Chuyên môn</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat.name }}">{{ cat.name }}</option>
+                        {% empty %}
+                            <option value="Chung">Đào tạo Chung</option>
+                            <option value="Chuyên môn">Đào tạo Chuyên môn</option>
+                        {% endfor %}
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -141,11 +150,51 @@
     </div>
 </div>
 
+<div class="modal fade" id="categoryModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 15px; overflow: hidden;">
+            <div class="modal-header text-white border-0 py-3 px-4" style="background-color: rgb(0, 144, 161);">
+                <h5 class="modal-title fw-bold mb-0">
+                    <i class="bi bi-collection me-2"></i>Danh mục Đào tạo
+                </h5>
+                <button type="button" class="btn-close btn-close-white m-0" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <div class="modal-body bg-light p-4">
+                <label class="form-label fw-bold text-secondary small text-uppercase mb-2">Thêm danh mục mới</label>
+                <div class="input-group mb-4 shadow-sm rounded-3 overflow-hidden border-0">
+                    <input type="text" id="newCatName" class="form-control border-0 py-2 px-3 focus-none" placeholder="Nhập tên danh mục...">
+                    <button class="btn btn-success fw-bold px-4" onclick="addCategory()">
+                        <i class="bi bi-plus-lg me-1"></i>Thêm
+                    </button>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="fw-bold text-muted text-uppercase small mb-0">Danh sách hiện tại</h6>
+                    <span class="badge bg-secondary-subtle text-secondary rounded-pill px-2 x-small" id="cat-count">0 mục</span>
+                </div>
+                
+                <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+                    <ul class="list-group list-group-flush" id="categoryList">
+                        <li class="list-group-item text-center text-muted py-4">
+                            <div class="spinner-border spinner-border-sm text-info me-2" role="status"></div> Đang tải dữ liệu...
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
     :root {
         --hm-primary: rgb(0, 144, 161);
         --hm-primary-hover: rgb(0, 115, 129);
     }
+    
+    .btn-outline-hm { color: var(--hm-primary); border-color: var(--hm-primary); }
+    .btn-outline-hm:hover { background-color: var(--hm-primary); color: white; }
+    .focus-none:focus { box-shadow: none; outline: none; }
     
     .text-hm { color: var(--hm-primary) !important; }
     .bg-hm { background-color: var(--hm-primary) !important; }
@@ -173,8 +222,118 @@
         border-bottom: 2px solid #e2e8f0;
     }
 </style>
-
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
+    // 1. Khai báo biến
+    const csrfToken = '{{ csrf_token }}';
+    
+    // 👉 ĐIỂM SỬA LỖI: Chỉ khai báo biến, KHÔNG gán new bootstrap.Modal ở đây
+    let catModal;
+
+    // 2. Hàm mở popup 
+    function openCategoryModal() {
+        // Kiểm tra xem biến catModal đã được gán DOM chưa, chưa thì gán
+        if (!catModal) {
+            catModal = new bootstrap.Modal(document.getElementById('categoryModal'));
+        }
+        catModal.show();
+        loadCategories();
+    }
+
+    // 3. Tải danh mục từ server
+    function loadCategories() {
+        $.get("{% url 'api_get_categories' %}", function(data) {
+            const list = $('#categoryList');
+            list.empty();
+            
+            $('#cat-count').text(`${data.categories.length} mục`);
+
+            if (data.categories.length === 0) {
+                list.append('<li class="list-group-item text-center text-muted py-4"><i class="bi bi-inbox me-1"></i> Chưa có danh mục nào được tạo.</li>');
+                return;
+            }
+            
+            data.categories.forEach(cat => {
+                list.append(`
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-3 px-3">
+                        <span class="fw-bold text-dark" id="cat-text-${cat.id}">${cat.name}</span>
+                        <div class="btn-group shadow-sm rounded-2 overflow-hidden">
+                            <button class="btn btn-sm btn-light border-end text-primary fw-semibold" onclick="editCategory(${cat.id}, '${cat.name}')">
+                                <i class="bi bi-pencil-square"></i> Sửa
+                            </button>
+                            <button class="btn btn-sm btn-light text-danger fw-semibold" onclick="deleteCategory(${cat.id})">
+                                <i class="bi bi-trash3"></i> Xóa
+                            </button>
+                        </div>
+                    </li>
+                `);
+            });
+        }).fail(function() {
+            alert("Không thể kết nối đến máy chủ để lấy danh sách danh mục!");
+        });
+    }
+
+    // 4. Thêm danh mục
+    function addCategory() {
+        const nameInput = $('#newCatName');
+        const name = nameInput.val().trim();
+        
+        if (!name) {
+            alert("Vui lòng nhập tên danh mục trước khi bấm Thêm!");
+            return;
+        }
+
+        $.ajax({
+            url: "{% url 'api_add_category' %}",
+            method: "POST",
+            data: { 'name': name, 'csrfmiddlewaretoken': csrfToken },
+            success: function(res) {
+                nameInput.val(''); 
+                loadCategories();  
+            },
+            error: function(xhr) {
+                alert(xhr.responseJSON?.message || "Có lỗi xảy ra khi thêm danh mục!");
+            }
+        });
+    }
+
+    // 5. Sửa danh mục
+    function editCategory(id, oldName) {
+        const newName = prompt("Nhập tên mới cho danh mục này:", oldName);
+        
+        if (newName && newName.trim() !== "" && newName.trim() !== oldName) {
+            $.ajax({
+                url: `/training/api/categories/${id}/edit/`,
+                method: "POST",
+                data: { 'name': newName.trim(), 'csrfmiddlewaretoken': csrfToken },
+                success: function() {
+                    loadCategories();
+                },
+                error: function() {
+                    alert("Không thể lưu tên mới. Vui lòng thử lại!");
+                }
+            });
+        }
+    }
+
+    // 6. Xóa danh mục
+    function deleteCategory(id) {
+        if (confirm("Xác nhận xóa danh mục này? Hệ thống sẽ chuyển các khóa học liên quan thuộc danh mục này về trạng thái 'Chưa phân loại' (An toàn cho dữ liệu khóa học).")) {
+            $.ajax({
+                url: `/training/api/categories/${id}/delete/`,
+                method: "POST",
+                data: { 'csrfmiddlewaretoken': csrfToken },
+                success: function() {
+                    loadCategories();
+                },
+                error: function() {
+                    alert("Xóa danh mục thất bại!");
+                }
+            });
+        }
+    }
+
+    // 7. Xử lý bộ lọc (Chỉ chạy khi HTML đã load xong)
     document.addEventListener("DOMContentLoaded", function() {
         const searchInput = document.getElementById('searchInput');
         const categoryFilter = document.getElementById('categoryFilter');
@@ -204,16 +363,18 @@
             });
         }
 
-        searchInput.addEventListener('keyup', filterCourses);
-        categoryFilter.addEventListener('change', filterCourses);
-        statusFilter.addEventListener('change', filterCourses);
+        if(searchInput) searchInput.addEventListener('keyup', filterCourses);
+        if(categoryFilter) categoryFilter.addEventListener('change', filterCourses);
+        if(statusFilter) statusFilter.addEventListener('change', filterCourses);
 
-        resetBtn.addEventListener('click', function() {
-            searchInput.value = '';
-            categoryFilter.value = '';
-            statusFilter.value = '';
-            filterCourses();
-        });
+        if(resetBtn) {
+            resetBtn.addEventListener('click', function() {
+                searchInput.value = '';
+                categoryFilter.value = '';
+                statusFilter.value = '';
+                filterCourses();
+            });
+        }
     });
 </script>
 {% endblock %}
