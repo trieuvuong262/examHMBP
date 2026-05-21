@@ -237,6 +237,8 @@ def yearly_kpi_create(request):
         'is_hod': profile.role == 'HOD'
     })
 
+from django.db.models import Q # Nhớ import Q ở đầu file views.py nếu chưa có
+
 @login_required
 def kpi_import_excel(request):
     profile = request.user.profile
@@ -246,6 +248,13 @@ def kpi_import_excel(request):
 
     if request.method == 'POST':
         excel_file = request.FILES.get('excel_file')
+        direct_manager_id = request.POST.get('direct_manager_id')
+        general_manager_id = request.POST.get('general_manager_id')
+        eval_type = request.POST.get('eval_type', 'QUARTER')
+
+        if profile.role == 'HOD':
+            direct_manager_id = request.user.id
+
         if not excel_file or not excel_file.name.endswith('.xlsx'):
             messages.error(request, "File không hợp lệ!")
             return redirect('kpi_import_excel')
@@ -262,7 +271,16 @@ def kpi_import_excel(request):
                 employee = User.objects.filter(email=email).first()
                 if not employee: continue
                     
-                board, created = YearlyKpi.objects.get_or_create(employee=employee, year=year)
+                board, created = YearlyKpi.objects.update_or_create(
+                    employee=employee, 
+                    year=year,
+                    defaults={
+                        'direct_manager_id': direct_manager_id or None,
+                        'general_manager_id': general_manager_id or None,
+                        'eval_type': eval_type
+                    }
+                )
+                
                 if f"{employee.id}_{year}" not in processed_users_for_year:
                     board.items.all().delete()
                     processed_users_for_year.add(f"{employee.id}_{year}")
@@ -276,8 +294,16 @@ def kpi_import_excel(request):
             return redirect('kpi_list')
         except Exception as e:
             messages.error(request, f"Lỗi: {str(e)}")
-    return render(request, 'kpi/kpi_import.html')
+            return redirect('kpi_import_excel')
 
+    # LẤY DANH SÁCH SẾP ĐỂ TRUYỀN RA GIAO DIỆN IMPORT
+    hod_list = User.objects.filter(profile__role='HOD', is_active=True)
+    gm_list = User.objects.filter(Q(profile__role='GM') | Q(is_superuser=True), is_active=True)
+
+    return render(request, 'kpi/kpi_import.html', {
+        'hod_list': hod_list,
+        'gm_list': gm_list
+    })
 @login_required
 def download_kpi_sample_excel(request):
     wb = openpyxl.Workbook()

@@ -13,7 +13,7 @@
                     
                     <div class="alert border border-info bg-info bg-opacity-10 rounded-3 mb-4 shadow-sm position-relative">
                         <div class="position-absolute top-0 end-0 p-3">
-                            <a href="{% url 'download_kpi_sample' %}" class="btn btn-sm btn-info text-dark fw-bold rounded-pill shadow-sm">
+                            <a href="{% url 'download_kpi_sample_excel' %}" class="btn btn-sm btn-info text-dark fw-bold rounded-pill shadow-sm">
                                 <i class="bi bi-download me-1"></i> Tải file mẫu (.xlsx)
                             </a>
                         </div>
@@ -41,21 +41,59 @@
                         </ul>
                     </div>
 
-                    <form method="POST" enctype="multipart/form-data" class="text-center p-4 border border-2 border-dashed rounded-4 bg-light">
+                    <form method="POST" enctype="multipart/form-data" class="p-4 border border-2 border-dashed rounded-4 bg-light">
                         {% csrf_token %}
-                        <i class="bi bi-cloud-arrow-up display-1 text-hm mb-3 d-block"></i>
-                        <h5 class="fw-bold text-dark">Tải file Excel lên đây</h5>
-                        <p class="text-muted small mb-4">Chỉ chấp nhận định dạng .xlsx</p>
                         
-                        <div class="mb-4 w-75 mx-auto">
-                            <input class="form-control form-control-lg border-primary shadow-sm" type="file" name="excel_file" accept=".xlsx" required>
+                        <h6 class="fw-bold text-dark mb-3"><i class="bi bi-gear-fill text-secondary me-2"></i>Thiết lập chung cho đợt Import</h6>
+                        <div class="row g-3 mb-4 text-start">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold text-muted small text-uppercase">Loại đánh giá</label>
+                                <select name="eval_type" class="form-select shadow-sm" required>
+                                    <option value="QUARTER" selected>Theo QUÝ (4 cột)</option>
+                                    <option value="HALF">BÁN NIÊN (2 cột)</option>
+                                    <option value="YEAR">NĂM (1 cột)</option>
+                                </select>
+                            </div>
+                            
+                            {% if request.user.profile.role != 'HOD' %}
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold text-muted small text-uppercase">Quản lý trực tiếp</label>
+                                <select name="direct_manager_id" class="form-select shadow-sm">
+                                    <option value="">-- Bỏ trống --</option>
+                                    {% for hod in hod_list %}
+                                        <option value="{{ hod.id }}">{{ hod.profile.full_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold text-muted small text-uppercase">Quản lý cấp cao</label>
+                                <select name="general_manager_id" class="form-select shadow-sm">
+                                    <option value="">-- Bỏ trống --</option>
+                                    {% for gm in gm_list %}
+                                        <option value="{{ gm.id }}">{{ gm.profile.full_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
                         </div>
-                        
-                        <div class="d-flex justify-content-center gap-3">
-                            <button type="submit" class="btn btn-hm btn-lg px-5 rounded-pill shadow-sm fw-bold">
-                                <i class="bi bi-upload me-2"></i>Tiến hành Import
-                            </button>
-                            <a href="{% url 'kpi_list' %}" class="btn btn-outline-secondary btn-lg px-4 rounded-pill">Hủy bỏ</a>
+                        <hr class="mb-4">
+
+                        <div class="text-center">
+                            <i class="bi bi-cloud-arrow-up display-1 text-hm mb-3 d-block"></i>
+                            <h5 class="fw-bold text-dark">Tải file Excel lên đây</h5>
+                            <p class="text-muted small mb-4">Chỉ chấp nhận định dạng .xlsx</p>
+                            
+                            <div class="mb-4 w-75 mx-auto">
+                                <input class="form-control form-control-lg border-primary shadow-sm" type="file" name="excel_file" accept=".xlsx" required>
+                            </div>
+                            
+                            <div class="d-flex justify-content-center gap-3">
+                                <button type="submit" class="btn btn-hm btn-lg px-5 rounded-pill shadow-sm fw-bold">
+                                    <i class="bi bi-upload me-2"></i>Tiến hành Import
+                                </button>
+                                <a href="{% url 'kpi_list' %}" class="btn btn-outline-secondary btn-lg px-4 rounded-pill">Hủy bỏ</a>
+                            </div>
                         </div>
                     </form>
 
@@ -65,6 +103,13 @@
     </div>
 </div>
 <style>
+    :root {
+        --hm-primary: rgb(0, 144, 161);
+        --hm-primary-hover: rgb(0, 115, 129);
+    }
+    .text-hm { color: var(--hm-primary) !important; }
+    .btn-hm { background-color: var(--hm-primary); color: white; border: none; }
+    .btn-hm:hover { background-color: var(--hm-primary-hover); color: white; }
     .border-dashed { border-style: dashed !important; border-color: #cbd5e1 !important;}
 </style>
 {% endblock %}

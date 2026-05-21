@@ -69,7 +69,6 @@
 
     <form method="POST">
         {% csrf_token %}
-        <input type="hidden" name="target_period" value="ALL">
 
         <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-5">
             <div class="table-responsive" style="max-height: 75vh; overflow-x: auto;">
@@ -247,9 +246,32 @@
             </div>
             
             <div class="bg-light p-4 text-end border-top d-flex justify-content-end align-items-center gap-3">
-                <span class="text-muted small me-auto"><i class="bi bi-info-circle me-1"></i> Các ô bị mờ là do chưa đến kỳ đánh giá hoặc đã bị khóa.</span>
-                <button type="submit" name="action" value="save" class="btn btn-outline-secondary rounded-pill px-5 fw-bold shadow-sm">LƯU BẢN NHÁP TOÀN BỘ</button>
-                <button type="submit" name="action" value="submit" class="btn btn-hm rounded-pill px-5 fw-bold shadow-sm">NỘP ĐIỂM (CHUYỂN TRẠNG THÁI)</button>
+                <span class="text-muted small me-auto"><i class="bi bi-info-circle me-1"></i> Vui lòng chọn Kỳ đánh giá trước khi Lưu/Nộp.</span>
+                
+                <select name="target_period" class="form-select w-auto fw-bold border-hm text-hm shadow-sm" required>
+                    <option value="">-- Chọn kỳ cần lưu --</option>
+                    {% if kpi.eval_type == 'YEAR' %}
+                        <option value="Y">Đánh giá Cả Năm (Y)</option>
+                    {% elif kpi.eval_type == 'HALF' %}
+                        <option value="H1">Đánh giá Nửa đầu năm (H1)</option>
+                        <option value="H2">Đánh giá Nửa cuối năm (H2)</option>
+                    {% else %}
+                        <option value="Q1">Đánh giá Quý 1</option>
+                        <option value="Q2">Đánh giá Quý 2</option>
+                        <option value="Q3">Đánh giá Quý 3</option>
+                        <option value="Q4">Đánh giá Quý 4</option>
+                    {% endif %}
+                </select>
+
+                <button type="submit" name="action" value="save" class="btn btn-outline-secondary rounded-pill px-5 fw-bold shadow-sm">LƯU BẢN NHÁP</button>
+                
+                {% if is_owner %}
+                    <button type="submit" name="action" value="submit_manager" class="btn btn-hm rounded-pill px-5 fw-bold shadow-sm">NỘP CHO QUẢN LÝ (HOD)</button>
+                {% elif is_manager %}
+                    <button type="submit" name="action" value="submit_gm" class="btn btn-warning rounded-pill px-5 fw-bold shadow-sm text-dark">NỘP CHO GIÁM ĐỐC (GM)</button>
+                {% elif is_gm %}
+                    <button type="submit" name="action" value="finish" class="btn btn-danger rounded-pill px-5 fw-bold shadow-sm">CHỐT KẾT QUẢ</button>
+                {% endif %}
             </div>
         </div>
     </form>

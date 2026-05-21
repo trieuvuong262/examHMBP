@@ -43,7 +43,6 @@ class YearlyKpi(models.Model):
     employee = models.ForeignKey(User, on_delete=models.CASCADE, related_name='yearly_kpis')
     year = models.IntegerField(default=current_year, verbose_name="Năm giao KPI")
     eval_type = models.CharField(max_length=10, choices=EVAL_TYPE_CHOICES, default='QUARTER', verbose_name="Chế độ hiển thị")
-    y_status = models.CharField(max_length=20, default='self_evaluating')
     direct_manager = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='managed_yearly_kpis')
     general_manager = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='gm_yearly_kpis')
 
