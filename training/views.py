@@ -127,10 +127,11 @@ def course_create(request):
     users = User.objects.select_related('profile').all()
     for u in users:
         try:
-            if u.profile.position:
-                user_positions[str(u.id)] = u.profile.position
+            if hasattr(u, 'profile'):
+                # Lưu thành mảng: [Chức danh, Vai trò]
+                user_positions[str(u.id)] = [u.profile.position, u.profile.role] 
         except:
-            pass 
+            pass
 
     if request.method == 'POST':
         form = CourseForm(request.POST, request.FILES)
@@ -160,13 +161,13 @@ def course_list(request):
 @admin_only
 def course_edit(request, course_id):
     course = get_object_or_404(Course, id=course_id)
-    
     user_positions = {}
     users = User.objects.select_related('profile').all()
     for u in users:
         try:
-            if hasattr(u, 'profile') and u.profile.position:
-                user_positions[str(u.id)] = u.profile.position
+            if hasattr(u, 'profile'):
+                # Lưu thành mảng: [Chức danh, Vai trò]
+                user_positions[str(u.id)] = [u.profile.position, u.profile.role]
         except:
             pass
 

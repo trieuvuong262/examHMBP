@@ -17,7 +17,6 @@ urlpatterns = [
     path('admin/lesson/<int:lesson_id>/delete/', views.lesson_delete, name='lesson_delete'),
     path('admin/lesson/update-order/', views.update_lesson_order, name='update_lesson_order'),
     path('admin/lesson/<int:lesson_id>/edit/', views.lesson_edit, name='lesson_edit'),
-    # API Quản lý Danh mục Đào tạo
     path('api/categories/', views.api_get_categories, name='api_get_categories'),
     path('api/categories/add/', views.api_add_category, name='api_add_category'),
     path('api/categories/<int:pk>/edit/', views.api_edit_category, name='api_edit_category'),
