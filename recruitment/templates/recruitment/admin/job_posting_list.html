@@ -44,18 +44,18 @@
 </style>
 
 <div class="container-fluid jp-page mt-3 mt-md-4 mb-5 px-2 px-md-3" style="max-width: 1400px;">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="jp-page-header mb-3 mb-md-4">
         <div>
-            <h3 class="fw-bold text-dark mb-1"><i class="bi bi-megaphone-fill text-hm me-2"></i>Quản lý Vị trí Tuyển dụng</h3>
-            <p class="text-muted mb-0 small">Thêm, sửa, xóa các chiến dịch tuyển nhân sự</p>
+            <h3 class="fw-bold text-dark mb-1 jp-page-title"><i class="bi bi-megaphone-fill text-hm me-2"></i>Vị trí tuyển dụng</h3>
+            <p class="text-muted mb-0 jp-hide-mobile-subtitle">Thêm, sửa, xóa các chiến dịch tuyển nhân sự</p>
         </div>
         
-        <div class="d-flex gap-2 align-items-center">
-            <a href="{% url 'job_posting_create' %}" class="btn btn-hm shadow-sm fw-bold px-4 rounded-3 d-flex align-items-center" style="height: 42px;">
-                <i class="bi bi-plus-circle-fill me-2"></i> Đăng tin mới
+        <div class="d-flex gap-2 align-items-stretch flex-wrap w-100 w-md-auto">
+            <a href="{% url 'job_posting_create' %}" class="btn btn-hm shadow-sm fw-bold rounded-3 d-flex align-items-center justify-content-center flex-fill flex-md-grow-0">
+                <i class="bi bi-plus-circle-fill me-1"></i> Đăng tin
             </a>
             
-            <a href="{% url 'admin_dashboard' %}" class="btn btn-white border shadow-sm px-3 rounded-3 d-flex align-items-center justify-content-center" style="height: 42px; width: 42px;" title="Quay lại Dashboard">
+            <a href="{% url 'admin_dashboard' %}" class="btn btn-white border shadow-sm rounded-3 d-flex align-items-center justify-content-center flex-fill flex-md-grow-0" title="Quay lại Dashboard">
                 <i class="bi bi-arrow-left fs-5 text-dark"></i>
             </a>
         </div>

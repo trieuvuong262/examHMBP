@@ -2,11 +2,11 @@
 
 {% block content %}
 <div class="container jp-page py-3 py-md-4 mb-5">
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+    <div class="jp-page-header mb-3 mb-md-4">
         <div>
-            <h2 class="fw-bold text-hm mb-1"><i class="bi bi-clock-history me-2"></i>Lịch sử báo cáo</h2>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-clock-history me-2"></i>Lịch sử báo cáo</h2>
         </div>
-        <a href="{% url 'reports:today' %}" class="btn btn-hm rounded-pill px-4 fw-bold">
+        <a href="{% url 'reports:today' %}" class="btn btn-hm rounded-pill fw-bold flex-fill flex-md-grow-0">
             <i class="bi bi-plus-lg me-1"></i>Báo cáo hôm nay
         </a>
     </div>

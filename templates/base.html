@@ -173,6 +173,7 @@
             <li class="nav-item"><a class="nav-link {% if 'kpi' in request.path %}active{% endif %}" href="{% url 'kpi_list' %}"><i class="bi bi-graph-up-arrow me-2"></i>KPI</a></li>
             <li class="nav-item"><a class="nav-link {% if 'training' in request.path or 'my_courses' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'my_courses' %}"><i class="bi bi-mortarboard-fill me-2"></i>Đào tạo</a></li>
             <li class="nav-item"><a class="nav-link {% if 'exams' in request.path %}active{% endif %}" href="{% url 'exam_list' %}"><i class="bi bi-journal-check me-2"></i>Kiểm tra</a></li>
+            <li class="nav-item"><a class="nav-link {% if 'huong-dan' in request.path %}active{% endif %}" href="{% url 'user_guide' %}"><i class="bi bi-journal-text me-2"></i>Hướng dẫn</a></li>
             {% if jp_can_portal_admin %}
             <li class="nav-item"><a class="nav-link {% if request.GET.tab == 'recruitment' %}active{% endif %}" href="{% url 'admin_dashboard' %}?tab=recruitment"><i class="bi bi-person-lines-fill me-2"></i>Quản lý tuyển dụng</a></li>
             <li class="nav-item"><a class="nav-link" href="{% url 'user_list' %}"><i class="bi bi-people-fill me-2"></i>Nhân sự</a></li>
@@ -235,8 +236,8 @@
     {% endblock %}
 </main>
 
-<footer class="footer pt-5">
-    <div class="container-fluid px-3 px-lg-4">
+<footer class="footer">
+    <div class="container-fluid px-3 px-lg-4 d-none d-lg-block pt-5">
         <div class="row mb-4">
             <div class="col-lg-4 mb-4 mb-lg-0">
                 <h5 class="text-white fw-bold mb-3 d-flex align-items-center">
@@ -271,7 +272,25 @@
             </div>
         </div>
     </div>
-    <div class="footer-bottom mt-2">
+
+    <div class="jp-footer-mobile d-lg-none">
+        <div class="jp-footer-mobile-inner">
+            <a href="{% url 'user_guide' %}" class="jp-footer-mobile-link {% if 'huong-dan' in request.path %}active{% endif %}">
+                <i class="bi bi-journal-text"></i>
+                <span>Hướng dẫn</span>
+            </a>
+            <a href="{% url 'exam_list' %}" class="jp-footer-mobile-link {% if 'exams' in request.path %}active{% endif %}">
+                <i class="bi bi-journal-check"></i>
+                <span>Kiểm tra</span>
+            </a>
+            <a href="mailto:support@justplay.vn" class="jp-footer-mobile-link">
+                <i class="bi bi-headset"></i>
+                <span>IT Support</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="footer-bottom">
         <div class="container-fluid px-3 px-lg-4 text-center text-md-start">
             &copy; 2026 <strong>JustPlay.vn</strong>
         </div>

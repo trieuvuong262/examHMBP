@@ -125,27 +125,27 @@
     .kanban-column::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 </style>
 
-<div class="container-fluid mt-4 mb-5 kanban-wrapper">
-    <div class="d-flex justify-content-between align-items-center mb-5 px-2">
+<div class="container-fluid mt-3 mt-md-4 mb-5 kanban-wrapper jp-page">
+    <div class="jp-page-header mb-3 mb-md-4 px-1 px-md-2">
         <div>
-            <h3 class="fw-bold text-dark mb-1"><i class="bi bi-kanban text-hm me-2"></i>Bảng theo dõi Ứng viên</h3>
-            <p class="text-muted mb-0 small">Kéo thả thẻ ứng viên để cập nhật trạng thái tuyển dụng.</p>
+            <h3 class="fw-bold text-dark mb-1 jp-page-title"><i class="bi bi-kanban text-hm me-2"></i>Bảng ứng viên</h3>
+            <p class="text-muted mb-0 jp-hide-mobile-subtitle">Kéo thả thẻ để cập nhật trạng thái tuyển dụng.</p>
         </div>
-        <div class="d-flex gap-2 align-items-center">
+        <div class="d-flex gap-2 align-items-stretch flex-wrap w-100 w-md-auto jp-kanban-toolbar">
             
-            <button class="btn btn-hm shadow-sm fw-bold px-4 rounded-3 d-flex align-items-center" data-bs-toggle="modal" data-bs-target="#addCandidateModal" style="height: 42px;">
-                <i class="bi bi-person-plus-fill me-2"></i> Thêm Ứng viên
+            <button class="btn btn-hm shadow-sm fw-bold rounded-3 d-flex align-items-center justify-content-center flex-fill flex-md-grow-0" data-bs-toggle="modal" data-bs-target="#addCandidateModal">
+                <i class="bi bi-person-plus-fill me-1"></i> Thêm UV
             </button>
-            <button class="btn btn-hm shadow-sm fw-bold px-4 rounded-3 d-flex align-items-center" onclick="openAllInterviewsModal()" style="height: 42px;">
-                <i class="bi bi-calendar-week me-2"></i> Lịch Phỏng vấn
+            <button class="btn btn-hm shadow-sm fw-bold rounded-3 d-flex align-items-center justify-content-center flex-fill flex-md-grow-0" onclick="openAllInterviewsModal()">
+                <i class="bi bi-calendar-week me-1"></i> Lịch PV
             </button>
-            <button class="btn btn-hm shadow-sm fw-bold px-4 rounded-3 d-flex align-items-center" onclick="openAllLicensesModal()" style="height: 42px;">
-                <i class="bi bi-file-medical me-2"></i> Tổng CCHN
+            <button class="btn btn-hm shadow-sm fw-bold rounded-3 d-flex align-items-center justify-content-center flex-fill flex-md-grow-0" onclick="openAllLicensesModal()">
+                <i class="bi bi-file-medical me-1"></i> CCHN
             </button>
 
-            <form method="GET" class="d-flex align-items-center bg-white shadow-sm rounded-3 px-2 border mb-0" style="height: 42px;">
+            <form method="GET" class="d-flex align-items-center bg-white shadow-sm rounded-3 px-2 border mb-0 flex-fill flex-md-grow-0 jp-kanban-filter" style="min-height: 42px;">
                 <i class="bi bi-funnel text-muted me-2 ms-1"></i>
-                <select name="job_id" class="form-select border-0 shadow-none bg-transparent py-0 h-100 w-100" onchange="this.form.submit()" style="min-width: 250px; cursor: pointer;">
+                <select name="job_id" class="form-select border-0 shadow-none bg-transparent py-0 h-100 w-100" onchange="this.form.submit()" style="min-width: 0; cursor: pointer;">
                     <option value="">-- Tất cả vị trí đang mở --</option>
                     {% for job in jobs %}
                         <option value="{{ job.id }}" {% if selected_job == job.id %}selected{% endif %}>{{ job.title }}</option>

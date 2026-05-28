@@ -27,14 +27,14 @@
 </style>
 
 <div class="container-fluid jp-page px-2 px-md-4 mt-3 mt-md-4 mb-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="jp-page-header mb-3 mb-md-4">
         <div>
-            <h3 class="fw-bold text-hm mb-1">
-                <i class="bi bi-file-earmark-plus-fill me-2"></i>Thiết lập Mục tiêu KPI Năm
+            <h3 class="fw-bold text-hm mb-1 jp-page-title">
+                <i class="bi bi-file-earmark-plus-fill me-2"></i>Thiết lập KPI năm
             </h3>
-            <p class="text-muted small mb-0">Cấu hình chỉ tiêu đánh giá cho nhân sự - Năm {{ current_year|default:"2026" }}</p>
+            <p class="text-muted small mb-0 jp-hide-mobile-subtitle">Cấu hình chỉ tiêu đánh giá — Năm {{ current_year|default:"2026" }}</p>
         </div>
-        <a href="{% url 'kpi_list' %}" class="btn btn-outline-secondary fw-bold shadow-sm rounded-pill px-4">
+        <a href="{% url 'kpi_list' %}" class="btn btn-outline-secondary fw-bold shadow-sm rounded-pill flex-fill flex-md-grow-0">
             <i class="bi bi-arrow-left me-1"></i> Quay lại
         </a>
     </div>

@@ -2,32 +2,32 @@
 
 {% block content %}
 <div class="container jp-page mt-3 mt-md-4 mb-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="jp-page-header mb-3 mb-md-4">
         <div>
-            <h2 class="fw-bold text-dark mb-1"><i class="bi bi-mortarboard-fill text-hm me-2"></i>Không gian học tập</h2>
-            <p class="text-muted mb-0 small">Theo dõi tiến độ và hoàn thành các khóa học được giao của bạn.</p>
+            <h2 class="fw-bold text-dark mb-1 jp-page-title"><i class="bi bi-mortarboard-fill text-hm me-2"></i>Không gian học tập</h2>
+            <p class="text-muted mb-0 jp-hide-mobile-subtitle">Theo dõi tiến độ và hoàn thành các khóa học được giao.</p>
         </div>
     </div>
 
-    <div class="bg-white p-2 rounded-pill shadow-sm border mb-4 d-inline-flex overflow-hidden">
-        <ul class="nav nav-pills custom-pills" id="courseFilter" role="tablist">
+    <div class="bg-white p-2 rounded-pill shadow-sm border mb-3 mb-md-4 jp-scroll-tabs-wrap">
+        <ul class="nav nav-pills custom-pills jp-scroll-tabs mb-0" id="courseFilter" role="tablist">
             <li class="nav-item">
-                <button class="nav-link active fw-bold px-4 rounded-pill filter-btn" data-filter="all">
+                <button class="nav-link active fw-bold px-3 px-md-4 rounded-pill filter-btn" data-filter="all">
                     <i class="bi bi-grid-fill me-1"></i> Tất cả
                 </button>
             </li>
             <li class="nav-item">
-                <button class="nav-link fw-bold px-4 rounded-pill filter-btn" data-filter="in_progress">
+                <button class="nav-link fw-bold px-3 px-md-4 rounded-pill filter-btn" data-filter="in_progress">
                     <i class="bi bi-clock-history me-1"></i> Đang học
                 </button>
             </li>
             <li class="nav-item">
-                <button class="nav-link fw-bold px-4 rounded-pill filter-btn" data-filter="not_started">
+                <button class="nav-link fw-bold px-3 px-md-4 rounded-pill filter-btn" data-filter="not_started">
                     <i class="bi bi-play-circle me-1"></i> Chưa bắt đầu
                 </button>
             </li>
             <li class="nav-item">
-                <button class="nav-link fw-bold px-4 rounded-pill filter-btn" data-filter="completed">
+                <button class="nav-link fw-bold px-3 px-md-4 rounded-pill filter-btn" data-filter="completed">
                     <i class="bi bi-check-circle-fill me-1"></i> Đã hoàn thành
                 </button>
             </li>

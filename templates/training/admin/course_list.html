@@ -2,17 +2,17 @@
 
 {% block content %}
 <div class="container-fluid jp-page mt-3 mt-md-4 px-2 px-md-4 mb-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="jp-page-header mb-3 mb-md-4">
         <div>
-            <h3 class="fw-bold text-dark mb-1"><i class="bi bi-collection-play-fill text-hm me-2"></i>Quản lý Khóa học</h3>
-            <p class="text-muted mb-0 small">Theo dõi, chỉnh sửa và cấu hình nội dung bài giảng E-Learning.</p>
+            <h3 class="fw-bold text-dark mb-1 jp-page-title"><i class="bi bi-collection-play-fill text-hm me-2"></i>Quản lý khóa học</h3>
+            <p class="text-muted mb-0 jp-hide-mobile-subtitle">Theo dõi và cấu hình nội dung bài giảng E-Learning.</p>
         </div>
-        <div class="d-flex gap-2">
-            <a href="{% url 'course_create' %}" class="btn btn-hm shadow-sm fw-bold rounded-3 px-4 btn-hover-lift">
-                <i class="bi bi-plus-lg me-1"></i> Thêm Khóa học mới
+        <div class="d-flex gap-2 flex-wrap w-100 w-md-auto">
+            <a href="{% url 'course_create' %}" class="btn btn-hm shadow-sm fw-bold rounded-3 btn-hover-lift flex-fill flex-md-grow-0">
+                <i class="bi bi-plus-lg me-1"></i> Thêm khóa học
             </a>
-            <button class="btn btn-outline-hm fw-bold rounded-3 px-4 shadow-sm" onclick="openCategoryModal()">
-                <i class="bi bi-tags-fill me-1"></i> Quản lý Danh mục
+            <button class="btn btn-outline-hm fw-bold rounded-3 shadow-sm flex-fill flex-md-grow-0" onclick="openCategoryModal()">
+                <i class="bi bi-tags-fill me-1"></i> Danh mục
             </button>
         </div>
     </div>
