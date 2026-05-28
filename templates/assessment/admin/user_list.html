@@ -3,7 +3,7 @@
 {% block content %}
 
 <div class="modal fade" id="passwordResultModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
         <div class="modal-content border-0 shadow-lg rounded-4">
             <div class="modal-header bg-hm text-white p-4 border-0 rounded-top-4">
                 <h5 class="modal-title fw-bold"><i class="bi bi-shield-check me-2"></i>THÔNG TIN TÀI KHOẢN</h5>
@@ -32,53 +32,52 @@
     </div>
 </div>
 
-<div class="container-fluid jp-page py-3 py-md-4 px-2 px-md-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="fw-bold text-dark mb-1">
+<div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div class="jp-page-header-main">
+            <h2 class="jp-page-title fw-bold text-dark mb-1">
                 <i class="bi bi-people-fill text-hm me-2"></i>Quản lý Nhân sự
             </h2>
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0">
+            <nav aria-label="breadcrumb" class="d-none d-md-block">
+                <ol class="breadcrumb mb-0 small">
                     <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}" class="text-decoration-none text-muted">Dashboard</a></li>
                     <li class="breadcrumb-item active fw-bold text-hm">Danh sách nhân viên</li>
                 </ol>
             </nav>
+            <p class="text-muted small mb-0 d-md-none">{{ users.count }} nhân viên</p>
         </div>
-        
-        <div class="d-flex gap-2">
-            <a href="{% url 'user_export_excel' %}" class="btn btn-outline-primary fw-bold shadow-sm px-3 border-2 btn-hover-lift">
-                <i class="bi bi-download me-1"></i> Xuất Excel
-            </a>
 
-            <button type="button" class="btn btn-outline-success fw-bold shadow-sm px-3 border-2 btn-hover-lift" data-bs-toggle="modal" data-bs-target="#importExcelModal">
-                <i class="bi bi-file-earmark-excel-fill me-1"></i> Import Excel
+        <div class="jp-hrm-toolbar">
+            <a href="{% url 'user_export_excel' %}" class="btn btn-outline-primary fw-bold shadow-sm jp-hrm-tool-btn" title="Xuất Excel">
+                <i class="bi bi-download"></i><span class="jp-hrm-tool-label"> Xuất Excel</span>
+            </a>
+            <button type="button" class="btn btn-outline-success fw-bold shadow-sm jp-hrm-tool-btn" data-bs-toggle="modal" data-bs-target="#importExcelModal" title="Import Excel">
+                <i class="bi bi-file-earmark-excel-fill"></i><span class="jp-hrm-tool-label"> Import</span>
             </button>
-            
-            <a href="{% url 'user_add' %}" class="btn btn-hm shadow-sm text-white px-4 fw-bold btn-hover-lift">
-                <i class="bi bi-person-plus-fill me-1"></i> Thêm nhân viên
+            <a href="{% url 'user_add' %}" class="btn btn-hm shadow-sm text-white fw-bold jp-hrm-tool-btn jp-hrm-tool-btn-primary" title="Thêm nhân viên">
+                <i class="bi bi-person-plus-fill"></i><span class="jp-hrm-tool-label"> Thêm NV</span>
             </a>
         </div>
     </div>
 
     <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-        <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
-            <h5 class="mb-0 fw-bold text-dark">Dữ liệu nhân sự ({{ users.count }})</h5>
-            
-            <div class="input-group input-group-sm w-auto" style="min-width: 350px;">
+        <div class="card-header bg-white py-3 border-bottom jp-hrm-card-header">
+            <h5 class="mb-0 fw-bold text-dark d-none d-md-block">Dữ liệu nhân sự ({{ users.count }})</h5>
+            <div class="jp-hrm-search input-group">
                 <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
-                <input type="text" id="userSearch" class="form-control bg-light border-start-0 py-2" placeholder="Tìm tên, chức danh, username...">
+                <input type="search" id="userSearch" class="form-control bg-light border-start-0" placeholder="Tìm tên, chức danh, username..." autocomplete="off">
             </div>
         </div>
-        
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0" id="userTable">
+
+        <div class="jp-table-wrap">
+            <table class="table table-hover align-middle mb-0 jp-table jp-table-stack" id="userTable">
                 <thead class="bg-light text-uppercase">
-                    <tr style="font-size: 0.85rem; letter-spacing: 0.5px;">
+                    <tr class="small">
                         <th class="ps-4 py-3 text-muted">Nhân viên</th>
                         <th class="text-muted">Account</th>
                         <th class="text-muted">Chức danh</th>
-                        <th class="text-muted text-center">Vai trò hệ thống</th> <th class="text-muted">Email</th>
+                        <th class="text-muted text-center">Vai trò</th>
+                        <th class="text-muted">Email</th>
                         <th class="text-muted">Ngày tham gia</th>
                         <th class="text-end pe-4 text-muted">Thao tác</th>
                     </tr>
@@ -86,21 +85,21 @@
                 <tbody>
                     {% for u in users %}
                     <tr>
-                        <td class="ps-4">
+                        <td class="ps-md-4 jp-td-primary" data-label="Nhân viên">
                             <div class="d-flex align-items-center">
-                                <div class="avatar-circle me-3" style="width: 40px; height: 40px; background: rgba(220, 38, 38, 0.1); color: #dc2626; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold;">
+                                <div class="jp-hrm-avatar me-3">
                                     {{ u.profile.full_name|default:u.first_name|default:u.username|make_list|first|upper }}
                                 </div>
-                                <div>
+                                <div class="text-start">
                                     <div class="fw-bold text-dark">{{ u.profile.full_name|default:u.first_name|default:u.username }}</div>
-                                    <div class="small text-muted" style="font-size: 0.75rem;">ID: #{{ u.id }}</div>
+                                    <div class="small text-muted">ID #{{ u.id }}</div>
                                 </div>
                             </div>
                         </td>
-                        
-                        <td><code class="text-primary fw-bold px-2 py-1 bg-light rounded-2">{{ u.username }}</code></td>
-                        
-                        <td>
+
+                        <td data-label="Account"><code class="text-primary fw-bold px-2 py-1 bg-light rounded-2 user-select-all">{{ u.username }}</code></td>
+
+                        <td data-label="Chức danh">
                             {% if u.profile.position %}
                                 <span class="fw-medium text-dark">{{ u.profile.position }}</span>
                             {% else %}
@@ -108,43 +107,41 @@
                             {% endif %}
                         </td>
 
-                        <td class="text-center">
+                        <td class="text-center" data-label="Vai trò">
                             {% if u.profile.role == 'GM' %}
-                                <span class="badge bg-danger-subtle text-danger rounded-pill px-3" style="font-size: 0.7rem;">
-                                    <i class="bi bi-shield-fill-check me-1"></i>Giám đốc (GM)
+                                <span class="badge bg-danger-subtle text-danger rounded-pill px-3">
+                                    <i class="bi bi-shield-fill-check me-1"></i>GM
                                 </span>
                             {% elif u.profile.role == 'HOD' %}
-                                <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-3" style="font-size: 0.7rem;">
-                                    <i class="bi bi-person-badge-fill me-1"></i>Trưởng phòng (HOD)
+                                <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-3">
+                                    <i class="bi bi-person-badge-fill me-1"></i>HOD
                                 </span>
                             {% else %}
-                                <span class="badge bg-primary-subtle text-hm rounded-pill px-3" style="font-size: 0.7rem;">
-                                    <i class="bi bi-person-fill me-1"></i>Nhân viên
+                                <span class="badge bg-primary-subtle text-hm rounded-pill px-3">
+                                    <i class="bi bi-person-fill me-1"></i>NV
                                 </span>
                             {% endif %}
                         </td>
-                        
-                        <td class="text-muted">{{ u.email|default:"---" }}</td>
-                        <td class="text-muted small">{{ u.date_joined|date:"d/m/Y" }}</td>
-                        
-                        <td class="text-end pe-4">
-                            <div class="d-inline-flex align-items-center gap-1">
-                                <a href="{% url 'user_edit' u.id %}" class="btn btn-sm btn-white border shadow-sm px-3" title="Sửa thông tin">
+
+                        <td class="text-muted user-select-all" data-label="Email">{{ u.email|default:"---" }}</td>
+                        <td class="text-muted small" data-label="Ngày tham gia">{{ u.date_joined|date:"d/m/Y" }}</td>
+
+                        <td class="text-md-end pe-md-4 jp-td-actions" data-label="Thao tác">
+                            <div class="jp-hrm-actions">
+                                <a href="{% url 'user_edit' u.id %}" class="btn btn-sm btn-white border shadow-sm" title="Sửa thông tin" aria-label="Sửa">
                                     <i class="bi bi-pencil-square text-warning"></i>
                                 </a>
-
                                 <form action="{% url 'user_password_reset' u.id %}" method="POST" class="m-0">
                                     {% csrf_token %}
-                                    <button type="button" class="btn btn-sm btn-white border shadow-sm px-3 reset-pwd-btn" 
-                                            data-url="{% url 'user_password_reset' u.id %}" 
-                                            data-username="{{ u.username }}" 
-                                            title="Đặt lại mật khẩu">
+                                    <button type="button" class="btn btn-sm btn-white border shadow-sm reset-pwd-btn"
+                                            data-url="{% url 'user_password_reset' u.id %}"
+                                            data-username="{{ u.username }}"
+                                            title="Đặt lại mật khẩu" aria-label="Reset mật khẩu">
                                         <i class="bi bi-key-fill text-primary"></i>
                                     </button>
                                 </form>
-
-                                <a href="{% url 'user_delete' u.id %}" class="btn btn-sm btn-white border shadow-sm px-3" 
-                                onclick="return confirm('Xác nhận xóa vĩnh viễn tài khoản này?')" title="Xóa">
+                                <a href="{% url 'user_delete' u.id %}" class="btn btn-sm btn-white border shadow-sm"
+                                   onclick="return confirm('Xác nhận xóa vĩnh viễn tài khoản này?')" title="Xóa" aria-label="Xóa">
                                     <i class="bi bi-trash-fill text-danger"></i>
                                 </a>
                             </div>
@@ -152,11 +149,11 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center py-5">
+                        <td colspan="7" class="text-center py-5 jp-td-empty">
                             <div class="py-4">
                                 <i class="bi bi-person-exclamation display-1 text-muted opacity-25"></i>
                                 <p class="mt-3 text-muted fs-5">Chưa có nhân viên nào trong hệ thống.</p>
-                                <a href="{% url 'user_add' %}" class="btn btn-hm btn-sm rounded-pill px-4">Thêm nhân viên ngay</a>
+                                <a href="{% url 'user_add' %}" class="btn btn-hm rounded-pill px-4">Thêm nhân viên ngay</a>
                             </div>
                         </td>
                     </tr>
@@ -168,7 +165,7 @@
 </div>
 
 <div class="modal fade" id="importExcelModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
         <form id="importExcelForm" action="{% url 'user_import_excel' %}" method="POST" enctype="multipart/form-data" class="modal-content border-0 shadow-lg rounded-4">
             {% csrf_token %}
             <div class="modal-header bg-dark text-white p-4">
@@ -215,44 +212,14 @@
 </div>
 
 <style>
-    :root { 
-        --hm-primary: #dc2626; 
-        --hm-primary-hover: #b91c1c;
-    }
-    
-    .bg-hm { background-color: var(--hm-primary) !important; }
-    .text-hm { color: var(--hm-primary) !important; }
-    .border-hm { border-color: var(--hm-primary) !important; }
-    .bg-hm-subtle { background-color: rgba(220, 38, 38, 0.1) !important; }
-    
-    .btn-hm { background-color: var(--hm-primary); color: white; border: none; transition: all 0.3s; }
-    .btn-hm:hover { background-color: var(--hm-primary-hover); color: white; }
-    
-    .btn-hover-lift { transition: transform 0.2s ease, box-shadow 0.2s ease; }
-    .btn-hover-lift:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-    
-    .avatar-circle {
-        width: 42px; height: 42px;
-        background: linear-gradient(135deg, var(--hm-primary), #ef4444);
-        color: white; display: flex; align-items: center; justify-content: center;
-        border-radius: 12px; font-weight: bold; font-size: 1.1rem;
-        box-shadow: 0 3px 6px rgba(220, 38, 38, 0.15);
-    }
-    
-    .x-small { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-    .border-dashed { border-style: dashed !important; }
-    .btn-white { background-color: white; }
-    .btn-white:hover { background-color: #f8f9fa; }
-    
-    .table thead th { border-top: none; }
-    
     .loading-overlay {
         position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
         background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px);
         z-index: 9999; display: flex; align-items: center; justify-content: center;
+        padding: 1rem;
     }
-    .loading-box { animation: popIn 0.3s ease-out forwards; min-width: 300px; }
-    @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    .loading-box { animation: jpHrmPopIn 0.3s ease-out forwards; width: min(100%, 320px); }
+    @keyframes jpHrmPopIn { 0% { transform: scale(0.92); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 </style>
 
 <script>
