@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-4 mb-5">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb bg-white p-3 rounded-4 shadow-sm">
+            <li class="breadcrumb-item"><a href="{% url 'announcements:list' %}" class="text-decoration-none">Thông báo</a></li>
+            <li class="breadcrumb-item active fw-bold text-hm">{{ announcement.title }}</li>
+        </ol>
+    </nav>
+
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-hm text-white p-4 border-0">
+            <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                <div>
+                    <h3 class="fw-bold mb-2">{{ announcement.title }}</h3>
+                    <small class="opacity-75">
+                        {{ announcement.created_at|date:"d/m/Y H:i" }}
+                        {% if announcement.created_by %}
+                        · {{ announcement.created_by.get_full_name|default:announcement.created_by.username }}
+                        {% endif %}
+                    </small>
+                </div>
+                {% if is_read %}
+                <span class="badge bg-white text-success px-3 py-2"><i class="bi bi-check-circle-fill me-1"></i>Đã xác nhận đọc</span>
+                {% else %}
+                <span class="badge bg-white text-warning px-3 py-2"><i class="bi bi-exclamation-circle-fill me-1"></i>Chưa xác nhận</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card-body p-4 p-md-5">
+            {% if announcement.summary %}
+            <p class="lead text-muted">{{ announcement.summary }}</p>
+            <hr>
+            {% endif %}
+
+            {% if announcement.content_type == 'TEXT' %}
+            <div class="announcement-body">
+                {{ announcement.body|safe }}
+            </div>
+            {% elif announcement.content_type == 'PDF' and announcement.pdf_file %}
+            <div class="ratio ratio-16x9 border rounded-4 overflow-hidden bg-light mb-3">
+                <iframe src="{{ announcement.pdf_file.url }}" title="{{ announcement.title }}" class="w-100 h-100"></iframe>
+            </div>
+            <a href="{{ announcement.pdf_file.url }}" target="_blank" class="btn btn-outline-hm rounded-pill">
+                <i class="bi bi-download me-1"></i> Tải PDF
+            </a>
+            {% elif announcement.content_type == 'VIDEO' and announcement.video_file %}
+            <video controls class="w-100 rounded-4 shadow-sm" style="max-height: 70vh;">
+                <source src="{{ announcement.video_file.url }}">
+                Trình duyệt không hỗ trợ phát video.
+            </video>
+            {% else %}
+            <div class="alert alert-secondary border-0">Nội dung thông báo chưa được tải lên.</div>
+            {% endif %}
+
+            {% if announcement.require_acknowledgment %}
+            <div class="mt-5 pt-4 border-top">
+                {% if is_read %}
+                <div class="alert alert-success border-0 mb-0">
+                    <i class="bi bi-check2-circle me-2"></i>Bạn đã xác nhận đọc thông báo này.
+                </div>
+                {% else %}
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="acknowledge">
+                    <button type="submit" class="btn btn-hm btn-lg rounded-pill px-5 fw-bold">
+                        <i class="bi bi-check2-square me-2"></i>Xác nhận đã đọc
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

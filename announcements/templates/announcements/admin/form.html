@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block content %}
+{{ form.media }}
+<div class="container py-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="card-header bg-dark text-white p-4 border-0">
+                    <h4 class="mb-0 fw-bold">{{ title }}</h4>
+                </div>
+                <div class="card-body p-4 p-md-5">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Tiêu đề</label>
+                            {{ form.title }}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Tóm tắt</label>
+                            {{ form.summary }}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Loại nội dung</label>
+                            {{ form.content_type }}
+                        </div>
+
+                        <div class="mb-3" id="field-body">
+                            <label class="form-label fw-bold">Nội dung văn bản (CKEditor)</label>
+                            <div class="border rounded-3 p-2 bg-white">
+                                {{ form.body }}
+                            </div>
+                            <div class="form-text">Soạn thảo như Word: in đậm, danh sách, màu chữ, căn lề...</div>
+                            {% if form.body.errors %}<div class="text-danger small">{{ form.body.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="mb-3" id="field-pdf">
+                            <label class="form-label fw-bold">File PDF</label>
+                            {{ form.pdf_file }}
+                            {% if form.pdf_file.errors %}<div class="text-danger small">{{ form.pdf_file.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="mb-3" id="field-video">
+                            <label class="form-label fw-bold">File video</label>
+                            {{ form.video_file }}
+                            {% if form.video_file.errors %}<div class="text-danger small">{{ form.video_file.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    {{ form.is_active }}
+                                    <label class="form-check-label">Đang hiển thị</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    {{ form.is_pinned }}
+                                    <label class="form-check-label">Ghim lên đầu</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    {{ form.require_acknowledgment }}
+                                    <label class="form-check-label">Yêu cầu xác nhận đọc</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-hm rounded-pill px-4 fw-bold">Lưu thông báo</button>
+                            <a href="{% url 'announcements:admin_list' %}" class="btn btn-light border rounded-pill px-4">Hủy</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const typeSelect = document.getElementById('id_content_type');
+    const fieldBody = document.getElementById('field-body');
+    const fieldPdf = document.getElementById('field-pdf');
+    const fieldVideo = document.getElementById('field-video');
+
+    function toggleFields() {
+        const value = typeSelect.value;
+        fieldBody.style.display = value === 'TEXT' ? 'block' : 'none';
+        fieldPdf.style.display = value === 'PDF' ? 'block' : 'none';
+        fieldVideo.style.display = value === 'VIDEO' ? 'block' : 'none';
+    }
+
+    typeSelect.addEventListener('change', toggleFields);
+    toggleFields();
+});
+</script>
+{% endblock %}

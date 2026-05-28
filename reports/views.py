@@ -1,58 +1,194 @@
-from django.shortcuts import render, redirect
+from datetime import datetime, timedelta
+
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
+from django.db.models import Count, Sum
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.contrib import messages
-from .models import MetabaseReport 
+
+from .forms import DailyWorkReportForm, DailyWorkReportLineFormSet
+from .models import DailyWorkReport
+
+
+def _get_profile(user):
+    return getattr(user, 'profile', None)
+
+
+def _is_hod_or_above(user):
+    profile = _get_profile(user)
+    if user.is_staff or user.is_superuser:
+        return True
+    return profile and profile.role in {'HOD', 'GM'}
+
+
+def _team_users(viewer):
+    profile = _get_profile(viewer)
+    if viewer.is_staff or viewer.is_superuser or (profile and profile.role == 'GM'):
+        return User.objects.filter(is_active=True).select_related('profile').order_by('profile__full_name', 'username')
+    if profile and profile.role == 'HOD':
+        return profile.subordinates.filter(is_active=True).select_related('profile').order_by('profile__full_name', 'username')
+    return User.objects.none()
+
 
 @login_required
-def dashboard(request):
-    user = request.user
-    is_staff = user.is_staff or user.is_superuser
+def report_hub(request):
+    if _is_hod_or_above(request.user):
+        return redirect('reports:team')
+    return redirect('reports:today')
 
-    # ==========================================
-    # XỬ LÝ FORM THÊM & XÓA BÁO CÁO (CHỈ ADMIN)
-    # ==========================================
-    if request.method == 'POST' and is_staff:
-        action = request.POST.get('action')
 
-        # XỬ LÝ XÓA
-        if action == 'delete':
-            report_id = request.POST.get('report_id')
-            if report_id:
-                MetabaseReport.objects.filter(id=report_id).delete()
-                messages.success(request, "Đã xóa báo cáo thành công!")
-            return redirect('reports:dashboard')
+@login_required
+def today_report(request):
+    report_date = request.GET.get('date') or timezone.localdate()
+    if isinstance(report_date, str):
+        report_date = datetime.strptime(report_date, '%Y-%m-%d').date()
 
-        # XỬ LÝ THÊM MỚI
-        elif action == 'add':
-            title = request.POST.get('title')
-            raw_link = request.POST.get('link')
-            report_type = request.POST.get('report_type')
-            is_active = request.POST.get('is_active') == 'on'
+    report, _ = DailyWorkReport.objects.get_or_create(
+        employee=request.user,
+        report_date=report_date,
+        defaults={'shift': DailyWorkReport.SHIFT_MORNING},
+    )
 
-            uuid = raw_link.strip()
-            if '/public/dashboard/' in uuid:
-                uuid = uuid.split('/public/dashboard/')[-1].split('?')[0]
-            elif '/public/question/' in uuid:
-                uuid = uuid.split('/public/question/')[-1].split('?')[0]
+    if request.method == 'POST':
+        action = request.POST.get('action', 'save')
+        form = DailyWorkReportForm(request.POST, instance=report)
+        formset = DailyWorkReportLineFormSet(request.POST, instance=report)
+        if form.is_valid() and formset.is_valid():
+            report = form.save(commit=False)
+            if action == 'submit':
+                report.status = DailyWorkReport.STATUS_SUBMITTED
+                report.submitted_at = timezone.now()
+                messages.success(request, 'Đã nộp báo cáo cho HOD.')
+            else:
+                report.status = DailyWorkReport.STATUS_DRAFT
+                messages.success(request, 'Đã lưu nháp báo cáo.')
+            report.save()
+            formset.save()
+            return redirect('reports:today')
+    else:
+        form = DailyWorkReportForm(instance=report)
+        formset = DailyWorkReportLineFormSet(instance=report)
 
-            if title and uuid:
-                MetabaseReport.objects.create(
-                    title=title, uuid=uuid, report_type=report_type, is_active=is_active
-                )
-                messages.success(request, f"Đã thêm báo cáo '{title}' thành công!")
-            return redirect('reports:dashboard')
+    yesterday = report_date - timedelta(days=1)
+    has_yesterday = DailyWorkReport.objects.filter(
+        employee=request.user,
+        report_date=yesterday,
+    ).exists()
 
-    # ==========================================
-    # LẤY DANH SÁCH BÁO CÁO METABASE
-    # ==========================================
-    reports_list = MetabaseReport.objects.filter(is_active=True).order_by('-created_at')
-    all_reports = MetabaseReport.objects.all().order_by('-created_at') if is_staff else []
+    return render(request, 'reports/today.html', {
+        'form': form,
+        'formset': formset,
+        'report': report,
+        'has_yesterday': has_yesterday,
+        'yesterday': yesterday,
+    })
 
-    context = {
-        'reports_list': reports_list,
-        'all_reports': all_reports, 
-        'design_url': "http://10.31.10.17:3000/question/new",
-        'is_admin': is_staff,
-    }
-    
-    return render(request, 'reports/dashboard.html', context)
+
+@login_required
+def copy_yesterday(request):
+    today = timezone.localdate()
+    yesterday = today - timedelta(days=1)
+    source = DailyWorkReport.objects.filter(employee=request.user, report_date=yesterday).prefetch_related('lines').first()
+    if not source:
+        messages.warning(request, 'Không có báo cáo hôm qua để sao chép.')
+        return redirect('reports:today')
+
+    report, _ = DailyWorkReport.objects.get_or_create(
+        employee=request.user,
+        report_date=today,
+        defaults={'shift': source.shift, 'status': DailyWorkReport.STATUS_DRAFT},
+    )
+    report.shift = source.shift
+    report.status = DailyWorkReport.STATUS_DRAFT
+    report.submitted_at = None
+    report.save()
+    report.lines.all().delete()
+    for idx, line in enumerate(source.lines.all()):
+        report.lines.create(
+            area=line.area,
+            order_code=line.order_code,
+            product_name=line.product_name,
+            quantity=line.quantity,
+            unit=line.unit,
+            note=line.note,
+            sort_order=idx,
+        )
+    messages.success(request, 'Đã sao chép báo cáo hôm qua. Kiểm tra và nộp lại.')
+    return redirect('reports:today')
+
+
+@login_required
+def my_reports(request):
+    reports = DailyWorkReport.objects.filter(
+        employee=request.user,
+    ).annotate(line_count=Count('lines'), total_qty=Sum('lines__quantity'))[:30]
+    return render(request, 'reports/my_reports.html', {'reports': reports})
+
+
+@login_required
+def team_reports(request):
+    if not _is_hod_or_above(request.user):
+        messages.error(request, 'Chức năng này dành cho HOD/Quản lý.')
+        return redirect('reports:today')
+
+    report_date = request.GET.get('date') or timezone.localdate()
+    if isinstance(report_date, str):
+        report_date = datetime.strptime(report_date, '%Y-%m-%d').date()
+
+    team = _team_users(request.user)
+    team_ids = list(team.values_list('id', flat=True))
+    reports = DailyWorkReport.objects.filter(
+        employee_id__in=team_ids,
+        report_date=report_date,
+    ).select_related('employee', 'employee__profile').annotate(
+        line_count=Count('lines'),
+        total_qty=Sum('lines__quantity'),
+    )
+    report_map = {r.employee_id: r for r in reports}
+
+    rows = []
+    submitted = 0
+    for member in team:
+        item = report_map.get(member.id)
+        if item and item.status == DailyWorkReport.STATUS_SUBMITTED:
+            submitted += 1
+        rows.append({'member': member, 'report': item})
+
+    missing = len(rows) - submitted
+
+    return render(request, 'reports/team.html', {
+        'rows': rows,
+        'report_date': report_date,
+        'submitted_count': submitted,
+        'missing_count': missing,
+        'team_count': len(rows),
+    })
+
+
+@login_required
+def report_detail(request, pk):
+    report = get_object_or_404(
+        DailyWorkReport.objects.select_related('employee', 'employee__profile').prefetch_related('lines'),
+        pk=pk,
+    )
+    can_view = (
+        report.employee_id == request.user.id
+        or _is_hod_or_above(request.user)
+        or report.employee_id in _team_users(request.user).values_list('id', flat=True)
+    )
+    if not can_view:
+        messages.error(request, 'Bạn không có quyền xem báo cáo này.')
+        return redirect('reports:hub')
+
+    if request.method == 'POST' and _is_hod_or_above(request.user):
+        report.hod_reviewed = request.POST.get('hod_reviewed') == 'on'
+        report.hod_note = request.POST.get('hod_note', '').strip()
+        report.save()
+        messages.success(request, 'Đã cập nhật phản hồi HOD.')
+        return redirect('reports:detail', pk=pk)
+
+    return render(request, 'reports/detail.html', {
+        'report': report,
+        'can_review': _is_hod_or_above(request.user) and report.employee_id != request.user.id,
+    })

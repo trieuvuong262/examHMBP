@@ -24,7 +24,16 @@
             <p class="text-muted">Chào mừng bạn đến với cổng thông tin nội bộ JustPlay.vn</p>
         </div>
 
-        <div class="col-md-4">
+        <div class="col-md-3">
+            <a href="{% url 'announcements:list' %}" class="card portal-card shadow-sm h-100 p-4 text-center">
+                <div class="icon-circle"><i class="bi bi-megaphone-fill"></i></div>
+                <h4 class="fw-bold text-dark">Thông báo</h4>
+                <p class="text-muted small">Xem thông báo nội bộ và xác nhận đã đọc.</p>
+                <div class="btn btn-hm rounded-pill px-4 mt-auto text-white fw-bold">Xem ngay</div>
+            </a>
+        </div>
+
+        <div class="col-md-3">
             <a href="{% url 'my_courses' %}" class="card portal-card shadow-sm h-100 p-4 text-center">
                 <div class="icon-circle"><i class="bi bi-mortarboard-fill"></i></div>
                 <h4 class="fw-bold text-dark">Học tập</h4>
@@ -33,7 +42,7 @@
             </a>
         </div>
 
-        <div class="col-md-4">
+        <div class="col-md-3">
             <a href="{% url 'exam_list' %}" class="card portal-card shadow-sm h-100 p-4 text-center">
                 <div class="icon-circle"><i class="bi bi-journal-check"></i></div>
                 <h4 class="fw-bold text-dark">Kiểm tra</h4>
@@ -42,7 +51,7 @@
             </a>
         </div>
 
-        <div class="col-md-4">
+        <div class="col-md-3">
             <a href="{% url 'kpi_list' %}" class="card portal-card shadow-sm h-100 p-4 text-center">
                 <div class="icon-circle"><i class="bi bi-graph-up-arrow"></i></div>
                 <h4 class="fw-bold text-dark">Hiệu suất (KPI)</h4>

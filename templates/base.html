@@ -170,6 +170,16 @@
             <div class="collapse navbar-collapse" id="mainNavbar">
                 <ul class="navbar-nav mx-auto mb-2 mb-lg-0">
                     <li class="nav-item">
+                        <a class="nav-link {% if 'announcements' in request.path %}active{% endif %}"
+                           href="{% url 'announcements:list' %}">
+                            <i class="bi bi-megaphone-fill me-1"></i> Thông Báo
+                            {% if unread_announcements_count %}
+                            <span class="badge bg-white text-danger ms-1">{{ unread_announcements_count }}</span>
+                            {% endif %}
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
                         {% if request.user.is_staff %}
                         <a class="nav-link {% if request.GET.tab == 'recruitment' or request.resolver_match.url_name == 'admin_dashboard' and not request.GET.tab %}active{% endif %}" 
                            href="{% url 'admin_dashboard' %}?tab=recruitment">
@@ -234,16 +244,10 @@
                     </li>
 
                     <li class="nav-item">
-                        {% if request.user.is_staff %}
-                        <a class="nav-link {% if request.resolver_match.view_name == 'reports:dashboard' %}active{% endif %}" 
-                           href="{% url 'reports:dashboard' %}">
-                            <i class="bi bi-pie-chart-fill me-1"></i> Báo Cáo
+                        <a class="nav-link {% if 'reports' in request.path %}active fw-bold text-hm{% endif %}"
+                           href="{% url 'reports:hub' %}">
+                            <i class="bi bi-clipboard-check-fill me-1"></i> Báo Cáo
                         </a>
-                        {% else %}
-                        <a href="#" class="nav-link locked" onclick="alert('Vui lòng không truy cập vào chức năng này'); return false;">
-                            <i class="bi bi-lock-fill me-1"></i> Báo Cáo
-                        </a>
-                        {% endif %}
                     </li>
                 </ul>
 

@@ -5,10 +5,8 @@ Optimized for Security and Production.
 
 import os
 from pathlib import Path
-from dotenv import load_dotenv
 
-# Load các biến môi trường từ file .env
-load_dotenv()
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,30 +18,61 @@ def env_bool(name: str, default: bool = False) -> bool:
         return default
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
+
+def is_docker_runtime() -> bool:
+    return os.path.exists("/.dockerenv") or env_bool("RUNNING_IN_DOCKER", False)
+
+
+def load_environment() -> None:
+    """Load .env chung, sau đó .env.local (nếu có) để override khi dev máy local."""
+    load_dotenv(BASE_DIR / ".env")
+    local_env = BASE_DIR / ".env.local"
+    if local_env.exists():
+        load_dotenv(local_env, override=True)
+
+
+load_environment()
+
+# local = chạy máy dev | production = chạy Docker/VPS
+DJANGO_ENV = os.getenv(
+    "DJANGO_ENV",
+    "production" if is_docker_runtime() else "local",
+).strip().lower()
+IS_LOCAL = DJANGO_ENV in {"local", "development", "dev"}
+IS_PRODUCTION = DJANGO_ENV in {"production", "prod"}
+
 # ==============================================================================
 # 1. BẢO MẬT CỐT LÕI (SECURITY)
 # ==============================================================================
 
-# Lấy SECRET_KEY từ file .env (Bắt buộc phải có để chạy)
-SECRET_KEY = os.getenv('SECRET_KEY')
+# Lấy SECRET_KEY từ file .env (production bắt buộc)
+SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
-    raise ValueError("SECRET_KEY is required. Set it in .env")
+    if IS_LOCAL:
+        SECRET_KEY = "django-insecure-local-dev-only"
+    else:
+        raise ValueError("SECRET_KEY is required. Set it in .env")
 
-# Bật/Tắt DEBUG qua file .env (Mặc định là False để bảo vệ Server)
-DEBUG = env_bool('DEBUG', False)
+# Local mặc định DEBUG=True, production mặc định DEBUG=False
+DEBUG = env_bool("DEBUG", IS_LOCAL)
 
 # Chỉ cho phép các IP/Domain được khai báo trong .env truy cập
-# Ví dụ trong .env: ALLOWED_HOSTS=127.0.0.1,localhost,hrms.hoanmy.com
-SERVER_IP = os.getenv('SERVER_IP', '103.90.224.203')
-default_allowed_hosts = f"{SERVER_IP},127.0.0.1,localhost"
-allowed_hosts_env = os.getenv('ALLOWED_HOSTS', default_allowed_hosts)
-ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_env.split(',')]
+SERVER_IP = os.getenv("SERVER_IP", "103.90.224.203")
+if IS_LOCAL:
+    default_allowed_hosts = "127.0.0.1,localhost"
+else:
+    default_allowed_hosts = f"{SERVER_IP},127.0.0.1,localhost"
+allowed_hosts_env = os.getenv("ALLOWED_HOSTS", default_allowed_hosts)
+ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_env.split(",") if host.strip()]
 
-csrf_trusted_origins_env = os.getenv(
-    'CSRF_TRUSTED_ORIGINS',
-    f"http://{SERVER_IP},https://{SERVER_IP}"
-)
-CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_trusted_origins_env.split(',') if origin.strip()]
+if IS_LOCAL:
+    default_csrf_origins = "http://127.0.0.1:8000,http://localhost:8000"
+else:
+    default_csrf_origins = f"http://{SERVER_IP},https://{SERVER_IP}"
+csrf_trusted_origins_env = os.getenv("CSRF_TRUSTED_ORIGINS", default_csrf_origins)
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip() for origin in csrf_trusted_origins_env.split(",") if origin.strip()
+]
 
 # Giới hạn dung lượng File Upload (Tối đa 10MB) để chống DoS
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024 
@@ -70,6 +99,7 @@ INSTALLED_APPS = [
     'axes',
     'hrm',
     'kpi',
+    'announcements',
     'django_cleanup.apps.CleanupConfig', # 👉 Thêm dòng này vào cuối
 ]
 
@@ -98,6 +128,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'announcements.context_processors.unread_announcements',
             ],
         },
     },
@@ -110,14 +141,26 @@ WSGI_APPLICATION = 'PortalJustPlay.wsgi.application'
 # 3. CẤU HÌNH DATABASE
 # ==============================================================================
 
+DB_DEFAULTS = {
+    "local": {
+        "HOST": "127.0.0.1",
+        "NAME": "hrms_db",
+    },
+    "production": {
+        "HOST": "db",
+        "NAME": "portaljustplay_db",
+    },
+}
+_db = DB_DEFAULTS["production" if IS_PRODUCTION else "local"]
+
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME', 'hrms_db'),
-        'USER': os.getenv('DB_USER', 'postgres'),
-        'PASSWORD': os.getenv('DB_PASSWORD'),
-        'HOST': os.getenv('DB_HOST', '127.0.0.1'),
-        'PORT': os.getenv('DB_PORT', '5432'), 
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("DB_NAME", _db["NAME"]),
+        "USER": os.getenv("DB_USER", "postgres"),
+        "PASSWORD": os.getenv("DB_PASSWORD", ""),
+        "HOST": os.getenv("DB_HOST", _db["HOST"]),
+        "PORT": os.getenv("DB_PORT", "5432"),
     }
 }
 

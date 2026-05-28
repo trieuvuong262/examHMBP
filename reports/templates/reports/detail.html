@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-4 mb-5">
+    <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
+        <div>
+            <h2 class="fw-bold text-hm mb-1">Báo cáo {{ report.report_date|date:"d/m/Y" }}</h2>
+            <p class="text-muted mb-0">
+                {{ report.employee.profile.full_name|default:report.employee.username }}
+                · {{ report.get_shift_display }}
+                · <span class="badge {% if report.status == 'SUBMITTED' %}bg-success{% else %}bg-secondary{% endif %}">{{ report.get_status_display }}</span>
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            {% if report.employee_id == request.user.id %}
+            <a href="{% url 'reports:today' %}?date={{ report.report_date|date:'Y-m-d' }}" class="btn btn-outline-hm btn-sm rounded-pill">Sửa</a>
+            {% endif %}
+            {% if can_review %}
+            <a href="{% url 'reports:team' %}?date={{ report.report_date|date:'Y-m-d' }}" class="btn btn-outline-secondary btn-sm rounded-pill">← Team</a>
+            {% else %}
+            <a href="{% url 'reports:my' %}" class="btn btn-outline-secondary btn-sm rounded-pill">← Lịch sử</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Công đoạn</th>
+                        <th>Mã đơn/Style</th>
+                        <th>Tên SP</th>
+                        <th class="text-end">SL</th>
+                        <th>ĐVT</th>
+                        <th>Ghi chú</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for line in report.lines.all %}
+                    <tr>
+                        <td>{{ line.get_area_display }}</td>
+                        <td>{{ line.order_code|default:"—" }}</td>
+                        <td>{{ line.product_name|default:"—" }}</td>
+                        <td class="text-end fw-bold">{{ line.quantity }}</td>
+                        <td>{{ line.get_unit_display }}</td>
+                        <td>{{ line.note|default:"—" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-center text-muted py-4">Không có dòng công việc.</td></tr>
+                    {% endfor %}
+                </tbody>
+                {% if report.lines.all %}
+                <tfoot class="table-light">
+                    <tr>
+                        <th colspan="3" class="text-end">Tổng</th>
+                        <th class="text-end text-hm">{{ report.total_quantity }}</th>
+                        <th colspan="2"></th>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+
+    {% if can_review %}
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-body p-4">
+            <h5 class="fw-bold mb-3"><i class="bi bi-chat-left-text me-2"></i>Phản hồi HOD</h5>
+            <form method="post">
+                {% csrf_token %}
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" name="hod_reviewed" id="hod_reviewed" {% if report.hod_reviewed %}checked{% endif %}>
+                    <label class="form-check-label" for="hod_reviewed">Đã xem / xác nhận</label>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Ghi chú</label>
+                    <input type="text" name="hod_note" class="form-control" value="{{ report.hod_note }}" placeholder="Phản hồi ngắn cho nhân viên">
+                </div>
+                <button type="submit" class="btn btn-hm rounded-pill px-4">Lưu phản hồi</button>
+            </form>
+        </div>
+    </div>
+    {% elif report.hod_note %}
+    <div class="alert alert-info border-0 shadow-sm">
+        <strong>Ghi chú HOD:</strong> {{ report.hod_note }}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

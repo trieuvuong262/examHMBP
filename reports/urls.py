@@ -4,5 +4,10 @@ from . import views
 app_name = 'reports'
 
 urlpatterns = [
-    path('dashboard/', views.dashboard, name='dashboard'),
+    path('', views.report_hub, name='hub'),
+    path('today/', views.today_report, name='today'),
+    path('copy-yesterday/', views.copy_yesterday, name='copy_yesterday'),
+    path('my/', views.my_reports, name='my'),
+    path('team/', views.team_reports, name='team'),
+    path('<int:pk>/', views.report_detail, name='detail'),
 ]

@@ -1,22 +1,104 @@
+from django.conf import settings
 from django.db import models
 
-class MetabaseReport(models.Model):
-    title = models.CharField(max_length=200, verbose_name="Tên Báo Cáo (VD: Thống kê Quý 1)")
-    uuid = models.CharField(max_length=100, verbose_name="Mã UUID từ Metabase")
-    
-    # Phân biệt nó là Dashboard hay Question (Biểu đồ đơn)
-    TYPE_CHOICES = [
-        ('dashboard', 'Dashboard (Bảng điều khiển)'),
-        ('question', 'Question (Biểu đồ đơn)'),
+
+class DailyWorkReport(models.Model):
+    SHIFT_MORNING = 'MORNING'
+    SHIFT_AFTERNOON = 'AFTERNOON'
+    SHIFT_NIGHT = 'NIGHT'
+    SHIFT_CHOICES = [
+        (SHIFT_MORNING, 'Ca sáng'),
+        (SHIFT_AFTERNOON, 'Ca chiều'),
+        (SHIFT_NIGHT, 'Ca đêm'),
     ]
-    report_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='dashboard', verbose_name="Loại báo cáo")
-    
-    is_active = models.BooleanField(default=True, verbose_name="Cho phép hiển thị")
+
+    STATUS_DRAFT = 'DRAFT'
+    STATUS_SUBMITTED = 'SUBMITTED'
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, 'Nháp'),
+        (STATUS_SUBMITTED, 'Đã nộp'),
+    ]
+
+    employee = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='daily_work_reports',
+        verbose_name='Nhân viên',
+    )
+    report_date = models.DateField(verbose_name='Ngày báo cáo')
+    shift = models.CharField(max_length=20, choices=SHIFT_CHOICES, default=SHIFT_MORNING)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    hod_reviewed = models.BooleanField(default=False, verbose_name='HOD đã xem')
+    hod_note = models.CharField(max_length=500, blank=True, verbose_name='Ghi chú HOD')
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-report_date', '-updated_at']
+        unique_together = ('employee', 'report_date')
+        verbose_name = 'Báo cáo công việc ngày'
+        verbose_name_plural = 'Báo cáo công việc ngày'
 
     def __str__(self):
-        return self.title
-    
+        return f'{self.employee} - {self.report_date}'
+
+    @property
+    def total_quantity(self):
+        return sum(line.quantity for line in self.lines.all())
+
+
+class DailyWorkReportLine(models.Model):
+    AREA_CUT = 'CUT'
+    AREA_SEW = 'SEW'
+    AREA_PRINT = 'PRINT'
+    AREA_PACK = 'PACK'
+    AREA_QC = 'QC'
+    AREA_WH = 'WH'
+    AREA_PLAN = 'PLAN'
+    AREA_TECH = 'TECH'
+    AREA_OTHER = 'OTHER'
+    AREA_CHOICES = [
+        (AREA_CUT, 'Cắt vải'),
+        (AREA_SEW, 'May'),
+        (AREA_PRINT, 'In/Thêu'),
+        (AREA_PACK, 'Gói đóng'),
+        (AREA_QC, 'Kiểm QC'),
+        (AREA_WH, 'Kho'),
+        (AREA_PLAN, 'KHSX'),
+        (AREA_TECH, 'Kỹ thuật/Rập'),
+        (AREA_OTHER, 'Khác'),
+    ]
+
+    UNIT_PCS = 'PCS'
+    UNIT_SET = 'SET'
+    UNIT_M = 'M'
+    UNIT_KG = 'KG'
+    UNIT_CHOICES = [
+        (UNIT_PCS, 'Cái'),
+        (UNIT_SET, 'Bộ'),
+        (UNIT_M, 'Mét'),
+        (UNIT_KG, 'Kg'),
+    ]
+
+    report = models.ForeignKey(
+        DailyWorkReport,
+        on_delete=models.CASCADE,
+        related_name='lines',
+        verbose_name='Báo cáo',
+    )
+    area = models.CharField(max_length=20, choices=AREA_CHOICES, verbose_name='Công đoạn')
+    order_code = models.CharField(max_length=80, blank=True, verbose_name='Mã đơn/Style')
+    product_name = models.CharField(max_length=120, blank=True, verbose_name='Tên SP')
+    quantity = models.PositiveIntegerField(default=0, verbose_name='Sản lượng')
+    unit = models.CharField(max_length=10, choices=UNIT_CHOICES, default=UNIT_PCS, verbose_name='ĐVT')
+    note = models.CharField(max_length=255, blank=True, verbose_name='Ghi chú ngắn')
+    sort_order = models.PositiveSmallIntegerField(default=0)
+
     class Meta:
-        verbose_name = "Báo Cáo Metabase"
-        verbose_name_plural = "Danh Sách Báo Cáo"
+        ordering = ['sort_order', 'id']
+        verbose_name = 'Dòng công việc'
+        verbose_name_plural = 'Dòng công việc'
+
+    def __str__(self):
+        return f'{self.get_area_display()} - {self.order_code or self.product_name}'

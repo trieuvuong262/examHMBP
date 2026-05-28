@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-body p-4 text-center">
+                    <i class="bi bi-exclamation-triangle text-danger display-4 mb-3"></i>
+                    <h4 class="fw-bold">Xóa thông báo?</h4>
+                    <p class="text-muted">Bạn sắp xóa: <strong>{{ announcement.title }}</strong></p>
+                    <form method="post" class="d-flex justify-content-center gap-2 mt-4">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger rounded-pill px-4">Xóa</button>
+                        <a href="{% url 'announcements:admin_list' %}" class="btn btn-light border rounded-pill px-4">Hủy</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

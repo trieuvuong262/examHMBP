@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+        <div>
+            <h2 class="fw-bold text-hm mb-1"><i class="bi bi-megaphone-fill me-2"></i>Thông Báo</h2>
+            <p class="text-muted mb-0">Cập nhật chính sách, quy định và thông tin nội bộ từ Ban quản lý.</p>
+        </div>
+        {% if is_admin %}
+        <div class="d-flex gap-2">
+            <a href="{% url 'announcements:admin_list' %}" class="btn btn-outline-hm rounded-pill px-4 fw-bold">
+                <i class="bi bi-gear-fill me-1"></i> Quản lý
+            </a>
+            <a href="{% url 'announcements:admin_create' %}" class="btn btn-hm rounded-pill px-4 fw-bold">
+                <i class="bi bi-plus-circle-fill me-1"></i> Tạo thông báo
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if unread_count %}
+    <div class="alert alert-warning border-0 shadow-sm">
+        <i class="bi bi-bell-fill me-2"></i>Bạn còn <strong>{{ unread_count }}</strong> thông báo chưa xác nhận đọc.
+    </div>
+    {% endif %}
+
+    <div class="row g-3">
+        {% for item in items %}
+        {% with announcement=item.object %}
+        <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+                                {% if announcement.is_pinned %}
+                                <span class="badge bg-danger-subtle text-danger"><i class="bi bi-pin-angle-fill"></i> Ghim</span>
+                                {% endif %}
+                                {% if announcement.content_type == 'TEXT' %}
+                                <span class="badge bg-light text-dark border"><i class="bi bi-file-text"></i> Văn bản</span>
+                                {% elif announcement.content_type == 'PDF' %}
+                                <span class="badge bg-light text-dark border"><i class="bi bi-file-pdf"></i> PDF</span>
+                                {% else %}
+                                <span class="badge bg-light text-dark border"><i class="bi bi-camera-video"></i> Video</span>
+                                {% endif %}
+                                {% if item.is_read %}
+                                <span class="badge bg-success-subtle text-success"><i class="bi bi-check-circle-fill"></i> Đã đọc</span>
+                                {% else %}
+                                <span class="badge bg-warning-subtle text-warning"><i class="bi bi-circle"></i> Chưa đọc</span>
+                                {% endif %}
+                            </div>
+                            <h5 class="fw-bold mb-2">{{ announcement.title }}</h5>
+                            <p class="text-muted mb-2">{{ announcement.summary|default:"Không có tóm tắt." }}</p>
+                            <small class="text-muted">
+                                <i class="bi bi-clock me-1"></i>{{ announcement.created_at|date:"d/m/Y H:i" }}
+                                {% if announcement.created_by %}
+                                · {{ announcement.created_by.get_full_name|default:announcement.created_by.username }}
+                                {% endif %}
+                            </small>
+                        </div>
+                        <a href="{% url 'announcements:detail' announcement.pk %}" class="btn btn-hm rounded-pill px-4 fw-bold">
+                            Xem chi tiết
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endwith %}
+        {% empty %}
+        <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-body text-center py-5 text-muted">
+                    <i class="bi bi-inbox display-4 d-block mb-3"></i>
+                    Chưa có thông báo nào.
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

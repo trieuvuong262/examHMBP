@@ -57,22 +57,7 @@ services:
       - web
     restart: always
 
-  # =========================================================
-  # BỔ SUNG METABASE CHẠY NGẦM BẤT TỬ
-  # =========================================================
-  metabase:
-    image: metabase/metabase:latest
-    ports:
-      - "3000:3000"
-    volumes:
-      - metabase_data:/metabase-data
-    environment:
-      MB_DB_FILE: /metabase-data/metabase.db
-      MAX_SESSION_AGE: 52560000  # Đăng nhập 1 lần xài 100 năm
-    restart: always
-
 volumes:
   postgres_data:
   static_volume:
   media_volume:
-  metabase_data: # Khai báo thêm ổ đĩa cho Metabase
