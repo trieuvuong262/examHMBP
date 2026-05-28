@@ -1301,6 +1301,21 @@ textarea.form-control {
 }
 
 /* --- User guide page (/huong-dan/) --- */
+/* --- User guide page --- */
+.jp-guide-page {
+    --jp-guide-scroll-offset: 5.5rem;
+}
+
+@media (max-width: 991.98px) {
+    .jp-guide-page {
+        --jp-guide-scroll-offset: 8.75rem;
+    }
+}
+
+.jp-guide-page .accordion-item[id] {
+    scroll-margin-top: var(--jp-guide-scroll-offset);
+}
+
 .jp-guide-page .guide-sidebar {
     border: 1px solid #e2e8f0;
     overflow: hidden;
