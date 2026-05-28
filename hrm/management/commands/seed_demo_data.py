@@ -160,24 +160,29 @@ class Command(BaseCommand):
 
     def _setup_profiles(self, users):
         users['gm'].profile.role = 'GM'
-        users['gm'].profile.position = 'Khối Hỗ trợ'
+        users['gm'].profile.position = 'HR / HCNS'
         users['gm'].profile.save()
 
         users['hod_may'].profile.role = 'HOD'
-        users['hod_may'].profile.position = 'Kỹ Thuật viên'
+        users['hod_may'].profile.position = 'Tổ trưởng'
         users['hod_may'].profile.save()
         users['hod_may'].profile.subordinates.set([
             users['nv_may1'], users['nv_may2'], users['nv_qc1'],
         ])
 
         users['hod_cat'].profile.role = 'HOD'
-        users['hod_cat'].profile.position = 'Kỹ Thuật viên'
+        users['hod_cat'].profile.position = 'Tổ trưởng'
         users['hod_cat'].profile.save()
         users['hod_cat'].profile.subordinates.set([users['nv_cat1']])
 
-        for key in ('nv_may1', 'nv_may2', 'nv_cat1', 'nv_qc1'):
+        for key, pos in (
+            ('nv_may1', 'Công nhân may'),
+            ('nv_may2', 'Công nhân may'),
+            ('nv_cat1', 'Công nhân cắt'),
+            ('nv_qc1', 'Nhân viên QC'),
+        ):
             users[key].profile.role = 'EMPLOYEE'
-            users[key].profile.position = 'Kỹ Thuật viên'
+            users[key].profile.position = pos
             users[key].profile.save()
 
     def _seed_announcements(self, users):
@@ -425,7 +430,7 @@ class Command(BaseCommand):
             {
                 'title': '[DEMO] Tuyển công nhân may áo thun',
                 'department': 'Xưởng May',
-                'position': 'Kỹ Thuật viên',
+                'position': 'Công nhân may',
                 'quantity': 5,
                 'description': 'May áo thun thể thao xuất khẩu, ca ngày.',
                 'requirements': 'Có kinh nghiệm máy overlock/lockstitch.',
@@ -433,7 +438,7 @@ class Command(BaseCommand):
             {
                 'title': '[DEMO] Tuyển nhân viên QC',
                 'department': 'Kiểm soát chất lượng',
-                'position': 'Kỹ Thuật viên',
+                'position': 'Công nhân may',
                 'quantity': 2,
                 'description': 'Kiểm hàng theo AQL, làm việc tại xưởng.',
                 'requirements': 'Tỉ mỉ, biết đọc spec kỹ thuật may mặc.',

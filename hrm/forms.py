@@ -1,21 +1,15 @@
 from django import forms
 from django.contrib.auth.models import User
 from .models import Profile
+from hrm.choices import POSITION_FORM_CHOICES
 
 class CustomUserForm(forms.Form):
-    POSITION_CHOICES = [
-        ('', '-- Vui lòng chọn chức danh --'),
-        ('Bác Sĩ', 'Bác Sĩ'),
-        ('Điều Dưỡng', 'Điều Dưỡng'),
-        ('Dược Sĩ', 'Dược Sĩ'),
-        ('Kỹ Thuật viên', 'Kỹ Thuật viên'),
-        ('Khối Hỗ trợ', 'Khối Hỗ trợ'),
-    ]
+    POSITION_CHOICES = POSITION_FORM_CHOICES
 
     # Tài khoản
-    username = forms.CharField(widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'an.nguyen@hoanmy.com'}))
+    username = forms.CharField(widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'an.nguyen@justplay.vn'}))
     password = forms.CharField(required=False, widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': '••••••••'}))
-    email = forms.EmailField(widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'an.nguyen@hoanmy.com'}))
+    email = forms.EmailField(widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'an.nguyen@justplay.vn'}))
     
     # Thông tin cá nhân
     full_name = forms.CharField(widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nguyễn Văn An'}))

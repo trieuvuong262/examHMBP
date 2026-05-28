@@ -526,6 +526,113 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 <script>
+function getCsrfToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta && meta.content) return meta.content;
+    const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : '';
+}
+
+async function parseJsonResponse(res) {
+    const text = await res.text();
+    try {
+        return JSON.parse(text);
+    } catch (err) {
+        if (res.status === 403) {
+            throw new Error('Phiên đăng nhập hết hạn hoặc CSRF không hợp lệ. Vui lòng tải lại trang.');
+        }
+        if (res.status === 404) {
+            throw new Error('Không tìm thấy API trên máy chủ.');
+        }
+        throw new Error('Máy chủ trả về dữ liệu không hợp lệ (HTTP ' + res.status + ').');
+    }
+}
+
+function ensureConvertButton(cardEl) {
+    if (!cardEl || cardEl.querySelector('.convert-user-btn')) return;
+    const candId = cardEl.getAttribute('data-id');
+    const wrap = document.createElement('div');
+    wrap.innerHTML = `
+        <button type="button" class="btn btn-sm btn-success w-100 fw-bold convert-user-btn rounded-2 mb-2" data-id="${candId}">
+            <i class="bi bi-person-check-fill me-1"></i> Tạo User
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-primary w-100 fw-bold rounded-2 license-btn d-none" data-license-id="${candId}">
+            <i class="bi bi-file-medical-fill me-1"></i> ĐK Hành nghề
+        </button>`;
+    cardEl.querySelector('.card-body').appendChild(wrap);
+    const licenseBtn = wrap.querySelector('.license-btn');
+    if (licenseBtn) {
+        licenseBtn.addEventListener('click', function () {
+            const nameEl = cardEl.querySelector('.fw-bold');
+            openLicenseModal(candId, nameEl ? nameEl.textContent.trim() : '');
+        });
+    }
+}
+
+function updateBadgeCount(columnElement) {
+    const count = columnElement.querySelectorAll('.kanban-card').length;
+    const badge = columnElement.closest('.column-card').querySelector('.badge-count');
+    if (badge) badge.textContent = count;
+}
+
+async function convertCandidateToUser(btn) {
+    const candId = btn.getAttribute('data-id');
+    const card = btn.closest('.kanban-card');
+    const column = card ? card.closest('.kanban-column') : null;
+
+    if (!confirm('Hệ thống sẽ TỰ ĐỘNG tạo Tài khoản và Mật khẩu ngẫu nhiên cho ứng viên này.\nBạn có chắc chắn muốn tiếp tục?')) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Đang xử lý...';
+
+    const convertUrl = "{% url 'convert_to_employee' 999999 %}".replace('999999', candId);
+
+    try {
+        const res = await fetch(convertUrl, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin',
+            body: '{}',
+        });
+        const data = await parseJsonResponse(res);
+
+        if (data.status === 'success') {
+            btn.classList.remove('btn-success', 'convert-user-btn');
+            btn.classList.add('btn-secondary', 'opacity-75');
+            btn.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Đã tạo User';
+            btn.disabled = true;
+            const licenseBtn = card ? card.querySelector('.license-btn') : null;
+            if (licenseBtn) licenseBtn.classList.remove('d-none');
+            if (column) updateBadgeCount(column);
+
+            const textToCopy = `Tài khoản: ${data.username}\nMật khẩu: ${data.password}`;
+            try {
+                await navigator.clipboard.writeText(textToCopy);
+            } catch (e) { /* ignore */ }
+            alert(
+                '🎉 TẠO TÀI KHOẢN THÀNH CÔNG!\n\n' +
+                'Thông tin đăng nhập:\n' +
+                '----------------------------------------\n' +
+                `Tài khoản : ${data.username}\n` +
+                `Mật khẩu  : ${data.password}\n` +
+                '----------------------------------------\n'
+            );
+        } else {
+            alert('Lỗi: ' + (data.message || 'Không thể tạo tài khoản.'));
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-person-check-fill me-1"></i> Tạo User';
+        }
+    } catch (err) {
+        alert(err.message || 'Lỗi kết nối đến máy chủ! Vui lòng thử lại.');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-person-check-fill me-1"></i> Tạo User';
+        console.error(err);
+    }
+}
 function openLicenseModal(candId, candName) {
     // 1. Gắn ID và Tên ứng viên lên tiêu đề Modal
     document.getElementById('modalLicenseCandId').value = candId;
@@ -698,8 +805,10 @@ function openAllInterviewsModal() {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-CSRFToken': '{{ csrf_token }}'
+                            'Accept': 'application/json',
+                            'X-CSRFToken': getCsrfToken()
                         },
+                        credentials: 'same-origin',
                         body: JSON.stringify({
                             'candidate_id': candidateId,
                             'status': newStatus
@@ -761,6 +870,8 @@ function openAllInterviewsModal() {
                                     } else {
                                         convertBtn.classList.add('d-none');
                                     }
+                                } else if (newStatus === 'offered') {
+                                    ensureConvertButton(cardEl);
                                 }
 
                                 // 👉 DÁN ĐOẠN CODE CỦA NÍ VÀO CHÍNH CHỖ NÀY NÈ:
@@ -779,75 +890,10 @@ function openAllInterviewsModal() {
             });
         });
 
-        function updateBadgeCount(columnElement) {
-            const count = columnElement.querySelectorAll('.kanban-card').length;
-            const badge = columnElement.closest('.column-card').querySelector('.badge-count');
-            if (badge) badge.textContent = count;
-        }
-
-        document.querySelectorAll('.convert-user-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const candId = this.getAttribute('data-id');
-                const card = this.closest('.kanban-card');
-                const column = card.closest('.kanban-column');
-                
-                if(!confirm(`Hệ thống sẽ TỰ ĐỘNG tạo Tài khoản và Mật khẩu ngẫu nhiên cho ứng viên này.\nBạn có chắc chắn muốn tiếp tục?`)) return;
-                
-                this.disabled = true;
-                this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Đang xử lý...';
-
-                const convertUrl = "{% url 'convert_to_employee' 999999 %}".replace('999999', candId);
-
-                fetch(convertUrl, {
-                    method: 'POST',
-                    headers: { 
-                        'X-CSRFToken': '{{ csrf_token }}',
-                        'Content-Type': 'application/json' 
-                    }
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if(data.status === 'success') {
-                    this.classList.remove('btn-success', 'convert-user-btn');
-                    this.classList.add('btn-secondary', 'opacity-75');
-                    this.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Đã tạo User';
-                    this.disabled = true;
-                    const licenseBtn = card.querySelector('.license-btn');
-                    if (licenseBtn) licenseBtn.classList.remove('d-none');
-                        updateBadgeCount(column);
-                        
-                        const textToCopy = `Tài khoản: ${data.username}\nMật khẩu: ${data.password}`;
-                        
-                        navigator.clipboard.writeText(textToCopy).then(() => {
-                            alert(`🎉 TẠO TÀI KHOẢN THÀNH CÔNG!\n\n` +
-                                  `Hệ thống đã TỰ ĐỘNG COPY thông tin đăng nhập.\n` +
-                                  `Bạn chỉ cần ấn Ctrl+V (hoặc Paste) để gửi ngay cho nhân sự mới:\n` +
-                                  `----------------------------------------\n` +
-                                  `Tài khoản : ${data.username}\n` +
-                                  `Mật khẩu  : ${data.password}\n` +
-                                  `----------------------------------------\n`);
-                        }).catch(err => {
-                            alert(`TẠO TÀI KHOẢN THÀNH CÔNG!\n\n` +
-                                  `Vui lòng copy thông tin dưới đây để gửi cho nhân sự mới:\n` +
-                                  `----------------------------------------\n` +
-                                  `Tài khoản : ${data.username}\n` +
-                                  `Mật khẩu  : ${data.password}\n` +
-                                  `----------------------------------------\n`);
-                        });
-                        
-                    } else {
-                        alert("Lỗi: " + data.message);
-                        this.disabled = false;
-                        this.innerHTML = '<i class="bi bi-person-check-fill me-1"></i> Tạo User';
-                    }
-                })
-                .catch(err => {
-                    alert("Lỗi kết nối đến máy chủ! Vui lòng thử lại.");
-                    this.disabled = false;
-                    this.innerHTML = '<i class="bi bi-person-check-fill me-1"></i> Tạo User';
-                    console.error(err);
-                });
-            });
+        document.addEventListener('click', function (e) {
+            const btn = e.target.closest('.convert-user-btn');
+            if (!btn || btn.disabled) return;
+            convertCandidateToUser(btn);
         });
     });
 // Hàm kích hoạt tải file Excel Lịch phỏng vấn (có ăn theo bộ lọc vị trí)

@@ -3,6 +3,7 @@ from .models import Exam, Question, Choice, User
 from django.forms import inlineformset_factory
 from django.contrib.auth.models import User
 from hrm.models import Profile
+from hrm.choices import POSITION_FORM_CHOICES
 
 class ExamForm(forms.ModelForm):
     class Meta:
@@ -64,14 +65,7 @@ ChoiceFormSet = inlineformset_factory(
 
 
 class UserForm(forms.ModelForm):
-    POSITION_CHOICES = [
-        ('', '--- Chọn chức danh ---'),
-        ('Bác Sĩ', 'Bác Sĩ'),
-        ('Điều Dưỡng', 'Điều Dưỡng'),
-        ('Dược Sĩ', 'Dược Sĩ'),
-        ('Kỹ Thuật viên', 'Kỹ Thuật viên'),
-        ('Khối Hỗ trợ', 'Khối Hỗ trợ'),
-    ]
+    POSITION_CHOICES = POSITION_FORM_CHOICES
 
     full_name = forms.CharField(
         label="Họ và tên", 

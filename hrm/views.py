@@ -12,7 +12,8 @@ from django.db import transaction # BẮT BUỘC PHẢI CÓ IMPORT NÀY Ở Đ�
 from assessment.decorators import admin_only
 from assessment.forms import UserForm # Tạm thời Form vẫn để ở nhà cũ, mốt mình dời sau
 from hrm.models import Profile
-from PortalJustPlay.utils import generate_hm_username, generate_secure_password # File dùng chung hôm trước
+from hrm.choices import normalize_position
+from PortalJustPlay.utils import generate_hm_username, generate_secure_password
 from .forms import CustomUserForm
 from django.http import JsonResponse
 import random
@@ -175,7 +176,7 @@ def user_import_excel(request):
                         # Nếu trong Excel có nhập, lấy đúng trong Excel
                         username = raw_username
                     else:
-                        # Nếu Excel để trống, tự động sinh ten.ho@hoanmy.com
+                        # Nếu Excel để trống, tự động sinh ten.ho@justplay.vn
                         username = generate_hm_username(full_name)
 
                     # 3. XỬ LÝ MẬT KHẨU (Đã giữ nguyên logic của ní)
@@ -185,7 +186,7 @@ def user_import_excel(request):
                     
                     # 4. Email và Chức danh
                     email = str(row.get('email', '')).strip() or username
-                    chuc_danh = str(row.get('chuc_danh', '')).strip() or 'Khối Hỗ trợ'
+                    chuc_danh = normalize_position(str(row.get('chuc_danh', '')).strip())
 
                     # 5. LƯU VÀO DATABASE
                     if not User.objects.filter(username=username).exists():
@@ -237,8 +238,8 @@ def user_export_excel(request):
 def user_download_template(request):
     columns = ['username', 'password', 'full_name', 'email', 'chuc_danh']
     df = pd.DataFrame(columns=columns)
-    df.loc[0] = ['nv001', 'Hoanmy@123', 'Nguyễn Văn An', 'an.nv@hoanmy.com', 'Bác Sĩ']
-    df.loc[1] = ['nv002', '', 'Trần Thị Bình', '', 'Điều Dưỡng'] 
+    df.loc[0] = ['nv001', 'JustPlay@123', 'Nguyễn Văn An', 'an.nv@justplay.vn', 'Công nhân may']
+    df.loc[1] = ['nv002', '', 'Trần Thị Bình', '', 'Nhân viên QC'] 
     
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:

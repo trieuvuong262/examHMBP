@@ -2,17 +2,13 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 
+from hrm.choices import POSITION_CHOICES
+
+
 class JobPosting(models.Model):
-    POSITION_CHOICES = [
-        ('Bác Sĩ', 'Bác Sĩ'),
-        ('Điều Dưỡng', 'Điều Dưỡng'),
-        ('Dược Sĩ', 'Dược Sĩ'),
-        ('Kỹ Thuật viên', 'Kỹ Thuật viên'),
-        ('Khối Hỗ trợ', 'Khối Hỗ trợ'),
-    ]
-    
+    POSITION_CHOICES = POSITION_CHOICES
     title = models.CharField(max_length=255, verbose_name="Tiêu đề tuyển dụng")
-    department = models.CharField(max_length=100, verbose_name="Khoa/Phòng ban")
+    department = models.CharField(max_length=100, verbose_name="Phòng ban")
     position = models.CharField(max_length=50, choices=POSITION_CHOICES, verbose_name="Chức danh")
     quantity = models.PositiveIntegerField(default=1, verbose_name="Số lượng cần tuyển")
     description = models.TextField(verbose_name="Mô tả công việc")

@@ -3,17 +3,11 @@ from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-class Profile(models.Model):
-    # Lựa chọn Chức danh chuyên môn
-    POSITION_CHOICES = [
-        ('Bác Sĩ', 'Bác Sĩ'),
-        ('Điều Dưỡng', 'Điều Dưỡng'),
-        ('Dược Sĩ', 'Dược Sĩ'),
-        ('Kỹ Thuật viên', 'Kỹ Thuật viên'),
-        ('Khối Hỗ trợ', 'Khối Hỗ trợ'),
-    ]
+from hrm.choices import DEFAULT_POSITION, POSITION_CHOICES
 
-    # Lựa chọn Vai trò/Phân quyền trong hệ thống
+
+class Profile(models.Model):
+    POSITION_CHOICES = POSITION_CHOICES
     ROLE_CHOICES = [
         ('EMPLOYEE', 'Nhân viên'),
         ('HOD', 'Trưởng phòng / Quản lý trực tiếp (HOD)'),
@@ -26,10 +20,10 @@ class Profile(models.Model):
     # Thông tin cơ bản
     full_name = models.CharField(max_length=255, verbose_name="Họ và tên", blank=True)
     position = models.CharField(
-        max_length=50, 
-        choices=POSITION_CHOICES, 
-        verbose_name="Chức danh", 
-        blank=True
+        max_length=50,
+        choices=POSITION_CHOICES,
+        verbose_name="Chức danh",
+        blank=True,
     )
 
     # Quản lý phân quyền mới
@@ -95,7 +89,7 @@ def handle_user_profile(sender, instance, created, **kwargs):
             user=instance, 
             defaults={
                 'full_name': instance.first_name or instance.username, 
-                'position': 'Khối Hỗ trợ',
+                'position': DEFAULT_POSITION,
                 'role': 'EMPLOYEE'
             }
         )
@@ -105,6 +99,6 @@ def handle_user_profile(sender, instance, created, **kwargs):
             Profile.objects.create(
                 user=instance,
                 full_name=instance.first_name or instance.username,
-                position='Khối Hỗ trợ',
+                position=DEFAULT_POSITION,
                 role='EMPLOYEE'
             )

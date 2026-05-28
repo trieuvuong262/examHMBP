@@ -309,7 +309,7 @@ def download_kpi_sample_excel(request):
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.append(["Email NV", "Năm", "Lĩnh vực", "Mục tiêu", "Chỉ số đo", "Trọng số (%)", "Chỉ tiêu", "Đơn vị", "Xu hướng"])
-    ws.append(["luu.dao@hoanmy.com", 2026, "FINANCE", "Mục tiêu mẫu", "Chỉ số mẫu", 20, 100, "%", "HIGHER"])
+    ws.append(["luu.dao@justplay.vn", 2026, "FINANCE", "Mục tiêu mẫu", "Chỉ số mẫu", 20, 100, "%", "HIGHER"])
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = 'attachment; filename=Mau_Import_KPI.xlsx'
     wb.save(response)

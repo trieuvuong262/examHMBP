@@ -2,7 +2,9 @@ import json
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.contrib.admin.views.decorators import staff_member_required
+from django.db import transaction, IntegrityError
 from .models import JobPosting, Candidate
 from django.shortcuts import render, redirect
 from django.contrib import messages
@@ -18,10 +20,12 @@ import secrets
 import string
 from assessment.models import Exam
 from hrm.models import Profile
+from hrm.choices import normalize_position
 from .models import Interview
 import openpyxl
 from django.http import HttpResponse
 @admin_only
+@ensure_csrf_cookie
 def kanban_board(request):
     candidates = Candidate.objects.select_related('job_posting').filter(job_posting__is_active=True)
     not_onboarded_candidates = candidates.filter(status='not_onboarded')
@@ -161,66 +165,66 @@ def generate_employee_username(full_name):
 @require_POST
 def convert_to_employee(request, candidate_id):
     candidate = get_object_or_404(Candidate, id=candidate_id)
-    
-    # --- ĐOẠN CODE NÂNG CẤP KIỂM TRA TÀI KHOẢN ---
-    if candidate.status == 'hired':
-        # Quét xem thực tế có tài khoản nào xài Email này đang tồn tại không
-        user_exists = False
-        if candidate.email:
-            user_exists = User.objects.filter(email=candidate.email).exists()
-        
-        # Nếu thực sự có tài khoản rồi thì mới chặn
-        if user_exists:
-            return JsonResponse({'status': 'error', 'message': 'Ứng viên này đã có tài khoản đang hoạt động!'})
-        # Nếu không có (do HR đã xóa bên Quản lý nhân sự) thì cứ cho code đi tiếp để tạo lại!
-    # ----------------------------------------------
-        
-    try:
-        # 1. Sinh Username và Password theo quy tắc mới
-        new_username = generate_hm_username(candidate.full_name)
-        new_password = generate_secure_password()
-        
-        # 2. Tạo User trong Database
-        user = User.objects.create(
-            username=new_username,
-            email=candidate.email or new_username, # Lấy email ứng viên, nếu không có thì lấy username làm email
-            first_name=candidate.full_name,
-            is_staff=False, 
-            is_superuser=False
-        )
-        # Set mật khẩu ngẫu nhiên
-        user.set_password(new_password)
-        user.save()
-        
-        # 3. Tạo Profile
-        from hrm.models import Profile
-        profile, created = Profile.objects.update_or_create(
-            user=user,
-            defaults={
-                'full_name': candidate.full_name,
-                'position': candidate.job_posting.position
-            }
-        )
-        
-        # 4. Đổi trạng thái Ứng viên
-        candidate.status = 'hired'
-        candidate.save()
-        
-        # 5. Giao bài thi hội nhập
-        onboarding_exam = Exam.objects.filter(is_active=True).first()
-        if onboarding_exam:
-            onboarding_exam.assigned_users.add(user)
 
-        # 6. QUAN TRỌNG: Trả về cả username và password cho Frontend hiển thị
+    if candidate.status == 'hired':
+        if candidate.email and User.objects.filter(email=candidate.email).exists():
+            return JsonResponse(
+                {'status': 'error', 'message': 'Ứng viên này đã có tài khoản đang hoạt động!'},
+                status=400,
+            )
+
+    if candidate.status not in {'offered', 'hired'}:
+        return JsonResponse(
+            {'status': 'error', 'message': 'Chỉ tạo user khi ứng viên ở trạng thái Trúng tuyển.'},
+            status=400,
+        )
+
+    position = normalize_position(candidate.job_posting.position)
+
+    try:
+        with transaction.atomic():
+            new_username = generate_hm_username(candidate.full_name)
+            new_password = generate_secure_password()
+
+            user = User.objects.create_user(
+                username=new_username,
+                email=candidate.email or new_username,
+                password=new_password,
+                first_name=candidate.full_name,
+                is_staff=False,
+                is_superuser=False,
+            )
+
+            Profile.objects.update_or_create(
+                user=user,
+                defaults={
+                    'full_name': candidate.full_name,
+                    'position': position,
+                    'role': 'EMPLOYEE',
+                },
+            )
+
+            candidate.status = 'hired'
+            candidate.save(update_fields=['status'])
+
+            onboarding_exam = Exam.objects.filter(is_active=True).first()
+            if onboarding_exam:
+                onboarding_exam.assigned_users.add(user)
+
         return JsonResponse({
-            'status': 'success', 
+            'status': 'success',
             'message': f'Đã tạo tài khoản cho nhân viên {candidate.full_name}',
             'username': new_username,
-            'password': new_password  # <-- Frontend sẽ lấy cục này để show Popup
+            'password': new_password,
         })
-        
+
+    except IntegrityError:
+        return JsonResponse(
+            {'status': 'error', 'message': 'Tài khoản đã tồn tại (trùng username hoặc email).'},
+            status=400,
+        )
     except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)})
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
     
 @admin_only
 def candidate_detail_ajax(request, pk):
@@ -261,25 +265,25 @@ def remove_vietnamese_accents(text):
     return text.lower().strip()
 
 def generate_hm_username(full_name):
-    """ Tạo username dạng ten.ho1@hoanmy.com """
+    """Tạo username dạng ten.ho1@justplay.vn"""
     clean_name = remove_vietnamese_accents(full_name)
     parts = clean_name.split()
-    
+
     if not parts:
-        base = "user.hm"
+        base = "user.jp"
     elif len(parts) == 1:
         base = parts[0]
     else:
         ho = parts[0]
         ten = parts[-1]
         base = f"{ten}.{ho}"
-    
+
     counter = 1
-    username = f"{base}{counter}@hoanmy.com"
+    username = f"{base}{counter}@justplay.vn"
     while User.objects.filter(username=username).exists():
         counter += 1
-        username = f"{base}{counter}@hoanmy.com"
-        
+        username = f"{base}{counter}@justplay.vn"
+
     return username
 
 def generate_secure_password(length=8):

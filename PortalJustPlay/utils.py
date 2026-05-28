@@ -9,18 +9,18 @@ def remove_vietnamese_accents(text):
     return text.lower().strip()
 
 def generate_hm_username(full_name):
-    """ Tạo username dạng ten.ho@hoanmy.com (Nếu trùng mới thêm số) """
+    """ Tạo username dạng ten.ho@justplay.vn (Nếu trùng mới thêm số) """
     
     # 1. Xử lý an toàn nếu truyền vào tên rỗng hoặc None
     if not full_name or str(full_name).strip() == "" or str(full_name).lower() == "none":
-        base = "user.hm"
+        base = "user.jp"
     else:
         # 2. Xóa dấu và tách từ
         clean_name = remove_vietnamese_accents(full_name)
         parts = clean_name.split()
         
         if not parts:
-            base = "user.hm"
+            base = "user.jp"
         elif len(parts) == 1:
             base = parts[0]
         else:
@@ -29,12 +29,12 @@ def generate_hm_username(full_name):
             base = f"{ten}.{ho}"
     
     # 3. Ép kiểu username lần đầu (KHÔNG CÓ SỐ)
-    username = f"{base}@hoanmy.com"
+    username = f"{base}@justplay.vn"
     counter = 1
     
     # 4. Kiểm tra trong Database, nếu ĐÃ TỒN TẠI thì mới gắn thêm số vào
     while User.objects.filter(username=username).exists():
-        username = f"{base}{counter}@hoanmy.com"
+        username = f"{base}{counter}@justplay.vn"
         counter += 1
         
     return username
