@@ -52,7 +52,11 @@ def user_add(request):
                 # Tạo hoặc cập nhật Profile đi kèm
                 Profile.objects.update_or_create(
                     user=user, 
-                    defaults={'full_name': f, 'position': pos}
+                    defaults={
+                        'full_name': f,
+                        'position': pos,
+                        'must_change_password': True,
+                    }
                 )
                 # Thông báo thành công (Dùng format này để script copy ở trang list bắt được)
                 messages.success(request, f"Thành công: Đã thêm {f}. Tài khoản: {u} | Mật khẩu mới là: {p}")
@@ -176,7 +180,7 @@ def user_import_excel(request):
                         # Nếu trong Excel có nhập, lấy đúng trong Excel
                         username = raw_username
                     else:
-                        # Nếu Excel để trống, tự động sinh ten.ho@justplay.vn
+                        # Nếu Excel để trống, tự động sinh (ví dụ Nguyễn Thành An -> Annt)
                         username = generate_hm_username(full_name)
 
                     # 3. XỬ LÝ MẬT KHẨU (Đã giữ nguyên logic của ní)
@@ -199,7 +203,11 @@ def user_import_excel(request):
                         )
                         Profile.objects.update_or_create(
                             user=user,
-                            defaults={'full_name': full_name, 'position': chuc_danh}
+                            defaults={
+                                'full_name': full_name,
+                                'position': chuc_danh,
+                                'must_change_password': True,
+                            }
                         )
                         success_count += 1
                     else:
@@ -260,6 +268,8 @@ def user_password_reset(request, user_id):
         
         user.set_password(new_password)
         user.save()
+
+        Profile.require_password_change(user)
         
         # Lấy tên hiển thị
         full_name = user.first_name
@@ -279,13 +289,20 @@ class MyPasswordChangeView(PasswordChangeView):
     template_name = 'registration/password_change_form.html'
     success_url = reverse_lazy('password_change_done')
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        profile = getattr(self.request.user, 'profile', None)
+        context['force_change'] = bool(profile and profile.must_change_password)
+        return context
+
     def form_valid(self, form):
-        user = self.request.user
-        if hasattr(user, 'is_first_login'):
-            user.is_first_login = False
-            user.save()
+        response = super().form_valid(form)
+        profile = getattr(self.request.user, 'profile', None)
+        if profile and profile.must_change_password:
+            profile.must_change_password = False
+            profile.save(update_fields=['must_change_password'])
         messages.success(self.request, "Mật khẩu đã được thay đổi thành công!")
-        return super().form_valid(form)
+        return response
 
 def custom_logout(request):
     logout(request)

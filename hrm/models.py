@@ -87,11 +87,24 @@ class Profile(models.Model):
         verbose_name="Nhân viên dưới quyền (Dành cho HOD)"
     )
 
+    must_change_password = models.BooleanField(
+        default=False,
+        verbose_name="Bắt buộc đổi mật khẩu lần đầu",
+    )
+
     class Meta:
         db_table = 'assessment_profile' # Giữ nguyên để khớp với database cũ
 
     def __str__(self):
         return self.full_name if self.full_name else self.user.username
+
+    @classmethod
+    def require_password_change(cls, user):
+        profile, _ = cls.objects.get_or_create(user=user)
+        if not profile.must_change_password:
+            profile.must_change_password = True
+            profile.save(update_fields=['must_change_password'])
+        return profile
 
     def save(self, *args, **kwargs):
         """

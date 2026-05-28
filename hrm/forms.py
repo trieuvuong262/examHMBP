@@ -7,7 +7,7 @@ class CustomUserForm(forms.Form):
     POSITION_CHOICES = POSITION_FORM_CHOICES
 
     # Tài khoản
-    username = forms.CharField(widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'an.nguyen@justplay.vn'}))
+    username = forms.CharField(widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Annt'}))
     password = forms.CharField(required=False, widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': '••••••••'}))
     email = forms.EmailField(widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'an.nguyen@justplay.vn'}))
     

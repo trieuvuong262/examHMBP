@@ -21,6 +21,7 @@ import string
 from assessment.models import Exam
 from hrm.models import Profile
 from hrm.choices import normalize_position
+from PortalJustPlay.utils import generate_hm_username, generate_secure_password
 from .models import Interview
 import openpyxl
 from django.http import HttpResponse
@@ -188,7 +189,7 @@ def convert_to_employee(request, candidate_id):
 
             user = User.objects.create_user(
                 username=new_username,
-                email=candidate.email or new_username,
+                email=candidate.email or f'{new_username.lower()}@justplay.vn',
                 password=new_password,
                 first_name=candidate.full_name,
                 is_staff=False,
@@ -201,6 +202,7 @@ def convert_to_employee(request, candidate_id):
                     'full_name': candidate.full_name,
                     'position': position,
                     'role': 'EMPLOYEE',
+                    'must_change_password': True,
                 },
             )
 
@@ -257,39 +259,6 @@ def update_hr_note(request):
         
     return redirect('kanban_board')
 
-
-
-def remove_vietnamese_accents(text):
-    text = str(text).replace('đ', 'd').replace('Đ', 'D')
-    text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8')
-    return text.lower().strip()
-
-def generate_hm_username(full_name):
-    """Tạo username dạng ten.ho1@justplay.vn"""
-    clean_name = remove_vietnamese_accents(full_name)
-    parts = clean_name.split()
-
-    if not parts:
-        base = "user.jp"
-    elif len(parts) == 1:
-        base = parts[0]
-    else:
-        ho = parts[0]
-        ten = parts[-1]
-        base = f"{ten}.{ho}"
-
-    counter = 1
-    username = f"{base}{counter}@justplay.vn"
-    while User.objects.filter(username=username).exists():
-        counter += 1
-        username = f"{base}{counter}@justplay.vn"
-
-    return username
-
-def generate_secure_password(length=8):
-    alphabet = string.ascii_letters + string.digits
-    return ''.join(secrets.choice(alphabet) for _ in range(length))
-# Sửa lại 2 hàm này ở cuối file views.py của ní:
 
 @admin_only
 @require_POST
