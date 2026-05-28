@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load kpi_extras %}
 
 {% block content %}
 <style>
@@ -55,8 +56,8 @@
                         <select name="employee_id" class="form-select bg-light fw-semibold border-0" required id="employeeSelect">
                             <option value="">-- Chọn nhân viên --</option>
                             {% for u in target_employees %}
-                            <option value="{{ u.id }}" data-manager="{{ u.profile.direct_manager.id }}">
-                                {{ u.profile.full_name|default:u.username }} 
+                            <option value="{{ u.id }}" data-manager="{{ u|direct_manager_id }}">
+                                {{ u|display_name }}
                             </option>
                             {% endfor %}
                         </select>
@@ -67,14 +68,14 @@
                         <label class="form-label small fw-bold text-muted text-uppercase">Quản lý trực tiếp (HOD)</label>
                         {% if is_hod %}
                             <div class="form-control bg-light fw-bold text-hm border-0">
-                                <i class="bi bi-person-check-fill me-2"></i>{{ request.user.profile.full_name|default:request.user.username }}
+                                <i class="bi bi-person-check-fill me-2"></i>{{ request.user|display_name }}
                             </div>
                             <input type="hidden" name="direct_manager_id" value="{{ request.user.id }}">
                         {% else %}
                             <select name="direct_manager_id" class="form-select bg-light border-0">
                                 <option value="">-- Chọn HOD --</option>
                                 {% for u in hod_list %}
-                                <option value="{{ u.id }}">{{ u.profile.full_name|default:u.username }}</option>
+                                <option value="{{ u.id }}">{{ u|display_name }}</option>
                                 {% endfor %}
                             </select>
                         {% endif %}
@@ -85,7 +86,7 @@
                         <select name="general_manager_id" class="form-select bg-light border-0">
                             <option value="">-- Chọn GM duyệt cuối --</option>
                             {% for u in gm_list %}
-                            <option value="{{ u.id }}">{{ u.profile.full_name|default:u.username }}</option>
+                            <option value="{{ u.id }}">{{ u|display_name }}</option>
                             {% endfor %}
                         </select>
                     </div>

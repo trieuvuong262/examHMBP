@@ -4,10 +4,33 @@ from django.contrib import messages
 from django.db.models import Q
 from django.utils import timezone
 from django.contrib.auth.models import User
+from hrm.permissions import (
+    ROLE_HOD,
+    can_manage_kpi_for_others,
+    get_profile,
+    is_gm,
+    user_role,
+)
 from .models import KpiPeriod, YearlyKpi, YearlyKpiItem
 import openpyxl
 from django.http import HttpResponse
 import datetime
+
+
+def _period_title(period_type: str) -> str:
+    return dict(KpiPeriod.PERIOD_CHOICES).get(period_type, period_type)
+
+
+def _get_or_create_period(year: int, period_type: str) -> KpiPeriod:
+    period, _ = KpiPeriod.objects.get_or_create(
+        year=year,
+        period_type=period_type,
+        defaults={'title': _period_title(period_type)},
+    )
+    if not period.title:
+        period.title = _period_title(period_type)
+        period.save(update_fields=['title'])
+    return period
 # ========================================================
 # 1. TRANG DANH SÁCH KPI (DASHBOARD CHÍNH)
 # ========================================================
@@ -17,18 +40,16 @@ def kpi_list_view(request):
     my_kpis = YearlyKpi.objects.filter(employee=request.user)
     team_kpis = YearlyKpi.objects.filter(direct_manager=request.user)
     
-    # Lấy Role của User hiện tại (tránh lỗi nếu user chưa có profile)
-    user_role = request.user.profile.role if hasattr(request.user, 'profile') else ''
+    role = user_role(request.user)
 
     # Nếu là GM hoặc Admin thì thấy toàn bộ
-    if user_role == 'GM' or request.user.is_superuser:
-        team_kpis = YearlyKpi.objects.exclude(employee=request.user)
+    if role == 'GM' or request.user.is_superuser:
+        team_kpis = YearlyKpi.objects.exclude(employee=request.user).select_related(
+            'employee__profile',
+        )
 
-    # =================================================================
-    # 🔥 FIX LỖI Ở ĐÂY: Xác định ai là Manager/GM để hiện nút thêm KPI
-    # =================================================================
     is_admin = request.user.is_superuser
-    is_manager_or_gm = is_admin or user_role in ['HOD', 'GM']
+    is_manager_or_gm = can_manage_kpi_for_others(request.user)
 
     # 2. XỬ LÝ QUYỀN ADMIN: Đóng/Mở kỳ đánh giá
     current_year = datetime.datetime.now().year
@@ -39,7 +60,7 @@ def kpi_list_view(request):
             p_type = request.POST.get('period_type')
             is_active = request.POST.get('is_active') == 'on' 
             
-            period, created = KpiPeriod.objects.get_or_create(year=current_year, period_type=p_type)
+            period = _get_or_create_period(current_year, p_type)
             period.is_active = is_active
             period.save()
             messages.success(request, f"Đã {'MỞ' if is_active else 'ĐÓNG'} kỳ đánh giá {p_type}!")
@@ -47,8 +68,7 @@ def kpi_list_view(request):
         
         standard_types = ['Q1', 'Q2', 'Q3', 'Q4', 'H1', 'H2', 'Y']
         for pt in standard_types:
-            p, _ = KpiPeriod.objects.get_or_create(year=current_year, period_type=pt)
-            admin_periods.append(p)
+            admin_periods.append(_get_or_create_period(current_year, pt))
 
     # TRUYỀN BIẾN is_manager_or_gm RA HTML
     return render(request, 'kpi/kpi_list.html', {
@@ -69,13 +89,17 @@ def kpi_detail_view(request, kpi_id):
     open_periods = KpiPeriod.objects.filter(year=kpi_board.year, is_active=True).values_list('period_type', flat=True)
     
     # 3. Phân quyền người dùng
+    viewer_profile = get_profile(request.user)
     is_owner = (request.user == kpi_board.employee)
-    is_manager = (request.user == kpi_board.direct_manager) or (kpi_board.employee in request.user.profile.subordinates.all())
-    # GM hoặc Admin hoặc Superuser đều có quyền GM
-    is_gm = (request.user == kpi_board.general_manager) or (request.user.profile.role == 'GM') or request.user.is_superuser
+    is_manager = request.user == kpi_board.direct_manager
+    if viewer_profile and viewer_profile.role == ROLE_HOD:
+        is_manager = is_manager or viewer_profile.subordinates.filter(
+            pk=kpi_board.employee_id,
+        ).exists()
+    is_gm_user = is_gm(request.user) or request.user == kpi_board.general_manager
     
     # Nếu là Manager thì không cần làm Owner (để tránh xung đột logic nút bấm)
-    if is_manager or is_gm:
+    if is_manager or is_gm_user:
         is_owner = (request.user == kpi_board.employee) # Giữ nguyên để biết lính tự xem bài mình
 
     if request.method == 'POST':
@@ -119,7 +143,7 @@ def kpi_detail_view(request, kpi_id):
                         setattr(item, f"{target_period.lower()}_mgr", float(val_mgr) if val_mgr.strip() != "" else None)
                     
                 # GM CHỐT ĐIỂM
-                if is_gm and current_status == 'general_evaluating':
+                if is_gm_user and current_status == 'general_evaluating':
                     val_gm = request.POST.get(f"{prefix}gm")
                     if val_gm is not None:
                         setattr(item, f"{target_period.lower()}_gm", float(val_gm) if val_gm.strip() != "" else None)
@@ -138,7 +162,7 @@ def kpi_detail_view(request, kpi_id):
             setattr(kpi_board, status_attr, 'general_evaluating')
             messages.success(request, f"Đã gửi kỳ {target_period} cho Quản lý cấp cao (GM)!")
             
-        elif action == 'finish' and is_gm:
+        elif action == 'finish' and is_gm_user:
             setattr(kpi_board, status_attr, 'completed')
             messages.success(request, f"Chúc mừng! Đã chốt kết quả cuối cùng cho kỳ {target_period}!")
             
@@ -155,7 +179,7 @@ def kpi_detail_view(request, kpi_id):
         'open_periods': list(open_periods),
         'is_owner': is_owner, 
         'is_manager': is_manager, 
-        'is_gm': is_gm
+        'is_gm': is_gm_user
     })
 
 # ========================================================
@@ -163,7 +187,10 @@ def kpi_detail_view(request, kpi_id):
 # ========================================================
 @login_required
 def yearly_kpi_create(request):
-    profile = request.user.profile
+    profile = get_profile(request.user)
+    if not profile:
+        messages.error(request, "Tài khoản chưa có hồ sơ nhân sự. Vui lòng liên hệ HR/IT.")
+        return redirect('kpi_list')
     
     # 1. CHẶN ĐỨNG NHÂN VIÊN (Quy trình Top-Down)
     if profile.role == 'EMPLOYEE' and not request.user.is_superuser:
@@ -237,11 +264,13 @@ def yearly_kpi_create(request):
         'is_hod': profile.role == 'HOD'
     })
 
-from django.db.models import Q # Nhớ import Q ở đầu file views.py nếu chưa có
 
 @login_required
 def kpi_import_excel(request):
-    profile = request.user.profile
+    profile = get_profile(request.user)
+    if not profile:
+        messages.error(request, "Tài khoản chưa có hồ sơ nhân sự. Vui lòng liên hệ HR/IT.")
+        return redirect('kpi_list')
     if profile.role == 'EMPLOYEE' and not request.user.is_superuser:
         messages.error(request, "Bạn không có quyền này!")
         return redirect('kpi_list')

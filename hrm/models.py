@@ -94,8 +94,7 @@ def handle_user_profile(sender, instance, created, **kwargs):
             }
         )
     else:
-        # Trường hợp update User nhưng lỡ chưa có Profile
-        if not hasattr(instance, 'profile'):
+        if not Profile.objects.filter(user=instance).exists():
             Profile.objects.create(
                 user=instance,
                 full_name=instance.first_name or instance.username,

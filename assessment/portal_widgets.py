@@ -56,11 +56,13 @@ def _kpi_action_reminders(kpi_board, open_periods, role: str):
             text = f'Kỳ {label} đang mở — chưa hoàn tất tự đánh giá KPI năm {kpi_board.year}.'
             action = 'Chấm KPI'
         elif role == 'manager':
-            name = kpi_board.employee.profile.full_name if hasattr(kpi_board.employee, 'profile') else kpi_board.employee.username
+            emp_profile = get_profile(kpi_board.employee)
+            name = emp_profile.full_name if emp_profile and emp_profile.full_name else kpi_board.employee.username
             text = f'{name}: kỳ {label} đang chờ HOD chấm điểm.'
             action = 'Chấm điểm'
         else:
-            name = kpi_board.employee.profile.full_name if hasattr(kpi_board.employee, 'profile') else kpi_board.employee.username
+            emp_profile = get_profile(kpi_board.employee)
+            name = emp_profile.full_name if emp_profile and emp_profile.full_name else kpi_board.employee.username
             text = f'{name}: kỳ {label} đang chờ GM chốt điểm.'
             action = 'Chốt KPI'
 

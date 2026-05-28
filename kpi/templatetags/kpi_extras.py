@@ -1,7 +1,26 @@
 from django import template
+from hrm.permissions import get_profile
 
-# Bắt buộc phải có dòng này để khai báo biến register
 register = template.Library()
+
+@register.filter
+def display_name(user):
+    profile = get_profile(user)
+    if profile and profile.full_name:
+        return profile.full_name
+    return getattr(user, 'username', '')
+
+@register.filter
+def direct_manager_id(user):
+    profile = get_profile(user)
+    return profile.direct_manager_id if profile and profile.direct_manager_id else ''
+
+@register.filter
+def profile_field(user, field_name):
+    profile = get_profile(user)
+    if not profile:
+        return ''
+    return getattr(profile, field_name, '') or ''
 
 @register.filter
 def getattr(obj, attr_name):

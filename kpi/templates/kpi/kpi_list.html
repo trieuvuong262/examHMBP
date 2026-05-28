@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load kpi_extras %}
 
 {% block content %}
 <style>
@@ -72,7 +73,7 @@
                                                 {% if hod_profile %}
                                                     {{ hod_profile.full_name|default:hod_profile.user.username }}
                                                 {% elif kpi.direct_manager %}
-                                                    {{ kpi.direct_manager.profile.full_name|default:kpi.direct_manager.username }}
+                                                    {{ kpi.direct_manager|display_name }}
                                                 {% else %}
                                                     <span class="text-warning">Chưa gán</span>
                                                 {% endif %}
@@ -135,8 +136,8 @@
                         {% for tk in team_kpis %}
                         <tr>
                             <td class="ps-4 py-3">
-                                <div class="fw-bold text-dark">{{ tk.employee.profile.full_name|default:tk.employee.username }}</div>
-                                <div class="small text-muted">{{ tk.employee.profile.position|default:"Nhân viên" }}</div>
+                                <div class="fw-bold text-dark">{{ tk.employee|display_name }}</div>
+                                <div class="small text-muted">{{ tk.employee|profile_field:"position"|default:"Nhân viên" }}</div>
                             </td>
                             
                             <td class="text-center"><span class="fw-bold text-hm">Năm {{ tk.year }}</span></td>
