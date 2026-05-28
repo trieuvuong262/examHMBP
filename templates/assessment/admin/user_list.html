@@ -88,7 +88,7 @@
                     <tr>
                         <td class="ps-4">
                             <div class="d-flex align-items-center">
-                                <div class="avatar-circle me-3" style="width: 40px; height: 40px; background: rgba(0, 144, 161, 0.1); color: #0090a1; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold;">
+                                <div class="avatar-circle me-3" style="width: 40px; height: 40px; background: rgba(220, 38, 38, 0.1); color: #dc2626; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold;">
                                     {{ u.profile.full_name|default:u.first_name|default:u.username|make_list|first|upper }}
                                 </div>
                                 <div>
@@ -216,14 +216,14 @@
 
 <style>
     :root { 
-        --hm-primary: rgb(0, 144, 161); 
-        --hm-primary-hover: rgb(0, 115, 129);
+        --hm-primary: #dc2626; 
+        --hm-primary-hover: #b91c1c;
     }
     
     .bg-hm { background-color: var(--hm-primary) !important; }
     .text-hm { color: var(--hm-primary) !important; }
     .border-hm { border-color: var(--hm-primary) !important; }
-    .bg-hm-subtle { background-color: rgba(0, 144, 161, 0.1) !important; }
+    .bg-hm-subtle { background-color: rgba(220, 38, 38, 0.1) !important; }
     
     .btn-hm { background-color: var(--hm-primary); color: white; border: none; transition: all 0.3s; }
     .btn-hm:hover { background-color: var(--hm-primary-hover); color: white; }
@@ -233,10 +233,10 @@
     
     .avatar-circle {
         width: 42px; height: 42px;
-        background: linear-gradient(135deg, var(--hm-primary), #00b4cc);
+        background: linear-gradient(135deg, var(--hm-primary), #ef4444);
         color: white; display: flex; align-items: center; justify-content: center;
         border-radius: 12px; font-weight: bold; font-size: 1.1rem;
-        box-shadow: 0 3px 6px rgba(0, 144, 161, 0.15);
+        box-shadow: 0 3px 6px rgba(220, 38, 38, 0.15);
     }
     
     .x-small { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }

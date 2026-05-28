@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="text-white p-3 sticky-top" style="background-color: rgb(0, 144, 161); z-index: 1020;">
+<div class="text-white p-3 sticky-top" style="background-color: #dc2626; z-index: 1020;">
     <div class="container-fluid d-flex justify-content-between align-items-center">
         <div class="d-flex align-items-center">
             <a href="{% url 'my_courses' %}" class="btn btn-sm btn-outline-light me-3"><i class="bi bi-arrow-left"></i> Thoát</a>
@@ -72,7 +72,7 @@
                     {% endif %}
                 </div>
 
-                <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm border border-top-0 border-4" style="border-color: rgb(0, 144, 161) !important;">
+                <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm border border-top-0 border-4" style="border-color: #dc2626 !important;">
                     <div>
                         {% if current_lesson.id in completed_lesson_ids %}
                             <button class="btn btn-success fw-bold disabled">
@@ -101,7 +101,7 @@
 
         <div class="col-lg-4 col-xl-3 bg-white border-start overflow-auto" style="height: calc(100vh - 70px);">
             <div class="p-3 bg-light border-bottom sticky-top">
-                <h6 class="fw-bold mb-0 text-uppercase" style="color: rgb(0, 144, 161);">Nội dung khóa học</h6>
+                <h6 class="fw-bold mb-0 text-uppercase" style="color: #dc2626;">Nội dung khóa học</h6>
             </div>
             
             <div class="accordion accordion-flush" id="courseAccordion">
@@ -155,7 +155,7 @@
 
 /* Đổi màu nhấn của Plyr sang màu HM */
 :root {
-    --plyr-color-main: rgb(0, 144, 161);
+    --plyr-color-main: #dc2626;
 }
 
 .pdf-container iframe {
@@ -164,18 +164,18 @@
 
 /* Button chuẩn màu HM */
 .btn-hm {
-    background-color: rgb(0, 144, 161);
+    background-color: #dc2626;
     color: white;
     border: none;
 }
 .btn-hm:hover {
-    background-color: rgb(0, 115, 129);
+    background-color: #b91c1c;
     color: white;
 }
 
 /* Border bài học đang chọn */
 .active-lesson-border {
-    border-color: rgb(0, 144, 161) !important;
+    border-color: #dc2626 !important;
 }
 </style>
 

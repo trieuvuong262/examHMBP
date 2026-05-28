@@ -6,16 +6,16 @@
 
 <style>
     :root {
-        --hm-primary: rgb(0, 144, 161);
-        --hm-primary-hover: rgb(0, 115, 129);
-        --hm-primary-light: rgba(0, 144, 161, 0.1);
+        --hm-primary: #dc2626;
+        --hm-primary-hover: #b91c1c;
+        --hm-primary-light: rgba(220, 38, 38, 0.1);
         --hm-primary-soft: #e5f4f6; /* Màu nền xanh nhạt rất nhẹ */
     }
 
     .text-hm { color: var(--hm-primary) !important; }
     .bg-hm { background-color: var(--hm-primary) !important; }
     .btn-hm { background-color: var(--hm-primary); color: white; border: none; transition: all 0.3s; }
-    .btn-hm:hover { background-color: var(--hm-primary-hover); color: white; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 144, 161, 0.2); }
+    .btn-hm:hover { background-color: var(--hm-primary-hover); color: white; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2); }
     .border-hm { border-color: var(--hm-primary) !important; }
     .border-hm-subtle { border-color: var(--hm-primary-light) !important; }
 
@@ -35,7 +35,7 @@
         background-color: var(--hm-primary-soft);
         border-color: var(--hm-primary) !important;
         border-left: 5px solid var(--hm-primary) !important; 
-        box-shadow: 0 4px 12px rgba(0, 144, 161, 0.12);
+        box-shadow: 0 4px 12px rgba(220, 38, 38, 0.12);
     }
     .option-item input:checked + .option-text {
         color: var(--hm-primary) !important;
@@ -89,7 +89,7 @@
         border-color: var(--hm-primary) !important;
         border-left-color: var(--hm-primary) !important;
         transform: translateY(-4px);
-        box-shadow: 0 12px 24px rgba(0, 144, 161, 0.1) !important;
+        box-shadow: 0 12px 24px rgba(220, 38, 38, 0.1) !important;
     }
 
     .card-header {
@@ -315,7 +315,7 @@
             text: "Bạn chắc chắn đã kiểm tra kỹ các câu trả lời?",
             icon: 'question',
             showCancelButton: true,
-            confirmButtonColor: '#0090a1', /* Đổi màu nút SweetAlert sang màu HM */
+            confirmButtonColor: '#dc2626', /* Đổi màu nút SweetAlert sang màu HM */
             cancelButtonColor: '#6c757d',
             confirmButtonText: 'Đồng ý nộp bài',
             cancelButtonText: 'Hủy'

@@ -1,0 +1,42 @@
+:root {
+    --hm-primary: #dc2626;
+    --hm-primary-dark: #b91c1c;
+    --hm-primary-hover: #b91c1c;
+    --hm-primary-light: rgba(220, 38, 38, 0.1);
+    --hm-primary-soft: rgba(220, 38, 38, 0.08);
+    --hm-primary-subtle: rgba(220, 38, 38, 0.15);
+    --hm-bg-light: #f8fafc;
+    --hm-card-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+.bg-hm { background-color: var(--hm-primary) !important; }
+.text-hm { color: var(--hm-primary) !important; }
+.border-hm { border-color: var(--hm-primary) !important; }
+.bg-hm-subtle { background-color: var(--hm-primary-light) !important; }
+.border-hm-subtle { border-color: rgba(220, 38, 38, 0.2) !important; }
+
+.btn-hm {
+    background-color: var(--hm-primary);
+    color: white;
+    border: none;
+}
+
+.btn-hm:hover {
+    background-color: var(--hm-primary-dark);
+    color: white;
+}
+
+.btn-outline-hm {
+    color: var(--hm-primary);
+    border-color: var(--hm-primary);
+}
+
+.btn-outline-hm:hover {
+    background-color: var(--hm-primary);
+    color: white;
+}
+
+.navbar .nav-link.active {
+    background-color: white !important;
+    color: var(--hm-primary) !important;
+}

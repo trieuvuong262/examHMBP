@@ -3,8 +3,8 @@
 {% block content %}
 <style>
     :root {
-        --hm-primary: rgb(0, 144, 161);
-        --hm-primary-hover: rgb(0, 115, 129);
+        --hm-primary: #dc2626;
+        --hm-primary-hover: #b91c1c;
     }
 
     body { background-color: #f4f7f9; }
@@ -16,7 +16,7 @@
     .form-label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 0.5rem; }
     .form-control:focus, .form-select:focus { 
         border-color: var(--hm-primary); 
-        box-shadow: 0 0 0 0.25rem rgba(0, 144, 161, 0.1); 
+        box-shadow: 0 0 0 0.25rem rgba(220, 38, 38, 0.1); 
     }
 
     .table-choices thead th { background: #f8fafc; color: #64748b; font-size: 0.7rem; border: none; }
@@ -27,10 +27,10 @@
         transition: all 0.3s ease;
         background-color: #ffffff;
     }
-    #image-preview-container:hover { border-color: var(--hm-primary); background-color: #f0f9fa; }
+    #image-preview-container:hover { border-color: var(--hm-primary); background-color: #fef2f2; }
 
     .btn-hm { background-color: var(--hm-primary); color: white; border: none; font-weight: 600; }
-    .btn-hm:hover { background-color: var(--hm-primary-hover); color: white; box-shadow: 0 4px 12px rgba(0, 144, 161, 0.2); }
+    .btn-hm:hover { background-color: var(--hm-primary-hover); color: white; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2); }
 
     .x-small { font-size: 0.75rem; }
 </style>
