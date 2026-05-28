@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 400" role="img" aria-label="Õi m­t kh©u">
+  <rect width="360" height="400" fill="#f1f5f9"/>
+  <rect x="50" y="40" width="260" height="320" rx="18" fill="#fff" stroke="#e2e8f0"/>
+  <rect x="50" y="40" width="260" height="90" rx="18" fill="#dc2626"/>
+  <rect x="50" y="100" width="260" height="30" fill="#dc2626"/>
+  <text x="180" y="88" text-anchor="middle" fill="#fff" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="700">THI¾T L¬P M¬T KH¨U</text>
+  <text x="70" y="145" fill="#64748b" font-size="8" font-weight="700">M¬T KH¨U HIÆN T I</text>
+  <rect x="70" y="152" width="220" height="32" rx="8" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="70" y="205" fill="#64748b" font-size="8" font-weight="700">M¬T KH¨U MÚI</text>
+  <rect x="70" y="212" width="220" height="32" rx="8" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="70" y="265" fill="#64748b" font-size="8" font-weight="700">XÁC NH¬N M¬T KH¨U MÚI</text>
+  <rect x="70" y="272" width="220" height="32" rx="8" fill="#f8fafc" stroke="#e2e8f0"/>
+  <rect x="70" y="318" width="220" height="36" rx="10" fill="#dc2626"/>
+  <text x="180" y="341" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">L¯U THAY ÔI</text>
+  <path d="M300 80 L320 60 L340 80" stroke="#dc2626" stroke-width="2" fill="none"/>
+  <text x="325" y="55" fill="#dc2626" font-size="8" font-weight="600">Avatar</text>
+  <text x="325" y="68" fill="#64748b" font-size="7">góc ph£i</text>
+</svg>

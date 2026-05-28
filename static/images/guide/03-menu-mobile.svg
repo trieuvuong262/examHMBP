@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 480" role="img" aria-label="Menu iÇn tho¡i JustPlay">
+  <rect width="360" height="480" fill="#f1f5f9"/>
+  <rect width="360" height="48" fill="#dc2626"/>
+  <text x="44" y="30" fill="#fff" font-size="18">0</text>
+  <rect x="0" y="48" width="280" height="432" fill="linear-gradient(#b91c1c,#991b1b)"/>
+  <rect x="0" y="48" width="280" height="432" fill="#b91c1c"/>
+  <text x="20" y="82" fill="#fff" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="700">JustPlay Menu</text>
+  <circle cx="36" cy="115" r="16" fill="#fff"/>
+  <text x="62" y="112" fill="#fff" font-size="11" font-weight="700">NguyÅn Vn A</text>
+  <text x="62" y="126" fill="rgba(255,255,255,.7)" font-size="9">Nhân viên</text>
+  <line x1="16" y1="140" x2="264" y2="140" stroke="rgba(255,255,255,.2)"/>
+  <text x="20" y="168" fill="#fff" font-size="11"><à Trang chç</text>
+  <text x="20" y="198" fill="#fff" font-size="11">=â Thông báo</text>
+  <rect x="130" y="184" width="16" height="14" rx="7" fill="#fff"/>
+  <text x="138" y="194" fill="#dc2626" font-size="8" font-weight="700">2</text>
+  <text x="20" y="228" fill="#fff" font-size="11">=Ë Báo cáo</text>
+  <text x="20" y="258" fill="#fff" font-size="11">=È KPI</text>
+  <text x="20" y="288" fill="#fff" font-size="11"><“ ào t¡o</text>
+  <text x="20" y="330" fill="#fff" font-size="11">= Õi m­t kh©u</text>
+  <text x="20" y="360" fill="#fca5a5" font-size="11">ng xu¥t</text>
+  <rect x="280" y="48" width="80" height="432" fill="rgba(0,0,0,.15)"/>
+  <rect y="428" width="360" height="52" fill="#fff" stroke="#e2e8f0"/>
+  <text x="180" y="455" text-anchor="middle" fill="#64748b" font-family="Inter,Arial,sans-serif" font-size="9">Thanh menu d°Ûi cùng  5 nút nhanh</text>
+</svg>

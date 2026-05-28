@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 440" role="img" aria-label="Íc thông báo">
+  <rect width="360" height="440" fill="#f1f5f9"/>
+  <rect width="360" height="48" fill="#dc2626"/>
+  <text x="20" y="30" fill="#fff" font-size="12" font-weight="700">=â Thông Báo</text>
+  <rect x="16" y="60" width="328" height="36" rx="8" fill="#fef3c7" stroke="#fcd34d"/>
+  <text x="28" y="82" fill="#92400e" font-size="9">= B¡n còn 2 thông báo ch°a xác nh­n Íc</text>
+  <rect x="16" y="108" width="328" height="120" rx="14" fill="#fff" stroke="#e2e8f0"/>
+  <rect x="28" y="120" width="48" height="16" rx="8" fill="#fef2f2"/>
+  <text x="34" y="131" fill="#dc2626" font-size="7">Ghim</text>
+  <rect x="80" y="120" width="56" height="16" rx="8" fill="#fef3c7"/>
+  <text x="86" y="131" fill="#b45309" font-size="7">Ch°a Íc</text>
+  <text x="28" y="158" fill="#1e293b" font-size="11" font-weight="700">LËch giao hàng tu§n 22</text>
+  <text x="28" y="176" fill="#64748b" font-size="9">C­p nh­t lËch s£n xu¥t và giao hàng...</text>
+  <rect x="240" y="188" width="88" height="28" rx="14" fill="#dc2626"/>
+  <text x="284" y="206" text-anchor="middle" fill="#fff" font-size="8" font-weight="700">Xem chi ti¿t</text>
+  <rect x="16" y="250" width="328" height="170" rx="14" fill="#fff" stroke="#e2e8f0"/>
+  <rect x="16" y="250" width="328" height="48" rx="14" fill="#dc2626"/>
+  <rect x="16" y="282" width="328" height="16" fill="#dc2626"/>
+  <text x="28" y="278" fill="#fff" font-size="10" font-weight="700">Chi ti¿t thông báo</text>
+  <text x="28" y="320" fill="#475569" font-size="9">NÙi dung vn b£n / PDF / video...</text>
+  <rect x="28" y="380" width="160" height="32" rx="16" fill="#dc2626"/>
+  <text x="108" y="400" text-anchor="middle" fill="#fff" font-size="9" font-weight="700"> Xác nh­n ã Íc</text>
+</svg>

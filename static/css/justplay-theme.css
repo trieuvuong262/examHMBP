@@ -714,3 +714,235 @@ textarea.form-control {
         text-align: right;
     }
 }
+
+/* --- User guide page (/huong-dan/) --- */
+.jp-guide-page .guide-sidebar {
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    background: #fff;
+}
+
+.jp-guide-page .guide-sidebar-header {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    color: #fff;
+    padding: 1rem 1.1rem;
+}
+
+.jp-guide-page .guide-sidebar-header .small {
+    color: rgba(255, 255, 255, 0.85) !important;
+    letter-spacing: 0.04em;
+}
+
+.jp-guide-page .guide-toc {
+    padding: 0.65rem 0.5rem 0.85rem;
+}
+
+.jp-guide-page .guide-toc-link {
+    display: block;
+    color: #475569 !important;
+    font-weight: 500;
+    font-size: 0.8125rem;
+    padding: 0.45rem 0.75rem 0.45rem 0.85rem !important;
+    margin: 0.1rem 0 !important;
+    border-radius: 0.5rem !important;
+    border-left: 3px solid transparent;
+    text-decoration: none;
+    line-height: 1.35;
+    min-height: auto !important;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.jp-guide-page .guide-toc-link:hover {
+    color: #dc2626 !important;
+    background: #fef2f2 !important;
+    border-left-color: #dc2626;
+}
+
+.jp-guide-page .guide-toc-link.active {
+    color: #b91c1c !important;
+    background: rgba(220, 38, 38, 0.08) !important;
+    border-left-color: #dc2626;
+    font-weight: 700;
+    box-shadow: none !important;
+}
+
+.jp-guide-page .guide-mobile-toc {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    padding: 0.85rem 1rem;
+    margin-bottom: 1rem;
+}
+
+.jp-guide-page .guide-mobile-toc-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    margin-bottom: 0.5rem;
+}
+
+.jp-guide-page .guide-mobile-toc-scroll {
+    display: flex;
+    gap: 0.4rem;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+}
+
+.jp-guide-page .guide-mobile-toc-scroll .guide-toc-link {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    border: 1px solid #e2e8f0;
+    border-left: 1px solid #e2e8f0 !important;
+    border-radius: 999px !important;
+    padding: 0.35rem 0.85rem !important;
+    font-size: 0.75rem;
+}
+
+.jp-guide-page .guide-mobile-toc-scroll .guide-toc-link.active {
+    background: #dc2626 !important;
+    color: #fff !important;
+    border-color: #dc2626 !important;
+}
+
+.jp-guide-page .guide-accordion .accordion-button:not(.collapsed) {
+    background: rgba(220, 38, 38, 0.06);
+    color: #b91c1c;
+    box-shadow: none;
+}
+
+.jp-guide-page .guide-accordion .accordion-button:focus {
+    box-shadow: none;
+    border-color: transparent;
+}
+
+.jp-guide-page .guide-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.jp-guide-page .guide-step {
+    display: flex;
+    gap: 0.85rem;
+    align-items: flex-start;
+    padding: 0.85rem 1rem;
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    font-size: 0.95rem;
+    line-height: 1.55;
+}
+
+.jp-guide-page .guide-step-num {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #dc2626;
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.jp-guide-page .guide-step ul {
+    padding-left: 1.1rem;
+}
+
+.jp-guide-page .guide-split {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+    align-items: start;
+    margin: 1rem 0 1.25rem;
+}
+
+@media (min-width: 768px) {
+    .jp-guide-page .guide-split {
+        grid-template-columns: 1fr min(280px, 38%);
+    }
+
+    .jp-guide-page .guide-split.guide-split-wide-img {
+        grid-template-columns: 1fr min(320px, 42%);
+    }
+}
+
+.jp-guide-page .guide-figure {
+    margin: 0;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    overflow: hidden;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+}
+
+.jp-guide-page .guide-figure img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.jp-guide-page .guide-figure figcaption {
+    padding: 0.65rem 0.85rem;
+    font-size: 0.78rem;
+    color: #64748b;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    line-height: 1.4;
+}
+
+.jp-guide-page .guide-figure figcaption strong {
+    color: #334155;
+}
+
+.jp-guide-page .guide-tip {
+    border-left: 4px solid #dc2626;
+    background: #fff;
+    border-radius: 0 12px 12px 0;
+    padding: 0.85rem 1rem;
+    font-size: 0.875rem;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.jp-guide-page .guide-preview-grid .guide-preview-item {
+    display: block;
+    text-decoration: none;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+}
+
+.jp-guide-page .guide-preview-grid .guide-preview-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(220, 38, 38, 0.12);
+    border-color: #fecaca;
+}
+
+.jp-guide-page .guide-preview-grid img {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 9/13;
+    object-fit: cover;
+    object-position: top;
+}
+
+.jp-guide-page .guide-preview-grid span {
+    display: block;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-align: center;
+    color: #475569;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+}
+

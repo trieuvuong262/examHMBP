@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 420" role="img" aria-label="Trang chç JustPlay Portal">
+  <rect width="360" height="420" fill="#f1f5f9"/>
+  <rect width="360" height="52" fill="#dc2626"/>
+  <rect x="12" y="14" width="80" height="24" rx="4" fill="rgba(255,255,255,.3)"/>
+  <circle cx="330" cy="26" r="14" fill="#fff"/>
+  <text x="180" y="78" text-anchor="middle" fill="#1e293b" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700">Xin chào, NguyÅn Vn A!</text>
+  <text x="180" y="96" text-anchor="middle" fill="#64748b" font-family="Inter,Arial,sans-serif" font-size="9">Chào mëng b¡n ¿n vÛi cÕng thông tin nÙi bÙ</text>
+  <g transform="translate(24,115)">
+    <rect width="148" height="110" rx="14" fill="#fff" stroke="#e2e8f0"/>
+    <circle cx="74" cy="38" r="18" fill="#fef2f2"/>
+    <text x="74" y="43" text-anchor="middle" fill="#dc2626" font-size="16">=â</text>
+    <text x="74" y="72" text-anchor="middle" fill="#1e293b" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="700">Thông báo</text>
+    <rect x="34" y="82" width="80" height="18" rx="9" fill="#dc2626"/>
+    <text x="74" y="94" text-anchor="middle" fill="#fff" font-size="8" font-weight="600">Xem ngay</text>
+  </g>
+  <g transform="translate(188,115)">
+    <rect width="148" height="110" rx="14" fill="#fff" stroke="#e2e8f0"/>
+    <circle cx="74" cy="38" r="18" fill="#fef2f2"/>
+    <text x="74" y="43" text-anchor="middle" fill="#dc2626" font-size="16"><“</text>
+    <text x="74" y="72" text-anchor="middle" fill="#1e293b" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="700">HÍc t­p</text>
+    <rect x="34" y="82" width="80" height="18" rx="9" fill="#dc2626"/>
+    <text x="74" y="94" text-anchor="middle" fill="#fff" font-size="8" font-weight="600">Vào hÍc</text>
+  </g>
+  <g transform="translate(24,240)">
+    <rect width="148" height="110" rx="14" fill="#fff" stroke="#e2e8f0"/>
+    <text x="74" y="72" text-anchor="middle" fill="#1e293b" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="700">KiÃm tra</text>
+  </g>
+  <g transform="translate(188,240)">
+    <rect width="148" height="110" rx="14" fill="#fff" stroke="#e2e8f0"/>
+    <text x="74" y="72" text-anchor="middle" fill="#1e293b" font-family="Inter,Arial,sans-serif" font-size="10" font-weight="700">KPI · Báo cáo</text>
+  </g>
+  <rect y="368" width="360" height="52" fill="#fff" stroke="#e2e8f0"/>
+  <text x="36" y="400" fill="#dc2626" font-size="8" font-weight="700">Trang chç</text>
+  <text x="90" y="400" fill="#64748b" font-size="8">TB</text>
+  <text x="140" y="400" fill="#64748b" font-size="8">BC</text>
+  <text x="190" y="400" fill="#64748b" font-size="8">KPI</text>
+  <text x="240" y="400" fill="#64748b" font-size="8">HÍc</text>
+  <rect x="20" y="378" width="40" height="3" rx="2" fill="#dc2626"/>
+</svg>

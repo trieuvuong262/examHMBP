@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 380" role="img" aria-label="Khóa hÍc E-Learning">
+  <rect width="360" height="380" fill="#f1f5f9"/>
+  <text x="20" y="32" fill="#1e293b" font-size="12" font-weight="700"><“ Không gian hÍc t­p</text>
+  <rect x="16" y="44" width="328" height="32" rx="16" fill="#fff" stroke="#e2e8f0"/>
+  <rect x="20" y="48" width="72" height="24" rx="12" fill="#dc2626"/>
+  <text x="56" y="64" text-anchor="middle" fill="#fff" font-size="8">T¥t c£</text>
+  <text x="110" y="64" fill="#64748b" font-size="8">ang hÍc</text>
+  <text x="170" y="64" fill="#64748b" font-size="8">Ch°a b¯t §u</text>
+  <rect x="16" y="88" width="160" height="200" rx="14" fill="#fff" stroke="#e2e8f0"/>
+  <rect x="16" y="88" width="160" height="90" rx="14" fill="#fecaca"/>
+  <rect x="16" y="162" width="160" height="16" fill="#fecaca"/>
+  <rect x="130" y="96" width="38" height="18" rx="9" fill="#fef3c7"/>
+  <text x="149" y="109" text-anchor="middle" fill="#b45309" font-size="7">ang hÍc</text>
+  <text x="28" y="200" fill="#1e293b" font-size="9" font-weight="700">Quy trình may c¡ b£n</text>
+  <rect x="28" y="212" width="136" height="8" rx="4" fill="#e2e8f0"/>
+  <rect x="28" y="212" width="90" height="8" rx="4" fill="#dc2626"/>
+  <text x="150" y="220" fill="#dc2626" font-size="8" font-weight="700">65%</text>
+  <rect x="28" y="258" width="136" height="24" rx="12" fill="#dc2626"/>
+  <text x="96" y="274" text-anchor="middle" fill="#fff" font-size="8" font-weight="700">TI¾P TäC HÌC</text>
+  <rect x="188" y="88" width="156" height="200" rx="14" fill="#fff" stroke="#e2e8f0"/>
+  <text x="200" y="200" fill="#1e293b" font-size="9" font-weight="700">ATLD x°ßng may</text>
+  <rect x="200" y="258" width="132" height="24" rx="12" fill="#fef2f2" stroke="#fecaca"/>
+  <text x="266" y="274" text-anchor="middle" fill="#dc2626" font-size="8" font-weight="700">B®T ¦U HÌC</text>
+  <text x="180" y="320" text-anchor="middle" fill="#64748b" font-size="9">HÍc xong 100% ’ làm bài thi cuÑi khóa</text>
+</svg>
