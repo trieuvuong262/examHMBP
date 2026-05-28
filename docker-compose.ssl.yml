@@ -1,0 +1,12 @@
+# Bật sau khi cài SSL: docker compose -f docker-compose.yml -f docker-compose.ssl.yml up -d
+services:
+  nginx:
+    ports:
+      - "443:443"
+    volumes:
+      - ./PortalJustPlay/nginx/ssl.conf:/etc/nginx/conf.d/ssl.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - certbot_webroot:/var/www/certbot
+
+volumes:
+  certbot_webroot:

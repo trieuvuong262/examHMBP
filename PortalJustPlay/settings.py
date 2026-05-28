@@ -240,17 +240,33 @@ CKEDITOR_CONFIGS = {
 # ==============================================================================
 # 7. CẤU HÌNH BẢO MẬT CHUYÊN SÂU KHI CHẠY PRODUCTION
 # ==============================================================================
+# USE_HTTPS=1 sau khi cài SSL (Let's Encrypt). Khi chưa có HTTPS, tắt COOP/HSTS
+# để tránh cảnh báo console trên HTTP.
+USE_HTTPS = env_bool('USE_HTTPS', False)
+
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SESSION_COOKIE_HTTPONLY = True
-    SESSION_COOKIE_SECURE = env_bool('SESSION_COOKIE_SECURE', False)
-    CSRF_COOKIE_SECURE = env_bool('CSRF_COOKIE_SECURE', False)
-    SECURE_SSL_REDIRECT = env_bool('SECURE_SSL_REDIRECT', False)
-    SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', '0'))
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', False)
-    SECURE_HSTS_PRELOAD = env_bool('SECURE_HSTS_PRELOAD', False)
     SECURE_CONTENT_TYPE_NOSNIFF = True
     AXES_FAILURE_LIMIT = int(os.getenv('AXES_FAILURE_LIMIT', '10'))
+
+    if USE_HTTPS:
+        SESSION_COOKIE_SECURE = env_bool('SESSION_COOKIE_SECURE', True)
+        CSRF_COOKIE_SECURE = env_bool('CSRF_COOKIE_SECURE', True)
+        SECURE_SSL_REDIRECT = env_bool('SECURE_SSL_REDIRECT', True)
+        SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', '31536000'))
+        SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', True)
+        SECURE_HSTS_PRELOAD = env_bool('SECURE_HSTS_PRELOAD', False)
+        SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin'
+    else:
+        SESSION_COOKIE_SECURE = False
+        CSRF_COOKIE_SECURE = False
+        SECURE_SSL_REDIRECT = False
+        SECURE_HSTS_SECONDS = 0
+        SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+        SECURE_HSTS_PRELOAD = False
+        SECURE_CROSS_ORIGIN_OPENER_POLICY = None
+        SECURE_CROSS_ORIGIN_EMBEDDER_POLICY = None
     
 AUTHENTICATION_BACKENDS = [
     # 1. Trạm gác ngoài cùng: Bắt buộc dùng AxesBackend (đã sửa) để đếm số lần sai

@@ -15,8 +15,13 @@ PROJECT_DIR="${PROJECT_DIR:-/opt/portaljustplay}"
 BRANCH="${BRANCH:-main}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"
 
+compose_files=(-f "${COMPOSE_FILE}")
+if [[ -f "docker-compose.ssl.yml" ]] && grep -qE '^USE_HTTPS=(1|true|yes|on)' .env 2>/dev/null; then
+  compose_files+=(-f docker-compose.ssl.yml)
+fi
+
 compose() {
-  docker compose -f "${COMPOSE_FILE}" "$@"
+  docker compose "${compose_files[@]}" "$@"
 }
 
 wait_for_db() {
