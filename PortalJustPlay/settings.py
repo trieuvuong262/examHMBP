@@ -1,5 +1,5 @@
 """
-Django settings for ExamHMBP project.
+Django settings for PortalJustPlay project.
 Optimized for Security and Production.
 """
 
@@ -65,10 +65,10 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'axes.middleware.AxesMiddleware',
-    'ExamHMBP.middleware.ForcePasswordChangeMiddleware',
+    'PortalJustPlay.middleware.ForcePasswordChangeMiddleware',
 ]
 
-ROOT_URLCONF = 'ExamHMBP.urls'
+ROOT_URLCONF = 'PortalJustPlay.urls'
 
 TEMPLATES = [
     {
@@ -86,7 +86,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'ExamHMBP.wsgi.application'
+WSGI_APPLICATION = 'PortalJustPlay.wsgi.application'
 
 
 # ==============================================================================

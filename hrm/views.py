@@ -12,7 +12,7 @@ from django.db import transaction # BẮT BUỘC PHẢI CÓ IMPORT NÀY Ở Đ�
 from assessment.decorators import admin_only
 from assessment.forms import UserForm # Tạm thời Form vẫn để ở nhà cũ, mốt mình dời sau
 from hrm.models import Profile
-from ExamHMBP.utils import generate_hm_username, generate_secure_password # File dùng chung hôm trước
+from PortalJustPlay.utils import generate_hm_username, generate_secure_password # File dùng chung hôm trước
 from .forms import CustomUserForm
 from django.http import JsonResponse
 import random
