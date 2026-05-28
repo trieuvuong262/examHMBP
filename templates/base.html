@@ -1,4 +1,5 @@
 {% load static %}
+{% static 'images/logo/logo.png' as site_logo %}
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -7,19 +8,31 @@
 
     <title>JustPlay Portal - HRM & E-Learning</title>
     <meta name="description"
-        content="Hệ thống Quản trị Nhân sự & Đào tạo trực tuyến của JustPlay. Nền tảng tối ưu tuyển dụng, đào tạo và đánh giá hiệu suất nhân sự.">
+        content="JustPlay Portal — hệ thống quản trị nhân sự, đào tạo trực tuyến, tuyển dụng và đánh giá KPI. Truy cập cổng nội bộ tại justplay.vn.">
+    <meta name="keywords" content="JustPlay, HRM, E-Learning, tuyển dụng, đào tạo, KPI, portal nội bộ">
     <meta name="author" content="JustPlay IT Team">
+    <meta name="theme-color" content="#dc2626">
+    <link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
 
     <meta property="og:type" content="website">
-    <meta property="og:url" content="{{ request.build_absolute_uri }}">
+    <meta property="og:site_name" content="JustPlay Portal">
+    <meta property="og:locale" content="vi_VN">
+    <meta property="og:url" content="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
     <meta property="og:title" content="JustPlay Portal - Hệ Thống Quản Trị Nhân Sự & Đào Tạo">
     <meta property="og:description"
-        content="Hệ thống nội bộ số hóa quy trình Tuyển dụng, Đào tạo và Đánh giá năng lực nhân sự tại JustPlay.">
-    <meta property="og:image"
-        content="{{ request.scheme }}://{{ request.get_host }}{% static 'images/logo/thumbnail-share.png' %}">
+        content="Cổng thông tin nội bộ JustPlay: quản lý tuyển dụng, đào tạo E-Learning, kiểm tra năng lực và theo dõi hiệu suất KPI.">
+    <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ site_logo }}">
+    <meta property="og:image:alt" content="Logo JustPlay Portal">
 
-    <link rel="icon" type="image/png" href="{% static 'images/logo/logo.png' %}">
-    <link rel="apple-touch-icon" href="{% static 'images/logo/logo.png' %}">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="JustPlay Portal - HRM & E-Learning">
+    <meta name="twitter:description"
+        content="Hệ thống quản trị nhân sự và đào tạo trực tuyến của JustPlay.vn.">
+    <meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{{ site_logo }}">
+
+    <link rel="icon" type="image/png" href="{{ site_logo }}">
+    <link rel="shortcut icon" type="image/png" href="{{ site_logo }}">
+    <link rel="apple-touch-icon" href="{{ site_logo }}">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
