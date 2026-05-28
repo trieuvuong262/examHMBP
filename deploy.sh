@@ -15,6 +15,46 @@ PROJECT_DIR="${PROJECT_DIR:-/opt/portaljustplay}"
 BRANCH="${BRANCH:-main}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"
 
+compose() {
+  docker compose -f "${COMPOSE_FILE}" "$@"
+}
+
+wait_for_db() {
+  echo "==> Waiting for database..."
+  local attempt=1
+  local max_attempts=30
+  while [[ "${attempt}" -le "${max_attempts}" ]]; do
+    if compose ps db 2>/dev/null | grep -q "(healthy)"; then
+      echo "    Database is healthy."
+      return 0
+    fi
+    echo "    attempt ${attempt}/${max_attempts}..."
+    sleep 2
+    attempt=$((attempt + 1))
+  done
+  echo "ERROR: Database not healthy after ${max_attempts} attempts."
+  compose ps db || true
+  exit 1
+}
+
+run_migrations() {
+  local label="$1"
+  echo "==> ${label}"
+  compose run --rm --build migrate
+}
+
+verify_migrations() {
+  echo "==> Verify migrations (no pending)"
+  local pending
+  pending="$(compose exec -T web python manage.py showmigrations --plan | grep -c '\[ \]' || true)"
+  if [[ "${pending}" -gt 0 ]]; then
+    echo "ERROR: ${pending} migration(s) still pending."
+    compose exec -T web python manage.py showmigrations
+    exit 1
+  fi
+  echo "    All migrations applied."
+}
+
 echo "==> Deploying PortalJustPlay"
 echo "    PROJECT_DIR: ${PROJECT_DIR}"
 echo "    BRANCH:      ${BRANCH}"
@@ -42,27 +82,32 @@ git fetch --all --prune
 git checkout "${BRANCH}"
 git pull --ff-only origin "${BRANCH}"
 
-echo "==> 2) Start database first"
-docker compose -f "${COMPOSE_FILE}" up -d db
+echo "==> 2) Start database"
+compose up -d db
+wait_for_db
 
-echo "==> 3) Run migrations + collectstatic"
-docker compose -f "${COMPOSE_FILE}" run --rm migrate
+echo "==> 3) Run migrations (before start web)"
+run_migrations "migrate --noinput via migrate service"
 
 echo "==> 4) Build and start app services"
-docker compose -f "${COMPOSE_FILE}" up -d --build web nginx
+compose up -d --build web nginx
 
-if docker compose -f "${COMPOSE_FILE}" config --services | grep -qx "metabase"; then
-  echo "==> 5) Start metabase"
-  docker compose -f "${COMPOSE_FILE}" up -d metabase
-fi
+echo "==> 5) Run migrations again on running web"
+compose exec -T web python manage.py migrate --noinput
 
-echo "==> 6) Run collectstatic on running web"
-docker compose -f "${COMPOSE_FILE}" exec -T web python manage.py collectstatic --noinput
+verify_migrations
+
+echo "==> 6) Collect static files"
+compose exec -T web python manage.py collectstatic --noinput
 
 echo "==> 7) Show status"
-docker compose -f "${COMPOSE_FILE}" ps
+compose ps
 
 echo "==> 8) Cleanup old images"
 docker image prune -f
 
+echo ""
 echo "Deploy completed successfully."
+echo ""
+echo "Optional — tạo dữ liệu demo:"
+echo "  docker compose exec web python manage.py seed_demo_data"

@@ -12,8 +12,9 @@ from datetime import timedelta
 
 from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
-from django.core.management.base import BaseCommand
-from django.db import transaction
+from django.core.management.base import BaseCommand, CommandError
+from django.db import connection, transaction
+from django.db.migrations.executor import MigrationExecutor
 from django.utils import timezone
 
 from announcements.models import Announcement, AnnouncementRead
@@ -41,6 +42,11 @@ from training.models import (
 
 DEMO_PREFIX = 'demo_'
 DEFAULT_PASSWORD = 'Demo@123'
+REQUIRED_TABLES = (
+    'announcements_announcement',
+    'reports_dailyworkreport',
+    'assessment_profile',
+)
 
 
 class Command(BaseCommand):
@@ -69,6 +75,8 @@ class Command(BaseCommand):
             self._clear_demo_data()
             return
 
+        self._ensure_database_ready()
+
         password = options['password']
         with transaction.atomic():
             users = self._create_users(password)
@@ -88,6 +96,29 @@ class Command(BaseCommand):
             self.stdout.write(f'  - {user.username:20} | {user.profile.full_name:25} | {role}')
         self.stdout.write('')
         self.stdout.write('Truy cập: /admin/ hoặc đăng nhập portal và thử từng menu.')
+
+    def _ensure_database_ready(self):
+        executor = MigrationExecutor(connection)
+        targets = executor.loader.graph.leaf_nodes()
+        plan = executor.migration_plan(targets)
+        if plan:
+            pending = sorted({f'{app}.{name}' for app, name in plan})
+            raise CommandError(
+                'Database chưa migrate xong. Chạy lệnh sau rồi thử lại:\n'
+                '  docker compose exec web python manage.py migrate\n'
+                'Hoặc deploy lại: ./deploy.sh\n\n'
+                f'Migration còn thiếu ({len(pending)}): ' + ', '.join(pending[:8])
+                + (' ...' if len(pending) > 8 else '')
+            )
+
+        existing = set(connection.introspection.table_names())
+        missing = [name for name in REQUIRED_TABLES if name not in existing]
+        if missing:
+            raise CommandError(
+                'Thiếu bảng trong database (code mới hơn DB). Chạy migrate:\n'
+                '  docker compose exec web python manage.py migrate\n\n'
+                'Bảng thiếu: ' + ', '.join(missing)
+            )
 
     def _clear_demo_data(self):
         demo_users = User.objects.filter(username__startswith=DEMO_PREFIX)
