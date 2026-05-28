@@ -5,9 +5,11 @@ from django.conf.urls.static import static
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns 
 from django.contrib.auth import views as auth_views
 from hrm.views import MyPasswordChangeView
+from hrm.views_guide import user_guide
 urlpatterns = [
     path('admin-panel/', admin.site.urls),
     path('accounts/', include('django.contrib.auth.urls')),
+    path('huong-dan/', user_guide, name='user_guide'),
     path('', include('assessment.urls')),
     path('training/', include('training.urls')),
     path('hr/', include('recruitment.urls')),

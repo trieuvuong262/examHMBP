@@ -265,16 +265,17 @@
             <div class="col-lg-2 col-md-4 mb-4 mb-md-0">
                 <div class="footer-heading">Phân hệ</div>
                 <ul class="list-unstyled small lh-lg">
-                    <li><a href="#"><i class="bi bi-chevron-right me-1"></i> Tuyển dụng</a></li>
-                    <li><a href="#"><i class="bi bi-chevron-right me-1"></i> E-Learning</a></li>
-                    <li><a href="#"><i class="bi bi-chevron-right me-1"></i> KPI</a></li>
+                    <li><a href="{% url 'announcements:list' %}"><i class="bi bi-chevron-right me-1"></i> Thông báo</a></li>
+                    <li><a href="{% url 'reports:hub' %}"><i class="bi bi-chevron-right me-1"></i> Báo cáo</a></li>
+                    <li><a href="{% url 'kpi_list' %}"><i class="bi bi-chevron-right me-1"></i> KPI</a></li>
+                    <li><a href="{% url 'my_courses' %}"><i class="bi bi-chevron-right me-1"></i> E-Learning</a></li>
                 </ul>
             </div>
             <div class="col-lg-3 col-md-4 mb-4 mb-md-0">
                 <div class="footer-heading">Hỗ trợ</div>
                 <ul class="list-unstyled small lh-lg">
-                    <li><a href="#"><i class="bi bi-journal-text me-2"></i>HDSD</a></li>
-                    <li><a href="#"><i class="bi bi-headset me-2"></i>IT Support</a></li>
+                    <li><a href="{% url 'user_guide' %}"><i class="bi bi-journal-text me-2"></i>Hướng dẫn sử dụng</a></li>
+                    <li><a href="mailto:support@justplay.vn"><i class="bi bi-headset me-2"></i>IT Support</a></li>
                 </ul>
             </div>
             <div class="col-lg-3 col-md-4">
