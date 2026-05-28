@@ -1,0 +1,47 @@
+# Tự deploy lên VPS khi push lên branch main.
+#
+# Cấu hình GitHub Secrets (Settings → Secrets and variables → Actions):
+#   VPS_HOST      — IP hoặc domain VPS (vd: 103.90.224.203)
+#   VPS_USER      — user SSH (vd: root)
+#   VPS_SSH_KEY   — private key SSH (PEM), public key đã add vào ~/.ssh/authorized_keys trên VPS
+#   VPS_PORT      — (tuỳ chọn) cổng SSH, mặc định 22
+#
+# Trên VPS cần:
+#   - Clone repo tại /opt/portaljustplay
+#   - chmod +x deploy.sh
+#   - Git pull được (SSH deploy key VPS → GitHub, hoặc repo public)
+
+name: Deploy PortalJustPlay
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-portaljustplay
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 25m
+          script: |
+            set -Eeuo pipefail
+            cd /opt/portaljustplay
+            git remote -v
+            ./deploy.sh
+
+      - name: Summary
+        if: success()
+        run: echo "Deploy finished on ${{ secrets.VPS_HOST }}"

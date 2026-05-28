@@ -7,28 +7,37 @@
             <i class="bi bi-journal-bookmark-fill me-1"></i> Tài liệu nội bộ
         </span>
         <h1 class="jp-page-title text-hm">Hướng dẫn sử dụng JustPlay Portal</h1>
-        <p class="jp-page-subtitle mx-auto" style="max-width: 640px;">
-            Cẩm nang nhanh cho nhân viên, trưởng bộ phận và quản trị — cập nhật theo phiên bản hệ thống 2026.
+        <p class="jp-page-subtitle mx-auto" style="max-width: 720px;">
+            Hướng dẫn từng bước — dành cho người <strong>chưa từng dùng</strong> hệ thống.
+            Đọc theo thứ tự từ mục 1, hoặc nhảy thẳng tới chức năng bạn cần ở mục lục bên trái.
         </p>
+        <div class="d-flex flex-wrap justify-content-center gap-2 mt-3">
+            <span class="badge rounded-pill bg-secondary px-3 py-2"><i class="bi bi-person me-1"></i>Nhân viên xưởng</span>
+            <span class="badge rounded-pill bg-primary px-3 py-2"><i class="bi bi-people me-1"></i>Tổ trưởng (HOD)</span>
+            <span class="badge rounded-pill bg-danger px-3 py-2"><i class="bi bi-briefcase me-1"></i>HR / Quản trị</span>
+        </div>
     </div>
 
     <div class="row g-4">
-        <div class="col-lg-3 d-none d-lg-block">
-            <div class="card border-0 shadow-sm rounded-4 sticky-top" style="top: 5.5rem; z-index: 10;">
+        <div class="col-lg-3">
+            <div class="card border-0 shadow-sm rounded-4 sticky-top d-none d-lg-block" style="top: 5.5rem; z-index: 10;">
                 <div class="card-body p-3">
                     <div class="small fw-bold text-uppercase text-muted mb-2">Mục lục</div>
                     <nav class="nav flex-column small guide-toc">
+                        <a class="nav-link py-1" href="#bat-dau">0. Bắt đầu nhanh</a>
                         <a class="nav-link py-1" href="#gioi-thieu">1. Giới thiệu</a>
-                        <a class="nav-link py-1" href="#dang-nhap">2. Đăng nhập</a>
-                        <a class="nav-link py-1" href="#phan-quyen">3. Phân quyền</a>
-                        <a class="nav-link py-1" href="#menu">4. Menu & điều hướng</a>
-                        <a class="nav-link py-1" href="#thong-bao">5. Thông báo</a>
-                        <a class="nav-link py-1" href="#bao-cao">6. Báo cáo công việc</a>
-                        <a class="nav-link py-1" href="#kpi">7. KPI</a>
-                        <a class="nav-link py-1" href="#dao-tao">8. Đào tạo</a>
-                        <a class="nav-link py-1" href="#kiem-tra">9. Kiểm tra</a>
-                        <a class="nav-link py-1" href="#quan-tri">10. Quản trị (HR)</a>
-                        <a class="nav-link py-1" href="#faq">11. Câu hỏi thường gặp</a>
+                        <a class="nav-link py-1" href="#chuan-bi">2. Chuẩn bị</a>
+                        <a class="nav-link py-1" href="#dang-nhap">3. Đăng nhập</a>
+                        <a class="nav-link py-1" href="#doi-mat-khau">4. Đổi mật khẩu</a>
+                        <a class="nav-link py-1" href="#man-hinh">5. Làm quen màn hình</a>
+                        <a class="nav-link py-1" href="#phan-quyen">6. Phân quyền</a>
+                        <a class="nav-link py-1" href="#thong-bao">7. Thông báo</a>
+                        <a class="nav-link py-1" href="#bao-cao">8. Báo cáo công việc</a>
+                        <a class="nav-link py-1" href="#kpi">9. KPI</a>
+                        <a class="nav-link py-1" href="#dao-tao">10. Đào tạo</a>
+                        <a class="nav-link py-1" href="#kiem-tra">11. Kiểm tra</a>
+                        <a class="nav-link py-1" href="#quan-tri">12. Quản trị (HR)</a>
+                        <a class="nav-link py-1" href="#faq">13. Câu hỏi thường gặp</a>
                     </nav>
                 </div>
             </div>
@@ -37,265 +46,610 @@
         <div class="col-lg-9">
             <div class="accordion guide-accordion" id="guideAccordion">
 
-                <div class="accordion-item border-0 shadow-sm rounded-4 mb-3 overflow-hidden" id="gioi-thieu">
+                <!-- 0. Quick start -->
+                <div class="accordion-item border-0 shadow-sm rounded-4 mb-3 overflow-hidden" id="bat-dau">
                     <h2 class="accordion-header">
-                        <button class="accordion-button fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c1" aria-expanded="true">
-                            <i class="bi bi-info-circle text-hm me-2"></i> 1. Giới thiệu hệ thống
+                        <button class="accordion-button fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c0" aria-expanded="true">
+                            <i class="bi bi-lightning-charge-fill text-hm me-2"></i> 0. Bắt đầu nhanh (5 phút)
                         </button>
                     </h2>
-                    <div id="c1" class="accordion-collapse collapse show" data-bs-parent="#guideAccordion">
+                    <div id="c0" class="accordion-collapse collapse show" data-bs-parent="#guideAccordion">
                         <div class="accordion-body">
-                            <p><strong>JustPlay Portal</strong> là cổng nội bộ của công ty sản xuất quần áo thể thao, gồm:</p>
-                            <ul>
-                                <li><strong>Thông báo</strong> — chính sách, lịch giao hàng, thông tin xưởng</li>
-                                <li><strong>Báo cáo công việc hàng ngày</strong> — nhân viên nộp, HOD theo dõi</li>
-                                <li><strong>KPI</strong> — giao mục tiêu và chấm điểm theo quý/kỳ</li>
-                                <li><strong>Đào tạo (E-Learning)</strong> — khóa học nội bộ, quy trình may</li>
-                                <li><strong>Kiểm tra</strong> — bài thi năng lực, ATLD, QC</li>
-                                <li><strong>Tuyển dụng & Nhân sự</strong> — dành cho bộ phận quản trị</li>
-                            </ul>
-                            <div class="alert alert-light border mb-0">
-                                <i class="bi bi-phone me-1"></i> Hệ thống tối ưu cho <strong>điện thoại</strong>: có menu dưới cùng (Trang chủ · Thông báo · Báo cáo · KPI · Học).
+                            <p class="mb-3">Nếu bạn vừa được HR cấp tài khoản, làm <strong>4 việc này trước</strong>:</p>
+                            <div class="guide-steps">
+                                <div class="guide-step">
+                                    <div class="guide-step-num">1</div>
+                                    <div>Mở trình duyệt trên điện thoại hoặc máy tính → gõ địa chỉ portal công ty (HR sẽ gửi link, ví dụ <code>https://portal.justplay.vn</code>).</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">2</div>
+                                    <div>Đăng nhập bằng <strong>Tên đăng nhập</strong> và <strong>Mật khẩu</strong> HR cấp → bấm nút đỏ <strong>Đăng nhập</strong>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">3</div>
+                                    <div>Đổi mật khẩu ngay lần đầu (mục 4 bên dưới) — đừng dùng mật khẩu tạm lâu dài.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">4</div>
+                                    <div>Vào <strong>Thông báo</strong> → đọc và bấm <strong>Xác nhận đã đọc</strong> các tin có dấu vàng "Chưa đọc".</div>
+                                </div>
+                            </div>
+                            <div class="alert alert-info border-0 mt-3 mb-0 small">
+                                <i class="bi bi-info-circle me-1"></i>
+                                <strong>Công việc hàng ngày trên điện thoại:</strong> dùng thanh menu <strong>dưới cùng màn hình</strong> — Trang chủ · Thông báo · Báo cáo · KPI · Học.
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="accordion-item border-0 shadow-sm rounded-4 mb-3 overflow-hidden" id="dang-nhap">
+                <!-- 1. Intro -->
+                <div class="accordion-item border-0 shadow-sm rounded-4 mb-3 overflow-hidden" id="gioi-thieu">
                     <h2 class="accordion-header">
-                        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c2">
-                            <i class="bi bi-box-arrow-in-right text-hm me-2"></i> 2. Đăng nhập & mật khẩu
+                        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c1">
+                            <i class="bi bi-info-circle text-hm me-2"></i> 1. Giới thiệu hệ thống
                         </button>
                     </h2>
-                    <div id="c2" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+                    <div id="c1" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
                         <div class="accordion-body">
-                            <ol>
-                                <li>Truy cập địa chỉ portal của công ty → màn hình <strong>Đăng nhập</strong>.</li>
-                                <li>Nhập <strong>Tên đăng nhập</strong> (dạng <code>ten.ho1@justplay.vn</code>) hoặc email.</li>
-                                <li>Nhập mật khẩu do HR cấp lần đầu.</li>
-                                <li>Sau đăng nhập: nhân viên vào <strong>Trang chủ</strong>; quản trị vào <strong>Bảng điều khiển</strong>.</li>
-                            </ol>
-                            <p><strong>Đổi mật khẩu:</strong> Menu tài khoản (góc phải) → <em>Đổi mật khẩu</em>.</p>
-                            <p class="mb-0 text-muted small">Quên mật khẩu: liên hệ HR/IT để được cấp lại — không tự khôi phục qua email trừ khi IT đã bật.</p>
+                            <p><strong>JustPlay Portal</strong> là cổng thông tin nội bộ của công ty sản xuất quần áo thể thao. Bạn dùng portal để:</p>
+                            <ul>
+                                <li><strong>Đọc thông báo</strong> — chính sách, lịch giao hàng, thông tin xưởng</li>
+                                <li><strong>Nộp báo cáo công việc</strong> — báo sản lượng ca làm hàng ngày cho tổ trưởng</li>
+                                <li><strong>Chấm KPI</strong> — tự đánh giá và được quản lý chấm điểm theo quý</li>
+                                <li><strong>Học đào tạo</strong> — xem video/PDF quy trình may, QC, ATLD…</li>
+                                <li><strong>Làm bài kiểm tra</strong> — thi năng lực, ATLD, QC theo lịch HR giao</li>
+                            </ul>
+                            <p class="mb-0">Bộ phận <strong>HR / IT</strong> còn dùng thêm: quản lý nhân sự, tuyển dụng, tạo khóa học và đề thi.</p>
                         </div>
                     </div>
                 </div>
 
+                <!-- 2. Prepare -->
+                <div class="accordion-item border-0 shadow-sm rounded-4 mb-3 overflow-hidden" id="chuan-bi">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c2prep">
+                            <i class="bi bi-check2-square text-hm me-2"></i> 2. Chuẩn bị trước khi dùng
+                        </button>
+                    </h2>
+                    <div id="c2prep" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+                        <div class="accordion-body">
+                            <h6 class="fw-bold">Bạn cần có:</h6>
+                            <ul>
+                                <li><strong>Tài khoản</strong> do HR/IT cấp (tên đăng nhập + mật khẩu tạm)</li>
+                                <li><strong>Internet</strong> — Wi-Fi công ty hoặc 4G</li>
+                                <li><strong>Trình duyệt</strong> — Chrome, Safari, Edge (cập nhật mới nhất). Tránh dùng trình duyệt quá cũ trên điện thoại.</li>
+                            </ul>
+                            <h6 class="fw-bold mt-3">Tên đăng nhập thường có dạng:</h6>
+                            <p class="mb-2"><code>ten.ho1@justplay.vn</code> — ví dụ: <code>nguyen.vana1@justplay.vn</code></p>
+                            <p class="text-muted small mb-0">Gõ đúng cả phần <code>@justplay.vn</code>. Không có khoảng trắng đầu/cuối. Phân biệt chữ hoa/thường.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Login -->
+                <div class="accordion-item border-0 shadow-sm rounded-4 mb-3 overflow-hidden" id="dang-nhap">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c2">
+                            <i class="bi bi-box-arrow-in-right text-hm me-2"></i> 3. Đăng nhập (từng bước)
+                        </button>
+                    </h2>
+                    <div id="c2" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+                        <div class="accordion-body">
+                            <div class="guide-steps">
+                                <div class="guide-step">
+                                    <div class="guide-step-num">1</div>
+                                    <div>Mở trình duyệt → vào địa chỉ portal. Bạn sẽ thấy màn hình trắng, phía trên có chữ <strong>JUSTPLAY PORTAL</strong> nền đỏ.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">2</div>
+                                    <div>Ô <strong>TÊN ĐĂNG NHẬP</strong> (có icon người) — gõ tài khoản HR cấp, ví dụ <code>tran.thib2@justplay.vn</code>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">3</div>
+                                    <div>Ô <strong>MẬT KHẨU</strong> (có icon chìa khóa) — gõ mật khẩu. Ký tự hiện dạng chấm tròn •••• là bình thường.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">4</div>
+                                    <div>Bấm nút đỏ <strong>ĐĂNG NHẬP</strong> (có mũi tên).</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">5</div>
+                                    <div>Thành công → vào <strong>Trang chủ</strong>, thấy dòng chào <em>"Xin chào, [tên bạn]!"</em> và 5 ô lớn: Thông báo, Học tập, Kiểm tra, KPI, Báo cáo.</div>
+                                </div>
+                            </div>
+                            <div class="alert alert-warning border-0 mt-3 mb-0 small">
+                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                Thấy <strong>"Sai tài khoản hoặc mật khẩu!"</strong> → kiểm tra lại chữ hoa/thường, Caps Lock, hoặc liên hệ HR cấp lại mật khẩu.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. Password -->
+                <div class="accordion-item border-0 shadow-sm rounded-4 mb-3 overflow-hidden" id="doi-mat-khau">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c2pw">
+                            <i class="bi bi-shield-lock text-hm me-2"></i> 4. Đổi mật khẩu (từng bước)
+                        </button>
+                    </h2>
+                    <div id="c2pw" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+                        <div class="accordion-body">
+                            <p>Nên đổi ngay sau lần đăng nhập đầu tiên.</p>
+                            <div class="guide-steps">
+                                <div class="guide-step">
+                                    <div class="guide-step-num">1</div>
+                                    <div>
+                                        <strong>Trên máy tính:</strong> góc phải trên thanh đỏ → bấm vào <strong>tên/avatar</strong> của bạn → chọn <strong>Đổi mật khẩu</strong>.<br>
+                                        <strong>Trên điện thoại:</strong> bấm icon <i class="bi bi-list"></i> góc trái trên → kéo xuống → <strong>Đổi mật khẩu</strong>.
+                                    </div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">2</div>
+                                    <div>Điền 3 ô: <strong>Mật khẩu hiện tại</strong> (mật khẩu cũ HR cấp), <strong>Mật khẩu mới</strong>, <strong>Xác nhận mật khẩu mới</strong> (gõ lại y hệt).</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">3</div>
+                                    <div>Bấm nút đỏ <strong>LƯU THAY ĐỔI</strong>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">4</div>
+                                    <div>Thấy trang xác nhận thành công → bấm <strong>Về trang chủ</strong>. Từ lần sau dùng mật khẩu mới.</div>
+                                </div>
+                            </div>
+                            <p class="text-muted small mb-0 mt-3">Quên mật khẩu: liên hệ HR/IT — hệ thống không tự gửi email khôi phục trừ khi IT đã bật.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. Screen -->
+                <div class="accordion-item border-0 shadow-sm rounded-4 mb-3 overflow-hidden" id="man-hinh">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c4">
+                            <i class="bi bi-layout-text-window text-hm me-2"></i> 5. Làm quen màn hình
+                        </button>
+                    </h2>
+                    <div id="c4" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+                        <div class="accordion-body">
+                            <h6 class="fw-bold text-hm"><i class="bi bi-phone me-1"></i> Trên điện thoại (dùng nhiều nhất ở xưởng)</h6>
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-6">
+                                    <div class="card bg-light border-0 h-100">
+                                        <div class="card-body small">
+                                            <strong>Thanh trên (đỏ):</strong>
+                                            <ul class="mb-0 mt-2">
+                                                <li>Logo JustPlay — bấm về Trang chủ</li>
+                                                <li>Icon <i class="bi bi-list"></i> góc trái — mở menu đầy đủ</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card bg-light border-0 h-100">
+                                        <div class="card-body small">
+                                            <strong>Thanh dưới cùng (5 nút):</strong>
+                                            <ul class="mb-0 mt-2">
+                                                <li><i class="bi bi-house-fill"></i> Trang chủ</li>
+                                                <li><i class="bi bi-megaphone-fill"></i> Thông báo <span class="text-danger">(số đỏ = tin chưa đọc)</span></li>
+                                                <li><i class="bi bi-clipboard-check-fill"></i> Báo cáo</li>
+                                                <li><i class="bi bi-graph-up-arrow"></i> KPI</li>
+                                                <li><i class="bi bi-mortarboard-fill"></i> Học</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <h6 class="fw-bold text-hm"><i class="bi bi-display me-1"></i> Trên máy tính</h6>
+                            <p>Thanh menu đỏ phía trên có các mục: <strong>Thông Báo · KPI · Báo Cáo</strong> (mọi người đều vào được).</p>
+                            <p>Các mục <strong>Tuyển dụng · Đào tạo · Kiểm tra · Nhân sự</strong> có icon khóa <i class="bi bi-lock-fill"></i> nếu bạn không phải quản trị — bình thường, nhân viên không cần vào.</p>
+                            <p class="mb-0">Góc phải: avatar + tên → <strong>Đổi mật khẩu</strong> hoặc <strong>Đăng xuất</strong>.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6. Roles -->
                 <div class="accordion-item border-0 shadow-sm rounded-4 mb-3 overflow-hidden" id="phan-quyen">
                     <h2 class="accordion-header">
                         <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c3">
-                            <i class="bi bi-shield-check text-hm me-2"></i> 3. Phân quyền người dùng
+                            <i class="bi bi-shield-check text-hm me-2"></i> 6. Phân quyền — ai làm được gì?
                         </button>
                     </h2>
                     <div id="c3" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
                         <div class="accordion-body">
                             <div class="table-responsive jp-table-wrap">
-                                <table class="table table-sm align-middle mb-0 jp-table">
+                                <table class="table table-sm align-middle mb-3 jp-table">
                                     <thead class="table-light">
-                                        <tr>
-                                            <th>Vai trò</th>
-                                            <th>Mô tả</th>
-                                            <th>Quyền chính</th>
-                                        </tr>
+                                        <tr><th>Vai trò</th><th>Ai?</th><th>Làm được gì?</th></tr>
                                     </thead>
                                     <tbody>
                                         <tr>
                                             <td><span class="badge bg-secondary">Nhân viên</span></td>
                                             <td>Công nhân may, cắt, QC…</td>
-                                            <td>Thông báo, báo cáo của mình, KPI cá nhân, học & thi</td>
+                                            <td>Đọc TB, nộp báo cáo, tự chấm KPI, học & thi</td>
                                         </tr>
                                         <tr>
                                             <td><span class="badge bg-primary">HOD</span></td>
-                                            <td>Tổ trưởng / Trưởng bộ phận</td>
-                                            <td>Xem báo cáo team, chấm KPI nhân viên, quản lý cấp dưới được gán</td>
+                                            <td>Tổ trưởng / Trưởng BP</td>
+                                            <td>+ Xem báo cáo team, chấm KPI cấp dưới, phản hồi BC</td>
                                         </tr>
                                         <tr>
                                             <td><span class="badge bg-danger">GM</span></td>
                                             <td>Giám đốc / Ban GĐ</td>
-                                            <td>Toàn bộ KPI, chốt điểm, quyền quản trị hệ thống</td>
+                                            <td>+ Chốt KPI, xem toàn bộ team</td>
                                         </tr>
                                         <tr>
                                             <td><span class="badge bg-dark">HR / Admin</span></td>
-                                            <td>Phòng nhân sự, IT</td>
-                                            <td>Tuyển dụng, tạo user, đào tạo, thi, thông báo, import Excel</td>
+                                            <td>Phòng NS, IT</td>
+                                            <td>Tạo user, TB, khóa học, đề thi, tuyển dụng, import Excel</td>
                                         </tr>
                                     </tbody>
                                 </table>
+                            </div>
+                            <p class="text-muted small mb-0">Không chắc vai trò của mình? Hỏi HR — hoặc thử vào <strong>Báo cáo</strong>: HOD sẽ thấy trang "Báo cáo team", nhân viên thấy "Báo cáo hôm nay".</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 7. Announcements -->
+                <div class="accordion-item border-0 shadow-sm rounded-4 mb-3 overflow-hidden" id="thong-bao">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c5">
+                            <i class="bi bi-megaphone-fill text-hm me-2"></i> 7. Thông báo — đọc & xác nhận
+                        </button>
+                    </h2>
+                    <div id="c5" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+                        <div class="accordion-body">
+                            <span class="badge bg-secondary mb-3">Dành cho nhân viên</span>
+                            <div class="guide-steps">
+                                <div class="guide-step">
+                                    <div class="guide-step-num">1</div>
+                                    <div>Bấm <strong>Thông báo</strong> (thanh dưới hoặc menu trên).</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">2</div>
+                                    <div>Nếu có tin chưa đọc → banner vàng: <em>"Bạn còn X thông báo chưa xác nhận đọc"</em>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">3</div>
+                                    <div>Mỗi thông báo có nhãn: <span class="badge bg-warning-subtle text-warning">Chưa đọc</span> hoặc <span class="badge bg-success-subtle text-success">Đã đọc</span>. Tin ghim có nhãn <span class="badge bg-danger-subtle text-danger">Ghim</span>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">4</div>
+                                    <div>Bấm nút đỏ <strong>Xem chi tiết</strong> trên thông báo cần đọc.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">5</div>
+                                    <div>Đọc nội dung — có thể là văn bản, PDF (xem trong khung), hoặc video (bấm nút Play).</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">6</div>
+                                    <div>Cuối trang, nếu có nút lớn <strong>Xác nhận đã đọc</strong> → bấm một lần. Trạng thái đổi sang xanh "Đã xác nhận đọc".</div>
+                                </div>
+                            </div>
+
+                            <hr class="my-4">
+                            <span class="badge bg-dark mb-3">Dành cho HR / Quản trị</span>
+                            <div class="guide-steps">
+                                <div class="guide-step">
+                                    <div class="guide-step-num">1</div>
+                                    <div>Vào <strong>Thông Báo</strong> → góc phải bấm <strong>Tạo thông báo</strong>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">2</div>
+                                    <div>Điền tiêu đề, tóm tắt, chọn loại (Văn bản / PDF / Video), tải file nếu cần.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">3</div>
+                                    <div>Tick <strong>Ghim</strong> nếu tin quan trọng; tick <strong>Bắt buộc xác nhận</strong> nếu cần nhân viên bấm xác nhận.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">4</div>
+                                    <div>Lưu → nhân viên sẽ thấy tin mới và số đỏ trên menu.</div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="accordion-item border-0 shadow-sm rounded-4 mb-3 overflow-hidden" id="menu">
-                    <h2 class="accordion-header">
-                        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c4">
-                            <i class="bi bi-layout-text-window text-hm me-2"></i> 4. Menu & điều hướng
-                        </button>
-                    </h2>
-                    <div id="c4" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
-                        <div class="accordion-body">
-                            <p><strong>Trên máy tính:</strong> thanh menu đỏ phía trên — Thông báo, KPI, Báo cáo (mọi người); Tuyển dụng, Đào tạo, Kiểm tra, Nhân sự (quản trị).</p>
-                            <p><strong>Trên điện thoại:</strong></p>
-                            <ul>
-                                <li>Icon <i class="bi bi-list"></i> góc trái → menu trượt đầy đủ</li>
-                                <li>Thanh dưới cùng → 5 chức năng hay dùng nhất</li>
-                            </ul>
-                            <p><strong>Trang chủ</strong> (<i class="bi bi-house"></i>): lối tắt tới Thông báo, Học tập, Kiểm tra, KPI, Báo cáo.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="accordion-item border-0 shadow-sm rounded-4 mb-3 overflow-hidden" id="thong-bao">
-                    <h2 class="accordion-header">
-                        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c5">
-                            <i class="bi bi-megaphone-fill text-hm me-2"></i> 5. Thông báo
-                        </button>
-                    </h2>
-                    <div id="c5" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
-                        <div class="accordion-body">
-                            <p><strong>Nhân viên:</strong></p>
-                            <ol>
-                                <li>Vào menu <strong>Thông Báo</strong> — số đỏ là tin chưa xác nhận.</li>
-                                <li>Chọn thông báo → đọc nội dung (văn bản / PDF / video).</li>
-                                <li>Bấm <strong>Xác nhận đã đọc</strong> nếu được yêu cầu.</li>
-                            </ol>
-                            <p><strong>Quản trị:</strong> Thông báo → Quản lý → Tạo mới (tiêu đề, loại nội dung, ghim, bắt buộc xác nhận).</p>
-                        </div>
-                    </div>
-                </div>
-
+                <!-- 8. Reports -->
                 <div class="accordion-item border-0 shadow-sm rounded-4 mb-3 overflow-hidden" id="bao-cao">
                     <h2 class="accordion-header">
                         <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c6">
-                            <i class="bi bi-clipboard-check-fill text-hm me-2"></i> 6. Báo cáo công việc hàng ngày
+                            <i class="bi bi-clipboard-check-fill text-hm me-2"></i> 8. Báo cáo công việc hàng ngày
                         </button>
                     </h2>
                     <div id="c6" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
                         <div class="accordion-body">
-                            <p>Dành cho xưởng sản xuất — báo cáo nhanh theo ca, công đoạn, đơn hàng.</p>
-                            <p><strong>Nhân viên — cuối ca hoặc cuối ngày:</strong></p>
-                            <ol>
-                                <li>Menu <strong>Báo Cáo</strong> → màn hình hôm nay.</li>
-                                <li>Chọn <strong>Ca</strong> (sáng / chiều / đêm).</li>
-                                <li>Nhập từng dòng: Công đoạn (May, Cắt, QC…), Mã đơn/Style, Tên SP, Sản lượng, ĐVT.</li>
-                                <li>Dùng <strong>Sao chép hôm qua</strong> nếu công việc lặp lại.</li>
-                                <li><strong>Lưu nháp</strong> (sửa tiếp được) hoặc <strong>Nộp cho HOD</strong>.</li>
-                            </ol>
-                            <p><strong>HOD / Quản lý:</strong></p>
-                            <ol>
-                                <li>Báo cáo → tự vào trang <strong>Team</strong>.</li>
-                                <li>Chọn ngày → xem ai đã nộp / chưa nộp.</li>
-                                <li>Mở chi tiết → đánh dấu <em>Đã xem</em>, ghi chú phản hồi.</li>
-                            </ol>
+                            <p>Báo cáo sản lượng theo ca — mỗi dòng = một công đoạn / một đơn hàng. <strong>Nộp trước khi tan ca</strong> (hoặc theo quy định tổ).</p>
+
+                            <span class="badge bg-secondary mb-3">Nhân viên — nộp báo cáo</span>
+                            <div class="guide-steps">
+                                <div class="guide-step">
+                                    <div class="guide-step-num">1</div>
+                                    <div>Bấm <strong>Báo cáo</strong> (menu dưới) → vào trang <strong>Báo cáo hôm nay</strong>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">2</div>
+                                    <div>Chọn <strong>Ca làm</strong>: Sáng / Chiều / Đêm (đúng ca bạn đang báo).</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">3</div>
+                                    <div>Điền từng dòng trong bảng:
+                                        <ul class="mt-2 mb-0">
+                                            <li><strong>Công đoạn</strong> — May, Cắt, QC, KHSX…</li>
+                                            <li><strong>Mã đơn/Style</strong> — ví dụ <code>JP-2026-001</code></li>
+                                            <li><strong>Tên SP</strong> — ví dụ <code>Áo thun team A</code></li>
+                                            <li><strong>SL</strong> — số lượng (chỉ nhập số)</li>
+                                            <li><strong>ĐVT</strong> — cái, bộ, mét…</li>
+                                            <li><strong>Ghi chú</strong> — tuỳ chọn (lỗi, chuyển ca…)</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">4</div>
+                                    <div>Cần thêm dòng → bấm <strong>+ Thêm dòng</strong>. Xóa dòng → bấm icon <i class="bi bi-x-lg text-danger"></i> bên phải.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">5</div>
+                                    <div>Công việc giống hôm qua → bấm <strong>Sao chép hôm qua</strong> (nếu có nút này) → chỉnh lại số lượng.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">6</div>
+                                    <div>Chưa xong → bấm <strong>Lưu nháp</strong> (sửa tiếp được). Xong hết → bấm <strong>Nộp cho HOD</strong>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">7</div>
+                                    <div>Thấy banner xanh <em>"Đã nộp lúc …"</em> → thành công. Muốn sửa: chỉnh lại và bấm <strong>Nộp cho HOD</strong> lần nữa.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">8</div>
+                                    <div>Xem báo cáo ngày cũ → bấm <strong>Lịch sử</strong> góc phải trên.</div>
+                                </div>
+                            </div>
+
+                            <hr class="my-4">
+                            <span class="badge bg-primary mb-3">Tổ trưởng (HOD) — theo dõi team</span>
+                            <div class="guide-steps">
+                                <div class="guide-step">
+                                    <div class="guide-step-num">1</div>
+                                    <div>Bấm <strong>Báo cáo</strong> → tự vào <strong>Báo cáo team</strong> (không phải trang hôm nay của NV).</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">2</div>
+                                    <div>Chọn <strong>Ngày</strong> → bấm <strong>Xem</strong>. Xem 3 ô thống kê: tổng NV / đã nộp / chưa nộp.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">3</div>
+                                    <div>Trong bảng, bấm <strong>Chi tiết</strong> (hoặc tên NV) để xem từng dòng công việc.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">4</div>
+                                    <div>Phần <strong>Phản hồi HOD</strong>: tick <strong>Đã xem / xác nhận</strong>, ghi chú ngắn → <strong>Lưu phản hồi</strong>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">5</div>
+                                    <div>HOD cũng nộp BC cá nhân → bấm <strong>Báo cáo của tôi</strong>.</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
+                <!-- 9. KPI -->
                 <div class="accordion-item border-0 shadow-sm rounded-4 mb-3 overflow-hidden" id="kpi">
                     <h2 class="accordion-header">
                         <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c7">
-                            <i class="bi bi-graph-up-arrow text-hm me-2"></i> 7. Đánh giá KPI
+                            <i class="bi bi-graph-up-arrow text-hm me-2"></i> 9. Đánh giá KPI
                         </button>
                     </h2>
                     <div id="c7" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
                         <div class="accordion-body">
-                            <p>Luồng chấm điểm: <strong>Nhân viên tự chấm → HOD chấm → GM chốt</strong> (theo quý hoặc kỳ).</p>
-                            <p><strong>Nhân viên:</strong></p>
-                            <ol>
-                                <li>Menu <strong>Hiệu suất (KPI)</strong> → chọn bảng KPI năm.</li>
-                                <li>Điền điểm tự đánh giá khi kỳ đang mở (admin bật kỳ Q1/Q2…).</li>
-                                <li>Nộp cho quản lý khi hoàn tất.</li>
-                            </ol>
-                            <p><strong>HOD:</strong> Xem KPI team → chấm điểm → nộp lên GM.</p>
-                            <p><strong>GM / HR:</strong> Giao KPI mới, import Excel, mở/khóa kỳ chấm điểm.</p>
+                            <p>Luồng chấm điểm: <strong>Bạn tự chấm → HOD chấm → GM chốt</strong> (theo quý Q1, Q2, Q3, Q4).</p>
+
+                            <span class="badge bg-secondary mb-3">Nhân viên</span>
+                            <div class="guide-steps">
+                                <div class="guide-step">
+                                    <div class="guide-step-num">1</div>
+                                    <div>Bấm <strong>KPI</strong> (menu) → thấy <strong>Bảng KPI Tổng Thể - Năm 20XX</strong>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">2</div>
+                                    <div>Bấm vào bảng KPI của bạn → mở trang chi tiết (bảng nhiều cột, có thể kéo ngang trên điện thoại).</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">3</div>
+                                    <div>Tìm cột kỳ đang mở (Q1, Q2…) — ô điểm <strong>trắng, gõ được</strong> = đang mở. Ô xám = chưa mở hoặc đã khóa.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">4</div>
+                                    <div>Điền điểm tự đánh giá (thang thường 0–100 hoặc theo quy định công ty).</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">5</div>
+                                    <div>Bấm <strong>Lưu</strong> / <strong>Nộp</strong> (nút ở cuối trang) khi hoàn tất.</div>
+                                </div>
+                            </div>
+
+                            <hr class="my-4">
+                            <span class="badge bg-primary mb-3">HOD / GM</span>
+                            <p class="small">Vào KPI → phần <strong>Team / Cấp dưới</strong> → chọn nhân viên → chấm điểm ở cột quản lý tương ứng.</p>
+                            <span class="badge bg-dark mb-3">HR / Admin</span>
+                            <p class="small mb-0">Nút <strong>Giao KPI Mới</strong>, <strong>Import Excel</strong>, <strong>Quản lý Kỳ Đánh giá</strong> — dùng để tạo bảng KPI và mở/khóa từng quý.</p>
                         </div>
                     </div>
                 </div>
 
+                <!-- 10. Training -->
                 <div class="accordion-item border-0 shadow-sm rounded-4 mb-3 overflow-hidden" id="dao-tao">
                     <h2 class="accordion-header">
                         <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c8">
-                            <i class="bi bi-mortarboard-fill text-hm me-2"></i> 8. Đào tạo (E-Learning)
+                            <i class="bi bi-mortarboard-fill text-hm me-2"></i> 10. Đào tạo (E-Learning)
                         </button>
                     </h2>
                     <div id="c8" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
                         <div class="accordion-body">
-                            <p><strong>Nhân viên:</strong></p>
-                            <ol>
-                                <li>Trang chủ → <strong>Học tập</strong> hoặc menu mobile <strong>Học</strong>.</li>
-                                <li>Chọn khóa được giao → học từng bài (video / PDF / bài đọc).</li>
-                                <li>Đánh dấu hoàn thành bài → tiến độ % cập nhật.</li>
-                                <li>Nếu có bài thi cuối khóa → làm ở mục <strong>Kiểm tra</strong>.</li>
-                            </ol>
-                            <p><strong>Quản trị:</strong> Bảng điều khiển → tab Đào tạo → tạo khóa, chương, bài học, giao cho nhân viên (theo chức danh / vai trò).</p>
+                            <span class="badge bg-secondary mb-3">Nhân viên</span>
+                            <div class="guide-steps">
+                                <div class="guide-step">
+                                    <div class="guide-step-num">1</div>
+                                    <div>Trang chủ → <strong>Học tập</strong> hoặc menu dưới → <strong>Học</strong>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">2</div>
+                                    <div>Trang <strong>Không gian học tập</strong> — lọc: Tất cả / Đang học / Chưa bắt đầu / Đã hoàn thành.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">3</div>
+                                    <div>Chọn khóa → bấm <strong>BẮT ĐẦU HỌC</strong> hoặc <strong>TIẾP TỤC HỌC</strong>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">4</div>
+                                    <div>Bên phải (hoặc kéo xuống trên điện thoại): danh sách chương & bài. Bấm từng bài để mở.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">5</div>
+                                    <div>Đọc / xem video / PDF. Xem xong → bấm <strong>Đánh dấu hoàn thành</strong> (nút đỏ dưới bài).</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">6</div>
+                                    <div>Thanh tiến độ trên cùng tăng dần. Hết 100% → nếu có thi cuối khóa, bấm <strong>LÀM BÀI THI CUỐI KHÓA</strong>.</div>
+                                </div>
+                            </div>
+                            <p class="text-muted small mt-3 mb-0">Không thấy khóa nào → HR chưa giao — liên hệ quản lý.</p>
                         </div>
                     </div>
                 </div>
 
+                <!-- 11. Exams -->
                 <div class="accordion-item border-0 shadow-sm rounded-4 mb-3 overflow-hidden" id="kiem-tra">
                     <h2 class="accordion-header">
                         <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c9">
-                            <i class="bi bi-journal-check text-hm me-2"></i> 9. Kiểm tra / Bài thi
+                            <i class="bi bi-journal-check text-hm me-2"></i> 11. Kiểm tra / Bài thi
                         </button>
                     </h2>
                     <div id="c9" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
                         <div class="accordion-body">
-                            <p><strong>Nhân viên:</strong></p>
-                            <ol>
-                                <li>Trang chủ → <strong>Kiểm tra</strong> hoặc menu mobile.</li>
-                                <li>Chọn đề được giao (còn hạn, đang mở).</li>
-                                <li>Làm bài trong thời gian quy định → nộp bài.</li>
-                                <li>Trắc nghiệm chấm tự động; tự luận chờ HR chấm.</li>
-                            </ol>
-                            <p><strong>Quản trị:</strong> Tab Kiểm tra → tạo đề, ngân hàng câu hỏi, giao thí sinh, chấm bài tự luận.</p>
+                            <div class="alert alert-danger border-0 small">
+                                <i class="bi bi-alarm me-1"></i>
+                                <strong>Lưu ý:</strong> Bài thi có <strong>giới hạn thời gian</strong>. Bấm <strong>BẮT ĐẦU THI NGAY</strong> chỉ khi bạn sẵn sàng, không bị gián đoạn.
+                            </div>
+                            <div class="guide-steps">
+                                <div class="guide-step">
+                                    <div class="guide-step-num">1</div>
+                                    <div>Trang chủ → <strong>Kiểm tra</strong> (hoặc menu trượt trên điện thoại).</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">2</div>
+                                    <div>Trang <strong>Đánh giá Năng lực</strong> — thẻ bài thi có nhãn <span class="badge bg-danger-subtle text-danger">ĐANG MỞ</span> hoặc <span class="badge bg-success-subtle text-success">HOÀN THÀNH</span>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">3</div>
+                                    <div>Đọc <strong>Thời gian làm bài</strong> và <strong>Hạn chót nộp</strong> trên thẻ.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">4</div>
+                                    <div>Bấm <strong>BẮT ĐẦU THI NGAY</strong> → làm từng câu → nộp bài trước khi hết giờ.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">5</div>
+                                    <div>Trắc nghiệm: chấm ngay, bấm <strong>XEM KẾT QUẢ CHI TIẾT</strong>. Tự luận: chờ HR chấm.</div>
+                                </div>
+                            </div>
+                            <p class="text-muted small mb-0 mt-3">Thấy <em>"Hiện không có kỳ thi nào dành cho bạn"</em> → chưa được HR giao đề hoặc đã hết hạn.</p>
                         </div>
                     </div>
                 </div>
 
+                <!-- 12. Admin -->
                 <div class="accordion-item border-0 shadow-sm rounded-4 mb-3 overflow-hidden" id="quan-tri">
                     <h2 class="accordion-header">
                         <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c10">
-                            <i class="bi bi-gear-fill text-hm me-2"></i> 10. Quản trị (HR / Ban quản lý)
+                            <i class="bi bi-gear-fill text-hm me-2"></i> 12. Quản trị (HR / Ban quản lý)
                         </button>
                     </h2>
                     <div id="c10" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
                         <div class="accordion-body">
-                            <h6 class="fw-bold">Quản lý nhân sự</h6>
-                            <ul>
-                                <li>Menu <strong>Nhân sự</strong> → thêm / sửa / xóa tài khoản</li>
-                                <li>Gán vai trò (NV, HOD, GM) và danh sách cấp dưới cho HOD</li>
-                                <li>Import / Export Excel — tải file mẫu trước khi import</li>
-                                <li>Reset mật khẩu → copy gửi cho nhân viên</li>
-                            </ul>
-                            <h6 class="fw-bold mt-3">Tuyển dụng (Kanban)</h6>
-                            <ul>
-                                <li>Bảng điều khiển → Tuyển dụng → Kanban ứng viên</li>
-                                <li>Kéo thả trạng thái: Mới → Xem xét → Phỏng vấn → Trúng tuyển</li>
-                                <li>Cột <strong>Trúng tuyển</strong> → <strong>Tạo User</strong> tự sinh tài khoản @justplay.vn</li>
-                            </ul>
+                            <p class="text-muted small">Chỉ tài khoản có quyền quản trị (<code>is_staff</code>) mới thấy menu không khóa.</p>
+
+                            <h6 class="fw-bold mt-3"><i class="bi bi-people-fill me-1 text-hm"></i> Quản lý nhân sự</h6>
+                            <div class="guide-steps">
+                                <div class="guide-step">
+                                    <div class="guide-step-num">1</div>
+                                    <div>Menu <strong>Nhân sự</strong> → danh sách tài khoản.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">2</div>
+                                    <div><strong>Thêm mới</strong> — điền họ tên, username, vai trò (NV/HOD/GM), chức danh.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">3</div>
+                                    <div>Với HOD: gán <strong>danh sách cấp dưới</strong> để họ xem báo cáo & KPI team.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">4</div>
+                                    <div><strong>Import Excel</strong> — tải file mẫu trước, điền đúng cột, rồi import.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">5</div>
+                                    <div><strong>Reset mật khẩu</strong> — copy mật khẩu mới gửi cho nhân viên (nhắc họ đổi ngay).</div>
+                                </div>
+                            </div>
+
+                            <h6 class="fw-bold mt-4"><i class="bi bi-kanban me-1 text-hm"></i> Tuyển dụng (Kanban)</h6>
+                            <div class="guide-steps">
+                                <div class="guide-step">
+                                    <div class="guide-step-num">1</div>
+                                    <div>Menu <strong>Tuyển dụng</strong> → Bảng Kanban 4 cột.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">2</div>
+                                    <div>Kéo thả ứng viên: Mới → Xem xét → Phỏng vấn → Trúng tuyển.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">3</div>
+                                    <div>Ứng viên <strong>Trúng tuyển</strong> → bấm <strong>Tạo User</strong> → hệ thống sinh tài khoản <code>@justplay.vn</code>.</div>
+                                </div>
+                            </div>
+
+                            <h6 class="fw-bold mt-4"><i class="bi bi-mortarboard me-1 text-hm"></i> Đào tạo & Kiểm tra</h6>
+                            <p class="small mb-0">Menu <strong>Đào tạo</strong> / <strong>Kiểm tra</strong> → Bảng điều khiển → tạo khóa học, chương, bài học; tạo đề thi, giao thí sinh, chấm bài tự luận.</p>
                         </div>
                     </div>
                 </div>
 
+                <!-- 13. FAQ -->
                 <div class="accordion-item border-0 shadow-sm rounded-4 mb-3 overflow-hidden" id="faq">
                     <h2 class="accordion-header">
                         <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c11">
-                            <i class="bi bi-question-circle-fill text-hm me-2"></i> 11. Câu hỏi thường gặp
+                            <i class="bi bi-question-circle-fill text-hm me-2"></i> 13. Câu hỏi thường gặp
                         </button>
                     </h2>
                     <div id="c11" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
                         <div class="accordion-body">
                             <dl class="mb-0">
-                                <dt class="fw-bold">Không vào được menu Tuyển dụng / Nhân sự?</dt>
-                                <dd class="text-muted">Chức năng dành cho tài khoản quản trị (HR/GM). Liên hệ IT nếu bạn cần quyền.</dd>
+                                <dt class="fw-bold">Đăng nhập báo "Sai tài khoản hoặc mật khẩu"?</dt>
+                                <dd class="text-muted">Kiểm tra Caps Lock, gõ đủ <code>@justplay.vn</code>. Vẫn lỗi → HR reset mật khẩu.</dd>
+
+                                <dt class="fw-bold mt-3">Menu có icon khóa, bấm báo "Vui lòng không truy cập"?</dt>
+                                <dd class="text-muted">Bình thường — chức năng dành cho HR/GM. Liên hệ IT nếu công việc thực sự cần quyền.</dd>
+
                                 <dt class="fw-bold mt-3">Báo cáo nộp rồi muốn sửa?</dt>
-                                <dd class="text-muted">Vẫn mở lại màn hình hôm nay, chỉnh và nộp lại.</dd>
-                                <dt class="fw-bold mt-3">KPI không gõ được điểm?</dt>
-                                <dd class="text-muted">Kỳ chấm điểm có thể đang khóa — chờ HR/GM mở kỳ (Q1, Q2…).</dd>
+                                <dd class="text-muted">Vào lại <strong>Báo cáo hôm nay</strong>, chỉnh và bấm <strong>Nộp cho HOD</strong> lại.</dd>
+
+                                <dt class="fw-bold mt-3">KPI không gõ được điểm (ô xám)?</dt>
+                                <dd class="text-muted">Kỳ chấm (Q1, Q2…) đang khóa — chờ HR/GM mở kỳ.</dd>
+
                                 <dt class="fw-bold mt-3">Không thấy bài thi / khóa học?</dt>
-                                <dd class="text-muted">Chưa được HR giao — liên hệ quản lý trực tiếp.</dd>
+                                <dd class="text-muted">HR chưa giao cho bạn — liên hệ quản lý trực tiếp hoặc phòng đào tạo.</dd>
+
+                                <dt class="fw-bold mt-3">Thi bị mất kết nối giữa chừng?</dt>
+                                <dd class="text-muted">Thử vào lại mục Kiểm tra. Nếu đã nộp → xem kết quả. Nếu chưa → liên hệ IT kèm tên bài thi.</dd>
+
+                                <dt class="fw-bold mt-3">Trang load chậm trên điện thoại?</dt>
+                                <dd class="text-muted">Kiểm tra sóng Wi-Fi/4G. Tắt mở lại trình duyệt. Tránh mở quá nhiều tab.</dd>
+
                                 <dt class="fw-bold mt-3">Hỗ trợ kỹ thuật?</dt>
-                                <dd class="text-muted mb-0">Email <a href="mailto:support@justplay.vn">support@justplay.vn</a> hoặc phòng IT nội bộ.</dd>
+                                <dd class="text-muted mb-0">Email <a href="mailto:support@justplay.vn">support@justplay.vn</a> hoặc phòng IT nội bộ. Ghi rõ: họ tên, username, màn hình đang dùng, chụp màn hình lỗi nếu có.</dd>
                             </dl>
                         </div>
                     </div>
@@ -303,9 +657,12 @@
 
             </div>
 
-            <div class="text-center mt-4">
+            <div class="text-center mt-4 d-flex flex-wrap justify-content-center gap-2">
                 <a href="{% url 'home_portal' %}" class="btn btn-hm rounded-pill px-4">
                     <i class="bi bi-house me-1"></i> Về trang chủ
+                </a>
+                <a href="{% url 'announcements:list' %}" class="btn btn-outline-hm rounded-pill px-4">
+                    <i class="bi bi-megaphone me-1"></i> Xem thông báo
                 </a>
             </div>
         </div>
@@ -317,5 +674,18 @@
 .guide-toc .nav-link:hover { color: #dc2626; border-left-color: #dc2626; }
 .guide-accordion .accordion-button:not(.collapsed) { background: rgba(220,38,38,.06); color: #b91c1c; box-shadow: none; }
 .guide-accordion .accordion-button:focus { box-shadow: none; border-color: transparent; }
+
+.guide-steps { display: flex; flex-direction: column; gap: 0.85rem; }
+.guide-step {
+    display: flex; gap: 0.85rem; align-items: flex-start;
+    padding: 0.85rem 1rem; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0;
+    font-size: 0.95rem; line-height: 1.55;
+}
+.guide-step-num {
+    flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
+    background: #dc2626; color: #fff; font-weight: 700; font-size: 0.85rem;
+    display: flex; align-items: center; justify-content: center;
+}
+.guide-step ul { padding-left: 1.1rem; }
 </style>
 {% endblock %}

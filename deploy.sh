@@ -109,5 +109,6 @@ docker image prune -f
 echo ""
 echo "Deploy completed successfully."
 echo ""
+echo "Auto deploy: xem docs/HUONG_DAN_AUTO_DEPLOY.md"
 echo "Optional — tạo dữ liệu demo:"
 echo "  docker compose exec web python manage.py seed_demo_data"
