@@ -2,8 +2,53 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from ckeditor.fields import RichTextField
 
 from hrm.choices import DEFAULT_POSITION, POSITION_CHOICES
+
+
+class UserGuide(models.Model):
+    """Singleton — nội dung trang Hướng dẫn (pk=1)."""
+    title = models.CharField(
+        max_length=255,
+        default='Hướng dẫn sử dụng JustPlay Portal',
+        verbose_name='Tiêu đề',
+    )
+    subtitle = models.TextField(
+        blank=True,
+        default=(
+            'Hướng dẫn từng bước — dành cho người chưa từng dùng hệ thống. '
+            'Đọc theo thứ tự hoặc nhảy tới mục bạn cần.'
+        ),
+        verbose_name='Mô tả ngắn',
+    )
+    body = RichTextField(blank=True, verbose_name='Nội dung')
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='guide_updates',
+        verbose_name='Cập nhật bởi',
+    )
+
+    class Meta:
+        verbose_name = 'Hướng dẫn sử dụng'
+        verbose_name_plural = 'Hướng dẫn sử dụng'
+
+    def __str__(self):
+        return self.title
+
+    @classmethod
+    def load(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    @property
+    def has_content(self):
+        from django.utils.html import strip_tags
+        return bool(strip_tags(self.body or '').strip())
 
 
 class Profile(models.Model):

@@ -112,6 +112,12 @@
                         <i class="bi bi-clipboard-check-fill me-1"></i> Báo Cáo
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if 'huong-dan' in request.path %}active{% endif %}"
+                       href="{% url 'user_guide' %}">
+                        <i class="bi bi-journal-text me-1"></i> Hướng dẫn
+                    </a>
+                </li>
             </ul>
 
             <ul class="navbar-nav">
@@ -235,67 +241,6 @@
     {% block content %}
     {% endblock %}
 </main>
-
-<footer class="footer">
-    <div class="container-fluid px-3 px-lg-4 d-none d-lg-block pt-5">
-        <div class="row mb-4">
-            <div class="col-lg-4 mb-4 mb-lg-0">
-                <h5 class="text-white fw-bold mb-3 d-flex align-items-center">
-                    <img src="{% static 'images/logo/logo.png' %}" alt="Logo JustPlay" class="me-3"
-                        style="height: 40px; width: auto; object-fit: contain; filter: brightness(0) invert(1);">
-                    JUSTPLAY.VN
-                </h5>
-                <p class="small lh-lg text-white-50">Hệ thống Quản trị Nhân sự & Đào tạo trực tuyến của JustPlay.</p>
-            </div>
-            <div class="col-lg-2 col-md-4 mb-4 mb-md-0">
-                <div class="footer-heading">Phân hệ</div>
-                <ul class="list-unstyled small lh-lg">
-                    <li><a href="{% url 'announcements:list' %}"><i class="bi bi-chevron-right me-1"></i> Thông báo</a></li>
-                    <li><a href="{% url 'reports:hub' %}"><i class="bi bi-chevron-right me-1"></i> Báo cáo</a></li>
-                    <li><a href="{% url 'kpi_list' %}"><i class="bi bi-chevron-right me-1"></i> KPI</a></li>
-                    <li><a href="{% url 'my_courses' %}"><i class="bi bi-chevron-right me-1"></i> E-Learning</a></li>
-                </ul>
-            </div>
-            <div class="col-lg-3 col-md-4 mb-4 mb-md-0">
-                <div class="footer-heading">Hỗ trợ</div>
-                <ul class="list-unstyled small lh-lg">
-                    <li><a href="{% url 'user_guide' %}"><i class="bi bi-journal-text me-2"></i>Hướng dẫn sử dụng</a></li>
-                    <li><a href="mailto:support@justplay.vn"><i class="bi bi-headset me-2"></i>IT Support</a></li>
-                </ul>
-            </div>
-            <div class="col-lg-3 col-md-4">
-                <div class="footer-heading">Liên hệ</div>
-                <ul class="list-unstyled small lh-lg">
-                    <li class="mb-2"><i class="bi bi-envelope-at text-hm me-2"></i> support@justplay.vn</li>
-                    <li><i class="bi bi-geo-alt text-hm me-2"></i> JustPlay Việt Nam</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-
-    <div class="jp-footer-mobile d-lg-none">
-        <div class="jp-footer-mobile-inner">
-            <a href="{% url 'user_guide' %}" class="jp-footer-mobile-link {% if 'huong-dan' in request.path %}active{% endif %}">
-                <i class="bi bi-journal-text"></i>
-                <span>Hướng dẫn</span>
-            </a>
-            <a href="{% url 'exam_list' %}" class="jp-footer-mobile-link {% if 'exams' in request.path %}active{% endif %}">
-                <i class="bi bi-journal-check"></i>
-                <span>Kiểm tra</span>
-            </a>
-            <a href="mailto:support@justplay.vn" class="jp-footer-mobile-link">
-                <i class="bi bi-headset"></i>
-                <span>IT Support</span>
-            </a>
-        </div>
-    </div>
-
-    <div class="footer-bottom">
-        <div class="container-fluid px-3 px-lg-4 text-center text-md-start">
-            &copy; 2026 <strong>JustPlay.vn</strong>
-        </div>
-    </div>
-</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="{% static 'js/mobile.js' %}"></script>

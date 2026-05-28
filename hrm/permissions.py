@@ -91,6 +91,13 @@ def can_manage_kpi_for_others(user) -> bool:
     return is_manager(user) or is_portal_admin(user)
 
 
+def can_edit_user_guide(user) -> bool:
+    """Chỉnh sửa trang hướng dẫn — quản lý (HOD/GM) hoặc HR/quản trị portal."""
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    return is_manager(user) or is_portal_admin(user)
+
+
 def portal_admin_denied_message() -> str:
     return (
         'Chức năng dành cho Phòng Nhân sự / Quản trị hệ thống. '

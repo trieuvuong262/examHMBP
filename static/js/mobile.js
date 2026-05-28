@@ -72,8 +72,39 @@
         });
     }
 
+    function enhanceLongText() {
+        var clampSelectors = [
+            '.jp-text-clamp-1',
+            '.jp-text-clamp-2',
+            '.jp-text-clamp-3',
+            '.jp-text-clamp',
+            '.jp-text-truncate',
+            '.course-title',
+            '.exam-title',
+            '.card-title',
+            'main .card-body h5.fw-bold',
+            'main table td .fw-bold.text-dark',
+            'main table td h6.fw-bold',
+            '.jp-dashboard-item-title',
+            '.jp-dashboard-item-text',
+            '.kanban-card h6.fw-bold',
+            '.kanban-card p.text-hm',
+            '.portal-card h5'
+        ];
+
+        document.querySelectorAll(clampSelectors.join(',')).forEach(function (el) {
+            if (el.getAttribute('title')) return;
+            var text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+            if (!text) return;
+            if (el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2) {
+                el.setAttribute('title', text);
+            }
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         enhanceTables();
+        enhanceLongText();
         bindNavClose();
         setBottomNavActive();
     });

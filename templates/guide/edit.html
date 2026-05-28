@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block content %}
+{{ form.media }}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="jp-page-header mb-3">
+                <div>
+                    <h2 class="jp-page-title fw-bold text-hm mb-1">
+                        <i class="bi bi-pencil-square me-2"></i>Chỉnh sửa hướng dẫn
+                    </h2>
+                    <p class="text-muted mb-0 jp-hide-mobile-subtitle">
+                        Nội dung hiển thị cho toàn bộ nhân viên trên portal.
+                    </p>
+                </div>
+                <a href="{% url 'user_guide' %}" class="btn btn-outline-secondary rounded-pill fw-bold flex-fill flex-md-grow-0">
+                    <i class="bi bi-x-lg me-1"></i>Hủy
+                </a>
+            </div>
+
+            {% if is_new %}
+            <div class="alert alert-info border-0 shadow-sm mb-3">
+                <i class="bi bi-info-circle me-2"></i>
+                Đang tải nội dung mẫu mặc định. Bạn có thể chỉnh sửa và bấm <strong>Lưu</strong> để áp dụng.
+            </div>
+            {% endif %}
+
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="card-body p-4 p-md-5">
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Tiêu đề trang</label>
+                            {{ form.title }}
+                            {% if form.title.errors %}<div class="text-danger small">{{ form.title.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Mô tả ngắn</label>
+                            {{ form.subtitle }}
+                            {% if form.subtitle.errors %}<div class="text-danger small">{{ form.subtitle.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Nội dung hướng dẫn</label>
+                            <div class="border rounded-3 p-2 bg-white">
+                                {{ form.body }}
+                            </div>
+                            <div class="form-text">Soạn thảo bằng CKEditor — có thể dùng tiêu đề, danh sách, in đậm, liên kết...</div>
+                            {% if form.body.errors %}<div class="text-danger small">{{ form.body.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="submit" class="btn btn-hm rounded-pill fw-bold px-4">
+                                <i class="bi bi-check-lg me-1"></i>Lưu hướng dẫn
+                            </button>
+                            <a href="{% url 'user_guide' %}" class="btn btn-outline-secondary rounded-pill fw-bold">Xem trước</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

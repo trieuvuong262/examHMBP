@@ -50,8 +50,8 @@
                                 <span class="badge bg-warning-subtle text-warning"><i class="bi bi-circle"></i> Chưa đọc</span>
                                 {% endif %}
                             </div>
-                            <h5 class="fw-bold mb-2">{{ announcement.title }}</h5>
-                            <p class="text-muted mb-2">{{ announcement.summary|default:"Không có tóm tắt." }}</p>
+                            <h5 class="fw-bold mb-2 jp-text-clamp-2">{{ announcement.title }}</h5>
+                            <p class="text-muted mb-2 jp-text-clamp-3">{{ announcement.summary|default:"Không có tóm tắt." }}</p>
                             <small class="text-muted">
                                 <i class="bi bi-clock me-1"></i>{{ announcement.created_at|date:"d/m/Y H:i" }}
                                 {% if announcement.created_by %}
@@ -59,7 +59,7 @@
                                 {% endif %}
                             </small>
                         </div>
-                        <a href="{% url 'announcements:detail' announcement.pk %}" class="btn btn-hm rounded-pill px-4 fw-bold">
+                        <a href="{% url 'announcements:detail' announcement.pk %}" class="btn btn-hm rounded-pill fw-bold flex-shrink-0">
                             Xem chi tiết
                         </a>
                     </div>

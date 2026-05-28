@@ -64,7 +64,7 @@
                             {{ item.course.category.name|default:"Đào tạo chung" }}
                         </span>
                     </div>
-                    <h5 class="card-title fw-bold text-dark mb-3 lh-base course-title">{{ item.course.title }}</h5>
+                    <h5 class="card-title fw-bold text-dark mb-3 lh-base course-title jp-text-clamp-2">{{ item.course.title }}</h5>
                     
                     <div class="mt-auto">
                         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -163,14 +163,6 @@
 
     .btn-hover-lift { transition: transform 0.2s ease; }
     .btn-hover-lift:hover { transform: translateY(-2px); }
-    
-    .course-title {
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-        min-height: 3rem;
-    }
 
     .custom-pills .nav-link {
         color: #495057 !important;

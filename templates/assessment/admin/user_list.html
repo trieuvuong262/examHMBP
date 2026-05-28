@@ -91,7 +91,7 @@
                                     {{ u.profile.full_name|default:u.first_name|default:u.username|make_list|first|upper }}
                                 </div>
                                 <div class="text-start">
-                                    <div class="fw-bold text-dark">{{ u.profile.full_name|default:u.first_name|default:u.username }}</div>
+                                    <div class="fw-bold text-dark jp-text-clamp-2">{{ u.profile.full_name|default:u.first_name|default:u.username }}</div>
                                     <div class="small text-muted">ID #{{ u.id }}</div>
                                 </div>
                             </div>

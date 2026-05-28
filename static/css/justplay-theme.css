@@ -114,6 +114,227 @@ body.jp-auth main {
     color: #64748b;
     font-size: 0.875rem;
     margin: 0.25rem 0 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+/* --- Global text overflow (all pages) --- */
+.jp-text-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.jp-text-clamp-1,
+.jp-text-clamp-2,
+.jp-text-clamp-3,
+.jp-text-clamp {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    max-width: 100%;
+}
+
+.jp-text-clamp-1,
+.jp-text-clamp { -webkit-line-clamp: 1; }
+.jp-text-clamp-2 { -webkit-line-clamp: 2; }
+.jp-text-clamp-3 { -webkit-line-clamp: 3; }
+
+.jp-text-break {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    hyphens: auto;
+}
+
+/* Flex/grid children must shrink so ellipsis/clamp works */
+main .d-flex > :not(.flex-shrink-0):not(.btn):not(.badge):not(.input-group):not(.form-control):not(.form-select),
+main .d-flex > .flex-grow-1,
+main .card-body > .d-flex > div:first-child,
+main .jp-page-header > div:first-child,
+main .list-group-item .flex-grow-1,
+main .kanban-card .d-flex > h6 {
+    min-width: 0;
+}
+
+main h1, main h2, main h3, main h4, main h5, main h6,
+.modal-title {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    max-width: 100%;
+}
+
+/* Card / portal titles */
+main .card-title,
+main .course-title,
+main .exam-title,
+main .portal-card h5,
+main .card-body > h5.fw-bold,
+main .card-body h5.fw-bold.mb-1,
+main .card-body h5.fw-bold.mb-2,
+main .card-body h5.fw-bold.mb-3,
+main .jp-dashboard-item-title {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    -webkit-line-clamp: 2;
+}
+
+main .card-body > p.text-muted.mb-2,
+main .card-body > p.text-muted.mb-3,
+main .jp-dashboard-item-text {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    -webkit-line-clamp: 3;
+}
+
+/* Tables — wrap long cell content */
+main table.jp-table td,
+main .table-responsive table td,
+main .table-responsive table th {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+@media (min-width: 768px) {
+    main table.jp-table td:not(.jp-td-actions),
+    main .table-responsive table td:not(.jp-td-actions) {
+        max-width: 280px;
+    }
+
+    main table td .fw-bold.text-dark,
+    main table td h6.fw-bold,
+    main table td .course-title {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        -webkit-line-clamp: 2;
+    }
+
+    main table td .small.text-muted {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        -webkit-line-clamp: 1;
+    }
+}
+
+/* Kanban cards */
+.kanban-card h6.fw-bold.text-dark {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    -webkit-line-clamp: 2;
+}
+
+.kanban-card p.text-hm,
+.kanban-card .x-small.text-hm {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    -webkit-line-clamp: 2;
+    margin-bottom: 0.35rem !important;
+}
+
+/* Announcement / list cards — stack action button on mobile */
+main .card-body > .d-flex.justify-content-between.align-items-start {
+    gap: 0.75rem;
+}
+
+main .card-body > .d-flex.justify-content-between.align-items-start > .btn {
+    flex-shrink: 0;
+}
+
+@media (max-width: 767.98px) {
+    main .card-body > .d-flex.justify-content-between.align-items-start:not(.flex-wrap) {
+        flex-direction: column;
+        align-items: stretch !important;
+    }
+
+    main .card-body > .d-flex.justify-content-between.align-items-start > .btn {
+        width: 100%;
+    }
+}
+
+/* Nav / drawer / bottom bar */
+.navbar .text-truncate,
+.jp-mobile-drawer .offcanvas-body .fw-bold,
+.jp-bottom-nav a span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+.jp-mobile-drawer .offcanvas-body .fw-bold {
+    max-width: calc(100vw - 7rem);
+}
+
+/* Badges in tight rows */
+main .d-flex .badge,
+main .d-flex.align-items-center .badge {
+    flex-shrink: 0;
+    max-width: min(100%, 12rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Alerts, breadcrumbs, dropdowns */
+main .alert,
+.breadcrumb-item.active,
+.dropdown-item {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.breadcrumb {
+    flex-wrap: wrap;
+}
+
+/* Form read-only / mono text (emails, codes) */
+.jp-mono-text,
+main code,
+main .font-monospace {
+    overflow-wrap: anywhere;
+    word-break: break-all;
+}
+
+/* Long URLs and pre blocks */
+main a[href^="http"],
+main pre {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+@media (max-width: 767.98px) {
+    main .breadcrumb-item {
+        max-width: 100%;
+    }
+
+    main .breadcrumb-item.active {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    main .input-group[style*="width"] {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
 }
 
 /* --- Navbar --- */
@@ -721,88 +942,6 @@ textarea.form-control {
     font-size: 0.9rem;
 }
 
-/* --- Footer --- */
-.footer {
-    background-color: #1e293b;
-    color: #94a3b8;
-    margin-top: auto;
-}
-
-.footer-heading {
-    color: white;
-    font-weight: 600;
-    margin-bottom: 1rem;
-    font-size: 1rem;
-}
-
-.footer a {
-    color: #94a3b8;
-    text-decoration: none;
-}
-
-.footer a:hover {
-    color: var(--hm-primary);
-}
-
-.footer-bottom {
-    background-color: #0f172a;
-    padding: 0.85rem 0;
-    font-size: 0.8rem;
-}
-
-@media (max-width: 991.98px) {
-    body.jp-auth .footer {
-        margin-bottom: calc(var(--jp-bottom-nav-h) + var(--jp-safe-bottom));
-        padding-top: 0;
-    }
-
-    body.jp-auth .footer-bottom {
-        padding: 0.5rem 0;
-        font-size: 0.72rem;
-    }
-}
-
-/* --- Mobile footer strip (logged-in) --- */
-.jp-footer-mobile {
-    background: #1e293b;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    padding: 0.65rem max(0.75rem, env(safe-area-inset-left)) 0.5rem max(0.75rem, env(safe-area-inset-right));
-}
-
-.jp-footer-mobile-inner {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.35rem;
-}
-
-.jp-footer-mobile-link {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.2rem;
-    padding: 0.45rem 0.25rem;
-    border-radius: 10px;
-    color: #94a3b8;
-    text-decoration: none;
-    font-size: 0.68rem;
-    font-weight: 600;
-    line-height: 1.2;
-    text-align: center;
-    min-height: 52px;
-    transition: background 0.15s, color 0.15s;
-}
-
-.jp-footer-mobile-link i {
-    font-size: 1.1rem;
-}
-
-.jp-footer-mobile-link:hover,
-.jp-footer-mobile-link.active {
-    color: #fff;
-    background: rgba(220, 38, 38, 0.2);
-}
-
 /* --- Global mobile compact UI --- */
 @media (max-width: 767.98px) {
     main .container,
@@ -1390,6 +1529,59 @@ textarea.form-control {
     color: #475569;
     background: #f8fafc;
     border-top: 1px solid #e2e8f0;
+}
+
+/* Dynamic guide content (CKEditor) */
+.guide-prose {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.65;
+    font-size: 0.95rem;
+}
+
+.guide-prose img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+}
+
+.guide-prose table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.guide-prose .guide-steps,
+.jp-guide-page .guide-prose .guide-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.guide-prose .guide-step,
+.jp-guide-page .guide-prose .guide-step {
+    display: flex;
+    gap: 0.85rem;
+    align-items: flex-start;
+    padding: 0.85rem 1rem;
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+}
+
+.guide-prose .guide-step-num,
+.jp-guide-page .guide-prose .guide-step-num {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #dc2626;
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* --- HRM admin (user list / form) --- */
