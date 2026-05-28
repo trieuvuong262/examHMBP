@@ -71,7 +71,7 @@
                                         <strong>
                                             {% with hod_profile=kpi.employee.my_hod_managers.first %}
                                                 {% if hod_profile %}
-                                                    {{ hod_profile.full_name|default:hod_profile.user.username }}
+                                                    {{ hod_profile|profile_name }}
                                                 {% elif kpi.direct_manager %}
                                                     {{ kpi.direct_manager|display_name }}
                                                 {% else %}
