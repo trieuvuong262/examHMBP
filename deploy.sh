@@ -39,7 +39,8 @@ fi
 
 echo "==> 1) Pull latest code"
 git fetch --all --prune
-git reset --hard "origin/${BRANCH}"
+git checkout "${BRANCH}"
+git pull --ff-only origin "${BRANCH}"
 
 echo "==> 2) Start database first"
 docker compose -f "${COMPOSE_FILE}" up -d db
