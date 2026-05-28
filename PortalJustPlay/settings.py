@@ -129,6 +129,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'announcements.context_processors.unread_announcements',
+                'hrm.context_processors.portal_permissions',
             ],
         },
     },

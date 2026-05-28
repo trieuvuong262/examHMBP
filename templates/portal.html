@@ -3,13 +3,61 @@
 {% block content %}
 <div class="container jp-page portal-container">
     <div class="row w-100 justify-content-center g-3 g-md-4">
-        <div class="col-12 text-center mb-2 mb-md-4">
+        <div class="col-12 text-center mb-1 mb-md-2">
             <h2 class="fw-bold text-dark jp-page-title">Xin chào, {{ user.first_name|default:user.username }}!</h2>
-            <p class="text-muted jp-page-subtitle">Chào mừng bạn đến với cổng thông tin nội bộ JustPlay.vn</p>
+            <p class="text-muted jp-page-subtitle mb-0">Chào mừng bạn đến với cổng thông tin nội bộ JustPlay.vn</p>
+        </div>
+
+        <div class="col-12 col-xl-10">
+            {% if dashboard_widgets %}
+            <div class="jp-dashboard-panel mb-3 mb-md-4">
+                <div class="jp-dashboard-panel-header">
+                    <i class="bi bi-bell-fill me-2"></i>
+                    <span>Việc cần làm hôm nay</span>
+                    <span class="badge bg-white text-danger ms-auto">{{ dashboard_widgets|length }}</span>
+                </div>
+                <div class="jp-dashboard-list">
+                    {% for item in dashboard_widgets %}
+                    <a href="{{ item.url }}" class="jp-dashboard-item jp-dashboard-item--{{ item.level }}">
+                        <div class="jp-dashboard-item-icon">
+                            <i class="bi {{ item.icon }}"></i>
+                        </div>
+                        <div class="jp-dashboard-item-body">
+                            <div class="jp-dashboard-item-title">
+                                {{ item.title }}
+                                {% if item.badge %}
+                                <span class="badge rounded-pill ms-1">{{ item.badge }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="jp-dashboard-item-text">{{ item.text }}</div>
+                        </div>
+                        <div class="jp-dashboard-item-action d-none d-sm-flex">
+                            {{ item.action }} <i class="bi bi-chevron-right ms-1"></i>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% else %}
+            <div class="alert alert-success border-0 shadow-sm rounded-4 mb-3 mb-md-4 d-flex align-items-center gap-2">
+                <i class="bi bi-check-circle-fill fs-5"></i>
+                <div>
+                    <strong>Đã xong các việc chính hôm nay!</strong>
+                    <div class="small opacity-90">Không còn thông báo, báo cáo hay KPI nào cần xử lý ngay.</div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-12 text-center mb-2 d-none d-md-block">
+            <p class="text-muted small mb-0 text-uppercase fw-bold" style="letter-spacing: 0.06em;">Truy cập nhanh</p>
         </div>
 
         <div class="col-6 col-md-3">
-            <a href="{% url 'announcements:list' %}" class="card portal-card shadow-sm h-100 p-3 p-md-4 text-center">
+            <a href="{% url 'announcements:list' %}" class="card portal-card shadow-sm h-100 p-3 p-md-4 text-center position-relative">
+                {% if unread_announcements_count %}
+                <span class="portal-card-badge">{{ unread_announcements_count }}</span>
+                {% endif %}
                 <div class="icon-circle"><i class="bi bi-megaphone-fill"></i></div>
                 <h5 class="fw-bold text-dark mb-1">Thông báo</h5>
                 <p class="text-muted small mb-3 d-none d-md-block">Xem thông báo nội bộ và xác nhận đã đọc.</p>

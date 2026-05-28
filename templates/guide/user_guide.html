@@ -296,7 +296,7 @@
                                 <div>
                                     <h6 class="fw-bold text-hm"><i class="bi bi-display me-1"></i> Trên máy tính</h6>
                                     <p>Thanh menu đỏ phía trên có các mục: <strong>Thông Báo · KPI · Báo Cáo</strong> (mọi người đều vào được).</p>
-                                    <p>Các mục <strong>Tuyển dụng · Đào tạo · Kiểm tra · Nhân sự</strong> có icon khóa <i class="bi bi-lock-fill"></i> nếu bạn không phải quản trị — bình thường, nhân viên không cần vào.</p>
+                                    <p>Các mục <strong>Tuyển dụng · Đào tạo · Kiểm tra · Nhân sự</strong> chỉ hiện nếu bạn là HR/Quản trị — nhân viên thường không thấy các mục này.</p>
                                     <p class="mb-0">Góc phải: avatar + tên → <strong>Đổi mật khẩu</strong> hoặc <strong>Đăng xuất</strong>.</p>
                                 </div>
                                 <figure class="guide-figure">
@@ -346,7 +346,12 @@
                                     </tbody>
                                 </table>
                             </div>
-                            <p class="text-muted small mb-0">Không chắc vai trò của mình? Hỏi HR — hoặc thử vào <strong>Báo cáo</strong>: HOD sẽ thấy trang "Báo cáo team", nhân viên thấy "Báo cáo hôm nay".</p>
+                            <p class="text-muted small mb-2">Menu trên máy tính <strong>chỉ hiện</strong> chức năng bạn được phép — không còn mục khóa gây nhầm lẫn.</p>
+                            <ul class="small text-muted mb-0">
+                                <li><strong>Mọi người:</strong> Thông báo · KPI · Báo cáo (+ Học/Thi qua trang chủ hoặc menu mobile)</li>
+                                <li><strong>HOD / GM:</strong> thêm quyền xem báo cáo team, chấm KPI (theo <code>Profile.role</code>)</li>
+                                <li><strong>HR / Quản trị:</strong> thêm menu Tuyển dụng · Đào tạo · Kiểm tra · Nhân sự (tài khoản <code>is_staff</code>)</li>
+                            </ul>
                         </div>
                     </div>
                 </div>
@@ -659,7 +664,7 @@
                     </h2>
                     <div id="c10" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
                         <div class="accordion-body">
-                            <p class="text-muted small">Chỉ tài khoản có quyền quản trị (<code>is_staff</code>) mới thấy menu không khóa.</p>
+                            <p class="text-muted small">Chỉ tài khoản HR/Quản trị (<code>is_staff</code>) mới thấy menu Tuyển dụng, Đào tạo, Kiểm tra, Nhân sự.</p>
 
                             <h6 class="fw-bold mt-3"><i class="bi bi-people-fill me-1 text-hm"></i> Quản lý nhân sự</h6>
                             <div class="guide-steps">
@@ -720,8 +725,8 @@
                                 <dt class="fw-bold">Đăng nhập báo "Sai tài khoản hoặc mật khẩu"?</dt>
                                 <dd class="text-muted">Kiểm tra Caps Lock, gõ đủ <code>@justplay.vn</code>. Vẫn lỗi → HR reset mật khẩu.</dd>
 
-                                <dt class="fw-bold mt-3">Menu có icon khóa, bấm báo "Vui lòng không truy cập"?</dt>
-                                <dd class="text-muted">Bình thường — chức năng dành cho HR/GM. Liên hệ IT nếu công việc thực sự cần quyền.</dd>
+                                <dt class="fw-bold mt-3">Không thấy menu Tuyển dụng / Nhân sự?</dt>
+                                <dd class="text-muted">Các mục quản trị chỉ hiện với tài khoản HR/IT (<code>is_staff</code>). Nhân viên và HOD bình thường không thấy — liên hệ HR nếu cần quyền.</dd>
 
                                 <dt class="fw-bold mt-3">Báo cáo nộp rồi muốn sửa?</dt>
                                 <dd class="text-muted">Vào lại <strong>Báo cáo hôm nay</strong>, chỉnh và bấm <strong>Nộp cho HOD</strong> lại.</dd>

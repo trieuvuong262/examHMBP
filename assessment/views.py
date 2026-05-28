@@ -20,6 +20,8 @@ from django.contrib import messages
 from django.contrib.auth import logout
 from django.db.models import Q
 from kpi.models import YearlyKpi, KpiPeriod  # Import đúng Model mới
+from hrm.permissions import is_manager, is_portal_admin
+from .portal_widgets import get_portal_dashboard
 from .models import (
     Exam, 
     Question, 
@@ -44,7 +46,7 @@ def login_redirect_view(request):
     để điều hướng về đúng trang.
     """
     # Nếu user có quyền Admin (is_staff hoặc is_superuser)
-    if request.user.is_staff or request.user.is_superuser:
+    if is_portal_admin(request.user):
         return redirect('admin_dashboard') # Chuyển qua http://ip/dashboard
     
     # Nếu là User bình thường
@@ -52,32 +54,11 @@ def login_redirect_view(request):
 
 @login_required
 def home_portal(request):
-    profile = request.user.profile
-    
-    # 1. Lấy Bảng KPI cá nhân của nhân viên (All-in-one Board)
-    my_kpis = YearlyKpi.objects.filter(employee=request.user).order_by('-year')
-    
-    # 2. Lấy danh sách KPI của cấp dưới (Nếu user là HOD hoặc GM)
-    team_kpis = YearlyKpi.objects.none()
-    
-    if profile.role == 'GM' or request.user.is_superuser:
-        # GM thấy tất cả trừ chính mình
-        team_kpis = YearlyKpi.objects.exclude(employee=request.user).order_by('-year')
-    elif profile.role == 'HOD':
-        # HOD thấy nhân viên thuộc subordinates hoặc mình là direct_manager
-        subordinates = profile.subordinates.all()
-        team_kpis = YearlyKpi.objects.filter(
-            Q(employee__in=subordinates) | Q(direct_manager=request.user)
-        ).exclude(employee=request.user).distinct().order_by('-year')
-
-    # 3. Lấy thông tin các kỳ đang mở để hiển thị thông báo nhắc nhở (nếu cần)
-    active_periods = KpiPeriod.objects.filter(is_active=True)
+    dashboard_widgets = get_portal_dashboard(request.user)
 
     return render(request, 'portal.html', {
-        'my_kpis': my_kpis,
-        'team_kpis': team_kpis,
-        'active_periods': active_periods,
-        'is_manager_or_gm': profile.role in ['HOD', 'GM'] or request.user.is_superuser
+        'dashboard_widgets': dashboard_widgets,
+        'is_manager_or_gm': is_manager(request.user),
     })
 
 @login_required
@@ -143,7 +124,7 @@ def take_exam(request, exam_id):
         assigned_users=request.user
     ).exists()
 
-    if not (is_assigned_directly or is_assigned_via_course or request.user.is_staff):
+    if not (is_assigned_directly or is_assigned_via_course or is_portal_admin(request.user)):
         messages.error(request, "Bạn không có quyền tham gia kỳ thi này.")
         return redirect('exam_list')
 

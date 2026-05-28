@@ -4,6 +4,8 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.shortcuts import redirect
 
+from hrm.permissions import is_portal_admin, portal_admin_denied_message
+
 
 def _wants_json_response(request):
     accept = request.headers.get('Accept', '')
@@ -18,14 +20,15 @@ def _wants_json_response(request):
 
 def admin_only(view_func):
     """
-    Chỉ cho phép staff. Request AJAX/fetch nhận JSON thay vì redirect HTML.
+    Chỉ cho phép quản trị portal (is_staff / HR / GM).
+    Request AJAX/fetch nhận JSON thay vì redirect HTML.
     """
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
-        if request.user.is_authenticated and request.user.is_staff:
+        if request.user.is_authenticated and is_portal_admin(request.user):
             return view_func(request, *args, **kwargs)
 
-        message = 'Chức năng này chỉ dành cho Ban Quản Trị Hệ Thống!'
+        message = portal_admin_denied_message()
         if _wants_json_response(request):
             return JsonResponse({'status': 'error', 'message': message}, status=403)
 

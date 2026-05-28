@@ -5,6 +5,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from assessment.decorators import admin_only
 
+from hrm.permissions import is_portal_admin
+
 from .forms import AnnouncementForm
 from .models import Announcement, AnnouncementRead
 
@@ -27,7 +29,7 @@ def announcement_list(request):
 
     context = {
         'items': items,
-        'is_admin': request.user.is_staff,
+        'is_admin': is_portal_admin(request.user),
         'unread_count': sum(1 for x in items if not x['is_read']),
     }
     return render(request, 'announcements/list.html', context)
@@ -52,7 +54,7 @@ def announcement_detail(request, pk):
     context = {
         'announcement': announcement,
         'is_read': is_read,
-        'is_admin': request.user.is_staff,
+        'is_admin': is_portal_admin(request.user),
     }
     return render(request, 'announcements/detail.html', context)
 

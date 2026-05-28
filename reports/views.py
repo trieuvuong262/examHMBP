@@ -7,28 +7,18 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.contrib import messages
 
+from hrm.permissions import can_view_team_reports, get_report_team_users, is_gm, is_hod, is_portal_admin
+
 from .forms import DailyWorkReportForm, DailyWorkReportLineFormSet
 from .models import DailyWorkReport
 
 
-def _get_profile(user):
-    return getattr(user, 'profile', None)
-
-
 def _is_hod_or_above(user):
-    profile = _get_profile(user)
-    if user.is_staff or user.is_superuser:
-        return True
-    return profile and profile.role in {'HOD', 'GM'}
+    return can_view_team_reports(user)
 
 
 def _team_users(viewer):
-    profile = _get_profile(viewer)
-    if viewer.is_staff or viewer.is_superuser or (profile and profile.role == 'GM'):
-        return User.objects.filter(is_active=True).select_related('profile').order_by('profile__full_name', 'username')
-    if profile and profile.role == 'HOD':
-        return profile.subordinates.filter(is_active=True).select_related('profile').order_by('profile__full_name', 'username')
-    return User.objects.none()
+    return get_report_team_users(viewer)
 
 
 @login_required
