@@ -14,7 +14,7 @@
     <div class="row g-3 g-md-4">
         {% for exam in active_exams %}
         <div class="col-md-6 col-lg-4">
-            <div class="card h-100 border-0 shadow-sm exam-card transition-all rounded-4 overflow-hidden">
+            <div class="card h-100 border-0 shadow-sm exam-card transition-all overflow-hidden">
                 <div class="card-body p-3 p-md-4">
                     <div class="d-flex justify-content-between align-items-start mb-3">
                         <div class="bg-hm-subtle text-hm rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
@@ -22,11 +22,11 @@
                         </div>
                         
                         {% if exam.id in completed_exam_ids %}
-                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill py-2 px-3 fw-bold">
+                            <span class="badge bg-success-subtle text-success border border-success-subtle py-2 px-3 fw-bold">
                                 <i class="bi bi-check-lg me-1"></i>HOÀN THÀNH
                             </span>
                         {% else %}
-                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill py-2 px-3 fw-bold">
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle py-2 px-3 fw-bold">
                                 <i class="bi bi-clock me-1"></i>ĐANG MỞ
                             </span>
                         {% endif %}
@@ -52,7 +52,7 @@
                         <p class="card-text text-muted small mb-4">{{ exam.description|truncatewords:12|default:"Kỳ thi đánh giá chuyên môn." }}</p>
                     {% endif %}
 
-                    <div class="bg-light p-3 rounded-4 border shadow-sm">
+                    <div class="bg-light p-3 border shadow-sm">
                         {% if exam.id in completed_exam_ids %}
                             {% for eid, res in submission_results.items %}
                                 {% if eid == exam.id %}
@@ -100,7 +100,7 @@
                         {% for eid, res in submission_results.items %}
                             {% if eid == exam.id %}
                             <button type="button" 
-                                    class="btn btn-outline-success w-100 fw-bold rounded-pill py-2 shadow-sm btn-hover-lift"
+                                    class="btn btn-outline-hm w-100 fw-bold py-2 shadow-sm btn-hover-lift"
                                     data-bs-toggle="modal" 
                                     data-bs-target="#resultModal"
                                     data-title="{{ exam.title }}"
@@ -114,7 +114,7 @@
                             {% endif %}
                         {% endfor %}
                     {% else %}
-                        <a href="{% url 'take_exam' exam.id %}" class="btn btn-hm w-100 fw-bold shadow-sm rounded-pill btn-hover-lift py-2">
+                        <a href="{% url 'take_exam' exam.id %}" class="btn btn-hm w-100 fw-bold shadow-sm btn-hover-lift py-2">
                             <i class="bi bi-pencil-square me-2"></i>BẮT ĐẦU THI NGAY
                         </a>
                     {% endif %}
@@ -132,7 +132,7 @@
 
 <div class="modal fade" id="resultModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+        <div class="modal-content border-0 shadow-lg overflow-hidden">
             <div class="modal-header bg-dark text-white border-0 py-3">
                 <h5 class="modal-title fw-bold"><i class="bi bi-award-fill me-2 text-warning"></i>KẾT QUẢ CHI TIẾT</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
@@ -143,27 +143,27 @@
                 
                 <div class="row g-3 mb-4">
                     <div class="col-6">
-                        <div class="p-3 bg-light rounded-4 border">
+                        <div class="p-3 bg-light border">
                             <div class="small text-muted fw-bold mb-1 uppercase">Trắc nghiệm</div>
                             <h3 class="fw-bold text-primary mb-0" id="modalMCScore">0</h3>
                         </div>
                     </div>
                     <div class="col-6">
-                        <div class="p-3 bg-light rounded-4 border">
+                        <div class="p-3 bg-light border">
                             <div class="small text-muted fw-bold mb-1 uppercase">Tự luận</div>
                             <h3 class="fw-bold text-hm mb-0" id="modalEssayScore">--</h3>
                         </div>
                     </div>
                 </div>
 
-                <div class="py-4 px-4 rounded-4 bg-success bg-opacity-10 border border-success border-dashed shadow-sm">
+                <div class="py-4 px-4 bg-success bg-opacity-10 border border-success border-dashed shadow-sm">
                     <div class="small text-success fw-bold uppercase">Tổng điểm đạt được</div>
                     <div class="display-2 fw-bold text-success" id="modalTotalScore">0</div>
                     <div class="small mt-2" id="gradingStatus"></div>
                 </div>
             </div>
             <div class="modal-footer border-0 pb-4 justify-content-center">
-                <button type="button" class="btn btn-secondary rounded-pill px-5 fw-bold" data-bs-dismiss="modal">Đóng cửa sổ</button>
+                <button type="button" class="btn btn-secondary px-5 fw-bold" data-bs-dismiss="modal">Đóng cửa sổ</button>
             </div>
         </div>
     </div>

@@ -1,94 +1,11 @@
 {% extends "base.html" %}
 
 {% block content %}
-<style>
-    :root {
-        --hm-primary: #dc2626;
-        --hm-primary-hover: #b91c1c;
-    }
-
-    body {
-        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-        min-height: 100vh;
-    }
-
-    .login-container {
-        margin-top: 10vh;
-        margin-bottom: 5vh;
-    }
-
-    .card-login {
-        border: none;
-        border-radius: 20px;
-        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-        overflow: hidden;
-        background: white;
-    }
-
-    .login-header {
-        background-color: var(--hm-primary);
-        padding: 2.5rem 1rem;
-        color: white;
-        text-align: center;
-    }
-
-    .login-header i {
-        font-size: 3rem;
-        margin-bottom: 0.5rem;
-        display: block;
-    }
-
-    .input-group-text {
-        background-color: #f8fafc;
-        border-color: #e2e8f0;
-        color: #94a3b8;
-        border-radius: 10px 0 0 10px;
-    }
-
-    .form-control {
-        border-radius: 0 10px 10px 0 !important;
-        padding: 12px 15px;
-        border: 1px solid #e2e8f0;
-    }
-
-    .form-control:focus {
-        border-color: var(--hm-primary);
-        box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.12);
-        z-index: 3;
-    }
-
-    .btn-login {
-        background-color: var(--hm-primary);
-        color: white;
-        border: none;
-        border-radius: 10px;
-        padding: 12px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        transition: all 0.3s;
-    }
-
-    .btn-login:hover {
-        background-color: var(--hm-primary-hover);
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(220, 38, 38, 0.3);
-        color: white;
-    }
-
-    .brand-footer {
-        font-size: 0.75rem;
-        color: #94a3b8;
-        text-align: center;
-        margin-top: 2rem;
-    }
-</style>
-
-<div class="container login-container">
+<div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-md-6 col-lg-4">
-            <div class="card card-login">
-                <div class="login-header">
+            <div class="card jp-auth-card">
+                <div class="jp-auth-header">
                     <i class="bi bi-person-badge-fill"></i>
                     <h3 class="fw-bold mb-1">JUSTPLAY PORTAL</h3>
                     <p class="small opacity-75 mb-0">Vui lòng đăng nhập để tiếp tục</p>
@@ -96,16 +13,16 @@
 
                 <div class="card-body p-4 p-md-5">
                     {% if form.errors %}
-                        <div class="alert alert-danger border-0 small py-2 px-3 mb-4 rounded-3 text-center">
+                        <div class="alert alert-danger border-0 small py-2 px-3 mb-4 text-center">
                             <i class="bi bi-exclamation-circle-fill me-1"></i> Sai tài khoản hoặc mật khẩu!
                         </div>
                     {% endif %}
 
                     <form method="post">
                         {% csrf_token %}
-                        
+
                         <div class="mb-4">
-                            <label class="form-label small fw-bold text-secondary text-uppercase">Tên đăng nhập</label>
+                            <label class="form-label small fw-bold text-jp-dark text-uppercase">Tên đăng nhập</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="bi bi-person-fill"></i></span>
                                 <input type="text" name="username" class="form-control" placeholder="Mã nhân viên" required autofocus>
@@ -113,14 +30,14 @@
                         </div>
 
                         <div class="mb-4">
-                            <label class="form-label small fw-bold text-secondary text-uppercase">Mật khẩu</label>
+                            <label class="form-label small fw-bold text-jp-dark text-uppercase">Mật khẩu</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="bi bi-key-fill"></i></span>
                                 <input type="password" name="password" class="form-control" placeholder="••••••••" required>
                             </div>
                         </div>
 
-                        <button type="submit" class="btn btn-login w-100 shadow-sm">
+                        <button type="submit" class="btn btn-hm w-100 shadow-sm fw-bold">
                             Đăng nhập <i class="bi bi-box-arrow-in-right ms-1"></i>
                         </button>
                     </form>

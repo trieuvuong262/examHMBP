@@ -9,14 +9,14 @@
                     <i class="bi bi-arrow-left"></i>
                 </a>
                 <nav aria-label="breadcrumb" class="flex-grow-1 mb-0">
-                    <ol class="breadcrumb bg-white p-2 p-md-3 rounded-4 shadow-sm align-items-center mb-0 small">
+                    <ol class="breadcrumb bg-white p-2 p-md-3 shadow-sm align-items-center mb-0 small">
                         <li class="breadcrumb-item d-none d-sm-inline"><a href="{% url 'user_list' %}" class="text-decoration-none text-muted"><i class="bi bi-people-fill me-1"></i>Nhân sự</a></li>
                         <li class="breadcrumb-item active fw-bold text-hm" aria-current="page">{{ title }}</li>
                     </ol>
                 </nav>
             </div>
 
-            <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
+            <div class="card shadow-lg border-0 overflow-hidden">
                 <div class="card-header bg-dark text-white p-3 p-md-4 border-0 d-flex align-items-center gap-3">
                     <div class="bg-white bg-opacity-10 p-2 p-md-3 rounded-circle d-flex align-items-center justify-content-center flex-shrink-0">
                         <i class="bi bi-person-badge fs-5 fs-md-4 text-white"></i>
@@ -93,7 +93,7 @@
 
                                 <div class="col-12" id="subordinates_section" style="display: none;">
                                     <label class="form-label fw-bold small text-secondary">Nhân viên dưới quyền (HOD) <span class="text-danger">*</span></label>
-                                    <div class="p-3 border rounded-3 bg-light">
+                                    <div class="p-3 border bg-light">
                                         <p class="small text-muted mb-2 jp-hrm-multi-hint"><i class="bi bi-info-circle me-1"></i>Chọn một hoặc nhiều nhân viên</p>
                                         {{ form.subordinates }}
                                     </div>
@@ -103,10 +103,10 @@
                         </section>
 
                         <div class="jp-sticky-actions pt-3 border-top mt-2">
-                            <button type="submit" class="btn btn-hm btn-lg shadow-sm fw-bold rounded-pill">
+                            <button type="submit" class="btn btn-hm btn-lg shadow-sm fw-bold">
                                 <i class="bi bi-check-circle-fill me-2"></i>Lưu
                             </button>
-                            <a href="{% url 'user_list' %}" class="btn btn-light btn-lg border rounded-pill fw-bold text-muted">
+                            <a href="{% url 'user_list' %}" class="btn btn-light btn-lg border fw-bold text-muted">
                                 Hủy
                             </a>
                         </div>

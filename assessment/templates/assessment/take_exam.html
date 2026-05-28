@@ -124,7 +124,7 @@
                 </div>
             </div>
             <div class="text-end">
-                <div id="timer" class="badge rounded-pill bg-danger fs-5 px-4 py-2 shadow-sm">00:00</div>
+                <div id="timer" class="badge bg-danger fs-5 px-4 py-2 shadow-sm">00:00</div>
             </div>
         </div>
         <div class="progress" style="height: 6px;">
@@ -182,7 +182,7 @@
                         <div class="row g-3">
                         {% for choice in q.choices.all %}
                             <div class="col-md-6">
-                                <label class="option-item d-flex align-items-center p-3 rounded-3 h-100 cursor-pointer transition-all">
+                                <label class="option-item d-flex align-items-center p-3 h-100 cursor-pointer transition-all">
                                     <input class="form-check-input me-3 flex-shrink-0" 
                                            type="{% if q.q_type == 'multiple' %}checkbox{% else %}radio{% endif %}" 
                                            name="q_{{ q.id }}" 
@@ -201,7 +201,7 @@
                         </div>
 
                     {% elif q.q_type == 'image' or q.q_type == 'image_upload' %}
-                        <div class="upload-area p-4 border border-dashed rounded-3 text-center bg-light">
+                        <div class="upload-area p-4 border border-dashed text-center bg-light">
                             <input type="file" class="form-control mt-3 shadow-sm" name="q_{{ q.id }}" accept="image/*">
                             <p class="small text-muted mt-2 mb-0">Chọn tệp hình ảnh kết quả bài làm.</p>
                         </div>

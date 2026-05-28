@@ -31,7 +31,7 @@
                     
                     {% if current_lesson.lesson_type == 'video' %}
                         {% if current_lesson.video_embed_url %}
-                        <div class="ratio ratio-16x9 mb-4 shadow-sm rounded-4 overflow-hidden border">
+                        <div class="ratio ratio-16x9 mb-4 shadow-sm overflow-hidden border">
                             <iframe
                                 src="{{ current_lesson.video_embed_url }}"
                                 title="{{ current_lesson.title }}"
@@ -41,7 +41,7 @@
                             </iframe>
                         </div>
                         {% elif current_lesson.video_file %}
-                        <div class="plyr-wrapper mb-4 shadow-sm rounded-4 border">
+                        <div class="plyr-wrapper mb-4 shadow-sm border">
                             <video id="player" playsinline controls controlsList="nodownload" class="w-100 h-100">
                                 <source src="{{ current_lesson.video_file.url }}" type="video/mp4">
                                 Trình duyệt của bạn không hỗ trợ phát video HTML5. Vui lòng cập nhật trình duyệt.
@@ -51,7 +51,7 @@
                     {% endif %}
 
                     {% if current_lesson.lesson_type == 'pdf' and current_lesson.attachment %}
-                    <div class="pdf-container mb-4 shadow-sm rounded-4 overflow-hidden border">
+                    <div class="pdf-container mb-4 shadow-sm overflow-hidden border">
                         <div class="d-flex justify-content-between align-items-center text-white p-2 px-3" style="background-color: #343a40;">
                             <div class="small fw-bold">
                                 <i class="bi bi-file-earmark-pdf text-danger me-2"></i>TÀI LIỆU
@@ -87,7 +87,7 @@
                 <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm border border-top-0 border-4" style="border-color: #dc2626 !important;">
                     <div>
                         {% if current_lesson.id in completed_lesson_ids %}
-                            <button class="btn btn-success fw-bold disabled">
+                            <button class="btn btn-hm fw-bold disabled">
                                 <i class="bi bi-check-circle-fill me-2"></i>Đã hoàn thành bài này
                             </button>
                         {% else %}
@@ -174,18 +174,6 @@
     background-color: #525659;
 }
 
-/* Button chuẩn màu HM */
-.btn-hm {
-    background-color: #dc2626;
-    color: white;
-    border: none;
-}
-.btn-hm:hover {
-    background-color: #b91c1c;
-    color: white;
-}
-
-/* Border bài học đang chọn */
 .active-lesson-border {
     border-color: #dc2626 !important;
 }

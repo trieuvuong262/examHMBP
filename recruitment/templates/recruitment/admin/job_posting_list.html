@@ -51,17 +51,17 @@
         </div>
         
         <div class="d-flex gap-2 align-items-stretch flex-wrap w-100 w-md-auto">
-            <a href="{% url 'job_posting_create' %}" class="btn btn-hm shadow-sm fw-bold rounded-3 d-flex align-items-center justify-content-center flex-fill flex-md-grow-0">
+            <a href="{% url 'job_posting_create' %}" class="btn btn-hm shadow-sm fw-bold d-flex align-items-center justify-content-center flex-fill flex-md-grow-0">
                 <i class="bi bi-plus-circle-fill me-1"></i> Đăng tin
             </a>
             
-            <a href="{% url 'admin_dashboard' %}" class="btn btn-white border shadow-sm rounded-3 d-flex align-items-center justify-content-center flex-fill flex-md-grow-0" title="Quay lại Dashboard">
+            <a href="{% url 'admin_dashboard' %}" class="btn btn-white border shadow-sm d-flex align-items-center justify-content-center flex-fill flex-md-grow-0" title="Quay lại Dashboard">
                 <i class="bi bi-arrow-left fs-5 text-dark"></i>
             </a>
         </div>
     </div>
 
-    <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+    <div class="card shadow-sm border-0 overflow-hidden">
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
@@ -93,9 +93,9 @@
                             </td>
                             <td class="text-center">
                                 {% if job.is_active and not job.is_expired %}
-                                    <span class="badge badge-soft-success px-3 py-2 rounded-pill fw-bold border border-success border-opacity-25"><i class="bi bi-record-circle-fill me-1"></i> Đang mở</span>
+                                    <span class="badge badge-soft-success px-3 py-2 fw-bold border border-success border-opacity-25"><i class="bi bi-record-circle-fill me-1"></i> Đang mở</span>
                                 {% else %}
-                                    <span class="badge badge-soft-secondary px-3 py-2 rounded-pill fw-bold border border-secondary border-opacity-25"><i class="bi bi-lock-fill me-1"></i> Đã đóng</span>
+                                    <span class="badge badge-soft-secondary px-3 py-2 fw-bold border border-secondary border-opacity-25"><i class="bi bi-lock-fill me-1"></i> Đã đóng</span>
                                 {% endif %}
                             </td>
                             
@@ -120,7 +120,7 @@
                                 <div class="py-4">
                                     <i class="bi bi-inbox display-1 text-muted opacity-25"></i>
                                     <p class="mt-3 text-muted fs-5">Chưa có vị trí tuyển dụng nào được đăng.</p>
-                                    <a href="{% url 'job_posting_create' %}" class="btn btn-hm btn-sm rounded-pill px-4 mt-2 fw-bold">Đăng tin đầu tiên ngay</a>
+                                    <a href="{% url 'job_posting_create' %}" class="btn btn-hm btn-sm px-4 mt-2 fw-bold">Đăng tin đầu tiên ngay</a>
                                 </div>
                             </td>
                         </tr>

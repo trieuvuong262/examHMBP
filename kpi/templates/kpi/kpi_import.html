@@ -5,16 +5,16 @@
 <div class="container jp-page mt-4 mt-md-5 mb-5">
     <div class="row justify-content-center">
         <div class="col-lg-8">
-            <div class="card shadow-lg border-0 rounded-4">
+            <div class="card shadow-lg border-0">
                 <div class="card-header bg-dark text-white p-4">
                     <h4 class="mb-0 fw-bold"><i class="bi bi-file-earmark-excel-fill text-success me-2"></i>Import Mục tiêu KPI từ Excel</h4>
                     <p class="mb-0 text-white-50 mt-1">Thiết lập hàng loạt Bảng mục tiêu năm (Yearly KPI) cho nhân sự</p>
                 </div>
                 <div class="card-body p-5">
                     
-                    <div class="alert border border-info bg-info bg-opacity-10 rounded-3 mb-4 shadow-sm position-relative">
+                    <div class="alert border border-info bg-info bg-opacity-10 mb-4 shadow-sm position-relative">
                         <div class="position-absolute top-0 end-0 p-3">
-                            <a href="{% url 'download_kpi_sample_excel' %}" class="btn btn-sm btn-info text-dark fw-bold rounded-pill shadow-sm">
+                            <a href="{% url 'download_kpi_sample_excel' %}" class="btn btn-sm btn-info text-dark fw-bold shadow-sm">
                                 <i class="bi bi-download me-1"></i> Tải file mẫu (.xlsx)
                             </a>
                         </div>
@@ -42,7 +42,7 @@
                         </ul>
                     </div>
 
-                    <form method="POST" enctype="multipart/form-data" class="p-4 border border-2 border-dashed rounded-4 bg-light">
+                    <form method="POST" enctype="multipart/form-data" class="p-4 border border-2 border-dashed bg-light">
                         {% csrf_token %}
                         
                         <h6 class="fw-bold text-dark mb-3"><i class="bi bi-gear-fill text-secondary me-2"></i>Thiết lập chung cho đợt Import</h6>
@@ -90,10 +90,10 @@
                             </div>
                             
                             <div class="d-flex justify-content-center gap-3">
-                                <button type="submit" class="btn btn-hm btn-lg px-5 rounded-pill shadow-sm fw-bold">
+                                <button type="submit" class="btn btn-hm btn-lg px-5 shadow-sm fw-bold">
                                     <i class="bi bi-upload me-2"></i>Tiến hành Import
                                 </button>
-                                <a href="{% url 'kpi_list' %}" class="btn btn-outline-secondary btn-lg px-4 rounded-pill">Hủy bỏ</a>
+                                <a href="{% url 'kpi_list' %}" class="btn btn-outline-dark btn-lg px-4">Hủy bỏ</a>
                             </div>
                         </div>
                     </form>

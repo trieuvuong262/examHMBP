@@ -515,7 +515,7 @@
             <div class="modal-body p-4">
                 <div class="mb-3">
                     <label class="form-label fw-bold small text-muted text-uppercase">Vị trí ứng tuyển <span class="text-danger">*</span></label>
-                    <select name="job_posting" class="form-select border-0 bg-light py-2 px-3 rounded-3" required>
+                    <select name="job_posting" class="form-select border-0 bg-light py-2 px-3" required>
                         <option value="">-- Chọn vị trí đang tuyển --</option>
                         {% for job in jobs %}
                             <option value="{{ job.id }}">{{ job.title }}</option>
@@ -525,28 +525,28 @@
                 
                 <div class="mb-3">
                     <label class="form-label fw-bold small text-muted text-uppercase">Họ và tên <span class="text-danger">*</span></label>
-                    <input type="text" name="full_name" class="form-control border-0 bg-light py-2 px-3 rounded-3" required placeholder="Nhập tên ứng viên">
+                    <input type="text" name="full_name" class="form-control border-0 bg-light py-2 px-3" required placeholder="Nhập tên ứng viên">
                 </div>
                 
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <label class="form-label fw-bold small text-muted text-uppercase">Số điện thoại</label>
-                        <input type="text" name="phone" class="form-control border-0 bg-light py-2 px-3 rounded-3" required placeholder="09xxxx">
+                        <input type="text" name="phone" class="form-control border-0 bg-light py-2 px-3" required placeholder="09xxxx">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-bold small text-muted text-uppercase">Email</label>
-                        <input type="email" name="email" class="form-control border-0 bg-light py-2 px-3 rounded-3" required placeholder="email@example.com">
+                        <input type="email" name="email" class="form-control border-0 bg-light py-2 px-3" required placeholder="email@example.com">
                     </div>
                 </div>
 
                 <div class="mb-1">
                     <label class="form-label fw-bold small text-muted text-uppercase">Hồ sơ (CV) đính kèm</label>
-                    <input type="file" name="cv_file" class="form-control border-0 bg-light py-2 px-3 rounded-3" accept=".pdf,.doc,.docx">
+                    <input type="file" name="cv_file" class="form-control border-0 bg-light py-2 px-3" accept=".pdf,.doc,.docx">
                 </div>
             </div>
             
             <div class="modal-footer border-0 p-4 pt-0">
-                <button type="button" class="btn btn-light fw-bold px-4 rounded-3" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-light fw-bold px-4" data-bs-dismiss="modal">Hủy</button>
                 <button type="submit" class="btn btn-hm px-4 py-2">Lưu hồ sơ ứng viên</button>
             </div>
         </form>
@@ -555,7 +555,7 @@
 
 <div class="modal fade" id="candidateDetailModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg rounded-4">
+        <div class="modal-content border-0 shadow-lg">
             <div class="modal-header border-0 pb-0">
                 <h5 class="modal-title fw-bold text-hm"><i class="bi bi-person-vcard me-2"></i>Chi tiết hồ sơ</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -588,12 +588,12 @@
                     </div>
                     <div class="col-12 mt-3">
                         <label class="small text-muted fw-bold">GHI CHÚ CỦA HR</label>
-                        <div class="p-3 bg-light rounded-3 small italic" id="det_note"></div>
+                        <div class="p-3 bg-light small italic" id="det_note"></div>
                     </div>
                 </div>
             </div>
             <div class="modal-footer border-0 p-4 pt-0">
-                <a href="#" id="det_cv_link" target="_blank" class="btn btn-danger fw-bold w-100 rounded-3">
+                <a href="#" id="det_cv_link" target="_blank" class="btn btn-danger fw-bold w-100">
                     <i class="bi bi-file-pdf me-2"></i>Xem CV chi tiết
                 </a>
             </div>

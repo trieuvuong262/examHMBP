@@ -127,7 +127,7 @@
                  data-bs-parent="#courseAccordion">
                 <div class="accordion-body p-0 border-top bg-white">
                     <div class="bg-light p-2 text-end border-bottom px-3">
-                        <button class="btn btn-sm btn-success fw-bold px-3 rounded-pill" data-bs-toggle="modal"
+                        <button class="btn btn-sm btn-success fw-bold px-3" data-bs-toggle="modal"
                                 data-bs-target="#addLessonModal" data-chapter-id="{{ chapter.id }}">
                             <i class="bi bi-plus-circle me-1"></i> Thêm bài học
                         </button>
@@ -156,7 +156,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="btn-group shadow-sm rounded-3 overflow-hidden">
+                            <div class="btn-group shadow-sm overflow-hidden">
                                 <a href="{% url 'lesson_edit' lesson.id %}" class="btn btn-sm btn-white border px-3 btn-action" title="Sửa bài học">
                                     <i class="bi bi-pencil-square text-warning"></i>
                                 </a>
@@ -180,7 +180,7 @@
             </div>
         </div>
         {% empty %}
-        <div class="card border-0 shadow-sm text-center py-5 rounded-4 bg-white">
+        <div class="card border-0 shadow-sm text-center py-5 bg-white">
             <div class="card-body">
                 <i class="bi bi-diagram-3 display-1 text-hm opacity-10 mb-4 d-block"></i>
                 <h4 class="fw-bold text-dark mb-3">Khởi tạo bài giảng</h4>
@@ -196,7 +196,7 @@
 
 <div class="modal fade" id="addChapterModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <form action="{% url 'chapter_create' course.id %}" method="POST" class="modal-content border-0 shadow-lg rounded-4">
+        <form action="{% url 'chapter_create' course.id %}" method="POST" class="modal-content border-0 shadow-lg">
             {% csrf_token %}
             <div class="modal-header bg-dark text-white border-0 py-3 px-4">
                 <h5 class="modal-title fw-bold">Thêm Chương mới</h5>
@@ -222,7 +222,7 @@
 
 <div class="modal fade" id="addLessonModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
-        <form id="lessonForm" method="POST" enctype="multipart/form-data" class="modal-content border-0 shadow-lg rounded-4">
+        <form id="lessonForm" method="POST" enctype="multipart/form-data" class="modal-content border-0 shadow-lg">
             {% csrf_token %}
             <div class="modal-header bg-success text-white border-0 py-3 px-4">
                 <h5 class="modal-title fw-bold">Thêm Bài học mới</h5>
@@ -272,7 +272,7 @@
             </div>
             <div class="modal-footer border-0 p-4 pt-0">
                 <button type="button" class="btn btn-light fw-bold px-4" data-bs-dismiss="modal">Hủy</button>
-                <button type="submit" class="btn btn-success fw-bold px-4">Lưu bài học</button>
+                <button type="submit" class="btn btn-hm fw-bold px-4">Lưu bài học</button>
             </div>
         </form>
     </div>

@@ -64,13 +64,13 @@
             <h3 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-ui-checks-grid me-2"></i>Ma trận mục tiêu KPI</h3>
             <p class="text-muted small mb-0 jp-hide-mobile-subtitle">Hệ thống: {{ kpi.employee|display_name }} — Năm {{ kpi.year }}</p>
         </div>
-        <a href="{% url 'kpi_list' %}" class="btn btn-light border shadow-sm rounded-pill fw-bold flex-fill flex-md-grow-0"><i class="bi bi-arrow-left me-2"></i>Quay lại</a>
+        <a href="{% url 'kpi_list' %}" class="btn btn-light border shadow-sm fw-bold flex-fill flex-md-grow-0"><i class="bi bi-arrow-left me-2"></i>Quay lại</a>
     </div>
 
     <form method="POST">
         {% csrf_token %}
 
-        <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-5">
+        <div class="card border-0 shadow-sm overflow-hidden mb-5">
             <div class="table-responsive jp-kpi-scroll table-kpi-wrap" style="max-height: 75vh; overflow-x: auto;">
                 <table class="table table-kpi mb-0 align-middle">
                     <thead class="sticky-top" style="z-index: 10;">
@@ -263,14 +263,14 @@
                     {% endif %}
                 </select>
 
-                <button type="submit" name="action" value="save" class="btn btn-outline-secondary rounded-pill px-5 fw-bold shadow-sm">LƯU BẢN NHÁP</button>
+                <button type="submit" name="action" value="save" class="btn btn-outline-dark px-5 fw-bold shadow-sm">LƯU BẢN NHÁP</button>
                 
                 {% if is_owner %}
-                    <button type="submit" name="action" value="submit_manager" class="btn btn-hm rounded-pill px-5 fw-bold shadow-sm">NỘP CHO QUẢN LÝ (HOD)</button>
+                    <button type="submit" name="action" value="submit_manager" class="btn btn-hm px-5 fw-bold shadow-sm">NỘP CHO QUẢN LÝ (HOD)</button>
                 {% elif is_manager %}
-                    <button type="submit" name="action" value="submit_gm" class="btn btn-warning rounded-pill px-5 fw-bold shadow-sm text-dark">NỘP CHO GIÁM ĐỐC (GM)</button>
+                    <button type="submit" name="action" value="submit_gm" class="btn btn-hm-dark px-5 fw-bold shadow-sm text-dark">NỘP CHO GIÁM ĐỐC (GM)</button>
                 {% elif is_gm %}
-                    <button type="submit" name="action" value="finish" class="btn btn-danger rounded-pill px-5 fw-bold shadow-sm">CHỐT KẾT QUẢ</button>
+                    <button type="submit" name="action" value="finish" class="btn btn-danger px-5 fw-bold shadow-sm">CHỐT KẾT QUẢ</button>
                 {% endif %}
             </div>
         </div>

@@ -14,7 +14,7 @@
                         Nội dung hiển thị cho toàn bộ nhân viên trên portal.
                     </p>
                 </div>
-                <a href="{% url 'user_guide' %}" class="btn btn-outline-secondary rounded-pill fw-bold flex-fill flex-md-grow-0">
+                <a href="{% url 'user_guide' %}" class="btn btn-outline-dark fw-bold flex-fill flex-md-grow-0">
                     <i class="bi bi-x-lg me-1"></i>Hủy
                 </a>
             </div>
@@ -26,7 +26,7 @@
             </div>
             {% endif %}
 
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div class="card border-0 shadow-sm overflow-hidden">
                 <div class="card-body p-4 p-md-5">
                     <form method="post">
                         {% csrf_token %}
@@ -45,7 +45,7 @@
 
                         <div class="mb-4">
                             <label class="form-label fw-bold">Nội dung hướng dẫn</label>
-                            <div class="border rounded-3 p-2 bg-white">
+                            <div class="border p-2 bg-white">
                                 {{ form.body }}
                             </div>
                             <div class="form-text">Soạn thảo bằng CKEditor — có thể dùng tiêu đề, danh sách, in đậm, liên kết...</div>
@@ -53,10 +53,10 @@
                         </div>
 
                         <div class="d-flex flex-wrap gap-2">
-                            <button type="submit" class="btn btn-hm rounded-pill fw-bold px-4">
+                            <button type="submit" class="btn btn-hm fw-bold px-4">
                                 <i class="bi bi-check-lg me-1"></i>Lưu hướng dẫn
                             </button>
-                            <a href="{% url 'user_guide' %}" class="btn btn-outline-secondary rounded-pill fw-bold">Xem trước</a>
+                            <a href="{% url 'user_guide' %}" class="btn btn-outline-dark fw-bold">Xem trước</a>
                         </div>
                     </form>
                 </div>

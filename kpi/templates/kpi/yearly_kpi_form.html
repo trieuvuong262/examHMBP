@@ -34,7 +34,7 @@
             </h3>
             <p class="text-muted small mb-0 jp-hide-mobile-subtitle">Cấu hình chỉ tiêu đánh giá — Năm {{ current_year|default:"2026" }}</p>
         </div>
-        <a href="{% url 'kpi_list' %}" class="btn btn-outline-secondary fw-bold shadow-sm rounded-pill flex-fill flex-md-grow-0">
+        <a href="{% url 'kpi_list' %}" class="btn btn-outline-dark fw-bold shadow-sm flex-fill flex-md-grow-0">
             <i class="bi bi-arrow-left me-1"></i> Quay lại
         </a>
     </div>
@@ -43,7 +43,7 @@
         {% csrf_token %}
         <input type="hidden" name="eval_type" value="YEAR">
         
-        <div class="card border-0 shadow-sm rounded-4 mb-4">
+        <div class="card border-0 shadow-sm mb-4">
             <div class="card-body p-4">
                 <div class="row g-4">
                     <div class="col-md-2">
@@ -94,10 +94,10 @@
             </div>
         </div>
 
-        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card border-0 shadow-sm overflow-hidden">
             <div class="card-header bg-hm text-white p-3 d-flex justify-content-between align-items-center border-0">
                 <h6 class="mb-0 fw-bold"><i class="bi bi-list-task me-2"></i>Chi tiết Mục tiêu & Chỉ tiêu (KPI Yearly)</h6>
-                <span class="badge bg-white text-hm rounded-pill px-3 py-2 shadow-sm fw-bold">Chế độ: Đánh giá Tổng kết Năm</span>
+                <span class="badge bg-white text-hm px-3 py-2 shadow-sm fw-bold">Chế độ: Đánh giá Tổng kết Năm</span>
             </div>
             
             <div class="table-responsive">
@@ -145,19 +145,19 @@
             </div>
             
             <div class="p-3 bg-light text-center border-top">
-                <button type="button" class="btn btn-add-row fw-bold rounded-pill px-5 py-2 shadow-sm" onclick="addRow()">
+                <button type="button" class="btn btn-add-row fw-bold px-5 py-2 shadow-sm" onclick="addRow()">
                     <i class="bi bi-plus-circle-fill me-2"></i> THÊM MỤC TIÊU MỚI
                 </button>
             </div>
 
             <div class="card-footer bg-white p-4 d-flex justify-content-between align-items-center border-top">
-                <div class="d-flex align-items-center bg-light px-4 py-2 rounded-pill shadow-sm border">
+                <div class="d-flex align-items-center bg-light px-4 py-2 shadow-sm border">
                     <h5 class="mb-0 text-muted me-3 fw-bold small text-uppercase">Tổng Trọng Số:</h5>
                     <h3 class="mb-0 fw-bold" id="totalWeightDisplay"><span class="text-danger">0</span> / 100%</h3>
                 </div>
                 
                 <div class="d-flex gap-3">
-                    <button type="submit" class="btn btn-hm fw-bold px-5 py-3 rounded-pill shadow-sm fs-5">
+                    <button type="submit" class="btn btn-hm fw-bold px-5 py-3 shadow-sm fs-5">
                         <i class="bi bi-send-check-fill me-2"></i> PHÁT HÀNH KPI NĂM
                     </button>
                 </div>

@@ -6,12 +6,12 @@
     <div class="text-center mb-4 mb-md-5 position-relative">
         {% if can_edit %}
         <div class="position-absolute top-0 end-0">
-            <a href="{% url 'user_guide_edit' %}" class="btn btn-outline-hm btn-sm rounded-pill fw-bold">
+            <a href="{% url 'user_guide_edit' %}" class="btn btn-outline-hm btn-sm fw-bold">
                 <i class="bi bi-pencil-square me-1"></i>Chỉnh sửa
             </a>
         </div>
         {% endif %}
-        <span class="badge bg-danger-subtle text-danger px-3 py-2 rounded-pill mb-2">
+        <span class="badge bg-danger-subtle text-danger px-3 py-2 mb-2">
             <i class="bi bi-journal-bookmark-fill me-1"></i> Tài liệu nội bộ
         </span>
         <h1 class="jp-page-title text-hm">Hướng dẫn sử dụng JustPlay Portal</h1>
@@ -20,9 +20,9 @@
             Đọc theo thứ tự từ mục 1, hoặc nhảy thẳng tới chức năng bạn cần ở mục lục bên trái.
         </p>
         <div class="d-flex flex-wrap justify-content-center gap-2 mt-3">
-            <span class="badge rounded-pill bg-secondary px-3 py-2"><i class="bi bi-person me-1"></i>Nhân viên xưởng</span>
-            <span class="badge rounded-pill bg-primary px-3 py-2"><i class="bi bi-people me-1"></i>Tổ trưởng (HOD)</span>
-            <span class="badge rounded-pill bg-danger px-3 py-2"><i class="bi bi-briefcase me-1"></i>HR / Quản trị</span>
+            <span class="badge bg-secondary px-3 py-2"><i class="bi bi-person me-1"></i>Nhân viên xưởng</span>
+            <span class="badge bg-primary px-3 py-2"><i class="bi bi-people me-1"></i>Tổ trưởng (HOD)</span>
+            <span class="badge bg-danger px-3 py-2"><i class="bi bi-briefcase me-1"></i>HR / Quản trị</span>
         </div>
     </div>
 
@@ -47,7 +47,7 @@
         </div>
 
         <div class="col-lg-3">
-            <div class="guide-sidebar shadow-sm rounded-4 sticky-top d-none d-lg-block" style="top: 5.5rem; z-index: 10;">
+            <div class="guide-sidebar shadow-sm sticky-top d-none d-lg-block" style="top: 5.5rem; z-index: 10;">
                 <div class="guide-sidebar-header">
                     <div class="small fw-bold text-uppercase mb-1">Mục lục</div>
                     <div class="small opacity-75">Bấm để nhảy tới phần cần đọc</div>
@@ -75,10 +75,10 @@
             {% include 'guide/_default_body.html' %}
 
             <div class="text-center mt-4 d-flex flex-wrap justify-content-center gap-2">
-                <a href="{% url 'home_portal' %}" class="btn btn-hm rounded-pill px-4">
+                <a href="{% url 'home_portal' %}" class="btn btn-hm px-4">
                     <i class="bi bi-house me-1"></i> Về trang chủ
                 </a>
-                <a href="{% url 'announcements:list' %}" class="btn btn-outline-hm rounded-pill px-4">
+                <a href="{% url 'announcements:list' %}" class="btn btn-outline-hm px-4">
                     <i class="bi bi-megaphone me-1"></i> Xem thông báo
                 </a>
             </div>

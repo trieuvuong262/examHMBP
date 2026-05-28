@@ -8,16 +8,16 @@
             <p class="text-muted mb-0 jp-hide-mobile-subtitle">Theo dõi và cấu hình nội dung bài giảng E-Learning.</p>
         </div>
         <div class="d-flex gap-2 flex-wrap w-100 w-md-auto">
-            <a href="{% url 'course_create' %}" class="btn btn-hm shadow-sm fw-bold rounded-3 btn-hover-lift flex-fill flex-md-grow-0">
+            <a href="{% url 'course_create' %}" class="btn btn-hm shadow-sm fw-bold btn-hover-lift flex-fill flex-md-grow-0">
                 <i class="bi bi-plus-lg me-1"></i> Thêm khóa học
             </a>
-            <button class="btn btn-outline-hm fw-bold rounded-3 shadow-sm flex-fill flex-md-grow-0" onclick="openCategoryModal()">
+            <button class="btn btn-outline-hm fw-bold shadow-sm flex-fill flex-md-grow-0" onclick="openCategoryModal()">
                 <i class="bi bi-tags-fill me-1"></i> Danh mục
             </button>
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm mb-4 rounded-4">
+    <div class="card border-0 shadow-sm mb-4">
         <div class="card-body p-3">
             <div class="row g-2 align-items-center">
                 <div class="col-md-5">
@@ -53,7 +53,7 @@
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="card border-0 shadow-sm overflow-hidden">
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0" id="courseTable">
@@ -71,7 +71,7 @@
                         <tr class="course-row">
                             <td class="ps-4 py-3">
                                 <div class="d-flex align-items-center">
-                                    <div class="flex-shrink-0 me-3 shadow-sm rounded-3 overflow-hidden position-relative border" style="width: 140px; height: 80px; background-color: #f1f5f9;">
+                                    <div class="flex-shrink-0 me-3 shadow-sm overflow-hidden position-relative border" style="width: 140px; height: 80px; background-color: #f1f5f9;">
                                         {% if course.thumbnail %}
                                             <img src="{{ course.thumbnail.url }}" alt="Thumbnail" class="w-100 h-100 object-fit-cover transition-scale">
                                         {% else %}
@@ -82,11 +82,11 @@
                                     </div>
                                     <div>
                                         <h6 class="fw-bold text-dark mb-1 course-title jp-text-clamp-2">{{ course.title }}</h6>
-                                        <span class="badge bg-hm-subtle text-hm border border-hm-subtle px-2 py-1 x-small rounded-2 course-category">
+                                        <span class="badge bg-hm-subtle text-hm border border-hm-subtle px-2 py-1 x-small course-category">
                                             {{ course.category.name|default:"Chung" }}
                                         </span>
                                         {% if course.final_exam %}
-                                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1 x-small ms-1 rounded-2" title="Khóa học có yêu cầu làm bài thi cuối khóa">
+                                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1 x-small ms-1" title="Khóa học có yêu cầu làm bài thi cuối khóa">
                                                 <i class="bi bi-award-fill me-1"></i> Có bài thi
                                             </span>
                                         {% endif %}
@@ -107,11 +107,11 @@
 
                             <td class="text-center">
                                 {% if course.is_active %}
-                                    <span class="badge rounded-pill bg-success-subtle text-success px-3 py-2 border border-success-subtle fw-bold course-status">
+                                    <span class="badge bg-success-subtle text-success px-3 py-2 border border-success-subtle fw-bold course-status">
                                         <i class="bi bi-check-circle-fill me-1"></i> Hoạt động
                                     </span>
                                 {% else %}
-                                    <span class="badge rounded-pill bg-secondary-subtle text-secondary px-3 py-2 border border-secondary-subtle fw-bold course-status">
+                                    <span class="badge bg-secondary-subtle text-secondary px-3 py-2 border border-secondary-subtle fw-bold course-status">
                                         <i class="bi bi-eye-slash-fill me-1"></i> Đang ẩn
                                     </span>
                                 {% endif %}
@@ -162,19 +162,19 @@
             
             <div class="modal-body bg-light p-4">
                 <label class="form-label fw-bold text-secondary small text-uppercase mb-2">Thêm danh mục mới</label>
-                <div class="input-group mb-4 shadow-sm rounded-3 overflow-hidden border-0">
+                <div class="input-group mb-4 shadow-sm overflow-hidden border-0">
                     <input type="text" id="newCatName" class="form-control border-0 py-2 px-3 focus-none" placeholder="Nhập tên danh mục...">
-                    <button class="btn btn-success fw-bold px-4" onclick="addCategory()">
+                    <button class="btn btn-hm fw-bold px-4" onclick="addCategory()">
                         <i class="bi bi-plus-lg me-1"></i>Thêm
                     </button>
                 </div>
 
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <h6 class="fw-bold text-muted text-uppercase small mb-0">Danh sách hiện tại</h6>
-                    <span class="badge bg-secondary-subtle text-secondary rounded-pill px-2 x-small" id="cat-count">0 mục</span>
+                    <span class="badge bg-secondary-subtle text-secondary px-2 x-small" id="cat-count">0 mục</span>
                 </div>
                 
-                <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+                <div class="card border-0 shadow-sm overflow-hidden">
                     <ul class="list-group list-group-flush" id="categoryList">
                         <li class="list-group-item text-center text-muted py-4">
                             <div class="spinner-border spinner-border-sm text-info me-2" role="status"></div> Đang tải dữ liệu...
@@ -257,7 +257,7 @@
                 list.append(`
                     <li class="list-group-item d-flex justify-content-between align-items-center py-3 px-3">
                         <span class="fw-bold text-dark" id="cat-text-${cat.id}">${cat.name}</span>
-                        <div class="btn-group shadow-sm rounded-2 overflow-hidden">
+                        <div class="btn-group shadow-sm overflow-hidden">
                             <button class="btn btn-sm btn-light border-end text-primary fw-semibold" onclick="editCategory(${cat.id}, '${cat.name}')">
                                 <i class="bi bi-pencil-square"></i> Sửa
                             </button>

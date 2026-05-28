@@ -131,19 +131,19 @@
             <h3 class="fw-bold text-dark mb-1 jp-page-title"><i class="bi bi-kanban text-hm me-2"></i>Bảng ứng viên</h3>
             <p class="text-muted mb-0 jp-hide-mobile-subtitle">Kéo thả thẻ để cập nhật trạng thái tuyển dụng.</p>
         </div>
-        <div class="d-flex gap-2 align-items-stretch flex-wrap w-100 w-md-auto jp-kanban-toolbar">
+        <div class="d-flex gap-2 align-items-stretch flex-wrap w-100 w-md-auto kanban-toolbar jp-kanban-toolbar">
             
-            <button class="btn btn-hm shadow-sm fw-bold rounded-3 d-flex align-items-center justify-content-center flex-fill flex-md-grow-0" data-bs-toggle="modal" data-bs-target="#addCandidateModal">
+            <button class="btn btn-hm shadow-sm fw-bold d-flex align-items-center justify-content-center flex-fill flex-md-grow-0" data-bs-toggle="modal" data-bs-target="#addCandidateModal">
                 <i class="bi bi-person-plus-fill me-1"></i> Thêm UV
             </button>
-            <button class="btn btn-hm shadow-sm fw-bold rounded-3 d-flex align-items-center justify-content-center flex-fill flex-md-grow-0" onclick="openAllInterviewsModal()">
+            <button class="btn btn-hm shadow-sm fw-bold d-flex align-items-center justify-content-center flex-fill flex-md-grow-0" onclick="openAllInterviewsModal()">
                 <i class="bi bi-calendar-week me-1"></i> Lịch PV
             </button>
-            <button class="btn btn-hm shadow-sm fw-bold rounded-3 d-flex align-items-center justify-content-center flex-fill flex-md-grow-0" onclick="openAllLicensesModal()">
+            <button class="btn btn-hm shadow-sm fw-bold d-flex align-items-center justify-content-center flex-fill flex-md-grow-0" onclick="openAllLicensesModal()">
                 <i class="bi bi-file-medical me-1"></i> CCHN
             </button>
 
-            <form method="GET" class="d-flex align-items-center bg-white shadow-sm rounded-3 px-2 border mb-0 flex-fill flex-md-grow-0 jp-kanban-filter" style="min-height: 42px;">
+            <form method="GET" class="d-flex align-items-center bg-white shadow-sm px-2 border mb-0 flex-fill flex-md-grow-0 jp-kanban-filter" style="min-height: 42px;">
                 <i class="bi bi-funnel text-muted me-2 ms-1"></i>
                 <select name="job_id" class="form-select border-0 shadow-none bg-transparent py-0 h-100 w-100" onchange="this.form.submit()" style="min-width: 0; cursor: pointer;">
                     <option value="">-- Tất cả vị trí đang mở --</option>
@@ -153,7 +153,7 @@
                 </select>
             </form>
 
-            <a href="{% url 'admin_dashboard' %}" class="btn btn-white border shadow-sm px-3 rounded-3 d-flex align-items-center justify-content-center" style="height: 42px; width: 42px;" title="Quay lại">
+            <a href="{% url 'admin_dashboard' %}" class="btn btn-white border shadow-sm px-3 d-flex align-items-center justify-content-center" style="height: 42px; width: 42px;" title="Quay lại">
                 <i class="bi bi-arrow-left fs-5 text-dark"></i>
             </a>
             
@@ -265,17 +265,17 @@
                                 <p class="x-small text-hm mb-3 fw-semibold">{{ cand.job_posting.title }}</p>
                                 
                                 {% if cand.status == 'hired' %}
-                                    <button class="btn btn-sm btn-secondary w-100 fw-bold rounded-2 opacity-75 mb-2" disabled>
+                                    <button class="btn btn-sm btn-secondary w-100 fw-bold opacity-75 mb-2" disabled>
                                         <i class="bi bi-check-circle-fill me-1"></i> Đã tạo User
                                     </button>
-                                    <button type="button" class="btn btn-sm btn-outline-primary w-100 fw-bold rounded-2 license-btn" onclick="openLicenseModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}')">
+                                    <button type="button" class="btn btn-sm btn-outline-primary w-100 fw-bold license-btn" onclick="openLicenseModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}')">
                                         <i class="bi bi-file-medical-fill me-1"></i> ĐK Hành nghề
                                     </button>
                                 {% else %}
-                                    <button class="btn btn-sm btn-success w-100 fw-bold convert-user-btn rounded-2 mb-2" data-id="{{ cand.id }}" data-name="{{ cand.full_name }}">
+                                    <button class="btn btn-sm btn-success w-100 fw-bold convert-user-btn mb-2" data-id="{{ cand.id }}" data-name="{{ cand.full_name }}">
                                         <i class="bi bi-person-check-fill me-1"></i> Tạo User
                                     </button>
-                                    <button type="button" class="btn btn-sm btn-outline-primary w-100 fw-bold rounded-2 license-btn d-none" onclick="openLicenseModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}')">
+                                    <button type="button" class="btn btn-sm btn-outline-primary w-100 fw-bold license-btn d-none" onclick="openLicenseModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}')">
                                         <i class="bi bi-file-medical-fill me-1"></i> ĐK Hành nghề
                                     </button>
                                 {% endif %}
@@ -327,7 +327,7 @@
 
 <div class="modal fade" id="addCandidateModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <form action="{% url 'add_candidate' %}" method="POST" enctype="multipart/form-data" class="modal-content border-0 shadow-lg rounded-4">
+        <form action="{% url 'add_candidate' %}" method="POST" enctype="multipart/form-data" class="modal-content border-0 shadow-lg">
             {% csrf_token %}
             <div class="modal-header bg-hm text-white border-0 py-3 px-4">
                 <h5 class="modal-title fw-bold"><i class="bi bi-person-plus me-2"></i>Thêm Hồ sơ Ứng viên</h5>
@@ -336,7 +336,7 @@
             <div class="modal-body p-4">
                 <div class="mb-3">
                     <label class="form-label fw-bold small text-muted text-uppercase">Vị trí ứng tuyển</label>
-                    <select name="job_posting" class="form-select bg-light border-0 py-2 rounded-3" required>
+                    <select name="job_posting" class="form-select bg-light border-0 py-2" required>
                         <option value="">-- Chọn vị trí --</option>
                         {% for job in jobs %}
                             <option value="{{ job.id }}">{{ job.title }}</option>
@@ -345,26 +345,26 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-bold small text-muted text-uppercase">Họ và tên</label>
-                    <input type="text" name="full_name" class="form-control bg-light border-0 py-2 rounded-3" required placeholder="Nguyễn Văn A">
+                    <input type="text" name="full_name" class="form-control bg-light border-0 py-2" required placeholder="Nguyễn Văn A">
                 </div>
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <label class="form-label fw-bold small text-muted text-uppercase">Số điện thoại</label>
-                        <input type="text" name="phone" class="form-control bg-light border-0 py-2 rounded-3" required>
+                        <input type="text" name="phone" class="form-control bg-light border-0 py-2" required>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-bold small text-muted text-uppercase">Email</label>
-                        <input type="email" name="email" class="form-control bg-light border-0 py-2 rounded-3" required>
+                        <input type="email" name="email" class="form-control bg-light border-0 py-2" required>
                     </div>
                 </div>
                 <div class="mb-2">
                     <label class="form-label fw-bold small text-muted text-uppercase">CV (PDF/Word)</label>
-                    <input type="file" name="cv_file" class="form-control bg-light border-0 py-2 rounded-3" required accept=".pdf,.doc,.docx">
+                    <input type="file" name="cv_file" class="form-control bg-light border-0 py-2" required accept=".pdf,.doc,.docx">
                 </div>
             </div>
             <div class="modal-footer border-0 p-4 pt-0">
-                <button type="button" class="btn btn-light fw-bold px-4 rounded-3" data-bs-dismiss="modal">Đóng</button>
-                <button type="submit" class="btn btn-hm fw-bold px-4 rounded-3">Lưu hồ sơ</button>
+                <button type="button" class="btn btn-light fw-bold px-4" data-bs-dismiss="modal">Đóng</button>
+                <button type="submit" class="btn btn-hm fw-bold px-4">Lưu hồ sơ</button>
             </div>
         </form>
     </div>
@@ -372,7 +372,7 @@
 
 <div class="modal fade" id="hrNoteModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <form action="{% url 'update_hr_note' %}" method="POST" class="modal-content border-0 shadow-lg rounded-4">
+        <form action="{% url 'update_hr_note' %}" method="POST" class="modal-content border-0 shadow-lg">
             {% csrf_token %}
             <input type="hidden" name="candidate_id" id="modalNoteCandidateId">
             
@@ -385,12 +385,12 @@
             
             <div class="modal-body p-4 bg-white">
                 <label class="form-label fw-bold small text-muted text-uppercase mb-2">Nội dung đánh giá / Ghi chú phỏng vấn</label>
-                <textarea name="hr_note" id="modalHrNoteContent" class="form-control bg-light border-0 py-3 rounded-3" rows="6" placeholder="Nhập nhận xét, lý do đánh giá, đề xuất lương..."></textarea>
+                <textarea name="hr_note" id="modalHrNoteContent" class="form-control bg-light border-0 py-3" rows="6" placeholder="Nhập nhận xét, lý do đánh giá, đề xuất lương..."></textarea>
             </div>
             
             <div class="modal-footer p-3 border-0 bg-light rounded-bottom-4">
-                <button type="button" class="btn btn-white border px-4 rounded-3 fw-bold" data-bs-dismiss="modal">Đóng</button>
-                <button type="submit" class="btn btn-warning px-4 fw-bold rounded-3 shadow-sm text-dark">
+                <button type="button" class="btn btn-white border px-4 fw-bold" data-bs-dismiss="modal">Đóng</button>
+                <button type="submit" class="btn btn-hm-dark px-4 fw-bold shadow-sm text-dark">
                     <i class="bi bi-save me-1"></i> LƯU GHI CHÚ
                 </button>
             </div>
@@ -399,7 +399,7 @@
 </div>
 <div class="modal fade" id="licenseModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
-        <form action="{% url 'update_practice_license' %}" method="POST" class="modal-content border-0 shadow-lg rounded-4">
+        <form action="{% url 'update_practice_license' %}" method="POST" class="modal-content border-0 shadow-lg">
             {% csrf_token %}
             <input type="hidden" name="candidate_id" id="modalLicenseCandId">
             <div class="modal-header bg-hm text-white border-0 py-3 px-4">
@@ -435,7 +435,7 @@
                 </div>
             </div>
             <div class="modal-footer border-0 p-3 bg-white rounded-bottom-4">
-                <button type="submit" class="btn btn-primary text-white px-5 fw-bold rounded-3 shadow-sm">Lưu Thông Tin</button>
+                <button type="submit" class="btn btn-hm text-white px-5 fw-bold shadow-sm">Lưu Thông Tin</button>
             </div>
         </form>
     </div>
@@ -443,10 +443,10 @@
 
 <div class="modal fade" id="allLicensesModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content border-0 shadow-lg rounded-4">
+        <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-hm text-white border-0 py-3 px-4">
                 <h5 class="modal-title fw-bold"><i class="bi bi-card-checklist me-2"></i>Tổng hợp Đăng ký Hành Nghề   -</h5>
-                <button class="btn btn-sm btn-success fw-bold px-3 rounded-3 d-flex align-items-center" onclick="exportLicensesExcel()">
+                <button class="btn btn-sm btn-success fw-bold px-3 d-flex align-items-center" onclick="exportLicensesExcel()">
                     <i class="bi bi-file-earmark-excel me-1"></i> Xuất Excel
                 </button>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
@@ -475,7 +475,7 @@
 </div>
 <div class="modal fade" id="setInterviewModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <form action="{% url 'set_interview_schedule' %}" method="POST" class="modal-content border-0 shadow-lg rounded-4">
+        <form action="{% url 'set_interview_schedule' %}" method="POST" class="modal-content border-0 shadow-lg">
             {% csrf_token %}
             <input type="hidden" name="candidate_id" id="modalInterviewCandId">
             <div class="modal-header bg-hm text-white border-0 py-3 px-4">
@@ -489,7 +489,7 @@
                 </div>
             </div>
             <div class="modal-footer border-0 p-3 bg-light rounded-bottom-4">
-                <button type="submit" class="btn btn-info text-white px-4 fw-bold w-100 rounded-3">Lưu Lịch</button>
+                <button type="submit" class="btn btn-hm text-white px-4 fw-bold w-100">Lưu Lịch</button>
             </div>
         </form>
     </div>
@@ -497,10 +497,10 @@
 
 <div class="modal fade" id="allInterviewsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content border-0 shadow-lg rounded-4">
+        <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-hm text-white border-0 py-3 px-4">
                 <h5 class="modal-title fw-bold"><i class="bi bi-calendar-week me-2"></i>Tổng lịch Phỏng Vấn   -</h5>
-                <button class="btn btn-sm btn-success fw-bold px-3 rounded-3 d-flex align-items-center" onclick="exportInterviewsExcel()">
+                <button class="btn btn-sm btn-success fw-bold px-3 d-flex align-items-center" onclick="exportInterviewsExcel()">
                     <i class="bi bi-file-earmark-excel me-1"></i> Xuất Excel
                 </button>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
@@ -553,10 +553,10 @@ function ensureConvertButton(cardEl) {
     const candId = cardEl.getAttribute('data-id');
     const wrap = document.createElement('div');
     wrap.innerHTML = `
-        <button type="button" class="btn btn-sm btn-success w-100 fw-bold convert-user-btn rounded-2 mb-2" data-id="${candId}">
+        <button type="button" class="btn btn-sm btn-success w-100 fw-bold convert-user-btn mb-2" data-id="${candId}">
             <i class="bi bi-person-check-fill me-1"></i> Tạo User
         </button>
-        <button type="button" class="btn btn-sm btn-outline-primary w-100 fw-bold rounded-2 license-btn d-none" data-license-id="${candId}">
+        <button type="button" class="btn btn-sm btn-outline-primary w-100 fw-bold license-btn d-none" data-license-id="${candId}">
             <i class="bi bi-file-medical-fill me-1"></i> ĐK Hành nghề
         </button>`;
     cardEl.querySelector('.card-body').appendChild(wrap);

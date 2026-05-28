@@ -4,7 +4,7 @@
 
 <div class="modal fade" id="passwordResultModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
-        <div class="modal-content border-0 shadow-lg rounded-4">
+        <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-hm text-white p-4 border-0 rounded-top-4">
                 <h5 class="modal-title fw-bold"><i class="bi bi-shield-check me-2"></i>THÔNG TIN TÀI KHOẢN</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
@@ -14,17 +14,17 @@
                     <p class="text-secondary small mb-1">Nhân viên: <strong id="modalDisplayName" class="text-dark fs-5">...</strong></p>
                 </div>
                 
-                <div class="p-3 bg-light rounded-3 border mb-3 text-center">
+                <div class="p-3 bg-light border mb-3 text-center">
                     <p class="small text-muted mb-1 text-uppercase fw-bold"><i class="bi bi-person-badge me-1"></i>Tài khoản đăng nhập</p>
                     <h5 class="fw-bold text-hm mb-0 user-select-all" id="modalUsernameText">...</h5>
                 </div>
 
-                <div class="p-4 bg-hm-subtle rounded-4 border border-hm border-2 border-opacity-50 mb-4 shadow-sm text-center">
+                <div class="p-4 bg-hm-subtle border border-hm border-2 border-opacity-50 mb-4 shadow-sm text-center">
                     <p class="small text-hm mb-1 text-uppercase fw-bold"><i class="bi bi-key-fill me-1"></i>Mật khẩu mới</p>
                     <h2 class="fw-bold text-dark mb-0 user-select-all" id="modalPasswordText" style="letter-spacing: 3px; font-family: monospace;">...</h2>
                 </div>
 
-                <button class="btn btn-hm fw-bold px-5 py-3 rounded-pill shadow btn-hover-lift w-100 fs-5 text-white" onclick="copyAccountInfo(this)">
+                <button class="btn btn-hm fw-bold px-5 py-3 shadow btn-hover-lift w-100 fs-5 text-white" onclick="copyAccountInfo(this)">
                     <i class="bi bi-clipboard-plus fs-4 me-2 align-middle"></i> SAO CHÉP THÔNG TIN
                 </button>
             </div>
@@ -48,10 +48,10 @@
         </div>
 
         <div class="jp-hrm-toolbar">
-            <a href="{% url 'user_export_excel' %}" class="btn btn-outline-primary fw-bold shadow-sm jp-hrm-tool-btn" title="Xuất Excel">
+            <a href="{% url 'user_export_excel' %}" class="btn btn-outline-hm fw-bold shadow-sm jp-hrm-tool-btn" title="Xuất Excel">
                 <i class="bi bi-download"></i><span class="jp-hrm-tool-label"> Xuất Excel</span>
             </a>
-            <button type="button" class="btn btn-outline-success fw-bold shadow-sm jp-hrm-tool-btn" data-bs-toggle="modal" data-bs-target="#importExcelModal" title="Import Excel">
+            <button type="button" class="btn btn-outline-hm fw-bold shadow-sm jp-hrm-tool-btn" data-bs-toggle="modal" data-bs-target="#importExcelModal" title="Import Excel">
                 <i class="bi bi-file-earmark-excel-fill"></i><span class="jp-hrm-tool-label"> Import</span>
             </button>
             <a href="{% url 'user_add' %}" class="btn btn-hm shadow-sm text-white fw-bold jp-hrm-tool-btn jp-hrm-tool-btn-primary" title="Thêm nhân viên">
@@ -60,7 +60,7 @@
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="card border-0 shadow-sm overflow-hidden">
         <div class="card-header bg-white py-3 border-bottom jp-hrm-card-header">
             <h5 class="mb-0 fw-bold text-dark d-none d-md-block">Dữ liệu nhân sự ({{ users.count }})</h5>
             <div class="jp-hrm-search input-group">
@@ -97,7 +97,7 @@
                             </div>
                         </td>
 
-                        <td data-label="Account"><code class="text-primary fw-bold px-2 py-1 bg-light rounded-2 user-select-all">{{ u.username }}</code></td>
+                        <td data-label="Account"><code class="text-primary fw-bold px-2 py-1 bg-light user-select-all">{{ u.username }}</code></td>
 
                         <td data-label="Chức danh">
                             {% if u.profile.position %}
@@ -109,15 +109,15 @@
 
                         <td class="text-center" data-label="Vai trò">
                             {% if u.profile.role == 'GM' %}
-                                <span class="badge bg-danger-subtle text-danger rounded-pill px-3">
+                                <span class="badge bg-danger-subtle text-danger px-3">
                                     <i class="bi bi-shield-fill-check me-1"></i>GM
                                 </span>
                             {% elif u.profile.role == 'HOD' %}
-                                <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-3">
+                                <span class="badge bg-warning-subtle text-warning-emphasis px-3">
                                     <i class="bi bi-person-badge-fill me-1"></i>HOD
                                 </span>
                             {% else %}
-                                <span class="badge bg-primary-subtle text-hm rounded-pill px-3">
+                                <span class="badge bg-primary-subtle text-hm px-3">
                                     <i class="bi bi-person-fill me-1"></i>NV
                                 </span>
                             {% endif %}
@@ -153,7 +153,7 @@
                             <div class="py-4">
                                 <i class="bi bi-person-exclamation display-1 text-muted opacity-25"></i>
                                 <p class="mt-3 text-muted fs-5">Chưa có nhân viên nào trong hệ thống.</p>
-                                <a href="{% url 'user_add' %}" class="btn btn-hm rounded-pill px-4">Thêm nhân viên ngay</a>
+                                <a href="{% url 'user_add' %}" class="btn btn-hm px-4">Thêm nhân viên ngay</a>
                             </div>
                         </td>
                     </tr>
@@ -166,16 +166,16 @@
 
 <div class="modal fade" id="importExcelModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
-        <form id="importExcelForm" action="{% url 'user_import_excel' %}" method="POST" enctype="multipart/form-data" class="modal-content border-0 shadow-lg rounded-4">
+        <form id="importExcelForm" action="{% url 'user_import_excel' %}" method="POST" enctype="multipart/form-data" class="modal-content border-0 shadow-lg">
             {% csrf_token %}
             <div class="modal-header bg-dark text-white p-4">
                 <h5 class="modal-title fw-bold"><i class="bi bi-file-earmark-excel me-2 text-success"></i>IMPORT TỪ EXCEL</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
-                <div class="text-center p-3 mb-4 rounded-4 border-2 border-dashed bg-light">
+                <div class="text-center p-3 mb-4 border-2 border-dashed bg-light">
                     <p class="small text-muted mb-2 fw-bold">Bước 1: Sử dụng đúng định dạng file mẫu</p>
-                    <a href="{% url 'user_download_template' %}" class="btn btn-primary btn-sm rounded-pill px-4 shadow-sm btn-hover-lift">
+                    <a href="{% url 'user_download_template' %}" class="btn btn-hm btn-sm px-4 shadow-sm btn-hover-lift">
                         <i class="bi bi-cloud-arrow-down-fill me-1"></i> Tải File Excel Mẫu
                     </a>
                 </div>
@@ -185,7 +185,7 @@
                     <input type="file" name="excel_file" class="form-control form-control-lg border-2" accept=".xlsx, .xls" required>
                 </div>
                 
-                <div class="p-3 rounded-3 bg-warning bg-opacity-10 border-start border-warning border-4 mt-4">
+                <div class="p-3 bg-warning bg-opacity-10 border-start border-warning border-4 mt-4">
                     <h6 class="fw-bold mb-1 small text-dark"><i class="bi bi-exclamation-triangle-fill me-1 text-warning"></i> Lưu ý quan trọng:</h6>
                     <ul class="x-small text-dark mb-0 ps-3 lh-lg">
                         <li>Không thay đổi tên các cột trong file mẫu.</li>
@@ -194,15 +194,15 @@
                 </div>
             </div>
             <div class="modal-footer p-4 border-0 pt-0">
-                <button type="button" class="btn btn-light fw-bold px-4 rounded-pill" data-bs-dismiss="modal">Hủy bỏ</button>
-                <button type="submit" id="submitImportBtn" class="btn btn-hm px-5 fw-bold rounded-pill shadow btn-hover-lift">XỬ LÝ DỮ LIỆU</button>
+                <button type="button" class="btn btn-light fw-bold px-4" data-bs-dismiss="modal">Hủy bỏ</button>
+                <button type="submit" id="submitImportBtn" class="btn btn-hm px-5 fw-bold shadow btn-hover-lift">XỬ LÝ DỮ LIỆU</button>
             </div>
         </form>
     </div>
 </div>
 
 <div id="importLoadingOverlay" class="loading-overlay" style="display: none;">
-    <div class="loading-box text-center bg-white p-5 rounded-4 shadow-lg">
+    <div class="loading-box text-center bg-white p-5 shadow-lg">
         <div class="spinner-border text-hm mb-3" style="width: 3.5rem; height: 3.5rem; border-width: 0.25em;" role="status">
             <span class="visually-hidden">Loading...</span>
         </div>

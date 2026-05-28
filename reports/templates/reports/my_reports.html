@@ -6,12 +6,12 @@
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-clock-history me-2"></i>Lịch sử báo cáo</h2>
         </div>
-        <a href="{% url 'reports:today' %}" class="btn btn-hm rounded-pill fw-bold flex-fill flex-md-grow-0">
+        <a href="{% url 'reports:today' %}" class="btn btn-hm fw-bold flex-fill flex-md-grow-0">
             <i class="bi bi-plus-lg me-1"></i>Báo cáo hôm nay
         </a>
     </div>
 
-    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="card border-0 shadow-sm overflow-hidden">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
@@ -39,7 +39,7 @@
                         <td class="text-end">{{ r.line_count }}</td>
                         <td class="text-end">{{ r.total_qty|default:0 }}</td>
                         <td class="text-end">
-                            <a href="{% url 'reports:detail' r.pk %}" class="btn btn-sm btn-outline-hm rounded-pill">Xem</a>
+                            <a href="{% url 'reports:detail' r.pk %}" class="btn btn-sm btn-outline-hm">Xem</a>
                         </td>
                     </tr>
                     {% empty %}

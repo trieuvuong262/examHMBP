@@ -16,12 +16,12 @@
         </div>
         
         <div class="d-flex gap-2">
-            <div class="input-group shadow-sm border-0 rounded-3 overflow-hidden me-2" style="width: 250px;">
+            <div class="input-group shadow-sm border-0 overflow-hidden me-2" style="width: 250px;">
                 <span class="input-group-text bg-white border-0 text-muted"><i class="bi bi-search"></i></span>
                 <input type="text" id="searchInput" class="form-control border-0 shadow-none" placeholder="Tìm thí sinh...">
             </div>
 
-            <button onclick="exportTableToCSV('Ket_Qua_Thi.csv')" class="btn btn-outline-success fw-bold shadow-sm px-3 rounded-3">
+            <button onclick="exportTableToCSV('Ket_Qua_Thi.csv')" class="btn btn-outline-hm fw-bold shadow-sm px-3">
                 <i class="bi bi-file-earmark-excel-fill me-1"></i> Xuất dữ liệu
             </button>
         </div>
@@ -29,7 +29,7 @@
 
     <div class="row g-3 mb-4">
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm rounded-4 p-3 border-start border-hm border-4">
+            <div class="card border-0 shadow-sm p-3 border-start border-hm border-4">
                 <div class="d-flex align-items-center">
                     <div class="bg-hm bg-opacity-10 p-3 rounded-circle me-3">
                         <i class="bi bi-file-earmark-text text-hm fs-4"></i>
@@ -42,7 +42,7 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm rounded-4 p-3 border-start border-warning border-4">
+            <div class="card border-0 shadow-sm p-3 border-start border-warning border-4">
                 <div class="d-flex align-items-center">
                     <div class="bg-warning bg-opacity-10 p-3 rounded-circle me-3">
                         <i class="bi bi-hourglass-split text-warning fs-4"></i>
@@ -55,7 +55,7 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm rounded-4 p-3 border-start border-primary border-4">
+            <div class="card border-0 shadow-sm p-3 border-start border-primary border-4">
                 <div class="d-flex align-items-center">
                     <div class="bg-primary bg-opacity-10 p-3 rounded-circle me-3">
                         <i class="bi bi-bar-chart-fill text-primary fs-4"></i>
@@ -68,7 +68,7 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm rounded-4 p-3 border-start border-success border-4">
+            <div class="card border-0 shadow-sm p-3 border-start border-success border-4">
                 <div class="d-flex align-items-center">
                     <div class="bg-success bg-opacity-10 p-3 rounded-circle me-3">
                         <i class="bi bi-shield-check text-success fs-4"></i>
@@ -82,7 +82,7 @@
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="card border-0 shadow-sm overflow-hidden">
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0" id="resultsTable">
@@ -170,17 +170,17 @@
                             <td class="text-end pe-4">
                                 {% if sub.submitted_at %}
                                     {% if not sub.is_completed %}
-                                        <a href="{% url 'grade_submission' sub.id %}" class="btn btn-sm btn-warning text-dark fw-bold rounded-pill px-3 shadow-sm btn-hover-lift">
+                                        <a href="{% url 'grade_submission' sub.id %}" class="btn btn-sm btn-warning text-dark fw-bold px-3 shadow-sm btn-hover-lift">
                                             <i class="bi bi-pencil-square me-1"></i> Chấm bài
                                         </a>
                                     {% else %}
-                                        <button type="button" class="btn btn-sm btn-hm fw-bold rounded-pill px-3 shadow-sm btn-hover-lift" data-bs-toggle="modal" data-bs-target="#viewModal{{ sub.id }}">
+                                        <button type="button" class="btn btn-sm btn-hm fw-bold px-3 shadow-sm btn-hover-lift" data-bs-toggle="modal" data-bs-target="#viewModal{{ sub.id }}">
                                             <i class="bi bi-eye-fill me-1"></i> Xem lại
                                         </button>
 
                                         <div class="modal fade text-start" id="viewModal{{ sub.id }}" tabindex="-1" aria-hidden="true">
                                             <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
-                                                <div class="modal-content border-0 shadow-lg rounded-4">
+                                                <div class="modal-content border-0 shadow-lg">
                                                     
                                                     <div class="modal-header bg-hm text-white border-0 py-3 px-4">
                                                         <div>
@@ -192,7 +192,7 @@
                                                     
                                                     <div class="modal-body p-4 bg-light">
                                                         {% for ans in sub.answers.all %}
-                                                        <div class="mb-4 p-4 bg-white border rounded-4 shadow-sm">
+                                                        <div class="mb-4 p-4 bg-white border shadow-sm">
                                                             
                                                             <div class="d-flex justify-content-between align-items-start mb-3">
                                                                 <h6 class="fw-bold text-dark mb-0 lh-base pe-3">
@@ -208,7 +208,7 @@
                                                                     <div class="mb-2"><span class="fw-bold small text-muted text-uppercase"><i class="bi bi-list-check me-1"></i>Chi tiết đáp án:</span></div>
                                                                     <ul class="list-unstyled mb-0">
                                                                     {% for choice in ans.question.choices.all %}
-                                                                        <li class="mb-2 px-3 py-2 rounded-3 border {% if choice in ans.selected_choices.all %}{% if choice.is_correct %}bg-success-subtle border-success-subtle{% else %}bg-danger-subtle border-danger-subtle{% endif %}{% else %}border-light{% endif %}">
+                                                                        <li class="mb-2 px-3 py-2 border {% if choice in ans.selected_choices.all %}{% if choice.is_correct %}bg-success-subtle border-success-subtle{% else %}bg-danger-subtle border-danger-subtle{% endif %}{% else %}border-light{% endif %}">
                                                                             <div class="d-flex align-items-start">
                                                                                 
                                                                                 {% if choice in ans.selected_choices.all %}
@@ -248,12 +248,12 @@
 
                                                                 {% elif ans.question.q_type == 'essay' %}
                                                                     <div class="mb-2"><span class="fw-bold small text-muted text-uppercase"><i class="bi bi-textarea-t me-1"></i>Bài làm của thí sinh:</span></div>
-                                                                    <div class="text-dark font-monospace small bg-light p-3 rounded-3 border" style="white-space: pre-wrap;">{{ ans.essay_answer|default:"<span class='text-muted fst-italic'>Thí sinh bỏ trống</span>"|safe }}</div>
+                                                                    <div class="text-dark font-monospace small bg-light p-3 border" style="white-space: pre-wrap;">{{ ans.essay_answer|default:"<span class='text-muted fst-italic'>Thí sinh bỏ trống</span>"|safe }}</div>
                                                                     
                                                                 {% elif ans.question.q_type == 'image' or ans.question.q_type == 'image_upload' %}
                                                                     <div class="mb-2"><span class="fw-bold small text-muted text-uppercase"><i class="bi bi-image me-1"></i>Hình ảnh đã tải lên:</span></div>
                                                                     {% if ans.image_answer %}
-                                                                        <img src="{{ ans.image_answer.url }}" class="img-thumbnail shadow-sm mt-1 rounded-3" style="max-height: 250px; object-fit: contain;">
+                                                                        <img src="{{ ans.image_answer.url }}" class="img-thumbnail shadow-sm mt-1" style="max-height: 250px; object-fit: contain;">
                                                                     {% else %}
                                                                         <span class="text-muted fst-italic d-block mt-1">Không có hình ảnh.</span>
                                                                     {% endif %}
@@ -263,11 +263,11 @@
                                                             
                                                             <div class="mt-3 text-end border-top pt-3">
                                                                 {% if ans.question.q_type == 'essay' or ans.question.q_type == 'image' or ans.question.q_type == 'image_upload' %}
-                                                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 fs-6 rounded-pill">
+                                                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 fs-6">
                                                                         Điểm Admin chấm: <strong>{{ ans.graded_score|default:0 }}</strong> / {{ ans.question.points }}
                                                                     </span>
                                                                 {% else %}
-                                                                    <span class="badge bg-hm-subtle text-hm border border-hm-subtle px-3 py-2 fs-6 rounded-pill">
+                                                                    <span class="badge bg-hm-subtle text-hm border border-hm-subtle px-3 py-2 fs-6">
                                                                         Điểm trắc nghiệm (Máy chấm): <strong>{{ ans.graded_score|default:0 }}</strong> / {{ ans.question.points }}
                                                                     </span>
                                                                 {% endif %}
@@ -285,7 +285,7 @@
                                                     <div class="modal-footer border-0 p-3 bg-white">
                                                         <div class="w-100 d-flex justify-content-between align-items-center">
                                                             <span class="fw-bold text-hm h5 mb-0">Tổng điểm: {{ sub.total_score|floatformat:1 }}</span>
-                                                            <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Đóng</button>
+                                                            <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Đóng</button>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -293,7 +293,7 @@
                                         </div>
                                         {% endif %}
                                 {% else %}
-                                    <button class="btn btn-sm btn-light text-muted rounded-pill px-3 border shadow-none disabled">
+                                    <button class="btn btn-sm btn-light text-muted px-3 border shadow-none disabled">
                                         <i class="bi bi-hourglass-split me-1"></i>Đang làm...
                                     </button>
                                 {% endif %}

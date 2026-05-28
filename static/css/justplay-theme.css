@@ -3,18 +3,40 @@
    ============================================================ */
 
 :root {
+    /* Red — primary brand */
     --hm-primary: #dc2626;
     --hm-primary-dark: #b91c1c;
     --hm-primary-hover: #b91c1c;
     --hm-primary-light: rgba(220, 38, 38, 0.1);
     --hm-primary-soft: rgba(220, 38, 38, 0.08);
     --hm-primary-subtle: rgba(220, 38, 38, 0.15);
+
+    /* Black — secondary / structure */
+    --jp-black-950: #0a0a0a;
+    --jp-black-900: #111111;
+    --jp-black-800: #1a1a1a;
+    --jp-black-700: #262626;
+    --jp-black-600: #404040;
+    --jp-black-500: #525252;
+    --jp-black-400: #737373;
+    --jp-black-300: #a3a3a3;
+    --jp-black-200: #d4d4d4;
+    --jp-black-100: #f5f5f5;
+
     --hm-bg-light: #f8fafc;
-    --hm-card-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-    --jp-radius: 16px;
-    --jp-radius-lg: 20px;
+    --hm-card-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+
+    /* Border radius — bo tròn đồng bộ */
+    --jp-radius-xs: 10px;
+    --jp-radius-sm: 14px;
+    --jp-radius: 18px;
+    --jp-radius-lg: 22px;
+    --jp-radius-xl: 28px;
+    --jp-btn-radius: 9999px;
+
     --jp-touch: 44px;
     --jp-bottom-nav-h: 4.25rem;
+    --jp-footer-h: 2.75rem;
     --jp-safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
@@ -25,11 +47,51 @@
 .bg-hm-subtle { background-color: var(--hm-primary-light) !important; }
 .border-hm-subtle { border-color: rgba(220, 38, 38, 0.2) !important; }
 
-.btn-hm {
-    background-color: var(--hm-primary);
-    color: white;
-    border: none;
+.bg-jp-dark { background-color: var(--jp-black-900) !important; }
+.bg-jp-dark-soft { background-color: var(--jp-black-800) !important; }
+.text-jp-dark { color: var(--jp-black-900) !important; }
+
+/* ============================================================
+   Buttons — đồng bộ toàn site (đỏ + đen, bo tròn pill)
+   ============================================================ */
+.btn {
+    border-radius: var(--jp-btn-radius) !important;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+
+.btn-sm {
+    min-height: 36px;
+    padding: 0.35rem 0.85rem;
+    font-size: 0.8125rem;
+}
+
+.btn:not(.btn-sm):not(.btn-lg) {
     min-height: var(--jp-touch);
+    padding: 0.5rem 1.15rem;
+}
+
+.btn-lg {
+    min-height: 48px;
+    padding: 0.65rem 1.35rem;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+.btn:active {
+    transform: translateY(0);
+}
+
+.btn-hm,
+.btn-primary,
+.btn-success,
+.btn-info {
+    background-color: var(--hm-primary) !important;
+    border: 1px solid var(--hm-primary) !important;
+    color: #fff !important;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -37,24 +99,143 @@
 }
 
 .btn-hm:hover,
-.btn-hm:focus {
-    background-color: var(--hm-primary-dark);
-    color: white;
+.btn-hm:focus,
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-success:hover,
+.btn-success:focus,
+.btn-info:hover,
+.btn-info:focus {
+    background-color: var(--hm-primary-dark) !important;
+    border-color: var(--hm-primary-dark) !important;
+    color: #fff !important;
+    box-shadow: 0 6px 18px rgba(220, 38, 38, 0.28);
 }
 
-.btn-outline-hm {
-    color: var(--hm-primary);
-    border-color: var(--hm-primary);
-    min-height: var(--jp-touch);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+.btn-hm-dark,
+.btn-dark,
+.btn-warning.text-dark,
+.btn-warning {
+    background-color: var(--jp-black-900) !important;
+    border: 1px solid var(--jp-black-900) !important;
+    color: #fff !important;
+}
+
+.btn-hm-dark:hover,
+.btn-hm-dark:focus,
+.btn-dark:hover,
+.btn-dark:focus,
+.btn-warning:hover,
+.btn-warning:focus {
+    background-color: var(--jp-black-700) !important;
+    border-color: var(--jp-black-700) !important;
+    color: #fff !important;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+}
+
+.btn-outline-hm,
+.btn-outline-primary,
+.btn-outline-success,
+.btn-outline-info {
+    color: var(--hm-primary) !important;
+    border: 1.5px solid var(--hm-primary) !important;
+    background-color: transparent !important;
 }
 
 .btn-outline-hm:hover,
-.btn-outline-hm:focus {
-    background-color: var(--hm-primary);
-    color: white;
+.btn-outline-hm:focus,
+.btn-outline-primary:hover,
+.btn-outline-primary:focus,
+.btn-outline-success:hover,
+.btn-outline-success:focus,
+.btn-outline-info:hover,
+.btn-outline-info:focus {
+    background-color: var(--hm-primary) !important;
+    border-color: var(--hm-primary) !important;
+    color: #fff !important;
+}
+
+.btn-outline-dark,
+.btn-outline-secondary {
+    color: var(--jp-black-800) !important;
+    border: 1.5px solid var(--jp-black-300) !important;
+    background-color: #fff !important;
+}
+
+.btn-outline-dark:hover,
+.btn-outline-dark:focus,
+.btn-outline-secondary:hover,
+.btn-outline-secondary:focus {
+    background-color: var(--jp-black-900) !important;
+    border-color: var(--jp-black-900) !important;
+    color: #fff !important;
+}
+
+.btn-light,
+.btn-white {
+    background-color: #fff !important;
+    border: 1px solid var(--jp-black-200) !important;
+    color: var(--jp-black-800) !important;
+}
+
+.btn-light:hover,
+.btn-white:hover {
+    background-color: var(--jp-black-100) !important;
+    border-color: var(--jp-black-300) !important;
+    color: var(--jp-black-900) !important;
+}
+
+.btn-secondary {
+    background-color: var(--jp-black-500) !important;
+    border-color: var(--jp-black-500) !important;
+    color: #fff !important;
+}
+
+.btn-secondary:hover {
+    background-color: var(--jp-black-600) !important;
+    border-color: var(--jp-black-600) !important;
+    color: #fff !important;
+}
+
+.btn-danger {
+    background-color: #991b1b !important;
+    border-color: #991b1b !important;
+    color: #fff !important;
+}
+
+.btn-danger:hover {
+    background-color: #7f1d1d !important;
+    border-color: #7f1d1d !important;
+    color: #fff !important;
+}
+
+.btn-login,
+.btn-hm-save {
+    background-color: var(--hm-primary) !important;
+    color: #fff !important;
+    border: none !important;
+    border-radius: var(--jp-btn-radius) !important;
+    font-weight: 700;
+    min-height: var(--jp-touch);
+    width: 100%;
+}
+
+.btn-login:hover,
+.btn-hm-save:hover {
+    background-color: var(--hm-primary-dark) !important;
+    color: #fff !important;
+    box-shadow: 0 6px 18px rgba(220, 38, 38, 0.28);
+}
+
+.btn-hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
+.btn:disabled,
+.btn.disabled {
+    transform: none !important;
+    opacity: 0.65;
 }
 
 /* --- Base layout --- */
@@ -74,12 +255,17 @@ body {
 }
 
 body.jp-auth main {
-    padding-bottom: calc(var(--jp-bottom-nav-h) + var(--jp-safe-bottom) + 0.5rem);
+    padding-bottom: calc(var(--jp-bottom-nav-h) + var(--jp-footer-h) + var(--jp-safe-bottom) + 0.75rem);
+}
+
+body.jp-guest main {
+    padding-bottom: calc(var(--jp-footer-h) + var(--jp-safe-bottom) + 0.5rem);
 }
 
 @media (min-width: 992px) {
-    body.jp-auth main {
-        padding-bottom: 0;
+    body.jp-auth main,
+    body.jp-guest main {
+        padding-bottom: calc(var(--jp-footer-h) + 0.5rem);
     }
 }
 
@@ -339,7 +525,8 @@ main pre {
 
 /* --- Navbar --- */
 .navbar {
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    background: linear-gradient(135deg, var(--jp-black-950) 0%, var(--jp-black-800) 55%, var(--hm-primary-dark) 100%) !important;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
     padding-top: 0.65rem;
     padding-bottom: 0.65rem;
     padding-left: max(0.75rem, env(safe-area-inset-left));
@@ -405,7 +592,7 @@ main pre {
 /* Mobile drawer */
 .jp-mobile-drawer {
     width: min(88vw, 320px);
-    background: linear-gradient(180deg, #b91c1c 0%, #991b1b 100%);
+    background: linear-gradient(180deg, var(--jp-black-900) 0%, var(--jp-black-800) 45%, var(--hm-primary-dark) 100%);
     color: white;
     border: none;
 }
@@ -1698,12 +1885,12 @@ textarea.form-control {
     width: 42px;
     height: 42px;
     flex-shrink: 0;
-    background: linear-gradient(135deg, #dc2626, #ef4444);
+    background: linear-gradient(135deg, var(--hm-primary), var(--jp-black-800));
     color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 12px;
+    border-radius: var(--jp-radius-sm);
     font-weight: 700;
     font-size: 1rem;
     box-shadow: 0 3px 6px rgba(220, 38, 38, 0.15);
@@ -1843,5 +2030,128 @@ textarea.form-control {
 
 .jp-hrm-page .letter-spacing {
     letter-spacing: 0.5px;
+}
+
+/* ============================================================
+   Site footer
+   ============================================================ */
+.jp-site-footer {
+    margin-top: auto;
+    background: linear-gradient(180deg, var(--jp-black-900) 0%, var(--jp-black-950) 100%);
+    color: rgba(255, 255, 255, 0.72);
+    border-top: 2px solid var(--hm-primary);
+    padding: 0.65rem max(0.75rem, env(safe-area-inset-left)) calc(0.65rem + var(--jp-safe-bottom)) max(0.75rem, env(safe-area-inset-right));
+    font-size: 0.75rem;
+    z-index: 1025;
+}
+
+.jp-footer-copy {
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.jp-footer-credit {
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.jp-footer-credit strong {
+    color: var(--hm-primary);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+@media (max-width: 767.98px) {
+    body.jp-auth .jp-site-footer {
+        padding-bottom: calc(0.65rem + var(--jp-bottom-nav-h) + var(--jp-safe-bottom));
+    }
+}
+
+/* ============================================================
+   Global surfaces — card, modal, form (bo tròn đồng bộ)
+   ============================================================ */
+.card,
+.modal-content,
+.accordion-item,
+.dropdown-menu,
+.alert {
+    border-radius: var(--jp-radius) !important;
+}
+
+.card-header:first-child,
+.modal-header {
+    border-top-left-radius: calc(var(--jp-radius) - 1px) !important;
+    border-top-right-radius: calc(var(--jp-radius) - 1px) !important;
+}
+
+.form-control,
+.form-select,
+.input-group-text {
+    border-radius: var(--jp-radius-sm) !important;
+    border-color: var(--jp-black-200);
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--hm-primary);
+    box-shadow: 0 0 0 3px var(--hm-primary-soft);
+}
+
+.input-group > .input-group-text:first-child {
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+}
+
+.input-group > .form-control:last-child,
+.input-group > .form-select:last-child {
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+}
+
+.badge {
+    border-radius: var(--jp-btn-radius);
+}
+
+/* Auth pages (login, đổi mật khẩu) */
+.jp-guest {
+    background: linear-gradient(160deg, var(--jp-black-100) 0%, #fff 45%, var(--hm-primary-soft) 100%);
+}
+
+.jp-auth-card {
+    border: none;
+    border-radius: var(--jp-radius-xl) !important;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+    background: #fff;
+}
+
+.jp-auth-header {
+    background: linear-gradient(135deg, var(--jp-black-900) 0%, var(--hm-primary-dark) 100%);
+    padding: 2rem 1rem;
+    color: #fff;
+    text-align: center;
+}
+
+.jp-auth-header i {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.jp-bottom-nav a.active {
+    color: var(--hm-primary) !important;
+}
+
+.jp-bottom-nav a.active i {
+    color: var(--hm-primary);
+}
+
+/* Kanban — đồng bộ nút */
+.kanban-card .btn {
+    border-radius: var(--jp-btn-radius) !important;
+}
+
+.kanban-toolbar .btn,
+.kanban-toolbar .form-select,
+.kanban-toolbar .form-control {
+    border-radius: var(--jp-btn-radius) !important;
 }
 
