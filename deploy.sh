@@ -56,10 +56,13 @@ if docker compose -f "${COMPOSE_FILE}" config --services | grep -qx "metabase"; 
   docker compose -f "${COMPOSE_FILE}" up -d metabase
 fi
 
-echo "==> 6) Show status"
+echo "==> 6) Run collectstatic on running web"
+docker compose -f "${COMPOSE_FILE}" exec -T web python manage.py collectstatic --noinput
+
+echo "==> 7) Show status"
 docker compose -f "${COMPOSE_FILE}" ps
 
-echo "==> 7) Cleanup old images"
+echo "==> 8) Cleanup old images"
 docker image prune -f
 
 echo "Deploy completed successfully."
