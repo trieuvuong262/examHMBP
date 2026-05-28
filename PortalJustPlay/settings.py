@@ -58,21 +58,30 @@ DEBUG = env_bool("DEBUG", IS_LOCAL)
 
 # Chỉ cho phép các IP/Domain được khai báo trong .env truy cập
 SERVER_IP = os.getenv("SERVER_IP", "103.90.224.203")
+PORTAL_DOMAIN = os.getenv("PORTAL_DOMAIN", "portal.justplay.vn").strip()
 if IS_LOCAL:
     default_allowed_hosts = "127.0.0.1,localhost"
 else:
-    default_allowed_hosts = f"{SERVER_IP},127.0.0.1,localhost"
+    default_allowed_hosts = f"{SERVER_IP},{PORTAL_DOMAIN},127.0.0.1,localhost"
 allowed_hosts_env = os.getenv("ALLOWED_HOSTS", default_allowed_hosts)
 ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_env.split(",") if host.strip()]
+if PORTAL_DOMAIN and PORTAL_DOMAIN not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(PORTAL_DOMAIN)
 
 if IS_LOCAL:
     default_csrf_origins = "http://127.0.0.1:8000,http://localhost:8000"
 else:
-    default_csrf_origins = f"http://{SERVER_IP},https://{SERVER_IP}"
+    default_csrf_origins = (
+        f"http://{SERVER_IP},https://{SERVER_IP},"
+        f"http://{PORTAL_DOMAIN},https://{PORTAL_DOMAIN}"
+    )
 csrf_trusted_origins_env = os.getenv("CSRF_TRUSTED_ORIGINS", default_csrf_origins)
 CSRF_TRUSTED_ORIGINS = [
     origin.strip() for origin in csrf_trusted_origins_env.split(",") if origin.strip()
 ]
+for origin in (f"http://{PORTAL_DOMAIN}", f"https://{PORTAL_DOMAIN}"):
+    if PORTAL_DOMAIN and origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(origin)
 
 # Giới hạn dung lượng File Upload (Tối đa 10MB) để chống DoS
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024 
