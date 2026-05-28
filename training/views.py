@@ -218,7 +218,18 @@ def lesson_create(request, chapter_id):
             lesson = form.save(commit=False)
             lesson.chapter = chapter
             lesson.save()
+            messages.success(request, f'Đã thêm bài học: {lesson.title}')
             return redirect('course_builder', course_id=chapter.course.id)
+
+        for field, errors in form.errors.items():
+            label = field
+            if field in form.fields:
+                label = form.fields[field].label or field
+            for error in errors:
+                messages.error(request, f'{label}: {error}')
+        for error in form.non_field_errors():
+            messages.error(request, str(error))
+
     return redirect('course_builder', course_id=chapter.course.id)
 
 

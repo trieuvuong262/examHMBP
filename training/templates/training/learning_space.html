@@ -29,13 +29,25 @@
                     <h3 class="fw-bold mb-3 text-dark">{{ current_lesson.title }}</h3>
                     <hr>
                     
-                    {% if current_lesson.lesson_type == 'video' and current_lesson.video_file %}
+                    {% if current_lesson.lesson_type == 'video' %}
+                        {% if current_lesson.video_embed_url %}
+                        <div class="ratio ratio-16x9 mb-4 shadow-sm rounded-4 overflow-hidden border">
+                            <iframe
+                                src="{{ current_lesson.video_embed_url }}"
+                                title="{{ current_lesson.title }}"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowfullscreen
+                                class="rounded-4">
+                            </iframe>
+                        </div>
+                        {% elif current_lesson.video_file %}
                         <div class="plyr-wrapper mb-4 shadow-sm rounded-4 border">
                             <video id="player" playsinline controls controlsList="nodownload" class="w-100 h-100">
                                 <source src="{{ current_lesson.video_file.url }}" type="video/mp4">
                                 Trình duyệt của bạn không hỗ trợ phát video HTML5. Vui lòng cập nhật trình duyệt.
                             </video>
                         </div>
+                        {% endif %}
                     {% endif %}
 
                     {% if current_lesson.lesson_type == 'pdf' and current_lesson.attachment %}

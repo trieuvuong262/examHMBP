@@ -42,23 +42,23 @@ def user_add(request):
             if User.objects.filter(username=u).exists():
                 messages.error(request, f"Tên đăng nhập '{u}' đã tồn tại!")
             else:
-                # Tạo User mới
                 user = User.objects.create_user(
-                    username=u, 
-                    email=e, 
-                    password=p, 
-                    first_name=f
+                    username=u,
+                    email=e,
+                    password=p,
+                    first_name=f,
                 )
-                # Tạo hoặc cập nhật Profile đi kèm
-                Profile.objects.update_or_create(
-                    user=user, 
+                profile, _ = Profile.objects.update_or_create(
+                    user=user,
                     defaults={
                         'full_name': f,
                         'position': pos,
+                        'role': form.cleaned_data['role'],
                         'must_change_password': True,
-                    }
+                    },
                 )
-                # Thông báo thành công (Dùng format này để script copy ở trang list bắt được)
+                profile.subordinates.set(form.cleaned_data['subordinates'])
+                profile.save()
                 messages.success(request, f"Thành công: Đã thêm {f}. Tài khoản: {u} | Mật khẩu mới là: {p}")
                 return redirect('user_list')
     else:

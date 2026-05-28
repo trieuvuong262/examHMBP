@@ -69,27 +69,56 @@ def update_candidate_status(request):
 @admin_only
 @require_POST
 def add_candidate(request):
-    try:
-        full_name = request.POST.get('full_name')
-        email = request.POST.get('email')
-        phone = request.POST.get('phone')
-        job_posting_id = request.POST.get('job_posting')
-        hr_note = request.POST.get('hr_note', '')
-        cv_file = request.FILES.get('cv_file')
+    full_name = (request.POST.get('full_name') or '').strip()
+    email = (request.POST.get('email') or '').strip()
+    phone = (request.POST.get('phone') or '').strip()
+    job_posting_id = request.POST.get('job_posting')
+    hr_note = (request.POST.get('hr_note') or '').strip()
+    cv_file = request.FILES.get('cv_file')
 
+    if not full_name:
+        messages.error(request, 'Vui lòng nhập họ và tên ứng viên.')
+        return redirect('kanban_board')
+
+    if not email:
+        messages.error(request, 'Vui lòng nhập email ứng viên.')
+        return redirect('kanban_board')
+
+    if not phone:
+        messages.error(request, 'Vui lòng nhập số điện thoại.')
+        return redirect('kanban_board')
+
+    if not job_posting_id:
+        messages.error(request, 'Vui lòng chọn vị trí ứng tuyển.')
+        return redirect('kanban_board')
+
+    job = JobPosting.objects.filter(id=job_posting_id, is_active=True).first()
+    if not job:
+        messages.error(request, 'Vị trí tuyển dụng không hợp lệ hoặc đã đóng.')
+        return redirect('kanban_board')
+
+    if not cv_file:
+        messages.error(request, 'Vui lòng tải lên file CV (PDF/Word).')
+        return redirect('kanban_board')
+
+    if Candidate.objects.filter(email__iexact=email, job_posting=job).exists():
+        messages.error(request, f'Email {email} đã được nộp cho vị trí "{job.title}".')
+        return redirect('kanban_board')
+
+    try:
         Candidate.objects.create(
-            job_posting_id=job_posting_id,
+            job_posting=job,
             full_name=full_name,
             email=email,
             phone=phone,
             hr_note=hr_note,
             cv_file=cv_file,
-            status='new'
+            status='new',
         )
-        
+        messages.success(request, f'Đã thêm ứng viên {full_name}.')
     except Exception as e:
-        pass
-        
+        messages.error(request, f'Không thể lưu hồ sơ: {e}')
+
     return redirect('kanban_board')
 
 @admin_only

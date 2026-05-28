@@ -56,6 +56,11 @@ class Lesson(models.Model):
     title = models.CharField(max_length=255, verbose_name="Tiêu đề bài học")
     lesson_type = models.CharField(max_length=20, choices=LESSON_TYPES, verbose_name="Loại bài học")
     content = RichTextField(blank=True, null=True, verbose_name="Nội dung bài học")
+    video_url = models.URLField(
+        blank=True,
+        null=True,
+        verbose_name="Link Video (YouTube/Vimeo)",
+    )
     video_file = models.FileField(upload_to='course_videos/', blank=True, null=True, verbose_name="Upload Video")
     attachment = models.FileField(upload_to='course_materials/', null=True, blank=True, verbose_name="Tài liệu đính kèm")
     
@@ -69,6 +74,11 @@ class Lesson(models.Model):
 
     def __str__(self):
         return self.title
+
+    @property
+    def video_embed_url(self):
+        from training.utils import get_video_embed_url
+        return get_video_embed_url(self.video_url)
 
 class Enrollment(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='enrollments', verbose_name="Nhân viên")

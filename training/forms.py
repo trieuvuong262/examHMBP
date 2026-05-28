@@ -2,6 +2,7 @@ from django import forms
 from django.contrib.auth.models import User 
 from .models import Course, Chapter, Lesson
 
+
 class CourseForm(forms.ModelForm):
     class Meta:
         model = Course
@@ -47,13 +48,37 @@ class ChapterForm(forms.ModelForm):
 class LessonForm(forms.ModelForm):
     class Meta:
         model = Lesson
-        fields = ['title', 'lesson_type', 'content', 'video_file', 'attachment', 'order', 'duration_estimate']
+        fields = [
+            'title', 'lesson_type', 'content', 'video_url', 'video_file',
+            'attachment', 'order', 'duration_estimate',
+        ]
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control'}),
             'lesson_type': forms.Select(attrs={'class': 'form-select', 'id': 'id_lesson_type'}),
             'content': forms.Textarea(attrs={'class': 'form-control', 'rows': 5}),
+            'video_url': forms.URLInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'https://www.youtube.com/watch?v=...',
+            }),
             'video_file': forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'video/*'}),
             'attachment': forms.ClearableFileInput(attrs={'class': 'form-control'}),
             'order': forms.NumberInput(attrs={'class': 'form-control'}),
             'duration_estimate': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Phút'}),
         }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        lesson_type = cleaned_data.get('lesson_type')
+        video_url = cleaned_data.get('video_url')
+        video_file = cleaned_data.get('video_file')
+        attachment = cleaned_data.get('attachment')
+
+        if lesson_type == 'video' and not video_url and not video_file:
+            raise forms.ValidationError(
+                'Video bài giảng cần link YouTube/Vimeo hoặc file video upload.'
+            )
+
+        if lesson_type == 'pdf' and not attachment:
+            raise forms.ValidationError('Bài PDF cần tài liệu đính kèm.')
+
+        return cleaned_data
