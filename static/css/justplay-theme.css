@@ -525,8 +525,8 @@ main pre {
 
 /* --- Navbar --- */
 .navbar {
-    background: linear-gradient(135deg, var(--jp-black-950) 0%, var(--jp-black-800) 55%, var(--hm-primary-dark) 100%) !important;
-    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
+    background-color: var(--hm-primary) !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
     padding-top: 0.65rem;
     padding-bottom: 0.65rem;
     padding-left: max(0.75rem, env(safe-area-inset-left));
@@ -592,7 +592,7 @@ main pre {
 /* Mobile drawer */
 .jp-mobile-drawer {
     width: min(88vw, 320px);
-    background: linear-gradient(180deg, var(--jp-black-900) 0%, var(--jp-black-800) 45%, var(--hm-primary-dark) 100%);
+    background: linear-gradient(180deg, #b91c1c 0%, #991b1b 100%);
     color: white;
     border: none;
 }
