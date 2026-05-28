@@ -20,6 +20,14 @@ class KpiPeriod(models.Model):
     period_type = models.CharField(max_length=2, choices=PERIOD_CHOICES, verbose_name="Loại kỳ")
     is_active = models.BooleanField(default=False, verbose_name="Admin cho phép chấm điểm")
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['year', 'period_type'],
+                name='kpi_kpiperiod_year_period_type_uniq',
+            ),
+        ]
+
     def __str__(self):
         status = "ĐANG MỞ" if self.is_active else "ĐANG KHÓA"
         return f"{self.title} ({self.year}) - {status}"

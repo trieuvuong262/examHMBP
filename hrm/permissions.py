@@ -20,7 +20,12 @@ MANAGER_ROLES = {ROLE_HOD, ROLE_GM}
 
 
 def get_profile(user):
-    return getattr(user, 'profile', None)
+    if not getattr(user, 'is_authenticated', False):
+        return None
+    try:
+        return user.profile
+    except Exception:
+        return None
 
 
 def user_role(user) -> str:

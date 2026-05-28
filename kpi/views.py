@@ -22,15 +22,18 @@ def _period_title(period_type: str) -> str:
 
 
 def _get_or_create_period(year: int, period_type: str) -> KpiPeriod:
-    period, _ = KpiPeriod.objects.get_or_create(
+    title = _period_title(period_type)
+    period = KpiPeriod.objects.filter(year=year, period_type=period_type).order_by('id').first()
+    if period:
+        if not period.title:
+            period.title = title
+            period.save(update_fields=['title'])
+        return period
+    return KpiPeriod.objects.create(
         year=year,
         period_type=period_type,
-        defaults={'title': _period_title(period_type)},
+        title=title,
     )
-    if not period.title:
-        period.title = _period_title(period_type)
-        period.save(update_fields=['title'])
-    return period
 # ========================================================
 # 1. TRANG DANH SÁCH KPI (DASHBOARD CHÍNH)
 # ========================================================
