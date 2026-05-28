@@ -13,20 +13,37 @@ load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+def env_bool(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
 # ==============================================================================
 # 1. BẢO MẬT CỐT LÕI (SECURITY)
 # ==============================================================================
 
 # Lấy SECRET_KEY từ file .env (Bắt buộc phải có để chạy)
 SECRET_KEY = os.getenv('SECRET_KEY')
+if not SECRET_KEY:
+    raise ValueError("SECRET_KEY is required. Set it in .env")
 
 # Bật/Tắt DEBUG qua file .env (Mặc định là False để bảo vệ Server)
-DEBUG = os.getenv('DEBUG', 'False') == 'True'
+DEBUG = env_bool('DEBUG', False)
 
 # Chỉ cho phép các IP/Domain được khai báo trong .env truy cập
 # Ví dụ trong .env: ALLOWED_HOSTS=127.0.0.1,localhost,hrms.hoanmy.com
-allowed_hosts_env = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost')
+SERVER_IP = os.getenv('SERVER_IP', '103.90.224.203')
+default_allowed_hosts = f"{SERVER_IP},127.0.0.1,localhost"
+allowed_hosts_env = os.getenv('ALLOWED_HOSTS', default_allowed_hosts)
 ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_env.split(',')]
+
+csrf_trusted_origins_env = os.getenv(
+    'CSRF_TRUSTED_ORIGINS',
+    f"http://{SERVER_IP},https://{SERVER_IP}"
+)
+CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_trusted_origins_env.split(',') if origin.strip()]
 
 # Giới hạn dung lượng File Upload (Tối đa 10MB) để chống DoS
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024 
@@ -171,20 +188,16 @@ CKEDITOR_CONFIGS = {
 # 7. CẤU HÌNH BẢO MẬT CHUYÊN SÂU KHI CHẠY PRODUCTION
 # ==============================================================================
 if not DEBUG:
-    # Tắt ép buộc HTTPS để test bằng HTTP trước
-    SESSION_COOKIE_SECURE = False
-    CSRF_COOKIE_SECURE = False
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SESSION_COOKIE_HTTPONLY = True
-    
-    # Tắt chuyển hướng SSL
-    SECURE_SSL_REDIRECT = False 
-    
-    # Tạm thời tắt hoặc comment dòng HSTS
-    SECURE_HSTS_SECONDS = 0 
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
-    
+    SESSION_COOKIE_SECURE = env_bool('SESSION_COOKIE_SECURE', False)
+    CSRF_COOKIE_SECURE = env_bool('CSRF_COOKIE_SECURE', False)
+    SECURE_SSL_REDIRECT = env_bool('SECURE_SSL_REDIRECT', False)
+    SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', '0'))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', False)
+    SECURE_HSTS_PRELOAD = env_bool('SECURE_HSTS_PRELOAD', False)
     SECURE_CONTENT_TYPE_NOSNIFF = True
-    AXES_FAILURE_LIMIT = 10
+    AXES_FAILURE_LIMIT = int(os.getenv('AXES_FAILURE_LIMIT', '10'))
     
 AUTHENTICATION_BACKENDS = [
     # 1. Trạm gác ngoài cùng: Bắt buộc dùng AxesBackend (đã sửa) để đếm số lần sai
