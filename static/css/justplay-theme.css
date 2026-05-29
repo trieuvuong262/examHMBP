@@ -3246,6 +3246,15 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     min-height: 52px;
 }
 
+.jp-qa-suggest {
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.jp-qa-suggest:hover:not(:disabled) {
+    background: rgba(220, 38, 38, 0.06);
+    border-color: var(--hm-primary, #dc2626) !important;
+}
+
 .jp-qa-avatar {
     width: 40px;
     height: 40px;

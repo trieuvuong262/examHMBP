@@ -1,7 +1,7 @@
 from django import forms
 from django.utils.html import strip_tags
 
-from .models import Document, DocumentCategory
+from .models import Document, DocumentCategory, LibraryQAConfig
 
 
 class DocumentCategoryForm(forms.ModelForm):
@@ -55,3 +55,28 @@ class DocumentForm(forms.ModelForm):
             self.add_error('pdf_file', 'Vui lòng tải lên file PDF.')
 
         return cleaned
+
+
+class LibraryQAConfigForm(forms.ModelForm):
+    class Meta:
+        model = LibraryQAConfig
+        fields = ['gemini_api_key', 'gemini_model']
+        widgets = {
+            'gemini_api_key': forms.PasswordInput(render_value=True, attrs={
+                'class': 'form-control font-monospace',
+                'placeholder': 'AIza... hoặc AQ....',
+                'autocomplete': 'off',
+            }),
+            'gemini_model': forms.Select(attrs={'class': 'form-select'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['gemini_api_key'].required = False
+        self.fields['gemini_api_key'].label = 'API key trợ lý AI'
+        self.fields['gemini_model'].label = 'Chế độ phản hồi'
+        self.fields['gemini_model'].choices = [
+            ('gemini-1.5-pro', 'Chi tiết & chính xác'),
+            ('gemini-2.0-flash', 'Nhanh'),
+            ('gemini-1.5-flash', 'Cân bằng'),
+        ]

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
@@ -11,9 +12,10 @@ from PortalJustPlay.pagination import paginate_queryset
 from assessment.decorators import admin_only
 from hrm.module_permissions import MODULE_DOCUMENTS, user_can_access_module, user_can_edit_module
 
-from .forms import DocumentCategoryForm, DocumentForm
-from .models import Document, DocumentCategory
-from .qa_service import ask_portal_assistant
+from .forms import DocumentCategoryForm, DocumentForm, LibraryQAConfigForm
+from .models import Document, DocumentCategory, LibraryQAConfig
+from .qa_config import is_qa_enabled, qa_config_source
+from .qa_service import ask_portal_assistant, generate_followup_suggestions
 
 QA_RATE_LIMIT = 40
 QA_RATE_WINDOW = 3600
@@ -103,6 +105,34 @@ def admin_hub(request):
     return render(request, 'documents/admin/hub.html', {
         'categories': categories,
         'doc_count': doc_count,
+        'qa_enabled': is_qa_enabled(),
+        'qa_config_source': qa_config_source(),
+    })
+
+
+@admin_only
+def admin_qa_settings(request):
+    config = LibraryQAConfig.load()
+    if request.method == 'POST':
+        form = LibraryQAConfigForm(request.POST, instance=config)
+        if form.is_valid():
+            obj = form.save(commit=False)
+            obj.updated_by = request.user
+            # Giữ key cũ nếu để trống ô nhập (không xóa nhầm)
+            if not (form.cleaned_data.get('gemini_api_key') or '').strip():
+                obj.gemini_api_key = config.gemini_api_key
+            obj.save()
+            messages.success(request, 'Đã lưu cấu hình Hỏi đáp AI.')
+            return redirect('documents:admin_qa_settings')
+    else:
+        form = LibraryQAConfigForm(instance=config)
+
+    return render(request, 'documents/admin/qa_settings.html', {
+        'form': form,
+        'qa_enabled': is_qa_enabled(),
+        'qa_config_source': qa_config_source(),
+        'has_stored_key': bool((config.gemini_api_key or '').strip()),
+        'env_key_configured': bool((getattr(settings, 'GEMINI_API_KEY', '') or '').strip()),
     })
 
 
@@ -253,10 +283,9 @@ def admin_document_delete(request, pk):
 
 @_documents_access_required
 def qa_chat(request):
-    from django.conf import settings
     return render(request, 'documents/qa.html', {
         'is_admin': user_can_edit_module(request.user, MODULE_DOCUMENTS),
-        'qa_enabled': bool(getattr(settings, 'GEMINI_API_KEY', '')),
+        'qa_enabled': is_qa_enabled(),
     })
 
 
@@ -283,6 +312,12 @@ def qa_ask(request):
 
     try:
         answer = ask_portal_assistant(request.user, question, history=history)
+        suggestions = generate_followup_suggestions(
+            request.user,
+            question,
+            answer,
+            history=history,
+        )
     except ValueError as exc:
         return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
     except RuntimeError as exc:
@@ -290,7 +325,7 @@ def qa_ask(request):
     except Exception:
         return JsonResponse({
             'ok': False,
-            'error': 'Không kết nối được AI. Kiểm tra GEMINI_API_KEY hoặc thử lại sau.',
+            'error': 'Không kết nối được trợ lý AI. Liên hệ quản trị viên hoặc thử lại sau.',
         }, status=502)
 
-    return JsonResponse({'ok': True, 'answer': answer})
+    return JsonResponse({'ok': True, 'answer': answer, 'suggestions': suggestions})

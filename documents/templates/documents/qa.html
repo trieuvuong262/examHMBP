@@ -9,7 +9,7 @@
                 <i class="bi bi-journal-bookmark-fill me-2"></i>Thư viện — Hỏi đáp
             </h1>
             <p class="text-muted mb-0 jp-hide-mobile-subtitle">
-                Trợ lý AI trả lời dựa trên tài liệu và hướng dẫn portal — trong phạm vi quyền của bạn.
+                Trợ lý AI JustPlay — hỗ trợ tra cứu quy trình, tài liệu và hướng dẫn trong phạm vi quyền của bạn.
             </p>
         </div>
     </div>
@@ -19,7 +19,13 @@
     {% if not qa_enabled %}
     <div class="alert alert-warning border-0 shadow-sm">
         <i class="bi bi-exclamation-triangle me-2"></i>
-        Chưa cấu hình <code>GEMINI_API_KEY</code> trên server. Liên hệ IT để kích hoạt Hỏi đáp AI.
+        Trợ lý AI chưa được kích hoạt.
+        {% if is_admin %}
+        <a href="{% url 'documents:admin_qa_settings' %}" class="alert-link fw-semibold">Cấu hình ngay</a>
+        (Thư viện → Quản lý → Cấu hình trợ lý AI).
+        {% else %}
+        Liên hệ quản trị viên hoặc IT.
+        {% endif %}
     </div>
     {% endif %}
 
@@ -27,18 +33,18 @@
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm jp-qa-chat-card">
                 <div class="card-header bg-white border-bottom py-3 d-flex align-items-center gap-2">
-                    <span class="jp-qa-avatar"><i class="bi bi-robot"></i></span>
+                    <span class="jp-qa-avatar"><i class="bi bi-stars"></i></span>
                     <div>
-                        <div class="fw-bold">Trợ lý Thư viện</div>
-                        <small class="text-muted">Gemini Pro · chỉ dùng kiến thức nội bộ portal</small>
+                        <div class="fw-bold">Trợ lý AI JustPlay</div>
+                        <small class="text-muted">Hỗ trợ tra cứu nội bộ · trong phạm vi quyền truy cập của bạn</small>
                     </div>
                 </div>
                 <div class="card-body p-0">
                     <div id="qaMessages" class="jp-qa-messages" aria-live="polite">
                         <div class="jp-qa-msg jp-qa-msg-bot">
                             <div class="jp-qa-bubble">
-                                Xin chào! Tôi có thể giúp bạn tìm hiểu quy trình, chính sách và tài liệu trên portal.
-                                Hãy hỏi cụ thể — ví dụ: <em>“Quy trình nộp báo cáo?”</em> hoặc <em>“Tài liệu về an toàn lao động?”</em>
+                                Xin chào! Tôi là trợ lý AI của JustPlay, sẵn sàng hỗ trợ bạn tra cứu quy trình, chính sách và tài liệu trên portal.
+                                Hãy đặt câu hỏi đầu tiên — tôi sẽ gợi ý các câu hỏi tiếp theo phù hợp với nội dung bạn quan tâm.
                             </div>
                         </div>
                     </div>
@@ -48,7 +54,7 @@
                             <textarea id="qaInput"
                                       class="form-control"
                                       rows="2"
-                                      placeholder="Nhập câu hỏi..."
+                                      placeholder="Hỏi trợ lý AI JustPlay..."
                                       maxlength="2000"
                                       {% if not qa_enabled %}disabled{% endif %}></textarea>
                             <button type="submit" class="btn btn-hm px-4" id="qaSubmitBtn" {% if not qa_enabled %}disabled{% endif %}>
@@ -56,7 +62,7 @@
                             </button>
                         </div>
                         <div class="form-text mt-2">
-                            AI chỉ trả lời trong phạm vi tài liệu & module bạn được phép xem. Không hỏi thông tin mật hoặc dữ liệu người khác.
+                            Trợ lý chỉ trả lời trong phạm vi tài liệu & module bạn được phép xem. Không hỏi thông tin mật hoặc dữ liệu người khác.
                         </div>
                     </form>
                 </div>
@@ -66,10 +72,10 @@
             <div class="card border-0 shadow-sm mb-3">
                 <div class="card-body p-3">
                     <h6 class="fw-bold mb-2"><i class="bi bi-lightbulb text-hm me-1"></i>Gợi ý câu hỏi</h6>
-                    <div class="d-flex flex-column gap-2">
-                        <button type="button" class="btn btn-light border text-start btn-sm jp-qa-suggest">Quy trình nộp báo cáo công việc?</button>
-                        <button type="button" class="btn btn-light border text-start btn-sm jp-qa-suggest">Tôi được dùng những module nào?</button>
-                        <button type="button" class="btn btn-light border text-start btn-sm jp-qa-suggest">Có tài liệu nào về quy chế công ty?</button>
+                    <div id="qaSuggestions" class="d-flex flex-column gap-2">
+                        <p class="text-muted small mb-0 jp-qa-suggest-placeholder">
+                            Gợi ý sẽ xuất hiện sau câu hỏi đầu tiên của bạn, dựa trên nội dung vừa trao đổi.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -92,9 +98,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('qaForm');
     const input = document.getElementById('qaInput');
     const messages = document.getElementById('qaMessages');
+    const suggestionsEl = document.getElementById('qaSuggestions');
     const submitBtn = document.getElementById('qaSubmitBtn');
     const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
     let history = [];
+    let sending = false;
 
     function appendMessage(role, text) {
         const wrap = document.createElement('div');
@@ -108,21 +116,45 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function setLoading(on) {
+        sending = on;
         submitBtn.disabled = on || !input || input.disabled;
         input.disabled = on || input.hasAttribute('data-origin-disabled');
     }
 
+    function renderSuggestions(items, loading) {
+        suggestionsEl.innerHTML = '';
+        if (loading) {
+            suggestionsEl.innerHTML = '<p class="text-muted small mb-0"><span class="spinner-border spinner-border-sm me-2"></span>Đang gợi ý câu hỏi tiếp theo...</p>';
+            return;
+        }
+        if (!items || !items.length) {
+            suggestionsEl.innerHTML = '<p class="text-muted small mb-0">Chưa có gợi ý phù hợp. Bạn có thể hỏi thêm chi tiết.</p>';
+            return;
+        }
+        items.forEach(function (text) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn btn-light border text-start btn-sm jp-qa-suggest';
+            btn.textContent = text;
+            btn.addEventListener('click', function () {
+                if (!sending) sendQuestion(text);
+            });
+            suggestionsEl.appendChild(btn);
+        });
+    }
+
     async function sendQuestion(question) {
         question = (question || '').trim();
-        if (!question) return;
+        if (!question || sending) return;
         appendMessage('user', question);
         history.push({ role: 'user', text: question });
         input.value = '';
         setLoading(true);
+        renderSuggestions([], true);
 
         const loading = document.createElement('div');
         loading.className = 'jp-qa-msg jp-qa-msg-bot jp-qa-loading';
-        loading.innerHTML = '<div class="jp-qa-bubble"><span class="spinner-border spinner-border-sm me-2"></span>Đang suy nghĩ...</div>';
+        loading.innerHTML = '<div class="jp-qa-bubble"><span class="spinner-border spinner-border-sm me-2"></span>Trợ lý đang trả lời...</div>';
         messages.appendChild(loading);
         messages.scrollTop = messages.scrollHeight;
 
@@ -139,14 +171,17 @@ document.addEventListener('DOMContentLoaded', function () {
             loading.remove();
             if (!data.ok) {
                 appendMessage('bot', data.error || 'Có lỗi xảy ra.');
+                renderSuggestions([]);
                 return;
             }
             appendMessage('bot', data.answer);
             history.push({ role: 'model', text: data.answer });
             if (history.length > 16) history = history.slice(-16);
+            renderSuggestions(data.suggestions || []);
         } catch (err) {
             loading.remove();
             appendMessage('bot', 'Không gửi được câu hỏi. Kiểm tra mạng và thử lại.');
+            renderSuggestions([]);
         } finally {
             setLoading(false);
             input.focus();
@@ -165,13 +200,6 @@ document.addEventListener('DOMContentLoaded', function () {
             e.preventDefault();
             form.requestSubmit();
         }
-    });
-
-    document.querySelectorAll('.jp-qa-suggest').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            input.value = btn.textContent.trim();
-            input.focus();
-        });
     });
 });
 </script>

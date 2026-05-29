@@ -14,6 +14,7 @@ urlpatterns = [
     path('admin/documents/add/', views.admin_document_create, name='admin_document_create'),
     path('admin/documents/<int:pk>/edit/', views.admin_document_edit, name='admin_document_edit'),
     path('admin/documents/<int:pk>/delete/', views.admin_document_delete, name='admin_document_delete'),
+    path('admin/hoi-dap/', views.admin_qa_settings, name='admin_qa_settings'),
     path('hoi-dap/', views.qa_chat, name='qa'),
     path('hoi-dap/ask/', views.qa_ask, name='qa_ask'),
     path('', views.browse, name='browse'),

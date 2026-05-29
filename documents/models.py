@@ -94,8 +94,49 @@ class Document(models.Model):
             base = slugify(self.title, allow_unicode=True) or 'tai-lieu'
             slug = base
             n = 1
-            while Document.objects.filter(category=self.category, slug=slug).exclude(pk=self.pk).exists():
-                slug = f'{base}-{n}'
-                n += 1
             self.slug = slug
         super().save(*args, **kwargs)
+
+
+class LibraryQAConfig(models.Model):
+    """Cấu hình Hỏi đáp AI — một bản ghi duy nhất (pk=1)."""
+
+    GEMINI_MODEL_CHOICES = [
+        ('gemini-1.5-pro', 'Gemini 1.5 Pro'),
+        ('gemini-2.0-flash', 'Gemini 2.0 Flash'),
+        ('gemini-1.5-flash', 'Gemini 1.5 Flash'),
+    ]
+
+    gemini_api_key = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name='Gemini API Key',
+        help_text='Lấy tại Google AI Studio. Để trống nếu dùng biến GEMINI_API_KEY trong file .env.',
+    )
+    gemini_model = models.CharField(
+        max_length=64,
+        choices=GEMINI_MODEL_CHOICES,
+        default='gemini-1.5-pro',
+        verbose_name='Model',
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='library_qa_config_updates',
+        verbose_name='Người cập nhật',
+    )
+
+    class Meta:
+        verbose_name = 'Cấu hình Hỏi đáp AI'
+        verbose_name_plural = 'Cấu hình Hỏi đáp AI'
+
+    def __str__(self):
+        return 'Cấu hình Hỏi đáp AI'
+
+    @classmethod
+    def load(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj

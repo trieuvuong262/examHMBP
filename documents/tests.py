@@ -44,15 +44,16 @@ class LibraryQATests(TestCase):
     def test_qa_page_loads(self):
         res = self.client.get(reverse('documents:qa'))
         self.assertEqual(res.status_code, 200)
-        self.assertContains(res, 'Hỏi đáp')
+        self.assertContains(res, 'Trợ lý AI JustPlay')
 
     def test_knowledge_includes_user_role(self):
         text = build_portal_knowledge(self.user)
         self.assertIn('Lib User', text)
         self.assertIn('Test Dept', text)
 
+    @patch('documents.views.generate_followup_suggestions', return_value=['Chi tiết thêm về quy trình này?'])
     @patch('documents.views.ask_portal_assistant', return_value='Trả lời mẫu.')
-    def test_qa_ask_api(self, mock_ask):
+    def test_qa_ask_api(self, mock_ask, mock_suggest):
         res = self.client.post(
             reverse('documents:qa_ask'),
             data='{"question":"Xin chào"}',
@@ -62,4 +63,6 @@ class LibraryQATests(TestCase):
         data = res.json()
         self.assertTrue(data['ok'])
         self.assertEqual(data['answer'], 'Trả lời mẫu.')
+        self.assertEqual(data['suggestions'], ['Chi tiết thêm về quy trình này?'])
         mock_ask.assert_called_once()
+        mock_suggest.assert_called_once()
