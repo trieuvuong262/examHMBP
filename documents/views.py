@@ -4,7 +4,7 @@ from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404, redirect, render
 
 from assessment.decorators import admin_only
-from hrm.permissions import is_portal_admin
+from hrm.module_permissions import MODULE_DOCUMENTS, user_can_edit_module
 
 from .forms import DocumentCategoryForm, DocumentForm
 from .models import Document, DocumentCategory
@@ -61,7 +61,7 @@ def browse(request, category_slug=None, doc_slug=None):
         'categories': categories,
         'selected_category': selected_category,
         'selected_document': selected_document,
-        'is_admin': is_portal_admin(request.user),
+        'is_admin': user_can_edit_module(request.user, MODULE_DOCUMENTS),
     }
     return render(request, 'documents/browse.html', context)
 

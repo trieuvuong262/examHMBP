@@ -10,10 +10,10 @@
             <nav aria-label="breadcrumb" class="d-none d-md-block">
                 <ol class="breadcrumb mb-0 small">
                     <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}" class="text-decoration-none text-muted">Dashboard</a></li>
-                    <li class="breadcrumb-item active fw-bold text-hm">Phân quyền phòng ban</li>
+                    <li class="breadcrumb-item active fw-bold text-hm">Phân quyền</li>
                 </ol>
             </nav>
-            <p class="text-muted small mb-0 mt-1">Chọn module menu mà từng phòng ban được phép truy cập</p>
+            <p class="text-muted small mb-0 mt-1">Phòng ban: module được truy cập · Vai trò: chỉ xem hoặc cập nhật</p>
         </div>
         <div class="jp-hrm-toolbar">
             <a href="{% url 'org_structure' %}?tab=department" class="btn btn-outline-dark fw-bold shadow-sm jp-hrm-tool-btn">
@@ -22,51 +22,108 @@
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm overflow-hidden">
-        <div class="card-header bg-white py-3 border-bottom">
-            <h5 class="mb-0 fw-bold text-dark">Phòng ban ({{ departments|length }})</h5>
+    <ul class="nav nav-pills jp-perm-tabs mb-3 gap-2" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active fw-bold" data-bs-toggle="pill" data-bs-target="#tab-dept" type="button">Theo phòng ban</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold" data-bs-toggle="pill" data-bs-target="#tab-role" type="button">Theo vai trò (4 cấp)</button>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <div class="tab-pane fade show active" id="tab-dept">
+            <div class="card border-0 shadow-sm overflow-hidden">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h5 class="mb-0 fw-bold text-dark">Phòng ban ({{ departments|length }})</h5>
+                    <p class="small text-muted mb-0 mt-1">Chọn module menu mà từng phòng ban được phép truy cập</p>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light text-uppercase small">
+                            <tr>
+                                <th class="ps-4 py-3 text-muted">Phòng ban</th>
+                                <th class="text-muted text-center">Nhân viên</th>
+                                <th class="text-muted">Quyền menu</th>
+                                <th class="text-end pe-4 text-muted">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in rows %}
+                            <tr>
+                                <td class="ps-4 fw-semibold">{{ row.department.name }}</td>
+                                <td class="text-center">
+                                    <span class="badge bg-light text-dark border">{{ row.department.staff_count }}</span>
+                                </td>
+                                <td>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        {% for label in row.enabled_labels %}
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle">{{ label }}</span>
+                                        {% empty %}
+                                        <span class="text-muted small">Chưa cấu hình</span>
+                                        {% endfor %}
+                                    </div>
+                                </td>
+                                <td class="text-end pe-4">
+                                    <a href="{% url 'department_permissions' row.department.pk %}" class="btn btn-sm btn-hm text-white fw-bold">
+                                        <i class="bi bi-sliders me-1"></i>Cấu hình
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center py-5 text-muted">
+                                    Chưa có phòng ban. <a href="{% url 'department_add' %}">Thêm phòng ban</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="bg-light text-uppercase small">
-                    <tr>
-                        <th class="ps-4 py-3 text-muted">Phòng ban</th>
-                        <th class="text-muted text-center">Nhân viên</th>
-                        <th class="text-muted">Quyền menu</th>
-                        <th class="text-end pe-4 text-muted">Thao tác</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in rows %}
-                    <tr>
-                        <td class="ps-4 fw-semibold">{{ row.department.name }}</td>
-                        <td class="text-center">
-                            <span class="badge bg-light text-dark border">{{ row.department.staff_count }}</span>
-                        </td>
-                        <td>
-                            <div class="d-flex flex-wrap gap-1">
-                                {% for label in row.enabled_labels %}
-                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">{{ label }}</span>
-                                {% empty %}
-                                <span class="text-muted small">Chưa cấu hình quyền</span>
-                                {% endfor %}
-                            </div>
-                        </td>
-                        <td class="text-end pe-4">
-                            <a href="{% url 'department_permissions' row.department.pk %}" class="btn btn-sm btn-hm text-white fw-bold">
-                                <i class="bi bi-sliders me-1"></i>Cấu hình
-                            </a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="4" class="text-center py-5 text-muted">
-                            Chưa có phòng ban. <a href="{% url 'department_add' %}">Thêm phòng ban</a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+
+        <div class="tab-pane fade" id="tab-role">
+            <div class="card border-0 shadow-sm overflow-hidden">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h5 class="mb-0 fw-bold text-dark">Vai trò hệ thống</h5>
+                    <p class="small text-muted mb-0 mt-1">Tuỳ chỉnh quyền <strong>Chỉ xem</strong> / <strong>Cập nhật</strong> trên từng chức năng</p>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light text-uppercase small">
+                            <tr>
+                                <th class="ps-4 py-3 text-muted">Vai trò</th>
+                                <th class="text-muted">Tóm tắt quyền</th>
+                                <th class="text-end pe-4 text-muted">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in role_rows %}
+                            <tr>
+                                <td class="ps-4 fw-semibold">{{ row.label }}</td>
+                                <td>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        {% for item in row.summary %}
+                                        {% if item.edit %}
+                                        <span class="badge bg-danger text-white" title="{{ item.label }}">{{ item.label }} · Sửa</span>
+                                        {% elif item.view %}
+                                        <span class="badge bg-light text-dark border" title="{{ item.label }}">{{ item.label }} · Xem</span>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                </td>
+                                <td class="text-end pe-4">
+                                    <a href="{% url 'role_permission_edit' row.role %}" class="btn btn-sm btn-outline-hm fw-bold">
+                                        <i class="bi bi-sliders me-1"></i>Cấu hình
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 </div>

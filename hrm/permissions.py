@@ -92,9 +92,8 @@ def can_view_team_reports(user) -> bool:
     """Xem trang báo cáo team."""
     if not getattr(user, 'is_authenticated', False):
         return False
-    if is_portal_admin(user):
-        return True
-    return is_manager(user)
+    from hrm.module_permissions import MODULE_REPORTS, user_can_view_module
+    return user_can_view_module(user, MODULE_REPORTS)
 
 
 def get_report_team_users(viewer):
@@ -119,16 +118,18 @@ def get_report_team_users(viewer):
     return User.objects.none()
 
 
-def can_manage_kpi_for_others(user) -> bool:
-    """Giao KPI mới / import Excel."""
-    return is_manager(user) or is_portal_admin(user)
-
-
 def can_edit_user_guide(user) -> bool:
-    """Chỉnh sửa trang hướng dẫn — quản lý hoặc HR/quản trị portal."""
+    """Chỉnh sửa trang hướng dẫn."""
     if not getattr(user, 'is_authenticated', False):
         return False
-    return is_manager(user) or is_portal_admin(user)
+    from hrm.module_permissions import MODULE_GUIDE, user_can_edit_module
+    return user_can_edit_module(user, MODULE_GUIDE)
+
+
+def can_manage_kpi_for_others(user) -> bool:
+    """Giao KPI mới / import Excel."""
+    from hrm.module_permissions import MODULE_KPI, user_can_edit_module
+    return user_can_edit_module(user, MODULE_KPI)
 
 
 def portal_admin_denied_message() -> str:

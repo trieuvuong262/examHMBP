@@ -10,7 +10,7 @@ from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.contrib import messages
 
-from hrm.permissions import get_profile, is_portal_admin
+from hrm.permissions import get_profile
 
 MODULE_ANNOUNCEMENTS = 'announcements'
 MODULE_RECRUITMENT = 'recruitment'
@@ -113,11 +113,27 @@ def get_user_enabled_modules(user) -> set:
 
 
 def user_can_access_module(user, module_key: str) -> bool:
+    """Phòng ban + vai trò — quyền xem module."""
     if module_key not in ALL_MODULE_KEYS:
         return True
     if bypass_department_modules(user):
         return True
-    return module_key in get_user_enabled_modules(user)
+    if module_key not in get_user_enabled_modules(user):
+        return False
+    from hrm.role_permissions import role_allows_view
+    return role_allows_view(user, module_key)
+
+
+def user_can_edit_module(user, module_key: str) -> bool:
+    """Phòng ban + vai trò — quyền cập nhật module."""
+    if module_key not in ALL_MODULE_KEYS:
+        return True
+    if bypass_department_modules(user):
+        return True
+    if module_key not in get_user_enabled_modules(user):
+        return False
+    from hrm.role_permissions import role_allows_edit
+    return role_allows_edit(user, module_key)
 
 
 def resolve_module_from_request(path: str, tab: str | None = None) -> str | None:
@@ -167,5 +183,7 @@ def handle_department_access_denied(request, module_key: str):
 
 
 def can_manage_department_permissions(user) -> bool:
-    """Chỉ HR/quản trị portal mới cấu hình quyền phòng ban."""
-    return is_portal_admin(user) or bypass_department_modules(user)
+    """HR/quản trị — cấu hình phân quyền phòng ban & vai trò."""
+    if bypass_department_modules(user):
+        return True
+    return user_can_edit_module(user, MODULE_HRM)

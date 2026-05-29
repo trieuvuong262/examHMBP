@@ -4,7 +4,8 @@ from django.db.models import Q
 from .models import Profile, Department, Division, DepartmentMenuPermission
 from hrm.choices import GENDER_FORM_CHOICES
 from hrm.permissions import ROLE_EMPLOYEE
-from hrm.module_permissions import MODULE_CHOICES
+from hrm.module_permissions import ALL_MODULE_KEYS, MODULE_CHOICES, MODULE_LABELS
+from hrm.role_permissions import normalize_module_permissions
 
 INPUT = {'class': 'form-control'}
 SELECT = {'class': 'form-select'}
@@ -198,3 +199,50 @@ class DepartmentMenuPermissionForm(forms.Form):
         widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'}),
         label='Chức năng được phép truy cập',
     )
+
+
+class RolePermissionForm(forms.Form):
+    """Ma trận quyền Xem / Cập nhật theo module cho một vai trò."""
+
+    def __init__(self, *args, **kwargs):
+        initial_perms = kwargs.pop('initial_permissions', None)
+        super().__init__(*args, **kwargs)
+        normalized = normalize_module_permissions(initial_perms)
+        for module_key, label in MODULE_CHOICES:
+            view_field = f'view_{module_key}'
+            edit_field = f'edit_{module_key}'
+            mod = normalized.get(module_key, {'view': False, 'edit': False})
+            self.fields[view_field] = forms.BooleanField(
+                required=False,
+                initial=mod['view'],
+                label=f'Xem — {label}',
+                widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            )
+            self.fields[edit_field] = forms.BooleanField(
+                required=False,
+                initial=mod['edit'],
+                label=f'Cập nhật — {label}',
+                widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            )
+
+    def module_rows(self):
+        rows = []
+        for module_key, label in MODULE_CHOICES:
+            rows.append({
+                'key': module_key,
+                'label': label,
+                'view_field': self[f'view_{module_key}'],
+                'edit_field': self[f'edit_{module_key}'],
+            })
+        return rows
+
+    def cleaned_permissions(self) -> dict:
+        result = {}
+        for module_key, _label in MODULE_CHOICES:
+            view = self.cleaned_data.get(f'view_{module_key}', False)
+            edit = self.cleaned_data.get(f'edit_{module_key}', False)
+            if edit:
+                view = True
+            result[module_key] = {'view': view, 'edit': edit}
+        return normalize_module_permissions(result)
+

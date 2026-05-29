@@ -2,8 +2,8 @@ from hrm.module_permissions import (
     handle_department_access_denied,
     resolve_module_from_request,
     user_can_access_module,
+    can_manage_department_permissions,
 )
-from hrm.permissions import is_portal_admin
 
 
 def _admin_permission_config_path(path: str) -> bool:
@@ -19,7 +19,7 @@ class DepartmentModuleAccessMiddleware:
     def __call__(self, request):
         user = request.user
         if user.is_authenticated:
-            if is_portal_admin(user) and _admin_permission_config_path(request.path):
+            if can_manage_department_permissions(user) and _admin_permission_config_path(request.path):
                 return self.get_response(request)
 
             module_key = resolve_module_from_request(

@@ -11,6 +11,7 @@ from hrm.module_permissions import (
     bypass_department_modules,
     get_user_enabled_modules,
     user_can_access_module,
+    user_can_edit_module,
 )
 from hrm.permissions import (
     can_edit_user_guide,
@@ -50,6 +51,15 @@ def portal_permissions(request):
             'jp_can_reports': False,
             'jp_can_guide': False,
             'jp_can_documents': False,
+            'jp_can_edit_announcements': False,
+            'jp_can_edit_recruitment': False,
+            'jp_can_edit_training': False,
+            'jp_can_edit_assessment': False,
+            'jp_can_edit_hrm': False,
+            'jp_can_edit_kpi': False,
+            'jp_can_edit_reports': False,
+            'jp_can_edit_guide': False,
+            'jp_can_edit_documents': False,
             'jp_can_manage_permissions': False,
         }
     enabled = get_user_enabled_modules(user)
@@ -74,5 +84,14 @@ def portal_permissions(request):
         'jp_can_reports': user_can_access_module(user, MODULE_REPORTS),
         'jp_can_guide': user_can_access_module(user, MODULE_GUIDE),
         'jp_can_documents': user_can_access_module(user, MODULE_DOCUMENTS),
-        'jp_can_manage_permissions': is_portal_admin(user) or bypass_department_modules(user),
+        'jp_can_edit_announcements': user_can_edit_module(user, MODULE_ANNOUNCEMENTS),
+        'jp_can_edit_recruitment': user_can_edit_module(user, MODULE_RECRUITMENT),
+        'jp_can_edit_training': user_can_edit_module(user, MODULE_TRAINING),
+        'jp_can_edit_assessment': user_can_edit_module(user, MODULE_ASSESSMENT),
+        'jp_can_edit_hrm': user_can_edit_module(user, MODULE_HRM),
+        'jp_can_edit_kpi': user_can_edit_module(user, MODULE_KPI),
+        'jp_can_edit_reports': user_can_edit_module(user, MODULE_REPORTS),
+        'jp_can_edit_guide': user_can_edit_module(user, MODULE_GUIDE),
+        'jp_can_edit_documents': user_can_edit_module(user, MODULE_DOCUMENTS),
+        'jp_can_manage_permissions': user_can_edit_module(user, MODULE_HRM) or bypass_department_modules(user),
     }

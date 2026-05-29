@@ -4,7 +4,13 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.shortcuts import redirect
 
-from hrm.permissions import is_portal_admin, portal_admin_denied_message
+from hrm.module_permissions import (
+    MODULE_HRM,
+    bypass_department_modules,
+    resolve_module_from_request,
+    user_can_edit_module,
+)
+from hrm.permissions import portal_admin_denied_message
 
 
 def _wants_json_response(request):
@@ -18,14 +24,32 @@ def _wants_json_response(request):
     )
 
 
+def _user_can_admin_request(request) -> bool:
+    user = request.user
+    if not user.is_authenticated:
+        return False
+    if bypass_department_modules(user):
+        return True
+
+    path = request.path
+    if path.startswith('/dashboard/permissions/'):
+        return user_can_edit_module(user, MODULE_HRM)
+
+    module = resolve_module_from_request(path, request.GET.get('tab'))
+    if module:
+        return user_can_edit_module(user, module)
+
+    return user_can_edit_module(user, MODULE_HRM)
+
+
 def admin_only(view_func):
     """
-    Chỉ cho phép quản trị portal (is_staff / HR / GM).
+    Chỉ cho phép user có quyền cập nhật module tương ứng URL.
     Request AJAX/fetch nhận JSON thay vì redirect HTML.
     """
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
-        if request.user.is_authenticated and is_portal_admin(request.user):
+        if _user_can_admin_request(request):
             return view_func(request, *args, **kwargs)
 
         message = portal_admin_denied_message()

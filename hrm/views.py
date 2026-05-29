@@ -13,7 +13,9 @@ from django.db.models import Count
 from hrm.module_permissions import ALL_MODULE_KEYS, MODULE_CHOICES, MODULE_LABELS
 from assessment.decorators import admin_only
 from assessment.forms import UserForm # Tạm thời Form vẫn để ở nhà cũ, mốt mình dời sau
-from hrm.models import Profile, Department, Division, DepartmentMenuPermission
+from hrm.models import Profile, Department, Division, DepartmentMenuPermission, RoleModulePermission
+from hrm.role_permissions import ROLE_LABELS, default_role_permissions, get_role_permissions, role_permission_summary
+from hrm.permissions import ROLE_CHOICES
 from hrm.choices import (
     EXCEL_ALL_HEADERS,
     row_to_profile_data,
@@ -21,7 +23,7 @@ from hrm.choices import (
     user_to_excel_row,
 )
 from PortalJustPlay.utils import generate_hm_username, generate_secure_password
-from .forms import CustomUserForm, DepartmentForm, DivisionForm, DepartmentMenuPermissionForm
+from .forms import CustomUserForm, DepartmentForm, DivisionForm, DepartmentMenuPermissionForm, RolePermissionForm
 from django.http import JsonResponse
 import random
 import string
@@ -485,6 +487,44 @@ def permission_config(request):
     return render(request, 'assessment/admin/permission_config.html', {
         'departments': departments,
         'rows': rows,
+        'role_rows': [
+            {
+                'role': role,
+                'label': label,
+                'summary': role_permission_summary(role),
+            }
+            for role, label in ROLE_CHOICES
+        ],
+    })
+
+
+@admin_only
+def role_permission_edit(request, role):
+    valid_roles = {r for r, _ in ROLE_CHOICES}
+    if role not in valid_roles:
+        messages.error(request, 'Vai trò không hợp lệ.')
+        return redirect('permission_config')
+
+    perm, _ = RoleModulePermission.objects.get_or_create(
+        role=role,
+        defaults={'module_permissions': default_role_permissions().get(role, {})},
+    )
+    role_label = ROLE_LABELS.get(role, role)
+
+    if request.method == 'POST':
+        form = RolePermissionForm(request.POST, initial_permissions=perm.module_permissions)
+        if form.is_valid():
+            perm.module_permissions = form.cleaned_permissions()
+            perm.save()
+            messages.success(request, f'Đã cập nhật phân quyền cho vai trò "{role_label}".')
+            return redirect('permission_config')
+    else:
+        form = RolePermissionForm(initial_permissions=perm.module_permissions)
+
+    return render(request, 'assessment/admin/role_permission_edit.html', {
+        'form': form,
+        'role': role,
+        'role_label': role_label,
     })
 
 

@@ -3168,3 +3168,22 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
         max-height: 280px;
     }
 }
+
+.jp-perm-tabs .nav-link {
+    color: #475569;
+    background: #f1f5f9;
+    border-radius: var(--jp-btn-radius);
+    padding: 0.45rem 1rem;
+    font-size: 0.8125rem;
+}
+
+.jp-perm-tabs .nav-link.active {
+    background: var(--hm-primary);
+    color: #fff;
+}
+
+.jp-role-perm-table .form-check-input {
+    width: 1.1rem;
+    height: 1.1rem;
+    cursor: pointer;
+}

@@ -60,14 +60,14 @@
             </a>
         </li>
         {% endif %}
-        {% if jp_can_recruitment and jp_can_portal_admin %}
+        {% if jp_can_recruitment and jp_can_edit_recruitment %}
         <li>
             <a href="{% url 'admin_dashboard' %}?tab=recruitment" class="jp-sidebar-link {% if request.GET.tab == 'recruitment' or request.resolver_match.url_name == 'admin_dashboard' and not request.GET.tab %}active{% endif %}">
                 <i class="bi bi-person-lines-fill"></i><span>Tuyển dụng</span>
             </a>
         </li>
         {% endif %}
-        {% if jp_can_training and jp_can_portal_admin %}
+        {% if jp_can_training and jp_can_edit_training %}
         <li>
             <a href="{% url 'admin_dashboard' %}?tab=training" class="jp-sidebar-link {% if request.GET.tab == 'training' %}active{% endif %}">
                 <i class="bi bi-mortarboard-fill"></i><span>Đào tạo</span>
@@ -80,7 +80,7 @@
             </a>
         </li>
         {% endif %}
-        {% if jp_can_assessment and jp_can_portal_admin %}
+        {% if jp_can_assessment and jp_can_edit_assessment %}
         <li>
             <a href="{% url 'admin_dashboard' %}?tab=assessment" class="jp-sidebar-link {% if request.GET.tab == 'assessment' %}active{% endif %}">
                 <i class="bi bi-journal-check"></i><span>Kiểm tra</span>
@@ -93,7 +93,7 @@
             </a>
         </li>
         {% endif %}
-        {% if jp_can_hrm and jp_can_portal_admin %}
+        {% if jp_can_hrm and jp_can_edit_hrm %}
         <li>
             <a href="{% url 'user_list' %}" class="jp-sidebar-link {% if '/dashboard/users' in request.path or '/dashboard/org' in request.path or '/dashboard/divisions' in request.path %}active{% elif '/dashboard/departments' in request.path and request.resolver_match.url_name != 'department_permissions' %}active{% endif %}">
                 <i class="bi bi-people-fill"></i><span>Nhân sự</span>

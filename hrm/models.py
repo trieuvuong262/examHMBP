@@ -103,6 +103,34 @@ class DepartmentMenuPermission(models.Model):
         return get_department_enabled_modules(self.department)
 
 
+class RoleModulePermission(models.Model):
+    """Phân quyền xem / cập nhật theo vai trò hệ thống (4 cấp)."""
+    role = models.CharField(
+        max_length=20,
+        choices=ROLE_CHOICES,
+        unique=True,
+        verbose_name='Vai trò',
+    )
+    module_permissions = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name='Quyền theo module',
+        help_text='JSON: {module: {view: bool, edit: bool}}',
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Phân quyền vai trò'
+        verbose_name_plural = 'Phân quyền vai trò'
+
+    def __str__(self):
+        return self.get_role_display()
+
+    def get_permissions(self):
+        from hrm.role_permissions import normalize_module_permissions
+        return normalize_module_permissions(self.module_permissions)
+
+
 class Division(models.Model):
     name = models.CharField(max_length=150, unique=True, verbose_name='Tên bộ phận')
     is_active = models.BooleanField(default=True, verbose_name='Đang sử dụng')
