@@ -1,0 +1,38 @@
+/* Preview trong CKEditor — gần Word / nội dung hiển thị portal */
+body.cke_editable {
+    font-family: Calibri, 'Segoe UI', Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #1e293b;
+    padding: 12px 16px;
+}
+
+body.cke_editable h1 { font-size: 2em; margin: 0.67em 0; }
+body.cke_editable h2 { font-size: 1.5em; margin: 0.75em 0; }
+body.cke_editable h3 { font-size: 1.25em; margin: 0.83em 0; }
+body.cke_editable h4 { font-size: 1.1em; margin: 1em 0; }
+
+body.cke_editable table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1em 0;
+}
+
+body.cke_editable table td,
+body.cke_editable table th {
+    border: 1px solid #cbd5e1;
+    padding: 6px 10px;
+}
+
+body.cke_editable img {
+    max-width: 100%;
+    height: auto;
+}
+
+body.cke_editable blockquote {
+    border-left: 4px solid #dc2626;
+    margin: 1em 0;
+    padding: 0.5em 1em;
+    color: #475569;
+    background: #f8fafc;
+}

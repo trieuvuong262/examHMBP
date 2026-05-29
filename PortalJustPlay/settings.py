@@ -100,6 +100,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.humanize', 
     'ckeditor',
+    'ckeditor_uploader',
     # Custom Apps
     'assessment',
     'training',
@@ -226,20 +227,56 @@ LOGOUT_REDIRECT_URL = 'login'
 
 X_FRAME_OPTIONS = 'SAMEORIGIN'
 
+# CKEditor — soạn thảo rich text + upload ảnh (ckeditor_uploader)
+CKEDITOR_UPLOAD_PATH = 'ckeditor/'
+CKEDITOR_UPLOAD_SLUGIFY_FILENAME = True
+CKEDITOR_ALLOW_NONIMAGE_FILES = False
+CKEDITOR_RESTRICT_BY_USER = True
+CKEDITOR_IMAGE_BACKEND = 'pillow'
+
 CKEDITOR_CONFIGS = {
     'default': {
-        'toolbar': 'Custom',
-        'toolbar_Custom': [
-            ['Bold', 'Italic', 'Underline', 'Strike'],
-            ['NumberedList', 'BulletedList'],
+        'toolbar': 'WordLike',
+        'toolbar_WordLike': [
+            ['Maximize', 'ShowBlocks', 'Source'],
+            ['Undo', 'Redo'],
+            ['Cut', 'Copy', 'Paste', 'PasteText', 'PasteFromWord', 'CopyFormatting'],
+            ['Find', 'Replace', '-', 'SelectAll'],
+            '/',
+            ['Bold', 'Italic', 'Underline', 'Strike', 'Subscript', 'Superscript', '-', 'RemoveFormat'],
+            ['NumberedList', 'BulletedList', '-', 'Outdent', 'Indent', 'Blockquote'],
             ['JustifyLeft', 'JustifyCenter', 'JustifyRight', 'JustifyBlock'],
-            ['Link', 'Unlink'],
-            ['RemoveFormat', 'Source'], 
-            ['TextColor', 'BGColor'],
-            ['Format', 'FontSize'],
+            ['Link', 'Unlink', 'Anchor'],
+            ['Image', 'Table', 'HorizontalRule', 'SpecialChar'],
+            '/',
+            ['Format', 'Styles'],
         ],
+        'stylesSet': [
+            {'name': 'Đoạn văn', 'element': 'p'},
+            {'name': 'Tiêu đề 1', 'element': 'h1'},
+            {'name': 'Tiêu đề 2', 'element': 'h2'},
+            {'name': 'Tiêu đề 3', 'element': 'h3'},
+            {'name': 'Tiêu đề 4', 'element': 'h4'},
+            {'name': 'Trích dẫn', 'element': 'blockquote'},
+            {'name': 'Mã nguồn', 'element': 'pre'},
+        ],
+        'format_tags': 'p;h1;h2;h3;h4;h5;h6;pre;address',
         'width': '100%',
-        'height': 300,
+        'height': 460,
+        'language': 'vi',
+        'filebrowserUploadUrl': '/ckeditor/upload/',
+        'filebrowserBrowseUrl': '/ckeditor/browse/',
+        'filebrowserImageUploadUrl': '/ckeditor/upload/',
+        'extraPlugins': (
+            'uploadimage,image2,tableresize,tabletools,tableselection,'
+            'liststyle,pastefromword,copyformatting,stylescombo,autogrow'
+        ),
+        'removePlugins': 'exportpdf,image',
+        'allowedContent': True,
+        'forcePasteAsPlainText': False,
+        'pasteFromWordRemoveFontStyles': False,
+        'pasteFromWordRemoveStyles': False,
+        'contentsCss': ['/static/css/ckeditor-content.css'],
     },
 }
 

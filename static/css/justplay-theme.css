@@ -4349,8 +4349,26 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
 }
 
 /* Wrapper CKEditor (form chỉnh sửa) */
-[data-theme="dark"] .border.p-2.bg-white {
+.jp-ckeditor-wrap .django-ckeditor-widget,
+.jp-ckeditor-wrap .cke_chrome {
+    width: 100% !important;
+}
+
+.jp-ckeditor-wrap .cke_contents {
+    min-height: 360px;
+}
+
+.border.p-2.bg-white.jp-ckeditor-wrap,
+.jp-ckeditor-wrap {
+    border-color: #dee2e6 !important;
+    border-radius: var(--jp-radius-xs, 4px);
+    overflow: hidden;
+}
+
+[data-theme="dark"] .border.p-2.bg-white,
+[data-theme="dark"] .jp-ckeditor-wrap {
     border-color: var(--jp-input-border) !important;
+    background: var(--jp-surface-bg) !important;
 }
 
 /* --- Reports (/reports/) — dark mode --- */

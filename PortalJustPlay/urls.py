@@ -6,6 +6,7 @@ from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from django.contrib.auth import views as auth_views
 from hrm.views import MyPasswordChangeView, update_avatar
 from hrm.views_guide import user_guide, user_guide_edit
+from PortalJustPlay import ckeditor_upload
 urlpatterns = [
     path('admin-panel/', admin.site.urls),
     path('accounts/', include('django.contrib.auth.urls')),
@@ -24,6 +25,8 @@ urlpatterns = [
     path('announcements/', include('announcements.urls')),
     path('tai-lieu/', include('documents.urls')),
     path('nhat-ky/', include('audit.urls')),
+    path('ckeditor/upload/', ckeditor_upload.upload, name='ckeditor_upload'),
+    path('ckeditor/browse/', ckeditor_upload.browse, name='ckeditor_browse'),
 ]
 # Cách phục vụ Media và Static chuẩn của Django
 if settings.DEBUG:

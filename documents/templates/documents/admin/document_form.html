@@ -47,7 +47,11 @@
 
                         <div class="mb-3" id="field-body">
                             <label class="form-label fw-bold">Nội dung văn bản</label>
-                            <div class="border p-2 bg-white">{{ form.body }}</div>
+                            <div class="border bg-white jp-ckeditor-wrap">{{ form.body }}</div>
+                            <div class="form-text">
+                                Soạn như Word: tiêu đề, bảng, căn lề, dán từ Word.
+                                Chèn ảnh qua nút <strong>Image</strong> hoặc kéo thả / dán trực tiếp.
+                            </div>
                             {% if form.body.errors %}<div class="text-danger small">{{ form.body.errors }}</div>{% endif %}
                         </div>
 

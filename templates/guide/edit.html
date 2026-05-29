@@ -45,10 +45,12 @@
 
                         <div class="mb-4">
                             <label class="form-label fw-bold">Nội dung hướng dẫn</label>
-                            <div class="border p-2 bg-white">
+                            <div class="border bg-white jp-ckeditor-wrap">
                                 {{ form.body }}
                             </div>
-                            <div class="form-text">Soạn thảo bằng CKEditor — có thể dùng tiêu đề, danh sách, in đậm, liên kết...</div>
+                            <div class="form-text">
+                                Soạn như Word — tiêu đề, bảng, danh sách, dán từ Word, chèn ảnh (Image / kéo thả).
+                            </div>
                             {% if form.body.errors %}<div class="text-danger small">{{ form.body.errors }}</div>{% endif %}
                         </div>
 
