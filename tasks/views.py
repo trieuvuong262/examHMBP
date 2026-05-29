@@ -56,16 +56,6 @@ def _get_task_or_404(user, pk):
     return task
 
 
-def _build_query_string(request, exclude=('page',)):
-    parts = []
-    for key, values in request.GET.lists():
-        if key in exclude:
-            continue
-        for value in values:
-            parts.append(f'{key}={value}')
-    return '&'.join(parts)
-
-
 STATUS_TABS = [
     ('', 'Tất cả'),
     (WorkTask.STATUS_PENDING_ACK, 'Chờ xác nhận'),
@@ -97,12 +87,12 @@ def my_tasks(request):
     )
     if status:
         qs = qs.filter(status=status)
-    page_obj = paginate_queryset(request, qs)
+    page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'tasks/my_tasks.html', {
         'page_obj': page_obj,
         'status_tabs': STATUS_TABS,
         'current_status': status,
-        'query_string': _build_query_string(request),
+        'query_string': query_string,
         'can_assign': can_assign_tasks(request.user),
         'pending_ack_count': WorkTask.objects.filter(
             assignee=request.user, status=WorkTask.STATUS_PENDING_ACK,
@@ -122,12 +112,12 @@ def assigned_tasks(request):
     )
     if status:
         qs = qs.filter(status=status)
-    page_obj = paginate_queryset(request, qs)
+    page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'tasks/assigned.html', {
         'page_obj': page_obj,
         'status_tabs': STATUS_TABS,
         'current_status': status,
-        'query_string': _build_query_string(request),
+        'query_string': query_string,
         'can_assign': True,
         'pending_review_count': WorkTask.objects.filter(
             assigner=request.user, status=WorkTask.STATUS_PENDING_REVIEW,

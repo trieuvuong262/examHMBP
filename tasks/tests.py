@@ -124,6 +124,16 @@ class TaskWorkflowTests(TestCase):
         self.assertEqual(new_task.assignee, self.other)
         self.assertEqual(new_task.status, WorkTask.STATUS_PENDING_ACK)
 
+    def test_my_tasks_page_renders(self):
+        self.client.force_login(self.employee)
+        response = self.client.get(reverse('tasks:my'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_assigned_page_renders(self):
+        self.client.force_login(self.leader)
+        response = self.client.get(reverse('tasks:assigned'))
+        self.assertEqual(response.status_code, 200)
+
     def test_outsider_cannot_view_task(self):
         task = WorkTask.objects.create(
             title='Private',
