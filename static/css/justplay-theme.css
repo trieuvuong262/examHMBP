@@ -1967,6 +1967,12 @@ textarea.form-control {
     box-shadow: 0 3px 6px rgba(220, 38, 38, 0.15);
 }
 
+.jp-hrm-avatar-img {
+    display: block;
+    object-fit: cover;
+    padding: 0;
+}
+
 .jp-hrm-actions {
     display: inline-flex;
     align-items: center;

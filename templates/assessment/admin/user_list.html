@@ -112,8 +112,8 @@
                         </td>
                         <td data-label="Họ và tên">
                             <div class="d-flex align-items-center">
-                                <div class="jp-hrm-avatar me-2 d-none d-md-flex">
-                                    {{ u.profile.full_name|default:u.first_name|default:u.username|make_list|first|upper }}
+                                <div class="me-2 d-none d-md-flex flex-shrink-0">
+                                    {% include 'includes/profile_avatar.html' with profile=u.profile user=u img_class='jp-hrm-avatar jp-hrm-avatar-img' fallback_class='jp-hrm-avatar' %}
                                 </div>
                                 <span class="fw-bold text-dark jp-text-clamp-2">{{ u.profile.full_name|default:u.first_name|default:u.username }}</span>
                             </div>
