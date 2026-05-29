@@ -136,6 +136,11 @@ def user_can_edit_module(user, module_key: str) -> bool:
     return role_allows_edit(user, module_key)
 
 
+def user_can_view_module(user, module_key: str) -> bool:
+    """Alias — quyền xem module (phòng ban + vai trò)."""
+    return user_can_access_module(user, module_key)
+
+
 def resolve_module_from_request(path: str, tab: str | None = None) -> str | None:
     """Xác định module từ URL. None = không thuộc module menu."""
     if path in ('', '/'):

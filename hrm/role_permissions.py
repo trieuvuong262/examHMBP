@@ -86,6 +86,7 @@ def normalize_module_permissions(raw: dict | None) -> dict:
 
 
 def get_role_permissions(role: str) -> dict:
+    from django.db.utils import OperationalError, ProgrammingError
     from hrm.models import RoleModulePermission
 
     defaults = default_role_permissions()
@@ -94,6 +95,8 @@ def get_role_permissions(role: str) -> dict:
         row = RoleModulePermission.objects.get(role=role)
         stored = normalize_module_permissions(row.module_permissions)
     except RoleModulePermission.DoesNotExist:
+        stored = normalize_module_permissions(fallback)
+    except (ProgrammingError, OperationalError):
         stored = normalize_module_permissions(fallback)
 
     merged = {}

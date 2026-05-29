@@ -92,7 +92,8 @@ def can_view_team_reports(user) -> bool:
     """Xem trang báo cáo team."""
     if not getattr(user, 'is_authenticated', False):
         return False
-    from hrm.module_permissions import MODULE_REPORTS, user_can_view_module
+    from hrm.module_permissions import MODULE_REPORTS
+    from hrm.role_permissions import user_can_view_module
     return user_can_view_module(user, MODULE_REPORTS)
 
 
