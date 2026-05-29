@@ -7,6 +7,7 @@ from hrm.module_permissions import MODULE_LABELS, resolve_module_from_request
 from hrm.permissions import get_profile, user_role
 
 from .models import UserActivityLog
+from .summaries import build_detailed_summary, describe_post_highlights
 
 SENSITIVE_KEY_PATTERN = re.compile(
     r'(password|passwd|token|secret|csrf|api[_-]?key|authorization|credit|cvv|pin)',
@@ -25,11 +26,67 @@ SKIP_LOGGING_PATHS = (
 )
 
 
+def is_private_ip(ip: str) -> bool:
+    if not ip:
+        return False
+    ip = ip.strip()
+    if ip.startswith('192.168.'):
+        return True
+    if ip.startswith('10.'):
+        return True
+    if re.match(r'^172\.(1[6-9]|2[0-9]|3[0-1])\.', ip):
+        return True
+    if ip.startswith('127.') or ip == '::1':
+        return True
+    return False
+
+
 def get_client_ip(request: HttpRequest) -> str | None:
-    forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
-    if forwarded:
-        return forwarded.split(',')[0].strip()
-    return request.META.get('REMOTE_ADDR')
+    """Lấy IP local — ưu tiên cookie/header từ trình duyệt, không dùng IP WAN."""
+    info = get_client_device_info(request)
+    return info.get('local_ip')
+
+
+def get_client_device_info(request: HttpRequest) -> dict:
+    """Tên máy + IP LAN từ client; fallback IP private từ nginx."""
+    hostname = (
+        request.headers.get('X-Client-Hostname')
+        or request.COOKIES.get('jp_hostname')
+        or ''
+    ).strip()
+
+    local_ip = (
+        request.headers.get('X-Client-Local-Ip')
+        or request.COOKIES.get('jp_local_ip')
+        or ''
+    ).strip()
+
+    if hasattr(request, 'POST'):
+        hostname = hostname or (request.POST.get('client_hostname') or '').strip()
+        local_ip = local_ip or (request.POST.get('client_local_ip') or '').strip()
+
+    if local_ip and not is_private_ip(local_ip):
+        local_ip = ''
+
+    if not local_ip:
+        for candidate in (
+            request.META.get('HTTP_X_REAL_IP'),
+            request.META.get('REMOTE_ADDR'),
+        ):
+            if not candidate:
+                continue
+            ip = candidate.split(',')[0].strip()
+            if is_private_ip(ip):
+                local_ip = ip
+                break
+
+    if not hostname and local_ip:
+        hostname = f'PC-{local_ip.rsplit(".", 1)[-1]}'
+
+    return {
+        'machine_name': hostname[:128],
+        'local_ip': local_ip or None,
+    }
 
 
 def should_skip_audit(request: HttpRequest) -> bool:
@@ -119,32 +176,7 @@ def build_summary(
     module_label: str = '',
     object_repr: str = '',
 ) -> str:
-    user = request.user if getattr(request, 'user', None) and request.user.is_authenticated else None
-    profile = get_profile(user) if user else None
-    display = ''
-    if profile and profile.full_name:
-        display = profile.full_name
-    elif user:
-        display = user.get_full_name() or user.username
-    else:
-        display = request.POST.get('username', 'Khách') if hasattr(request, 'POST') else 'Khách'
-
-    target = object_repr or module_label or request.path
-    action_labels = dict(UserActivityLog.ACTION_CHOICES)
-    verb = action_labels.get(action, action)
-
-    if action == UserActivityLog.ACTION_VIEW:
-        return f'{display} truy cập {target}'
-    if action in {UserActivityLog.ACTION_CREATE, UserActivityLog.ACTION_UPDATE, UserActivityLog.ACTION_DELETE}:
-        return f'{display} {verb.lower()} · {target}'
-    if action == UserActivityLog.ACTION_LOGIN:
-        return f'{display} đăng nhập thành công'
-    if action == UserActivityLog.ACTION_LOGOUT:
-        return f'{display} đăng xuất'
-    if action == UserActivityLog.ACTION_LOGIN_FAILED:
-        username = request.POST.get('username', 'Không rõ') if hasattr(request, 'POST') else 'Không rõ'
-        return f'Đăng nhập thất bại · tài khoản {username}'
-    return f'{display} · {verb} · {target}'
+    return build_detailed_summary(request, action, module_label, object_repr)
 
 
 def snapshot_user(user) -> dict:
@@ -189,6 +221,7 @@ def create_activity_log(
     extra: dict | None = None,
 ) -> UserActivityLog | None:
     snap = snapshot_user(user)
+    device = {'local_ip': None, 'machine_name': ''}
     if request is not None:
         user = user or getattr(request, 'user', None)
         if user and getattr(user, 'is_authenticated', False):
@@ -207,6 +240,12 @@ def create_activity_log(
         resolver = getattr(request, 'resolver_match', None)
         if resolver and not url_name:
             url_name = resolver.url_name or ''
+        if not object_repr and request.method == 'POST' and resolver:
+            post_hint = describe_post_highlights(request, url_name)
+            if post_hint and ' · ' in post_hint:
+                object_repr = post_hint.split(' · ', 1)[-1][:255]
+
+        device = get_client_device_info(request)
 
     payload = {
         'user': user if user and getattr(user, 'is_authenticated', False) else None,
@@ -224,7 +263,8 @@ def create_activity_log(
         'query_string': (query_string or '')[:1000],
         'status_code': status_code,
         'duration_ms': duration_ms,
-        'ip_address': get_client_ip(request) if request else None,
+        'ip_address': device.get('local_ip'),
+        'machine_name': device.get('machine_name', ''),
         'user_agent': (request.META.get('HTTP_USER_AGENT', '') if request else '')[:2000],
         'referer': (request.META.get('HTTP_REFERER', '') if request else '')[:500],
         'object_type': object_type[:128],

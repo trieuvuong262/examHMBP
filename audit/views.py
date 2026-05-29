@@ -46,7 +46,9 @@ def log_list(request):
     if method:
         qs = qs.filter(method__iexact=method)
     if ip:
-        qs = qs.filter(ip_address__icontains=ip)
+        qs = qs.filter(
+            Q(machine_name__icontains=ip) | Q(ip_address__icontains=ip)
+        )
     if status.isdigit():
         qs = qs.filter(status_code=int(status))
     if q:

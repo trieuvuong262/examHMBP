@@ -11,12 +11,13 @@ class UserActivityLogAdmin(admin.ModelAdmin):
         'action',
         'module_label',
         'method',
+        'machine_name',
+        'ip_address',
         'path',
         'status_code',
-        'ip_address',
     )
     list_filter = ('action', 'module_key', 'method', 'status_code', 'created_at')
-    search_fields = ('username', 'full_name', 'summary', 'path', 'ip_address')
+    search_fields = ('username', 'full_name', 'summary', 'path', 'machine_name', 'ip_address')
     readonly_fields = [f.name for f in UserActivityLog._meta.fields]
     date_hierarchy = 'created_at'
 

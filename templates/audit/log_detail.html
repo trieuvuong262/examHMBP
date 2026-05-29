@@ -68,7 +68,9 @@
                         <dd class="col-sm-8">{{ log.status_code|default:"—" }}</dd>
                         <dt class="col-sm-4 text-muted">Thời gian xử lý</dt>
                         <dd class="col-sm-8">{% if log.duration_ms %}{{ log.duration_ms|intcomma }} ms{% else %}—{% endif %}</dd>
-                        <dt class="col-sm-4 text-muted">IP</dt>
+                        <dt class="col-sm-4 text-muted">Tên máy</dt>
+                        <dd class="col-sm-8 font-monospace">{{ log.machine_name|default:"—" }}</dd>
+                        <dt class="col-sm-4 text-muted">IP local</dt>
                         <dd class="col-sm-8 font-monospace">{{ log.ip_address|default:"—" }}</dd>
                         <dt class="col-sm-4 text-muted">Referer</dt>
                         <dd class="col-sm-8 text-break small">{{ log.referer|default:"—" }}</dd>

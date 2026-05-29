@@ -3,7 +3,8 @@ from django.test import Client, TestCase
 from django.urls import reverse
 
 from audit.models import UserActivityLog
-from audit.utils import sanitize_mapping, infer_action
+from audit.utils import sanitize_mapping, infer_action, build_summary, get_client_device_info, is_private_ip
+from audit.summaries import describe_post_highlights, resolve_url_description
 from django.test import RequestFactory
 
 from hrm.models import Department, DepartmentMenuPermission, Profile, RoleModulePermission
@@ -19,6 +20,35 @@ class AuditUtilsTests(TestCase):
         self.assertEqual(cleaned['password'], '***')
         self.assertEqual(cleaned['csrfmiddlewaretoken'], '***')
 
+    def test_is_private_ip(self):
+        self.assertTrue(is_private_ip('192.168.1.105'))
+        self.assertTrue(is_private_ip('10.0.0.8'))
+        self.assertFalse(is_private_ip('103.90.224.203'))
+
+    def test_client_device_from_cookie(self):
+        factory = RequestFactory()
+        request = factory.get('/')
+        request.COOKIES = {
+            'jp_hostname': 'JP-HR-PC01',
+            'jp_local_ip': '192.168.1.55',
+        }
+        info = get_client_device_info(request)
+        self.assertEqual(info['machine_name'], 'JP-HR-PC01')
+        self.assertEqual(info['local_ip'], '192.168.1.55')
+
+    def test_client_device_fallback_private_real_ip(self):
+        factory = RequestFactory()
+        request = factory.get('/', HTTP_X_REAL_IP='192.168.10.20')
+        info = get_client_device_info(request)
+        self.assertEqual(info['local_ip'], '192.168.10.20')
+        self.assertEqual(info['machine_name'], 'PC-20')
+
+    def test_client_device_ignores_wan_ip(self):
+        factory = RequestFactory()
+        request = factory.get('/', HTTP_X_REAL_IP='103.90.224.203', REMOTE_ADDR='103.90.224.203')
+        info = get_client_device_info(request)
+        self.assertIsNone(info['local_ip'])
+
     def test_infer_action_post_update(self):
         factory = RequestFactory()
         request = factory.post('/dashboard/users/1/edit/')
@@ -26,6 +56,45 @@ class AuditUtilsTests(TestCase):
 
     def test_resolve_audit_module_path(self):
         self.assertEqual(resolve_module_from_request('/nhat-ky/'), MODULE_AUDIT)
+
+
+class AuditSummaryTests(TestCase):
+    def test_user_add_post_summary(self):
+        factory = RequestFactory()
+        request = factory.post('/dashboard/users/add/', {
+            'full_name': 'Nguyễn Văn A',
+            'username': 'nva',
+            'employee_code': 'JP001',
+            'department': '1',
+            'role': 'EMPLOYEE',
+        })
+        request.user = type('U', (), {'is_authenticated': True, 'username': 'admin', 'get_full_name': lambda s: 'Admin'})()
+        request.resolver_match = type('M', (), {
+            'url_name': 'user_add',
+            'kwargs': {},
+        })()
+
+        summary = build_summary(request, UserActivityLog.ACTION_CREATE, 'Nhân sự')
+        self.assertIn('tạo nhân viên mới', summary)
+        self.assertIn('Nguyễn Văn A', summary)
+        self.assertIn('nva', summary)
+
+    def test_user_list_get_summary(self):
+        factory = RequestFactory()
+        request = factory.get('/dashboard/users/')
+        request.user = type('U', (), {'is_authenticated': True, 'username': 'hr', 'get_full_name': lambda s: 'HR User'})()
+        request.resolver_match = type('M', (), {'url_name': 'user_list', 'kwargs': {}})()
+
+        summary = build_summary(request, UserActivityLog.ACTION_VIEW, 'Nhân sự')
+        self.assertIn('danh sách nhân viên', summary)
+
+    def test_resolve_url_description_with_kwargs(self):
+        factory = RequestFactory()
+        request = factory.post('/dashboard/users/edit/42/')
+        request.resolver_match = type('M', (), {'url_name': 'user_edit', 'kwargs': {'user_id': 42}})()
+        desc = resolve_url_description(request, 'user_edit')
+        self.assertIn('#42', desc)
+        self.assertIn('cập nhật', desc)
 
 
 class AuditAccessTests(TestCase):

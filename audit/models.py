@@ -52,7 +52,8 @@ class UserActivityLog(models.Model):
     status_code = models.PositiveSmallIntegerField(null=True, blank=True)
     duration_ms = models.PositiveIntegerField(null=True, blank=True)
 
-    ip_address = models.GenericIPAddressField(null=True, blank=True, db_index=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True, db_index=True, verbose_name='IP local')
+    machine_name = models.CharField(max_length=128, blank=True, db_index=True, verbose_name='Tên máy')
     user_agent = models.TextField(blank=True)
     referer = models.CharField(max_length=500, blank=True)
 
@@ -95,3 +96,12 @@ class UserActivityLog(models.Model):
             self.ACTION_IMPORT: 'bg-warning-subtle text-warning-emphasis',
         }
         return mapping.get(self.action, 'bg-light text-dark border')
+
+    @property
+    def client_device_display(self) -> str:
+        parts = []
+        if self.machine_name:
+            parts.append(self.machine_name)
+        if self.ip_address:
+            parts.append(str(self.ip_address))
+        return ' · '.join(parts) if parts else '—'

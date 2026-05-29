@@ -37,7 +37,7 @@
                 <div class="small text-muted mt-1">
                     {% if log.module_label %}{{ log.module_label }} · {% endif %}
                     {{ log.method }} {{ log.path }}
-                    {% if log.ip_address %} · IP {{ log.ip_address }}{% endif %}
+                    {% if log.client_device_display != "—" %} · {{ log.client_device_display }}{% endif %}
                 </div>
             </a>
             {% empty %}

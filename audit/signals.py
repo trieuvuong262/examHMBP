@@ -2,7 +2,7 @@ from django.contrib.auth.signals import user_logged_in, user_logged_out, user_lo
 from django.dispatch import receiver
 
 from audit.models import UserActivityLog
-from audit.utils import create_activity_log, get_client_ip
+from audit.utils import create_activity_log, get_client_device_info
 
 
 class _SignalRequestProxy:
@@ -21,7 +21,7 @@ def audit_user_logged_in(sender, request, user, **kwargs):
         request=request,
         user=user,
         action=UserActivityLog.ACTION_LOGIN,
-        summary=f'{user.get_full_name() or user.username} đăng nhập thành công',
+        summary=f'{user.get_full_name() or user.username} đăng nhập thành công vào portal',
         path=request.path,
         method='POST',
         status_code=302,
@@ -37,7 +37,7 @@ def audit_user_logged_out(sender, request, user, **kwargs):
         request=request,
         user=user,
         action=UserActivityLog.ACTION_LOGOUT,
-        summary=f'{user.get_full_name() or user.username} đăng xuất',
+        summary=f'{user.get_full_name() or user.username} bấm Đăng xuất khỏi hệ thống',
         path=request.path,
         method='POST',
         status_code=302,
@@ -54,10 +54,10 @@ def audit_user_login_failed(sender, credentials, request, **kwargs):
         user=None,
         username_override=username,
         action=UserActivityLog.ACTION_LOGIN_FAILED,
-        summary=f'Đăng nhập thất bại · tài khoản {username or "Không rõ"}',
+        summary=f'Đăng nhập thất bại — thử tài khoản [{username or "Không rõ"}]',
         path=request.path,
         method='POST',
         status_code=401,
         request_data={'body': {'username': username}},
-        extra={'ip': get_client_ip(request)},
+        extra={'device': get_client_device_info(request)},
     )

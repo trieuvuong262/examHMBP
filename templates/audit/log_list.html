@@ -93,8 +93,8 @@
                     <input type="date" name="to" class="form-control" value="{{ filters.to }}">
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label small fw-bold text-muted">IP</label>
-                    <input type="text" name="ip" class="form-control" value="{{ filters.ip }}">
+                    <label class="form-label small fw-bold text-muted">Tên máy / IP local</label>
+                    <input type="text" name="ip" class="form-control" value="{{ filters.ip }}" placeholder="PC-105, 192.168…">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label small fw-bold text-muted">HTTP status</label>
@@ -122,7 +122,7 @@
                         <th class="text-muted">Hành động</th>
                         <th class="text-muted">Module</th>
                         <th class="text-muted">Mô tả</th>
-                        <th class="text-muted">IP</th>
+                        <th class="text-muted">Thiết bị</th>
                         <th class="text-muted text-center">HTTP</th>
                         <th class="text-end pe-4 text-muted">Chi tiết</th>
                     </tr>
@@ -140,7 +140,7 @@
                         <td><span class="badge {{ log.action_badge_class }}">{{ log.get_action_display }}</span></td>
                         <td class="small">{{ log.module_label|default:"—" }}</td>
                         <td class="small text-truncate" style="max-width: 280px;" title="{{ log.summary }}">{{ log.summary|default:log.path }}</td>
-                        <td class="small font-monospace">{{ log.ip_address|default:"—" }}</td>
+                        <td class="small font-monospace">{{ log.client_device_display }}</td>
                         <td class="text-center">
                             {% if log.status_code %}
                             <span class="badge {% if log.status_code >= 400 %}bg-danger{% elif log.status_code >= 300 %}bg-warning text-dark{% else %}bg-success{% endif %}">{{ log.status_code }}</span>
