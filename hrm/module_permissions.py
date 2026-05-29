@@ -102,6 +102,8 @@ def get_department_enabled_modules(department) -> set:
         return set(ALL_MODULE_KEYS)
 
     enabled = {m for m in (perm.modules or []) if m in ALL_MODULE_KEYS}
+    if not enabled:
+        return set(ALL_MODULE_KEYS)
     return enabled
 
 
@@ -150,17 +152,14 @@ def resolve_module_from_request(path: str, tab: str | None = None) -> str | None
         if path.startswith(prefix):
             return None
 
-    if path.startswith('/dashboard/'):
-        if tab and tab in DASHBOARD_TAB_MODULES:
-            return DASHBOARD_TAB_MODULES[tab]
-        # Dashboard gốc không tab — cho phép (hub admin)
-        if path.rstrip('/') == '/dashboard':
-            return None
-        return None
-
     for prefix, module_key in PATH_MODULE_RULES:
         if path.startswith(prefix):
             return module_key
+
+    if path.rstrip('/') == '/dashboard' or path == '/dashboard/':
+        if tab and tab in DASHBOARD_TAB_MODULES:
+            return DASHBOARD_TAB_MODULES[tab]
+        return None
 
     return None
 

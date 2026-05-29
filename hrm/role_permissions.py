@@ -119,8 +119,6 @@ def role_allows_view(user, module_key: str) -> bool:
         return True
     if bypass_department_modules(user):
         return True
-    if module_key not in get_user_enabled_modules(user):
-        return False
     perm = get_user_module_permission(user, module_key)
     return perm['view'] or perm['edit']
 
@@ -130,8 +128,6 @@ def role_allows_edit(user, module_key: str) -> bool:
         return True
     if bypass_department_modules(user):
         return True
-    if module_key not in get_user_enabled_modules(user):
-        return False
     perm = get_user_module_permission(user, module_key)
     return perm['edit']
 
