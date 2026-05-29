@@ -1,5 +1,8 @@
 """Xây dựng ngữ cảnh hỏi đáp theo quyền truy cập của user."""
 
+import re
+import unicodedata
+
 from django.conf import settings
 from django.urls import reverse
 from django.utils.html import strip_tags
@@ -19,12 +22,15 @@ def _clip(text: str, limit: int = 1800) -> str:
 
 
 def _absolute_url(path: str, request=None) -> str:
-    if request is not None:
-        return request.build_absolute_uri(path)
-    scheme = 'https' if getattr(settings, 'USE_HTTPS', False) else 'http'
-    domain = getattr(settings, 'PORTAL_DOMAIN', 'localhost') or 'localhost'
     if not path.startswith('/'):
         path = f'/{path}'
+    if request is not None:
+        try:
+            return request.build_absolute_uri(path)
+        except Exception:
+            pass
+    scheme = 'https' if getattr(settings, 'USE_HTTPS', False) else 'http'
+    domain = getattr(settings, 'PORTAL_DOMAIN', 'localhost') or 'localhost'
     return f'{scheme}://{domain}{path}'
 
 
@@ -117,6 +123,69 @@ def build_documents_index(request=None) -> list[dict]:
     return index
 
 
+def _strip_accents(text: str) -> str:
+    normalized = unicodedata.normalize('NFD', text or '')
+    return ''.join(ch for ch in normalized if unicodedata.category(ch) != 'Mn')
+
+
+def _question_tokens(question: str) -> set[str]:
+    text = _strip_accents((question or '').lower())
+    text = re.sub(r'[^\w\s]', ' ', text)
+    stop = {
+        'toi', 'ban', 'la', 'gi', 'co', 'khong', 'duoc', 'the', 'nao', 'va', 'cua',
+        'trong', 'tren', 'portal', 'justplay', 'xin', 'cho', 'hay', 've', 'mot', 'cac',
+        'giup', 'gui', 'link', 'cho', 'xin',
+    }
+    return {t for t in text.split() if len(t) > 1 and t not in stop}
+
+
+def _rank_documents_for_question(index: list[dict], question: str, limit: int = 8) -> list[dict]:
+    q_tokens = _question_tokens(question)
+    if not q_tokens:
+        return index[:limit]
+
+    scored = []
+    for doc in index:
+        haystack = _strip_accents(
+            f"{doc['title']} {doc.get('category', '')} {doc.get('summary', '')}".lower()
+        )
+        title_key = _strip_accents(doc['title'].lower())
+        score = sum(1 for t in q_tokens if t in haystack)
+        if title_key and title_key in _strip_accents((question or '').lower()):
+            score += 5
+        scored.append((score, doc))
+
+    scored.sort(key=lambda x: (-x[0], x[1]['title']))
+    matched = [doc for score, doc in scored if score > 0]
+    if matched:
+        return matched[:limit]
+    return index[:limit]
+
+
+def build_documents_context_compact(request=None, question: str = '') -> str:
+    """Chỉ mục gọn — title + link + tóm tắt, ưu tiên tài liệu liên quan câu hỏi."""
+    index = build_documents_index(request)
+    library_url = _absolute_url(reverse('documents:browse'), request)
+    selected = _rank_documents_for_question(index, question, limit=10)
+
+    parts = [
+        '=== TÀI LIỆU NỘI BỘ ===',
+        f'Trang Thư viện: {library_url}',
+        'Mỗi tài liệu có Link — luôn đưa URL đầy đủ khi user hỏi.',
+    ]
+    if not selected:
+        parts.append('Chưa có tài liệu nào được xuất bản.')
+        return '\n'.join(parts)
+
+    for doc in selected:
+        parts.append(
+            f"\n• {doc['title']} ({doc['category']})\n"
+            f"  Link: {doc['url']}"
+            + (f"\n  Tóm tắt: {doc['summary']}" if doc.get('summary') else '')
+        )
+    return '\n'.join(parts)
+
+
 def build_guide_context(user, request=None) -> str:
     from hrm.module_permissions import MODULE_GUIDE, user_can_access_module
 
@@ -130,7 +199,7 @@ def build_guide_context(user, request=None) -> str:
         '=== HƯỚNG DẪN SỬ DỤNG PORTAL ===',
         f'Tiêu đề: {guide.title}',
         f'Link: {guide_url}',
-        _clip(strip_tags(guide.body), 6000),
+        _clip(strip_tags(guide.body), 2000),
     ])
 
 
@@ -139,7 +208,7 @@ def build_announcements_context(user, request=None) -> str:
 
     if not user_can_access_module(user, MODULE_ANNOUNCEMENTS):
         return ''
-    items = Announcement.objects.filter(is_active=True).order_by('-is_pinned', '-created_at')[:15]
+    items = Announcement.objects.filter(is_active=True).order_by('-is_pinned', '-created_at')[:5]
     if not items:
         return ''
     list_url = _absolute_url(reverse('announcements:list'), request)
@@ -156,10 +225,11 @@ def build_announcements_context(user, request=None) -> str:
     return '\n'.join(parts)
 
 
-def build_portal_knowledge(user, request=None) -> str:
+def build_portal_knowledge(user, request=None, question: str = '') -> str:
+    """Ngữ cảnh cho trợ lý QA — gọn, ưu tiên tài liệu liên quan."""
     sections = [
         build_user_context(user),
-        build_documents_context(request),
+        build_documents_context_compact(request, question=question),
         build_guide_context(user, request),
         build_announcements_context(user, request),
     ]

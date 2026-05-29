@@ -102,9 +102,9 @@ class LibraryQAConfig(models.Model):
     """Cấu hình Hỏi đáp AI — một bản ghi duy nhất (pk=1)."""
 
     GEMINI_MODEL_CHOICES = [
-        ('gemini-2.5-flash', 'Nhanh & cân bằng'),
-        ('gemini-2.5-pro', 'Chi tiết & chính xác'),
+        ('gemini-2.5-flash', 'Nhanh & cân bằng (khuyên dùng)'),
         ('gemini-flash-latest', 'Tự động cập nhật (flash)'),
+        ('gemini-2.0-flash-lite', 'Siêu nhẹ'),
     ]
 
     gemini_api_key = models.CharField(
