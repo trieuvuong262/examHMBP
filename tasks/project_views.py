@@ -8,6 +8,7 @@ from django.utils import timezone
 from hrm.permissions import (
     can_create_internal_project,
     can_manage_project,
+    can_receive_assigned_tasks,
     can_view_project,
 )
 from PortalJustPlay.pagination import paginate_queryset
@@ -261,7 +262,10 @@ def request_handoff(request, pk):
         return redirect('tasks:project_list')
 
     project = task.project
-    is_assignee = task.assignee_id == request.user.id
+    is_assignee = (
+        task.assignee_id == request.user.id
+        and can_receive_assigned_tasks(request.user)
+    )
     if not is_assignee:
         messages.error(request, 'Chỉ người đang phụ trách mới yêu cầu chuyển giao.')
         return redirect('tasks:project_step', pk=pk)

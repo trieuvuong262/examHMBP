@@ -19,6 +19,7 @@ from hrm.module_permissions import (
 from hrm.permissions import (
     can_assign_tasks,
     can_edit_user_guide,
+    can_receive_assigned_tasks,
     can_submit_daily_report,
     can_view_team_reports,
     is_gm,
@@ -61,6 +62,7 @@ def portal_permissions(request):
             'jp_can_audit': False,
             'jp_can_tasks': False,
             'jp_can_assign_tasks': False,
+            'jp_can_receive_tasks': False,
             'jp_can_edit_announcements': False,
             'jp_can_edit_recruitment': False,
             'jp_can_edit_training': False,
@@ -101,6 +103,7 @@ def portal_permissions(request):
         'jp_can_audit': user_can_access_module(user, MODULE_AUDIT),
         'jp_can_tasks': user_can_access_module(user, MODULE_TASKS),
         'jp_can_assign_tasks': can_assign_tasks(user),
+        'jp_can_receive_tasks': can_receive_assigned_tasks(user),
         'jp_can_edit_announcements': user_can_edit_module(user, MODULE_ANNOUNCEMENTS),
         'jp_can_edit_recruitment': user_can_edit_module(user, MODULE_RECRUITMENT),
         'jp_can_edit_training': user_can_edit_module(user, MODULE_TRAINING),

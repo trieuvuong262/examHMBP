@@ -7,6 +7,7 @@ from django.utils import timezone
 from announcements.models import Announcement, AnnouncementRead
 from hrm.permissions import (
     can_assign_tasks,
+    can_receive_assigned_tasks,
     can_submit_daily_report,
     can_view_team_reports,
     get_profile,
@@ -164,7 +165,7 @@ def get_portal_dashboard(user):
             project__isnull=True,
             status=WorkTask.STATUS_PENDING_ACK,
         ).count()
-        if pending_ack:
+        if pending_ack and can_receive_assigned_tasks(user):
             widgets.append({
                 'level': 'warning',
                 'icon': 'bi-bell-fill',
@@ -180,7 +181,7 @@ def get_portal_dashboard(user):
             project__isnull=True,
             status=WorkTask.STATUS_REVISION,
         ).count()
-        if revision_count:
+        if revision_count and can_receive_assigned_tasks(user):
             widgets.append({
                 'level': 'danger',
                 'icon': 'bi-pencil-square',

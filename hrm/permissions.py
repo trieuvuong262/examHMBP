@@ -179,15 +179,6 @@ def _has_tasks_module_access(user) -> bool:
     return user_can_view_module(user, MODULE_TASKS)
 
 
-def get_task_assignable_users(assigner):
-    """Nhân viên có thể được giao việc — cùng danh sách cấp dưới trực tiếp."""
-    return get_report_team_users(assigner)
-
-
-def has_task_subordinates(user) -> bool:
-    return get_task_assignable_users(user).exists()
-
-
 def can_assign_tasks(user) -> bool:
     """Giao việc — cần quyền cập nhật module Công việc và có cấp dưới trực tiếp (kể cả Giám đốc)."""
     if not _has_tasks_module_access(user):
@@ -195,6 +186,22 @@ def can_assign_tasks(user) -> bool:
     from hrm.module_permissions import MODULE_TASKS
     from hrm.role_permissions import user_can_edit_module
     return user_can_edit_module(user, MODULE_TASKS) and has_task_subordinates(user)
+
+
+def can_receive_assigned_tasks(user) -> bool:
+    """Nhận và thực hiện việc được giao — Giám đốc chỉ giao/duyệt, không nhận việc (giống báo cáo)."""
+    if not _has_tasks_module_access(user):
+        return False
+    return not is_director(user)
+
+
+def get_task_assignable_users(assigner):
+    """Nhân viên có thể được giao việc — cấp dưới trực tiếp, không gồm Giám đốc."""
+    return get_report_team_users(assigner).exclude(profile__role=ROLE_DIRECTOR)
+
+
+def has_task_subordinates(user) -> bool:
+    return get_task_assignable_users(user).exists()
 
 
 def can_create_internal_project(user) -> bool:

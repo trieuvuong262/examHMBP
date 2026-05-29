@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.models import User
 
-from hrm.permissions import format_team_user_label, get_report_team_users
+from hrm.permissions import format_team_user_label, get_task_assignable_users
 
 from .models import InternalProject, WorkTask
 
@@ -26,7 +26,7 @@ class InternalProjectForm(forms.ModelForm):
     def __init__(self, *args, owner=None, **kwargs):
         super().__init__(*args, **kwargs)
         if owner is not None:
-            qs = get_report_team_users(owner)
+            qs = get_task_assignable_users(owner)
             self.fields['members'].queryset = qs
             self.fields['members'].label_from_instance = format_team_user_label
 

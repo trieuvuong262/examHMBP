@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.models import User
 
-from hrm.permissions import format_team_user_label, get_report_team_users
+from hrm.permissions import format_team_user_label, get_task_assignable_users
 
 from .models import WorkTask
 
@@ -43,7 +43,7 @@ class WorkTaskAssignForm(forms.Form):
     def __init__(self, *args, assigner=None, **kwargs):
         super().__init__(*args, **kwargs)
         if assigner is not None:
-            qs = get_report_team_users(assigner)
+            qs = get_task_assignable_users(assigner)
             self.fields['assignees'].queryset = qs
             self.fields['assignees'].label_from_instance = format_team_user_label
             size = min(max(qs.count(), 4), 12)
@@ -95,7 +95,7 @@ class WorkTaskReassignForm(forms.Form):
 
     def __init__(self, *args, assigner=None, exclude_user=None, **kwargs):
         super().__init__(*args, **kwargs)
-        qs = get_report_team_users(assigner) if assigner else User.objects.none()
+        qs = get_task_assignable_users(assigner) if assigner else User.objects.none()
         if exclude_user is not None:
             qs = qs.exclude(pk=exclude_user.pk)
         self.fields['assignee'].queryset = qs

@@ -13,9 +13,11 @@ from hrm.permissions import (
     ROLE_TEAM_LEADER,
     can_assign_tasks,
     can_create_internal_project,
+    can_receive_assigned_tasks,
     can_view_project,
     can_view_task,
     format_team_user_label,
+    get_task_assignable_users,
 )
 from tasks.models import InternalProject, ProjectComment, WorkTask, WorkTaskAttachment, WorkTaskHandoff
 
@@ -58,6 +60,39 @@ class TaskWorkflowTests(TestCase):
     def test_director_can_assign_with_subordinates(self):
         self.assertTrue(can_assign_tasks(self.director))
         self.assertFalse(can_assign_tasks(self.employee))
+        self.assertFalse(can_receive_assigned_tasks(self.director))
+        self.assertTrue(can_receive_assigned_tasks(self.leader))
+
+    def test_director_not_in_assignable_users(self):
+        self.leader.profile.subordinates.add(self.director)
+        assignable = get_task_assignable_users(self.leader)
+        self.assertIn(self.employee, assignable)
+        self.assertNotIn(self.director, assignable)
+
+    def test_director_my_tasks_redirects_to_assigned(self):
+        WorkTask.objects.create(
+            title='Việc giao cho GD',
+            assigner=self.leader,
+            assignee=self.director,
+            status=WorkTask.STATUS_PENDING_ACK,
+        )
+        self.client.force_login(self.director)
+        response = self.client.get(reverse('tasks:my'))
+        self.assertRedirects(response, reverse('tasks:assigned'))
+
+    def test_director_home_widget_skips_assignee_tasks(self):
+        from assessment.portal_widgets import get_portal_dashboard
+
+        WorkTask.objects.create(
+            title='Việc chờ GD',
+            assigner=self.leader,
+            assignee=self.director,
+            status=WorkTask.STATUS_PENDING_ACK,
+        )
+        widgets = get_portal_dashboard(self.director)
+        titles = [w['title'] for w in widgets]
+        self.assertNotIn('Việc chờ xác nhận', titles)
+        self.assertNotIn('Việc cần sửa', titles)
 
     def test_assign_creates_one_record_per_assignee(self):
         self.client.force_login(self.leader)

@@ -11,8 +11,9 @@ from hrm.permissions import (
     can_assign_tasks,
     can_create_internal_project,
     can_manage_assigned_task,
+    can_receive_assigned_tasks,
     can_view_task,
-    get_report_team_users,
+    get_task_assignable_users,
 )
 from PortalJustPlay.pagination import paginate_queryset
 
@@ -84,6 +85,14 @@ def _redirect_task_detail(task, *, pk=None):
     return redirect(_task_detail_route(task), pk=pk or task.pk)
 
 
+def _personal_landing_redirect(user):
+    if can_receive_assigned_tasks(user):
+        return redirect('tasks:my')
+    if can_assign_tasks(user):
+        return redirect('tasks:assigned')
+    return redirect('tasks:project_list')
+
+
 @_tasks_access_required
 def task_hub(request):
     return redirect('tasks:personal_hub')
@@ -98,11 +107,16 @@ def personal_hub(request):
         ).count()
         if pending_assigned:
             return redirect('tasks:assigned')
-    return redirect('tasks:my')
+    return _personal_landing_redirect(request.user)
 
 
 @_tasks_access_required
 def my_tasks(request):
+    if not can_receive_assigned_tasks(request.user):
+        messages.info(request, 'Giám đốc chỉ giao và duyệt việc, không nhận việc thực hiện.')
+        if can_assign_tasks(request.user):
+            return redirect('tasks:assigned')
+        return redirect('tasks:project_list')
     status = request.GET.get('status', '')
     qs = _personal_tasks_qs(assignee=request.user).select_related(
         'assigner', 'assigner__profile',
@@ -116,6 +130,7 @@ def my_tasks(request):
         'current_status': status,
         'query_string': query_string,
         'can_assign': can_assign_tasks(request.user),
+        'can_receive': can_receive_assigned_tasks(request.user),
         'pending_ack_count': _personal_tasks_qs(
             assignee=request.user, status=WorkTask.STATUS_PENDING_ACK,
         ).count(),
@@ -141,6 +156,7 @@ def assigned_tasks(request):
         'current_status': status,
         'query_string': query_string,
         'can_assign': True,
+        'can_receive': can_receive_assigned_tasks(request.user),
         'pending_review_count': _personal_tasks_qs(
             assigner=request.user, status=WorkTask.STATUS_PENDING_REVIEW,
         ).count(),
@@ -216,7 +232,9 @@ def assign_task(request):
                 messages.error(request, '; '.join(getattr(exc, 'messages', [str(exc)])))
                 return render(request, 'tasks/assign.html', {
                     'form': form,
-                    'team_count': get_report_team_users(request.user).count(),
+                    'team_count': get_task_assignable_users(request.user).count(),
+                    'can_assign': True,
+                    'can_receive': can_receive_assigned_tasks(request.user),
                 })
 
             created = []
@@ -250,7 +268,9 @@ def assign_task(request):
 
     return render(request, 'tasks/assign.html', {
         'form': form,
-        'team_count': get_report_team_users(request.user).count(),
+        'team_count': get_task_assignable_users(request.user).count(),
+        'can_assign': True,
+        'can_receive': can_receive_assigned_tasks(request.user),
     })
 
 
@@ -268,7 +288,10 @@ def task_detail(request, pk):
         return _redirect_task_detail(task)
 
     is_project_step = bool(task.project_id)
-    is_assignee = task.assignee_id == request.user.id
+    is_assignee = (
+        task.assignee_id == request.user.id
+        and can_receive_assigned_tasks(request.user)
+    )
     is_assigner = can_manage_assigned_task(request.user, task)
 
     progress_form = WorkTaskProgressForm(
@@ -418,6 +441,7 @@ def task_detail(request, pk):
         'is_assigner': is_assigner,
         'can_assign': can_assign_tasks(request.user),
         'can_create': can_create_internal_project(request.user),
+        'can_receive': can_receive_assigned_tasks(request.user),
         'can_request_handoff': can_request_handoff,
         'pending_handoff': pending_handoff,
         'progress_form': progress_form,
@@ -485,4 +509,5 @@ def reassign_task(request, pk):
         'form': form,
         'task': old_task,
         'can_assign': True,
+        'can_receive': can_receive_assigned_tasks(request.user),
     })
