@@ -21,7 +21,9 @@
         <div class="card-body p-3">
             <form method="get" class="row g-2 align-items-center">
                 <div class="col-md-5">
-                    {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tìm kiếm tên khóa học...' clear_url=request.path %}
+                    <div class="input-group">
+                        {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tìm kiếm tên khóa học...' clear_url=request.path %}
+                    </div>
                 </div>
                 <div class="col-md-3">
                     <select name="category" class="form-select border shadow-none bg-white" onchange="this.form.submit()">

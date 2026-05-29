@@ -33,20 +33,23 @@
 
     <div class="tab-content">
         <div class="tab-pane fade show active" id="tab-dept">
-            <div class="card border-0 shadow-sm mb-3">
-                <div class="card-body p-3">
-                    <form method="get">
-                        {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tìm theo tên phòng ban...' clear_url=request.path %}
-                    </form>
-                    {% if search_query %}
-                    <p class="text-muted small mb-0 mt-2">Kết quả tìm “{{ search_query }}” — {{ page_obj.paginator.count }} phòng ban</p>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="card border-0 shadow-sm overflow-hidden">
-                <div class="card-header bg-white py-3 border-bottom">
-                    <h5 class="mb-0 fw-bold text-dark">Phòng ban ({{ departments|length }})</h5>
-                    <p class="small text-muted mb-0 mt-1">Chọn module menu mà từng phòng ban được phép truy cập</p>
+            <div class="card border-0 shadow-sm jp-hrm-list-card overflow-hidden">
+                <div class="card-header bg-white py-3 border-bottom jp-hrm-card-header">
+                    <div class="jp-hrm-card-header-main">
+                        <h5 class="mb-0 fw-bold text-dark">Phòng ban</h5>
+                        <p class="text-muted small mb-0 mt-1">
+                            {% if search_query %}
+                            Kết quả tìm “{{ search_query }}” — {{ page_obj.paginator.count }} phòng ban · Chọn module menu được phép truy cập
+                            {% else %}
+                            {{ page_obj.paginator.count }} phòng ban · Chọn module menu được phép truy cập
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="jp-hrm-filters">
+                        <form method="get" class="jp-hrm-search input-group" role="search">
+                            {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tìm tên phòng ban...' clear_url=request.path %}
+                        </form>
+                    </div>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">

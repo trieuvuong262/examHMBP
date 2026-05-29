@@ -1940,6 +1940,36 @@ textarea.form-control {
 
 .jp-hrm-search {
     width: 100%;
+    flex-wrap: nowrap;
+}
+
+.jp-hrm-search.input-group .input-group-text,
+.jp-hrm-search.input-group .form-control,
+.jp-hrm-search.input-group .btn {
+    border-color: #dee2e6;
+}
+
+.jp-hrm-search.input-group .form-control:focus {
+    box-shadow: none;
+    border-color: #dee2e6;
+}
+
+.jp-hrm-search.input-group .form-control:focus + .btn,
+.jp-hrm-search.input-group:focus-within .input-group-text,
+.jp-hrm-search.input-group:focus-within .form-control {
+    border-color: var(--hm-primary, #dc2626);
+}
+
+.jp-hrm-search.input-group:focus-within {
+    box-shadow: 0 0 0 0.2rem rgba(220, 38, 38, 0.12);
+    border-radius: var(--jp-radius-xs, 4px);
+}
+
+@media (min-width: 768px) {
+    .jp-hrm-filters .jp-hrm-search.input-group,
+    form.jp-hrm-search.input-group {
+        max-width: 360px;
+    }
 }
 
 @media (min-width: 768px) {
@@ -2164,10 +2194,18 @@ textarea.form-control {
 }
 
 /* ============================================================
-   HRM — Form thêm/sửa nhân viên (full width)
+   HRM — Form thêm/sửa nhân viên (compact)
    ============================================================ */
 .jp-user-form-page .jp-page-header {
     align-items: flex-start;
+}
+
+.jp-user-form-header {
+    gap: 0.75rem;
+}
+
+.jp-user-form-header-actions {
+    flex-shrink: 0;
 }
 
 .jp-user-form-card .card-header {
@@ -2178,14 +2216,51 @@ textarea.form-control {
     background: #fff;
 }
 
-.jp-form-label {
-    display: block;
-    font-size: 0.75rem;
+.jp-user-form-identity {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1rem;
+    padding: 0.75rem 1rem;
+    background: #f8fafc;
+}
+
+.jp-user-form-identity-avatar .jp-hrm-avatar.rounded-circle,
+.jp-user-form-identity-avatar .jp-hrm-avatar-img.rounded-circle {
+    width: 64px;
+    height: 64px;
+    border-radius: 50% !important;
+    font-size: 1.35rem;
+}
+
+.jp-user-form-identity-main {
+    flex: 1 1 160px;
+    min-width: 0;
+}
+
+.jp-user-form-identity-upload {
+    flex: 1 1 220px;
+    max-width: 320px;
+    min-width: 0;
+}
+
+.jp-user-form-section-title {
+    font-size: 0.8rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--jp-black-600, #64748b);
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.65rem;
+}
+
+.jp-form-label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--jp-black-600, #64748b);
+    margin-bottom: 0.3rem;
 }
 
 .jp-form-label-row {
@@ -2196,7 +2271,7 @@ textarea.form-control {
 }
 
 .jp-form-link {
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     font-weight: 600;
     text-transform: none;
     letter-spacing: 0;
@@ -2212,13 +2287,20 @@ textarea.form-control {
 
 .jp-user-form-page .form-control,
 .jp-user-form-page .form-select {
-    min-height: 42px;
-    font-size: 0.95rem;
+    min-height: 38px;
+    font-size: 0.9rem;
+    padding-top: 0.35rem;
+    padding-bottom: 0.35rem;
 }
 
 .jp-user-form-page input[type="date"].form-control {
-    padding-top: 0.45rem;
-    padding-bottom: 0.45rem;
+    padding-top: 0.35rem;
+    padding-bottom: 0.35rem;
+}
+
+.jp-user-form-page .form-control-sm {
+    min-height: 34px;
+    font-size: 0.85rem;
 }
 
 .jp-user-form-actions {
@@ -2226,23 +2308,21 @@ textarea.form-control {
     bottom: calc(var(--jp-safe-bottom, 0px) + 0.5rem);
     z-index: 100;
     background: #fff;
+    padding: 0.5rem;
+    border-radius: var(--jp-radius);
+    box-shadow: 0 -2px 12px rgba(15, 23, 42, 0.08);
 }
 
-.jp-user-form-actions .btn-lg {
-    min-height: 46px;
-    padding-left: 1.5rem;
-    padding-right: 1.5rem;
-}
-
-@media (min-width: 992px) {
-    .jp-user-form-page .col-lg-4 .jp-user-form-card:last-child {
-        flex: 1;
+@media (min-width: 768px) {
+    .jp-user-form-page .jp-user-form-card {
+        max-width: 1200px;
     }
 }
 
 @media (max-width: 575.98px) {
-    .jp-user-form-actions .btn-lg {
-        width: 100%;
+    .jp-user-form-identity-upload {
+        flex-basis: 100%;
+        max-width: none;
     }
 }
 

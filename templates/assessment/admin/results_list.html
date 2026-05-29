@@ -16,7 +16,7 @@
         </div>
         
         <div class="d-flex gap-2">
-            <form method="get" class="me-2" style="width: 280px;">
+            <form method="get" class="jp-hrm-search input-group me-2" role="search" style="width: 280px;">
                 {% if exam_id %}<input type="hidden" name="exam" value="{{ exam_id }}">{% endif %}
                 {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tìm thí sinh, kỳ thi...' clear_url=request.path %}
             </form>

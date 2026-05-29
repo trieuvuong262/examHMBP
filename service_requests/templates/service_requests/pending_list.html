@@ -13,7 +13,7 @@
 
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-body p-3">
-            <form method="get">
+            <form method="get" class="jp-hrm-search input-group" role="search">
                 {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tìm theo tiêu đề, người gửi, bước duyệt...' clear_url=request.path %}
             </form>
             {% if search_query %}

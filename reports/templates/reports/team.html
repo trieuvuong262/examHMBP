@@ -18,10 +18,13 @@
                 <label class="form-label fw-bold small mb-1">Ngày</label>
                 <input type="date" name="date" value="{{ report_date|date:'Y-m-d' }}" class="form-control">
             </div>
-            <div class="flex-grow-1" style="min-width: 240px;">
-                {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tìm theo tên, mã NS, account...' %}
+            <div class="flex-grow-1 jp-hrm-search-wrap" style="min-width: 240px;">
+                <label class="form-label fw-bold small mb-1">Tìm nhân viên</label>
+                <div class="input-group jp-hrm-search">
+                    {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tên, mã NS, account...' show_button=False %}
+                </div>
             </div>
-            <button type="submit" class="btn btn-hm px-4">Xem</button>
+            <button type="submit" class="btn btn-hm px-4 align-self-end">Xem</button>
             {% if search_query %}
             <a href="?date={{ report_date|date:'Y-m-d' }}" class="btn btn-light border" title="Xóa tìm kiếm"><i class="bi bi-x-lg"></i></a>
             {% endif %}
