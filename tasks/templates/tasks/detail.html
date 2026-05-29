@@ -8,6 +8,9 @@
             <p class="text-muted mb-1">
                 <span class="badge {{ task.status_badge_class }}">{{ task.get_status_display }}</span>
                 · Giao bởi {{ task.assigner.profile.full_name|default:task.assigner.username }}
+                {% if project %}
+                · <a href="{% url 'tasks:project_detail' project.pk %}">Dự án: {{ project.title }}</a>
+                {% endif %}
             </p>
             <div class="text-muted small">
                 <span class="me-1">Người nhận:</span>
@@ -22,6 +25,9 @@
             {% endif %}
             {% if is_assigner and task.status == 'rejected' %}
             <a href="{% url 'tasks:reassign' task.pk %}" class="btn btn-hm btn-sm">Giao lại</a>
+            {% endif %}
+            {% if can_request_handoff %}
+            <a href="{% url 'tasks:handoff' task.pk %}" class="btn btn-outline-hm btn-sm">Chuyển giao bước</a>
             {% endif %}
         </div>
     </div>
@@ -156,6 +162,14 @@
                 </div>
             </div>
             {% endif %}
+            {% endif %}
+
+            {% if pending_handoff %}
+            <div class="alert alert-info border-0">
+                Đang chờ chủ dự án duyệt chuyển giao cho
+                <strong>{{ pending_handoff.to_user.profile.full_name|default:pending_handoff.to_user.username }}</strong>.
+                <a href="{% url 'tasks:project_detail' project.pk %}">Xem dự án</a>
+            </div>
             {% endif %}
 
             {% if can_upload_work and task.status == 'pending_review' %}

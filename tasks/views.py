@@ -23,8 +23,9 @@ from .forms import (
     WorkTaskReviewForm,
     WorkTaskSubmitForm,
 )
-from .models import WorkTask, WorkTaskAttachment, WorkTaskLog
+from .models import WorkTask, WorkTaskAttachment, WorkTaskHandoff, WorkTaskLog
 from .attachment_utils import read_separate_uploads, save_task_attachments, copy_task_attachments
+from .project_utils import unlock_dependent_steps
 from .utils import log_task_action
 
 
@@ -323,6 +324,13 @@ def task_detail(request, pk):
                     'status', 'review_note', 'completed_at', 'progress_percent', 'updated_at',
                 ])
                 log_task_action(task, request.user, WorkTaskLog.ACTION_APPROVE, task.review_note)
+                if task.project_id:
+                    unlocked = unlock_dependent_steps(task)
+                    if unlocked:
+                        messages.info(
+                            request,
+                            f'Đã mở {len(unlocked)} bước phụ thuộc.',
+                        )
                 messages.success(request, 'Đã duyệt hoàn thành công việc.')
                 return redirect('tasks:detail', pk=pk)
 
@@ -352,6 +360,16 @@ def task_detail(request, pk):
             assignment_batch=task.assignment_batch,
         ).exclude(pk=task.pk).select_related('assignee', 'assignee__profile')[:10]
 
+    pending_handoff = None
+    can_request_handoff = False
+    if task.project_id and is_assignee and task.status in {
+        WorkTask.STATUS_IN_PROGRESS, WorkTask.STATUS_REVISION,
+    }:
+        pending_handoff = task.handoff_requests.filter(
+            status=WorkTaskHandoff.STATUS_PENDING,
+        ).select_related('to_user', 'to_user__profile').first()
+        can_request_handoff = pending_handoff is None
+
     attachments = _task_attachments(task)
     assign_attachments = attachments.filter(stage=WorkTaskAttachment.STAGE_ASSIGN)
     work_attachments = attachments.filter(stage=WorkTaskAttachment.STAGE_WORK)
@@ -360,6 +378,7 @@ def task_detail(request, pk):
 
     return render(request, 'tasks/detail.html', {
         'task': task,
+        'project': task.project,
         'logs': task.logs.select_related('actor', 'actor__profile'),
         'assign_images': assign_images,
         'assign_files': assign_files,
@@ -369,6 +388,8 @@ def task_detail(request, pk):
         'is_assignee': is_assignee,
         'is_assigner': is_assigner,
         'can_assign': can_assign_tasks(request.user),
+        'can_request_handoff': can_request_handoff,
+        'pending_handoff': pending_handoff,
         'progress_form': progress_form,
         'submit_form': submit_form,
         'reject_form': reject_form,

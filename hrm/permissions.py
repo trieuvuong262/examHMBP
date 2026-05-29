@@ -197,16 +197,40 @@ def can_assign_tasks(user) -> bool:
     return user_can_edit_module(user, MODULE_TASKS) and has_task_subordinates(user)
 
 
+def can_create_internal_project(user) -> bool:
+    """Tổ trưởng / Trưởng BP — cùng điều kiện giao việc."""
+    return can_assign_tasks(user)
+
+
+def can_view_project(user, project) -> bool:
+    if not _has_tasks_module_access(user):
+        return False
+    if project.owner_id == user.id:
+        return True
+    return project.members.filter(pk=user.pk).exists()
+
+
+def can_manage_project(user, project) -> bool:
+    """Chủ dự án — thêm bước, duyệt handoff, duyệt bước."""
+    if not _has_tasks_module_access(user):
+        return False
+    return project.owner_id == user.id
+
+
 def can_view_task(user, task) -> bool:
     if not _has_tasks_module_access(user):
         return False
     if task.assignee_id == user.id or task.assigner_id == user.id:
         return True
+    if task.project_id and can_view_project(user, task.project):
+        return True
     return False
 
 
 def can_manage_assigned_task(user, task) -> bool:
-    """Người giao việc — duyệt, hủy, giao lại."""
+    """Người giao việc — duyệt, hủy, giao lại. Bước dự án: chủ dự án."""
     if not _has_tasks_module_access(user):
         return False
+    if task.project_id and can_manage_project(user, task.project):
+        return True
     return task.assigner_id == user.id

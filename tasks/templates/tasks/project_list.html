@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-tasks-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-kanban me-2"></i>Dự án nội bộ</h2>
+            <p class="text-muted mb-0 jp-hide-mobile-subtitle">Quản lý các bước công việc theo dự án — thành viên xem tiến độ chung.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'tasks:my' %}" class="btn btn-outline-hm btn-sm">Việc của tôi</a>
+            {% if can_create %}
+            <a href="{% url 'tasks:project_create' %}" class="btn btn-hm btn-sm"><i class="bi bi-plus-lg me-1"></i>Tạo dự án</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Dự án</th>
+                        <th>Chủ dự án</th>
+                        <th>Tiến độ</th>
+                        <th>Trạng thái</th>
+                        <th>Hạn</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for project in page_obj %}
+                    <tr>
+                        <td>
+                            <strong>{{ project.title }}</strong>
+                            {% if project.description %}
+                            <div class="small text-muted text-truncate" style="max-width: 280px;">{{ project.description }}</div>
+                            {% endif %}
+                        </td>
+                        <td>{{ project.owner.profile.full_name|default:project.owner.username }}</td>
+                        <td>
+                            <div class="progress" style="height: 6px; min-width: 80px;">
+                                <div class="progress-bar bg-hm" style="width: {{ project.progress_percent }}%"></div>
+                            </div>
+                            <small class="text-muted">{{ project.completed_steps_count }}/{{ project.total_steps_count }} bước</small>
+                        </td>
+                        <td><span class="badge bg-secondary-subtle text-secondary">{{ project.get_status_display }}</span></td>
+                        <td>{{ project.due_date|date:"d/m/Y"|default:"—" }}</td>
+                        <td class="text-end">
+                            <a href="{% url 'tasks:project_detail' project.pk %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            Chưa có dự án nào.
+                            {% if can_create %}<a href="{% url 'tasks:project_create' %}">Tạo dự án đầu tiên</a>{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer bg-white d-flex justify-content-center">
+            {% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

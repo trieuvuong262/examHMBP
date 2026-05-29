@@ -35,6 +35,8 @@ class WorkTask(models.Model):
     STATUS_COMPLETED = 'completed'
     STATUS_CANCELLED = 'cancelled'
     STATUS_REASSIGNED = 'reassigned'
+    STATUS_BLOCKED = 'blocked'
+    STATUS_HANDED_OFF = 'handed_off'
     STATUS_CHOICES = [
         (STATUS_PENDING_ACK, 'Chờ xác nhận'),
         (STATUS_IN_PROGRESS, 'Đang thực hiện'),
@@ -44,6 +46,8 @@ class WorkTask(models.Model):
         (STATUS_COMPLETED, 'Hoàn thành'),
         (STATUS_CANCELLED, 'Đã hủy'),
         (STATUS_REASSIGNED, 'Đã giao lại'),
+        (STATUS_BLOCKED, 'Chờ bước trước'),
+        (STATUS_HANDED_OFF, 'Đã chuyển giao'),
     ]
 
     ACTIVE_ASSIGNEE_STATUSES = {
@@ -101,6 +105,23 @@ class WorkTask(models.Model):
         related_name='replaces',
         verbose_name='Thay bằng việc',
     )
+    project = models.ForeignKey(
+        'InternalProject',
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name='steps',
+        verbose_name='Dự án',
+    )
+    depends_on = models.ForeignKey(
+        'self',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='dependent_steps',
+        verbose_name='Phụ thuộc bước',
+    )
+    step_order = models.PositiveIntegerField(default=0, verbose_name='Thứ tự')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -130,6 +151,8 @@ class WorkTask(models.Model):
             self.STATUS_COMPLETED: 'bg-success-subtle text-success',
             self.STATUS_CANCELLED: 'bg-secondary-subtle text-secondary',
             self.STATUS_REASSIGNED: 'bg-secondary-subtle text-secondary',
+            self.STATUS_BLOCKED: 'bg-secondary-subtle text-secondary',
+            self.STATUS_HANDED_OFF: 'bg-secondary-subtle text-secondary',
         }
         return mapping.get(self.status, 'bg-secondary-subtle text-secondary')
 
@@ -203,6 +226,7 @@ class WorkTaskLog(models.Model):
     ACTION_REASSIGN = 'reassigned'
     ACTION_CANCEL = 'cancelled'
     ACTION_ATTACHMENT = 'attachment'
+    ACTION_HANDOFF = 'handoff'
     ACTION_CHOICES = [
         (ACTION_ASSIGNED, 'Giao việc'),
         (ACTION_ACK, 'Xác nhận'),
@@ -214,6 +238,7 @@ class WorkTaskLog(models.Model):
         (ACTION_REASSIGN, 'Giao lại'),
         (ACTION_CANCEL, 'Hủy'),
         (ACTION_ATTACHMENT, 'Đính kèm'),
+        (ACTION_HANDOFF, 'Chuyển giao'),
     ]
 
     task = models.ForeignKey(WorkTask, on_delete=models.CASCADE, related_name='logs')
@@ -234,3 +259,154 @@ class WorkTaskLog(models.Model):
 
     def __str__(self):
         return f'{self.task_id} · {self.get_action_display()}'
+
+
+class InternalProject(models.Model):
+    STATUS_DRAFT = 'draft'
+    STATUS_ACTIVE = 'active'
+    STATUS_COMPLETED = 'completed'
+    STATUS_CANCELLED = 'cancelled'
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, 'Nháp'),
+        (STATUS_ACTIVE, 'Đang chạy'),
+        (STATUS_COMPLETED, 'Hoàn thành'),
+        (STATUS_CANCELLED, 'Đã hủy'),
+    ]
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='owned_internal_projects',
+        verbose_name='Chủ dự án',
+    )
+    title = models.CharField(max_length=200, verbose_name='Tên dự án')
+    description = models.TextField(blank=True, verbose_name='Mô tả')
+    due_date = models.DateField(null=True, blank=True, verbose_name='Hạn dự án')
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_ACTIVE, db_index=True,
+    )
+    members = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name='internal_projects',
+        blank=True,
+        verbose_name='Thành viên',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+        verbose_name = 'Dự án nội bộ'
+        verbose_name_plural = 'Dự án nội bộ'
+
+    def __str__(self):
+        return self.title
+
+    @property
+    def completed_steps_count(self):
+        return self.steps.filter(status=WorkTask.STATUS_COMPLETED).count()
+
+    @property
+    def total_steps_count(self):
+        return self.steps.count()
+
+    @property
+    def progress_percent(self):
+        total = self.total_steps_count
+        if not total:
+            return 0
+        return int(self.completed_steps_count * 100 / total)
+
+
+class ProjectComment(models.Model):
+    project = models.ForeignKey(
+        InternalProject,
+        on_delete=models.CASCADE,
+        related_name='comments',
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='project_comments',
+    )
+    body = models.TextField(verbose_name='Nội dung')
+    mentioned_users = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name='mentioned_in_project_comments',
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+        verbose_name = 'Comment dự án'
+        verbose_name_plural = 'Comment dự án'
+
+    def __str__(self):
+        return f'{self.project_id} · {self.author_id}'
+
+
+class WorkTaskHandoff(models.Model):
+    STATUS_PENDING = 'pending'
+    STATUS_APPROVED = 'approved'
+    STATUS_REJECTED = 'rejected'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Chờ duyệt'),
+        (STATUS_APPROVED, 'Đã duyệt'),
+        (STATUS_REJECTED, 'Từ chối'),
+    ]
+
+    project = models.ForeignKey(
+        InternalProject,
+        on_delete=models.CASCADE,
+        related_name='handoffs',
+    )
+    source_task = models.ForeignKey(
+        WorkTask,
+        on_delete=models.CASCADE,
+        related_name='handoff_requests',
+    )
+    from_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='handoffs_from',
+    )
+    to_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='handoffs_to',
+    )
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='handoffs_requested',
+    )
+    note = models.TextField(blank=True, verbose_name='Ghi chú chuyển giao')
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True,
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='handoffs_reviewed',
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+    created_task = models.ForeignKey(
+        WorkTask,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='created_from_handoff',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Chuyển giao bước'
+        verbose_name_plural = 'Chuyển giao bước'
+
+    def __str__(self):
+        return f'Handoff {self.source_task_id} → {self.to_user_id}'
