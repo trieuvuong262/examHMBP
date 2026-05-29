@@ -24,7 +24,7 @@ from .forms import (
     WorkTaskSubmitForm,
 )
 from .models import WorkTask, WorkTaskAttachment, WorkTaskLog
-from .attachment_utils import read_upload_files, save_task_attachments, copy_task_attachments
+from .attachment_utils import read_separate_uploads, save_task_attachments, copy_task_attachments
 from .utils import log_task_action
 
 
@@ -141,24 +141,44 @@ def _task_attachments(task):
     return task.attachments.select_related('uploaded_by', 'uploaded_by__profile')
 
 
+def _split_attachments(queryset):
+    images, files = [], []
+    for att in queryset:
+        (images if att.is_image else files).append(att)
+    return images, files
+
+
+def _read_request_uploads(request):
+    return read_separate_uploads(
+        request.FILES.getlist('images'),
+        request.FILES.getlist('files'),
+    )
+
+
 def _handle_attachment_upload(request, task, *, stage, actor):
-    files = request.FILES.getlist('attachments')
-    if not files:
-        messages.warning(request, 'Chưa chọn file nào để tải lên.')
+    if not request.FILES.getlist('images') and not request.FILES.getlist('files'):
+        messages.warning(request, 'Chưa chọn hình ảnh hoặc file nào để tải lên.')
         return False
     try:
-        prepared = read_upload_files(files)
+        prepared = _read_request_uploads(request)
     except ValidationError as exc:
         messages.error(request, '; '.join(getattr(exc, 'messages', [str(exc)])))
         return False
     saved = save_task_attachments(task, prepared, uploaded_by=actor, stage=stage)
+    image_count = sum(1 for att in saved if att.is_image)
+    file_count = len(saved) - image_count
+    parts = []
+    if image_count:
+        parts.append(f'{image_count} hình ảnh')
+    if file_count:
+        parts.append(f'{file_count} file')
     log_task_action(
         task,
         actor,
         WorkTaskLog.ACTION_ATTACHMENT,
-        f'Tải lên {len(saved)} file',
+        f'Tải lên {", ".join(parts) or len(saved)}',
     )
-    messages.success(request, f'Đã tải lên {len(saved)} file đính kèm.')
+    messages.success(request, f'Đã tải lên {", ".join(parts)}.')
     return True
 
 
@@ -171,13 +191,12 @@ def assign_task(request):
             batch = uuid.uuid4()
             prepared_files = []
             try:
-                prepared_files = read_upload_files(request.FILES.getlist('attachments'))
+                prepared_files = _read_request_uploads(request)
             except ValidationError as exc:
                 messages.error(request, '; '.join(getattr(exc, 'messages', [str(exc)])))
                 return render(request, 'tasks/assign.html', {
                     'form': form,
                     'team_count': get_report_team_users(request.user).count(),
-                    'team_members': get_report_team_users(request.user),
                 })
 
             created = []
@@ -212,7 +231,6 @@ def assign_task(request):
     return render(request, 'tasks/assign.html', {
         'form': form,
         'team_count': get_report_team_users(request.user).count(),
-        'team_members': get_report_team_users(request.user),
     })
 
 
@@ -337,12 +355,16 @@ def task_detail(request, pk):
     attachments = _task_attachments(task)
     assign_attachments = attachments.filter(stage=WorkTaskAttachment.STAGE_ASSIGN)
     work_attachments = attachments.filter(stage=WorkTaskAttachment.STAGE_WORK)
+    assign_images, assign_files = _split_attachments(assign_attachments)
+    work_images, work_files = _split_attachments(work_attachments)
 
     return render(request, 'tasks/detail.html', {
         'task': task,
         'logs': task.logs.select_related('actor', 'actor__profile'),
-        'assign_attachments': assign_attachments,
-        'work_attachments': work_attachments,
+        'assign_images': assign_images,
+        'assign_files': assign_files,
+        'work_images': work_images,
+        'work_files': work_files,
         'can_upload_work': is_assignee and task.status in ASSIGNEE_UPLOAD_STATUSES,
         'is_assignee': is_assignee,
         'is_assigner': is_assigner,

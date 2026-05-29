@@ -47,10 +47,7 @@
                         {{ form.due_date }}
                     </div>
                     <div class="col-12">
-                        <label class="form-label fw-bold">Hình ảnh / file đính kèm</label>
-                        <input type="file" name="attachments" class="form-control" multiple
-                               accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.txt,.csv">
-                        <div class="form-text">Tải ảnh hoặc file tham chiếu (PDF, Word, Excel…). Tối đa 10 MB/file. Có thể chọn nhiều file.</div>
+                        {% include 'tasks/includes/upload_fields.html' %}
                     </div>
                     <div class="col-12">
                         <label class="form-label fw-bold">{{ form.assignees.label }}</label>
@@ -60,32 +57,6 @@
                         <div class="form-text">Giữ Ctrl (Windows) hoặc Cmd (Mac) để chọn nhiều người. Mỗi dòng hiển thị: <strong>Họ tên · Mã NS · account</strong>.</div>
                     </div>
                 </div>
-
-                {% if team_members %}
-                <div class="mt-4">
-                    <label class="form-label fw-bold small text-muted text-uppercase">Danh sách cấp dưới có thể giao</label>
-                    <div class="table-responsive border rounded">
-                        <table class="table table-sm table-hover align-middle mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Họ và tên</th>
-                                    <th>Mã NS</th>
-                                    <th>Account</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for member in team_members %}
-                                <tr>
-                                    <td>{{ member.profile.full_name|default:member.username }}</td>
-                                    <td><code>{{ member.profile.employee_code|default:"—" }}</code></td>
-                                    <td><code>{{ member.username }}</code></td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                {% endif %}
 
                 <div class="mt-4 d-flex gap-2">
                     <button type="submit" class="btn btn-hm px-4" {% if team_count == 0 %}disabled{% endif %}>Giao việc</button>

@@ -6,9 +6,10 @@ from django.core.files.base import ContentFile
 from django.db import models
 
 IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'}
-ALLOWED_EXTENSIONS = IMAGE_EXTENSIONS | {
+DOCUMENT_EXTENSIONS = {
     '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.zip', '.rar', '.txt', '.csv',
 }
+ALLOWED_EXTENSIONS = IMAGE_EXTENSIONS | DOCUMENT_EXTENSIONS
 MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
@@ -16,7 +17,35 @@ def is_image_filename(name: str) -> bool:
     return os.path.splitext((name or '').lower())[1] in IMAGE_EXTENSIONS
 
 
+def _check_file_size(uploaded_file, name: str):
+    size = getattr(uploaded_file, 'size', 0) or 0
+    if size > MAX_ATTACHMENT_SIZE:
+        raise ValidationError(f'File "{name}" vượt quá 10 MB.')
+
+
+def validate_image_file(uploaded_file):
+    name = getattr(uploaded_file, 'name', '') or 'file'
+    ext = os.path.splitext(name.lower())[1]
+    if ext not in IMAGE_EXTENSIONS:
+        raise ValidationError(f'"{name}" không phải hình ảnh. Chọn file JPG, PNG, GIF hoặc WebP.')
+    _check_file_size(uploaded_file, name)
+
+
+def validate_document_file(uploaded_file):
+    name = getattr(uploaded_file, 'name', '') or 'file'
+    ext = os.path.splitext(name.lower())[1]
+    if ext in IMAGE_EXTENSIONS:
+        raise ValidationError(f'"{name}" là hình ảnh — dùng ô tải hình ảnh riêng.')
+    if ext not in DOCUMENT_EXTENSIONS:
+        raise ValidationError(
+            f'File "{name}" không được hỗ trợ. '
+            'Chấp nhận: PDF, Word, Excel, PowerPoint, ZIP, TXT.',
+        )
+    _check_file_size(uploaded_file, name)
+
+
 def validate_attachment_file(uploaded_file):
+    """Tương thích cũ — chấp nhận cả ảnh và file."""
     name = getattr(uploaded_file, 'name', '') or 'file'
     ext = os.path.splitext(name.lower())[1]
     if ext not in ALLOWED_EXTENSIONS:
@@ -24,18 +53,23 @@ def validate_attachment_file(uploaded_file):
             f'File "{name}" không được hỗ trợ. '
             'Chấp nhận: hình ảnh, PDF, Word, Excel, PowerPoint, ZIP, TXT.',
         )
-    size = getattr(uploaded_file, 'size', 0) or 0
-    if size > MAX_ATTACHMENT_SIZE:
-        raise ValidationError(f'File "{name}" vượt quá 10 MB.')
+    _check_file_size(uploaded_file, name)
 
 
-def read_upload_files(file_list):
-    """Đọc upload vào bộ nhớ để gán cho nhiều task."""
+def _read_file_list(file_list, validator):
     prepared = []
     for uploaded in file_list:
-        validate_attachment_file(uploaded)
+        validator(uploaded)
         content = uploaded.read()
         prepared.append((uploaded.name, ContentFile(content, name=uploaded.name)))
+    return prepared
+
+
+def read_separate_uploads(image_list, file_list):
+    """Đọc hình ảnh và file tài liệu từ hai ô upload riêng."""
+    prepared = []
+    prepared.extend(_read_file_list(image_list, validate_image_file))
+    prepared.extend(_read_file_list(file_list, validate_document_file))
     return prepared
 
 

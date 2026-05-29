@@ -1,21 +1,43 @@
-{% if assign_attachments or work_attachments %}
+{% if assign_images or assign_files or work_images or work_files %}
 <div class="jp-task-attachments">
-    {% if assign_attachments %}
+    {% if assign_images %}
     <div class="mb-3">
-        <small class="text-muted d-block mb-2 fw-bold">Hình ảnh / file khi giao việc</small>
+        <small class="text-muted d-block mb-2 fw-bold">Hình ảnh khi giao việc</small>
         <div class="jp-task-attachment-grid">
-            {% for att in assign_attachments %}
+            {% for att in assign_images %}
             {% include 'tasks/includes/attachment_item.html' with att=att %}
             {% endfor %}
         </div>
     </div>
     {% endif %}
 
-    {% if work_attachments %}
-    <div class="mb-0">
-        <small class="text-muted d-block mb-2 fw-bold">Hình ảnh / file đã làm</small>
+    {% if assign_files %}
+    <div class="mb-3">
+        <small class="text-muted d-block mb-2 fw-bold">File khi giao việc</small>
+        <div class="jp-task-attachment-grid jp-task-attachment-files">
+            {% for att in assign_files %}
+            {% include 'tasks/includes/attachment_item.html' with att=att %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if work_images %}
+    <div class="mb-3">
+        <small class="text-muted d-block mb-2 fw-bold">Hình ảnh báo cáo / đã làm</small>
         <div class="jp-task-attachment-grid">
-            {% for att in work_attachments %}
+            {% for att in work_images %}
+            {% include 'tasks/includes/attachment_item.html' with att=att %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if work_files %}
+    <div class="mb-0">
+        <small class="text-muted d-block mb-2 fw-bold">File báo cáo / đã làm</small>
+        <div class="jp-task-attachment-grid jp-task-attachment-files">
+            {% for att in work_files %}
             {% include 'tasks/includes/attachment_item.html' with att=att %}
             {% endfor %}
         </div>

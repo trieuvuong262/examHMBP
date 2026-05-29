@@ -136,20 +136,22 @@ class TaskWorkflowTests(TestCase):
         response = self.client.get(reverse('tasks:assigned'))
         self.assertEqual(response.status_code, 200)
 
-    def test_assign_with_attachment(self):
+    def test_assign_with_separate_image_and_file(self):
         self.client.force_login(self.leader)
         image = SimpleUploadedFile('ref.jpg', b'fake-image-bytes', content_type='image/jpeg')
+        doc = SimpleUploadedFile('spec.pdf', b'%PDF-1.4', content_type='application/pdf')
         response = self.client.post(reverse('tasks:assign'), {
-            'title': 'Việc có ảnh',
+            'title': 'Việc có ảnh và file',
             'description': '',
             'task_type': WorkTask.TYPE_GENERAL,
             'priority': WorkTask.PRIORITY_NORMAL,
             'assignees': [self.employee.pk],
-            'attachments': image,
+            'images': image,
+            'files': doc,
         })
         self.assertEqual(response.status_code, 302)
-        task = WorkTask.objects.get(assigner=self.leader, title='Việc có ảnh')
-        self.assertEqual(task.attachments.filter(stage=WorkTaskAttachment.STAGE_ASSIGN).count(), 1)
+        task = WorkTask.objects.get(assigner=self.leader, title='Việc có ảnh và file')
+        self.assertEqual(task.attachments.filter(stage=WorkTaskAttachment.STAGE_ASSIGN).count(), 2)
 
     def test_assignee_upload_work_attachment(self):
         task = WorkTask.objects.create(
@@ -159,13 +161,15 @@ class TaskWorkflowTests(TestCase):
             status=WorkTask.STATUS_IN_PROGRESS,
         )
         self.client.force_login(self.employee)
-        file = SimpleUploadedFile('done.pdf', b'%PDF-1.4', content_type='application/pdf')
+        image = SimpleUploadedFile('proof.png', b'png-bytes', content_type='image/png')
+        doc = SimpleUploadedFile('done.pdf', b'%PDF-1.4', content_type='application/pdf')
         response = self.client.post(reverse('tasks:detail', args=[task.pk]), {
             'action': 'upload_attachment',
-            'attachments': file,
+            'images': image,
+            'files': doc,
         })
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(task.attachments.filter(stage=WorkTaskAttachment.STAGE_WORK).count(), 1)
+        self.assertEqual(task.attachments.filter(stage=WorkTaskAttachment.STAGE_WORK).count(), 2)
 
     def test_assignee_label_shows_name_code_account(self):
         Profile.objects.filter(user=self.employee).update(

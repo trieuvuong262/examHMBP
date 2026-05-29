@@ -113,14 +113,12 @@
             {% if is_assignee %}
             {% if task.status == 'in_progress' or task.status == 'revision' %}
             <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-white fw-bold">Tải hình ảnh / file đã làm</div>
+                <div class="card-header bg-white fw-bold">Tải báo cáo — hình ảnh & file</div>
                 <div class="card-body">
                     <form method="post" enctype="multipart/form-data">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="upload_attachment">
-                        <input type="file" name="attachments" class="form-control" multiple
-                               accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.txt,.csv">
-                        <div class="form-text mt-2">Ảnh minh chứng hoặc file kết quả. Tối đa 10 MB/file.</div>
+                        {% include 'tasks/includes/upload_fields.html' %}
                         <button type="submit" class="btn btn-outline-hm mt-3">Tải lên</button>
                     </form>
                 </div>
@@ -162,13 +160,12 @@
 
             {% if can_upload_work and task.status == 'pending_review' %}
             <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-white fw-bold">Bổ sung hình ảnh / file đã làm</div>
+                <div class="card-header bg-white fw-bold">Bổ sung báo cáo — hình ảnh & file</div>
                 <div class="card-body">
                     <form method="post" enctype="multipart/form-data">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="upload_attachment">
-                        <input type="file" name="attachments" class="form-control" multiple
-                               accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.txt,.csv">
+                        {% include 'tasks/includes/upload_fields.html' %}
                         <button type="submit" class="btn btn-outline-hm mt-3">Tải thêm</button>
                     </form>
                 </div>
