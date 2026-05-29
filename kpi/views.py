@@ -18,6 +18,7 @@ from .models import KpiPeriod, YearlyKpi, YearlyKpiItem
 import openpyxl
 from django.http import HttpResponse
 import datetime
+from PortalJustPlay.list_search import apply_combined_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
 
@@ -43,6 +44,7 @@ def _get_or_create_period(year: int, period_type: str) -> KpiPeriod:
 # ========================================================
 @login_required
 def kpi_list_view(request):
+    search_query = get_search_query(request)
     my_kpis_qs = YearlyKpi.objects.filter(employee=request.user).order_by('-year')
     team_kpis_qs = YearlyKpi.objects.filter(direct_manager=request.user).select_related(
         'employee__profile',
@@ -55,6 +57,24 @@ def kpi_list_view(request):
         team_kpis_qs = YearlyKpi.objects.exclude(employee=request.user).select_related(
             'employee__profile',
         ).order_by('-year')
+
+    def _kpi_search(qs):
+        if not search_query:
+            return qs
+        return apply_combined_search(qs, search_query, lambda term: (
+            Q(employee__username__icontains=term)
+            | Q(employee__first_name__icontains=term)
+            | Q(employee__last_name__icontains=term)
+            | Q(employee__email__icontains=term)
+            | Q(employee__profile__full_name__icontains=term)
+            | Q(employee__profile__employee_code__icontains=term)
+            | Q(direct_manager__username__icontains=term)
+            | Q(direct_manager__profile__full_name__icontains=term)
+            | (Q(year=int(term)) if term.isdigit() else Q())
+        ))
+
+    my_kpis_qs = _kpi_search(my_kpis_qs)
+    team_kpis_qs = _kpi_search(team_kpis_qs)
 
     my_page, my_query_string = paginate_queryset(request, my_kpis_qs, page_param='my_page')
     team_page, team_query_string = paginate_queryset(request, team_kpis_qs, page_param='team_page')
@@ -89,6 +109,7 @@ def kpi_list_view(request):
         'team_kpis': team_page.object_list,
         'team_page': team_page,
         'team_query_string': team_query_string,
+        'search_query': search_query,
         'is_admin': is_admin,
         'is_manager_or_gm': is_manager_or_gm,  # <--- Bắt buộc phải có dòng này nha ní!
         'admin_periods': admin_periods,

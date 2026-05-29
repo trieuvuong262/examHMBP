@@ -13,16 +13,23 @@ from django.db.models import Count
 from .forms import ChapterForm, LessonForm
 from django.views.decorators.http import require_POST
 from assessment.decorators import admin_only
-from PortalJustPlay.pagination import paginate_queryset
+from django.core.paginator import Paginator
+from PortalJustPlay.list_search import apply_term_search, get_search_query
+from PortalJustPlay.pagination import LIST_PAGE_SIZE, paginate_queryset
 
 @login_required
 def my_courses(request):
     user = request.user
-    
+    search_query = get_search_query(request)
+    status_filter = request.GET.get('status', '').strip()
+
     assigned_courses_qs = Course.objects.filter(
         assigned_users=user, is_active=True,
     ).order_by('-created_at')
-    page_obj, query_string = paginate_queryset(request, assigned_courses_qs)
+    assigned_courses_qs = apply_term_search(
+        assigned_courses_qs, search_query,
+        'title__icontains', 'description__icontains', 'category__name__icontains',
+    )
     
     submitted_exam_ids = ExamSubmission.objects.filter(
         user=user, 
@@ -30,7 +37,7 @@ def my_courses(request):
     ).values_list('exam_id', flat=True)
 
     course_data = []
-    for course in page_obj.object_list:
+    for course in assigned_courses_qs:
         enrollment, created = Enrollment.objects.get_or_create(user=user, course=course)
         
         status = 'not_started'
@@ -38,6 +45,9 @@ def my_courses(request):
             status = 'completed'
         elif enrollment.progress_percent > 0:
             status = 'in_progress'
+
+        if status_filter and status != status_filter:
+            continue
 
         has_taken_exam = False
         final_exam_id = None
@@ -54,10 +64,19 @@ def my_courses(request):
             'final_exam_id': final_exam_id  
         })
 
+    paginator = Paginator(course_data, LIST_PAGE_SIZE)
+    page_obj = paginator.get_page(request.GET.get('page'))
+    params = request.GET.copy()
+    if 'page' in params:
+        del params['page']
+    query_string = params.urlencode()
+
     return render(request, 'training/my_courses.html', {
-        'course_data': course_data,
+        'course_data': page_obj.object_list,
         'page_obj': page_obj,
         'query_string': query_string,
+        'search_query': search_query,
+        'status_filter': status_filter,
         'title': 'Không gian học tập của tôi'
     })
 
@@ -156,16 +175,37 @@ def course_create(request):
     
 @admin_only
 def course_list(request):
-    courses_qs = Course.objects.annotate(
+    search_query = get_search_query(request)
+    category_id = request.GET.get('category', '').strip()
+    status = request.GET.get('status', '').strip()
+
+    courses_qs = Course.objects.select_related('category').annotate(
         student_count=Count('assigned_users', distinct=True),
         chapter_count=Count('chapters', distinct=True)
     ).order_by('-created_at')
+
+    courses_qs = apply_term_search(
+        courses_qs, search_query,
+        'title__icontains', 'description__icontains', 'category__name__icontains',
+    )
+    if category_id.isdigit():
+        courses_qs = courses_qs.filter(category_id=int(category_id))
+    if status == 'active':
+        courses_qs = courses_qs.filter(is_active=True)
+    elif status == 'inactive':
+        courses_qs = courses_qs.filter(is_active=False)
+
     page_obj, query_string = paginate_queryset(request, courses_qs)
+    categories = CourseCategory.objects.order_by('name')
 
     return render(request, 'training/admin/course_list.html', {
         'courses': page_obj.object_list,
         'page_obj': page_obj,
         'query_string': query_string,
+        'search_query': search_query,
+        'categories': categories,
+        'category_id': category_id,
+        'status_filter': status,
         'title': 'Quản lý danh sách khóa học'
     })
 @admin_only

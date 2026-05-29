@@ -2,7 +2,10 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 
+from django.db.models import Q
+
 from hrm.module_permissions import MODULE_SERVICE_REQUESTS, user_can_access_module
+from PortalJustPlay.list_search import apply_combined_search, apply_term_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 from tasks.attachment_utils import read_separate_uploads
 
@@ -50,16 +53,22 @@ def request_hub(request):
 
 @_access_required
 def my_requests(request):
+    search_query = get_search_query(request)
     qs = ServiceRequest.objects.filter(
         requester=request.user,
     ).select_related('request_type').prefetch_related('steps')
     status = request.GET.get('status', '')
     if status:
         qs = qs.filter(status=status)
+    qs = apply_term_search(
+        qs, search_query,
+        'title__icontains', 'description__icontains', 'request_type__name__icontains',
+    )
     page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'service_requests/my_list.html', {
         'page_obj': page_obj,
         'query_string': query_string,
+        'search_query': search_query,
         'current_status': status,
         'status_tabs': [
             ('', 'Tất cả'),
@@ -74,11 +83,21 @@ def my_requests(request):
 
 @_access_required
 def pending_requests(request):
+    search_query = get_search_query(request)
     qs = pending_steps_for_user(request.user)
+    qs = apply_combined_search(qs, search_query, lambda term: (
+        Q(request__title__icontains=term)
+        | Q(request__description__icontains=term)
+        | Q(name__icontains=term)
+        | Q(request__requester__username__icontains=term)
+        | Q(request__requester__profile__full_name__icontains=term)
+        | Q(request__requester__profile__employee_code__icontains=term)
+    ))
     page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'service_requests/pending_list.html', {
         'page_obj': page_obj,
         'query_string': query_string,
+        'search_query': search_query,
         'pending_count': qs.count(),
     })
 

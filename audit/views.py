@@ -4,6 +4,7 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 
+from PortalJustPlay.list_search import apply_combined_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 from hrm.module_permissions import MODULE_AUDIT, user_can_access_module
 
@@ -27,20 +28,19 @@ def log_list(request):
     qs = UserActivityLog.objects.select_related('user').all()
 
     user_id = request.GET.get('user', '').strip()
-    q = request.GET.get('q', '').strip()
+    q = get_search_query(request)
     date_from = request.GET.get('from', '').strip()
     date_to = request.GET.get('to', '').strip()
 
     if user_id.isdigit():
         qs = qs.filter(user_id=int(user_id))
-    if q:
-        qs = qs.filter(
-            Q(summary__icontains=q)
-            | Q(username__icontains=q)
-            | Q(full_name__icontains=q)
-            | Q(machine_name__icontains=q)
-            | Q(ip_address__icontains=q)
-        )
+    qs = apply_combined_search(qs, q, lambda term: (
+        Q(summary__icontains=term)
+        | Q(username__icontains=term)
+        | Q(full_name__icontains=term)
+        | Q(machine_name__icontains=term)
+        | Q(ip_address__icontains=term)
+    ))
     if date_from:
         qs = qs.filter(created_at__date__gte=date_from)
     if date_to:
@@ -92,6 +92,12 @@ def user_timeline(request, user_id):
     qs = UserActivityLog.objects.filter(
         Q(user=target_user) | Q(username=target_user.username),
     ).select_related('user')
+    search_query = get_search_query(request)
+    qs = apply_combined_search(qs, search_query, lambda term: (
+        Q(summary__icontains=term)
+        | Q(machine_name__icontains=term)
+        | Q(ip_address__icontains=term)
+    ))
 
     page_obj, query_string = paginate_queryset(request, qs)
 
@@ -100,4 +106,5 @@ def user_timeline(request, user_id):
         'page_obj': page_obj,
         'logs': page_obj.object_list,
         'query_string': query_string,
+        'search_query': search_query,
     })

@@ -34,11 +34,23 @@
 
     <div class="jp-tab-pills mb-3 d-flex flex-wrap gap-2">
         {% for key, label in status_tabs %}
-        <a href="?{% if key %}status={{ key }}{% endif %}"
+        <a href="?{% if key %}status={{ key }}{% if search_query %}&{% endif %}{% endif %}{% if search_query %}q={{ search_query|urlencode }}{% endif %}"
            class="btn btn-sm {% if current_status == key %}btn-hm{% else %}btn-outline-secondary{% endif %}">
             {{ label }}
         </a>
         {% endfor %}
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body p-3">
+            <form method="get">
+                {% if current_status %}<input type="hidden" name="status" value="{{ current_status }}">{% endif %}
+                {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tìm theo tiêu đề, người nhận...' clear_url=request.path %}
+            </form>
+            {% if search_query %}
+            <p class="text-muted small mb-0 mt-2">Kết quả tìm “{{ search_query }}” — {{ page_obj.paginator.count }} việc</p>
+            {% endif %}
+        </div>
     </div>
 
     <div class="card border-0 shadow-sm overflow-hidden">

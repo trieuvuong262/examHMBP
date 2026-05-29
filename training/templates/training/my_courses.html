@@ -10,28 +10,44 @@
     </div>
 
     <div class="bg-white p-2 shadow-sm border mb-3 mb-md-4 jp-scroll-tabs-wrap">
-        <ul class="nav nav-pills custom-pills jp-scroll-tabs mb-0" id="courseFilter" role="tablist">
+        <ul class="nav nav-pills custom-pills jp-scroll-tabs mb-0" role="tablist">
             <li class="nav-item">
-                <button class="nav-link active fw-bold px-3 px-md-4 filter-btn" data-filter="all">
+                <a class="nav-link fw-bold px-3 px-md-4 {% if not status_filter %}active{% endif %}"
+                   href="?{% if search_query %}q={{ search_query|urlencode }}{% endif %}">
                     <i class="bi bi-grid-fill me-1"></i> Tất cả
-                </button>
+                </a>
             </li>
             <li class="nav-item">
-                <button class="nav-link fw-bold px-3 px-md-4 filter-btn" data-filter="in_progress">
+                <a class="nav-link fw-bold px-3 px-md-4 {% if status_filter == 'in_progress' %}active{% endif %}"
+                   href="?status=in_progress{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">
                     <i class="bi bi-clock-history me-1"></i> Đang học
-                </button>
+                </a>
             </li>
             <li class="nav-item">
-                <button class="nav-link fw-bold px-3 px-md-4 filter-btn" data-filter="not_started">
+                <a class="nav-link fw-bold px-3 px-md-4 {% if status_filter == 'not_started' %}active{% endif %}"
+                   href="?status=not_started{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">
                     <i class="bi bi-play-circle me-1"></i> Chưa bắt đầu
-                </button>
+                </a>
             </li>
             <li class="nav-item">
-                <button class="nav-link fw-bold px-3 px-md-4 filter-btn" data-filter="completed">
+                <a class="nav-link fw-bold px-3 px-md-4 {% if status_filter == 'completed' %}active{% endif %}"
+                   href="?status=completed{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">
                     <i class="bi bi-check-circle-fill me-1"></i> Đã hoàn thành
-                </button>
+                </a>
             </li>
         </ul>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body p-3">
+            <form method="get">
+                {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+                {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tìm theo tên khóa học, danh mục...' clear_url=request.path %}
+            </form>
+            {% if search_query %}
+            <p class="text-muted small mb-0 mt-2">Kết quả tìm “{{ search_query }}” — {{ page_obj.paginator.count }} khóa học</p>
+            {% endif %}
+        </div>
     </div>
 
     <div class="row g-4" id="courseGrid">
@@ -192,29 +208,4 @@
         to { opacity: 1; transform: translateY(0); }
     }
 </style>
-
-<script>
-    document.addEventListener("DOMContentLoaded", function() {
-        const filterBtns = document.querySelectorAll('.filter-btn');
-        const courseItems = document.querySelectorAll('.course-item');
-
-        filterBtns.forEach(btn => {
-            btn.addEventListener('click', function() {
-                filterBtns.forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-
-                const filterValue = this.getAttribute('data-filter');
-                
-                courseItems.forEach(item => {
-                    if (filterValue === 'all' || item.getAttribute('data-status') === filterValue) {
-                        item.style.display = 'block';
-                        item.style.animation = 'fadeIn 0.5s ease';
-                    } else {
-                        item.style.display = 'none';
-                    }
-                });
-            });
-        });
-    });
-</script>
 {% endblock %}

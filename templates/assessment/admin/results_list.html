@@ -16,10 +16,10 @@
         </div>
         
         <div class="d-flex gap-2">
-            <div class="input-group shadow-sm border-0 overflow-hidden me-2" style="width: 250px;">
-                <span class="input-group-text bg-white border-0 text-muted"><i class="bi bi-search"></i></span>
-                <input type="text" id="searchInput" class="form-control border-0 shadow-none" placeholder="Tìm thí sinh...">
-            </div>
+            <form method="get" class="me-2" style="width: 280px;">
+                {% if exam_id %}<input type="hidden" name="exam" value="{{ exam_id }}">{% endif %}
+                {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tìm thí sinh, kỳ thi...' clear_url=request.path %}
+            </form>
 
             <button onclick="exportTableToCSV('Ket_Qua_Thi.csv')" class="btn btn-outline-hm fw-bold shadow-sm px-3">
                 <i class="bi bi-file-earmark-excel-fill me-1"></i> Xuất dữ liệu
@@ -350,15 +350,6 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        document.getElementById('searchInput').addEventListener('keyup', function() {
-            let filter = this.value.toLowerCase();
-            let rows = document.querySelectorAll('.submission-row');
-            rows.forEach(row => {
-                let name = row.querySelector('.search-name').textContent.toLowerCase();
-                row.style.display = name.includes(filter) ? '' : 'none';
-            });
-        });
-
         let rows = document.querySelectorAll('.submission-row');
         let totalCount = rows.length;
         let pendingCount = 0;

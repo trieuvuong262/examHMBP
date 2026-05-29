@@ -11,6 +11,7 @@ from hrm.permissions import (
     can_receive_assigned_tasks,
     can_view_project,
 )
+from PortalJustPlay.list_search import apply_combined_search, apply_term_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
 from .models import InternalProject, ProjectComment, WorkTask, WorkTaskAttachment, WorkTaskHandoff, WorkTaskLog
@@ -44,13 +45,21 @@ def _get_project_or_404(user, pk):
 
 @_tasks_access_required
 def project_list(request):
+    search_query = get_search_query(request)
     qs = InternalProject.objects.filter(
         Q(owner=request.user) | Q(members=request.user),
     ).distinct().select_related('owner', 'owner__profile').prefetch_related('members')
+    qs = apply_combined_search(qs, search_query, lambda term: (
+        Q(title__icontains=term)
+        | Q(description__icontains=term)
+        | Q(owner__username__icontains=term)
+        | Q(owner__profile__full_name__icontains=term)
+    ))
     page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'tasks/project_list.html', {
         'page_obj': page_obj,
         'query_string': query_string,
+        'search_query': search_query,
         'can_create': can_create_internal_project(request.user),
     })
 

@@ -19,37 +19,34 @@
 
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body p-3">
-            <div class="row g-2 align-items-center">
+            <form method="get" class="row g-2 align-items-center">
                 <div class="col-md-5">
-                    <div class="input-group">
-                        <span class="input-group-text bg-white border-end-0 text-muted ps-3"><i class="bi bi-search"></i></span>
-                        <input type="text" id="searchInput" class="form-control border-start-0 ps-0 shadow-none bg-white" placeholder="Tìm kiếm tên khóa học...">
-                    </div>
+                    {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tìm kiếm tên khóa học...' clear_url=request.path %}
                 </div>
                 <div class="col-md-3">
-                    <select id="categoryFilter" class="form-select border shadow-none bg-white">
+                    <select name="category" class="form-select border shadow-none bg-white" onchange="this.form.submit()">
                         <option value="">Tất cả danh mục</option>
                         {% for cat in categories %}
-                            <option value="{{ cat.name }}">{{ cat.name }}</option>
-                        {% empty %}
-                            <option value="Chung">Đào tạo Chung</option>
-                            <option value="Chuyên môn">Đào tạo Chuyên môn</option>
+                            <option value="{{ cat.id }}" {% if category_id == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="col-md-2">
-                    <select id="statusFilter" class="form-select border shadow-none bg-white">
+                    <select name="status" class="form-select border shadow-none bg-white" onchange="this.form.submit()">
                         <option value="">Tất cả trạng thái</option>
-                        <option value="Hoạt động">Đang hoạt động</option>
-                        <option value="Đang ẩn">Đang ẩn</option>
+                        <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Đang hoạt động</option>
+                        <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Đang ẩn</option>
                     </select>
                 </div>
                 <div class="col-md-2">
-                    <button type="button" id="resetFilterBtn" class="btn btn-light border w-100 fw-bold text-muted">
+                    <a href="{% url 'course_list' %}" class="btn btn-light border w-100 fw-bold text-muted">
                         <i class="bi bi-arrow-counterclockwise me-1"></i> Đặt lại
-                    </button>
+                    </a>
                 </div>
-            </div>
+            </form>
+            {% if search_query %}
+            <p class="text-muted small mb-0 mt-2">Kết quả tìm “{{ search_query }}” — {{ page_obj.paginator.count }} khóa học</p>
+            {% endif %}
         </div>
     </div>
 
@@ -338,48 +335,6 @@
         }
     }
 
-    // 7. Xử lý bộ lọc (Chỉ chạy khi HTML đã load xong)
-    document.addEventListener("DOMContentLoaded", function() {
-        const searchInput = document.getElementById('searchInput');
-        const categoryFilter = document.getElementById('categoryFilter');
-        const statusFilter = document.getElementById('statusFilter');
-        const resetBtn = document.getElementById('resetFilterBtn');
-        const rows = document.querySelectorAll('.course-row');
-
-        function filterCourses() {
-            const searchTerm = searchInput.value.toLowerCase().trim();
-            const categoryTerm = categoryFilter.value.toLowerCase().trim();
-            const statusTerm = statusFilter.value.toLowerCase().trim();
-
-            rows.forEach(row => {
-                const title = row.querySelector('.course-title').textContent.toLowerCase();
-                const category = row.querySelector('.course-category').textContent.toLowerCase();
-                const status = row.querySelector('.course-status').textContent.toLowerCase();
-
-                const matchSearch = title.includes(searchTerm);
-                const matchCategory = categoryTerm === "" || category.includes(categoryTerm);
-                const matchStatus = statusTerm === "" || status.includes(statusTerm);
-
-                if (matchSearch && matchCategory && matchStatus) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
-            });
-        }
-
-        if(searchInput) searchInput.addEventListener('keyup', filterCourses);
-        if(categoryFilter) categoryFilter.addEventListener('change', filterCourses);
-        if(statusFilter) statusFilter.addEventListener('change', filterCourses);
-
-        if(resetBtn) {
-            resetBtn.addEventListener('click', function() {
-                searchInput.value = '';
-                categoryFilter.value = '';
-                statusFilter.value = '';
-                filterCourses();
-            });
-        }
-    });
+    // 7. Bộ lọc khóa học dùng GET form server-side (xem card filter phía trên)
 </script>
 {% endblock %}

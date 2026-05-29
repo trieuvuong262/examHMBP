@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect, render
 
+from PortalJustPlay.list_search import apply_combined_search, apply_term_search, apply_user_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 from assessment.decorators import admin_only
 
@@ -18,7 +19,12 @@ def _active_announcements():
 
 @login_required
 def announcement_list(request):
+    search_query = get_search_query(request)
     announcements_qs = _active_announcements().order_by('-is_pinned', '-created_at')
+    announcements_qs = apply_term_search(
+        announcements_qs, search_query,
+        'title__icontains', 'summary__icontains',
+    )
     page_obj, query_string = paginate_queryset(request, announcements_qs)
     announcements = page_obj.object_list
 
@@ -35,6 +41,7 @@ def announcement_list(request):
         'items': items,
         'page_obj': page_obj,
         'query_string': query_string,
+        'search_query': search_query,
         'is_admin': user_can_edit_module(request.user, MODULE_ANNOUNCEMENTS),
         'unread_count': sum(1 for x in items if not x['is_read']),
     }
@@ -67,15 +74,21 @@ def announcement_detail(request, pk):
 
 @admin_only
 def admin_list(request):
+    search_query = get_search_query(request)
     announcements_qs = Announcement.objects.annotate(
         read_count=Count('reads'),
     ).order_by('-is_pinned', '-created_at')
+    announcements_qs = apply_term_search(
+        announcements_qs, search_query,
+        'title__icontains', 'summary__icontains',
+    )
     page_obj, query_string = paginate_queryset(request, announcements_qs)
 
     return render(request, 'announcements/admin/list.html', {
         'announcements': page_obj.object_list,
         'page_obj': page_obj,
         'query_string': query_string,
+        'search_query': search_query,
     })
 
 

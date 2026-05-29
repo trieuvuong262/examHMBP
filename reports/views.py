@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.contrib import messages
-from django.db.models import Count, Sum
+from django.db.models import Count, Sum, Q
 
 from hrm.module_permissions import MODULE_REPORTS, user_can_access_module
 from hrm.permissions import (
@@ -15,6 +15,7 @@ from hrm.permissions import (
     get_report_team_users,
     is_director,
 )
+from PortalJustPlay.list_search import apply_combined_search, apply_term_search, apply_user_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
 from .forms import DailyWorkReportForm, DailyWorkReportLineFormSet
@@ -143,14 +144,24 @@ def copy_yesterday(request):
 
 @_require_submit_access
 def my_reports(request):
+    search_query = get_search_query(request)
     reports_qs = DailyWorkReport.objects.filter(
         employee=request.user,
     ).annotate(line_count=Count('lines'), total_qty=Sum('lines__quantity')).order_by('-report_date')
+    reports_qs = apply_combined_search(reports_qs, search_query, lambda term: (
+        Q(hod_note__icontains=term)
+        | Q(status__icontains=term)
+        | Q(shift__icontains=term)
+        | Q(lines__area__icontains=term)
+        | Q(lines__order_code__icontains=term)
+        | Q(lines__product_name__icontains=term)
+    ))
     page_obj, query_string = paginate_queryset(request, reports_qs)
     return render(request, 'reports/my_reports.html', {
         'reports': page_obj.object_list,
         'page_obj': page_obj,
         'query_string': query_string,
+        'search_query': search_query,
         'can_view_team': can_view_team_reports(request.user),
     })
 
@@ -170,7 +181,9 @@ def team_reports(request):
     if isinstance(report_date, str):
         report_date = datetime.strptime(report_date, '%Y-%m-%d').date()
 
+    search_query = get_search_query(request)
     team = get_report_team_users(request.user)
+    team = apply_user_search(team, search_query)
     all_team_ids = list(team.values_list('id', flat=True))
     all_reports = DailyWorkReport.objects.filter(
         employee_id__in=all_team_ids,
@@ -199,6 +212,7 @@ def team_reports(request):
         'rows': rows,
         'page_obj': team_page,
         'query_string': query_string,
+        'search_query': search_query,
         'report_date': report_date,
         'submitted_count': submitted,
         'missing_count': missing,

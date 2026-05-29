@@ -19,6 +19,7 @@ from django.urls import reverse_lazy
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.db.models import Q
+from PortalJustPlay.list_search import apply_term_search, get_search_query, search_terms
 from PortalJustPlay.pagination import paginate_queryset
 from kpi.models import YearlyKpi, KpiPeriod  # Import đúng Model mới
 from hrm.permissions import is_manager, is_portal_admin
@@ -72,6 +73,10 @@ def exam_list(request):
         start_time__lte=now,
         end_time__gte=now
     ).distinct().order_by('-start_time')
+    search_query = get_search_query(request)
+    active_exams_qs = apply_term_search(
+        active_exams_qs, search_query, 'title__icontains', 'description__icontains',
+    )
     page_obj, query_string = paginate_queryset(request, active_exams_qs)
     active_exams = page_obj.object_list
 
@@ -113,6 +118,7 @@ def exam_list(request):
         'active_exams': active_exams,
         'page_obj': page_obj,
         'query_string': query_string,
+        'search_query': search_query,
         'completed_exam_ids': completed_exam_ids,
         'submission_results': submission_results 
     })
@@ -367,6 +373,7 @@ def exam_delete(request, pk):
 @admin_only
 def admin_results(request):
     exam_id = request.GET.get('exam')
+    search_query = get_search_query(request)
     submissions_qs = ExamSubmission.objects.select_related(
         'user', 'user__profile', 'exam',
     ).prefetch_related(
@@ -375,11 +382,25 @@ def admin_results(request):
     ).order_by('-submitted_at')
     if exam_id:
         submissions_qs = submissions_qs.filter(exam_id=exam_id)
+    if search_query:
+        for term in search_terms(search_query):
+            submissions_qs = submissions_qs.filter(
+                Q(user__username__icontains=term)
+                | Q(user__first_name__icontains=term)
+                | Q(user__last_name__icontains=term)
+                | Q(user__email__icontains=term)
+                | Q(user__profile__full_name__icontains=term)
+                | Q(user__profile__employee_code__icontains=term)
+                | Q(exam__title__icontains=term)
+            )
+        submissions_qs = submissions_qs.distinct()
     page_obj, query_string = paginate_queryset(request, submissions_qs)
     return render(request, 'assessment/admin/results_list.html', {
         'submissions': page_obj.object_list,
         'page_obj': page_obj,
         'query_string': query_string,
+        'search_query': search_query,
+        'exam_id': exam_id or '',
         'total_count': page_obj.paginator.count,
     })
 

@@ -63,7 +63,7 @@
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm overflow-hidden">
+    <div class="card border-0 shadow-sm jp-hrm-list-card">
         <div class="card-header bg-white py-3 border-bottom jp-hrm-card-header">
             <div class="jp-hrm-card-header-main">
                 <h5 class="mb-0 fw-bold text-dark">Dữ liệu nhân sự <span class="text-muted fw-normal">({{ page_obj.paginator.count }})</span></h5>
@@ -185,7 +185,7 @@
                                 <button type="button"
                                         class="btn btn-sm btn-white border shadow-sm dropdown-toggle"
                                         data-bs-toggle="dropdown"
-                                        data-bs-display="static"
+                                        data-bs-popper-config='{"strategy":"fixed"}'
                                         aria-expanded="false"
                                         title="Thao tác">
                                     <i class="bi bi-three-dots-vertical"></i>

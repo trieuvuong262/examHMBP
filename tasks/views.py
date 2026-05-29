@@ -15,6 +15,7 @@ from hrm.permissions import (
     can_view_task,
     get_task_assignable_users,
 )
+from PortalJustPlay.list_search import apply_combined_search, apply_term_search, get_search_query, search_terms
 from PortalJustPlay.pagination import paginate_queryset
 
 from .forms import (
@@ -118,17 +119,27 @@ def my_tasks(request):
             return redirect('tasks:assigned')
         return redirect('tasks:project_list')
     status = request.GET.get('status', '')
+    search_query = get_search_query(request)
     qs = _personal_tasks_qs(assignee=request.user).select_related(
         'assigner', 'assigner__profile',
     )
     if status:
         qs = qs.filter(status=status)
+    qs = apply_combined_search(qs, search_query, lambda term: (
+        Q(title__icontains=term)
+        | Q(description__icontains=term)
+        | Q(assigner__username__icontains=term)
+        | Q(assigner__first_name__icontains=term)
+        | Q(assigner__profile__full_name__icontains=term)
+        | Q(assigner__profile__employee_code__icontains=term)
+    ))
     page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'tasks/my_tasks.html', {
         'page_obj': page_obj,
         'status_tabs': STATUS_TABS,
         'current_status': status,
         'query_string': query_string,
+        'search_query': search_query,
         'can_assign': can_assign_tasks(request.user),
         'can_receive': can_receive_assigned_tasks(request.user),
         'pending_ack_count': _personal_tasks_qs(
@@ -144,17 +155,27 @@ def assigned_tasks(request):
         return redirect('tasks:my')
 
     status = request.GET.get('status', '')
+    search_query = get_search_query(request)
     qs = _personal_tasks_qs(assigner=request.user).select_related(
         'assignee', 'assignee__profile',
     )
     if status:
         qs = qs.filter(status=status)
+    qs = apply_combined_search(qs, search_query, lambda term: (
+        Q(title__icontains=term)
+        | Q(description__icontains=term)
+        | Q(assignee__username__icontains=term)
+        | Q(assignee__first_name__icontains=term)
+        | Q(assignee__profile__full_name__icontains=term)
+        | Q(assignee__profile__employee_code__icontains=term)
+    ))
     page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'tasks/assigned.html', {
         'page_obj': page_obj,
         'status_tabs': STATUS_TABS,
         'current_status': status,
         'query_string': query_string,
+        'search_query': search_query,
         'can_assign': True,
         'can_receive': can_receive_assigned_tasks(request.user),
         'pending_review_count': _personal_tasks_qs(

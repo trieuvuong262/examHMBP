@@ -23,6 +23,7 @@ from hrm.models import Profile
 from hrm.choices import normalize_position
 from hrm.choices import resolve_department
 from PortalJustPlay.utils import generate_hm_username, generate_secure_password
+from PortalJustPlay.list_search import apply_term_search, get_search_query
 from PortalJustPlay.pagination import paginate_columns, paginate_queryset
 from .models import Interview
 import openpyxl
@@ -135,12 +136,19 @@ def add_candidate(request):
 
 @admin_only
 def job_posting_list(request):
+    search_query = get_search_query(request)
     jobs_qs = JobPosting.objects.all().order_by('-created_at')
+    jobs_qs = apply_term_search(
+        jobs_qs, search_query,
+        'title__icontains', 'department__icontains', 'description__icontains',
+        'requirements__icontains', 'position__icontains',
+    )
     page_obj, query_string = paginate_queryset(request, jobs_qs)
     return render(request, 'recruitment/admin/job_posting_list.html', {
         'jobs': page_obj.object_list,
         'page_obj': page_obj,
         'query_string': query_string,
+        'search_query': search_query,
     })
 
 @admin_only

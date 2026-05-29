@@ -24,9 +24,16 @@ from hrm.choices import (
     user_to_excel_row,
 )
 from PortalJustPlay.utils import generate_hm_username, generate_secure_password
+from hrm.forms import (
+    CustomUserForm,
+    DepartmentForm,
+    DepartmentMenuPermissionForm,
+    DivisionForm,
+    RolePermissionForm,
+)
+from hrm.user_search import filter_users_by_search
+from PortalJustPlay.list_search import apply_term_search, apply_user_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
-from .forms import CustomUserForm, DepartmentForm, DivisionForm, DepartmentMenuPermissionForm, RolePermissionForm
-from .user_search import filter_users_by_search
 from django.http import JsonResponse
 import random
 import string
@@ -72,7 +79,7 @@ def user_list(request):
     if sort_key not in USER_LIST_SORTS:
         sort_key = 'newest'
     order_by = USER_LIST_SORTS[sort_key][0]
-    search_query = (request.GET.get('q') or '').strip()
+    search_query = get_search_query(request)
 
     users_qs = User.objects.select_related(
         'profile', 'profile__department', 'profile__division',
@@ -414,12 +421,15 @@ def org_structure(request):
     tab = request.GET.get('tab', 'department')
     if tab not in {'department', 'division'}:
         tab = 'department'
+    search_query = get_search_query(request)
     departments_qs = Department.objects.annotate(
         staff_count=Count('profiles'),
     ).order_by('sort_order', 'name')
     divisions_qs = Division.objects.annotate(
         staff_count=Count('division_profiles'),
     ).order_by('sort_order', 'name')
+    departments_qs = apply_term_search(departments_qs, search_query, 'name__icontains')
+    divisions_qs = apply_term_search(divisions_qs, search_query, 'name__icontains')
     dept_page, dept_query_string = paginate_queryset(
         request, departments_qs, page_param='dept_page',
     )
@@ -433,6 +443,8 @@ def org_structure(request):
         'div_page': div_page,
         'dept_query_string': dept_query_string,
         'div_query_string': div_query_string,
+        'search_query': search_query,
+        'org_structure_clear_url': f"{reverse('org_structure')}?tab={tab}",
         'active_tab': tab,
     })
 
@@ -528,9 +540,11 @@ def department_permissions(request, pk):
 
 @admin_only
 def permission_config(request):
+    search_query = get_search_query(request)
     departments_qs = Department.objects.annotate(
         staff_count=Count('profiles'),
     ).order_by('sort_order', 'name')
+    departments_qs = apply_term_search(departments_qs, search_query, 'name__icontains')
     dept_page, query_string = paginate_queryset(request, departments_qs)
 
     rows = []
@@ -546,6 +560,7 @@ def permission_config(request):
         'rows': rows,
         'page_obj': dept_page,
         'query_string': query_string,
+        'search_query': search_query,
         'role_rows': [
             {
                 'role': role,

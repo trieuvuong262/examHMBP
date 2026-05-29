@@ -2007,6 +2007,22 @@ textarea.form-control {
     min-width: 11rem;
     border: 1px solid #e2e8f0;
     padding: 0.35rem 0;
+    z-index: 1080;
+}
+
+/* Dropdown thao tác — không bị card/table overflow cắt menu */
+.jp-hrm-page .jp-hrm-list-card {
+    overflow: visible;
+}
+
+.jp-hrm-page .jp-hrm-list-card .jp-table-wrap {
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+}
+
+.jp-hrm-page .jp-hrm-list-card .dropdown-menu {
+    z-index: 1080;
 }
 
 .jp-hrm-action-menu .dropdown-item {
