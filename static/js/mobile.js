@@ -53,6 +53,17 @@
         }
     }
 
+    function bindSidebarGroups() {
+        document.querySelectorAll('[data-jp-sidebar-group-toggle]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var group = btn.closest('.jp-sidebar-group');
+                if (!group) return;
+                var open = group.classList.toggle('is-open');
+                btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            });
+        });
+    }
+
     function bindNavClose() {
         document.querySelectorAll('#mobileSidebar a.jp-sidebar-link, #mobileMenu a.nav-link, #mobileMenu .dropdown-item').forEach(function (link) {
             link.addEventListener('click', closeMobileMenu);
@@ -105,6 +116,7 @@
     document.addEventListener('DOMContentLoaded', function () {
         enhanceTables();
         enhanceLongText();
+        bindSidebarGroups();
         bindNavClose();
         setBottomNavActive();
     });
