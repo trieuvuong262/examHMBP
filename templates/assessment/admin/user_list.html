@@ -65,10 +65,23 @@
 
     <div class="card border-0 shadow-sm overflow-hidden">
         <div class="card-header bg-white py-3 border-bottom jp-hrm-card-header">
-            <h5 class="mb-0 fw-bold text-dark d-none d-md-block">Dữ liệu nhân sự ({{ users.count }})</h5>
-            <div class="jp-hrm-search input-group">
-                <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
-                <input type="search" id="userSearch" class="form-control bg-light border-start-0" placeholder="Tìm mã NS, tên, account, phòng ban..." autocomplete="off">
+            <div class="jp-hrm-card-header-main">
+                <h5 class="mb-0 fw-bold text-dark">Dữ liệu nhân sự <span class="text-muted fw-normal">({{ users.count }})</span></h5>
+                <p class="text-muted small mb-0 d-none d-md-block" id="userVisibleCount"></p>
+            </div>
+            <div class="jp-hrm-filters">
+                <div class="jp-hrm-search input-group">
+                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                    <input type="search" id="userSearch" class="form-control bg-light border-start-0" placeholder="Tìm mã NS, tên, account, phòng ban..." autocomplete="off">
+                </div>
+                <div class="jp-hrm-sort">
+                    <label for="userSort" class="visually-hidden">Sắp xếp theo</label>
+                    <select id="userSort" class="form-select" aria-label="Sắp xếp theo">
+                        {% for key, option in sort_options.items %}
+                        <option value="{{ key }}" {% if sort_key == key %}selected{% endif %}>{{ option.1 }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
         </div>
 
@@ -87,8 +100,8 @@
                         <th class="text-muted">Ngày sinh</th>
                         <th class="text-muted text-center">Giới tính</th>
                         <th class="text-muted text-center">Vai trò HT</th>
-                        <th class="text-muted text-center">Còn làm</th>
-                        <th class="text-end pe-4 text-muted">Thao tác</th>
+                        <th class="text-muted text-center">Trạng thái</th>
+                        <th class="text-end pe-4 text-muted" style="width: 4rem;">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -133,7 +146,7 @@
                             {% endif %}
                         </td>
 
-                        <td class="text-center" data-label="Còn làm">
+                        <td class="text-center" data-label="Trạng thái">
                             {% if u.is_superuser %}
                             <span class="badge bg-secondary-subtle text-secondary border">—</span>
                             {% else %}
@@ -153,23 +166,38 @@
                         </td>
 
                         <td class="text-md-end pe-md-4 jp-td-actions" data-label="Thao tác">
-                            <div class="jp-hrm-actions">
-                                <a href="{% url 'user_edit' u.id %}" class="btn btn-sm btn-white border shadow-sm" title="Sửa thông tin" aria-label="Sửa">
-                                    <i class="bi bi-pencil-square text-warning"></i>
-                                </a>
-                                <form action="{% url 'user_password_reset' u.id %}" method="POST" class="m-0">
-                                    {% csrf_token %}
-                                    <button type="button" class="btn btn-sm btn-white border shadow-sm reset-pwd-btn"
-                                            data-url="{% url 'user_password_reset' u.id %}"
-                                            data-username="{{ u.username }}"
-                                            title="Đặt lại mật khẩu" aria-label="Reset mật khẩu">
-                                        <i class="bi bi-key-fill text-primary"></i>
-                                    </button>
-                                </form>
-                                <a href="{% url 'user_delete' u.id %}" class="btn btn-sm btn-white border shadow-sm"
-                                   onclick="return confirm('Xác nhận xóa vĩnh viễn tài khoản này?')" title="Xóa" aria-label="Xóa">
-                                    <i class="bi bi-trash-fill text-danger"></i>
-                                </a>
+                            <div class="dropdown jp-hrm-action-menu">
+                                <button type="button"
+                                        class="btn btn-sm btn-white border shadow-sm dropdown-toggle"
+                                        data-bs-toggle="dropdown"
+                                        data-bs-display="static"
+                                        aria-expanded="false"
+                                        title="Thao tác">
+                                    <i class="bi bi-three-dots-vertical"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'user_edit' u.id %}">
+                                            <i class="bi bi-pencil-square me-2 text-warning"></i>Sửa thông tin
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <button type="button"
+                                                class="dropdown-item reset-pwd-btn"
+                                                data-url="{% url 'user_password_reset' u.id %}"
+                                                data-username="{{ u.username }}">
+                                            <i class="bi bi-key-fill me-2 text-primary"></i>Reset mật khẩu
+                                        </button>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <a class="dropdown-item text-danger"
+                                           href="{% url 'user_delete' u.id %}"
+                                           onclick="return confirm('Xác nhận xóa vĩnh viễn tài khoản này?')">
+                                            <i class="bi bi-trash-fill me-2"></i>Xóa tài khoản
+                                        </a>
+                                    </li>
+                                </ul>
                             </div>
                         </td>
                     </tr>
@@ -402,13 +430,40 @@ function autoCopySync(text) {
     // ----------------------------------------------------
     
     // TÌM KIẾM THEO BẢNG
-    document.getElementById('userSearch').addEventListener('keyup', function() {
+    const userSearch = document.getElementById('userSearch');
+    const visibleCountEl = document.getElementById('userVisibleCount');
+
+    function updateVisibleCount() {
+        if (!visibleCountEl) return;
+        const rows = document.querySelectorAll('#userTable tbody tr:not(.jp-td-empty-row)');
+        let visible = 0;
+        rows.forEach(row => {
+            if (row.style.display !== 'none') visible += 1;
+        });
+        const total = rows.length;
+        if (userSearch && userSearch.value.trim()) {
+            visibleCountEl.textContent = `Hiển thị ${visible}/${total} nhân viên`;
+        } else {
+            visibleCountEl.textContent = '';
+        }
+    }
+
+    userSearch.addEventListener('keyup', function() {
         let keyword = this.value.toLowerCase();
         let rows = document.querySelectorAll('#userTable tbody tr');
         rows.forEach(row => {
+            if (row.querySelector('.jp-td-empty')) return;
             let text = row.innerText.toLowerCase();
             row.style.display = text.includes(keyword) ? '' : 'none';
         });
+        updateVisibleCount();
+    });
+
+    // SẮP XẾP (server-side)
+    document.getElementById('userSort').addEventListener('change', function() {
+        const url = new URL(window.location.href);
+        url.searchParams.set('sort', this.value);
+        window.location.href = url.toString();
     });
 
     // LOADING KHI IMPORT
@@ -425,7 +480,7 @@ function autoCopySync(text) {
         });
     }
 
-    // Bật/tắt trạng thái còn làm việc
+    // Bật/tắt trạng thái làm việc
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
     document.querySelectorAll('.employed-toggle').forEach(toggle => {
         toggle.addEventListener('change', async function() {

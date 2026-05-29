@@ -46,13 +46,36 @@ def _profile_fields_from_form(form):
 # ==========================================
 # 1. QUẢN LÝ DANH SÁCH NHÂN VIÊN
 # ==========================================
+USER_LIST_SORTS = {
+    'newest': ('-date_joined', 'Mới thêm nhất'),
+    'name_asc': ('profile__full_name', 'Họ và tên (A→Z)'),
+    'name_desc': ('-profile__full_name', 'Họ và tên (Z→A)'),
+    'code': ('profile__employee_code', 'Mã NS'),
+    'account': ('username', 'Account'),
+    'department': ('profile__department__name', 'Phòng ban'),
+    'division': ('profile__division__name', 'Bộ phận'),
+    'join_asc': ('profile__join_date', 'Ngày vào (cũ→mới)'),
+    'join_desc': ('-profile__join_date', 'Ngày vào (mới→cũ)'),
+    'status': ('-profile__is_employed', 'Trạng thái'),
+}
+
+
 @admin_only
 def user_list(request):
+    sort_key = request.GET.get('sort', 'newest')
+    if sort_key not in USER_LIST_SORTS:
+        sort_key = 'newest'
+    order_by = USER_LIST_SORTS[sort_key][0]
+
     users = User.objects.select_related(
         'profile', 'profile__department', 'profile__division',
-    ).order_by('-date_joined')
-    # Tạm thời vẫn dùng template cũ ở assessment để khỏi phải copy file HTML lằng nhằng
-    return render(request, 'assessment/admin/user_list.html', {'users': users})
+    ).order_by(order_by, 'username')
+
+    return render(request, 'assessment/admin/user_list.html', {
+        'users': users,
+        'sort_key': sort_key,
+        'sort_options': USER_LIST_SORTS,
+    })
 
 
 @admin_only
