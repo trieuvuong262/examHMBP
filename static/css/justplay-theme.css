@@ -2157,6 +2157,26 @@ textarea.form-control {
     border-color: transparent;
 }
 
+.jp-hrm-employed-switch .form-check-input {
+    width: 2.5rem;
+    height: 1.35rem;
+    cursor: pointer;
+}
+
+.jp-hrm-employed-switch .form-check-input:checked {
+    background-color: var(--hm-primary);
+    border-color: var(--hm-primary);
+}
+
+.jp-hrm-row-inactive {
+    opacity: 0.72;
+    background-color: #f8fafc;
+}
+
+.jp-hrm-row-inactive .fw-bold.text-dark {
+    color: #64748b !important;
+}
+
 /* ============================================================
    Site footer
    ============================================================ */

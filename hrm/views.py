@@ -39,6 +39,7 @@ def _profile_fields_from_form(form):
         'gender': form.cleaned_data.get('gender', ''),
         'role': form.cleaned_data['role'],
         'must_change_password': True,
+        'is_employed': form.cleaned_data.get('is_employed', True),
     }
 
 
@@ -465,6 +466,29 @@ def division_delete(request, pk):
     return render(request, 'assessment/admin/division_confirm_delete.html', {
         'division': division,
     })
+
+@admin_only
+def user_toggle_employed(request, user_id):
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
+
+    user_obj = get_object_or_404(User, id=user_id)
+    if user_obj.is_superuser:
+        return JsonResponse(
+            {'status': 'error', 'message': 'Không thể đổi trạng thái tài khoản quản trị.'},
+            status=400,
+        )
+
+    profile, _ = Profile.objects.get_or_create(user=user_obj)
+    profile.is_employed = not profile.is_employed
+    profile.save()
+
+    return JsonResponse({
+        'status': 'success',
+        'is_employed': profile.is_employed,
+        'label': 'Đang làm' if profile.is_employed else 'Đã nghỉ',
+    })
+
 
 @admin_only # Giữ nguyên các khai báo quyền của ní
 def user_password_reset(request, user_id):

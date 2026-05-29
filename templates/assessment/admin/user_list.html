@@ -87,12 +87,13 @@
                         <th class="text-muted">Ngày sinh</th>
                         <th class="text-muted text-center">Giới tính</th>
                         <th class="text-muted text-center">Vai trò HT</th>
+                        <th class="text-muted text-center">Còn làm</th>
                         <th class="text-end pe-4 text-muted">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for u in users %}
-                    <tr>
+                    <tr class="{% if u.profile and not u.profile.is_employed %}jp-hrm-row-inactive{% endif %}">
                         <td class="ps-md-4" data-label="Mã NS">
                             <code class="text-dark fw-bold">{{ u.profile.employee_code|default:"—" }}</code>
                         </td>
@@ -132,6 +133,25 @@
                             {% endif %}
                         </td>
 
+                        <td class="text-center" data-label="Còn làm">
+                            {% if u.is_superuser %}
+                            <span class="badge bg-secondary-subtle text-secondary border">—</span>
+                            {% else %}
+                            <div class="form-check form-switch d-inline-flex justify-content-center jp-hrm-employed-switch mb-0">
+                                <input type="checkbox"
+                                       class="form-check-input employed-toggle"
+                                       role="switch"
+                                       id="employed-{{ u.id }}"
+                                       data-url="{% url 'user_toggle_employed' u.id %}"
+                                       {% if u.profile.is_employed %}checked{% endif %}
+                                       title="{% if u.profile.is_employed %}Đang làm việc{% else %}Đã nghỉ{% endif %}">
+                            </div>
+                            <div class="small mt-1 employed-label {% if u.profile.is_employed %}text-success{% else %}text-muted{% endif %}">
+                                {% if u.profile.is_employed %}Đang làm{% else %}Đã nghỉ{% endif %}
+                            </div>
+                            {% endif %}
+                        </td>
+
                         <td class="text-md-end pe-md-4 jp-td-actions" data-label="Thao tác">
                             <div class="jp-hrm-actions">
                                 <a href="{% url 'user_edit' u.id %}" class="btn btn-sm btn-white border shadow-sm" title="Sửa thông tin" aria-label="Sửa">
@@ -155,7 +175,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="12" class="text-center py-5 jp-td-empty">
+                        <td colspan="13" class="text-center py-5 jp-td-empty">
                             <div class="py-4">
                                 <i class="bi bi-person-exclamation display-1 text-muted opacity-25"></i>
                                 <p class="mt-3 text-muted fs-5">Chưa có nhân viên nào trong hệ thống.</p>
@@ -404,5 +424,42 @@ function autoCopySync(text) {
             submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>ĐANG XỬ LÝ...';
         });
     }
+
+    // Bật/tắt trạng thái còn làm việc
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    document.querySelectorAll('.employed-toggle').forEach(toggle => {
+        toggle.addEventListener('change', async function() {
+            const url = this.dataset.url;
+            const row = this.closest('tr');
+            const label = row.querySelector('.employed-label');
+            const prev = !this.checked;
+            this.disabled = true;
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrfToken },
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    if (label) {
+                        label.textContent = data.label;
+                        label.classList.toggle('text-success', data.is_employed);
+                        label.classList.toggle('text-muted', !data.is_employed);
+                    }
+                    row.classList.toggle('jp-hrm-row-inactive', !data.is_employed);
+                    this.title = data.is_employed ? 'Đang làm việc' : 'Đã nghỉ';
+                } else {
+                    this.checked = prev;
+                    alert(data.message || 'Không thể cập nhật trạng thái.');
+                }
+            } catch (e) {
+                this.checked = prev;
+                alert('Lỗi kết nối máy chủ.');
+            }
+
+            this.disabled = false;
+        });
+    });
 </script>
 {% endblock %}

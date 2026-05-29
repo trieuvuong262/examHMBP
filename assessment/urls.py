@@ -24,6 +24,7 @@ urlpatterns = [
     path('dashboard/users/edit/<int:user_id>/', hrm_views.user_edit, name='user_edit'),
     path('dashboard/users/delete/<int:user_id>/', hrm_views.user_delete, name='user_delete'),
     path('dashboard/users/<int:user_id>/reset-password/', hrm_views.user_password_reset, name='user_password_reset'),
+    path('dashboard/users/<int:user_id>/toggle-employed/', hrm_views.user_toggle_employed, name='user_toggle_employed'),
     path('dashboard/users/import/', hrm_views.user_import_excel, name='user_import_excel'),
     path('dashboard/users/export/', hrm_views.user_export_excel, name='user_export_excel'),
     path('dashboard/users/download-template/', hrm_views.user_download_template, name='user_download_template'),

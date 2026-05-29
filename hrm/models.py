@@ -157,6 +157,12 @@ class Profile(models.Model):
         verbose_name="Bắt buộc đổi mật khẩu lần đầu",
     )
 
+    is_employed = models.BooleanField(
+        default=True,
+        verbose_name='Đang làm việc',
+        db_index=True,
+    )
+
     class Meta:
         db_table = 'assessment_profile' # Giữ nguyên để khớp với database cũ
 
@@ -207,6 +213,12 @@ class Profile(models.Model):
                 user_obj.is_superuser = False
                 user_obj.is_staff = False
                 user_obj.save()
+
+        if user_obj.username != 'admin' and not user_obj.is_superuser:
+            desired_active = self.is_employed
+            if user_obj.is_active != desired_active:
+                user_obj.is_active = desired_active
+                user_obj.save(update_fields=['is_active'])
 
 
 # =========================================================
