@@ -76,7 +76,7 @@ class LibraryQAConfigForm(forms.ModelForm):
         self.fields['gemini_api_key'].label = 'API key trợ lý AI'
         self.fields['gemini_model'].label = 'Chế độ phản hồi'
         self.fields['gemini_model'].choices = [
-            ('gemini-1.5-pro', 'Chi tiết & chính xác'),
-            ('gemini-2.0-flash', 'Nhanh'),
-            ('gemini-1.5-flash', 'Cân bằng'),
+            ('gemini-2.5-flash', 'Nhanh & cân bằng'),
+            ('gemini-2.5-pro', 'Chi tiết & chính xác'),
+            ('gemini-flash-latest', 'Tự động cập nhật (flash)'),
         ]

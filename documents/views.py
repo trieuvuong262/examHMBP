@@ -15,7 +15,7 @@ from hrm.module_permissions import MODULE_DOCUMENTS, user_can_access_module, use
 from .forms import DocumentCategoryForm, DocumentForm, LibraryQAConfigForm
 from .models import Document, DocumentCategory, LibraryQAConfig
 from .qa_config import is_qa_enabled, qa_config_source
-from .qa_service import ask_portal_assistant, generate_followup_suggestions
+from .qa_service import QAAssistantError, ask_portal_assistant, generate_followup_suggestions
 
 QA_RATE_LIMIT = 40
 QA_RATE_WINDOW = 3600
@@ -320,9 +320,13 @@ def qa_ask(request):
         )
     except ValueError as exc:
         return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
+    except QAAssistantError as exc:
+        return JsonResponse({'ok': False, 'error': str(exc)}, status=503)
     except RuntimeError as exc:
         return JsonResponse({'ok': False, 'error': str(exc)}, status=503)
     except Exception:
+        import logging
+        logging.getLogger(__name__).exception('qa_ask unexpected error')
         return JsonResponse({
             'ok': False,
             'error': 'Không kết nối được trợ lý AI. Liên hệ quản trị viên hoặc thử lại sau.',

@@ -1,11 +1,16 @@
 """Trợ lý AI JustPlay — trả lời trong phạm vi kiến thức portal."""
 
 import json
+import logging
 import re
 
 import google.generativeai as genai
+from google.api_core import exceptions as google_exceptions
 
 from .knowledge_base import build_portal_knowledge
+from .qa_config import get_gemini_credentials, models_to_try
+
+logger = logging.getLogger(__name__)
 
 SYSTEM_INSTRUCTION = """Bạn là trợ lý AI chính thức của công ty JustPlay trên portal nội bộ.
 
@@ -27,22 +32,69 @@ Trả về JSON duy nhất dạng: {"suggestions": ["câu 1", "câu 2", "câu 3"
 Không thêm markdown, không giải thích."""
 
 
-def _configure_client():
-    from .qa_config import get_gemini_credentials
+class QAAssistantError(RuntimeError):
+    """Lỗi trợ lý AI — message an toàn để hiển thị cho user."""
 
+
+def _configure_client():
     api_key, _ = get_gemini_credentials()
     if not api_key:
-        raise RuntimeError('Trợ lý AI chưa được kích hoạt. Liên hệ quản trị viên.')
+        raise QAAssistantError('Trợ lý AI chưa được kích hoạt. Liên hệ quản trị viên.')
     genai.configure(api_key=api_key)
 
 
-def _build_model(user, system_instruction: str):
-    from .qa_config import get_gemini_credentials
-
-    _, model_name = get_gemini_credentials()
+def _build_model(model_name: str, user, system_instruction: str):
     knowledge = build_portal_knowledge(user)
     system_text = f'{system_instruction}\n\n[NGỮ CẢNH HỆ THỐNG]\n{knowledge}'
     return genai.GenerativeModel(model_name, system_instruction=system_text)
+
+
+def _friendly_api_error(exc: Exception) -> QAAssistantError:
+    if isinstance(exc, google_exceptions.NotFound):
+        return QAAssistantError(
+            'Cấu hình model AI không còn khả dụng. Liên hệ IT cập nhật trợ lý AI.'
+        )
+    if isinstance(exc, google_exceptions.ResourceExhausted):
+        return QAAssistantError(
+            'Trợ lý AI đang quá tải hoặc hết hạn mức. Vui lòng thử lại sau vài phút.'
+        )
+    if isinstance(exc, google_exceptions.InvalidArgument):
+        return QAAssistantError('Cấu hình trợ lý AI không hợp lệ. Liên hệ quản trị viên.')
+    if isinstance(exc, google_exceptions.PermissionDenied):
+        return QAAssistantError('API key trợ lý AI không hợp lệ hoặc đã hết hạn. Liên hệ IT.')
+    if isinstance(exc, google_exceptions.Unauthenticated):
+        return QAAssistantError('API key trợ lý AI không hợp lệ. Liên hệ quản trị viên.')
+    logger.exception('QA assistant API error')
+    return QAAssistantError(
+        'Không kết nối được trợ lý AI. Liên hệ quản trị viên hoặc thử lại sau.'
+    )
+
+
+def _generate_with_fallback(user, system_instruction: str, send_fn):
+    _configure_client()
+    _, primary = get_gemini_credentials()
+    last_exc = None
+
+    for model_name in models_to_try(primary):
+        try:
+            model = _build_model(model_name, user, system_instruction)
+            return send_fn(model)
+        except google_exceptions.NotFound as exc:
+            logger.warning('QA model not found: %s', model_name)
+            last_exc = exc
+            continue
+        except google_exceptions.ResourceExhausted as exc:
+            logger.warning('QA model quota exceeded: %s', model_name)
+            last_exc = exc
+            continue
+        except Exception as exc:
+            if isinstance(exc, (google_exceptions.NotFound, google_exceptions.ResourceExhausted)):
+                logger.warning('QA model unavailable: %s (%s)', model_name, type(exc).__name__)
+                last_exc = exc
+                continue
+            raise _friendly_api_error(exc) from exc
+
+    raise _friendly_api_error(last_exc or QAAssistantError('Không có model AI khả dụng.'))
 
 
 def _parse_suggestions(raw: str) -> list[str]:
@@ -88,9 +140,6 @@ def ask_portal_assistant(user, question: str, history: list | None = None) -> st
     if len(question) > 2000:
         raise ValueError('Câu hỏi quá dài (tối đa 2000 ký tự).')
 
-    _configure_client()
-    model = _build_model(user, SYSTEM_INSTRUCTION)
-
     chat_history = []
     for turn in (history or [])[-8:]:
         role = turn.get('role')
@@ -98,12 +147,15 @@ def ask_portal_assistant(user, question: str, history: list | None = None) -> st
         if role in {'user', 'model'} and text:
             chat_history.append({'role': role, 'parts': [text]})
 
-    chat = model.start_chat(history=chat_history)
-    response = chat.send_message(question)
-    answer = (response.text or '').strip()
-    if not answer:
-        raise RuntimeError('Trợ lý AI không trả lời được. Thử lại sau.')
-    return answer
+    def send(model):
+        chat = model.start_chat(history=chat_history)
+        response = chat.send_message(question)
+        answer = (response.text or '').strip()
+        if not answer:
+            raise QAAssistantError('Trợ lý AI không trả lời được. Thử lại sau.')
+        return answer
+
+    return _generate_with_fallback(user, SYSTEM_INSTRUCTION, send)
 
 
 def generate_followup_suggestions(
@@ -116,9 +168,6 @@ def generate_followup_suggestions(
     answer = (answer or '').strip()
     if not question or not answer:
         return []
-
-    _configure_client()
-    model = _build_model(user, SUGGESTION_INSTRUCTION)
 
     context_lines = ['Cuộc hội thoại gần đây:']
     for turn in (history or [])[-4:]:
@@ -138,8 +187,14 @@ def generate_followup_suggestions(
         'Gợi ý 3 câu hỏi tiếp theo (JSON).',
     ])
 
-    try:
+    def send(model):
         response = model.generate_content(prompt)
         return _parse_suggestions(response.text or '')
+
+    try:
+        return _generate_with_fallback(user, SUGGESTION_INSTRUCTION, send)
+    except QAAssistantError:
+        return []
     except Exception:
+        logger.exception('QA suggestion generation failed')
         return []
