@@ -42,10 +42,88 @@ wait_for_db() {
   exit 1
 }
 
-run_migrations() {
+run_migrate_service() {
   local label="$1"
   echo "==> ${label}"
   compose run --rm --build migrate
+}
+
+run_manage() {
+  compose run --rm --no-deps --build \
+    -v "${PROJECT_DIR}:/app" \
+    web python manage.py "$@"
+}
+
+cleanup_stale_files() {
+  echo "==> Cleanup stale / redundant files"
+
+  # File/thư mục không còn trong git sau khi pull (trừ dữ liệu runtime)
+  if git clean -ffdn \
+    -e .env \
+    -e .env.local \
+    -e media \
+    -e media/ \
+    -e staticfiles \
+    -e staticfiles/ \
+    -e '*.log' 2>/dev/null | grep -q .; then
+    echo "    Removing untracked leftover paths:"
+    git clean -ffdn \
+      -e .env \
+      -e .env.local \
+      -e media \
+      -e media/ \
+      -e staticfiles \
+      -e staticfiles/ \
+      -e '*.log' 2>/dev/null | sed 's/^/      /'
+    git clean -ffd \
+      -e .env \
+      -e .env.local \
+      -e media \
+      -e media/ \
+      -e staticfiles \
+      -e staticfiles/ \
+      -e '*.log' 2>/dev/null || true
+  else
+    echo "    No untracked leftover paths."
+  fi
+
+  # Cache Python trên host (dev/deploy dir)
+  local removed_cache=0
+  while IFS= read -r -d '' dir; do
+    rm -rf "${dir}"
+    removed_cache=$((removed_cache + 1))
+  done < <(find "${PROJECT_DIR}" -type d -name '__pycache__' -not -path '*/.git/*' -print0 2>/dev/null || true)
+  while IFS= read -r -d '' file; do
+    rm -f "${file}"
+    removed_cache=$((removed_cache + 1))
+  done < <(find "${PROJECT_DIR}" -type f \( -name '*.pyc' -o -name '*.pyo' \) -not -path '*/.git/*' -print0 2>/dev/null || true)
+
+  if [[ "${removed_cache}" -gt 0 ]]; then
+    echo "    Removed ${removed_cache} Python cache path(s)."
+  else
+    echo "    No Python cache to remove."
+  fi
+
+  # File tracked cũ đã bị xóa trên repo nhưng còn sót local
+  local deleted_in_repo
+  deleted_in_repo="$(git ls-files --deleted 2>/dev/null | wc -l | tr -d ' ')"
+  if [[ "${deleted_in_repo}" -gt 0 ]]; then
+    echo "    Pruning ${deleted_in_repo} file(s) deleted in git:"
+    git ls-files --deleted 2>/dev/null | sed 's/^/      /'
+    git ls-files --deleted -z 2>/dev/null | xargs -0 -r rm -f
+  fi
+}
+
+ensure_migrations() {
+  echo "==> Ensure migrations are up to date (makemigrations)"
+  if ! run_manage makemigrations --check --dry-run >/dev/null 2>&1; then
+    echo "    Model changes detected — creating migrations..."
+    run_manage makemigrations --noinput
+    echo "    WARNING: New migration files were generated on server."
+    echo "             Commit and push them from dev to keep repos in sync."
+  else
+    echo "    Migration files match models."
+  fi
 }
 
 verify_migrations() {
@@ -87,28 +165,34 @@ git fetch --all --prune
 git checkout "${BRANCH}"
 git pull --ff-only origin "${BRANCH}"
 
-echo "==> 2) Start database"
+echo "==> 2) Cleanup stale files from previous deploy"
+cleanup_stale_files
+
+echo "==> 3) Start database"
 compose up -d db
 wait_for_db
 
-echo "==> 3) Run migrations (before start web)"
-run_migrations "migrate --noinput via migrate service"
+echo "==> 4) Create migrations if models changed"
+ensure_migrations
 
-echo "==> 4) Build and start app services"
+echo "==> 5) Run migrations (before start web)"
+run_migrate_service "migrate --noinput via migrate service"
+
+echo "==> 6) Build and start app services"
 compose up -d --build web nginx
 
-echo "==> 5) Run migrations again on running web"
+echo "==> 7) Run migrations again on running web"
 compose exec -T web python manage.py migrate --noinput
 
 verify_migrations
 
-echo "==> 6) Collect static files"
-compose exec -T web python manage.py collectstatic --noinput
+echo "==> 8) Collect static files (clear old assets)"
+compose exec -T web python manage.py collectstatic --noinput --clear
 
-echo "==> 7) Show status"
+echo "==> 9) Show status"
 compose ps
 
-echo "==> 8) Cleanup old images"
+echo "==> 10) Cleanup old Docker images"
 docker image prune -f
 
 echo ""
