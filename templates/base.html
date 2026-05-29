@@ -112,6 +112,20 @@
                         <i class="bi bi-clipboard-check-fill me-1"></i> Báo Cáo
                     </a>
                 </li>
+                {% if jp_user_role == 'EMPLOYEE' %}
+                <li class="nav-item">
+                    <a class="nav-link {% if 'training' in request.path %}active{% endif %}"
+                       href="{% url 'my_courses' %}">
+                        <i class="bi bi-mortarboard-fill me-1"></i> Học Tập
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if 'exams' in request.path %}active{% endif %}"
+                       href="{% url 'exam_list' %}">
+                        <i class="bi bi-journal-check me-1"></i> Kiểm Tra
+                    </a>
+                </li>
+                {% endif %}
                 <li class="nav-item">
                     <a class="nav-link {% if 'huong-dan' in request.path %}active{% endif %}"
                        href="{% url 'user_guide' %}">
