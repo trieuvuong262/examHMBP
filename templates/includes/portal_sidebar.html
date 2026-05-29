@@ -143,6 +143,13 @@
             </ul>
         </li>
         {% endif %}
+        {% if jp_can_service_requests %}
+        <li>
+            <a href="{% url 'service_requests:my' %}" class="jp-sidebar-link {% if 'yeu-cau' in request.path %}active{% endif %}">
+                <i class="bi bi-send-fill"></i><span>Yêu cầu</span>
+            </a>
+        </li>
+        {% endif %}
         {% if jp_can_guide %}
         <li>
             <a href="{% url 'user_guide' %}" class="jp-sidebar-link {% if 'huong-dan' in request.path %}active{% endif %}">

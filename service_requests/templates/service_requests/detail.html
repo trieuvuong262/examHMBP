@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ service_request.title }}</h2>
+            <p class="text-muted mb-0">
+                {{ service_request.request_type.name }} ·
+                gửi bởi {{ service_request.requester.profile.full_name|default:service_request.requester.username }}
+                · {{ service_request.created_at|date:"d/m/Y H:i" }}
+            </p>
+        </div>
+        <span class="badge bg-light text-dark border fs-6">{{ service_request.get_status_display }}</span>
+    </div>
+
+    {% include 'service_requests/includes/subnav.html' %}
+
+    <div class="row g-3 g-md-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-white fw-bold">Nội dung yêu cầu</div>
+                <div class="card-body">
+                    <p class="mb-0" style="white-space: pre-wrap;">{{ service_request.description }}</p>
+                    {% if service_request.estimated_cost %}
+                    <hr>
+                    <div class="text-muted small">Dự toán</div>
+                    <div class="fw-bold">{{ service_request.estimated_cost|floatformat:0 }} VNĐ</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if request_attachments %}
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-white fw-bold">Đính kèm khi gửi</div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        {% for att in request_attachments %}
+                        <li class="mb-2">
+                            <a href="{{ att.file.url }}" target="_blank" rel="noopener">
+                                <i class="bi bi-paperclip me-1"></i>{{ att.display_name }}
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white fw-bold">Tiến trình xử lý</div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for step in steps %}
+                        <div class="list-group-item {% if current_step and current_step.pk == step.pk %}border-start border-3 border-warning{% endif %}">
+                            <div class="d-flex justify-content-between align-items-start gap-2">
+                                <div>
+                                    <div class="fw-bold">Bước {{ step.step_order }}: {{ step.name }}</div>
+                                    <div class="small text-muted mt-1">
+                                        {% if step.assignee %}
+                                        Người xử lý: {{ step.assignee.profile.full_name|default:step.assignee.username }}
+                                        {% elif step.target_department %}
+                                        Phòng: {{ step.target_department.name }} (chưa tiếp nhận)
+                                        {% else %}
+                                        Chưa gán người xử lý
+                                        {% endif %}
+                                    </div>
+                                    {% if step.note %}
+                                    <div class="small mt-2" style="white-space: pre-wrap;">{{ step.note }}</div>
+                                    {% endif %}
+                                </div>
+                                <span class="badge {{ step.status_badge_class }}">{{ step.get_status_display }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            {% if current_step and service_request.is_open %}
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-white fw-bold">Bước hiện tại</div>
+                <div class="card-body">
+                    <p class="mb-3"><strong>#{{ current_step.step_order }}</strong> — {{ current_step.name }}</p>
+
+                    {% if can_claim_current %}
+                    <form method="post" class="mb-3">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="claim">
+                        <button type="submit" class="btn btn-hm w-100">Tiếp nhận xử lý</button>
+                    </form>
+                    {% endif %}
+
+                    {% if can_handle_current and current_step.is_approval %}
+                    <form method="post" class="mb-3">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="approve">
+                        <label class="form-label">Ghi chú duyệt</label>
+                        {{ action_form.note }}
+                        <button type="submit" class="btn btn-success w-100 mt-2">Duyệt</button>
+                    </form>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="reject">
+                        <label class="form-label">Lý do từ chối <span class="text-danger">*</span></label>
+                        {{ reject_form.reason }}
+                        <button type="submit" class="btn btn-outline-danger w-100 mt-2">Từ chối</button>
+                    </form>
+                    {% endif %}
+
+                    {% if can_handle_current and current_step.is_execution %}
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="complete">
+                        <label class="form-label">Kết quả xử lý <span class="text-danger">*</span></label>
+                        {{ action_form.note }}
+                        <div class="mt-3">
+                            {% include 'tasks/includes/upload_fields.html' %}
+                        </div>
+                        <button type="submit" class="btn btn-success w-100 mt-3">Hoàn thành</button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if can_cancel %}
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <form method="post" onsubmit="return confirm('Hủy yêu cầu này?');">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="cancel">
+                        <button type="submit" class="btn btn-outline-secondary w-100">Hủy yêu cầu</button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white fw-bold">Nhật ký</div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0 small">
+                        {% for log in logs %}
+                        <li class="mb-2 pb-2 border-bottom">
+                            <div class="text-muted">{{ log.created_at|date:"d/m/Y H:i" }}</div>
+                            <div>{{ log.message|default:log.action }}</div>
+                        </li>
+                        {% empty %}
+                        <li class="text-muted">Chưa có hoạt động.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

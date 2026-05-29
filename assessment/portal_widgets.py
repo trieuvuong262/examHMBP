@@ -17,6 +17,7 @@ from hrm.permissions import (
 )
 from hrm.module_permissions import (
     MODULE_ASSESSMENT,
+    MODULE_SERVICE_REQUESTS,
     MODULE_TASKS,
     MODULE_TRAINING,
     user_can_access_module,
@@ -223,6 +224,45 @@ def _exam_widgets(user):
     }]
 
 
+def _service_request_widgets(user):
+    if not user_can_access_module(user, MODULE_SERVICE_REQUESTS):
+        return []
+
+    from service_requests.models import ServiceRequest
+    from service_requests.permissions import pending_steps_for_user
+
+    widgets = []
+
+    my_open = ServiceRequest.objects.filter(
+        requester=user,
+        status=ServiceRequest.STATUS_IN_PROGRESS,
+    ).count()
+    if my_open:
+        widgets.append({
+            'level': 'info',
+            'icon': 'bi-send-fill',
+            'title': 'Yêu cầu đang xử lý',
+            'text': f'{my_open} yêu cầu bạn gửi chưa hoàn thành — theo dõi tiến trình duyệt.',
+            'url': reverse('service_requests:my') + '?status=in_progress',
+            'action': 'Xem yêu cầu',
+            'badge': my_open,
+        })
+
+    pending = pending_steps_for_user(user).count()
+    if pending:
+        widgets.append({
+            'level': 'warning',
+            'icon': 'bi-inbox-fill',
+            'title': 'Yêu cầu chờ xử lý',
+            'text': f'{pending} bước cần bạn duyệt hoặc tiếp nhận.',
+            'url': reverse('service_requests:pending'),
+            'action': 'Xử lý',
+            'badge': pending,
+        })
+
+    return widgets
+
+
 _PERIOD_STATUS_FIELD = {
     'Q1': 'q1_status',
     'Q2': 'q2_status',
@@ -332,6 +372,7 @@ def get_portal_dashboard(user):
     widgets.extend(_task_widgets(user))
     widgets.extend(_training_widgets(user))
     widgets.extend(_exam_widgets(user))
+    widgets.extend(_service_request_widgets(user))
 
     # --- KPI cá nhân ---
     open_periods = list(KpiPeriod.objects.filter(is_active=True))

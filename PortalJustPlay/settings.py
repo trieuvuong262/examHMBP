@@ -112,6 +112,7 @@ INSTALLED_APPS = [
     'documents',
     'audit.apps.AuditConfig',
     'tasks.apps.TasksConfig',
+    'service_requests.apps.ServiceRequestsConfig',
     'django_cleanup.apps.CleanupConfig', # 👉 Thêm dòng này vào cuối
 ]
 
