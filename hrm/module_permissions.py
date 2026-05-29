@@ -20,6 +20,7 @@ MODULE_HRM = 'hrm'
 MODULE_KPI = 'kpi'
 MODULE_REPORTS = 'reports'
 MODULE_GUIDE = 'guide'
+MODULE_DOCUMENTS = 'documents'
 
 MODULE_CHOICES = [
     (MODULE_ANNOUNCEMENTS, 'Thông báo'),
@@ -30,6 +31,7 @@ MODULE_CHOICES = [
     (MODULE_KPI, 'Hiệu suất (KPI)'),
     (MODULE_REPORTS, 'Báo cáo'),
     (MODULE_GUIDE, 'Hướng dẫn'),
+    (MODULE_DOCUMENTS, 'Tài liệu'),
 ]
 
 ALL_MODULE_KEYS = {key for key, _ in MODULE_CHOICES}
@@ -63,6 +65,7 @@ PATH_MODULE_RULES = [
     ('/kpi/', MODULE_KPI),
     ('/reports/', MODULE_REPORTS),
     ('/huong-dan/', MODULE_GUIDE),
+    ('/tai-lieu/', MODULE_DOCUMENTS),
 ]
 
 DASHBOARD_TAB_MODULES = {

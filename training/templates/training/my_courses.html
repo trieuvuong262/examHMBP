@@ -71,7 +71,7 @@
                             <small class="text-muted fw-bold">Tiến độ bài học</small>
                             <small class="{% if item.status == 'completed' %}text-success{% else %}text-hm{% endif %} fw-bold fs-6">{{ item.progress }}%</small>
                         </div>
-                        <div class="progress shadow-sm" style="height: 10px; border-radius: 10px; background-color: #e9ecef;">
+                        <div class="progress shadow-sm" style="height: 10px; border-radius: 3px; background-color: #e9ecef;">
                             <div class="progress-bar {% if item.status == 'completed' %}bg-success{% else %}bg-hm{% endif %} progress-bar-striped progress-bar-animated" 
                                  style="width: {{ item.progress }}%">
                             </div>

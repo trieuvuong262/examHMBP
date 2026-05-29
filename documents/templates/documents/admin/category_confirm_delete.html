@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="mb-4">
+        <h2 class="fw-bold text-hm jp-page-title">Xóa nhóm tài liệu?</h2>
+        <p class="text-muted mb-0">Toàn bộ tài liệu trong nhóm <strong>{{ category.name }}</strong> cũng sẽ bị xóa.</p>
+    </div>
+    <form method="post" class="card border-0 shadow-sm p-4">
+        {% csrf_token %}
+        <div class="d-flex flex-wrap gap-2">
+            <button type="submit" class="btn btn-danger fw-bold">Xác nhận xóa</button>
+            <a href="{% url 'documents:admin_categories' %}" class="btn btn-outline-secondary fw-bold">Huỷ</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

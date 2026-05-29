@@ -16,7 +16,7 @@
     .dashboard-header {
         background: white;
         padding: 1.5rem 2rem;
-        border-radius: 0 0 20px 20px;
+        border-radius: 0 0 6px 6px;
         box-shadow: var(--hm-card-shadow);
         margin-bottom: 2rem;
     }
@@ -24,7 +24,7 @@
         display: inline-flex;
         background: white;
         padding: 8px;
-        border-radius: 15px;
+        border-radius: 5px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
         border: 1px solid rgba(0,0,0,0.05);
     }
@@ -44,7 +44,7 @@
     .stat-card {
         background: white;
         border: none;
-        border-radius: 20px;
+        border-radius: 6px;
         padding: 1.5rem;
         box-shadow: var(--hm-card-shadow);
         transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -70,7 +70,7 @@
     .icon-box {
         width: 56px;
         height: 56px;
-        border-radius: 16px;
+        border-radius: 5px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -78,7 +78,7 @@
     }
 
     .card-table {
-        border-radius: 20px;
+        border-radius: 6px;
         border: none;
         box-shadow: var(--hm-card-shadow);
         overflow: hidden;
@@ -108,7 +108,7 @@
     .btn-hm {
         background-color: var(--hm-primary);
         color: white;
-        border-radius: 10px;
+        border-radius: 3px;
         font-weight: 600;
         padding: 10px 20px;
         border: none;
@@ -505,7 +505,7 @@
 
 <div class="modal fade" id="addCandidateModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <form action="{% url 'add_candidate' %}" method="POST" enctype="multipart/form-data" class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+        <form action="{% url 'add_candidate' %}" method="POST" enctype="multipart/form-data" class="modal-content border-0 shadow-lg" style="border-radius: 6px;">
             {% csrf_token %}
             <div class="modal-header bg-white border-0 pt-4 px-4">
                 <h5 class="modal-title fw-bold text-dark"><i class="bi bi-person-plus text-hm me-2"></i>Thêm Hồ sơ Ứng viên</h5>

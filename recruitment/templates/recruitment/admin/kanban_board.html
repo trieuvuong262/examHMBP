@@ -33,8 +33,8 @@
 
     /* TÙY CHỈNH THANH CUỘN NGANG */
     .kanban-container::-webkit-scrollbar { height: 10px; }
-    .kanban-container::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
-    .kanban-container::-webkit-scrollbar-thumb { background: var(--hm-primary); border-radius: 10px; }
+    .kanban-container::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 3px; }
+    .kanban-container::-webkit-scrollbar-thumb { background: var(--hm-primary); border-radius: 3px; }
     .kanban-container::-webkit-scrollbar-thumb:hover { background: var(--hm-primary-hover); }
 
     /* ĐỊNH DẠNG TỪNG CỘT: Co giãn thông minh */
@@ -46,7 +46,7 @@
 
     .column-card {
         background-color: #f1f5f9;
-        border-radius: 16px;
+        border-radius: 5px;
         border: none;
         display: flex;
         flex-direction: column;
@@ -61,7 +61,7 @@
         font-size: 0.85rem;
         letter-spacing: 0.05em;
         text-transform: uppercase;
-        border-radius: 16px 16px 0 0 !important;
+        border-radius: 5px 5px 0 0 !important;
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -82,7 +82,7 @@
     .kanban-card { 
         cursor: grab; 
         border: 1px solid #e2e8f0 !important;
-        border-radius: 12px !important;
+        border-radius: 4px !important;
         transition: all 0.2s ease;
         background: white;
     }
@@ -98,7 +98,7 @@
     .badge-count {
         background: rgba(255,255,255,0.2);
         padding: 4px 10px;
-        border-radius: 20px;
+        border-radius: 6px;
         font-size: 0.75rem;
     }
 
@@ -121,7 +121,7 @@
     /* Tùy chỉnh thanh cuộn dọc bên trong từng cột Kanban */
     .kanban-column::-webkit-scrollbar { width: 6px; }
     .kanban-column::-webkit-scrollbar-track { background: transparent; }
-    .kanban-column::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    .kanban-column::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
     .kanban-column::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 </style>
 

@@ -109,6 +109,7 @@ INSTALLED_APPS = [
     'hrm',
     'kpi',
     'announcements',
+    'documents',
     'django_cleanup.apps.CleanupConfig', # 👉 Thêm dòng này vào cuối
 ]
 

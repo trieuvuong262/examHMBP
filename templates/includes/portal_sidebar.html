@@ -7,15 +7,37 @@
         </a>
     </div>
 
-    <div class="jp-sidebar-user d-none d-lg-block">
-        <div class="jp-sidebar-user-avatar">
-            {{ user.first_name|default:user.username|make_list|first|upper }}
-        </div>
-        <div class="jp-sidebar-user-meta">
-            <div class="jp-sidebar-user-name">{{ user.first_name|default:user.username }}</div>
-            <div class="jp-sidebar-user-role">{{ jp_role_display|default:"Nhân viên" }}</div>
+    {% with profile=user.profile %}
+    <div class="jp-sidebar-profile">
+        <div class="jp-sidebar-profile-card">
+            <div class="jp-sidebar-profile-avatar-wrap">
+                <span class="jp-sidebar-profile-avatar" aria-hidden="true">
+                    {% with display_name=profile.full_name|default:user.get_full_name|default:user.first_name|default:user.username %}
+                    {{ display_name|make_list|first|upper }}
+                    {% endwith %}
+                </span>
+                <span class="jp-sidebar-profile-status" title="Đang hoạt động"></span>
+            </div>
+            <div class="jp-sidebar-profile-body">
+                <div class="jp-sidebar-profile-name">
+                    {{ profile.full_name|default:user.get_full_name|default:user.first_name|default:user.username }}
+                </div>
+                <div class="jp-sidebar-profile-meta">
+                    <span class="jp-sidebar-profile-role">{{ jp_role_display|default:"Nhân viên" }}</span>
+                    {% if profile.department %}
+                    <span class="jp-sidebar-profile-dept">
+                        <i class="bi bi-building" aria-hidden="true"></i>
+                        <span>{{ profile.department.name }}</span>
+                    </span>
+                    {% endif %}
+                </div>
+                {% if profile.employee_code %}
+                <div class="jp-sidebar-profile-code">Mã NS · {{ profile.employee_code }}</div>
+                {% endif %}
+            </div>
         </div>
     </div>
+    {% endwith %}
 
     <ul class="jp-sidebar-menu">
         <li>
@@ -26,8 +48,15 @@
         {% if jp_can_announcements %}
         <li>
             <a href="{% url 'announcements:list' %}" class="jp-sidebar-link {% if 'announcements' in request.path %}active{% endif %}">
-                <i class="bi bi-megaphone-fill"></i><span>Thông báo</span>
-                {% if unread_announcements_count %}<span class="jp-sidebar-badge">{{ unread_announcements_count }}</span>{% endif %}
+                <span class="jp-sidebar-link-icon">
+                    <i class="bi bi-megaphone-fill"></i>
+                    {% if unread_announcements_count %}
+                    <span class="jp-sidebar-notify" aria-label="{{ unread_announcements_count }} thông báo chưa đọc">
+                        {% if unread_announcements_count > 99 %}99+{% else %}{{ unread_announcements_count }}{% endif %}
+                    </span>
+                    {% endif %}
+                </span>
+                <span>Thông báo</span>
             </a>
         </li>
         {% endif %}
@@ -66,7 +95,7 @@
         {% endif %}
         {% if jp_can_hrm and jp_can_portal_admin %}
         <li>
-            <a href="{% url 'user_list' %}" class="jp-sidebar-link {% if 'user' in request.resolver_match.url_name %}active{% endif %}">
+            <a href="{% url 'user_list' %}" class="jp-sidebar-link {% if '/dashboard/users' in request.path or '/dashboard/org' in request.path or '/dashboard/divisions' in request.path %}active{% elif '/dashboard/departments' in request.path and request.resolver_match.url_name != 'department_permissions' %}active{% endif %}">
                 <i class="bi bi-people-fill"></i><span>Nhân sự</span>
             </a>
         </li>
@@ -89,6 +118,13 @@
         <li>
             <a href="{% url 'user_guide' %}" class="jp-sidebar-link {% if 'huong-dan' in request.path %}active{% endif %}">
                 <i class="bi bi-journal-text"></i><span>Hướng dẫn</span>
+            </a>
+        </li>
+        {% endif %}
+        {% if jp_can_documents %}
+        <li>
+            <a href="{% url 'documents:browse' %}" class="jp-sidebar-link {% if 'tai-lieu' in request.path %}active{% endif %}">
+                <i class="bi bi-folder2-open"></i><span>Tài liệu</span>
             </a>
         </li>
         {% endif %}
