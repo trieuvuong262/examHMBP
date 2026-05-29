@@ -4,11 +4,12 @@
 <div class="container jp-page jp-tasks-page py-3 py-md-4 mb-5">
     <div class="jp-page-header mb-3 mb-md-4">
         <div>
-            <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-plus-circle-fill me-2"></i>Giao việc</h2>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-person-check me-2"></i>Giao việc cá nhân</h2>
             <p class="text-muted mb-0">Giao cho một hoặc nhiều người — mỗi người một bản ghi, duyệt riêng.</p>
         </div>
-        <a href="{% url 'tasks:assigned' %}" class="btn btn-outline-hm btn-sm">Quay lại</a>
     </div>
+
+    {% include 'tasks/includes/personal_subnav.html' %}
 
     {% if team_count == 0 %}
     <div class="alert alert-warning border-0 shadow-sm">

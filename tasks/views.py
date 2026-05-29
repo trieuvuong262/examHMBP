@@ -9,6 +9,7 @@ from django.utils import timezone
 from hrm.module_permissions import MODULE_TASKS, user_can_access_module
 from hrm.permissions import (
     can_assign_tasks,
+    can_create_internal_project,
     can_manage_assigned_task,
     can_view_task,
     get_report_team_users,
@@ -70,10 +71,28 @@ STATUS_TABS = [
 ]
 
 
+def _personal_tasks_qs(**filters):
+    """Việc lẻ — không thuộc dự án nội bộ."""
+    return WorkTask.objects.filter(project__isnull=True, **filters)
+
+
+def _task_detail_route(task):
+    return 'tasks:project_step' if task.project_id else 'tasks:detail'
+
+
+def _redirect_task_detail(task, *, pk=None):
+    return redirect(_task_detail_route(task), pk=pk or task.pk)
+
+
 @_tasks_access_required
 def task_hub(request):
+    return redirect('tasks:personal_hub')
+
+
+@_tasks_access_required
+def personal_hub(request):
     if can_assign_tasks(request.user):
-        pending_assigned = WorkTask.objects.filter(
+        pending_assigned = _personal_tasks_qs(
             assigner=request.user,
             status__in={WorkTask.STATUS_PENDING_REVIEW, WorkTask.STATUS_REJECTED},
         ).count()
@@ -85,7 +104,7 @@ def task_hub(request):
 @_tasks_access_required
 def my_tasks(request):
     status = request.GET.get('status', '')
-    qs = WorkTask.objects.filter(assignee=request.user).select_related(
+    qs = _personal_tasks_qs(assignee=request.user).select_related(
         'assigner', 'assigner__profile',
     )
     if status:
@@ -97,7 +116,7 @@ def my_tasks(request):
         'current_status': status,
         'query_string': query_string,
         'can_assign': can_assign_tasks(request.user),
-        'pending_ack_count': WorkTask.objects.filter(
+        'pending_ack_count': _personal_tasks_qs(
             assignee=request.user, status=WorkTask.STATUS_PENDING_ACK,
         ).count(),
     })
@@ -110,7 +129,7 @@ def assigned_tasks(request):
         return redirect('tasks:my')
 
     status = request.GET.get('status', '')
-    qs = WorkTask.objects.filter(assigner=request.user).select_related(
+    qs = _personal_tasks_qs(assigner=request.user).select_related(
         'assignee', 'assignee__profile',
     )
     if status:
@@ -122,10 +141,10 @@ def assigned_tasks(request):
         'current_status': status,
         'query_string': query_string,
         'can_assign': True,
-        'pending_review_count': WorkTask.objects.filter(
+        'pending_review_count': _personal_tasks_qs(
             assigner=request.user, status=WorkTask.STATUS_PENDING_REVIEW,
         ).count(),
-        'rejected_count': WorkTask.objects.filter(
+        'rejected_count': _personal_tasks_qs(
             assigner=request.user, status=WorkTask.STATUS_REJECTED,
         ).count(),
     })
@@ -242,6 +261,13 @@ def task_detail(request, pk):
         messages.error(request, 'Không tìm thấy công việc hoặc bạn không có quyền xem.')
         return redirect('tasks:my')
 
+    url_name = request.resolver_match.url_name
+    if task.project_id and url_name == 'detail':
+        return _redirect_task_detail(task)
+    if not task.project_id and url_name == 'project_step':
+        return _redirect_task_detail(task)
+
+    is_project_step = bool(task.project_id)
     is_assignee = task.assignee_id == request.user.id
     is_assigner = can_manage_assigned_task(request.user, task)
 
@@ -262,7 +288,7 @@ def task_detail(request, pk):
                 stage=WorkTaskAttachment.STAGE_WORK,
                 actor=request.user,
             ):
-                return redirect('tasks:detail', pk=pk)
+                return _redirect_task_detail(task)
 
         if action == 'acknowledge' and is_assignee and task.status == WorkTask.STATUS_PENDING_ACK:
             task.status = WorkTask.STATUS_IN_PROGRESS
@@ -270,7 +296,7 @@ def task_detail(request, pk):
             task.save(update_fields=['status', 'acknowledged_at', 'updated_at'])
             log_task_action(task, request.user, WorkTaskLog.ACTION_ACK, 'Đã xác nhận nhận việc')
             messages.success(request, 'Đã xác nhận công việc.')
-            return redirect('tasks:detail', pk=pk)
+            return _redirect_task_detail(task)
 
         if action == 'reject' and is_assignee and task.status == WorkTask.STATUS_PENDING_ACK:
             reject_form = WorkTaskRejectForm(request.POST)
@@ -280,7 +306,7 @@ def task_detail(request, pk):
                 task.save(update_fields=['status', 'reject_reason', 'updated_at'])
                 log_task_action(task, request.user, WorkTaskLog.ACTION_REJECT, task.reject_reason)
                 messages.warning(request, 'Đã từ chối công việc. Cấp trên có thể giao lại cho người khác.')
-                return redirect('tasks:detail', pk=pk)
+                return _redirect_task_detail(task)
 
         if action == 'progress' and is_assignee and task.status in {
             WorkTask.STATUS_IN_PROGRESS, WorkTask.STATUS_REVISION,
@@ -295,7 +321,7 @@ def task_detail(request, pk):
                     f'Tiến độ {task.progress_percent}%',
                 )
                 messages.success(request, 'Đã cập nhật tiến độ.')
-                return redirect('tasks:detail', pk=pk)
+                return _redirect_task_detail(task)
 
         if action == 'submit' and is_assignee and task.status in {
             WorkTask.STATUS_IN_PROGRESS, WorkTask.STATUS_REVISION,
@@ -311,7 +337,7 @@ def task_detail(request, pk):
                 ])
                 log_task_action(task, request.user, WorkTaskLog.ACTION_SUBMIT, task.result_note)
                 messages.success(request, 'Đã nộp chờ cấp trên duyệt.')
-                return redirect('tasks:detail', pk=pk)
+                return _redirect_task_detail(task)
 
         if action == 'approve' and is_assigner and task.status == WorkTask.STATUS_PENDING_REVIEW:
             review_form = WorkTaskReviewForm(request.POST)
@@ -332,7 +358,7 @@ def task_detail(request, pk):
                             f'Đã mở {len(unlocked)} bước phụ thuộc.',
                         )
                 messages.success(request, 'Đã duyệt hoàn thành công việc.')
-                return redirect('tasks:detail', pk=pk)
+                return _redirect_task_detail(task)
 
         if action == 'revision' and is_assigner and task.status == WorkTask.STATUS_PENDING_REVIEW:
             review_form = WorkTaskReviewForm(request.POST)
@@ -342,7 +368,7 @@ def task_detail(request, pk):
                 task.save(update_fields=['status', 'review_note', 'updated_at'])
                 log_task_action(task, request.user, WorkTaskLog.ACTION_REVISION, task.review_note)
                 messages.info(request, 'Đã yêu cầu nhân viên sửa lại.')
-                return redirect('tasks:detail', pk=pk)
+                return _redirect_task_detail(task)
             messages.error(request, 'Vui lòng nhập ghi chú khi yêu cầu sửa.')
 
         if action == 'cancel' and is_assigner and task.status not in {
@@ -352,11 +378,13 @@ def task_detail(request, pk):
             task.save(update_fields=['status', 'updated_at'])
             log_task_action(task, request.user, WorkTaskLog.ACTION_CANCEL, 'Hủy công việc')
             messages.info(request, 'Đã hủy công việc.')
+            if is_project_step:
+                return redirect('tasks:project_detail', pk=task.project_id)
             return redirect('tasks:assigned')
 
     batch_siblings = None
-    if task.assignment_batch:
-        batch_siblings = WorkTask.objects.filter(
+    if not is_project_step and task.assignment_batch:
+        batch_siblings = _personal_tasks_qs(
             assignment_batch=task.assignment_batch,
         ).exclude(pk=task.pk).select_related('assignee', 'assignee__profile')[:10]
 
@@ -379,6 +407,7 @@ def task_detail(request, pk):
     return render(request, 'tasks/detail.html', {
         'task': task,
         'project': task.project,
+        'is_project_step': is_project_step,
         'logs': task.logs.select_related('actor', 'actor__profile'),
         'assign_images': assign_images,
         'assign_files': assign_files,
@@ -388,6 +417,7 @@ def task_detail(request, pk):
         'is_assignee': is_assignee,
         'is_assigner': is_assigner,
         'can_assign': can_assign_tasks(request.user),
+        'can_create': can_create_internal_project(request.user),
         'can_request_handoff': can_request_handoff,
         'pending_handoff': pending_handoff,
         'progress_form': progress_form,
@@ -400,7 +430,12 @@ def task_detail(request, pk):
 
 @_assign_access_required
 def reassign_task(request, pk):
-    old_task = get_object_or_404(WorkTask, pk=pk, assigner=request.user)
+    old_task = get_object_or_404(
+        WorkTask,
+        pk=pk,
+        assigner=request.user,
+        project__isnull=True,
+    )
     if old_task.status != WorkTask.STATUS_REJECTED:
         messages.error(request, 'Chỉ giao lại được khi nhân viên đã từ chối việc.')
         return redirect('tasks:detail', pk=pk)
@@ -449,4 +484,5 @@ def reassign_task(request, pk):
     return render(request, 'tasks/reassign.html', {
         'form': form,
         'task': old_task,
+        'can_assign': True,
     })

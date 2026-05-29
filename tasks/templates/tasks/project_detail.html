@@ -2,6 +2,8 @@
 
 {% block content %}
 <div class="container jp-page jp-tasks-page py-3 py-md-4 mb-5">
+    {% include 'tasks/includes/project_subnav.html' %}
+
     <div class="jp-page-header mb-3 mb-md-4">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ project.title }}</h2>
@@ -14,7 +16,6 @@
             {% endif %}
         </div>
         <div class="d-flex flex-wrap gap-2">
-            <a href="{% url 'tasks:project_list' %}" class="btn btn-outline-hm btn-sm">Danh sách dự án</a>
             {% if is_owner and project.status == 'active' %}
             <form method="post" class="d-inline" onsubmit="return confirm('Đánh dấu dự án hoàn thành?');">
                 {% csrf_token %}
@@ -137,7 +138,7 @@
                                 </td>
                                 <td><span class="badge {{ step.status_badge_class }}">{{ step.get_status_display }}</span></td>
                                 <td class="text-end">
-                                    <a href="{% url 'tasks:detail' step.pk %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
+                                    <a href="{% url 'tasks:project_step' step.pk %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
                                 </td>
                             </tr>
                             {% empty %}

@@ -69,6 +69,7 @@ def project_create(request):
     return render(request, 'tasks/project_form.html', {
         'form': form,
         'is_create': True,
+        'can_create': True,
     })
 
 
@@ -257,24 +258,24 @@ def request_handoff(request, pk):
     task = _get_task_or_404(request.user, pk)
     if task is None or not task.project_id:
         messages.error(request, 'Không thể chuyển giao việc này.')
-        return redirect('tasks:my')
+        return redirect('tasks:project_list')
 
     project = task.project
     is_assignee = task.assignee_id == request.user.id
     if not is_assignee:
         messages.error(request, 'Chỉ người đang phụ trách mới yêu cầu chuyển giao.')
-        return redirect('tasks:detail', pk=pk)
+        return redirect('tasks:project_step', pk=pk)
 
     if task.status not in {
         WorkTask.STATUS_IN_PROGRESS,
         WorkTask.STATUS_REVISION,
     }:
         messages.error(request, 'Chỉ chuyển giao khi đang thực hiện hoặc cần sửa.')
-        return redirect('tasks:detail', pk=pk)
+        return redirect('tasks:project_step', pk=pk)
 
     if task.handoff_requests.filter(status=WorkTaskHandoff.STATUS_PENDING).exists():
         messages.info(request, 'Đã có yêu cầu chuyển giao đang chờ duyệt.')
-        return redirect('tasks:detail', pk=pk)
+        return redirect('tasks:project_step', pk=pk)
 
     if request.method == 'POST':
         form = HandoffRequestForm(
@@ -304,4 +305,5 @@ def request_handoff(request, pk):
         'form': form,
         'task': task,
         'project': project,
+        'can_create': can_create_internal_project(request.user),
     })

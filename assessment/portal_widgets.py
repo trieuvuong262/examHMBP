@@ -130,10 +130,12 @@ def get_portal_dashboard(user):
         if can_assign_tasks(user):
             pending_review = WorkTask.objects.filter(
                 assigner=user,
+                project__isnull=True,
                 status=WorkTask.STATUS_PENDING_REVIEW,
             ).count()
             rejected = WorkTask.objects.filter(
                 assigner=user,
+                project__isnull=True,
                 status=WorkTask.STATUS_REJECTED,
             ).count()
             if pending_review:
@@ -159,6 +161,7 @@ def get_portal_dashboard(user):
 
         pending_ack = WorkTask.objects.filter(
             assignee=user,
+            project__isnull=True,
             status=WorkTask.STATUS_PENDING_ACK,
         ).count()
         if pending_ack:
@@ -174,6 +177,7 @@ def get_portal_dashboard(user):
 
         revision_count = WorkTask.objects.filter(
             assignee=user,
+            project__isnull=True,
             status=WorkTask.STATUS_REVISION,
         ).count()
         if revision_count:

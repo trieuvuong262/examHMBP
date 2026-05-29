@@ -384,5 +384,25 @@ class InternalProjectTests(TestCase):
         )
         self.assertTrue(can_view_task(self.employee, task))
         self.client.force_login(self.employee)
-        response = self.client.get(reverse('tasks:detail', args=[task.pk]))
+        response = self.client.get(reverse('tasks:project_step', args=[task.pk]))
         self.assertEqual(response.status_code, 200)
+
+    def test_personal_list_excludes_project_steps(self):
+        project = InternalProject.objects.create(title='Mixed', owner=self.leader)
+        project.members.set([self.employee])
+        WorkTask.objects.create(
+            title='Việc lẻ',
+            assigner=self.leader,
+            assignee=self.employee,
+        )
+        WorkTask.objects.create(
+            title='Bước dự án',
+            assigner=self.leader,
+            assignee=self.employee,
+            project=project,
+        )
+        self.client.force_login(self.employee)
+        response = self.client.get(reverse('tasks:my'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Việc lẻ')
+        self.assertNotContains(response, 'Bước dự án')

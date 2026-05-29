@@ -7,8 +7,9 @@
             <h2 class="fw-bold text-hm mb-1 jp-page-title">{% if is_create %}Tạo dự án nội bộ{% else %}Sửa dự án{% endif %}</h2>
             <p class="text-muted mb-0">Thành viên chỉ gồm cấp dưới trực tiếp của bạn.</p>
         </div>
-        <a href="{% url 'tasks:project_list' %}" class="btn btn-outline-hm btn-sm">Quay lại</a>
     </div>
+
+    {% include 'tasks/includes/project_subnav.html' %}
 
     <div class="card border-0 shadow-sm">
         <div class="card-body p-3 p-md-4">

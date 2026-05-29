@@ -4,15 +4,12 @@
 <div class="container jp-page jp-tasks-page py-3 py-md-4 mb-5">
     <div class="jp-page-header mb-3 mb-md-4">
         <div>
-            <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-send-check-fill me-2"></i>Việc đã giao</h2>
-            <p class="text-muted mb-0 jp-hide-mobile-subtitle">Theo dõi và duyệt công việc đã giao cho cấp dưới.</p>
-        </div>
-        <div class="d-flex flex-wrap gap-2">
-            <a href="{% url 'tasks:my' %}" class="btn btn-outline-hm btn-sm">Việc của tôi</a>
-            <a href="{% url 'tasks:project_list' %}" class="btn btn-outline-hm btn-sm">Dự án nội bộ</a>
-            <a href="{% url 'tasks:assign' %}" class="btn btn-hm btn-sm"><i class="bi bi-plus-lg me-1"></i>Giao việc</a>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-person-check me-2"></i>Giao việc cá nhân</h2>
+            <p class="text-muted mb-0 jp-hide-mobile-subtitle">Theo dõi và duyệt việc đã giao cho cấp dưới trực tiếp.</p>
         </div>
     </div>
+
+    {% include 'tasks/includes/personal_subnav.html' %}
 
     {% if pending_review_count or rejected_count %}
     <div class="row g-3 mb-3">

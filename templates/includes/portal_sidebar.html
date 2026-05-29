@@ -116,10 +116,24 @@
         </li>
         {% endif %}
         {% if jp_can_tasks %}
-        <li>
-            <a href="{% url 'tasks:hub' %}" class="jp-sidebar-link {% if 'cong-viec' in request.path %}active{% endif %}">
+        <li class="jp-sidebar-group{% if 'cong-viec' in request.path %} is-open{% endif %}">
+            <span class="jp-sidebar-group-label">
                 <i class="bi bi-list-check"></i><span>Công việc</span>
-            </a>
+            </span>
+            <ul class="jp-sidebar-submenu">
+                <li>
+                    <a href="{% url 'tasks:personal_hub' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/cong-viec/ca-nhan' in request.path %}active{% endif %}">
+                        <i class="bi bi-person-check"></i><span>Giao việc cá nhân</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'tasks:project_list' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/cong-viec/du-an' in request.path %}active{% endif %}">
+                        <i class="bi bi-kanban"></i><span>Dự án nội bộ</span>
+                    </a>
+                </li>
+            </ul>
         </li>
         {% endif %}
         {% if jp_can_guide %}

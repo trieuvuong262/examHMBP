@@ -7,13 +7,9 @@
             <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-kanban me-2"></i>Dự án nội bộ</h2>
             <p class="text-muted mb-0 jp-hide-mobile-subtitle">Quản lý các bước công việc theo dự án — thành viên xem tiến độ chung.</p>
         </div>
-        <div class="d-flex flex-wrap gap-2">
-            <a href="{% url 'tasks:my' %}" class="btn btn-outline-hm btn-sm">Việc của tôi</a>
-            {% if can_create %}
-            <a href="{% url 'tasks:project_create' %}" class="btn btn-hm btn-sm"><i class="bi bi-plus-lg me-1"></i>Tạo dự án</a>
-            {% endif %}
-        </div>
     </div>
+
+    {% include 'tasks/includes/project_subnav.html' %}
 
     <div class="card border-0 shadow-sm">
         <div class="table-responsive">

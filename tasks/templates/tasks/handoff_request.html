@@ -2,6 +2,8 @@
 
 {% block content %}
 <div class="container jp-page jp-tasks-page py-3 py-md-4 mb-5">
+    {% include 'tasks/includes/project_subnav.html' %}
+
     <div class="jp-page-header mb-3 mb-md-4">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title">Chuyển giao bước</h2>
@@ -10,7 +12,7 @@
                 · Bước: {{ task.title }}
             </p>
         </div>
-        <a href="{% url 'tasks:detail' task.pk %}" class="btn btn-outline-hm btn-sm">Quay lại</a>
+        <a href="{% url 'tasks:project_step' task.pk %}" class="btn btn-outline-hm btn-sm">Quay lại</a>
     </div>
 
     <div class="card border-0 shadow-sm">
@@ -27,7 +29,7 @@
                 {% endfor %}
                 <div class="d-flex gap-2">
                     <button type="submit" class="btn btn-hm">Gửi yêu cầu</button>
-                    <a href="{% url 'tasks:detail' task.pk %}" class="btn btn-outline-secondary">Hủy</a>
+                    <a href="{% url 'tasks:project_step' task.pk %}" class="btn btn-outline-secondary">Hủy</a>
                 </div>
             </form>
         </div>
