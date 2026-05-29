@@ -17,4 +17,5 @@ urlpatterns = [
     path('du-an/<int:pk>/', project_views.project_detail, name='project_detail'),
     path('du-an/viec/<int:pk>/', views.task_detail, name='project_step'),
     path('du-an/viec/<int:pk>/chuyen-giao/', project_views.request_handoff, name='handoff'),
+    path('du-an/viec/<int:pk>/giao-lai/', project_views.reassign_project_step, name='project_reassign'),
 ]

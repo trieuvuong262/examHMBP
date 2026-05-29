@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block content %}
 <div class="container jp-page jp-tasks-page py-3 py-md-4 mb-5">
@@ -128,7 +129,17 @@
                                     <div class="small text-muted">Hạn: {{ step.due_date|date:"d/m/Y" }}</div>
                                     {% endif %}
                                 </td>
-                                <td>{{ step.assignee.profile.full_name|default:step.assignee.username }}</td>
+                                <td>
+                                    {{ step.assignee.profile.full_name|default:step.assignee.username }}
+                                    {% if step.reassigned_from %}
+                                    <div class="small text-muted">
+                                        Thay {% include 'tasks/includes/user_brief.html' with user=step.reassigned_from.assignee %}
+                                        (từ chối)
+                                    </div>
+                                    {% elif step.status == 'rejected' and step.reject_reason %}
+                                    <div class="small text-danger">{{ step.reject_reason|truncatechars:40 }}</div>
+                                    {% endif %}
+                                </td>
                                 <td>
                                     {% if step.depends_on %}
                                     <span class="small">#{{ step.depends_on.step_order }} {{ step.depends_on.title|truncatechars:20 }}</span>
@@ -139,6 +150,9 @@
                                 <td><span class="badge {{ step.status_badge_class }}">{{ step.get_status_display }}</span></td>
                                 <td class="text-end">
                                     <a href="{% url 'tasks:project_step' step.pk %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
+                                    {% if is_owner and step.status == 'rejected' %}
+                                    <a href="{% url 'tasks:project_reassign' step.pk %}" class="btn btn-sm btn-hm">Giao người khác</a>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% empty %}
@@ -213,11 +227,14 @@
                     <p class="text-muted small mb-3">Chưa có comment — cập nhật tiến độ cho cả team.</p>
                     {% endfor %}
 
-                    <form method="post">
+                    <form method="post" class="jp-mention-form">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="comment">
                         <label class="form-label">{{ comment_form.body.label }}</label>
-                        {{ comment_form.body }}
+                        <div class="jp-mention-wrap">
+                            {{ comment_form.body }}
+                        </div>
+                        <div class="form-text">Gõ <strong>@</strong> để gợi ý tên thành viên trong dự án.</div>
                         <button type="submit" class="btn btn-outline-hm btn-sm mt-2">Gửi comment</button>
                     </form>
                 </div>
@@ -225,4 +242,9 @@
         </div>
     </div>
 </div>
+{{ mention_members|json_script:"jp-mention-members" }}
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/project-comments.js' %}"></script>
 {% endblock %}

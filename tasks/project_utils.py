@@ -57,3 +57,19 @@ def initial_step_status(depends_on_task):
     if depends_on_task.status == WorkTask.STATUS_COMPLETED:
         return WorkTask.STATUS_PENDING_ACK
     return WorkTask.STATUS_BLOCKED
+
+
+def build_mention_member_list(project):
+    """Danh sách thành viên cho gợi ý @mention trên comment dự án."""
+    from hrm.permissions import format_team_user_label, get_profile
+
+    members = []
+    for user in project.members.select_related('profile').order_by('profile__full_name', 'username'):
+        profile = get_profile(user)
+        full_name = profile.full_name if profile and profile.full_name else user.username
+        members.append({
+            'username': user.username,
+            'full_name': full_name,
+            'label': format_team_user_label(user),
+        })
+    return members

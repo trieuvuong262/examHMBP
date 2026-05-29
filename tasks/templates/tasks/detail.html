@@ -31,7 +31,9 @@
             {% else %}
             <a href="{% url 'tasks:my' %}" class="btn btn-outline-hm btn-sm">Việc của tôi</a>
             {% endif %}
-            {% if not is_project_step and is_assigner and task.status == 'rejected' %}
+            {% if is_project_step and is_assigner and task.status == 'rejected' %}
+            <a href="{% url 'tasks:project_reassign' task.pk %}" class="btn btn-hm btn-sm">Giao người khác</a>
+            {% elif not is_project_step and is_assigner and task.status == 'rejected' %}
             <a href="{% url 'tasks:reassign' task.pk %}" class="btn btn-hm btn-sm">Giao lại</a>
             {% endif %}
             {% if can_request_handoff %}
@@ -91,12 +93,15 @@
                     </div>
                     {% endif %}
                     {% if task.reassigned_from %}
-                    <p class="small text-muted mb-0">
-                        Giao lại từ công việc #{{ task.reassigned_from_id }}
+                    <div class="alert alert-light border-0 mb-0">
+                        <strong>Bước thay thế</strong> cho công việc #{{ task.reassigned_from_id }}
                         {% if task.reassigned_from.assignee %}
-                        (từ chối bởi {{ task.reassigned_from.assignee.profile.full_name|default:task.reassigned_from.assignee.username }})
+                        — từ chối bởi {{ task.reassigned_from.assignee.profile.full_name|default:task.reassigned_from.assignee.username }}
                         {% endif %}
-                    </p>
+                        {% if task.reassigned_from.reject_reason %}
+                        <div class="small mt-1 mb-0"><strong>Lý do từ chối:</strong> {{ task.reassigned_from.reject_reason|linebreaksbr }}</div>
+                        {% endif %}
+                    </div>
                     {% endif %}
                 </div>
             </div>

@@ -71,9 +71,27 @@ class ProjectCommentForm(forms.Form):
         widget=forms.Textarea(attrs={
             'class': 'form-control',
             'rows': 3,
-            'placeholder': 'Viết cập nhật… Dùng @username để nhắc thành viên (vd: @nv_a)',
+            'placeholder': 'Viết cập nhật… Gõ @ để gợi ý tên thành viên',
+            'data-jp-mention-input': '1',
         }),
     )
+
+
+class ProjectStepReassignForm(forms.Form):
+    assignee = forms.ModelChoiceField(
+        queryset=User.objects.none(),
+        label='Giao cho người khác',
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+
+    def __init__(self, *args, project=None, exclude_user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if project is not None:
+            qs = project.members.all()
+            if exclude_user is not None:
+                qs = qs.exclude(pk=exclude_user.pk)
+            self.fields['assignee'].queryset = qs
+            self.fields['assignee'].label_from_instance = format_team_user_label
 
 
 class HandoffRequestForm(forms.Form):

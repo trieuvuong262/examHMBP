@@ -57,6 +57,21 @@ class WorkTask(models.Model):
         STATUS_REVISION,
     }
 
+    # Việc assignee còn phải theo dõi / xử lý — nhắc trang chủ đến khi hoàn thành
+    OPEN_ASSIGNEE_STATUSES = {
+        STATUS_PENDING_ACK,
+        STATUS_IN_PROGRESS,
+        STATUS_PENDING_REVIEW,
+        STATUS_REVISION,
+        STATUS_BLOCKED,
+    }
+
+    # Việc cấp trên / chủ dự án cần hành động
+    MANAGER_ACTION_STATUSES = {
+        STATUS_PENDING_REVIEW,
+        STATUS_REJECTED,
+    }
+
     assignment_batch = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True)
     title = models.CharField(max_length=200, verbose_name='Tiêu đề')
     description = models.TextField(blank=True, verbose_name='Mô tả')

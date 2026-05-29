@@ -4405,6 +4405,51 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     word-break: break-word;
 }
 
+.jp-mention-wrap {
+    position: relative;
+}
+
+.jp-mention-suggest {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    z-index: 20;
+    margin-top: 0.25rem;
+    background: var(--jp-surface-bg, #fff);
+    border: 1px solid var(--jp-surface-border, #dee2e6);
+    border-radius: var(--jp-radius-sm, 0.375rem);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.jp-mention-suggest-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: transparent;
+    padding: 0.55rem 0.75rem;
+    font-size: 0.875rem;
+    color: inherit;
+}
+
+.jp-mention-suggest-item:hover,
+.jp-mention-suggest-item:focus {
+    background: var(--jp-surface-muted, #f8f9fa);
+}
+
+[data-theme="dark"] .jp-mention-suggest {
+    background: var(--jp-surface-bg);
+    border-color: var(--jp-surface-border);
+}
+
+[data-theme="dark"] .jp-mention-suggest-item:hover,
+[data-theme="dark"] .jp-mention-suggest-item:focus {
+    background: var(--jp-surface-muted);
+}
+
 .jp-task-attachment-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));

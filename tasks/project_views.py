@@ -13,14 +13,21 @@ from hrm.permissions import (
 )
 from PortalJustPlay.pagination import paginate_queryset
 
-from .models import InternalProject, ProjectComment, WorkTask, WorkTaskHandoff, WorkTaskLog
+from .models import InternalProject, ProjectComment, WorkTask, WorkTaskAttachment, WorkTaskHandoff, WorkTaskLog
 from .project_forms import (
     HandoffRequestForm,
     InternalProjectForm,
     ProjectCommentForm,
     ProjectStepForm,
+    ProjectStepReassignForm,
 )
-from .project_utils import initial_step_status, render_comment_body_html, resolve_project_mentions
+from .project_utils import (
+    build_mention_member_list,
+    initial_step_status,
+    render_comment_body_html,
+    resolve_project_mentions,
+)
+from .attachment_utils import copy_task_attachments
 from .utils import log_task_action
 from .views import _get_task_or_404, _tasks_access_required
 
@@ -229,6 +236,8 @@ def project_detail(request, pk):
 
     steps = project.steps.select_related(
         'assignee', 'assignee__profile', 'depends_on',
+        'reassigned_from', 'reassigned_from__assignee', 'reassigned_from__assignee__profile',
+        'replaced_by',
     ).order_by('step_order', 'created_at')
     comments = project.comments.select_related(
         'author', 'author__profile',
@@ -248,9 +257,91 @@ def project_detail(request, pk):
         'comment_form': comment_form,
         'step_form': step_form,
         'members': members,
+        'mention_members': build_mention_member_list(project),
         'is_owner': is_owner,
         'can_create': can_create_internal_project(request.user),
         'pending_handoffs': pending_handoffs,
+    })
+
+
+@_tasks_access_required
+def reassign_project_step(request, pk):
+    old_task = get_object_or_404(
+        WorkTask.objects.select_related(
+            'project', 'assignee', 'assignee__profile', 'depends_on',
+        ),
+        pk=pk,
+        project__isnull=False,
+    )
+    project = old_task.project
+    if not can_manage_project(request.user, project):
+        messages.error(request, 'Chỉ chủ dự án mới giao lại bước cho người khác.')
+        return redirect('tasks:project_step', pk=pk)
+
+    if old_task.status != WorkTask.STATUS_REJECTED:
+        messages.error(request, 'Chỉ giao lại được khi nhân viên đã từ chối bước này.')
+        return redirect('tasks:project_step', pk=pk)
+
+    rejected_user = old_task.assignee
+    if request.method == 'POST':
+        form = ProjectStepReassignForm(
+            request.POST,
+            project=project,
+            exclude_user=rejected_user,
+        )
+        if form.is_valid():
+            new_assignee = form.cleaned_data['assignee']
+            new_task = WorkTask.objects.create(
+                assignment_batch=uuid.uuid4(),
+                title=old_task.title,
+                description=old_task.description,
+                task_type=old_task.task_type,
+                priority=old_task.priority,
+                due_date=old_task.due_date,
+                assigner=project.owner,
+                assignee=new_assignee,
+                project=project,
+                depends_on=old_task.depends_on,
+                step_order=old_task.step_order,
+                status=initial_step_status(old_task.depends_on),
+                reassigned_from=old_task,
+            )
+            copy_task_attachments(
+                old_task,
+                new_task,
+                stages=[WorkTaskAttachment.STAGE_ASSIGN],
+                uploaded_by=request.user,
+            )
+            old_task.status = WorkTask.STATUS_REASSIGNED
+            old_task.replaced_by = new_task
+            old_task.save(update_fields=['status', 'replaced_by', 'updated_at'])
+            rejected_name = rejected_user.profile.full_name or rejected_user.username
+            log_task_action(
+                old_task, request.user, WorkTaskLog.ACTION_REASSIGN,
+                f'Giao lại cho {new_assignee.username} (từ chối bởi {rejected_name})',
+            )
+            log_task_action(
+                new_task, request.user, WorkTaskLog.ACTION_ASSIGNED,
+                f'Nhận bước thay thế — từ chối bởi {rejected_name}',
+            )
+            messages.success(
+                request,
+                f'Đã giao bước cho {new_assignee.profile.full_name or new_assignee.username}. '
+                f'Vẫn lưu vết {rejected_name} đã từ chối.',
+            )
+            return redirect('tasks:project_step', pk=new_task.pk)
+    else:
+        form = ProjectStepReassignForm(
+            project=project,
+            exclude_user=rejected_user,
+        )
+
+    return render(request, 'tasks/project_reassign.html', {
+        'form': form,
+        'task': old_task,
+        'project': project,
+        'rejected_user': rejected_user,
+        'can_create': can_create_internal_project(request.user),
     })
 
 

@@ -91,8 +91,47 @@ class TaskWorkflowTests(TestCase):
         )
         widgets = get_portal_dashboard(self.director)
         titles = [w['title'] for w in widgets]
-        self.assertNotIn('Việc chờ xác nhận', titles)
-        self.assertNotIn('Việc cần sửa', titles)
+        self.assertNotIn('Công việc chưa hoàn thành', titles)
+
+    def test_in_progress_task_shows_on_home_widget(self):
+        WorkTask.objects.create(
+            title='Đang làm',
+            assigner=self.leader,
+            assignee=self.employee,
+            status=WorkTask.STATUS_IN_PROGRESS,
+        )
+        from assessment.portal_widgets import get_portal_dashboard
+        widgets = get_portal_dashboard(self.employee)
+        titles = [w['title'] for w in widgets]
+        self.assertIn('Công việc chưa hoàn thành', titles)
+
+    def test_completed_task_not_on_home_widget(self):
+        WorkTask.objects.create(
+            title='Xong rồi',
+            assigner=self.leader,
+            assignee=self.employee,
+            status=WorkTask.STATUS_COMPLETED,
+        )
+        from assessment.portal_widgets import get_portal_dashboard
+        widgets = get_portal_dashboard(self.employee)
+        titles = [w['title'] for w in widgets]
+        self.assertNotIn('Công việc chưa hoàn thành', titles)
+
+    def test_project_step_in_progress_shows_on_home_widget(self):
+        project = InternalProject.objects.create(title='DA widget', owner=self.leader)
+        project.members.set([self.employee])
+        WorkTask.objects.create(
+            title='Bước đang làm',
+            assigner=self.leader,
+            assignee=self.employee,
+            project=project,
+            status=WorkTask.STATUS_IN_PROGRESS,
+        )
+        from assessment.portal_widgets import get_portal_dashboard
+        widgets = get_portal_dashboard(self.employee)
+        match = [w for w in widgets if w['title'] == 'Công việc chưa hoàn thành']
+        self.assertEqual(len(match), 1)
+        self.assertIn('bước dự án', match[0]['text'])
 
     def test_assign_creates_one_record_per_assignee(self):
         self.client.force_login(self.leader)
@@ -421,6 +460,45 @@ class InternalProjectTests(TestCase):
         self.client.force_login(self.employee)
         response = self.client.get(reverse('tasks:project_step', args=[task.pk]))
         self.assertEqual(response.status_code, 200)
+
+    def test_project_step_reject_and_owner_reassign_keeps_trace(self):
+        project = InternalProject.objects.create(title='Từ chối bước', owner=self.leader)
+        project.members.set([self.employee, self.other])
+        step = WorkTask.objects.create(
+            title='Bước bị từ chối',
+            assigner=self.leader,
+            assignee=self.employee,
+            project=project,
+            step_order=1,
+            status=WorkTask.STATUS_PENDING_ACK,
+        )
+
+        self.client.force_login(self.employee)
+        self.client.post(reverse('tasks:project_step', args=[step.pk]), {
+            'action': 'reject',
+            'reject_reason': 'Không đủ thời gian',
+        })
+        step.refresh_from_db()
+        self.assertEqual(step.status, WorkTask.STATUS_REJECTED)
+        self.assertEqual(step.reject_reason, 'Không đủ thời gian')
+
+        self.client.force_login(self.leader)
+        response = self.client.post(reverse('tasks:project_reassign', args=[step.pk]), {
+            'assignee': self.other.pk,
+        })
+        self.assertEqual(response.status_code, 302)
+        step.refresh_from_db()
+        self.assertEqual(step.status, WorkTask.STATUS_REASSIGNED)
+        new_step = step.replaced_by
+        self.assertIsNotNone(new_step)
+        self.assertEqual(new_step.assignee, self.other)
+        self.assertEqual(new_step.reassigned_from, step)
+        self.assertEqual(new_step.project, project)
+        self.assertEqual(new_step.reject_reason, '')
+
+        response = self.client.get(reverse('tasks:project_step', args=[new_step.pk]))
+        self.assertContains(response, 'Không đủ thời gian')
+        self.assertContains(response, self.employee.username)
 
     def test_personal_list_excludes_project_steps(self):
         project = InternalProject.objects.create(title='Mixed', owner=self.leader)

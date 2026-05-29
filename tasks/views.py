@@ -328,7 +328,10 @@ def task_detail(request, pk):
                 task.reject_reason = reject_form.cleaned_data['reject_reason']
                 task.save(update_fields=['status', 'reject_reason', 'updated_at'])
                 log_task_action(task, request.user, WorkTaskLog.ACTION_REJECT, task.reject_reason)
-                messages.warning(request, 'Đã từ chối công việc. Cấp trên có thể giao lại cho người khác.')
+                if is_project_step:
+                    messages.warning(request, 'Đã từ chối bước. Chủ dự án có thể giao cho người khác — vẫn lưu vết bạn từ chối.')
+                else:
+                    messages.warning(request, 'Đã từ chối công việc. Cấp trên có thể giao lại cho người khác.')
                 return _redirect_task_detail(task)
 
         if action == 'progress' and is_assignee and task.status in {
