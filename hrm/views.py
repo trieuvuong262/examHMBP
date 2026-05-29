@@ -26,6 +26,14 @@ import random
 import string
 
 
+def _divisions_meta():
+    return list(
+        Division.objects.filter(is_active=True)
+        .order_by('sort_order', 'name')
+        .values('id', 'name', 'department_id')
+    )
+
+
 def _profile_fields_from_form(form):
     return {
         'employee_code': form.cleaned_data.get('employee_code') or None,
@@ -86,8 +94,9 @@ def user_add(request):
         form = CustomUserForm()
     
     return render(request, 'assessment/admin/user_form.html', {
-        'form': form, 
-        'title': 'Thêm nhân viên mới'
+        'form': form,
+        'title': 'Thêm nhân viên mới',
+        'divisions_meta': _divisions_meta(),
     })
 
 @admin_only
@@ -161,10 +170,11 @@ def user_edit(request, user_id):
         form.fields['password'].required = False
 
     return render(request, 'assessment/admin/user_form.html', {
-        'form': form, 
+        'form': form,
         'title': 'Chỉnh sửa nhân sự',
         'is_edit': True,
-        'user_instance': user_obj # Truyền thêm để template nếu cần dùng ID
+        'user_instance': user_obj,
+        'divisions_meta': _divisions_meta(),
     })
 @admin_only
 def user_delete(request, user_id):
@@ -345,7 +355,7 @@ def org_structure(request):
     departments = Department.objects.annotate(
         staff_count=Count('profiles'),
     ).order_by('sort_order', 'name')
-    divisions = Division.objects.annotate(
+    divisions = Division.objects.select_related('department').annotate(
         staff_count=Count('division_profiles'),
     ).order_by('sort_order', 'name')
     return render(request, 'assessment/admin/org_structure.html', {

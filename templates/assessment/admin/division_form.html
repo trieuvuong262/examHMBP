@@ -19,6 +19,11 @@
                     <form method="post" novalidate>
                         {% csrf_token %}
                         <div class="mb-4">
+                            <label class="form-label fw-bold small text-secondary">Phòng ban <span class="text-danger">*</span></label>
+                            {{ form.department }}
+                            {% if form.department.errors %}<div class="text-danger small mt-1">{{ form.department.errors }}</div>{% endif %}
+                        </div>
+                        <div class="mb-4">
                             <label class="form-label fw-bold small text-secondary">Tên bộ phận <span class="text-danger">*</span></label>
                             {{ form.name }}
                             {% if form.name.errors %}<div class="text-danger small mt-1">{{ form.name.errors }}</div>{% endif %}

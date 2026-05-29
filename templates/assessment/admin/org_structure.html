@@ -104,6 +104,7 @@
                 <thead class="bg-light text-uppercase small">
                     <tr>
                         <th class="ps-4 py-3 text-muted">STT</th>
+                        <th class="text-muted">Phòng ban</th>
                         <th class="text-muted">Tên bộ phận</th>
                         <th class="text-muted text-center">Nhân viên</th>
                         <th class="text-muted text-center">Thứ tự</th>
@@ -115,6 +116,7 @@
                     {% for div in divisions %}
                     <tr>
                         <td class="ps-4 fw-bold text-muted">{{ forloop.counter }}</td>
+                        <td class="text-muted">{{ div.department.name|default:"—" }}</td>
                         <td class="fw-semibold">{{ div.name }}</td>
                         <td class="text-center"><span class="badge bg-light text-dark border">{{ div.staff_count }}</span></td>
                         <td class="text-center text-muted">{{ div.sort_order }}</td>
@@ -134,7 +136,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center py-5 text-muted">Chưa có bộ phận. <a href="{% url 'division_add' %}">Thêm bộ phận</a></td>
+                        <td colspan="7" class="text-center py-5 text-muted">Chưa có bộ phận. <a href="{% url 'division_add' %}">Thêm bộ phận</a></td>
                     </tr>
                     {% endfor %}
                 </tbody>

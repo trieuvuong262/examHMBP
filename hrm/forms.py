@@ -105,10 +105,25 @@ class CustomUserForm(forms.Form):
         self.fields['department'].queryset = dept_qs.order_by('sort_order', 'name')
 
         div_qs = Division.objects.filter(is_active=True)
-        if self.initial.get('division'):
+        current_div_pk = None
+        if self.data.get('division'):
+            current_div_pk = self.data.get('division')
+        elif self.initial.get('division'):
             current = self.initial['division']
-            current_pk = current.pk if isinstance(current, Division) else current
-            div_qs = Division.objects.filter(Q(is_active=True) | Q(pk=current_pk))
+            current_div_pk = current.pk if isinstance(current, Division) else current
+        if current_div_pk:
+            div_qs = Division.objects.filter(Q(is_active=True) | Q(pk=current_div_pk))
+
+        dept_pk = None
+        if self.data.get('department'):
+            dept_pk = self.data.get('department')
+        elif self.initial.get('department'):
+            selected_dept = self.initial['department']
+            dept_pk = selected_dept.pk if isinstance(selected_dept, Department) else selected_dept
+        if dept_pk:
+            div_qs = div_qs.filter(
+                Q(department_id=dept_pk) | Q(department__isnull=True) | Q(pk=current_div_pk)
+            )
         self.fields['division'].queryset = div_qs.order_by('sort_order', 'name')
 
         self.fields['subordinates'].label_from_instance = lambda obj: (
@@ -134,6 +149,14 @@ class CustomUserForm(forms.Form):
         if qs.exists():
             raise forms.ValidationError('Mã NS này đã được sử dụng!')
         return code
+
+    def clean(self):
+        cleaned = super().clean()
+        department = cleaned.get('department')
+        division = cleaned.get('division')
+        if division and department and division.department_id and division.department_id != department.pk:
+            self.add_error('division', 'Bộ phận không thuộc phòng ban đã chọn.')
+        return cleaned
 
 
 class DepartmentForm(forms.ModelForm):
@@ -166,25 +189,34 @@ class DepartmentForm(forms.ModelForm):
 class DivisionForm(forms.ModelForm):
     class Meta:
         model = Division
-        fields = ['name', 'sort_order', 'is_active']
+        fields = ['department', 'name', 'sort_order', 'is_active']
         widgets = {
+            'department': forms.Select(attrs=SELECT),
             'name': forms.TextInput(attrs={**INPUT, 'placeholder': 'VD: QC'}),
             'sort_order': forms.NumberInput(attrs={**INPUT, 'min': 0}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         labels = {
+            'department': 'Phòng ban',
             'name': 'Tên bộ phận',
             'sort_order': 'Thứ tự hiển thị',
             'is_active': 'Đang sử dụng',
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['department'].queryset = Department.objects.filter(is_active=True).order_by('sort_order', 'name')
+        self.fields['department'].empty_label = '-- Chọn phòng ban --'
+        self.fields['department'].required = True
+
     def clean_name(self):
         name = (self.cleaned_data.get('name') or '').strip()
         if not name:
             raise forms.ValidationError('Tên bộ phận không được để trống.')
-        qs = Division.objects.filter(name__iexact=name)
+        department = self.cleaned_data.get('department')
+        qs = Division.objects.filter(name__iexact=name, department=department)
         if self.instance.pk:
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
-            raise forms.ValidationError('Bộ phận này đã tồn tại.')
+            raise forms.ValidationError('Bộ phận này đã tồn tại trong phòng ban đã chọn.')
         return name

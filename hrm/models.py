@@ -71,7 +71,15 @@ class Department(models.Model):
 
 
 class Division(models.Model):
-    name = models.CharField(max_length=150, unique=True, verbose_name='Tên bộ phận')
+    department = models.ForeignKey(
+        Department,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='divisions',
+        verbose_name='Phòng ban',
+    )
+    name = models.CharField(max_length=150, verbose_name='Tên bộ phận')
     is_active = models.BooleanField(default=True, verbose_name='Đang sử dụng')
     sort_order = models.PositiveIntegerField(default=0, verbose_name='Thứ tự hiển thị')
 
@@ -79,8 +87,16 @@ class Division(models.Model):
         ordering = ['sort_order', 'name']
         verbose_name = 'Bộ phận'
         verbose_name_plural = 'Bộ phận'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['department', 'name'],
+                name='hrm_division_department_name_uniq',
+            ),
+        ]
 
     def __str__(self):
+        if self.department_id:
+            return f'{self.name} ({self.department.name})'
         return self.name
 
     @property
