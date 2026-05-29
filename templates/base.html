@@ -27,7 +27,7 @@
 
 {% if user.is_authenticated %}
 <div class="jp-app-shell">
-    <aside class="jp-sidebar d-none d-lg-flex" aria-label="Sidebar">
+    <aside class="jp-sidebar d-none d-lg-block" aria-label="Sidebar">
         {% include "includes/portal_sidebar.html" %}
     </aside>
 
@@ -82,7 +82,7 @@
     </div>
 </nav>
 
-<main class="flex-grow-1">
+<main class="jp-main-content flex-grow-1">
 {% endif %}
 
             {% include "includes/flash_messages.html" %}
