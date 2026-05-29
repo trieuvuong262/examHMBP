@@ -161,3 +161,44 @@ def portal_admin_denied_message() -> str:
         'Chức năng dành cho Phòng Nhân sự / Quản trị hệ thống. '
         'Liên hệ HR hoặc IT nếu bạn cần quyền truy cập.'
     )
+
+
+def _has_tasks_module_access(user) -> bool:
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    from hrm.module_permissions import MODULE_TASKS
+    from hrm.role_permissions import user_can_view_module
+    return user_can_view_module(user, MODULE_TASKS)
+
+
+def get_task_assignable_users(assigner):
+    """Nhân viên có thể được giao việc — cùng danh sách cấp dưới trực tiếp."""
+    return get_report_team_users(assigner)
+
+
+def has_task_subordinates(user) -> bool:
+    return get_task_assignable_users(user).exists()
+
+
+def can_assign_tasks(user) -> bool:
+    """Giao việc — cần quyền cập nhật module Công việc và có cấp dưới trực tiếp (kể cả Giám đốc)."""
+    if not _has_tasks_module_access(user):
+        return False
+    from hrm.module_permissions import MODULE_TASKS
+    from hrm.role_permissions import user_can_edit_module
+    return user_can_edit_module(user, MODULE_TASKS) and has_task_subordinates(user)
+
+
+def can_view_task(user, task) -> bool:
+    if not _has_tasks_module_access(user):
+        return False
+    if task.assignee_id == user.id or task.assigner_id == user.id:
+        return True
+    return False
+
+
+def can_manage_assigned_task(user, task) -> bool:
+    """Người giao việc — duyệt, hủy, giao lại."""
+    if not _has_tasks_module_access(user):
+        return False
+    return task.assigner_id == user.id

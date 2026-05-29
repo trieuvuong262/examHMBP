@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from announcements.models import Announcement, AnnouncementRead
 from hrm.permissions import (
+    can_assign_tasks,
     can_submit_daily_report,
     can_view_team_reports,
     get_profile,
@@ -13,8 +14,10 @@ from hrm.permissions import (
     is_gm,
     is_hod,
 )
+from hrm.module_permissions import MODULE_TASKS, user_can_access_module
 from kpi.models import KpiPeriod, YearlyKpi
 from reports.models import DailyWorkReport
+from tasks.models import WorkTask
 
 _PERIOD_STATUS_FIELD = {
     'Q1': 'q1_status',
@@ -120,6 +123,68 @@ def get_portal_dashboard(user):
                 'text': text,
                 'url': reverse('reports:today'),
                 'action': 'Nhập báo cáo',
+            })
+
+    # --- Công việc: việc chờ xác nhận / chờ duyệt ---
+    if user_can_access_module(user, MODULE_TASKS):
+        if can_assign_tasks(user):
+            pending_review = WorkTask.objects.filter(
+                assigner=user,
+                status=WorkTask.STATUS_PENDING_REVIEW,
+            ).count()
+            rejected = WorkTask.objects.filter(
+                assigner=user,
+                status=WorkTask.STATUS_REJECTED,
+            ).count()
+            if pending_review:
+                widgets.append({
+                    'level': 'info',
+                    'icon': 'bi-list-check',
+                    'title': 'Công việc chờ duyệt',
+                    'text': f'{pending_review} việc đã nộp — cần duyệt hoặc yêu cầu sửa.',
+                    'url': reverse('tasks:assigned') + '?status=pending_review',
+                    'action': 'Duyệt việc',
+                    'badge': pending_review,
+                })
+            if rejected:
+                widgets.append({
+                    'level': 'warning',
+                    'icon': 'bi-arrow-repeat',
+                    'title': 'Việc bị từ chối',
+                    'text': f'{rejected} việc bị từ chối — có thể giao lại cho người khác.',
+                    'url': reverse('tasks:assigned') + '?status=rejected',
+                    'action': 'Giao lại',
+                    'badge': rejected,
+                })
+
+        pending_ack = WorkTask.objects.filter(
+            assignee=user,
+            status=WorkTask.STATUS_PENDING_ACK,
+        ).count()
+        if pending_ack:
+            widgets.append({
+                'level': 'warning',
+                'icon': 'bi-bell-fill',
+                'title': 'Việc chờ xác nhận',
+                'text': f'Có {pending_ack} công việc mới cần bạn xác nhận hoặc từ chối.',
+                'url': reverse('tasks:my') + '?status=pending_ack',
+                'action': 'Xem việc',
+                'badge': pending_ack,
+            })
+
+        revision_count = WorkTask.objects.filter(
+            assignee=user,
+            status=WorkTask.STATUS_REVISION,
+        ).count()
+        if revision_count:
+            widgets.append({
+                'level': 'danger',
+                'icon': 'bi-pencil-square',
+                'title': 'Việc cần sửa',
+                'text': f'{revision_count} công việc cần bạn sửa và nộp lại.',
+                'url': reverse('tasks:my') + '?status=revision',
+                'action': 'Sửa việc',
+                'badge': revision_count,
             })
 
     # --- KPI cá nhân ---

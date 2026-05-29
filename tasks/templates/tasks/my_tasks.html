@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-tasks-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-list-check me-2"></i>Việc của tôi</h2>
+            <p class="text-muted mb-0 jp-hide-mobile-subtitle">Công việc được giao trực tiếp cho bạn.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            {% if can_assign %}
+            <a href="{% url 'tasks:assigned' %}" class="btn btn-outline-hm btn-sm">Việc đã giao</a>
+            <a href="{% url 'tasks:assign' %}" class="btn btn-hm btn-sm"><i class="bi bi-plus-lg me-1"></i>Giao việc</a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if pending_ack_count %}
+    <div class="alert alert-warning border-0 shadow-sm d-flex align-items-center gap-2">
+        <i class="bi bi-bell-fill"></i>
+        <span>Có <strong>{{ pending_ack_count }}</strong> việc chờ bạn xác nhận.</span>
+    </div>
+    {% endif %}
+
+    <div class="jp-tab-pills mb-3 d-flex flex-wrap gap-2">
+        {% for key, label in status_tabs %}
+        <a href="?{% if key %}status={{ key }}{% endif %}"
+           class="btn btn-sm {% if current_status == key %}btn-hm{% else %}btn-outline-secondary{% endif %}">
+            {{ label }}
+        </a>
+        {% endfor %}
+    </div>
+
+    <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Tiêu đề</th>
+                        <th>Người giao</th>
+                        <th>Ưu tiên</th>
+                        <th>Hạn</th>
+                        <th>Trạng thái</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for task in page_obj %}
+                    <tr class="{% if task.is_overdue %}table-danger-subtle{% endif %}">
+                        <td>
+                            <strong>{{ task.title }}</strong>
+                            {% if task.is_overdue %}<span class="badge bg-danger ms-1">Quá hạn</span>{% endif %}
+                        </td>
+                        <td>{{ task.assigner.profile.full_name|default:task.assigner.username }}</td>
+                        <td><span class="badge bg-light text-dark border">{{ task.get_priority_display }}</span></td>
+                        <td>{{ task.due_date|date:"d/m/Y"|default:"—" }}</td>
+                        <td><span class="badge {{ task.status_badge_class }}">{{ task.get_status_display }}</span></td>
+                        <td class="text-end">
+                            <a href="{% url 'tasks:detail' task.pk %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-5">Chưa có công việc nào.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer bg-white border-top py-3">
+            {% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

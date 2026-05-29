@@ -23,6 +23,7 @@ MODULE_GUIDE = 'guide'
 MODULE_DOCUMENTS = 'documents'
 MODULE_PERMISSIONS = 'permissions'
 MODULE_AUDIT = 'audit'
+MODULE_TASKS = 'tasks'
 
 MODULE_CHOICES = [
     (MODULE_ANNOUNCEMENTS, 'Thông báo'),
@@ -70,6 +71,7 @@ PATH_MODULE_RULES = [
     ('/huong-dan/', MODULE_GUIDE),
     ('/tai-lieu/', MODULE_DOCUMENTS),
     ('/nhat-ky/', MODULE_AUDIT),
+    ('/cong-viec/', MODULE_TASKS),
 ]
 
 DASHBOARD_TAB_MODULES = {

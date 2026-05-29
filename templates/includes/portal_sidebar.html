@@ -114,6 +114,13 @@
             </a>
         </li>
         {% endif %}
+        {% if jp_can_tasks %}
+        <li>
+            <a href="{% url 'tasks:hub' %}" class="jp-sidebar-link {% if 'cong-viec' in request.path %}active{% endif %}">
+                <i class="bi bi-list-check"></i><span>Công việc</span>
+            </a>
+        </li>
+        {% endif %}
         {% if jp_can_guide %}
         <li>
             <a href="{% url 'user_guide' %}" class="jp-sidebar-link {% if 'huong-dan' in request.path %}active{% endif %}">

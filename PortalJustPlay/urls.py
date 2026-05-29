@@ -15,6 +15,7 @@ urlpatterns = [
     path('training/', include('training.urls')),
     path('hr/', include('recruitment.urls')),
     path('reports/', include('reports.urls')),
+    path('cong-viec/', include('tasks.urls')),
     path('change-password/', MyPasswordChangeView.as_view(template_name='registration/password_change_form.html'), name='password_change'),
     path('change-password/done/', auth_views.PasswordChangeDoneView.as_view(template_name='registration/password_change_done.html'), name='password_change_done'),
     path('kpi/', include('kpi.urls')),

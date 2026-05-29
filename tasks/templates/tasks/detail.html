@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-tasks-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ task.title }}</h2>
+            <p class="text-muted mb-0">
+                <span class="badge {{ task.status_badge_class }}">{{ task.get_status_display }}</span>
+                · Giao bởi {{ task.assigner.profile.full_name|default:task.assigner.username }}
+                · Nhận: {{ task.assignee.profile.full_name|default:task.assignee.username }}
+            </p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            {% if is_assigner %}
+            <a href="{% url 'tasks:assigned' %}" class="btn btn-outline-hm btn-sm">Việc đã giao</a>
+            {% else %}
+            <a href="{% url 'tasks:my' %}" class="btn btn-outline-hm btn-sm">Việc của tôi</a>
+            {% endif %}
+            {% if is_assigner and task.status == 'rejected' %}
+            <a href="{% url 'tasks:reassign' task.pk %}" class="btn btn-hm btn-sm">Giao lại</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body p-3 p-md-4">
+                    <div class="row g-3 mb-3">
+                        <div class="col-sm-6">
+                            <small class="text-muted d-block">Loại việc</small>
+                            <strong>{{ task.get_task_type_display }}</strong>
+                        </div>
+                        <div class="col-sm-6">
+                            <small class="text-muted d-block">Ưu tiên</small>
+                            <strong>{{ task.get_priority_display }}</strong>
+                        </div>
+                        <div class="col-sm-6">
+                            <small class="text-muted d-block">Hạn hoàn thành</small>
+                            <strong class="{% if task.is_overdue %}text-danger{% endif %}">
+                                {{ task.due_date|date:"d/m/Y"|default:"—" }}
+                            </strong>
+                        </div>
+                        <div class="col-sm-6">
+                            <small class="text-muted d-block">Tiến độ</small>
+                            <div class="progress mt-1" style="height: 8px;">
+                                <div class="progress-bar bg-hm" style="width: {{ task.progress_percent }}%"></div>
+                            </div>
+                            <small>{{ task.progress_percent }}%</small>
+                        </div>
+                    </div>
+                    {% if task.order_code or task.product_name %}
+                    <div class="row g-3 mb-3">
+                        {% if task.order_code %}
+                        <div class="col-sm-6">
+                            <small class="text-muted d-block">Mã đơn / Style</small>
+                            <strong>{{ task.order_code }}</strong>
+                        </div>
+                        {% endif %}
+                        {% if task.product_name %}
+                        <div class="col-sm-6">
+                            <small class="text-muted d-block">Tên SP / hạng mục</small>
+                            <strong>{{ task.product_name }}</strong>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    {% if task.description %}
+                    <div class="mb-3">
+                        <small class="text-muted d-block mb-1">Mô tả</small>
+                        <div class="jp-task-description">{{ task.description|linebreaksbr }}</div>
+                    </div>
+                    {% endif %}
+                    {% if task.result_note %}
+                    <div class="mb-3">
+                        <small class="text-muted d-block mb-1">Kết quả / báo cáo</small>
+                        <div class="jp-task-result">{{ task.result_note|linebreaksbr }}</div>
+                    </div>
+                    {% endif %}
+                    {% if task.reject_reason %}
+                    <div class="alert alert-danger border-0">
+                        <strong>Lý do từ chối:</strong> {{ task.reject_reason|linebreaksbr }}
+                    </div>
+                    {% endif %}
+                    {% if task.review_note %}
+                    <div class="alert alert-info border-0">
+                        <strong>Ghi chú duyệt:</strong> {{ task.review_note|linebreaksbr }}
+                    </div>
+                    {% endif %}
+                    {% if task.reassigned_from %}
+                    <p class="small text-muted mb-0">
+                        Giao lại từ công việc #{{ task.reassigned_from_id }}
+                        {% if task.reassigned_from.assignee %}
+                        (từ chối bởi {{ task.reassigned_from.assignee.profile.full_name|default:task.reassigned_from.assignee.username }})
+                        {% endif %}
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if is_assignee and task.status == 'pending_ack' %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white fw-bold">Xác nhận công việc</div>
+                <div class="card-body d-flex flex-wrap gap-2">
+                    <form method="post">{% csrf_token %}<input type="hidden" name="action" value="acknowledge">
+                        <button type="submit" class="btn btn-hm">Xác nhận nhận việc</button>
+                    </form>
+                    <button type="button" class="btn btn-outline-danger" data-bs-toggle="collapse" data-bs-target="#rejectForm">Từ chối</button>
+                </div>
+                <div class="collapse" id="rejectForm">
+                    <div class="card-body border-top">
+                        <form method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="reject">
+                            <label class="form-label fw-bold">{{ reject_form.reject_reason.label }}</label>
+                            {{ reject_form.reject_reason }}
+                            <button type="submit" class="btn btn-danger mt-2">Gửi từ chối</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if is_assignee %}
+            {% if task.status == 'in_progress' or task.status == 'revision' %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white fw-bold">Cập nhật tiến độ</div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="progress">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">{{ progress_form.progress_percent.label }}</label>
+                                {{ progress_form.progress_percent }}
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">{{ progress_form.result_note.label }}</label>
+                                {{ progress_form.result_note }}
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-outline-hm mt-3">Lưu tiến độ</button>
+                    </form>
+                </div>
+            </div>
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white fw-bold">Nộp hoàn thành</div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="submit">
+                        <label class="form-label">{{ submit_form.result_note.label }}</label>
+                        {{ submit_form.result_note }}
+                        <button type="submit" class="btn btn-hm mt-3">Nộp chờ duyệt</button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+            {% endif %}
+
+            {% if is_assigner and task.status == 'pending_review' %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white fw-bold">Duyệt công việc</div>
+                <div class="card-body">
+                    <form method="post" class="mb-3">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="approve">
+                        <label class="form-label">{{ review_form.review_note.label }}</label>
+                        {{ review_form.review_note }}
+                        <button type="submit" class="btn btn-success mt-2">Duyệt hoàn thành</button>
+                    </form>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="revision">
+                        <label class="form-label">Ghi chú yêu cầu sửa <span class="text-danger">*</span></label>
+                        <textarea name="review_note" class="form-control" rows="3" required></textarea>
+                        <button type="submit" class="btn btn-warning mt-2">Yêu cầu sửa lại</button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if is_assigner and task.status != 'completed' and task.status != 'cancelled' and task.status != 'reassigned' %}
+            <form method="post" onsubmit="return confirm('Hủy công việc này?');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="cancel">
+                <button type="submit" class="btn btn-outline-secondary btn-sm">Hủy công việc</button>
+            </form>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-4">
+            {% if batch_siblings %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white fw-bold small">Cùng đợt giao</div>
+                <ul class="list-group list-group-flush">
+                    {% for s in batch_siblings %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>{{ s.assignee.profile.full_name|default:s.assignee.username }}</span>
+                        <a href="{% url 'tasks:detail' s.pk %}" class="btn btn-sm btn-link">#{{ s.pk }}</a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white fw-bold">Nhật ký</div>
+                <ul class="list-group list-group-flush jp-task-log">
+                    {% for log in logs %}
+                    <li class="list-group-item">
+                        <div class="small text-muted">{{ log.created_at|date:"d/m/Y H:i" }}</div>
+                        <strong>{{ log.get_action_display }}</strong>
+                        {% if log.actor %}
+                        <span class="text-muted">— {{ log.actor.profile.full_name|default:log.actor.username }}</span>
+                        {% endif %}
+                        {% if log.message %}<div class="small mt-1">{{ log.message|linebreaksbr }}</div>{% endif %}
+                    </li>
+                    {% empty %}
+                    <li class="list-group-item text-muted small">Chưa có nhật ký.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

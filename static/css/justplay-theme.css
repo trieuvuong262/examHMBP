@@ -4201,6 +4201,68 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     color: var(--jp-text-primary);
 }
 
+/* --- Tasks (/cong-viec/) — dark mode --- */
+[data-theme="dark"] .jp-tasks-page {
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .jp-tasks-page .card,
+[data-theme="dark"] .jp-tasks-page .card-header.bg-white {
+    background: var(--jp-surface-bg) !important;
+    border-color: var(--jp-surface-border);
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .jp-tasks-page .card-footer.bg-white {
+    background: var(--jp-surface-bg) !important;
+    border-color: var(--jp-surface-border) !important;
+}
+
+[data-theme="dark"] .jp-tasks-page .table-light,
+[data-theme="dark"] .jp-tasks-page thead.table-light {
+    background: var(--jp-table-head-bg) !important;
+    color: var(--jp-text-secondary);
+    border-color: var(--jp-surface-border);
+}
+
+[data-theme="dark"] .jp-tasks-page .table {
+    color: var(--jp-text-primary);
+    border-color: var(--jp-surface-border);
+}
+
+[data-theme="dark"] .jp-tasks-page .table td,
+[data-theme="dark"] .jp-tasks-page .table th {
+    border-color: var(--jp-surface-border);
+}
+
+[data-theme="dark"] .jp-tasks-page .table-hover tbody tr:hover {
+    background: var(--jp-surface-muted);
+}
+
+[data-theme="dark"] .jp-tasks-page .form-control,
+[data-theme="dark"] .jp-tasks-page .form-select {
+    background: var(--jp-input-bg);
+    border-color: var(--jp-input-border);
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .jp-tasks-page .jp-task-description,
+[data-theme="dark"] .jp-tasks-page .jp-task-result {
+    color: var(--jp-text-secondary);
+}
+
+[data-theme="dark"] .jp-tasks-page .list-group-item {
+    background: var(--jp-surface-bg);
+    border-color: var(--jp-surface-border);
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .jp-tasks-page .alert-light {
+    background: var(--jp-surface-muted) !important;
+    border-color: var(--jp-surface-border) !important;
+    color: var(--jp-text-primary);
+}
+
 /* --- HRM user form (/dashboard/users/edit/) — dark mode --- */
 [data-theme="dark"] .jp-user-form-page .jp-user-form-card,
 [data-theme="dark"] .jp-user-form-page .jp-user-form-card .card-header,

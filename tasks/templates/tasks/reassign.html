@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-tasks-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-arrow-repeat me-2"></i>Giao lại công việc</h2>
+            <p class="text-muted mb-0">{{ task.title }} — từ chối bởi {{ task.assignee.profile.full_name|default:task.assignee.username }}</p>
+        </div>
+        <a href="{% url 'tasks:detail' task.pk %}" class="btn btn-outline-hm btn-sm">Quay lại</a>
+    </div>
+
+    <div class="alert alert-light border shadow-sm mb-4">
+        <strong>Lý do từ chối:</strong> {{ task.reject_reason|linebreaksbr }}
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-3 p-md-4">
+            <form method="post">
+                {% csrf_token %}
+                <label class="form-label fw-bold">{{ form.assignee.label }}</label>
+                {{ form.assignee }}
+                {% if form.assignee.errors %}<div class="text-danger small">{{ form.assignee.errors }}</div>{% endif %}
+                <p class="form-text mt-2">Tạo bản ghi mới cho người được chọn; việc cũ chuyển sang trạng thái "Đã giao lại".</p>
+                <div class="mt-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-hm">Giao lại</button>
+                    <a href="{% url 'tasks:detail' task.pk %}" class="btn btn-outline-secondary">Hủy</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
