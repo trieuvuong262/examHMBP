@@ -6,9 +6,10 @@ from hrm.models import Department, DepartmentMenuPermission, Profile, RoleModule
 from hrm.module_permissions import (
     MODULE_HRM,
     MODULE_KPI,
+    MODULE_PERMISSIONS,
     MODULE_RECRUITMENT,
     MODULE_TRAINING,
-    can_manage_department_permissions,
+    can_manage_permissions,
     get_department_enabled_modules,
     resolve_module_from_request,
     user_can_access_module,
@@ -25,7 +26,7 @@ class PermissionLogicTests(TestCase):
 
         DepartmentMenuPermission.objects.create(
             department=self.dept_hr,
-            modules=['announcements', 'hrm', 'kpi', 'training', 'documents'],
+            modules=['announcements', 'hrm', 'kpi', 'training', 'documents', 'permissions'],
         )
         DepartmentMenuPermission.objects.create(
             department=self.dept_xuong,
@@ -96,7 +97,7 @@ class PermissionLogicTests(TestCase):
 
     def test_empty_department_modules_means_full_access(self):
         enabled = get_department_enabled_modules(self.dept_full)
-        self.assertEqual(len(enabled), 9)
+        self.assertEqual(len(enabled), 10)
         self.assertIn(MODULE_RECRUITMENT, enabled)
 
     def test_department_restricts_modules(self):
@@ -128,15 +129,44 @@ class PermissionLogicTests(TestCase):
     def test_resolve_module_urls(self):
         self.assertEqual(resolve_module_from_request('/dashboard/users/'), MODULE_HRM)
         self.assertEqual(resolve_module_from_request('/tai-lieu/'), 'documents')
-        self.assertEqual(resolve_module_from_request('/dashboard/permissions/roles/EMPLOYEE/'), None)
+        self.assertEqual(resolve_module_from_request('/dashboard/permissions/'), MODULE_PERMISSIONS)
+        self.assertEqual(
+            resolve_module_from_request('/dashboard/departments/1/permissions/'),
+            MODULE_PERMISSIONS,
+        )
+        self.assertEqual(resolve_module_from_request('/dashboard/permissions/roles/EMPLOYEE/'), MODULE_PERMISSIONS)
         self.assertEqual(
             resolve_module_from_request('/dashboard/', 'recruitment'),
             MODULE_RECRUITMENT,
         )
 
-    def test_can_manage_permissions_requires_hrm_edit(self):
-        self.assertTrue(can_manage_department_permissions(self.hr_editor))
-        self.assertFalse(can_manage_department_permissions(self.employee))
+    def test_can_manage_permissions_requires_permissions_edit(self):
+        RoleModulePermission.objects.update_or_create(
+            role=ROLE_DIRECTOR,
+            defaults={
+                'module_permissions': {
+                    'permissions': {'view': True, 'edit': True},
+                    'hrm': {'view': True, 'edit': True},
+                },
+            },
+        )
+        self.assertTrue(can_manage_permissions(self.hr_editor))
+        self.assertFalse(can_manage_permissions(self.employee))
+
+    def test_hrm_edit_without_permissions_module_cannot_manage(self):
+        """Có quyền HRM nhưng không có module Phân quyền — không vào cấu hình."""
+        RoleModulePermission.objects.update_or_create(
+            role=ROLE_DIRECTOR,
+            defaults={
+                'module_permissions': {
+                    'hrm': {'view': True, 'edit': True},
+                    'permissions': {'view': False, 'edit': False},
+                },
+            },
+        )
+        Profile.objects.filter(user=self.hr_editor).update(role=ROLE_DIRECTOR)
+        self.hr_editor.refresh_from_db()
+        self.assertFalse(can_manage_permissions(self.hr_editor))
 
     def test_role_permission_defaults_seeded(self):
         perms = get_role_permissions(ROLE_DIRECTOR)
@@ -192,6 +222,19 @@ class PermissionMiddlewareTests(TestCase):
         response = client.get('/dashboard/users/', follow=False)
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse('home_portal'))
+
+    def test_middleware_blocks_permission_config_without_module(self):
+        dept = Department.objects.create(name='MW Perm', sort_order=10)
+        DepartmentMenuPermission.objects.create(
+            department=dept,
+            modules=['announcements'],
+        )
+        user = User.objects.create_user(username='mw_perm', password='testpass123')
+        Profile.objects.filter(user=user).update(department=dept, role=ROLE_EMPLOYEE)
+        client = Client(HTTP_HOST='testserver')
+        client.force_login(user)
+        response = client.get('/dashboard/permissions/', follow=False)
+        self.assertEqual(response.status_code, 302)
 
     def test_admin_only_blocks_employee_from_user_list(self):
         client = Client(HTTP_HOST='testserver')

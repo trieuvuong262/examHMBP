@@ -13,6 +13,7 @@ from hrm.module_permissions import (
     MODULE_GUIDE,
     MODULE_HRM,
     MODULE_KPI,
+    MODULE_PERMISSIONS,
     MODULE_RECRUITMENT,
     MODULE_REPORTS,
     MODULE_TRAINING,
@@ -44,6 +45,7 @@ def default_role_permissions() -> dict:
         MODULE_REPORTS: _perm(True, False),
         MODULE_GUIDE: _perm(True, False),
         MODULE_DOCUMENTS: _perm(True, False),
+        MODULE_PERMISSIONS: _perm(False, False),
         MODULE_RECRUITMENT: _perm(False, False),
         MODULE_HRM: _perm(False, False),
     }

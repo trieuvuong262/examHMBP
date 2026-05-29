@@ -5,6 +5,7 @@ from hrm.module_permissions import (
     MODULE_GUIDE,
     MODULE_HRM,
     MODULE_KPI,
+    MODULE_PERMISSIONS,
     MODULE_RECRUITMENT,
     MODULE_REPORTS,
     MODULE_TRAINING,
@@ -51,6 +52,7 @@ def portal_permissions(request):
             'jp_can_reports': False,
             'jp_can_guide': False,
             'jp_can_documents': False,
+            'jp_can_permissions': False,
             'jp_can_edit_announcements': False,
             'jp_can_edit_recruitment': False,
             'jp_can_edit_training': False,
@@ -60,6 +62,7 @@ def portal_permissions(request):
             'jp_can_edit_reports': False,
             'jp_can_edit_guide': False,
             'jp_can_edit_documents': False,
+            'jp_can_edit_permissions': False,
             'jp_can_manage_permissions': False,
         }
     enabled = get_user_enabled_modules(user)
@@ -84,6 +87,7 @@ def portal_permissions(request):
         'jp_can_reports': user_can_access_module(user, MODULE_REPORTS),
         'jp_can_guide': user_can_access_module(user, MODULE_GUIDE),
         'jp_can_documents': user_can_access_module(user, MODULE_DOCUMENTS),
+        'jp_can_permissions': user_can_access_module(user, MODULE_PERMISSIONS),
         'jp_can_edit_announcements': user_can_edit_module(user, MODULE_ANNOUNCEMENTS),
         'jp_can_edit_recruitment': user_can_edit_module(user, MODULE_RECRUITMENT),
         'jp_can_edit_training': user_can_edit_module(user, MODULE_TRAINING),
@@ -93,5 +97,6 @@ def portal_permissions(request):
         'jp_can_edit_reports': user_can_edit_module(user, MODULE_REPORTS),
         'jp_can_edit_guide': user_can_edit_module(user, MODULE_GUIDE),
         'jp_can_edit_documents': user_can_edit_module(user, MODULE_DOCUMENTS),
-        'jp_can_manage_permissions': user_can_edit_module(user, MODULE_HRM) or bypass_department_modules(user),
+        'jp_can_edit_permissions': user_can_edit_module(user, MODULE_PERMISSIONS),
+        'jp_can_manage_permissions': user_can_edit_module(user, MODULE_PERMISSIONS) or bypass_department_modules(user),
     }

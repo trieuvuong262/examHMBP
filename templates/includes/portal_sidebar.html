@@ -128,20 +128,14 @@
             </a>
         </li>
         {% endif %}
+        {% if jp_can_permissions %}
+        <li>
+            <a href="{% url 'permission_config' %}" class="jp-sidebar-link {% if request.resolver_match.url_name == 'permission_config' or request.resolver_match.url_name == 'department_permissions' or request.resolver_match.url_name == 'role_permission_edit' %}active{% endif %}">
+                <i class="bi bi-shield-lock-fill"></i><span>Phân quyền</span>
+            </a>
+        </li>
+        {% endif %}
     </ul>
-
-    {% if jp_can_manage_permissions %}
-    <div class="jp-sidebar-section">
-        <div class="jp-sidebar-section-label">Quản trị</div>
-        <ul class="jp-sidebar-menu">
-            <li>
-                <a href="{% url 'permission_config' %}" class="jp-sidebar-link {% if request.resolver_match.url_name == 'permission_config' or request.resolver_match.url_name == 'department_permissions' %}active{% endif %}">
-                    <i class="bi bi-shield-lock-fill"></i><span>Phân quyền phòng ban</span>
-                </a>
-            </li>
-        </ul>
-    </div>
-    {% endif %}
 
     <div class="jp-sidebar-footer d-none d-lg-block">
         <a href="{% url 'password_change' %}" class="jp-sidebar-link jp-sidebar-link-muted">

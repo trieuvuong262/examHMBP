@@ -21,6 +21,7 @@ MODULE_KPI = 'kpi'
 MODULE_REPORTS = 'reports'
 MODULE_GUIDE = 'guide'
 MODULE_DOCUMENTS = 'documents'
+MODULE_PERMISSIONS = 'permissions'
 
 MODULE_CHOICES = [
     (MODULE_ANNOUNCEMENTS, 'Thông báo'),
@@ -32,6 +33,7 @@ MODULE_CHOICES = [
     (MODULE_REPORTS, 'Báo cáo'),
     (MODULE_GUIDE, 'Hướng dẫn'),
     (MODULE_DOCUMENTS, 'Tài liệu'),
+    (MODULE_PERMISSIONS, 'Phân quyền'),
 ]
 
 ALL_MODULE_KEYS = {key for key, _ in MODULE_CHOICES}
@@ -46,7 +48,6 @@ EXEMPT_PATH_PREFIXES = (
     '/static/',
     '/media/',
     '/login-redirect/',
-    '/dashboard/permissions/',
 )
 
 # Map prefix URL → module (thứ tự quan trọng — dài/specific trước)
@@ -152,6 +153,12 @@ def resolve_module_from_request(path: str, tab: str | None = None) -> str | None
         if path.startswith(prefix):
             return None
 
+    if path.startswith('/dashboard/permissions'):
+        return MODULE_PERMISSIONS
+
+    if '/departments/' in path and path.rstrip('/').endswith('/permissions'):
+        return MODULE_PERMISSIONS
+
     for prefix, module_key in PATH_MODULE_RULES:
         if path.startswith(prefix):
             return module_key
@@ -186,8 +193,13 @@ def handle_department_access_denied(request, module_key: str):
     return redirect('home_portal')
 
 
-def can_manage_department_permissions(user) -> bool:
-    """HR/quản trị — cấu hình phân quyền phòng ban & vai trò."""
+def can_manage_permissions(user) -> bool:
+    """Quyền cập nhật cấu hình phân quyền (phòng ban + vai trò)."""
     if bypass_department_modules(user):
         return True
-    return user_can_edit_module(user, MODULE_HRM)
+    return user_can_edit_module(user, MODULE_PERMISSIONS)
+
+
+def can_manage_department_permissions(user) -> bool:
+    """Alias tương thích."""
+    return can_manage_permissions(user)

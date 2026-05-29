@@ -5,7 +5,7 @@ from django.http import JsonResponse
 from django.shortcuts import redirect
 
 from hrm.module_permissions import (
-    MODULE_HRM,
+    MODULE_PERMISSIONS,
     bypass_department_modules,
     resolve_module_from_request,
     user_can_edit_module,
@@ -32,14 +32,11 @@ def _user_can_admin_request(request) -> bool:
         return True
 
     path = request.path
-    if path.startswith('/dashboard/permissions/'):
-        return user_can_edit_module(user, MODULE_HRM)
-
     module = resolve_module_from_request(path, request.GET.get('tab'))
     if module:
         return user_can_edit_module(user, module)
 
-    return user_can_edit_module(user, MODULE_HRM)
+    return user_can_edit_module(user, MODULE_PERMISSIONS)
 
 
 def admin_only(view_func):
