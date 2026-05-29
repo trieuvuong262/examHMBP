@@ -3,6 +3,7 @@ import pandas as pd
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.models import User
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import PasswordChangeView
 from django.urls import reverse_lazy, reverse
 from django.contrib.auth import logout
@@ -667,6 +668,44 @@ class MyPasswordChangeView(PasswordChangeView):
             profile.save(update_fields=['must_change_password'])
         messages.success(self.request, "Mật khẩu đã được thay đổi thành công!")
         return response
+
+
+AVATAR_MAX_SIZE = 5 * 1024 * 1024
+
+
+@login_required
+def update_avatar(request):
+    if request.method != 'POST':
+        return redirect('home_portal')
+
+    upload = request.FILES.get('avatar')
+    if not upload:
+        messages.warning(request, 'Chưa chọn hình ảnh avatar.')
+        return redirect(request.POST.get('next') or request.META.get('HTTP_REFERER') or reverse('home_portal'))
+
+    from tasks.attachment_utils import validate_image_file
+    from django.core.exceptions import ValidationError
+
+    try:
+        validate_image_file(upload)
+    except ValidationError as exc:
+        messages.error(request, '; '.join(getattr(exc, 'messages', [str(exc)])))
+        return redirect(request.POST.get('next') or request.META.get('HTTP_REFERER') or reverse('home_portal'))
+
+    if upload.size > AVATAR_MAX_SIZE:
+        messages.error(request, 'Ảnh avatar tối đa 5 MB.')
+        return redirect(request.POST.get('next') or request.META.get('HTTP_REFERER') or reverse('home_portal'))
+
+    profile = getattr(request.user, 'profile', None)
+    if not profile:
+        messages.error(request, 'Không tìm thấy hồ sơ nhân viên.')
+        return redirect('home_portal')
+
+    profile.avatar = upload
+    profile.save(update_fields=['avatar'])
+    messages.success(request, 'Đã cập nhật avatar.')
+    return redirect(request.POST.get('next') or request.META.get('HTTP_REFERER') or reverse('home_portal'))
+
 
 def custom_logout(request):
     logout(request)

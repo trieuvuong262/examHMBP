@@ -47,6 +47,7 @@ MODULE_LABELS = dict(MODULE_CHOICES)
 EXEMPT_PATH_PREFIXES = (
     '/accounts/',
     '/change-password',
+    '/profile/avatar',
     '/admin-panel/',
     '/static/',
     '/media/',

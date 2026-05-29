@@ -11,11 +11,7 @@
     <div class="jp-sidebar-profile">
         <div class="jp-sidebar-profile-card">
             <div class="jp-sidebar-profile-avatar-wrap">
-                <span class="jp-sidebar-profile-avatar" aria-hidden="true">
-                    {% with display_name=profile.full_name|default:user.get_full_name|default:user.first_name|default:user.username %}
-                    {{ display_name|make_list|first|upper }}
-                    {% endwith %}
-                </span>
+                {% include 'includes/profile_avatar.html' with profile=profile user=user %}
                 <span class="jp-sidebar-profile-status" title="Đang hoạt động"></span>
             </div>
             <div class="jp-sidebar-profile-body">
@@ -156,10 +152,18 @@
         {% endif %}
     </ul>
 
-    <div class="jp-sidebar-footer d-none d-lg-block">
+    <div class="jp-sidebar-footer">
         <a href="{% url 'password_change' %}" class="jp-sidebar-link jp-sidebar-link-muted">
             <i class="bi bi-shield-lock"></i><span>Đổi mật khẩu</span>
         </a>
+        <form action="{% url 'update_avatar' %}" method="post" enctype="multipart/form-data" class="m-0 jp-sidebar-avatar-form">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <input type="file" name="avatar" class="d-none" accept="image/*" data-jp-avatar-input>
+            <button type="button" class="jp-sidebar-link jp-sidebar-link-muted w-100 border-0 bg-transparent text-start" data-jp-avatar-trigger>
+                <i class="bi bi-camera"></i><span>Cập nhật avatar</span>
+            </button>
+        </form>
         <form action="{% url 'logout' %}" method="POST" class="m-0">
             {% csrf_token %}
             <button type="submit" class="jp-sidebar-link jp-sidebar-link-muted jp-sidebar-logout w-100 border-0 bg-transparent text-start">

@@ -1,0 +1,8 @@
+{% load static %}
+{% with display_name=profile.full_name|default:user.get_full_name|default:user.first_name|default:user.username %}
+{% if profile.avatar %}
+<img src="{{ profile.avatar.url }}" alt="{{ display_name }}" class="jp-sidebar-profile-avatar jp-sidebar-profile-avatar-img">
+{% else %}
+<span class="jp-sidebar-profile-avatar" aria-hidden="true">{{ display_name|make_list|first|upper }}</span>
+{% endif %}
+{% endwith %}

@@ -258,3 +258,24 @@ class RolePermissionFormTests(TestCase):
         perms = form.cleaned_permissions()
         self.assertTrue(perms[MODULE_HRM]['view'])
         self.assertTrue(perms[MODULE_HRM]['edit'])
+
+
+class ProfileAvatarTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='avatar_user', password='testpass123')
+        Profile.objects.filter(user=self.user).update(full_name='Avatar Test')
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    def test_update_avatar(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        image = SimpleUploadedFile('me.jpg', b'jpeg-bytes', content_type='image/jpeg')
+        response = self.client.post(reverse('update_avatar'), {
+            'avatar': image,
+            'next': '/',
+        })
+        self.assertEqual(response.status_code, 302)
+        self.user.profile.refresh_from_db()
+        self.assertTrue(self.user.profile.avatar)
+        self.assertIn('me', self.user.profile.avatar.name)

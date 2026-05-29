@@ -166,6 +166,12 @@ class Profile(models.Model):
         verbose_name='Mã NS',
     )
     full_name = models.CharField(max_length=255, verbose_name='Họ và tên', blank=True)
+    avatar = models.ImageField(
+        upload_to='avatars/%Y/%m/',
+        null=True,
+        blank=True,
+        verbose_name='Ảnh đại diện',
+    )
     department = models.ForeignKey(
         Department,
         on_delete=models.SET_NULL,

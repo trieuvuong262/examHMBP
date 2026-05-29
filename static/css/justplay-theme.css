@@ -2515,6 +2515,13 @@ textarea.form-control {
         0 4px 12px rgba(220, 38, 38, 0.35);
 }
 
+.jp-sidebar-profile-avatar-img {
+    display: block;
+    object-fit: cover;
+    padding: 0;
+    background: rgba(255, 255, 255, 0.08);
+}
+
 .jp-sidebar-profile-status {
     position: absolute;
     right: 1px;
@@ -2801,6 +2808,10 @@ textarea.form-control {
 
 .jp-sidebar-logout:hover {
     color: #fca5a5 !important;
+}
+
+.jp-sidebar-avatar-form button[data-jp-avatar-trigger] {
+    cursor: pointer;
 }
 
 .jp-app-main {
