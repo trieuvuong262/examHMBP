@@ -4,9 +4,9 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
+from urllib.parse import urlencode
 
-from hrm.module_permissions import MODULE_AUDIT, MODULE_LABELS, user_can_access_module
-from hrm.permissions import ROLE_CHOICES
+from hrm.module_permissions import MODULE_AUDIT, user_can_access_module
 
 from .models import UserActivityLog
 
@@ -28,37 +28,19 @@ def log_list(request):
     qs = UserActivityLog.objects.select_related('user').all()
 
     user_id = request.GET.get('user', '').strip()
-    action = request.GET.get('action', '').strip()
-    module_key = request.GET.get('module', '').strip()
-    method = request.GET.get('method', '').strip()
-    ip = request.GET.get('ip', '').strip()
     q = request.GET.get('q', '').strip()
     date_from = request.GET.get('from', '').strip()
     date_to = request.GET.get('to', '').strip()
-    status = request.GET.get('status', '').strip()
 
     if user_id.isdigit():
         qs = qs.filter(user_id=int(user_id))
-    if action:
-        qs = qs.filter(action=action)
-    if module_key:
-        qs = qs.filter(module_key=module_key)
-    if method:
-        qs = qs.filter(method__iexact=method)
-    if ip:
-        qs = qs.filter(
-            Q(machine_name__icontains=ip) | Q(ip_address__icontains=ip)
-        )
-    if status.isdigit():
-        qs = qs.filter(status_code=int(status))
     if q:
         qs = qs.filter(
             Q(summary__icontains=q)
-            | Q(path__icontains=q)
             | Q(username__icontains=q)
             | Q(full_name__icontains=q)
-            | Q(object_repr__icontains=q)
-            | Q(url_name__icontains=q)
+            | Q(machine_name__icontains=q)
+            | Q(ip_address__icontains=q)
         )
     if date_from:
         qs = qs.filter(created_at__date__gte=date_from)
@@ -79,30 +61,22 @@ def log_list(request):
         'today': UserActivityLog.objects.filter(
             created_at__date=timezone.localdate(),
         ).count(),
-        'failed_logins_today': UserActivityLog.objects.filter(
-            action=UserActivityLog.ACTION_LOGIN_FAILED,
-            created_at__date=timezone.localdate(),
-        ).count(),
     }
+
+    filters = {
+        'user': user_id,
+        'q': q,
+        'from': date_from,
+        'to': date_to,
+    }
+    filter_query = urlencode({k: v for k, v in filters.items() if v})
 
     return render(request, 'audit/log_list.html', {
         'page_obj': page_obj,
         'logs': page_obj.object_list,
         'users_with_logs': users_with_logs,
-        'action_choices': UserActivityLog.ACTION_CHOICES,
-        'module_choices': MODULE_LABELS.items(),
-        'role_choices': ROLE_CHOICES,
-        'filters': {
-            'user': user_id,
-            'action': action,
-            'module': module_key,
-            'method': method,
-            'ip': ip,
-            'q': q,
-            'from': date_from,
-            'to': date_to,
-            'status': status,
-        },
+        'filters': filters,
+        'filter_query': filter_query,
         'stats': stats,
     })
 

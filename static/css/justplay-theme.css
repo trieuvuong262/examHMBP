@@ -40,6 +40,24 @@
     --jp-bottom-nav-h: 4.25rem;
     --jp-footer-h: 2.75rem;
     --jp-safe-bottom: env(safe-area-inset-bottom, 0px);
+
+    /* Layout surfaces */
+    --jp-sidebar-gradient: linear-gradient(180deg, var(--jp-black-900) 0%, var(--jp-black-800) 100%);
+    --jp-sidebar-drawer-bg: var(--jp-black-900);
+    --jp-sidebar-status-ring: var(--jp-black-900);
+    --jp-page-bg: var(--hm-bg-light);
+    --jp-surface-bg: #ffffff;
+    --jp-surface-muted: #f8fafc;
+    --jp-surface-border: #e2e8f0;
+    --jp-text-primary: var(--jp-black-900);
+    --jp-text-secondary: var(--jp-black-600);
+    --jp-text-muted: #64748b;
+    --jp-input-bg: #ffffff;
+    --jp-input-border: #ced4da;
+    --jp-table-head-bg: #f8fafc;
+    --jp-dropdown-bg: #ffffff;
+    --jp-footer-bg: #ffffff;
+    --jp-footer-border: #e2e8f0;
 }
 
 /* --- Brand utilities --- */
@@ -2404,7 +2422,7 @@ textarea.form-control {
 
 .jp-sidebar {
     width: var(--jp-sidebar-w);
-    background: linear-gradient(180deg, var(--jp-black-900) 0%, var(--jp-black-800) 100%);
+    background: var(--jp-sidebar-gradient);
     color: #fff;
     overflow: hidden;
     border-right: 1px solid rgba(255, 255, 255, 0.06);
@@ -2505,7 +2523,7 @@ textarea.form-control {
     height: 10px;
     border-radius: 50%;
     background: #22c55e;
-    border: 2px solid var(--jp-black-900);
+    border: 2px solid var(--jp-sidebar-status-ring);
     box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.35);
 }
 
@@ -2700,7 +2718,7 @@ textarea.form-control {
     letter-spacing: -0.02em;
     color: #fff;
     background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
-    border: 1.5px solid var(--jp-black-900);
+    border: 1.5px solid var(--jp-sidebar-status-ring);
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.28);
     pointer-events: none;
     z-index: 2;
@@ -2772,7 +2790,7 @@ textarea.form-control {
     min-height: 100dvh;
     display: flex;
     flex-direction: column;
-    background: var(--hm-bg-light);
+    background: var(--jp-page-bg);
 }
 
 @media (min-width: 992px) {
@@ -2790,8 +2808,8 @@ textarea.form-control {
     align-items: center;
     justify-content: space-between;
     padding: 0 1rem 0 0.75rem;
-    background: #fff;
-    border-bottom: 1px solid #e2e8f0;
+    background: var(--jp-surface-bg);
+    border-bottom: 1px solid var(--jp-surface-border);
     position: sticky;
     top: 0;
     z-index: 1030;
@@ -2833,8 +2851,8 @@ textarea.form-control {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    border: 1px solid #e2e8f0;
-    background: #fff;
+    border: 1px solid var(--jp-surface-border);
+    background: var(--jp-surface-bg);
     border-radius: var(--jp-btn-radius);
     padding: 0.2rem 0.6rem 0.2rem 0.2rem;
     min-height: 40px;
@@ -2885,7 +2903,7 @@ textarea.form-control {
 
 .jp-sidebar-drawer {
     width: min(88vw, var(--jp-sidebar-w));
-    background: var(--jp-black-900);
+    background: var(--jp-sidebar-drawer-bg);
 }
 
 .jp-sidebar-drawer .jp-sidebar-nav {
@@ -3200,4 +3218,277 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     width: 1.1rem;
     height: 1.1rem;
     cursor: pointer;
+}
+
+/* ============================================================
+   Theme toggle
+   ============================================================ */
+.jp-theme-toggle {
+    width: 40px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--jp-surface-border);
+    background: var(--jp-surface-bg);
+    color: var(--jp-text-primary);
+    border-radius: var(--jp-btn-radius);
+    padding: 0;
+    font-size: 1.05rem;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+
+.jp-theme-toggle:hover {
+    background: var(--hm-primary-soft);
+    border-color: rgba(220, 38, 38, 0.35);
+    color: var(--hm-primary);
+    transform: scale(1.04);
+}
+
+.jp-theme-toggle .jp-theme-icon-light,
+.jp-theme-toggle .jp-theme-icon-dark {
+    line-height: 1;
+}
+
+.jp-guest .jp-theme-toggle {
+    border-color: rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+}
+
+.jp-guest .jp-theme-toggle:hover {
+    background: rgba(255, 255, 255, 0.22);
+    border-color: rgba(255, 255, 255, 0.5);
+    color: #fff;
+}
+
+/* ============================================================
+   Dark mode — sidebar đỏ, nội dung tối
+   ============================================================ */
+[data-theme="dark"] {
+    color-scheme: dark;
+
+    --jp-sidebar-gradient: linear-gradient(180deg, #ef4444 0%, #dc2626 38%, #b91c1c 72%, #991b1b 100%);
+    --jp-sidebar-drawer-bg: #dc2626;
+    --jp-sidebar-status-ring: #b91c1c;
+    --jp-page-bg: #0f0f0f;
+    --jp-surface-bg: #1a1a1a;
+    --jp-surface-muted: #141414;
+    --jp-surface-border: rgba(255, 255, 255, 0.1);
+    --jp-text-primary: #f5f5f5;
+    --jp-text-secondary: #d4d4d4;
+    --jp-text-muted: #a3a3a3;
+    --jp-input-bg: #262626;
+    --jp-input-border: rgba(255, 255, 255, 0.14);
+    --jp-table-head-bg: #1f1f1f;
+    --jp-dropdown-bg: #1f1f1f;
+    --jp-footer-bg: #111111;
+    --jp-footer-border: rgba(220, 38, 38, 0.45);
+    --hm-bg-light: #0f0f0f;
+    --hm-card-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme="dark"] body {
+    background: var(--jp-page-bg);
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .jp-topbar-menu-btn {
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .jp-topbar-menu-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .jp-topbar-user-name {
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .text-dark,
+[data-theme="dark"] .jp-page-title.text-dark,
+[data-theme="dark"] h1.text-dark,
+[data-theme="dark"] h2.text-dark,
+[data-theme="dark"] h3.text-dark,
+[data-theme="dark"] h4.text-dark,
+[data-theme="dark"] h5.text-dark,
+[data-theme="dark"] h6.text-dark {
+    color: var(--jp-text-primary) !important;
+}
+
+[data-theme="dark"] .text-muted {
+    color: var(--jp-text-muted) !important;
+}
+
+[data-theme="dark"] .card,
+[data-theme="dark"] .jp-auth-card {
+    background: var(--jp-surface-bg) !important;
+    border-color: var(--jp-surface-border) !important;
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .card-header,
+[data-theme="dark"] .card-footer {
+    background: var(--jp-surface-muted) !important;
+    border-color: var(--jp-surface-border) !important;
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--jp-text-primary);
+    --bs-table-border-color: var(--jp-surface-border);
+    --bs-table-hover-bg: rgba(255, 255, 255, 0.04);
+    --bs-table-striped-bg: rgba(255, 255, 255, 0.02);
+}
+
+[data-theme="dark"] .table thead,
+[data-theme="dark"] .table thead.bg-light,
+[data-theme="dark"] .table-light {
+    --bs-table-bg: var(--jp-table-head-bg);
+    --bs-table-color: var(--jp-text-secondary);
+    background: var(--jp-table-head-bg) !important;
+    color: var(--jp-text-secondary) !important;
+}
+
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select,
+[data-theme="dark"] .input-group-text {
+    background: var(--jp-input-bg);
+    border-color: var(--jp-input-border);
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .form-control:focus,
+[data-theme="dark"] .form-select:focus {
+    background: var(--jp-input-bg);
+    color: var(--jp-text-primary);
+    border-color: var(--hm-primary);
+    box-shadow: 0 0 0 0.2rem rgba(220, 38, 38, 0.2);
+}
+
+[data-theme="dark"] .dropdown-menu {
+    background: var(--jp-dropdown-bg);
+    border-color: var(--jp-surface-border);
+}
+
+[data-theme="dark"] .dropdown-item {
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .dropdown-item:hover,
+[data-theme="dark"] .dropdown-item:focus {
+    background: rgba(220, 38, 38, 0.15);
+    color: #fff;
+}
+
+[data-theme="dark"] .dropdown-header {
+    color: var(--jp-text-muted);
+}
+
+[data-theme="dark"] .dropdown-divider {
+    border-color: var(--jp-surface-border);
+}
+
+[data-theme="dark"] .breadcrumb-item.active {
+    color: var(--jp-text-secondary);
+}
+
+[data-theme="dark"] .breadcrumb-item a {
+    color: var(--jp-text-muted);
+}
+
+[data-theme="dark"] .btn-light,
+[data-theme="dark"] .btn-outline-dark {
+    background: #262626;
+    border-color: rgba(255, 255, 255, 0.14);
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .btn-light:hover,
+[data-theme="dark"] .btn-outline-dark:hover {
+    background: #333;
+    border-color: rgba(255, 255, 255, 0.22);
+    color: #fff;
+}
+
+[data-theme="dark"] .badge.bg-light {
+    background: #333 !important;
+    color: var(--jp-text-primary) !important;
+}
+
+[data-theme="dark"] .alert-danger {
+    background: rgba(220, 38, 38, 0.18);
+    border-color: rgba(220, 38, 38, 0.35);
+    color: #fecaca;
+}
+
+[data-theme="dark"] .offcanvas {
+    background: var(--jp-surface-bg);
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .offcanvas-header {
+    border-color: var(--jp-surface-border) !important;
+}
+
+[data-theme="dark"] .jp-sidebar-profile-card {
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.06) 100%);
+    border-color: rgba(255, 255, 255, 0.18);
+}
+
+[data-theme="dark"] .jp-sidebar-link.active {
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+    box-shadow: inset 3px 0 0 #fff;
+}
+
+[data-theme="dark"] .jp-sidebar-link:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="dark"] .jp-sidebar-profile-role {
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+}
+
+[data-theme="dark"] .jp-app-footer.jp-site-footer {
+    background: linear-gradient(180deg, #171717 0%, #0a0a0a 100%);
+}
+
+[data-theme="dark"] .list-group-item {
+    background: var(--jp-surface-bg);
+    border-color: var(--jp-surface-border);
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .list-group-item-action:hover {
+    background: rgba(220, 38, 38, 0.12);
+}
+
+[data-theme="dark"] .page-link {
+    background: var(--jp-surface-bg);
+    border-color: var(--jp-surface-border);
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .page-item.disabled .page-link {
+    background: var(--jp-surface-muted);
+    color: var(--jp-text-muted);
+}
+
+[data-theme="dark"] pre.bg-light {
+    background: #262626 !important;
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .jp-theme-toggle {
+    border-color: var(--jp-surface-border);
+    background: var(--jp-surface-muted);
+    color: #fbbf24;
+}
+
+[data-theme="dark"] .jp-theme-toggle:hover {
+    background: rgba(220, 38, 38, 0.25);
+    color: #fff;
 }

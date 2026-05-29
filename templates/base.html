@@ -4,6 +4,15 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
+    <script>
+        (function () {
+            try {
+                if (localStorage.getItem('jp_theme') === 'dark') {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                }
+            } catch (e) {}
+        })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token }}">
 
@@ -43,6 +52,11 @@
                 </a>
             </div>
             <div class="jp-topbar-end">
+                <button type="button" class="btn jp-theme-toggle" data-jp-theme-toggle
+                    aria-pressed="false" aria-label="Bật giao diện tối" title="Giao diện tối">
+                    <i class="bi bi-moon-stars-fill jp-theme-icon-dark" aria-hidden="true"></i>
+                    <i class="bi bi-sun-fill jp-theme-icon-light d-none" aria-hidden="true"></i>
+                </button>
                 <div class="dropdown">
                     <button class="btn jp-topbar-user-btn dropdown-toggle" type="button"
                         data-bs-toggle="dropdown" aria-expanded="false">
@@ -75,10 +89,15 @@
         <main class="jp-main-content flex-grow-1">
 {% else %}
 <nav class="navbar navbar-expand-lg bg-hm sticky-top">
-    <div class="container-fluid px-3 px-lg-4">
-        <a class="navbar-brand text-white d-flex align-items-center" href="{% url 'home_portal' %}">
+    <div class="container-fluid px-3 px-lg-4 d-flex align-items-center justify-content-between">
+        <a class="navbar-brand text-white d-flex align-items-center m-0" href="{% url 'home_portal' %}">
             <img src="{{ site_logo }}" alt="Logo JustPlay" class="me-2">
         </a>
+        <button type="button" class="btn jp-theme-toggle" data-jp-theme-toggle
+            aria-pressed="false" aria-label="Bật giao diện tối" title="Giao diện tối">
+            <i class="bi bi-moon-stars-fill jp-theme-icon-dark" aria-hidden="true"></i>
+            <i class="bi bi-sun-fill jp-theme-icon-light d-none" aria-hidden="true"></i>
+        </button>
     </div>
 </nav>
 
@@ -122,6 +141,7 @@
 {% endif %}
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{% static 'js/theme.js' %}"></script>
 <script src="{% static 'js/client-device.js' %}"></script>
 <script src="{% static 'js/mobile.js' %}"></script>
 {% block scripts %}{% endblock %}
