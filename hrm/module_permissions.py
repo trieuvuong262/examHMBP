@@ -44,6 +44,7 @@ EXEMPT_PATH_PREFIXES = (
     '/static/',
     '/media/',
     '/login-redirect/',
+    '/dashboard/permissions/',
 )
 
 # Map prefix URL → module (thứ tự quan trọng — dài/specific trước)

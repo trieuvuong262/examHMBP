@@ -7,6 +7,7 @@ from hrm.module_permissions import (
     MODULE_RECRUITMENT,
     MODULE_REPORTS,
     MODULE_TRAINING,
+    bypass_department_modules,
     get_user_enabled_modules,
     user_can_access_module,
 )
@@ -47,6 +48,7 @@ def portal_permissions(request):
             'jp_can_kpi': False,
             'jp_can_reports': False,
             'jp_can_guide': False,
+            'jp_can_manage_permissions': False,
         }
     enabled = get_user_enabled_modules(user)
     return {
@@ -69,4 +71,5 @@ def portal_permissions(request):
         'jp_can_kpi': user_can_access_module(user, MODULE_KPI),
         'jp_can_reports': user_can_access_module(user, MODULE_REPORTS),
         'jp_can_guide': user_can_access_module(user, MODULE_GUIDE),
+        'jp_can_manage_permissions': is_portal_admin(user) or bypass_department_modules(user),
     }

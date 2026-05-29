@@ -1,0 +1,121 @@
+{% load static %}
+<nav class="jp-sidebar-nav" aria-label="Menu chính">
+    <div class="jp-sidebar-brand d-none d-lg-flex">
+        <a href="{% url 'home_portal' %}" class="jp-sidebar-brand-link">
+            <img src="{% static 'images/logo/logo.png' %}" alt="JustPlay" class="jp-sidebar-logo">
+            <span class="jp-sidebar-brand-text">JustPlay Portal</span>
+        </a>
+    </div>
+
+    <div class="jp-sidebar-user d-none d-lg-block">
+        <div class="jp-sidebar-user-avatar">
+            {{ user.first_name|default:user.username|make_list|first|upper }}
+        </div>
+        <div class="jp-sidebar-user-meta">
+            <div class="jp-sidebar-user-name">{{ user.first_name|default:user.username }}</div>
+            <div class="jp-sidebar-user-role">{{ jp_role_display|default:"Nhân viên" }}</div>
+        </div>
+    </div>
+
+    <ul class="jp-sidebar-menu">
+        <li>
+            <a href="{% url 'home_portal' %}" class="jp-sidebar-link {% if request.path == '/' %}active{% endif %}">
+                <i class="bi bi-house-fill"></i><span>Trang chủ</span>
+            </a>
+        </li>
+        {% if jp_can_announcements %}
+        <li>
+            <a href="{% url 'announcements:list' %}" class="jp-sidebar-link {% if 'announcements' in request.path %}active{% endif %}">
+                <i class="bi bi-megaphone-fill"></i><span>Thông báo</span>
+                {% if unread_announcements_count %}<span class="jp-sidebar-badge">{{ unread_announcements_count }}</span>{% endif %}
+            </a>
+        </li>
+        {% endif %}
+        {% if jp_can_recruitment and jp_can_portal_admin %}
+        <li>
+            <a href="{% url 'admin_dashboard' %}?tab=recruitment" class="jp-sidebar-link {% if request.GET.tab == 'recruitment' or request.resolver_match.url_name == 'admin_dashboard' and not request.GET.tab %}active{% endif %}">
+                <i class="bi bi-person-lines-fill"></i><span>Tuyển dụng</span>
+            </a>
+        </li>
+        {% endif %}
+        {% if jp_can_training and jp_can_portal_admin %}
+        <li>
+            <a href="{% url 'admin_dashboard' %}?tab=training" class="jp-sidebar-link {% if request.GET.tab == 'training' %}active{% endif %}">
+                <i class="bi bi-mortarboard-fill"></i><span>Đào tạo</span>
+            </a>
+        </li>
+        {% elif jp_can_training %}
+        <li>
+            <a href="{% url 'my_courses' %}" class="jp-sidebar-link {% if 'training' in request.path %}active{% endif %}">
+                <i class="bi bi-mortarboard-fill"></i><span>Học tập</span>
+            </a>
+        </li>
+        {% endif %}
+        {% if jp_can_assessment and jp_can_portal_admin %}
+        <li>
+            <a href="{% url 'admin_dashboard' %}?tab=assessment" class="jp-sidebar-link {% if request.GET.tab == 'assessment' %}active{% endif %}">
+                <i class="bi bi-journal-check"></i><span>Kiểm tra</span>
+            </a>
+        </li>
+        {% elif jp_can_assessment %}
+        <li>
+            <a href="{% url 'exam_list' %}" class="jp-sidebar-link {% if 'exams' in request.path %}active{% endif %}">
+                <i class="bi bi-journal-check"></i><span>Kiểm tra</span>
+            </a>
+        </li>
+        {% endif %}
+        {% if jp_can_hrm and jp_can_portal_admin %}
+        <li>
+            <a href="{% url 'user_list' %}" class="jp-sidebar-link {% if 'user' in request.resolver_match.url_name %}active{% endif %}">
+                <i class="bi bi-people-fill"></i><span>Nhân sự</span>
+            </a>
+        </li>
+        {% endif %}
+        {% if jp_can_kpi %}
+        <li>
+            <a href="{% url 'kpi_list' %}" class="jp-sidebar-link {% if 'kpi' in request.path %}active{% endif %}">
+                <i class="bi bi-graph-up-arrow"></i><span>Hiệu suất (KPI)</span>
+            </a>
+        </li>
+        {% endif %}
+        {% if jp_can_reports %}
+        <li>
+            <a href="{% url 'reports:hub' %}" class="jp-sidebar-link {% if 'reports' in request.path %}active{% endif %}">
+                <i class="bi bi-clipboard-check-fill"></i><span>Báo cáo</span>
+            </a>
+        </li>
+        {% endif %}
+        {% if jp_can_guide %}
+        <li>
+            <a href="{% url 'user_guide' %}" class="jp-sidebar-link {% if 'huong-dan' in request.path %}active{% endif %}">
+                <i class="bi bi-journal-text"></i><span>Hướng dẫn</span>
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+
+    {% if jp_can_manage_permissions %}
+    <div class="jp-sidebar-section">
+        <div class="jp-sidebar-section-label">Quản trị</div>
+        <ul class="jp-sidebar-menu">
+            <li>
+                <a href="{% url 'permission_config' %}" class="jp-sidebar-link {% if request.resolver_match.url_name == 'permission_config' or request.resolver_match.url_name == 'department_permissions' %}active{% endif %}">
+                    <i class="bi bi-shield-lock-fill"></i><span>Phân quyền phòng ban</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+    {% endif %}
+
+    <div class="jp-sidebar-footer d-none d-lg-block">
+        <a href="{% url 'password_change' %}" class="jp-sidebar-link jp-sidebar-link-muted">
+            <i class="bi bi-shield-lock"></i><span>Đổi mật khẩu</span>
+        </a>
+        <form action="{% url 'logout' %}" method="POST" class="m-0">
+            {% csrf_token %}
+            <button type="submit" class="jp-sidebar-link jp-sidebar-link-muted jp-sidebar-logout w-100 border-0 bg-transparent text-start">
+                <i class="bi bi-box-arrow-right"></i><span>Đăng xuất</span>
+            </button>
+        </form>
+    </div>
+</nav>

@@ -41,7 +41,7 @@
     }
 
     function closeMobileMenu() {
-        var drawer = document.getElementById('mobileMenu');
+        var drawer = document.getElementById('mobileSidebar') || document.getElementById('mobileMenu');
         if (drawer && window.bootstrap) {
             var instance = bootstrap.Offcanvas.getInstance(drawer);
             if (instance) instance.hide();
@@ -54,7 +54,7 @@
     }
 
     function bindNavClose() {
-        document.querySelectorAll('#mobileMenu a.nav-link, #mobileMenu .dropdown-item').forEach(function (link) {
+        document.querySelectorAll('#mobileSidebar a.jp-sidebar-link, #mobileMenu a.nav-link, #mobileMenu .dropdown-item').forEach(function (link) {
             link.addEventListener('click', closeMobileMenu);
         });
     }

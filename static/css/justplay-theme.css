@@ -35,6 +35,8 @@
     --jp-btn-radius: 9999px;
 
     --jp-touch: 44px;
+    --jp-sidebar-w: 260px;
+    --jp-topbar-h: 3.75rem;
     --jp-bottom-nav-h: 4.25rem;
     --jp-footer-h: 2.75rem;
     --jp-safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -258,12 +260,17 @@ body.jp-auth main {
     padding-bottom: calc(var(--jp-bottom-nav-h) + var(--jp-footer-h) + var(--jp-safe-bottom) + 0.75rem);
 }
 
+body.jp-has-sidebar main,
+body.jp-has-sidebar .jp-main-content {
+    padding-bottom: 0;
+}
+
 body.jp-guest main {
     padding-bottom: calc(var(--jp-footer-h) + var(--jp-safe-bottom) + 0.5rem);
 }
 
 @media (min-width: 992px) {
-    body.jp-auth main,
+    body.jp-auth:not(.jp-has-sidebar) main,
     body.jp-guest main {
         padding-bottom: calc(var(--jp-footer-h) + 0.5rem);
     }
@@ -2281,7 +2288,7 @@ textarea.form-control {
 }
 
 @media (max-width: 767.98px) {
-    body.jp-auth .jp-site-footer {
+    body.jp-auth:not(.jp-has-sidebar) .jp-site-footer {
         padding-bottom: calc(0.65rem + var(--jp-bottom-nav-h) + var(--jp-safe-bottom));
     }
 }
@@ -2374,5 +2381,310 @@ textarea.form-control {
 .kanban-toolbar .form-select,
 .kanban-toolbar .form-control {
     border-radius: var(--jp-btn-radius) !important;
+}
+
+/* ============================================================
+   App shell — sidebar trái + topbar
+   ============================================================ */
+body.jp-has-sidebar {
+    overflow-x: hidden;
+}
+
+.jp-app-shell {
+    display: flex;
+    min-height: 100vh;
+    min-height: 100dvh;
+    width: 100%;
+}
+
+.jp-sidebar {
+    width: var(--jp-sidebar-w);
+    flex-shrink: 0;
+    background: linear-gradient(180deg, var(--jp-black-900) 0%, var(--jp-black-800) 100%);
+    color: #fff;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+    z-index: 1030;
+}
+
+.jp-sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow-y: auto;
+    padding: 0.85rem 0.65rem 1rem;
+}
+
+.jp-sidebar-brand {
+    padding: 0.35rem 0.65rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 0.85rem;
+}
+
+.jp-sidebar-brand-link {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    text-decoration: none;
+    color: #fff;
+}
+
+.jp-sidebar-logo {
+    height: 36px;
+    width: auto;
+}
+
+.jp-sidebar-brand-text {
+    font-weight: 700;
+    font-size: 0.95rem;
+    line-height: 1.2;
+}
+
+.jp-sidebar-user {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.65rem;
+    margin-bottom: 0.85rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: var(--jp-radius-sm);
+}
+
+.jp-sidebar-user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #fff;
+    color: var(--hm-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.jp-sidebar-user-name {
+    font-weight: 600;
+    font-size: 0.875rem;
+    line-height: 1.2;
+}
+
+.jp-sidebar-user-role {
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+
+.jp-sidebar-menu {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.jp-sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.65rem 0.85rem;
+    border-radius: var(--jp-radius-sm);
+    color: rgba(255, 255, 255, 0.82);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: background 0.15s ease, color 0.15s ease;
+    width: 100%;
+}
+
+.jp-sidebar-link i {
+    font-size: 1.05rem;
+    width: 1.25rem;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.jp-sidebar-link:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+}
+
+.jp-sidebar-link.active {
+    background: var(--hm-primary);
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35);
+}
+
+.jp-sidebar-link-muted {
+    opacity: 0.75;
+    font-size: 0.8125rem;
+}
+
+.jp-sidebar-badge {
+    margin-left: auto;
+    background: #fff;
+    color: var(--hm-primary);
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
+}
+
+.jp-sidebar-section {
+    margin-top: 1rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.jp-sidebar-section-label {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.55;
+    padding: 0 0.85rem 0.45rem;
+    font-weight: 700;
+}
+
+.jp-sidebar-footer {
+    margin-top: auto;
+    padding-top: 0.85rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.jp-sidebar-logout:hover {
+    color: #fca5a5 !important;
+}
+
+.jp-app-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    min-height: 100dvh;
+}
+
+.jp-topbar {
+    height: var(--jp-topbar-h);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1rem 0 0.75rem;
+    background: #fff;
+    border-bottom: 1px solid #e2e8f0;
+    position: sticky;
+    top: 0;
+    z-index: 1020;
+}
+
+.jp-topbar-start,
+.jp-topbar-end {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.jp-topbar-menu-btn {
+    width: var(--jp-touch);
+    height: var(--jp-touch);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: var(--jp-black-800);
+    font-size: 1.5rem;
+    border-radius: var(--jp-radius-sm);
+}
+
+.jp-topbar-menu-btn:hover {
+    background: var(--jp-black-100);
+}
+
+.jp-topbar-brand img {
+    height: 32px;
+    width: auto;
+}
+
+.jp-topbar-user-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    border-radius: 999px;
+    padding: 0.25rem 0.65rem 0.25rem 0.25rem;
+    min-height: 42px;
+}
+
+.jp-topbar-user-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--hm-primary);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.875rem;
+}
+
+.jp-topbar-user-name {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--jp-black-800);
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.jp-main-content {
+    flex: 1;
+    background: var(--hm-bg-light);
+}
+
+.jp-app-footer {
+    flex-shrink: 0;
+}
+
+.jp-sidebar-drawer {
+    width: min(88vw, var(--jp-sidebar-w));
+    background: var(--jp-black-900);
+}
+
+.jp-sidebar-drawer .jp-sidebar-nav {
+    height: auto;
+    min-height: 100%;
+}
+
+.jp-sidebar-drawer .jp-sidebar-user,
+.jp-sidebar-drawer .jp-sidebar-footer {
+    display: flex !important;
+}
+
+.jp-sidebar-drawer .jp-sidebar-footer {
+    flex-direction: column;
+}
+
+.jp-sidebar-drawer .jp-sidebar-brand {
+    display: none;
+}
+
+.jp-sidebar-drawer .jp-sidebar-link {
+    color: rgba(255, 255, 255, 0.88);
+}
+
+@media (min-width: 992px) {
+    body.jp-has-sidebar .jp-main-content .jp-page {
+        max-width: 100%;
+    }
 }
 

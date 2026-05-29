@@ -10,7 +10,7 @@ from django.http import HttpResponse
 from django.db import transaction
 from django.db.models import Count
 # Import từ các app khác sang
-from hrm.module_permissions import ALL_MODULE_KEYS
+from hrm.module_permissions import ALL_MODULE_KEYS, MODULE_CHOICES, MODULE_LABELS
 from assessment.decorators import admin_only
 from assessment.forms import UserForm # Tạm thời Form vẫn để ở nhà cũ, mốt mình dời sau
 from hrm.models import Profile, Department, Division, DepartmentMenuPermission
@@ -455,7 +455,7 @@ def department_permissions(request, pk):
                 request,
                 f'Đã cập nhật phân quyền menu cho phòng ban "{department.name}".',
             )
-            return _org_redirect('department')
+            return redirect('permission_config')
     else:
         form = DepartmentMenuPermissionForm(initial={
             'modules': perm.modules if perm.modules else sorted(ALL_MODULE_KEYS),
@@ -465,6 +465,26 @@ def department_permissions(request, pk):
         'department': department,
         'form': form,
         'employee_count': department.employee_count,
+    })
+
+
+@admin_only
+def permission_config(request):
+    departments = Department.objects.annotate(
+        staff_count=Count('profiles'),
+    ).order_by('sort_order', 'name')
+
+    rows = []
+    for dept in departments:
+        enabled = dept.get_enabled_modules()
+        rows.append({
+            'department': dept,
+            'enabled_labels': [MODULE_LABELS[key] for key, _ in MODULE_CHOICES if key in enabled],
+        })
+
+    return render(request, 'assessment/admin/permission_config.html', {
+        'departments': departments,
+        'rows': rows,
     })
 
 
