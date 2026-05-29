@@ -164,7 +164,7 @@
         <div class="col-kanban">
             <div class="card column-card">
                 <div class="column-header bg-new">
-                    MỚI NỘP <span class="badge-count">{{ new_candidates.count }}</span>
+                    MỚI NỘP <span class="badge-count">{{ new_candidates.paginator.count }}</span>
                 </div>
                 <div class="card-body kanban-column" data-status="new">
                     {% for cand in new_candidates %}
@@ -190,13 +190,14 @@
                         </div>
                     {% endfor %}
                 </div>
+                {% include 'includes/pagination_compact.html' with page_obj=new_candidates page_param='p_new' query_string=kanban_query_string %}
             </div>
         </div>
 
         <div class="col-kanban">
             <div class="card column-card">
                 <div class="column-header bg-reviewing">
-                    XEM XÉT <span class="badge-count">{{ reviewing_candidates.count }}</span>
+                    XEM XÉT <span class="badge-count">{{ reviewing_candidates.paginator.count }}</span>
                 </div>
                 <div class="card-body kanban-column" data-status="reviewing">
                     {% for cand in reviewing_candidates %}
@@ -217,13 +218,14 @@
                         </div>
                     {% endfor %}
                 </div>
+                {% include 'includes/pagination_compact.html' with page_obj=reviewing_candidates page_param='p_reviewing' query_string=kanban_query_string %}
             </div>
         </div>
 
         <div class="col-kanban">
             <div class="card column-card">
                 <div class="column-header bg-interviewing">
-                    PHỎNG VẤN <span class="badge-count">{{ interviewing_candidates.count }}</span>
+                    PHỎNG VẤN <span class="badge-count">{{ interviewing_candidates.paginator.count }}</span>
                 </div>
                 <div class="card-body kanban-column" data-status="interviewing">
                     {% for cand in interviewing_candidates %}
@@ -249,13 +251,14 @@
                         </div>
                     {% endfor %}
                 </div>
+                {% include 'includes/pagination_compact.html' with page_obj=interviewing_candidates page_param='p_interviewing' query_string=kanban_query_string %}
             </div>
         </div>
 
         <div class="col-kanban">
             <div class="card column-card">
                 <div class="column-header bg-offered">
-                    TRÚNG TUYỂN <span class="badge-count">{{ offered_candidates.count }}</span>
+                    TRÚNG TUYỂN <span class="badge-count">{{ offered_candidates.paginator.count }}</span>
                 </div>
                 <div class="card-body kanban-column" data-status="offered">
                     {% for cand in offered_candidates %}
@@ -283,13 +286,14 @@
                         </div>
                     {% endfor %}
                 </div>
+                {% include 'includes/pagination_compact.html' with page_obj=offered_candidates page_param='p_offered' query_string=kanban_query_string %}
             </div>
         </div>
 
         <div class="col-kanban">
             <div class="card column-card">
                 <div class="column-header bg-not-onboarded">
-                    KHÔNG ONBOARD <span class="badge-count">{{ not_onboarded_candidates.count }}</span>
+                    KHÔNG ONBOARD <span class="badge-count">{{ not_onboarded_candidates.paginator.count }}</span>
                 </div>
                 <div class="card-body kanban-column" data-status="not_onboarded">
                     {% for cand in not_onboarded_candidates %}
@@ -301,13 +305,14 @@
                         </div>
                     {% endfor %}
                 </div>
+                {% include 'includes/pagination_compact.html' with page_obj=not_onboarded_candidates page_param='p_not_onboarded' query_string=kanban_query_string %}
             </div>
         </div>
 
         <div class="col-kanban">
             <div class="card column-card">
                 <div class="column-header bg-rejected">
-                    TỪ CHỐI <span class="badge-count">{{ rejected_candidates.count }}</span>
+                    TỪ CHỐI <span class="badge-count">{{ rejected_candidates.paginator.count }}</span>
                 </div>
                 <div class="card-body kanban-column" data-status="rejected">
                     {% for cand in rejected_candidates %}
@@ -319,6 +324,7 @@
                         </div>
                     {% endfor %}
                 </div>
+                {% include 'includes/pagination_compact.html' with page_obj=rejected_candidates page_param='p_rejected' query_string=kanban_query_string %}
             </div>
         </div>
 

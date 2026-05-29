@@ -450,6 +450,11 @@
                         </tbody>
                     </table>
                 </div>
+                {% if exams_page.has_other_pages %}
+                <div class="card-footer bg-white border-top py-3">
+                    {% include 'includes/pagination.html' with page_obj=exams_page page_param='exam_page' query_string=exams_query_string %}
+                </div>
+                {% endif %}
             </div>
         </div>
 

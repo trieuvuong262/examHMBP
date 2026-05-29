@@ -8,6 +8,7 @@ from django.utils import timezone
 from django.contrib import messages
 
 from hrm.permissions import can_view_team_reports, get_report_team_users, is_gm, is_hod, is_portal_admin
+from PortalJustPlay.pagination import paginate_queryset
 
 from .forms import DailyWorkReportForm, DailyWorkReportLineFormSet
 from .models import DailyWorkReport
@@ -110,10 +111,15 @@ def copy_yesterday(request):
 
 @login_required
 def my_reports(request):
-    reports = DailyWorkReport.objects.filter(
+    reports_qs = DailyWorkReport.objects.filter(
         employee=request.user,
-    ).annotate(line_count=Count('lines'), total_qty=Sum('lines__quantity'))[:30]
-    return render(request, 'reports/my_reports.html', {'reports': reports})
+    ).annotate(line_count=Count('lines'), total_qty=Sum('lines__quantity')).order_by('-report_date')
+    page_obj, query_string = paginate_queryset(request, reports_qs)
+    return render(request, 'reports/my_reports.html', {
+        'reports': page_obj.object_list,
+        'page_obj': page_obj,
+        'query_string': query_string,
+    })
 
 
 @login_required
@@ -126,10 +132,20 @@ def team_reports(request):
     if isinstance(report_date, str):
         report_date = datetime.strptime(report_date, '%Y-%m-%d').date()
 
-    team = _team_users(request.user)
-    team_ids = list(team.values_list('id', flat=True))
+    team = _team_users(request.user).order_by('profile__full_name', 'username')
+    all_team_ids = list(team.values_list('id', flat=True))
+    all_reports = DailyWorkReport.objects.filter(
+        employee_id__in=all_team_ids,
+        report_date=report_date,
+    )
+    team_count = team.count()
+    submitted = all_reports.filter(status=DailyWorkReport.STATUS_SUBMITTED).count()
+    missing = team_count - submitted
+
+    team_page, query_string = paginate_queryset(request, team)
+    page_team_ids = list(team_page.object_list.values_list('id', flat=True))
     reports = DailyWorkReport.objects.filter(
-        employee_id__in=team_ids,
+        employee_id__in=page_team_ids,
         report_date=report_date,
     ).select_related('employee', 'employee__profile').annotate(
         line_count=Count('lines'),
@@ -138,21 +154,17 @@ def team_reports(request):
     report_map = {r.employee_id: r for r in reports}
 
     rows = []
-    submitted = 0
-    for member in team:
-        item = report_map.get(member.id)
-        if item and item.status == DailyWorkReport.STATUS_SUBMITTED:
-            submitted += 1
-        rows.append({'member': member, 'report': item})
-
-    missing = len(rows) - submitted
+    for member in team_page.object_list:
+        rows.append({'member': member, 'report': report_map.get(member.id)})
 
     return render(request, 'reports/team.html', {
         'rows': rows,
+        'page_obj': team_page,
+        'query_string': query_string,
         'report_date': report_date,
         'submitted_count': submitted,
         'missing_count': missing,
-        'team_count': len(rows),
+        'team_count': team_count,
     })
 
 

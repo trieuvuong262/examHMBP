@@ -129,6 +129,11 @@
                 </table>
             </div>
         </div>
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer bg-white border-top py-3">
+            {% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string %}
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

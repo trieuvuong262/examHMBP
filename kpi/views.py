@@ -18,6 +18,7 @@ from .models import KpiPeriod, YearlyKpi, YearlyKpiItem
 import openpyxl
 from django.http import HttpResponse
 import datetime
+from PortalJustPlay.pagination import paginate_queryset
 
 
 def _period_title(period_type: str) -> str:
@@ -42,17 +43,21 @@ def _get_or_create_period(year: int, period_type: str) -> KpiPeriod:
 # ========================================================
 @login_required
 def kpi_list_view(request):
-    # 1. Lấy danh sách KPI của cá nhân và đội nhóm
-    my_kpis = YearlyKpi.objects.filter(employee=request.user)
-    team_kpis = YearlyKpi.objects.filter(direct_manager=request.user)
+    my_kpis_qs = YearlyKpi.objects.filter(employee=request.user).order_by('-year')
+    team_kpis_qs = YearlyKpi.objects.filter(direct_manager=request.user).select_related(
+        'employee__profile',
+    ).order_by('-year')
     
     role = user_role(request.user)
 
     # Nếu là GM hoặc Admin thì thấy toàn bộ
     if role == ROLE_DIRECTOR or request.user.is_superuser:
-        team_kpis = YearlyKpi.objects.exclude(employee=request.user).select_related(
+        team_kpis_qs = YearlyKpi.objects.exclude(employee=request.user).select_related(
             'employee__profile',
-        )
+        ).order_by('-year')
+
+    my_page, my_query_string = paginate_queryset(request, my_kpis_qs, page_param='my_page')
+    team_page, team_query_string = paginate_queryset(request, team_kpis_qs, page_param='team_page')
 
     is_admin = request.user.is_superuser
     is_manager_or_gm = can_manage_kpi_for_others(request.user)
@@ -78,8 +83,12 @@ def kpi_list_view(request):
 
     # TRUYỀN BIẾN is_manager_or_gm RA HTML
     return render(request, 'kpi/kpi_list.html', {
-        'my_kpis': my_kpis,
-        'team_kpis': team_kpis,
+        'my_kpis': my_page.object_list,
+        'my_page': my_page,
+        'my_query_string': my_query_string,
+        'team_kpis': team_page.object_list,
+        'team_page': team_page,
+        'team_query_string': team_query_string,
         'is_admin': is_admin,
         'is_manager_or_gm': is_manager_or_gm,  # <--- Bắt buộc phải có dòng này nha ní!
         'admin_periods': admin_periods,

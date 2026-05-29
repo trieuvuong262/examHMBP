@@ -96,23 +96,7 @@
         </div>
         {% if page_obj.has_other_pages %}
         <div class="card-footer bg-white border-top py-3">
-            <nav aria-label="Phân trang nhật ký">
-                <ul class="pagination justify-content-center mb-0">
-                    {% if page_obj.has_previous %}
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if filter_query %}&{{ filter_query }}{% endif %}">Trước</a>
-                    </li>
-                    {% endif %}
-                    <li class="page-item disabled">
-                        <span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
-                    </li>
-                    {% if page_obj.has_next %}
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if filter_query %}&{{ filter_query }}{% endif %}">Sau</a>
-                    </li>
-                    {% endif %}
-                </ul>
-            </nav>
+            {% include 'includes/pagination.html' with page_obj=page_obj query_string=filter_query %}
         </div>
         {% endif %}
     </div>

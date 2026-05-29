@@ -23,6 +23,7 @@ from hrm.models import Profile
 from hrm.choices import normalize_position
 from hrm.choices import resolve_department
 from PortalJustPlay.utils import generate_hm_username, generate_secure_password
+from PortalJustPlay.pagination import paginate_columns, paginate_queryset
 from .models import Interview
 import openpyxl
 from django.http import HttpResponse
@@ -31,7 +32,6 @@ from django.utils import timezone
 @ensure_csrf_cookie
 def kanban_board(request):
     candidates = Candidate.objects.select_related('job_posting').filter(job_posting__is_active=True)
-    not_onboarded_candidates = candidates.filter(status='not_onboarded')
     job_id_str = request.GET.get('job_id')
     selected_job_id = None
     
@@ -39,16 +39,26 @@ def kanban_board(request):
         selected_job_id = int(job_id_str)
         candidates = candidates.filter(job_posting_id=selected_job_id)
 
+    kanban_pages, kanban_query_string = paginate_columns(request, [
+        ('not_onboarded', candidates.filter(status='not_onboarded').order_by('-applied_at'), 'p_not_onboarded'),
+        ('new', candidates.filter(status='new').order_by('-applied_at'), 'p_new'),
+        ('reviewing', candidates.filter(status='reviewing').order_by('-applied_at'), 'p_reviewing'),
+        ('interviewing', candidates.filter(status='interviewing').order_by('-applied_at'), 'p_interviewing'),
+        ('offered', candidates.filter(status__in=['offered', 'hired']).order_by('-id'), 'p_offered'),
+        ('rejected', candidates.filter(status='rejected').order_by('-id'), 'p_rejected'),
+    ])
+
     context = {
         'jobs': JobPosting.objects.filter(is_active=True),
         'selected_job': selected_job_id,
-        'not_onboarded_candidates': not_onboarded_candidates,
-        'new_candidates': candidates.filter(status='new'),
-        'reviewing_candidates': candidates.filter(status='reviewing'),
-        'interviewing_candidates': candidates.filter(status='interviewing'),
-        'users': User.objects.filter(is_active=True), # Thêm dòng này để form set lịch có danh sách User
-        'offered_candidates': candidates.filter(status__in=['offered', 'hired']).order_by('-id')[:15], 
-        'rejected_candidates': candidates.filter(status='rejected').order_by('-id')[:15],
+        'not_onboarded_candidates': kanban_pages['not_onboarded'],
+        'new_candidates': kanban_pages['new'],
+        'reviewing_candidates': kanban_pages['reviewing'],
+        'interviewing_candidates': kanban_pages['interviewing'],
+        'offered_candidates': kanban_pages['offered'],
+        'rejected_candidates': kanban_pages['rejected'],
+        'kanban_query_string': kanban_query_string,
+        'users': User.objects.filter(is_active=True),
     }
     return render(request, 'recruitment/admin/kanban_board.html', context)
 
@@ -125,8 +135,13 @@ def add_candidate(request):
 
 @admin_only
 def job_posting_list(request):
-    jobs = JobPosting.objects.all().order_by('-created_at')
-    return render(request, 'recruitment/admin/job_posting_list.html', {'jobs': jobs})
+    jobs_qs = JobPosting.objects.all().order_by('-created_at')
+    page_obj, query_string = paginate_queryset(request, jobs_qs)
+    return render(request, 'recruitment/admin/job_posting_list.html', {
+        'jobs': page_obj.object_list,
+        'page_obj': page_obj,
+        'query_string': query_string,
+    })
 
 @admin_only
 def job_posting_create(request):

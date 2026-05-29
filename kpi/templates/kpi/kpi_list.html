@@ -112,12 +112,17 @@
             {% endfor %}
         </div>
     </div>
+    {% if my_page.has_other_pages %}
+    <div class="mt-3 mb-4">
+        {% include 'includes/pagination.html' with page_obj=my_page page_param='my_page' query_string=my_query_string %}
+    </div>
+    {% endif %}
 
-    {% if team_kpis %}
+    {% if team_page.paginator.count %}
     <div class="row mt-5 mb-5">
         <div class="col-12 border-bottom pb-2 mb-4 d-flex justify-content-between align-items-center">
             <h5 class="fw-bold text-warning-emphasis mb-0"><i class="bi bi-people-fill me-2 text-warning"></i>Duyệt KPI Nhân viên</h5>
-            <span class="badge bg-warning bg-opacity-10 text-warning-emphasis px-3">{{ team_kpis.count }} bảng</span>
+            <span class="badge bg-warning bg-opacity-10 text-warning-emphasis px-3">{{ team_page.paginator.count }} bảng</span>
         </div>
         <div class="card border-0 shadow-sm overflow-hidden">
             <div class="table-responsive">
@@ -164,6 +169,11 @@
                     </tbody>
                 </table>
             </div>
+            {% if team_page.has_other_pages %}
+            <div class="card-footer bg-white border-top py-3">
+                {% include 'includes/pagination.html' with page_obj=team_page page_param='team_page' query_string=team_query_string %}
+            </div>
+            {% endif %}
         </div>
     </div>
     {% endif %}

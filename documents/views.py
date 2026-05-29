@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404, redirect, render
 
+from PortalJustPlay.pagination import paginate_queryset
 from assessment.decorators import admin_only
 from hrm.module_permissions import MODULE_DOCUMENTS, user_can_edit_module
 
@@ -80,9 +81,12 @@ def admin_hub(request):
 
 @admin_only
 def admin_category_list(request):
-    categories = DocumentCategory.objects.all().order_by('sort_order', 'name')
+    categories_qs = DocumentCategory.objects.all().order_by('sort_order', 'name')
+    page_obj, query_string = paginate_queryset(request, categories_qs)
     return render(request, 'documents/admin/category_list.html', {
-        'categories': categories,
+        'categories': page_obj.object_list,
+        'page_obj': page_obj,
+        'query_string': query_string,
     })
 
 
@@ -135,11 +139,14 @@ def admin_category_delete(request, pk):
 
 @admin_only
 def admin_document_list(request):
-    documents = Document.objects.select_related('category').order_by(
+    documents_qs = Document.objects.select_related('category').order_by(
         'category__sort_order', 'sort_order', 'title'
     )
+    page_obj, query_string = paginate_queryset(request, documents_qs)
     return render(request, 'documents/admin/document_list.html', {
-        'documents': documents,
+        'documents': page_obj.object_list,
+        'page_obj': page_obj,
+        'query_string': query_string,
     })
 
 

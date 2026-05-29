@@ -1,11 +1,10 @@
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
-from django.core.paginator import Paginator
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
-from urllib.parse import urlencode
 
+from PortalJustPlay.pagination import paginate_queryset
 from hrm.module_permissions import MODULE_AUDIT, user_can_access_module
 
 from .models import UserActivityLog
@@ -47,8 +46,7 @@ def log_list(request):
     if date_to:
         qs = qs.filter(created_at__date__lte=date_to)
 
-    paginator = Paginator(qs, 50)
-    page_obj = paginator.get_page(request.GET.get('page'))
+    page_obj, filter_query = paginate_queryset(request, qs)
 
     users_with_logs = (
         User.objects.filter(activity_logs__isnull=False)
@@ -69,7 +67,6 @@ def log_list(request):
         'from': date_from,
         'to': date_to,
     }
-    filter_query = urlencode({k: v for k, v in filters.items() if v})
 
     return render(request, 'audit/log_list.html', {
         'page_obj': page_obj,
@@ -96,11 +93,11 @@ def user_timeline(request, user_id):
         Q(user=target_user) | Q(username=target_user.username),
     ).select_related('user')
 
-    paginator = Paginator(qs, 50)
-    page_obj = paginator.get_page(request.GET.get('page'))
+    page_obj, query_string = paginate_queryset(request, qs)
 
     return render(request, 'audit/user_timeline.html', {
         'target_user': target_user,
         'page_obj': page_obj,
         'logs': page_obj.object_list,
+        'query_string': query_string,
     })

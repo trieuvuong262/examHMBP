@@ -35,14 +35,14 @@
             <a class="nav-link fw-bold {% if active_tab == 'department' %}active{% endif %}"
                href="{% url 'org_structure' %}?tab=department">
                 <i class="bi bi-building me-1"></i>Phòng ban
-                <span class="badge bg-light text-dark ms-1">{{ departments.count }}</span>
+                <span class="badge bg-light text-dark ms-1">{{ dept_page.paginator.count }}</span>
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link fw-bold {% if active_tab == 'division' %}active{% endif %}"
                href="{% url 'org_structure' %}?tab=division">
                 <i class="bi bi-diagram-2 me-1"></i>Bộ phận
-                <span class="badge bg-light text-dark ms-1">{{ divisions.count }}</span>
+                <span class="badge bg-light text-dark ms-1">{{ div_page.paginator.count }}</span>
             </a>
         </li>
     </ul>
@@ -67,7 +67,7 @@
                 <tbody>
                     {% for dept in departments %}
                     <tr>
-                        <td class="ps-4 fw-bold text-muted">{{ forloop.counter }}</td>
+                        <td class="ps-4 fw-bold text-muted">{{ dept_page.start_index|add:forloop.counter0 }}</td>
                         <td class="fw-semibold">{{ dept.name }}</td>
                         <td class="text-center"><span class="badge bg-light text-dark border">{{ dept.staff_count }}</span></td>
                         <td class="text-center text-muted">{{ dept.sort_order }}</td>
@@ -94,6 +94,11 @@
                 </tbody>
             </table>
         </div>
+        {% if dept_page.has_other_pages %}
+        <div class="card-footer bg-white border-top py-3">
+            {% include 'includes/pagination.html' with page_obj=dept_page page_param='dept_page' query_string=dept_query_string %}
+        </div>
+        {% endif %}
     </div>
     {% else %}
     <div class="card border-0 shadow-sm overflow-hidden">
@@ -115,7 +120,7 @@
                 <tbody>
                     {% for div in divisions %}
                     <tr>
-                        <td class="ps-4 fw-bold text-muted">{{ forloop.counter }}</td>
+                        <td class="ps-4 fw-bold text-muted">{{ div_page.start_index|add:forloop.counter0 }}</td>
                         <td class="fw-semibold">{{ div.name }}</td>
                         <td class="text-center"><span class="badge bg-light text-dark border">{{ div.staff_count }}</span></td>
                         <td class="text-center text-muted">{{ div.sort_order }}</td>
@@ -141,6 +146,11 @@
                 </tbody>
             </table>
         </div>
+        {% if div_page.has_other_pages %}
+        <div class="card-footer bg-white border-top py-3">
+            {% include 'includes/pagination.html' with page_obj=div_page page_param='div_page' query_string=div_query_string %}
+        </div>
+        {% endif %}
     </div>
     {% endif %}
 </div>

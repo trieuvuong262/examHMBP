@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect, render
 
+from PortalJustPlay.pagination import paginate_queryset
 from assessment.decorators import admin_only
 
 from hrm.module_permissions import MODULE_ANNOUNCEMENTS, user_can_edit_module
@@ -17,7 +18,10 @@ def _active_announcements():
 
 @login_required
 def announcement_list(request):
-    announcements = _active_announcements()
+    announcements_qs = _active_announcements().order_by('-is_pinned', '-created_at')
+    page_obj, query_string = paginate_queryset(request, announcements_qs)
+    announcements = page_obj.object_list
+
     read_ids = set(
         AnnouncementRead.objects.filter(
             user=request.user,
@@ -29,6 +33,8 @@ def announcement_list(request):
 
     context = {
         'items': items,
+        'page_obj': page_obj,
+        'query_string': query_string,
         'is_admin': user_can_edit_module(request.user, MODULE_ANNOUNCEMENTS),
         'unread_count': sum(1 for x in items if not x['is_read']),
     }
@@ -61,12 +67,15 @@ def announcement_detail(request, pk):
 
 @admin_only
 def admin_list(request):
-    announcements = Announcement.objects.annotate(
+    announcements_qs = Announcement.objects.annotate(
         read_count=Count('reads'),
     ).order_by('-is_pinned', '-created_at')
+    page_obj, query_string = paginate_queryset(request, announcements_qs)
 
     return render(request, 'announcements/admin/list.html', {
-        'announcements': announcements,
+        'announcements': page_obj.object_list,
+        'page_obj': page_obj,
+        'query_string': query_string,
     })
 
 

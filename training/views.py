@@ -13,11 +13,16 @@ from django.db.models import Count
 from .forms import ChapterForm, LessonForm
 from django.views.decorators.http import require_POST
 from assessment.decorators import admin_only
+from PortalJustPlay.pagination import paginate_queryset
+
 @login_required
 def my_courses(request):
     user = request.user
     
-    assigned_courses = Course.objects.filter(assigned_users=user, is_active=True).order_by('-created_at')
+    assigned_courses_qs = Course.objects.filter(
+        assigned_users=user, is_active=True,
+    ).order_by('-created_at')
+    page_obj, query_string = paginate_queryset(request, assigned_courses_qs)
     
     submitted_exam_ids = ExamSubmission.objects.filter(
         user=user, 
@@ -25,7 +30,7 @@ def my_courses(request):
     ).values_list('exam_id', flat=True)
 
     course_data = []
-    for course in assigned_courses:
+    for course in page_obj.object_list:
         enrollment, created = Enrollment.objects.get_or_create(user=user, course=course)
         
         status = 'not_started'
@@ -51,6 +56,8 @@ def my_courses(request):
 
     return render(request, 'training/my_courses.html', {
         'course_data': course_data,
+        'page_obj': page_obj,
+        'query_string': query_string,
         'title': 'Không gian học tập của tôi'
     })
 
@@ -149,13 +156,16 @@ def course_create(request):
     
 @admin_only
 def course_list(request):
-    courses = Course.objects.annotate(
+    courses_qs = Course.objects.annotate(
         student_count=Count('assigned_users', distinct=True),
         chapter_count=Count('chapters', distinct=True)
     ).order_by('-created_at')
+    page_obj, query_string = paginate_queryset(request, courses_qs)
 
     return render(request, 'training/admin/course_list.html', {
-        'courses': courses,
+        'courses': page_obj.object_list,
+        'page_obj': page_obj,
+        'query_string': query_string,
         'title': 'Quản lý danh sách khóa học'
     })
 @admin_only

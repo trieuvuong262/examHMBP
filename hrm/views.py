@@ -23,6 +23,7 @@ from hrm.choices import (
     user_to_excel_row,
 )
 from PortalJustPlay.utils import generate_hm_username, generate_secure_password
+from PortalJustPlay.pagination import paginate_queryset
 from .forms import CustomUserForm, DepartmentForm, DivisionForm, DepartmentMenuPermissionForm, RolePermissionForm
 from django.http import JsonResponse
 import random
@@ -70,12 +71,15 @@ def user_list(request):
         sort_key = 'newest'
     order_by = USER_LIST_SORTS[sort_key][0]
 
-    users = User.objects.select_related(
+    users_qs = User.objects.select_related(
         'profile', 'profile__department', 'profile__division',
     ).order_by(order_by, 'username')
+    page_obj, query_string = paginate_queryset(request, users_qs)
 
     return render(request, 'assessment/admin/user_list.html', {
-        'users': users,
+        'users': page_obj.object_list,
+        'page_obj': page_obj,
+        'query_string': query_string,
         'sort_key': sort_key,
         'sort_options': USER_LIST_SORTS,
     })
@@ -368,15 +372,25 @@ def org_structure(request):
     tab = request.GET.get('tab', 'department')
     if tab not in {'department', 'division'}:
         tab = 'department'
-    departments = Department.objects.annotate(
+    departments_qs = Department.objects.annotate(
         staff_count=Count('profiles'),
     ).order_by('sort_order', 'name')
-    divisions = Division.objects.annotate(
+    divisions_qs = Division.objects.annotate(
         staff_count=Count('division_profiles'),
     ).order_by('sort_order', 'name')
+    dept_page, dept_query_string = paginate_queryset(
+        request, departments_qs, page_param='dept_page',
+    )
+    div_page, div_query_string = paginate_queryset(
+        request, divisions_qs, page_param='div_page',
+    )
     return render(request, 'assessment/admin/org_structure.html', {
-        'departments': departments,
-        'divisions': divisions,
+        'departments': dept_page.object_list,
+        'divisions': div_page.object_list,
+        'dept_page': dept_page,
+        'div_page': div_page,
+        'dept_query_string': dept_query_string,
+        'div_query_string': div_query_string,
         'active_tab': tab,
     })
 
@@ -472,12 +486,13 @@ def department_permissions(request, pk):
 
 @admin_only
 def permission_config(request):
-    departments = Department.objects.annotate(
+    departments_qs = Department.objects.annotate(
         staff_count=Count('profiles'),
     ).order_by('sort_order', 'name')
+    dept_page, query_string = paginate_queryset(request, departments_qs)
 
     rows = []
-    for dept in departments:
+    for dept in dept_page.object_list:
         enabled = dept.get_enabled_modules()
         rows.append({
             'department': dept,
@@ -485,8 +500,10 @@ def permission_config(request):
         })
 
     return render(request, 'assessment/admin/permission_config.html', {
-        'departments': departments,
+        'departments': dept_page.object_list,
         'rows': rows,
+        'page_obj': dept_page,
+        'query_string': query_string,
         'role_rows': [
             {
                 'role': role,

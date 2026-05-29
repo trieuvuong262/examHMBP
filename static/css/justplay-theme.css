@@ -3859,14 +3859,274 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     color: var(--jp-text-primary) !important;
 }
 
-/* --- Guide content --- */
-[data-theme="dark"] .jp-guide-content,
-[data-theme="dark"] .guide-prose {
+/* --- Guide page (/huong-dan/) — dark mode đầy đủ --- */
+[data-theme="dark"] .jp-guide-page {
     color: var(--jp-text-primary);
 }
 
-[data-theme="dark"] .jp-guide-content a {
+[data-theme="dark"] .jp-guide-page .guide-sidebar {
+    background: var(--jp-surface-bg) !important;
+    border-color: var(--jp-surface-border) !important;
+}
+
+[data-theme="dark"] .jp-guide-page .guide-sidebar-header {
+    background: linear-gradient(135deg, #5c1010 0%, #450a0a 100%);
+}
+
+[data-theme="dark"] .jp-guide-page .guide-toc-link {
+    color: var(--jp-text-secondary) !important;
+}
+
+[data-theme="dark"] .jp-guide-page .guide-toc-link:hover {
+    color: #fecaca !important;
+    background: rgba(127, 29, 29, 0.22) !important;
+    border-left-color: #b91c1c !important;
+}
+
+[data-theme="dark"] .jp-guide-page .guide-toc-link.active {
+    color: #fff !important;
+    background: rgba(127, 29, 29, 0.35) !important;
+    border-left-color: #dc2626 !important;
+}
+
+[data-theme="dark"] .jp-guide-page .guide-mobile-toc {
+    background: var(--jp-surface-bg) !important;
+    border-color: var(--jp-surface-border) !important;
+}
+
+[data-theme="dark"] .jp-guide-page .guide-mobile-toc-label {
+    color: var(--jp-text-muted);
+}
+
+[data-theme="dark"] .jp-guide-page .guide-mobile-toc-scroll .guide-toc-link {
+    background: var(--jp-surface-muted) !important;
+    border-color: var(--jp-surface-border) !important;
+    color: var(--jp-text-secondary) !important;
+}
+
+[data-theme="dark"] .jp-guide-page .guide-mobile-toc-scroll .guide-toc-link.active {
+    background: #7f1d1d !important;
+    border-color: #7f1d1d !important;
+    color: #fff !important;
+}
+
+[data-theme="dark"] .jp-guide-page .guide-accordion .accordion-item {
+    background: var(--jp-surface-bg) !important;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35) !important;
+}
+
+[data-theme="dark"] .jp-guide-page .guide-accordion .accordion-button {
+    background: var(--jp-surface-muted) !important;
+    color: var(--jp-text-primary) !important;
+}
+
+[data-theme="dark"] .jp-guide-page .guide-accordion .accordion-button:not(.collapsed) {
+    background: rgba(127, 29, 29, 0.28) !important;
+    color: #fecaca !important;
+}
+
+[data-theme="dark"] .jp-guide-page .guide-accordion .accordion-body {
+    background: var(--jp-surface-bg);
+    color: var(--jp-text-primary);
+    border-top: 1px solid var(--jp-surface-border);
+}
+
+[data-theme="dark"] .jp-guide-page .guide-step,
+[data-theme="dark"] .guide-prose .guide-step,
+[data-theme="dark"] .jp-guide-page .guide-prose .guide-step {
+    background: var(--jp-surface-muted) !important;
+    border-color: var(--jp-surface-border) !important;
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .jp-guide-page .guide-step-num,
+[data-theme="dark"] .guide-prose .guide-step-num {
+    background: #7f1d1d;
+    color: #fff;
+}
+
+[data-theme="dark"] .jp-guide-page .guide-figure {
+    background: var(--jp-surface-bg) !important;
+    border-color: var(--jp-surface-border) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="dark"] .jp-guide-page .guide-figure img {
+    border-color: var(--jp-surface-border);
+}
+
+[data-theme="dark"] .jp-guide-page .guide-figure figcaption {
+    background: var(--jp-surface-muted) !important;
+    border-color: var(--jp-surface-border) !important;
+    color: var(--jp-text-muted);
+}
+
+[data-theme="dark"] .jp-guide-page .guide-figure figcaption strong {
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .jp-guide-page .guide-tip {
+    background: var(--jp-surface-muted) !important;
+    border-left-color: #b91c1c;
+    color: var(--jp-text-primary);
+    box-shadow: none;
+}
+
+[data-theme="dark"] .jp-guide-page .guide-preview-grid .guide-preview-item {
+    background: var(--jp-surface-bg) !important;
+    border-color: var(--jp-surface-border) !important;
+}
+
+[data-theme="dark"] .jp-guide-page .guide-preview-grid .guide-preview-item:hover {
+    border-color: rgba(220, 38, 38, 0.45) !important;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .jp-guide-page .guide-preview-grid img {
+    border-color: var(--jp-surface-border);
+    background: #262626;
+}
+
+[data-theme="dark"] .jp-guide-page .guide-preview-grid span {
+    background: var(--jp-surface-muted) !important;
+    border-color: var(--jp-surface-border) !important;
+    color: var(--jp-text-secondary);
+}
+
+/* Nội dung CKEditor / HTML trong hướng dẫn */
+[data-theme="dark"] .guide-prose,
+[data-theme="dark"] .jp-guide-page .guide-prose,
+[data-theme="dark"] .jp-guide-page .accordion-body {
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .guide-prose h1,
+[data-theme="dark"] .guide-prose h2,
+[data-theme="dark"] .guide-prose h3,
+[data-theme="dark"] .guide-prose h4,
+[data-theme="dark"] .guide-prose h5,
+[data-theme="dark"] .guide-prose h6,
+[data-theme="dark"] .jp-guide-page .accordion-body h6 {
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .guide-prose p,
+[data-theme="dark"] .guide-prose li,
+[data-theme="dark"] .guide-prose td,
+[data-theme="dark"] .guide-prose th,
+[data-theme="dark"] .jp-guide-page .accordion-body p,
+[data-theme="dark"] .jp-guide-page .accordion-body li {
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .guide-prose strong,
+[data-theme="dark"] .jp-guide-page .accordion-body strong {
+    color: #fff;
+}
+
+[data-theme="dark"] .guide-prose a,
+[data-theme="dark"] .jp-guide-page .accordion-body a:not(.btn) {
     color: #fca5a5;
+}
+
+[data-theme="dark"] .guide-prose a:hover,
+[data-theme="dark"] .jp-guide-page .accordion-body a:not(.btn):hover {
+    color: #fecaca;
+}
+
+[data-theme="dark"] .guide-prose code,
+[data-theme="dark"] .jp-guide-page .accordion-body code {
+    background: #262626;
+    color: #fecaca;
+    border: 1px solid var(--jp-surface-border);
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+}
+
+[data-theme="dark"] .guide-prose pre,
+[data-theme="dark"] .guide-prose pre code {
+    background: #1a1a1a !important;
+    color: var(--jp-text-primary);
+    border-color: var(--jp-surface-border);
+}
+
+[data-theme="dark"] .guide-prose table {
+    border-color: var(--jp-surface-border);
+}
+
+[data-theme="dark"] .guide-prose th {
+    background: var(--jp-table-head-bg);
+    color: var(--jp-text-secondary);
+    border-color: var(--jp-surface-border);
+}
+
+[data-theme="dark"] .guide-prose td {
+    background: var(--jp-surface-bg);
+    border-color: var(--jp-surface-border);
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .guide-prose blockquote {
+    background: var(--jp-surface-muted);
+    border-left: 4px solid #7f1d1d;
+    color: var(--jp-text-secondary);
+    padding: 0.75rem 1rem;
+}
+
+[data-theme="dark"] .jp-guide-page .border-top {
+    border-color: var(--jp-surface-border) !important;
+}
+
+[data-theme="dark"] .jp-guide-page .btn-outline-hm {
+    color: #fca5a5 !important;
+    border-color: #b91c1c !important;
+}
+
+[data-theme="dark"] .jp-guide-page .btn-outline-hm:hover {
+    background: #7f1d1d !important;
+    border-color: #7f1d1d !important;
+    color: #fff !important;
+}
+
+[data-theme="dark"] .jp-guide-page .badge.bg-secondary {
+    background: #404040 !important;
+    color: #e5e5e5 !important;
+}
+
+[data-theme="dark"] .jp-guide-page .badge.bg-primary {
+    background: #1d4ed8 !important;
+}
+
+[data-theme="dark"] .jp-guide-page .text-hm {
+    color: #fca5a5 !important;
+}
+
+[data-theme="dark"] .jp-guide-page .jp-page-subtitle strong {
+    color: var(--jp-text-primary);
+}
+
+/* Thành phần guide trong nội dung CKEditor (view.html) */
+[data-theme="dark"] .guide-prose .guide-figure,
+[data-theme="dark"] .guide-prose .guide-tip {
+    background: var(--jp-surface-bg) !important;
+    border-color: var(--jp-surface-border) !important;
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .guide-prose .guide-figure figcaption {
+    background: var(--jp-surface-muted) !important;
+    border-color: var(--jp-surface-border) !important;
+    color: var(--jp-text-muted);
+}
+
+[data-theme="dark"] .guide-prose .guide-tip {
+    background: var(--jp-surface-muted) !important;
+    border-left-color: #b91c1c;
+}
+
+/* Wrapper CKEditor (form chỉnh sửa) */
+[data-theme="dark"] .border.p-2.bg-white {
+    border-color: var(--jp-input-border) !important;
 }
 
 /* --- Theme toggle --- */

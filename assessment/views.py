@@ -19,6 +19,7 @@ from django.urls import reverse_lazy
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.db.models import Q
+from PortalJustPlay.pagination import paginate_queryset
 from kpi.models import YearlyKpi, KpiPeriod  # Import đúng Model mới
 from hrm.permissions import is_manager, is_portal_admin
 from .portal_widgets import get_portal_dashboard
@@ -65,12 +66,14 @@ def home_portal(request):
 def exam_list(request):
     now = timezone.now()
     
-    active_exams = Exam.objects.filter(
+    active_exams_qs = Exam.objects.filter(
         assigned_users=request.user, 
         is_active=True,
         start_time__lte=now,
         end_time__gte=now
-    ).distinct()
+    ).distinct().order_by('-start_time')
+    page_obj, query_string = paginate_queryset(request, active_exams_qs)
+    active_exams = page_obj.object_list
 
     submissions = ExamSubmission.objects.filter(
         user=request.user, 
@@ -108,6 +111,8 @@ def exam_list(request):
 
     return render(request, 'assessment/exam_list.html', {
         'active_exams': active_exams,
+        'page_obj': page_obj,
+        'query_string': query_string,
         'completed_exam_ids': completed_exam_ids,
         'submission_results': submission_results 
     })
@@ -249,6 +254,9 @@ def admin_dashboard(request):
     # --- PHẦN ĐÀO TẠO & THI CỬ ---
     all_exams = Exam.objects.all().order_by('-id') 
     all_courses = Course.objects.all().order_by('-created_at')
+    exams_page, exams_query_string = paginate_queryset(
+        request, all_exams, page_param='exam_page',
+    )
     
     # --- PHẦN TUYỂN DỤNG ---
     active_jobs = JobPosting.objects.filter(is_active=True).count()
@@ -267,7 +275,9 @@ def admin_dashboard(request):
         'active_exams_count': all_exams.filter(is_active=True, end_time__gt=now).count(),
         'total_users': User.objects.count(),
         'total_submissions': ExamSubmission.objects.filter(is_completed=True).count(),
-        'exams': all_exams,
+        'exams': exams_page.object_list,
+        'exams_page': exams_page,
+        'exams_query_string': exams_query_string,
         'recent_exams': all_exams[:5],
         'recent_submissions': ExamSubmission.objects.filter(is_completed=True).order_by('-submitted_at')[:5],
         
@@ -357,10 +367,21 @@ def exam_delete(request, pk):
 @admin_only
 def admin_results(request):
     exam_id = request.GET.get('exam')
-    submissions = ExamSubmission.objects.all().order_by('-submitted_at')
+    submissions_qs = ExamSubmission.objects.select_related(
+        'user', 'user__profile', 'exam',
+    ).prefetch_related(
+        'answers__question__choices',
+        'answers__selected_choices',
+    ).order_by('-submitted_at')
     if exam_id:
-        submissions = submissions.filter(exam_id=exam_id)
-    return render(request, 'assessment/admin/results_list.html', {'submissions': submissions})
+        submissions_qs = submissions_qs.filter(exam_id=exam_id)
+    page_obj, query_string = paginate_queryset(request, submissions_qs)
+    return render(request, 'assessment/admin/results_list.html', {
+        'submissions': page_obj.object_list,
+        'page_obj': page_obj,
+        'query_string': query_string,
+        'total_count': page_obj.paginator.count,
+    })
 
 @admin_only
 def grade_submission(request, submission_id):

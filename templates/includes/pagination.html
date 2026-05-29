@@ -1,0 +1,26 @@
+{% if page_obj.paginator.num_pages > 1 %}
+<nav aria-label="Phân trang" class="jp-pagination{% if pagination_class %} {{ pagination_class }}{% endif %}">
+    <ul class="pagination justify-content-center mb-0 flex-wrap">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?{% if query_string %}{{ query_string }}&{% endif %}{{ page_param|default:'page' }}={{ page_obj.previous_page_number }}">Trước</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link">Trước</span></li>
+        {% endif %}
+        <li class="page-item disabled">
+            <span class="page-link text-muted">
+                Trang {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+                <span class="d-none d-sm-inline"> · {{ page_obj.paginator.count }} mục</span>
+            </span>
+        </li>
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?{% if query_string %}{{ query_string }}&{% endif %}{{ page_param|default:'page' }}={{ page_obj.next_page_number }}">Sau</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link">Sau</span></li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
