@@ -1,9 +1,10 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.db.models import Q
-from .models import Profile, Department, Division
+from .models import Profile, Department, Division, DepartmentMenuPermission
 from hrm.choices import GENDER_FORM_CHOICES
 from hrm.permissions import ROLE_EMPLOYEE
+from hrm.module_permissions import MODULE_CHOICES
 
 INPUT = {'class': 'form-control'}
 SELECT = {'class': 'form-select'}
@@ -188,3 +189,12 @@ class DivisionForm(forms.ModelForm):
         if qs.exists():
             raise forms.ValidationError('Bộ phận này đã tồn tại.')
         return name
+
+
+class DepartmentMenuPermissionForm(forms.Form):
+    modules = forms.MultipleChoiceField(
+        choices=MODULE_CHOICES,
+        required=False,
+        widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'}),
+        label='Chức năng được phép truy cập',
+    )

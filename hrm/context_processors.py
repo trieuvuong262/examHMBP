@@ -1,3 +1,15 @@
+from hrm.module_permissions import (
+    MODULE_ANNOUNCEMENTS,
+    MODULE_ASSESSMENT,
+    MODULE_GUIDE,
+    MODULE_HRM,
+    MODULE_KPI,
+    MODULE_RECRUITMENT,
+    MODULE_REPORTS,
+    MODULE_TRAINING,
+    get_user_enabled_modules,
+    user_can_access_module,
+)
 from hrm.permissions import (
     can_edit_user_guide,
     can_view_team_reports,
@@ -26,7 +38,17 @@ def portal_permissions(request):
             'jp_can_team_reports': False,
             'jp_user_role': '',
             'jp_role_display': '',
+            'jp_enabled_modules': set(),
+            'jp_can_announcements': False,
+            'jp_can_recruitment': False,
+            'jp_can_training': False,
+            'jp_can_assessment': False,
+            'jp_can_hrm': False,
+            'jp_can_kpi': False,
+            'jp_can_reports': False,
+            'jp_can_guide': False,
         }
+    enabled = get_user_enabled_modules(user)
     return {
         'jp_can_portal_admin': is_portal_admin(user),
         'jp_can_edit_guide': can_edit_user_guide(user),
@@ -38,4 +60,13 @@ def portal_permissions(request):
         'jp_can_team_reports': can_view_team_reports(user),
         'jp_user_role': user_role(user),
         'jp_role_display': role_display(user),
+        'jp_enabled_modules': enabled,
+        'jp_can_announcements': user_can_access_module(user, MODULE_ANNOUNCEMENTS),
+        'jp_can_recruitment': user_can_access_module(user, MODULE_RECRUITMENT),
+        'jp_can_training': user_can_access_module(user, MODULE_TRAINING),
+        'jp_can_assessment': user_can_access_module(user, MODULE_ASSESSMENT),
+        'jp_can_hrm': user_can_access_module(user, MODULE_HRM),
+        'jp_can_kpi': user_can_access_module(user, MODULE_KPI),
+        'jp_can_reports': user_can_access_module(user, MODULE_REPORTS),
+        'jp_can_guide': user_can_access_module(user, MODULE_GUIDE),
     }

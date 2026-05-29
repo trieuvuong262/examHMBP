@@ -69,6 +69,39 @@ class Department(models.Model):
     def employee_count(self):
         return self.profiles.count()
 
+    def get_enabled_modules(self):
+        from hrm.module_permissions import get_department_enabled_modules
+        return get_department_enabled_modules(self)
+
+
+class DepartmentMenuPermission(models.Model):
+    """Menu/module được phép truy cập theo phòng ban."""
+    department = models.OneToOneField(
+        Department,
+        on_delete=models.CASCADE,
+        related_name='menu_permissions',
+        verbose_name='Phòng ban',
+    )
+    modules = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name='Module được phép',
+        help_text='Danh sách mã module. Để trống = cho phép tất cả.',
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Phân quyền menu phòng ban'
+        verbose_name_plural = 'Phân quyền menu phòng ban'
+
+    def __str__(self):
+        return f'Quyền menu — {self.department.name}'
+
+    @property
+    def enabled_modules(self):
+        from hrm.module_permissions import ALL_MODULE_KEYS, get_department_enabled_modules
+        return get_department_enabled_modules(self.department)
+
 
 class Division(models.Model):
     name = models.CharField(max_length=150, unique=True, verbose_name='Tên bộ phận')

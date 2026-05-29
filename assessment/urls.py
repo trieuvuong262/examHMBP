@@ -33,6 +33,7 @@ urlpatterns = [
     path('dashboard/departments/', hrm_views.department_list, name='department_list'),
     path('dashboard/departments/add/', hrm_views.department_add, name='department_add'),
     path('dashboard/departments/edit/<int:pk>/', hrm_views.department_edit, name='department_edit'),
+    path('dashboard/departments/<int:pk>/permissions/', hrm_views.department_permissions, name='department_permissions'),
     path('dashboard/departments/delete/<int:pk>/', hrm_views.department_delete, name='department_delete'),
     path('dashboard/divisions/add/', hrm_views.division_add, name='division_add'),
     path('dashboard/divisions/edit/<int:pk>/', hrm_views.division_edit, name='division_edit'),

@@ -80,6 +80,7 @@
                         </td>
                         <td class="text-end pe-4">
                             <div class="d-inline-flex gap-1">
+                                <a href="{% url 'department_permissions' dept.pk %}" class="btn btn-sm btn-outline-dark" title="Phân quyền menu"><i class="bi bi-shield-lock"></i></a>
                                 <a href="{% url 'department_edit' dept.pk %}" class="btn btn-sm btn-outline-hm" title="Sửa"><i class="bi bi-pencil-square"></i></a>
                                 <a href="{% url 'department_delete' dept.pk %}" class="btn btn-sm btn-outline-danger" title="Xóa"><i class="bi bi-trash"></i></a>
                             </div>

@@ -122,6 +122,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'axes.middleware.AxesMiddleware',
     'PortalJustPlay.middleware.ForcePasswordChangeMiddleware',
+    'hrm.middleware.DepartmentModuleAccessMiddleware',
 ]
 
 ROOT_URLCONF = 'PortalJustPlay.urls'

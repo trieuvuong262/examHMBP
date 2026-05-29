@@ -60,6 +60,7 @@
 
         <div class="collapse navbar-collapse d-none d-lg-flex" id="mainNavbar">
             <ul class="navbar-nav mx-auto mb-2 mb-lg-0">
+                {% if jp_can_announcements %}
                 <li class="nav-item">
                     <a class="nav-link {% if 'announcements' in request.path %}active{% endif %}"
                        href="{% url 'announcements:list' %}">
@@ -69,56 +70,38 @@
                         {% endif %}
                     </a>
                 </li>
+                {% endif %}
+                {% if jp_can_recruitment and jp_can_portal_admin %}
                 <li class="nav-item">
-                    {% if jp_can_portal_admin %}
                     <a class="nav-link {% if request.GET.tab == 'recruitment' or request.resolver_match.url_name == 'admin_dashboard' and not request.GET.tab %}active{% endif %}"
                        href="{% url 'admin_dashboard' %}?tab=recruitment">
                         <i class="bi bi-person-lines-fill me-1"></i> Tuyển dụng
                     </a>
-                    {% endif %}
                 </li>
+                {% endif %}
+                {% if jp_can_training and jp_can_portal_admin %}
                 <li class="nav-item">
-                    {% if jp_can_portal_admin %}
                     <a class="nav-link {% if request.GET.tab == 'training' %}active{% endif %}"
                        href="{% url 'admin_dashboard' %}?tab=training">
                         <i class="bi bi-mortarboard-fill me-1"></i> Đào tạo
                     </a>
-                    {% endif %}
                 </li>
-                <li class="nav-item">
-                    {% if jp_can_portal_admin %}
-                    <a class="nav-link {% if request.GET.tab == 'assessment' %}active{% endif %}"
-                       href="{% url 'admin_dashboard' %}?tab=assessment">
-                        <i class="bi bi-journal-check me-1"></i> Kiểm tra
-                    </a>
-                    {% endif %}
-                </li>
-                <li class="nav-item">
-                    {% if jp_can_portal_admin %}
-                    <a class="nav-link {% if 'user' in request.resolver_match.url_name %}active{% endif %}"
-                       href="{% url 'user_list' %}">
-                        <i class="bi bi-people-fill me-1"></i> Nhân sự
-                    </a>
-                    {% endif %}
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if 'kpi' in request.path %}active{% endif %}" href="{% url 'kpi_list' %}">
-                        <i class="bi bi-graph-up-arrow me-1"></i> Hiệu suất (KPI)
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if 'reports' in request.path %}active{% endif %}"
-                       href="{% url 'reports:hub' %}">
-                        <i class="bi bi-clipboard-check-fill me-1"></i> Báo Cáo
-                    </a>
-                </li>
-                {% if jp_user_role == 'EMPLOYEE' and not jp_can_portal_admin %}
+                {% elif jp_can_training %}
                 <li class="nav-item">
                     <a class="nav-link {% if 'training' in request.path %}active{% endif %}"
                        href="{% url 'my_courses' %}">
                         <i class="bi bi-mortarboard-fill me-1"></i> Học Tập
                     </a>
                 </li>
+                {% endif %}
+                {% if jp_can_assessment and jp_can_portal_admin %}
+                <li class="nav-item">
+                    <a class="nav-link {% if request.GET.tab == 'assessment' %}active{% endif %}"
+                       href="{% url 'admin_dashboard' %}?tab=assessment">
+                        <i class="bi bi-journal-check me-1"></i> Kiểm tra
+                    </a>
+                </li>
+                {% elif jp_can_assessment %}
                 <li class="nav-item">
                     <a class="nav-link {% if 'exams' in request.path %}active{% endif %}"
                        href="{% url 'exam_list' %}">
@@ -126,12 +109,37 @@
                     </a>
                 </li>
                 {% endif %}
+                {% if jp_can_hrm and jp_can_portal_admin %}
+                <li class="nav-item">
+                    <a class="nav-link {% if 'user' in request.resolver_match.url_name %}active{% endif %}"
+                       href="{% url 'user_list' %}">
+                        <i class="bi bi-people-fill me-1"></i> Nhân sự
+                    </a>
+                </li>
+                {% endif %}
+                {% if jp_can_kpi %}
+                <li class="nav-item">
+                    <a class="nav-link {% if 'kpi' in request.path %}active{% endif %}" href="{% url 'kpi_list' %}">
+                        <i class="bi bi-graph-up-arrow me-1"></i> Hiệu suất (KPI)
+                    </a>
+                </li>
+                {% endif %}
+                {% if jp_can_reports %}
+                <li class="nav-item">
+                    <a class="nav-link {% if 'reports' in request.path %}active{% endif %}"
+                       href="{% url 'reports:hub' %}">
+                        <i class="bi bi-clipboard-check-fill me-1"></i> Báo Cáo
+                    </a>
+                </li>
+                {% endif %}
+                {% if jp_can_guide %}
                 <li class="nav-item">
                     <a class="nav-link {% if 'huong-dan' in request.path %}active{% endif %}"
                        href="{% url 'user_guide' %}">
                         <i class="bi bi-journal-text me-1"></i> Hướng dẫn
                     </a>
                 </li>
+                {% endif %}
             </ul>
 
             <ul class="navbar-nav">
@@ -188,19 +196,34 @@
         </div>
         <ul class="navbar-nav">
             <li class="nav-item"><a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{% url 'home_portal' %}"><i class="bi bi-house-fill me-2"></i>Trang chủ</a></li>
+            {% if jp_can_announcements %}
             <li class="nav-item"><a class="nav-link {% if 'announcements' in request.path %}active{% endif %}" href="{% url 'announcements:list' %}"><i class="bi bi-megaphone-fill me-2"></i>Thông báo {% if unread_announcements_count %}<span class="badge bg-white text-danger">{{ unread_announcements_count }}</span>{% endif %}</a></li>
+            {% endif %}
+            {% if jp_can_reports %}
             <li class="nav-item"><a class="nav-link {% if 'reports' in request.path %}active{% endif %}" href="{% url 'reports:hub' %}"><i class="bi bi-clipboard-check-fill me-2"></i>Báo cáo</a></li>
+            {% endif %}
+            {% if jp_can_kpi %}
             <li class="nav-item"><a class="nav-link {% if 'kpi' in request.path %}active{% endif %}" href="{% url 'kpi_list' %}"><i class="bi bi-graph-up-arrow me-2"></i>KPI</a></li>
-            {% if jp_can_portal_admin %}
+            {% endif %}
+            {% if jp_can_recruitment and jp_can_portal_admin %}
             <li class="nav-item"><a class="nav-link {% if request.GET.tab == 'recruitment' %}active{% endif %}" href="{% url 'admin_dashboard' %}?tab=recruitment"><i class="bi bi-person-lines-fill me-2"></i>Tuyển dụng</a></li>
-            <li class="nav-item"><a class="nav-link {% if request.GET.tab == 'training' %}active{% endif %}" href="{% url 'admin_dashboard' %}?tab=training"><i class="bi bi-mortarboard-fill me-2"></i>Đào tạo</a></li>
-            <li class="nav-item"><a class="nav-link {% if request.GET.tab == 'assessment' %}active{% endif %}" href="{% url 'admin_dashboard' %}?tab=assessment"><i class="bi bi-journal-check me-2"></i>Kiểm tra</a></li>
-            <li class="nav-item"><a class="nav-link {% if 'user' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'user_list' %}"><i class="bi bi-people-fill me-2"></i>Nhân sự</a></li>
-            {% else %}
+            {% endif %}
+            {% if jp_can_training and jp_can_portal_admin %}
+            <li class="nav-item"><a class="nav-link {% if request.GET.tab == 'training' %}active{% endif %}" href="{% url 'admin_dashboard' %}?tab=training"><i class="bi bi-mortarboard-fill me-2"></i>Đào tạo (Admin)</a></li>
+            {% elif jp_can_training %}
             <li class="nav-item"><a class="nav-link {% if 'training' in request.path or 'my_courses' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'my_courses' %}"><i class="bi bi-mortarboard-fill me-2"></i>Học tập</a></li>
+            {% endif %}
+            {% if jp_can_assessment and jp_can_portal_admin %}
+            <li class="nav-item"><a class="nav-link {% if request.GET.tab == 'assessment' %}active{% endif %}" href="{% url 'admin_dashboard' %}?tab=assessment"><i class="bi bi-journal-check me-2"></i>Kiểm tra (Admin)</a></li>
+            {% elif jp_can_assessment %}
             <li class="nav-item"><a class="nav-link {% if 'exams' in request.path %}active{% endif %}" href="{% url 'exam_list' %}"><i class="bi bi-journal-check me-2"></i>Kiểm tra</a></li>
             {% endif %}
+            {% if jp_can_hrm and jp_can_portal_admin %}
+            <li class="nav-item"><a class="nav-link {% if 'user' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'user_list' %}"><i class="bi bi-people-fill me-2"></i>Nhân sự</a></li>
+            {% endif %}
+            {% if jp_can_guide %}
             <li class="nav-item"><a class="nav-link {% if 'huong-dan' in request.path %}active{% endif %}" href="{% url 'user_guide' %}"><i class="bi bi-journal-text me-2"></i>Hướng dẫn</a></li>
+            {% endif %}
         </ul>
         <hr class="border-light opacity-25">
         <a class="nav-link text-white" href="{% url 'password_change' %}"><i class="bi bi-shield-lock me-2"></i>Đổi mật khẩu</a>
@@ -219,27 +242,35 @@
             <i class="bi bi-house-fill"></i><span>Trang chủ</span>
         </a>
     </div>
+    {% if jp_can_announcements %}
     <div class="jp-bottom-nav-item">
         <a href="{% url 'announcements:list' %}" data-nav="/announcements" class="{% if 'announcements' in request.path %}active{% endif %}">
             <i class="bi bi-megaphone-fill"></i><span>Thông báo</span>
             {% if unread_announcements_count %}<span class="badge bg-danger jp-nav-badge">{{ unread_announcements_count }}</span>{% endif %}
         </a>
     </div>
+    {% endif %}
+    {% if jp_can_reports %}
     <div class="jp-bottom-nav-item">
         <a href="{% url 'reports:hub' %}" data-nav="/reports" class="{% if 'reports' in request.path %}active{% endif %}">
             <i class="bi bi-clipboard-check-fill"></i><span>Báo cáo</span>
         </a>
     </div>
+    {% endif %}
+    {% if jp_can_kpi %}
     <div class="jp-bottom-nav-item">
         <a href="{% url 'kpi_list' %}" data-nav="/kpi" class="{% if 'kpi' in request.path %}active{% endif %}">
             <i class="bi bi-graph-up-arrow"></i><span>KPI</span>
         </a>
     </div>
+    {% endif %}
+    {% if jp_can_training %}
     <div class="jp-bottom-nav-item">
-        <a href="{% url 'my_courses' %}" data-nav="/training" class="{% if 'training' in request.path %}active{% endif %}">
+        <a href="{% if jp_can_portal_admin %}{% url 'admin_dashboard' %}?tab=training{% else %}{% url 'my_courses' %}{% endif %}" data-nav="/training" class="{% if 'training' in request.path %}active{% endif %}">
             <i class="bi bi-mortarboard-fill"></i><span>Học</span>
         </a>
     </div>
+    {% endif %}
 </nav>
 {% endif %}
 

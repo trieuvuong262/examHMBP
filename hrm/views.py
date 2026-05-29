@@ -10,9 +10,10 @@ from django.http import HttpResponse
 from django.db import transaction
 from django.db.models import Count
 # Import từ các app khác sang
+from hrm.module_permissions import ALL_MODULE_KEYS
 from assessment.decorators import admin_only
 from assessment.forms import UserForm # Tạm thời Form vẫn để ở nhà cũ, mốt mình dời sau
-from hrm.models import Profile, Department, Division
+from hrm.models import Profile, Department, Division, DepartmentMenuPermission
 from hrm.choices import (
     EXCEL_ALL_HEADERS,
     row_to_profile_data,
@@ -20,7 +21,7 @@ from hrm.choices import (
     user_to_excel_row,
 )
 from PortalJustPlay.utils import generate_hm_username, generate_secure_password
-from .forms import CustomUserForm, DepartmentForm, DivisionForm
+from .forms import CustomUserForm, DepartmentForm, DivisionForm, DepartmentMenuPermissionForm
 from django.http import JsonResponse
 import random
 import string
@@ -434,6 +435,36 @@ def department_delete(request, pk):
         return _org_redirect('department')
     return render(request, 'assessment/admin/department_confirm_delete.html', {
         'department': department,
+    })
+
+
+@admin_only
+def department_permissions(request, pk):
+    department = get_object_or_404(Department, pk=pk)
+    perm, _ = DepartmentMenuPermission.objects.get_or_create(
+        department=department,
+        defaults={'modules': sorted(ALL_MODULE_KEYS)},
+    )
+
+    if request.method == 'POST':
+        form = DepartmentMenuPermissionForm(request.POST)
+        if form.is_valid():
+            perm.modules = form.cleaned_data.get('modules') or []
+            perm.save()
+            messages.success(
+                request,
+                f'Đã cập nhật phân quyền menu cho phòng ban "{department.name}".',
+            )
+            return _org_redirect('department')
+    else:
+        form = DepartmentMenuPermissionForm(initial={
+            'modules': perm.modules if perm.modules else sorted(ALL_MODULE_KEYS),
+        })
+
+    return render(request, 'assessment/admin/department_permissions.html', {
+        'department': department,
+        'form': form,
+        'employee_count': department.employee_count,
     })
 
 
