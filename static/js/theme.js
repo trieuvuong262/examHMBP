@@ -18,7 +18,7 @@
     function updateMeta(theme) {
         var meta = document.querySelector('meta[name="theme-color"]');
         if (!meta) return;
-        meta.setAttribute('content', theme === 'dark' ? '#991b1b' : '#dc2626');
+        meta.setAttribute('content', theme === 'dark' ? '#450a0a' : '#dc2626');
     }
 
     function updateToggleButtons(theme) {
