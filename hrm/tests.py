@@ -279,3 +279,57 @@ class ProfileAvatarTests(TestCase):
         self.user.profile.refresh_from_db()
         self.assertTrue(self.user.profile.avatar)
         self.assertIn('me', self.user.profile.avatar.name)
+
+
+class UserSearchTests(TestCase):
+    def setUp(self):
+        dept = Department.objects.create(name='Phòng May', sort_order=1)
+        RoleModulePermission.objects.update_or_create(
+            role=ROLE_DIRECTOR,
+            defaults={'module_permissions': {MODULE_HRM: {'view': True, 'edit': True}}},
+        )
+        self.admin = User.objects.create_user(username='hr_admin', password='testpass123', is_staff=True)
+        Profile.objects.filter(user=self.admin).update(
+            role=ROLE_DIRECTOR,
+            full_name='HR Admin',
+            is_employed=True,
+        )
+        self.target = User.objects.create_user(username='annt', password='testpass123', first_name='An')
+        Profile.objects.filter(user=self.target).update(
+            full_name='Nguyễn Văn An',
+            employee_code='NV12345',
+            department=dept,
+            is_employed=True,
+        )
+        self.other = User.objects.create_user(username='other_user', password='testpass123')
+        Profile.objects.filter(user=self.other).update(full_name='Trần Văn B', is_employed=True)
+        self.client = Client(HTTP_HOST='testserver')
+        self.client.force_login(self.admin)
+
+    def test_search_by_employee_code_finds_user(self):
+        response = self.client.get(reverse('user_list'), {'q': 'NV12345'})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Nguyễn Văn An')
+        self.assertNotContains(response, 'Trần Văn B')
+
+    def test_search_by_username_finds_user(self):
+        response = self.client.get(reverse('user_list'), {'q': 'annt'})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Nguyễn Văn An')
+
+    def test_hr_edit_can_update_other_user_avatar(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        image = SimpleUploadedFile('staff.jpg', b'jpeg-bytes', content_type='image/jpeg')
+        response = self.client.post(reverse('user_edit', args=[self.target.id]), {
+            'username': 'annt',
+            'email': 'annt@justplay.vn',
+            'full_name': 'Nguyễn Văn An',
+            'employee_code': 'NV12345',
+            'role': ROLE_EMPLOYEE,
+            'avatar': image,
+        })
+        self.assertEqual(response.status_code, 302)
+        self.target.profile.refresh_from_db()
+        self.assertTrue(self.target.profile.avatar)
+        self.assertIn('staff', self.target.profile.avatar.name)

@@ -67,13 +67,28 @@
         <div class="card-header bg-white py-3 border-bottom jp-hrm-card-header">
             <div class="jp-hrm-card-header-main">
                 <h5 class="mb-0 fw-bold text-dark">Dữ liệu nhân sự <span class="text-muted fw-normal">({{ page_obj.paginator.count }})</span></h5>
-                <p class="text-muted small mb-0 d-none d-md-block" id="userVisibleCount"></p>
+                <p class="text-muted small mb-0 d-none d-md-block" id="userVisibleCount">
+                    {% if search_query %}Kết quả tìm “{{ search_query }}” — {{ page_obj.paginator.count }} nhân viên{% endif %}
+                </p>
             </div>
             <div class="jp-hrm-filters">
-                <div class="jp-hrm-search input-group">
+                <form method="get" class="jp-hrm-search input-group" role="search">
                     <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
-                    <input type="search" id="userSearch" class="form-control bg-light border-start-0" placeholder="Tìm mã NS, tên, account, phòng ban..." autocomplete="off">
-                </div>
+                    <input type="search"
+                           name="q"
+                           id="userSearch"
+                           class="form-control bg-light border-start-0 border-end-0"
+                           placeholder="Tìm mã NS, tên, account, email, phòng ban..."
+                           value="{{ search_query }}"
+                           autocomplete="off">
+                    <input type="hidden" name="sort" value="{{ sort_key }}">
+                    {% if search_query %}
+                    <a href="{% url 'user_list' %}?sort={{ sort_key }}" class="btn btn-light border" title="Xóa tìm kiếm">
+                        <i class="bi bi-x-lg"></i>
+                    </a>
+                    {% endif %}
+                    <button type="submit" class="btn btn-outline-hm">Tìm</button>
+                </form>
                 <div class="jp-hrm-sort">
                     <label for="userSort" class="visually-hidden">Sắp xếp theo</label>
                     <select id="userSort" class="form-select" aria-label="Sắp xếp theo">
@@ -430,44 +445,11 @@ function autoCopySync(text) {
         }, 2000);
     }
 
-    // ----------------------------------------------------
-    // CÁC CHỨC NĂNG TÌM KIẾM & IMPORT
-    // ----------------------------------------------------
-    
-    // TÌM KIẾM THEO BẢNG
-    const userSearch = document.getElementById('userSearch');
-    const visibleCountEl = document.getElementById('userVisibleCount');
-
-    function updateVisibleCount() {
-        if (!visibleCountEl) return;
-        const rows = document.querySelectorAll('#userTable tbody tr:not(.jp-td-empty-row)');
-        let visible = 0;
-        rows.forEach(row => {
-            if (row.style.display !== 'none') visible += 1;
-        });
-        const total = rows.length;
-        if (userSearch && userSearch.value.trim()) {
-            visibleCountEl.textContent = `Hiển thị ${visible}/${total} nhân viên`;
-        } else {
-            visibleCountEl.textContent = '';
-        }
-    }
-
-    userSearch.addEventListener('keyup', function() {
-        let keyword = this.value.toLowerCase();
-        let rows = document.querySelectorAll('#userTable tbody tr');
-        rows.forEach(row => {
-            if (row.querySelector('.jp-td-empty')) return;
-            let text = row.innerText.toLowerCase();
-            row.style.display = text.includes(keyword) ? '' : 'none';
-        });
-        updateVisibleCount();
-    });
-
     // SẮP XẾP (server-side)
     document.getElementById('userSort').addEventListener('change', function() {
         const url = new URL(window.location.href);
         url.searchParams.set('sort', this.value);
+        url.searchParams.delete('page');
         window.location.href = url.toString();
     });
 

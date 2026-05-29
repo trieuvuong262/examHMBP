@@ -6,6 +6,7 @@ from hrm.choices import GENDER_FORM_CHOICES
 from hrm.permissions import ROLE_EMPLOYEE
 from hrm.module_permissions import ALL_MODULE_KEYS, MODULE_CHOICES, MODULE_LABELS
 from hrm.role_permissions import normalize_module_permissions
+from hrm.user_search import user_display_label
 
 INPUT = {'class': 'form-control'}
 SELECT = {'class': 'form-select'}
@@ -84,7 +85,7 @@ class CustomUserForm(forms.Form):
         label='Vai trò hệ thống',
     )
     subordinates = forms.ModelMultipleChoiceField(
-        queryset=User.objects.all().order_by('first_name'),
+        queryset=User.objects.select_related('profile').order_by('profile__full_name', 'username'),
         required=False,
         widget=forms.SelectMultiple(attrs={'class': 'form-select select2-multiple'}),
         label='Nhân viên cấp dưới trực tiếp',
@@ -98,7 +99,11 @@ class CustomUserForm(forms.Form):
         self.fields['date_of_birth'].input_formats = ['%Y-%m-%d']
 
         if self.user_id:
-            self.fields['subordinates'].queryset = User.objects.exclude(id=self.user_id).order_by('first_name')
+            self.fields['subordinates'].queryset = (
+                User.objects.select_related('profile')
+                .exclude(id=self.user_id)
+                .order_by('profile__full_name', 'username')
+            )
 
         dept_qs = Department.objects.filter(is_active=True)
         if self.initial.get('department'):
@@ -114,9 +119,7 @@ class CustomUserForm(forms.Form):
             div_qs = Division.objects.filter(Q(is_active=True) | Q(pk=current_pk))
         self.fields['division'].queryset = div_qs.order_by('sort_order', 'name')
 
-        self.fields['subordinates'].label_from_instance = lambda obj: (
-            f"{obj.profile.full_name if hasattr(obj, 'profile') and obj.profile.full_name else obj.username} ({obj.username})"
-        )
+        self.fields['subordinates'].label_from_instance = user_display_label
 
     def clean_username(self):
         username = self.cleaned_data.get('username')

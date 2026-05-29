@@ -26,6 +26,7 @@ from hrm.choices import (
 from PortalJustPlay.utils import generate_hm_username, generate_secure_password
 from PortalJustPlay.pagination import paginate_queryset
 from .forms import CustomUserForm, DepartmentForm, DivisionForm, DepartmentMenuPermissionForm, RolePermissionForm
+from .user_search import filter_users_by_search
 from django.http import JsonResponse
 import random
 import string
@@ -71,10 +72,13 @@ def user_list(request):
     if sort_key not in USER_LIST_SORTS:
         sort_key = 'newest'
     order_by = USER_LIST_SORTS[sort_key][0]
+    search_query = (request.GET.get('q') or '').strip()
 
     users_qs = User.objects.select_related(
         'profile', 'profile__department', 'profile__division',
-    ).order_by(order_by, 'username')
+    )
+    users_qs = filter_users_by_search(users_qs, search_query)
+    users_qs = users_qs.order_by(order_by, 'username')
     page_obj, query_string = paginate_queryset(request, users_qs)
 
     return render(request, 'assessment/admin/user_list.html', {
@@ -83,6 +87,7 @@ def user_list(request):
         'query_string': query_string,
         'sort_key': sort_key,
         'sort_options': USER_LIST_SORTS,
+        'search_query': search_query,
     })
 
 
@@ -120,6 +125,29 @@ def user_add(request):
         'form': form, 
         'title': 'Thêm nhân viên mới'
     })
+
+AVATAR_MAX_SIZE = 5 * 1024 * 1024
+
+
+def _save_profile_avatar(profile, upload, request):
+    """Lưu avatar — dùng chung sidebar và form sửa nhân sự."""
+    from django.core.exceptions import ValidationError
+    from tasks.attachment_utils import validate_image_file
+
+    if not upload:
+        return None
+    try:
+        validate_image_file(upload)
+    except ValidationError as exc:
+        messages.error(request, '; '.join(getattr(exc, 'messages', [str(exc)])))
+        return False
+    if upload.size > AVATAR_MAX_SIZE:
+        messages.error(request, 'Ảnh avatar tối đa 5 MB.')
+        return False
+    profile.avatar = upload
+    profile.save(update_fields=['avatar'])
+    return True
+
 
 @admin_only
 def user_edit(request, user_id):
@@ -166,6 +194,18 @@ def user_edit(request, user_id):
             # Hàm save() của profile sẽ tự xử lý quyền nếu role là Giám đốc
             profile.save()
 
+            avatar_upload = request.FILES.get('avatar')
+            if avatar_upload:
+                avatar_result = _save_profile_avatar(profile, avatar_upload, request)
+                if avatar_result is False:
+                    return render(request, 'assessment/admin/user_form.html', {
+                        'form': form,
+                        'title': 'Chỉnh sửa nhân sự',
+                        'is_edit': True,
+                        'user_instance': user_obj,
+                        'profile': profile,
+                    })
+
             messages.success(request, f"Cập nhật {profile.full_name} thành công!")
             return redirect('user_list')
         else:
@@ -195,7 +235,8 @@ def user_edit(request, user_id):
         'form': form, 
         'title': 'Chỉnh sửa nhân sự',
         'is_edit': True,
-        'user_instance': user_obj
+        'user_instance': user_obj,
+        'profile': profile,
     })
 @admin_only
 def user_delete(request, user_id):
@@ -670,9 +711,6 @@ class MyPasswordChangeView(PasswordChangeView):
         return response
 
 
-AVATAR_MAX_SIZE = 5 * 1024 * 1024
-
-
 @login_required
 def update_avatar(request):
     if request.method != 'POST':
@@ -683,26 +721,14 @@ def update_avatar(request):
         messages.warning(request, 'Chưa chọn hình ảnh avatar.')
         return redirect(request.POST.get('next') or request.META.get('HTTP_REFERER') or reverse('home_portal'))
 
-    from tasks.attachment_utils import validate_image_file
-    from django.core.exceptions import ValidationError
-
-    try:
-        validate_image_file(upload)
-    except ValidationError as exc:
-        messages.error(request, '; '.join(getattr(exc, 'messages', [str(exc)])))
-        return redirect(request.POST.get('next') or request.META.get('HTTP_REFERER') or reverse('home_portal'))
-
-    if upload.size > AVATAR_MAX_SIZE:
-        messages.error(request, 'Ảnh avatar tối đa 5 MB.')
-        return redirect(request.POST.get('next') or request.META.get('HTTP_REFERER') or reverse('home_portal'))
-
     profile = getattr(request.user, 'profile', None)
     if not profile:
         messages.error(request, 'Không tìm thấy hồ sơ nhân viên.')
         return redirect('home_portal')
 
-    profile.avatar = upload
-    profile.save(update_fields=['avatar'])
+    if _save_profile_avatar(profile, upload, request) is False:
+        return redirect(request.POST.get('next') or request.META.get('HTTP_REFERER') or reverse('home_portal'))
+
     messages.success(request, 'Đã cập nhật avatar.')
     return redirect(request.POST.get('next') or request.META.get('HTTP_REFERER') or reverse('home_portal'))
 
