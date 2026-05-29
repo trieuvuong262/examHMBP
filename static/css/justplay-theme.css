@@ -4201,6 +4201,131 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     color: var(--jp-text-primary);
 }
 
+/* --- HRM user form (/dashboard/users/edit/) — dark mode --- */
+[data-theme="dark"] .jp-user-form-page .jp-user-form-card,
+[data-theme="dark"] .jp-user-form-page .jp-user-form-card .card-header,
+[data-theme="dark"] .jp-user-form-page .jp-user-form-card .card-body {
+    background: var(--jp-surface-bg) !important;
+    border-color: var(--jp-surface-border);
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .jp-user-form-page .jp-user-form-actions {
+    background: var(--jp-surface-bg) !important;
+    border-color: var(--jp-surface-border) !important;
+}
+
+[data-theme="dark"] .jp-user-form-page .jp-form-label {
+    color: var(--jp-text-muted);
+}
+
+[data-theme="dark"] .jp-user-form-page .jp-form-link {
+    color: #fca5a5;
+}
+
+[data-theme="dark"] .jp-user-form-page .jp-form-link:hover {
+    color: #fecaca;
+}
+
+[data-theme="dark"] .jp-user-form-page .form-control,
+[data-theme="dark"] .jp-user-form-page .form-select,
+[data-theme="dark"] .jp-hrm-page.jp-user-form-page .form-control,
+[data-theme="dark"] .jp-hrm-page.jp-user-form-page .form-select {
+    background: var(--jp-input-bg) !important;
+    border-color: var(--jp-input-border) !important;
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .jp-user-form-page .form-control:focus,
+[data-theme="dark"] .jp-user-form-page .form-select:focus {
+    background: var(--jp-input-bg);
+    border-color: rgba(220, 38, 38, 0.45);
+    color: var(--jp-text-primary);
+    box-shadow: 0 0 0 0.2rem rgba(220, 38, 38, 0.15);
+}
+
+[data-theme="dark"] .jp-user-form-page .alert-light {
+    background: var(--jp-surface-muted) !important;
+    border-color: var(--jp-surface-border) !important;
+    color: var(--jp-text-secondary);
+}
+
+[data-theme="dark"] .jp-user-form-page .alert-light strong {
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .jp-user-form-page .btn-light,
+[data-theme="dark"] .jp-user-form-page .jp-hrm-back-btn {
+    background: var(--jp-surface-muted) !important;
+    border-color: var(--jp-surface-border) !important;
+    color: var(--jp-text-primary) !important;
+}
+
+[data-theme="dark"] .jp-user-form-page .btn-light:hover,
+[data-theme="dark"] .jp-user-form-page .jp-hrm-back-btn:hover {
+    background: var(--jp-surface-bg) !important;
+    color: var(--jp-text-primary) !important;
+}
+
+[data-theme="dark"] .jp-user-form-page .btn-outline-dark {
+    color: var(--jp-text-secondary);
+    border-color: var(--jp-surface-border);
+}
+
+[data-theme="dark"] .jp-user-form-page .btn-outline-dark:hover {
+    background: var(--jp-surface-muted);
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .jp-user-form-page #subordinates_section.border-top {
+    border-color: var(--jp-surface-border) !important;
+}
+
+[data-theme="dark"] .jp-hrm-page .select2-container--bootstrap-5 .select2-selection {
+    background: var(--jp-input-bg) !important;
+    border-color: var(--jp-input-border) !important;
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .jp-hrm-page .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__rendered {
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .jp-hrm-page .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice {
+    background-color: #7f1d1d !important;
+    color: #fff;
+}
+
+[data-theme="dark"] .jp-hrm-page .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice__remove {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+[data-theme="dark"] .select2-container--bootstrap-5 .select2-dropdown {
+    background: var(--jp-dropdown-bg);
+    border-color: var(--jp-surface-border);
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .select2-container--bootstrap-5 .select2-search__field {
+    background: var(--jp-input-bg);
+    border-color: var(--jp-input-border);
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .select2-container--bootstrap-5 .select2-results__option {
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .select2-container--bootstrap-5 .select2-results__option--highlighted {
+    background: rgba(127, 29, 29, 0.35) !important;
+    color: #fff !important;
+}
+
+[data-theme="dark"] .select2-container--bootstrap-5 .select2-results__option--selected {
+    background: rgba(127, 29, 29, 0.2);
+    color: #fecaca;
+}
+
 /* --- Theme toggle --- */
 [data-theme="dark"] .jp-theme-toggle {
     border-color: var(--jp-surface-border);

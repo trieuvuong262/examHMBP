@@ -57,32 +57,6 @@
                     <i class="bi bi-moon-stars-fill jp-theme-icon-dark" aria-hidden="true"></i>
                     <i class="bi bi-sun-fill jp-theme-icon-light d-none" aria-hidden="true"></i>
                 </button>
-                <div class="dropdown">
-                    <button class="btn jp-topbar-user-btn dropdown-toggle" type="button"
-                        data-bs-toggle="dropdown" aria-expanded="false">
-                        <span class="jp-topbar-user-avatar">
-                            {{ user.first_name|default:user.username|make_list|first|upper }}
-                        </span>
-                        <span class="d-none d-md-inline jp-topbar-user-name">{{ user.first_name|default:user.username }}</span>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 p-2">
-                        <li><h6 class="dropdown-header small">{{ jp_role_display|default:"Nhân viên" }}</h6></li>
-                        <li>
-                            <a class="dropdown-item py-2 rounded" href="{% url 'password_change' %}">
-                                <i class="bi bi-shield-lock me-2 text-hm"></i>Đổi mật khẩu
-                            </a>
-                        </li>
-                        <li><hr class="dropdown-divider opacity-50"></li>
-                        <li>
-                            <form action="{% url 'logout' %}" method="POST" class="m-0">
-                                {% csrf_token %}
-                                <button type="submit" class="dropdown-item py-2 rounded text-danger fw-bold w-100 text-start">
-                                    <i class="bi bi-box-arrow-right me-2"></i>Đăng xuất
-                                </button>
-                            </form>
-                        </li>
-                    </ul>
-                </div>
             </div>
         </header>
 
