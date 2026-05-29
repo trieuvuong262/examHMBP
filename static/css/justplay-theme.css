@@ -36,6 +36,7 @@
 
     --jp-touch: 44px;
     --jp-sidebar-w: 260px;
+    --jp-sidebar-w-collapsed: 72px;
     --jp-topbar-h: 3.75rem;
     --jp-bottom-nav-h: 4.25rem;
     --jp-footer-h: 2.75rem;
@@ -2538,6 +2539,108 @@ textarea.form-control {
         top: 0;
         bottom: 0;
         height: auto;
+        width: var(--jp-sidebar-w);
+        transition: width 0.22s ease;
+    }
+
+    html.jp-sidebar-collapsed .jp-sidebar {
+        width: var(--jp-sidebar-w-collapsed);
+        overflow: visible;
+    }
+
+    .jp-app-main {
+        margin-left: var(--jp-sidebar-w);
+        width: calc(100% - var(--jp-sidebar-w));
+        max-width: calc(100% - var(--jp-sidebar-w));
+        transition: margin-left 0.22s ease, width 0.22s ease, max-width 0.22s ease;
+    }
+
+    html.jp-sidebar-collapsed .jp-app-main {
+        margin-left: var(--jp-sidebar-w-collapsed);
+        width: calc(100% - var(--jp-sidebar-w-collapsed));
+        max-width: calc(100% - var(--jp-sidebar-w-collapsed));
+    }
+
+    html.jp-sidebar-collapsed .jp-sidebar-nav {
+        padding-left: 0.45rem;
+        padding-right: 0.45rem;
+        overflow-x: visible;
+    }
+
+    html.jp-sidebar-collapsed .jp-sidebar-brand {
+        flex-direction: column;
+        align-items: center;
+        padding-left: 0.35rem;
+        padding-right: 0.35rem;
+    }
+
+    html.jp-sidebar-collapsed .jp-sidebar-brand-link {
+        justify-content: center;
+    }
+
+    html.jp-sidebar-collapsed .jp-sidebar-brand-text,
+    html.jp-sidebar-collapsed .jp-sidebar-profile-body,
+    html.jp-sidebar-collapsed .jp-sidebar-theme-toggle,
+    html.jp-sidebar-collapsed .jp-sidebar-link > span:not(.jp-sidebar-link-icon),
+    html.jp-sidebar-collapsed .jp-sidebar-group-toggle-main > span,
+    html.jp-sidebar-collapsed .jp-sidebar-group-chevron,
+    html.jp-sidebar-collapsed .jp-sidebar-footer .jp-sidebar-link > span {
+        display: none !important;
+    }
+
+    html.jp-sidebar-collapsed .jp-sidebar-profile-card {
+        flex-direction: column;
+        align-items: center;
+        padding: 0.65rem 0.35rem;
+    }
+
+    html.jp-sidebar-collapsed .jp-sidebar-link,
+    html.jp-sidebar-collapsed .jp-sidebar-group-toggle {
+        justify-content: center;
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+
+    html.jp-sidebar-collapsed .jp-sidebar-group-toggle-main {
+        justify-content: center;
+        width: 100%;
+    }
+
+    html.jp-sidebar-collapsed .jp-sidebar-link-icon {
+        margin: 0 auto;
+    }
+
+    html.jp-sidebar-collapsed .jp-sidebar-group {
+        position: relative;
+    }
+
+    html.jp-sidebar-collapsed .jp-sidebar-group .jp-sidebar-submenu {
+        display: none !important;
+        position: absolute;
+        left: calc(100% + 0.35rem);
+        top: 0;
+        min-width: 210px;
+        margin: 0;
+        padding: 0.35rem;
+        border-radius: var(--jp-radius-sm);
+        background: var(--jp-black-900);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+        z-index: 1060;
+    }
+
+    html.jp-sidebar-collapsed .jp-sidebar-group.is-flyout-open .jp-sidebar-submenu {
+        display: flex !important;
+        flex-direction: column;
+        gap: 0.15rem;
+    }
+
+    html.jp-sidebar-collapsed .jp-sidebar-sublink {
+        padding-left: 0.75rem;
+    }
+
+    html.jp-sidebar-collapsed .jp-sidebar-sublink > span {
+        display: inline !important;
     }
 }
 
@@ -2555,6 +2658,10 @@ textarea.form-control {
     padding: 0.35rem 0.65rem 1rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     margin-bottom: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.35rem;
 }
 
 .jp-sidebar-brand-link {
@@ -2563,6 +2670,41 @@ textarea.form-control {
     gap: 0.65rem;
     text-decoration: none;
     color: #fff;
+    min-width: 0;
+    flex: 1;
+}
+
+.jp-sidebar-collapse-btn {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: var(--jp-radius-sm);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.88);
+    padding: 0;
+    cursor: pointer;
+    transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.jp-sidebar-collapse-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.22);
+}
+
+.jp-sidebar-collapse-icon-collapsed {
+    display: none;
+}
+
+html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-expanded {
+    display: none;
+}
+
+html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
+    display: inline;
 }
 
 .jp-sidebar-logo {
@@ -3003,14 +3145,6 @@ textarea.form-control {
     display: flex;
     flex-direction: column;
     background: var(--jp-page-bg);
-}
-
-@media (min-width: 992px) {
-    .jp-app-main {
-        margin-left: var(--jp-sidebar-w);
-        width: calc(100% - var(--jp-sidebar-w));
-        max-width: calc(100% - var(--jp-sidebar-w));
-    }
 }
 
 .jp-topbar {

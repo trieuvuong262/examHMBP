@@ -5,6 +5,15 @@
             <img src="{% static 'images/logo/logo.png' %}" alt="JustPlay" class="jp-sidebar-logo">
             <span class="jp-sidebar-brand-text">JustPlay Portal</span>
         </a>
+        <button type="button"
+                class="jp-sidebar-collapse-btn d-none d-lg-inline-flex"
+                data-jp-sidebar-collapse
+                aria-pressed="false"
+                aria-label="Thu gọn menu"
+                title="Thu gọn menu">
+            <i class="bi bi-chevron-left jp-sidebar-collapse-icon-expanded" aria-hidden="true"></i>
+            <i class="bi bi-chevron-right jp-sidebar-collapse-icon-collapsed" aria-hidden="true"></i>
+        </button>
     </div>
 
     {% with profile=user.profile %}
@@ -150,19 +159,12 @@
             </a>
         </li>
         {% endif %}
-        {% if jp_can_guide %}
-        <li>
-            <a href="{% url 'user_guide' %}" class="jp-sidebar-link {% if 'huong-dan' in request.path %}active{% endif %}">
-                <i class="bi bi-journal-text"></i><span>Hướng dẫn</span>
-            </a>
-        </li>
-        {% endif %}
-        {% if jp_can_documents %}
-        <li class="jp-sidebar-group{% if 'tai-lieu' in request.path %} is-open{% endif %}">
+        {% if jp_can_documents or jp_can_guide %}
+        <li class="jp-sidebar-group{% if 'tai-lieu' in request.path or 'huong-dan' in request.path %} is-open{% endif %}">
             <button type="button"
                     class="jp-sidebar-group-toggle"
                     data-jp-sidebar-group-toggle
-                    aria-expanded="{% if 'tai-lieu' in request.path %}true{% else %}false{% endif %}"
+                    aria-expanded="{% if 'tai-lieu' in request.path or 'huong-dan' in request.path %}true{% else %}false{% endif %}"
                     aria-controls="jp-sidebar-library-submenu">
                 <span class="jp-sidebar-group-toggle-main">
                     <i class="bi bi-journal-bookmark-fill"></i><span>Thư viện</span>
@@ -170,6 +172,7 @@
                 <i class="bi bi-chevron-down jp-sidebar-group-chevron" aria-hidden="true"></i>
             </button>
             <ul class="jp-sidebar-submenu" id="jp-sidebar-library-submenu">
+                {% if jp_can_documents %}
                 <li>
                     <a href="{% url 'documents:browse' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'browse' or request.resolver_match.url_name == 'browse_category' or request.resolver_match.url_name == 'browse_document' %}active{% endif %}">
@@ -182,6 +185,15 @@
                         <i class="bi bi-chat-dots-fill"></i><span>Hỏi đáp</span>
                     </a>
                 </li>
+                {% endif %}
+                {% if jp_can_guide %}
+                <li>
+                    <a href="{% url 'user_guide' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if 'huong-dan' in request.path %}active{% endif %}">
+                        <i class="bi bi-journal-text"></i><span>Hướng dẫn</span>
+                    </a>
+                </li>
+                {% endif %}
             </ul>
         </li>
         {% endif %}

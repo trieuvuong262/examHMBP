@@ -56,6 +56,9 @@
     function bindSidebarGroups() {
         document.querySelectorAll('[data-jp-sidebar-group-toggle]').forEach(function (btn) {
             btn.addEventListener('click', function () {
+                if (document.documentElement.classList.contains('jp-sidebar-collapsed') && window.innerWidth >= 992) {
+                    return;
+                }
                 var group = btn.closest('.jp-sidebar-group');
                 if (!group) return;
                 var open = group.classList.toggle('is-open');
