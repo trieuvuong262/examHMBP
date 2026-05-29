@@ -2,21 +2,35 @@
 Phân quyền thống nhất — JustPlay Portal.
 
 Vai trò (Profile.role):
-  EMPLOYEE — nhân viên xưởng
-  HOD      — tổ trưởng / trưởng BP (báo cáo team, chấm KPI cấp dưới)
-  GM       — giám đốc (KPI toàn công ty, thường có is_staff)
+  EMPLOYEE      — Nhân viên
+  TEAM_LEADER   — Tổ trưởng
+  DIVISION_HEAD — Trưởng bộ phận
+  DIRECTOR      — Giám đốc (staff portal khi lưu Profile)
 
 Quản trị portal (menu Tuyển dụng, Đào tạo, Kiểm tra, Nhân sự):
-  is_staff — HR / IT / GM (GM được gán is_staff khi lưu Profile)
+  is_staff — HR / IT / Giám đốc
 """
 
 from django.contrib.auth.models import User
 
 ROLE_EMPLOYEE = 'EMPLOYEE'
-ROLE_HOD = 'HOD'
-ROLE_GM = 'GM'
+ROLE_TEAM_LEADER = 'TEAM_LEADER'
+ROLE_DIVISION_HEAD = 'DIVISION_HEAD'
+ROLE_DIRECTOR = 'DIRECTOR'
 
-MANAGER_ROLES = {ROLE_HOD, ROLE_GM}
+# Alias tương thích code cũ
+ROLE_HOD = ROLE_TEAM_LEADER
+ROLE_GM = ROLE_DIRECTOR
+
+ROLE_CHOICES = [
+    (ROLE_EMPLOYEE, 'Nhân viên'),
+    (ROLE_TEAM_LEADER, 'Tổ trưởng'),
+    (ROLE_DIVISION_HEAD, 'Trưởng bộ phận'),
+    (ROLE_DIRECTOR, 'Giám đốc'),
+]
+
+MANAGER_ROLES = {ROLE_TEAM_LEADER, ROLE_DIVISION_HEAD, ROLE_DIRECTOR}
+SUBORDINATE_MANAGER_ROLES = {ROLE_TEAM_LEADER, ROLE_DIVISION_HEAD}
 
 
 def get_profile(user):
@@ -40,19 +54,33 @@ def role_display(user) -> str:
     return profile.get_role_display()
 
 
+def is_team_leader(user) -> bool:
+    return user_role(user) == ROLE_TEAM_LEADER
+
+
+def is_division_head(user) -> bool:
+    return user_role(user) == ROLE_DIVISION_HEAD
+
+
+def is_director(user) -> bool:
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    return user_role(user) == ROLE_DIRECTOR or user.is_superuser
+
+
 def is_hod(user) -> bool:
-    return user_role(user) == ROLE_HOD
+    """Tổ trưởng (alias tương thích)."""
+    return is_team_leader(user)
 
 
 def is_gm(user) -> bool:
-    if not getattr(user, 'is_authenticated', False):
-        return False
-    return user_role(user) == ROLE_GM or user.is_superuser
+    """Giám đốc (alias tương thích)."""
+    return is_director(user)
 
 
 def is_manager(user) -> bool:
-    """HOD hoặc GM — quyền quản lý team (báo cáo, KPI)."""
-    return user_role(user) in MANAGER_ROLES or is_gm(user)
+    """Tổ trưởng, trưởng bộ phận hoặc giám đốc — quyền quản lý team."""
+    return user_role(user) in MANAGER_ROLES or is_director(user)
 
 
 def is_portal_admin(user) -> bool:
@@ -75,11 +103,16 @@ def get_report_team_users(viewer):
         return User.objects.none()
 
     profile = get_profile(viewer)
-    if is_portal_admin(viewer) or is_gm(viewer):
+    if is_portal_admin(viewer) or is_director(viewer):
         return User.objects.filter(is_active=True).select_related('profile').order_by(
             'profile__full_name', 'username',
         )
-    if profile and profile.role == ROLE_HOD:
+    if profile and profile.role == ROLE_DIVISION_HEAD and profile.division_id:
+        return User.objects.filter(
+            is_active=True,
+            profile__division_id=profile.division_id,
+        ).select_related('profile').order_by('profile__full_name', 'username')
+    if profile and profile.role in SUBORDINATE_MANAGER_ROLES:
         return profile.subordinates.filter(is_active=True).select_related('profile').order_by(
             'profile__full_name', 'username',
         )
@@ -92,7 +125,7 @@ def can_manage_kpi_for_others(user) -> bool:
 
 
 def can_edit_user_guide(user) -> bool:
-    """Chỉnh sửa trang hướng dẫn — quản lý (HOD/GM) hoặc HR/quản trị portal."""
+    """Chỉnh sửa trang hướng dẫn — quản lý hoặc HR/quản trị portal."""
     if not getattr(user, 'is_authenticated', False):
         return False
     return is_manager(user) or is_portal_admin(user)

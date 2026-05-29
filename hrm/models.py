@@ -4,7 +4,8 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from ckeditor.fields import RichTextField
 
-from hrm.choices import DEFAULT_POSITION, POSITION_CHOICES
+from hrm.choices import DEFAULT_POSITION, POSITION_CHOICES, GENDER_CHOICES
+from hrm.permissions import ROLE_CHOICES, ROLE_DIRECTOR, ROLE_EMPLOYEE
 
 
 class UserGuide(models.Model):
@@ -51,40 +52,104 @@ class UserGuide(models.Model):
         return bool(strip_tags(self.body or '').strip())
 
 
+class Department(models.Model):
+    name = models.CharField(max_length=150, unique=True, verbose_name='Tên phòng ban')
+    is_active = models.BooleanField(default=True, verbose_name='Đang sử dụng')
+    sort_order = models.PositiveIntegerField(default=0, verbose_name='Thứ tự hiển thị')
+
+    class Meta:
+        ordering = ['sort_order', 'name']
+        verbose_name = 'Phòng ban'
+        verbose_name_plural = 'Phòng ban'
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def employee_count(self):
+        return self.profiles.count()
+
+
+class Division(models.Model):
+    name = models.CharField(max_length=150, unique=True, verbose_name='Tên bộ phận')
+    is_active = models.BooleanField(default=True, verbose_name='Đang sử dụng')
+    sort_order = models.PositiveIntegerField(default=0, verbose_name='Thứ tự hiển thị')
+
+    class Meta:
+        ordering = ['sort_order', 'name']
+        verbose_name = 'Bộ phận'
+        verbose_name_plural = 'Bộ phận'
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def employee_count(self):
+        return self.division_profiles.count()
+
+
 class Profile(models.Model):
     POSITION_CHOICES = POSITION_CHOICES
-    ROLE_CHOICES = [
-        ('EMPLOYEE', 'Nhân viên'),
-        ('HOD', 'Trưởng phòng / Quản lý trực tiếp (HOD)'),
-        ('GM', 'Giám đốc / Quản lý chung (GM)'),
-    ]
+    ROLE_CHOICES = ROLE_CHOICES
     
     # Kết nối 1-1 với User mặc định của Django
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     
-    # Thông tin cơ bản
-    full_name = models.CharField(max_length=255, verbose_name="Họ và tên", blank=True)
-    position = models.CharField(
+    # Thông tin nhân sự
+    employee_code = models.CharField(
         max_length=50,
-        choices=POSITION_CHOICES,
-        verbose_name="Chức danh",
+        blank=True,
+        null=True,
+        unique=True,
+        db_index=True,
+        verbose_name='Mã NS',
+    )
+    full_name = models.CharField(max_length=255, verbose_name='Họ và tên', blank=True)
+    department = models.ForeignKey(
+        Department,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='profiles',
+        verbose_name='Phòng ban',
+    )
+    division = models.ForeignKey(
+        Division,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='division_profiles',
+        verbose_name='Bộ phận',
+    )
+    job_position = models.CharField(
+        max_length=100,
+        verbose_name='Vị trí',
+        blank=True,
+        default=DEFAULT_POSITION,
+    )
+    job_title = models.CharField(max_length=100, verbose_name='Chức vụ', blank=True)
+    join_date = models.DateField(verbose_name='Ngày vào', null=True, blank=True)
+    date_of_birth = models.DateField(verbose_name='Ngày sinh', null=True, blank=True)
+    gender = models.CharField(
+        max_length=1,
+        choices=GENDER_CHOICES,
+        verbose_name='Giới tính',
         blank=True,
     )
 
-    # Quản lý phân quyền mới
     role = models.CharField(
         max_length=20, 
         choices=ROLE_CHOICES, 
-        default='EMPLOYEE', 
+        default=ROLE_EMPLOYEE, 
         verbose_name="Vai trò hệ thống"
     )
     
-    # Danh sách lính (Chỉ dùng cho HOD)
+    # Danh sách nhân viên cấp dưới (Tổ trưởng / Trưởng bộ phận)
     subordinates = models.ManyToManyField(
-        User, 
-        blank=True, 
-        related_name='my_hod_managers', 
-        verbose_name="Nhân viên dưới quyền (Dành cho HOD)"
+        User,
+        blank=True,
+        related_name='my_hod_managers',
+        verbose_name='Nhân viên dưới quyền',
     )
 
     must_change_password = models.BooleanField(
@@ -98,6 +163,17 @@ class Profile(models.Model):
     def __str__(self):
         return self.full_name if self.full_name else self.user.username
 
+    @property
+    def position(self):
+        return self.job_position
+
+    @position.setter
+    def position(self, value):
+        self.job_position = value or DEFAULT_POSITION
+
+    def get_gender_display_short(self):
+        return dict(GENDER_CHOICES).get(self.gender, '---')
+
     @classmethod
     def require_password_change(cls, user):
         profile, _ = cls.objects.get_or_create(user=user)
@@ -109,8 +185,8 @@ class Profile(models.Model):
     def save(self, *args, **kwargs):
         """
         Ghi đè hàm save để xử lý logic: 
-        1. GM ngang hàng với Admin (Staff & Superuser).
-        2. Tự động thu hồi quyền nếu bị đổi từ GM xuống vai trò thấp hơn.
+        1. Giám đốc ngang hàng với Admin (Staff & Superuser).
+        2. Tự động thu hồi quyền nếu bị đổi từ Giám đốc xuống vai trò thấp hơn.
         """
         # Lưu đối tượng trước để đảm bảo dữ liệu ổn định
         super().save(*args, **kwargs)
@@ -118,14 +194,14 @@ class Profile(models.Model):
         # Lấy instance user liên kết
         user_obj = self.user
         
-        if self.role == 'GM':
-            # Nếu là GM thì bơm full quyền
+        if self.role == ROLE_DIRECTOR:
+            # Giám đốc — full quyền quản trị
             if not user_obj.is_superuser or not user_obj.is_staff:
                 user_obj.is_superuser = True
                 user_obj.is_staff = True
                 user_obj.save()
         else:
-            # Nếu không phải GM và KHÔNG PHẢI tài khoản admin gốc thì hạ quyền
+            # Không phải Giám đốc và không phải tài khoản admin gốc thì hạ quyền
             # Lưu ý: 'admin' là tên tài khoản quản trị tối cao, không nên đụng vào
             if user_obj.username != 'admin' and (user_obj.is_superuser or user_obj.is_staff):
                 user_obj.is_superuser = False
@@ -146,9 +222,9 @@ def handle_user_profile(sender, instance, created, **kwargs):
         Profile.objects.get_or_create(
             user=instance, 
             defaults={
-                'full_name': instance.first_name or instance.username, 
-                'position': DEFAULT_POSITION,
-                'role': 'EMPLOYEE'
+                'full_name': instance.first_name or instance.username,
+                'job_position': DEFAULT_POSITION,
+                'role': ROLE_EMPLOYEE,
             }
         )
     else:
@@ -156,6 +232,6 @@ def handle_user_profile(sender, instance, created, **kwargs):
             Profile.objects.create(
                 user=instance,
                 full_name=instance.first_name or instance.username,
-                position=DEFAULT_POSITION,
-                role='EMPLOYEE'
+                job_position=DEFAULT_POSITION,
+                role=ROLE_EMPLOYEE,
             )

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container jp-page jp-hrm-page mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-8 col-lg-6">
+            <div class="card border-0 shadow-lg">
+                <div class="card-header bg-danger text-white p-4 border-0">
+                    <h4 class="mb-0 fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>Xóa bộ phận</h4>
+                </div>
+                <div class="card-body p-4 p-md-5">
+                    <p class="mb-2">Bạn có chắc muốn xóa bộ phận:</p>
+                    <p class="fs-5 fw-bold text-dark mb-3">{{ division.name }}</p>
+                    {% if division.employee_count %}
+                    <div class="alert alert-warning border-0">
+                        Bộ phận này đang có <strong>{{ division.employee_count }}</strong> nhân viên.
+                        Vui lòng chuyển nhân viên sang bộ phận khác trước khi xóa.
+                    </div>
+                    {% else %}
+                    <p class="text-muted small">Hành động này không thể hoàn tác.</p>
+                    {% endif %}
+                    <div class="d-flex flex-column flex-sm-row gap-2 justify-content-end mt-4">
+                        <a href="{% url 'org_structure' %}?tab=division" class="btn btn-light fw-bold px-4">Hủy</a>
+                        {% if not division.employee_count %}
+                        <form method="post" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger fw-bold px-4">Xóa bộ phận</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

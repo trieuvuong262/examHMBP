@@ -3,7 +3,6 @@ from .models import Exam, Question, Choice, User
 from django.forms import inlineformset_factory
 from django.contrib.auth.models import User
 from hrm.models import Profile
-from hrm.choices import POSITION_FORM_CHOICES
 
 class ExamForm(forms.ModelForm):
     class Meta:
@@ -32,7 +31,7 @@ class ExamForm(forms.ModelForm):
         
         def get_user_label(obj):
             try:
-                return f"{obj.profile.full_name} ({obj.profile.position})"
+                return f"{obj.profile.full_name} ({obj.profile.job_position})"
             except:
                 return f"{obj.username} (Chưa cập nhật Profile)"
                 
@@ -65,18 +64,15 @@ ChoiceFormSet = inlineformset_factory(
 
 
 class UserForm(forms.ModelForm):
-    POSITION_CHOICES = POSITION_FORM_CHOICES
-
     full_name = forms.CharField(
         label="Họ và tên", 
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nhập họ và tên...'})
     )
     
-    position = forms.ChoiceField(
-        label="Chức danh",
-        choices=POSITION_CHOICES,
-        required=True,
-        widget=forms.Select(attrs={'class': 'form-select'}) 
+    job_position = forms.CharField(
+        label="Vị trí",
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'VD: Công nhân may'}),
     )
 
     class Meta:
@@ -93,7 +89,7 @@ class UserForm(forms.ModelForm):
             try:
                 profile = self.instance.profile
                 self.fields['full_name'].initial = profile.full_name
-                self.fields['position'].initial = profile.position
+                self.fields['job_position'].initial = profile.job_position
             except Profile.DoesNotExist:
                 pass
 
@@ -103,15 +99,15 @@ class UserForm(forms.ModelForm):
             user.save()
             profile, created = Profile.objects.get_or_create(user=user)
             profile.full_name = self.cleaned_data['full_name']
-            profile.position = self.cleaned_data['position']
+            profile.job_position = (self.cleaned_data.get('job_position') or '').strip()
             profile.save()
         return user
     
 class ProfileForm(forms.ModelForm):
     class Meta:
         model = Profile
-        fields = ['full_name', 'position']
+        fields = ['full_name', 'job_position']
         widgets = {
             'full_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'position': forms.TextInput(attrs={'class': 'form-control'}),
+            'job_position': forms.TextInput(attrs={'class': 'form-control'}),
         }

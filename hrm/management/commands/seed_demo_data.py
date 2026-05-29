@@ -159,18 +159,18 @@ class Command(BaseCommand):
         }
 
     def _setup_profiles(self, users):
-        users['gm'].profile.role = 'GM'
+        users['gm'].profile.role = 'DIRECTOR'
         users['gm'].profile.position = 'HR / HCNS'
         users['gm'].profile.save()
 
-        users['hod_may'].profile.role = 'HOD'
+        users['hod_may'].profile.role = 'TEAM_LEADER'
         users['hod_may'].profile.position = 'Tổ trưởng'
         users['hod_may'].profile.save()
         users['hod_may'].profile.subordinates.set([
             users['nv_may1'], users['nv_may2'], users['nv_qc1'],
         ])
 
-        users['hod_cat'].profile.role = 'HOD'
+        users['hod_cat'].profile.role = 'TEAM_LEADER'
         users['hod_cat'].profile.position = 'Tổ trưởng'
         users['hod_cat'].profile.save()
         users['hod_cat'].profile.subordinates.set([users['nv_cat1']])

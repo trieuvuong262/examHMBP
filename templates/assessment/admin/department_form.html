@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container jp-page jp-hrm-page mt-3 mt-md-4 mb-5 px-2 px-md-3">
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-7">
+            <nav aria-label="breadcrumb" class="mb-3">
+                <ol class="breadcrumb bg-white p-2 p-md-3 shadow-sm small mb-0">
+                    <li class="breadcrumb-item"><a href="{% url 'org_structure' %}?tab=department" class="text-decoration-none text-muted">Phòng ban</a></li>
+                    <li class="breadcrumb-item active fw-bold text-hm">{{ title }}</li>
+                </ol>
+            </nav>
+
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-dark text-white p-3 p-md-4 border-0">
+                    <h4 class="mb-0 fw-bold fs-5">{{ title }}</h4>
+                </div>
+                <div class="card-body p-3 p-md-5">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        <div class="mb-4">
+                            <label class="form-label fw-bold small text-secondary">Tên phòng ban <span class="text-danger">*</span></label>
+                            {{ form.name }}
+                            {% if form.name.errors %}<div class="text-danger small mt-1">{{ form.name.errors }}</div>{% endif %}
+                        </div>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small text-secondary">Thứ tự hiển thị</label>
+                                {{ form.sort_order }}
+                                <div class="form-text">Số nhỏ hiển thị trước trong dropdown.</div>
+                            </div>
+                            <div class="col-md-6 d-flex align-items-end">
+                                <div class="form-check mb-2">
+                                    {{ form.is_active }}
+                                    <label class="form-check-label fw-bold small" for="{{ form.is_active.id_for_label }}">Đang sử dụng</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex flex-column flex-sm-row gap-2 justify-content-end">
+                            <a href="{% url 'org_structure' %}?tab=department" class="btn btn-light fw-bold px-4">Hủy</a>
+                            <button type="submit" class="btn btn-hm text-white fw-bold px-5">Lưu</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

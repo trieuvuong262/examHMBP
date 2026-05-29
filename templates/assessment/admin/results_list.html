@@ -108,7 +108,7 @@
                                     </div>
                                     <div>
                                         <div class="fw-bold text-dark search-name">{{ sub.user.profile.full_name|default:sub.user.first_name|default:sub.user.username }}</div>
-                                        <div class="small text-muted">{{ sub.user.profile.position|default:sub.user.email }}</div>
+                                        <div class="small text-muted">{{ sub.user.profile.job_position|default:sub.user.email }}</div>
                                     </div>
                                 </div>
                             </td>

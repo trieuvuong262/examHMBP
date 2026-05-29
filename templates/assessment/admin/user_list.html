@@ -48,6 +48,9 @@
         </div>
 
         <div class="jp-hrm-toolbar">
+            <a href="{% url 'org_structure' %}" class="btn btn-outline-dark fw-bold shadow-sm jp-hrm-tool-btn" title="Quản lý phòng ban & bộ phận">
+                <i class="bi bi-diagram-3"></i><span class="jp-hrm-tool-label"> Cơ cấu</span>
+            </a>
             <a href="{% url 'user_export_excel' %}" class="btn btn-outline-hm fw-bold shadow-sm jp-hrm-tool-btn" title="Xuất Excel">
                 <i class="bi bi-download"></i><span class="jp-hrm-tool-label"> Xuất Excel</span>
             </a>
@@ -65,7 +68,7 @@
             <h5 class="mb-0 fw-bold text-dark d-none d-md-block">Dữ liệu nhân sự ({{ users.count }})</h5>
             <div class="jp-hrm-search input-group">
                 <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
-                <input type="search" id="userSearch" class="form-control bg-light border-start-0" placeholder="Tìm tên, chức danh, username..." autocomplete="off">
+                <input type="search" id="userSearch" class="form-control bg-light border-start-0" placeholder="Tìm mã NS, tên, account, phòng ban..." autocomplete="off">
             </div>
         </div>
 
@@ -73,58 +76,61 @@
             <table class="table table-hover align-middle mb-0 jp-table jp-table-stack" id="userTable">
                 <thead class="bg-light text-uppercase">
                     <tr class="small">
-                        <th class="ps-4 py-3 text-muted">Nhân viên</th>
+                        <th class="ps-4 py-3 text-muted">Mã NS</th>
+                        <th class="text-muted">Họ và tên</th>
                         <th class="text-muted">Account</th>
-                        <th class="text-muted">Chức danh</th>
-                        <th class="text-muted text-center">Vai trò</th>
-                        <th class="text-muted">Email</th>
-                        <th class="text-muted">Ngày tham gia</th>
+                        <th class="text-muted">Phòng ban</th>
+                        <th class="text-muted">Bộ phận</th>
+                        <th class="text-muted">Vị trí</th>
+                        <th class="text-muted">Chức vụ</th>
+                        <th class="text-muted">Ngày vào</th>
+                        <th class="text-muted">Ngày sinh</th>
+                        <th class="text-muted text-center">Giới tính</th>
+                        <th class="text-muted text-center">Vai trò HT</th>
                         <th class="text-end pe-4 text-muted">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for u in users %}
                     <tr>
-                        <td class="ps-md-4 jp-td-primary" data-label="Nhân viên">
+                        <td class="ps-md-4" data-label="Mã NS">
+                            <code class="text-dark fw-bold">{{ u.profile.employee_code|default:"—" }}</code>
+                        </td>
+                        <td data-label="Họ và tên">
                             <div class="d-flex align-items-center">
-                                <div class="jp-hrm-avatar me-3">
+                                <div class="jp-hrm-avatar me-2 d-none d-md-flex">
                                     {{ u.profile.full_name|default:u.first_name|default:u.username|make_list|first|upper }}
                                 </div>
-                                <div class="text-start">
-                                    <div class="fw-bold text-dark jp-text-clamp-2">{{ u.profile.full_name|default:u.first_name|default:u.username }}</div>
-                                    <div class="small text-muted">ID #{{ u.id }}</div>
-                                </div>
+                                <span class="fw-bold text-dark jp-text-clamp-2">{{ u.profile.full_name|default:u.first_name|default:u.username }}</span>
                             </div>
                         </td>
-
                         <td data-label="Account"><code class="text-primary fw-bold px-2 py-1 bg-light user-select-all">{{ u.username }}</code></td>
-
-                        <td data-label="Chức danh">
-                            {% if u.profile.position %}
-                                <span class="fw-medium text-dark">{{ u.profile.position }}</span>
+                        <td data-label="Phòng ban">{{ u.profile.department.name|default:"—" }}</td>
+                        <td data-label="Bộ phận">{{ u.profile.division.name|default:"—" }}</td>
+                        <td data-label="Vị trí">{{ u.profile.job_position|default:"—" }}</td>
+                        <td data-label="Chức vụ">{{ u.profile.job_title|default:"—" }}</td>
+                        <td data-label="Ngày vào" class="text-muted small">{{ u.profile.join_date|date:"d/m/Y"|default:"—" }}</td>
+                        <td data-label="Ngày sinh" class="text-muted small">{{ u.profile.date_of_birth|date:"d/m/Y"|default:"—" }}</td>
+                        <td class="text-center" data-label="Giới tính">{{ u.profile.get_gender_display_short|default:"—" }}</td>
+                        <td class="text-center" data-label="Vai trò HT">
+                            {% if u.profile.role == 'DIRECTOR' %}
+                                <span class="badge bg-danger-subtle text-danger px-2 px-md-3">
+                                    <i class="bi bi-shield-fill-check me-1"></i>Giám đốc
+                                </span>
+                            {% elif u.profile.role == 'DIVISION_HEAD' %}
+                                <span class="badge bg-info-subtle text-info-emphasis px-2 px-md-3">
+                                    <i class="bi bi-diagram-2-fill me-1"></i>Tr. bộ phận
+                                </span>
+                            {% elif u.profile.role == 'TEAM_LEADER' %}
+                                <span class="badge bg-warning-subtle text-warning-emphasis px-2 px-md-3">
+                                    <i class="bi bi-person-badge-fill me-1"></i>Tổ trưởng
+                                </span>
                             {% else %}
-                                <span class="text-muted small fst-italic">---</span>
+                                <span class="badge bg-primary-subtle text-hm px-2 px-md-3">
+                                    <i class="bi bi-person-fill me-1"></i>Nhân viên
+                                </span>
                             {% endif %}
                         </td>
-
-                        <td class="text-center" data-label="Vai trò">
-                            {% if u.profile.role == 'GM' %}
-                                <span class="badge bg-danger-subtle text-danger px-3">
-                                    <i class="bi bi-shield-fill-check me-1"></i>GM
-                                </span>
-                            {% elif u.profile.role == 'HOD' %}
-                                <span class="badge bg-warning-subtle text-warning-emphasis px-3">
-                                    <i class="bi bi-person-badge-fill me-1"></i>HOD
-                                </span>
-                            {% else %}
-                                <span class="badge bg-primary-subtle text-hm px-3">
-                                    <i class="bi bi-person-fill me-1"></i>NV
-                                </span>
-                            {% endif %}
-                        </td>
-
-                        <td class="text-muted user-select-all" data-label="Email">{{ u.email|default:"---" }}</td>
-                        <td class="text-muted small" data-label="Ngày tham gia">{{ u.date_joined|date:"d/m/Y" }}</td>
 
                         <td class="text-md-end pe-md-4 jp-td-actions" data-label="Thao tác">
                             <div class="jp-hrm-actions">
@@ -149,7 +155,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center py-5 jp-td-empty">
+                        <td colspan="12" class="text-center py-5 jp-td-empty">
                             <div class="py-4">
                                 <i class="bi bi-person-exclamation display-1 text-muted opacity-25"></i>
                                 <p class="mt-3 text-muted fs-5">Chưa có nhân viên nào trong hệ thống.</p>
@@ -188,8 +194,11 @@
                 <div class="p-3 bg-warning bg-opacity-10 border-start border-warning border-4 mt-4">
                     <h6 class="fw-bold mb-1 small text-dark"><i class="bi bi-exclamation-triangle-fill me-1 text-warning"></i> Lưu ý quan trọng:</h6>
                     <ul class="x-small text-dark mb-0 ps-3 lh-lg">
-                        <li>Không thay đổi tên các cột trong file mẫu.</li>
-                        <li>Trường <strong>username</strong> là duy nhất, nếu trùng sẽ tự động bỏ qua.</li>
+                        <li>Cột theo file mẫu: <strong>Mã NS, Họ và tên, Account, Phòng ban, Bộ phận, Vị trí, Chức vụ, Ngày vào, Ngày sinh, Giới tính</strong>.</li>
+                        <li>Bắt buộc có <strong>Họ và tên</strong>. <strong>Account</strong> để trống sẽ tự sinh khi thêm mới.</li>
+                        <li>Ngày: <strong>dd/mm/yyyy</strong>. Giới tính: <strong>Nam</strong> hoặc <strong>Nữ</strong>.</li>
+                        <li>Phòng ban và bộ phận phải khớp tên trong <a href="{% url 'org_structure' %}">cơ cấu tổ chức</a>.</li>
+                        <li>Trùng <strong>Account</strong> hoặc <strong>Mã NS</strong> sẽ <strong>cập nhật</strong> thông tin nhân sự (không tạo trùng).</li>
                     </ul>
                 </div>
             </div>

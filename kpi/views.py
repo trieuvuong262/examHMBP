@@ -5,7 +5,10 @@ from django.db.models import Q
 from django.utils import timezone
 from django.contrib.auth.models import User
 from hrm.permissions import (
-    ROLE_HOD,
+    ROLE_DIRECTOR,
+    ROLE_EMPLOYEE,
+    ROLE_TEAM_LEADER,
+    SUBORDINATE_MANAGER_ROLES,
     can_manage_kpi_for_others,
     get_profile,
     is_gm,
@@ -46,7 +49,7 @@ def kpi_list_view(request):
     role = user_role(request.user)
 
     # Nếu là GM hoặc Admin thì thấy toàn bộ
-    if role == 'GM' or request.user.is_superuser:
+    if role == ROLE_DIRECTOR or request.user.is_superuser:
         team_kpis = YearlyKpi.objects.exclude(employee=request.user).select_related(
             'employee__profile',
         )
@@ -95,7 +98,7 @@ def kpi_detail_view(request, kpi_id):
     viewer_profile = get_profile(request.user)
     is_owner = (request.user == kpi_board.employee)
     is_manager = request.user == kpi_board.direct_manager
-    if viewer_profile and viewer_profile.role == ROLE_HOD:
+    if viewer_profile and viewer_profile.role in SUBORDINATE_MANAGER_ROLES:
         is_manager = is_manager or viewer_profile.subordinates.filter(
             pk=kpi_board.employee_id,
         ).exists()
@@ -196,28 +199,24 @@ def yearly_kpi_create(request):
         return redirect('kpi_list')
     
     # 1. CHẶN ĐỨNG NHÂN VIÊN (Quy trình Top-Down)
-    if profile.role == 'EMPLOYEE' and not request.user.is_superuser:
+    if profile.role == ROLE_EMPLOYEE and not request.user.is_superuser:
         messages.error(request, "Quyền truy cập bị từ chối! Chỉ Quản lý mới được thiết lập KPI năm.")
         return redirect('kpi_list')
 
-    # 2. Lấy danh sách nhân viên để thả vào Dropdown cho Sếp chọn
-    if profile.role == 'HOD':
-        # Sếp HOD chỉ được giao cho lính trực tiếp của mình
+    if profile.role == ROLE_TEAM_LEADER:
         target_employees = profile.subordinates.all()
     else:
-        # Sếp GM hoặc Admin thì được giao cho tất cả mọi người
         target_employees = User.objects.filter(is_active=True).exclude(id=request.user.id)
-        
-    hod_list = User.objects.filter(profile__role='HOD', is_active=True)
-    gm_list = User.objects.filter(Q(profile__role='GM') | Q(is_superuser=True), is_active=True)
+
+    hod_list = User.objects.filter(profile__role__in=SUBORDINATE_MANAGER_ROLES, is_active=True)
+    gm_list = User.objects.filter(Q(profile__role=ROLE_DIRECTOR) | Q(is_superuser=True), is_active=True)
     
     if request.method == 'POST':
         employee_id = request.POST.get('employee_id')
         year = request.POST.get('year', timezone.now().year)
-        eval_type = request.POST.get('eval_type', 'QUARTER') # Bắt giá trị từ Form HTML mới
-        
-        # Sếp HOD tạo thì tự động gán mình làm Quản lý trực tiếp luôn
-        direct_manager_id = request.user.id if profile.role == 'HOD' else request.POST.get('direct_manager_id')
+        eval_type = request.POST.get('eval_type', 'QUARTER')
+
+        direct_manager_id = request.user.id if profile.role == ROLE_TEAM_LEADER else request.POST.get('direct_manager_id')
         general_manager_id = request.POST.get('general_manager_id')
 
         # Dùng update_or_create để nếu HOD lỡ tạo trùng năm thì ghi đè luôn, không bị sập web
@@ -264,7 +263,7 @@ def yearly_kpi_create(request):
         'target_employees': target_employees,
         'hod_list': hod_list, 
         'gm_list': gm_list, 
-        'is_hod': profile.role == 'HOD'
+        'is_hod': profile.role == ROLE_TEAM_LEADER,
     })
 
 
@@ -274,7 +273,7 @@ def kpi_import_excel(request):
     if not profile:
         messages.error(request, "Tài khoản chưa có hồ sơ nhân sự. Vui lòng liên hệ HR/IT.")
         return redirect('kpi_list')
-    if profile.role == 'EMPLOYEE' and not request.user.is_superuser:
+    if profile.role == ROLE_EMPLOYEE and not request.user.is_superuser:
         messages.error(request, "Bạn không có quyền này!")
         return redirect('kpi_list')
 
@@ -284,7 +283,7 @@ def kpi_import_excel(request):
         general_manager_id = request.POST.get('general_manager_id')
         eval_type = request.POST.get('eval_type', 'QUARTER')
 
-        if profile.role == 'HOD':
+        if profile.role == ROLE_TEAM_LEADER:
             direct_manager_id = request.user.id
 
         if not excel_file or not excel_file.name.endswith('.xlsx'):
@@ -329,8 +328,8 @@ def kpi_import_excel(request):
             return redirect('kpi_import_excel')
 
     # LẤY DANH SÁCH SẾP ĐỂ TRUYỀN RA GIAO DIỆN IMPORT
-    hod_list = User.objects.filter(profile__role='HOD', is_active=True)
-    gm_list = User.objects.filter(Q(profile__role='GM') | Q(is_superuser=True), is_active=True)
+    hod_list = User.objects.filter(profile__role__in=SUBORDINATE_MANAGER_ROLES, is_active=True)
+    gm_list = User.objects.filter(Q(profile__role=ROLE_DIRECTOR) | Q(is_superuser=True), is_active=True)
 
     return render(request, 'kpi/kpi_import.html', {
         'hod_list': hod_list,

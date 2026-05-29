@@ -27,6 +27,15 @@ urlpatterns = [
     path('dashboard/users/import/', hrm_views.user_import_excel, name='user_import_excel'),
     path('dashboard/users/export/', hrm_views.user_export_excel, name='user_export_excel'),
     path('dashboard/users/download-template/', hrm_views.user_download_template, name='user_download_template'),
+
+    path('dashboard/org/', hrm_views.org_structure, name='org_structure'),
+    path('dashboard/departments/', hrm_views.department_list, name='department_list'),
+    path('dashboard/departments/add/', hrm_views.department_add, name='department_add'),
+    path('dashboard/departments/edit/<int:pk>/', hrm_views.department_edit, name='department_edit'),
+    path('dashboard/departments/delete/<int:pk>/', hrm_views.department_delete, name='department_delete'),
+    path('dashboard/divisions/add/', hrm_views.division_add, name='division_add'),
+    path('dashboard/divisions/edit/<int:pk>/', hrm_views.division_edit, name='division_edit'),
+    path('dashboard/divisions/delete/<int:pk>/', hrm_views.division_delete, name='division_delete'),
     
     path('login-redirect/', views.login_redirect_view, name='login_redirect'),
 ]

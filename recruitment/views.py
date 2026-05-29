@@ -21,10 +21,12 @@ import string
 from assessment.models import Exam
 from hrm.models import Profile
 from hrm.choices import normalize_position
+from hrm.choices import resolve_department
 from PortalJustPlay.utils import generate_hm_username, generate_secure_password
 from .models import Interview
 import openpyxl
 from django.http import HttpResponse
+from django.utils import timezone
 @admin_only
 @ensure_csrf_cookie
 def kanban_board(request):
@@ -229,7 +231,10 @@ def convert_to_employee(request, candidate_id):
                 user=user,
                 defaults={
                     'full_name': candidate.full_name,
-                    'position': position,
+                    'department': resolve_department(candidate.job_posting.department),
+                    'job_position': position,
+                    'job_title': candidate.job_posting.title,
+                    'join_date': timezone.now().date(),
                     'role': 'EMPLOYEE',
                     'must_change_password': True,
                 },

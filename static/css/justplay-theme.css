@@ -2033,6 +2033,131 @@ textarea.form-control {
 }
 
 /* ============================================================
+   HRM — Form thêm/sửa nhân viên (full width)
+   ============================================================ */
+.jp-user-form-page .jp-page-header {
+    align-items: flex-start;
+}
+
+.jp-user-form-card .card-header {
+    background: #fff;
+}
+
+.jp-user-form-card .card-body {
+    background: #fff;
+}
+
+.jp-form-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--jp-black-600, #64748b);
+    margin-bottom: 0.4rem;
+}
+
+.jp-form-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.jp-form-link {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--hm-primary);
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.jp-form-link:hover {
+    text-decoration: underline;
+    color: var(--hm-primary-dark, #b91c1c);
+}
+
+.jp-user-form-page .form-control,
+.jp-user-form-page .form-select {
+    min-height: 42px;
+    font-size: 0.95rem;
+}
+
+.jp-user-form-page input[type="date"].form-control {
+    padding-top: 0.45rem;
+    padding-bottom: 0.45rem;
+}
+
+.jp-user-form-actions {
+    position: sticky;
+    bottom: calc(var(--jp-safe-bottom, 0px) + 0.5rem);
+    z-index: 100;
+    background: #fff;
+}
+
+.jp-user-form-actions .btn-lg {
+    min-height: 46px;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+}
+
+@media (min-width: 992px) {
+    .jp-user-form-page .col-lg-4 .jp-user-form-card:last-child {
+        flex: 1;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .jp-user-form-actions .btn-lg {
+        width: 100%;
+    }
+}
+
+/* Tab Phòng ban / Bộ phận — override .nav-link navbar (chữ trắng) */
+.jp-org-tabs .nav-link {
+    color: #475569 !important;
+    background: #fff;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 999px !important;
+    padding: 0.5rem 1.25rem !important;
+    min-height: auto;
+    margin: 0;
+    box-shadow: none !important;
+}
+
+.jp-org-tabs .nav-link:hover {
+    color: var(--hm-primary) !important;
+    background: var(--hm-primary-soft, #fef2f2) !important;
+    border-color: rgba(220, 38, 38, 0.25) !important;
+}
+
+.jp-org-tabs .nav-link.active {
+    background: var(--hm-primary) !important;
+    border-color: var(--hm-primary) !important;
+    color: #fff !important;
+    font-weight: 700;
+}
+
+.jp-org-tabs .nav-link.active:hover {
+    color: #fff !important;
+    background: var(--hm-primary-dark, #b91c1c) !important;
+}
+
+.jp-org-tabs .nav-link .badge {
+    background: #f1f5f9 !important;
+    color: #334155 !important;
+    border: 1px solid #e2e8f0;
+}
+
+.jp-org-tabs .nav-link.active .badge {
+    background: rgba(255, 255, 255, 0.92) !important;
+    color: var(--hm-primary) !important;
+    border-color: transparent;
+}
+
+/* ============================================================
    Site footer
    ============================================================ */
 .jp-site-footer {

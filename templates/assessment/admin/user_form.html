@@ -1,120 +1,169 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container jp-page jp-hrm-page mt-3 mt-md-4 mb-5 px-2 px-md-3">
-    <div class="row justify-content-center">
-        <div class="col-12 col-lg-8 col-xl-7">
-            <div class="d-flex align-items-center gap-2 mb-3 mb-md-4">
-                <a href="{% url 'user_list' %}" class="btn btn-light border rounded-circle jp-hrm-back-btn d-md-none" aria-label="Quay lại">
+<div class="container-fluid jp-page jp-hrm-page jp-user-form-page py-3 py-md-4 px-2 px-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div class="jp-page-header-main">
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <a href="{% url 'user_list' %}" class="btn btn-light border jp-hrm-back-btn d-md-none" aria-label="Quay lại">
                     <i class="bi bi-arrow-left"></i>
                 </a>
-                <nav aria-label="breadcrumb" class="flex-grow-1 mb-0">
-                    <ol class="breadcrumb bg-white p-2 p-md-3 shadow-sm align-items-center mb-0 small">
-                        <li class="breadcrumb-item d-none d-sm-inline"><a href="{% url 'user_list' %}" class="text-decoration-none text-muted"><i class="bi bi-people-fill me-1"></i>Nhân sự</a></li>
-                        <li class="breadcrumb-item active fw-bold text-hm" aria-current="page">{{ title }}</li>
-                    </ol>
-                </nav>
+                <h2 class="jp-page-title fw-bold text-dark mb-0">
+                    <i class="bi bi-person-badge-fill text-hm me-2"></i>{{ title }}
+                </h2>
             </div>
+            <nav aria-label="breadcrumb" class="d-none d-md-block">
+                <ol class="breadcrumb mb-0 small">
+                    <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}" class="text-decoration-none text-muted">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'user_list' %}" class="text-decoration-none text-muted">Nhân sự</a></li>
+                    <li class="breadcrumb-item active fw-bold text-hm">{{ title }}</li>
+                </ol>
+            </nav>
+            <p class="text-muted small mb-0 mt-1 d-none d-md-block">Quản lý tài khoản, thông tin nhân sự và phân quyền hệ thống</p>
+        </div>
+        <div class="jp-hrm-toolbar d-none d-md-flex">
+            <a href="{% url 'user_list' %}" class="btn btn-outline-hm fw-bold shadow-sm jp-hrm-tool-btn">
+                <i class="bi bi-arrow-left"></i><span class="jp-hrm-tool-label"> Danh sách</span>
+            </a>
+            <a href="{% url 'org_structure' %}" class="btn btn-outline-dark fw-bold shadow-sm jp-hrm-tool-btn">
+                <i class="bi bi-diagram-3"></i><span class="jp-hrm-tool-label"> Cơ cấu</span>
+            </a>
+        </div>
+    </div>
 
-            <div class="card shadow-lg border-0 overflow-hidden">
-                <div class="card-header bg-dark text-white p-3 p-md-4 border-0 d-flex align-items-center gap-3">
-                    <div class="bg-white bg-opacity-10 p-2 p-md-3 rounded-circle d-flex align-items-center justify-content-center flex-shrink-0">
-                        <i class="bi bi-person-badge fs-5 fs-md-4 text-white"></i>
+    <form method="post" id="userForm" novalidate>
+        {% csrf_token %}
+
+        <div class="row g-3 g-lg-4">
+            <!-- Cột trái: Thông tin nhân sự -->
+            <div class="col-lg-8 col-xl-9">
+                <div class="card border-0 shadow-sm jp-user-form-card h-100">
+                    <div class="card-header bg-white border-bottom py-3 px-3 px-md-4">
+                        <h5 class="mb-0 fw-bold text-dark">
+                            <i class="bi bi-person-vcard-fill text-hm me-2"></i>Thông tin nhân sự
+                        </h5>
                     </div>
-                    <div class="min-w-0">
-                        <h4 class="mb-0 fw-bold fs-5 fs-md-4 text-truncate">{{ title }}</h4>
-                        <p class="mb-0 text-white-50 small mt-1 d-none d-sm-block">Quản lý tài khoản và phân quyền hệ thống</p>
+                    <div class="card-body p-3 p-md-4">
+                        <div class="row g-3 g-md-4">
+                            <div class="col-sm-6 col-xl-3">
+                                <label class="jp-form-label">Mã NS</label>
+                                {{ form.employee_code }}
+                                {% if form.employee_code.errors %}<div class="text-danger small mt-1">{{ form.employee_code.errors }}</div>{% endif %}
+                            </div>
+                            <div class="col-sm-6 col-xl-5">
+                                <label class="jp-form-label">Họ và tên <span class="text-danger">*</span></label>
+                                {{ form.full_name }}
+                            </div>
+                            <div class="col-sm-6 col-xl-4">
+                                <label class="jp-form-label">Giới tính</label>
+                                {{ form.gender }}
+                            </div>
+
+                            <div class="col-md-6 col-xl-4">
+                                <label class="jp-form-label jp-form-label-row">
+                                    <span>Phòng ban</span>
+                                    <a href="{% url 'org_structure' %}?tab=department" class="jp-form-link">Quản lý</a>
+                                </label>
+                                {{ form.department }}
+                            </div>
+                            <div class="col-md-6 col-xl-4">
+                                <label class="jp-form-label jp-form-label-row">
+                                    <span>Bộ phận</span>
+                                    <a href="{% url 'org_structure' %}?tab=division" class="jp-form-link">Quản lý</a>
+                                </label>
+                                {{ form.division }}
+                            </div>
+                            <div class="col-md-6 col-xl-4">
+                                <label class="jp-form-label">Vị trí</label>
+                                {{ form.job_position }}
+                            </div>
+
+                            <div class="col-md-6 col-xl-4">
+                                <label class="jp-form-label">Chức vụ</label>
+                                {{ form.job_title }}
+                            </div>
+                            <div class="col-md-6 col-xl-4">
+                                <label class="jp-form-label">Ngày vào</label>
+                                {{ form.join_date }}
+                            </div>
+                            <div class="col-md-6 col-xl-4">
+                                <label class="jp-form-label">Ngày sinh</label>
+                                {{ form.date_of_birth }}
+                            </div>
+                        </div>
                     </div>
                 </div>
+            </div>
 
-                <div class="card-body p-3 p-md-5 bg-white">
-                    <form method="post" id="userForm" novalidate>
-                        {% csrf_token %}
-
-                        <section class="mb-4 mb-md-5">
-                            <h6 class="text-hm fw-bold border-bottom border-2 border-hm pb-2 mb-3 mb-md-4 text-uppercase small letter-spacing">
-                                <i class="bi bi-shield-lock-fill me-2"></i>Tài khoản hệ thống
-                            </h6>
-                            <div class="row g-3 g-md-4">
-                                <div class="col-12 {% if not is_edit %}col-md-6{% endif %}">
-                                    <label class="form-label fw-bold small text-secondary">Tên đăng nhập <span class="text-danger">*</span></label>
-                                    <div class="input-group custom-input-group">
-                                        <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-person"></i></span>
-                                        {{ form.username }}
-                                    </div>
-                                    {% if form.username.errors %}<div class="text-danger small mt-1">{{ form.username.errors }}</div>{% endif %}
-                                </div>
-
-                                {% if not is_edit %}
-                                <div class="col-12 col-md-6">
-                                    <label class="form-label fw-bold small text-secondary">Mật khẩu <span class="text-danger">*</span></label>
-                                    <div class="input-group custom-input-group">
-                                        <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-key"></i></span>
-                                        {{ form.password }}
-                                    </div>
-                                </div>
-                                {% endif %}
-
-                                <div class="col-12">
-                                    <label class="form-label fw-bold small text-secondary">Email <span class="text-danger">*</span></label>
-                                    <div class="input-group custom-input-group">
-                                        <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-envelope"></i></span>
-                                        {{ form.email }}
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-
-                        <section class="mb-2 mb-md-4">
-                            <h6 class="text-hm fw-bold border-bottom border-2 border-hm pb-2 mb-3 mb-md-4 text-uppercase small letter-spacing">
-                                <i class="bi bi-person-vcard-fill me-2"></i>Thông tin & Phân quyền
-                            </h6>
-                            <div class="row g-3 g-md-4">
-                                <div class="col-12">
-                                    <label class="form-label fw-bold small text-secondary">Họ và tên <span class="text-danger">*</span></label>
-                                    {{ form.full_name }}
-                                </div>
-
-                                <div class="col-12 col-md-6">
-                                    <label class="form-label fw-bold small text-secondary">Chức danh <span class="text-danger">*</span></label>
-                                    <div class="input-group custom-input-group">
-                                        <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-briefcase"></i></span>
-                                        {{ form.position }}
-                                    </div>
-                                </div>
-
-                                <div class="col-12 col-md-6">
-                                    <label class="form-label fw-bold small text-secondary">Vai trò <span class="text-danger">*</span></label>
-                                    <div class="input-group custom-input-group">
-                                        <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-shield-shaded"></i></span>
-                                        {{ form.role }}
-                                    </div>
-                                </div>
-
-                                <div class="col-12" id="subordinates_section" style="display: none;">
-                                    <label class="form-label fw-bold small text-secondary">Nhân viên dưới quyền (HOD) <span class="text-danger">*</span></label>
-                                    <div class="p-3 border bg-light">
-                                        <p class="small text-muted mb-2 jp-hrm-multi-hint"><i class="bi bi-info-circle me-1"></i>Chọn một hoặc nhiều nhân viên</p>
-                                        {{ form.subordinates }}
-                                    </div>
-                                    {% if form.subordinates.errors %}<div class="text-danger small mt-1">{{ form.subordinates.errors }}</div>{% endif %}
-                                </div>
-                            </div>
-                        </section>
-
-                        <div class="jp-sticky-actions pt-3 border-top mt-2">
-                            <button type="submit" class="btn btn-hm btn-lg shadow-sm fw-bold">
-                                <i class="bi bi-check-circle-fill me-2"></i>Lưu
-                            </button>
-                            <a href="{% url 'user_list' %}" class="btn btn-light btn-lg border fw-bold text-muted">
-                                Hủy
-                            </a>
+            <!-- Cột phải: Tài khoản & Phân quyền -->
+            <div class="col-lg-4 col-xl-3">
+                <div class="d-flex flex-column gap-3 gap-lg-4">
+                    <div class="card border-0 shadow-sm jp-user-form-card">
+                        <div class="card-header bg-white border-bottom py-3 px-3 px-md-4">
+                            <h5 class="mb-0 fw-bold text-dark">
+                                <i class="bi bi-shield-lock-fill text-hm me-2"></i>Tài khoản
+                            </h5>
                         </div>
-                    </form>
+                        <div class="card-body p-3 p-md-4">
+                            <div class="mb-3">
+                                <label class="jp-form-label">Account <span class="text-danger">*</span></label>
+                                {{ form.username }}
+                                {% if form.username.errors %}<div class="text-danger small mt-1">{{ form.username.errors }}</div>{% endif %}
+                            </div>
+                            {% if not is_edit %}
+                            <div class="mb-3">
+                                <label class="jp-form-label">Mật khẩu <span class="text-danger">*</span></label>
+                                {{ form.password }}
+                            </div>
+                            {% else %}
+                            <div class="alert alert-light border small mb-3 mb-0 py-2 px-3">
+                                <i class="bi bi-info-circle text-hm me-1"></i>
+                                Đổi mật khẩu qua nút <strong>Reset</strong> trên danh sách nhân sự.
+                            </div>
+                            {% endif %}
+                            <div class="{% if not is_edit %}mb-0{% endif %}">
+                                <label class="jp-form-label">Email</label>
+                                {{ form.email }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card border-0 shadow-sm jp-user-form-card">
+                        <div class="card-header bg-white border-bottom py-3 px-3 px-md-4">
+                            <h5 class="mb-0 fw-bold text-dark">
+                                <i class="bi bi-shield-shaded text-hm me-2"></i>Phân quyền
+                            </h5>
+                        </div>
+                        <div class="card-body p-3 p-md-4">
+                            <div class="mb-0">
+                                <label class="jp-form-label">Vai trò hệ thống <span class="text-danger">*</span></label>
+                                {{ form.role }}
+                            </div>
+                            <div class="mt-3 pt-3 border-top" id="subordinates_section" style="display: none;">
+                                <label class="jp-form-label">Nhân viên dưới quyền</label>
+                                <p class="small text-muted mb-2 jp-hrm-multi-hint">
+                                    <i class="bi bi-info-circle me-1"></i>Chọn một hoặc nhiều nhân viên
+                                </p>
+                                {{ form.subordinates }}
+                                {% if form.subordinates.errors %}<div class="text-danger small mt-1">{{ form.subordinates.errors }}</div>{% endif %}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+
+        <div class="jp-user-form-actions card border-0 shadow-sm mt-3 mt-md-4">
+            <div class="card-body p-3 p-md-4 d-flex flex-column flex-sm-row gap-2 justify-content-end align-items-stretch align-items-sm-center">
+                <a href="{% url 'user_list' %}" class="btn btn-light btn-lg border fw-bold order-2 order-sm-1">
+                    Hủy bỏ
+                </a>
+                <button type="submit" class="btn btn-hm btn-lg shadow-sm fw-bold order-1 order-sm-2">
+                    <i class="bi bi-check-circle-fill me-2"></i>Lưu thông tin
+                </button>
+            </div>
+        </div>
+    </form>
 </div>
 
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
@@ -140,11 +189,13 @@
         const subSection = document.getElementById('subordinates_section');
         const multiHint = document.querySelector('.jp-hrm-multi-hint');
 
+        const managerRoles = ['TEAM_LEADER', 'DIVISION_HEAD'];
+
         function toggleSubordinates() {
-            if (roleSelect.value === 'HOD') {
-                $(subSection).fadeIn();
+            if (managerRoles.includes(roleSelect.value)) {
+                $(subSection).slideDown(200);
             } else {
-                $(subSection).fadeOut();
+                $(subSection).slideUp(200);
             }
         }
 
