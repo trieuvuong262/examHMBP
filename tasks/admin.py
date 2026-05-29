@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from .models import WorkTask, WorkTaskLog
+from .models import WorkTask, WorkTaskAttachment, WorkTaskLog
+
+
+@admin.register(WorkTaskAttachment)
+class WorkTaskAttachmentAdmin(admin.ModelAdmin):
+    list_display = ('display_name', 'task', 'stage', 'uploaded_by', 'created_at')
+    list_filter = ('stage',)
+    raw_id_fields = ('task', 'uploaded_by')
 
 
 @admin.register(WorkTask)

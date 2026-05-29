@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.models import User
 
-from hrm.permissions import get_report_team_users
+from hrm.permissions import format_team_user_label, get_report_team_users
 
 from .models import WorkTask
 
@@ -39,23 +39,15 @@ class WorkTaskAssignForm(forms.Form):
         widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size': 6}),
         help_text='Chọn một hoặc nhiều người — mỗi người một công việc riêng, duyệt riêng.',
     )
-    order_code = forms.CharField(
-        required=False,
-        max_length=80,
-        label='Mã đơn / Style',
-        widget=forms.TextInput(attrs={'class': 'form-control'}),
-    )
-    product_name = forms.CharField(
-        required=False,
-        max_length=120,
-        label='Tên SP / hạng mục',
-        widget=forms.TextInput(attrs={'class': 'form-control'}),
-    )
 
     def __init__(self, *args, assigner=None, **kwargs):
         super().__init__(*args, **kwargs)
         if assigner is not None:
-            self.fields['assignees'].queryset = get_report_team_users(assigner)
+            qs = get_report_team_users(assigner)
+            self.fields['assignees'].queryset = qs
+            self.fields['assignees'].label_from_instance = format_team_user_label
+            size = min(max(qs.count(), 4), 12)
+            self.fields['assignees'].widget.attrs['size'] = size
 
 
 class WorkTaskProgressForm(forms.Form):
@@ -107,3 +99,4 @@ class WorkTaskReassignForm(forms.Form):
         if exclude_user is not None:
             qs = qs.exclude(pk=exclude_user.pk)
         self.fields['assignee'].queryset = qs
+        self.fields['assignee'].label_from_instance = format_team_user_label

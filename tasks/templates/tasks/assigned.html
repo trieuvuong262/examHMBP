@@ -60,7 +60,7 @@
                     {% for task in page_obj %}
                     <tr>
                         <td><strong>{{ task.title }}</strong></td>
-                        <td>{{ task.assignee.profile.full_name|default:task.assignee.username }}</td>
+                        <td>{% include 'tasks/includes/user_brief.html' with user=task.assignee %}</td>
                         <td><span class="badge bg-light text-dark border">{{ task.get_priority_display }}</span></td>
                         <td>{{ task.due_date|date:"d/m/Y"|default:"—" }}</td>
                         <td><span class="badge {{ task.status_badge_class }}">{{ task.get_status_display }}</span></td>

@@ -5,11 +5,14 @@
     <div class="jp-page-header mb-3 mb-md-4">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ task.title }}</h2>
-            <p class="text-muted mb-0">
+            <p class="text-muted mb-1">
                 <span class="badge {{ task.status_badge_class }}">{{ task.get_status_display }}</span>
                 · Giao bởi {{ task.assigner.profile.full_name|default:task.assigner.username }}
-                · Nhận: {{ task.assignee.profile.full_name|default:task.assignee.username }}
             </p>
+            <div class="text-muted small">
+                <span class="me-1">Người nhận:</span>
+                {% include 'tasks/includes/user_brief.html' with user=task.assignee %}
+            </div>
         </div>
         <div class="d-flex flex-wrap gap-2">
             {% if is_assigner %}
@@ -50,28 +53,13 @@
                             <small>{{ task.progress_percent }}%</small>
                         </div>
                     </div>
-                    {% if task.order_code or task.product_name %}
-                    <div class="row g-3 mb-3">
-                        {% if task.order_code %}
-                        <div class="col-sm-6">
-                            <small class="text-muted d-block">Mã đơn / Style</small>
-                            <strong>{{ task.order_code }}</strong>
-                        </div>
-                        {% endif %}
-                        {% if task.product_name %}
-                        <div class="col-sm-6">
-                            <small class="text-muted d-block">Tên SP / hạng mục</small>
-                            <strong>{{ task.product_name }}</strong>
-                        </div>
-                        {% endif %}
-                    </div>
-                    {% endif %}
                     {% if task.description %}
                     <div class="mb-3">
                         <small class="text-muted d-block mb-1">Mô tả</small>
                         <div class="jp-task-description">{{ task.description|linebreaksbr }}</div>
                     </div>
                     {% endif %}
+                    {% include 'tasks/includes/attachments.html' %}
                     {% if task.result_note %}
                     <div class="mb-3">
                         <small class="text-muted d-block mb-1">Kết quả / báo cáo</small>
@@ -125,6 +113,19 @@
             {% if is_assignee %}
             {% if task.status == 'in_progress' or task.status == 'revision' %}
             <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white fw-bold">Tải hình ảnh / file đã làm</div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="upload_attachment">
+                        <input type="file" name="attachments" class="form-control" multiple
+                               accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.txt,.csv">
+                        <div class="form-text mt-2">Ảnh minh chứng hoặc file kết quả. Tối đa 10 MB/file.</div>
+                        <button type="submit" class="btn btn-outline-hm mt-3">Tải lên</button>
+                    </form>
+                </div>
+            </div>
+            <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white fw-bold">Cập nhật tiến độ</div>
                 <div class="card-body">
                     <form method="post">
@@ -157,6 +158,21 @@
                 </div>
             </div>
             {% endif %}
+            {% endif %}
+
+            {% if can_upload_work and task.status == 'pending_review' %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white fw-bold">Bổ sung hình ảnh / file đã làm</div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="upload_attachment">
+                        <input type="file" name="attachments" class="form-control" multiple
+                               accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.txt,.csv">
+                        <button type="submit" class="btn btn-outline-hm mt-3">Tải thêm</button>
+                    </form>
+                </div>
+            </div>
             {% endif %}
 
             {% if is_assigner and task.status == 'pending_review' %}

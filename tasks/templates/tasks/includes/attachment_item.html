@@ -1,0 +1,20 @@
+<div class="jp-task-attachment-item {% if att.is_image %}jp-task-attachment-image{% else %}jp-task-attachment-file{% endif %}">
+    {% if att.is_image %}
+    <a href="{{ att.file.url }}" target="_blank" rel="noopener" class="jp-task-attachment-thumb">
+        <img src="{{ att.file.url }}" alt="{{ att.display_name }}" loading="lazy">
+    </a>
+    {% else %}
+    <a href="{{ att.file.url }}" target="_blank" rel="noopener" class="jp-task-attachment-doc">
+        <i class="bi bi-file-earmark-arrow-down"></i>
+    </a>
+    {% endif %}
+    <div class="jp-task-attachment-meta">
+        <a href="{{ att.file.url }}" target="_blank" rel="noopener" class="jp-task-attachment-name" title="{{ att.display_name }}">
+            {{ att.display_name }}
+        </a>
+        <small class="text-muted d-block">
+            {{ att.uploaded_by.profile.full_name|default:att.uploaded_by.username }}
+            · {{ att.created_at|date:"d/m/Y H:i" }}
+        </small>
+    </div>
+</div>

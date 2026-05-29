@@ -1,0 +1,7 @@
+<div class="jp-task-user-brief">
+    <strong>{{ user.profile.full_name|default:user.username }}</strong>
+    <div class="small text-muted">
+        Mã NS: <code class="text-body">{{ user.profile.employee_code|default:"—" }}</code>
+        · Account: <code class="text-body">{{ user.username }}</code>
+    </div>
+</div>

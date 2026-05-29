@@ -1,5 +1,6 @@
 import uuid
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from django.urls import reverse
@@ -12,8 +13,9 @@ from hrm.permissions import (
     ROLE_TEAM_LEADER,
     can_assign_tasks,
     can_view_task,
+    format_team_user_label,
 )
-from tasks.models import WorkTask
+from tasks.models import WorkTask, WorkTaskAttachment
 
 
 class TaskWorkflowTests(TestCase):
@@ -133,6 +135,48 @@ class TaskWorkflowTests(TestCase):
         self.client.force_login(self.leader)
         response = self.client.get(reverse('tasks:assigned'))
         self.assertEqual(response.status_code, 200)
+
+    def test_assign_with_attachment(self):
+        self.client.force_login(self.leader)
+        image = SimpleUploadedFile('ref.jpg', b'fake-image-bytes', content_type='image/jpeg')
+        response = self.client.post(reverse('tasks:assign'), {
+            'title': 'Việc có ảnh',
+            'description': '',
+            'task_type': WorkTask.TYPE_GENERAL,
+            'priority': WorkTask.PRIORITY_NORMAL,
+            'assignees': [self.employee.pk],
+            'attachments': image,
+        })
+        self.assertEqual(response.status_code, 302)
+        task = WorkTask.objects.get(assigner=self.leader, title='Việc có ảnh')
+        self.assertEqual(task.attachments.filter(stage=WorkTaskAttachment.STAGE_ASSIGN).count(), 1)
+
+    def test_assignee_upload_work_attachment(self):
+        task = WorkTask.objects.create(
+            title='Upload kết quả',
+            assigner=self.leader,
+            assignee=self.employee,
+            status=WorkTask.STATUS_IN_PROGRESS,
+        )
+        self.client.force_login(self.employee)
+        file = SimpleUploadedFile('done.pdf', b'%PDF-1.4', content_type='application/pdf')
+        response = self.client.post(reverse('tasks:detail', args=[task.pk]), {
+            'action': 'upload_attachment',
+            'attachments': file,
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(task.attachments.filter(stage=WorkTaskAttachment.STAGE_WORK).count(), 1)
+
+    def test_assignee_label_shows_name_code_account(self):
+        Profile.objects.filter(user=self.employee).update(
+            full_name='Nguyễn Văn A',
+            employee_code='NV001',
+        )
+        self.employee.refresh_from_db()
+        label = format_team_user_label(self.employee)
+        self.assertIn('Nguyễn Văn A', label)
+        self.assertIn('NV001', label)
+        self.assertIn('nv_cv', label)
 
     def test_outsider_cannot_view_task(self):
         task = WorkTask.objects.create(

@@ -1,0 +1,25 @@
+{% if assign_attachments or work_attachments %}
+<div class="jp-task-attachments">
+    {% if assign_attachments %}
+    <div class="mb-3">
+        <small class="text-muted d-block mb-2 fw-bold">Hình ảnh / file khi giao việc</small>
+        <div class="jp-task-attachment-grid">
+            {% for att in assign_attachments %}
+            {% include 'tasks/includes/attachment_item.html' with att=att %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if work_attachments %}
+    <div class="mb-0">
+        <small class="text-muted d-block mb-2 fw-bold">Hình ảnh / file đã làm</small>
+        <div class="jp-task-attachment-grid">
+            {% for att in work_attachments %}
+            {% include 'tasks/includes/attachment_item.html' with att=att %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}

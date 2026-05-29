@@ -1,3 +1,5 @@
+import os
+
 import uuid
 
 from django.conf import settings
@@ -80,8 +82,6 @@ class WorkTask(models.Model):
     reject_reason = models.TextField(blank=True, verbose_name='Lý do từ chối')
     result_note = models.TextField(blank=True, verbose_name='Kết quả / báo cáo')
     review_note = models.TextField(blank=True, verbose_name='Ghi chú duyệt')
-    order_code = models.CharField(max_length=80, blank=True, verbose_name='Mã đơn/Style')
-    product_name = models.CharField(max_length=120, blank=True, verbose_name='Tên SP / hạng mục')
     acknowledged_at = models.DateTimeField(null=True, blank=True)
     submitted_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
@@ -134,6 +134,64 @@ class WorkTask(models.Model):
         return mapping.get(self.status, 'bg-secondary-subtle text-secondary')
 
 
+class WorkTaskAttachment(models.Model):
+    STAGE_ASSIGN = 'assign'
+    STAGE_WORK = 'work'
+    STAGE_CHOICES = [
+        (STAGE_ASSIGN, 'Khi giao việc'),
+        (STAGE_WORK, 'Kết quả đã làm'),
+    ]
+
+    task = models.ForeignKey(
+        WorkTask,
+        on_delete=models.CASCADE,
+        related_name='attachments',
+        verbose_name='Công việc',
+    )
+    file = models.FileField(
+        upload_to='tasks/attachments/%Y/%m/',
+        verbose_name='File đính kèm',
+    )
+    original_name = models.CharField(max_length=255, blank=True, verbose_name='Tên file gốc')
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='work_task_attachments',
+        verbose_name='Người tải lên',
+    )
+    stage = models.CharField(
+        max_length=10,
+        choices=STAGE_CHOICES,
+        default=STAGE_ASSIGN,
+        db_index=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+        verbose_name = 'Đính kèm công việc'
+        verbose_name_plural = 'Đính kèm công việc'
+
+    def __str__(self):
+        return self.display_name
+
+    @property
+    def display_name(self):
+        if self.original_name:
+            return self.original_name
+        return os.path.basename(self.file.name)
+
+    @property
+    def is_image(self):
+        from tasks.attachment_utils import is_image_filename
+        return is_image_filename(self.display_name)
+
+    @property
+    def extension(self):
+        return os.path.splitext(self.display_name.lower())[1]
+
+
 class WorkTaskLog(models.Model):
     ACTION_ASSIGNED = 'assigned'
     ACTION_ACK = 'acknowledged'
@@ -144,6 +202,7 @@ class WorkTaskLog(models.Model):
     ACTION_REVISION = 'revision'
     ACTION_REASSIGN = 'reassigned'
     ACTION_CANCEL = 'cancelled'
+    ACTION_ATTACHMENT = 'attachment'
     ACTION_CHOICES = [
         (ACTION_ASSIGNED, 'Giao việc'),
         (ACTION_ACK, 'Xác nhận'),
@@ -154,6 +213,7 @@ class WorkTaskLog(models.Model):
         (ACTION_REVISION, 'Yêu cầu sửa'),
         (ACTION_REASSIGN, 'Giao lại'),
         (ACTION_CANCEL, 'Hủy'),
+        (ACTION_ATTACHMENT, 'Đính kèm'),
     ]
 
     task = models.ForeignKey(WorkTask, on_delete=models.CASCADE, related_name='logs')

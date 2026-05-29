@@ -111,6 +111,14 @@ def get_report_team_users(viewer):
     ).select_related('profile').order_by('profile__full_name', 'username')
 
 
+def format_team_user_label(user) -> str:
+    """Nhãn chọn nhân viên: Họ tên · Mã NS · account."""
+    profile = get_profile(user)
+    full_name = profile.full_name if profile and profile.full_name else user.username
+    code = profile.employee_code if profile and profile.employee_code else '—'
+    return f'{full_name} · {code} · {user.username}'
+
+
 def has_report_subordinates(user) -> bool:
     return get_report_team_users(user).exists()
 

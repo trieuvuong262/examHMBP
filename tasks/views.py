@@ -2,6 +2,7 @@ import uuid
 
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -22,7 +23,8 @@ from .forms import (
     WorkTaskReviewForm,
     WorkTaskSubmitForm,
 )
-from .models import WorkTask, WorkTaskLog
+from .models import WorkTask, WorkTaskAttachment, WorkTaskLog
+from .attachment_utils import read_upload_files, save_task_attachments, copy_task_attachments
 from .utils import log_task_action
 
 
@@ -128,6 +130,38 @@ def assigned_tasks(request):
     })
 
 
+ASSIGNEE_UPLOAD_STATUSES = {
+    WorkTask.STATUS_IN_PROGRESS,
+    WorkTask.STATUS_REVISION,
+    WorkTask.STATUS_PENDING_REVIEW,
+}
+
+
+def _task_attachments(task):
+    return task.attachments.select_related('uploaded_by', 'uploaded_by__profile')
+
+
+def _handle_attachment_upload(request, task, *, stage, actor):
+    files = request.FILES.getlist('attachments')
+    if not files:
+        messages.warning(request, 'Chưa chọn file nào để tải lên.')
+        return False
+    try:
+        prepared = read_upload_files(files)
+    except ValidationError as exc:
+        messages.error(request, '; '.join(getattr(exc, 'messages', [str(exc)])))
+        return False
+    saved = save_task_attachments(task, prepared, uploaded_by=actor, stage=stage)
+    log_task_action(
+        task,
+        actor,
+        WorkTaskLog.ACTION_ATTACHMENT,
+        f'Tải lên {len(saved)} file',
+    )
+    messages.success(request, f'Đã tải lên {len(saved)} file đính kèm.')
+    return True
+
+
 @_assign_access_required
 def assign_task(request):
     if request.method == 'POST':
@@ -135,6 +169,17 @@ def assign_task(request):
         if form.is_valid():
             assignees = form.cleaned_data['assignees']
             batch = uuid.uuid4()
+            prepared_files = []
+            try:
+                prepared_files = read_upload_files(request.FILES.getlist('attachments'))
+            except ValidationError as exc:
+                messages.error(request, '; '.join(getattr(exc, 'messages', [str(exc)])))
+                return render(request, 'tasks/assign.html', {
+                    'form': form,
+                    'team_count': get_report_team_users(request.user).count(),
+                    'team_members': get_report_team_users(request.user),
+                })
+
             created = []
             for assignee in assignees:
                 task = WorkTask.objects.create(
@@ -144,11 +189,16 @@ def assign_task(request):
                     task_type=form.cleaned_data['task_type'],
                     priority=form.cleaned_data['priority'],
                     due_date=form.cleaned_data['due_date'],
-                    order_code=form.cleaned_data['order_code'],
-                    product_name=form.cleaned_data['product_name'],
                     assigner=request.user,
                     assignee=assignee,
                 )
+                if prepared_files:
+                    save_task_attachments(
+                        task,
+                        prepared_files,
+                        uploaded_by=request.user,
+                        stage=WorkTaskAttachment.STAGE_ASSIGN,
+                    )
                 log_task_action(task, request.user, WorkTaskLog.ACTION_ASSIGNED, f'Giao cho {assignee.username}')
                 created.append(task)
             count = len(created)
@@ -162,6 +212,7 @@ def assign_task(request):
     return render(request, 'tasks/assign.html', {
         'form': form,
         'team_count': get_report_team_users(request.user).count(),
+        'team_members': get_report_team_users(request.user),
     })
 
 
@@ -184,6 +235,16 @@ def task_detail(request, pk):
 
     if request.method == 'POST':
         action = request.POST.get('action')
+
+        if action == 'upload_attachment' and is_assignee and task.status in ASSIGNEE_UPLOAD_STATUSES:
+            if _handle_attachment_upload(
+                request,
+                task,
+                stage=WorkTaskAttachment.STAGE_WORK,
+                actor=request.user,
+            ):
+                return redirect('tasks:detail', pk=pk)
+
         if action == 'acknowledge' and is_assignee and task.status == WorkTask.STATUS_PENDING_ACK:
             task.status = WorkTask.STATUS_IN_PROGRESS
             task.acknowledged_at = timezone.now()
@@ -273,9 +334,16 @@ def task_detail(request, pk):
             assignment_batch=task.assignment_batch,
         ).exclude(pk=task.pk).select_related('assignee', 'assignee__profile')[:10]
 
+    attachments = _task_attachments(task)
+    assign_attachments = attachments.filter(stage=WorkTaskAttachment.STAGE_ASSIGN)
+    work_attachments = attachments.filter(stage=WorkTaskAttachment.STAGE_WORK)
+
     return render(request, 'tasks/detail.html', {
         'task': task,
         'logs': task.logs.select_related('actor', 'actor__profile'),
+        'assign_attachments': assign_attachments,
+        'work_attachments': work_attachments,
+        'can_upload_work': is_assignee and task.status in ASSIGNEE_UPLOAD_STATUSES,
         'is_assignee': is_assignee,
         'is_assigner': is_assigner,
         'can_assign': can_assign_tasks(request.user),
@@ -309,11 +377,15 @@ def reassign_task(request, pk):
                 task_type=old_task.task_type,
                 priority=old_task.priority,
                 due_date=old_task.due_date,
-                order_code=old_task.order_code,
-                product_name=old_task.product_name,
                 assigner=request.user,
                 assignee=new_assignee,
                 reassigned_from=old_task,
+            )
+            copy_task_attachments(
+                old_task,
+                new_task,
+                stages=[WorkTaskAttachment.STAGE_ASSIGN],
+                uploaded_by=request.user,
             )
             old_task.status = WorkTask.STATUS_REASSIGNED
             old_task.replaced_by = new_task
