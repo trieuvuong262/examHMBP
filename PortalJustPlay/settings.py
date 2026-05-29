@@ -106,7 +106,6 @@ INSTALLED_APPS = [
     'training',
     'recruitment',
     'reports',
-    'axes',
     'hrm',
     'kpi',
     'announcements',
@@ -125,7 +124,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'axes.middleware.AxesMiddleware',
     'PortalJustPlay.middleware.ForcePasswordChangeMiddleware',
     'hrm.middleware.DepartmentModuleAccessMiddleware',
     'audit.middleware.ActivityAuditMiddleware',
@@ -295,7 +293,6 @@ if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SESSION_COOKIE_HTTPONLY = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
-    AXES_FAILURE_LIMIT = int(os.getenv('AXES_FAILURE_LIMIT', '10'))
 
     if USE_HTTPS:
         SESSION_COOKIE_SECURE = env_bool('SESSION_COOKIE_SECURE', True)
@@ -316,12 +313,6 @@ if not DEBUG:
         SECURE_CROSS_ORIGIN_EMBEDDER_POLICY = None
     
 AUTHENTICATION_BACKENDS = [
-    # 1. Trạm gác ngoài cùng: Bắt buộc dùng AxesBackend (đã sửa) để đếm số lần sai
-    'axes.backends.AxesBackend', 
-    
-    # 2. Trạm gác số 2: Bộ Custom mà ní tự viết (Cho phép dùng Email hoặc Username)
-    'assessment.backends.EmailOrUsernameModelBackend', 
-    
-    # 3. Trạm gác cuối cùng: Dự phòng mặc định của Django (Giúp tài khoản Admin/Superuser không bao giờ bị kẹt)
-    'django.contrib.auth.backends.ModelBackend', 
+    'assessment.backends.EmailOrUsernameModelBackend',
+    'django.contrib.auth.backends.ModelBackend',
 ]

@@ -140,3 +140,33 @@ class LibraryQAConfig(models.Model):
     def load(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+
+class LibraryQAChatMessage(models.Model):
+    ROLE_USER = 'user'
+    ROLE_MODEL = 'model'
+    ROLE_CHOICES = [
+        (ROLE_USER, 'Người dùng'),
+        (ROLE_MODEL, 'Trợ lý AI'),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='library_qa_messages',
+        verbose_name='Người dùng',
+    )
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, verbose_name='Vai trò')
+    text = models.TextField(verbose_name='Nội dung')
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['created_at']
+        verbose_name = 'Tin nhắn Hỏi đáp AI'
+        verbose_name_plural = 'Tin nhắn Hỏi đáp AI'
+        indexes = [
+            models.Index(fields=['user', 'created_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.user_id} · {self.role} · {self.created_at:%Y-%m-%d %H:%M}'

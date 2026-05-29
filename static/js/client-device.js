@@ -1,6 +1,6 @@
 /**
  * Gửi tên máy + IP LAN lên server (cookie + hidden field) cho nhật ký thao tác.
- * IT có thể preset tên máy Windows: localStorage.setItem('jp_device_name', 'TEN-MAY');
+ * IT có thể đặt tên máy: localStorage.setItem('jp_device_name', 'TEN-MAY');
  */
 (function () {
     'use strict';
@@ -13,6 +13,11 @@
         var maxAge = COOKIE_DAYS * 86400;
         document.cookie = name + '=' + encodeURIComponent(value)
             + '; path=/; max-age=' + maxAge + '; SameSite=Lax';
+    }
+
+    function readCookie(name) {
+        var match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+        return match ? decodeURIComponent(match[1]) : '';
     }
 
     function isPrivateIp(ip) {
@@ -31,10 +36,12 @@
                 resolve(value || '');
             };
 
-            setTimeout(function () { finish(''); }, 3500);
+            setTimeout(function () { finish(''); }, 4000);
 
             try {
-                var pc = new RTCPeerConnection({ iceServers: [] });
+                var pc = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+                });
                 pc.createDataChannel('jp-audit');
                 pc.onicecandidate = function (event) {
                     if (!event || !event.candidate || !event.candidate.candidate) return;
@@ -42,7 +49,7 @@
                     if (!match) return;
                     var ip = match[1];
                     if (isPrivateIp(ip)) {
-                        pc.close();
+                        try { pc.close(); } catch (e) {}
                         finish(ip);
                     }
                 };
@@ -55,31 +62,49 @@
         });
     }
 
+    function guessHostnameFromUa() {
+        var ua = navigator.userAgent || '';
+        if (ua.indexOf('Windows') !== -1) return 'Windows';
+        if (ua.indexOf('Macintosh') !== -1 || ua.indexOf('Mac OS') !== -1) return 'Mac';
+        if (ua.indexOf('Android') !== -1) return 'Android';
+        if (ua.indexOf('iPhone') !== -1 || ua.indexOf('iPad') !== -1) return 'iPhone';
+        if (ua.indexOf('Linux') !== -1) return 'Linux';
+        return '';
+    }
+
     function resolveHostname(localIp) {
         var stored = localStorage.getItem(STORAGE_KEY);
         if (stored && stored.trim()) {
             return stored.trim().slice(0, 128);
         }
         if (localIp) {
-            var suffix = localIp.split('.').pop();
-            var autoName = 'PC-' + suffix;
-            localStorage.setItem(STORAGE_KEY, autoName);
-            return autoName;
+            return ('PC-' + localIp.split('.').pop()).slice(0, 128);
         }
-        return '';
+        return guessHostnameFromUa();
+    }
+
+    function restoreDeviceInfo() {
+        var localIp = readCookie('jp_local_ip');
+        var hostname = resolveHostname(localIp);
+        if (!localIp) {
+            var cookieHost = readCookie('jp_hostname');
+            if (cookieHost && !localStorage.getItem(STORAGE_KEY)) {
+                hostname = cookieHost;
+            }
+        }
+        publishDeviceInfo(localIp, hostname);
     }
 
     function publishDeviceInfo(localIp, hostname) {
         setCookie('jp_local_ip', localIp);
         setCookie('jp_hostname', hostname);
         window.__jpClientDevice = {
-            localIp: localIp,
-            hostname: hostname,
+            localIp: localIp || '',
+            hostname: hostname || '',
         };
     }
 
     function ensureHiddenInput(form, name, value) {
-        if (!value) return;
         var input = form.querySelector('input[name="' + name + '"]');
         if (!input) {
             input = document.createElement('input');
@@ -87,25 +112,42 @@
             input.name = name;
             form.appendChild(input);
         }
-        input.value = value;
+        input.value = value || '';
+    }
+
+    function applyDeviceToForm(form) {
+        var info = window.__jpClientDevice || {};
+        ensureHiddenInput(form, 'client_local_ip', info.localIp || '');
+        ensureHiddenInput(form, 'client_hostname', info.hostname || '');
     }
 
     function attachFormHandlers() {
         document.querySelectorAll('form').forEach(function (form) {
             if (form.dataset.jpDeviceBound === '1') return;
             form.dataset.jpDeviceBound = '1';
-            form.addEventListener('submit', function () {
+            form.addEventListener('submit', function (e) {
                 var info = window.__jpClientDevice || {};
-                ensureHiddenInput(form, 'client_local_ip', info.localIp || '');
-                ensureHiddenInput(form, 'client_hostname', info.hostname || '');
+                if ((!info.localIp && !info.hostname) && window.__jpDeviceDetectPromise) {
+                    e.preventDefault();
+                    window.__jpDeviceDetectPromise.then(function () {
+                        applyDeviceToForm(form);
+                        form.submit();
+                    });
+                    return;
+                }
+                applyDeviceToForm(form);
             });
         });
     }
 
-    detectLocalIp().then(function (localIp) {
+    // Khôi phục cookie phiên trước ngay lập tức (ưu tiên tên IT đặt trong localStorage)
+    restoreDeviceInfo();
+
+    window.__jpDeviceDetectPromise = detectLocalIp().then(function (localIp) {
         var hostname = resolveHostname(localIp);
         publishDeviceInfo(localIp, hostname);
         attachFormHandlers();
+        return window.__jpClientDevice;
     });
 
     if (document.readyState === 'loading') {

@@ -70,8 +70,10 @@
                         <dd class="col-sm-8">{% if log.duration_ms %}{{ log.duration_ms|intcomma }} ms{% else %}—{% endif %}</dd>
                         <dt class="col-sm-4 text-muted">Tên máy</dt>
                         <dd class="col-sm-8 font-monospace">{{ log.machine_name|default:"—" }}</dd>
-                        <dt class="col-sm-4 text-muted">IP local</dt>
-                        <dd class="col-sm-8 font-monospace">{{ log.ip_address|default:"—" }}</dd>
+                        <dt class="col-sm-4 text-muted">IP LAN</dt>
+                        <dd class="col-sm-8 font-monospace">{% firstof log.extra.client_local_ip "—" %}</dd>
+                        <dt class="col-sm-4 text-muted">IP truy cập</dt>
+                        <dd class="col-sm-8 font-monospace">{% firstof log.extra.client_public_ip log.ip_address "—" %}</dd>
                         <dt class="col-sm-4 text-muted">Referer</dt>
                         <dd class="col-sm-8 text-break small">{{ log.referer|default:"—" }}</dd>
                     </dl>

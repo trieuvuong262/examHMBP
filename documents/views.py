@@ -15,6 +15,13 @@ from hrm.module_permissions import MODULE_DOCUMENTS, user_can_access_module, use
 from .forms import DocumentCategoryForm, DocumentForm, LibraryQAConfigForm
 from .models import Document, DocumentCategory, LibraryQAConfig
 from .qa_config import is_qa_enabled, qa_config_source
+from .qa_history import (
+    clear_user_qa_history,
+    get_user_qa_history,
+    get_user_qa_history_for_display,
+    save_qa_turn,
+    users_with_qa_history,
+)
 from .qa_service import QAAssistantError, ask_portal_assistant, generate_followup_suggestions, generate_initial_suggestions
 
 QA_RATE_LIMIT = 40
@@ -114,6 +121,29 @@ def admin_hub(request):
 def admin_qa_settings(request):
     config = LibraryQAConfig.load()
     if request.method == 'POST':
+        action = (request.POST.get('action') or 'save_config').strip()
+        if action == 'clear_history':
+            user_id = request.POST.get('history_user_id')
+            try:
+                user_id = int(user_id)
+            except (TypeError, ValueError):
+                user_id = None
+            if not user_id:
+                messages.error(request, 'Vui lòng chọn người dùng cần xóa lịch sử.')
+            else:
+                from django.contrib.auth.models import User
+                target = User.objects.filter(pk=user_id).select_related('profile').first()
+                if not target:
+                    messages.error(request, 'Không tìm thấy người dùng.')
+                else:
+                    deleted = clear_user_qa_history(user_id)
+                    label = getattr(getattr(target, 'profile', None), 'full_name', '') or target.username
+                    messages.success(
+                        request,
+                        f'Đã xóa {deleted} tin nhắn hỏi đáp của {label}.',
+                    )
+            return redirect('documents:admin_qa_settings')
+
         form = LibraryQAConfigForm(request.POST, instance=config)
         if form.is_valid():
             obj = form.save(commit=False)
@@ -127,12 +157,22 @@ def admin_qa_settings(request):
     else:
         form = LibraryQAConfigForm(instance=config)
 
+    history_users = []
+    for user in users_with_qa_history():
+        count = user.library_qa_messages.count()
+        full_name = getattr(getattr(user, 'profile', None), 'full_name', '') or user.get_full_name()
+        history_users.append({
+            'id': user.id,
+            'label': f'{full_name or user.username} (@{user.username}) — {count} tin',
+        })
+
     return render(request, 'documents/admin/qa_settings.html', {
         'form': form,
         'qa_enabled': is_qa_enabled(),
         'qa_config_source': qa_config_source(),
         'has_stored_key': bool((config.gemini_api_key or '').strip()),
         'env_key_configured': bool((getattr(settings, 'GEMINI_API_KEY', '') or '').strip()),
+        'history_users': history_users,
     })
 
 
@@ -286,6 +326,7 @@ def qa_chat(request):
     return render(request, 'documents/qa.html', {
         'is_admin': user_can_edit_module(request.user, MODULE_DOCUMENTS),
         'qa_enabled': is_qa_enabled(),
+        'qa_history': get_user_qa_history_for_display(request.user),
     })
 
 
@@ -305,7 +346,10 @@ def qa_ask(request):
     if not _qa_rate_limit(request.user):
         return JsonResponse({
             'ok': False,
-            'error': f'Bạn đã hỏi quá nhiều ({QA_RATE_LIMIT} câu/giờ). Vui lòng thử lại sau.',
+            'error': (
+                f'Bạn hỏi dồn dập quá ({QA_RATE_LIMIT} câu/giờ)! '
+                'Trợ lý cần thở — thử lại sau chút nhé.'
+            ),
         }, status=429)
 
     try:
@@ -314,19 +358,21 @@ def qa_ask(request):
         return JsonResponse({'ok': False, 'error': 'Dữ liệu không hợp lệ.'}, status=400)
 
     question = (payload.get('question') or '').strip()
-    history = payload.get('history') or []
-    if not isinstance(history, list):
-        history = []
+    history = get_user_qa_history(request.user)
 
     try:
         answer = ask_portal_assistant(
             request.user, question, history=history, request=request,
         )
+        save_qa_turn(request.user, question, answer)
         suggestions = generate_followup_suggestions(
             request.user,
             question,
             answer,
-            history=history,
+            history=history + [
+                {'role': 'user', 'text': question},
+                {'role': 'model', 'text': answer},
+            ],
             request=request,
         )
     except ValueError as exc:
@@ -340,7 +386,7 @@ def qa_ask(request):
         logging.getLogger(__name__).exception('qa_ask unexpected error')
         return JsonResponse({
             'ok': False,
-            'error': 'Không kết nối được trợ lý AI. Liên hệ quản trị viên hoặc thử lại sau.',
+            'error': 'Mạng với trợ lý AI đang "giật lag" một chút — thử refresh trang hoặc hỏi lại sau nhé.',
         }, status=502)
 
     return JsonResponse({'ok': True, 'answer': answer, 'suggestions': suggestions})

@@ -41,7 +41,7 @@ class QAAssistantError(RuntimeError):
 def _configure_client():
     api_key, _ = get_gemini_credentials()
     if not api_key:
-        raise QAAssistantError('Trợ lý AI chưa được kích hoạt. Liên hệ quản trị viên.')
+        raise QAAssistantError('Trợ lý AI chưa được "đánh thức". Nhờ quản trị viên bật trong Cấu hình AI.')
     genai.configure(api_key=api_key)
 
 
@@ -54,22 +54,28 @@ def _build_model(model_name: str, user, system_instruction: str, request=None, q
 def _friendly_api_error(exc: Exception) -> QAAssistantError:
     if isinstance(exc, google_exceptions.NotFound):
         return QAAssistantError(
-            'Cấu hình model AI không còn khả dụng. Liên hệ IT cập nhật trợ lý AI.'
+            'Trợ lý AI đang cập nhật "bộ não" — nhờ IT kiểm tra cấu hình model giúp bạn nhé.'
         )
     if isinstance(exc, google_exceptions.ResourceExhausted):
         return QAAssistantError(
-            'Trợ lý AI đang quá tải hoặc hết hạn mức miễn phí. '
-            'Vui lòng thử lại sau 1–2 phút, hoặc liên hệ IT nâng cấp API key.'
+            'Trợ lý AI đang nghỉ giữa hiệp — uống ngụm nước rồi hỏi lại sau vài phút nhé ☕ '
+            'Nếu vẫn im lì thì nhắn IT: có thể trợ lý đang… quá siêng nên cần recharge.'
         )
     if isinstance(exc, google_exceptions.InvalidArgument):
-        return QAAssistantError('Cấu hình trợ lý AI không hợp lệ. Liên hệ quản trị viên.')
+        return QAAssistantError(
+            'Cấu hình trợ lý AI hơi lạ một chút — nhờ quản trị viên xem lại giúp bạn.'
+        )
     if isinstance(exc, google_exceptions.PermissionDenied):
-        return QAAssistantError('API key trợ lý AI không hợp lệ hoặc đã hết hạn. Liên hệ IT.')
+        return QAAssistantError(
+            'Trợ lý AI không nhận ra "vé vào cửa" — nhờ IT xem lại cấu hình API key nhé.'
+        )
     if isinstance(exc, google_exceptions.Unauthenticated):
-        return QAAssistantError('API key trợ lý AI không hợp lệ. Liên hệ quản trị viên.')
+        return QAAssistantError(
+            'Trợ lý AI không nhận ra "vé vào cửa" — nhờ IT xem lại cấu hình API key nhé.'
+        )
     logger.exception('QA assistant API error')
     return QAAssistantError(
-        'Không kết nối được trợ lý AI. Liên hệ quản trị viên hoặc thử lại sau.'
+        'Mạng với trợ lý AI đang "giật lag" một chút — thử refresh trang hoặc hỏi lại sau nhé.'
     )
 
 
@@ -135,7 +141,7 @@ def ask_portal_assistant(user, question: str, history: list | None = None, reque
         response = chat.send_message(question)
         answer = (response.text or '').strip()
         if not answer:
-            raise QAAssistantError('Trợ lý AI không trả lời được. Thử lại sau.')
+            raise QAAssistantError('Trợ lý AI im lì bất thường — thử hỏi lại câu khác xem sao.')
         return answer
 
     return _generate_with_fallback(

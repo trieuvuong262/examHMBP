@@ -5,6 +5,8 @@ from django.test import Client, RequestFactory, TestCase
 from django.urls import reverse
 
 from documents.knowledge_base import build_portal_knowledge
+from documents.models import LibraryQAChatMessage
+from documents.qa_history import save_qa_turn
 from documents.suggestion_service import (
     generate_initial_suggestions,
     merge_suggestions,
@@ -122,3 +124,17 @@ class LibraryQATests(TestCase):
         self.assertEqual(data['suggestions'], ['Chi tiết thêm về quy trình này?'])
         mock_ask.assert_called_once()
         mock_suggest.assert_called_once()
+        self.assertEqual(LibraryQAChatMessage.objects.filter(user=self.user).count(), 2)
+
+    @patch('documents.views.ask_portal_assistant', return_value='Câu trả lời.')
+    def test_qa_history_persists_and_reloads(self, mock_ask):
+        save_qa_turn(self.user, 'Câu cũ?', 'Trả lời cũ.')
+        from documents.qa_history import get_user_qa_history_for_display
+
+        stored = get_user_qa_history_for_display(self.user)
+        self.assertEqual(len(stored), 2)
+        self.assertEqual(stored[0]['text'], 'Câu cũ?')
+
+        res = self.client.get(reverse('documents:qa'))
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, 'id="qa-history-data"')

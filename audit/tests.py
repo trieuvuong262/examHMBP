@@ -35,19 +35,40 @@ class AuditUtilsTests(TestCase):
         info = get_client_device_info(request)
         self.assertEqual(info['machine_name'], 'JP-HR-PC01')
         self.assertEqual(info['local_ip'], '192.168.1.55')
+        self.assertEqual(info['client_ip'], '192.168.1.55')
 
-    def test_client_device_fallback_private_real_ip(self):
+    def test_client_device_lan_from_xff(self):
         factory = RequestFactory()
-        request = factory.get('/', HTTP_X_REAL_IP='192.168.10.20')
+        request = factory.get(
+            '/',
+            HTTP_X_FORWARDED_FOR='192.168.10.20, 103.90.224.203',
+            REMOTE_ADDR='172.18.0.2',
+        )
         info = get_client_device_info(request)
         self.assertEqual(info['local_ip'], '192.168.10.20')
         self.assertEqual(info['machine_name'], 'PC-20')
 
-    def test_client_device_ignores_wan_ip(self):
+    def test_client_device_uses_public_ip_not_docker(self):
         factory = RequestFactory()
-        request = factory.get('/', HTTP_X_REAL_IP='103.90.224.203', REMOTE_ADDR='103.90.224.203')
+        request = factory.get(
+            '/',
+            HTTP_X_FORWARDED_FOR='103.90.224.203',
+            REMOTE_ADDR='172.18.0.5',
+            HTTP_USER_AGENT='Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+        )
         info = get_client_device_info(request)
         self.assertIsNone(info['local_ip'])
+        self.assertEqual(info['client_ip'], '103.90.224.203')
+        self.assertEqual(info['public_ip'], '103.90.224.203')
+        self.assertEqual(info['machine_name'], 'Windows')
+
+    def test_client_device_ignores_wan_ip_as_lan_cookie(self):
+        factory = RequestFactory()
+        request = factory.get('/', HTTP_X_REAL_IP='103.90.224.203', REMOTE_ADDR='103.90.224.203')
+        request.COOKIES = {'jp_local_ip': '103.90.224.203'}
+        info = get_client_device_info(request)
+        self.assertIsNone(info['local_ip'])
+        self.assertEqual(info['client_ip'], '103.90.224.203')
 
     def test_infer_action_post_update(self):
         factory = RequestFactory()

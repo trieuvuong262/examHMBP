@@ -25,6 +25,17 @@ SKIP_LOGGING_PATHS = (
     '/nhat-ky/',
 )
 
+# IP nội bộ Docker/proxy — không phải máy người dùng
+INFRASTRUCTURE_IP_PREFIXES = (
+    '127.',
+    '172.17.',
+    '172.18.',
+    '172.19.',
+    '172.20.',
+    '172.21.',
+    '172.22.',
+)
+
 
 def is_private_ip(ip: str) -> bool:
     if not ip:
@@ -41,14 +52,73 @@ def is_private_ip(ip: str) -> bool:
     return False
 
 
-def get_client_ip(request: HttpRequest) -> str | None:
-    """Lấy IP local — ưu tiên cookie/header từ trình duyệt, không dùng IP WAN."""
-    info = get_client_device_info(request)
-    return info.get('local_ip')
+def is_infrastructure_ip(ip: str) -> bool:
+    ip = (ip or '').strip()
+    if not ip or ip == '::1':
+        return True
+    for prefix in INFRASTRUCTURE_IP_PREFIXES:
+        if ip.startswith(prefix):
+            return True
+    return False
+
+
+def _normalize_ip(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    ip = raw.split(',')[0].strip()
+    return ip or None
+
+
+def _iter_forwarded_ips(request: HttpRequest) -> list[str]:
+    ips: list[str] = []
+    xff = request.META.get('HTTP_X_FORWARDED_FOR', '')
+    if xff:
+        ips.extend(_normalize_ip(part) for part in xff.split(',') if part.strip())
+    for key in ('HTTP_X_REAL_IP', 'REMOTE_ADDR'):
+        ip = _normalize_ip(request.META.get(key))
+        if ip:
+            ips.append(ip)
+    seen = set()
+    ordered = []
+    for ip in ips:
+        if ip and ip not in seen:
+            seen.add(ip)
+            ordered.append(ip)
+    return ordered
+
+
+def get_forwarded_client_ip(request: HttpRequest) -> str | None:
+    """IP client thật qua nginx — bỏ IP Docker/proxy."""
+    for ip in _iter_forwarded_ips(request):
+        if not is_infrastructure_ip(ip):
+            return ip
+    return None
+
+
+def guess_device_label(request: HttpRequest, local_ip: str | None) -> str:
+    if local_ip:
+        return f'PC-{local_ip.rsplit(".", 1)[-1]}'
+
+    ua = request.META.get('HTTP_USER_AGENT', '') or ''
+    if 'Windows' in ua:
+        return 'Windows'
+    if 'Macintosh' in ua or 'Mac OS' in ua:
+        return 'Mac'
+    if 'Android' in ua:
+        return 'Android'
+    if 'iPhone' in ua or 'iPad' in ua:
+        return 'iPhone'
+    if 'Linux' in ua:
+        return 'Linux'
+    return ''
 
 
 def get_client_device_info(request: HttpRequest) -> dict:
-    """Tên máy + IP LAN từ client; fallback IP private từ nginx."""
+    """
+    Thu thập tên máy + IP cho nhật ký.
+    - LAN: cookie/header từ trình duyệt (WebRTC)
+    - IP truy cập: X-Forwarded-For / X-Real-IP (không lấy IP Docker)
+    """
     hostname = (
         request.headers.get('X-Client-Hostname')
         or request.COOKIES.get('jp_hostname')
@@ -65,28 +135,33 @@ def get_client_device_info(request: HttpRequest) -> dict:
         hostname = hostname or (request.POST.get('client_hostname') or '').strip()
         local_ip = local_ip or (request.POST.get('client_local_ip') or '').strip()
 
-    if local_ip and not is_private_ip(local_ip):
+    if local_ip and (not is_private_ip(local_ip) or is_infrastructure_ip(local_ip)):
         local_ip = ''
 
+    public_ip = get_forwarded_client_ip(request)
+
     if not local_ip:
-        for candidate in (
-            request.META.get('HTTP_X_REAL_IP'),
-            request.META.get('REMOTE_ADDR'),
-        ):
-            if not candidate:
-                continue
-            ip = candidate.split(',')[0].strip()
-            if is_private_ip(ip):
+        for ip in _iter_forwarded_ips(request):
+            if is_private_ip(ip) and not is_infrastructure_ip(ip):
                 local_ip = ip
                 break
 
-    if not hostname and local_ip:
-        hostname = f'PC-{local_ip.rsplit(".", 1)[-1]}'
+    if not hostname:
+        hostname = guess_device_label(request, local_ip or None)
+
+    client_ip = local_ip or public_ip
 
     return {
         'machine_name': hostname[:128],
         'local_ip': local_ip or None,
+        'public_ip': public_ip if public_ip and public_ip != local_ip else None,
+        'client_ip': client_ip,
     }
+
+
+def get_client_ip(request: HttpRequest) -> str | None:
+    info = get_client_device_info(request)
+    return info.get('client_ip')
 
 
 def should_skip_audit(request: HttpRequest) -> bool:
@@ -221,7 +296,7 @@ def create_activity_log(
     extra: dict | None = None,
 ) -> UserActivityLog | None:
     snap = snapshot_user(user)
-    device = {'local_ip': None, 'machine_name': ''}
+    device = {'local_ip': None, 'public_ip': None, 'client_ip': None, 'machine_name': ''}
     if request is not None:
         user = user or getattr(request, 'user', None)
         if user and getattr(user, 'is_authenticated', False):
@@ -247,6 +322,12 @@ def create_activity_log(
 
         device = get_client_device_info(request)
 
+    merged_extra = dict(extra or {})
+    if device.get('local_ip'):
+        merged_extra['client_local_ip'] = device['local_ip']
+    if device.get('public_ip'):
+        merged_extra['client_public_ip'] = device['public_ip']
+
     payload = {
         'user': user if user and getattr(user, 'is_authenticated', False) else None,
         'username': username_override or snap['username'] or (getattr(user, 'username', '') if user else ''),
@@ -263,7 +344,7 @@ def create_activity_log(
         'query_string': (query_string or '')[:1000],
         'status_code': status_code,
         'duration_ms': duration_ms,
-        'ip_address': device.get('local_ip'),
+        'ip_address': device.get('client_ip'),
         'machine_name': device.get('machine_name', ''),
         'user_agent': (request.META.get('HTTP_USER_AGENT', '') if request else '')[:2000],
         'referer': (request.META.get('HTTP_REFERER', '') if request else '')[:500],
@@ -272,13 +353,10 @@ def create_activity_log(
         'object_repr': object_repr[:255],
         'request_data': request_data or {},
         'changes': changes or {},
-        'extra': extra or {},
+        'extra': merged_extra,
     }
 
-    def _insert():
-        return UserActivityLog.objects.create(**payload)
-
-    return _insert()
+    return UserActivityLog.objects.create(**payload)
 
 
 def log_activity(

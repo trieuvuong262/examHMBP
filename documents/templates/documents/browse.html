@@ -6,7 +6,7 @@
     <div class="jp-page-header mb-2 mb-md-3">
         <div>
             <h1 class="jp-page-title text-hm mb-1">
-                <i class="bi bi-folder2-open me-2"></i>Thư viện — Tài liệu
+                <i class="bi bi-folder2-open me-2"></i>Tài liệu
             </h1>
             <p class="text-muted mb-0 jp-hide-mobile-subtitle">
                 Quy chế, quy trình và tài liệu tham khảo — chọn mục bên trái để xem nội dung.
@@ -14,7 +14,7 @@
         </div>
     </div>
 
-    {% include 'documents/includes/library_subnav.html' with active_tab='documents' is_admin=is_admin %}
+    {% include 'documents/includes/documents_admin_bar.html' with is_admin=is_admin %}
 
     <div class="row g-3 g-lg-4 jp-documents-layout">
         <div class="col-lg-4 col-xl-3">

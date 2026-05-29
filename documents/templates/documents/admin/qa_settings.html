@@ -9,15 +9,17 @@
             </h2>
             <p class="text-muted mb-0">Kích hoạt và tinh chỉnh trợ lý tra cứu nội bộ cho toàn portal.</p>
         </div>
-        <a href="{% url 'documents:admin_hub' %}" class="btn btn-outline-secondary fw-bold">Quay lại</a>
+        <a href="{% url 'documents:qa' %}" class="btn btn-outline-secondary fw-bold">Mở Hỏi đáp AI</a>
     </div>
 
     <div class="row g-3">
         <div class="col-lg-8">
-            <div class="card border-0 shadow-sm">
+            <div class="card border-0 shadow-sm mb-3">
                 <div class="card-body p-4">
+                    <h3 class="h6 fw-bold mb-3">Kết nối trợ lý</h3>
                     <form method="post" novalidate>
                         {% csrf_token %}
+                        <input type="hidden" name="action" value="save_config">
                         <div class="mb-3">
                             <label for="id_gemini_api_key" class="form-label fw-semibold">{{ form.gemini_api_key.label }}</label>
                             {{ form.gemini_api_key }}
@@ -38,8 +40,38 @@
                         <button type="submit" class="btn btn-hm fw-bold">
                             <i class="bi bi-check2-circle me-1"></i>Lưu cấu hình
                         </button>
-                        <a href="{% url 'documents:qa' %}" class="btn btn-outline-secondary ms-2">Mở trang Hỏi đáp</a>
                     </form>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <h3 class="h6 fw-bold mb-2">Lịch sử hỏi đáp</h3>
+                    <p class="text-muted small mb-3">
+                        Lịch sử hội thoại được lưu vĩnh viễn trên portal. Chỉ xóa tại đây khi cần (ví dụ theo yêu cầu nội bộ).
+                    </p>
+                    {% if history_users %}
+                    <form method="post" class="row g-2 align-items-end" onsubmit="return confirm('Xóa toàn bộ lịch sử hỏi đáp của người dùng đã chọn?');">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="clear_history">
+                        <div class="col-md-8">
+                            <label for="history_user_id" class="form-label fw-semibold small">Chọn người dùng</label>
+                            <select name="history_user_id" id="history_user_id" class="form-select" required>
+                                <option value="">— Chọn người dùng —</option>
+                                {% for item in history_users %}
+                                <option value="{{ item.id }}">{{ item.label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-outline-danger fw-bold w-100">
+                                <i class="bi bi-trash me-1"></i>Xóa lịch sử
+                            </button>
+                        </div>
+                    </form>
+                    {% else %}
+                    <p class="text-muted small mb-0">Chưa có lịch sử hỏi đáp nào được lưu.</p>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -64,7 +96,7 @@
                             {% else %}Chưa cấu hình{% endif %}
                         </li>
                         <li class="mb-2">Ưu tiên cấu hình trên portal; nếu trống sẽ dùng biến môi trường trên server.</li>
-                        <li>Sau khi lưu, vào <strong>Thư viện → Hỏi đáp</strong> để thử ngay.</li>
+                        <li>Sau khi lưu, mở <strong>Hỏi đáp AI</strong> trên menu để thử ngay.</li>
                     </ul>
                 </div>
             </div>

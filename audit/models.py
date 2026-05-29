@@ -52,7 +52,7 @@ class UserActivityLog(models.Model):
     status_code = models.PositiveSmallIntegerField(null=True, blank=True)
     duration_ms = models.PositiveIntegerField(null=True, blank=True)
 
-    ip_address = models.GenericIPAddressField(null=True, blank=True, db_index=True, verbose_name='IP local')
+    ip_address = models.GenericIPAddressField(null=True, blank=True, db_index=True, verbose_name='IP truy cập')
     machine_name = models.CharField(max_length=128, blank=True, db_index=True, verbose_name='Tên máy')
     user_agent = models.TextField(blank=True)
     referer = models.CharField(max_length=500, blank=True)
@@ -99,9 +99,20 @@ class UserActivityLog(models.Model):
 
     @property
     def client_device_display(self) -> str:
+        from audit.utils import is_infrastructure_ip
+
         parts = []
         if self.machine_name:
             parts.append(self.machine_name)
-        if self.ip_address:
+        extra = self.extra or {}
+        local_ip = extra.get('client_local_ip')
+        public_ip = extra.get('client_public_ip')
+
+        if local_ip and not is_infrastructure_ip(str(local_ip)):
+            parts.append(f'LAN {local_ip}')
+        if public_ip and str(public_ip) != str(local_ip) and not is_infrastructure_ip(str(public_ip)):
+            parts.append(str(public_ip))
+        elif not local_ip and self.ip_address and not is_infrastructure_ip(str(self.ip_address)):
             parts.append(str(self.ip_address))
+
         return ' · '.join(parts) if parts else '—'

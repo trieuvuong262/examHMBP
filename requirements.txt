@@ -102,5 +102,4 @@ webencodings==0.5.1
 xhtml2pdf==0.2.17
 gunicorn==21.2.0
 bleach==6.1.0
-django-axes>=6.0.0
 django-cleanup==9.0.0

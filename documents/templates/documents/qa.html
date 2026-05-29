@@ -6,7 +6,7 @@
     <div class="jp-page-header mb-2 mb-md-3">
         <div>
             <h1 class="jp-page-title text-hm mb-1">
-                <i class="bi bi-journal-bookmark-fill me-2"></i>Thư viện — Hỏi đáp
+                <i class="bi bi-stars me-2"></i>Hỏi đáp AI
             </h1>
             <p class="text-muted mb-0 jp-hide-mobile-subtitle">
                 Trợ lý AI JustPlay — hỗ trợ tra cứu quy trình, tài liệu và hướng dẫn trong phạm vi quyền của bạn.
@@ -14,17 +14,16 @@
         </div>
     </div>
 
-    {% include 'documents/includes/library_subnav.html' with active_tab='qa' is_admin=is_admin %}
+    {% include 'documents/includes/qa_admin_bar.html' with is_admin=is_admin %}
 
     {% if not qa_enabled %}
     <div class="alert alert-warning border-0 shadow-sm">
         <i class="bi bi-exclamation-triangle me-2"></i>
-        Trợ lý AI chưa được kích hoạt.
+        Trợ lý AI chưa được "đánh thức".
         {% if is_admin %}
-        <a href="{% url 'documents:admin_qa_settings' %}" class="alert-link fw-semibold">Cấu hình ngay</a>
-        (Thư viện → Quản lý → Cấu hình trợ lý AI).
+        <a href="{% url 'documents:admin_qa_settings' %}" class="alert-link fw-semibold">Cấu hình ngay</a>.
         {% else %}
-        Liên hệ quản trị viên hoặc IT.
+        Nhờ quản trị viên hoặc IT bật trong Cấu hình AI.
         {% endif %}
     </div>
     {% endif %}
@@ -36,18 +35,11 @@
                     <span class="jp-qa-avatar"><i class="bi bi-stars"></i></span>
                     <div>
                         <div class="fw-bold">Trợ lý AI JustPlay</div>
-                        <small class="text-muted">Hỗ trợ tra cứu nội bộ · trong phạm vi quyền truy cập của bạn</small>
+                        <small class="text-muted">Hỗ trợ tra cứu nội bộ · lịch sử hội thoại được lưu lại</small>
                     </div>
                 </div>
                 <div class="card-body p-0">
-                    <div id="qaMessages" class="jp-qa-messages" aria-live="polite">
-                        <div class="jp-qa-msg jp-qa-msg-bot">
-                            <div class="jp-qa-bubble">
-                                Xin chào! Tôi là trợ lý AI của JustPlay, sẵn sàng hỗ trợ bạn tra cứu quy trình, chính sách và tài liệu trên portal.
-                                Hỏi tên tài liệu (ví dụ: <em>Quy chế lương</em>) — tôi sẽ gửi link mở nhanh kèm tóm tắt.
-                            </div>
-                        </div>
-                    </div>
+                    <div id="qaMessages" class="jp-qa-messages" aria-live="polite"></div>
                     <form id="qaForm" class="jp-qa-composer border-top p-3">
                         {% csrf_token %}
                         <div class="input-group">
@@ -62,7 +54,7 @@
                             </button>
                         </div>
                         <div class="form-text mt-2">
-                            Trợ lý chỉ trả lời trong phạm vi tài liệu & module bạn được phép xem. Không hỏi thông tin mật hoặc dữ liệu người khác.
+                            Trợ lý chỉ trả lời trong phạm vi tài liệu & module bạn được phép xem. Lịch sử hỏi đáp được lưu vĩnh viễn trên portal.
                         </div>
                     </form>
                 </div>
@@ -85,13 +77,15 @@
                     <ul class="mb-0 ps-3">
                         <li>Câu trả lời tham khảo — quyết định chính thức theo tài liệu gốc.</li>
                         <li>Tối đa 40 câu hỏi / giờ / người.</li>
-                        <li>Thông tin nhạy cảm: liên hệ HR hoặc IT trực tiếp.</li>
+                        <li>Lịch sử chỉ bị xóa khi quản trị viên thao tác trong Cấu hình AI.</li>
                     </ul>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+{{ qa_history|json_script:"qa-history-data" }}
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
@@ -101,7 +95,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const suggestionsEl = document.getElementById('qaSuggestions');
     const submitBtn = document.getElementById('qaSubmitBtn');
     const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
-    let history = [];
+    const historyEl = document.getElementById('qa-history-data');
+    let history = historyEl ? JSON.parse(historyEl.textContent || '[]') : [];
     let sending = false;
 
     function escapeHtml(text) {
@@ -125,14 +120,31 @@ document.addEventListener('DOMContentLoaded', function () {
         wrap.className = 'jp-qa-msg ' + (role === 'user' ? 'jp-qa-msg-user' : 'jp-qa-msg-bot');
         const bubble = document.createElement('div');
         bubble.className = 'jp-qa-bubble';
-        if (role === 'bot') {
-            bubble.innerHTML = linkify(text);
-        } else {
+        if (role === 'user') {
             bubble.textContent = text;
+        } else {
+            bubble.innerHTML = linkify(text);
         }
         wrap.appendChild(bubble);
         messages.appendChild(wrap);
         messages.scrollTop = messages.scrollHeight;
+    }
+
+    function showWelcome() {
+        appendMessage('bot',
+            'Xin chào! Tôi là trợ lý AI của JustPlay, sẵn sàng hỗ trợ bạn tra cứu quy trình, chính sách và tài liệu trên portal. ' +
+            'Hỏi tên tài liệu (ví dụ: Quy chế lương) — tôi sẽ gửi link mở nhanh kèm tóm tắt.'
+        );
+    }
+
+    function renderStoredHistory() {
+        if (!history.length) {
+            showWelcome();
+            return;
+        }
+        history.forEach(function (turn) {
+            appendMessage(turn.role === 'user' ? 'user' : 'bot', turn.text || '');
+        });
     }
 
     function setLoading(on) {
@@ -167,7 +179,6 @@ document.addEventListener('DOMContentLoaded', function () {
         question = (question || '').trim();
         if (!question || sending) return;
         appendMessage('user', question);
-        history.push({ role: 'user', text: question });
         input.value = '';
         setLoading(true);
         renderSuggestions([], true);
@@ -185,7 +196,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': csrf,
                 },
-                body: JSON.stringify({ question, history: history.slice(0, -1) }),
+                body: JSON.stringify({ question: question }),
             });
             const data = await res.json();
             loading.remove();
@@ -195,18 +206,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
             appendMessage('bot', data.answer);
+            history.push({ role: 'user', text: question });
             history.push({ role: 'model', text: data.answer });
-            if (history.length > 16) history = history.slice(-16);
             renderSuggestions(data.suggestions || []);
         } catch (err) {
             loading.remove();
-            appendMessage('bot', 'Không gửi được câu hỏi. Kiểm tra mạng và thử lại.');
+            appendMessage('bot', 'Mạng đang "giật lag" — kiểm tra kết nối rồi thử lại nhé.');
             renderSuggestions([]);
         } finally {
             setLoading(false);
             input.focus();
         }
     }
+
+    renderStoredHistory();
 
     if (input && input.disabled) input.dataset.originDisabled = '1';
 
