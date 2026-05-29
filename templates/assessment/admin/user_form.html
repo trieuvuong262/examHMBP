@@ -72,7 +72,6 @@
                                     <a href="{% url 'org_structure' %}?tab=division" class="jp-form-link">Quản lý</a>
                                 </label>
                                 {{ form.division }}
-                                {% if form.division.errors %}<div class="text-danger small mt-1">{{ form.division.errors }}</div>{% endif %}
                             </div>
                             <div class="col-md-6 col-xl-4">
                                 <label class="jp-form-label">Vị trí</label>
@@ -167,8 +166,6 @@
     </form>
 </div>
 
-{{ divisions_meta|json_script:"divisions-meta" }}
-
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
 
@@ -208,52 +205,6 @@
 
         roleSelect.addEventListener('change', toggleSubordinates);
         toggleSubordinates();
-
-        const deptSelect = document.querySelector('select[name="department"]');
-        const divSelect = document.querySelector('select[name="division"]');
-        const divisionsMeta = JSON.parse(document.getElementById('divisions-meta').textContent);
-        const allDivisionOptions = Array.from(divSelect.options).map(function(opt) {
-            return { value: opt.value, text: opt.text, selected: opt.selected };
-        });
-
-        function filterDivisions() {
-            const deptId = deptSelect.value;
-            const currentValue = divSelect.value;
-            divSelect.innerHTML = '';
-
-            const emptyOpt = document.createElement('option');
-            emptyOpt.value = '';
-            emptyOpt.textContent = '-- Chọn bộ phận --';
-            divSelect.appendChild(emptyOpt);
-
-            divisionsMeta.forEach(function(item) {
-                if (!deptId || !item.department_id || String(item.department_id) === deptId) {
-                    const opt = document.createElement('option');
-                    opt.value = item.id;
-                    opt.textContent = item.name;
-                    if (String(item.id) === currentValue) {
-                        opt.selected = true;
-                    }
-                    divSelect.appendChild(opt);
-                }
-            });
-
-            if (currentValue && !Array.from(divSelect.options).some(function(o) { return o.value === currentValue; })) {
-                const legacy = allDivisionOptions.find(function(o) { return o.value === currentValue; });
-                if (legacy && legacy.value) {
-                    const opt = document.createElement('option');
-                    opt.value = legacy.value;
-                    opt.textContent = legacy.text;
-                    opt.selected = true;
-                    divSelect.appendChild(opt);
-                }
-            }
-        }
-
-        if (deptSelect && divSelect) {
-            deptSelect.addEventListener('change', filterDivisions);
-            filterDivisions();
-        }
     });
 </script>
 {% endblock %}
