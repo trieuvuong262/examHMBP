@@ -16,6 +16,7 @@ urlpatterns = [
     path('admin/documents/<int:pk>/delete/', views.admin_document_delete, name='admin_document_delete'),
     path('admin/hoi-dap/', views.admin_qa_settings, name='admin_qa_settings'),
     path('hoi-dap/', views.qa_chat, name='qa'),
+    path('hoi-dap/suggest/', views.qa_suggest_initial, name='qa_suggest_initial'),
     path('hoi-dap/ask/', views.qa_ask, name='qa_ask'),
     path('', views.browse, name='browse'),
     path('<slug:category_slug>/', views.browse, name='browse_category'),

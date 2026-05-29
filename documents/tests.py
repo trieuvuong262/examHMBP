@@ -1,10 +1,16 @@
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
-from django.test import Client, TestCase
+from django.test import Client, RequestFactory, TestCase
 from django.urls import reverse
 
 from documents.knowledge_base import build_portal_knowledge
+from documents.suggestion_service import (
+    generate_initial_suggestions,
+    merge_suggestions,
+    _filter_unique,
+    _rule_based_suggestions,
+)
 from hrm.models import Department, DepartmentMenuPermission, Profile, RoleModulePermission
 from hrm.module_permissions import MODULE_DOCUMENTS
 from hrm.permissions import ROLE_EMPLOYEE
@@ -35,6 +41,7 @@ class LibraryQATests(TestCase):
         self.user = User.objects.select_related('profile', 'profile__department').get(pk=self.user.pk)
         self.client = Client()
         self.client.force_login(self.user)
+        self.factory = RequestFactory()
 
     def test_qa_page_requires_login(self):
         anon = Client()
@@ -50,6 +57,55 @@ class LibraryQATests(TestCase):
         text = build_portal_knowledge(self.user)
         self.assertIn('Lib User', text)
         self.assertIn('Test Dept', text)
+
+    def test_knowledge_includes_document_links(self):
+        req = self.factory.get('/tai-lieu/hoi-dap/')
+        text = build_portal_knowledge(self.user, request=req)
+        self.assertIn('Link:', text)
+        self.assertIn('/tai-lieu/', text)
+        self.assertIn('quy-che-luong', text)
+
+    def test_initial_suggestions_use_documents(self):
+        req = self.factory.get('/tai-lieu/hoi-dap/')
+        items = generate_initial_suggestions(self.user, request=req)
+        self.assertGreaterEqual(len(items), 1)
+        joined = ' '.join(items).lower()
+        self.assertTrue(
+            'quy chế' in joined or 'tài liệu' in joined or 'module' in joined or 'link' in joined
+        )
+
+    def test_rule_based_suggestions_after_salary_answer(self):
+        req = self.factory.get('/tai-lieu/hoi-dap/')
+        answer = 'Bạn có thể xem Quy chế lương trong nhóm Nhân sự trên portal.'
+        items = _rule_based_suggestions(
+            self.user,
+            'Quy chế lương thế nào?',
+            answer,
+            history=[{'role': 'user', 'text': 'Quy chế lương thế nào?'}],
+            request=req,
+        )
+        joined = ' '.join(items)
+        self.assertIn('Quy chế lương', joined)
+
+    def test_filter_unique_avoids_exact_repeat(self):
+        history = [{'role': 'user', 'text': 'Quy chế lương thế nào?'}]
+        out = _filter_unique(
+            ['Quy chế lương thế nào?', 'Gửi link Quy chế lương?', 'Quy trình an toàn gồm mấy bước?'],
+            history,
+        )
+        self.assertEqual(len(out), 2)
+        self.assertIn('Gửi link Quy chế lương?', out)
+        self.assertIn('Quy trình', out[1])
+
+    def test_merge_suggestions_prefers_ai_then_rules(self):
+        history = [{'role': 'user', 'text': 'Xin chào'}]
+        out = merge_suggestions(
+            ['Chi tiết quy trình nộp báo cáo?'],
+            ['Gửi link Quy chế lương?', 'Ai phê duyệt yêu cầu?'],
+            history,
+            limit=3,
+        )
+        self.assertEqual(len(out), 3)
 
     @patch('documents.views.generate_followup_suggestions', return_value=['Chi tiết thêm về quy trình này?'])
     @patch('documents.views.ask_portal_assistant', return_value='Trả lời mẫu.')

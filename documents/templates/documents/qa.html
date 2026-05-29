@@ -44,7 +44,7 @@
                         <div class="jp-qa-msg jp-qa-msg-bot">
                             <div class="jp-qa-bubble">
                                 Xin chào! Tôi là trợ lý AI của JustPlay, sẵn sàng hỗ trợ bạn tra cứu quy trình, chính sách và tài liệu trên portal.
-                                Hãy đặt câu hỏi đầu tiên — tôi sẽ gợi ý các câu hỏi tiếp theo phù hợp với nội dung bạn quan tâm.
+                                Hỏi tên tài liệu (ví dụ: <em>Quy chế lương</em>) — tôi sẽ gửi link mở nhanh kèm tóm tắt.
                             </div>
                         </div>
                     </div>
@@ -72,9 +72,9 @@
             <div class="card border-0 shadow-sm mb-3">
                 <div class="card-body p-3">
                     <h6 class="fw-bold mb-2"><i class="bi bi-lightbulb text-hm me-1"></i>Gợi ý câu hỏi</h6>
-                    <div id="qaSuggestions" class="d-flex flex-column gap-2">
+                    <div id="qaSuggestions" class="d-flex flex-column gap-2 jp-qa-suggest-list">
                         <p class="text-muted small mb-0 jp-qa-suggest-placeholder">
-                            Gợi ý sẽ xuất hiện sau câu hỏi đầu tiên của bạn, dựa trên nội dung vừa trao đổi.
+                            <span class="spinner-border spinner-border-sm me-2"></span>Đang gợi ý câu hỏi phù hợp với bạn...
                         </p>
                     </div>
                 </div>
@@ -104,12 +104,32 @@ document.addEventListener('DOMContentLoaded', function () {
     let history = [];
     let sending = false;
 
+    function escapeHtml(text) {
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function linkify(text) {
+        const escaped = escapeHtml(text);
+        return escaped.replace(
+            /(https?:\/\/[^\s<]+)/g,
+            '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+        );
+    }
+
     function appendMessage(role, text) {
         const wrap = document.createElement('div');
         wrap.className = 'jp-qa-msg ' + (role === 'user' ? 'jp-qa-msg-user' : 'jp-qa-msg-bot');
         const bubble = document.createElement('div');
         bubble.className = 'jp-qa-bubble';
-        bubble.textContent = text;
+        if (role === 'bot') {
+            bubble.innerHTML = linkify(text);
+        } else {
+            bubble.textContent = text;
+        }
         wrap.appendChild(bubble);
         messages.appendChild(wrap);
         messages.scrollTop = messages.scrollHeight;
@@ -201,6 +221,26 @@ document.addEventListener('DOMContentLoaded', function () {
             form.requestSubmit();
         }
     });
+
+    {% if qa_enabled %}
+    fetch('{% url "documents:qa_suggest_initial" %}', {
+        headers: { 'Accept': 'application/json' },
+        credentials: 'same-origin',
+    })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+            if (data.ok && data.suggestions && data.suggestions.length) {
+                renderSuggestions(data.suggestions);
+            } else {
+                renderSuggestions([]);
+            }
+        })
+        .catch(function () {
+            renderSuggestions([]);
+        });
+    {% else %}
+    renderSuggestions([]);
+    {% endif %}
 });
 </script>
 {% endblock %}

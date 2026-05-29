@@ -15,7 +15,7 @@ from hrm.module_permissions import MODULE_DOCUMENTS, user_can_access_module, use
 from .forms import DocumentCategoryForm, DocumentForm, LibraryQAConfigForm
 from .models import Document, DocumentCategory, LibraryQAConfig
 from .qa_config import is_qa_enabled, qa_config_source
-from .qa_service import QAAssistantError, ask_portal_assistant, generate_followup_suggestions
+from .qa_service import QAAssistantError, ask_portal_assistant, generate_followup_suggestions, generate_initial_suggestions
 
 QA_RATE_LIMIT = 40
 QA_RATE_WINDOW = 3600
@@ -290,6 +290,14 @@ def qa_chat(request):
 
 
 @_documents_access_required
+def qa_suggest_initial(request):
+    if not is_qa_enabled():
+        return JsonResponse({'ok': True, 'suggestions': []})
+    suggestions = generate_initial_suggestions(request.user, request=request)
+    return JsonResponse({'ok': True, 'suggestions': suggestions})
+
+
+@_documents_access_required
 @require_POST
 def qa_ask(request):
     import json
@@ -311,12 +319,15 @@ def qa_ask(request):
         history = []
 
     try:
-        answer = ask_portal_assistant(request.user, question, history=history)
+        answer = ask_portal_assistant(
+            request.user, question, history=history, request=request,
+        )
         suggestions = generate_followup_suggestions(
             request.user,
             question,
             answer,
             history=history,
+            request=request,
         )
     except ValueError as exc:
         return JsonResponse({'ok': False, 'error': str(exc)}, status=400)

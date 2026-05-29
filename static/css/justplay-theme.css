@@ -3241,13 +3241,24 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     border-bottom-left-radius: 4px;
 }
 
+.jp-qa-msg-bot .jp-qa-bubble a {
+    color: var(--hm-primary, #dc2626);
+    word-break: break-all;
+}
+
+.jp-qa-msg-user .jp-qa-bubble a {
+    color: #fff;
+    text-decoration: underline;
+}
+
 .jp-qa-composer textarea {
     resize: none;
     min-height: 52px;
 }
 
-.jp-qa-suggest {
-    transition: background-color 0.15s ease, border-color 0.15s ease;
+.jp-qa-suggest-list .jp-qa-suggest {
+    text-align: left;
+    line-height: 1.45;
 }
 
 .jp-qa-suggest:hover:not(:disabled) {
