@@ -4,6 +4,7 @@ from django.urls import reverse
 
 from hrm.models import Department, DepartmentMenuPermission, Profile, RoleModulePermission
 from hrm.module_permissions import (
+    ALL_MODULE_KEYS,
     MODULE_HRM,
     MODULE_KPI,
     MODULE_PERMISSIONS,
@@ -97,7 +98,7 @@ class PermissionLogicTests(TestCase):
 
     def test_empty_department_modules_means_full_access(self):
         enabled = get_department_enabled_modules(self.dept_full)
-        self.assertEqual(len(enabled), 10)
+        self.assertEqual(len(enabled), len(ALL_MODULE_KEYS))
         self.assertIn(MODULE_RECRUITMENT, enabled)
 
     def test_department_restricts_modules(self):

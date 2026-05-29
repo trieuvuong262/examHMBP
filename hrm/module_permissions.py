@@ -22,6 +22,7 @@ MODULE_REPORTS = 'reports'
 MODULE_GUIDE = 'guide'
 MODULE_DOCUMENTS = 'documents'
 MODULE_PERMISSIONS = 'permissions'
+MODULE_AUDIT = 'audit'
 
 MODULE_CHOICES = [
     (MODULE_ANNOUNCEMENTS, 'Thông báo'),
@@ -34,6 +35,7 @@ MODULE_CHOICES = [
     (MODULE_GUIDE, 'Hướng dẫn'),
     (MODULE_DOCUMENTS, 'Tài liệu'),
     (MODULE_PERMISSIONS, 'Phân quyền'),
+    (MODULE_AUDIT, 'Nhật ký thao tác'),
 ]
 
 ALL_MODULE_KEYS = {key for key, _ in MODULE_CHOICES}
@@ -67,6 +69,7 @@ PATH_MODULE_RULES = [
     ('/reports/', MODULE_REPORTS),
     ('/huong-dan/', MODULE_GUIDE),
     ('/tai-lieu/', MODULE_DOCUMENTS),
+    ('/nhat-ky/', MODULE_AUDIT),
 ]
 
 DASHBOARD_TAB_MODULES = {

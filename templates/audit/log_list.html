@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div class="jp-page-header-main">
+            <h2 class="jp-page-title fw-bold text-dark mb-1">
+                <i class="bi bi-journal-check text-hm me-2"></i>Nhật ký thao tác
+            </h2>
+            <p class="text-muted small mb-0 mt-1">Giám sát chi tiết hoạt động của từng người dùng trên portal</p>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase fw-bold">Tổng bản ghi</div>
+                    <div class="fs-3 fw-bold text-dark">{{ stats.total|intcomma }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase fw-bold">Hôm nay</div>
+                    <div class="fs-3 fw-bold text-hm">{{ stats.today|intcomma }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase fw-bold">Đăng nhập thất bại (hôm nay)</div>
+                    <div class="fs-3 fw-bold text-danger">{{ stats.failed_logins_today|intcomma }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3 border-bottom">
+            <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-funnel me-2"></i>Bộ lọc</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold text-muted">Người dùng</label>
+                    <select name="user" class="form-select">
+                        <option value="">Tất cả</option>
+                        {% for u in users_with_logs %}
+                        <option value="{{ u.pk }}" {% if filters.user == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.username }}{% if u.profile.full_name %} · {{ u.profile.full_name }}{% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small fw-bold text-muted">Hành động</label>
+                    <select name="action" class="form-select">
+                        <option value="">Tất cả</option>
+                        {% for key, label in action_choices %}
+                        <option value="{{ key }}" {% if filters.action == key %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small fw-bold text-muted">Module</label>
+                    <select name="module" class="form-select">
+                        <option value="">Tất cả</option>
+                        {% for key, label in module_choices %}
+                        <option value="{{ key }}" {% if filters.module == key %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small fw-bold text-muted">Method</label>
+                    <select name="method" class="form-select">
+                        <option value="">Tất cả</option>
+                        <option value="GET" {% if filters.method == "GET" %}selected{% endif %}>GET</option>
+                        <option value="POST" {% if filters.method == "POST" %}selected{% endif %}>POST</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold text-muted">Tìm kiếm</label>
+                    <input type="text" name="q" class="form-control" value="{{ filters.q }}" placeholder="Đường dẫn, mô tả, IP…">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small fw-bold text-muted">Từ ngày</label>
+                    <input type="date" name="from" class="form-control" value="{{ filters.from }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small fw-bold text-muted">Đến ngày</label>
+                    <input type="date" name="to" class="form-control" value="{{ filters.to }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small fw-bold text-muted">IP</label>
+                    <input type="text" name="ip" class="form-control" value="{{ filters.ip }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small fw-bold text-muted">HTTP status</label>
+                    <input type="number" name="status" class="form-control" value="{{ filters.status }}" placeholder="200, 403…">
+                </div>
+                <div class="col-md-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-hm text-white fw-bold"><i class="bi bi-search me-1"></i>Lọc</button>
+                    <a href="{% url 'audit:log_list' %}" class="btn btn-light fw-bold">Xóa lọc</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 fw-bold text-dark">Danh sách ({{ page_obj.paginator.count|intcomma }})</h5>
+            <span class="small text-muted">Trang {{ page_obj.number }}/{{ page_obj.paginator.num_pages|default:1 }}</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light text-uppercase small">
+                    <tr>
+                        <th class="ps-4 py-3 text-muted">Thời gian</th>
+                        <th class="text-muted">Người dùng</th>
+                        <th class="text-muted">Hành động</th>
+                        <th class="text-muted">Module</th>
+                        <th class="text-muted">Mô tả</th>
+                        <th class="text-muted">IP</th>
+                        <th class="text-muted text-center">HTTP</th>
+                        <th class="text-end pe-4 text-muted">Chi tiết</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td class="ps-4 small text-nowrap">{{ log.created_at|date:"d/m/Y H:i:s" }}</td>
+                        <td>
+                            <div class="fw-semibold">{{ log.full_name|default:log.username|default:"—" }}</div>
+                            {% if log.username %}
+                            <div class="small text-muted">@{{ log.username }}{% if log.department_name %} · {{ log.department_name }}{% endif %}</div>
+                            {% endif %}
+                        </td>
+                        <td><span class="badge {{ log.action_badge_class }}">{{ log.get_action_display }}</span></td>
+                        <td class="small">{{ log.module_label|default:"—" }}</td>
+                        <td class="small text-truncate" style="max-width: 280px;" title="{{ log.summary }}">{{ log.summary|default:log.path }}</td>
+                        <td class="small font-monospace">{{ log.ip_address|default:"—" }}</td>
+                        <td class="text-center">
+                            {% if log.status_code %}
+                            <span class="badge {% if log.status_code >= 400 %}bg-danger{% elif log.status_code >= 300 %}bg-warning text-dark{% else %}bg-success{% endif %}">{{ log.status_code }}</span>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <a href="{% url 'audit:log_detail' log.pk %}" class="btn btn-sm btn-outline-dark">Xem</a>
+                            {% if log.user_id %}
+                            <a href="{% url 'audit:user_timeline' log.user_id %}" class="btn btn-sm btn-light" title="Timeline user"><i class="bi bi-person-lines-fill"></i></a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5 text-muted">Chưa có nhật ký phù hợp bộ lọc.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer bg-white border-top py-3">
+            <nav aria-label="Phân trang nhật ký">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&user={{ filters.user }}&action={{ filters.action }}&module={{ filters.module }}&method={{ filters.method }}&q={{ filters.q }}&from={{ filters.from }}&to={{ filters.to }}&ip={{ filters.ip }}&status={{ filters.status }}">Trước</a></li>
+                    {% endif %}
+                    <li class="page-item disabled"><span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>
+                    {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&user={{ filters.user }}&action={{ filters.action }}&module={{ filters.module }}&method={{ filters.method }}&q={{ filters.q }}&from={{ filters.from }}&to={{ filters.to }}&ip={{ filters.ip }}&status={{ filters.status }}">Sau</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

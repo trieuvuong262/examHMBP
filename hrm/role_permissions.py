@@ -7,6 +7,7 @@ vai trò quyết định chỉ xem hay được cập nhật.
 
 from hrm.module_permissions import (
     ALL_MODULE_KEYS,
+    MODULE_AUDIT,
     MODULE_ANNOUNCEMENTS,
     MODULE_ASSESSMENT,
     MODULE_DOCUMENTS,
@@ -46,6 +47,7 @@ def default_role_permissions() -> dict:
         MODULE_GUIDE: _perm(True, False),
         MODULE_DOCUMENTS: _perm(True, False),
         MODULE_PERMISSIONS: _perm(False, False),
+        MODULE_AUDIT: _perm(False, False),
         MODULE_RECRUITMENT: _perm(False, False),
         MODULE_HRM: _perm(False, False),
     }

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div class="jp-page-header-main">
+            <nav aria-label="breadcrumb" class="mb-2">
+                <ol class="breadcrumb mb-0 small">
+                    <li class="breadcrumb-item"><a href="{% url 'audit:log_list' %}" class="text-decoration-none text-muted">Nhật ký thao tác</a></li>
+                    <li class="breadcrumb-item active fw-bold text-hm">{{ target_user.username }}</li>
+                </ol>
+            </nav>
+            <h2 class="jp-page-title fw-bold text-dark mb-1">
+                <i class="bi bi-person-lines-fill text-hm me-2"></i>Timeline · {{ target_user.profile.full_name|default:target_user.username }}
+            </h2>
+            <p class="text-muted small mb-0">Toàn bộ thao tác ghi nhận của tài khoản này</p>
+        </div>
+        <div class="jp-hrm-toolbar">
+            <a href="{% url 'audit:log_list' %}?user={{ target_user.pk }}" class="btn btn-outline-dark fw-bold shadow-sm jp-hrm-tool-btn">
+                <i class="bi bi-funnel"></i><span class="jp-hrm-tool-label"> Lọc danh sách</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="list-group list-group-flush">
+            {% for log in logs %}
+            <a href="{% url 'audit:log_detail' log.pk %}" class="list-group-item list-group-item-action py-3">
+                <div class="d-flex flex-wrap justify-content-between gap-2">
+                    <div>
+                        <span class="badge {{ log.action_badge_class }} me-2">{{ log.get_action_display }}</span>
+                        <span class="fw-semibold">{{ log.summary|default:log.path }}</span>
+                    </div>
+                    <span class="small text-muted text-nowrap">{{ log.created_at|date:"d/m/Y H:i:s" }}</span>
+                </div>
+                <div class="small text-muted mt-1">
+                    {% if log.module_label %}{{ log.module_label }} · {% endif %}
+                    {{ log.method }} {{ log.path }}
+                    {% if log.ip_address %} · IP {{ log.ip_address }}{% endif %}
+                </div>
+            </a>
+            {% empty %}
+            <div class="list-group-item py-5 text-center text-muted">Chưa có nhật ký cho user này.</div>
+            {% endfor %}
+        </div>
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer bg-white border-top py-3">
+            <nav aria-label="Phân trang timeline">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Trước</a></li>
+                    {% endif %}
+                    <li class="page-item disabled"><span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>
+                    {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Sau</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

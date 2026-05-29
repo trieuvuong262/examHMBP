@@ -20,6 +20,7 @@ urlpatterns = [
     path('kpi/', include('kpi.urls')),
     path('announcements/', include('announcements.urls')),
     path('tai-lieu/', include('documents.urls')),
+    path('nhat-ky/', include('audit.urls')),
 ]
 # Cách phục vụ Media và Static chuẩn của Django
 if settings.DEBUG:

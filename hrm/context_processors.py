@@ -1,4 +1,5 @@
 from hrm.module_permissions import (
+    MODULE_AUDIT,
     MODULE_ANNOUNCEMENTS,
     MODULE_ASSESSMENT,
     MODULE_DOCUMENTS,
@@ -88,6 +89,7 @@ def portal_permissions(request):
         'jp_can_guide': user_can_access_module(user, MODULE_GUIDE),
         'jp_can_documents': user_can_access_module(user, MODULE_DOCUMENTS),
         'jp_can_permissions': user_can_access_module(user, MODULE_PERMISSIONS),
+        'jp_can_audit': user_can_access_module(user, MODULE_AUDIT),
         'jp_can_edit_announcements': user_can_edit_module(user, MODULE_ANNOUNCEMENTS),
         'jp_can_edit_recruitment': user_can_edit_module(user, MODULE_RECRUITMENT),
         'jp_can_edit_training': user_can_edit_module(user, MODULE_TRAINING),

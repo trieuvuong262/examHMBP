@@ -135,6 +135,13 @@
             </a>
         </li>
         {% endif %}
+        {% if jp_can_audit %}
+        <li>
+            <a href="{% url 'audit:log_list' %}" class="jp-sidebar-link {% if 'nhat-ky' in request.path %}active{% endif %}">
+                <i class="bi bi-journal-check"></i><span>Nhật ký thao tác</span>
+            </a>
+        </li>
+        {% endif %}
     </ul>
 
     <div class="jp-sidebar-footer d-none d-lg-block">

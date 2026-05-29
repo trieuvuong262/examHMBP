@@ -110,6 +110,7 @@ INSTALLED_APPS = [
     'kpi',
     'announcements',
     'documents',
+    'audit.apps.AuditConfig',
     'django_cleanup.apps.CleanupConfig', # 👉 Thêm dòng này vào cuối
 ]
 
@@ -124,6 +125,7 @@ MIDDLEWARE = [
     'axes.middleware.AxesMiddleware',
     'PortalJustPlay.middleware.ForcePasswordChangeMiddleware',
     'hrm.middleware.DepartmentModuleAccessMiddleware',
+    'audit.middleware.ActivityAuditMiddleware',
 ]
 
 ROOT_URLCONF = 'PortalJustPlay.urls'
