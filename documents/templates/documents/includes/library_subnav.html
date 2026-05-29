@@ -1,0 +1,18 @@
+<nav class="jp-library-subnav mb-3 mb-md-4">
+    <div class="jp-tab-pills d-flex flex-wrap gap-2">
+        <a href="{% url 'documents:browse' %}"
+           class="btn btn-sm {% if active_tab == 'documents' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
+            <i class="bi bi-folder2-open me-1"></i>Tài liệu
+        </a>
+        <a href="{% url 'documents:qa' %}"
+           class="btn btn-sm {% if active_tab == 'qa' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
+            <i class="bi bi-chat-dots-fill me-1"></i>Hỏi đáp AI
+        </a>
+        {% if is_admin %}
+        <a href="{% url 'documents:admin_hub' %}"
+           class="btn btn-sm btn-outline-hm ms-md-auto">
+            <i class="bi bi-gear-fill me-1"></i>Quản lý
+        </a>
+        {% endif %}
+    </div>
+</nav>

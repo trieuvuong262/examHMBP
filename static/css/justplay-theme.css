@@ -3181,6 +3181,93 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
 }
 
 /* --- Documents (/tai-lieu/) — cây thư mục 2 cấp --- */
+.jp-library-subnav .jp-tab-pills .btn {
+    border-radius: var(--jp-btn-radius);
+}
+
+.jp-qa-chat-card {
+    min-height: 520px;
+    display: flex;
+    flex-direction: column;
+}
+
+.jp-qa-chat-card .card-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+.jp-qa-messages {
+    flex: 1;
+    min-height: 360px;
+    max-height: min(62vh, 640px);
+    overflow-y: auto;
+    padding: 1rem;
+    background: #f8fafc;
+}
+
+.jp-qa-msg {
+    display: flex;
+    margin-bottom: 0.75rem;
+}
+
+.jp-qa-msg-user {
+    justify-content: flex-end;
+}
+
+.jp-qa-msg-bot {
+    justify-content: flex-start;
+}
+
+.jp-qa-bubble {
+    max-width: min(88%, 640px);
+    padding: 0.65rem 0.9rem;
+    border-radius: 12px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.jp-qa-msg-user .jp-qa-bubble {
+    background: var(--hm-primary, #dc2626);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+}
+
+.jp-qa-msg-bot .jp-qa-bubble {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-bottom-left-radius: 4px;
+}
+
+.jp-qa-composer textarea {
+    resize: none;
+    min-height: 52px;
+}
+
+.jp-qa-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(220, 38, 38, 0.12);
+    color: var(--hm-primary, #dc2626);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+[data-theme="dark"] .jp-qa-messages {
+    background: var(--jp-surface-muted);
+}
+
+[data-theme="dark"] .jp-qa-msg-bot .jp-qa-bubble {
+    background: var(--jp-surface-bg);
+    border-color: var(--jp-surface-border);
+    color: var(--jp-text-primary);
+}
+
 .jp-documents-page .jp-documents-layout {
     min-height: calc(100vh - 12rem);
 }

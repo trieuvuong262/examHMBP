@@ -35,7 +35,7 @@ MODULE_CHOICES = [
     (MODULE_KPI, 'Hiệu suất (KPI)'),
     (MODULE_REPORTS, 'Báo cáo'),
     (MODULE_GUIDE, 'Hướng dẫn'),
-    (MODULE_DOCUMENTS, 'Tài liệu'),
+    (MODULE_DOCUMENTS, 'Thư viện'),
     (MODULE_PERMISSIONS, 'Phân quyền'),
     (MODULE_AUDIT, 'Nhật ký thao tác'),
     (MODULE_TASKS, 'Công việc'),

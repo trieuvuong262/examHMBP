@@ -280,6 +280,10 @@ CKEDITOR_CONFIGS = {
     },
 }
 
+# Gemini AI — Hỏi đáp Thư viện (đặt key trong .env, không commit)
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
+GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-1.5-pro')
+
 # ==============================================================================
 # 7. CẤU HÌNH BẢO MẬT CHUYÊN SÂU KHI CHẠY PRODUCTION
 # ==============================================================================

@@ -1,15 +1,41 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.cache import cache
 from django.db.models import Prefetch, Q
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
 from PortalJustPlay.list_search import apply_combined_search, apply_term_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 from assessment.decorators import admin_only
-from hrm.module_permissions import MODULE_DOCUMENTS, user_can_edit_module
+from hrm.module_permissions import MODULE_DOCUMENTS, user_can_access_module, user_can_edit_module
 
 from .forms import DocumentCategoryForm, DocumentForm
 from .models import Document, DocumentCategory
+from .qa_service import ask_portal_assistant
+
+QA_RATE_LIMIT = 40
+QA_RATE_WINDOW = 3600
+
+
+def _documents_access_required(view_func):
+    @login_required
+    def wrapper(request, *args, **kwargs):
+        if not user_can_access_module(request.user, MODULE_DOCUMENTS):
+            messages.error(request, 'Bạn không có quyền truy cập Thư viện.')
+            return redirect('home_portal')
+        return view_func(request, *args, **kwargs)
+    return wrapper
+
+
+def _qa_rate_limit(user) -> bool:
+    key = f'library_qa_rate:{user.id}'
+    count = cache.get(key, 0)
+    if count >= QA_RATE_LIMIT:
+        return False
+    cache.set(key, count + 1, QA_RATE_WINDOW)
+    return True
 
 
 def _active_categories():
@@ -52,7 +78,7 @@ def _resolve_selected_document(categories, category_slug=None, doc_slug=None):
     return selected_category, selected_document
 
 
-@login_required
+@_documents_access_required
 def browse(request, category_slug=None, doc_slug=None):
     categories = _active_categories()
     selected_category, selected_document = _resolve_selected_document(
@@ -223,3 +249,48 @@ def admin_document_delete(request, pk):
     return render(request, 'documents/admin/document_confirm_delete.html', {
         'document': document,
     })
+
+
+@_documents_access_required
+def qa_chat(request):
+    from django.conf import settings
+    return render(request, 'documents/qa.html', {
+        'is_admin': user_can_edit_module(request.user, MODULE_DOCUMENTS),
+        'qa_enabled': bool(getattr(settings, 'GEMINI_API_KEY', '')),
+    })
+
+
+@_documents_access_required
+@require_POST
+def qa_ask(request):
+    import json
+
+    if not _qa_rate_limit(request.user):
+        return JsonResponse({
+            'ok': False,
+            'error': f'Bạn đã hỏi quá nhiều ({QA_RATE_LIMIT} câu/giờ). Vui lòng thử lại sau.',
+        }, status=429)
+
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'ok': False, 'error': 'Dữ liệu không hợp lệ.'}, status=400)
+
+    question = (payload.get('question') or '').strip()
+    history = payload.get('history') or []
+    if not isinstance(history, list):
+        history = []
+
+    try:
+        answer = ask_portal_assistant(request.user, question, history=history)
+    except ValueError as exc:
+        return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
+    except RuntimeError as exc:
+        return JsonResponse({'ok': False, 'error': str(exc)}, status=503)
+    except Exception:
+        return JsonResponse({
+            'ok': False,
+            'error': 'Không kết nối được AI. Kiểm tra GEMINI_API_KEY hoặc thử lại sau.',
+        }, status=502)
+
+    return JsonResponse({'ok': True, 'answer': answer})
