@@ -4129,6 +4129,78 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     border-color: var(--jp-input-border) !important;
 }
 
+/* --- Reports (/reports/) — dark mode --- */
+[data-theme="dark"] .jp-reports-page {
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .jp-reports-page .card {
+    background: var(--jp-surface-bg);
+    border-color: var(--jp-surface-border);
+}
+
+[data-theme="dark"] .jp-reports-page .card-footer.bg-white {
+    background: var(--jp-surface-bg) !important;
+    border-color: var(--jp-surface-border) !important;
+}
+
+[data-theme="dark"] .jp-reports-page .table-light,
+[data-theme="dark"] .jp-reports-page thead.table-light,
+[data-theme="dark"] .jp-reports-page tfoot.table-light {
+    background: var(--jp-table-head-bg) !important;
+    color: var(--jp-text-secondary);
+    border-color: var(--jp-surface-border);
+}
+
+[data-theme="dark"] .jp-reports-page .table {
+    color: var(--jp-text-primary);
+    border-color: var(--jp-surface-border);
+}
+
+[data-theme="dark"] .jp-reports-page .table td,
+[data-theme="dark"] .jp-reports-page .table th {
+    border-color: var(--jp-surface-border);
+}
+
+[data-theme="dark"] .jp-reports-page .table-hover tbody tr:hover {
+    background: var(--jp-surface-muted);
+}
+
+[data-theme="dark"] .jp-reports-page .bg-light,
+[data-theme="dark"] .jp-reports-page .jp-reports-add-row {
+    background: var(--jp-surface-muted) !important;
+    border-color: var(--jp-surface-border) !important;
+}
+
+[data-theme="dark"] .jp-reports-page .jp-stat-grid .card {
+    background: var(--jp-surface-bg);
+}
+
+[data-theme="dark"] .jp-reports-page .form-control,
+[data-theme="dark"] .jp-reports-page .form-select {
+    background: var(--jp-input-bg);
+    border-color: var(--jp-input-border);
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .jp-reports-page .btn-outline-dark {
+    color: var(--jp-text-secondary);
+    border-color: var(--jp-surface-border);
+}
+
+[data-theme="dark"] .jp-reports-page .btn-outline-dark:hover {
+    background: var(--jp-surface-muted);
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .jp-reports-page .btn-link.text-danger {
+    color: #fca5a5 !important;
+}
+
+[data-theme="dark"] .jp-reports-page strong {
+    color: var(--jp-text-primary);
+}
+
 /* --- Theme toggle --- */
 [data-theme="dark"] .jp-theme-toggle {
     border-color: var(--jp-surface-border);

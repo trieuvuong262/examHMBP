@@ -87,7 +87,8 @@ class CustomUserForm(forms.Form):
         queryset=User.objects.all().order_by('first_name'),
         required=False,
         widget=forms.SelectMultiple(attrs={'class': 'form-select select2-multiple'}),
-        label='Nhân viên dưới quyền',
+        label='Nhân viên cấp dưới trực tiếp',
+        help_text='Người được chọn sẽ nộp báo cáo cho quản lý này; quản lý xem và duyệt báo cáo của họ.',
     )
 
     def __init__(self, *args, **kwargs):

@@ -17,6 +17,7 @@ from hrm.module_permissions import (
 )
 from hrm.permissions import (
     can_edit_user_guide,
+    can_submit_daily_report,
     can_view_team_reports,
     is_gm,
     is_hod,
@@ -41,6 +42,7 @@ def portal_permissions(request):
             'jp_is_division_head': False,
             'jp_is_manager': False,
             'jp_can_team_reports': False,
+            'jp_can_submit_reports': False,
             'jp_user_role': '',
             'jp_role_display': '',
             'jp_enabled_modules': set(),
@@ -76,6 +78,7 @@ def portal_permissions(request):
         'jp_is_division_head': is_division_head(user),
         'jp_is_manager': is_manager(user),
         'jp_can_team_reports': can_view_team_reports(user),
+        'jp_can_submit_reports': can_submit_daily_report(user),
         'jp_user_role': user_role(user),
         'jp_role_display': role_display(user),
         'jp_enabled_modules': enabled,

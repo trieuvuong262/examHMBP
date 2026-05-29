@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container jp-page py-3 py-md-4 mb-5">
+<div class="container jp-page jp-reports-page py-3 py-md-4 mb-5">
     <div class="jp-page-header mb-3 mb-md-4">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-clipboard-check-fill me-2"></i>Báo cáo hôm nay</h2>
@@ -15,6 +15,9 @@
             </a>
             {% endif %}
             <a href="{% url 'reports:my' %}" class="btn btn-outline-dark btn-sm flex-fill flex-md-grow-0">Lịch sử</a>
+            {% if can_view_team %}
+            <a href="{% url 'reports:team' %}" class="btn btn-outline-hm btn-sm flex-fill flex-md-grow-0">Báo cáo cấp dưới</a>
+            {% endif %}
         </div>
     </div>
 
@@ -88,7 +91,7 @@
                     </tbody>
                 </table>
             </div>
-            <div class="p-3 border-top bg-light">
+            <div class="p-3 border-top bg-light jp-reports-add-row">
                 <button type="button" class="btn btn-outline-hm btn-sm" id="add-row">
                     <i class="bi bi-plus-lg me-1"></i>Thêm dòng
                 </button>
@@ -104,7 +107,7 @@
                 <i class="bi bi-save me-1"></i>Lưu nháp
             </button>
             <button type="submit" name="action" value="submit" class="btn btn-hm px-4 fw-bold">
-                <i class="bi bi-send-fill me-1"></i>Nộp cho HOD
+                <i class="bi bi-send-fill me-1"></i>Nộp cho cấp trên
             </button>
         </div>
     </form>

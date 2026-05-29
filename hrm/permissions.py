@@ -88,8 +88,7 @@ def is_portal_admin(user) -> bool:
     return bool(getattr(user, 'is_authenticated', False) and user.is_staff)
 
 
-def can_view_team_reports(user) -> bool:
-    """Xem trang báo cáo team."""
+def _has_reports_module_access(user) -> bool:
     if not getattr(user, 'is_authenticated', False):
         return False
     from hrm.module_permissions import MODULE_REPORTS
@@ -98,25 +97,49 @@ def can_view_team_reports(user) -> bool:
 
 
 def get_report_team_users(viewer):
-    """Danh sách nhân viên mà viewer được theo dõi báo cáo."""
+    """Nhân viên cấp dưới trực tiếp — cấu hình tại Nhân sự → Sửa NV → Nhân viên dưới quyền."""
     if not getattr(viewer, 'is_authenticated', False):
         return User.objects.none()
 
     profile = get_profile(viewer)
-    if is_portal_admin(viewer) or is_director(viewer):
-        return User.objects.filter(is_active=True).select_related('profile').order_by(
-            'profile__full_name', 'username',
-        )
-    if profile and profile.role == ROLE_DIVISION_HEAD and profile.division_id:
-        return User.objects.filter(
-            is_active=True,
-            profile__division_id=profile.division_id,
-        ).select_related('profile').order_by('profile__full_name', 'username')
-    if profile and profile.role in SUBORDINATE_MANAGER_ROLES:
-        return profile.subordinates.filter(is_active=True).select_related('profile').order_by(
-            'profile__full_name', 'username',
-        )
-    return User.objects.none()
+    if not profile:
+        return User.objects.none()
+
+    return profile.subordinates.filter(
+        is_active=True,
+        profile__is_employed=True,
+    ).select_related('profile').order_by('profile__full_name', 'username')
+
+
+def has_report_subordinates(user) -> bool:
+    return get_report_team_users(user).exists()
+
+
+def can_view_team_reports(user) -> bool:
+    """Xem báo cáo của nhân viên cấp dưới trực tiếp (đã cấu hình trong Nhân sự)."""
+    return _has_reports_module_access(user) and has_report_subordinates(user)
+
+
+def can_submit_daily_report(user) -> bool:
+    """Nộp báo cáo cá nhân — Giám đốc chỉ xem, không nộp."""
+    if not _has_reports_module_access(user):
+        return False
+    return not is_director(user)
+
+
+def can_view_user_report(viewer, report) -> bool:
+    if not getattr(viewer, 'is_authenticated', False):
+        return False
+    if report.employee_id == viewer.id:
+        return can_submit_daily_report(viewer)
+    return get_report_team_users(viewer).filter(pk=report.employee_id).exists()
+
+
+def can_review_user_report(viewer, report) -> bool:
+    """Duyệt / phản hồi báo cáo cấp dưới trực tiếp."""
+    if report.employee_id == viewer.id:
+        return False
+    return get_report_team_users(viewer).filter(pk=report.employee_id).exists()
 
 
 def can_edit_user_guide(user) -> bool:

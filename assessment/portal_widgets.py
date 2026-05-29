@@ -6,11 +6,12 @@ from django.utils import timezone
 
 from announcements.models import Announcement, AnnouncementRead
 from hrm.permissions import (
+    can_submit_daily_report,
+    can_view_team_reports,
     get_profile,
     get_report_team_users,
     is_gm,
     is_hod,
-    can_view_team_reports,
 )
 from kpi.models import KpiPeriod, YearlyKpi
 from reports.models import DailyWorkReport
@@ -101,24 +102,25 @@ def get_portal_dashboard(user):
             'badge': unread_count,
         })
 
-    # --- Báo cáo hôm nay (cá nhân) ---
-    today_report = DailyWorkReport.objects.filter(
-        employee=user,
-        report_date=today,
-    ).first()
-    if not today_report or today_report.status != DailyWorkReport.STATUS_SUBMITTED:
-        if today_report and today_report.status == DailyWorkReport.STATUS_DRAFT:
-            text = f'Báo cáo ngày {today.strftime("%d/%m/%Y")} đang lưu nháp — nộp cho HOD trước tan ca.'
-        else:
-            text = f'Chưa nộp báo cáo công việc hôm nay ({today.strftime("%d/%m/%Y")}).'
-        widgets.append({
-            'level': 'danger',
-            'icon': 'bi-clipboard-check-fill',
-            'title': 'Báo cáo hàng ngày',
-            'text': text,
-            'url': reverse('reports:today'),
-            'action': 'Nhập báo cáo',
-        })
+    # --- Báo cáo hôm nay (cá nhân — không áp dụng Giám đốc) ---
+    if can_submit_daily_report(user):
+        today_report = DailyWorkReport.objects.filter(
+            employee=user,
+            report_date=today,
+        ).first()
+        if not today_report or today_report.status != DailyWorkReport.STATUS_SUBMITTED:
+            if today_report and today_report.status == DailyWorkReport.STATUS_DRAFT:
+                text = f'Báo cáo ngày {today.strftime("%d/%m/%Y")} đang lưu nháp — nộp cho cấp trên trước tan ca.'
+            else:
+                text = f'Chưa nộp báo cáo công việc hôm nay ({today.strftime("%d/%m/%Y")}).'
+            widgets.append({
+                'level': 'danger',
+                'icon': 'bi-clipboard-check-fill',
+                'title': 'Báo cáo hàng ngày',
+                'text': text,
+                'url': reverse('reports:today'),
+                'action': 'Nhập báo cáo',
+            })
 
     # --- KPI cá nhân ---
     open_periods = list(KpiPeriod.objects.filter(is_active=True))

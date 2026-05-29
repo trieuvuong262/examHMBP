@@ -1,35 +1,64 @@
 from datetime import datetime, timedelta
 
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.models import User
-from django.db.models import Count, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.contrib import messages
+from django.db.models import Count, Sum
 
-from hrm.permissions import can_view_team_reports, get_report_team_users, is_gm, is_hod, is_portal_admin
+from hrm.module_permissions import MODULE_REPORTS, user_can_access_module
+from hrm.permissions import (
+    can_review_user_report,
+    can_submit_daily_report,
+    can_view_team_reports,
+    can_view_user_report,
+    get_report_team_users,
+    is_director,
+)
 from PortalJustPlay.pagination import paginate_queryset
 
 from .forms import DailyWorkReportForm, DailyWorkReportLineFormSet
 from .models import DailyWorkReport
 
 
-def _is_hod_or_above(user):
-    return can_view_team_reports(user)
+def _reports_access_required(view_func):
+    @login_required
+    def wrapper(request, *args, **kwargs):
+        if not user_can_access_module(request.user, MODULE_REPORTS):
+            messages.error(request, 'Bạn không có quyền truy cập module Báo cáo.')
+            return redirect('home_portal')
+        return view_func(request, *args, **kwargs)
+    return wrapper
 
 
-def _team_users(viewer):
-    return get_report_team_users(viewer)
+def _require_submit_access(view_func):
+    @_reports_access_required
+    def wrapper(request, *args, **kwargs):
+        if not can_submit_daily_report(request.user):
+            messages.info(request, 'Vai trò Giám đốc chỉ xem báo cáo cấp dưới, không nộp báo cáo cá nhân.')
+            if can_view_team_reports(request.user):
+                return redirect('reports:team')
+            return redirect('home_portal')
+        return view_func(request, *args, **kwargs)
+    return wrapper
 
 
-@login_required
+@_reports_access_required
 def report_hub(request):
-    if _is_hod_or_above(request.user):
+    if can_view_team_reports(request.user) and is_director(request.user):
         return redirect('reports:team')
-    return redirect('reports:today')
+    if can_submit_daily_report(request.user):
+        return redirect('reports:today')
+    if can_view_team_reports(request.user):
+        return redirect('reports:team')
+    messages.warning(
+        request,
+        'Chưa có quyền báo cáo. Liên hệ HR nếu bạn cần nộp hoặc duyệt báo cáo.',
+    )
+    return redirect('home_portal')
 
 
-@login_required
+@_require_submit_access
 def today_report(request):
     report_date = request.GET.get('date') or timezone.localdate()
     if isinstance(report_date, str):
@@ -50,7 +79,7 @@ def today_report(request):
             if action == 'submit':
                 report.status = DailyWorkReport.STATUS_SUBMITTED
                 report.submitted_at = timezone.now()
-                messages.success(request, 'Đã nộp báo cáo cho HOD.')
+                messages.success(request, 'Đã nộp báo cáo cho cấp trên.')
             else:
                 report.status = DailyWorkReport.STATUS_DRAFT
                 messages.success(request, 'Đã lưu nháp báo cáo.')
@@ -73,14 +102,17 @@ def today_report(request):
         'report': report,
         'has_yesterday': has_yesterday,
         'yesterday': yesterday,
+        'can_view_team': can_view_team_reports(request.user),
     })
 
 
-@login_required
+@_require_submit_access
 def copy_yesterday(request):
     today = timezone.localdate()
     yesterday = today - timedelta(days=1)
-    source = DailyWorkReport.objects.filter(employee=request.user, report_date=yesterday).prefetch_related('lines').first()
+    source = DailyWorkReport.objects.filter(
+        employee=request.user, report_date=yesterday,
+    ).prefetch_related('lines').first()
     if not source:
         messages.warning(request, 'Không có báo cáo hôm qua để sao chép.')
         return redirect('reports:today')
@@ -109,7 +141,7 @@ def copy_yesterday(request):
     return redirect('reports:today')
 
 
-@login_required
+@_require_submit_access
 def my_reports(request):
     reports_qs = DailyWorkReport.objects.filter(
         employee=request.user,
@@ -119,20 +151,26 @@ def my_reports(request):
         'reports': page_obj.object_list,
         'page_obj': page_obj,
         'query_string': query_string,
+        'can_view_team': can_view_team_reports(request.user),
     })
 
 
-@login_required
+@_reports_access_required
 def team_reports(request):
-    if not _is_hod_or_above(request.user):
-        messages.error(request, 'Chức năng này dành cho HOD/Quản lý.')
-        return redirect('reports:today')
+    if not can_view_team_reports(request.user):
+        messages.error(
+            request,
+            'Chưa có nhân viên cấp dưới trực tiếp. HR cần cấu hình tại Nhân sự → Sửa nhân viên → Nhân viên dưới quyền.',
+        )
+        if can_submit_daily_report(request.user):
+            return redirect('reports:today')
+        return redirect('home_portal')
 
     report_date = request.GET.get('date') or timezone.localdate()
     if isinstance(report_date, str):
         report_date = datetime.strptime(report_date, '%Y-%m-%d').date()
 
-    team = _team_users(request.user).order_by('profile__full_name', 'username')
+    team = get_report_team_users(request.user)
     all_team_ids = list(team.values_list('id', flat=True))
     all_reports = DailyWorkReport.objects.filter(
         employee_id__in=all_team_ids,
@@ -165,32 +203,32 @@ def team_reports(request):
         'submitted_count': submitted,
         'missing_count': missing,
         'team_count': team_count,
+        'can_submit_report': can_submit_daily_report(request.user),
     })
 
 
-@login_required
+@_reports_access_required
 def report_detail(request, pk):
     report = get_object_or_404(
         DailyWorkReport.objects.select_related('employee', 'employee__profile').prefetch_related('lines'),
         pk=pk,
     )
-    can_view = (
-        report.employee_id == request.user.id
-        or _is_hod_or_above(request.user)
-        or report.employee_id in _team_users(request.user).values_list('id', flat=True)
-    )
-    if not can_view:
+    if not can_view_user_report(request.user, report):
         messages.error(request, 'Bạn không có quyền xem báo cáo này.')
         return redirect('reports:hub')
 
-    if request.method == 'POST' and _is_hod_or_above(request.user):
+    can_review = can_review_user_report(request.user, report)
+
+    if request.method == 'POST' and can_review:
         report.hod_reviewed = request.POST.get('hod_reviewed') == 'on'
         report.hod_note = request.POST.get('hod_note', '').strip()
         report.save()
-        messages.success(request, 'Đã cập nhật phản hồi HOD.')
+        messages.success(request, 'Đã cập nhật phản hồi.')
         return redirect('reports:detail', pk=pk)
 
     return render(request, 'reports/detail.html', {
         'report': report,
-        'can_review': _is_hod_or_above(request.user) and report.employee_id != request.user.id,
+        'can_review': can_review,
+        'can_submit_report': can_submit_daily_report(request.user),
+        'can_view_team': can_view_team_reports(request.user),
     })

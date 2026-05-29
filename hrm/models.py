@@ -210,7 +210,7 @@ class Profile(models.Model):
         User,
         blank=True,
         related_name='my_hod_managers',
-        verbose_name='Nhân viên dưới quyền',
+        verbose_name='Nhân viên cấp dưới trực tiếp',
     )
 
     must_change_password = models.BooleanField(
