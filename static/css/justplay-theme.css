@@ -2599,6 +2599,25 @@ textarea.form-control {
     color: rgba(255, 255, 255, 0.45);
 }
 
+.jp-sidebar-theme-toggle {
+    flex-shrink: 0;
+    align-self: flex-start;
+    width: 36px;
+    height: 36px;
+    margin-left: auto;
+    border-color: rgba(255, 255, 255, 0.22);
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 0.95rem;
+}
+
+.jp-sidebar-theme-toggle:hover {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.35);
+    color: #fff;
+    transform: scale(1.04);
+}
+
 .jp-sidebar-user {
     display: flex;
     align-items: center;
@@ -3676,6 +3695,18 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
 [data-theme="dark"] .jp-sidebar-profile-role {
     background: rgba(0, 0, 0, 0.22);
     color: #fecaca;
+}
+
+[data-theme="dark"] .jp-sidebar-theme-toggle {
+    border-color: rgba(255, 255, 255, 0.18);
+    background: rgba(0, 0, 0, 0.22);
+    color: rgba(255, 255, 255, 0.95);
+}
+
+[data-theme="dark"] .jp-sidebar-theme-toggle:hover {
+    background: rgba(0, 0, 0, 0.32);
+    border-color: rgba(255, 255, 255, 0.28);
+    color: #fff;
 }
 
 [data-theme="dark"] .jp-sidebar-brand,

@@ -41,22 +41,15 @@
     </aside>
 
     <div class="jp-app-main">
-        <header class="jp-topbar">
+        <header class="jp-topbar d-lg-none">
             <div class="jp-topbar-start">
-                <button class="btn jp-topbar-menu-btn d-lg-none" type="button"
+                <button class="btn jp-topbar-menu-btn" type="button"
                     data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar" aria-label="Mở menu">
                     <i class="bi bi-list"></i>
                 </button>
-                <a class="jp-topbar-brand d-lg-none" href="{% url 'home_portal' %}">
+                <a class="jp-topbar-brand" href="{% url 'home_portal' %}">
                     <img src="{{ site_logo }}" alt="JustPlay">
                 </a>
-            </div>
-            <div class="jp-topbar-end">
-                <button type="button" class="btn jp-theme-toggle" data-jp-theme-toggle
-                    aria-pressed="false" aria-label="Bật giao diện tối" title="Giao diện tối">
-                    <i class="bi bi-moon-stars-fill jp-theme-icon-dark" aria-hidden="true"></i>
-                    <i class="bi bi-sun-fill jp-theme-icon-light d-none" aria-hidden="true"></i>
-                </button>
             </div>
         </header>
 

@@ -35,6 +35,11 @@
                 <div class="jp-sidebar-profile-code">Mã NS · {{ profile.employee_code }}</div>
                 {% endif %}
             </div>
+            <button type="button" class="btn jp-theme-toggle jp-sidebar-theme-toggle" data-jp-theme-toggle
+                aria-pressed="false" aria-label="Bật giao diện tối" title="Giao diện tối">
+                <i class="bi bi-moon-stars-fill jp-theme-icon-dark" aria-hidden="true"></i>
+                <i class="bi bi-sun-fill jp-theme-icon-light d-none" aria-hidden="true"></i>
+            </button>
         </div>
     </div>
     {% endwith %}
