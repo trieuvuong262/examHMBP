@@ -113,6 +113,7 @@ INSTALLED_APPS = [
     'audit.apps.AuditConfig',
     'tasks.apps.TasksConfig',
     'service_requests.apps.ServiceRequestsConfig',
+    'nas_storage.apps.NasStorageConfig',
     'tools.apps.ToolsConfig',
     'django_cleanup.apps.CleanupConfig', # 👉 Thêm dòng này vào cuối
 ]
@@ -281,6 +282,9 @@ CKEDITOR_CONFIGS = {
 
 # Gemini AI — Hỏi đáp Thư viện (đặt key trong .env, không commit)
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
+
+# NAS (Synology qua Tailscale + rclone mount trên VPS)
+NAS_MOUNT_ROOT = os.getenv('NAS_MOUNT_ROOT', '/mnt/nas-portal')
 GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash')
 
 # ==============================================================================

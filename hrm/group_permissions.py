@@ -139,6 +139,7 @@ MODULE_LIST_META = {
     'audit': {'icon': 'bi-clock-history', 'short': 'NK'},
     'tasks': {'icon': 'bi-kanban', 'short': 'CV'},
     'service_requests': {'icon': 'bi-headset', 'short': 'YC'},
+    'nas_storage': {'icon': 'bi-hdd-network', 'short': 'NAS'},
 }
 
 

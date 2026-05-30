@@ -18,6 +18,7 @@ from hrm.module_permissions import (
     MODULE_REPORTS,
     MODULE_TASKS,
     MODULE_SERVICE_REQUESTS,
+    MODULE_NAS_STORAGE,
     MODULE_TRAINING,
     bypass_department_modules,
 )
@@ -47,6 +48,7 @@ def default_role_permissions() -> dict:
         MODULE_DOCUMENTS: _perm(True, False),
         MODULE_TASKS: _perm(True, False),
         MODULE_SERVICE_REQUESTS: _perm(True, False),
+        MODULE_NAS_STORAGE: _perm(True, False),
         MODULE_PERMISSIONS: _perm(False, False),
         MODULE_AUDIT: _perm(False, False),
         MODULE_RECRUITMENT: _perm(False, False),

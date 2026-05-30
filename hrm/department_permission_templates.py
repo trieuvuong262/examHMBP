@@ -30,6 +30,7 @@ M = {
     'audit': 'audit',
     'tasks': 'tasks',
     'service_requests': 'service_requests',
+    'nas_storage': 'nas_storage',
 }
 
 
@@ -76,6 +77,7 @@ def _portal_employee() -> dict:
         M['documents']: VIEW,
         M['tasks']: VIEW,
         M['service_requests']: _f(view=True, create=True),
+        M['nas_storage']: VIEW,
     })
 
 

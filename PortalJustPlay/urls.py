@@ -25,6 +25,7 @@ urlpatterns = [
     path('kpi/', include('kpi.urls')),
     path('announcements/', include('announcements.urls')),
     path('tai-lieu/', include('documents.urls')),
+    path('thu-muc-nas/', include('nas_storage.urls')),
     path('nhat-ky/', include('audit.urls')),
     path('ckeditor/upload/', ckeditor_upload.upload, name='ckeditor_upload'),
     path('ckeditor/browse/', ckeditor_upload.browse, name='ckeditor_browse'),

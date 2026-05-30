@@ -287,6 +287,7 @@ PERM_GROUP_MODULE_ICONS = {
     'audit': 'bi-clock-history',
     'tasks': 'bi-kanban',
     'service_requests': 'bi-headset',
+    'nas_storage': 'bi-hdd-network',
 }
 
 

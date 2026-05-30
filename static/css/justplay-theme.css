@@ -4974,6 +4974,28 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     border-color: rgba(217, 119, 6, 0.2);
 }
 
+.jp-nas-root-card {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.jp-nas-root-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1.25rem rgba(15, 23, 42, 0.08) !important;
+}
+
+.jp-nas-root-icon {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--hm-primary-soft, #fef2f2);
+    color: var(--hm-primary, #dc2626);
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
 @media (max-width: 1199.98px) {
     .jp-perm-group-page .jp-perm-group-header {
         position: static;

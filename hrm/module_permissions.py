@@ -25,6 +25,7 @@ MODULE_PERMISSIONS = 'permissions'
 MODULE_AUDIT = 'audit'
 MODULE_TASKS = 'tasks'
 MODULE_SERVICE_REQUESTS = 'service_requests'
+MODULE_NAS_STORAGE = 'nas_storage'
 
 MODULE_CHOICES = [
     (MODULE_ANNOUNCEMENTS, 'Thông báo'),
@@ -40,6 +41,7 @@ MODULE_CHOICES = [
     (MODULE_AUDIT, 'Nhật ký thao tác'),
     (MODULE_TASKS, 'Công việc'),
     (MODULE_SERVICE_REQUESTS, 'Yêu cầu'),
+    (MODULE_NAS_STORAGE, 'Thư mục NAS'),
 ]
 
 ALL_MODULE_KEYS = {key for key, _ in MODULE_CHOICES}
@@ -77,6 +79,7 @@ PATH_MODULE_RULES = [
     ('/nhat-ky/', MODULE_AUDIT),
     ('/cong-viec/', MODULE_TASKS),
     ('/yeu-cau/', MODULE_SERVICE_REQUESTS),
+    ('/thu-muc-nas/', MODULE_NAS_STORAGE),
 ]
 
 DASHBOARD_TAB_MODULES = {
