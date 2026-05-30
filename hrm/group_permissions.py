@@ -125,6 +125,71 @@ def module_perm_allows_edit(perm: dict) -> bool:
     return any(perm.get(a) for a in (PERM_CREATE, PERM_UPDATE, PERM_DELETE))
 
 
+MODULE_LIST_META = {
+    'announcements': {'icon': 'bi-megaphone', 'short': 'TB'},
+    'recruitment': {'icon': 'bi-person-plus', 'short': 'TD'},
+    'training': {'icon': 'bi-mortarboard', 'short': 'ĐT'},
+    'assessment': {'icon': 'bi-patch-check', 'short': 'KT'},
+    'hrm': {'icon': 'bi-people', 'short': 'NS'},
+    'kpi': {'icon': 'bi-graph-up-arrow', 'short': 'KPI'},
+    'reports': {'icon': 'bi-journal-text', 'short': 'BC'},
+    'guide': {'icon': 'bi-book', 'short': 'HD'},
+    'documents': {'icon': 'bi-folder2', 'short': 'TV'},
+    'permissions': {'icon': 'bi-shield-lock', 'short': 'PQ'},
+    'audit': {'icon': 'bi-clock-history', 'short': 'NK'},
+    'tasks': {'icon': 'bi-kanban', 'short': 'CV'},
+    'service_requests': {'icon': 'bi-headset', 'short': 'YC'},
+}
+
+
+def _module_perm_tier(perm: dict) -> str:
+    if not perm.get(PERM_VIEW):
+        return 'none'
+    if all(perm.get(a) for a in PERM_ACTIONS):
+        return 'full'
+    if not module_perm_allows_edit(perm) and not perm.get(PERM_EXPORT):
+        return 'view'
+    return 'partial'
+
+
+def group_list_summary(permissions: dict) -> dict:
+    """Tóm tắt gọn cho danh sách nhóm quyền."""
+    modules = []
+    view_count = partial_count = full_count = 0
+    for key, label in MODULE_CHOICES:
+        perm = permissions.get(key, empty_module_perm())
+        tier = _module_perm_tier(perm)
+        if tier == 'none':
+            continue
+        meta = MODULE_LIST_META.get(key, {'icon': 'bi-grid', 'short': label[:3]})
+        actions = [PERM_ACTION_LABELS[a] for a in PERM_ACTIONS if perm.get(a)]
+        if tier == 'view':
+            view_count += 1
+            level_text = 'Chỉ xem'
+        elif tier == 'full':
+            full_count += 1
+            level_text = 'Đủ 5 quyền'
+        else:
+            partial_count += 1
+            level_text = ', '.join(actions)
+        modules.append({
+            'key': key,
+            'label': label,
+            'short': meta['short'],
+            'icon': meta['icon'],
+            'tier': tier,
+            'level_text': level_text,
+        })
+    return {
+        'modules': modules,
+        'active_count': len(modules),
+        'total_count': len(MODULE_CHOICES),
+        'view_count': view_count,
+        'partial_count': partial_count,
+        'full_count': full_count,
+    }
+
+
 def group_permission_summary(permissions: dict) -> list:
     rows = []
     for key, label in MODULE_CHOICES:

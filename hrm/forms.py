@@ -265,7 +265,7 @@ class PermissionGroupMetaForm(forms.ModelForm):
         fields = ['name', 'description']
         widgets = {
             'name': forms.TextInput(attrs={**INPUT, 'placeholder': 'VD: Nhân viên HCNS'}),
-            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'description': forms.Textarea(attrs={'class': 'form-control jp-perm-group-desc-input', 'rows': 1}),
         }
         labels = {
             'name': 'Tên nhóm quyền',

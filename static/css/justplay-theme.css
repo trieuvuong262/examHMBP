@@ -4757,14 +4757,221 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     transform: none;
 }
 
-.jp-perm-group-section td {
-    background: var(--hm-primary-soft, #fef2f2) !important;
-    border-top: 1px solid rgba(220, 38, 38, 0.12);
-    letter-spacing: 0.06em;
+/* Permission group list (dashboard/permissions tab) */
+.jp-perm-group-list-table .jp-perm-col-name {
+    width: 22%;
+    min-width: 200px;
 }
 
-[data-theme="dark"] .jp-perm-group-section td {
-    background: rgba(220, 38, 38, 0.12) !important;
+.jp-perm-group-list-table .jp-perm-col-count {
+    width: 72px;
+}
+
+.jp-perm-group-list-table .jp-perm-col-summary {
+    min-width: 320px;
+}
+
+.jp-perm-group-list-table .jp-perm-col-actions {
+    width: 110px;
+    white-space: nowrap;
+}
+
+.jp-perm-group-avatar {
+    flex-shrink: 0;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--hm-primary-soft, #fef2f2);
+    color: var(--hm-primary, #dc2626);
+    font-size: 1rem;
+}
+
+.jp-perm-group-desc {
+    line-height: 1.35;
+    margin-top: 0.15rem;
+}
+
+.jp-perm-member-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #e2e8f0;
+}
+
+.jp-perm-list-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.jp-perm-list-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.5rem;
+}
+
+.jp-perm-list-stat {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+
+.jp-perm-list-stat i {
+    font-size: 0.7rem;
+}
+
+.jp-perm-list-stat-view {
+    color: #2563eb;
+    background: #eff6ff;
+    border-color: #bfdbfe;
+}
+
+.jp-perm-list-stat-partial {
+    color: #d97706;
+    background: #fffbeb;
+    border-color: #fde68a;
+}
+
+.jp-perm-list-stat-full {
+    color: #059669;
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+}
+
+.jp-perm-mod-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.jp-perm-mod-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.45rem;
+    border-radius: 8px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1.2;
+    border: 1px solid transparent;
+    cursor: default;
+}
+
+.jp-perm-mod-chip i {
+    font-size: 0.75rem;
+}
+
+.jp-perm-mod-view {
+    color: #2563eb;
+    background: #eff6ff;
+    border-color: #dbeafe;
+}
+
+.jp-perm-mod-partial {
+    color: #b45309;
+    background: #fffbeb;
+    border-color: #fde68a;
+}
+
+.jp-perm-mod-full {
+    color: #fff;
+    background: var(--hm-primary, #dc2626);
+    border-color: var(--hm-primary, #dc2626);
+}
+
+.jp-perm-list-empty {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.8125rem;
+    color: #94a3b8;
+}
+
+.jp-perm-row-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.35rem;
+}
+
+.jp-perm-group-meta-card .jp-perm-group-meta-fields {
+    align-items: flex-start;
+}
+
+.jp-perm-group-meta-card .jp-form-label {
+    display: block;
+    margin-bottom: 0.35rem;
+}
+
+.jp-perm-group-meta-card .form-control {
+    min-height: calc(1.5em + 0.75rem + 2px);
+}
+
+.jp-perm-group-desc-input {
+    resize: vertical;
+    min-height: calc(1.5em + 0.75rem + 2px);
+}
+
+[data-theme="dark"] .jp-perm-group-avatar {
+    background: rgba(220, 38, 38, 0.15);
+}
+
+[data-theme="dark"] .jp-perm-member-count {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--jp-text-muted);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .jp-perm-list-stat {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
+    color: var(--jp-text-muted);
+}
+
+[data-theme="dark"] .jp-perm-list-stat-view {
+    color: #93c5fd;
+    background: rgba(37, 99, 235, 0.12);
+    border-color: rgba(37, 99, 235, 0.25);
+}
+
+[data-theme="dark"] .jp-perm-list-stat-partial {
+    color: #fcd34d;
+    background: rgba(217, 119, 6, 0.12);
+    border-color: rgba(217, 119, 6, 0.25);
+}
+
+[data-theme="dark"] .jp-perm-list-stat-full {
+    color: #6ee7b7;
+    background: rgba(5, 150, 105, 0.12);
+    border-color: rgba(5, 150, 105, 0.25);
+}
+
+[data-theme="dark"] .jp-perm-mod-view {
+    color: #93c5fd;
+    background: rgba(37, 99, 235, 0.12);
+    border-color: rgba(37, 99, 235, 0.2);
+}
+
+[data-theme="dark"] .jp-perm-mod-partial {
+    color: #fcd34d;
+    background: rgba(217, 119, 6, 0.12);
+    border-color: rgba(217, 119, 6, 0.2);
 }
 
 @media (max-width: 1199.98px) {

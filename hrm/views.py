@@ -16,7 +16,7 @@ from assessment.decorators import admin_only
 from assessment.forms import UserForm # Tạm thời Form vẫn để ở nhà cũ, mốt mình dời sau
 from django.utils.text import slugify
 from hrm.models import Profile, Department, Division, DepartmentMenuPermission, PermissionGroup, RoleModulePermission
-from hrm.group_permissions import group_permission_summary
+from hrm.group_permissions import group_list_summary
 from hrm.role_permissions import ROLE_LABELS, default_role_permissions
 from hrm.permissions import ROLE_CHOICES
 from hrm.choices import (
@@ -599,47 +599,28 @@ def permission_config(request):
             'enabled_labels': [MODULE_LABELS[key] for key, _ in MODULE_CHOICES if key in enabled],
         })
 
-    from hrm.department_permission_templates import is_protected_permission_group, permission_group_sort_key
+    from hrm.department_permission_templates import is_protected_permission_group
 
     group_qs = PermissionGroup.objects.annotate(
         profile_count=Count('profiles'),
     )
     sorted_groups = sorted(
         group_qs,
-        key=lambda g: permission_group_sort_key(g.name, g.slug),
+        key=lambda g: (
+            0 if is_protected_permission_group(g.slug) else 1,
+            g.name.casefold(),
+        ),
     )
 
     group_rows = []
-    last_section = None
     for group in sorted_groups:
-        if group.slug.startswith('mac-dinh-'):
-            section = 'Vai trò mặc định'
-            level_label = group.name
-        elif ' — ' in group.name:
-            section, level_label = group.name.rsplit(' — ', 1)
-        else:
-            section = 'Khác'
-            level_label = group.name
-        summary = group_permission_summary(group.get_permissions())
-        badges = []
-        for item in summary:
-            if not item['actions']:
-                continue
-            badges.append({
-                'label': item['label'],
-                'short': f"{item['label']} · {item['level']}",
-                'has_edit': any(a in item['actions'] for a in ('Thêm', 'Sửa', 'Xóa')),
-            })
+        list_summary = group_list_summary(group.get_permissions())
         group_rows.append({
             'group': group,
-            'badges': badges[:8],
-            'more_count': max(0, len(badges) - 8),
-            'section': section,
-            'level_label': level_label,
-            'show_section': section != last_section,
+            'summary': list_summary,
+            'is_system': is_protected_permission_group(group.slug),
             'is_deletable': not is_protected_permission_group(group.slug),
         })
-        last_section = section
 
     return render(request, 'assessment/admin/permission_config.html', {
         'departments': dept_page.object_list,
