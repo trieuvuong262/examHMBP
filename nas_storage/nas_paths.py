@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import mimetypes
 import os
@@ -117,12 +118,29 @@ def resolve_nas_path(user, rel_path: str) -> Path:
 
 
 def list_directory(path: Path, *, fresh: bool = False, rel_path: str = '') -> dict:
-    if fresh and rel_path is not None:
+    listing, _source, _stale = list_directory_with_source(path, fresh=fresh, rel_path=rel_path)
+    return listing
+
+
+def list_directory_with_source(path: Path, *, fresh: bool = False, rel_path: str = '') -> tuple[dict, str, bool]:
+    """Trả về (listing, source, stale). stale=True khi cần fresh nhưng chỉ đọc được qua mount."""
+    if fresh and rel_path:
         try:
-            return list_directory_via_rclone(rel_path)
+            return list_directory_via_rclone(rel_path), 'rclone', False
         except NasPathError:
             pass
-    return _list_directory_local(path)
+    return _list_directory_local(path), 'mount', bool(fresh and rel_path)
+
+
+def listing_fingerprint(listing: dict) -> str:
+    parts = []
+    for folder in listing.get('folders', []):
+        parts.append(f"d:{folder['name']}:{folder.get('modified', 0)}")
+    for file in listing.get('files', []):
+        parts.append(f"f:{file['name']}:{file.get('size', 0)}:{file.get('modified', 0)}")
+    parts.sort()
+    digest = hashlib.sha256('|'.join(parts).encode('utf-8')).hexdigest()
+    return digest[:16]
 
 
 def _list_directory_local(path: Path) -> dict:
@@ -157,6 +175,14 @@ def _rclone_remote_path(rel_path: str) -> str:
     return base
 
 
+def _rclone_env() -> dict:
+    env = os.environ.copy()
+    config = getattr(settings, 'NAS_RCLONE_CONFIG', '')
+    if config and os.path.isfile(config):
+        env['RCLONE_CONFIG'] = config
+    return env
+
+
 def list_directory_via_rclone(rel_path: str) -> dict:
     """Đọc trực tiếp qua rclone — bỏ qua cache FUSE mount."""
     target = _rclone_remote_path(rel_path)
@@ -167,6 +193,7 @@ def list_directory_via_rclone(rel_path: str) -> dict:
             text=True,
             timeout=90,
             check=False,
+            env=_rclone_env(),
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise NasPathError('Không kết nối được NAS để đồng bộ.') from exc
@@ -209,6 +236,42 @@ def list_directory_via_rclone(rel_path: str) -> dict:
     folders.sort(key=lambda x: x['name'].lower())
     files.sort(key=lambda x: x['name'].lower())
     return {'folders': folders, 'files': files}
+
+
+def delete_via_rclone(rel_path: str) -> None:
+    target = _rclone_remote_path(rel_path)
+    try:
+        proc = subprocess.run(
+            ['rclone', 'deletefile', target],
+            capture_output=True,
+            text=True,
+            timeout=90,
+            check=False,
+            env=_rclone_env(),
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise NasPathError('Không xóa được file trên NAS.') from exc
+    if proc.returncode != 0:
+        err = (proc.stderr or proc.stdout or '').strip()
+        raise NasPathError(err or 'Không xóa được file trên NAS.')
+
+
+def delete_dir_via_rclone(rel_path: str) -> None:
+    target = _rclone_remote_path(rel_path)
+    try:
+        proc = subprocess.run(
+            ['rclone', 'rmdir', target],
+            capture_output=True,
+            text=True,
+            timeout=90,
+            check=False,
+            env=_rclone_env(),
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise NasPathError('Không xóa được thư mục trên NAS.') from exc
+    if proc.returncode != 0:
+        err = (proc.stderr or proc.stdout or '').strip()
+        raise NasPathError(err or 'Không xóa được thư mục trên NAS.')
 
 
 def listing_synced_at() -> str:

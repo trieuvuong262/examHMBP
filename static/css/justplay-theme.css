@@ -5011,6 +5011,10 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     to { transform: rotate(360deg); }
 }
 
+.jp-nas-browse-card.jp-nas-listing-updated {
+    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.25), 0 0.5rem 1.25rem rgba(15, 23, 42, 0.08) !important;
+}
+
 @media (max-width: 1199.98px) {
     .jp-perm-group-page .jp-perm-group-header {
         position: static;

@@ -94,6 +94,8 @@ class NasBrowseViewTests(TestCase):
         self.assertIn('html', data)
         self.assertEqual(data['folder_count'], 1)
         self.assertIn('docs', data['html'])
+        self.assertIn('listing_key', data)
+        self.assertIn('source', data)
 
 
 class NasRcloneListingTests(TestCase):

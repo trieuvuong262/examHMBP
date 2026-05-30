@@ -18,8 +18,12 @@ from hrm.module_permissions import (
 from nas_storage.nas_paths import (
     NasPathError,
     build_breadcrumb,
+    delete_dir_via_rclone,
+    delete_via_rclone,
     get_user_nas_roots,
     list_directory,
+    list_directory_with_source,
+    listing_fingerprint,
     listing_synced_at,
     nas_is_available,
     normalize_rel_path,
@@ -50,7 +54,7 @@ def _attach_rel_paths(listing: dict, rel_path: str) -> None:
 
 def _listing_context(request, rel_path: str, *, fresh: bool = False) -> dict:
     path = resolve_nas_path(request.user, rel_path)
-    listing = list_directory(path, fresh=fresh, rel_path=rel_path)
+    listing, source, stale = list_directory_with_source(path, fresh=fresh, rel_path=rel_path)
     _attach_rel_paths(listing, rel_path)
     return {
         'rel_path': rel_path,
@@ -62,7 +66,10 @@ def _listing_context(request, rel_path: str, *, fresh: bool = False) -> dict:
         'parent_rel': '/'.join(rel_path.split('/')[:-1]) if '/' in rel_path else '',
         'synced_at': listing_synced_at(),
         'fresh_listing': fresh,
-        'auto_sync_interval': getattr(settings, 'NAS_AUTO_SYNC_INTERVAL', 30),
+        'listing_source': source,
+        'listing_stale': stale,
+        'listing_key': listing_fingerprint(listing),
+        'auto_sync_interval': getattr(settings, 'NAS_AUTO_SYNC_INTERVAL', 15),
     }
 
 
@@ -99,7 +106,7 @@ def browse(request):
             'root_entries': root_entries,
             'rel_path': '',
             'breadcrumbs': [{'label': 'Thư mục NAS', 'rel_path': ''}],
-            'auto_sync_interval': getattr(settings, 'NAS_AUTO_SYNC_INTERVAL', 30),
+            'auto_sync_interval': getattr(settings, 'NAS_AUTO_SYNC_INTERVAL', 15),
         })
 
     try:
@@ -135,6 +142,9 @@ def sync_list(request):
         'folder_count': len(ctx['folders']),
         'file_count': len(ctx['files']),
         'synced_at': ctx['synced_at'],
+        'listing_key': ctx['listing_key'],
+        'source': ctx['listing_source'],
+        'stale': ctx['listing_stale'],
     })
 
 
@@ -227,9 +237,15 @@ def delete_entry(request):
         if any(path.iterdir()):
             messages.error(request, 'Chỉ xóa được thư mục rỗng.')
             return redirect(_browse_url(parent_rel or rel_path))
-        path.rmdir()
+        try:
+            path.rmdir()
+        except OSError:
+            delete_dir_via_rclone(rel_path)
     elif path.is_file():
-        path.unlink()
+        try:
+            path.unlink()
+        except OSError:
+            delete_via_rclone(rel_path)
     else:
         messages.error(request, 'Không tìm thấy file hoặc thư mục.')
         return redirect(_browse_url(parent_rel))

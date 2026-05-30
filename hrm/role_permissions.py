@@ -48,7 +48,7 @@ def default_role_permissions() -> dict:
         MODULE_DOCUMENTS: _perm(True, False),
         MODULE_TASKS: _perm(True, False),
         MODULE_SERVICE_REQUESTS: _perm(True, False),
-        MODULE_NAS_STORAGE: _perm(True, False),
+        MODULE_NAS_STORAGE: _perm(True, True),
         MODULE_PERMISSIONS: _perm(False, False),
         MODULE_AUDIT: _perm(False, False),
         MODULE_RECRUITMENT: _perm(False, False),

@@ -13,7 +13,7 @@
             {% csrf_token %}
             <input type="hidden" name="path" value="{{ folder.rel_path }}">
             <input type="hidden" name="parent" value="{{ rel_path }}">
-            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+            <button type="submit" class="btn btn-sm btn-outline-danger" title="Xóa"><i class="bi bi-trash"></i></button>
         </form>
         {% endif %}
     </td>
@@ -35,7 +35,7 @@
             {% csrf_token %}
             <input type="hidden" name="path" value="{{ file.rel_path }}">
             <input type="hidden" name="parent" value="{{ rel_path }}">
-            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+            <button type="submit" class="btn btn-sm btn-outline-danger" title="Xóa"><i class="bi bi-trash"></i></button>
         </form>
         {% endif %}
     </td>
