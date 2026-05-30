@@ -248,7 +248,7 @@ def list_directory_via_rclone(rel_path: str) -> dict:
     target = _rclone_remote_path(rel_path)
     try:
         proc = subprocess.run(
-            ['rclone', 'lsjson', target, '--dirs-first', '--no-mimetype'],
+            ['rclone', 'lsjson', target, '--no-mimetype'],
             capture_output=True,
             text=True,
             timeout=90,
