@@ -3,46 +3,60 @@
 {% block content %}
 <div class="container-fluid jp-page jp-home-page px-2 px-md-4 py-3 py-md-4 mb-4">
     {% with profile=user.profile %}
-    <section class="jp-home-hero mb-3 mb-md-4">
+    <section class="jp-home-hero mb-3 mb-lg-4">
         <div class="jp-home-hero-inner">
             <div class="jp-home-hero-main">
                 <p class="jp-home-hero-kicker mb-1">JustPlay Portal</p>
                 <h1 class="jp-home-hero-title mb-2">
                     Xin chào, {{ profile.full_name|default:user.first_name|default:user.username }}
                 </h1>
-                <p class="jp-home-hero-sub mb-0">
-                    Xem việc cần làm và dùng bộ công cụ tiện ích ngay trên trang chủ.
-                </p>
+                <div class="jp-home-hero-meta">
+                    {% if jp_role_display %}
+                    <span class="jp-home-meta-chip">
+                        <i class="bi bi-person-badge me-1"></i>{{ jp_role_display }}
+                    </span>
+                    {% endif %}
+                    {% if profile.department %}
+                    <span class="jp-home-meta-chip">
+                        <i class="bi bi-building me-1"></i>{{ profile.department.name }}
+                    </span>
+                    {% endif %}
+                    {% if dashboard_widgets %}
+                    <span class="jp-home-meta-chip jp-home-meta-chip--alert">
+                        <i class="bi bi-bell-fill me-1"></i>{{ dashboard_widgets|length }} việc cần làm
+                    </span>
+                    {% endif %}
+                </div>
             </div>
-            <div class="jp-home-hero-meta">
-                {% if jp_role_display %}
-                <span class="jp-home-meta-chip">
-                    <i class="bi bi-person-badge me-1"></i>{{ jp_role_display }}
-                </span>
-                {% endif %}
-                {% if profile.department %}
-                <span class="jp-home-meta-chip">
-                    <i class="bi bi-building me-1"></i>{{ profile.department.name }}
-                </span>
-                {% endif %}
+            <div class="jp-home-hero-aside d-none d-md-flex">
+                <div class="jp-home-hero-stat">
+                    <span class="jp-home-hero-stat-value">{{ portal_tools|length }}</span>
+                    <span class="jp-home-hero-stat-label">Công cụ</span>
+                </div>
             </div>
         </div>
     </section>
 
-    <div class="row g-3 g-lg-4 justify-content-center mb-3 mb-md-4">
-        <div class="col-12 col-xl-8">
-            <section class="jp-home-section" aria-labelledby="jp-home-todo-title">
-                <div class="jp-home-section-head">
-                    <h2 id="jp-home-todo-title" class="jp-home-section-title">
-                        <i class="bi bi-bell-fill text-hm me-2"></i>Việc cần làm
-                    </h2>
+    <div class="row g-3 g-lg-4 align-items-start">
+        <div class="col-lg-8">
+            <section class="jp-home-block" aria-labelledby="jp-home-todo-title">
+                <div class="jp-home-block-head">
+                    <div class="jp-home-block-head-main">
+                        <h2 id="jp-home-todo-title" class="jp-home-block-title">
+                            <span class="jp-home-block-icon jp-home-block-icon--todo">
+                                <i class="bi bi-bell-fill"></i>
+                            </span>
+                            Việc cần làm
+                        </h2>
+                        <p class="jp-home-block-sub mb-0">Thông báo, công việc và báo cáo cần xử lý.</p>
+                    </div>
                     {% if dashboard_widgets %}
-                    <span class="badge bg-hm">{{ dashboard_widgets|length }}</span>
+                    <span class="badge bg-hm rounded-pill">{{ dashboard_widgets|length }}</span>
                     {% endif %}
                 </div>
 
-                {% if dashboard_widgets %}
-                <div class="jp-dashboard-panel">
+                <div class="jp-home-block-body">
+                    {% if dashboard_widgets %}
                     <div class="jp-dashboard-list">
                         {% for item in dashboard_widgets %}
                         <a href="{{ item.url }}" class="jp-dashboard-item jp-dashboard-item--{{ item.level }}">
@@ -64,46 +78,50 @@
                         </a>
                         {% endfor %}
                     </div>
-                </div>
-                {% else %}
-                <div class="jp-home-empty card border-0 shadow-sm">
-                    <div class="card-body d-flex align-items-center gap-3 py-4">
+                    {% else %}
+                    <div class="jp-home-empty">
                         <div class="jp-home-empty-icon">
                             <i class="bi bi-check2-circle"></i>
                         </div>
                         <div>
-                            <div class="fw-bold mb-1">Không còn việc gấp</div>
-                            <div class="text-muted small mb-0">Thông báo, báo cáo và công việc đã xử lý xong — cuộn xuống để dùng công cụ hoặc vào module qua menu bên trái.</div>
+                            <div class="jp-home-empty-title">Không còn việc gấp</div>
+                            <p class="jp-home-empty-text mb-0">Mọi thứ đã xử lý xong — bạn có thể dùng công cụ bên cạnh hoặc vào module qua menu trái.</p>
                         </div>
                     </div>
+                    {% endif %}
                 </div>
-                {% endif %}
+            </section>
+        </div>
+
+        <div class="col-lg-4">
+            <section class="jp-home-block jp-home-block--tools jp-home-tools-sticky" aria-labelledby="jp-home-tools-title">
+                <div class="jp-home-block-head">
+                    <div class="jp-home-block-head-main">
+                        <h2 id="jp-home-tools-title" class="jp-home-block-title">
+                            <span class="jp-home-block-icon jp-home-block-icon--tools">
+                                <i class="bi bi-tools"></i>
+                            </span>
+                            Công cụ
+                        </h2>
+                        <p class="jp-home-block-sub mb-0">Tiện ích xử lý tài liệu &amp; ảnh.</p>
+                    </div>
+                </div>
+
+                <div class="jp-home-block-body jp-home-block-body--tools">
+                    <div class="jp-home-tools-grid jp-home-tools-grid--compact">
+                        {% for tool in portal_tools %}
+                        <a href="{% url tool.url_name %}" class="jp-home-tool-tile jp-home-tool-tile--{{ tool.accent }}" title="{{ tool.description }}">
+                            <span class="jp-home-tool-tile-icon">
+                                <i class="bi {{ tool.icon }}"></i>
+                            </span>
+                            <span class="jp-home-tool-tile-name">{{ tool.name }}</span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
             </section>
         </div>
     </div>
-
-    <section class="jp-home-section" aria-labelledby="jp-home-tools-title">
-        <div class="jp-home-section-head">
-            <h2 id="jp-home-tools-title" class="jp-home-section-title">
-                <i class="bi bi-tools text-hm me-2"></i>Công cụ
-            </h2>
-        </div>
-
-        <div class="jp-home-tools-grid">
-            {% for tool in portal_tools %}
-            <a href="{% url tool.url_name %}" class="jp-home-tool-card jp-home-tool-card--{{ tool.accent }}">
-                <span class="jp-home-tool-icon">
-                    <i class="bi {{ tool.icon }}"></i>
-                </span>
-                <span class="jp-home-tool-body">
-                    <span class="jp-home-tool-name">{{ tool.name }}</span>
-                    <span class="jp-home-tool-desc">{{ tool.description }}</span>
-                </span>
-                <i class="bi bi-arrow-right jp-home-tool-arrow"></i>
-            </a>
-            {% endfor %}
-        </div>
-    </section>
     {% endwith %}
 </div>
 {% endblock %}
