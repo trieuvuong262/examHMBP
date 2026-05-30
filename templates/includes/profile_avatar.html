@@ -1,6 +1,17 @@
 {% with display_name=profile.full_name|default:user.get_full_name|default:user.first_name|default:user.username %}
 {% if profile.avatar %}
-<img src="{{ profile.avatar.url }}" alt="{{ display_name }}" class="{{ img_class|default:'jp-sidebar-profile-avatar jp-sidebar-profile-avatar-img' }}">
+    {% if zoomable %}
+    <button type="button"
+            class="jp-avatar-zoom-btn p-0 border-0 bg-transparent"
+            data-jp-avatar-zoom="{{ profile.avatar.url }}"
+            data-jp-avatar-name="{{ display_name }}"
+            aria-label="Xem avatar {{ display_name }}"
+            title="Bấm để phóng to">
+        <img src="{{ profile.avatar.url }}" alt="{{ display_name }}" class="{{ img_class|default:'jp-sidebar-profile-avatar jp-sidebar-profile-avatar-img' }}">
+    </button>
+    {% else %}
+    <img src="{{ profile.avatar.url }}" alt="{{ display_name }}" class="{{ img_class|default:'jp-sidebar-profile-avatar jp-sidebar-profile-avatar-img' }}">
+    {% endif %}
 {% else %}
 <span class="{{ fallback_class|default:'jp-sidebar-profile-avatar' }}" aria-hidden="true">{{ display_name|make_list|first|upper }}</span>
 {% endif %}

@@ -141,6 +141,8 @@ def _save_profile_avatar(profile, upload, request):
     from django.core.exceptions import ValidationError
     from tasks.attachment_utils import validate_image_file
 
+    from .avatar_utils import prepare_avatar_image
+
     if not upload:
         return None
     try:
@@ -151,7 +153,14 @@ def _save_profile_avatar(profile, upload, request):
     if upload.size > AVATAR_MAX_SIZE:
         messages.error(request, 'Ảnh avatar tối đa 5 MB.')
         return False
-    profile.avatar = upload
+    try:
+        prepared = prepare_avatar_image(upload)
+    except Exception:
+        messages.error(request, 'Không xử lý được ảnh avatar. Vui lòng chọn file JPG/PNG/WebP hợp lệ.')
+        return False
+    if profile.avatar:
+        profile.avatar.delete(save=False)
+    profile.avatar.save(prepared.name, prepared, save=False)
     profile.save(update_fields=['avatar'])
     return True
 

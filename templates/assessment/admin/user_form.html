@@ -37,7 +37,7 @@
             {% if is_edit and profile %}
             <div class="jp-user-form-identity border-bottom">
                 <div class="jp-user-form-identity-avatar">
-                    {% include 'includes/profile_avatar.html' with profile=profile user=user_instance img_class='jp-hrm-avatar jp-hrm-avatar-img rounded-circle' fallback_class='jp-hrm-avatar rounded-circle' %}
+                    {% include 'includes/profile_avatar.html' with profile=profile user=user_instance img_class='jp-hrm-avatar jp-hrm-avatar-img rounded-circle' fallback_class='jp-hrm-avatar rounded-circle' zoomable=True %}
                 </div>
                 <div class="jp-user-form-identity-main">
                     <div class="fw-bold text-dark jp-text-clamp-2">{{ profile.full_name|default:user_instance.username }}</div>
@@ -49,7 +49,7 @@
                 <div class="jp-user-form-identity-upload">
                     <label class="jp-form-label mb-1">Avatar</label>
                     <input type="file" name="avatar" class="form-control form-control-sm" accept="image/*">
-                    <div class="form-text">JPG, PNG, WebP — tối đa 5 MB</div>
+                    <div class="form-text">JPG, PNG, WebP — tối đa 5 MB · lưu 150×150 px</div>
                 </div>
             </div>
             {% endif %}

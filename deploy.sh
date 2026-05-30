@@ -189,10 +189,17 @@ verify_migrations
 echo "==> 8) Collect static files (clear old assets)"
 compose exec -T web python manage.py collectstatic --noinput --clear
 
-echo "==> 9) Show status"
+echo "==> 9) Cleanup orphan media (files not referenced in DB/HTML)"
+if grep -qE '^CLEANUP_ORPHAN_MEDIA=(0|false|no|off)' .env 2>/dev/null; then
+  echo "    Skipped (CLEANUP_ORPHAN_MEDIA is disabled in .env)."
+else
+  compose exec -T web python manage.py cleanup_orphan_media
+fi
+
+echo "==> 10) Show status"
 compose ps
 
-echo "==> 10) Cleanup old Docker images"
+echo "==> 11) Cleanup old Docker images"
 docker image prune -f
 
 echo ""

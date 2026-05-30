@@ -267,10 +267,31 @@ class ProfileAvatarTests(TestCase):
         self.client = Client()
         self.client.force_login(self.user)
 
+    @staticmethod
+    def _sample_jpeg_bytes(width=320, height=240):
+        from io import BytesIO
+
+        from PIL import Image
+
+        buf = BytesIO()
+        Image.new('RGB', (width, height), color=(220, 38, 38)).save(buf, format='JPEG')
+        return buf.getvalue()
+
+    def test_prepare_avatar_image_resizes_to_150(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from hrm.avatar_utils import AVATAR_SIZE, prepare_avatar_image
+
+        upload = SimpleUploadedFile('wide.jpg', self._sample_jpeg_bytes(), content_type='image/jpeg')
+        prepared = prepare_avatar_image(upload)
+        from PIL import Image
+
+        img = Image.open(prepared)
+        self.assertEqual(img.size, (AVATAR_SIZE, AVATAR_SIZE))
+
     def test_update_avatar(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
 
-        image = SimpleUploadedFile('me.jpg', b'jpeg-bytes', content_type='image/jpeg')
+        image = SimpleUploadedFile('me.jpg', self._sample_jpeg_bytes(), content_type='image/jpeg')
         response = self.client.post(reverse('update_avatar'), {
             'avatar': image,
             'next': '/',
@@ -279,6 +300,20 @@ class ProfileAvatarTests(TestCase):
         self.user.profile.refresh_from_db()
         self.assertTrue(self.user.profile.avatar)
         self.assertIn('me', self.user.profile.avatar.name)
+
+    def test_user_list_avatar_zoomable(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        image = SimpleUploadedFile('face.jpg', self._sample_jpeg_bytes(), content_type='image/jpeg')
+        self.client.post(reverse('update_avatar'), {'avatar': image, 'next': '/'})
+        RoleModulePermission.objects.update_or_create(
+            role=ROLE_DIRECTOR,
+            defaults={'module_permissions': {MODULE_HRM: {'view': True, 'edit': True}}},
+        )
+        Profile.objects.filter(user=self.user).update(role=ROLE_DIRECTOR, is_employed=True)
+        response = self.client.get(reverse('user_list'))
+        self.assertContains(response, 'data-jp-avatar-zoom')
+        self.assertContains(response, 'jpAvatarZoomModal')
 
 
 class UserSearchTests(TestCase):
@@ -320,7 +355,11 @@ class UserSearchTests(TestCase):
     def test_hr_edit_can_update_other_user_avatar(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
 
-        image = SimpleUploadedFile('staff.jpg', b'jpeg-bytes', content_type='image/jpeg')
+        image = SimpleUploadedFile(
+            'staff.jpg',
+            ProfileAvatarTests._sample_jpeg_bytes(),
+            content_type='image/jpeg',
+        )
         response = self.client.post(reverse('user_edit', args=[self.target.id]), {
             'username': 'annt',
             'email': 'annt@justplay.vn',
@@ -333,3 +372,40 @@ class UserSearchTests(TestCase):
         self.target.profile.refresh_from_db()
         self.assertTrue(self.target.profile.avatar)
         self.assertIn('staff', self.target.profile.avatar.name)
+
+
+class MediaCleanupTests(TestCase):
+    def test_normalize_media_relative_path(self):
+        from hrm.media_cleanup import normalize_media_relative_path
+
+        self.assertEqual(normalize_media_relative_path('avatars/2026/05/me.jpg'), 'avatars/2026/05/me.jpg')
+        self.assertEqual(normalize_media_relative_path('/media/avatars/x.jpg'), 'avatars/x.jpg')
+        self.assertEqual(
+            normalize_media_relative_path('https://portal.justplay.vn/media/documents/pdf/a.pdf'),
+            'documents/pdf/a.pdf',
+        )
+
+    def test_cleanup_orphan_media_dry_run(self):
+        import tempfile
+        from pathlib import Path
+
+        from django.conf import settings
+        from django.test import override_settings
+
+        from hrm.media_cleanup import cleanup_orphan_media
+
+        with tempfile.TemporaryDirectory() as tmp:
+            media_root = Path(tmp)
+            orphan = media_root / 'avatars' / '2026' / '05'
+            orphan.mkdir(parents=True)
+            orphan_file = orphan / 'old.jpg'
+            orphan_file.write_bytes(b'orphan')
+
+            with override_settings(MEDIA_ROOT=str(media_root)):
+                result = cleanup_orphan_media(dry_run=True)
+                self.assertEqual(result['orphan_count'], 1)
+                self.assertTrue(orphan_file.exists())
+
+                result = cleanup_orphan_media(dry_run=False)
+                self.assertEqual(result['removed_count'], 1)
+                self.assertFalse(orphan_file.exists())

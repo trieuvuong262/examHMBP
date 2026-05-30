@@ -1984,8 +1984,8 @@ textarea.form-control {
 }
 
 .jp-hrm-avatar {
-    width: 42px;
-    height: 42px;
+    width: 150px;
+    height: 150px;
     flex-shrink: 0;
     background: linear-gradient(135deg, var(--hm-primary), var(--jp-black-800));
     color: #fff;
@@ -1994,7 +1994,7 @@ textarea.form-control {
     justify-content: center;
     border-radius: var(--jp-radius-sm);
     font-weight: 700;
-    font-size: 1rem;
+    font-size: 2.5rem;
     box-shadow: 0 3px 6px rgba(220, 38, 38, 0.15);
 }
 
@@ -2002,6 +2002,61 @@ textarea.form-control {
     display: block;
     object-fit: cover;
     padding: 0;
+}
+
+.jp-avatar-zoom-btn {
+    display: inline-flex;
+    cursor: zoom-in;
+    border-radius: inherit;
+    line-height: 0;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.jp-avatar-zoom-btn:hover {
+    transform: scale(1.03);
+}
+
+.jp-avatar-zoom-btn:focus-visible {
+    outline: 2px solid var(--hm-primary);
+    outline-offset: 2px;
+}
+
+.jp-hrm-list-avatar .jp-hrm-avatar.rounded-circle,
+.jp-hrm-list-avatar .jp-hrm-avatar-img.rounded-circle {
+    border-radius: 50% !important;
+}
+
+.jp-hrm-page .jp-hrm-list-avatar .jp-hrm-avatar,
+.jp-hrm-page .jp-hrm-list-avatar .jp-hrm-avatar-img {
+    width: 56px;
+    height: 56px;
+    font-size: 1.1rem;
+}
+
+@media (min-width: 768px) {
+    .jp-hrm-page .jp-hrm-list-avatar .jp-hrm-avatar,
+    .jp-hrm-page .jp-hrm-list-avatar .jp-hrm-avatar-img {
+        width: 150px;
+        height: 150px;
+        font-size: 2.5rem;
+    }
+}
+
+#jpAvatarZoomModal .jp-avatar-zoom-image {
+    width: 150px;
+    height: 150px;
+    max-width: min(320px, 85vw);
+    max-height: min(320px, 85vw);
+    object-fit: cover;
+    border-radius: 50%;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+}
+
+@media (min-width: 768px) {
+    #jpAvatarZoomModal .jp-avatar-zoom-image {
+        width: 280px;
+        height: 280px;
+    }
 }
 
 .jp-hrm-actions {
@@ -2228,10 +2283,10 @@ textarea.form-control {
 
 .jp-user-form-identity-avatar .jp-hrm-avatar.rounded-circle,
 .jp-user-form-identity-avatar .jp-hrm-avatar-img.rounded-circle {
-    width: 64px;
-    height: 64px;
+    width: 150px;
+    height: 150px;
     border-radius: 50% !important;
-    font-size: 1.35rem;
+    font-size: 2.5rem;
 }
 
 .jp-user-form-identity-main {
