@@ -20,6 +20,7 @@ from hrm.module_permissions import (
 from hrm.permissions import (
     can_assign_tasks,
     can_create_cross_dept_project,
+    can_create_internal_project,
     can_edit_user_guide,
     can_receive_assigned_tasks,
     can_submit_daily_report,
@@ -65,6 +66,7 @@ def portal_permissions(request):
             'jp_can_tasks': False,
             'jp_can_service_requests': False,
             'jp_can_assign_tasks': False,
+            'jp_can_create_internal_project': False,
             'jp_can_create_cross_dept': False,
             'jp_can_receive_tasks': False,
             'jp_can_edit_announcements': False,
@@ -108,6 +110,7 @@ def portal_permissions(request):
         'jp_can_tasks': user_can_access_module(user, MODULE_TASKS),
         'jp_can_service_requests': user_can_access_module(user, MODULE_SERVICE_REQUESTS),
         'jp_can_assign_tasks': can_assign_tasks(user),
+        'jp_can_create_internal_project': can_create_internal_project(user),
         'jp_can_create_cross_dept': can_create_cross_dept_project(user),
         'jp_can_receive_tasks': can_receive_assigned_tasks(user),
         'jp_can_edit_announcements': user_can_edit_module(user, MODULE_ANNOUNCEMENTS),

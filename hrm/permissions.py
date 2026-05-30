@@ -213,8 +213,14 @@ def has_task_subordinates(user) -> bool:
     return get_task_assignable_users(user).exists()
 
 
-def can_assign_tasks(user) -> bool:
-    """Giao việc — cần quyền sửa module Công việc và có người được giao."""
+def can_manage_team_tasks(user) -> bool:
+    """
+    Giao việc cá nhân & tạo dự án nội bộ — cần quyền sửa module Công việc.
+
+    - Tổ trưởng: có cấp dưới trực tiếp (Nhân sự → Nhân viên dưới quyền)
+    - Trưởng bộ phận: thuộc phòng ban (giao cho nhân sự cùng phòng)
+    - Giám đốc: quyền sửa module Công việc
+    """
     if not _has_tasks_module_access(user):
         return False
     from hrm.module_permissions import MODULE_TASKS
@@ -223,16 +229,22 @@ def can_assign_tasks(user) -> bool:
         return False
 
     role = user_role(user)
+    profile = get_profile(user)
+    if role == ROLE_TEAM_LEADER:
+        return has_task_subordinates(user)
     if role == ROLE_DIVISION_HEAD:
-        profile = get_profile(user)
-        return bool(profile and profile.department_id and has_task_subordinates(user))
+        return bool(profile and profile.department_id)
+    if role == ROLE_DIRECTOR:
+        return True
+    return False
 
-    return has_task_subordinates(user)
+
+def can_assign_tasks(user) -> bool:
+    return can_manage_team_tasks(user)
 
 
 def can_create_internal_project(user) -> bool:
-    """Tổ trưởng / Trưởng bộ phận — cùng điều kiện giao việc."""
-    return can_assign_tasks(user)
+    return can_manage_team_tasks(user)
 
 
 def can_receive_assigned_tasks(user) -> bool:
@@ -254,6 +266,11 @@ def can_create_cross_dept_project(user) -> bool:
     if not user_can_edit_module(user, MODULE_TASKS):
         return False
     return user_role(user) in CROSS_DEPT_CREATOR_ROLES
+
+
+def can_create_any_project(user) -> bool:
+    """Tạo dự án nội bộ hoặc liên phòng ban."""
+    return can_create_internal_project(user) or can_create_cross_dept_project(user)
 
 
 def is_cross_dept_dept_head_viewer(user, project) -> bool:

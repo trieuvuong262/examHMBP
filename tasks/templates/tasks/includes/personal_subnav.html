@@ -6,7 +6,7 @@
             Việc của tôi
         </a>
         {% endif %}
-        {% if can_assign %}
+        {% if can_assign|default:jp_can_assign_tasks %}
         <a href="{% url 'tasks:assigned' %}"
            class="btn btn-sm {% if request.resolver_match.url_name == 'assigned' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
             Việc đã giao

@@ -48,7 +48,7 @@ def _assign_access_required(view_func):
     @_tasks_access_required
     def wrapper(request, *args, **kwargs):
         if not can_assign_tasks(request.user):
-            messages.error(request, 'Bạn chưa có quyền giao việc. Cần quyền cập nhật module và nhân viên cấp dưới trực tiếp.')
+            messages.error(request, 'Bạn chưa có quyền giao việc. Cần quyền cập nhật module Công việc và vai trò quản lý phù hợp.')
             return redirect('tasks:my')
         return view_func(request, *args, **kwargs)
     return wrapper
