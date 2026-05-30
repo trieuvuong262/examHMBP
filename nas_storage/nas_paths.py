@@ -6,6 +6,7 @@ import hashlib
 import json
 import mimetypes
 import os
+import shutil
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -122,14 +123,73 @@ def list_directory(path: Path, *, fresh: bool = False, rel_path: str = '') -> di
     return listing
 
 
-def list_directory_with_source(path: Path, *, fresh: bool = False, rel_path: str = '') -> tuple[dict, str, bool]:
-    """Trả về (listing, source, stale). stale=True khi cần fresh nhưng chỉ đọc được qua mount."""
-    if fresh and rel_path:
+_rclone_listing_ok: bool | None = None
+
+
+def rclone_listing_available() -> bool:
+    """rclone + config có sẵn để liệt kê thư mục (bỏ qua cache FUSE)."""
+    global _rclone_listing_ok
+    if _rclone_listing_ok is not None:
+        return _rclone_listing_ok
+    if not shutil.which('rclone'):
+        _rclone_listing_ok = False
+        return False
+    config = getattr(settings, 'NAS_RCLONE_CONFIG', '')
+    if config and not os.path.isfile(config):
+        _rclone_listing_ok = False
+        return False
+    _rclone_listing_ok = True
+    return True
+
+
+def nas_path_exists(rel_path: str) -> bool:
+    """Kiểm tra file/thư mục còn trên NAS — ưu tiên rclone."""
+    rel = normalize_rel_path(rel_path)
+    if not rel:
+        return False
+    if rclone_listing_available():
         try:
-            return list_directory_via_rclone(rel_path), 'rclone', False
-        except NasPathError:
+            target = _rclone_remote_path(rel)
+            proc = subprocess.run(
+                ['rclone', 'lsl', target],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+                env=_rclone_env(),
+            )
+            if proc.returncode == 0:
+                return True
+            proc = subprocess.run(
+                ['rclone', 'lsd', target],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+                env=_rclone_env(),
+            )
+            return proc.returncode == 0
+        except (OSError, subprocess.TimeoutExpired):
             pass
-    return _list_directory_local(path), 'mount', bool(fresh and rel_path)
+    candidate = nas_mount_root() / rel
+    return candidate.exists()
+
+
+def list_directory_with_source(path: Path, *, fresh: bool = False, rel_path: str = '') -> tuple[dict, str, bool]:
+    """Trả về (listing, source, stale). Luôn ưu tiên rclone — mount chỉ fallback khi không bắt buộc fresh."""
+    rel = normalize_rel_path(rel_path)
+    if rel and rclone_listing_available():
+        try:
+            return list_directory_via_rclone(rel), 'rclone', False
+        except NasPathError:
+            if fresh:
+                raise NasPathError(
+                    'Không đồng bộ được từ NAS (rclone). '
+                    'Liên hệ IT kiểm tra cấu hình rclone trên server.'
+                )
+
+    listing = _list_directory_local(path)
+    return listing, 'mount', bool(fresh and rel)
 
 
 def listing_fingerprint(listing: dict) -> str:
@@ -188,7 +248,7 @@ def list_directory_via_rclone(rel_path: str) -> dict:
     target = _rclone_remote_path(rel_path)
     try:
         proc = subprocess.run(
-            ['rclone', 'lsjson', target, '--dirs-first'],
+            ['rclone', 'lsjson', target, '--dirs-first', '--no-mimetype'],
             capture_output=True,
             text=True,
             timeout=90,

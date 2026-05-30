@@ -101,7 +101,10 @@
                     {% if folders or files %}{{ folders|length }} thư mục · {{ files|length }} file{% else %}Thư mục trống{% endif %}
                 </span>
                 <span class="text-muted small jp-nas-sync-status" id="jp-nas-sync-status">
-                    {% if synced_at %}<i class="bi bi-cloud-check me-1"></i>{{ synced_at }}{% endif %}
+                    {% if synced_at %}
+                    <i class="bi bi-cloud-check me-1"></i>{{ synced_at }}
+                    {% if listing_source == 'rclone' %}<span class="badge bg-success-subtle text-success ms-1">NAS</span>{% else %}<span class="badge bg-warning-subtle text-warning ms-1">cache</span>{% endif %}
+                    {% endif %}
                 </span>
             </div>
             {% if can_upload %}
@@ -182,18 +185,25 @@
     var autoToggle = document.getElementById('jp-nas-auto-sync');
     var reloadBtn = document.getElementById('jp-nas-reload-btn');
     var reloadIcon = document.getElementById('jp-nas-reload-icon');
-    var storageKey = 'jp-nas-auto-sync';
+    var storageKey = 'jp-nas-auto-sync-v2';
     var timer = null;
     var syncing = false;
+    var staleReloadCount = 0;
 
-    function setStatus(text, spinning) {
+    function statusSuffix(source) {
+        if (source === 'rclone') return ' <span class="badge bg-success-subtle text-success ms-1">NAS</span>';
+        if (source === 'mount') return ' <span class="badge bg-warning-subtle text-warning ms-1">cache</span>';
+        return '';
+    }
+
+    function setStatus(text, spinning, source) {
         if (!statusEl) return;
         if (spinning) {
             statusEl.innerHTML = '<span class="jp-nas-sync-spin"><i class="bi bi-arrow-repeat"></i></span> Đang đồng bộ…';
             return;
         }
         statusEl.innerHTML = text
-            ? '<i class="bi bi-cloud-check me-1"></i>' + text
+            ? '<i class="bi bi-cloud-check me-1"></i>' + text + statusSuffix(source || '')
             : '';
     }
 
@@ -212,7 +222,9 @@
     }
 
     function fullReload() {
-        window.location.href = reloadUrl;
+        var url = reloadUrl;
+        var sep = url.indexOf('?') >= 0 ? '&' : '?';
+        window.location.href = url + sep + '_=' + Date.now();
     }
 
     function syncListing() {
@@ -221,7 +233,7 @@
         setStatus('', true);
         setReloadSpinning(true);
 
-        var url = syncUrl + '?path=' + encodeURIComponent(relPath);
+        var url = syncUrl + '?path=' + encodeURIComponent(relPath) + '&_=' + Date.now();
         if (shareToken) url += '&share=' + encodeURIComponent(shareToken);
         return fetch(url, {
             method: 'GET',
@@ -237,10 +249,16 @@
                 return res.json();
             })
             .then(function (data) {
-                if (data.stale && data.source === 'mount') {
-                    fullReload();
+                if (data.stale || data.source === 'mount') {
+                    staleReloadCount += 1;
+                    if (staleReloadCount >= 2) {
+                        fullReload();
+                    } else {
+                        setStatus(data.synced_at, false, data.source);
+                    }
                     return;
                 }
+                staleReloadCount = 0;
                 var changed = data.listing_key && data.listing_key !== listingKey;
                 if (bodyEl) {
                     bodyEl.innerHTML = data.html;
@@ -249,7 +267,7 @@
                 listingKey = data.listing_key || listingKey;
                 root.dataset.listingKey = listingKey;
                 updateSummary(data.folder_count, data.file_count);
-                setStatus(data.synced_at, false);
+                setStatus(data.synced_at, false, data.source);
                 if (changed) {
                     root.classList.add('jp-nas-listing-updated');
                     window.setTimeout(function () {
@@ -259,6 +277,8 @@
             })
             .catch(function () {
                 setStatus('Lỗi đồng bộ', false);
+                staleReloadCount += 1;
+                if (staleReloadCount >= 2) fullReload();
             })
             .finally(function () {
                 syncing = false;
@@ -275,6 +295,7 @@
 
     function startAutoSync() {
         stopAutoSync();
+        if (autoToggle && !autoToggle.checked) return;
         timer = setInterval(function () {
             syncListing();
         }, intervalSec * 1000);
@@ -290,11 +311,12 @@
     if (autoToggle) {
         var saved = localStorage.getItem(storageKey);
         autoToggle.checked = saved !== '0';
-        if (autoToggle.checked) {
-            startAutoSync();
-            syncListing();
-        }
+    }
 
+    startAutoSync();
+    window.setTimeout(syncListing, 800);
+
+    if (autoToggle) {
         autoToggle.addEventListener('change', function () {
             localStorage.setItem(storageKey, autoToggle.checked ? '1' : '0');
             if (autoToggle.checked) {
@@ -309,7 +331,7 @@
     document.addEventListener('visibilitychange', function () {
         if (document.hidden) {
             stopAutoSync();
-        } else if (autoToggle && autoToggle.checked) {
+        } else {
             startAutoSync();
             syncListing();
         }

@@ -26,6 +26,7 @@ from nas_storage.nas_paths import (
     listing_fingerprint,
     listing_synced_at,
     nas_is_available,
+    nas_path_exists,
     normalize_rel_path,
     resolve_nas_path,
 )
@@ -126,11 +127,7 @@ def browse(request):
     if not rel_path:
         root_entries = []
         for entry in roots:
-            try:
-                path = resolve_nas_path(request.user, entry.rel_path)
-                exists = path.is_dir()
-            except NasPathError:
-                exists = False
+            exists = nas_path_exists(entry.rel_path)
             root_entries.append({
                 'entry': entry,
                 'exists': exists,
@@ -147,7 +144,7 @@ def browse(request):
         return redirect('nas_storage:share_open', token=share.token)
 
     try:
-        ctx = _listing_context(request, rel_path, fresh=fresh, share=share)
+        ctx = _listing_context(request, rel_path, fresh=True, share=share)
     except NasPathError as exc:
         messages.error(request, str(exc))
         if share:
@@ -159,8 +156,14 @@ def browse(request):
             return redirect('nas_storage:share_open', token=share.token)
         return redirect('nas_storage:browse')
 
-    if fresh:
-        messages.success(request, f'Đã đồng bộ lúc {ctx["synced_at"]}.')
+    if request.GET.get('refresh') == '1':
+        if ctx.get('listing_source') == 'rclone':
+            messages.success(request, f'Đã đồng bộ lúc {ctx["synced_at"]} (trực tiếp từ NAS).')
+        elif ctx.get('listing_stale'):
+            messages.warning(
+                request,
+                'Chưa đồng bộ trực tiếp từ NAS — danh sách có thể cũ. Liên hệ IT kiểm tra rclone.',
+            )
 
     return render(request, 'nas_storage/browse.html', ctx)
 

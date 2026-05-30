@@ -1,4 +1,5 @@
 import json
+import os
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
@@ -76,7 +77,7 @@ class NasBrowseViewTests(TestCase):
         import os
         os.makedirs('/tmp/nas-browse-test/IT/VuongIT', exist_ok=True)
         listing = {'folders': [], 'files': [{'name': 'a.txt', 'size': 1, 'modified': 0, 'is_dir': False, 'mime': 'text/plain'}]}
-        with patch('nas_storage.views.list_directory_with_source', return_value=(listing, 'mount', False)):
+        with patch('nas_storage.views.list_directory_with_source', return_value=(listing, 'rclone', False)):
             url = reverse('nas_storage:browse') + '?path=IT/VuongIT&refresh=1'
             response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
@@ -88,7 +89,7 @@ class NasBrowseViewTests(TestCase):
         import os
         os.makedirs('/tmp/nas-browse-test/IT/VuongIT', exist_ok=True)
         listing = {'folders': [{'name': 'docs', 'size': 0, 'modified': 0, 'is_dir': True}], 'files': []}
-        with patch('nas_storage.views.list_directory_with_source', return_value=(listing, 'mount', False)):
+        with patch('nas_storage.views.list_directory_with_source', return_value=(listing, 'rclone', False)):
             url = reverse('nas_storage:sync') + '?path=IT/VuongIT'
             response = self.client.get(url, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
         self.assertEqual(response.status_code, 200)
@@ -114,6 +115,21 @@ class NasRcloneListingTests(TestCase):
         self.assertEqual(result['files'][0]['name'], 'report.pdf')
         self.assertEqual(len(result['folders']), 1)
         self.assertEqual(result['folders'][0]['name'], 'archive')
+
+    @override_settings(NAS_MOUNT_ROOT='/tmp/nas-rclone-pref-test', NAS_RCLONE_CONFIG='/tmp/fake-rclone.conf')
+    def test_list_directory_prefers_rclone(self):
+        import nas_storage.nas_paths as np
+        np._rclone_listing_ok = None
+        os.makedirs('/tmp/nas-rclone-pref-test/IT/u', exist_ok=True)
+        listing = {'folders': [], 'files': [{'name': 'live.txt', 'size': 1, 'modified': 0, 'is_dir': False}]}
+        with patch.object(np, 'rclone_listing_available', return_value=True):
+            with patch.object(np, 'list_directory_via_rclone', return_value=listing):
+                result, source, stale = np.list_directory_with_source(
+                    np.nas_mount_root() / 'IT/u', fresh=True, rel_path='IT/u',
+                )
+        self.assertEqual(source, 'rclone')
+        self.assertFalse(stale)
+        self.assertEqual(result['files'][0]['name'], 'live.txt')
 
 
 class NasShareTests(TestCase):

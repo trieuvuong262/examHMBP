@@ -18,7 +18,7 @@ fusermount -u /mnt/nas-portal 2>/dev/null || true
 mkdir -p /mnt/nas-portal
 rclone mount synology:DATACHUNG /mnt/nas-portal \
   --daemon --allow-other --vfs-cache-mode writes \
-  --dir-cache-time 30s --poll-interval 15s --attr-timeout 1s
+  --dir-cache-time 5s --poll-interval 5s --attr-timeout 1s
 
 sleep 2
 echo "=== ls /mnt/nas-portal ==="
@@ -34,7 +34,7 @@ Wants=network-online.target
 Type=simple
 ExecStart=/usr/bin/rclone mount synology:DATACHUNG /mnt/nas-portal \
   --allow-other --vfs-cache-mode writes \
-  --dir-cache-time 30s --poll-interval 15s --attr-timeout 1s
+  --dir-cache-time 5s --poll-interval 5s --attr-timeout 1s
 ExecStop=/bin/fusermount -u /mnt/nas-portal
 Restart=on-failure
 RestartSec=15

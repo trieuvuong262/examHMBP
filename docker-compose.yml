@@ -27,6 +27,7 @@ services:
       - /root/.config/rclone:/root/.config/rclone:ro
     environment:
       NAS_RCLONE_CONFIG: /root/.config/rclone/rclone.conf
+      NAS_RCLONE_REMOTE: ${NAS_RCLONE_REMOTE:-synology:DATACHUNG}
     expose:
       - "8000"
     env_file: .env
