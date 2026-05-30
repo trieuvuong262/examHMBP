@@ -96,7 +96,7 @@
                     <i class="bi bi-arrow-clockwise" id="jp-nas-reload-icon"></i> Tải lại
                 </a>
                 <div class="form-check form-switch mb-0 ms-1">
-                    <input class="form-check-input" type="checkbox" role="switch" id="jp-nas-auto-sync">
+                    <input class="form-check-input" type="checkbox" role="switch" id="jp-nas-auto-sync" checked>
                     <label class="form-check-label small text-muted" for="jp-nas-auto-sync">Tự động</label>
                 </div>
                 <span class="text-muted small" id="jp-nas-summary">
@@ -189,7 +189,8 @@
     var autoToggle = document.getElementById('jp-nas-auto-sync');
     var reloadBtn = document.getElementById('jp-nas-reload-btn');
     var reloadIcon = document.getElementById('jp-nas-reload-icon');
-    var storageKey = 'jp-nas-auto-sync-v2';
+    var storageKey = 'jp-nas-auto-sync-v3';
+    var autoEnabled = true;
     var timer = null;
     var syncing = false;
     var syncGen = 0;
@@ -267,10 +268,14 @@
         var url = syncUrl + '?path=' + encodeURIComponent(relPath) + '&_=' + Date.now();
         if (shareToken) url += '&share=' + encodeURIComponent(shareToken);
 
+        var abortCtrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        var abortTimer = abortCtrl ? window.setTimeout(function () { abortCtrl.abort(); }, 45000) : null;
+
         return fetch(url, {
             method: 'GET',
             credentials: 'same-origin',
             cache: 'no-store',
+            signal: abortCtrl ? abortCtrl.signal : undefined,
             headers: {
                 'Accept': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest'
@@ -285,17 +290,18 @@
             })
             .then(function (data) {
                 if (myGen !== syncGen) return;
-                if (data.ok === false) {
+                if (data.ok === false || (data.error && !data.html)) {
                     if (lastSyncAt) setStatus(lastSyncAt, false, lastSource);
                     return;
                 }
-                applyListing(data);
+                if (data.html !== undefined) applyListing(data);
             })
             .catch(function () {
                 if (myGen !== syncGen) return;
                 if (lastSyncAt) setStatus(lastSyncAt, false, lastSource);
             })
             .finally(function () {
+                if (abortTimer) window.clearTimeout(abortTimer);
                 if (myGen === syncGen) {
                     syncing = false;
                     setReloadSpinning(false);
@@ -305,16 +311,18 @@
 
     function stopAutoSync() {
         if (timer) {
-            clearInterval(timer);
+            clearTimeout(timer);
             timer = null;
         }
     }
 
-    function startAutoSync() {
+    function scheduleAutoSync() {
         stopAutoSync();
-        if (autoToggle && !autoToggle.checked) return;
-        timer = setInterval(function () {
-            syncListing();
+        if (!autoEnabled) return;
+        timer = setTimeout(function () {
+            syncListing().finally(function () {
+                scheduleAutoSync();
+            });
         }, intervalSec * 1000);
     }
 
@@ -327,17 +335,13 @@
 
     if (autoToggle) {
         var saved = localStorage.getItem(storageKey);
-        autoToggle.checked = saved !== '0';
-    }
-
-    startAutoSync();
-    window.setTimeout(syncListing, 800);
-
-    if (autoToggle) {
+        autoEnabled = saved !== '0';
+        autoToggle.checked = autoEnabled;
         autoToggle.addEventListener('change', function () {
-            localStorage.setItem(storageKey, autoToggle.checked ? '1' : '0');
-            if (autoToggle.checked) {
-                startAutoSync();
+            autoEnabled = autoToggle.checked;
+            localStorage.setItem(storageKey, autoEnabled ? '1' : '0');
+            if (autoEnabled) {
+                scheduleAutoSync();
                 syncListing();
             } else {
                 stopAutoSync();
@@ -345,12 +349,15 @@
         });
     }
 
+    scheduleAutoSync();
+    window.setTimeout(syncListing, 1000);
+
     document.addEventListener('visibilitychange', function () {
         if (document.hidden) {
             stopAutoSync();
-        } else {
-            startAutoSync();
+        } else if (autoEnabled) {
             syncListing();
+            scheduleAutoSync();
         }
     });
 
