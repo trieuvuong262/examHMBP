@@ -163,7 +163,20 @@ fi
 echo "==> 1) Pull latest code"
 git fetch --all --prune
 git checkout "${BRANCH}"
-git pull --ff-only origin "${BRANCH}"
+# VPS là môi trường deploy — luôn khớp origin, không giữ sửa tay/hotfix local
+if ! git diff --quiet || ! git diff --cached --quiet || [[ -n "$(git status --porcelain)" ]]; then
+  echo "    Local changes detected — resetting to origin/${BRANCH}"
+fi
+git reset --hard "origin/${BRANCH}"
+git clean -ffd \
+  -e .env \
+  -e .env.local \
+  -e media \
+  -e media/ \
+  -e staticfiles \
+  -e staticfiles/ \
+  -e '*.log' 2>/dev/null || true
+echo "    At commit: $(git rev-parse --short HEAD)"
 
 echo "==> 2) Cleanup stale files from previous deploy"
 cleanup_stale_files
@@ -186,6 +199,16 @@ compose exec -T web python manage.py migrate --noinput
 
 verify_migrations
 
+verify_nas_rclone() {
+  echo "==> Verify NAS rclone in web container"
+  if compose exec -T web rclone lsd synology:DATACHUNG >/dev/null 2>&1; then
+    echo "    NAS rclone OK (synology:DATACHUNG)"
+  else
+    echo "    WARNING: rclone không kết nối được NAS trong container."
+    echo "             Kiểm tra: /root/.config/rclone/rclone.conf và scripts/setup-rclone-nas.sh"
+  fi
+}
+
 echo "==> 8) Collect static files (clear old assets)"
 compose exec -T web python manage.py collectstatic --noinput --clear
 
@@ -198,6 +221,8 @@ fi
 
 echo "==> 10) Show status"
 compose ps
+
+verify_nas_rclone
 
 echo "==> 11) Cleanup old Docker images"
 docker image prune -f
