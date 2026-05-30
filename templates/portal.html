@@ -11,7 +11,7 @@
                     Xin chào, {{ profile.full_name|default:user.first_name|default:user.username }}
                 </h1>
                 <p class="jp-home-hero-sub mb-0">
-                    Bộ công cụ tiện ích — chuyển đổi tài liệu, xử lý ảnh và ghi chú cá nhân.
+                    Xem việc cần làm và dùng bộ công cụ tiện ích ngay trên trang chủ.
                 </p>
             </div>
             <div class="jp-home-hero-meta">
@@ -28,6 +28,59 @@
             </div>
         </div>
     </section>
+
+    <div class="row g-3 g-lg-4 justify-content-center mb-3 mb-md-4">
+        <div class="col-12 col-xl-8">
+            <section class="jp-home-section" aria-labelledby="jp-home-todo-title">
+                <div class="jp-home-section-head">
+                    <h2 id="jp-home-todo-title" class="jp-home-section-title">
+                        <i class="bi bi-bell-fill text-hm me-2"></i>Việc cần làm
+                    </h2>
+                    {% if dashboard_widgets %}
+                    <span class="badge bg-hm">{{ dashboard_widgets|length }}</span>
+                    {% endif %}
+                </div>
+
+                {% if dashboard_widgets %}
+                <div class="jp-dashboard-panel">
+                    <div class="jp-dashboard-list">
+                        {% for item in dashboard_widgets %}
+                        <a href="{{ item.url }}" class="jp-dashboard-item jp-dashboard-item--{{ item.level }}">
+                            <div class="jp-dashboard-item-icon">
+                                <i class="bi {{ item.icon }}"></i>
+                            </div>
+                            <div class="jp-dashboard-item-body">
+                                <div class="jp-dashboard-item-title">
+                                    {{ item.title }}
+                                    {% if item.badge %}
+                                    <span class="badge rounded-pill ms-1">{{ item.badge }}</span>
+                                    {% endif %}
+                                </div>
+                                <div class="jp-dashboard-item-text">{{ item.text }}</div>
+                            </div>
+                            <div class="jp-dashboard-item-action d-none d-sm-flex">
+                                {{ item.action }} <i class="bi bi-chevron-right ms-1"></i>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% else %}
+                <div class="jp-home-empty card border-0 shadow-sm">
+                    <div class="card-body d-flex align-items-center gap-3 py-4">
+                        <div class="jp-home-empty-icon">
+                            <i class="bi bi-check2-circle"></i>
+                        </div>
+                        <div>
+                            <div class="fw-bold mb-1">Không còn việc gấp</div>
+                            <div class="text-muted small mb-0">Thông báo, báo cáo và công việc đã xử lý xong — cuộn xuống để dùng công cụ hoặc vào module qua menu bên trái.</div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </section>
+        </div>
+    </div>
 
     <section class="jp-home-section" aria-labelledby="jp-home-tools-title">
         <div class="jp-home-section-head">

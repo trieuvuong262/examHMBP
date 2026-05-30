@@ -24,6 +24,7 @@ from PortalJustPlay.pagination import paginate_queryset
 from kpi.models import YearlyKpi, KpiPeriod  # Import đúng Model mới
 from hrm.permissions import is_manager, is_portal_admin
 from tools.catalog import PORTAL_TOOLS
+from .portal_widgets import get_portal_dashboard
 from .models import (
     Exam, 
     Question, 
@@ -58,6 +59,7 @@ def login_redirect_view(request):
 def home_portal(request):
     return render(request, 'portal.html', {
         'portal_tools': PORTAL_TOOLS,
+        'dashboard_widgets': get_portal_dashboard(request.user),
     })
 
 @login_required
