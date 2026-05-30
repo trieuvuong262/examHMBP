@@ -99,6 +99,7 @@ class NasBrowseViewTests(TestCase):
         self.assertIn('docs', data['html'])
         self.assertIn('listing_key', data)
         self.assertIn('source', data)
+        self.assertTrue(data.get('ok'))
 
 
 class NasRcloneListingTests(TestCase):

@@ -79,6 +79,8 @@
          data-share-token="{{ share_token|default:'' }}"
          data-interval="{{ auto_sync_interval|default:15 }}"
          data-listing-key="{{ listing_key|default:'' }}"
+         data-last-sync="{{ synced_at|default:'' }}"
+         data-last-source="{{ listing_source|default:'rclone' }}"
          data-reload-url="{% url 'nas_storage:browse' %}?path={{ rel_path|urlencode }}&amp;refresh=1{% if share_token %}&amp;share={{ share_token }}{% endif %}">
         <div class="card-header bg-white border-bottom py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
             <div class="d-flex align-items-center flex-wrap gap-2">
@@ -179,6 +181,8 @@
     var reloadUrl = root.dataset.reloadUrl;
     var intervalSec = parseInt(root.dataset.interval, 10) || 15;
     var listingKey = root.dataset.listingKey || '';
+    var lastSyncAt = root.dataset.lastSync || '';
+    var lastSource = root.dataset.lastSource || 'rclone';
     var bodyEl = document.getElementById('jp-nas-listing-body');
     var summaryEl = document.getElementById('jp-nas-summary');
     var statusEl = document.getElementById('jp-nas-sync-status');
@@ -188,7 +192,7 @@
     var storageKey = 'jp-nas-auto-sync-v2';
     var timer = null;
     var syncing = false;
-    var staleReloadCount = 0;
+    var syncGen = 0;
 
     function statusSuffix(source) {
         if (source === 'rclone') return ' <span class="badge bg-success-subtle text-success ms-1">NAS</span>';
@@ -199,12 +203,14 @@
     function setStatus(text, spinning, source) {
         if (!statusEl) return;
         if (spinning) {
-            statusEl.innerHTML = '<span class="jp-nas-sync-spin"><i class="bi bi-arrow-repeat"></i></span> Đang đồng bộ…';
+            if (lastSyncAt) {
+                statusEl.innerHTML = '<span class="jp-nas-sync-spin"><i class="bi bi-arrow-repeat"></i></span> '
+                    + lastSyncAt + statusSuffix(lastSource);
+            }
             return;
         }
-        statusEl.innerHTML = text
-            ? '<i class="bi bi-cloud-check me-1"></i>' + text + statusSuffix(source || '')
-            : '';
+        if (!text) return;
+        statusEl.innerHTML = '<i class="bi bi-cloud-check me-1"></i>' + text + statusSuffix(source || '');
     }
 
     function setReloadSpinning(on) {
@@ -227,14 +233,40 @@
         window.location.href = url + sep + '_=' + Date.now();
     }
 
+    function applyListing(data) {
+        var prevKey = listingKey;
+        if (bodyEl && data.html) {
+            bodyEl.innerHTML = data.html;
+            bindShareButtons(bodyEl);
+        }
+        if (data.listing_key) {
+            listingKey = data.listing_key;
+            root.dataset.listingKey = listingKey;
+        }
+        updateSummary(data.folder_count, data.file_count);
+        lastSyncAt = data.synced_at || lastSyncAt;
+        lastSource = data.source || lastSource;
+        root.dataset.lastSync = lastSyncAt;
+        root.dataset.lastSource = lastSource;
+        setStatus(lastSyncAt, false, lastSource);
+        if (data.listing_key && data.listing_key !== prevKey) {
+            root.classList.add('jp-nas-listing-updated');
+            window.setTimeout(function () {
+                root.classList.remove('jp-nas-listing-updated');
+            }, 1200);
+        }
+    }
+
     function syncListing() {
         if (syncing) return Promise.resolve();
         syncing = true;
+        var myGen = ++syncGen;
         setStatus('', true);
         setReloadSpinning(true);
 
         var url = syncUrl + '?path=' + encodeURIComponent(relPath) + '&_=' + Date.now();
         if (shareToken) url += '&share=' + encodeURIComponent(shareToken);
+
         return fetch(url, {
             method: 'GET',
             credentials: 'same-origin',
@@ -245,44 +277,29 @@
             }
         })
             .then(function (res) {
-                if (!res.ok) throw new Error('sync failed');
+                var ct = (res.headers.get('content-type') || '');
+                if (!ct.includes('application/json')) {
+                    throw new Error('not json');
+                }
                 return res.json();
             })
             .then(function (data) {
-                if (data.stale || data.source === 'mount') {
-                    staleReloadCount += 1;
-                    if (staleReloadCount >= 2) {
-                        fullReload();
-                    } else {
-                        setStatus(data.synced_at, false, data.source);
-                    }
+                if (myGen !== syncGen) return;
+                if (data.ok === false) {
+                    if (lastSyncAt) setStatus(lastSyncAt, false, lastSource);
                     return;
                 }
-                staleReloadCount = 0;
-                var changed = data.listing_key && data.listing_key !== listingKey;
-                if (bodyEl) {
-                    bodyEl.innerHTML = data.html;
-                    bindShareButtons(bodyEl);
-                }
-                listingKey = data.listing_key || listingKey;
-                root.dataset.listingKey = listingKey;
-                updateSummary(data.folder_count, data.file_count);
-                setStatus(data.synced_at, false, data.source);
-                if (changed) {
-                    root.classList.add('jp-nas-listing-updated');
-                    window.setTimeout(function () {
-                        root.classList.remove('jp-nas-listing-updated');
-                    }, 1200);
-                }
+                applyListing(data);
             })
             .catch(function () {
-                setStatus('Lỗi đồng bộ', false);
-                staleReloadCount += 1;
-                if (staleReloadCount >= 2) fullReload();
+                if (myGen !== syncGen) return;
+                if (lastSyncAt) setStatus(lastSyncAt, false, lastSource);
             })
             .finally(function () {
-                syncing = false;
-                setReloadSpinning(false);
+                if (myGen === syncGen) {
+                    syncing = false;
+                    setReloadSpinning(false);
+                }
             });
     }
 

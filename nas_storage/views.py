@@ -174,18 +174,19 @@ def sync_list(request):
     rel_path = _rel_from_request(request)
     share, _token = _share_from_request(request)
     if not rel_path:
-        return JsonResponse({'error': 'missing path'}, status=400)
+        return JsonResponse({'ok': False, 'error': 'missing path', 'synced_at': listing_synced_at()})
 
     if share and not is_path_under_share(rel_path, share.rel_path):
-        return JsonResponse({'error': 'invalid share'}, status=403)
+        return JsonResponse({'ok': False, 'error': 'invalid share', 'synced_at': listing_synced_at()})
 
     try:
         ctx = _listing_context(request, rel_path, fresh=True, share=share)
     except NasPathError as exc:
-        return JsonResponse({'error': str(exc)}, status=400)
+        return JsonResponse({'ok': False, 'error': str(exc), 'synced_at': listing_synced_at()})
 
     html = render_to_string('nas_storage/_listing_body.html', ctx, request=request)
     return JsonResponse({
+        'ok': True,
         'html': html,
         'folder_count': len(ctx['folders']),
         'file_count': len(ctx['files']),
