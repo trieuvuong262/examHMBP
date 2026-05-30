@@ -1,0 +1,72 @@
+{% extends "tools/tool_base.html" %}
+{% load static %}
+
+{% block tool_content %}
+<div class="row g-3">
+    <div class="col-12 col-lg-4">
+        <div class="jp-tool-card card border-0 shadow-sm">
+            <div class="card-body p-3 p-md-4">
+                <h2 class="h6 fw-bold mb-3">Thêm ghi chú</h2>
+                <form method="post" action="{% url 'tools:note_quick_add' %}">
+                    {% csrf_token %}
+                    <div class="mb-2">
+                        <input type="text" name="title" class="form-control form-control-sm" placeholder="Tiêu đề (tuỳ chọn)">
+                    </div>
+                    <div class="mb-2">
+                        <textarea name="content" class="form-control" rows="4" placeholder="Nội dung ghi chú…"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <select name="color" class="form-select form-select-sm">
+                            <option value="yellow">Vàng</option>
+                            <option value="blue">Xanh dương</option>
+                            <option value="green">Xanh lá</option>
+                            <option value="pink">Hồng</option>
+                            <option value="gray">Xám</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-hm btn-sm w-100">
+                        <i class="bi bi-plus-lg me-1"></i>Thêm
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-8">
+        <div id="notes-grid" class="jp-notes-grid">
+            {% for note in notes %}
+            <article class="jp-note-card jp-note-card--{{ note.color }}" data-note-id="{{ note.pk }}">
+                <div class="jp-note-card-head">
+                    <input type="text" class="jp-note-title" value="{{ note.title }}" placeholder="Tiêu đề" maxlength="120">
+                    <button type="button" class="jp-note-delete btn btn-link btn-sm text-danger p-0" title="Xóa">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+                <textarea class="jp-note-content" rows="5" placeholder="Nội dung…">{{ note.content }}</textarea>
+                <div class="jp-note-foot">
+                    <select class="jp-note-color form-select form-select-sm">
+                        <option value="yellow" {% if note.color == 'yellow' %}selected{% endif %}>Vàng</option>
+                        <option value="blue" {% if note.color == 'blue' %}selected{% endif %}>Xanh dương</option>
+                        <option value="green" {% if note.color == 'green' %}selected{% endif %}>Xanh lá</option>
+                        <option value="pink" {% if note.color == 'pink' %}selected{% endif %}>Hồng</option>
+                        <option value="gray" {% if note.color == 'gray' %}selected{% endif %}>Xám</option>
+                    </select>
+                    <span class="jp-note-saved text-muted small"></span>
+                </div>
+            </article>
+            {% empty %}
+            <div id="notes-empty" class="jp-tool-card card border-0 shadow-sm">
+                <div class="card-body text-center text-muted py-5">
+                    <i class="bi bi-sticky fs-2 d-block mb-2"></i>
+                    Chưa có ghi chú — thêm ghi chú đầu tiên bên trái.
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block tool_js %}
+<script src="{% static 'js/tools/notes.js' %}"></script>
+{% endblock %}

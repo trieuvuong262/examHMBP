@@ -1011,6 +1011,279 @@ textarea.form-control {
     flex-shrink: 0;
 }
 
+.jp-home-tools-grid {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+@media (min-width: 576px) {
+    .jp-home-tools-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 992px) {
+    .jp-home-tools-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1rem;
+    }
+}
+
+.jp-home-tool-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    padding: 1rem 1.05rem;
+    border-radius: var(--jp-radius-lg);
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    text-decoration: none;
+    color: inherit;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    min-height: 100%;
+}
+
+.jp-home-tool-card:hover {
+    color: inherit;
+    transform: translateY(-2px);
+    border-color: rgba(220, 38, 38, 0.22);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.jp-home-tool-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--jp-radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+    background: var(--hm-primary-soft);
+    color: var(--hm-primary);
+}
+
+.jp-home-tool-card--blue .jp-home-tool-icon { background: #eff6ff; color: #2563eb; }
+.jp-home-tool-card--purple .jp-home-tool-icon { background: #f5f3ff; color: #7c3aed; }
+.jp-home-tool-card--green .jp-home-tool-icon { background: #ecfdf5; color: #059669; }
+.jp-home-tool-card--pink .jp-home-tool-icon { background: #fdf2f8; color: #db2777; }
+.jp-home-tool-card--red .jp-home-tool-icon { background: #fef2f2; color: #dc2626; }
+.jp-home-tool-card--amber .jp-home-tool-icon { background: #fffbeb; color: #d97706; }
+
+.jp-home-tool-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.jp-home-tool-name {
+    font-weight: 800;
+    font-size: 0.95rem;
+    color: #1e293b;
+}
+
+.jp-home-tool-desc {
+    font-size: 0.8rem;
+    color: #64748b;
+    line-height: 1.45;
+}
+
+.jp-home-tool-arrow {
+    color: #94a3b8;
+    flex-shrink: 0;
+    margin-top: 0.15rem;
+    transition: transform 0.15s ease;
+}
+
+.jp-home-tool-card:hover .jp-home-tool-arrow {
+    transform: translateX(3px);
+    color: var(--hm-primary);
+}
+
+/* --- Tool pages --- */
+.jp-tools-page {
+    max-width: 1100px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.jp-tools-back {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #64748b;
+    text-decoration: none;
+    margin-bottom: 0.75rem;
+}
+
+.jp-tools-back:hover {
+    color: var(--hm-primary);
+}
+
+.jp-tools-heading {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+}
+
+.jp-tools-heading-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--jp-radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    flex-shrink: 0;
+    background: var(--hm-primary-soft);
+    color: var(--hm-primary);
+}
+
+.jp-tools-accent--blue { background: #eff6ff; color: #2563eb; }
+.jp-tools-accent--purple { background: #f5f3ff; color: #7c3aed; }
+.jp-tools-accent--green { background: #ecfdf5; color: #059669; }
+.jp-tools-accent--pink { background: #fdf2f8; color: #db2777; }
+.jp-tools-accent--red { background: #fef2f2; color: #dc2626; }
+.jp-tools-accent--amber { background: #fffbeb; color: #d97706; }
+
+.jp-tools-title {
+    font-size: clamp(1.15rem, 2vw, 1.45rem);
+    font-weight: 800;
+    color: var(--jp-black-900);
+}
+
+.jp-tools-desc {
+    font-size: 0.88rem;
+    color: #64748b;
+    margin-top: 0.15rem;
+}
+
+.jp-tool-card {
+    border-radius: var(--jp-radius-lg);
+}
+
+.jp-tool-tip {
+    font-size: 0.82rem;
+    color: #64748b;
+}
+
+.jp-tool-preview-img {
+    max-width: 100%;
+    max-height: 320px;
+    border-radius: var(--jp-radius);
+    border: 1px solid #e2e8f0;
+}
+
+.jp-tool-preview-box {
+    border: 1px solid #e2e8f0;
+    border-radius: var(--jp-radius-lg);
+    padding: 0.75rem;
+    min-height: 220px;
+    background: #fff;
+}
+
+.jp-tool-preview-box--checker {
+    background-color: #fff;
+    background-image:
+        linear-gradient(45deg, #f1f5f9 25%, transparent 25%),
+        linear-gradient(-45deg, #f1f5f9 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #f1f5f9 75%),
+        linear-gradient(-45deg, transparent 75%, #f1f5f9 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+}
+
+.jp-tool-preview-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    margin-bottom: 0.5rem;
+}
+
+.jp-tool-preview-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 160px;
+    color: #94a3b8;
+    font-size: 0.85rem;
+}
+
+.jp-notes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 0.85rem;
+}
+
+.jp-note-card {
+    border-radius: var(--jp-radius-lg);
+    padding: 0.85rem;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.jp-note-card--yellow { background: #fef9c3; }
+.jp-note-card--blue { background: #dbeafe; }
+.jp-note-card--green { background: #d1fae5; }
+.jp-note-card--pink { background: #fce7f3; }
+.jp-note-card--gray { background: #f1f5f9; }
+
+.jp-note-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.jp-note-title {
+    border: none;
+    background: transparent;
+    font-weight: 800;
+    font-size: 0.92rem;
+    width: 100%;
+    padding: 0;
+}
+
+.jp-note-title:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.jp-note-content {
+    border: none;
+    background: rgba(255, 255, 255, 0.45);
+    border-radius: var(--jp-radius);
+    font-size: 0.88rem;
+    resize: vertical;
+    min-height: 110px;
+}
+
+.jp-note-content:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.15);
+}
+
+.jp-note-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.jp-note-color {
+    max-width: 130px;
+}
+
 .portal-container {
     min-height: auto;
     padding-top: 1rem;
@@ -4054,6 +4327,43 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
 [data-theme="dark"] .jp-home-empty-icon {
     background: rgba(16, 185, 129, 0.15);
     color: #6ee7b7;
+}
+
+[data-theme="dark"] .jp-home-tool-card,
+[data-theme="dark"] .jp-tool-card,
+[data-theme="dark"] .jp-tool-preview-box {
+    background: var(--jp-surface-bg);
+    border-color: var(--jp-surface-border);
+}
+
+[data-theme="dark"] .jp-home-tool-name,
+[data-theme="dark"] .jp-tools-title {
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .jp-home-tool-desc,
+[data-theme="dark"] .jp-tools-desc,
+[data-theme="dark"] .jp-tools-back,
+[data-theme="dark"] .jp-tool-tip {
+    color: var(--jp-text-muted);
+}
+
+[data-theme="dark"] .jp-home-tool-card:hover {
+    border-color: rgba(220, 38, 38, 0.35);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="dark"] .jp-note-content {
+    background: rgba(0, 0, 0, 0.12);
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .jp-note-title {
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .jp-qr-preview {
+    background: rgba(255, 255, 255, 0.06) !important;
 }
 
 [data-theme="dark"] .portal-card .badge.bg-white {

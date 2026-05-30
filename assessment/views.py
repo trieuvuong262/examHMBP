@@ -23,7 +23,7 @@ from PortalJustPlay.list_search import apply_term_search, get_search_query, sear
 from PortalJustPlay.pagination import paginate_queryset
 from kpi.models import YearlyKpi, KpiPeriod  # Import đúng Model mới
 from hrm.permissions import is_manager, is_portal_admin
-from .portal_widgets import get_portal_dashboard
+from tools.catalog import PORTAL_TOOLS
 from .models import (
     Exam, 
     Question, 
@@ -56,11 +56,8 @@ def login_redirect_view(request):
 
 @login_required
 def home_portal(request):
-    dashboard_widgets = get_portal_dashboard(request.user)
-
     return render(request, 'portal.html', {
-        'dashboard_widgets': dashboard_widgets,
-        'is_manager_or_gm': is_manager(request.user),
+        'portal_tools': PORTAL_TOOLS,
     })
 
 @login_required

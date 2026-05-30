@@ -13,6 +13,7 @@ urlpatterns = [
     path('huong-dan/', user_guide, name='user_guide'),
     path('huong-dan/chinh-sua/', user_guide_edit, name='user_guide_edit'),
     path('', include('assessment.urls')),
+    path('cong-cu/', include('tools.urls')),
     path('training/', include('training.urls')),
     path('hr/', include('recruitment.urls')),
     path('reports/', include('reports.urls')),
