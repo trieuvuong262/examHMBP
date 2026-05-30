@@ -1011,88 +1011,6 @@ textarea.form-control {
     flex-shrink: 0;
 }
 
-.jp-home-quick-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 0.55rem;
-}
-
-.jp-home-quick-tile {
-    display: flex;
-    align-items: center;
-    gap: 0.85rem;
-    padding: 0.85rem 1rem;
-    border-radius: var(--jp-radius-lg);
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    text-decoration: none;
-    color: inherit;
-    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
-    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
-    position: relative;
-}
-
-.jp-home-quick-tile:hover {
-    color: inherit;
-    transform: translateY(-2px);
-    border-color: rgba(220, 38, 38, 0.25);
-    box-shadow: 0 8px 20px rgba(220, 38, 38, 0.08);
-}
-
-.jp-home-quick-icon {
-    width: 42px;
-    height: 42px;
-    border-radius: var(--jp-radius);
-    background: var(--hm-primary-soft);
-    color: var(--hm-primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.15rem;
-    flex-shrink: 0;
-}
-
-.jp-home-quick-body {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.1rem;
-}
-
-.jp-home-quick-title {
-    font-weight: 700;
-    font-size: 0.92rem;
-    color: #1e293b;
-}
-
-.jp-home-quick-desc {
-    font-size: 0.78rem;
-    color: #64748b;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.jp-home-quick-badge {
-    min-width: 22px;
-    height: 22px;
-    padding: 0 6px;
-    border-radius: 999px;
-    background: #dc2626;
-    color: #fff;
-    font-size: 0.72rem;
-    font-weight: 700;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.jp-home-quick-chevron {
-    color: #94a3b8;
-    flex-shrink: 0;
-}
-
 .portal-container {
     min-height: auto;
     padding-top: 1rem;
@@ -1450,10 +1368,6 @@ textarea.form-control {
 
     .jp-home-hero-title {
         font-size: 1.25rem;
-    }
-
-    .jp-home-quick-desc {
-        white-space: normal;
     }
 
     .icon-circle {
@@ -4118,13 +4032,11 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
 }
 
 [data-theme="dark"] .jp-home-hero-title,
-[data-theme="dark"] .jp-home-section-title,
-[data-theme="dark"] .jp-home-quick-title {
+[data-theme="dark"] .jp-home-section-title {
     color: var(--jp-text-primary);
 }
 
-[data-theme="dark"] .jp-home-hero-sub,
-[data-theme="dark"] .jp-home-quick-desc {
+[data-theme="dark"] .jp-home-hero-sub {
     color: var(--jp-text-muted);
 }
 
@@ -4134,15 +4046,9 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     color: var(--jp-text-secondary);
 }
 
-[data-theme="dark"] .jp-home-empty,
-[data-theme="dark"] .jp-home-quick-tile {
+[data-theme="dark"] .jp-home-empty {
     background: var(--jp-surface-bg);
     border-color: var(--jp-surface-border);
-}
-
-[data-theme="dark"] .jp-home-quick-tile:hover {
-    border-color: rgba(220, 38, 38, 0.35);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
 [data-theme="dark"] .jp-home-empty-icon {
