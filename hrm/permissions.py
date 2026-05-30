@@ -223,8 +223,7 @@ def can_manage_team_tasks(user) -> bool:
     """
     if not _has_tasks_module_access(user):
         return False
-    from hrm.module_permissions import MODULE_TASKS
-    from hrm.role_permissions import user_can_edit_module
+    from hrm.module_permissions import MODULE_TASKS, user_can_edit_module
     if not user_can_edit_module(user, MODULE_TASKS):
         return False
 
@@ -261,8 +260,7 @@ def can_create_cross_dept_project(user) -> bool:
     """Chỉ Giám đốc hoặc Trưởng bộ phận — cần quyền sửa module Công việc."""
     if not _has_tasks_module_access(user):
         return False
-    from hrm.module_permissions import MODULE_TASKS
-    from hrm.role_permissions import user_can_edit_module
+    from hrm.module_permissions import MODULE_TASKS, user_can_edit_module
     if not user_can_edit_module(user, MODULE_TASKS):
         return False
     return user_role(user) in CROSS_DEPT_CREATOR_ROLES

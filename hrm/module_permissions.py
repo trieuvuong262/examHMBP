@@ -138,7 +138,7 @@ def user_can_access_module(user, module_key: str) -> bool:
 
 
 def user_can_edit_module(user, module_key: str) -> bool:
-    """Phòng ban + vai trò — quyền cập nhật module."""
+    """Phòng ban + nhóm quyền — thêm/sửa/xóa module."""
     if module_key not in ALL_MODULE_KEYS:
         return True
     if bypass_department_modules(user):
@@ -147,6 +147,50 @@ def user_can_edit_module(user, module_key: str) -> bool:
         return False
     from hrm.role_permissions import role_allows_edit
     return role_allows_edit(user, module_key)
+
+
+def user_can_create_module(user, module_key: str) -> bool:
+    if module_key not in ALL_MODULE_KEYS:
+        return True
+    if bypass_department_modules(user):
+        return True
+    if module_key not in get_user_enabled_modules(user):
+        return False
+    from hrm.group_permissions import PERM_CREATE, get_user_module_perm
+    return bool(get_user_module_perm(user, module_key).get(PERM_CREATE))
+
+
+def user_can_update_module(user, module_key: str) -> bool:
+    if module_key not in ALL_MODULE_KEYS:
+        return True
+    if bypass_department_modules(user):
+        return True
+    if module_key not in get_user_enabled_modules(user):
+        return False
+    from hrm.group_permissions import PERM_UPDATE, get_user_module_perm
+    return bool(get_user_module_perm(user, module_key).get(PERM_UPDATE))
+
+
+def user_can_delete_module(user, module_key: str) -> bool:
+    if module_key not in ALL_MODULE_KEYS:
+        return True
+    if bypass_department_modules(user):
+        return True
+    if module_key not in get_user_enabled_modules(user):
+        return False
+    from hrm.group_permissions import PERM_DELETE, get_user_module_perm
+    return bool(get_user_module_perm(user, module_key).get(PERM_DELETE))
+
+
+def user_can_export_module(user, module_key: str) -> bool:
+    if module_key not in ALL_MODULE_KEYS:
+        return True
+    if bypass_department_modules(user):
+        return True
+    if module_key not in get_user_enabled_modules(user):
+        return False
+    from hrm.group_permissions import PERM_EXPORT, get_user_module_perm
+    return bool(get_user_module_perm(user, module_key).get(PERM_EXPORT))
 
 
 def user_can_view_module(user, module_key: str) -> bool:

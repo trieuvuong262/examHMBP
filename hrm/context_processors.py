@@ -16,6 +16,7 @@ from hrm.module_permissions import (
     get_user_enabled_modules,
     user_can_access_module,
     user_can_edit_module,
+    user_can_export_module,
 )
 from hrm.permissions import (
     can_assign_tasks,
@@ -80,6 +81,7 @@ def portal_permissions(request):
             'jp_can_edit_documents': False,
             'jp_can_edit_permissions': False,
             'jp_can_edit_tasks': False,
+            'jp_can_export_hrm': False,
             'jp_can_manage_permissions': False,
         }
     enabled = get_user_enabled_modules(user)
@@ -124,5 +126,6 @@ def portal_permissions(request):
         'jp_can_edit_documents': user_can_edit_module(user, MODULE_DOCUMENTS),
         'jp_can_edit_permissions': user_can_edit_module(user, MODULE_PERMISSIONS),
         'jp_can_edit_tasks': user_can_edit_module(user, MODULE_TASKS),
+        'jp_can_export_hrm': user_can_export_module(user, MODULE_HRM),
         'jp_can_manage_permissions': user_can_edit_module(user, MODULE_PERMISSIONS) or bypass_department_modules(user),
     }

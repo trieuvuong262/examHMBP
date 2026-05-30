@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from hrm.models import Department, DepartmentMenuPermission, Profile, RoleModulePermission
+from hrm.models import Department, DepartmentMenuPermission, PermissionGroup, Profile, RoleModulePermission
 from hrm.module_permissions import (
     ALL_MODULE_KEYS,
     MODULE_HRM,
@@ -15,7 +15,9 @@ from hrm.module_permissions import (
     resolve_module_from_request,
     user_can_access_module,
     user_can_edit_module,
+    user_can_export_module,
 )
+from hrm.group_permissions import normalize_group_permissions, permissions_from_legacy_role
 from hrm.permissions import ROLE_DIRECTOR, ROLE_EMPLOYEE, ROLE_TEAM_LEADER
 from hrm.role_permissions import get_role_permissions, role_allows_edit, role_allows_view
 
@@ -70,6 +72,7 @@ class PermissionLogicTests(TestCase):
             department=self.dept_xuong,
             role=ROLE_EMPLOYEE,
             full_name='NV Test',
+            permission_group=None,
         )
         self.employee.refresh_from_db()
 
@@ -81,6 +84,7 @@ class PermissionLogicTests(TestCase):
             department=self.dept_hr,
             role=ROLE_TEAM_LEADER,
             full_name='Tổ trưởng Test',
+            permission_group=None,
         )
         self.team_leader.refresh_from_db()
 
@@ -93,6 +97,7 @@ class PermissionLogicTests(TestCase):
             department=self.dept_hr,
             role=ROLE_DIRECTOR,
             full_name='HR Director Test',
+            permission_group=None,
         )
         self.hr_editor.refresh_from_db()
 
@@ -174,6 +179,63 @@ class PermissionLogicTests(TestCase):
         self.assertTrue(perms[MODULE_HRM]['edit'])
 
 
+class PermissionGroupTests(TestCase):
+    def setUp(self):
+        self.dept_hr = Department.objects.create(name='PG HR', sort_order=1)
+        DepartmentMenuPermission.objects.create(
+            department=self.dept_hr,
+            modules=['hrm', 'announcements', 'training'],
+        )
+
+        employee_legacy = permissions_from_legacy_role(ROLE_EMPLOYEE)
+        self.group_sx = PermissionGroup.objects.create(
+            slug='test-nv-sx',
+            name='Test NV Sản xuất',
+            module_permissions=employee_legacy,
+        )
+        hcns_perms = normalize_group_permissions(employee_legacy)
+        hcns_perms['hrm'] = {
+            'view': True,
+            'create': True,
+            'update': True,
+            'delete': True,
+            'export': True,
+        }
+        self.group_hcns = PermissionGroup.objects.create(
+            slug='test-nv-hcns',
+            name='Test NV HCNS',
+            module_permissions=hcns_perms,
+        )
+
+        self.sx_user = User.objects.create_user(username='pg_sx', password='testpass123')
+        Profile.objects.filter(user=self.sx_user).update(
+            department=self.dept_hr,
+            role=ROLE_EMPLOYEE,
+            permission_group=self.group_sx,
+        )
+        self.hcns_user = User.objects.create_user(username='pg_hcns', password='testpass123')
+        Profile.objects.filter(user=self.hcns_user).update(
+            department=self.dept_hr,
+            role=ROLE_EMPLOYEE,
+            permission_group=self.group_hcns,
+        )
+        self.hcns_user.refresh_from_db()
+
+    def test_production_staff_cannot_edit_hrm(self):
+        self.assertTrue(user_can_access_module(self.sx_user, MODULE_HRM) is False or not user_can_edit_module(self.sx_user, MODULE_HRM))
+        self.assertFalse(user_can_edit_module(self.sx_user, MODULE_HRM))
+
+    def test_hcns_staff_can_edit_and_export_hrm(self):
+        self.assertTrue(user_can_edit_module(self.hcns_user, MODULE_HRM))
+        self.assertTrue(user_can_export_module(self.hcns_user, MODULE_HRM))
+
+    def test_permission_group_urls_resolve(self):
+        self.assertEqual(
+            resolve_module_from_request('/dashboard/permissions/groups/1/edit/'),
+            MODULE_PERMISSIONS,
+        )
+
+
 class PermissionMiddlewareTests(TestCase):
     def setUp(self):
         self.dept = Department.objects.create(name='MW Dept', sort_order=1)
@@ -194,6 +256,7 @@ class PermissionMiddlewareTests(TestCase):
         Profile.objects.filter(user=self.user).update(
             department=self.dept,
             role=ROLE_EMPLOYEE,
+            permission_group=None,
         )
 
     def test_middleware_blocks_kpi_url(self):
@@ -310,7 +373,7 @@ class ProfileAvatarTests(TestCase):
             role=ROLE_DIRECTOR,
             defaults={'module_permissions': {MODULE_HRM: {'view': True, 'edit': True}}},
         )
-        Profile.objects.filter(user=self.user).update(role=ROLE_DIRECTOR, is_employed=True)
+        Profile.objects.filter(user=self.user).update(role=ROLE_DIRECTOR, is_employed=True, permission_group=None)
         response = self.client.get(reverse('user_list'))
         self.assertContains(response, 'data-jp-avatar-zoom')
         self.assertContains(response, 'jpAvatarZoomModal')
@@ -328,6 +391,7 @@ class UserSearchTests(TestCase):
             role=ROLE_DIRECTOR,
             full_name='HR Admin',
             is_employed=True,
+            permission_group=None,
         )
         self.target = User.objects.create_user(username='annt', password='testpass123', first_name='An')
         Profile.objects.filter(user=self.target).update(

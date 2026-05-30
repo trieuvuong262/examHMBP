@@ -14,8 +14,10 @@ from django.db.models import Count
 from hrm.module_permissions import ALL_MODULE_KEYS, MODULE_CHOICES, MODULE_LABELS
 from assessment.decorators import admin_only
 from assessment.forms import UserForm # Tạm thời Form vẫn để ở nhà cũ, mốt mình dời sau
-from hrm.models import Profile, Department, Division, DepartmentMenuPermission, RoleModulePermission
-from hrm.role_permissions import ROLE_LABELS, default_role_permissions, get_role_permissions, role_permission_summary
+from django.utils.text import slugify
+from hrm.models import Profile, Department, Division, DepartmentMenuPermission, PermissionGroup, RoleModulePermission
+from hrm.group_permissions import group_permission_summary
+from hrm.role_permissions import ROLE_LABELS, default_role_permissions
 from hrm.permissions import ROLE_CHOICES
 from hrm.choices import (
     EXCEL_ALL_HEADERS,
@@ -29,6 +31,8 @@ from hrm.forms import (
     DepartmentForm,
     DepartmentMenuPermissionForm,
     DivisionForm,
+    PermissionGroupMetaForm,
+    PermissionGroupPermissionForm,
     RolePermissionForm,
 )
 from hrm.user_search import exclude_hidden_hrm_users, filter_users_by_search
@@ -51,6 +55,7 @@ def _profile_fields_from_form(form):
         'date_of_birth': form.cleaned_data.get('date_of_birth'),
         'gender': form.cleaned_data.get('gender', ''),
         'role': form.cleaned_data['role'],
+        'permission_group': form.cleaned_data.get('permission_group'),
         'must_change_password': True,
         'is_employed': form.cleaned_data.get('is_employed', True),
     }
@@ -203,7 +208,8 @@ def user_edit(request, user_id):
             profile.date_of_birth = form.cleaned_data.get('date_of_birth')
             profile.gender = form.cleaned_data.get('gender', '')
             profile.role = form.cleaned_data['role']
-            
+            profile.permission_group = form.cleaned_data.get('permission_group')
+
             # QUAN TRỌNG: Lưu danh sách nhân viên cấp dưới (ManyToMany)
             # Dùng .set() để ghi đè danh sách mới từ form
             profile.subordinates.set(form.cleaned_data['subordinates'])
@@ -242,6 +248,7 @@ def user_edit(request, user_id):
             'date_of_birth': profile.date_of_birth,
             'gender': profile.gender,
             'role': profile.role,
+            'permission_group': profile.permission_group,
             'subordinates': profile.subordinates.all(),
         }
         # Truyền user_id để form biết đường loại trừ chính mình khỏi danh sách chọn cấp dưới
@@ -374,6 +381,11 @@ def user_import_excel(request):
 
 @admin_only
 def user_export_excel(request):
+    from hrm.module_permissions import MODULE_HRM, user_can_export_module
+    if not user_can_export_module(request.user, MODULE_HRM):
+        messages.error(request, 'Bạn không có quyền xuất Excel danh sách nhân viên.')
+        return redirect('user_list')
+
     users = User.objects.select_related(
         'profile', 'profile__department', 'profile__division',
     ).all().order_by('profile__employee_code', 'username')
@@ -565,21 +577,118 @@ def permission_config(request):
             'enabled_labels': [MODULE_LABELS[key] for key, _ in MODULE_CHOICES if key in enabled],
         })
 
+    group_qs = PermissionGroup.objects.annotate(
+        member_count=Count('profiles'),
+    ).order_by('name')
+
+    group_rows = []
+    for group in group_qs:
+        summary = group_permission_summary(group.get_permissions())
+        badges = []
+        for item in summary:
+            if not item['actions']:
+                continue
+            badges.append({
+                'label': item['label'],
+                'short': f"{item['label']} · {item['level']}",
+                'has_edit': any(a in item['actions'] for a in ('Thêm', 'Sửa', 'Xóa')),
+            })
+        group_rows.append({
+            'group': group,
+            'badges': badges[:8],
+            'more_count': max(0, len(badges) - 8),
+        })
+
     return render(request, 'assessment/admin/permission_config.html', {
         'departments': dept_page.object_list,
         'rows': rows,
         'page_obj': dept_page,
         'query_string': query_string,
         'search_query': search_query,
-        'role_rows': [
-            {
-                'role': role,
-                'label': label,
-                'summary': role_permission_summary(role),
-            }
-            for role, label in ROLE_CHOICES
-        ],
+        'group_rows': group_rows,
     })
+
+
+def _unique_group_slug(base: str) -> str:
+    slug = slugify(base) or 'nhom-quyen'
+    if not PermissionGroup.objects.filter(slug=slug).exists():
+        return slug
+    n = 2
+    while PermissionGroup.objects.filter(slug=f'{slug}-{n}').exists():
+        n += 1
+    return f'{slug}-{n}'
+
+
+@admin_only
+def permission_group_add(request):
+    if request.method == 'POST':
+        meta_form = PermissionGroupMetaForm(request.POST)
+        perm_form = PermissionGroupPermissionForm(request.POST)
+        if meta_form.is_valid() and perm_form.is_valid():
+            group = meta_form.save(commit=False)
+            group.slug = _unique_group_slug(group.name)
+            group.is_system = False
+            group.module_permissions = perm_form.cleaned_permissions()
+            group.save()
+            messages.success(request, f'Đã tạo nhóm quyền "{group.name}".')
+            return redirect('permission_config')
+    else:
+        meta_form = PermissionGroupMetaForm()
+        perm_form = PermissionGroupPermissionForm()
+
+    return render(request, 'assessment/admin/permission_group_form.html', {
+        'meta_form': meta_form,
+        'perm_form': perm_form,
+        'title': 'Thêm nhóm quyền',
+        'is_edit': False,
+    })
+
+
+@admin_only
+def permission_group_edit(request, pk):
+    group = get_object_or_404(PermissionGroup, pk=pk)
+
+    if request.method == 'POST':
+        meta_form = PermissionGroupMetaForm(request.POST, instance=group)
+        perm_form = PermissionGroupPermissionForm(
+            request.POST,
+            initial_permissions=group.module_permissions,
+        )
+        if meta_form.is_valid() and perm_form.is_valid():
+            group = meta_form.save()
+            group.module_permissions = perm_form.cleaned_permissions()
+            group.save()
+            messages.success(request, f'Đã cập nhật nhóm quyền "{group.name}".')
+            return redirect('permission_config')
+    else:
+        meta_form = PermissionGroupMetaForm(instance=group)
+        perm_form = PermissionGroupPermissionForm(initial_permissions=group.module_permissions)
+
+    return render(request, 'assessment/admin/permission_group_form.html', {
+        'meta_form': meta_form,
+        'perm_form': perm_form,
+        'group': group,
+        'title': f'Chỉnh sửa — {group.name}',
+        'is_edit': True,
+    })
+
+
+@admin_only
+def permission_group_delete(request, pk):
+    group = get_object_or_404(PermissionGroup, pk=pk)
+    if group.is_system:
+        messages.error(request, 'Không thể xóa nhóm quyền hệ thống.')
+        return redirect('permission_config')
+    if group.profiles.exists():
+        messages.error(
+            request,
+            f'Nhóm "{group.name}" đang được gán cho {group.profiles.count()} nhân viên — hãy đổi nhóm trước khi xóa.',
+        )
+        return redirect('permission_config')
+    name = group.name
+    group.delete()
+    messages.success(request, f'Đã xóa nhóm quyền "{name}".')
+    return redirect('permission_config')
 
 
 @admin_only

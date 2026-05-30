@@ -1,8 +1,7 @@
 """
-Phân quyền theo vai trò hệ thống (4 cấp) — Xem / Cập nhật từng module.
+Phân quyền theo nhóm quyền (PermissionGroup) hoặc fallback vai trò hệ thống.
 
-Kết hợp với phân quyền phòng ban (module_permissions): phòng ban cho phép module,
-vai trò quyết định chỉ xem hay được cập nhật.
+Vai trò (Profile.role) vẫn dùng cho cấu trúc tổ chức — giao việc, báo cáo, v.v.
 """
 
 from hrm.module_permissions import (
@@ -21,7 +20,6 @@ from hrm.module_permissions import (
     MODULE_SERVICE_REQUESTS,
     MODULE_TRAINING,
     bypass_department_modules,
-    get_user_enabled_modules,
 )
 from hrm.permissions import (
     ROLE_CHOICES,
@@ -29,7 +27,6 @@ from hrm.permissions import (
     ROLE_DIVISION_HEAD,
     ROLE_EMPLOYEE,
     ROLE_TEAM_LEADER,
-    get_profile,
     user_role,
 )
 
@@ -39,7 +36,7 @@ def _perm(view=False, edit=False):
 
 
 def default_role_permissions() -> dict:
-    """Mặc định khi chưa cấu hình — phản ánh logic cũ."""
+    """Mặc định khi chưa cấu hình — dùng khi seed / fallback."""
     employee_modules = {
         MODULE_ANNOUNCEMENTS: _perm(True, False),
         MODULE_TRAINING: _perm(True, False),
@@ -78,7 +75,7 @@ def default_role_permissions() -> dict:
 
 
 def normalize_module_permissions(raw: dict | None) -> dict:
-    """Chuẩn hóa JSON lưu DB → {module: {view, edit}}."""
+    """Chuẩn hóa JSON legacy {view, edit}."""
     defaults = default_role_permissions()
     base = defaults.get(ROLE_EMPLOYEE, {})
     result = {}
@@ -119,9 +116,8 @@ def get_role_permissions(role: str) -> dict:
 
 
 def get_user_module_permission(user, module_key: str) -> dict:
-    role = user_role(user)
-    perms = get_role_permissions(role)
-    return perms.get(module_key, _perm(False, False))
+    from hrm.group_permissions import get_user_module_perm
+    return get_user_module_perm(user, module_key)
 
 
 def role_allows_view(user, module_key: str) -> bool:
@@ -129,8 +125,8 @@ def role_allows_view(user, module_key: str) -> bool:
         return True
     if bypass_department_modules(user):
         return True
-    perm = get_user_module_permission(user, module_key)
-    return perm['view'] or perm['edit']
+    from hrm.group_permissions import module_perm_allows_view
+    return module_perm_allows_view(get_user_module_permission(user, module_key))
 
 
 def role_allows_edit(user, module_key: str) -> bool:
@@ -138,8 +134,8 @@ def role_allows_edit(user, module_key: str) -> bool:
         return True
     if bypass_department_modules(user):
         return True
-    perm = get_user_module_permission(user, module_key)
-    return perm['edit']
+    from hrm.group_permissions import module_perm_allows_edit
+    return module_perm_allows_edit(get_user_module_permission(user, module_key))
 
 
 def user_can_edit_module(user, module_key: str) -> bool:
@@ -151,26 +147,8 @@ def user_can_view_module(user, module_key: str) -> bool:
 
 
 def role_permission_summary(role: str) -> list:
-    from hrm.module_permissions import MODULE_CHOICES, MODULE_LABELS
-
-    perms = get_role_permissions(role)
-    rows = []
-    for key, _label in MODULE_CHOICES:
-        p = perms.get(key, _perm(False, False))
-        if p['edit']:
-            level = 'Cập nhật'
-        elif p['view']:
-            level = 'Chỉ xem'
-        else:
-            level = 'Không truy cập'
-        rows.append({
-            'key': key,
-            'label': MODULE_LABELS[key],
-            'view': p['view'],
-            'edit': p['edit'],
-            'level': level,
-        })
-    return rows
+    from hrm.group_permissions import group_permission_summary, permissions_from_legacy_role
+    return group_permission_summary(permissions_from_legacy_role(role))
 
 
 ROLE_LABELS = dict(ROLE_CHOICES)

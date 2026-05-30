@@ -103,6 +103,41 @@ class DepartmentMenuPermission(models.Model):
         return get_department_enabled_modules(self.department)
 
 
+class PermissionGroup(models.Model):
+    """Nhóm quyền tuỳ chỉnh — gán cho từng nhân viên."""
+    name = models.CharField(max_length=120, unique=True, verbose_name='Tên nhóm')
+    slug = models.SlugField(max_length=120, unique=True, verbose_name='Mã nhóm')
+    description = models.TextField(blank=True, verbose_name='Mô tả')
+    is_system = models.BooleanField(
+        default=False,
+        verbose_name='Nhóm hệ thống',
+        help_text='Không xóa được — dùng làm mặc định theo vai trò.',
+    )
+    module_permissions = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name='Quyền theo module',
+        help_text='JSON: {module: {view, create, update, delete, export}}',
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = 'Nhóm quyền'
+        verbose_name_plural = 'Nhóm quyền'
+
+    def __str__(self):
+        return self.name
+
+    def get_permissions(self):
+        from hrm.group_permissions import normalize_group_permissions
+        return normalize_group_permissions(self.module_permissions)
+
+    @property
+    def member_count(self):
+        return self.profiles.count()
+
+
 class RoleModulePermission(models.Model):
     """Phân quyền xem / cập nhật theo vai trò hệ thống (4 cấp)."""
     role = models.CharField(
@@ -209,6 +244,15 @@ class Profile(models.Model):
         choices=ROLE_CHOICES, 
         default=ROLE_EMPLOYEE, 
         verbose_name="Vai trò hệ thống"
+    )
+    permission_group = models.ForeignKey(
+        PermissionGroup,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='profiles',
+        verbose_name='Nhóm quyền',
+        help_text='Quyền chi tiết theo module — ưu tiên hơn mặc định vai trò.',
     )
     
     # Danh sách nhân viên cấp dưới (Tổ trưởng / Trưởng bộ phận)

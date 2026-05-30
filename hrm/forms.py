@@ -1,11 +1,12 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.db.models import Q
-from .models import Profile, Department, Division, DepartmentMenuPermission
+from .models import Profile, Department, Division, DepartmentMenuPermission, PermissionGroup
 from hrm.choices import GENDER_FORM_CHOICES
 from hrm.permissions import ROLE_EMPLOYEE
 from hrm.module_permissions import ALL_MODULE_KEYS, MODULE_CHOICES, MODULE_LABELS
 from hrm.role_permissions import normalize_module_permissions
+from hrm.group_permissions import PERM_ACTIONS, PERM_ACTION_LABELS, normalize_group_permissions
 from hrm.user_search import user_display_label
 
 INPUT = {'class': 'form-control'}
@@ -83,6 +84,14 @@ class CustomUserForm(forms.Form):
         widget=forms.Select(attrs=SELECT),
         initial=ROLE_EMPLOYEE,
         label='Vai trò hệ thống',
+    )
+    permission_group = forms.ModelChoiceField(
+        queryset=PermissionGroup.objects.all().order_by('name'),
+        required=False,
+        empty_label='— Mặc định theo vai trò —',
+        widget=forms.Select(attrs=SELECT),
+        label='Nhóm quyền',
+        help_text='Tuỳ chỉnh quyền từng module — ví dụ NV sản xuất vs NV HCNS.',
     )
     subordinates = forms.ModelMultipleChoiceField(
         queryset=User.objects.select_related('profile').order_by('profile__full_name', 'username'),
@@ -249,4 +258,62 @@ class RolePermissionForm(forms.Form):
                 view = True
             result[module_key] = {'view': view, 'edit': edit}
         return normalize_module_permissions(result)
+
+
+class PermissionGroupMetaForm(forms.ModelForm):
+    class Meta:
+        model = PermissionGroup
+        fields = ['name', 'description']
+        widgets = {
+            'name': forms.TextInput(attrs={**INPUT, 'placeholder': 'VD: Nhân viên HCNS'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+        }
+        labels = {
+            'name': 'Tên nhóm quyền',
+            'description': 'Mô tả',
+        }
+
+
+class PermissionGroupPermissionForm(forms.Form):
+    """Ma trận 5 quyền / module cho một nhóm."""
+
+    def __init__(self, *args, **kwargs):
+        initial_perms = kwargs.pop('initial_permissions', None)
+        super().__init__(*args, **kwargs)
+        normalized = normalize_group_permissions(initial_perms)
+        for module_key, label in MODULE_CHOICES:
+            mod = normalized.get(module_key, {})
+            for action in PERM_ACTIONS:
+                field_name = f'{action}_{module_key}'
+                self.fields[field_name] = forms.BooleanField(
+                    required=False,
+                    initial=mod.get(action, False),
+                    label=f'{PERM_ACTION_LABELS[action]} — {label}',
+                    widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+                )
+
+    def module_rows(self):
+        rows = []
+        for module_key, label in MODULE_CHOICES:
+            rows.append({
+                'key': module_key,
+                'label': label,
+                'fields': {
+                    action: self[f'{action}_{module_key}']
+                    for action in PERM_ACTIONS
+                },
+            })
+        return rows
+
+    def cleaned_permissions(self) -> dict:
+        result = {}
+        for module_key, _label in MODULE_CHOICES:
+            entry = {
+                action: self.cleaned_data.get(f'{action}_{module_key}', False)
+                for action in PERM_ACTIONS
+            }
+            if any(entry[a] for a in ('create', 'update', 'delete', 'export')):
+                entry['view'] = True
+            result[module_key] = entry
+        return normalize_group_permissions(result)
 

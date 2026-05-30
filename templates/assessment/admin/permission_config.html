@@ -13,7 +13,7 @@
                     <li class="breadcrumb-item active fw-bold text-hm">Phân quyền</li>
                 </ol>
             </nav>
-            <p class="text-muted small mb-0 mt-1">Phòng ban: module được truy cập · Vai trò: chỉ xem hoặc cập nhật</p>
+            <p class="text-muted small mb-0 mt-1">Phòng ban: module menu · Nhóm quyền: xem / thêm / sửa / xóa / xuất Excel</p>
         </div>
         <div class="jp-hrm-toolbar">
             <a href="{% url 'org_structure' %}?tab=department" class="btn btn-outline-dark fw-bold shadow-sm jp-hrm-tool-btn">
@@ -27,7 +27,7 @@
             <button class="nav-link active fw-bold" data-bs-toggle="pill" data-bs-target="#tab-dept" type="button">Theo phòng ban</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link fw-bold" data-bs-toggle="pill" data-bs-target="#tab-role" type="button">Theo vai trò</button>
+            <button class="nav-link fw-bold" data-bs-toggle="pill" data-bs-target="#tab-group" type="button">Nhóm quyền</button>
         </li>
     </ul>
 
@@ -101,41 +101,73 @@
             </div>
         </div>
 
-        <div class="tab-pane fade" id="tab-role">
+        <div class="tab-pane fade" id="tab-group">
             <div class="card border-0 shadow-sm overflow-hidden">
-                <div class="card-header bg-white py-3 border-bottom">
-                    <h5 class="mb-0 fw-bold text-dark">Vai trò hệ thống</h5>
-                    <p class="small text-muted mb-0 mt-1">Tuỳ chỉnh quyền <strong>Chỉ xem</strong> / <strong>Cập nhật</strong> trên từng chức năng</p>
+                <div class="card-header bg-white py-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div>
+                        <h5 class="mb-0 fw-bold text-dark">Nhóm quyền</h5>
+                        <p class="small text-muted mb-0 mt-1">Gán cho từng nhân viên — 5 quyền riêng trên mỗi module</p>
+                    </div>
+                    <a href="{% url 'permission_group_add' %}" class="btn btn-hm text-white fw-bold btn-sm">
+                        <i class="bi bi-plus-lg me-1"></i>Thêm nhóm
+                    </a>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="bg-light text-uppercase small">
                             <tr>
-                                <th class="ps-4 py-3 text-muted">Vai trò</th>
-                                <th class="text-muted">Tóm tắt quyền</th>
+                                <th class="ps-4 py-3 text-muted">Nhóm quyền</th>
+                                <th class="text-muted text-center">Nhân viên</th>
+                                <th class="text-muted">Tóm tắt</th>
                                 <th class="text-end pe-4 text-muted">Thao tác</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for row in role_rows %}
+                            {% for row in group_rows %}
+                            {% with group=row.group %}
                             <tr>
-                                <td class="ps-4 fw-semibold">{{ row.label }}</td>
+                                <td class="ps-4">
+                                    <div class="fw-semibold">{{ group.name }}</div>
+                                    {% if group.description %}
+                                    <div class="small text-muted">{{ group.description|truncatechars:80 }}</div>
+                                    {% endif %}
+                                    {% if group.is_system %}
+                                    <span class="badge bg-secondary-subtle text-secondary border mt-1">Hệ thống</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-light text-dark border">{{ group.member_count }}</span>
+                                </td>
                                 <td>
                                     <div class="d-flex flex-wrap gap-1">
-                                        {% for item in row.summary %}
-                                        {% if item.edit %}
-                                        <span class="badge bg-danger text-white" title="{{ item.label }}">{{ item.label }} · Sửa</span>
-                                        {% elif item.view %}
-                                        <span class="badge bg-light text-dark border" title="{{ item.label }}">{{ item.label }} · Xem</span>
-                                        {% endif %}
+                                        {% for badge in row.badges %}
+                                        <span class="badge {% if badge.has_edit %}bg-danger text-white{% else %}bg-light text-dark border{% endif %}" title="{{ badge.label }}">{{ badge.short }}</span>
+                                        {% empty %}
+                                        <span class="text-muted small">Không truy cập</span>
                                         {% endfor %}
+                                        {% if row.more_count %}
+                                        <span class="badge bg-light text-muted border">+{{ row.more_count }}</span>
+                                        {% endif %}
                                     </div>
                                 </td>
                                 <td class="text-end pe-4">
-                                    <a href="{% url 'role_permission_edit' row.role %}" class="btn btn-sm btn-outline-hm fw-bold">
-                                        <i class="bi bi-sliders me-1"></i>Cấu hình
+                                    <a href="{% url 'permission_group_edit' group.pk %}" class="btn btn-sm btn-outline-hm fw-bold me-1" title="Cấu hình">
+                                        <i class="bi bi-sliders"></i>
                                     </a>
+                                    {% if not group.is_system %}
+                                    <form method="post" action="{% url 'permission_group_delete' group.pk %}" class="d-inline" onsubmit="return confirm('Xóa nhóm quyền này?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-danger fw-bold" {% if group.member_count %}disabled title="Đang có nhân viên sử dụng"{% endif %}>
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
                                 </td>
+                            </tr>
+                            {% endwith %}
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center py-5 text-muted">Chưa có nhóm quyền.</td>
                             </tr>
                             {% endfor %}
                         </tbody>

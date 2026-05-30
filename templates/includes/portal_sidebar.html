@@ -205,7 +205,7 @@
         {% endif %}
         {% if jp_can_permissions %}
         <li>
-            <a href="{% url 'permission_config' %}" class="jp-sidebar-link {% if request.resolver_match.url_name == 'permission_config' or request.resolver_match.url_name == 'department_permissions' or request.resolver_match.url_name == 'role_permission_edit' %}active{% endif %}">
+            <a href="{% url 'permission_config' %}" class="jp-sidebar-link {% if request.resolver_match.url_name == 'permission_config' or request.resolver_match.url_name == 'department_permissions' or request.resolver_match.url_name == 'permission_group_add' or request.resolver_match.url_name == 'permission_group_edit' %}active{% endif %}">
                 <i class="bi bi-shield-lock-fill"></i><span>Phân quyền</span>
             </a>
         </li>

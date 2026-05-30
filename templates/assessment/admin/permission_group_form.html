@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-3 mb-5">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb bg-white p-2 p-md-3 shadow-sm small mb-0">
+            <li class="breadcrumb-item"><a href="{% url 'permission_config' %}" class="text-decoration-none text-muted">Phân quyền</a></li>
+            <li class="breadcrumb-item active fw-bold text-hm">{{ title }}</li>
+        </ol>
+    </nav>
+
+    <div class="card shadow-lg border-0">
+        <div class="card-header bg-dark text-white p-3 p-md-4 border-0">
+            <h4 class="mb-1 fw-bold fs-5">{{ title }}</h4>
+            <p class="mb-0 small opacity-75">5 quyền riêng: <strong>Xem</strong> · <strong>Thêm</strong> · <strong>Sửa</strong> · <strong>Xóa</strong> · <strong>Xuất Excel</strong></p>
+        </div>
+        <div class="card-body p-3 p-md-4">
+            <div class="alert alert-light border small mb-4">
+                <i class="bi bi-info-circle text-hm me-1"></i>
+                Nhóm quyền gán trực tiếp cho nhân viên (form Nhân sự). Quyền áp dụng <strong>sau</strong> phân quyền theo phòng ban.
+            </div>
+
+            <form method="post" id="groupPermForm">
+                {% csrf_token %}
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">{{ meta_form.name.label }}</label>
+                        {{ meta_form.name }}
+                        {% if meta_form.name.errors %}<div class="text-danger small">{{ meta_form.name.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">{{ meta_form.description.label }}</label>
+                        {{ meta_form.description }}
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle mb-0 jp-role-perm-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Chức năng</th>
+                                <th class="text-center" style="width: 72px;">Xem</th>
+                                <th class="text-center" style="width: 72px;">Thêm</th>
+                                <th class="text-center" style="width: 72px;">Sửa</th>
+                                <th class="text-center" style="width: 72px;">Xóa</th>
+                                <th class="text-center" style="width: 88px;">Excel</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in perm_form.module_rows %}
+                            <tr data-module="{{ row.key }}">
+                                <td class="ps-3 fw-semibold">{{ row.label }}</td>
+                                {% for action, field in row.fields.items %}
+                                <td class="text-center">
+                                    <div class="form-check d-inline-flex justify-content-center mb-0">
+                                        {{ field }}
+                                    </div>
+                                </td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="d-flex flex-column flex-sm-row gap-2 justify-content-end align-items-stretch align-items-sm-center mt-4">
+                    <a href="{% url 'permission_config' %}" class="btn btn-light fw-bold px-4">Huỷ</a>
+                    <button type="submit" class="btn btn-hm text-white fw-bold px-5">Lưu nhóm quyền</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    var actions = ['create', 'update', 'delete', 'export'];
+    document.querySelectorAll('#groupPermForm tbody tr[data-module]').forEach(function (row) {
+        var moduleKey = row.getAttribute('data-module');
+        var viewBox = row.querySelector('input[name="view_' + moduleKey + '"]');
+        if (!viewBox) return;
+        actions.forEach(function (action) {
+            var box = row.querySelector('input[name="' + action + '_' + moduleKey + '"]');
+            if (!box) return;
+            box.addEventListener('change', function () {
+                if (box.checked) viewBox.checked = true;
+            });
+        });
+        viewBox.addEventListener('change', function () {
+            if (!viewBox.checked) {
+                actions.forEach(function (action) {
+                    var box = row.querySelector('input[name="' + action + '_' + moduleKey + '"]');
+                    if (box) box.checked = false;
+                });
+            }
+        });
+    });
+})();
+</script>
+{% endblock %}
