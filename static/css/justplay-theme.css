@@ -4294,6 +4294,524 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
 }
 
 /* ============================================================
+   Permission group form — ma trận quyền
+   ============================================================ */
+.jp-perm-group-page .jp-perm-group-header {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: var(--jp-page-bg, #f8f9fa);
+    padding-bottom: 0.5rem;
+}
+
+.jp-perm-group-card {
+    border-radius: var(--jp-card-radius, 12px);
+    overflow: hidden;
+}
+
+.jp-perm-preset-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 280px;
+    overflow-y: auto;
+    padding-right: 0.15rem;
+}
+
+.jp-perm-preset-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    width: 100%;
+    text-align: left;
+    border: 1px solid var(--jp-surface-border, #e5e7eb);
+    background: var(--jp-surface-bg, #fff);
+    border-radius: 10px;
+    padding: 0.65rem 0.75rem;
+    transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+    cursor: pointer;
+}
+
+.jp-perm-preset-chip:hover {
+    border-color: rgba(220, 38, 38, 0.35);
+    background: var(--hm-primary-soft, #fef2f2);
+}
+
+.jp-perm-preset-chip.active {
+    border-color: var(--hm-primary, #dc2626);
+    background: var(--hm-primary-soft, #fef2f2);
+    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
+}
+
+.jp-perm-preset-chip-icon {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 8px;
+    background: rgba(220, 38, 38, 0.08);
+    color: var(--hm-primary, #dc2626);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.jp-perm-preset-chip-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.jp-perm-preset-chip-name {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--jp-text-primary, #111827);
+    line-height: 1.3;
+}
+
+.jp-perm-preset-chip-tag {
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #6b7280;
+    margin-top: 0.15rem;
+}
+
+.jp-perm-preset-chip-arrow {
+    color: #9ca3af;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+.jp-perm-legend-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.jp-perm-legend-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    font-size: 0.8125rem;
+}
+
+.jp-perm-legend-icon {
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 0.9rem;
+}
+
+.jp-perm-legend-view .jp-perm-legend-icon { background: #eff6ff; color: #2563eb; }
+.jp-perm-legend-create .jp-perm-legend-icon { background: #ecfdf5; color: #059669; }
+.jp-perm-legend-update .jp-perm-legend-icon { background: #fffbeb; color: #d97706; }
+.jp-perm-legend-delete .jp-perm-legend-icon { background: #fef2f2; color: #dc2626; }
+.jp-perm-legend-export .jp-perm-legend-icon { background: #f5f3ff; color: #7c3aed; }
+
+.jp-perm-matrix-card .card-header {
+    background: linear-gradient(180deg, #fff 0%, #fafafa 100%);
+}
+
+.jp-perm-summary-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.jp-perm-summary-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.35rem 0.65rem;
+    border-radius: 999px;
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px solid #e5e7eb;
+}
+
+.jp-perm-summary-pill[data-summary="full"] {
+    background: #fef2f2;
+    color: var(--hm-primary, #dc2626);
+    border-color: rgba(220, 38, 38, 0.2);
+}
+
+.jp-perm-matrix-wrap {
+    overflow: auto;
+    max-height: min(70vh, 720px);
+    transition: background 0.3s ease;
+}
+
+.jp-perm-matrix-wrap.jp-perm-flash {
+    background: rgba(220, 38, 38, 0.04);
+}
+
+.jp-perm-matrix-table {
+    --jp-perm-sticky-w: 180px;
+    border-collapse: separate;
+    border-spacing: 0;
+    min-width: 720px;
+}
+
+.jp-perm-matrix-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+    vertical-align: middle;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.65rem 0.4rem;
+}
+
+.jp-perm-matrix-col-toggle th {
+    top: 2.5rem;
+    background: #fff;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 0.4rem;
+}
+
+.jp-perm-sticky-col {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: #fff;
+    min-width: var(--jp-perm-sticky-w);
+    box-shadow: 2px 0 6px rgba(0, 0, 0, 0.04);
+}
+
+.jp-perm-matrix-table thead .jp-perm-sticky-col {
+    z-index: 4;
+    background: #f9fafb;
+}
+
+.jp-perm-matrix-col-toggle .jp-perm-sticky-col {
+    background: #fff;
+}
+
+.jp-perm-module-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.jp-perm-module-icon {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 8px;
+    background: #f3f4f6;
+    color: #4b5563;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 0.95rem;
+}
+
+.jp-perm-module-name {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--jp-text-primary, #111827);
+}
+
+.jp-perm-matrix-row {
+    transition: background 0.12s ease;
+}
+
+.jp-perm-matrix-row:hover {
+    background: #fafafa;
+}
+
+.jp-perm-matrix-row.jp-perm-row-active .jp-perm-module-icon {
+    background: rgba(220, 38, 38, 0.1);
+    color: var(--hm-primary, #dc2626);
+}
+
+.jp-perm-matrix-row.jp-perm-row-full {
+    background: rgba(220, 38, 38, 0.03);
+}
+
+.jp-perm-quick-col {
+    width: 108px;
+}
+
+.jp-perm-row-quick {
+    display: inline-flex;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.jp-perm-quick-btn {
+    border: none;
+    background: transparent;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 0.35rem 0.45rem;
+    color: #6b7280;
+    line-height: 1;
+    transition: background 0.12s ease, color 0.12s ease;
+}
+
+.jp-perm-quick-btn:hover {
+    background: #f3f4f6;
+    color: #111827;
+}
+
+.jp-perm-quick-btn.active,
+.jp-perm-quick-btn-full.active {
+    background: var(--hm-primary, #dc2626);
+    color: #fff;
+}
+
+.jp-perm-quick-btn + .jp-perm-quick-btn {
+    border-left: 1px solid #e5e7eb;
+}
+
+.jp-perm-action-col {
+    width: 64px;
+}
+
+.jp-perm-col-label {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    font-weight: 700;
+    color: #374151;
+}
+
+.jp-perm-col-label i {
+    font-size: 0.95rem;
+}
+
+.jp-perm-col-view { background: #f8fbff !important; }
+.jp-perm-col-create { background: #f6fdf9 !important; }
+.jp-perm-col-update { background: #fffdf5 !important; }
+.jp-perm-col-delete { background: #fff8f8 !important; }
+.jp-perm-col-export { background: #faf8ff !important; }
+
+.jp-perm-action-cell {
+    padding: 0.5rem 0.35rem !important;
+    vertical-align: middle;
+}
+
+.jp-perm-switch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    width: 2.25rem;
+    height: 1.35rem;
+}
+
+.jp-perm-switch-input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.jp-perm-switch-ui {
+    display: block;
+    width: 2.25rem;
+    height: 1.25rem;
+    border-radius: 999px;
+    background: #d1d5db;
+    transition: background 0.18s ease, box-shadow 0.18s ease;
+    position: relative;
+}
+
+.jp-perm-switch-ui::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: calc(1.25rem - 4px);
+    height: calc(1.25rem - 4px);
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    transition: transform 0.18s ease;
+}
+
+.jp-perm-switch-input:checked + .jp-perm-switch-ui {
+    background: var(--hm-primary, #dc2626);
+    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.15);
+}
+
+.jp-perm-switch-input:checked + .jp-perm-switch-ui::after {
+    transform: translateX(1rem);
+}
+
+.jp-perm-switch-input:focus-visible + .jp-perm-switch-ui {
+    outline: 2px solid rgba(220, 38, 38, 0.45);
+    outline-offset: 2px;
+}
+
+.jp-perm-col-toggle {
+    display: inline-flex;
+    cursor: pointer;
+}
+
+.jp-perm-col-toggle-input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.jp-perm-col-toggle-ui {
+    display: block;
+    width: 1.1rem;
+    height: 1.1rem;
+    border: 2px solid #d1d5db;
+    border-radius: 4px;
+    background: #fff;
+    transition: border-color 0.15s ease, background 0.15s ease;
+    position: relative;
+}
+
+.jp-perm-col-toggle-input:checked + .jp-perm-col-toggle-ui {
+    background: var(--hm-primary, #dc2626);
+    border-color: var(--hm-primary, #dc2626);
+}
+
+.jp-perm-col-toggle-input:checked + .jp-perm-col-toggle-ui::after {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 0px;
+    width: 5px;
+    height: 9px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.jp-perm-col-toggle-input:indeterminate + .jp-perm-col-toggle-ui {
+    background: #fff;
+    border-color: var(--hm-primary, #dc2626);
+}
+
+.jp-perm-col-toggle-input:indeterminate + .jp-perm-col-toggle-ui::after {
+    content: '';
+    position: absolute;
+    left: 2px;
+    top: 4px;
+    width: 8px;
+    height: 2px;
+    background: var(--hm-primary, #dc2626);
+    border: none;
+    transform: none;
+}
+
+.jp-perm-group-section td {
+    background: var(--hm-primary-soft, #fef2f2) !important;
+    border-top: 1px solid rgba(220, 38, 38, 0.12);
+    letter-spacing: 0.06em;
+}
+
+[data-theme="dark"] .jp-perm-group-section td {
+    background: rgba(220, 38, 38, 0.12) !important;
+}
+
+@media (max-width: 1199.98px) {
+    .jp-perm-group-page .jp-perm-group-header {
+        position: static;
+    }
+
+    .jp-perm-matrix-wrap {
+        max-height: none;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .jp-perm-matrix-table {
+        --jp-perm-sticky-w: 140px;
+    }
+
+    .jp-perm-module-icon {
+        width: 1.65rem;
+        height: 1.65rem;
+        font-size: 0.85rem;
+    }
+
+    .jp-perm-module-name {
+        font-size: 0.8125rem;
+    }
+}
+
+[data-theme="dark"] .jp-perm-group-page .jp-perm-group-header {
+    background: var(--jp-page-bg);
+}
+
+[data-theme="dark"] .jp-perm-preset-chip {
+    background: var(--jp-surface-bg);
+    border-color: var(--jp-surface-border);
+}
+
+[data-theme="dark"] .jp-perm-preset-chip:hover,
+[data-theme="dark"] .jp-perm-preset-chip.active {
+    background: rgba(220, 38, 38, 0.12);
+}
+
+[data-theme="dark"] .jp-perm-preset-chip-name {
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .jp-perm-matrix-card .card-header {
+    background: var(--jp-surface-bg);
+}
+
+[data-theme="dark"] .jp-perm-matrix-table thead th,
+[data-theme="dark"] .jp-perm-matrix-table thead .jp-perm-sticky-col {
+    background: #1a1a1a;
+}
+
+[data-theme="dark"] .jp-perm-sticky-col,
+[data-theme="dark"] .jp-perm-matrix-col-toggle .jp-perm-sticky-col {
+    background: var(--jp-surface-bg);
+}
+
+[data-theme="dark"] .jp-perm-matrix-row:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="dark"] .jp-perm-module-icon {
+    background: rgba(255, 255, 255, 0.06);
+    color: #d1d5db;
+}
+
+[data-theme="dark"] .jp-perm-row-quick {
+    background: var(--jp-surface-bg);
+    border-color: var(--jp-surface-border);
+}
+
+[data-theme="dark"] .jp-perm-summary-pill {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--jp-surface-border);
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .jp-perm-col-view { background: rgba(37, 99, 235, 0.08) !important; }
+[data-theme="dark"] .jp-perm-col-create { background: rgba(5, 150, 105, 0.08) !important; }
+[data-theme="dark"] .jp-perm-col-update { background: rgba(217, 119, 6, 0.08) !important; }
+[data-theme="dark"] .jp-perm-col-delete { background: rgba(220, 38, 38, 0.08) !important; }
+[data-theme="dark"] .jp-perm-col-export { background: rgba(124, 58, 237, 0.08) !important; }
+
+/* ============================================================
    Theme toggle
    ============================================================ */
 .jp-theme-toggle {

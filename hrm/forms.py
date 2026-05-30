@@ -88,7 +88,7 @@ class CustomUserForm(forms.Form):
     permission_group = forms.ModelChoiceField(
         queryset=PermissionGroup.objects.all().order_by('name'),
         required=False,
-        empty_label='— Mặc định theo vai trò —',
+        empty_label='— Tự động theo phòng ban —',
         widget=forms.Select(attrs=SELECT),
         label='Nhóm quyền',
     )
@@ -273,6 +273,23 @@ class PermissionGroupMetaForm(forms.ModelForm):
         }
 
 
+PERM_GROUP_MODULE_ICONS = {
+    'announcements': 'bi-megaphone',
+    'recruitment': 'bi-person-plus',
+    'training': 'bi-mortarboard',
+    'assessment': 'bi-patch-check',
+    'hrm': 'bi-people',
+    'kpi': 'bi-graph-up-arrow',
+    'reports': 'bi-journal-text',
+    'guide': 'bi-book',
+    'documents': 'bi-folder2',
+    'permissions': 'bi-shield-lock',
+    'audit': 'bi-clock-history',
+    'tasks': 'bi-kanban',
+    'service_requests': 'bi-headset',
+}
+
+
 class PermissionGroupPermissionForm(forms.Form):
     """Ma trận 5 quyền / module cho một nhóm."""
 
@@ -288,7 +305,7 @@ class PermissionGroupPermissionForm(forms.Form):
                     required=False,
                     initial=mod.get(action, False),
                     label=f'{PERM_ACTION_LABELS[action]} — {label}',
-                    widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+                    widget=forms.CheckboxInput(attrs={'class': 'jp-perm-switch-input'}),
                 )
 
     def module_rows(self):
@@ -297,6 +314,7 @@ class PermissionGroupPermissionForm(forms.Form):
             rows.append({
                 'key': module_key,
                 'label': label,
+                'icon': PERM_GROUP_MODULE_ICONS.get(module_key, 'bi-grid'),
                 'fields': {
                     action: self[f'{action}_{module_key}']
                     for action in PERM_ACTIONS

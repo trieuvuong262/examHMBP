@@ -124,14 +124,19 @@
                         </thead>
                         <tbody>
                             {% for row in group_rows %}
+                            {% if row.show_section %}
+                            <tr class="jp-perm-group-section">
+                                <td colspan="4" class="ps-4 py-2 fw-bold text-hm small text-uppercase">{{ row.section }}</td>
+                            </tr>
+                            {% endif %}
                             {% with group=row.group %}
                             <tr>
                                 <td class="ps-4">
-                                    <div class="fw-semibold">{{ group.name }}</div>
+                                    <div class="fw-semibold">{{ row.level_label|default:group.name }}</div>
                                     {% if group.description %}
                                     <div class="small text-muted">{{ group.description|truncatechars:80 }}</div>
                                     {% endif %}
-                                    {% if group.is_system %}
+                                    {% if group.is_system and row.section != 'Vai trò mặc định' %}
                                     <span class="badge bg-secondary-subtle text-secondary border mt-1">Hệ thống</span>
                                     {% endif %}
                                 </td>

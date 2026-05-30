@@ -43,6 +43,22 @@ import random
 import string
 
 
+def _resolve_permission_group(form):
+    """Ưu tiên chọn tay; không chọn thì gán nhóm theo phòng ban + vai trò."""
+    selected = form.cleaned_data.get('permission_group')
+    if selected:
+        return selected
+    department = form.cleaned_data.get('department')
+    role = form.cleaned_data.get('role')
+    if not department or not role:
+        return None
+    from hrm.department_permission_templates import default_group_slug_for_profile
+    slug = default_group_slug_for_profile(department.name, role)
+    if not slug:
+        return None
+    return PermissionGroup.objects.filter(slug=slug).first()
+
+
 def _profile_fields_from_form(form):
     return {
         'employee_code': form.cleaned_data.get('employee_code') or None,
@@ -55,7 +71,7 @@ def _profile_fields_from_form(form):
         'date_of_birth': form.cleaned_data.get('date_of_birth'),
         'gender': form.cleaned_data.get('gender', ''),
         'role': form.cleaned_data['role'],
-        'permission_group': form.cleaned_data.get('permission_group'),
+        'permission_group': _resolve_permission_group(form),
         'must_change_password': True,
         'is_employed': form.cleaned_data.get('is_employed', True),
     }
@@ -208,7 +224,7 @@ def user_edit(request, user_id):
             profile.date_of_birth = form.cleaned_data.get('date_of_birth')
             profile.gender = form.cleaned_data.get('gender', '')
             profile.role = form.cleaned_data['role']
-            profile.permission_group = form.cleaned_data.get('permission_group')
+            profile.permission_group = _resolve_permission_group(form)
 
             # QUAN TRỌNG: Lưu danh sách nhân viên cấp dưới (ManyToMany)
             # Dùng .set() để ghi đè danh sách mới từ form
@@ -577,12 +593,27 @@ def permission_config(request):
             'enabled_labels': [MODULE_LABELS[key] for key, _ in MODULE_CHOICES if key in enabled],
         })
 
+    from hrm.department_permission_templates import permission_group_sort_key
+
     group_qs = PermissionGroup.objects.annotate(
         profile_count=Count('profiles'),
-    ).order_by('name')
+    )
+    sorted_groups = sorted(
+        group_qs,
+        key=lambda g: permission_group_sort_key(g.name, g.slug),
+    )
 
     group_rows = []
-    for group in group_qs:
+    last_section = None
+    for group in sorted_groups:
+        if group.slug.startswith('mac-dinh-'):
+            section = 'Vai trò mặc định'
+            level_label = group.name
+        elif ' — ' in group.name:
+            section, level_label = group.name.rsplit(' — ', 1)
+        else:
+            section = 'Khác'
+            level_label = group.name
         summary = group_permission_summary(group.get_permissions())
         badges = []
         for item in summary:
@@ -597,7 +628,11 @@ def permission_config(request):
             'group': group,
             'badges': badges[:8],
             'more_count': max(0, len(badges) - 8),
+            'section': section,
+            'level_label': level_label,
+            'show_section': section != last_section,
         })
+        last_section = section
 
     return render(request, 'assessment/admin/permission_config.html', {
         'departments': dept_page.object_list,
@@ -620,12 +655,12 @@ def _unique_group_slug(base: str) -> str:
 
 
 def _permission_group_form_context(meta_form, perm_form, title, *, group=None, is_edit=False):
-    presets_qs = PermissionGroup.objects.order_by('-is_system', 'name')
-    if group:
-        presets_qs = presets_qs.exclude(pk=group.pk)
-    permission_presets = [
-        {'name': g.name, 'permissions': g.get_permissions()}
-        for g in presets_qs
+    perm_action_meta = [
+        {'key': 'view', 'label': 'Xem', 'icon': 'bi-eye', 'tone': 'view'},
+        {'key': 'create', 'label': 'Thêm', 'icon': 'bi-plus-lg', 'tone': 'create'},
+        {'key': 'update', 'label': 'Sửa', 'icon': 'bi-pencil', 'tone': 'update'},
+        {'key': 'delete', 'label': 'Xóa', 'icon': 'bi-trash', 'tone': 'delete'},
+        {'key': 'export', 'label': 'Excel', 'icon': 'bi-file-earmark-spreadsheet', 'tone': 'export'},
     ]
     return {
         'meta_form': meta_form,
@@ -633,8 +668,8 @@ def _permission_group_form_context(meta_form, perm_form, title, *, group=None, i
         'title': title,
         'is_edit': is_edit,
         'group': group,
-        'permission_presets': permission_presets,
-        'perm_actions': ['view', 'create', 'update', 'delete', 'export'],
+        'perm_actions': [a['key'] for a in perm_action_meta],
+        'perm_action_meta': perm_action_meta,
     }
 
 

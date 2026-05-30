@@ -236,6 +236,28 @@ class PermissionGroupTests(TestCase):
         )
 
 
+class DepartmentPermissionTemplateTests(TestCase):
+    def test_each_department_has_two_groups(self):
+        from hrm.department_permission_templates import DEPARTMENT_PERMISSION_TEMPLATES
+        self.assertEqual(len(DEPARTMENT_PERMISSION_TEMPLATES), 9)
+        for item in DEPARTMENT_PERMISSION_TEMPLATES:
+            self.assertIn('employee', item)
+            self.assertIn('manager', item)
+
+    def test_hcns_employee_can_edit_hrm_in_matrix(self):
+        from hrm.department_permission_templates import DEPARTMENT_PERMISSION_TEMPLATES
+        hcns = next(t for t in DEPARTMENT_PERMISSION_TEMPLATES if t['code'] == 'hcns')
+        hrm = hcns['employee']['hrm']
+        self.assertTrue(hrm['view'])
+        self.assertTrue(hrm['update'])
+
+    def test_default_group_slug_for_hcns_manager(self):
+        from hrm.department_permission_templates import default_group_slug_for_profile
+        from hrm.permissions import ROLE_DIVISION_HEAD
+        slug = default_group_slug_for_profile('HÀNH CHÍNH NHÂN SỰ', ROLE_DIVISION_HEAD)
+        self.assertEqual(slug, 'hcns-truong-phong')
+
+
 class PermissionMiddlewareTests(TestCase):
     def setUp(self):
         self.dept = Department.objects.create(name='MW Dept', sort_order=1)
