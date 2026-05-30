@@ -599,18 +599,12 @@ def permission_config(request):
             'enabled_labels': [MODULE_LABELS[key] for key, _ in MODULE_CHOICES if key in enabled],
         })
 
-    from hrm.department_permission_templates import is_protected_permission_group
+    from hrm.department_permission_templates import is_protected_permission_group, PROTECTED_GROUP_SLUG_PREFIX
 
     group_qs = PermissionGroup.objects.annotate(
         profile_count=Count('profiles'),
-    )
-    sorted_groups = sorted(
-        group_qs,
-        key=lambda g: (
-            0 if is_protected_permission_group(g.slug) else 1,
-            g.name.casefold(),
-        ),
-    )
+    ).exclude(slug__startswith=PROTECTED_GROUP_SLUG_PREFIX)
+    sorted_groups = sorted(group_qs, key=lambda g: g.name.casefold())
 
     group_rows = []
     for group in sorted_groups:
@@ -618,7 +612,6 @@ def permission_config(request):
         group_rows.append({
             'group': group,
             'summary': list_summary,
-            'is_system': is_protected_permission_group(group.slug),
             'is_deletable': not is_protected_permission_group(group.slug),
         })
 
