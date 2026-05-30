@@ -1,105 +1,189 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container jp-page portal-container">
-    <div class="row w-100 justify-content-center g-3 g-md-4">
-        <div class="col-12 text-center mb-1 mb-md-2">
-            <h2 class="fw-bold text-dark jp-page-title">Xin chào, {{ user.first_name|default:user.username }}!</h2>
-            <p class="text-muted jp-page-subtitle mb-0 jp-hide-mobile-subtitle">Chào mừng bạn đến với cổng thông tin nội bộ JustPlay.vn</p>
-        </div>
-
-        <div class="col-12 col-xl-10">
-            {% if dashboard_widgets %}
-            <div class="jp-dashboard-panel mb-3 mb-md-4">
-                <div class="jp-dashboard-panel-header">
-                    <i class="bi bi-bell-fill me-2"></i>
-                    <span>Việc cần làm hôm nay</span>
-                    <span class="badge bg-white text-danger ms-auto">{{ dashboard_widgets|length }}</span>
-                </div>
-                <div class="jp-dashboard-list">
-                    {% for item in dashboard_widgets %}
-                    <a href="{{ item.url }}" class="jp-dashboard-item jp-dashboard-item--{{ item.level }}">
-                        <div class="jp-dashboard-item-icon">
-                            <i class="bi {{ item.icon }}"></i>
-                        </div>
-                        <div class="jp-dashboard-item-body">
-                            <div class="jp-dashboard-item-title">
-                                {{ item.title }}
-                                {% if item.badge %}
-                                <span class="badge ms-1">{{ item.badge }}</span>
-                                {% endif %}
-                            </div>
-                            <div class="jp-dashboard-item-text">{{ item.text }}</div>
-                        </div>
-                        <div class="jp-dashboard-item-action d-none d-sm-flex">
-                            {{ item.action }} <i class="bi bi-chevron-right ms-1"></i>
-                        </div>
-                    </a>
-                    {% endfor %}
-                </div>
+<div class="container-fluid jp-page jp-home-page px-2 px-md-4 py-3 py-md-4 mb-4">
+    {% with profile=user.profile %}
+    <section class="jp-home-hero mb-3 mb-md-4">
+        <div class="jp-home-hero-inner">
+            <div class="jp-home-hero-main">
+                <p class="jp-home-hero-kicker mb-1">JustPlay Portal</p>
+                <h1 class="jp-home-hero-title mb-2">
+                    Xin chào, {{ profile.full_name|default:user.first_name|default:user.username }}
+                </h1>
+                <p class="jp-home-hero-sub mb-0">
+                    Cổng thông tin nội bộ — xem việc cần làm và truy cập nhanh các module.
+                </p>
             </div>
-            {% else %}
-            <div class="alert alert-success border-0 shadow-sm mb-3 mb-md-4 d-flex align-items-center gap-2">
-                <i class="bi bi-check-circle-fill fs-5"></i>
-                <div>
-                    <strong>Đã xong các việc chính hôm nay!</strong>
-                    <div class="small opacity-90">Không còn thông báo, báo cáo hay KPI nào cần xử lý ngay.</div>
-                </div>
-            </div>
-            {% endif %}
-        </div>
-
-        <div class="col-12 text-center mb-2 d-none d-md-block">
-            <p class="text-muted small mb-0 text-uppercase fw-bold" style="letter-spacing: 0.06em;">Truy cập nhanh</p>
-        </div>
-
-        <div class="col-6 col-md-3">
-            <a href="{% url 'announcements:list' %}" class="card portal-card shadow-sm h-100 p-3 p-md-4 text-center position-relative">
-                {% if unread_announcements_count %}
-                <span class="portal-card-badge">{{ unread_announcements_count }}</span>
+            <div class="jp-home-hero-meta">
+                {% if jp_role_display %}
+                <span class="jp-home-meta-chip">
+                    <i class="bi bi-person-badge me-1"></i>{{ jp_role_display }}
+                </span>
                 {% endif %}
-                <div class="icon-circle"><i class="bi bi-megaphone-fill"></i></div>
-                <h5 class="fw-bold text-dark mb-1">Thông báo</h5>
-                <p class="text-muted small mb-3 d-none d-md-block">Xem thông báo nội bộ và xác nhận đã đọc.</p>
-                <div class="btn btn-hm px-3 mt-auto text-white fw-bold btn-sm">Xem ngay</div>
-            </a>
+                {% if profile.department %}
+                <span class="jp-home-meta-chip">
+                    <i class="bi bi-building me-1"></i>{{ profile.department.name }}
+                </span>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <div class="row g-3 g-lg-4 align-items-start">
+        <div class="col-lg-7">
+            <section class="jp-home-section" aria-labelledby="jp-home-todo-title">
+                <div class="jp-home-section-head">
+                    <h2 id="jp-home-todo-title" class="jp-home-section-title">
+                        <i class="bi bi-bell-fill text-hm me-2"></i>Việc cần làm
+                    </h2>
+                    {% if dashboard_widgets %}
+                    <span class="badge bg-hm">{{ dashboard_widgets|length }}</span>
+                    {% endif %}
+                </div>
+
+                {% if dashboard_widgets %}
+                <div class="jp-dashboard-panel">
+                    <div class="jp-dashboard-list">
+                        {% for item in dashboard_widgets %}
+                        <a href="{{ item.url }}" class="jp-dashboard-item jp-dashboard-item--{{ item.level }}">
+                            <div class="jp-dashboard-item-icon">
+                                <i class="bi {{ item.icon }}"></i>
+                            </div>
+                            <div class="jp-dashboard-item-body">
+                                <div class="jp-dashboard-item-title">
+                                    {{ item.title }}
+                                    {% if item.badge %}
+                                    <span class="badge rounded-pill ms-1">{{ item.badge }}</span>
+                                    {% endif %}
+                                </div>
+                                <div class="jp-dashboard-item-text">{{ item.text }}</div>
+                            </div>
+                            <div class="jp-dashboard-item-action d-none d-sm-flex">
+                                {{ item.action }} <i class="bi bi-chevron-right ms-1"></i>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% else %}
+                <div class="jp-home-empty card border-0 shadow-sm">
+                    <div class="card-body d-flex align-items-center gap-3 py-4">
+                        <div class="jp-home-empty-icon">
+                            <i class="bi bi-check2-circle"></i>
+                        </div>
+                        <div>
+                            <div class="fw-bold mb-1">Không còn việc gấp</div>
+                            <div class="text-muted small mb-0">Thông báo, báo cáo và công việc đã xử lý xong — bạn có thể tập trung vào module bên dưới.</div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </section>
         </div>
 
-        <div class="col-6 col-md-3">
-            <a href="{% url 'my_courses' %}" class="card portal-card shadow-sm h-100 p-3 p-md-4 text-center">
-                <div class="icon-circle"><i class="bi bi-mortarboard-fill"></i></div>
-                <h5 class="fw-bold text-dark mb-1">Học tập</h5>
-                <p class="text-muted small mb-3 d-none d-md-block">Kho khóa học và tài liệu đào tạo nội bộ.</p>
-                <div class="btn btn-hm px-3 mt-auto text-white fw-bold btn-sm">Vào học</div>
-            </a>
-        </div>
+        <div class="col-lg-5">
+            <section class="jp-home-section" aria-labelledby="jp-home-quick-title">
+                <div class="jp-home-section-head">
+                    <h2 id="jp-home-quick-title" class="jp-home-section-title">
+                        <i class="bi bi-grid-fill text-hm me-2"></i>Truy cập nhanh
+                    </h2>
+                </div>
 
-        <div class="col-6 col-md-3">
-            <a href="{% url 'exam_list' %}" class="card portal-card shadow-sm h-100 p-3 p-md-4 text-center">
-                <div class="icon-circle"><i class="bi bi-journal-check"></i></div>
-                <h5 class="fw-bold text-dark mb-1">Kiểm tra</h5>
-                <p class="text-muted small mb-3 d-none d-md-block">Bài thi năng lực và kiểm tra định kỳ.</p>
-                <div class="btn btn-outline-hm px-3 mt-auto fw-bold btn-sm">Vào thi</div>
-            </a>
-        </div>
+                <div class="jp-home-quick-grid">
+                    {% if jp_can_announcements %}
+                    <a href="{% url 'announcements:list' %}" class="jp-home-quick-tile">
+                        <span class="jp-home-quick-icon"><i class="bi bi-megaphone-fill"></i></span>
+                        <span class="jp-home-quick-body">
+                            <span class="jp-home-quick-title">Thông báo</span>
+                            <span class="jp-home-quick-desc">Tin nội bộ & xác nhận đọc</span>
+                        </span>
+                        {% if unread_announcements_count %}
+                        <span class="jp-home-quick-badge">{{ unread_announcements_count }}</span>
+                        {% endif %}
+                        <i class="bi bi-chevron-right jp-home-quick-chevron"></i>
+                    </a>
+                    {% endif %}
 
-        <div class="col-6 col-md-3">
-            <a href="{% url 'kpi_list' %}" class="card portal-card shadow-sm h-100 p-3 p-md-4 text-center">
-                <div class="icon-circle"><i class="bi bi-graph-up-arrow"></i></div>
-                <h5 class="fw-bold text-dark mb-1">KPI</h5>
-                <p class="text-muted small mb-3 d-none d-md-block">Đánh giá mục tiêu cá nhân & team.</p>
-                <div class="btn btn-outline-hm px-3 mt-auto fw-bold btn-sm">Xem KPI</div>
-            </a>
-        </div>
+                    {% if jp_can_tasks %}
+                    <a href="{% url 'tasks:personal_hub' %}" class="jp-home-quick-tile">
+                        <span class="jp-home-quick-icon"><i class="bi bi-list-check"></i></span>
+                        <span class="jp-home-quick-body">
+                            <span class="jp-home-quick-title">Công việc</span>
+                            <span class="jp-home-quick-desc">Giao việc & dự án</span>
+                        </span>
+                        <i class="bi bi-chevron-right jp-home-quick-chevron"></i>
+                    </a>
+                    {% endif %}
 
-        <div class="col-6 col-md-3">
-            <a href="{% url 'reports:hub' %}" class="card portal-card shadow-sm h-100 p-3 p-md-4 text-center">
-                <div class="icon-circle"><i class="bi bi-clipboard-check-fill"></i></div>
-                <h5 class="fw-bold text-dark mb-1">Báo cáo</h5>
-                <p class="text-muted small mb-3 d-none d-md-block">Báo cáo công việc hàng ngày cho HOD.</p>
-                <div class="btn btn-outline-hm px-3 mt-auto fw-bold btn-sm">Nhập BC</div>
-            </a>
+                    {% if jp_can_training %}
+                    <a href="{% url 'my_courses' %}" class="jp-home-quick-tile">
+                        <span class="jp-home-quick-icon"><i class="bi bi-mortarboard-fill"></i></span>
+                        <span class="jp-home-quick-body">
+                            <span class="jp-home-quick-title">Học tập</span>
+                            <span class="jp-home-quick-desc">Khóa học được giao</span>
+                        </span>
+                        <i class="bi bi-chevron-right jp-home-quick-chevron"></i>
+                    </a>
+                    {% endif %}
+
+                    {% if jp_can_assessment %}
+                    <a href="{% url 'exam_list' %}" class="jp-home-quick-tile">
+                        <span class="jp-home-quick-icon"><i class="bi bi-journal-check"></i></span>
+                        <span class="jp-home-quick-body">
+                            <span class="jp-home-quick-title">Kiểm tra</span>
+                            <span class="jp-home-quick-desc">Bài thi năng lực</span>
+                        </span>
+                        <i class="bi bi-chevron-right jp-home-quick-chevron"></i>
+                    </a>
+                    {% endif %}
+
+                    {% if jp_can_reports %}
+                    <a href="{% url 'reports:hub' %}" class="jp-home-quick-tile">
+                        <span class="jp-home-quick-icon"><i class="bi bi-clipboard-check-fill"></i></span>
+                        <span class="jp-home-quick-body">
+                            <span class="jp-home-quick-title">Báo cáo</span>
+                            <span class="jp-home-quick-desc">Báo cáo công việc hàng ngày</span>
+                        </span>
+                        <i class="bi bi-chevron-right jp-home-quick-chevron"></i>
+                    </a>
+                    {% endif %}
+
+                    {% if jp_can_documents %}
+                    <a href="{% url 'documents:browse' %}" class="jp-home-quick-tile">
+                        <span class="jp-home-quick-icon"><i class="bi bi-folder2-open"></i></span>
+                        <span class="jp-home-quick-body">
+                            <span class="jp-home-quick-title">Thư viện</span>
+                            <span class="jp-home-quick-desc">Tài liệu & hỏi đáp AI</span>
+                        </span>
+                        <i class="bi bi-chevron-right jp-home-quick-chevron"></i>
+                    </a>
+                    {% endif %}
+
+                    {% if jp_can_service_requests %}
+                    <a href="{% url 'service_requests:hub' %}" class="jp-home-quick-tile">
+                        <span class="jp-home-quick-icon"><i class="bi bi-send-fill"></i></span>
+                        <span class="jp-home-quick-body">
+                            <span class="jp-home-quick-title">Yêu cầu</span>
+                            <span class="jp-home-quick-desc">Phiếu liên phòng ban</span>
+                        </span>
+                        <i class="bi bi-chevron-right jp-home-quick-chevron"></i>
+                    </a>
+                    {% endif %}
+
+                    {% if jp_can_guide %}
+                    <a href="{% url 'user_guide' %}" class="jp-home-quick-tile">
+                        <span class="jp-home-quick-icon"><i class="bi bi-book-half"></i></span>
+                        <span class="jp-home-quick-body">
+                            <span class="jp-home-quick-title">Hướng dẫn</span>
+                            <span class="jp-home-quick-desc">Quy trình & tài liệu hỗ trợ</span>
+                        </span>
+                        <i class="bi bi-chevron-right jp-home-quick-chevron"></i>
+                    </a>
+                    {% endif %}
+                </div>
+            </section>
         </div>
     </div>
+    {% endwith %}
 </div>
 {% endblock %}

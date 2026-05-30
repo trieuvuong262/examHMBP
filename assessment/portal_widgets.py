@@ -10,10 +10,7 @@ from hrm.permissions import (
     can_receive_assigned_tasks,
     can_submit_daily_report,
     can_view_team_reports,
-    get_profile,
     get_report_team_users,
-    is_gm,
-    is_hod,
 )
 from hrm.module_permissions import (
     MODULE_ASSESSMENT,
@@ -22,7 +19,6 @@ from hrm.module_permissions import (
     MODULE_TRAINING,
     user_can_access_module,
 )
-from kpi.models import KpiPeriod, YearlyKpi
 from reports.models import DailyWorkReport
 from tasks.models import WorkTask, WorkTaskHandoff
 
@@ -263,73 +259,10 @@ def _service_request_widgets(user):
     return widgets
 
 
-_PERIOD_STATUS_FIELD = {
-    'Q1': 'q1_status',
-    'Q2': 'q2_status',
-    'Q3': 'q3_status',
-    'Q4': 'q4_status',
-    'H1': 'h1_status',
-    'H2': 'h2_status',
-    'Y': 'y_status',
-}
-
-
-def _period_label(period_type: str) -> str:
-    return dict(KpiPeriod.PERIOD_CHOICES).get(period_type, period_type)
-
-
-def _kpi_action_reminders(kpi_board, open_periods, role: str):
-    """role: 'self' | 'manager' | 'gm'"""
-    status_by_role = {
-        'self': 'self_evaluating',
-        'manager': 'manager_evaluating',
-        'gm': 'general_evaluating',
-    }
-    target_status = status_by_role.get(role)
-    if not target_status:
-        return []
-
-    items = []
-    for period in open_periods:
-        if period.year != kpi_board.year:
-            continue
-        field = _PERIOD_STATUS_FIELD.get(period.period_type)
-        if not field:
-            continue
-        if getattr(kpi_board, field, None) != target_status:
-            continue
-
-        label = _period_label(period.period_type)
-        if role == 'self':
-            text = f'Kỳ {label} đang mở — chưa hoàn tất tự đánh giá KPI năm {kpi_board.year}.'
-            action = 'Chấm KPI'
-        elif role == 'manager':
-            emp_profile = get_profile(kpi_board.employee)
-            name = emp_profile.full_name if emp_profile and emp_profile.full_name else kpi_board.employee.username
-            text = f'{name}: kỳ {label} đang chờ HOD chấm điểm.'
-            action = 'Chấm điểm'
-        else:
-            emp_profile = get_profile(kpi_board.employee)
-            name = emp_profile.full_name if emp_profile and emp_profile.full_name else kpi_board.employee.username
-            text = f'{name}: kỳ {label} đang chờ GM chốt điểm.'
-            action = 'Chốt KPI'
-
-        items.append({
-            'level': 'warning' if role == 'self' else 'info',
-            'icon': 'bi-graph-up-arrow',
-            'title': f'KPI {label} · năm {kpi_board.year}',
-            'text': text,
-            'url': reverse('kpi_detail', args=[kpi_board.id]),
-            'action': action,
-        })
-    return items
-
-
 def get_portal_dashboard(user):
     """Trả về danh sách widget nhắc việc (dict) cho trang chủ."""
     widgets = []
     today = timezone.localdate()
-    profile = get_profile(user)
 
     # --- Thông báo chưa đọc ---
     active_ids = Announcement.objects.filter(is_active=True).values_list('id', flat=True)
@@ -374,11 +307,6 @@ def get_portal_dashboard(user):
     widgets.extend(_exam_widgets(user))
     widgets.extend(_service_request_widgets(user))
 
-    # --- KPI cá nhân ---
-    open_periods = list(KpiPeriod.objects.filter(is_active=True))
-    for kpi in YearlyKpi.objects.filter(employee=user).order_by('-year'):
-        widgets.extend(_kpi_action_reminders(kpi, open_periods, 'self'))
-
     # --- HOD / GM: team chưa nộp BC ---
     if can_view_team_reports(user):
         team_users = get_report_team_users(user)
@@ -399,19 +327,5 @@ def get_portal_dashboard(user):
                     'action': 'Xem team',
                     'badge': missing,
                 })
-
-    # --- HOD / GM: KPI cấp dưới ---
-    team_kpis = YearlyKpi.objects.none()
-    if is_gm(user):
-        team_kpis = YearlyKpi.objects.exclude(employee=user).order_by('-year')
-    elif is_hod(user) and profile:
-        subs = profile.subordinates.all()
-        team_kpis = YearlyKpi.objects.filter(
-            Q(employee__in=subs) | Q(direct_manager=user),
-        ).exclude(employee=user).distinct().order_by('-year')
-
-    manager_role = 'gm' if is_gm(user) else 'manager'
-    for kpi in team_kpis[:20]:
-        widgets.extend(_kpi_action_reminders(kpi, open_periods, manager_role))
 
     return widgets
