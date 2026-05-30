@@ -578,7 +578,7 @@ def permission_config(request):
         })
 
     group_qs = PermissionGroup.objects.annotate(
-        member_count=Count('profiles'),
+        profile_count=Count('profiles'),
     ).order_by('name')
 
     group_rows = []

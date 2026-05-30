@@ -133,11 +133,6 @@ class PermissionGroup(models.Model):
         from hrm.group_permissions import normalize_group_permissions
         return normalize_group_permissions(self.module_permissions)
 
-    @property
-    def member_count(self):
-        return self.profiles.count()
-
-
 class RoleModulePermission(models.Model):
     """Phân quyền xem / cập nhật theo vai trò hệ thống (4 cấp)."""
     role = models.CharField(
