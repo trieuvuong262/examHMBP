@@ -1,0 +1,280 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container jp-page jp-tasks-page py-3 py-md-4 mb-5">
+    {% include 'tasks/includes/cross_dept_subnav.html' %}
+
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ project.title }}</h2>
+            <p class="text-muted mb-1">
+                <span class="badge bg-secondary-subtle text-secondary">{{ project.get_status_display }}</span>
+                · Điều phối: {{ project.owner.profile.full_name|default:project.owner.username }}
+            </p>
+            {% if project.description %}
+            <p class="text-muted mb-0">{{ project.description|linebreaksbr }}</p>
+            {% endif %}
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            {% if is_owner and project.status == 'active' %}
+            <form method="post" class="d-inline" onsubmit="return confirm('Đánh dấu dự án hoàn thành?');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="complete_project">
+                <button type="submit" class="btn btn-success btn-sm">Hoàn thành dự án</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if is_read_only %}
+    <div class="alert alert-info border-0 shadow-sm">
+        <i class="bi bi-eye me-1"></i>Bạn đang xem dự án ở chế độ <strong>chỉ đọc</strong> với tư cách Trưởng phòng.
+    </div>
+    {% endif %}
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <small class="text-muted d-block">Tiến độ tổng</small>
+                    <div class="d-flex align-items-end gap-2 mb-2">
+                        <span class="display-6 fw-bold text-hm">{{ project.progress_percent }}%</span>
+                        <span class="text-muted pb-1">{{ project.completed_steps_count }}/{{ project.total_steps_count }} bước</span>
+                    </div>
+                    <div class="progress" style="height: 10px;">
+                        <div class="progress-bar bg-hm" style="width: {{ project.progress_percent }}%"></div>
+                    </div>
+                    <div class="mt-3">
+                        <small class="text-muted d-block">Hạn dự án</small>
+                        <strong>{{ project.due_date|date:"d/m/Y"|default:"—" }}</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white fw-bold">Phòng ban tham gia</div>
+                <div class="card-body d-flex flex-wrap gap-2">
+                    {% for dept in departments %}
+                    <span class="badge bg-hm-subtle text-hm border border-hm">{{ dept.name }}</span>
+                    {% empty %}
+                    <span class="text-muted">Chưa chọn phòng ban.</span>
+                    {% endfor %}
+                </div>
+                <div class="card-header bg-white fw-bold border-top">Thành viên ({{ members|length }})</div>
+                <div class="card-body d-flex flex-wrap gap-2">
+                    {% for member in members %}
+                    <span class="badge bg-light text-dark border">
+                        {{ member.profile.full_name|default:member.username }}
+                        <span class="text-muted">@{{ member.username }}</span>
+                    </span>
+                    {% empty %}
+                    <span class="text-muted">Thành viên được thêm khi tiếp nhận hoặc được chỉ định bước.</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if pending_handoffs %}
+    <div class="card border-0 shadow-sm mb-4 border-warning">
+        <div class="card-header bg-warning-subtle fw-bold">Chuyển giao chờ duyệt</div>
+        <div class="list-group list-group-flush">
+            {% for handoff in pending_handoffs %}
+            <div class="list-group-item">
+                <div class="d-flex flex-wrap justify-content-between gap-2">
+                    <div>
+                        <strong>{{ handoff.source_task.title }}</strong>
+                        <div class="small text-muted">
+                            {{ handoff.from_user.profile.full_name|default:handoff.from_user.username }}
+                            → {{ handoff.to_user.profile.full_name|default:handoff.to_user.username }}
+                        </div>
+                        {% if handoff.note %}<div class="small mt-1">{{ handoff.note|linebreaksbr }}</div>{% endif %}
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 align-items-start">
+                        <form method="post" class="d-inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="approve_handoff">
+                            <input type="hidden" name="handoff_id" value="{{ handoff.pk }}">
+                            <button type="submit" class="btn btn-sm btn-success">Duyệt</button>
+                        </form>
+                        <form method="post" class="d-inline-flex gap-1 align-items-start">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="reject_handoff">
+                            <input type="hidden" name="handoff_id" value="{{ handoff.pk }}">
+                            <input type="text" name="review_note" class="form-control form-control-sm" placeholder="Lý do từ chối" style="width: 160px;">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Từ chối</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+                    <span>Các bước công việc</span>
+                    <span class="badge bg-info-subtle text-info">Hàng đợi phòng hoặc chỉ định người</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Bước</th>
+                                <th>Phòng ban</th>
+                                <th>Phụ trách</th>
+                                <th>Trạng thái</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for step in steps %}
+                            <tr>
+                                <td>{{ step.step_order }}</td>
+                                <td>
+                                    <strong>{{ step.title }}</strong>
+                                    {% if step.due_date %}
+                                    <div class="small text-muted">Hạn: {{ step.due_date|date:"d/m/Y" }}</div>
+                                    {% endif %}
+                                </td>
+                                <td>{{ step.target_department.name|default:"—" }}</td>
+                                <td>
+                                    {% if step.assignee %}
+                                    {{ step.assignee.profile.full_name|default:step.assignee.username }}
+                                    {% elif step.status == 'pending_claim' %}
+                                    <span class="text-warning-emphasis">Chờ tiếp nhận</span>
+                                    {% else %}
+                                    <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td><span class="badge {{ step.status_badge_class }}">{{ step.get_status_display }}</span></td>
+                                <td class="text-end">
+                                    {% if step.pk in claimable_step_ids %}
+                                    <a href="{% url 'tasks:cross_dept_claim' step.pk %}" class="btn btn-sm btn-hm">Tiếp nhận</a>
+                                    {% elif step.status != 'pending_claim' %}
+                                    <a href="{% url 'tasks:cross_dept_step' step.pk %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
+                                    {% endif %}
+                                    {% if is_owner and step.status == 'rejected' %}
+                                    <a href="{% url 'tasks:cross_dept_reassign' step.pk %}" class="btn btn-sm btn-hm">Giao người khác</a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">Chưa có bước nào.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {% if is_owner and step_form and project.status == 'active' %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white fw-bold">Thêm bước mới</div>
+                <div class="card-body">
+                    <form method="post" id="crossDeptStepForm">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="add_step">
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <label class="form-label">{{ step_form.title.label }}</label>
+                                {{ step_form.title }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">{{ step_form.priority.label }}</label>
+                                {{ step_form.priority }}
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">{{ step_form.description.label }}</label>
+                                {{ step_form.description }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{{ step_form.target_department.label }}</label>
+                                {{ step_form.target_department }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{{ step_form.assignee_mode.label }}</label>
+                                {{ step_form.assignee_mode }}
+                            </div>
+                            <div class="col-md-6" id="crossDeptAssigneeWrap">
+                                <label class="form-label">{{ step_form.assignee.label }}</label>
+                                {{ step_form.assignee }}
+                                {% if step_form.assignee.help_text %}<div class="form-text">{{ step_form.assignee.help_text }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">{{ step_form.depends_on.label }}</label>
+                                {{ step_form.depends_on }}
+                                {% if step_form.depends_on.help_text %}<div class="form-text">{{ step_form.depends_on.help_text }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">{{ step_form.due_date.label }}</label>
+                                {{ step_form.due_date }}
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-hm mt-3">Thêm bước</button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white fw-bold">Báo cáo chung — comment</div>
+                <div class="card-body jp-project-comments">
+                    {% for item in comment_items %}
+                    <div class="jp-project-comment mb-3 pb-3 border-bottom">
+                        <div class="d-flex justify-content-between small text-muted mb-1">
+                            <strong class="text-body">{{ item.comment.author.profile.full_name|default:item.comment.author.username }}</strong>
+                            <span>{{ item.comment.created_at|date:"d/m/Y H:i" }}</span>
+                        </div>
+                        <div class="jp-project-comment-body">{{ item.body_html|safe }}</div>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted small mb-3">Chưa có comment.</p>
+                    {% endfor %}
+
+                    {% if can_comment and comment_form %}
+                    <form method="post" class="jp-mention-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="comment">
+                        <label class="form-label">{{ comment_form.body.label }}</label>
+                        <div class="jp-mention-wrap">
+                            {{ comment_form.body }}
+                        </div>
+                        <button type="submit" class="btn btn-outline-hm btn-sm mt-2">Gửi comment</button>
+                    </form>
+                    {% elif is_read_only %}
+                    <p class="text-muted small mb-0">Trưởng phòng chỉ xem — không gửi comment.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% if mention_members %}{{ mention_members|json_script:"jp-mention-members" }}{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if mention_members %}<script src="{% static 'js/project-comments.js' %}"></script>{% endif %}
+<script>
+(function() {
+    const mode = document.querySelector('[data-jp-cross-dept-mode]');
+    const wrap = document.getElementById('crossDeptAssigneeWrap');
+    if (!mode || !wrap) return;
+    function sync() {
+        const isQueue = mode.value === 'dept_queue';
+        wrap.style.display = isQueue ? 'none' : '';
+    }
+    mode.addEventListener('change', sync);
+    sync();
+})();
+</script>
+{% endblock %}

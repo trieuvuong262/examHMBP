@@ -2,7 +2,9 @@
 
 {% block content %}
 <div class="container jp-page jp-tasks-page py-3 py-md-4 mb-5">
-    {% if is_project_step %}
+    {% if is_cross_dept %}
+    {% include 'tasks/includes/cross_dept_subnav.html' %}
+    {% elif is_project_step %}
     {% include 'tasks/includes/project_subnav.html' %}
     {% else %}
     {% include 'tasks/includes/personal_subnav.html' %}
@@ -15,32 +17,47 @@
                 <span class="badge {{ task.status_badge_class }}">{{ task.get_status_display }}</span>
                 · Giao bởi {{ task.assigner.profile.full_name|default:task.assigner.username }}
                 {% if project %}
-                · <a href="{% url 'tasks:project_detail' project.pk %}">Dự án: {{ project.title }}</a>
+                · <a href="{% if is_cross_dept %}{% url 'tasks:cross_dept_detail' project.pk %}{% else %}{% url 'tasks:project_detail' project.pk %}{% endif %}">Dự án: {{ project.title }}</a>
                 {% endif %}
             </p>
             <div class="text-muted small">
                 <span class="me-1">Người nhận:</span>
+                {% if task.assignee %}
                 {% include 'tasks/includes/user_brief.html' with user=task.assignee %}
+                {% elif task.target_department %}
+                <span class="text-warning-emphasis">Hàng đợi {{ task.target_department.name }} — chưa tiếp nhận</span>
+                {% else %}
+                <span class="text-muted">—</span>
+                {% endif %}
             </div>
         </div>
         <div class="d-flex flex-wrap gap-2">
             {% if is_project_step %}
-            <a href="{% url 'tasks:project_detail' project.pk %}" class="btn btn-outline-hm btn-sm">Về dự án</a>
+            <a href="{% if is_cross_dept %}{% url 'tasks:cross_dept_detail' project.pk %}{% else %}{% url 'tasks:project_detail' project.pk %}{% endif %}" class="btn btn-outline-hm btn-sm">Về dự án</a>
             {% elif is_assigner %}
             <a href="{% url 'tasks:assigned' %}" class="btn btn-outline-hm btn-sm">Việc đã giao</a>
             {% else %}
             <a href="{% url 'tasks:my' %}" class="btn btn-outline-hm btn-sm">Việc của tôi</a>
             {% endif %}
             {% if is_project_step and is_assigner and task.status == 'rejected' %}
-            <a href="{% url 'tasks:project_reassign' task.pk %}" class="btn btn-hm btn-sm">Giao người khác</a>
+            <a href="{% if is_cross_dept %}{% url 'tasks:cross_dept_reassign' task.pk %}{% else %}{% url 'tasks:project_reassign' task.pk %}{% endif %}" class="btn btn-hm btn-sm">Giao người khác</a>
             {% elif not is_project_step and is_assigner and task.status == 'rejected' %}
             <a href="{% url 'tasks:reassign' task.pk %}" class="btn btn-hm btn-sm">Giao lại</a>
             {% endif %}
+            {% if can_claim %}
+            <a href="{% url 'tasks:cross_dept_claim' task.pk %}" class="btn btn-hm btn-sm">Tiếp nhận bước</a>
+            {% endif %}
             {% if can_request_handoff %}
-            <a href="{% url 'tasks:handoff' task.pk %}" class="btn btn-outline-hm btn-sm">Chuyển giao bước</a>
+            <a href="{% if is_cross_dept %}{% url 'tasks:cross_dept_handoff' task.pk %}{% else %}{% url 'tasks:handoff' task.pk %}{% endif %}" class="btn btn-outline-hm btn-sm">Chuyển giao bước</a>
             {% endif %}
         </div>
     </div>
+
+    {% if is_read_only_project_viewer %}
+    <div class="alert alert-info border-0 shadow-sm mb-4">
+        <i class="bi bi-eye me-1"></i>Bạn đang xem bước công việc ở chế độ <strong>chỉ đọc</strong> (Trưởng phòng).
+    </div>
+    {% endif %}
 
     <div class="row g-4">
         <div class="col-lg-8">
@@ -181,7 +198,7 @@
             <div class="alert alert-info border-0">
                 Đang chờ chủ dự án duyệt chuyển giao cho
                 <strong>{{ pending_handoff.to_user.profile.full_name|default:pending_handoff.to_user.username }}</strong>.
-                <a href="{% url 'tasks:project_detail' project.pk %}">Xem dự án</a>
+                <a href="{% if is_cross_dept %}{% url 'tasks:cross_dept_detail' project.pk %}{% else %}{% url 'tasks:project_detail' project.pk %}{% endif %}">Xem dự án</a>
             </div>
             {% endif %}
 

@@ -37,6 +37,7 @@ class WorkTask(models.Model):
     STATUS_REASSIGNED = 'reassigned'
     STATUS_BLOCKED = 'blocked'
     STATUS_HANDED_OFF = 'handed_off'
+    STATUS_PENDING_CLAIM = 'pending_claim'
     STATUS_CHOICES = [
         (STATUS_PENDING_ACK, 'Chờ xác nhận'),
         (STATUS_IN_PROGRESS, 'Đang thực hiện'),
@@ -48,6 +49,14 @@ class WorkTask(models.Model):
         (STATUS_REASSIGNED, 'Đã giao lại'),
         (STATUS_BLOCKED, 'Chờ bước trước'),
         (STATUS_HANDED_OFF, 'Đã chuyển giao'),
+        (STATUS_PENDING_CLAIM, 'Chờ tiếp nhận'),
+    ]
+
+    ASSIGNEE_SPECIFIC = 'specific'
+    ASSIGNEE_DEPT_QUEUE = 'dept_queue'
+    ASSIGNEE_MODE_CHOICES = [
+        (ASSIGNEE_SPECIFIC, 'Chỉ định người'),
+        (ASSIGNEE_DEPT_QUEUE, 'Hàng đợi phòng ban'),
     ]
 
     ACTIVE_ASSIGNEE_STATUSES = {
@@ -92,6 +101,8 @@ class WorkTask(models.Model):
         on_delete=models.CASCADE,
         related_name='received_work_tasks',
         verbose_name='Người nhận',
+        null=True,
+        blank=True,
     )
     due_date = models.DateField(null=True, blank=True, verbose_name='Hạn hoàn thành')
     status = models.CharField(
@@ -137,6 +148,20 @@ class WorkTask(models.Model):
         verbose_name='Phụ thuộc bước',
     )
     step_order = models.PositiveIntegerField(default=0, verbose_name='Thứ tự')
+    assignee_mode = models.CharField(
+        max_length=20,
+        choices=ASSIGNEE_MODE_CHOICES,
+        default=ASSIGNEE_SPECIFIC,
+        verbose_name='Cách gán người',
+    )
+    target_department = models.ForeignKey(
+        'hrm.Department',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='work_task_steps',
+        verbose_name='Phòng ban xử lý',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -146,7 +171,19 @@ class WorkTask(models.Model):
         verbose_name_plural = 'Công việc'
 
     def __str__(self):
-        return f'{self.title} → {self.assignee}'
+        if self.assignee_id:
+            return f'{self.title} → {self.assignee}'
+        if self.target_department_id:
+            return f'{self.title} → {self.target_department}'
+        return self.title
+
+    @property
+    def is_dept_queue_step(self):
+        return (
+            self.assignee_mode == self.ASSIGNEE_DEPT_QUEUE
+            and self.target_department_id
+            and not self.assignee_id
+        )
 
     @property
     def is_overdue(self):
@@ -168,6 +205,7 @@ class WorkTask(models.Model):
             self.STATUS_REASSIGNED: 'bg-secondary-subtle text-secondary',
             self.STATUS_BLOCKED: 'bg-secondary-subtle text-secondary',
             self.STATUS_HANDED_OFF: 'bg-secondary-subtle text-secondary',
+            self.STATUS_PENDING_CLAIM: 'bg-warning-subtle text-warning-emphasis',
         }
         return mapping.get(self.status, 'bg-secondary-subtle text-secondary')
 
@@ -277,6 +315,13 @@ class WorkTaskLog(models.Model):
 
 
 class InternalProject(models.Model):
+    TYPE_TEAM = 'team'
+    TYPE_CROSS_DEPT = 'cross_dept'
+    TYPE_CHOICES = [
+        (TYPE_TEAM, 'Nội bộ'),
+        (TYPE_CROSS_DEPT, 'Liên phòng ban'),
+    ]
+
     STATUS_DRAFT = 'draft'
     STATUS_ACTIVE = 'active'
     STATUS_COMPLETED = 'completed'
@@ -306,6 +351,19 @@ class InternalProject(models.Model):
         blank=True,
         verbose_name='Thành viên',
     )
+    project_type = models.CharField(
+        max_length=20,
+        choices=TYPE_CHOICES,
+        default=TYPE_TEAM,
+        db_index=True,
+        verbose_name='Loại dự án',
+    )
+    departments = models.ManyToManyField(
+        'hrm.Department',
+        related_name='cross_department_projects',
+        blank=True,
+        verbose_name='Phòng ban tham gia',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -316,6 +374,10 @@ class InternalProject(models.Model):
 
     def __str__(self):
         return self.title
+
+    @property
+    def is_cross_department(self):
+        return self.project_type == self.TYPE_CROSS_DEPT
 
     @property
     def completed_steps_count(self):

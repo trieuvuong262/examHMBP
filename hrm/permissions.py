@@ -209,12 +209,65 @@ def can_create_internal_project(user) -> bool:
     return can_assign_tasks(user)
 
 
+CROSS_DEPT_CREATOR_ROLES = {ROLE_DIRECTOR, ROLE_TEAM_LEADER}
+
+
+def can_create_cross_dept_project(user) -> bool:
+    """Giám đốc hoặc Trưởng phòng (Tổ trưởng) — cần quyền sửa module Công việc."""
+    if not _has_tasks_module_access(user):
+        return False
+    from hrm.module_permissions import MODULE_TASKS
+    from hrm.role_permissions import user_can_edit_module
+    if not user_can_edit_module(user, MODULE_TASKS):
+        return False
+    return user_role(user) in CROSS_DEPT_CREATOR_ROLES
+
+
+def is_cross_dept_dept_head_viewer(user, project) -> bool:
+    """Trưởng phòng xem read-only dự án liên phòng ban có phòng mình."""
+    if not project.is_cross_department:
+        return False
+    profile = get_profile(user)
+    if not profile or profile.role != ROLE_TEAM_LEADER:
+        return False
+    if not profile.department_id:
+        return False
+    return project.departments.filter(pk=profile.department_id).exists()
+
+
+def is_cross_dept_read_only_viewer(user, project) -> bool:
+    return is_cross_dept_dept_head_viewer(user, project) and not can_manage_project(user, project)
+
+
+def can_claim_cross_dept_step(user, task) -> bool:
+    from tasks.models import WorkTask
+
+    if not task.project_id or not task.project.is_cross_department:
+        return False
+    if task.assignee_mode != WorkTask.ASSIGNEE_DEPT_QUEUE:
+        return False
+    if task.assignee_id:
+        return False
+    if task.status != WorkTask.STATUS_PENDING_CLAIM:
+        return False
+    if not can_receive_assigned_tasks(user):
+        return False
+    profile = get_profile(user)
+    if not profile or not profile.department_id:
+        return False
+    return task.target_department_id == profile.department_id
+
+
 def can_view_project(user, project) -> bool:
     if not _has_tasks_module_access(user):
         return False
     if project.owner_id == user.id:
         return True
-    return project.members.filter(pk=user.pk).exists()
+    if project.members.filter(pk=user.pk).exists():
+        return True
+    if is_cross_dept_dept_head_viewer(user, project):
+        return True
+    return False
 
 
 def can_manage_project(user, project) -> bool:
@@ -229,8 +282,11 @@ def can_view_task(user, task) -> bool:
         return False
     if task.assignee_id == user.id or task.assigner_id == user.id:
         return True
-    if task.project_id and can_view_project(user, task.project):
-        return True
+    if task.project_id:
+        if can_view_project(user, task.project):
+            return True
+        if can_claim_cross_dept_step(user, task):
+            return True
     return False
 
 

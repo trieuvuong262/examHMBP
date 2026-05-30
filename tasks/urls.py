@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import project_views, views
+from . import cross_dept_views, project_views, views
 
 app_name = 'tasks'
 
@@ -18,4 +18,12 @@ urlpatterns = [
     path('du-an/viec/<int:pk>/', views.task_detail, name='project_step'),
     path('du-an/viec/<int:pk>/chuyen-giao/', project_views.request_handoff, name='handoff'),
     path('du-an/viec/<int:pk>/giao-lai/', project_views.reassign_project_step, name='project_reassign'),
+    path('lien-phong-ban/', cross_dept_views.cross_dept_list, name='cross_dept_list'),
+    path('lien-phong-ban/tao/', cross_dept_views.cross_dept_create, name='cross_dept_create'),
+    path('lien-phong-ban/cho-tiep-nhan/', cross_dept_views.cross_dept_pending, name='cross_dept_pending'),
+    path('lien-phong-ban/<int:pk>/', cross_dept_views.cross_dept_detail, name='cross_dept_detail'),
+    path('lien-phong-ban/viec/<int:pk>/', views.task_detail, name='cross_dept_step'),
+    path('lien-phong-ban/viec/<int:pk>/tiep-nhan/', cross_dept_views.claim_cross_dept_step, name='cross_dept_claim'),
+    path('lien-phong-ban/viec/<int:pk>/chuyen-giao/', project_views.request_handoff, name='cross_dept_handoff'),
+    path('lien-phong-ban/viec/<int:pk>/giao-lai/', project_views.reassign_project_step, name='cross_dept_reassign'),
 ]

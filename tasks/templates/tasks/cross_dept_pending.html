@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-tasks-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">Chờ phòng tiếp nhận</h2>
+            <p class="text-muted mb-0">Các bước hàng đợi thuộc phòng ban của bạn — bấm tiếp nhận để phụ trách.</p>
+        </div>
+    </div>
+
+    {% include 'tasks/includes/cross_dept_subnav.html' %}
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Dự án</th>
+                        <th>Bước</th>
+                        <th>Phòng ban</th>
+                        <th>Hạn</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for step in steps %}
+                    <tr>
+                        <td><strong>{{ step.project.title }}</strong></td>
+                        <td>
+                            {{ step.title }}
+                            {% if step.depends_on %}
+                            <div class="small text-muted">Phụ thuộc #{{ step.depends_on.step_order }}</div>
+                            {% endif %}
+                        </td>
+                        <td>{{ step.target_department.name }}</td>
+                        <td>{{ step.due_date|date:"d/m/Y"|default:"—" }}</td>
+                        <td class="text-end">
+                            <a href="{% url 'tasks:cross_dept_claim' step.pk %}" class="btn btn-sm btn-hm">Tiếp nhận</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">Không có bước nào chờ phòng bạn tiếp nhận.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

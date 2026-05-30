@@ -9,11 +9,13 @@ from django.utils import timezone
 from hrm.module_permissions import MODULE_TASKS, user_can_access_module
 from hrm.permissions import (
     can_assign_tasks,
+    can_claim_cross_dept_step,
     can_create_internal_project,
     can_manage_assigned_task,
     can_receive_assigned_tasks,
     can_view_task,
     get_task_assignable_users,
+    is_cross_dept_read_only_viewer,
 )
 from PortalJustPlay.list_search import apply_combined_search, apply_term_search, get_search_query, search_terms
 from PortalJustPlay.pagination import paginate_queryset
@@ -79,7 +81,17 @@ def _personal_tasks_qs(**filters):
 
 
 def _task_detail_route(task):
-    return 'tasks:project_step' if task.project_id else 'tasks:detail'
+    if task.project_id:
+        if task.project.is_cross_department:
+            return 'tasks:cross_dept_step'
+        return 'tasks:project_step'
+    return 'tasks:detail'
+
+
+def _project_detail_route(project):
+    if project.is_cross_department:
+        return 'tasks:cross_dept_detail'
+    return 'tasks:project_detail'
 
 
 def _redirect_task_detail(task, *, pk=None):
@@ -305,10 +317,19 @@ def task_detail(request, pk):
     url_name = request.resolver_match.url_name
     if task.project_id and url_name == 'detail':
         return _redirect_task_detail(task)
-    if not task.project_id and url_name == 'project_step':
+    if not task.project_id and url_name in ('project_step', 'cross_dept_step'):
         return _redirect_task_detail(task)
+    if task.project_id and task.project.is_cross_department and url_name == 'project_step':
+        return redirect('tasks:cross_dept_step', pk=pk)
+    if task.project_id and not task.project.is_cross_department and url_name == 'cross_dept_step':
+        return redirect('tasks:project_step', pk=pk)
 
     is_project_step = bool(task.project_id)
+    is_cross_dept = is_project_step and task.project.is_cross_department
+    can_claim = can_claim_cross_dept_step(request.user, task)
+    is_read_only_project_viewer = (
+        is_cross_dept and is_cross_dept_read_only_viewer(request.user, task.project)
+    )
     is_assignee = (
         task.assignee_id == request.user.id
         and can_receive_assigned_tasks(request.user)
@@ -426,7 +447,7 @@ def task_detail(request, pk):
             log_task_action(task, request.user, WorkTaskLog.ACTION_CANCEL, 'Hủy công việc')
             messages.info(request, 'Đã hủy công việc.')
             if is_project_step:
-                return redirect('tasks:project_detail', pk=task.project_id)
+                return redirect(_project_detail_route(task.project), pk=task.project_id)
             return redirect('tasks:assigned')
 
     batch_siblings = None
@@ -455,6 +476,9 @@ def task_detail(request, pk):
         'task': task,
         'project': task.project,
         'is_project_step': is_project_step,
+        'is_cross_dept': is_cross_dept,
+        'can_claim': can_claim,
+        'is_read_only_project_viewer': is_read_only_project_viewer,
         'logs': task.logs.select_related('actor', 'actor__profile'),
         'assign_images': assign_images,
         'assign_files': assign_files,

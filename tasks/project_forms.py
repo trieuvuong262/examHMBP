@@ -88,6 +88,11 @@ class ProjectStepReassignForm(forms.Form):
         super().__init__(*args, **kwargs)
         if project is not None:
             qs = project.members.all()
+            if project.is_cross_department:
+                from tasks.cross_dept_utils import get_department_task_users
+                for dept in project.departments.all():
+                    qs = qs | get_department_task_users(dept)
+                qs = qs.distinct()
             if exclude_user is not None:
                 qs = qs.exclude(pk=exclude_user.pk)
             self.fields['assignee'].queryset = qs
@@ -110,6 +115,11 @@ class HandoffRequestForm(forms.Form):
         super().__init__(*args, **kwargs)
         if project is not None:
             qs = project.members.all()
+            if project.is_cross_department:
+                from tasks.cross_dept_utils import get_department_task_users
+                for dept in project.departments.all():
+                    qs = qs | get_department_task_users(dept)
+                qs = qs.distinct()
             if exclude_user is not None:
                 qs = qs.exclude(pk=exclude_user.pk)
             self.fields['to_user'].queryset = qs

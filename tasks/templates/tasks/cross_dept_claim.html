@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-tasks-page py-3 py-md-4 mb-5">
+    {% include 'tasks/includes/cross_dept_subnav.html' %}
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+            <h2 class="fw-bold text-hm h4 mb-2">Tiếp nhận bước công việc</h2>
+            <p class="mb-1"><strong>{{ task.title }}</strong></p>
+            <p class="text-muted mb-3">
+                Dự án: <a href="{% url 'tasks:cross_dept_detail' project.pk %}">{{ project.title }}</a>
+                · Phòng ban: {{ task.target_department.name }}
+            </p>
+            {% if task.description %}
+            <div class="mb-3 text-muted">{{ task.description|linebreaksbr }}</div>
+            {% endif %}
+            <form method="post" class="d-flex flex-wrap gap-2">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-hm">Xác nhận tiếp nhận</button>
+                <a href="{% url 'tasks:cross_dept_pending' %}" class="btn btn-outline-secondary">Quay lại</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

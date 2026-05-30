@@ -29,8 +29,9 @@ from .project_utils import (
     resolve_project_mentions,
 )
 from .attachment_utils import copy_task_attachments
+from .cross_dept_utils import ensure_project_member
 from .utils import log_task_action
-from .views import _get_task_or_404, _tasks_access_required
+from .views import _get_task_or_404, _project_detail_route, _redirect_task_detail, _task_detail_route, _tasks_access_required
 
 
 def _get_project_or_404(user, pk):
@@ -47,6 +48,8 @@ def _get_project_or_404(user, pk):
 def project_list(request):
     search_query = get_search_query(request)
     qs = InternalProject.objects.filter(
+        project_type=InternalProject.TYPE_TEAM,
+    ).filter(
         Q(owner=request.user) | Q(members=request.user),
     ).distinct().select_related('owner', 'owner__profile').prefetch_related('members')
     qs = apply_combined_search(qs, search_query, lambda term: (
@@ -75,6 +78,7 @@ def project_create(request):
         if form.is_valid():
             project = form.save(commit=False)
             project.owner = request.user
+            project.project_type = InternalProject.TYPE_TEAM
             project.status = InternalProject.STATUS_ACTIVE
             project.save()
             form.save_m2m()
@@ -154,7 +158,7 @@ def project_detail(request, pk):
                 )
                 log_task_action(
                     step, request.user, WorkTaskLog.ACTION_ASSIGNED,
-                    f'Bước dự án → {step.assignee.username}',
+                    f'Bước dự án → {step.assignee.username if step.assignee_id else "?"}',
                 )
                 messages.success(request, f'Đã thêm bước «{step.title}».')
                 return redirect('tasks:project_detail', pk=pk)
@@ -283,13 +287,14 @@ def reassign_project_step(request, pk):
         project__isnull=False,
     )
     project = old_task.project
+    step_route = _task_detail_route(old_task)
     if not can_manage_project(request.user, project):
         messages.error(request, 'Chỉ chủ dự án mới giao lại bước cho người khác.')
-        return redirect('tasks:project_step', pk=pk)
+        return redirect(step_route, pk=pk)
 
     if old_task.status != WorkTask.STATUS_REJECTED:
         messages.error(request, 'Chỉ giao lại được khi nhân viên đã từ chối bước này.')
-        return redirect('tasks:project_step', pk=pk)
+        return redirect(step_route, pk=pk)
 
     rejected_user = old_task.assignee
     if request.method == 'POST':
@@ -309,6 +314,8 @@ def reassign_project_step(request, pk):
                 due_date=old_task.due_date,
                 assigner=project.owner,
                 assignee=new_assignee,
+                assignee_mode=old_task.assignee_mode,
+                target_department=old_task.target_department,
                 project=project,
                 depends_on=old_task.depends_on,
                 step_order=old_task.step_order,
@@ -324,6 +331,7 @@ def reassign_project_step(request, pk):
             old_task.status = WorkTask.STATUS_REASSIGNED
             old_task.replaced_by = new_task
             old_task.save(update_fields=['status', 'replaced_by', 'updated_at'])
+            ensure_project_member(project, new_assignee)
             rejected_name = rejected_user.profile.full_name or rejected_user.username
             log_task_action(
                 old_task, request.user, WorkTaskLog.ACTION_REASSIGN,
@@ -362,24 +370,26 @@ def request_handoff(request, pk):
         return redirect('tasks:project_list')
 
     project = task.project
+    step_route = _task_detail_route(task)
+    detail_route = _project_detail_route(project)
     is_assignee = (
         task.assignee_id == request.user.id
         and can_receive_assigned_tasks(request.user)
     )
     if not is_assignee:
         messages.error(request, 'Chỉ người đang phụ trách mới yêu cầu chuyển giao.')
-        return redirect('tasks:project_step', pk=pk)
+        return redirect(step_route, pk=pk)
 
     if task.status not in {
         WorkTask.STATUS_IN_PROGRESS,
         WorkTask.STATUS_REVISION,
     }:
         messages.error(request, 'Chỉ chuyển giao khi đang thực hiện hoặc cần sửa.')
-        return redirect('tasks:project_step', pk=pk)
+        return redirect(step_route, pk=pk)
 
     if task.handoff_requests.filter(status=WorkTaskHandoff.STATUS_PENDING).exists():
         messages.info(request, 'Đã có yêu cầu chuyển giao đang chờ duyệt.')
-        return redirect('tasks:project_step', pk=pk)
+        return redirect(step_route, pk=pk)
 
     if request.method == 'POST':
         form = HandoffRequestForm(
@@ -401,7 +411,7 @@ def request_handoff(request, pk):
                 f'Yêu cầu chuyển giao → {form.cleaned_data["to_user"].username}',
             )
             messages.success(request, 'Đã gửi yêu cầu chuyển giao — chờ chủ dự án duyệt.')
-            return redirect('tasks:project_detail', pk=project.pk)
+            return redirect(detail_route, pk=project.pk)
     else:
         form = HandoffRequestForm(project=project, exclude_user=request.user)
 

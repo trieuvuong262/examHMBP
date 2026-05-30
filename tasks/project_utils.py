@@ -43,7 +43,13 @@ def unlock_dependent_steps(completed_task):
         depends_on_id=completed_task.pk,
         status=WorkTask.STATUS_BLOCKED,
     ):
-        child.status = WorkTask.STATUS_PENDING_ACK
+        if (
+            child.assignee_mode == WorkTask.ASSIGNEE_DEPT_QUEUE
+            and not child.assignee_id
+        ):
+            child.status = WorkTask.STATUS_PENDING_CLAIM
+        else:
+            child.status = WorkTask.STATUS_PENDING_ACK
         child.save(update_fields=['status', 'updated_at'])
         unlocked.append(child)
     return unlocked
@@ -63,8 +69,11 @@ def build_mention_member_list(project):
     """Danh sách thành viên cho gợi ý @mention trên comment dự án."""
     from hrm.permissions import format_team_user_label, get_profile
 
+    users = list(project.members.select_related('profile').order_by('profile__full_name', 'username'))
+    if project.owner_id and not any(u.pk == project.owner_id for u in users):
+        users.insert(0, project.owner)
     members = []
-    for user in project.members.select_related('profile').order_by('profile__full_name', 'username'):
+    for user in users:
         profile = get_profile(user)
         full_name = profile.full_name if profile and profile.full_name else user.username
         members.append({
