@@ -619,6 +619,25 @@ def _unique_group_slug(base: str) -> str:
     return f'{slug}-{n}'
 
 
+def _permission_group_form_context(meta_form, perm_form, title, *, group=None, is_edit=False):
+    presets_qs = PermissionGroup.objects.order_by('-is_system', 'name')
+    if group:
+        presets_qs = presets_qs.exclude(pk=group.pk)
+    permission_presets = [
+        {'name': g.name, 'permissions': g.get_permissions()}
+        for g in presets_qs
+    ]
+    return {
+        'meta_form': meta_form,
+        'perm_form': perm_form,
+        'title': title,
+        'is_edit': is_edit,
+        'group': group,
+        'permission_presets': permission_presets,
+        'perm_actions': ['view', 'create', 'update', 'delete', 'export'],
+    }
+
+
 @admin_only
 def permission_group_add(request):
     if request.method == 'POST':
@@ -636,12 +655,9 @@ def permission_group_add(request):
         meta_form = PermissionGroupMetaForm()
         perm_form = PermissionGroupPermissionForm()
 
-    return render(request, 'assessment/admin/permission_group_form.html', {
-        'meta_form': meta_form,
-        'perm_form': perm_form,
-        'title': 'Thêm nhóm quyền',
-        'is_edit': False,
-    })
+    return render(request, 'assessment/admin/permission_group_form.html', _permission_group_form_context(
+        meta_form, perm_form, 'Thêm nhóm quyền', is_edit=False,
+    ))
 
 
 @admin_only
@@ -664,13 +680,9 @@ def permission_group_edit(request, pk):
         meta_form = PermissionGroupMetaForm(instance=group)
         perm_form = PermissionGroupPermissionForm(initial_permissions=group.module_permissions)
 
-    return render(request, 'assessment/admin/permission_group_form.html', {
-        'meta_form': meta_form,
-        'perm_form': perm_form,
-        'group': group,
-        'title': f'Chỉnh sửa — {group.name}',
-        'is_edit': True,
-    })
+    return render(request, 'assessment/admin/permission_group_form.html', _permission_group_form_context(
+        meta_form, perm_form, f'Chỉnh sửa — {group.name}', group=group, is_edit=True,
+    ))
 
 
 @admin_only

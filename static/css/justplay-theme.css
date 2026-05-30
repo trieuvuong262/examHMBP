@@ -4276,6 +4276,23 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     cursor: pointer;
 }
 
+.jp-group-perm-table .jp-perm-row-quick .btn {
+    font-size: 0.72rem;
+    line-height: 1.2;
+    min-width: 2rem;
+}
+
+.jp-group-perm-table .jp-perm-col-select th {
+    padding-top: 0.35rem;
+    padding-bottom: 0.5rem;
+    vertical-align: middle;
+}
+
+.jp-group-perm-table .jp-perm-col-toggle {
+    cursor: pointer;
+    user-select: none;
+}
+
 /* ============================================================
    Theme toggle
    ============================================================ */

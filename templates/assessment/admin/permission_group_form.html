@@ -15,11 +15,6 @@
             <p class="mb-0 small opacity-75">5 quyền riêng: <strong>Xem</strong> · <strong>Thêm</strong> · <strong>Sửa</strong> · <strong>Xóa</strong> · <strong>Xuất Excel</strong></p>
         </div>
         <div class="card-body p-3 p-md-4">
-            <div class="alert alert-light border small mb-4">
-                <i class="bi bi-info-circle text-hm me-1"></i>
-                Nhóm quyền gán trực tiếp cho nhân viên (form Nhân sự). Quyền áp dụng <strong>sau</strong> phân quyền theo phòng ban.
-            </div>
-
             <form method="post" id="groupPermForm">
                 {% csrf_token %}
                 <div class="row g-3 mb-4">
@@ -34,22 +29,55 @@
                     </div>
                 </div>
 
+                <div class="d-flex flex-wrap align-items-end gap-2 gap-md-3 mb-3 pb-3 border-bottom">
+                    <div class="flex-grow-1" style="min-width: 220px; max-width: 360px;">
+                        <label class="form-label fw-semibold small mb-1">Áp dụng mẫu có sẵn</label>
+                        <select id="permPresetSelect" class="form-select form-select-sm">
+                            <option value="">— Chọn nhóm mẫu —</option>
+                            {% for preset in permission_presets %}
+                            <option value="{{ forloop.counter0 }}">{{ preset.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" id="permClearAll">Bỏ chọn tất cả</button>
+                </div>
+
                 <div class="table-responsive">
-                    <table class="table table-bordered align-middle mb-0 jp-role-perm-table">
+                    <table class="table table-bordered align-middle mb-0 jp-role-perm-table jp-group-perm-table">
                         <thead class="table-light">
                             <tr>
                                 <th class="ps-3">Chức năng</th>
+                                <th class="text-center text-nowrap" style="width: 100px;">Chọn nhanh</th>
                                 <th class="text-center" style="width: 72px;">Xem</th>
                                 <th class="text-center" style="width: 72px;">Thêm</th>
                                 <th class="text-center" style="width: 72px;">Sửa</th>
                                 <th class="text-center" style="width: 72px;">Xóa</th>
                                 <th class="text-center" style="width: 88px;">Excel</th>
                             </tr>
+                            <tr class="jp-perm-col-select">
+                                <th class="ps-3 small text-muted fw-normal">Cột</th>
+                                <th></th>
+                                {% for action in perm_actions %}
+                                <th class="text-center">
+                                    <label class="form-check d-inline-flex justify-content-center mb-0 small fw-normal text-muted jp-perm-col-toggle" title="Chọn/bỏ cả cột">
+                                        <input type="checkbox" class="form-check-input" data-col-action="{{ action }}">
+                                        <span class="ms-1 d-none d-md-inline">Tất cả</span>
+                                    </label>
+                                </th>
+                                {% endfor %}
+                            </tr>
                         </thead>
                         <tbody>
                             {% for row in perm_form.module_rows %}
                             <tr data-module="{{ row.key }}">
                                 <td class="ps-3 fw-semibold">{{ row.label }}</td>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm jp-perm-row-quick" role="group">
+                                        <button type="button" class="btn btn-outline-secondary px-2" data-row-preset="none" title="Không truy cập">—</button>
+                                        <button type="button" class="btn btn-outline-secondary px-2" data-row-preset="view" title="Chỉ xem">Xem</button>
+                                        <button type="button" class="btn btn-outline-hm px-2" data-row-preset="full" title="Đủ 5 quyền">Đủ</button>
+                                    </div>
+                                </td>
                                 {% for action, field in row.fields.items %}
                                 <td class="text-center">
                                     <div class="form-check d-inline-flex justify-content-center mb-0">
@@ -72,29 +100,143 @@
     </div>
 </div>
 
+{{ permission_presets|json_script:"jp-perm-presets" }}
+
 <script>
 (function () {
-    var actions = ['create', 'update', 'delete', 'export'];
-    document.querySelectorAll('#groupPermForm tbody tr[data-module]').forEach(function (row) {
-        var moduleKey = row.getAttribute('data-module');
-        var viewBox = row.querySelector('input[name="view_' + moduleKey + '"]');
-        if (!viewBox) return;
+    var form = document.getElementById('groupPermForm');
+    if (!form) return;
+
+    var actions = ['view', 'create', 'update', 'delete', 'export'];
+    var editActions = ['create', 'update', 'delete', 'export'];
+    var presets = [];
+    try {
+        presets = JSON.parse(document.getElementById('jp-perm-presets').textContent);
+    } catch (e) {
+        presets = [];
+    }
+
+    function box(moduleKey, action) {
+        return form.querySelector('input[name="' + action + '_' + moduleKey + '"]');
+    }
+
+    function setModulePerm(moduleKey, perm) {
         actions.forEach(function (action) {
-            var box = row.querySelector('input[name="' + action + '_' + moduleKey + '"]');
-            if (!box) return;
-            box.addEventListener('change', function () {
-                if (box.checked) viewBox.checked = true;
+            var input = box(moduleKey, action);
+            if (input) input.checked = !!(perm && perm[action]);
+        });
+    }
+
+    function rowPreset(moduleKey, preset) {
+        if (preset === 'none') {
+            setModulePerm(moduleKey, {});
+            return;
+        }
+        if (preset === 'view') {
+            setModulePerm(moduleKey, { view: true });
+            return;
+        }
+        if (preset === 'full') {
+            var full = {};
+            actions.forEach(function (a) { full[a] = true; });
+            setModulePerm(moduleKey, full);
+        }
+    }
+
+    function applyPreset(index) {
+        var preset = presets[index];
+        if (!preset || !preset.permissions) return;
+        Object.keys(preset.permissions).forEach(function (moduleKey) {
+            setModulePerm(moduleKey, preset.permissions[moduleKey]);
+        });
+        syncColumnToggles();
+    }
+
+    function syncColumnToggles() {
+        form.querySelectorAll('.jp-perm-col-toggle input[data-col-action]').forEach(function (colBox) {
+            var action = colBox.getAttribute('data-col-action');
+            var inputs = form.querySelectorAll('tbody input[name^="' + action + '_"]');
+            var checked = inputs.length && Array.prototype.every.call(inputs, function (i) { return i.checked; });
+            colBox.checked = checked;
+            colBox.indeterminate = !checked && Array.prototype.some.call(inputs, function (i) { return i.checked; });
+        });
+    }
+
+    form.querySelectorAll('tbody tr[data-module]').forEach(function (row) {
+        var moduleKey = row.getAttribute('data-module');
+        var viewBox = box(moduleKey, 'view');
+        if (!viewBox) return;
+
+        editActions.forEach(function (action) {
+            var input = box(moduleKey, action);
+            if (!input) return;
+            input.addEventListener('change', function () {
+                if (input.checked) viewBox.checked = true;
+                syncColumnToggles();
             });
         });
+
         viewBox.addEventListener('change', function () {
             if (!viewBox.checked) {
-                actions.forEach(function (action) {
-                    var box = row.querySelector('input[name="' + action + '_' + moduleKey + '"]');
-                    if (box) box.checked = false;
+                editActions.forEach(function (action) {
+                    var input = box(moduleKey, action);
+                    if (input) input.checked = false;
                 });
             }
+            syncColumnToggles();
+        });
+
+        row.querySelectorAll('[data-row-preset]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                rowPreset(moduleKey, btn.getAttribute('data-row-preset'));
+                syncColumnToggles();
+            });
         });
     });
+
+    form.querySelectorAll('.jp-perm-col-toggle input[data-col-action]').forEach(function (colBox) {
+        colBox.addEventListener('change', function () {
+            var action = colBox.getAttribute('data-col-action');
+            var checked = colBox.checked;
+            form.querySelectorAll('tbody input[name^="' + action + '_"]').forEach(function (input) {
+                input.checked = checked;
+                if (checked && action !== 'view') {
+                    var moduleKey = input.name.slice(action.length + 1);
+                    var viewInput = box(moduleKey, 'view');
+                    if (viewInput) viewInput.checked = true;
+                }
+            });
+            if (!checked && action === 'view') {
+                editActions.forEach(function (a) {
+                    form.querySelectorAll('tbody input[name^="' + a + '_"]').forEach(function (input) {
+                        input.checked = false;
+                    });
+                });
+            }
+            syncColumnToggles();
+        });
+    });
+
+    var presetSelect = document.getElementById('permPresetSelect');
+    if (presetSelect) {
+        presetSelect.addEventListener('change', function () {
+            if (this.value === '') return;
+            applyPreset(parseInt(this.value, 10));
+            this.value = '';
+        });
+    }
+
+    var clearBtn = document.getElementById('permClearAll');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function () {
+            form.querySelectorAll('tbody input[type="checkbox"]').forEach(function (input) {
+                input.checked = false;
+            });
+            syncColumnToggles();
+        });
+    }
+
+    syncColumnToggles();
 })();
 </script>
 {% endblock %}

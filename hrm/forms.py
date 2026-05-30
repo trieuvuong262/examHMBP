@@ -91,7 +91,6 @@ class CustomUserForm(forms.Form):
         empty_label='— Mặc định theo vai trò —',
         widget=forms.Select(attrs=SELECT),
         label='Nhóm quyền',
-        help_text='Tuỳ chỉnh quyền từng module — ví dụ NV sản xuất vs NV HCNS.',
     )
     subordinates = forms.ModelMultipleChoiceField(
         queryset=User.objects.select_related('profile').order_by('profile__full_name', 'username'),

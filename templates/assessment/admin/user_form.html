@@ -75,9 +75,6 @@
                     <div class="col-sm-6 col-lg-3">
                         <label class="jp-form-label">{{ form.permission_group.label }}</label>
                         {{ form.permission_group }}
-                        {% if form.permission_group.help_text %}
-                        <div class="form-text">{{ form.permission_group.help_text }}</div>
-                        {% endif %}
                     </div>
                     {% if not is_edit %}
                     <div class="col-sm-6 col-lg-3">
