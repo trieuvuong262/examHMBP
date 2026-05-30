@@ -31,7 +31,7 @@ from hrm.forms import (
     DivisionForm,
     RolePermissionForm,
 )
-from hrm.user_search import filter_users_by_search
+from hrm.user_search import exclude_hidden_hrm_users, filter_users_by_search
 from PortalJustPlay.list_search import apply_term_search, apply_user_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 from django.http import JsonResponse
@@ -84,6 +84,7 @@ def user_list(request):
     users_qs = User.objects.select_related(
         'profile', 'profile__department', 'profile__division',
     )
+    users_qs = exclude_hidden_hrm_users(users_qs)
     users_qs = filter_users_by_search(users_qs, search_query)
     users_qs = users_qs.order_by(order_by, 'username')
     page_obj, query_string = paginate_queryset(request, users_qs)

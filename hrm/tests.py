@@ -352,6 +352,13 @@ class UserSearchTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Nguyễn Văn An')
 
+    def test_user_list_hides_system_admin_account(self):
+        User.objects.create_user(username='admin', password='testpass123', is_superuser=True)
+        response = self.client.get(reverse('user_list'))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, '>admin<')
+        self.assertNotContains(response, '@admin')
+
     def test_hr_edit_can_update_other_user_avatar(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
 
