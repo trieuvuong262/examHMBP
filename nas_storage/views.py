@@ -1,10 +1,13 @@
 import os
+from urllib.parse import urlencode
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import redirect, render
-from django.views.decorators.http import require_POST
+from django.template.loader import render_to_string
+from django.views.decorators.http import require_GET, require_POST
 
 from hrm.module_permissions import (
     MODULE_NAS_STORAGE,
@@ -17,6 +20,7 @@ from nas_storage.nas_paths import (
     build_breadcrumb,
     get_user_nas_roots,
     list_directory,
+    listing_synced_at,
     nas_is_available,
     normalize_rel_path,
     resolve_nas_path,
@@ -37,9 +41,35 @@ def _rel_from_request(request) -> str:
     return normalize_rel_path(request.GET.get('path', ''))
 
 
+def _attach_rel_paths(listing: dict, rel_path: str) -> None:
+    for item in listing['folders']:
+        item['rel_path'] = f"{rel_path}/{item['name']}"
+    for item in listing['files']:
+        item['rel_path'] = f"{rel_path}/{item['name']}"
+
+
+def _listing_context(request, rel_path: str, *, fresh: bool = False) -> dict:
+    path = resolve_nas_path(request.user, rel_path)
+    listing = list_directory(path, fresh=fresh, rel_path=rel_path)
+    _attach_rel_paths(listing, rel_path)
+    return {
+        'rel_path': rel_path,
+        'breadcrumbs': build_breadcrumb(rel_path),
+        'folders': listing['folders'],
+        'files': listing['files'],
+        'can_upload': user_can_create_module(request.user, MODULE_NAS_STORAGE),
+        'can_delete': user_can_delete_module(request.user, MODULE_NAS_STORAGE),
+        'parent_rel': '/'.join(rel_path.split('/')[:-1]) if '/' in rel_path else '',
+        'synced_at': listing_synced_at(),
+        'fresh_listing': fresh,
+        'auto_sync_interval': getattr(settings, 'NAS_AUTO_SYNC_INTERVAL', 30),
+    }
+
+
 @_access_required
 def browse(request):
     rel_path = _rel_from_request(request)
+    fresh = request.GET.get('refresh') == '1'
     roots = get_user_nas_roots(request.user)
 
     if not nas_is_available():
@@ -69,11 +99,11 @@ def browse(request):
             'root_entries': root_entries,
             'rel_path': '',
             'breadcrumbs': [{'label': 'Thư mục NAS', 'rel_path': ''}],
+            'auto_sync_interval': getattr(settings, 'NAS_AUTO_SYNC_INTERVAL', 30),
         })
 
     try:
-        path = resolve_nas_path(request.user, rel_path)
-        listing = list_directory(path)
+        ctx = _listing_context(request, rel_path, fresh=fresh)
     except NasPathError as exc:
         messages.error(request, str(exc))
         return redirect('nas_storage:browse')
@@ -81,19 +111,30 @@ def browse(request):
         messages.error(request, 'Thư mục không tồn tại trên NAS.')
         return redirect('nas_storage:browse')
 
-    for item in listing['folders']:
-        item['rel_path'] = f"{rel_path}/{item['name']}"
-    for item in listing['files']:
-        item['rel_path'] = f"{rel_path}/{item['name']}"
+    if fresh:
+        messages.success(request, f'Đã đồng bộ lúc {ctx["synced_at"]}.')
 
-    return render(request, 'nas_storage/browse.html', {
-        'rel_path': rel_path,
-        'breadcrumbs': build_breadcrumb(rel_path),
-        'folders': listing['folders'],
-        'files': listing['files'],
-        'can_upload': user_can_create_module(request.user, MODULE_NAS_STORAGE),
-        'can_delete': user_can_delete_module(request.user, MODULE_NAS_STORAGE),
-        'parent_rel': '/'.join(rel_path.split('/')[:-1]) if '/' in rel_path else '',
+    return render(request, 'nas_storage/browse.html', ctx)
+
+
+@_access_required
+@require_GET
+def sync_list(request):
+    rel_path = _rel_from_request(request)
+    if not rel_path:
+        return JsonResponse({'error': 'missing path'}, status=400)
+
+    try:
+        ctx = _listing_context(request, rel_path, fresh=True)
+    except NasPathError as exc:
+        return JsonResponse({'error': str(exc)}, status=400)
+
+    html = render_to_string('nas_storage/_listing_body.html', ctx, request=request)
+    return JsonResponse({
+        'html': html,
+        'folder_count': len(ctx['folders']),
+        'file_count': len(ctx['files']),
+        'synced_at': ctx['synced_at'],
     })
 
 
@@ -140,7 +181,7 @@ def upload(request):
 
     if not dir_path.is_dir():
         messages.error(request, 'Thư mục đích không tồn tại.')
-        return redirect('nas_storage:browse', **{})
+        return redirect('nas_storage:browse')
 
     uploaded = request.FILES.get('file')
     if not uploaded:
@@ -162,7 +203,7 @@ def upload(request):
             out.write(chunk)
 
     messages.success(request, f'Đã tải lên "{filename}".')
-    return redirect(_browse_url(rel_dir))
+    return redirect(_browse_url(rel_dir, refresh=True))
 
 
 @_access_required
@@ -194,12 +235,17 @@ def delete_entry(request):
         return redirect(_browse_url(parent_rel))
 
     messages.success(request, f'Đã xóa "{name}".')
-    return redirect(_browse_url(parent_rel))
+    return redirect(_browse_url(parent_rel, refresh=True))
 
 
-def _browse_url(rel_path: str) -> str:
+def _browse_url(rel_path: str, *, refresh: bool = False) -> str:
     from django.urls import reverse
     url = reverse('nas_storage:browse')
+    params = {}
     if rel_path:
-        return f'{url}?path={rel_path}'
+        params['path'] = rel_path
+    if refresh:
+        params['refresh'] = '1'
+    if params:
+        return f'{url}?{urlencode(params)}'
     return url

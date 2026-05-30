@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import mimetypes
 import os
+import subprocess
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 from django.conf import settings
@@ -113,7 +116,16 @@ def resolve_nas_path(user, rel_path: str) -> Path:
     return candidate
 
 
-def list_directory(path: Path) -> dict:
+def list_directory(path: Path, *, fresh: bool = False, rel_path: str = '') -> dict:
+    if fresh and rel_path is not None:
+        try:
+            return list_directory_via_rclone(rel_path)
+        except NasPathError:
+            pass
+    return _list_directory_local(path)
+
+
+def _list_directory_local(path: Path) -> dict:
     if not path.is_dir():
         raise NasPathError('Thư mục không tồn tại.')
 
@@ -135,6 +147,72 @@ def list_directory(path: Path) -> dict:
             item['mime'] = mimetypes.guess_type(entry.name)[0] or 'application/octet-stream'
             files.append(item)
     return {'folders': folders, 'files': files}
+
+
+def _rclone_remote_path(rel_path: str) -> str:
+    base = getattr(settings, 'NAS_RCLONE_REMOTE', 'synology:DATACHUNG').rstrip('/')
+    rel = normalize_rel_path(rel_path)
+    if rel:
+        return f'{base}/{rel}'
+    return base
+
+
+def list_directory_via_rclone(rel_path: str) -> dict:
+    """Đọc trực tiếp qua rclone — bỏ qua cache FUSE mount."""
+    target = _rclone_remote_path(rel_path)
+    try:
+        proc = subprocess.run(
+            ['rclone', 'lsjson', target, '--dirs-first'],
+            capture_output=True,
+            text=True,
+            timeout=90,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise NasPathError('Không kết nối được NAS để đồng bộ.') from exc
+
+    if proc.returncode != 0:
+        err = (proc.stderr or proc.stdout or '').strip()
+        raise NasPathError(err or 'Không đọc được thư mục từ NAS.')
+
+    try:
+        rows = json.loads(proc.stdout or '[]')
+    except json.JSONDecodeError as exc:
+        raise NasPathError('Phản hồi NAS không hợp lệ.') from exc
+
+    folders = []
+    files = []
+    for row in rows:
+        name = row.get('Name') or row.get('name') or ''
+        if not name or name.startswith('.'):
+            continue
+        is_dir = bool(row.get('IsDir') or row.get('IsDirectory'))
+        mod = row.get('ModTime') or row.get('Modified')
+        modified = 0.0
+        if mod:
+            try:
+                modified = datetime.fromisoformat(mod.replace('Z', '+00:00')).timestamp()
+            except ValueError:
+                modified = 0.0
+        item = {
+            'name': name,
+            'size': int(row.get('Size') or row.get('size') or 0),
+            'modified': modified,
+            'is_dir': is_dir,
+        }
+        if is_dir:
+            folders.append(item)
+        else:
+            item['mime'] = mimetypes.guess_type(name)[0] or 'application/octet-stream'
+            files.append(item)
+
+    folders.sort(key=lambda x: x['name'].lower())
+    files.sort(key=lambda x: x['name'].lower())
+    return {'folders': folders, 'files': files}
+
+
+def listing_synced_at() -> str:
+    return datetime.now(timezone.utc).astimezone().strftime('%H:%M:%S')
 
 
 def build_breadcrumb(rel_path: str) -> list[dict]:

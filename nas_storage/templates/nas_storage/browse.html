@@ -63,15 +63,34 @@
     </div>
     {% else %}
 
-    <div class="card border-0 shadow-sm overflow-hidden">
+    <div class="card border-0 shadow-sm overflow-hidden jp-nas-browse-card"
+         id="jp-nas-browse"
+         data-sync-url="{% url 'nas_storage:sync' %}"
+         data-rel-path="{{ rel_path|escapejs }}"
+         data-interval="{{ auto_sync_interval|default:30 }}">
         <div class="card-header bg-white border-bottom py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
-            <div class="d-flex align-items-center gap-2">
+            <div class="d-flex align-items-center flex-wrap gap-2">
                 {% if parent_rel or rel_path %}
                 <a href="{% url 'nas_storage:browse' %}{% if parent_rel %}?path={{ parent_rel|urlencode }}{% endif %}" class="btn btn-light border btn-sm fw-bold">
                     <i class="bi bi-arrow-up"></i> Lên
                 </a>
                 {% endif %}
-                <span class="text-muted small">{% if folders or files %}{{ folders|length }} thư mục · {{ files|length }} file{% else %}Thư mục trống{% endif %}</span>
+                <a href="{% url 'nas_storage:browse' %}?path={{ rel_path|urlencode }}&amp;refresh=1"
+                   class="btn btn-outline-hm btn-sm fw-bold"
+                   id="jp-nas-reload-btn"
+                   title="Đồng bộ trực tiếp từ NAS (bỏ qua cache)">
+                    <i class="bi bi-arrow-clockwise"></i> Tải lại
+                </a>
+                <div class="form-check form-switch mb-0 ms-1">
+                    <input class="form-check-input" type="checkbox" role="switch" id="jp-nas-auto-sync">
+                    <label class="form-check-label small text-muted" for="jp-nas-auto-sync">Tự động</label>
+                </div>
+                <span class="text-muted small" id="jp-nas-summary">
+                    {% if folders or files %}{{ folders|length }} thư mục · {{ files|length }} file{% else %}Thư mục trống{% endif %}
+                </span>
+                <span class="text-muted small jp-nas-sync-status" id="jp-nas-sync-status">
+                    {% if synced_at %}<i class="bi bi-cloud-check me-1"></i>{{ synced_at }}{% endif %}
+                </span>
             </div>
             {% if can_upload %}
             <form method="post" action="{% url 'nas_storage:upload' %}" enctype="multipart/form-data" class="d-flex align-items-center gap-2">
@@ -93,55 +112,8 @@
                         <th class="text-end pe-4 text-muted">Thao tác</th>
                     </tr>
                 </thead>
-                <tbody>
-                    {% for folder in folders %}
-                    <tr>
-                        <td class="ps-4">
-                            <a href="{% url 'nas_storage:browse' %}?path={{ folder.rel_path|urlencode }}" class="fw-semibold text-decoration-none text-dark">
-                                <i class="bi bi-folder-fill text-warning me-2"></i>{{ folder.name }}
-                            </a>
-                        </td>
-                        <td class="text-end text-muted small">—</td>
-                        <td class="text-end pe-4">
-                            {% if can_delete %}
-                            <form method="post" action="{% url 'nas_storage:delete' %}" class="d-inline" onsubmit="return confirm('Xóa thư mục {{ folder.name }}?');">
-                                {% csrf_token %}
-                                <input type="hidden" name="path" value="{{ folder.rel_path }}">
-                                <input type="hidden" name="parent" value="{{ rel_path }}">
-                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
-                            </form>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                    {% for file in files %}
-                    <tr>
-                        <td class="ps-4">
-                            <i class="bi bi-file-earmark-text text-hm me-2"></i>
-                            <span class="fw-semibold">{{ file.name }}</span>
-                        </td>
-                        <td class="text-end text-muted small">{{ file.size|filesizeformat }}</td>
-                        <td class="text-end pe-4">
-                            <a href="{% url 'nas_storage:download' %}?path={{ file.rel_path|urlencode }}" class="btn btn-sm btn-outline-hm fw-bold me-1">
-                                <i class="bi bi-download"></i>
-                            </a>
-                            {% if can_delete %}
-                            <form method="post" action="{% url 'nas_storage:delete' %}" class="d-inline" onsubmit="return confirm('Xóa file {{ file.name }}?');">
-                                {% csrf_token %}
-                                <input type="hidden" name="path" value="{{ file.rel_path }}">
-                                <input type="hidden" name="parent" value="{{ rel_path }}">
-                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
-                            </form>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% empty %}
-                    {% if not folders %}
-                    <tr>
-                        <td colspan="3" class="text-center py-5 text-muted">Thư mục trống</td>
-                    </tr>
-                    {% endif %}
-                    {% endfor %}
+                <tbody id="jp-nas-listing-body">
+                    {% include "nas_storage/_listing_body.html" %}
                 </tbody>
             </table>
         </div>
@@ -149,4 +121,108 @@
     {% endif %}
     {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+{% if rel_path and not root_entries %}
+<script>
+(function () {
+    var root = document.getElementById('jp-nas-browse');
+    if (!root) return;
+
+    var syncUrl = root.dataset.syncUrl;
+    var relPath = root.dataset.relPath;
+    var intervalSec = parseInt(root.dataset.interval, 10) || 30;
+    var bodyEl = document.getElementById('jp-nas-listing-body');
+    var summaryEl = document.getElementById('jp-nas-summary');
+    var statusEl = document.getElementById('jp-nas-sync-status');
+    var autoToggle = document.getElementById('jp-nas-auto-sync');
+    var reloadBtn = document.getElementById('jp-nas-reload-btn');
+    var storageKey = 'jp-nas-auto-sync';
+    var timer = null;
+    var syncing = false;
+
+    function setStatus(text, spinning) {
+        if (!statusEl) return;
+        statusEl.innerHTML = spinning
+            ? '<span class="jp-nas-sync-spin"><i class="bi bi-arrow-repeat"></i></span> Đang đồng bộ…'
+            : (text ? '<i class="bi bi-cloud-check me-1"></i>' + text : '');
+    }
+
+    function updateSummary(folderCount, fileCount) {
+        if (!summaryEl) return;
+        if (!folderCount && !fileCount) {
+            summaryEl.textContent = 'Thư mục trống';
+        } else {
+            summaryEl.textContent = folderCount + ' thư mục · ' + fileCount + ' file';
+        }
+    }
+
+    function syncListing() {
+        if (syncing || !bodyEl) return Promise.resolve();
+        syncing = true;
+        setStatus('', true);
+        if (reloadBtn) reloadBtn.classList.add('disabled');
+
+        var url = syncUrl + '?path=' + encodeURIComponent(relPath);
+        return fetch(url, {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+        })
+            .then(function (res) {
+                if (!res.ok) throw new Error('sync failed');
+                return res.json();
+            })
+            .then(function (data) {
+                bodyEl.innerHTML = data.html;
+                updateSummary(data.folder_count, data.file_count);
+                setStatus(data.synced_at, false);
+            })
+            .catch(function () {
+                setStatus('Lỗi đồng bộ', false);
+            })
+            .finally(function () {
+                syncing = false;
+                if (reloadBtn) reloadBtn.classList.remove('disabled');
+            });
+    }
+
+    function stopAutoSync() {
+        if (timer) {
+            clearInterval(timer);
+            timer = null;
+        }
+    }
+
+    function startAutoSync() {
+        stopAutoSync();
+        timer = setInterval(syncListing, intervalSec * 1000);
+    }
+
+    if (autoToggle) {
+        var saved = localStorage.getItem(storageKey);
+        autoToggle.checked = saved === '1';
+        if (autoToggle.checked) startAutoSync();
+
+        autoToggle.addEventListener('change', function () {
+            localStorage.setItem(storageKey, autoToggle.checked ? '1' : '0');
+            if (autoToggle.checked) {
+                startAutoSync();
+                syncListing();
+            } else {
+                stopAutoSync();
+            }
+        });
+    }
+
+    document.addEventListener('visibilitychange', function () {
+        if (document.hidden) {
+            stopAutoSync();
+        } else if (autoToggle && autoToggle.checked) {
+            startAutoSync();
+            syncListing();
+        }
+    });
+})();
+</script>
+{% endif %}
 {% endblock %}

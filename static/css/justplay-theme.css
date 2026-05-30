@@ -4996,6 +4996,21 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     flex-shrink: 0;
 }
 
+.jp-nas-sync-status {
+    min-width: 5.5rem;
+}
+
+.jp-nas-sync-spin {
+    display: inline-block;
+    animation: jp-nas-spin 0.85s linear infinite;
+    color: var(--hm-primary, #dc2626);
+}
+
+@keyframes jp-nas-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
 @media (max-width: 1199.98px) {
     .jp-perm-group-page .jp-perm-group-header {
         position: static;

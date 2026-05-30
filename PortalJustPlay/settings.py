@@ -285,6 +285,8 @@ GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
 
 # NAS (Synology qua Tailscale + rclone mount trên VPS)
 NAS_MOUNT_ROOT = os.getenv('NAS_MOUNT_ROOT', '/mnt/nas-portal')
+NAS_RCLONE_REMOTE = os.getenv('NAS_RCLONE_REMOTE', 'synology:DATACHUNG')
+NAS_AUTO_SYNC_INTERVAL = int(os.getenv('NAS_AUTO_SYNC_INTERVAL', '30'))
 GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash')
 
 # ==============================================================================
