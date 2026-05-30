@@ -4913,9 +4913,36 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     color: var(--jp-text-primary);
 }
 
+[data-theme="dark"] .jp-user-form-page .jp-user-form-identity {
+    background: var(--jp-surface-muted) !important;
+    border-color: var(--jp-surface-border) !important;
+}
+
+[data-theme="dark"] .jp-user-form-page .jp-user-form-identity code {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--jp-surface-border);
+    color: var(--jp-text-primary);
+    padding: 0.1rem 0.35rem;
+    border-radius: var(--jp-radius-xs);
+}
+
+[data-theme="dark"] .jp-user-form-page .jp-user-form-identity .text-primary {
+    color: #fca5a5 !important;
+}
+
+[data-theme="dark"] .jp-user-form-page .jp-user-form-section-title {
+    color: var(--jp-text-muted);
+}
+
+[data-theme="dark"] .jp-user-form-page .form-text,
+[data-theme="dark"] .jp-user-form-page .jp-hrm-multi-hint {
+    color: var(--jp-text-muted) !important;
+}
+
 [data-theme="dark"] .jp-user-form-page .jp-user-form-actions {
     background: var(--jp-surface-bg) !important;
-    border-color: var(--jp-surface-border) !important;
+    border: 1px solid var(--jp-surface-border);
+    box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.45);
 }
 
 [data-theme="dark"] .jp-user-form-page .jp-form-label {
@@ -4939,12 +4966,43 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     color: var(--jp-text-primary);
 }
 
+[data-theme="dark"] .jp-user-form-page .form-select option {
+    background: var(--jp-dropdown-bg);
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .jp-user-form-page input[type="date"].form-control {
+    color-scheme: dark;
+}
+
+[data-theme="dark"] .jp-user-form-page input[type="file"].form-control {
+    color: var(--jp-text-muted);
+}
+
+[data-theme="dark"] .jp-user-form-page input[type="file"].form-control::file-selector-button {
+    background: var(--jp-surface-muted);
+    border: 1px solid var(--jp-surface-border);
+    color: var(--jp-text-primary);
+    border-radius: var(--jp-radius-xs);
+    margin-right: 0.65rem;
+    padding: 0.25rem 0.65rem;
+}
+
+[data-theme="dark"] .jp-user-form-page input[type="file"].form-control::file-selector-button:hover {
+    background: rgba(127, 29, 29, 0.25);
+    border-color: rgba(220, 38, 38, 0.35);
+}
+
 [data-theme="dark"] .jp-user-form-page .form-control:focus,
 [data-theme="dark"] .jp-user-form-page .form-select:focus {
     background: var(--jp-input-bg);
     border-color: rgba(220, 38, 38, 0.45);
     color: var(--jp-text-primary);
     box-shadow: 0 0 0 0.2rem rgba(220, 38, 38, 0.15);
+}
+
+[data-theme="dark"] .jp-user-form-page .form-control::placeholder {
+    color: #737373;
 }
 
 [data-theme="dark"] .jp-user-form-page .alert-light {
@@ -4982,6 +5040,36 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
 
 [data-theme="dark"] .jp-user-form-page #subordinates_section.border-top {
     border-color: var(--jp-surface-border) !important;
+}
+
+[data-theme="dark"] .jp-user-form-page .select2-container--bootstrap-5 .select2-selection {
+    background: var(--jp-input-bg) !important;
+    border-color: var(--jp-input-border) !important;
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .jp-user-form-page .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__rendered {
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .jp-user-form-page .select2-container--bootstrap-5 .select2-selection__placeholder,
+[data-theme="dark"] .jp-user-form-page .select2-container--bootstrap-5 .select2-search__field::placeholder {
+    color: var(--jp-text-muted);
+}
+
+[data-theme="dark"] .jp-user-form-page .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice {
+    background-color: #7f1d1d !important;
+    border-color: rgba(220, 38, 38, 0.35) !important;
+    color: #fff;
+}
+
+[data-theme="dark"] .jp-user-form-page .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice__remove {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+[data-theme="dark"] .jp-user-form-page .select2-container--bootstrap-5 .select2-search__field {
+    background: transparent;
+    color: var(--jp-text-primary);
 }
 
 [data-theme="dark"] .jp-hrm-page .select2-container--bootstrap-5 .select2-selection {
