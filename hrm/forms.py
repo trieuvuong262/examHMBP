@@ -88,7 +88,7 @@ class CustomUserForm(forms.Form):
     permission_group = forms.ModelChoiceField(
         queryset=PermissionGroup.objects.all().order_by('name'),
         required=False,
-        empty_label='— Tự động theo phòng ban —',
+        empty_label='— Mặc định theo vai trò —',
         widget=forms.Select(attrs=SELECT),
         label='Nhóm quyền',
     )

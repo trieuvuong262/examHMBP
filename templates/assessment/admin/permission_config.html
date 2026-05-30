@@ -24,15 +24,15 @@
 
     <ul class="nav nav-pills jp-perm-tabs mb-3 gap-2" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active fw-bold" data-bs-toggle="pill" data-bs-target="#tab-dept" type="button">Theo phòng ban</button>
+            <button class="nav-link fw-bold {% if active_tab != 'group' %}active{% endif %}" data-bs-toggle="pill" data-bs-target="#tab-dept" type="button" id="tab-btn-dept">Theo phòng ban</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link fw-bold" data-bs-toggle="pill" data-bs-target="#tab-group" type="button">Nhóm quyền</button>
+            <button class="nav-link fw-bold {% if active_tab == 'group' %}active{% endif %}" data-bs-toggle="pill" data-bs-target="#tab-group" type="button" id="tab-btn-group">Nhóm quyền</button>
         </li>
     </ul>
 
     <div class="tab-content">
-        <div class="tab-pane fade show active" id="tab-dept">
+        <div class="tab-pane fade {% if active_tab != 'group' %}show active{% endif %}" id="tab-dept">
             <div class="card border-0 shadow-sm jp-hrm-list-card overflow-hidden">
                 <div class="card-header bg-white py-3 border-bottom jp-hrm-card-header">
                     <div class="jp-hrm-card-header-main">
@@ -101,12 +101,12 @@
             </div>
         </div>
 
-        <div class="tab-pane fade" id="tab-group">
+        <div class="tab-pane fade {% if active_tab == 'group' %}show active{% endif %}" id="tab-group">
             <div class="card border-0 shadow-sm overflow-hidden">
                 <div class="card-header bg-white py-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
                     <div>
                         <h5 class="mb-0 fw-bold text-dark">Nhóm quyền</h5>
-                        <p class="small text-muted mb-0 mt-1">Gán cho từng nhân viên — 5 quyền riêng trên mỗi module</p>
+                        <p class="small text-muted mb-0 mt-1">Mẫu tham khảo — gán thủ công cho từng nhân viên tại Nhân sự</p>
                     </div>
                     <a href="{% url 'permission_group_add' %}" class="btn btn-hm text-white fw-bold btn-sm">
                         <i class="bi bi-plus-lg me-1"></i>Thêm nhóm
@@ -159,7 +159,7 @@
                                     <a href="{% url 'permission_group_edit' group.pk %}" class="btn btn-sm btn-outline-hm fw-bold me-1" title="Cấu hình">
                                         <i class="bi bi-sliders"></i>
                                     </a>
-                                    {% if not group.is_system %}
+                                    {% if row.is_deletable %}
                                     <form method="post" action="{% url 'permission_group_delete' group.pk %}" class="d-inline" onsubmit="return confirm('Xóa nhóm quyền này?');">
                                         {% csrf_token %}
                                         <button type="submit" class="btn btn-sm btn-outline-danger fw-bold" {% if group.profile_count %}disabled title="Đang có nhân viên sử dụng"{% endif %}>
@@ -182,4 +182,16 @@
         </div>
     </div>
 </div>
+
+{% if active_tab == 'group' %}
+<script>
+(function () {
+    var tabBtn = document.getElementById('tab-btn-group');
+    var tabPane = document.getElementById('tab-group');
+    if (tabBtn && tabPane && typeof bootstrap !== 'undefined') {
+        bootstrap.Tab.getOrCreateInstance(tabBtn).show();
+    }
+})();
+</script>
+{% endif %}
 {% endblock %}

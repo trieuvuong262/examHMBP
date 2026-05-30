@@ -251,12 +251,6 @@ class DepartmentPermissionTemplateTests(TestCase):
         self.assertTrue(hrm['view'])
         self.assertTrue(hrm['update'])
 
-    def test_default_group_slug_for_hcns_manager(self):
-        from hrm.department_permission_templates import default_group_slug_for_profile
-        from hrm.permissions import ROLE_DIVISION_HEAD
-        slug = default_group_slug_for_profile('HÀNH CHÍNH NHÂN SỰ', ROLE_DIVISION_HEAD)
-        self.assertEqual(slug, 'hcns-truong-phong')
-
 
 class PermissionMiddlewareTests(TestCase):
     def setUp(self):

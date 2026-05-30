@@ -4454,10 +4454,10 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
 }
 
 .jp-perm-matrix-table {
-    --jp-perm-sticky-w: 180px;
+    --jp-perm-sticky-w: 200px;
     border-collapse: separate;
     border-spacing: 0;
-    min-width: 720px;
+    min-width: 860px;
 }
 
 .jp-perm-matrix-table thead th {
@@ -4541,11 +4541,13 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
 }
 
 .jp-perm-quick-col {
-    width: 108px;
+    width: 168px;
+    min-width: 168px;
 }
 
 .jp-perm-row-quick {
     display: inline-flex;
+    flex-wrap: nowrap;
     border: 1px solid #e5e7eb;
     border-radius: 8px;
     overflow: hidden;
@@ -4555,12 +4557,19 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
 .jp-perm-quick-btn {
     border: none;
     background: transparent;
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     font-weight: 700;
-    padding: 0.35rem 0.45rem;
+    padding: 0.4rem 0.65rem;
     color: #6b7280;
-    line-height: 1;
-    transition: background 0.12s ease, color 0.12s ease;
+    line-height: 1.2;
+    white-space: nowrap;
+    min-width: 2.75rem;
+    flex: 1 1 auto;
+}
+
+.jp-perm-quick-label {
+    display: inline-block;
+    white-space: nowrap;
 }
 
 .jp-perm-quick-btn:hover {
@@ -4579,16 +4588,47 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
 }
 
 .jp-perm-action-col {
-    width: 64px;
+    width: 72px;
+    min-width: 72px;
 }
 
 .jp-perm-col-label {
     display: inline-flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.2rem;
+    gap: 0.25rem;
     font-weight: 700;
     color: #374151;
+    white-space: nowrap;
+    font-size: 0.68rem;
+}
+
+.jp-perm-legend-inline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    align-items: center;
+}
+
+.jp-perm-legend-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 0.25rem 0.45rem;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.jp-perm-legend-chip.jp-perm-legend-view { background: #eff6ff; color: #2563eb; }
+.jp-perm-legend-chip.jp-perm-legend-create { background: #ecfdf5; color: #059669; }
+.jp-perm-legend-chip.jp-perm-legend-update { background: #fffbeb; color: #d97706; }
+.jp-perm-legend-chip.jp-perm-legend-delete { background: #fef2f2; color: #dc2626; }
+.jp-perm-legend-chip.jp-perm-legend-export { background: #f5f3ff; color: #7c3aed; }
+
+.jp-perm-group-page .jp-perm-matrix-card {
+    max-width: 100%;
 }
 
 .jp-perm-col-label i {

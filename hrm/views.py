@@ -43,20 +43,20 @@ import random
 import string
 
 
+def _permission_config_url(tab: str = '') -> str:
+    url = reverse('permission_config')
+    if tab:
+        return f'{url}?tab={tab}'
+    return url
+
+
 def _resolve_permission_group(form):
-    """Ưu tiên chọn tay; không chọn thì gán nhóm theo phòng ban + vai trò."""
+    """Chọn tay hoặc fallback nhóm vai trò mặc định (mac-dinh-*)."""
     selected = form.cleaned_data.get('permission_group')
     if selected:
         return selected
-    department = form.cleaned_data.get('department')
-    role = form.cleaned_data.get('role')
-    if not department or not role:
-        return None
-    from hrm.department_permission_templates import default_group_slug_for_profile
-    slug = default_group_slug_for_profile(department.name, role)
-    if not slug:
-        return None
-    return PermissionGroup.objects.filter(slug=slug).first()
+    from hrm.group_permissions import default_group_for_role
+    return default_group_for_role(form.cleaned_data.get('role'))
 
 
 def _profile_fields_from_form(form):
@@ -497,8 +497,14 @@ def department_add(request):
     if request.method == 'POST':
         form = DepartmentForm(request.POST)
         if form.is_valid():
-            form.save()
-            messages.success(request, f'Đã thêm phòng ban "{form.instance.name}".')
+            department = form.save()
+            from hrm.models import DepartmentMenuPermission
+
+            DepartmentMenuPermission.objects.get_or_create(
+                department=department,
+                defaults={'modules': sorted(ALL_MODULE_KEYS)},
+            )
+            messages.success(request, f'Đã thêm phòng ban "{department.name}".')
             return _org_redirect('department')
     else:
         form = DepartmentForm()
@@ -514,7 +520,7 @@ def department_edit(request, pk):
     if request.method == 'POST':
         form = DepartmentForm(request.POST, instance=department)
         if form.is_valid():
-            form.save()
+            department = form.save()
             messages.success(request, f'Đã cập nhật phòng ban "{department.name}".')
             return _org_redirect('department')
     else:
@@ -593,7 +599,7 @@ def permission_config(request):
             'enabled_labels': [MODULE_LABELS[key] for key, _ in MODULE_CHOICES if key in enabled],
         })
 
-    from hrm.department_permission_templates import permission_group_sort_key
+    from hrm.department_permission_templates import is_protected_permission_group, permission_group_sort_key
 
     group_qs = PermissionGroup.objects.annotate(
         profile_count=Count('profiles'),
@@ -631,6 +637,7 @@ def permission_config(request):
             'section': section,
             'level_label': level_label,
             'show_section': section != last_section,
+            'is_deletable': not is_protected_permission_group(group.slug),
         })
         last_section = section
 
@@ -641,6 +648,7 @@ def permission_config(request):
         'query_string': query_string,
         'search_query': search_query,
         'group_rows': group_rows,
+        'active_tab': request.GET.get('tab', 'dept'),
     })
 
 
@@ -655,6 +663,8 @@ def _unique_group_slug(base: str) -> str:
 
 
 def _permission_group_form_context(meta_form, perm_form, title, *, group=None, is_edit=False):
+    from hrm.department_permission_templates import is_protected_permission_group
+
     perm_action_meta = [
         {'key': 'view', 'label': 'Xem', 'icon': 'bi-eye', 'tone': 'view'},
         {'key': 'create', 'label': 'Thêm', 'icon': 'bi-plus-lg', 'tone': 'create'},
@@ -670,6 +680,9 @@ def _permission_group_form_context(meta_form, perm_form, title, *, group=None, i
         'group': group,
         'perm_actions': [a['key'] for a in perm_action_meta],
         'perm_action_meta': perm_action_meta,
+        'perm_config_back_url': _permission_config_url('group'),
+        'is_group_deletable': bool(group and not is_protected_permission_group(group.slug)),
+        'group_profile_count': group.profiles.count() if group else 0,
     }
 
 
@@ -685,7 +698,7 @@ def permission_group_add(request):
             group.module_permissions = perm_form.cleaned_permissions()
             group.save()
             messages.success(request, f'Đã tạo nhóm quyền "{group.name}".')
-            return redirect('permission_config')
+            return redirect(_permission_config_url('group'))
     else:
         meta_form = PermissionGroupMetaForm()
         perm_form = PermissionGroupPermissionForm()
@@ -710,7 +723,7 @@ def permission_group_edit(request, pk):
             group.module_permissions = perm_form.cleaned_permissions()
             group.save()
             messages.success(request, f'Đã cập nhật nhóm quyền "{group.name}".')
-            return redirect('permission_config')
+            return redirect(_permission_config_url('group'))
     else:
         meta_form = PermissionGroupMetaForm(instance=group)
         perm_form = PermissionGroupPermissionForm(initial_permissions=group.module_permissions)
@@ -722,20 +735,22 @@ def permission_group_edit(request, pk):
 
 @admin_only
 def permission_group_delete(request, pk):
+    from hrm.department_permission_templates import is_protected_permission_group
+
     group = get_object_or_404(PermissionGroup, pk=pk)
-    if group.is_system:
-        messages.error(request, 'Không thể xóa nhóm quyền hệ thống.')
-        return redirect('permission_config')
+    if is_protected_permission_group(group.slug):
+        messages.error(request, 'Không thể xóa nhóm quyền vai trò mặc định hệ thống.')
+        return redirect(_permission_config_url('group'))
     if group.profiles.exists():
         messages.error(
             request,
             f'Nhóm "{group.name}" đang được gán cho {group.profiles.count()} nhân viên — hãy đổi nhóm trước khi xóa.',
         )
-        return redirect('permission_config')
+        return redirect(_permission_config_url('group'))
     name = group.name
     group.delete()
     messages.success(request, f'Đã xóa nhóm quyền "{name}".')
-    return redirect('permission_config')
+    return redirect(_permission_config_url('group'))
 
 
 @admin_only

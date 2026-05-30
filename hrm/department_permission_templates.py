@@ -1,9 +1,20 @@
 """
-Mẫu nhóm quyền theo phòng ban — Nhân viên & Trưởng phòng.
+Mẫu nhóm quyền ban đầu (seed) — tham khảo, không ràng buộc phòng ban.
+
+DEPARTMENT_PERMISSION_TEMPLATES chỉ dùng khi migrate / tạo mẫu lần đầu.
+Quản trị viên tự sửa, xóa, thêm nhóm và gán cho từng nhân viên.
 """
+
+from django.utils.text import slugify
 
 from hrm.module_permissions import ALL_MODULE_KEYS
 from hrm.permissions import ROLE_DIRECTOR, ROLE_DIVISION_HEAD
+
+PROTECTED_GROUP_SLUG_PREFIX = 'mac-dinh-'
+GROUP_LEVEL_LABELS = (
+    ('nhan-vien', 'Nhân viên'),
+    ('truong-phong', 'Trưởng phòng'),
+)
 
 M = {
     'announcements': 'announcements',
@@ -201,6 +212,23 @@ def department_group_slug(code: str, level: str) -> str:
     return f'{code}-{level}'
 
 
+def slugify_department_code(name: str) -> str:
+    return slugify((name or '').strip()) or 'phong-ban'
+
+
+def empty_permissions_matrix() -> dict:
+    return _blank()
+
+
+def group_slugs_for_department(department) -> list[str]:
+    code = slugify_department_code(department.name)
+    return [department_group_slug(code, level) for level, _ in GROUP_LEVEL_LABELS]
+
+
+def is_protected_permission_group(slug: str) -> bool:
+    return (slug or '').startswith(PROTECTED_GROUP_SLUG_PREFIX)
+
+
 def department_name_to_code(dept_name: str) -> str | None:
     normalized = (dept_name or '').strip().casefold()
     if not normalized:
@@ -213,24 +241,28 @@ def department_name_to_code(dept_name: str) -> str | None:
 
 
 def default_group_slug_for_profile(department_name: str, role: str) -> str | None:
+    """Legacy — migration 0024 gán mẫu lần đầu; runtime không dùng."""
     code = department_name_to_code(department_name)
     if not code:
-        return None
+        code = slugify_department_code(department_name)
     level = 'truong-phong' if role in {ROLE_DIRECTOR, ROLE_DIVISION_HEAD} else 'nhan-vien'
     return department_group_slug(code, level)
 
 
 def permission_group_sort_key(name: str, slug: str) -> tuple:
     """Sắp xếp: phòng ban (theo thứ tự công ty) → NV trước TP → vai trò mặc định."""
-    if slug.startswith('mac-dinh-'):
+    if is_protected_permission_group(slug):
         return (2, 0, name)
     if ' — ' in name:
         section, level = name.rsplit(' — ', 1)
+        level_index = 0 if level.strip().casefold() == 'nhân viên' else 1
         dept_index = next(
             (i for i, t in enumerate(DEPARTMENT_PERMISSION_TEMPLATES)
-             if t['employee_name'].startswith(section + ' —') or section in t['department_names']),
-            99,
+             if section in t['department_names']
+             or t['employee_name'].startswith(section + ' —')),
+            -1,
         )
-        level_index = 0 if level.strip().casefold() == 'nhân viên' else 1
-        return (0, dept_index, level_index, name)
+        if dept_index >= 0:
+            return (0, dept_index, level_index, name)
+        return (0, 500, section.casefold(), level_index, name)
     return (1, 0, name)
