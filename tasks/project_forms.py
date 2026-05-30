@@ -11,7 +11,7 @@ class InternalProjectForm(forms.ModelForm):
         queryset=User.objects.none(),
         label='Thành viên dự án',
         widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size': 8}),
-        help_text='Chỉ cấp dưới trực tiếp. Dùng @username trong comment để nhắc người trong dự án.',
+        help_text='Thành viên dự án — cấp dưới trực tiếp hoặc nhân sự cùng phòng (Trưởng bộ phận). Dùng @username trong comment để nhắc.',
     )
 
     class Meta:

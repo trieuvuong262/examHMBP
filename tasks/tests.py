@@ -339,6 +339,23 @@ class InternalProjectTests(TestCase):
         self.assertTrue(can_create_internal_project(self.leader))
         self.assertFalse(can_create_internal_project(self.employee))
 
+    def test_division_head_can_create_project_without_direct_subordinates(self):
+        div_head = self._user('tbp_da', ROLE_DIVISION_HEAD, self.leader.profile.department)
+        self.assertFalse(div_head.profile.subordinates.exists())
+        self.assertTrue(can_create_internal_project(div_head))
+
+        self.client.force_login(div_head)
+        response = self.client.post(reverse('tasks:project_create'), {
+            'title': 'Dự án Trưởng BP',
+            'description': 'Nội bộ',
+            'due_date': '2026-08-01',
+            'members': [self.employee.pk],
+        })
+        self.assertEqual(response.status_code, 302)
+        project = InternalProject.objects.get(title='Dự án Trưởng BP')
+        self.assertEqual(project.owner, div_head)
+        self.assertIn(self.employee, project.members.all())
+
     def test_create_project_with_members_and_steps(self):
         self.client.force_login(self.leader)
         response = self.client.post(reverse('tasks:project_create'), {

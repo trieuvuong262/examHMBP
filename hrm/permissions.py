@@ -179,13 +179,60 @@ def _has_tasks_module_access(user) -> bool:
     return user_can_view_module(user, MODULE_TASKS)
 
 
+def get_task_assignable_users(assigner):
+    """Nhân viên có thể được giao việc — cấp dưới trực tiếp; Trưởng BP: cả phòng ban."""
+    profile = get_profile(assigner)
+    if profile and profile.role == ROLE_DIVISION_HEAD and profile.department_id:
+        return _department_task_users(profile.department).exclude(pk=assigner.pk)
+
+    return get_report_team_users(assigner).exclude(profile__role=ROLE_DIRECTOR)
+
+
+def _department_task_users(department):
+    """Nhân viên active trong phòng ban, có quyền module Công việc (trừ Giám đốc)."""
+    from hrm.module_permissions import MODULE_TASKS, user_can_access_module
+
+    if department is None:
+        return User.objects.none()
+
+    qs = User.objects.filter(
+        profile__department=department,
+        profile__is_employed=True,
+        is_active=True,
+    ).select_related('profile').order_by('profile__full_name', 'username')
+    eligible_ids = [
+        user.pk for user in qs
+        if user_can_access_module(user, MODULE_TASKS) and user_role(user) != ROLE_DIRECTOR
+    ]
+    return User.objects.filter(pk__in=eligible_ids).select_related('profile').order_by(
+        'profile__full_name', 'username',
+    )
+
+
+def has_task_subordinates(user) -> bool:
+    return get_task_assignable_users(user).exists()
+
+
 def can_assign_tasks(user) -> bool:
-    """Giao việc — cần quyền cập nhật module Công việc và có cấp dưới trực tiếp (kể cả Giám đốc)."""
+    """Giao việc — cần quyền sửa module Công việc và có người được giao."""
     if not _has_tasks_module_access(user):
         return False
     from hrm.module_permissions import MODULE_TASKS
     from hrm.role_permissions import user_can_edit_module
-    return user_can_edit_module(user, MODULE_TASKS) and has_task_subordinates(user)
+    if not user_can_edit_module(user, MODULE_TASKS):
+        return False
+
+    role = user_role(user)
+    if role == ROLE_DIVISION_HEAD:
+        profile = get_profile(user)
+        return bool(profile and profile.department_id and has_task_subordinates(user))
+
+    return has_task_subordinates(user)
+
+
+def can_create_internal_project(user) -> bool:
+    """Tổ trưởng / Trưởng bộ phận — cùng điều kiện giao việc."""
+    return can_assign_tasks(user)
 
 
 def can_receive_assigned_tasks(user) -> bool:
@@ -193,20 +240,6 @@ def can_receive_assigned_tasks(user) -> bool:
     if not _has_tasks_module_access(user):
         return False
     return not is_director(user)
-
-
-def get_task_assignable_users(assigner):
-    """Nhân viên có thể được giao việc — cấp dưới trực tiếp, không gồm Giám đốc."""
-    return get_report_team_users(assigner).exclude(profile__role=ROLE_DIRECTOR)
-
-
-def has_task_subordinates(user) -> bool:
-    return get_task_assignable_users(user).exists()
-
-
-def can_create_internal_project(user) -> bool:
-    """Tổ trưởng / Trưởng BP — cùng điều kiện giao việc."""
-    return can_assign_tasks(user)
 
 
 CROSS_DEPT_CREATOR_ROLES = {ROLE_DIRECTOR, ROLE_DIVISION_HEAD}

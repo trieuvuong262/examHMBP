@@ -70,7 +70,7 @@ def project_list(request):
 @_tasks_access_required
 def project_create(request):
     if not can_create_internal_project(request.user):
-        messages.error(request, 'Chỉ Tổ trưởng / Trưởng bộ phận có cấp dưới trực tiếp mới tạo được dự án.')
+        messages.error(request, 'Chỉ Tổ trưởng hoặc Trưởng bộ phận (có quyền giao việc) mới tạo được dự án.')
         return redirect('tasks:project_list')
 
     if request.method == 'POST':
