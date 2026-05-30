@@ -68,7 +68,7 @@ def cross_dept_list(request):
 @_tasks_access_required
 def cross_dept_create(request):
     if not can_create_cross_dept_project(request.user):
-        messages.error(request, 'Chỉ Giám đốc hoặc Trưởng phòng mới tạo được dự án liên phòng ban.')
+        messages.error(request, 'Chỉ Giám đốc hoặc Trưởng bộ phận mới tạo được dự án liên phòng ban.')
         return redirect('tasks:cross_dept_list')
 
     if request.method == 'POST':

@@ -29,7 +29,7 @@
 
     {% if is_read_only %}
     <div class="alert alert-info border-0 shadow-sm">
-        <i class="bi bi-eye me-1"></i>Bạn đang xem dự án ở chế độ <strong>chỉ đọc</strong> với tư cách Trưởng phòng.
+        <i class="bi bi-eye me-1"></i>Bạn đang xem dự án ở chế độ <strong>chỉ đọc</strong> với tư cách Trưởng bộ phận.
     </div>
     {% endif %}
 
@@ -252,7 +252,7 @@
                         <button type="submit" class="btn btn-outline-hm btn-sm mt-2">Gửi comment</button>
                     </form>
                     {% elif is_read_only %}
-                    <p class="text-muted small mb-0">Trưởng phòng chỉ xem — không gửi comment.</p>
+                    <p class="text-muted small mb-0">Trưởng bộ phận chỉ xem — không gửi comment.</p>
                     {% endif %}
                 </div>
             </div>

@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.db.models import Q
 
 from hrm.module_permissions import MODULE_TASKS, user_can_access_module
-from hrm.permissions import ROLE_DIRECTOR, ROLE_TEAM_LEADER, get_profile
+from hrm.permissions import ROLE_DIRECTOR, ROLE_DIVISION_HEAD, get_profile
 
 from .models import InternalProject, WorkTask
 
@@ -41,7 +41,7 @@ def cross_dept_projects_for_user(user):
     profile = get_profile(user)
     qs = InternalProject.objects.filter(project_type=InternalProject.TYPE_CROSS_DEPT)
     filters = Q(owner=user) | Q(members=user)
-    if profile and profile.role == ROLE_TEAM_LEADER and profile.department_id:
+    if profile and profile.role == ROLE_DIVISION_HEAD and profile.department_id:
         filters |= Q(departments=profile.department_id)
     return qs.filter(filters).distinct()
 

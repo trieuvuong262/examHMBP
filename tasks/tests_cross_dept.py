@@ -41,12 +41,12 @@ class CrossDeptProjectTests(TestCase):
         user.refresh_from_db()
         return user
 
-    def test_director_and_team_leader_can_create_cross_dept(self):
+    def test_only_director_and_division_head_can_create_cross_dept(self):
         from hrm.permissions import can_create_cross_dept_project
 
         self.assertTrue(can_create_cross_dept_project(self.director))
-        self.assertTrue(can_create_cross_dept_project(self.leader_a))
-        self.assertFalse(can_create_cross_dept_project(self.div_head))
+        self.assertTrue(can_create_cross_dept_project(self.div_head))
+        self.assertFalse(can_create_cross_dept_project(self.leader_a))
         self.assertFalse(can_create_cross_dept_project(self.employee_a))
 
     def test_create_cross_dept_project_requires_two_departments(self):
@@ -109,12 +109,13 @@ class CrossDeptProjectTests(TestCase):
         )
         project.departments.set([self.dept_a, self.dept_b])
 
-        self.assertTrue(can_view_project(self.leader_a, project))
-        self.assertTrue(is_cross_dept_read_only_viewer(self.leader_a, project))
-        self.assertFalse(can_manage_project(self.leader_a, project))
+        self.assertTrue(can_view_project(self.div_head, project))
+        self.assertTrue(is_cross_dept_read_only_viewer(self.div_head, project))
+        self.assertFalse(can_manage_project(self.div_head, project))
+        self.assertFalse(can_view_project(self.leader_a, project))
         self.assertFalse(can_view_project(self.employee_a, project))
 
-        self.client.force_login(self.leader_a)
+        self.client.force_login(self.div_head)
         response = self.client.get(reverse('tasks:cross_dept_detail', args=[project.pk]))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'chỉ đọc')

@@ -209,11 +209,11 @@ def can_create_internal_project(user) -> bool:
     return can_assign_tasks(user)
 
 
-CROSS_DEPT_CREATOR_ROLES = {ROLE_DIRECTOR, ROLE_TEAM_LEADER}
+CROSS_DEPT_CREATOR_ROLES = {ROLE_DIRECTOR, ROLE_DIVISION_HEAD}
 
 
 def can_create_cross_dept_project(user) -> bool:
-    """Giám đốc hoặc Trưởng phòng (Tổ trưởng) — cần quyền sửa module Công việc."""
+    """Chỉ Giám đốc hoặc Trưởng bộ phận — cần quyền sửa module Công việc."""
     if not _has_tasks_module_access(user):
         return False
     from hrm.module_permissions import MODULE_TASKS
@@ -224,11 +224,11 @@ def can_create_cross_dept_project(user) -> bool:
 
 
 def is_cross_dept_dept_head_viewer(user, project) -> bool:
-    """Trưởng phòng xem read-only dự án liên phòng ban có phòng mình."""
+    """Trưởng bộ phận xem read-only dự án liên phòng ban có phòng mình."""
     if not project.is_cross_department:
         return False
     profile = get_profile(user)
-    if not profile or profile.role != ROLE_TEAM_LEADER:
+    if not profile or profile.role != ROLE_DIVISION_HEAD:
         return False
     if not profile.department_id:
         return False
