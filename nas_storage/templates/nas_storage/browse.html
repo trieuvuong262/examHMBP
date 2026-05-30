@@ -29,7 +29,7 @@
             {% for crumb in breadcrumbs %}
             <li class="breadcrumb-item {% if forloop.last %}active fw-semibold{% endif %}">
                 {% if not forloop.last %}
-                <a href="{% url 'nas_storage:browse' %}{% if crumb.rel_path %}?path={{ crumb.rel_path|urlencode }}{% endif %}" class="text-decoration-none">{{ crumb.label }}</a>
+                <a href="{% url 'nas_storage:browse' %}{% if share_mode and not crumb.rel_path %}?path={{ share_root|urlencode }}&amp;share={{ share_token }}{% elif crumb.rel_path %}?path={{ crumb.rel_path|urlencode }}{% if share_token %}&amp;share={{ share_token }}{% endif %}{% elif share_token %}?share={{ share_token }}{% endif %}" class="text-decoration-none">{{ crumb.label }}</a>
                 {% else %}
                 {{ crumb.label }}
                 {% endif %}
@@ -37,6 +37,14 @@
             {% endfor %}
         </ol>
     </nav>
+
+    {% if share_mode %}
+    <div class="alert alert-info border-0 shadow-sm py-2 mb-3">
+        <i class="bi bi-share me-2"></i>
+        Đang xem qua liên kết chia sẻ từ <strong>{{ share_from.username }}</strong>
+        · chỉ tài khoản Portal đăng nhập mới truy cập được
+    </div>
+    {% endif %}
 
     {% if root_entries %}
     <div class="row g-3">
@@ -66,14 +74,16 @@
     <div class="card border-0 shadow-sm overflow-hidden jp-nas-browse-card"
          id="jp-nas-browse"
          data-sync-url="{% url 'nas_storage:sync' %}"
+         data-share-url="{% url 'nas_storage:share_create' %}"
          data-rel-path="{{ rel_path|escapejs }}"
+         data-share-token="{{ share_token|default:'' }}"
          data-interval="{{ auto_sync_interval|default:15 }}"
          data-listing-key="{{ listing_key|default:'' }}"
-         data-reload-url="{% url 'nas_storage:browse' %}?path={{ rel_path|urlencode }}&amp;refresh=1">
+         data-reload-url="{% url 'nas_storage:browse' %}?path={{ rel_path|urlencode }}&amp;refresh=1{% if share_token %}&amp;share={{ share_token }}{% endif %}">
         <div class="card-header bg-white border-bottom py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
             <div class="d-flex align-items-center flex-wrap gap-2">
                 {% if parent_rel or rel_path %}
-                <a href="{% url 'nas_storage:browse' %}{% if parent_rel %}?path={{ parent_rel|urlencode }}{% endif %}" class="btn btn-light border btn-sm fw-bold">
+                <a href="{% url 'nas_storage:browse' %}{% if parent_rel %}?path={{ parent_rel|urlencode }}{% if share_token %}&amp;share={{ share_token }}{% endif %}{% elif share_token %}?share={{ share_token }}{% endif %}" class="btn btn-light border btn-sm fw-bold">
                     <i class="bi bi-arrow-up"></i> Lên
                 </a>
                 {% endif %}
@@ -122,6 +132,33 @@
     </div>
     {% endif %}
     {% endif %}
+
+    <div class="modal fade" id="jp-nas-share-modal" tabindex="-1" aria-labelledby="jp-nas-share-modal-label" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold" id="jp-nas-share-modal-label">
+                        <i class="bi bi-share text-hm me-2"></i>Chia sẻ NAS
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body pt-2">
+                    <p class="text-muted small mb-2" id="jp-nas-share-item-name"></p>
+                    <div class="input-group">
+                        <input type="text" class="form-control form-control-sm" id="jp-nas-share-url" readonly>
+                        <button type="button" class="btn btn-hm text-white btn-sm fw-bold" id="jp-nas-share-copy">
+                            <i class="bi bi-clipboard me-1"></i>Sao chép
+                        </button>
+                    </div>
+                    <p class="text-muted small mt-3 mb-0">
+                        <i class="bi bi-shield-lock me-1"></i>
+                        Người nhận phải <strong>đăng nhập tài khoản Portal</strong> và có quyền Thư mục NAS.
+                        Hết hạn: <span id="jp-nas-share-expires"></span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -133,6 +170,8 @@
     if (!root) return;
 
     var syncUrl = root.dataset.syncUrl;
+    var shareCreateUrl = root.dataset.shareUrl;
+    var shareToken = root.dataset.shareToken || '';
     var relPath = root.dataset.relPath;
     var reloadUrl = root.dataset.reloadUrl;
     var intervalSec = parseInt(root.dataset.interval, 10) || 15;
@@ -183,6 +222,7 @@
         setReloadSpinning(true);
 
         var url = syncUrl + '?path=' + encodeURIComponent(relPath);
+        if (shareToken) url += '&share=' + encodeURIComponent(shareToken);
         return fetch(url, {
             method: 'GET',
             credentials: 'same-origin',
@@ -202,7 +242,10 @@
                     return;
                 }
                 var changed = data.listing_key && data.listing_key !== listingKey;
-                if (bodyEl) bodyEl.innerHTML = data.html;
+                if (bodyEl) {
+                    bodyEl.innerHTML = data.html;
+                    bindShareButtons(bodyEl);
+                }
                 listingKey = data.listing_key || listingKey;
                 root.dataset.listingKey = listingKey;
                 updateSummary(data.folder_count, data.file_count);
@@ -271,6 +314,81 @@
             syncListing();
         }
     });
+
+    var shareModalEl = document.getElementById('jp-nas-share-modal');
+    var shareModal = shareModalEl ? new bootstrap.Modal(shareModalEl) : null;
+    var shareUrlInput = document.getElementById('jp-nas-share-url');
+    var shareCopyBtn = document.getElementById('jp-nas-share-copy');
+    var shareItemName = document.getElementById('jp-nas-share-item-name');
+    var shareExpires = document.getElementById('jp-nas-share-expires');
+    var csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+    function bindShareButtons(container) {
+        if (!container) return;
+        container.querySelectorAll('.jp-nas-share-btn').forEach(function (btn) {
+            if (btn.dataset.bound) return;
+            btn.dataset.bound = '1';
+            btn.addEventListener('click', function () {
+                openShareDialog(btn.dataset.path, btn.dataset.name, btn);
+            });
+        });
+    }
+
+    function openShareDialog(path, name, btn) {
+        if (!shareCreateUrl || !shareModal) return;
+        var originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="jp-nas-sync-spin"><i class="bi bi-arrow-repeat"></i></span>';
+
+        var body = new URLSearchParams();
+        body.set('path', path);
+
+        fetch(shareCreateUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: body.toString()
+        })
+            .then(function (res) {
+                if (!res.ok) throw new Error('share failed');
+                return res.json();
+            })
+            .then(function (data) {
+                if (shareItemName) shareItemName.textContent = data.item_name || name;
+                if (shareUrlInput) shareUrlInput.value = data.url;
+                if (shareExpires) shareExpires.textContent = data.expires_at;
+                shareModal.show();
+            })
+            .catch(function () {
+                window.alert('Không tạo được liên kết chia sẻ. Thử lại sau.');
+            })
+            .finally(function () {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            });
+    }
+
+    if (shareCopyBtn && shareUrlInput) {
+        shareCopyBtn.addEventListener('click', function () {
+            shareUrlInput.select();
+            var text = shareUrlInput.value;
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text);
+            } else {
+                document.execCommand('copy');
+            }
+            shareCopyBtn.innerHTML = '<i class="bi bi-check2 me-1"></i>Đã chép';
+            window.setTimeout(function () {
+                shareCopyBtn.innerHTML = '<i class="bi bi-clipboard me-1"></i>Sao chép';
+            }, 1500);
+        });
+    }
+
+    bindShareButtons(document.getElementById('jp-nas-listing-body'));
 })();
 </script>
 {% endif %}

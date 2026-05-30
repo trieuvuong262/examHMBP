@@ -288,6 +288,7 @@ NAS_MOUNT_ROOT = os.getenv('NAS_MOUNT_ROOT', '/mnt/nas-portal')
 NAS_RCLONE_REMOTE = os.getenv('NAS_RCLONE_REMOTE', 'synology:DATACHUNG')
 NAS_RCLONE_CONFIG = os.getenv('NAS_RCLONE_CONFIG', '/root/.config/rclone/rclone.conf')
 NAS_AUTO_SYNC_INTERVAL = int(os.getenv('NAS_AUTO_SYNC_INTERVAL', '15'))
+NAS_SHARE_EXPIRE_DAYS = int(os.getenv('NAS_SHARE_EXPIRE_DAYS', '30'))
 GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash')
 
 # ==============================================================================

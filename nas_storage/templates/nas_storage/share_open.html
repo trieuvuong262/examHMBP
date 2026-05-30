@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div class="jp-page-header-main">
+            <h2 class="jp-page-title fw-bold text-dark mb-1">
+                <i class="bi bi-share text-hm me-2"></i>Chia sẻ NAS
+            </h2>
+            <p class="text-muted small mb-0">Liên kết nội bộ · chỉ tài khoản Portal đăng nhập mới truy cập được</p>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-4 p-md-5 text-center">
+            <div class="jp-nas-share-open-icon mx-auto mb-3">
+                <i class="bi bi-file-earmark-arrow-down"></i>
+            </div>
+            <h4 class="fw-bold text-dark mb-2">{{ file_name }}</h4>
+            <p class="text-muted mb-1">{{ file_size|filesizeformat }}</p>
+            <p class="text-muted small mb-4">
+                Chia sẻ bởi <strong>{{ share.created_by.username }}</strong>
+                · hết hạn {{ share.expires_at|date:"d/m/Y H:i" }}
+            </p>
+            <a href="{{ download_url }}" class="btn btn-hm text-white fw-bold px-4">
+                <i class="bi bi-download me-2"></i>Tải xuống
+            </a>
+            <div class="mt-4">
+                <a href="{% url 'nas_storage:browse' %}" class="btn btn-light border btn-sm fw-bold">
+                    <i class="bi bi-hdd-network me-1"></i>Về Thư mục NAS
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

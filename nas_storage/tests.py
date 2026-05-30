@@ -7,6 +7,7 @@ from django.urls import reverse
 
 from hrm.models import Department, Profile
 from hrm.module_permissions import MODULE_NAS_STORAGE, resolve_module_from_request
+from nas_storage.models import NasShareLink
 from nas_storage.nas_paths import (
     NasPathError,
     department_folder_code,
@@ -15,6 +16,7 @@ from nas_storage.nas_paths import (
     normalize_rel_path,
     resolve_nas_path,
 )
+from nas_storage.share_access import get_active_share, is_path_under_share
 
 
 class NasPathTests(TestCase):
@@ -74,7 +76,7 @@ class NasBrowseViewTests(TestCase):
         import os
         os.makedirs('/tmp/nas-browse-test/IT/VuongIT', exist_ok=True)
         listing = {'folders': [], 'files': [{'name': 'a.txt', 'size': 1, 'modified': 0, 'is_dir': False, 'mime': 'text/plain'}]}
-        with patch('nas_storage.views.list_directory', return_value=listing):
+        with patch('nas_storage.views.list_directory_with_source', return_value=(listing, 'mount', False)):
             url = reverse('nas_storage:browse') + '?path=IT/VuongIT&refresh=1'
             response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
@@ -86,7 +88,7 @@ class NasBrowseViewTests(TestCase):
         import os
         os.makedirs('/tmp/nas-browse-test/IT/VuongIT', exist_ok=True)
         listing = {'folders': [{'name': 'docs', 'size': 0, 'modified': 0, 'is_dir': True}], 'files': []}
-        with patch('nas_storage.views.list_directory', return_value=listing):
+        with patch('nas_storage.views.list_directory_with_source', return_value=(listing, 'mount', False)):
             url = reverse('nas_storage:sync') + '?path=IT/VuongIT'
             response = self.client.get(url, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
         self.assertEqual(response.status_code, 200)
@@ -112,3 +114,73 @@ class NasRcloneListingTests(TestCase):
         self.assertEqual(result['files'][0]['name'], 'report.pdf')
         self.assertEqual(len(result['folders']), 1)
         self.assertEqual(result['folders'][0]['name'], 'archive')
+
+
+class NasShareTests(TestCase):
+    def setUp(self):
+        self.dept_a = Department.objects.create(name='IT', sort_order=1)
+        self.dept_b = Department.objects.create(name='HÀNH CHÍNH NHÂN SỰ', sort_order=2)
+        self.owner = User.objects.create_user(username='ownerIT', password='test')
+        self.recipient = User.objects.create_user(username='hcnsUser', password='test')
+        Profile.objects.create(user=self.owner, full_name='Owner', department=self.dept_a)
+        Profile.objects.create(user=self.recipient, full_name='Recipient', department=self.dept_b)
+
+    @override_settings(NAS_MOUNT_ROOT='/tmp/nas-share-test')
+    def test_create_share_returns_link(self):
+        import os
+        os.makedirs('/tmp/nas-share-test/IT/ownerIT', exist_ok=True)
+        open('/tmp/nas-share-test/IT/ownerIT/report.pdf', 'wb').write(b'data')
+        self.client.login(username='ownerIT', password='test')
+        response = self.client.post(
+            reverse('nas_storage:share_create'),
+            {'path': 'IT/ownerIT/report.pdf'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn('/chia-se/', data['url'])
+        self.assertEqual(NasShareLink.objects.count(), 1)
+
+    @override_settings(NAS_MOUNT_ROOT='/tmp/nas-share-test')
+    def test_recipient_can_open_shared_file(self):
+        import os
+        os.makedirs('/tmp/nas-share-test/IT/ownerIT', exist_ok=True)
+        open('/tmp/nas-share-test/IT/ownerIT/report.pdf', 'wb').write(b'data')
+        share = NasShareLink.objects.create(
+            created_by=self.owner,
+            rel_path='IT/ownerIT/report.pdf',
+            item_name='report.pdf',
+            is_dir=False,
+            expires_at=NasShareLink.default_expiry(),
+        )
+        self.client.login(username='hcnsUser', password='test')
+        response = self.client.get(reverse('nas_storage:share_open', args=[share.token]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'report.pdf')
+
+    def test_is_path_under_share(self):
+        self.assertTrue(is_path_under_share('IT/ownerIT/docs', 'IT/ownerIT'))
+        self.assertFalse(is_path_under_share('IT/other/file', 'IT/ownerIT'))
+
+    def test_expired_share_is_invalid(self):
+        from django.utils import timezone
+        from datetime import timedelta
+        share = NasShareLink.objects.create(
+            created_by=self.owner,
+            rel_path='IT/ownerIT/a.txt',
+            item_name='a.txt',
+            is_dir=False,
+            expires_at=timezone.now() - timedelta(days=1),
+        )
+        self.assertIsNone(get_active_share(str(share.token)))
+
+    def test_share_open_requires_login(self):
+        share = NasShareLink.objects.create(
+            created_by=self.owner,
+            rel_path='IT/ownerIT/a.txt',
+            item_name='a.txt',
+            is_dir=False,
+            expires_at=NasShareLink.default_expiry(),
+        )
+        response = self.client.get(reverse('nas_storage:share_open', args=[share.token]))
+        self.assertEqual(response.status_code, 302)

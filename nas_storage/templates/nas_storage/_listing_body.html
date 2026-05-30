@@ -2,12 +2,17 @@
 {% for folder in folders %}
 <tr>
     <td class="ps-4">
-        <a href="{% url 'nas_storage:browse' %}?path={{ folder.rel_path|urlencode }}" class="fw-semibold text-decoration-none text-dark">
+        <a href="{% url 'nas_storage:browse' %}?path={{ folder.rel_path|urlencode }}{% if share_token %}&amp;share={{ share_token }}{% endif %}" class="fw-semibold text-decoration-none text-dark">
             <i class="bi bi-folder-fill text-warning me-2"></i>{{ folder.name }}
         </a>
     </td>
     <td class="text-end text-muted small">—</td>
     <td class="text-end pe-4">
+        {% if can_share %}
+        <button type="button" class="btn btn-sm btn-outline-secondary jp-nas-share-btn" data-path="{{ folder.rel_path }}" data-name="{{ folder.name }}" title="Chia sẻ">
+            <i class="bi bi-share"></i>
+        </button>
+        {% endif %}
         {% if can_delete %}
         <form method="post" action="{% url 'nas_storage:delete' %}" class="d-inline" onsubmit="return confirm('Xóa thư mục {{ folder.name }}?');">
             {% csrf_token %}
@@ -27,9 +32,14 @@
     </td>
     <td class="text-end text-muted small">{{ file.size|filesizeformat }}</td>
     <td class="text-end pe-4">
-        <a href="{% url 'nas_storage:download' %}?path={{ file.rel_path|urlencode }}" class="btn btn-sm btn-outline-hm fw-bold me-1">
+        <a href="{% url 'nas_storage:download' %}?path={{ file.rel_path|urlencode }}{% if share_token %}&amp;share={{ share_token }}{% endif %}" class="btn btn-sm btn-outline-hm fw-bold me-1" title="Tải xuống">
             <i class="bi bi-download"></i>
         </a>
+        {% if can_share %}
+        <button type="button" class="btn btn-sm btn-outline-secondary jp-nas-share-btn" data-path="{{ file.rel_path }}" data-name="{{ file.name }}" title="Chia sẻ">
+            <i class="bi bi-share"></i>
+        </button>
+        {% endif %}
         {% if can_delete %}
         <form method="post" action="{% url 'nas_storage:delete' %}" class="d-inline" onsubmit="return confirm('Xóa file {{ file.name }}?');">
             {% csrf_token %}
