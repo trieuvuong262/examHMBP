@@ -68,6 +68,26 @@ def _text_height(draw, text: str, font) -> int:
     return bbox[3] - bbox[1]
 
 
+def _wrap_lines(text: str, max_chars: int, max_lines: int = 2) -> list[str]:
+    text = (text or '').strip() or 'Thiết bị'
+    if len(text) <= max_chars:
+        return [text]
+    lines: list[str] = []
+    remaining = text
+    while remaining and len(lines) < max_lines:
+        if len(remaining) <= max_chars:
+            lines.append(remaining)
+            break
+        cut = remaining.rfind(' ', 0, max_chars + 1)
+        if cut <= 0:
+            cut = max_chars
+        lines.append(remaining[:cut].strip())
+        remaining = remaining[cut:].strip()
+    if remaining and len(lines) == max_lines:
+        lines[-1] = (lines[-1][: max(0, max_chars - 1)] + '…') if len(lines[-1]) >= max_chars else lines[-1]
+    return lines or ['Thiết bị']
+
+
 def generate_asset_tag(device) -> tuple[File, str]:
     """Tem ngang: trái = thông tin thiết bị, phải = mã QR."""
     font_brand = _load_font(16, bold=True)
@@ -96,14 +116,15 @@ def generate_asset_tag(device) -> tuple[File, str]:
     row_h = 19
     y = body_top + 4
 
-    name = (device.name or 'Thiết bị')[:36]
-    draw.text((left_x, y), name, font=font_name, fill=BLACK)
-    y += _text_height(draw, name, font_name) + 6
+    for line in _wrap_lines(device.name, max_chars=34, max_lines=2):
+        draw.text((left_x, y), line, font=font_name, fill=BLACK)
+        y += _text_height(draw, line, font_name) + 3
+    y += 5
 
     category = device.get_category_display() if hasattr(device, 'get_category_display') else ''
     if category:
         draw.text((left_x, y), f'Loại: {category[:40]}', font=font_row, fill=BLACK_SOFT)
-        y += 20
+        y += row_h + 4
 
     device_code = (getattr(device, 'device_code', None) or '—')[:32]
     dept_label = device.usage_department_label if hasattr(device, 'usage_department_label') else '—'
