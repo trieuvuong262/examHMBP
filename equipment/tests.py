@@ -444,3 +444,28 @@ class DeviceImportExportTests(TestCase):
         df = devices_to_dataframe(qs)
         self.assertEqual(len(df), 1)
         self.assertIn('Máy may 1 kim', df.iloc[0]['Loại thiết bị'])
+
+
+class ImportExportHubViewTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+        self.user = User.objects.create_superuser(username='admin', password='x', email='a@test.com')
+        self.client = __import__('django.test', fromlist=['Client']).Client()
+        self.client.login(username='admin', password='x')
+
+    def test_import_export_hub_import_tab(self):
+        resp = self.client.get('/thiet-bi/nhap-xuat/?tab=import&category=SEW_LOCKSTITCH')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Tải file mẫu Excel')
+        self.assertContains(resp, 'SEW_LOCKSTITCH')
+
+    def test_import_export_hub_export_tab(self):
+        from equipment.models import Device
+
+        Device.objects.create(name='Test PC', category='PC', status=Device.STATUS_ACTIVE)
+        resp = self.client.get('/thiet-bi/nhap-xuat/?tab=export&category=PC')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Xuất Excel')
+        self.assertContains(resp, '1')

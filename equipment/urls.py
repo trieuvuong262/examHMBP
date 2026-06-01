@@ -14,6 +14,7 @@ urlpatterns = [
     path('<uuid:device_id>/sua/', views.device_edit, name='device_edit'),
     path('<uuid:device_id>/lich-su/', views.device_history, name='device_history'),
     path('qr/<uuid:device_id>/', views.device_qr_public, name='device_qr_public'),
+    path('nhap-xuat/', views.import_export_hub, name='import_export_hub'),
     path('xuat-excel/', views.export_devices, name='export_devices'),
     path('file-mau/', views.download_sample, name='download_sample'),
     path('nhap-excel/', views.import_devices, name='import_devices'),

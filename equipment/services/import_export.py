@@ -213,6 +213,19 @@ def devices_to_dataframe(devices) -> pd.DataFrame:
     return df[[key for key, _label in EXPORT_COLUMNS if key in df.columns]].rename(columns=rename)
 
 
+def count_for_export(params) -> int:
+    return apply_device_list_filters(Device.objects.all(), params).count()
+
+
+def build_export_filename(count: int, category_codes: list[str] | None = None) -> str:
+    stamp = datetime.now().strftime('%Y%m%d_%H%M')
+    if category_codes and len(category_codes) == 1:
+        code = category_codes[0]
+        label = CATEGORY_MAP.get(code, code).replace('/', '-').replace(' ', '_')[:20]
+        return f'thiet_bi_{label}_{count}_{stamp}.xlsx'
+    return f'thiet_bi_justplay_{count}_{stamp}.xlsx'
+
+
 def export_devices_excel(queryset) -> BytesIO:
     df = devices_to_dataframe(queryset)
     buffer = BytesIO()

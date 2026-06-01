@@ -108,3 +108,29 @@
     justify-content: center;
     color: var(--bs-secondary-color);
 }
+
+.jp-eq-io-tabs .nav-link {
+    font-weight: 600;
+    color: var(--bs-secondary-color);
+}
+
+.jp-eq-io-tabs .nav-link.active {
+    color: var(--hm-primary, #dc2626);
+    border-bottom-color: var(--hm-primary, #dc2626);
+}
+
+.jp-eq-io-highlight {
+    background: rgba(220, 38, 38, 0.06);
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+}
+
+.jp-eq-export-categories {
+    max-height: 220px;
+    overflow-y: auto;
+    background: var(--bs-body-bg);
+}
+
+.jp-eq-export-preview {
+    padding: 1rem 0;
+}

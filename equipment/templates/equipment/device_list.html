@@ -39,8 +39,10 @@
             </a>
             {% endif %}
             {% if can_edit %}
-            <a href="{% url 'equipment:import_devices' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-upload me-1"></i>Nhập Excel</a>
-            <a href="{% url 'equipment:export_devices' %}?{{ request.GET.urlencode }}" class="btn btn-outline-hm btn-sm" title="Xuất theo bộ lọc hiện tại"><i class="bi bi-download me-1"></i>Xuất Excel</a>
+            <a href="{% url 'equipment:import_export_hub' %}?tab=import" class="btn btn-outline-secondary btn-sm"><i class="bi bi-upload me-1"></i>Nhập Excel</a>
+            {% endif %}
+            {% if can_export %}
+            <a href="{% url 'equipment:import_export_hub' %}?tab=export&amp;{{ request.GET.urlencode }}" class="btn btn-outline-hm btn-sm" title="Xuất theo bộ lọc hiện tại"><i class="bi bi-download me-1"></i>Xuất Excel</a>
             {% endif %}
         </div>
     </div>
@@ -192,16 +194,25 @@
         </div>
     </div>
 
-    {% if can_edit %}
+    {% if can_edit or can_export %}
     <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+        {% if can_edit %}
         <div class="form-check mb-0">
-            <input class="form-check-input" type="checkbox" id="selectAll" aria-label="Chọn tất cả">
-            <label class="form-check-label small text-muted" for="selectAll">Chọn tất cả</label>
+            <input class="form-check-input" type="checkbox" id="selectAllTop" aria-label="Chọn tất cả">
+            <label class="form-check-label small text-muted" for="selectAllTop">Chọn tất cả</label>
         </div>
-        <button type="button" id="btnBulkDelete" class="btn btn-danger btn-sm ms-auto" disabled
+        {% endif %}
+        {% if can_export %}
+        <button type="button" id="btnBulkExport" class="btn btn-outline-hm btn-sm ms-auto" disabled>
+            <i class="bi bi-download me-1"></i>Xuất đã chọn (<span id="exportSelectedCount">0</span>)
+        </button>
+        {% endif %}
+        {% if can_edit %}
+        <button type="button" id="btnBulkDelete" class="btn btn-danger btn-sm{% if not can_export %} ms-auto{% endif %}" disabled
                 onclick="return confirm('Xóa các thiết bị đã chọn? Hành động không hoàn tác được.');">
             <i class="bi bi-trash me-1"></i>Xóa đã chọn (<span id="selectedCount">0</span>)
         </button>
+        {% endif %}
     </div>
     {% endif %}
 
@@ -216,7 +227,7 @@
                 <table class="table table-hover align-middle mb-0 jp-eq-table">
                     <thead class="table-light">
                         <tr>
-                            {% if can_edit %}
+                            {% if can_edit or can_export %}
                             <th style="width:36px" class="text-center">
                                 <input class="form-check-input" type="checkbox" id="selectAll" aria-label="Chọn tất cả">
                             </th>
@@ -233,7 +244,7 @@
                     <tbody>
                         {% for device in page_obj %}
                         <tr>
-                            {% if can_edit %}
+                            {% if can_edit or can_export %}
                             <td class="text-center">
                                 <input class="form-check-input device-checkbox" type="checkbox" name="device_ids" value="{{ device.id }}">
                             </td>
@@ -424,31 +435,47 @@
     updateCategoryLabel();
 })();
 </script>
-{% if can_edit %}
+{% if can_edit or can_export %}
 <script>
 (function () {
     const selectAll = document.getElementById('selectAll');
+    const selectAllTop = document.getElementById('selectAllTop');
     const checkboxes = document.querySelectorAll('.device-checkbox');
     const bulkForm = document.getElementById('bulkActionForm');
     const btnDelete = document.getElementById('btnBulkDelete');
+    const btnExport = document.getElementById('btnBulkExport');
     const selectedCount = document.getElementById('selectedCount');
+    const exportSelectedCount = document.getElementById('exportSelectedCount');
     const btnScan = document.getElementById('btnStartWmiScan');
+
+    function syncSelectAll(checked) {
+        if (selectAll) selectAll.checked = checked;
+        if (selectAllTop) selectAllTop.checked = checked;
+    }
 
     function updateSelectionUI() {
         const n = document.querySelectorAll('.device-checkbox:checked').length;
         if (selectedCount) selectedCount.textContent = String(n);
+        if (exportSelectedCount) exportSelectedCount.textContent = String(n);
         if (btnDelete) btnDelete.disabled = n === 0;
+        if (btnExport) btnExport.disabled = n === 0;
+    }
+
+    function onSelectAllChange(checked) {
+        checkboxes.forEach(function (cb) { cb.checked = checked; });
+        syncSelectAll(checked);
+        updateSelectionUI();
     }
 
     if (selectAll) {
-        selectAll.addEventListener('change', function () {
-            checkboxes.forEach(function (cb) { cb.checked = selectAll.checked; });
-            updateSelectionUI();
-        });
+        selectAll.addEventListener('change', function () { onSelectAllChange(selectAll.checked); });
+    }
+    if (selectAllTop) {
+        selectAllTop.addEventListener('change', function () { onSelectAllChange(selectAllTop.checked); });
     }
     checkboxes.forEach(function (cb) {
         cb.addEventListener('change', function () {
-            if (!cb.checked && selectAll) selectAll.checked = false;
+            if (!cb.checked) syncSelectAll(false);
             updateSelectionUI();
         });
     });
@@ -456,6 +483,14 @@
     if (btnDelete && bulkForm) {
         btnDelete.addEventListener('click', function () {
             bulkForm.action = "{% url 'equipment:delete_bulk_devices' %}";
+            bulkForm.submit();
+        });
+    }
+
+    if (btnExport && bulkForm) {
+        btnExport.addEventListener('click', function () {
+            bulkForm.action = "{% url 'equipment:export_devices' %}";
+            bulkForm.method = 'post';
             bulkForm.submit();
         });
     }
