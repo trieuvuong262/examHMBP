@@ -7,13 +7,16 @@
 
 {% block content %}
 <div class="container jp-page py-3 py-md-4 mb-5">
-    <div class="jp-page-header mb-3 mb-md-4">
+    {% include 'equipment/includes/subnav.html' %}
+
+    <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
         <h2 class="fw-bold text-hm mb-1 jp-page-title">
             <i class="bi bi-tag me-2"></i>{% if is_edit %}Sửa loại thiết bị{% else %}Thêm loại thiết bị{% endif %}
         </h2>
+        <a href="{% url 'equipment:category_list' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Loại thiết bị
+        </a>
     </div>
-
-    {% include 'equipment/includes/subnav.html' %}
 
     <div class="card border-0 shadow-sm">
         <div class="card-body p-4">

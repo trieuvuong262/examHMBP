@@ -1,5 +1,9 @@
 /* Quản lý thiết bị — danh sách & lọc */
 
+.jp-eq-list-actions {
+    border-left: 3px solid var(--hm-primary, #dc2626);
+}
+
 .jp-eq-list-toolbar .btn {
     white-space: nowrap;
 }

@@ -5,7 +5,7 @@
             <i class="bi bi-speedometer2 me-1"></i>Tổng quan
         </a>
         <a href="{% url 'equipment:device_list' %}"
-           class="btn btn-sm {% if 'device_list' in request.resolver_match.url_name or 'device_add' in request.resolver_match.url_name or 'device_edit' in request.resolver_match.url_name or 'device_detail' in request.resolver_match.url_name %}btn-hm{% else %}btn-outline-secondary{% endif %}">
+           class="btn btn-sm {% if request.resolver_match.url_name == 'device_list' or request.resolver_match.url_name == 'device_add' or request.resolver_match.url_name == 'device_edit' or request.resolver_match.url_name == 'device_detail_manage' or request.resolver_match.url_name == 'import_export_hub' or request.resolver_match.url_name == 'import_devices' or request.resolver_match.url_name == 'category_list' or request.resolver_match.url_name == 'category_add' or request.resolver_match.url_name == 'category_edit' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
             <i class="bi bi-hdd-stack me-1"></i>Danh sách thiết bị
         </a>
         <a href="{% url 'equipment:it_repair_list' %}"
@@ -13,19 +13,5 @@
             <i class="bi bi-tools me-1"></i>Hỗ trợ kỹ thuật
             {% if it_repair_pending_count %}<span class="badge bg-danger ms-1">{{ it_repair_pending_count }}</span>{% endif %}
         </a>
-        {% if can_edit_equipment or jp_can_edit_equipment %}
-        <a href="{% url 'equipment:import_export_hub' %}"
-           class="btn btn-sm {% if request.resolver_match.url_name == 'import_export_hub' or request.resolver_match.url_name == 'import_devices' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
-            <i class="bi bi-upload me-1"></i>Nhập Excel
-        </a>
-        <a href="{% url 'equipment:category_list' %}"
-           class="btn btn-sm {% if 'category_' in request.resolver_match.url_name %}btn-hm{% else %}btn-outline-secondary{% endif %}">
-            <i class="bi bi-tags me-1"></i>Loại thiết bị
-        </a>
-        <a href="{% url 'equipment:device_add' %}"
-           class="btn btn-sm {% if request.resolver_match.url_name == 'device_add' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
-            <i class="bi bi-plus-lg me-1"></i>Thêm thiết bị
-        </a>
-        {% endif %}
     </div>
 </nav>

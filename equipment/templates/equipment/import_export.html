@@ -7,17 +7,17 @@
 
 {% block content %}
 <div class="container jp-page py-3 py-md-4 mb-5">
+    {% include 'equipment/includes/subnav.html' %}
+
     <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-upload me-2"></i>Nhập Excel</h2>
             <p class="text-muted mb-0">Tải file mẫu theo loại thiết bị, điền dữ liệu rồi upload</p>
         </div>
         <a href="{% url 'equipment:device_list' %}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-arrow-left me-1"></i>Về danh sách
+            <i class="bi bi-arrow-left me-1"></i>Danh sách thiết bị
         </a>
     </div>
-
-    {% include 'equipment/includes/subnav.html' %}
 
     <div class="row g-3">
         <div class="col-lg-4">

@@ -4,16 +4,16 @@
     <a href="{% url 'equipment:device_add' %}" class="btn btn-hm btn-sm">
         <i class="bi bi-plus-lg me-1"></i>Thêm thiết bị
     </a>
-    <a href="{% url 'equipment:import_export_hub' %}" class="btn btn-dark btn-sm">
+    <a href="{% url 'equipment:import_export_hub' %}" class="btn btn-outline-dark btn-sm">
         <i class="bi bi-upload me-1"></i>Nhập Excel
     </a>
-    <a href="{% url 'equipment:category_add' %}" class="btn btn-outline-dark btn-sm">
-        <i class="bi bi-tag-fill me-1"></i>Thêm loại
+    <a href="{% url 'equipment:category_list' %}" class="btn btn-outline-dark btn-sm">
+        <i class="bi bi-tags me-1"></i>Loại thiết bị
     </a>
     {% endif %}
     {% if jp_can_edit_equipment or can_edit_equipment or can_edit or jp_can_equipment or can_export %}
     <a href="{% url 'equipment:export_devices' %}?{{ request.GET.urlencode }}"
-       class="btn btn-outline-hm btn-sm{% if not jp_can_edit_equipment and not can_edit_equipment and not can_edit %} ms-auto{% endif %}"
+       class="btn btn-outline-hm btn-sm{% if not jp_can_edit_equipment and not can_edit_equipment and not can_edit %} ms-auto{% else %} ms-md-auto{% endif %}"
        title="Xuất theo bộ lọc hiện tại">
         <i class="bi bi-download me-1"></i>Xuất Excel{% if filtered_count %} ({{ filtered_count|intcomma }}){% endif %}
     </a>
