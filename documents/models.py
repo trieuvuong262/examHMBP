@@ -211,7 +211,7 @@ class LibraryQAChatMessage(models.Model):
         verbose_name = 'Tin nhắn Hỏi đáp AI'
         verbose_name_plural = 'Tin nhắn Hỏi đáp AI'
         indexes = [
-            models.Index(fields=['user', 'created_at']),
+            models.Index(fields=['user', 'created_at'], name='documents_l_user_id_6a8f2d_idx'),
         ]
 
     def __str__(self):

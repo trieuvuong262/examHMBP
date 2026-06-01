@@ -115,12 +115,13 @@ cleanup_stale_files() {
 }
 
 ensure_migrations() {
-  echo "==> Ensure migrations are up to date (makemigrations)"
+  echo "==> Ensure migrations are up to date (makemigrations check only)"
   if ! run_manage makemigrations --check --dry-run >/dev/null 2>&1; then
-    echo "    Model changes detected — creating migrations..."
-    run_manage makemigrations --noinput
-    echo "    WARNING: New migration files were generated on server."
-    echo "             Commit and push them from dev to keep repos in sync."
+    echo "ERROR: Model changes chưa có migration trên repo."
+    echo "       Chạy makemigrations ở máy dev, commit và push rồi deploy lại."
+    echo "       Không tự tạo migration trên VPS — tránh lệch index/schema."
+    run_manage makemigrations --check --dry-run || true
+    exit 1
   else
     echo "    Migration files match models."
   fi
