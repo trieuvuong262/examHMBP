@@ -9,16 +9,21 @@ from django.conf import settings
 from django.utils import timezone
 
 
+def agent_gate_enabled() -> bool:
+    """Bật màn hình bắt buộc cài agent (middleware + trang gate)."""
+    return bool(getattr(settings, 'EQUIPMENT_REQUIRE_AGENT_INSTALL', False))
+
+
 def agent_install_enabled() -> bool:
+    """Agent API + file cài — cần secret."""
     return bool(getattr(settings, 'EQUIPMENT_AGENT_SECRET', ''))
 
 
 def is_exempt_from_agent_gate(user) -> bool:
-    if user.is_superuser:
-        return True
-    from hrm.module_permissions import MODULE_EQUIPMENT, user_can_edit_module
-
-    return user_can_edit_module(user, MODULE_EQUIPMENT)
+    """Chỉ tài khoản admin (cấu hình) được bỏ qua gate."""
+    raw = getattr(settings, 'EQUIPMENT_AGENT_GATE_EXEMPT_USERNAMES', 'admin')
+    allowed = {name.strip().lower() for name in raw.split(',') if name.strip()}
+    return user.username.lower() in allowed
 
 
 def user_is_in_equipment_registry(user) -> bool:
@@ -40,7 +45,7 @@ def user_is_in_equipment_registry(user) -> bool:
 
 
 def is_agent_install_required(request) -> bool:
-    if not agent_install_enabled():
+    if not agent_gate_enabled():
         return False
     user = request.user
     if not user.is_authenticated:

@@ -128,7 +128,32 @@ class AgentInstallFlowTests(TestCase):
         resp = client.get('/thiet-bi/agent/trang-thai/')
         self.assertTrue(resp.json()['ready'])
 
-    @override_settings(EQUIPMENT_AGENT_SECRET='sec')
+    @override_settings(EQUIPMENT_REQUIRE_AGENT_INSTALL=True, EQUIPMENT_AGENT_SECRET='sec')
+    def test_middleware_blocks_superuser_not_admin(self):
+        from django.contrib.auth import get_user_model
+        from django.test import Client
+
+        User = get_user_model()
+        user = User.objects.create_superuser(username='itboss', password='x', email='it@test.com')
+        client = Client()
+        client.force_login(user)
+        resp = client.get('/', HTTP_USER_AGENT='Mozilla/5.0 Windows NT 10.0')
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn('/thiet-bi/agent/yeu-cau-cai', resp.url)
+
+    @override_settings(EQUIPMENT_REQUIRE_AGENT_INSTALL=True, EQUIPMENT_AGENT_SECRET='sec')
+    def test_middleware_skips_admin_username(self):
+        from django.contrib.auth import get_user_model
+        from django.test import Client
+
+        User = get_user_model()
+        user = User.objects.create_superuser(username='admin', password='x', email='a@test.com')
+        client = Client()
+        client.force_login(user)
+        resp = client.get('/', HTTP_USER_AGENT='Mozilla/5.0 Windows NT 10.0')
+        self.assertEqual(resp.status_code, 200)
+
+    @override_settings(EQUIPMENT_REQUIRE_AGENT_INSTALL=True, EQUIPMENT_AGENT_SECRET='sec')
     def test_middleware_redirects_to_gate(self):
         from django.contrib.auth import get_user_model
         from django.test import Client
@@ -155,6 +180,21 @@ class AgentInstallFlowTests(TestCase):
         client.force_login(user)
         resp = client.get('/', HTTP_USER_AGENT='Mozilla/5.0 Windows NT 10.0')
         self.assertEqual(resp.status_code, 200)
+
+    @override_settings(EQUIPMENT_REQUIRE_AGENT_INSTALL=True, EQUIPMENT_AGENT_SECRET='')
+    def test_gate_enabled_without_secret(self):
+        from django.contrib.auth import get_user_model
+        from django.test import Client, RequestFactory
+
+        from equipment.services.agent_install import is_agent_install_required
+
+        User = get_user_model()
+        user = User.objects.create_user(username='gate_only', password='x')
+        factory = RequestFactory()
+        request = factory.get('/')
+        request.user = user
+        request.META['HTTP_USER_AGENT'] = 'Mozilla/5.0 Windows NT 10.0'
+        self.assertTrue(is_agent_install_required(request))
 
     @override_settings(EQUIPMENT_AGENT_SECRET='sec')
     def test_agent_poll_api(self):

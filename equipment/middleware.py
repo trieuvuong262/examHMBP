@@ -28,9 +28,12 @@ class AgentInstallGateMiddleware:
     def __call__(self, request):
         if is_agent_install_required(request):
             path = request.path
-            if path != self._gate_url and not self._path_allowed(path):
+            if not self._is_gate_path(path) and not self._path_allowed(path):
                 return redirect('equipment:agent_install_gate')
         return self.get_response(request)
+
+    def _is_gate_path(self, path: str) -> bool:
+        return path.rstrip('/') == self._gate_url.rstrip('/')
 
     def _path_allowed(self, path: str) -> bool:
         if path.startswith('/admin-panel/'):

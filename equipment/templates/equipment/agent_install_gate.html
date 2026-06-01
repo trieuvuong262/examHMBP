@@ -37,9 +37,15 @@
                 </ol>
 
                 <div class="d-grid d-sm-flex gap-2 mb-4">
+                    {% if agent_download_ready %}
                     <a href="{% url 'equipment:agent_download_installer' %}" class="btn btn-hm btn-lg" id="jpAgentDownloadBtn">
                         <i class="bi bi-download me-1"></i>Tải file cài
                     </a>
+                    {% else %}
+                    <div class="alert alert-danger mb-0 w-100">
+                        Server chưa cấu hình <code>EQUIPMENT_AGENT_SECRET</code> — liên hệ IT.
+                    </div>
+                    {% endif %}
                 </div>
 
                 <div id="jpAgentWaiting" class="d-none">

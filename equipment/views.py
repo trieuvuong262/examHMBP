@@ -797,12 +797,13 @@ def request_agent_rescan(request):
 def agent_install_gate(request):
     """Màn hình bắt buộc cài agent — không thể vào module khác."""
     from equipment.services.agent_install import (
+        agent_gate_enabled,
         agent_install_enabled,
         is_agent_install_required,
         user_is_in_equipment_registry,
     )
 
-    if not agent_install_enabled():
+    if not agent_gate_enabled():
         return redirect('home_portal')
     if user_is_in_equipment_registry(request.user):
         return redirect('home_portal')
@@ -811,6 +812,7 @@ def agent_install_gate(request):
 
     return render(request, 'equipment/agent_install_gate.html', {
         'portal_user': request.user,
+        'agent_download_ready': agent_install_enabled(),
     })
 
 
