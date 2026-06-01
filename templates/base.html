@@ -114,8 +114,6 @@
     </div>
 </div>
 
-{% include "includes/agent_install_modal.html" %}
-
 {% else %}
 </main>
 
@@ -133,7 +131,6 @@
 <script src="{% static 'js/sidebar.js' %}"></script>
 <script src="{% static 'js/mobile.js' %}"></script>
 {% if user.is_authenticated %}<script src="{% static 'js/user-picker.js' %}"></script>{% endif %}
-{% if jp_show_agent_install %}<script src="{% static 'js/agent-install-modal.js' %}"></script>{% endif %}
 {% block scripts %}{% endblock %}
 </body>
 </html>

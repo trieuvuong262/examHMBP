@@ -194,6 +194,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'PortalJustPlay.middleware.ForcePasswordChangeMiddleware',
+    'equipment.middleware.AgentInstallGateMiddleware',
     'hrm.middleware.DepartmentModuleAccessMiddleware',
     'audit.middleware.ActivityAuditMiddleware',
 ]
@@ -213,7 +214,6 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'announcements.context_processors.unread_announcements',
                 'hrm.context_processors.portal_permissions',
-                'equipment.context_processors.agent_install_prompt',
             ],
         },
     },

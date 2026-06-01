@@ -1,0 +1,108 @@
+{% extends 'equipment/base_agent_gate.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-xl-7">
+        <div class="card border-0 shadow-lg">
+            <div class="card-body p-4 p-md-5">
+                <div class="text-center mb-4">
+                    <div class="text-hm mb-2"><i class="bi bi-shield-lock display-5"></i></div>
+                    <h1 class="fw-bold h3 mb-2">Cần cài JustPlay Agent trước khi vào portal</h1>
+                    <p class="text-muted mb-0">
+                        Tài khoản <strong>{{ portal_user.username }}</strong> chưa có trong
+                        <strong>Quản lý thiết bị</strong>. Bạn phải cài agent trên PC Windows này
+                        để đăng ký thiết bị — sau đó mới truy cập được các màn hình khác.
+                    </p>
+                </div>
+
+                <div class="alert alert-warning border-0 small">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    Portal đang bị khóa. Mọi menu và đường dẫn khác sẽ quay lại trang này cho đến khi
+                    thông tin PC được gửi thành công lên module thiết bị.
+                </div>
+
+                <h2 class="h6 fw-bold text-uppercase text-muted mb-3">Hướng dẫn cài (3 bước)</h2>
+                <ol class="mb-4">
+                    <li class="mb-2">
+                        Bấm <strong>Tải file cài</strong> — lưu
+                        <code>JustPlay-CaiDat-{{ portal_user.username }}.cmd</code>
+                    </li>
+                    <li class="mb-2">
+                        Chuột phải file → <strong>Run as administrator</strong> (hoặc chạy bình thường nếu được phép)
+                    </li>
+                    <li class="mb-2">
+                        Đợi cửa sổ cài chạy xong (~10 giây) — agent tự quét PC và gửi thông tin
+                        (kèm tài khoản <strong>{{ portal_user.username }}</strong>) lên portal
+                    </li>
+                </ol>
+
+                <div class="d-grid d-sm-flex gap-2 mb-4">
+                    <a href="{% url 'equipment:agent_download_installer' %}" class="btn btn-hm btn-lg" id="jpAgentDownloadBtn">
+                        <i class="bi bi-download me-1"></i>Tải file cài
+                    </a>
+                </div>
+
+                <div id="jpAgentWaiting" class="d-none">
+                    <div class="border rounded p-3 bg-light">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="spinner-border text-hm spinner-border-sm" role="status" aria-hidden="true"></div>
+                            <div>
+                                <div class="fw-semibold">Đang chờ agent gửi thông tin…</div>
+                                <div class="small text-muted" id="jpAgentWaitingHint">
+                                    Sau khi file cài chạy xong, trang sẽ tự chuyển vào portal.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <p class="small text-muted mb-0 mt-4">
+                    File cài tự tải <code>JustPlayAgent.exe</code>, tạo cấu hình và đăng ký chạy nền mỗi lần đăng nhập Windows.
+                    Nếu đã được IT gán thiết bị trước đó mà vẫn thấy trang này, liên hệ IT kiểm tra cột <em>Người dùng</em>.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    'use strict';
+
+    var statusUrl = '{% url "equipment:api_agent_install_status" %}';
+    var homeUrl = '{% url "home_portal" %}';
+    var downloadBtn = document.getElementById('jpAgentDownloadBtn');
+    var waitingEl = document.getElementById('jpAgentWaiting');
+    var pollTimer = null;
+
+    function checkRegistered() {
+        fetch(statusUrl, { credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.ready) {
+                    if (pollTimer) clearInterval(pollTimer);
+                    window.location.href = homeUrl;
+                }
+            })
+            .catch(function () {});
+    }
+
+    function startPolling() {
+        if (waitingEl) waitingEl.classList.remove('d-none');
+        checkRegistered();
+        pollTimer = setInterval(checkRegistered, 3000);
+    }
+
+    if (downloadBtn) {
+        downloadBtn.addEventListener('click', function () {
+            setTimeout(startPolling, 1500);
+        });
+    }
+
+    checkRegistered();
+    pollTimer = setInterval(checkRegistered, 5000);
+})();
+</script>
+{% endblock %}

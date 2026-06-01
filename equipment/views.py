@@ -794,6 +794,27 @@ def request_agent_rescan(request):
 
 
 @login_required
+def agent_install_gate(request):
+    """Màn hình bắt buộc cài agent — không thể vào module khác."""
+    from equipment.services.agent_install import (
+        agent_install_enabled,
+        is_agent_install_required,
+        user_is_in_equipment_registry,
+    )
+
+    if not agent_install_enabled():
+        return redirect('home_portal')
+    if user_is_in_equipment_registry(request.user):
+        return redirect('home_portal')
+    if not is_agent_install_required(request):
+        return redirect('home_portal')
+
+    return render(request, 'equipment/agent_install_gate.html', {
+        'portal_user': request.user,
+    })
+
+
+@login_required
 def agent_download_installer(request):
     """1 file .cmd cá nhân hóa — tải EXE, tạo ini, quét sau 5 giây."""
     from equipment.services.agent_install import (
@@ -844,63 +865,40 @@ def agent_serve_exe(request):
 
 @login_required
 def agent_install_done(request):
-    """Trang xác nhận sau cài — đặt cookie để ẩn popup lần sau."""
-    from equipment.models import AgentInstallToken, UserAgentRegistration
+    """Trang xác nhận sau cài — chờ agent gửi thông tin lên quản lý thiết bị."""
+    from equipment.services.agent_install import user_is_in_equipment_registry
 
     token_str = request.GET.get('token', '').strip()
+    ready = user_is_in_equipment_registry(request.user)
     serial = ''
-    ready = False
 
-    if token_str:
-        tok = AgentInstallToken.objects.filter(token=token_str, user=request.user).first()
-        if tok and tok.used_at:
-            reg = (
-                UserAgentRegistration.objects.filter(user=request.user)
-                .order_by('-registered_at')
-                .first()
-            )
-            if reg:
-                serial = reg.serial_number
-                ready = True
+    if ready:
+        from equipment.models import UserAgentRegistration
 
-    response = render(request, 'equipment/agent_install_done.html', {
+        reg = (
+            UserAgentRegistration.objects.filter(user=request.user)
+            .order_by('-registered_at')
+            .first()
+        )
+        if reg:
+            serial = reg.serial_number
+
+    return render(request, 'equipment/agent_install_done.html', {
         'token': token_str,
         'ready': ready,
         'serial': serial,
     })
-    if ready and serial:
-        response.set_cookie(
-            'jp_agent_serial',
-            serial,
-            max_age=400 * 86400,
-            httponly=False,
-            samesite='Lax',
-        )
-    return response
 
 
 @login_required
 def api_agent_install_status(request):
-    """Poll trạng thái cài — trang hoàn tất chờ agent gửi báo cáo."""
-    from equipment.models import AgentInstallToken, UserAgentRegistration
+    """Poll — user đã có trong quản lý thiết bị chưa."""
+    from equipment.services.agent_install import user_is_in_equipment_registry
 
-    token_str = request.GET.get('token', '').strip()
-    if not token_str:
-        return JsonResponse({'ready': False})
+    if user_is_in_equipment_registry(request.user):
+        return JsonResponse({'ready': True, 'registered': True})
 
-    tok = AgentInstallToken.objects.filter(token=token_str, user=request.user).first()
-    if not tok or not tok.used_at:
-        return JsonResponse({'ready': False})
-
-    reg = (
-        UserAgentRegistration.objects.filter(user=request.user)
-        .order_by('-registered_at')
-        .first()
-    )
-    if not reg:
-        return JsonResponse({'ready': False})
-
-    return JsonResponse({'ready': True, 'serial': reg.serial_number})
+    return JsonResponse({'ready': False})
 
 
 @_edit_required

@@ -22,6 +22,7 @@ urlpatterns = [
     path('api/agent-report/', views.api_agent_report, name='api_agent_report'),
     path('api/agent-poll/', views.api_agent_poll, name='api_agent_poll'),
     path('agent/', views.agent_guide, name='agent_guide'),
+    path('agent/yeu-cau-cai/', views.agent_install_gate, name='agent_install_gate'),
     path('agent/tai-cai-dat/', views.agent_download_installer, name='agent_download_installer'),
     path('agent/exe/', views.agent_serve_exe, name='agent_serve_exe'),
     path('agent/hoan-tat/', views.agent_install_done, name='agent_install_done'),

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import secrets
-import uuid
 from datetime import timedelta
 
 from django.conf import settings
@@ -12,6 +11,48 @@ from django.utils import timezone
 
 def agent_install_enabled() -> bool:
     return bool(getattr(settings, 'EQUIPMENT_AGENT_SECRET', ''))
+
+
+def is_exempt_from_agent_gate(user) -> bool:
+    if user.is_superuser:
+        return True
+    from hrm.module_permissions import MODULE_EQUIPMENT, user_can_edit_module
+
+    return user_can_edit_module(user, MODULE_EQUIPMENT)
+
+
+def user_is_in_equipment_registry(user) -> bool:
+    """User đã có trong quản lý thiết bị (gán trực tiếp hoặc đã cài agent)."""
+    from equipment.models import Device, UserAgentRegistration
+
+    if Device.objects.filter(assigned_user=user).exists():
+        return True
+    if UserAgentRegistration.objects.filter(user=user).exists():
+        return True
+
+    if Device.objects.filter(assigned_user_text__iexact=user.username).exists():
+        return True
+    profile = getattr(user, 'profile', None)
+    if profile and profile.full_name:
+        if Device.objects.filter(assigned_user_text__iexact=profile.full_name).exists():
+            return True
+    return False
+
+
+def is_agent_install_required(request) -> bool:
+    if not agent_install_enabled():
+        return False
+    user = request.user
+    if not user.is_authenticated:
+        return False
+    if is_exempt_from_agent_gate(user):
+        return False
+    ua = request.META.get('HTTP_USER_AGENT', '')
+    if 'Windows' not in ua:
+        return False
+    if user_is_in_equipment_registry(user):
+        return False
+    return True
 
 
 def user_agent_payload(user) -> dict:
@@ -44,27 +85,6 @@ def create_install_token(user) -> 'AgentInstallToken':
     )
 
 
-def should_show_agent_install_prompt(request) -> bool:
-    if not agent_install_enabled():
-        return False
-    user = request.user
-    if not user.is_authenticated:
-        return False
-    ua = request.META.get('HTTP_USER_AGENT', '')
-    if 'Windows' not in ua:
-        return False
-
-    from equipment.models import UserAgentRegistration
-
-    serial_cookie = request.COOKIES.get('jp_agent_serial', '').strip()
-    if serial_cookie and UserAgentRegistration.objects.filter(
-        user=user, serial_number=serial_cookie
-    ).exists():
-        return False
-
-    return True
-
-
 def link_user_from_agent_report(*, data: dict, device) -> None:
     """Gán user portal + đăng ký PC sau khi agent báo cáo."""
     from django.contrib.auth import get_user_model
@@ -91,8 +111,11 @@ def link_user_from_agent_report(*, data: dict, device) -> None:
 
     device.assigned_user = user
     full_name = (data.get('full_name') or '').strip()
+    username = (data.get('username') or user.username).strip()
     if full_name:
         device.assigned_user_text = full_name
+    elif username:
+        device.assigned_user_text = username
     elif not device.assigned_user_text:
         profile = getattr(user, 'profile', None)
         if profile and profile.full_name:
@@ -123,7 +146,7 @@ def build_installer_cmd(*, user, token: str) -> str:
         'echo.',
         'echo  JustPlay Agent - dang cai dat...',
         'echo.',
-        f'set "JP_DIR=%LOCALAPPDATA%\\JustPlayAgent"',
+        'set "JP_DIR=%LOCALAPPDATA%\\JustPlayAgent"',
         'if not exist "%JP_DIR%" mkdir "%JP_DIR%"',
         f'curl -fsSL "{exe_url}" -o "%JP_DIR%\\JustPlayAgent.exe"',
         'if errorlevel 1 (',
@@ -158,7 +181,7 @@ def build_installer_cmd(*, user, token: str) -> str:
         f'start "" "{done_url}"',
         'echo.',
         'echo  Da cai xong. Trang portal se mo de xac nhan.',
-        'echo  Lan dang nhap sau se khong hien lai thong bao nay.',
+        'echo  Sau khi xac nhan thanh cong ban moi vao duoc portal.',
         'timeout /t 5',
     ]
     return '\r\n'.join(lines) + '\r\n'

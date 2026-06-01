@@ -1,27 +1,29 @@
-{% extends 'base.html' %}
+{% extends 'equipment/base_agent_gate.html' %}
 
 {% block content %}
-<div class="container jp-page py-4 mb-5">
-    <div class="row justify-content-center">
-        <div class="col-lg-7">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body p-4 text-center">
-                    {% if ready %}
-                    <div class="text-success mb-3"><i class="bi bi-check-circle-fill display-4"></i></div>
-                    <h2 class="fw-bold mb-2">Đã cài xong!</h2>
-                    <p class="text-muted mb-4">
-                        Thiết bị đã được gửi lên portal{% if serial %} (serial <code>{{ serial }}</code>){% endif %}.
-                        Lần đăng nhập sau trên máy này sẽ không hiện lại thông báo cài đặt.
-                    </p>
-                    <a href="{% url 'home_portal' %}" class="btn btn-hm">Về trang chủ</a>
-                    {% else %}
-                    <div class="spinner-border text-hm mb-3" role="status" aria-hidden="true"></div>
-                    <h2 class="fw-bold mb-2">Đang hoàn tất cài đặt…</h2>
-                    <p class="text-muted mb-0" id="jpAgentDoneHint">
-                        Agent đang quét PC và gửi thông tin. Trang sẽ tự cập nhật trong vài giây.
-                    </p>
-                    {% endif %}
-                </div>
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4 text-center">
+                {% if ready %}
+                <div class="text-success mb-3"><i class="bi bi-check-circle-fill display-4"></i></div>
+                <h2 class="fw-bold mb-2">Đăng ký thiết bị thành công!</h2>
+                <p class="text-muted mb-4">
+                    Tài khoản của bạn đã có trong quản lý thiết bị{% if serial %} (serial <code>{{ serial }}</code>){% endif %}.
+                    Bạn có thể vào portal bình thường.
+                </p>
+                <a href="{% url 'home_portal' %}" class="btn btn-hm btn-lg">Vào portal</a>
+                {% else %}
+                <div class="spinner-border text-hm mb-3" role="status" aria-hidden="true"></div>
+                <h2 class="fw-bold mb-2">Đang hoàn tất đăng ký…</h2>
+                <p class="text-muted mb-3" id="jpAgentDoneHint">
+                    Agent đang quét PC và gửi thông tin lên quản lý thiết bị.
+                    Trang sẽ tự chuyển khi thành công.
+                </p>
+                <a href="{% url 'equipment:agent_install_gate' %}" class="btn btn-outline-secondary btn-sm">
+                    Quay lại hướng dẫn cài
+                </a>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -29,14 +31,12 @@
 {% endblock %}
 
 {% block scripts %}
-{% if not ready and token %}
+{% if not ready %}
 <script>
 (function () {
-    var token = "{{ token|escapejs }}";
-    if (!token) return;
-    var statusUrl = '{% url "equipment:api_agent_install_status" %}?token=' + encodeURIComponent(token);
+    var statusUrl = '{% url "equipment:api_agent_install_status" %}';
+    var homeUrl = '{% url "home_portal" %}';
     var tries = 0;
-    var maxTries = 40;
     var timer = setInterval(function () {
         tries += 1;
         fetch(statusUrl, { credentials: 'same-origin' })
@@ -44,15 +44,15 @@
             .then(function (data) {
                 if (data.ready) {
                     clearInterval(timer);
-                    window.location.reload();
+                    window.location.href = homeUrl;
                 }
             })
             .catch(function () {});
-        if (tries >= maxTries) {
+        if (tries >= 40) {
             clearInterval(timer);
             var hint = document.getElementById('jpAgentDoneHint');
             if (hint) {
-                hint.textContent = 'Chưa nhận được báo cáo từ agent. Thử đăng nhập lại sau vài phút hoặc chạy lại file cài.';
+                hint.textContent = 'Chưa nhận được thông tin từ agent. Quay lại trang hướng dẫn và chạy lại file cài.';
             }
         }
     }, 3000);

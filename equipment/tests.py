@@ -107,25 +107,54 @@ class AgentInstallFlowTests(TestCase):
         self.assertIsNotNone(tok.used_at)
 
     @override_settings(EQUIPMENT_AGENT_SECRET='sec')
-    def test_install_status_requires_used_token(self):
+    def test_install_status_when_user_in_registry(self):
         from django.contrib.auth import get_user_model
 
-        from equipment.models import AgentInstallToken, UserAgentRegistration, Device
-        from equipment.services.agent_install import create_install_token
+        from equipment.models import Device
+        from equipment.services.agent_install import user_is_in_equipment_registry
 
         User = get_user_model()
         user = User.objects.create_user(username='u2', password='x')
+        Device.objects.create(
+            serial_number='SN99',
+            name='PC',
+            assigned_user=user,
+            assigned_user_text='u2',
+        )
+        self.assertTrue(user_is_in_equipment_registry(user))
+
         client = __import__('django.test', fromlist=['Client']).Client()
         client.force_login(user)
-        tok = create_install_token(user)
-        resp = client.get(f'/thiet-bi/agent/trang-thai/?token={tok.token}')
-        self.assertEqual(resp.json()['ready'], False)
-
-        tok.mark_used()
-        device = Device.objects.create(serial_number='SN99', name='PC')
-        UserAgentRegistration.objects.create(user=user, serial_number='SN99', device=device)
-        resp = client.get(f'/thiet-bi/agent/trang-thai/?token={tok.token}')
+        resp = client.get('/thiet-bi/agent/trang-thai/')
         self.assertTrue(resp.json()['ready'])
+
+    @override_settings(EQUIPMENT_AGENT_SECRET='sec')
+    def test_middleware_redirects_to_gate(self):
+        from django.contrib.auth import get_user_model
+        from django.test import Client
+
+        User = get_user_model()
+        user = User.objects.create_user(username='gate_user', password='x')
+        client = Client()
+        client.force_login(user)
+        resp = client.get('/', HTTP_USER_AGENT='Mozilla/5.0 Windows NT 10.0')
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn('/thiet-bi/agent/yeu-cau-cai', resp.url)
+
+    @override_settings(EQUIPMENT_AGENT_SECRET='sec')
+    def test_middleware_skips_when_user_assigned(self):
+        from django.contrib.auth import get_user_model
+        from django.test import Client
+
+        from equipment.models import Device
+
+        User = get_user_model()
+        user = User.objects.create_user(username='assigned', password='x')
+        Device.objects.create(serial_number='SN1', name='PC', assigned_user=user)
+        client = Client()
+        client.force_login(user)
+        resp = client.get('/', HTTP_USER_AGENT='Mozilla/5.0 Windows NT 10.0')
+        self.assertEqual(resp.status_code, 200)
 
     @override_settings(EQUIPMENT_AGENT_SECRET='sec')
     def test_agent_poll_api(self):
