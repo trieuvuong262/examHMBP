@@ -11,6 +11,28 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+_BAD_SERIALS = frozenset({
+    'default string',
+    'to be filled by o.e.m.',
+    'system serial number',
+    'none',
+    '00000000',
+    '0123456789',
+    '123456789',
+})
+
+
+def is_bad_serial(serial: str | None) -> bool:
+    if not serial:
+        return True
+    text = str(serial).strip()
+    if not text:
+        return True
+    lower = text.lower()
+    if lower in _BAD_SERIALS:
+        return True
+    return any(bad in lower for bad in _BAD_SERIALS)
+
 
 def exe_dir() -> Path:
     if getattr(sys, 'frozen', False):
@@ -35,33 +57,78 @@ def cfg_get(cfg: configparser.ConfigParser, section: str, key: str, default: str
 def run_powershell(script: str) -> str:
     if platform.system() != 'Windows':
         return ''
+    kwargs: dict = {
+        'capture_output': True,
+        'text': True,
+        'timeout': 45,
+    }
+    if hasattr(subprocess, 'CREATE_NO_WINDOW'):
+        kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
     result = subprocess.run(
-        ['powershell', '-NoProfile', '-Command', script],
-        capture_output=True,
-        text=True,
-        timeout=30,
+        ['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', script],
+        **kwargs,
     )
     return (result.stdout or '').strip()
 
 
+def resolve_serial() -> str:
+    """Serial BIOS / bo mạch / UUID — fallback khi OEM de serial mac dinh."""
+    queries = (
+        '(Get-CimInstance Win32_BIOS -ErrorAction SilentlyContinue | Select-Object -First 1).SerialNumber',
+        '(Get-CimInstance Win32_BaseBoard -ErrorAction SilentlyContinue | Select-Object -First 1).SerialNumber',
+        '(Get-CimInstance Win32_ComputerSystemProduct -ErrorAction SilentlyContinue | Select-Object -First 1).UUID',
+        "(Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Cryptography' -ErrorAction SilentlyContinue).MachineGuid",
+    )
+    for query in queries:
+        value = run_powershell(query)
+        if not is_bad_serial(value):
+            return value.strip()
+
+    try:
+        result = subprocess.run(
+            ['wmic', 'csproduct', 'get', 'uuid'],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            **({'creationflags': subprocess.CREATE_NO_WINDOW} if hasattr(subprocess, 'CREATE_NO_WINDOW') else {}),
+        )
+        for line in (result.stdout or '').splitlines():
+            line = line.strip()
+            if line and line.lower() != 'uuid' and not is_bad_serial(line):
+                return line
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+        pass
+
+    hostname = (platform.node() or '').strip()
+    if hostname:
+        return f'HOST-{hostname.upper()}'
+    return ''
+
+
 def collect_info() -> dict | None:
-    serial = run_powershell('(Get-CimInstance Win32_BIOS).SerialNumber')
-    if not serial or serial in ('Default string', 'None', ''):
+    serial = resolve_serial()
+    if not serial:
         return None
     hostname = platform.node()
-    model = run_powershell('(Get-CimInstance Win32_ComputerSystem).Model')
-    cpu = run_powershell('(Get-CimInstance Win32_Processor).Name | Select-Object -First 1')
-    ram_raw = run_powershell('(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory')
+    model = run_powershell(
+        '(Get-CimInstance Win32_ComputerSystem -ErrorAction SilentlyContinue).Model'
+    )
+    cpu = run_powershell(
+        '(Get-CimInstance Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1).Name'
+    )
+    ram_raw = run_powershell(
+        '(Get-CimInstance Win32_ComputerSystem -ErrorAction SilentlyContinue).TotalPhysicalMemory'
+    )
     try:
         ram_gb = round(int(ram_raw) / (1024 ** 3), 1) if str(ram_raw).isdigit() else ram_raw
     except ValueError:
         ram_gb = ram_raw
     disk = run_powershell(
-        '(Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" | '
+        '(Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" -ErrorAction SilentlyContinue | '
         'Select-Object -First 1 @{N=\'Size\';E={[math]::Round($_.Size/1GB,1)}}).Size'
     )
     ip = run_powershell(
-        '(Get-NetIPAddress -AddressFamily IPv4 | Where-Object {'
+        '(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object {'
         '$_.IPAddress -notlike \'127.*\' -and $_.IPAddress -notlike \'100.*\' '
         '-and $_.PrefixOrigin -ne \'WellKnown\'} | Select-Object -First 1).IPAddress'
     )

@@ -115,7 +115,7 @@
  [],
  False,
  False,
- 1780289184,
+ 1780289563,
  [('run.exe',
    'C:\\Users\\Vuong-IT\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\PyInstaller\\bootloader\\Windows-64bit-intel\\run.exe',
    'EXECUTABLE')],

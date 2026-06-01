@@ -196,6 +196,15 @@ class AgentInstallFlowTests(TestCase):
         request.META['HTTP_USER_AGENT'] = 'Mozilla/5.0 Windows NT 10.0'
         self.assertTrue(is_agent_install_required(request))
 
+    def test_resolve_serial_fallback_host(self):
+        from equipment.agent.core import is_bad_serial, resolve_serial
+
+        with patch('equipment.agent.core.run_powershell', return_value='Default string'):
+            with patch('equipment.agent.core.platform.node', return_value='PC-TEST'):
+                serial = resolve_serial()
+        self.assertEqual(serial, 'HOST-PC-TEST')
+        self.assertFalse(is_bad_serial(serial))
+
     @override_settings(EQUIPMENT_AGENT_SECRET='sec')
     def test_agent_poll_api(self):
         from django.test import Client

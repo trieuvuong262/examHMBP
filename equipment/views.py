@@ -725,7 +725,9 @@ def api_agent_report(request):
             return JsonResponse({'status': 'error', 'message': 'Sai Secret Key'}, status=403)
 
         serial = data.get('serial')
-        if not serial or serial in ('Default string', 'None', ''):
+        from equipment.services.wmi_scan import is_bad_serial
+
+        if is_bad_serial(serial):
             return JsonResponse({'status': 'error', 'message': 'Serial không hợp lệ'}, status=400)
 
         device, created = Device.objects.get_or_create(
