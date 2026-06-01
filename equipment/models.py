@@ -36,7 +36,6 @@ class Device(models.Model):
     device_code = models.CharField(
         max_length=50,
         unique=True,
-        db_index=True,
         verbose_name='Mã thiết bị',
     )
     name = models.CharField(max_length=200, verbose_name='Tên thiết bị')
