@@ -68,9 +68,8 @@ def scope_urls(scope: str | None) -> dict[str, str]:
         'export_devices': scope_url_name('export_devices', scope),
         'download_sample': scope_url_name('download_sample', scope),
         'import_devices': scope_url_name('import_devices', scope),
+        'it_repair_list': scope_url_name('it_repair_list', scope),
     }
-    if scope == SCOPE_IT:
-        names['it_repair_list'] = 'it_repair_list_it'
     urls = {key: reverse(f'equipment:{name}') for key, name in names.items()}
     urls['home'] = urls['dashboard']
     return urls
@@ -83,6 +82,11 @@ def scope_context(scope: str | None) -> dict:
         'equipment_scope_short': SCOPE_SHORT_LABELS.get(scope or '', ''),
         'equipment_urls': scope_urls(scope),
     }
+
+
+def it_repair_detail_url(equipment_scope: str | None, pk) -> str:
+    name = scope_url_name('it_repair_detail', equipment_scope)
+    return reverse(f'equipment:{name}', args=[pk])
 
 
 def merge_scope_context(request, equipment_scope: str | None = None, device=None) -> dict:

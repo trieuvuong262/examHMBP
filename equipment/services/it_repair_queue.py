@@ -3,6 +3,8 @@
 from django.contrib.auth.models import User
 from django.db.models import Q
 
+from equipment.models import Device
+from equipment.scope import managed_by_for_scope
 from hrm.module_permissions import MODULE_EQUIPMENT, user_can_access_module
 from hrm.permissions import get_profile
 from service_requests.models import RequestType, RequestTypeStepTemplate, ServiceRequest, ServiceRequestStep
@@ -41,7 +43,20 @@ def can_claim_it_repair_step(user, step: ServiceRequestStep) -> bool:
     return step.assignee_rule == RequestTypeStepTemplate.RULE_DEPARTMENT_QUEUE
 
 
-def pending_it_repair_steps_for_user(user):
+def _filter_steps_for_equipment_scope(qs, equipment_scope: str | None):
+    managed = managed_by_for_scope(equipment_scope)
+    if not managed:
+        return qs
+    if equipment_scope == 'production':
+        return qs.filter(request__equipment__managed_by=Device.MANAGED_MAINTENANCE)
+    return qs.filter(
+        Q(request__equipment__isnull=True)
+        | Q(request__equipment__managed_by=Device.MANAGED_IT)
+        | Q(request__equipment__managed_by=Device.MANAGED_OTHER)
+    )
+
+
+def pending_it_repair_steps_for_user(user, equipment_scope: str | None = None):
     """Bước IT xử lý sự cố chờ user (module thiết bị)."""
     if not _has_equipment_access(user):
         return ServiceRequestStep.objects.none()
@@ -71,7 +86,9 @@ def pending_it_repair_steps_for_user(user):
             assignee_rule=RequestTypeStepTemplate.RULE_DEPARTMENT_QUEUE,
             target_department_id=dept_id,
         )
-    return qs.filter(filters).order_by('-request__priority', '-request__created_at', 'step_order')
+    qs = qs.filter(filters)
+    qs = _filter_steps_for_equipment_scope(qs, equipment_scope)
+    return qs.order_by('-request__priority', '-request__created_at', 'step_order')
 
 
 def get_it_staff_with_equipment_access():

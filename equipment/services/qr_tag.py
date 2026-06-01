@@ -71,9 +71,7 @@ def _text_height(draw, text: str, font) -> int:
 def generate_asset_tag(device) -> tuple[File, str]:
     """Tem ngang: trái = thông tin thiết bị, phải = mã QR."""
     font_brand = _load_font(16, bold=True)
-    font_sub = _load_font(10, bold=True)
     font_name = _load_font(20, bold=True)
-    font_code = _load_font(15, bold=True)
     font_row = _load_font(13)
     font_label = _load_font(10, bold=True)
 
@@ -84,8 +82,8 @@ def generate_asset_tag(device) -> tuple[File, str]:
     draw.rectangle((INNER, INNER, TAG_W - INNER, INNER + HEADER_H), fill=BLACK)
 
     header_text = getattr(settings, 'EQUIPMENT_TAG_HEADER', 'JUSTPLAY')
-    draw.text((INNER + 12, INNER + 10), header_text, font=font_brand, fill='white')
-    draw.text((INNER + 12, INNER + 28), 'QUẢN LÝ THIẾT BỊ', font=font_sub, fill=(190, 190, 190))
+    header_y = INNER + (HEADER_H - _text_height(draw, header_text, font_brand)) // 2
+    draw.text((INNER + 12, header_y), header_text, font=font_brand, fill='white')
 
     body_top = INNER + HEADER_H + 10
     body_bottom = TAG_H - INNER - 8
@@ -94,35 +92,37 @@ def generate_asset_tag(device) -> tuple[File, str]:
     draw.line((split_x, body_top, split_x, body_bottom), fill=LINE_GRAY, width=1)
 
     left_x = INNER + 14
+    label_w = 88
+    row_h = 19
     y = body_top + 4
 
     name = (device.name or 'Thiết bị')[:36]
     draw.text((left_x, y), name, font=font_name, fill=BLACK)
     y += _text_height(draw, name, font_name) + 6
 
-    device_code = (getattr(device, 'device_code', None) or '—')[:32]
-    label_w = 88
-    draw.text((left_x, y), 'MÃ THIẾT BỊ', font=font_label, fill=TEXT_MUTED)
-    draw.text((left_x + label_w, y), device_code, font=font_code, fill=BLACK)
-    y += _text_height(draw, device_code, font_code) + 8
-
     category = device.get_category_display() if hasattr(device, 'get_category_display') else ''
     if category:
         draw.text((left_x, y), f'Loại: {category[:40]}', font=font_row, fill=BLACK_SOFT)
         y += 20
 
+    device_code = (getattr(device, 'device_code', None) or '—')[:32]
     dept_label = device.usage_department_label if hasattr(device, 'usage_department_label') else '—'
     user_label = device.assigned_user_label if hasattr(device, 'assigned_user_label') else (device.assigned_user_text or '—')
     if user_label == '—':
         user_label = device.assigned_user_text or '—'
 
+    handover_label = '—'
+    if getattr(device, 'handover_date', None):
+        handover_label = device.handover_date.strftime('%d/%m/%Y')
+
     rows = [
+        ('MÃ THIẾT BỊ', device_code),
         ('PHÒNG BAN', dept_label),
         ('NGƯỜI DÙNG', user_label),
         ('MODEL', device.model_number or '—'),
         ('SERIAL', (device.serial_number or '—')[:32]),
+        ('BÀN GIAO', handover_label),
     ]
-    row_h = 19
     for label, value in rows:
         if y + row_h > body_bottom - 8:
             break

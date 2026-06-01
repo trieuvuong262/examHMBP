@@ -8,12 +8,10 @@
            class="btn btn-sm {% if request.resolver_match.url_name == 'device_list_it' or request.resolver_match.url_name == 'device_list_production' or request.resolver_match.url_name == 'device_add_it' or request.resolver_match.url_name == 'device_add_production' or request.resolver_match.url_name == 'device_edit' or request.resolver_match.url_name == 'device_detail_manage' or request.resolver_match.url_name == 'import_export_hub_it' or request.resolver_match.url_name == 'import_export_hub_production' or request.resolver_match.url_name == 'import_devices_it' or request.resolver_match.url_name == 'import_devices_production' or request.resolver_match.url_name == 'category_list_it' or request.resolver_match.url_name == 'category_list_production' or request.resolver_match.url_name == 'category_add_it' or request.resolver_match.url_name == 'category_add_production' or request.resolver_match.url_name == 'category_edit_it' or request.resolver_match.url_name == 'category_edit_production' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
             <i class="bi bi-hdd-stack me-1"></i>Danh sách thiết bị
         </a>
-        {% if equipment_scope == 'it' %}
         <a href="{{ equipment_urls.it_repair_list }}"
            class="btn btn-sm {% if 'it_repair' in request.resolver_match.url_name %}btn-hm{% else %}btn-outline-secondary{% endif %}">
             <i class="bi bi-tools me-1"></i>Hỗ trợ kỹ thuật
             {% if it_repair_pending_count %}<span class="badge bg-danger ms-1">{{ it_repair_pending_count }}</span>{% endif %}
         </a>
-        {% endif %}
     </div>
 </nav>

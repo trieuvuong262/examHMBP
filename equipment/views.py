@@ -32,8 +32,10 @@ from .scope import (
     SCOPE_IT,
     SCOPE_PRODUCTION,
     filter_devices_for_scope,
+    it_repair_detail_url,
     managed_by_for_scope,
     merge_scope_context,
+    scope_for_managed_by,
     scope_urls,
 )
 from .services.import_export import (
@@ -65,18 +67,28 @@ def _edit_required(view_func):
     return wrapper
 
 
+def _redirect_it_repair_list(equipment_scope=None):
+    return redirect(scope_urls(equipment_scope or SCOPE_IT)['it_repair_list'])
+
+
 def _subnav_context(request=None, equipment_scope=None, device=None):
     ctx = {}
     if request and request.user.is_authenticated:
         from equipment.services.it_repair_queue import pending_it_repair_steps_for_user
-        ctx['it_repair_pending_count'] = pending_it_repair_steps_for_user(request.user).count()
         ctx['can_edit_equipment'] = user_can_edit_module(request.user, MODULE_EQUIPMENT)
         ctx['can_export_equipment'] = user_can_access_module(request.user, MODULE_EQUIPMENT)
     else:
-        ctx['it_repair_pending_count'] = 0
         ctx['can_edit_equipment'] = False
         ctx['can_export_equipment'] = False
     ctx.update(merge_scope_context(request, equipment_scope, device))
+    if request and request.user.is_authenticated:
+        from equipment.services.it_repair_queue import pending_it_repair_steps_for_user
+        ctx['it_repair_pending_count'] = pending_it_repair_steps_for_user(
+            request.user,
+            ctx.get('equipment_scope'),
+        ).count()
+    else:
+        ctx['it_repair_pending_count'] = 0
     return ctx
 
 
@@ -170,7 +182,7 @@ def it_repair_list(request, equipment_scope=SCOPE_IT):
     from equipment.services.it_repair_queue import pending_it_repair_steps_for_user
 
     search_query = get_search_query(request)
-    qs = pending_it_repair_steps_for_user(request.user)
+    qs = pending_it_repair_steps_for_user(request.user, equipment_scope)
     if search_query:
         qs = qs.filter(
             Q(request__title__icontains=search_query)
@@ -191,7 +203,16 @@ def it_repair_list(request, equipment_scope=SCOPE_IT):
 
 @_access_required
 def legacy_it_repair_detail(request, pk):
-    return redirect('equipment:it_repair_detail_it', pk=pk)
+    from service_requests.models import ServiceRequest
+
+    service_request = get_object_or_404(
+        ServiceRequest.objects.select_related('equipment'),
+        pk=pk,
+    )
+    scope = scope_for_managed_by(
+        service_request.equipment.managed_by if service_request.equipment_id else None
+    )
+    return redirect(it_repair_detail_url(scope, pk))
 
 
 @_access_required
@@ -215,7 +236,7 @@ def it_repair_detail(request, pk, equipment_scope=SCOPE_IT):
     )
     if not service_request.is_it_repair:
         messages.error(request, 'Yêu cầu không thuộc loại Hỗ trợ kỹ thuật.')
-        return redirect('equipment:it_repair_list_it')
+        return _redirect_it_repair_list(equipment_scope)
 
     current_step = service_request.current_step
     if not current_step or current_step.step_code != ServiceRequestStep.STEP_IT_REPAIR:
@@ -226,7 +247,7 @@ def it_repair_detail(request, pk, equipment_scope=SCOPE_IT):
     can_claim = can_claim_it_repair_step(request.user, current_step)
     if not can_handle and not can_claim:
         messages.error(request, 'Bạn không có quyền xử lý yêu cầu này.')
-        return redirect('equipment:it_repair_list_it')
+        return _redirect_it_repair_list(equipment_scope)
 
     it_repair_form = ItRepairCompleteForm()
 
@@ -236,7 +257,7 @@ def it_repair_detail(request, pk, equipment_scope=SCOPE_IT):
             if action == 'claim' and can_claim:
                 claim_step(current_step, actor=request.user)
                 messages.success(request, 'Đã tiếp nhận yêu cầu.')
-                return redirect('equipment:it_repair_detail_it', pk=pk)
+                return redirect(it_repair_detail_url(equipment_scope, pk))
 
             if action == 'complete_it_repair' and can_handle:
                 it_repair_form = ItRepairCompleteForm(request.POST)
@@ -272,10 +293,10 @@ def it_repair_detail(request, pk, equipment_scope=SCOPE_IT):
                         repaired_by=request.user.get_full_name() or request.user.username,
                     )
                     messages.success(request, 'Đã hoàn thành xử lý — yêu cầu đã đóng.')
-                    return redirect('equipment:it_repair_list_it')
+                    return _redirect_it_repair_list(equipment_scope)
         except ValueError as exc:
             messages.error(request, str(exc))
-            return redirect('equipment:it_repair_detail_it', pk=pk)
+            return redirect(it_repair_detail_url(equipment_scope, pk))
 
     return render(request, 'equipment/it_repair_detail.html', {
         'service_request': service_request,
