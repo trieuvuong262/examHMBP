@@ -33,7 +33,7 @@ from .services.wmi_scan import (
     upsert_device_from_probe,
     wmi_unavailable_message,
 )
-from .services.scan_relay_client import ScanRelayError, scan_range_remote, scan_targets_remote
+from .services.scan_relay_client import ScanRelayError, scan_lan_remote, scan_range_remote, scan_targets_remote
 
 
 def _access_required(view_func):
@@ -529,6 +529,61 @@ def _require_scan(request):
     return True
 
 
+def _save_probes_to_db(probes: list[dict]) -> tuple[int, int]:
+    found_count = 0
+    new_device_count = 0
+    for probe in probes:
+        device, created = upsert_device_from_probe(probe)
+        if device is None:
+            continue
+        found_count += 1
+        if created:
+            new_device_count += 1
+    return found_count, new_device_count
+
+
+@_edit_required
+@require_http_methods(['POST'])
+def scan_lan_network(request):
+    """Quét toàn mạng LAN (/24) — qua Tailscale tới máy Windows IT."""
+    if not _require_scan(request):
+        return redirect('equipment:device_list')
+
+    scan_user = (request.POST.get('scan_user') or '').strip()
+    scan_pass = request.POST.get('scan_pass') or ''
+    if not scan_user or not scan_pass:
+        messages.error(request, 'Vui lòng nhập tài khoản và mật khẩu Admin domain.')
+        return redirect('equipment:device_list')
+
+    try:
+        if is_local_wmi_available():
+            from equipment.relay.wmi_standalone import detect_lan_ip_range, scan_ip_list
+
+            start_ip, end_ip, lan_label = detect_lan_ip_range()
+            ips = parse_ip_range(start_ip, end_ip)
+            probes = scan_ip_list(ips, username=scan_user, password=scan_pass)
+        else:
+            data = scan_lan_remote(scan_user=scan_user, scan_pass=scan_pass)
+            probes = data.get('probes', [])
+            start_ip = data.get('start_ip', '')
+            end_ip = data.get('end_ip', '')
+            lan_label = data.get('lan_label') or f'{start_ip} – {end_ip}'
+    except ScanRelayError as exc:
+        messages.error(request, str(exc))
+        return redirect('equipment:device_list')
+    except ValueError as exc:
+        messages.error(request, str(exc))
+        return redirect('equipment:device_list')
+
+    found_count, new_device_count = _save_probes_to_db(probes)
+    messages.success(
+        request,
+        f'Đã quét toàn LAN {lan_label}. '
+        f'Tìm thấy {found_count} máy. Thêm mới {new_device_count} thiết bị.',
+    )
+    return redirect('equipment:device_list')
+
+
 @_edit_required
 @require_http_methods(['POST'])
 def scan_selected_devices(request):
@@ -642,13 +697,7 @@ def scan_network_range(request):
                 scan_user=scan_user,
                 scan_pass=scan_pass,
             )
-            for probe in data.get('probes', []):
-                device, created = upsert_device_from_probe(probe)
-                if device is None:
-                    continue
-                found_count += 1
-                if created:
-                    new_device_count += 1
+            found_count, new_device_count = _save_probes_to_db(data.get('probes', []))
         except ScanRelayError as exc:
             messages.error(request, str(exc))
             return redirect('equipment:device_list')

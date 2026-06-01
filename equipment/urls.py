@@ -17,6 +17,7 @@ urlpatterns = [
     path('nhap-excel/', views.import_devices, name='import_devices'),
     path('xoa-hang-loat/', views.delete_bulk_devices, name='delete_bulk_devices'),
     path('quet-wmi/', views.scan_selected_devices, name='scan_selected_devices'),
+    path('quet-lan/', views.scan_lan_network, name='scan_lan_network'),
     path('quet-dai-ip/', views.scan_network_range, name='scan_network_range'),
     path('api/agent-report/', views.api_agent_report, name='api_agent_report'),
     path('quet-relay/', views.scan_relay_guide, name='scan_relay_guide'),

@@ -199,6 +199,58 @@ def resolve_hostname(ip: str) -> str:
         return ip
 
 
+def detect_lan_ip_range() -> tuple[str, str, str]:
+    """
+    Phát hiện dải quét LAN (/24) trên Windows — bỏ Tailscale (100.x), loopback, APIPA.
+    Returns: (start_ip, end_ip, label) vd. ('192.168.1.1', '192.168.1.254', '192.168.1.0/24')
+    """
+    script = r"""
+    $ifaces = Get-NetIPAddress -AddressFamily IPv4 | Where-Object {
+        $_.PrefixOrigin -ne 'WellKnown' -and
+        $_.IPAddress -notlike '127.*' -and
+        $_.IPAddress -notlike '169.254.*' -and
+        $_.IPAddress -notlike '100.*'
+    } | Sort-Object @{
+        Expression = {
+            if ($_.IPAddress -like '192.168.*') { 0 }
+            elseif ($_.IPAddress -like '10.*') { 1 }
+            else { 2 }
+        }
+    }
+    $best = $ifaces | Select-Object -First 1
+    if ($best) { Write-Output $best.IPAddress }
+    """
+    try:
+        result = subprocess.run(
+            ['powershell', '-NoProfile', '-Command', script],
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+        ip_str = (result.stdout or '').strip().splitlines()[0].strip() if result.stdout else ''
+    except (subprocess.TimeoutExpired, OSError, IndexError):
+        ip_str = ''
+
+    if not ip_str:
+        raise ValueError('Không phát hiện được card mạng LAN trên máy IT (Windows).')
+
+    ip_obj = ipaddress.IPv4Address(ip_str)
+    network = ipaddress.ip_network(f'{ip_obj}/24', strict=False)
+    start = str(network.network_address + 1)
+    end = str(network.broadcast_address - 1)
+    label = f'{network.network_address}/24'
+    return start, end, label
+
+
+def scan_ip_list(ips: list[str], *, username: str, password: str) -> list[dict]:
+    probes = []
+    for ip in ips:
+        probe = probe_ip(ip, username=username, password=password)
+        if probe:
+            probes.append(probe)
+    return probes
+
+
 def parse_ip_range(start_ip: str, end_ip: str, *, max_hosts: int = 255) -> list[str]:
     start = ipaddress.IPv4Address(start_ip.strip())
     end = ipaddress.IPv4Address(end_ip.strip())

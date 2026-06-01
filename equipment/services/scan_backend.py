@@ -28,12 +28,11 @@ def is_scan_available() -> bool:
 def scan_unavailable_message() -> str:
     if is_relay_scan_available():
         return ''
-    if platform.system().lower() != 'windows':
-        return (
-            'Chưa cấu hình quét từ xa. Trên VPS thêm EQUIPMENT_RELAY_HTTP_URL '
-            '(Tailscale IP máy IT) và chạy scan_relay_server.py trên máy đó.'
-        )
-    return 'Quét WMI local chỉ bật khi DEBUG/local. Production: cấu hình EQUIPMENT_RELAY_HTTP_URL.'
+    return (
+        'Chưa bật quét WMI. Trên VPS thêm EQUIPMENT_RELAY_HTTP_URL=http://100.x.x.x:8765 '
+        '(IP Tailscale máy Windows bạn) và chạy scan_relay_server.py trên máy đó. '
+        'Xem /thiet-bi/quet-relay/'
+    )
 
 
 def relay_http_url() -> str:

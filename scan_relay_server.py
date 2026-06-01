@@ -23,8 +23,10 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
 from equipment.relay.wmi_standalone import (  # noqa: E402
+    detect_lan_ip_range,
     parse_ip_range,
     probe_ip,
+    scan_ip_list,
     scan_target_entry,
 )
 
@@ -113,6 +115,8 @@ class RelayHandler(BaseHTTPRequestHandler):
             self._handle_targets(data, scan_user, scan_pass)
         elif path == '/scan/range':
             self._handle_range(data, scan_user, scan_pass)
+        elif path == '/scan/lan':
+            self._handle_lan(data, scan_user, scan_pass)
         else:
             _json_response(self, 404, {'status': 'error', 'message': 'Not found'})
 
@@ -161,6 +165,27 @@ class RelayHandler(BaseHTTPRequestHandler):
             'probes': probes,
             'start_ip': start_ip,
             'end_ip': end_ip,
+        })
+
+    def _handle_lan(self, data: dict, scan_user: str, scan_pass: str) -> None:
+        try:
+            start_ip, end_ip, label = detect_lan_ip_range()
+        except ValueError as exc:
+            _json_response(self, 400, {'status': 'error', 'message': str(exc)})
+            return
+        try:
+            ips = parse_ip_range(start_ip, end_ip)
+        except ValueError as exc:
+            _json_response(self, 400, {'status': 'error', 'message': str(exc)})
+            return
+        probes = scan_ip_list(ips, username=scan_user, password=scan_pass)
+        _json_response(self, 200, {
+            'status': 'ok',
+            'found': len(probes),
+            'probes': probes,
+            'start_ip': start_ip,
+            'end_ip': end_ip,
+            'lan_label': label,
         })
 
 

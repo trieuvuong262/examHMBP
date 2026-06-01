@@ -58,3 +58,11 @@ def scan_range_remote(*, start_ip: str, end_ip: str, scan_user: str, scan_pass: 
         'start_ip': start_ip,
         'end_ip': end_ip,
     })
+
+
+def scan_lan_remote(*, scan_user: str, scan_pass: str) -> dict:
+    """Quét toàn LAN (/24) — máy IT tự phát hiện mạng nội bộ."""
+    return _post('/scan/lan', {
+        'scan_user': scan_user,
+        'scan_pass': scan_pass,
+    })
