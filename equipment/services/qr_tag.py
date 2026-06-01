@@ -1,4 +1,4 @@
-"""Tạo tem QR tài sản — branding JustPlay."""
+"""Tạo tem QR tài sản — vuông, tông đen, JustPlay."""
 
 import io
 import os
@@ -12,17 +12,17 @@ from django.core.files import File
 from PIL import Image, ImageDraw, ImageFont
 
 
-BRAND_PRIMARY = (220, 38, 38)
-BRAND_DARK = (153, 27, 27)
-TEXT_DARK = (17, 24, 39)
-TEXT_MUTED = (107, 114, 128)
+BLACK = (17, 17, 17)
+BLACK_SOFT = (38, 38, 38)
+TEXT_MUTED = (115, 115, 115)
 BG_WHITE = (255, 255, 255)
-ACCENT_LIGHT = (254, 242, 242)
+BORDER_GRAY = (220, 220, 220)
 
-TAG_WIDTH, TAG_HEIGHT = 760, 400
-PADDING = 28
-HEADER_HEIGHT = 72
-QR_SIZE = 200
+TAG_SIZE = 480
+PADDING = 22
+HEADER_HEIGHT = 54
+QR_SIZE = 168
+RADIUS = 14
 
 
 def device_public_url(device_id) -> str:
@@ -58,16 +58,6 @@ def _load_font(size: int, *, bold: bool = False) -> ImageFont.FreeTypeFont | Ima
     return ImageFont.load_default()
 
 
-def _load_fonts():
-    return (
-        _load_font(22, bold=True),
-        _load_font(28, bold=True),
-        _load_font(19),
-        _load_font(15),
-        _load_font(13, bold=True),
-    )
-
-
 def _format_handover_date(value) -> str:
     if not value:
         return '—'
@@ -79,85 +69,94 @@ def _format_handover_date(value) -> str:
     return value.strftime('%d/%m/%Y')
 
 
-def _draw_rounded_rect(draw, xy, radius, fill=None, outline=None, width=1):
-    draw.rounded_rectangle(xy, radius=radius, fill=fill, outline=outline, width=width)
+def _text_width(draw, text: str, font) -> int:
+    bbox = draw.textbbox((0, 0), text, font=font)
+    return bbox[2] - bbox[0]
+
+
+def _draw_centered_text(draw, y, text, font, fill, width=TAG_SIZE):
+    tw = _text_width(draw, text, font)
+    draw.text(((width - tw) // 2, y), text, font=font, fill=fill)
 
 
 def generate_asset_tag(device) -> tuple[File, str]:
-    """Vẽ tem QR PNG — trả về (File, filename)."""
-    font_brand, font_name, font_text, font_small, font_caps = _load_fonts()
-    img = Image.new('RGB', (TAG_WIDTH, TAG_HEIGHT), BG_WHITE)
+    """Vẽ tem QR vuông PNG — trả về (File, filename)."""
+    font_brand = _load_font(17, bold=True)
+    font_sub = _load_font(11, bold=True)
+    font_name = _load_font(21, bold=True)
+    font_row = _load_font(14)
+    font_label = _load_font(11, bold=True)
+    font_hint = _load_font(14, bold=True)
+    font_id = _load_font(11)
+
+    img = Image.new('RGB', (TAG_SIZE, TAG_SIZE), BG_WHITE)
     draw = ImageDraw.Draw(img)
 
-    _draw_rounded_rect(draw, (8, 8, TAG_WIDTH - 8, TAG_HEIGHT - 8), radius=16, outline=BRAND_PRIMARY, width=3)
+    draw.rounded_rectangle(
+        (6, 6, TAG_SIZE - 6, TAG_SIZE - 6),
+        radius=RADIUS,
+        outline=BLACK,
+        width=3,
+    )
 
-    for y in range(HEADER_HEIGHT):
-        ratio = y / max(HEADER_HEIGHT - 1, 1)
-        r = int(BRAND_DARK[0] + (BRAND_PRIMARY[0] - BRAND_DARK[0]) * ratio)
-        g = int(BRAND_DARK[1] + (BRAND_PRIMARY[1] - BRAND_DARK[1]) * ratio)
-        b = int(BRAND_DARK[2] + (BRAND_PRIMARY[2] - BRAND_DARK[2]) * ratio)
-        draw.line([(16, 8 + y), (TAG_WIDTH - 16, 8 + y)], fill=(r, g, b))
+    draw.rounded_rectangle(
+        (10, 10, TAG_SIZE - 10, 10 + HEADER_HEIGHT),
+        radius=10,
+        fill=BLACK,
+    )
 
     header_text = getattr(settings, 'EQUIPMENT_TAG_HEADER', 'JUSTPLAY')
-    sub_header = 'QUẢN LÝ THIẾT BỊ · QUÉT BÁO HỎNG'
-    draw.text((PADDING + 4, 18), header_text, font=font_brand, fill='white')
-    draw.text((PADDING + 4, 44), sub_header, font=font_caps, fill=(254, 226, 226))
+    _draw_centered_text(draw, 18, header_text, font_brand, 'white')
+    _draw_centered_text(draw, 36, 'QUẢN LÝ THIẾT BỊ', font_sub, (200, 200, 200))
 
-    left_x = PADDING + 4
-    content_top = HEADER_HEIGHT + 24
-    name = (device.name or 'Thiết bị')[:28]
-    draw.text((left_x, content_top), name, font=font_name, fill=TEXT_DARK)
+    y = 10 + HEADER_HEIGHT + 16
+    name = (device.name or 'Thiết bị')[:26]
+    _draw_centered_text(draw, y, name, font_name, BLACK)
+    y += 30
 
     dept_label = device.usage_department_label
     user_label = device.assigned_user_label if hasattr(device, 'assigned_user_label') else (device.assigned_user_text or '')
-    current_y = content_top + 44
-
-    info_lines = [
-        ('Phòng ban', dept_label),
-        ('Người dùng', user_label if user_label and user_label != '—' else '—'),
-        ('Model', device.model_number or '—'),
-        ('Serial', (device.serial_number or '—')[:32]),
-        ('Bàn giao', _format_handover_date(device.handover_date)),
+    rows = [
+        ('PHÒNG BAN', dept_label),
+        ('NGƯỜI DÙNG', user_label if user_label and user_label != '—' else '—'),
+        ('MODEL', device.model_number or '—'),
+        ('SERIAL', (device.serial_number or '—')[:28]),
     ]
-    for label, value in info_lines:
-        draw.text((left_x, current_y), label.upper(), font=font_caps, fill=TEXT_MUTED)
-        draw.text((left_x + 108, current_y - 1), str(value)[:36], font=font_text, fill=TEXT_DARK)
-        current_y += 34
+    label_w = 92
+    left = PADDING + 8
+    for label, value in rows:
+        draw.text((left, y), label, font=font_label, fill=TEXT_MUTED)
+        draw.text((left + label_w, y), str(value)[:32], font=font_row, fill=BLACK_SOFT)
+        y += 22
 
-    qr_x = TAG_WIDTH - QR_SIZE - PADDING - 12
-    qr_y = HEADER_HEIGHT + 28
-    _draw_rounded_rect(
-        draw,
-        (qr_x - 14, qr_y - 14, qr_x + QR_SIZE + 14, qr_y + QR_SIZE + 14),
-        radius=12,
-        fill=ACCENT_LIGHT,
-        outline=BRAND_PRIMARY,
+    qr_y = y + 8
+    qr_x = (TAG_SIZE - QR_SIZE) // 2
+    draw.rounded_rectangle(
+        (qr_x - 10, qr_y - 10, qr_x + QR_SIZE + 10, qr_y + QR_SIZE + 10),
+        radius=10,
+        outline=BLACK,
         width=2,
     )
 
     qr_data = device_public_url(device.id)
-    qr = qrcode.QRCode(box_size=8, border=2, error_correction=qrcode.constants.ERROR_CORRECT_M)
+    qr = qrcode.QRCode(box_size=6, border=2, error_correction=qrcode.constants.ERROR_CORRECT_M)
     qr.add_data(qr_data)
     qr.make(fit=True)
-    qr_img = qr.make_image(fill_color=BRAND_PRIMARY, back_color='white').convert('RGB')
+    qr_img = qr.make_image(fill_color=BLACK, back_color='white').convert('RGB')
     qr_img = qr_img.resize((QR_SIZE, QR_SIZE), Image.Resampling.LANCZOS)
     img.paste(qr_img, (qr_x, qr_y))
 
-    scan_hint = 'Quét mã → Báo hỏng IT'
-    hint_bbox = draw.textbbox((0, 0), scan_hint, font=font_small)
-    hint_w = hint_bbox[2] - hint_bbox[0]
-    draw.text(
-        (qr_x + (QR_SIZE - hint_w) // 2, qr_y + QR_SIZE + 18),
-        scan_hint,
-        font=font_small,
-        fill=BRAND_PRIMARY,
-    )
+    hint_y = qr_y + QR_SIZE + 14
+    _draw_centered_text(draw, hint_y, 'Quét để báo hỏng', font_hint, BLACK)
 
     device_id_short = str(device.id).split('-')[0].upper()
-    draw.text((left_x, TAG_HEIGHT - 36), f'ID {device_id_short}', font=font_small, fill=TEXT_MUTED)
+    id_text = f'ID {device_id_short}'
+    id_w = _text_width(draw, id_text, font_id)
+    draw.text((TAG_SIZE - PADDING - id_w, TAG_SIZE - PADDING - 14), id_text, font=font_id, fill=TEXT_MUTED)
 
     buffer = io.BytesIO()
     img.save(buffer, format='PNG', optimize=True)
+    buffer.seek(0)
     filename = f'AssetTag_{device.id}_{int(time.time())}.png'
     return File(buffer, name=filename), filename
 
