@@ -27,6 +27,7 @@ urlpatterns = [
     path('agent/exe/', views.agent_serve_exe, name='agent_serve_exe'),
     path('agent/hoan-tat/', views.agent_install_done, name='agent_install_done'),
     path('agent/trang-thai/', views.api_agent_install_status, name='api_agent_install_status'),
+    path('agent/ping/', views.agent_config_ping, name='agent_config_ping'),
     path('agent/quet/', views.request_agent_rescan, name='request_agent_rescan'),
     path('quet-relay/', views.scan_relay_guide, name='scan_relay_guide'),
 ]

@@ -161,6 +161,37 @@ if [[ ! -f ".env" ]]; then
   exit 1
 fi
 
+ensure_agent_gate_env() {
+  echo "==> Ensure agent gate .env keys"
+  local env_file="${PROJECT_DIR}/.env"
+  local secret_line=""
+  if grep -q '^EQUIPMENT_AGENT_SECRET=' "${env_file}" 2>/dev/null; then
+    secret_line="$(grep '^EQUIPMENT_AGENT_SECRET=' "${env_file}" | tail -1)"
+  fi
+  if ! grep -q '^EQUIPMENT_REQUIRE_AGENT_INSTALL=' "${env_file}" 2>/dev/null; then
+    echo "EQUIPMENT_REQUIRE_AGENT_INSTALL=1" >> "${env_file}"
+    echo "    Added EQUIPMENT_REQUIRE_AGENT_INSTALL=1"
+  fi
+  if ! grep -q '^EQUIPMENT_AGENT_GATE_EXEMPT_USERNAMES=' "${env_file}" 2>/dev/null; then
+    echo "EQUIPMENT_AGENT_GATE_EXEMPT_USERNAMES=admin" >> "${env_file}"
+    echo "    Added EQUIPMENT_AGENT_GATE_EXEMPT_USERNAMES=admin"
+  fi
+  if [[ -z "${secret_line}" ]]; then
+    echo "    WARNING: EQUIPMENT_AGENT_SECRET chua co — gate hien nhung file cai khong hoat dong."
+    echo "             Them EQUIPMENT_AGENT_SECRET=... vao .env roi deploy lai."
+  fi
+  if ! grep -q '^PORTAL_PUBLIC_BASE_URL=' "${env_file}" 2>/dev/null; then
+    local base_url="http://${PORTAL_DOMAIN:-portal.justplay.vn}"
+    if grep -qE '^USE_HTTPS=(1|true|yes|on)' "${env_file}" 2>/dev/null; then
+      base_url="https://${PORTAL_DOMAIN:-portal.justplay.vn}"
+    fi
+    echo "PORTAL_PUBLIC_BASE_URL=${base_url}" >> "${env_file}"
+    echo "    Added PORTAL_PUBLIC_BASE_URL=${base_url}"
+  fi
+}
+
+ensure_agent_gate_env
+
 echo "==> 1) Pull latest code"
 git fetch --all --prune
 git checkout "${BRANCH}"
@@ -199,6 +230,24 @@ echo "==> 7) Run migrations again on running web"
 compose exec -T web python manage.py migrate --noinput
 
 verify_migrations
+
+verify_agent_gate() {
+  echo "==> Verify agent install gate"
+  if compose exec -T web python manage.py check_agent_gate 2>/dev/null; then
+    return 0
+  fi
+  compose exec -T web python - <<'PY' || true
+import os
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "PortalJustPlay.settings")
+import django
+django.setup()
+from django.conf import settings
+print("EQUIPMENT_REQUIRE_AGENT_INSTALL:", settings.EQUIPMENT_REQUIRE_AGENT_INSTALL)
+print("EQUIPMENT_AGENT_SECRET_SET:", bool(settings.EQUIPMENT_AGENT_SECRET))
+PY
+}
+
+verify_agent_gate
 
 verify_nas_rclone() {
   echo "==> Verify NAS rclone in web container"

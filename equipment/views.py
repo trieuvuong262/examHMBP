@@ -13,7 +13,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_GET, require_http_methods
 
 from hrm.module_permissions import MODULE_EQUIPMENT, user_can_access_module, user_can_edit_module
 from PortalJustPlay.list_search import apply_term_search, get_search_query
@@ -901,6 +901,19 @@ def api_agent_install_status(request):
         return JsonResponse({'ready': True, 'registered': True})
 
     return JsonResponse({'ready': False})
+
+
+@require_GET
+def agent_config_ping(request):
+    """Ping cấu hình gate — kiểm tra production."""
+    from equipment.services.agent_install import agent_gate_enabled, agent_install_enabled
+
+    return JsonResponse({
+        'gate_enabled': agent_gate_enabled(),
+        'agent_secret_set': agent_install_enabled(),
+        'exempt_usernames': getattr(settings, 'EQUIPMENT_AGENT_GATE_EXEMPT_USERNAMES', 'admin'),
+        'middleware': 'equipment.middleware.AgentInstallGateMiddleware' in settings.MIDDLEWARE,
+    })
 
 
 @_edit_required
