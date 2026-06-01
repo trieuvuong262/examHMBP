@@ -348,9 +348,13 @@ def device_detail_manage(request, device_id):
         ),
         pk=device_id,
     )
+    from equipment.services.shared_pc import get_registered_users
+
     logs = device.logs.select_related('service_request').order_by('-created_at')[:10]
+    shared_users = list(get_registered_users(device)) if device.is_shared_pc else []
     return render(request, 'equipment/device_detail_manage.html', {
         'device': device,
+        'shared_users': shared_users,
         'logs': logs,
         'can_edit': user_can_edit_module(request.user, MODULE_EQUIPMENT),
         **_subnav_context(),
@@ -804,6 +808,7 @@ def agent_install_gate(request):
         is_agent_install_required,
         user_is_in_equipment_registry,
     )
+    from equipment.services.shared_pc import get_shared_pc_context_for_gate
 
     if not agent_gate_enabled():
         return redirect('home_portal')
@@ -812,10 +817,67 @@ def agent_install_gate(request):
     if not is_agent_install_required(request):
         return redirect('home_portal')
 
+    shared_pc = get_shared_pc_context_for_gate(request, request.user)
+
     return render(request, 'equipment/agent_install_gate.html', {
         'portal_user': request.user,
         'agent_download_ready': agent_install_enabled(),
+        'shared_pc': shared_pc,
     })
+
+
+def _set_agent_serial_cookie(response, serial: str):
+    if serial:
+        response.set_cookie(
+            'jp_agent_serial',
+            serial,
+            max_age=365 * 24 * 3600,
+            samesite='Lax',
+        )
+    return response
+
+
+@login_required
+@require_http_methods(['POST'])
+def agent_confirm_shared_pc(request):
+    """User mới xác nhận dùng PC đã có agent — không cần cài lại."""
+    from equipment.services.agent_install import (
+        agent_gate_enabled,
+        is_agent_install_required,
+        user_is_in_equipment_registry,
+    )
+    from equipment.services.shared_pc import (
+        confirm_user_on_shared_device,
+        find_device_for_client_request,
+        user_registered_on_device,
+    )
+
+    if not agent_gate_enabled():
+        return redirect('home_portal')
+    if user_is_in_equipment_registry(request.user):
+        return redirect('home_portal')
+
+    device = find_device_for_client_request(request)
+    if not device:
+        messages.error(
+            request,
+            'Không nhận diện được PC đã cài agent. Hãy tải file cài hoặc đăng nhập '
+            'trên đúng máy Windows đã có JustPlay Agent.',
+        )
+        return redirect('equipment:agent_install_gate')
+
+    if user_registered_on_device(request.user, device):
+        response = redirect('home_portal')
+        return _set_agent_serial_cookie(response, device.serial_number)
+
+    confirm_user_on_shared_device(request.user, device)
+    messages.success(
+        request,
+        f'Đã xác nhận bạn dùng chung PC {device.hostname or device.name}. '
+        'Bạn có thể vào portal bình thường.',
+    )
+    response = redirect('home_portal')
+    return _set_agent_serial_cookie(response, device.serial_number)
 
 
 @login_required
@@ -887,20 +949,30 @@ def agent_install_done(request):
         if reg:
             serial = reg.serial_number
 
-    return render(request, 'equipment/agent_install_done.html', {
+    response = render(request, 'equipment/agent_install_done.html', {
         'token': token_str,
         'ready': ready,
         'serial': serial,
     })
+    return _set_agent_serial_cookie(response, serial)
 
 
 @login_required
 def api_agent_install_status(request):
     """Poll — user đã có trong quản lý thiết bị chưa."""
     from equipment.services.agent_install import user_is_in_equipment_registry
+    from equipment.services.shared_pc import get_shared_pc_context_for_gate
 
     if user_is_in_equipment_registry(request.user):
         return JsonResponse({'ready': True, 'registered': True})
+
+    shared = get_shared_pc_context_for_gate(request, request.user)
+    if shared:
+        return JsonResponse({
+            'ready': False,
+            'shared_confirm_available': True,
+            'device_name': shared['device'].hostname or shared['device'].name,
+        })
 
     return JsonResponse({'ready': False})
 

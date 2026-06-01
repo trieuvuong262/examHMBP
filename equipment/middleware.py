@@ -13,6 +13,7 @@ class AgentInstallGateMiddleware:
         '/accounts/logout/',
         '/change-password',
         '/thiet-bi/agent/yeu-cau-cai',
+        '/thiet-bi/agent/xac-nhan-chung/',
         '/thiet-bi/agent/tai-cai-dat',
         '/thiet-bi/agent/exe/',
         '/thiet-bi/agent/hoan-tat/',

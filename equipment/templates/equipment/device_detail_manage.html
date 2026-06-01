@@ -20,7 +20,12 @@
     <div class="row g-4">
         <div class="col-lg-7">
             <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-white fw-bold">Người sử dụng</div>
+                <div class="card-header bg-white fw-bold">
+                    Người sử dụng
+                    {% if device.is_shared_pc %}
+                    <span class="badge bg-info text-dark ms-1">PC dùng chung</span>
+                    {% endif %}
+                </div>
                 <div class="card-body">
                     <dl class="row mb-0">
                         <dt class="col-sm-4">Họ tên</dt>
@@ -36,6 +41,21 @@
                         <dt class="col-sm-4">Vị trí / chức vụ</dt>
                         <dd class="col-sm-8">{{ device.assigned_position_label }}</dd>
                     </dl>
+                    {% if shared_users %}
+                    <hr>
+                    <p class="small fw-semibold text-muted mb-2">Tài khoản đã đăng ký trên PC này</p>
+                    <ul class="list-unstyled small mb-0">
+                        {% for u in shared_users %}
+                        <li class="mb-1">
+                            <code>{{ u.username }}</code>
+                            {% if u.get_full_name %} — {{ u.get_full_name }}{% endif %}
+                            {% if device.assigned_user_id == u.pk %}
+                            <span class="badge bg-secondary">người gán chính</span>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
                 </div>
             </div>
 

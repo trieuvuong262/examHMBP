@@ -256,3 +256,142 @@ class AgentInstallFlowTests(TestCase):
         resp = client.get('/thiet-bi/api/agent-poll/?api_secret=sec')
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()['status'], 'ok')
+
+    @override_settings(
+        EQUIPMENT_REQUIRE_AGENT_INSTALL=True,
+        EQUIPMENT_AGENT_SECRET='sec',
+    )
+    def test_confirm_shared_pc_registers_second_user(self):
+        from django.contrib.auth import get_user_model
+        from django.test import Client
+
+        from equipment.models import Device, UserAgentRegistration
+        from equipment.services.agent_install import user_is_in_equipment_registry
+
+        User = get_user_model()
+        user_a = User.objects.create_user(username='user_a', password='x')
+        user_b = User.objects.create_user(username='user_b', password='x')
+        device = Device.objects.create(
+            serial_number='SN-SHARED-1',
+            name='PC-SHARED',
+            hostname='DESKTOP-SHARED',
+            ip_address='192.168.1.100',
+            assigned_user=user_a,
+            assigned_user_text='User A',
+        )
+        UserAgentRegistration.objects.create(
+            user=user_a,
+            serial_number='SN-SHARED-1',
+            device=device,
+        )
+
+        client = Client()
+        client.force_login(user_b)
+        client.cookies['jp_hostname'] = 'DESKTOP-SHARED'
+        client.cookies['jp_local_ip'] = '192.168.1.100'
+        resp = client.post(
+            '/thiet-bi/agent/xac-nhan-chung/',
+            HTTP_USER_AGENT='Mozilla/5.0 Windows NT 10.0',
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, '/')
+
+        device.refresh_from_db()
+        self.assertEqual(device.assigned_user_id, user_a.pk)
+        self.assertTrue(
+            UserAgentRegistration.objects.filter(user=user_b, serial_number='SN-SHARED-1').exists(),
+        )
+        self.assertTrue(user_is_in_equipment_registry(user_b))
+        self.assertEqual(resp.cookies.get('jp_agent_serial').value, 'SN-SHARED-1')
+
+    @override_settings(EQUIPMENT_AGENT_SECRET='sec')
+    def test_agent_report_second_user_keeps_primary_assigned(self):
+        from django.contrib.auth import get_user_model
+
+        from equipment.models import Device, UserAgentRegistration
+
+        User = get_user_model()
+        user_a = User.objects.create_user(username='primary', password='x')
+        user_b = User.objects.create_user(username='secondary', password='x')
+        device = Device.objects.create(
+            serial_number='SN-SHARED-2',
+            name='PC-2',
+            assigned_user=user_a,
+            assigned_user_text='Primary User',
+        )
+        UserAgentRegistration.objects.create(
+            user=user_a,
+            serial_number='SN-SHARED-2',
+            device=device,
+        )
+
+        client = __import__('django.test', fromlist=['Client']).Client()
+        payload = {
+            'api_secret': 'sec',
+            'serial': 'SN-SHARED-2',
+            'hostname': 'PC-2',
+            'ip': '192.168.1.101',
+            'portal_user_id': user_b.pk,
+            'full_name': 'Secondary User',
+        }
+        resp = client.post(
+            '/thiet-bi/api/agent-report/',
+            data=__import__('json').dumps(payload),
+            content_type='application/json',
+        )
+        self.assertEqual(resp.status_code, 200)
+        device.refresh_from_db()
+        self.assertEqual(device.assigned_user_id, user_a.pk)
+        self.assertEqual(device.assigned_user_text, 'Primary User')
+        self.assertTrue(
+            UserAgentRegistration.objects.filter(user=user_b, serial_number='SN-SHARED-2').exists(),
+        )
+
+    @override_settings(
+        EQUIPMENT_REQUIRE_AGENT_INSTALL=True,
+        EQUIPMENT_AGENT_SECRET='sec',
+    )
+    def test_gate_context_detects_shared_pc(self):
+        from django.contrib.auth import get_user_model
+        from django.test import Client, RequestFactory
+
+        from equipment.models import Device, UserAgentRegistration
+        from equipment.services.shared_pc import get_shared_pc_context_for_gate
+
+        User = get_user_model()
+        user_a = User.objects.create_user(username='owner', password='x')
+        user_b = User.objects.create_user(username='guest', password='x')
+        device = Device.objects.create(
+            serial_number='SN-DETECT',
+            name='PC-DETECT',
+            hostname='DESKTOP-DETECT',
+            ip_address='10.0.0.50',
+            assigned_user=user_a,
+        )
+        UserAgentRegistration.objects.create(
+            user=user_a,
+            serial_number='SN-DETECT',
+            device=device,
+        )
+
+        factory = RequestFactory()
+        request = factory.get('/thiet-bi/agent/yeu-cau-cai/')
+        request.user = user_b
+        request.COOKIES = {'jp_hostname': 'DESKTOP-DETECT', 'jp_local_ip': '10.0.0.50'}
+
+        ctx = get_shared_pc_context_for_gate(request, user_b)
+        self.assertIsNotNone(ctx)
+        self.assertEqual(ctx['device'].pk, device.pk)
+        self.assertTrue(ctx['can_confirm_shared'])
+
+        client = Client()
+        client.force_login(user_b)
+        client.cookies['jp_hostname'] = 'DESKTOP-DETECT'
+        client.cookies['jp_local_ip'] = '10.0.0.50'
+        resp = client.get(
+            '/thiet-bi/agent/yeu-cau-cai/',
+            HTTP_USER_AGENT='Mozilla/5.0 Windows NT 10.0',
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'PC dùng chung')
+        self.assertContains(resp, 'Xác nhận PC dùng chung')

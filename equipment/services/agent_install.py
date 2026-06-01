@@ -136,7 +136,9 @@ def link_user_from_agent_report(*, data: dict, device) -> None:
 
     fields: set[str] = set()
     if user:
-        fields.update(apply_user_profile_to_device(device, user))
+        # PC dùng chung: không ghi đè assigned_user nếu đã có người khác.
+        if not device.assigned_user_id or device.assigned_user_id == user.pk:
+            fields.update(apply_user_profile_to_device(device, user))
     fields.update(apply_agent_payload_from_data(device, data))
 
     if fields:

@@ -108,6 +108,12 @@ class Device(models.Model):
         return self.usage_department_text or '—'
 
     @property
+    def is_shared_pc(self) -> bool:
+        if not self.serial_number:
+            return False
+        return self.agent_registrations.count() > 1
+
+    @property
     def assigned_user_label(self):
         if self.assigned_user_id:
             profile = getattr(self.assigned_user, 'profile', None)
