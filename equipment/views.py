@@ -341,7 +341,11 @@ def device_qr_public(request, device_id):
 @_access_required
 def device_detail_manage(request, device_id):
     device = get_object_or_404(
-        Device.objects.select_related('usage_department', 'assigned_user__profile'),
+        Device.objects.select_related(
+            'usage_department',
+            'assigned_user__profile',
+            'assigned_user__profile__department',
+        ),
         pk=device_id,
     )
     logs = device.logs.select_related('service_request').order_by('-created_at')[:10]
@@ -737,19 +741,15 @@ def api_agent_report(request):
                 'status': Device.STATUS_ACTIVE,
             },
         )
-        device.hostname = data.get('hostname') or device.hostname
-        device.ip_address = data.get('ip') or device.ip_address
-        device.model_number = data.get('model') or device.model_number
-        device.configuration = (
-            f"CPU: {data.get('cpu', '—')}\n"
-            f"RAM: {data.get('ram', '—')} GB\n"
-            f"Disk: {data.get('disk', '—')}"
-        )
+
+        from equipment.services.agent_device import apply_agent_hardware_to_device
+        from equipment.services.agent_install import link_user_from_agent_report
+
+        hw_fields = apply_agent_hardware_to_device(device, data)
         device.is_online = True
         device.last_scan_date = timezone.now()
-        device.save()
-
-        from equipment.services.agent_install import link_user_from_agent_report
+        hw_fields.extend(['is_online', 'last_scan_date'])
+        device.save(update_fields=sorted(set(hw_fields)))
 
         link_user_from_agent_report(data=data, device=device)
 

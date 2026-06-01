@@ -206,6 +206,47 @@ class AgentInstallFlowTests(TestCase):
         self.assertFalse(is_bad_serial(serial))
 
     @override_settings(EQUIPMENT_AGENT_SECRET='sec')
+    def test_agent_report_applies_hrm_profile(self):
+        from django.contrib.auth import get_user_model
+
+        from equipment.models import Device
+        from hrm.models import Department, Profile
+
+        User = get_user_model()
+        dept = Department.objects.create(name='Phong IT')
+        user = User.objects.create_user(username='vuong', password='x', email='vuong@test.com')
+        Profile.objects.filter(user=user).update(
+            full_name='Le Nguyen Trieu Vuong',
+            department=dept,
+            job_title='IT Developer',
+            employee_code='NV001',
+        )
+
+        client = __import__('django.test', fromlist=['Client']).Client()
+        payload = {
+            'api_secret': 'sec',
+            'serial': 'SN-PROFILE-1',
+            'hostname': 'DESKTOP-TEST',
+            'ip': '192.168.1.29',
+            'model': 'H610M',
+            'cpu': 'Intel i5',
+            'ram': '16',
+            'disk': '512',
+            'portal_user_id': user.pk,
+        }
+        resp = client.post(
+            '/thiet-bi/api/agent-report/',
+            data=__import__('json').dumps(payload),
+            content_type='application/json',
+        )
+        self.assertEqual(resp.status_code, 200)
+        device = Device.objects.get(serial_number='SN-PROFILE-1')
+        self.assertEqual(device.usage_department_id, dept.pk)
+        self.assertEqual(device.usage_room, 'IT Developer')
+        self.assertEqual(device.contact_email, 'vuong@test.com')
+        self.assertEqual(device.assigned_user_id, user.pk)
+
+    @override_settings(EQUIPMENT_AGENT_SECRET='sec')
     def test_agent_poll_api(self):
         from django.test import Client
 

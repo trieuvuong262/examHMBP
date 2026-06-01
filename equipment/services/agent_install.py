@@ -63,8 +63,20 @@ def is_agent_install_required(request) -> bool:
 def user_agent_payload(user) -> dict:
     profile = getattr(user, 'profile', None)
     dept = ''
-    if profile and profile.department_id:
-        dept = profile.department.name
+    dept_id = ''
+    division = ''
+    job_position = ''
+    job_title = ''
+    employee_code = ''
+    if profile:
+        if profile.department_id:
+            dept = profile.department.name
+            dept_id = str(profile.department_id)
+        if profile.division_id:
+            division = profile.division.name
+        job_position = profile.job_position or ''
+        job_title = profile.job_title or ''
+        employee_code = profile.employee_code or ''
     full_name = ''
     if profile and profile.full_name:
         full_name = profile.full_name
@@ -76,6 +88,11 @@ def user_agent_payload(user) -> dict:
         'full_name': full_name,
         'email': user.email or '',
         'department': dept,
+        'department_id': dept_id,
+        'division': division,
+        'job_position': job_position,
+        'job_title': job_title,
+        'employee_code': employee_code,
     }
 
 
@@ -91,10 +108,14 @@ def create_install_token(user) -> 'AgentInstallToken':
 
 
 def link_user_from_agent_report(*, data: dict, device) -> None:
-    """Gán user portal + đăng ký PC sau khi agent báo cáo."""
+    """Gán user portal + hồ sơ HRM + đăng ký PC sau khi agent báo cáo."""
     from django.contrib.auth import get_user_model
 
     from equipment.models import AgentInstallToken, UserAgentRegistration
+    from equipment.services.agent_device import (
+        apply_agent_payload_from_data,
+        apply_user_profile_to_device,
+    )
 
     User = get_user_model()
     user = None
@@ -109,23 +130,20 @@ def link_user_from_agent_report(*, data: dict, device) -> None:
     if not user:
         uid = data.get('portal_user_id')
         if uid is not None and str(uid).isdigit():
-            user = User.objects.filter(pk=int(uid)).first()
+            user = User.objects.select_related('profile__department', 'profile__division').filter(
+                pk=int(uid),
+            ).first()
+
+    fields: set[str] = set()
+    if user:
+        fields.update(apply_user_profile_to_device(device, user))
+    fields.update(apply_agent_payload_from_data(device, data))
+
+    if fields:
+        device.save(update_fields=sorted(fields))
 
     if not user:
         return
-
-    device.assigned_user = user
-    full_name = (data.get('full_name') or '').strip()
-    username = (data.get('username') or user.username).strip()
-    if full_name:
-        device.assigned_user_text = full_name
-    elif username:
-        device.assigned_user_text = username
-    elif not device.assigned_user_text:
-        profile = getattr(user, 'profile', None)
-        if profile and profile.full_name:
-            device.assigned_user_text = profile.full_name
-    device.save(update_fields=['assigned_user', 'assigned_user_text'])
 
     UserAgentRegistration.objects.update_or_create(
         user=user,
@@ -192,6 +210,11 @@ def build_installer_cmd(*, user, token: str) -> str:
         f'echo full_name={_cmd_escape(payload["full_name"])}',
         f'echo email={_cmd_escape(payload["email"])}',
         f'echo department={_cmd_escape(payload["department"])}',
+        f'echo department_id={payload["department_id"]}',
+        f'echo division={_cmd_escape(payload["division"])}',
+        f'echo job_position={_cmd_escape(payload["job_position"])}',
+        f'echo job_title={_cmd_escape(payload["job_title"])}',
+        f'echo employee_code={_cmd_escape(payload["employee_code"])}',
         f'echo install_token={token}',
         'echo.',
         'echo [agent]',

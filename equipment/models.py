@@ -116,6 +116,43 @@ class Device(models.Model):
             return self.assigned_user.get_full_name() or self.assigned_user.username
         return self.assigned_user_text or '—'
 
+    @property
+    def assigned_username(self):
+        if self.assigned_user_id:
+            return self.assigned_user.username
+        return '—'
+
+    @property
+    def assigned_position_label(self):
+        if self.usage_room:
+            return self.usage_room
+        if self.assigned_user_id:
+            from hrm.choices import DEFAULT_POSITION
+
+            profile = getattr(self.assigned_user, 'profile', None)
+            if profile:
+                if profile.job_title:
+                    return profile.job_title
+                if profile.job_position and profile.job_position != DEFAULT_POSITION:
+                    return profile.job_position
+        return '—'
+
+    @property
+    def assigned_email_label(self):
+        if self.contact_email:
+            return self.contact_email
+        if self.assigned_user_id and self.assigned_user.email:
+            return self.assigned_user.email
+        return '—'
+
+    @property
+    def assigned_employee_code(self):
+        if self.assigned_user_id:
+            profile = getattr(self.assigned_user, 'profile', None)
+            if profile and profile.employee_code:
+                return profile.employee_code
+        return '—'
+
     def save(self, *args, **kwargs):
         self.total_price = self.quantity * self.unit_price
 

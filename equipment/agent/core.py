@@ -132,6 +132,15 @@ def collect_info() -> dict | None:
         '$_.IPAddress -notlike \'127.*\' -and $_.IPAddress -notlike \'100.*\' '
         '-and $_.PrefixOrigin -ne \'WellKnown\'} | Select-Object -First 1).IPAddress'
     )
+    os_caption = run_powershell(
+        '(Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue).Caption'
+    )
+    os_build = run_powershell(
+        '(Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue).Version'
+    )
+    manufacturer = run_powershell(
+        '(Get-CimInstance Win32_ComputerSystem -ErrorAction SilentlyContinue).Manufacturer'
+    )
     return {
         'serial': serial,
         'hostname': hostname,
@@ -140,6 +149,9 @@ def collect_info() -> dict | None:
         'ram': str(ram_gb),
         'disk': str(disk),
         'ip': ip,
+        'os': os_caption,
+        'os_build': os_build,
+        'manufacturer': manufacturer,
     }
 
 
@@ -185,7 +197,9 @@ def user_fields_from_config(cfg: configparser.ConfigParser) -> dict:
         return {}
     keys = (
         'portal_user_id', 'username', 'full_name', 'email',
-        'department', 'install_token',
+        'department', 'department_id', 'division',
+        'job_position', 'job_title', 'employee_code',
+        'install_token',
     )
     out = {}
     for key in keys:

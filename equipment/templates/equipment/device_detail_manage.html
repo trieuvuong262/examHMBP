@@ -19,18 +19,59 @@
 
     <div class="row g-4">
         <div class="col-lg-7">
-            <div class="card border-0 shadow-sm">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white fw-bold">Người sử dụng</div>
                 <div class="card-body">
                     <dl class="row mb-0">
-                        <dt class="col-sm-4">Phòng ban</dt><dd class="col-sm-8">{{ device.usage_department_label }}</dd>
-                        <dt class="col-sm-4">Vị trí</dt><dd class="col-sm-8">{{ device.usage_room|default:"—" }}</dd>
-                        <dt class="col-sm-4">Người dùng</dt><dd class="col-sm-8">{{ device.assigned_user_label }}</dd>
-                        <dt class="col-sm-4">Model / Serial</dt><dd class="col-sm-8">{{ device.model_number|default:"—" }} / {{ device.serial_number|default:"—" }}</dd>
-                        <dt class="col-sm-4">Hostname / IP</dt><dd class="col-sm-8">{{ device.hostname|default:"—" }} / {{ device.ip_address|default:"—" }}</dd>
-                        <dt class="col-sm-4">Bộ phận QL</dt><dd class="col-sm-8">{{ device.get_managed_by_display }}</dd>
+                        <dt class="col-sm-4">Họ tên</dt>
+                        <dd class="col-sm-8">{{ device.assigned_user_label }}</dd>
+                        <dt class="col-sm-4">Tài khoản portal</dt>
+                        <dd class="col-sm-8"><code>{{ device.assigned_username }}</code></dd>
+                        <dt class="col-sm-4">Mã nhân sự</dt>
+                        <dd class="col-sm-8">{{ device.assigned_employee_code }}</dd>
+                        <dt class="col-sm-4">Email</dt>
+                        <dd class="col-sm-8">{{ device.assigned_email_label }}</dd>
+                        <dt class="col-sm-4">Phòng ban</dt>
+                        <dd class="col-sm-8">{{ device.usage_department_label }}</dd>
+                        <dt class="col-sm-4">Vị trí / chức vụ</dt>
+                        <dd class="col-sm-8">{{ device.assigned_position_label }}</dd>
                     </dl>
                 </div>
             </div>
+
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white fw-bold">Thiết bị &amp; mạng</div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Model</dt>
+                        <dd class="col-sm-8">{{ device.model_number|default:"—" }}</dd>
+                        <dt class="col-sm-4">Serial / UUID</dt>
+                        <dd class="col-sm-8"><code class="small">{{ device.serial_number|default:"—" }}</code></dd>
+                        <dt class="col-sm-4">Hostname</dt>
+                        <dd class="col-sm-8">{{ device.hostname|default:"—" }}</dd>
+                        <dt class="col-sm-4">IP LAN</dt>
+                        <dd class="col-sm-8">{{ device.ip_address|default:"—" }}</dd>
+                        <dt class="col-sm-4">Trạng thái mạng</dt>
+                        <dd class="col-sm-8">
+                            {% if device.is_online %}<span class="text-success">Online</span>{% else %}<span class="text-muted">Offline</span>{% endif %}
+                            {% if device.last_scan_date %}
+                            <span class="text-muted small"> · quét {{ device.last_scan_date|date:"d/m/Y H:i" }}</span>
+                            {% endif %}
+                        </dd>
+                        <dt class="col-sm-4">Bộ phận quản lý</dt>
+                        <dd class="col-sm-8">{{ device.get_managed_by_display }}</dd>
+                    </dl>
+                </div>
+            </div>
+
+            {% if device.configuration %}
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white fw-bold">Cấu hình phần cứng</div>
+                <div class="card-body">
+                    <pre class="mb-0 small bg-light rounded p-3">{{ device.configuration }}</pre>
+                </div>
+            </div>
+            {% endif %}
         </div>
         <div class="col-lg-5">
             <div class="card border-0 shadow-sm text-center">
