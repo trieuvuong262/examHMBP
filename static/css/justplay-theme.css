@@ -3697,6 +3697,80 @@ html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
     font-size: 0.88rem;
 }
 
+.jp-sidebar-nested-group {
+    list-style: none;
+    margin: 0.1rem 0;
+}
+
+.jp-sidebar-nested-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.35rem;
+    width: 100%;
+    padding: 0.48rem 0.75rem 0.48rem 1.35rem;
+    border: none;
+    border-radius: var(--jp-radius-sm);
+    background: transparent;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.18s ease, color 0.18s ease;
+}
+
+.jp-sidebar-nested-toggle:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+}
+
+.jp-sidebar-nested-toggle-main {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-width: 0;
+}
+
+.jp-sidebar-nested-toggle-main i {
+    flex-shrink: 0;
+    opacity: 0.9;
+}
+
+.jp-sidebar-nested-chevron {
+    flex-shrink: 0;
+    font-size: 0.72rem;
+    opacity: 0.65;
+    transition: transform 0.18s ease;
+}
+
+.jp-sidebar-nested-group.is-open .jp-sidebar-nested-chevron {
+    transform: rotate(180deg);
+}
+
+.jp-sidebar-nested-group.is-open .jp-sidebar-nested-toggle {
+    color: #fff;
+}
+
+.jp-sidebar-nested-submenu {
+    list-style: none;
+    margin: 0;
+    padding: 0 0 0 0.25rem;
+    display: none;
+    flex-direction: column;
+    gap: 0.08rem;
+}
+
+.jp-sidebar-nested-group.is-open .jp-sidebar-nested-submenu {
+    display: flex;
+    margin-bottom: 0.15rem;
+}
+
+.jp-sidebar-nested-submenu .jp-sidebar-sublink {
+    padding-left: 2.65rem !important;
+    font-size: 0.84rem;
+}
+
 .jp-sidebar-link {
     display: flex;
     align-items: center;
