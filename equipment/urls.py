@@ -19,4 +19,5 @@ urlpatterns = [
     path('quet-wmi/', views.scan_selected_devices, name='scan_selected_devices'),
     path('quet-dai-ip/', views.scan_network_range, name='scan_network_range'),
     path('api/agent-report/', views.api_agent_report, name='api_agent_report'),
+    path('quet-relay/', views.scan_relay_guide, name='scan_relay_guide'),
 ]

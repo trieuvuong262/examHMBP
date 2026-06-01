@@ -43,3 +43,26 @@ class EmailNotifyTests(SimpleTestCase):
         with patch('service_requests.workflow_it.get_it_department', return_value=None):
             emails = get_it_notify_emails()
         self.assertEqual(emails, ['a@test.com', 'b@test.com'])
+
+
+class ScanRelayTests(SimpleTestCase):
+    def test_probe_ip_skips_closed_port(self):
+        from equipment.relay.wmi_standalone import probe_ip
+
+        with patch('equipment.relay.wmi_standalone.port_135_open', return_value=False):
+            self.assertIsNone(probe_ip('192.168.1.99', username='u', password='p'))
+
+    def test_scan_relay_validate_requires_windows(self):
+        import scan_relay
+
+        with patch('scan_relay.platform.system', return_value='Linux'):
+            errors = scan_relay.validate_config({
+                'portal_url': 'https://example.com',
+                'api_secret': 'x',
+                'start_ip': '192.168.1.1',
+                'end_ip': '192.168.1.2',
+                'scan_user': 'u',
+                'scan_pass': 'p',
+                'max_hosts': '255',
+            })
+        self.assertTrue(any('Windows' in e for e in errors))

@@ -640,3 +640,16 @@ def api_agent_report(request):
         return JsonResponse({'status': 'success', 'created': created, 'device_id': str(device.id)})
     except Exception as exc:
         return JsonResponse({'status': 'error', 'message': str(exc)}, status=500)
+
+
+@_edit_required
+def scan_relay_guide(request):
+    """Hướng dẫn quét WMI tập trung từ máy Windows IT (production VPS)."""
+    portal_url = getattr(settings, 'PORTAL_PUBLIC_BASE_URL', '').rstrip('/')
+    has_secret = bool(getattr(settings, 'EQUIPMENT_AGENT_SECRET', ''))
+    return render(request, 'equipment/scan_relay.html', {
+        'portal_url': portal_url,
+        'has_agent_secret': has_secret,
+        'wmi_scan_available': is_wmi_scan_supported(),
+        **_subnav_context(),
+    })
