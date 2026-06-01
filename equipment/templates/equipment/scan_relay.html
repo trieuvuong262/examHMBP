@@ -23,12 +23,10 @@
                 <div class="card-header bg-white fw-bold">① PC Windows của bạn (1 lần)</div>
                 <div class="card-body">
                     <pre class="bg-light p-3 rounded small">copy scan_relay.env.example scan_relay.env
-# EQUIPMENT_RELAY_SECRET=mat-khau-bi-mat
-
 python scan_relay_server.py
 
-# Tự chạy khi bật máy:
-.\scripts\setup-scan-relay-server.ps1 -ProjectDir "D:\Project\PortalJustPlay"</pre>
+REM Không cần bật Execution Policy:
+scripts\setup-scan-relay-server.cmd "D:\Project\PortalJustPlay"</pre>
                     <p class="small text-muted mb-0">Lấy IP Tailscale PC bạn (vd. <code>100.64.x.x</code>) trong app Tailscale.</p>
                 </div>
             </div>

@@ -20,5 +20,12 @@ urlpatterns = [
     path('quet-lan/', views.scan_lan_network, name='scan_lan_network'),
     path('quet-dai-ip/', views.scan_network_range, name='scan_network_range'),
     path('api/agent-report/', views.api_agent_report, name='api_agent_report'),
+    path('api/agent-poll/', views.api_agent_poll, name='api_agent_poll'),
+    path('agent/', views.agent_guide, name='agent_guide'),
+    path('agent/tai-cai-dat/', views.agent_download_installer, name='agent_download_installer'),
+    path('agent/exe/', views.agent_serve_exe, name='agent_serve_exe'),
+    path('agent/hoan-tat/', views.agent_install_done, name='agent_install_done'),
+    path('agent/trang-thai/', views.api_agent_install_status, name='api_agent_install_status'),
+    path('agent/quet/', views.request_agent_rescan, name='request_agent_rescan'),
     path('quet-relay/', views.scan_relay_guide, name='scan_relay_guide'),
 ]

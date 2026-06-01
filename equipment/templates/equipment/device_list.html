@@ -9,7 +9,17 @@
             <p class="text-muted mb-0">{{ filtered_count }} / {{ total_count }} thiết bị</p>
         </div>
         <div class="d-flex flex-wrap gap-2 align-items-center">
-            {% if can_edit and scan_available %}
+            {% if can_edit and agent_scan_mode %}
+            <form method="post" action="{% url 'equipment:request_agent_rescan' %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-dark btn-sm">
+                    <i class="bi bi-arrow-repeat me-1"></i>Quét tất cả PC
+                </button>
+            </form>
+            <a href="{% url 'equipment:agent_guide' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-download me-1"></i>Cài Agent
+            </a>
+            {% elif can_edit and scan_available %}
             <button type="button" class="btn btn-dark btn-sm" data-bs-toggle="modal" data-bs-target="#lanScanModal">
                 <i class="bi bi-broadcast me-1"></i>Quét toàn LAN
             </button>
@@ -20,8 +30,8 @@
                 <i class="bi bi-diagram-3 me-1"></i>Dải IP tùy chỉnh
             </button>
             {% elif can_edit %}
-            <a href="{% url 'equipment:scan_relay_guide' %}" class="btn btn-warning btn-sm">
-                <i class="bi bi-exclamation-triangle me-1"></i>Bật quét WMI
+            <a href="{% url 'equipment:agent_guide' %}" class="btn btn-warning btn-sm">
+                <i class="bi bi-exclamation-triangle me-1"></i>Cài Agent
             </a>
             {% endif %}
             {% if can_edit %}
@@ -32,7 +42,13 @@
         </div>
     </div>
 
-    {% if can_edit and not scan_available %}
+    {% if can_edit and agent_scan_mode %}
+    <div class="alert alert-info border-0 shadow-sm mb-3 py-2 small">
+        <i class="bi bi-info-circle me-1"></i>
+        Mỗi PC cần <strong>JustPlayAgent.exe</strong> (1 lần). Bấm <strong>Quét tất cả PC</strong> để yêu cầu agent online báo cáo lại.
+        <a href="{% url 'equipment:agent_guide' %}" class="alert-link">Hướng dẫn cài →</a>
+    </div>
+    {% elif can_edit and not scan_available %}
     <div class="alert alert-warning border-0 shadow-sm mb-3">
         <strong>Quét WMI chưa sẵn sàng.</strong>
         Portal (VPS) cần gọi máy Windows của bạn qua Tailscale để quét mạng LAN công ty.

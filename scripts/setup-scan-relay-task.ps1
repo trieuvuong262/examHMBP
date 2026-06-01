@@ -1,7 +1,6 @@
 # Đăng ký Task Scheduler — quét thiết bị tự động trên máy Windows IT
-# Chạy PowerShell Admin:
-#   Set-ExecutionPolicy -Scope Process Bypass
-#   .\scripts\setup-scan-relay-task.ps1 -ProjectDir "D:\Project\PortalJustPlay"
+# Cách 1: scripts\setup-scan-relay-task.cmd "D:\Project\PortalJustPlay"
+# Cách 2: Set-ExecutionPolicy -Scope Process Bypass rồi chạy .ps1
 
 param(
     [Parameter(Mandatory = $true)]
@@ -41,8 +40,7 @@ $Action = New-ScheduledTaskAction `
     -Argument "`"$ScriptPath`"" `
     -WorkingDirectory $ProjectDir
 
-$TriggerLogon = New-ScheduledTaskTrigger -AtLogon -User $env:USERNAME `
-    -Delay (New-TimeSpan -Minutes $LogonDelayMinutes)
+$TriggerLogon = New-ScheduledTaskTrigger -AtLogon
 
 $StartTime = (Get-Date).Date.AddHours(8)
 $TriggerRepeat = New-ScheduledTaskTrigger -Once -At $StartTime `

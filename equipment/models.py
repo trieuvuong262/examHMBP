@@ -170,3 +170,75 @@ class MaintenanceLog(models.Model):
 
     def __str__(self):
         return f'{self.device.name} · {self.created_at:%Y-%m-%d}'
+
+
+class EquipmentScanControl(models.Model):
+    """Tín hiệu yêu cầu agent trên các PC quét lại (singleton pk=1)."""
+    agent_rescan_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'Điều khiển quét Agent'
+
+    @classmethod
+    def request_agent_rescan(cls):
+        from django.utils import timezone
+
+        obj, _ = cls.objects.get_or_create(pk=1)
+        obj.agent_rescan_at = timezone.now()
+        obj.save(update_fields=['agent_rescan_at'])
+        return obj.agent_rescan_at
+
+    @classmethod
+    def get_rescan_at(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj.agent_rescan_at
+
+
+class AgentInstallToken(models.Model):
+    token = models.CharField(max_length=64, unique=True, db_index=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='agent_install_tokens',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def is_valid(self) -> bool:
+        from django.utils import timezone
+
+        if self.used_at:
+            return False
+        return self.expires_at >= timezone.now()
+
+    def mark_used(self):
+        from django.utils import timezone
+
+        self.used_at = timezone.now()
+        self.save(update_fields=['used_at'])
+
+
+class UserAgentRegistration(models.Model):
+    """PC đã cài agent — ẩn popup cài đặt khi user login lại trên máy đó."""
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='agent_registrations',
+    )
+    serial_number = models.CharField(max_length=100, db_index=True)
+    device = models.ForeignKey(
+        'Device',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='agent_registrations',
+    )
+    registered_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [('user', 'serial_number')]
+        ordering = ['-registered_at']

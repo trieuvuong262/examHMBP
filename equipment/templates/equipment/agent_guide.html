@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-pc-display me-2"></i>Cài JustPlay Agent (EXE)</h2>
+        <p class="text-muted mb-0">1 file EXE trên mỗi PC — tự quét WMI local, gửi lên VPS. Không cần domain, không cần relay.</p>
+    </div>
+
+    {% include 'equipment/includes/subnav.html' %}
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body p-4">
+            <h5 class="fw-bold mb-2">Cài tự động khi đăng nhập portal</h5>
+            <p class="mb-2">User Windows lần đầu đăng nhập sẽ thấy popup — tải <strong>1 file .cmd</strong> đã gắn tài khoản, chạy file → sau ~5 giây PC tự quét và gửi lên module thiết bị.</p>
+            <p class="text-muted small mb-0">IT: đặt <code>JustPlayAgent.exe</code> lên server tại <code>static/equipment/</code> hoặc <code>EQUIPMENT_AGENT_EXE_PATH</code> trong .env.</p>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body p-4">
+            <h5 class="fw-bold mb-2">Cách hoạt động</h5>
+            <ol class="mb-0">
+                <li>Cài <strong>JustPlayAgent.exe</strong> + file <code>justplay_agent.ini</code> trên từng PC.</li>
+                <li>Agent tự chạy khi đăng nhập Windows, gửi serial/IP/cấu hình lên portal.</li>
+                <li>Trên portal bấm <strong>Quét tất cả PC</strong> → mọi agent online báo cáo lại trong 1–2 phút.</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white fw-bold">① VPS (.env)</div>
+                <div class="card-body">
+                    <pre class="bg-light p-3 rounded small mb-0">EQUIPMENT_AGENT_SECRET=mat-khau-bi-mat-tu-dat
+PORTAL_PUBLIC_BASE_URL=https://portal.justplay.vn</pre>
+                    {% if not has_agent_secret %}
+                    <p class="text-warning small mt-2 mb-0">Chưa có EQUIPMENT_AGENT_SECRET trên server.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white fw-bold">② Build EXE (máy dev, 1 lần)</div>
+                <div class="card-body">
+                    <pre class="bg-light p-3 rounded small mb-0">pip install pyinstaller
+scripts\build-justplay-agent.cmd</pre>
+                    <p class="small text-muted mb-0">File: <code>dist\JustPlayAgent.exe</code></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mt-3">
+        <div class="card-header bg-white fw-bold">③ Cài trên từng PC (copy 2 file)</div>
+        <div class="card-body">
+            <p>Tạo thư mục <code>C:\JustPlayAgent\</code> gồm:</p>
+            <ul>
+                <li><code>JustPlayAgent.exe</code></li>
+                <li><code>justplay_agent.ini</code> (copy từ <code>justplay_agent.ini.example</code>)</li>
+            </ul>
+            <pre class="bg-light p-3 rounded small">[portal]
+url=https://portal.justplay.vn
+secret=mat-khau-bi-mat-tu-dat
+
+[agent]
+interval_minutes=30
+poll_seconds=60</pre>
+            <p class="mb-2">Cài tự chạy khi login:</p>
+            <pre class="bg-light p-3 rounded small mb-0">scripts\install-justplay-agent.cmd "C:\JustPlayAgent"</pre>
+            <p class="small text-muted mt-2 mb-0">Test tay: <code>JustPlayAgent.exe --once</code></p>
+        </div>
+    </div>
+
+    <a href="{% url 'equipment:device_list' %}" class="btn btn-hm mt-3">Về danh sách thiết bị</a>
+</div>
+{% endblock %}

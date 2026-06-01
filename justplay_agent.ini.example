@@ -1,0 +1,11 @@
+[portal]
+# URL portal (khong slash cuoi)
+url=https://portal.justplay.vn
+# Cung secret voi EQUIPMENT_AGENT_SECRET tren VPS
+secret=mat-khau-bi-mat-tu-dat
+
+[agent]
+# Bao cao dinh ky (phut)
+interval_minutes=30
+# Kiem tra lenh quyet tu portal (giay)
+poll_seconds=60

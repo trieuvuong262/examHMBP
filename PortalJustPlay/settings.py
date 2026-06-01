@@ -126,6 +126,7 @@ PORTAL_PUBLIC_BASE_URL = os.getenv(
 ).rstrip("/")
 EQUIPMENT_TAG_HEADER = os.getenv("EQUIPMENT_TAG_HEADER", "JUSTPLAY — QUẢN LÝ THIẾT BỊ")
 EQUIPMENT_AGENT_SECRET = os.getenv("EQUIPMENT_AGENT_SECRET", "")
+EQUIPMENT_AGENT_EXE_PATH = os.getenv("EQUIPMENT_AGENT_EXE_PATH", "")
 # Quét WMI từ portal production: URL Tailscale máy IT + secret (scan_relay_server.py)
 EQUIPMENT_RELAY_HTTP_URL = os.getenv("EQUIPMENT_RELAY_HTTP_URL", "").rstrip("/")
 EQUIPMENT_RELAY_SECRET = os.getenv("EQUIPMENT_RELAY_SECRET", "") or EQUIPMENT_AGENT_SECRET
@@ -212,6 +213,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'announcements.context_processors.unread_announcements',
                 'hrm.context_processors.portal_permissions',
+                'equipment.context_processors.agent_install_prompt',
             ],
         },
     },

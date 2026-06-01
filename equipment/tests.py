@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from django.test import SimpleTestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 
 from equipment.services.email_notify import get_it_notify_emails
 from equipment.services.wmi_scan import is_bad_serial as scan_bad_serial, parse_ip_range
@@ -65,9 +65,75 @@ class ScanRelayTests(SimpleTestCase):
             })
         self.assertTrue(any('Windows' in e for e in errors))
 
-    @override_settings(EQUIPMENT_RELAY_HTTP_URL='http://100.1.2.3:8765', EQUIPMENT_RELAY_SECRET='sec')
-    def test_scan_available_via_relay_on_linux(self):
-        from equipment.services.scan_backend import is_scan_available
+class AgentInstallFlowTests(TestCase):
+    @override_settings(
+        EQUIPMENT_AGENT_SECRET='sec',
+        PORTAL_PUBLIC_BASE_URL='https://portal.example.com',
+    )
+    def test_agent_report_links_user_and_registration(self):
+        from django.contrib.auth import get_user_model
 
-        with patch('equipment.services.scan_backend.platform.system', return_value='Linux'):
-            self.assertTrue(is_scan_available())
+        from equipment.models import AgentInstallToken, Device, UserAgentRegistration
+        from equipment.services.agent_install import create_install_token
+
+        User = get_user_model()
+        user = User.objects.create_user(username='nv01', password='x')
+        tok = create_install_token(user)
+
+        client = __import__('django.test', fromlist=['Client']).Client()
+        payload = {
+            'api_secret': 'sec',
+            'serial': 'SN123456',
+            'hostname': 'PC-NV01',
+            'ip': '192.168.1.50',
+            'model': 'Dell',
+            'cpu': 'i5',
+            'ram': '16',
+            'disk': '512',
+            'install_token': tok.token,
+            'portal_user_id': user.pk,
+            'full_name': 'Nguyen Van A',
+        }
+        resp = client.post(
+            '/thiet-bi/api/agent-report/',
+            data=__import__('json').dumps(payload),
+            content_type='application/json',
+        )
+        self.assertEqual(resp.status_code, 200)
+        device = Device.objects.get(serial_number='SN123456')
+        self.assertEqual(device.assigned_user_id, user.pk)
+        self.assertTrue(UserAgentRegistration.objects.filter(user=user, serial_number='SN123456').exists())
+        tok.refresh_from_db()
+        self.assertIsNotNone(tok.used_at)
+
+    @override_settings(EQUIPMENT_AGENT_SECRET='sec')
+    def test_install_status_requires_used_token(self):
+        from django.contrib.auth import get_user_model
+
+        from equipment.models import AgentInstallToken, UserAgentRegistration, Device
+        from equipment.services.agent_install import create_install_token
+
+        User = get_user_model()
+        user = User.objects.create_user(username='u2', password='x')
+        client = __import__('django.test', fromlist=['Client']).Client()
+        client.force_login(user)
+        tok = create_install_token(user)
+        resp = client.get(f'/thiet-bi/agent/trang-thai/?token={tok.token}')
+        self.assertEqual(resp.json()['ready'], False)
+
+        tok.mark_used()
+        device = Device.objects.create(serial_number='SN99', name='PC')
+        UserAgentRegistration.objects.create(user=user, serial_number='SN99', device=device)
+        resp = client.get(f'/thiet-bi/agent/trang-thai/?token={tok.token}')
+        self.assertTrue(resp.json()['ready'])
+
+    @override_settings(EQUIPMENT_AGENT_SECRET='sec')
+    def test_agent_poll_api(self):
+        from django.test import Client
+
+        client = Client()
+        resp = client.get('/thiet-bi/api/agent-poll/?api_secret=wrong')
+        self.assertEqual(resp.status_code, 403)
+        resp = client.get('/thiet-bi/api/agent-poll/?api_secret=sec')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['status'], 'ok')

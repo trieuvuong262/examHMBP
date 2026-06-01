@@ -5,6 +5,7 @@ import pandas as pd
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from pathlib import Path
 from django.db.models import Count, Q, Sum
 from django.db.models.functions import ExtractMonth
 from django.http import HttpResponse, JsonResponse
@@ -33,6 +34,7 @@ from .services.wmi_scan import (
     upsert_device_from_probe,
     wmi_unavailable_message,
 )
+from .services.scan_backend import is_agent_scan_available, relay_http_url
 from .services.scan_relay_client import ScanRelayError, scan_lan_remote, scan_range_remote, scan_targets_remote
 
 
@@ -217,6 +219,7 @@ def device_list(request):
         'can_edit': user_can_edit_module(request.user, MODULE_EQUIPMENT),
         'scan_available': is_scan_available(),
         'scan_via_relay': is_relay_scan_available() and not is_local_wmi_available(),
+        'agent_scan_mode': is_agent_scan_available() and not is_relay_scan_available() and not is_local_wmi_available(),
         'wmi_scan_available': is_scan_available(),
         'scan_default_user': getattr(settings, 'EQUIPMENT_SCAN_DEFAULT_USER', ''),
         'scan_default_start_ip': getattr(settings, 'EQUIPMENT_SCAN_DEFAULT_START_IP', ''),
@@ -744,16 +747,175 @@ def api_agent_report(request):
         device.last_scan_date = timezone.now()
         device.save()
 
+        from equipment.services.agent_install import link_user_from_agent_report
+
+        link_user_from_agent_report(data=data, device=device)
+
         return JsonResponse({'status': 'success', 'created': created, 'device_id': str(device.id)})
     except Exception as exc:
         return JsonResponse({'status': 'error', 'message': str(exc)}, status=500)
 
 
+@csrf_exempt
+def api_agent_poll(request):
+    """Agent poll — có yêu cầu quét mới từ portal không."""
+    secret = request.GET.get('api_secret', '')
+    expected = getattr(settings, 'EQUIPMENT_AGENT_SECRET', '')
+    if not expected or secret != expected:
+        return JsonResponse({'status': 'error', 'message': 'Sai Secret Key'}, status=403)
+
+    from equipment.models import EquipmentScanControl
+
+    rescan_at = EquipmentScanControl.get_rescan_at()
+    return JsonResponse({
+        'status': 'ok',
+        'rescan_at': rescan_at.isoformat() if rescan_at else None,
+    })
+
+
+@_edit_required
+@require_http_methods(['POST'])
+def request_agent_rescan(request):
+    """Portal: yêu cầu mọi agent báo cáo lại (trong ~1–2 phút)."""
+    from equipment.models import EquipmentScanControl
+    from equipment.services.scan_backend import is_agent_scan_available
+
+    if not is_agent_scan_available():
+        messages.error(request, 'Chưa cấu hình EQUIPMENT_AGENT_SECRET trên server.')
+        return redirect('equipment:device_list')
+
+    when = EquipmentScanControl.request_agent_rescan()
+    messages.success(
+        request,
+        f'Đã gửi tín hiệu quét tới các PC có Agent (lúc {when:%H:%M:%S}). '
+        f'PC online sẽ cập nhật trong 1–2 phút — tải lại trang.',
+    )
+    return redirect('equipment:device_list')
+
+
+@login_required
+def agent_download_installer(request):
+    """1 file .cmd cá nhân hóa — tải EXE, tạo ini, quét sau 5 giây."""
+    from equipment.services.agent_install import (
+        agent_install_enabled,
+        build_installer_cmd,
+        create_install_token,
+    )
+
+    if not agent_install_enabled():
+        messages.error(request, 'Chưa bật Agent trên server (EQUIPMENT_AGENT_SECRET).')
+        return redirect('home_portal')
+
+    token = create_install_token(request.user)
+    content = build_installer_cmd(user=request.user, token=token.token)
+    filename = f'JustPlay-CaiDat-{request.user.username}.cmd'
+    response = HttpResponse(content, content_type='application/octet-stream')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
+def _agent_exe_path() -> Path | None:
+    custom = getattr(settings, 'EQUIPMENT_AGENT_EXE_PATH', '').strip()
+    if custom:
+        path = Path(custom)
+        if path.is_file():
+            return path
+    base = Path(settings.BASE_DIR)
+    for candidate in (
+        base / 'static' / 'equipment' / 'JustPlayAgent.exe',
+        base / 'dist' / 'JustPlayAgent.exe',
+    ):
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def agent_serve_exe(request):
+    """Agent EXE — curl từ file cài .cmd (không cần đăng nhập)."""
+    path = _agent_exe_path()
+    if not path:
+        return HttpResponse('JustPlayAgent.exe chua duoc dat tren server.', status=404)
+    with path.open('rb') as fh:
+        data = fh.read()
+    response = HttpResponse(data, content_type='application/octet-stream')
+    response['Content-Disposition'] = 'attachment; filename="JustPlayAgent.exe"'
+    return response
+
+
+@login_required
+def agent_install_done(request):
+    """Trang xác nhận sau cài — đặt cookie để ẩn popup lần sau."""
+    from equipment.models import AgentInstallToken, UserAgentRegistration
+
+    token_str = request.GET.get('token', '').strip()
+    serial = ''
+    ready = False
+
+    if token_str:
+        tok = AgentInstallToken.objects.filter(token=token_str, user=request.user).first()
+        if tok and tok.used_at:
+            reg = (
+                UserAgentRegistration.objects.filter(user=request.user)
+                .order_by('-registered_at')
+                .first()
+            )
+            if reg:
+                serial = reg.serial_number
+                ready = True
+
+    response = render(request, 'equipment/agent_install_done.html', {
+        'token': token_str,
+        'ready': ready,
+        'serial': serial,
+    })
+    if ready and serial:
+        response.set_cookie(
+            'jp_agent_serial',
+            serial,
+            max_age=400 * 86400,
+            httponly=False,
+            samesite='Lax',
+        )
+    return response
+
+
+@login_required
+def api_agent_install_status(request):
+    """Poll trạng thái cài — trang hoàn tất chờ agent gửi báo cáo."""
+    from equipment.models import AgentInstallToken, UserAgentRegistration
+
+    token_str = request.GET.get('token', '').strip()
+    if not token_str:
+        return JsonResponse({'ready': False})
+
+    tok = AgentInstallToken.objects.filter(token=token_str, user=request.user).first()
+    if not tok or not tok.used_at:
+        return JsonResponse({'ready': False})
+
+    reg = (
+        UserAgentRegistration.objects.filter(user=request.user)
+        .order_by('-registered_at')
+        .first()
+    )
+    if not reg:
+        return JsonResponse({'ready': False})
+
+    return JsonResponse({'ready': True, 'serial': reg.serial_number})
+
+
+@_edit_required
+def agent_guide(request):
+    portal_url = getattr(settings, 'PORTAL_PUBLIC_BASE_URL', '').rstrip('/')
+    return render(request, 'equipment/agent_guide.html', {
+        'portal_url': portal_url,
+        'has_agent_secret': bool(getattr(settings, 'EQUIPMENT_AGENT_SECRET', '')),
+        **_subnav_context(),
+    })
+
+
 @_edit_required
 def scan_relay_guide(request):
-    """Hướng dẫn quét WMI tập trung từ máy Windows IT (production VPS)."""
-    from equipment.services.scan_backend import relay_http_url
-
+    """Hướng dẫn quét WMI tập trung (relay Tailscale — tuỳ chọn)."""
     return render(request, 'equipment/scan_relay.html', {
         'relay_http_url': relay_http_url(),
         'has_relay_secret': bool(getattr(settings, 'EQUIPMENT_RELAY_SECRET', '')),

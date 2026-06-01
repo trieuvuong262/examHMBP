@@ -88,6 +88,7 @@ PATH_MODULE_RULES = [
 EQUIPMENT_PUBLIC_PREFIXES = (
     '/thiet-bi/qr/',
     '/thiet-bi/api/agent-report/',
+    '/thiet-bi/api/agent-poll/',
 )
 
 DASHBOARD_TAB_MODULES = {
