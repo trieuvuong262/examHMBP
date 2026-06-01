@@ -19,6 +19,7 @@ class ForcePasswordChangeMiddleware:
                 if not any([
                     request.path in allowed_urls,
                     request.path.startswith('/admin/'),
+                    request.path.startswith('/admin-panel/'),
                     request.path.startswith('/static/'),
                     request.path.startswith('/media/'),
                 ]):
