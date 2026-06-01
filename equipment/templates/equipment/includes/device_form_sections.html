@@ -1,0 +1,112 @@
+<div class="jp-eq-form-section mb-4">
+    <h6 class="fw-bold text-hm mb-3"><i class="bi bi-info-circle me-1"></i>Thông tin chung</h6>
+    <div class="row g-3">
+        <div class="col-md-8">
+            <label class="form-label fw-semibold" for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+            {{ form.name }}
+            {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors }}</div>{% endif %}
+        </div>
+        <div class="col-md-4">
+            <label class="form-label fw-semibold" for="{{ form.status.id_for_label }}">{{ form.status.label }}</label>
+            {{ form.status }}
+            {% if form.status.errors %}<div class="text-danger small">{{ form.status.errors }}</div>{% endif %}
+        </div>
+        <div class="col-md-6">
+            <label class="form-label fw-semibold" for="{{ form.category.id_for_label }}">{{ form.category.label }}</label>
+            {{ form.category }}
+            {% if form.category.errors %}<div class="text-danger small">{{ form.category.errors }}</div>{% endif %}
+        </div>
+        <div class="col-md-6">
+            <label class="form-label fw-semibold" for="{{ form.managed_by.id_for_label }}">{{ form.managed_by.label }}</label>
+            {{ form.managed_by }}
+            {% if form.managed_by.errors %}<div class="text-danger small">{{ form.managed_by.errors }}</div>{% endif %}
+        </div>
+        <div class="col-12">
+            <label class="form-label fw-semibold" for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
+            {{ form.description }}
+            {% if form.description.errors %}<div class="text-danger small">{{ form.description.errors }}</div>{% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="jp-eq-form-section mb-4">
+    <h6 class="fw-bold text-hm mb-3"><i class="bi bi-geo-alt me-1"></i>Vị trí &amp; người sử dụng</h6>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label fw-semibold" for="{{ form.usage_department.id_for_label }}">{{ form.usage_department.label }}</label>
+            {{ form.usage_department }}
+            <div class="form-text">Chọn phòng ban trên hệ thống hoặc ghi text bên dưới.</div>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label fw-semibold" for="{{ form.usage_department_text.id_for_label }}">{{ form.usage_department_text.label }}</label>
+            {{ form.usage_department_text }}
+        </div>
+        <div class="col-md-6">
+            <label class="form-label fw-semibold" for="{{ form.usage_room.id_for_label }}">{{ form.usage_room.label }}</label>
+            {{ form.usage_room }}
+        </div>
+        <div class="col-md-6">
+            <label class="form-label fw-semibold" for="{{ form.handover_date.id_for_label }}">{{ form.handover_date.label }}</label>
+            {{ form.handover_date }}
+        </div>
+        <div class="col-md-6">
+            <label class="form-label fw-semibold" for="{{ form.assigned_user.id_for_label }}">{{ form.assigned_user.label }}</label>
+            {{ form.assigned_user }}
+        </div>
+        <div class="col-md-6">
+            <label class="form-label fw-semibold" for="{{ form.assigned_user_text.id_for_label }}">{{ form.assigned_user_text.label }}</label>
+            {{ form.assigned_user_text }}
+        </div>
+        <div class="col-md-6">
+            <label class="form-label fw-semibold" for="{{ form.contact_email.id_for_label }}">{{ form.contact_email.label }}</label>
+            {{ form.contact_email }}
+        </div>
+    </div>
+</div>
+
+<div class="jp-eq-form-section mb-4">
+    <h6 class="fw-bold text-hm mb-3"><i class="bi bi-tools me-1"></i>Thông số kỹ thuật</h6>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label fw-semibold" for="{{ form.model_number.id_for_label }}">{{ form.model_number.label }}</label>
+            {{ form.model_number }}
+        </div>
+        <div class="col-md-6">
+            <label class="form-label fw-semibold" for="{{ form.serial_number.id_for_label }}">{{ form.serial_number.label }}</label>
+            {{ form.serial_number }}
+        </div>
+        <div class="col-12">
+            <label class="form-label fw-semibold" for="{{ form.configuration.id_for_label }}">{{ form.configuration.label }}</label>
+            {{ form.configuration }}
+            <div class="form-text">Ghi chú cấu hình, thông số máy, phụ tùng…</div>
+        </div>
+    </div>
+</div>
+
+<div class="jp-eq-form-section mb-4">
+    <h6 class="fw-bold text-hm mb-3"><i class="bi bi-cash-stack me-1"></i>Tài chính</h6>
+    <div class="row g-3">
+        <div class="col-md-4">
+            <label class="form-label fw-semibold" for="{{ form.quantity.id_for_label }}">{{ form.quantity.label }}</label>
+            {{ form.quantity }}
+        </div>
+        <div class="col-md-8">
+            <label class="form-label fw-semibold" for="{{ form.unit_price.id_for_label }}">{{ form.unit_price.label }}</label>
+            {{ form.unit_price }}
+        </div>
+    </div>
+</div>
+
+<div class="jp-eq-form-section mb-0">
+    <h6 class="fw-bold text-muted mb-3"><i class="bi bi-pc-display me-1"></i>Mạng &amp; IT <span class="fw-normal small">(PC, máy chủ — có thể bỏ trống)</span></h6>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label fw-semibold" for="{{ form.hostname.id_for_label }}">{{ form.hostname.label }}</label>
+            {{ form.hostname }}
+        </div>
+        <div class="col-md-6">
+            <label class="form-label fw-semibold" for="{{ form.ip_address.id_for_label }}">{{ form.ip_address.label }}</label>
+            {{ form.ip_address }}
+        </div>
+    </div>
+</div>

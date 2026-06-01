@@ -298,6 +298,9 @@ def device_list(request):
         qs = qs.filter(managed_by=managed_by)
 
     categories = request.GET.getlist('category')
+    category = (request.GET.get('category') or '').strip()
+    if category and not categories:
+        categories = [category]
     if categories:
         qs = qs.filter(category__in=categories)
 
@@ -348,6 +351,7 @@ def device_list(request):
         'stat_maintenance': Device.objects.filter(status=Device.STATUS_MAINTENANCE).count(),
         'stat_online': Device.objects.filter(is_online=True).count(),
         'current_managed_by': managed_by,
+        'current_category': category,
         'current_categories': categories,
         'current_status': status,
         'current_usage_department': usage_department,
@@ -360,6 +364,7 @@ def device_list(request):
         'category_groups': categories_by_group(),
         'status_choices': Device.STATUS_CHOICES,
         'can_edit': user_can_edit_module(request.user, MODULE_EQUIPMENT),
+        'can_edit_equipment': user_can_edit_module(request.user, MODULE_EQUIPMENT),
         'can_export': user_can_access_module(request.user, MODULE_EQUIPMENT),
         'scan_available': is_scan_available(),
         'scan_via_relay': is_relay_scan_available() and not is_local_wmi_available(),
@@ -390,22 +395,11 @@ def device_add(request):
 
 
 @_edit_required
+@require_http_methods(['GET', 'POST'])
 def device_edit(request, device_id):
-    device = get_object_or_404(Device, pk=device_id)
-    if request.method == 'POST':
-        form = DeviceForm(request.POST, instance=device)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Đã cập nhật thiết bị.')
-            return redirect('equipment:device_detail_manage', device_id=device.id)
-    else:
-        form = DeviceForm(instance=device)
-    return render(request, 'equipment/device_form.html', {
-        'form': form,
-        'device': device,
-        'is_edit': True,
-        **_subnav_context(request),
-    })
+    if request.method == 'GET':
+        return redirect('equipment:device_detail_manage', device_id=device_id)
+    return device_detail_manage(request, device_id)
 
 
 @require_http_methods(['GET', 'POST'])
@@ -483,6 +477,7 @@ def device_qr_public(request, device_id):
 
 
 @_access_required
+@require_http_methods(['GET', 'POST'])
 def device_detail_manage(request, device_id):
     device = get_object_or_404(
         Device.objects.select_related(
@@ -494,13 +489,29 @@ def device_detail_manage(request, device_id):
     )
     from equipment.services.shared_pc import get_registered_users
 
+    can_edit = user_can_edit_module(request.user, MODULE_EQUIPMENT)
+    form = None
+
+    if request.method == 'POST':
+        if not can_edit:
+            messages.error(request, 'Bạn không có quyền chỉnh sửa thiết bị.')
+            return redirect('equipment:device_detail_manage', device_id=device.id)
+        form = DeviceForm(request.POST, instance=device)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Đã cập nhật thiết bị và tạo lại tem QR.')
+            return redirect('equipment:device_detail_manage', device_id=device.id)
+    elif can_edit:
+        form = DeviceForm(instance=device)
+
     logs = device.logs.select_related('service_request').order_by('-created_at')[:10]
     shared_users = list(get_registered_users(device)) if device.is_shared_pc else []
     return render(request, 'equipment/device_detail_manage.html', {
         'device': device,
+        'form': form,
         'shared_users': shared_users,
         'logs': logs,
-        'can_edit': user_can_edit_module(request.user, MODULE_EQUIPMENT),
+        'can_edit': can_edit,
         **_subnav_context(request),
     })
 

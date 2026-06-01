@@ -7,99 +7,103 @@
 
 {% block content %}
 <div class="container jp-page py-3 py-md-4 mb-5">
-    <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between gap-2">
+    <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
         <div>
-            <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ device.name }}</h2>
-            <p class="text-muted mb-0">{{ device.get_category_display }} · {{ device.get_status_display }}</p>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">
+                {% if can_edit and form %}{{ form.name.value|default:device.name }}{% else %}{{ device.name }}{% endif %}
+            </h2>
+            <p class="text-muted mb-0">
+                {{ device.get_category_display }} · {{ device.get_status_display }}
+                {% if device.serial_number %} · S/N {{ device.serial_number }}{% endif %}
+            </p>
         </div>
-        <div class="d-flex gap-2">
-            {% if can_edit %}
-            <a href="{% url 'equipment:device_edit' device.id %}" class="btn btn-outline-hm btn-sm">Sửa</a>
-            {% endif %}
-            <a href="{% url 'equipment:device_history' device.id %}" class="btn btn-outline-secondary btn-sm">Lịch sử</a>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'equipment:device_list' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Danh sách
+            </a>
+            <a href="{% url 'equipment:device_history' device.id %}" class="btn btn-outline-secondary btn-sm">Lịch sử sự cố</a>
         </div>
     </div>
 
     {% include 'equipment/includes/subnav.html' %}
 
     <div class="row g-4">
-        <div class="col-lg-7">
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-white fw-bold">
-                    Người sử dụng
-                    {% if device.is_shared_pc %}
-                    <span class="badge bg-info text-dark ms-1">PC dùng chung</span>
-                    {% endif %}
-                </div>
-                <div class="card-body">
-                    <dl class="row mb-0">
-                        <dt class="col-sm-4">Họ tên</dt>
-                        <dd class="col-sm-8">{{ device.assigned_user_label }}</dd>
-                        <dt class="col-sm-4">Tài khoản portal</dt>
-                        <dd class="col-sm-8"><code>{{ device.assigned_username }}</code></dd>
-                        <dt class="col-sm-4">Mã nhân sự</dt>
-                        <dd class="col-sm-8">{{ device.assigned_employee_code }}</dd>
-                        <dt class="col-sm-4">Email</dt>
-                        <dd class="col-sm-8">{{ device.assigned_email_label }}</dd>
-                        <dt class="col-sm-4">Phòng ban</dt>
-                        <dd class="col-sm-8">{{ device.usage_department_label }}</dd>
-                        <dt class="col-sm-4">Vị trí / chức vụ</dt>
-                        <dd class="col-sm-8">{{ device.assigned_position_label }}</dd>
-                    </dl>
-                    {% if shared_users %}
-                    <hr>
-                    <p class="small fw-semibold text-muted mb-2">Tài khoản đã đăng ký trên PC này</p>
-                    <ul class="list-unstyled small mb-0">
-                        {% for u in shared_users %}
-                        <li class="mb-1">
-                            <code>{{ u.username }}</code>
-                            {% if u.get_full_name %} — {{ u.get_full_name }}{% endif %}
-                            {% if device.assigned_user_id == u.pk %}
-                            <span class="badge bg-secondary">người gán chính</span>
-                            {% endif %}
-                        </li>
-                        {% endfor %}
-                    </ul>
-                    {% endif %}
-                </div>
-            </div>
+        <div class="col-lg-8">
+            {% if can_edit and form %}
+            <form method="post" novalidate>
+                {% csrf_token %}
+                {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
 
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-body p-4">
+                        {% include 'equipment/includes/device_form_sections.html' %}
+                    </div>
+                </div>
+
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="submit" class="btn btn-hm fw-bold px-4">
+                        <i class="bi bi-check-lg me-1"></i>Cập nhật &amp; tạo lại tem QR
+                    </button>
+                    <a href="{% url 'equipment:device_list' %}" class="btn btn-outline-secondary">Huỷ</a>
+                </div>
+            </form>
+            {% else %}
             <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-white fw-bold">Thiết bị &amp; mạng</div>
+                <div class="card-header bg-white fw-bold">Thông tin thiết bị</div>
                 <div class="card-body">
                     <dl class="row mb-0">
-                        <dt class="col-sm-4">Model</dt>
-                        <dd class="col-sm-8">{{ device.model_number|default:"—" }}</dd>
-                        <dt class="col-sm-4">Serial / UUID</dt>
-                        <dd class="col-sm-8"><code class="small">{{ device.serial_number|default:"—" }}</code></dd>
-                        <dt class="col-sm-4">Hostname</dt>
-                        <dd class="col-sm-8">{{ device.hostname|default:"—" }}</dd>
-                        <dt class="col-sm-4">IP LAN</dt>
-                        <dd class="col-sm-8">{{ device.ip_address|default:"—" }}</dd>
-                        <dt class="col-sm-4">Trạng thái mạng</dt>
-                        <dd class="col-sm-8">
-                            {% if device.is_online %}<span class="text-success">Online</span>{% else %}<span class="text-muted">Offline</span>{% endif %}
-                            {% if device.last_scan_date %}
-                            <span class="text-muted small"> · quét {{ device.last_scan_date|date:"d/m/Y H:i" }}</span>
-                            {% endif %}
-                        </dd>
+                        <dt class="col-sm-4">Loại</dt>
+                        <dd class="col-sm-8">{{ device.get_category_display }}</dd>
+                        <dt class="col-sm-4">Trạng thái</dt>
+                        <dd class="col-sm-8">{{ device.get_status_display }}</dd>
                         <dt class="col-sm-4">Bộ phận quản lý</dt>
                         <dd class="col-sm-8">{{ device.get_managed_by_display }}</dd>
+                        <dt class="col-sm-4">Phòng ban</dt>
+                        <dd class="col-sm-8">{{ device.usage_department_label }}</dd>
+                        <dt class="col-sm-4">Vị trí</dt>
+                        <dd class="col-sm-8">{{ device.usage_room|default:"—" }}</dd>
+                        <dt class="col-sm-4">Người sử dụng</dt>
+                        <dd class="col-sm-8">{{ device.assigned_user_label }}</dd>
+                        <dt class="col-sm-4">Model</dt>
+                        <dd class="col-sm-8">{{ device.model_number|default:"—" }}</dd>
+                        <dt class="col-sm-4">Serial</dt>
+                        <dd class="col-sm-8"><code>{{ device.serial_number|default:"—" }}</code></dd>
+                        {% if device.description %}
+                        <dt class="col-sm-4">Mô tả</dt>
+                        <dd class="col-sm-8">{{ device.description }}</dd>
+                        {% endif %}
+                        {% if device.hostname or device.ip_address %}
+                        <dt class="col-sm-4">Hostname / IP</dt>
+                        <dd class="col-sm-8">{{ device.hostname|default:"—" }}{% if device.ip_address %} · {{ device.ip_address }}{% endif %}</dd>
+                        {% endif %}
                     </dl>
                 </div>
             </div>
+            {% endif %}
 
-            {% if device.configuration %}
+            {% if logs %}
             <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white fw-bold">Cấu hình phần cứng</div>
-                <div class="card-body">
-                    <pre class="mb-0 small bg-light rounded p-3">{{ device.configuration }}</pre>
+                <div class="card-header bg-white fw-bold">Sự cố gần đây</div>
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light"><tr><th>Thời gian</th><th>Mô tả</th><th>Trạng thái</th></tr></thead>
+                        <tbody>
+                            {% for log in logs %}
+                            <tr>
+                                <td>{{ log.created_at|date:"d/m/Y H:i" }}</td>
+                                <td>{{ log.issue_description|truncatechars:80 }}</td>
+                                <td>{% if log.is_resolved %}Đã xử lý{% else %}Đang mở{% endif %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
             {% endif %}
         </div>
-        <div class="col-lg-5">
-            <div class="card border-0 shadow-sm">
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm jp-eq-qr-card">
                 <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
                     <span><i class="bi bi-qr-code me-1"></i>Tem QR</span>
                     {% if device.qr_code %}
@@ -111,48 +115,41 @@
                 <div class="card-body text-center">
                     {% if device.qr_code %}
                     <div class="jp-eq-qr-preview mb-3">
-                        <img src="{{ device.qr_code.url }}" alt="Tem QR {{ device.name }}">
+                        <img src="{{ device.qr_code.url }}?v={{ device.updated_at|date:'U' }}" alt="Tem QR {{ device.name }}">
                     </div>
-                    <p class="small text-muted mb-3">In tem dán thiết bị — quét mã để báo hỏng nhanh cho IT.</p>
-                    <div class="d-flex flex-wrap gap-2 justify-content-center">
-                        <a href="{% url 'equipment:device_qr_public' device.id %}" class="btn btn-sm btn-hm" target="_blank">
-                            <i class="bi bi-box-arrow-up-right me-1"></i>Trang báo hỏng
-                        </a>
-                        {% if can_edit %}
-                        <a href="{% url 'equipment:device_edit' device.id %}" class="btn btn-sm btn-outline-secondary">
-                            Lưu lại để vẽ tem mới
-                        </a>
-                        {% endif %}
-                    </div>
+                    <p class="small text-muted mb-3">In tem dán thiết bị — quét mã để báo hỏng.</p>
                     {% else %}
                     <div class="jp-eq-qr-placeholder mx-auto mb-3" style="width:120px;height:120px;font-size:2rem">
                         <i class="bi bi-qr-code"></i>
                     </div>
-                    <p class="text-muted mb-0">Tem QR tự tạo khi lưu thiết bị.</p>
+                    <p class="text-muted mb-3">Tem QR sẽ được tạo khi cập nhật thiết bị.</p>
+                    {% endif %}
+                    <a href="{% url 'equipment:device_qr_public' device.id %}" class="btn btn-sm btn-hm w-100" target="_blank">
+                        <i class="bi bi-box-arrow-up-right me-1"></i>Trang báo hỏng
+                    </a>
+                    {% if can_edit %}
+                    <p class="small text-muted mt-3 mb-0">Bấm <strong>Cập nhật</strong> để vẽ lại tem theo thông tin mới.</p>
                     {% endif %}
                 </div>
             </div>
-        </div>
-    </div>
 
-    {% if logs %}
-    <div class="card border-0 shadow-sm mt-4">
-        <div class="card-header bg-white fw-bold">Sự cố gần đây</div>
-        <div class="table-responsive">
-            <table class="table table-sm mb-0">
-                <thead class="table-light"><tr><th>Thời gian</th><th>Mô tả</th><th>Trạng thái</th></tr></thead>
-                <tbody>
-                    {% for log in logs %}
-                    <tr>
-                        <td>{{ log.created_at|date:"d/m/Y H:i" }}</td>
-                        <td>{{ log.issue_description|truncatechars:80 }}</td>
-                        <td>{% if log.is_resolved %}Đã xử lý{% else %}Đang mở{% endif %}</td>
-                    </tr>
+            {% if device.is_shared_pc and shared_users %}
+            <div class="card border-0 shadow-sm mt-3">
+                <div class="card-header bg-white fw-bold">
+                    PC dùng chung
+                    <span class="badge bg-info text-dark ms-1">{{ shared_users|length }} tài khoản</span>
+                </div>
+                <ul class="list-group list-group-flush small">
+                    {% for u in shared_users %}
+                    <li class="list-group-item">
+                        <code>{{ u.username }}</code>
+                        {% if u.get_full_name %} — {{ u.get_full_name }}{% endif %}
+                    </li>
                     {% endfor %}
-                </tbody>
-            </table>
+                </ul>
+            </div>
+            {% endif %}
         </div>
     </div>
-    {% endif %}
 </div>
 {% endblock %}

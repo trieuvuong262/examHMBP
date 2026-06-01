@@ -1,0 +1,21 @@
+{% load humanize %}
+<div class="jp-eq-list-toolbar d-flex flex-wrap align-items-center gap-2">
+    {% if jp_can_edit_equipment or can_edit_equipment or can_edit %}
+    <a href="{% url 'equipment:device_add' %}" class="btn btn-hm btn-sm">
+        <i class="bi bi-plus-lg me-1"></i>Thêm thiết bị
+    </a>
+    <a href="{% url 'equipment:import_export_hub' %}" class="btn btn-dark btn-sm">
+        <i class="bi bi-upload me-1"></i>Nhập Excel
+    </a>
+    <a href="{% url 'equipment:category_add' %}" class="btn btn-outline-dark btn-sm">
+        <i class="bi bi-tag-fill me-1"></i>Thêm loại
+    </a>
+    {% endif %}
+    {% if jp_can_edit_equipment or can_edit_equipment or can_edit or jp_can_equipment or can_export %}
+    <a href="{% url 'equipment:export_devices' %}?{{ request.GET.urlencode }}"
+       class="btn btn-outline-hm btn-sm"
+       title="Xuất theo bộ lọc hiện tại">
+        <i class="bi bi-download me-1"></i>Xuất Excel{% if filtered_count %} ({{ filtered_count|intcomma }}){% endif %}
+    </a>
+    {% endif %}
+</div>
