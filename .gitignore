@@ -3,8 +3,19 @@
 scan_relay.env
 __pycache__/
 *.pyc
+*.pyo
 db.sqlite3
 staticfiles/
 media/
 .venv/
+venv/
 .codegraph/
+
+# Build artifacts & dev cookies
+build/
+dist/
+cookies*.txt
+*.pkg
+*.pyz
+*.toc
+base_library.zip

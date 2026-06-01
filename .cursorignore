@@ -1,0 +1,35 @@
+﻿# --- Runtime / local (khong can AI doc) ---
+.env
+.env.local
+scan_relay.env
+cookies*.txt
+db.sqlite3
+.venv/
+venv/
+
+# --- Upload & static build ---
+media/
+staticfiles/
+
+# --- Python cache ---
+__pycache__/
+*.py[cod]
+*.pyo
+
+# --- PyInstaller / binary ---
+build/
+dist/
+*.pkg
+*.pyz
+*.toc
+base_library.zip
+xref-*.html
+warn-JustPlayAgent.txt
+static/equipment/JustPlayAgent.exe
+
+# --- IDE / tooling ---
+.codegraph/
+.git/
+
+# --- Migrations bytecode ---
+**/migrations/__pycache__/
