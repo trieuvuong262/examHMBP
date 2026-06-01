@@ -56,22 +56,33 @@ class DeviceForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         from equipment.services.device_categories import categories_by_group, category_label
 
+        grouped = categories_by_group()
         choices: list[tuple[str, str]] = []
-        for _g, _label, items in categories_by_group():
+        for _g, _label, items in grouped:
             choices.extend(items)
 
+        current = ''
+        extra_option = None
         if self.instance and self.instance.pk and self.instance.category:
-            codes = {code for code, _name in choices}
-            if self.instance.category not in codes:
-                choices.insert(
-                    0,
-                    (self.instance.category, category_label(self.instance.category)),
-                )
+            current = self.instance.category
+            in_groups = any(
+                current == code for _g, _gl, items in grouped for code, _name in items
+            )
+            if not in_groups:
+                extra_option = (current, category_label(current))
 
-        self.fields['category'].widget = forms.Select(
-            attrs={'class': 'form-select', 'data-jp-category-select': '1'},
+        category_label_text = Device._meta.get_field('category').verbose_name
+        category_field = forms.ChoiceField(
+            choices=choices,
+            widget=forms.Select(attrs={'class': 'form-select', 'id': 'id_category'}),
+            required=True,
+            label=category_label_text,
+            initial=current or None,
         )
-        self.fields['category'].choices = choices
+        category_field.grouped_choices = grouped
+        category_field.extra_option = extra_option
+        self.fields['category'] = category_field
+
         self.fields['usage_department'].queryset = Department.objects.order_by('name')
         self.fields['usage_department'].required = False
 
