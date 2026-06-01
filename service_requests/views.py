@@ -12,6 +12,7 @@ from PortalJustPlay.pagination import paginate_queryset
 from tasks.attachment_utils import read_separate_uploads
 
 from .forms import (
+    DivisionHeadApproveForm,
     LineItemFormSet,
     PurchaseCompleteForm,
     RecurringItemCatalogForm,
@@ -32,6 +33,7 @@ from .permissions import (
     can_view_pricing,
     can_view_request,
     get_goods_receiver_candidates,
+    get_procurement_staff_candidates,
     pending_steps_for_user,
 )
 from .workflow import (
@@ -284,6 +286,9 @@ def request_detail(request, pk):
 
     action_form = StepActionForm()
     reject_form = RejectStepForm()
+    division_head_form = DivisionHeadApproveForm(
+        staff_queryset=get_procurement_staff_candidates(),
+    )
     purchase_form = PurchaseCompleteForm(
         receiver_queryset=get_goods_receiver_candidates(service_request),
     )
@@ -323,14 +328,33 @@ def request_detail(request, pk):
                 return redirect('service_requests:detail', pk=pk)
 
             if action == 'approve' and can_handle_current and current_step.is_approval:
-                action_form = StepActionForm(request.POST)
-                if action_form.is_valid():
-                    if not current_step.assignee_id:
-                        claim_step(current_step, actor=request.user)
-                        current_step.refresh_from_db()
-                    approve_step(current_step, actor=request.user, note=action_form.cleaned_data.get('note', ''))
-                    messages.success(request, 'Đã duyệt bước này.')
-                    return redirect('service_requests:detail', pk=pk)
+                if current_step.step_code == ServiceRequestStep.STEP_DIVISION_HEAD:
+                    division_head_form = DivisionHeadApproveForm(
+                        request.POST,
+                        staff_queryset=get_procurement_staff_candidates(),
+                    )
+                    if division_head_form.is_valid():
+                        if not current_step.assignee_id:
+                            claim_step(current_step, actor=request.user)
+                            current_step.refresh_from_db()
+                        approve_step(
+                            current_step,
+                            actor=request.user,
+                            note=division_head_form.cleaned_data.get('note', ''),
+                            procurement_assignee=division_head_form.cleaned_data['procurement_assignee'],
+                        )
+                        messages.success(request, 'Đã duyệt và chỉ định nhân viên Thu mua.')
+                        return redirect('service_requests:detail', pk=pk)
+                    messages.error(request, 'Vui lòng chọn nhân viên Thu mua xử lý.')
+                else:
+                    action_form = StepActionForm(request.POST)
+                    if action_form.is_valid():
+                        if not current_step.assignee_id:
+                            claim_step(current_step, actor=request.user)
+                            current_step.refresh_from_db()
+                        approve_step(current_step, actor=request.user, note=action_form.cleaned_data.get('note', ''))
+                        messages.success(request, 'Đã duyệt bước này.')
+                        return redirect('service_requests:detail', pk=pk)
 
             if action == 'reject' and can_handle_current and current_step.is_approval:
                 reject_form = RejectStepForm(request.POST)
@@ -416,6 +440,7 @@ def request_detail(request, pk):
         'show_pricing': show_pricing,
         'action_form': action_form,
         'reject_form': reject_form,
+        'division_head_form': division_head_form,
         'purchase_form': purchase_form,
         'pending_count': pending_steps_for_user(request.user).count(),
         'can_manage_catalog': can_manage_recurring_catalog(request.user),

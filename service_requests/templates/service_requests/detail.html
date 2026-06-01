@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static user_picker %}
 
 {% block content %}
 <div class="container jp-page py-3 py-md-4 mb-5">
@@ -168,6 +169,26 @@
                         <label class="form-label mt-2">{{ purchase_form.note.label }} <span class="text-danger">*</span></label>
                         {{ purchase_form.note }}
                         <button type="submit" class="btn btn-success w-100 mt-3">Ghi nhận đặt hàng</button>
+                    </form>
+                    {% elif can_handle_current and current_step.is_approval and current_step.step_code == 'division_head_approval' %}
+                    <form method="post" class="mb-3">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="approve">
+                        <label class="form-label">{{ division_head_form.procurement_assignee.label }} <span class="text-danger">*</span></label>
+                        {% user_picker field=division_head_form.procurement_assignee mode='single' placeholder='Chọn nhân viên Thu mua...' show_bulk_actions=False %}
+                        {% if division_head_form.procurement_assignee.errors %}
+                        <div class="text-danger small">{{ division_head_form.procurement_assignee.errors }}</div>
+                        {% endif %}
+                        <label class="form-label mt-2">{{ division_head_form.note.label }}</label>
+                        {{ division_head_form.note }}
+                        <button type="submit" class="btn btn-success w-100 mt-3">Duyệt &amp; giao Thu mua</button>
+                    </form>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="reject">
+                        <label class="form-label">Lý do từ chối <span class="text-danger">*</span></label>
+                        {{ reject_form.reason }}
+                        <button type="submit" class="btn btn-outline-danger w-100 mt-2">Từ chối</button>
                     </form>
                     {% elif can_handle_current and current_step.is_approval %}
                     <form method="post" class="mb-3">

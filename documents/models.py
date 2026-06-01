@@ -140,6 +140,9 @@ class Document(models.Model):
             base = slugify(self.title, allow_unicode=True) or 'tai-lieu'
             slug = base
             n = 1
+            while Document.objects.filter(category=self.category, slug=slug).exclude(pk=self.pk).exists():
+                slug = f'{base}-{n}'
+                n += 1
             self.slug = slug
         super().save(*args, **kwargs)
 

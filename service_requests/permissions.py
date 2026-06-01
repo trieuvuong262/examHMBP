@@ -128,6 +128,21 @@ def pending_steps_for_user(user):
     return qs.filter(filters).order_by('-request__created_at', 'step_order')
 
 
+def get_procurement_staff_candidates():
+    """Nhân viên Thu mua có quyền module Yêu cầu."""
+    dept = get_procurement_department()
+    if not dept:
+        return User.objects.none()
+    qs = User.objects.filter(
+        profile__department=dept,
+        profile__is_employed=True,
+        is_active=True,
+    ).select_related('profile').order_by('profile__full_name', 'username')
+    return qs.filter(
+        pk__in=[user.pk for user in qs if user_can_access_module(user, MODULE_SERVICE_REQUESTS)],
+    )
+
+
 def get_goods_receiver_candidates(request_obj: ServiceRequest):
     """Nhân viên có thể được gán nhận hàng — cùng phòng ban người gửi."""
     profile = get_profile(request_obj.requester)

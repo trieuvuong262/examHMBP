@@ -90,6 +90,24 @@ class StepActionForm(forms.Form):
     )
 
 
+class DivisionHeadApproveForm(forms.Form):
+    procurement_assignee = forms.ModelChoiceField(
+        queryset=User.objects.none(),
+        label='Nhân viên Thu mua xử lý',
+        widget=forms.Select(attrs={'class': 'form-select d-none jp-user-picker-native'}),
+    )
+    note = forms.CharField(
+        required=False,
+        label='Ghi chú duyệt',
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+    )
+
+    def __init__(self, *args, staff_queryset=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if staff_queryset is not None:
+            self.fields['procurement_assignee'].queryset = staff_queryset
+
+
 class RejectStepForm(forms.Form):
     reason = forms.CharField(
         required=True,

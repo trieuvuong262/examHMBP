@@ -116,11 +116,21 @@ class ServiceRequestWorkflowTests(TestCase):
         )
         req.refresh_from_db()
 
+    def _approve_division_head(self, req, *, buyer=None):
+        buyer = buyer or self.buyer
+        approve_step(
+            req.steps.get(step_code=ServiceRequestStep.STEP_DIVISION_HEAD),
+            actor=self.div_head,
+            procurement_assignee=buyer,
+            note='Đồng ý',
+        )
+        req.refresh_from_db()
+
     def _approve_through_quote(self, req, *, unit_price=Decimal('100000')):
         if req.steps.filter(step_code=ServiceRequestStep.STEP_TEAM_LEADER).exists():
             approve_step(req.steps.get(step_code=ServiceRequestStep.STEP_TEAM_LEADER), actor=self.team_leader)
         if req.steps.filter(step_code=ServiceRequestStep.STEP_DIVISION_HEAD).exists():
-            approve_step(req.steps.get(step_code=ServiceRequestStep.STEP_DIVISION_HEAD), actor=self.div_head)
+            self._approve_division_head(req)
         self._submit_quote(req, unit_price=unit_price)
 
     # --- Yêu cầu: Tổ trưởng duyệt nếu phòng có Tổ trưởng & người gửi là NV ---
@@ -156,6 +166,13 @@ class ServiceRequestWorkflowTests(TestCase):
         self.assertNotIn(ServiceRequestStep.STEP_TEAM_LEADER, codes)
         self.assertEqual(codes[0], ServiceRequestStep.STEP_DIVISION_HEAD)
 
+    def test_division_head_assigns_procurement_staff_on_approve(self):
+        req = self._create_request()
+        approve_step(req.steps.get(step_code=ServiceRequestStep.STEP_TEAM_LEADER), actor=self.team_leader)
+        self._approve_division_head(req)
+        quote = req.steps.get(step_code=ServiceRequestStep.STEP_PROCUREMENT_QUOTE)
+        self.assertEqual(quote.assignee, self.buyer)
+        self.assertEqual(quote.status, ServiceRequestStep.STATUS_IN_PROGRESS)
     # --- Yêu cầu: <2M → không cần KT/GĐ ---
 
     def test_low_amount_skips_accountant_after_quote(self):
@@ -265,7 +282,7 @@ class ServiceRequestWorkflowTests(TestCase):
             ],
         )
         approve_step(req.steps.get(step_code=ServiceRequestStep.STEP_TEAM_LEADER), actor=self.team_leader)
-        approve_step(req.steps.get(step_code=ServiceRequestStep.STEP_DIVISION_HEAD), actor=self.div_head)
+        self._approve_division_head(req)
 
         step = req.steps.get(step_code=ServiceRequestStep.STEP_PROCUREMENT_QUOTE)
         lines = list(req.line_items.all())

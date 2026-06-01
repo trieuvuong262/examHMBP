@@ -31,6 +31,40 @@ def load_environment() -> None:
         load_dotenv(local_env, override=True)
 
 
+def _normalize_csrf_origin(origin: str) -> str | None:
+    origin = (origin or "").strip().rstrip("/")
+    if not origin:
+        return None
+    if origin.startswith("http://") or origin.startswith("https://"):
+        return origin
+    return None
+
+
+def _host_csrf_origins(host: str) -> set[str]:
+    host = (host or "").strip()
+    if not host or host == "*":
+        return set()
+    origins = {f"http://{host}", f"https://{host}"}
+    if host.startswith("www."):
+        bare = host[4:]
+        origins.update({f"http://{bare}", f"https://{bare}"})
+    elif "." in host and not all(part.isdigit() for part in host.split(".")):
+        origins.update({f"http://www.{host}", f"https://www.{host}"})
+    return origins
+
+
+def build_csrf_trusted_origins(hosts, *, extra_from_env: str = "") -> list[str]:
+    """Sinh origin http/https từ ALLOWED_HOSTS + CSRF_TRUSTED_ORIGINS trong .env."""
+    origins: set[str] = set()
+    for raw in extra_from_env.split(","):
+        normalized = _normalize_csrf_origin(raw)
+        if normalized:
+            origins.add(normalized)
+    for host in hosts:
+        origins.update(_host_csrf_origins(host))
+    return sorted(origins)
+
+
 load_environment()
 
 # local = chạy máy dev | production = chạy Docker/VPS
@@ -67,6 +101,9 @@ allowed_hosts_env = os.getenv("ALLOWED_HOSTS", default_allowed_hosts)
 ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_env.split(",") if host.strip()]
 if PORTAL_DOMAIN and PORTAL_DOMAIN not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append(PORTAL_DOMAIN)
+www_domain = f"www.{PORTAL_DOMAIN}" if PORTAL_DOMAIN and not PORTAL_DOMAIN.startswith("www.") else ""
+if www_domain and www_domain not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(www_domain)
 
 if IS_LOCAL:
     default_csrf_origins = "http://127.0.0.1:8000,http://localhost:8000"
@@ -76,12 +113,10 @@ else:
         f"http://{PORTAL_DOMAIN},https://{PORTAL_DOMAIN}"
     )
 csrf_trusted_origins_env = os.getenv("CSRF_TRUSTED_ORIGINS", default_csrf_origins)
-CSRF_TRUSTED_ORIGINS = [
-    origin.strip() for origin in csrf_trusted_origins_env.split(",") if origin.strip()
-]
-for origin in (f"http://{PORTAL_DOMAIN}", f"https://{PORTAL_DOMAIN}"):
-    if PORTAL_DOMAIN and origin not in CSRF_TRUSTED_ORIGINS:
-        CSRF_TRUSTED_ORIGINS.append(origin)
+CSRF_TRUSTED_ORIGINS = build_csrf_trusted_origins(
+    ALLOWED_HOSTS,
+    extra_from_env=csrf_trusted_origins_env,
+)
 
 # Giới hạn dung lượng File Upload (Tối đa 10MB) để chống DoS
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024 
@@ -299,11 +334,13 @@ GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash')
 USE_HTTPS = env_bool('USE_HTTPS', False)
 
 if not DEBUG:
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SESSION_COOKIE_HTTPONLY = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
+    CSRF_COOKIE_SAMESITE = 'Lax'
+    SESSION_COOKIE_SAMESITE = 'Lax'
 
     if USE_HTTPS:
+        SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
         SESSION_COOKIE_SECURE = env_bool('SESSION_COOKIE_SECURE', True)
         CSRF_COOKIE_SECURE = env_bool('CSRF_COOKIE_SECURE', True)
         SECURE_SSL_REDIRECT = env_bool('SECURE_SSL_REDIRECT', True)
@@ -312,6 +349,7 @@ if not DEBUG:
         SECURE_HSTS_PRELOAD = env_bool('SECURE_HSTS_PRELOAD', False)
         SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin'
     else:
+        # HTTP — không đánh dấu cookie Secure, không ép HTTPS (tránh mất CSRF/session)
         SESSION_COOKIE_SECURE = False
         CSRF_COOKIE_SECURE = False
         SECURE_SSL_REDIRECT = False

@@ -457,15 +457,42 @@ def _complete_step(step, *, actor, note=''):
 
 
 @transaction.atomic
-def approve_step(step, *, actor, note=''):
+def approve_step(step, *, actor, note='', procurement_assignee=None):
     if step.status not in ServiceRequestStep.OPEN_HANDLER_STATUSES:
         raise ValueError('Bước không thể duyệt.')
+
+    if step.step_code == ServiceRequestStep.STEP_DIVISION_HEAD and not procurement_assignee:
+        raise ValueError('Vui lòng chỉ định nhân viên Thu mua xử lý.')
+
+    if procurement_assignee:
+        from .permissions import get_procurement_staff_candidates
+        if not get_procurement_staff_candidates().filter(pk=procurement_assignee.pk).exists():
+            raise ValueError('Nhân viên Thu mua không hợp lệ.')
 
     unlocked = _complete_step(step, actor=actor, note=note)
     request_obj = step.request
 
+    if step.step_code == ServiceRequestStep.STEP_DIVISION_HEAD:
+        for child in unlocked:
+            if child.step_code == ServiceRequestStep.STEP_PROCUREMENT_QUOTE:
+                child.assignee = procurement_assignee
+                child.status = ServiceRequestStep.STATUS_IN_PROGRESS
+                child.save(update_fields=['assignee', 'status'])
+                log_action(
+                    request_obj,
+                    actor=actor,
+                    action='assigned',
+                    message=f'Chỉ định Thu mua → {procurement_assignee.username}',
+                    step=child,
+                )
+
     if not _maybe_complete_request(request_obj, actor=actor):
         for child in unlocked:
+            if (
+                step.step_code == ServiceRequestStep.STEP_DIVISION_HEAD
+                and child.step_code == ServiceRequestStep.STEP_PROCUREMENT_QUOTE
+            ):
+                continue
             _log_step_opened(request_obj, actor, child)
 
     return request_obj
