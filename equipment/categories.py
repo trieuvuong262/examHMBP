@@ -301,7 +301,7 @@ def sample_row_for_category(code: str) -> dict:
     if code in SAMPLE_ROWS:
         return dict(SAMPLE_ROWS[code])
     profile = import_profile_for_category(code)
-    label = category_map().get(code, code)
+    label = CATEGORY_MAP.get(code, code)
     row = {
         'name': f'Ví dụ: {label}',
         'managed_by': 'MAINTENANCE' if profile == 'machine' else 'IT',

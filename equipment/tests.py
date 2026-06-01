@@ -492,6 +492,14 @@ class DeviceImportExportTests(TestCase):
         self.assertEqual(device.category, 'SEW_LOCKSTITCH')
         self.assertEqual(device.managed_by, Device.MANAGED_MAINTENANCE)
 
+    def test_build_sample_dataframe_for_sample_room_category(self):
+        from equipment.services.import_export import build_sample_dataframe
+
+        df = build_sample_dataframe('SAMPLE_SEW')
+        self.assertEqual(len(df), 1)
+        self.assertIn('Tên thiết bị', df.columns)
+        self.assertIn('Máy may mẫu', str(df.iloc[0]['Tên thiết bị']))
+
     def test_export_respects_category_filter(self):
         from equipment.models import Device
         from equipment.services.import_export import devices_to_dataframe
@@ -518,6 +526,15 @@ class ImportExportHubViewTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'Tải file mẫu Excel')
         self.assertContains(resp, 'SEW_LOCKSTITCH')
+
+    def test_download_sample_for_category_without_preset_row(self):
+        resp = self.client.get('/thiet-bi/file-mau/?category=SAMPLE_SEW')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.content)
+        self.assertEqual(
+            resp['Content-Type'],
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
 
     def test_export_from_device_list_filters(self):
         from equipment.models import Device

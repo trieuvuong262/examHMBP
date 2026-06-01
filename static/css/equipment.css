@@ -70,6 +70,11 @@
     padding-top: 0;
 }
 
+.jp-eq-category-menu .form-check {
+    padding: 0.35rem 0.75rem 0.35rem 2rem;
+    margin: 0;
+}
+
 .jp-eq-category-menu .jp-category-search {
     border-radius: 0.35rem;
 }
@@ -78,11 +83,6 @@
     top: 0;
     z-index: 2;
     padding-top: 0.5rem;
-}
-
-.jp-eq-category-menu .form-check {
-    padding: 0.35rem 0.75rem 0.35rem 2rem;
-    margin: 0;
 }
 
 .jp-eq-category-menu .form-check:hover {
