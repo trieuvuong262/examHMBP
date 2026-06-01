@@ -131,18 +131,34 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-1">
-                        <button type="submit" class="btn btn-hm btn-sm w-100">Lọc</button>
-                    </div>
-                </div>
-                <div class="row g-2 align-items-end mt-2">
-                    <div class="col-md-4">
-                        <label class="form-label small text-muted">Loại thiết bị (Ctrl+click chọn nhiều)</label>
-                        <select name="category" class="form-select form-select-sm" multiple size="3">
-                            {% for val, label in category_choices %}
-                            <option value="{{ val }}" {% if val in current_categories %}selected{% endif %}>{{ label }}</option>
-                            {% endfor %}
-                        </select>
+                    <div class="col-md-2">
+                        <label class="form-label small text-muted">Loại thiết bị</label>
+                        <div class="dropdown jp-eq-category-filter w-100">
+                            <button type="button"
+                                    class="btn btn-outline-secondary btn-sm dropdown-toggle w-100"
+                                    data-bs-toggle="dropdown"
+                                    data-bs-auto-close="outside"
+                                    aria-expanded="false"
+                                    id="categoryFilterBtn">
+                                <span id="categoryFilterLabel">Tất cả loại</span>
+                            </button>
+                            <div class="dropdown-menu jp-eq-category-menu shadow-sm">
+                                {% for val, label in category_choices %}
+                                <div class="form-check">
+                                    <input class="form-check-input jp-category-check"
+                                           type="checkbox"
+                                           name="category"
+                                           value="{{ val }}"
+                                           id="cat-{{ val }}"
+                                           {% if val in current_categories %}checked{% endif %}>
+                                    <label class="form-check-label" for="cat-{{ val }}">{{ label }}</label>
+                                </div>
+                                {% endfor %}
+                                <div class="border-top mt-1 pt-1 px-2 d-flex gap-1">
+                                    <button type="button" class="btn btn-link btn-sm p-0" id="categoryClearBtn">Bỏ chọn</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="col-md-2">
                         <label class="form-label small text-muted">Mạng</label>
@@ -160,7 +176,12 @@
                             <option value="price_desc" {% if current_sort == 'price_desc' %}selected{% endif %}>Giá cao → thấp</option>
                         </select>
                     </div>
-                    <div class="col-md-4 text-md-end">
+                    <div class="col-md-1">
+                        <button type="submit" class="btn btn-hm btn-sm w-100">Lọc</button>
+                    </div>
+                </div>
+                <div class="row g-2 align-items-end mt-2">
+                    <div class="col-md-12 text-md-end">
                         <a href="{% url 'equipment:device_list' %}" class="btn btn-outline-secondary btn-sm">Xóa bộ lọc</a>
                     </div>
                 </div>
@@ -187,73 +208,84 @@
         <input type="hidden" name="scan_pass" id="hiddenScanPass">
 
         {% if page_obj %}
-        <div class="jp-eq-device-grid mb-3">
-            {% for device in page_obj %}
-            <article class="jp-eq-device-card" data-status="{{ device.status }}">
-                <div class="jp-eq-card-body">
-                    {% if can_edit %}
-                    <div class="form-check position-absolute" style="margin-top:-2px">
-                        <input class="form-check-input device-checkbox" type="checkbox" name="device_ids" value="{{ device.id }}" id="dev-{{ device.id }}">
-                    </div>
-                    {% endif %}
-                    <div class="jp-eq-card-top{% if can_edit %} ps-4{% endif %}">
-                        {% if device.qr_code %}
-                        <img src="{{ device.qr_code.url }}" alt="" class="jp-eq-qr-thumb" loading="lazy">
-                        {% else %}
-                        <div class="jp-eq-qr-placeholder" title="Chưa có tem QR"><i class="bi bi-qr-code"></i></div>
-                        {% endif %}
-                        <div class="flex-grow-1 min-w-0">
-                            <div class="jp-eq-device-name text-truncate">{{ device.name }}</div>
-                            <div class="d-flex flex-wrap gap-1">
-                                <span class="badge bg-light text-dark border">{{ device.get_category_display }}</span>
-                                <span class="badge bg-light text-secondary border">{{ device.get_managed_by_display }}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="jp-eq-meta-row">
-                        {% if device.hostname or device.ip_address %}
-                        <span>
-                            {% if device.last_scan_date %}
-                            <span class="jp-eq-online-dot {% if device.is_online %}on{% else %}off{% endif %}"></span>
+        <div class="card border-0 shadow-sm overflow-hidden">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 jp-eq-table">
+                    <thead class="table-light">
+                        <tr>
+                            {% if can_edit %}
+                            <th style="width:36px" class="text-center">
+                                <input class="form-check-input" type="checkbox" id="selectAll" aria-label="Chọn tất cả">
+                            </th>
                             {% endif %}
-                            {{ device.hostname|default:"—" }}
-                        </span>
-                        <span class="font-monospace">{{ device.ip_address|default:"" }}</span>
-                        {% endif %}
-                        {% if device.serial_number %}
-                        <span>S/N {{ device.serial_number|truncatechars:18 }}</span>
-                        {% endif %}
-                    </div>
-                    <div class="jp-eq-meta-row">
-                        <span><i class="bi bi-building me-1"></i>{{ device.usage_department_label }}</span>
-                        {% if device.assigned_user_label and device.assigned_user_label != "—" %}
-                        <span><i class="bi bi-person me-1"></i>{{ device.assigned_user_label }}</span>
-                        {% endif %}
-                    </div>
-                </div>
-                <div class="jp-eq-card-footer">
-                    <span class="jp-eq-status-pill {{ device.status }}">{{ device.get_status_display }}</span>
-                    <div class="d-flex gap-1">
-                        {% if device.qr_code %}
-                        <a href="{{ device.qr_code.url }}" download class="btn btn-sm btn-outline-secondary" title="Tải tem QR"><i class="bi bi-download"></i></a>
-                        {% endif %}
-                        <a href="{% url 'equipment:device_detail_manage' device.id %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
-                    </div>
-                </div>
-            </article>
-            {% endfor %}
+                            <th style="width:48px">QR</th>
+                            <th>Thiết bị</th>
+                            <th>Loại</th>
+                            <th>Kỹ thuật</th>
+                            <th>Phòng ban / NSD</th>
+                            <th>Trạng thái</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for device in page_obj %}
+                        <tr>
+                            {% if can_edit %}
+                            <td class="text-center">
+                                <input class="form-check-input device-checkbox" type="checkbox" name="device_ids" value="{{ device.id }}">
+                            </td>
+                            {% endif %}
+                            <td class="jp-eq-qr-cell text-center">
+                                {% if device.qr_code %}
+                                <a href="{{ device.qr_code.url }}" download title="Tải tem QR">
+                                    <img src="{{ device.qr_code.url }}" alt="">
+                                </a>
+                                {% else %}
+                                <span class="text-muted small">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'equipment:device_detail_manage' device.id %}" class="fw-semibold text-decoration-none">{{ device.name }}</a>
+                                <div class="small text-muted">{{ device.get_managed_by_display }}{% if device.serial_number %} · S/N {{ device.serial_number|truncatechars:20 }}{% endif %}</div>
+                            </td>
+                            <td><span class="badge bg-light text-dark border">{{ device.get_category_display }}</span></td>
+                            <td class="small">
+                                {% if device.hostname or device.ip_address %}
+                                <div>
+                                    {% if device.last_scan_date %}
+                                    <span class="jp-eq-online-dot {% if device.is_online %}on{% else %}off{% endif %}"></span>
+                                    {% endif %}
+                                    {{ device.hostname|default:"—" }}
+                                </div>
+                                <div class="text-muted font-monospace">{{ device.ip_address|default:"" }}</div>
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="small">
+                                <div>{{ device.usage_department_label }}</div>
+                                {% if device.assigned_user_label and device.assigned_user_label != "—" %}
+                                <div class="text-muted">{{ device.assigned_user_label }}</div>
+                                {% endif %}
+                            </td>
+                            <td><span class="jp-eq-status-pill {{ device.status }}">{{ device.get_status_display }}</span></td>
+                            <td class="text-end text-nowrap">
+                                <a href="{% url 'equipment:device_detail_manage' device.id %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if page_obj.has_other_pages %}
+            <div class="card-footer bg-white border-top py-3">
+                {% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string %}
+            </div>
+            {% endif %}
         </div>
         {% else %}
         <div class="card border-0 shadow-sm">
             <div class="card-body text-center text-muted py-5">Không tìm thấy thiết bị.</div>
-        </div>
-        {% endif %}
-
-        {% if page_obj.has_other_pages %}
-        <div class="card border-0 shadow-sm">
-            <div class="card-body py-3">
-                {% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string %}
-            </div>
         </div>
         {% endif %}
     </form>
@@ -356,6 +388,39 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+(function () {
+    var categoryChecks = document.querySelectorAll('.jp-category-check');
+    var categoryLabel = document.getElementById('categoryFilterLabel');
+    var categoryClear = document.getElementById('categoryClearBtn');
+
+    function updateCategoryLabel() {
+        if (!categoryLabel) return;
+        var selected = Array.prototype.filter.call(categoryChecks, function (el) { return el.checked; });
+        if (!selected.length) {
+            categoryLabel.textContent = 'Tất cả loại';
+            return;
+        }
+        if (selected.length === 1) {
+            var lbl = selected[0].closest('.form-check');
+            categoryLabel.textContent = lbl ? lbl.querySelector('.form-check-label').textContent.trim() : '1 loại';
+            return;
+        }
+        categoryLabel.textContent = selected.length + ' loại đã chọn';
+    }
+
+    categoryChecks.forEach(function (cb) {
+        cb.addEventListener('change', updateCategoryLabel);
+    });
+    if (categoryClear) {
+        categoryClear.addEventListener('click', function () {
+            categoryChecks.forEach(function (cb) { cb.checked = false; });
+            updateCategoryLabel();
+        });
+    }
+    updateCategoryLabel();
+})();
+</script>
 {% if can_edit %}
 <script>
 (function () {

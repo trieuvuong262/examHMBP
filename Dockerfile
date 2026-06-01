@@ -14,6 +14,8 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     libcairo2-dev \
     rclone \
+    fonts-dejavu-core \
+    fonts-noto-core \
     && rm -rf /var/lib/apt/lists/*
 
 # Cài đặt requirements

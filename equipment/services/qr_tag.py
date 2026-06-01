@@ -4,6 +4,7 @@ import io
 import os
 import time
 from datetime import datetime
+from pathlib import Path
 
 import qrcode
 from django.conf import settings
@@ -29,18 +30,42 @@ def device_public_url(device_id) -> str:
     return f'{base}/thiet-bi/qr/{device_id}/'
 
 
+def _font_search_paths(*filenames: str):
+    base = Path(getattr(settings, 'BASE_DIR', Path.cwd()))
+    dirs = [
+        base / 'static' / 'fonts',
+        Path('/usr/share/fonts/truetype/noto'),
+        Path('/usr/share/fonts/truetype/dejavu'),
+        Path('C:/Windows/Fonts'),
+    ]
+    for directory in dirs:
+        for name in filenames:
+            candidate = directory / name
+            if candidate.is_file():
+                yield candidate
+
+
+def _load_font(size: int, *, bold: bool = False) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    if bold:
+        names = ('NotoSans-Bold.ttf', 'DejaVuSans-Bold.ttf', 'arialbd.ttf', 'segoeuib.ttf')
+    else:
+        names = ('NotoSans-Regular.ttf', 'DejaVuSans.ttf', 'arial.ttf', 'segoeui.ttf')
+    for path in _font_search_paths(*names):
+        try:
+            return ImageFont.truetype(str(path), size)
+        except OSError:
+            continue
+    return ImageFont.load_default()
+
+
 def _load_fonts():
-    try:
-        return (
-            ImageFont.truetype('arialbd.ttf', 22),
-            ImageFont.truetype('arialbd.ttf', 30),
-            ImageFont.truetype('arial.ttf', 20),
-            ImageFont.truetype('arial.ttf', 16),
-            ImageFont.truetype('arialbd.ttf', 14),
-        )
-    except OSError:
-        default = ImageFont.load_default()
-        return default, default, default, default, default
+    return (
+        _load_font(22, bold=True),
+        _load_font(28, bold=True),
+        _load_font(19),
+        _load_font(15),
+        _load_font(13, bold=True),
+    )
 
 
 def _format_handover_date(value) -> str:
@@ -55,7 +80,6 @@ def _format_handover_date(value) -> str:
 
 
 def _draw_rounded_rect(draw, xy, radius, fill=None, outline=None, width=1):
-    x0, y0, x1, y1 = xy
     draw.rounded_rectangle(xy, radius=radius, fill=fill, outline=outline, width=width)
 
 
