@@ -471,3 +471,33 @@ class ImportExportHubViewTests(TestCase):
             resp['Content-Type'],
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         )
+
+
+class DeviceFormSaveTests(TestCase):
+    def test_save_with_assigned_user_regenerates_qr(self):
+        from django.contrib.auth import get_user_model
+
+        from equipment.forms import DeviceForm
+        from equipment.models import Device
+
+        User = get_user_model()
+        user = User.objects.create_user(username='equser', password='x')
+        device = Device.objects.create(name='Máy may A', category='PC', status=Device.STATUS_ACTIVE)
+        form = DeviceForm(
+            {
+                'name': 'Máy may A (mới)',
+                'managed_by': Device.MANAGED_IT,
+                'category': 'PC',
+                'status': Device.STATUS_ACTIVE,
+                'quantity': 1,
+                'unit_price': 0,
+                'assigned_user': user.pk,
+            },
+            instance=device,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+        device.refresh_from_db()
+        self.assertEqual(device.name, 'Máy may A (mới)')
+        self.assertEqual(device.assigned_user_id, user.pk)
+        self.assertTrue(device.qr_code)

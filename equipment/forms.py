@@ -1,8 +1,18 @@
 from django import forms
+from django.contrib.auth import get_user_model
 
-from hrm.models import Department, Profile
+from hrm.models import Department
 
 from .models import Device, DeviceCategory
+
+User = get_user_model()
+
+
+def _user_display(user) -> str:
+    profile = getattr(user, 'profile', None)
+    if profile and profile.full_name:
+        return profile.full_name
+    return user.get_full_name() or user.username
 
 
 class DeviceForm(forms.ModelForm):
@@ -62,9 +72,12 @@ class DeviceForm(forms.ModelForm):
         self.fields['category'].choices = choices
         self.fields['usage_department'].queryset = Department.objects.order_by('name')
         self.fields['usage_department'].required = False
-        self.fields['assigned_user'].queryset = Profile.objects.filter(
-            is_employed=True,
-        ).select_related('user').order_by('full_name')
+        self.fields['assigned_user'].queryset = (
+            User.objects.filter(profile__is_employed=True)
+            .select_related('profile')
+            .order_by('profile__full_name', 'username')
+        )
+        self.fields['assigned_user'].label_from_instance = _user_display
         self.fields['assigned_user'].required = False
 
 
