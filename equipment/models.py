@@ -4,6 +4,7 @@ import uuid
 from django.conf import settings
 from django.db import models
 
+from equipment.categories import DEVICE_CATEGORY_CHOICES as CATEGORY_CHOICES
 from equipment.services.qr_tag import generate_asset_tag, remove_old_qr_file, should_redraw_tag
 
 
@@ -15,18 +16,6 @@ class Device(models.Model):
         (MANAGED_IT, 'IT / CNTT'),
         (MANAGED_MAINTENANCE, 'Bảo trì xưởng'),
         (MANAGED_OTHER, 'Khác'),
-    ]
-
-    CATEGORY_CHOICES = [
-        ('PC', 'Máy tính bàn (PC)'),
-        ('Laptop', 'Laptop'),
-        ('Printer', 'Máy in'),
-        ('Network', 'Server / Thiết bị mạng'),
-        ('Internet', 'Internet / Đường truyền'),
-        ('Production', 'Máy sản xuất'),
-        ('Tool', 'Dụng cụ / thiết bị xưởng'),
-        ('CCTV', 'Camera (CCTV)'),
-        ('Other', 'Khác'),
     ]
 
     STATUS_NEW = 'new'

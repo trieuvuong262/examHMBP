@@ -397,3 +397,50 @@ class AgentInstallFlowTests(TestCase):
         self.assertContains(resp, 'Xác nhận')
         self.assertNotContains(resp, 'Hướng dẫn cài (3 bước)')
         self.assertNotContains(resp, 'Tải file cài')
+
+
+class DeviceCategoryTests(SimpleTestCase):
+    def test_category_count_excludes_utilities_and_hr(self):
+        from equipment.categories import CATEGORY_CHOICES, CATEGORY_GROUP_LABELS
+
+        codes = {c for c, _l, _g in CATEGORY_CHOICES}
+        self.assertIn('SEW_LOCKSTITCH', codes)
+        self.assertIn('PC', codes)
+        self.assertNotIn('utilities', CATEGORY_GROUP_LABELS)
+        self.assertNotIn('hr', CATEGORY_GROUP_LABELS)
+
+    def test_normalize_category_alias(self):
+        from equipment.categories import normalize_category
+
+        self.assertEqual(normalize_category('Máy tính bàn'), 'PC')
+        self.assertEqual(normalize_category('SEW_LOCKSTITCH'), 'SEW_LOCKSTITCH')
+
+
+class DeviceImportExportTests(TestCase):
+    def test_import_sewing_machine_from_sample(self):
+        import io
+
+        from equipment.models import Device
+        from equipment.services.import_export import build_sample_dataframe, import_devices_from_excel
+
+        df = build_sample_dataframe('SEW_LOCKSTITCH')
+        buf = io.BytesIO()
+        df.to_excel(buf, index=False)
+        buf.seek(0)
+        count, errors = import_devices_from_excel(buf, 'SEW_LOCKSTITCH')
+        self.assertEqual(count, 1)
+        self.assertEqual(errors, [])
+        device = Device.objects.get()
+        self.assertEqual(device.category, 'SEW_LOCKSTITCH')
+        self.assertEqual(device.managed_by, Device.MANAGED_MAINTENANCE)
+
+    def test_export_respects_category_filter(self):
+        from equipment.models import Device
+        from equipment.services.import_export import devices_to_dataframe
+
+        Device.objects.create(name='PC A', category='PC', status=Device.STATUS_ACTIVE)
+        Device.objects.create(name='May B', category='SEW_LOCKSTITCH', status=Device.STATUS_ACTIVE)
+        qs = Device.objects.filter(category='SEW_LOCKSTITCH')
+        df = devices_to_dataframe(qs)
+        self.assertEqual(len(df), 1)
+        self.assertIn('Máy may 1 kim', df.iloc[0]['Loại thiết bị'])

@@ -40,8 +40,7 @@
             {% endif %}
             {% if can_edit %}
             <a href="{% url 'equipment:import_devices' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-upload me-1"></i>Nhập Excel</a>
-            <a href="{% url 'equipment:download_sample' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-file-earmark me-1"></i>File mẫu</a>
-            <a href="{% url 'equipment:export_devices' %}" class="btn btn-outline-hm btn-sm"><i class="bi bi-download me-1"></i>Xuất Excel</a>
+            <a href="{% url 'equipment:export_devices' %}?{{ request.GET.urlencode }}" class="btn btn-outline-hm btn-sm" title="Xuất theo bộ lọc hiện tại"><i class="bi bi-download me-1"></i>Xuất Excel</a>
             {% endif %}
         </div>
     </div>
@@ -143,8 +142,10 @@
                                 <span id="categoryFilterLabel">Tất cả loại</span>
                             </button>
                             <div class="dropdown-menu jp-eq-category-menu shadow-sm">
-                                {% for val, label in category_choices %}
-                                <div class="form-check">
+                                {% for group_code, group_label, items in category_groups %}
+                                <div class="px-2 py-1 small fw-bold text-muted">{{ group_label }}</div>
+                                {% for val, label in items %}
+                                <div class="form-check ms-2">
                                     <input class="form-check-input jp-category-check"
                                            type="checkbox"
                                            name="category"
@@ -153,6 +154,8 @@
                                            {% if val in current_categories %}checked{% endif %}>
                                     <label class="form-check-label" for="cat-{{ val }}">{{ label }}</label>
                                 </div>
+                                {% endfor %}
+                                {% if not forloop.last %}<div class="dropdown-divider my-1"></div>{% endif %}
                                 {% endfor %}
                                 <div class="border-top mt-1 pt-1 px-2 d-flex gap-1">
                                     <button type="button" class="btn btn-link btn-sm p-0" id="categoryClearBtn">Bỏ chọn</button>

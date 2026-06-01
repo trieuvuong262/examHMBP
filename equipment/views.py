@@ -1,7 +1,6 @@
 import json
 from datetime import date
 
-import pandas as pd
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -19,8 +18,20 @@ from hrm.module_permissions import MODULE_EQUIPMENT, user_can_access_module, use
 from PortalJustPlay.list_search import apply_term_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
+from equipment.categories import (
+    CATEGORY_CHOICES_BY_GROUP,
+    CATEGORY_MAP,
+    import_columns_for_category,
+)
+
 from .forms import DeviceForm, ReportIssueForm
 from .models import Device, MaintenanceLog
+from .services.import_export import (
+    apply_device_list_filters,
+    build_sample_dataframe,
+    export_devices_excel,
+    import_devices_from_excel,
+)
 from .services.wmi_scan import (
     apply_probe_payload_to_device,
     discover_device_from_ip,
@@ -344,6 +355,7 @@ def device_list(request):
         'existing_depts': existing_depts,
         'managed_choices': Device.MANAGED_CHOICES,
         'category_choices': Device.CATEGORY_CHOICES,
+        'category_groups': CATEGORY_CHOICES_BY_GROUP,
         'status_choices': Device.STATUS_CHOICES,
         'can_edit': user_can_edit_module(request.user, MODULE_EQUIPMENT),
         'scan_available': is_scan_available(),
@@ -503,147 +515,86 @@ def device_history(request, device_id):
 
 @_access_required
 def export_devices(request):
-    if not user_can_edit_module(request.user, MODULE_EQUIPMENT):
-        messages.error(request, 'Bạn không có quyền xuất dữ liệu.')
+    qs = apply_device_list_filters(
+        Device.objects.select_related('usage_department', 'assigned_user__profile'),
+        request.GET,
+    )
+    count = qs.count()
+    if count == 0:
+        messages.warning(request, 'Không có thiết bị nào để xuất (theo bộ lọc hiện tại).')
         return redirect('equipment:device_list')
 
-    rows = Device.objects.all().values(
-        'name', 'managed_by', 'category', 'status',
-        'usage_department_text', 'usage_room', 'assigned_user_text', 'contact_email',
-        'handover_date', 'model_number', 'serial_number', 'configuration', 'description',
-        'hostname', 'ip_address', 'is_online', 'quantity', 'unit_price', 'total_price',
+    buffer = export_devices_excel(qs)
+    stamp = timezone.now().strftime('%Y%m%d_%H%M')
+    filename = f'thiet_bi_justplay_{count}_{stamp}.xlsx'
+    response = HttpResponse(
+        buffer.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
-    df = pd.DataFrame(list(rows))
-    if not df.empty and 'is_online' in df.columns:
-        df['is_online'] = df['is_online'].apply(lambda x: 'Online' if x else 'Offline')
-    if not df.empty and 'handover_date' in df.columns:
-        df['handover_date'] = df['handover_date'].astype(str).replace('NaT', '')
-
-    rename_map = {
-        'name': 'Tên thiết bị',
-        'managed_by': 'Bộ phận QL',
-        'category': 'Loại',
-        'status': 'Trạng thái',
-        'usage_department_text': 'Phòng ban sử dụng',
-        'usage_room': 'Phòng / vị trí',
-        'assigned_user_text': 'Người dùng',
-        'contact_email': 'Email liên hệ',
-        'handover_date': 'Ngày bàn giao',
-        'model_number': 'Model',
-        'serial_number': 'Serial Number',
-        'configuration': 'Cấu hình',
-        'description': 'Mô tả',
-        'hostname': 'Hostname',
-        'ip_address': 'Địa chỉ IP',
-        'is_online': 'Trạng thái mạng',
-        'quantity': 'Số lượng',
-        'unit_price': 'Đơn giá',
-        'total_price': 'Thành tiền',
-    }
-    df.rename(columns=rename_map, inplace=True)
-
-    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = 'attachment; filename=danh_sach_thiet_bi_justplay.xlsx'
-    df.to_excel(response, index=False)
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
 
 
 @_edit_required
 def download_sample(request):
-    sample = {
-        'name': ['Máy tính Dell OptiPlex 3080'],
-        'managed_by': ['IT'],
-        'category': ['PC'],
-        'status': ['active'],
-        'usage_department_text': ['Phòng Sản xuất'],
-        'usage_room': ['Line 2'],
-        'assigned_user_text': ['Nguyễn Văn A'],
-        'contact_email': ['user@justplay.vn'],
-        'handover_date': ['2025-01-15'],
-        'model_number': ['Dell-3080-SFF'],
-        'serial_number': ['CN-0X1234'],
-        'configuration': ['Core i5, RAM 16GB, SSD 512GB'],
-        'description': ['Máy cấp mới đợt 1'],
-        'hostname': ['PC-SX-01'],
-        'ip_address': ['192.168.1.15'],
-        'is_online': ['Online'],
-        'quantity': [1],
-        'unit_price': [15000000],
-    }
-    df = pd.DataFrame(sample)
+    category = (request.GET.get('category') or 'PC').strip()
+    if category not in CATEGORY_MAP:
+        messages.error(request, 'Loại thiết bị không hợp lệ.')
+        return redirect('equipment:import_devices')
+
+    df = build_sample_dataframe(category)
+    label = CATEGORY_MAP.get(category, category).replace('/', '-')
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = 'attachment; filename=file_mau_thiet_bi_justplay.xlsx'
+    response['Content-Disposition'] = f'attachment; filename="mau_{category}_{label[:30]}.xlsx"'
     df.to_excel(response, index=False)
     return response
-
-
-def _parse_excel_date(value):
-    if value is None or (isinstance(value, float) and pd.isna(value)):
-        return None
-    if hasattr(value, 'date'):
-        return value.date()
-    text = str(value).strip()
-    if not text or text.lower() == 'nat':
-        return None
-    for fmt in ('%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y'):
-        try:
-            from datetime import datetime
-            return datetime.strptime(text[:10], fmt).date()
-        except ValueError:
-            continue
-    return None
 
 
 @_edit_required
 @require_http_methods(['GET', 'POST'])
 def import_devices(request):
+    selected_category = (request.GET.get('category') or request.POST.get('category') or 'PC').strip()
+    if selected_category not in CATEGORY_MAP:
+        selected_category = 'PC'
+
+    import_columns = import_columns_for_category(selected_category)
+
     if request.method == 'GET':
-        return render(request, 'equipment/import.html', {**_subnav_context(request)})
+        return render(request, 'equipment/import.html', {
+            'category_groups': CATEGORY_CHOICES_BY_GROUP,
+            'selected_category': selected_category,
+            'selected_category_label': CATEGORY_MAP.get(selected_category, selected_category),
+            'import_columns': import_columns,
+            **_subnav_context(request),
+        })
 
     excel_file = request.FILES.get('excel_file')
+    category = (request.POST.get('category') or selected_category).strip()
     if not excel_file:
         messages.error(request, 'Vui lòng chọn file Excel.')
+        return redirect(f'{reverse("equipment:import_devices")}?category={category}')
+    if category not in CATEGORY_MAP:
+        messages.error(request, 'Loại thiết bị không hợp lệ.')
         return redirect('equipment:import_devices')
 
     try:
-        df = pd.read_excel(excel_file)
-        df = df.replace({pd.NA: None})
-        count = 0
-        for _, row in df.iterrows():
-            name = row.get('name') or row.get('Tên thiết bị')
-            if not name or (isinstance(name, float) and pd.isna(name)):
-                continue
-            handover_raw = row.get('handover_date') or row.get('Ngày bàn giao')
-            Device.objects.create(
-                name=str(name).strip(),
-                managed_by=row.get('managed_by') or row.get('Bộ phận QL') or Device.MANAGED_IT,
-                category=row.get('category') or row.get('Loại') or 'PC',
-                status=row.get('status') or row.get('Trạng thái') or Device.STATUS_NEW,
-                usage_department_text=str(
-                    row.get('usage_department_text')
-                    or row.get('usage_department')
-                    or row.get('Phòng ban sử dụng')
-                    or ''
-                ),
-                usage_room=str(row.get('usage_room') or row.get('Phòng / vị trí') or ''),
-                assigned_user_text=str(
-                    row.get('assigned_user_text') or row.get('user') or row.get('Người dùng') or ''
-                ),
-                contact_email=row.get('contact_email') or row.get('Email liên hệ') or '',
-                handover_date=_parse_excel_date(handover_raw),
-                model_number=str(row.get('model_number') or row.get('Model') or ''),
-                serial_number=str(row.get('serial_number') or row.get('Serial Number') or ''),
-                configuration=str(row.get('configuration') or row.get('Cấu hình') or ''),
-                description=str(row.get('description') or row.get('Mô tả') or ''),
-                hostname=str(row.get('hostname') or row.get('Hostname') or ''),
-                ip_address=row.get('ip_address') or row.get('Địa chỉ IP') or None,
-                quantity=int(row.get('quantity') or row.get('Số lượng') or 1),
-                unit_price=int(row.get('unit_price') or row.get('Đơn giá') or 0),
+        count, errors = import_devices_from_excel(excel_file, category)
+        if count:
+            messages.success(
+                request,
+                f'Đã nhập {count} thiết bị loại «{CATEGORY_MAP.get(category, category)}».',
             )
-            count += 1
-        messages.success(request, f'Đã nhập {count} thiết bị.')
+        if errors:
+            preview = '; '.join(errors[:5])
+            if len(errors) > 5:
+                preview += f' … (+{len(errors) - 5} lỗi)'
+            messages.warning(request, f'Một số dòng bị bỏ qua: {preview}')
+        if not count and not errors:
+            messages.warning(request, 'Không có dòng dữ liệu hợp lệ trong file.')
     except Exception as exc:
         messages.error(request, f'Lỗi đọc file: {exc}')
+        return redirect(f'{reverse("equipment:import_devices")}?category={category}')
+
     return redirect('equipment:device_list')
 
 
