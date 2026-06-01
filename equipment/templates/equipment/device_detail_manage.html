@@ -1,4 +1,9 @@
 {% extends 'base.html' %}
+{% load static %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/equipment.css' %}">
+{% endblock %}
 
 {% block content %}
 <div class="container jp-page py-3 py-md-4 mb-5">
@@ -94,15 +99,36 @@
             {% endif %}
         </div>
         <div class="col-lg-5">
-            <div class="card border-0 shadow-sm text-center">
-                <div class="card-header bg-white fw-bold">Tem QR</div>
-                <div class="card-body">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-qr-code me-1"></i>Tem QR</span>
                     {% if device.qr_code %}
-                    <img src="{{ device.qr_code.url }}" alt="QR {{ device.name }}" class="img-fluid mb-3" style="max-height:220px">
-                    <p class="small text-muted mb-2">Quét tem hoặc mở link công khai để báo hỏng.</p>
-                    <a href="{% url 'equipment:device_qr_public' device.id %}" class="btn btn-sm btn-outline-hm" target="_blank">Trang báo hỏng</a>
+                    <a href="{{ device.qr_code.url }}" download class="btn btn-sm btn-outline-hm">
+                        <i class="bi bi-download me-1"></i>Tải PNG
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="card-body text-center">
+                    {% if device.qr_code %}
+                    <div class="jp-eq-qr-preview mb-3">
+                        <img src="{{ device.qr_code.url }}" alt="Tem QR {{ device.name }}">
+                    </div>
+                    <p class="small text-muted mb-3">In tem dán thiết bị — quét mã để báo hỏng nhanh cho IT.</p>
+                    <div class="d-flex flex-wrap gap-2 justify-content-center">
+                        <a href="{% url 'equipment:device_qr_public' device.id %}" class="btn btn-sm btn-hm" target="_blank">
+                            <i class="bi bi-box-arrow-up-right me-1"></i>Trang báo hỏng
+                        </a>
+                        {% if can_edit %}
+                        <a href="{% url 'equipment:device_edit' device.id %}" class="btn btn-sm btn-outline-secondary">
+                            Lưu lại để vẽ tem mới
+                        </a>
+                        {% endif %}
+                    </div>
                     {% else %}
-                    <p class="text-muted">Tem QR sẽ được tạo khi lưu thiết bị.</p>
+                    <div class="jp-eq-qr-placeholder mx-auto mb-3" style="width:120px;height:120px;font-size:2rem">
+                        <i class="bi bi-qr-code"></i>
+                    </div>
+                    <p class="text-muted mb-0">Tem QR tự tạo khi lưu thiết bị.</p>
                     {% endif %}
                 </div>
             </div>

@@ -58,8 +58,14 @@ def _edit_required(view_func):
     return wrapper
 
 
-def _subnav_context():
-    return {}
+def _subnav_context(request=None):
+    ctx = {}
+    if request and request.user.is_authenticated:
+        from equipment.services.it_repair_queue import pending_it_repair_steps_for_user
+        ctx['it_repair_pending_count'] = pending_it_repair_steps_for_user(request.user).count()
+    else:
+        ctx['it_repair_pending_count'] = 0
+    return ctx
 
 
 @_access_required
@@ -128,7 +134,126 @@ def dashboard(request):
         'cat_data_json': json.dumps(cat_data),
         'dept_cost_labels_json': json.dumps(dept_cost_labels, ensure_ascii=False),
         'dept_cost_data_json': json.dumps(dept_cost_data),
-        **_subnav_context(),
+        **_subnav_context(request),
+    })
+
+
+@_access_required
+def it_repair_list(request):
+    """Hàng đợi Hỗ trợ kỹ thuật — IT xử lý trong module thiết bị."""
+    from equipment.services.it_repair_queue import pending_it_repair_steps_for_user
+
+    search_query = get_search_query(request)
+    qs = pending_it_repair_steps_for_user(request.user)
+    if search_query:
+        qs = qs.filter(
+            Q(request__title__icontains=search_query)
+            | Q(request__description__icontains=search_query)
+            | Q(request__requester__username__icontains=search_query)
+            | Q(request__requester__profile__full_name__icontains=search_query)
+            | Q(request__equipment_label__icontains=search_query)
+            | Q(request__location_text__icontains=search_query)
+        )
+    page_obj, query_string = paginate_queryset(request, qs)
+    return render(request, 'equipment/it_repair_list.html', {
+        'page_obj': page_obj,
+        'query_string': query_string,
+        'search_query': search_query,
+        **_subnav_context(request),
+    })
+
+
+@_access_required
+def it_repair_detail(request, pk):
+    """Xử lý một yêu cầu Hỗ trợ kỹ thuật."""
+    from equipment.services.it_repair_queue import (
+        can_claim_it_repair_step,
+        can_handle_it_repair_step,
+    )
+    from service_requests.forms import ItRepairCompleteForm
+    from service_requests.models import ServiceRequest, ServiceRequestAttachment, ServiceRequestStep
+    from service_requests.workflow import claim_step
+    from service_requests.workflow_it import complete_it_repair_step
+    from tasks.attachment_utils import read_separate_uploads
+
+    service_request = get_object_or_404(
+        ServiceRequest.objects.select_related(
+            'requester', 'requester__profile', 'request_type', 'equipment',
+        ).prefetch_related('steps', 'attachments', 'logs__actor__profile'),
+        pk=pk,
+    )
+    if not service_request.is_it_repair:
+        messages.error(request, 'Yêu cầu không thuộc loại Hỗ trợ kỹ thuật.')
+        return redirect('equipment:it_repair_list')
+
+    current_step = service_request.current_step
+    if not current_step or current_step.step_code != ServiceRequestStep.STEP_IT_REPAIR:
+        messages.info(request, 'Yêu cầu không còn ở bước IT xử lý.')
+        return redirect('service_requests:detail', pk=pk)
+
+    can_handle = can_handle_it_repair_step(request.user, current_step)
+    can_claim = can_claim_it_repair_step(request.user, current_step)
+    if not can_handle and not can_claim:
+        messages.error(request, 'Bạn không có quyền xử lý yêu cầu này.')
+        return redirect('equipment:it_repair_list')
+
+    it_repair_form = ItRepairCompleteForm()
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        try:
+            if action == 'claim' and can_claim:
+                claim_step(current_step, actor=request.user)
+                messages.success(request, 'Đã tiếp nhận yêu cầu.')
+                return redirect('equipment:it_repair_detail', pk=pk)
+
+            if action == 'complete_it_repair' and can_handle:
+                it_repair_form = ItRepairCompleteForm(request.POST)
+                if it_repair_form.is_valid():
+                    if not current_step.assignee_id:
+                        claim_step(current_step, actor=request.user)
+                        current_step.refresh_from_db()
+                    prepared = read_separate_uploads(
+                        request.FILES.getlist('images'),
+                        request.FILES.getlist('files'),
+                    )
+                    complete_it_repair_step(
+                        current_step,
+                        actor=request.user,
+                        note=it_repair_form.cleaned_data['note'].strip(),
+                        repair_cost=it_repair_form.cleaned_data.get('repair_cost'),
+                        expected_return_date=it_repair_form.cleaned_data.get('expected_return_date'),
+                    )
+                    if prepared:
+                        for original_name, content_file in prepared:
+                            ServiceRequestAttachment.objects.create(
+                                request=service_request,
+                                step=current_step,
+                                file=content_file,
+                                original_name=original_name,
+                                uploaded_by=request.user,
+                                stage=ServiceRequestAttachment.STAGE_RESULT,
+                            )
+                    from equipment.services.email_notify import notify_repair_completed
+                    notify_repair_completed(
+                        service_request=service_request,
+                        repair_note=it_repair_form.cleaned_data['note'].strip(),
+                        repaired_by=request.user.get_full_name() or request.user.username,
+                    )
+                    messages.success(request, 'Đã hoàn thành xử lý — yêu cầu đã đóng.')
+                    return redirect('equipment:it_repair_list')
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect('equipment:it_repair_detail', pk=pk)
+
+    return render(request, 'equipment/it_repair_detail.html', {
+        'service_request': service_request,
+        'current_step': current_step,
+        'can_handle': can_handle,
+        'can_claim': can_claim,
+        'it_repair_form': it_repair_form,
+        'logs': service_request.logs.all()[:20],
+        **_subnav_context(request),
     })
 
 
@@ -205,6 +330,10 @@ def device_list(request):
         'q': q,
         'total_count': Device.objects.count(),
         'filtered_count': filtered_count,
+        'stat_active': Device.objects.filter(status=Device.STATUS_ACTIVE).count(),
+        'stat_broken': Device.objects.filter(status=Device.STATUS_BROKEN).count(),
+        'stat_maintenance': Device.objects.filter(status=Device.STATUS_MAINTENANCE).count(),
+        'stat_online': Device.objects.filter(is_online=True).count(),
         'current_managed_by': managed_by,
         'current_categories': categories,
         'current_status': status,
@@ -224,7 +353,7 @@ def device_list(request):
         'scan_default_user': getattr(settings, 'EQUIPMENT_SCAN_DEFAULT_USER', ''),
         'scan_default_start_ip': getattr(settings, 'EQUIPMENT_SCAN_DEFAULT_START_IP', ''),
         'scan_default_end_ip': getattr(settings, 'EQUIPMENT_SCAN_DEFAULT_END_IP', ''),
-        **_subnav_context(),
+        **_subnav_context(request),
     })
 
 
@@ -241,7 +370,7 @@ def device_add(request):
     return render(request, 'equipment/device_form.html', {
         'form': form,
         'is_edit': False,
-        **_subnav_context(),
+        **_subnav_context(request),
     })
 
 
@@ -260,7 +389,7 @@ def device_edit(request, device_id):
         'form': form,
         'device': device,
         'is_edit': True,
-        **_subnav_context(),
+        **_subnav_context(request),
     })
 
 
@@ -357,7 +486,7 @@ def device_detail_manage(request, device_id):
         'shared_users': shared_users,
         'logs': logs,
         'can_edit': user_can_edit_module(request.user, MODULE_EQUIPMENT),
-        **_subnav_context(),
+        **_subnav_context(request),
     })
 
 
@@ -368,7 +497,7 @@ def device_history(request, device_id):
     return render(request, 'equipment/device_history.html', {
         'device': device,
         'logs': logs,
-        **_subnav_context(),
+        **_subnav_context(request),
     })
 
 
@@ -469,7 +598,7 @@ def _parse_excel_date(value):
 @require_http_methods(['GET', 'POST'])
 def import_devices(request):
     if request.method == 'GET':
-        return render(request, 'equipment/import.html', _subnav_context())
+        return render(request, 'equipment/import.html', {**_subnav_context(request)})
 
     excel_file = request.FILES.get('excel_file')
     if not excel_file:
@@ -996,7 +1125,7 @@ def agent_guide(request):
     return render(request, 'equipment/agent_guide.html', {
         'portal_url': portal_url,
         'has_agent_secret': bool(getattr(settings, 'EQUIPMENT_AGENT_SECRET', '')),
-        **_subnav_context(),
+        **_subnav_context(request),
     })
 
 
@@ -1007,5 +1136,5 @@ def scan_relay_guide(request):
         'relay_http_url': relay_http_url(),
         'has_relay_secret': bool(getattr(settings, 'EQUIPMENT_RELAY_SECRET', '')),
         'scan_available': is_scan_available(),
-        **_subnav_context(),
+        **_subnav_context(request),
     })

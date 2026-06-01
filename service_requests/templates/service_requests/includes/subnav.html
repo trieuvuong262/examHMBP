@@ -19,7 +19,7 @@
         </a>
         <a href="{% url 'service_requests:ho_tro_pending' %}"
            class="btn btn-sm {% if request.resolver_match.url_name == 'ho_tro_pending' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
-            Chờ tôi xử lý
+            Chờ duyệt / xác nhận
             {% if pending_count %}<span class="badge bg-danger ms-1">{{ pending_count }}</span>{% endif %}
         </a>
         <a href="{% url 'service_requests:create_it_repair' %}"

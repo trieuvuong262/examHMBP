@@ -81,6 +81,8 @@ def can_view_request(user, request_obj: ServiceRequest) -> bool:
 
 
 def can_handle_step(user, step: ServiceRequestStep) -> bool:
+    if step.step_code == ServiceRequestStep.STEP_IT_REPAIR:
+        return False
     if not _has_module_access(user):
         return False
     if step.status not in ServiceRequestStep.OPEN_HANDLER_STATUSES:
@@ -122,6 +124,8 @@ def pending_steps_for_user(user):
     qs = ServiceRequestStep.objects.filter(
         request__status=ServiceRequest.STATUS_IN_PROGRESS,
         status__in=ServiceRequestStep.OPEN_HANDLER_STATUSES,
+    ).exclude(
+        step_code=ServiceRequestStep.STEP_IT_REPAIR,
     ).select_related(
         'request', 'request__requester', 'request__requester__profile',
         'target_department', 'assignee', 'assignee__profile',

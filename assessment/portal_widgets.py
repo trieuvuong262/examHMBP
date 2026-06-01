@@ -14,6 +14,7 @@ from hrm.permissions import (
 )
 from hrm.module_permissions import (
     MODULE_ASSESSMENT,
+    MODULE_EQUIPMENT,
     MODULE_SERVICE_REQUESTS,
     MODULE_TASKS,
     MODULE_TRAINING,
@@ -259,6 +260,26 @@ def _service_request_widgets(user):
     return widgets
 
 
+def _equipment_it_widgets(user):
+    if not user_can_access_module(user, MODULE_EQUIPMENT):
+        return []
+
+    from equipment.services.it_repair_queue import pending_it_repair_steps_for_user
+
+    pending = pending_it_repair_steps_for_user(user).count()
+    if not pending:
+        return []
+    return [{
+        'level': 'warning',
+        'icon': 'bi-tools',
+        'title': 'Hỗ trợ kỹ thuật',
+        'text': f'{pending} sự cố chờ IT xử lý trong Quản lý thiết bị.',
+        'url': reverse('equipment:it_repair_list'),
+        'action': 'Xử lý',
+        'badge': pending,
+    }]
+
+
 def get_portal_dashboard(user):
     """Trả về danh sách widget nhắc việc (dict) cho trang chủ."""
     widgets = []
@@ -306,6 +327,7 @@ def get_portal_dashboard(user):
     widgets.extend(_training_widgets(user))
     widgets.extend(_exam_widgets(user))
     widgets.extend(_service_request_widgets(user))
+    widgets.extend(_equipment_it_widgets(user))
 
     # --- HOD / GM: team chưa nộp BC ---
     if can_view_team_reports(user):

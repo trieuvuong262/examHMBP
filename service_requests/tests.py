@@ -354,11 +354,12 @@ class ItRepairWorkflowTests(TestCase):
         for dept in (self.dept_it, self.dept_prod):
             DepartmentMenuPermission.objects.create(
                 department=dept,
-                modules=['service_requests', 'tasks'],
+                modules=['service_requests', 'equipment', 'tasks'],
             )
 
         perms = {
             'service_requests': {'view': True, 'edit': True},
+            'equipment': {'view': True, 'edit': True},
             'tasks': {'view': True, 'edit': True},
         }
         for role in (ROLE_EMPLOYEE, ROLE_TEAM_LEADER, ROLE_DIVISION_HEAD, ROLE_DIRECTOR):
@@ -404,24 +405,34 @@ class ItRepairWorkflowTests(TestCase):
         defaults.update(kwargs)
         return create_it_repair_request(**defaults)
 
-    def test_no_team_leader_or_division_head_steps(self):
-        req = self._create_it_request()
+    def test_without_team_leader_goes_straight_to_it(self):
+        req = self._create_it_request(requester=self.it_staff)
         codes = list(req.steps.values_list('step_code', flat=True))
         self.assertEqual(codes, [
             ServiceRequestStep.STEP_IT_REPAIR,
-            ServiceRequestStep.STEP_REQUESTER_CONFIRM,
         ])
 
-    def test_it_claim_and_complete_then_requester_confirms(self):
+    def test_with_team_leader_starts_at_tl_approval(self):
+        from service_requests.workflow import approve_step
+
         req = self._create_it_request()
+        codes = list(req.steps.values_list('step_code', flat=True))
+        self.assertEqual(codes[0], ServiceRequestStep.STEP_TEAM_LEADER)
+        tl_step = req.steps.get(step_code=ServiceRequestStep.STEP_TEAM_LEADER)
+        self.assertEqual(tl_step.assignee_id, self.team_leader.id)
+        approve_step(tl_step, actor=self.team_leader)
         it_step = req.steps.get(step_code=ServiceRequestStep.STEP_IT_REPAIR)
+        self.assertEqual(it_step.status, ServiceRequestStep.STATUS_PENDING)
 
-        from service_requests.workflow_it import complete_it_repair_step, complete_requester_confirmation
-        from service_requests.workflow import claim_step
+    def test_it_complete_closes_request_without_requester_confirm(self):
+        from service_requests.workflow import approve_step
+        from service_requests.workflow_it import complete_it_repair_step
 
-        claim_step(it_step, actor=self.it_staff)
-        it_step.refresh_from_db()
-        self.assertEqual(it_step.assignee_id, self.it_staff.id)
+        req = self._create_it_request()
+        tl_step = req.steps.filter(step_code=ServiceRequestStep.STEP_TEAM_LEADER).first()
+        if tl_step:
+            approve_step(tl_step, actor=self.team_leader)
+        it_step = req.steps.get(step_code=ServiceRequestStep.STEP_IT_REPAIR)
 
         complete_it_repair_step(
             it_step,
@@ -429,14 +440,11 @@ class ItRepairWorkflowTests(TestCase):
             note='Đã cấu hình lại IP tĩnh',
             repair_cost=Decimal('0'),
         )
-
-        confirm_step = req.steps.get(step_code=ServiceRequestStep.STEP_REQUESTER_CONFIRM)
-        self.assertEqual(confirm_step.status, ServiceRequestStep.STATUS_PENDING)
-        self.assertEqual(confirm_step.assignee_id, self.employee.id)
-
-        complete_requester_confirmation(confirm_step, actor=self.employee, note='OK')
         req.refresh_from_db()
         self.assertEqual(req.status, ServiceRequest.STATUS_COMPLETED)
+        self.assertFalse(
+            req.steps.filter(step_code=ServiceRequestStep.STEP_REQUESTER_CONFIRM).exists(),
+        )
 
     def test_create_it_repair_form(self):
         self.client.force_login(self.employee)
@@ -456,13 +464,29 @@ class ItRepairWorkflowTests(TestCase):
         self.assertEqual(response.status_code, 302)
         req = ServiceRequest.objects.get(requester=self.employee, request_type=self.it_type)
         self.assertTrue(req.blocks_work)
-        self.assertEqual(req.steps.first().step_code, ServiceRequestStep.STEP_IT_REPAIR)
+        first_step = req.steps.exclude(status=ServiceRequestStep.STATUS_SKIPPED).order_by('step_order').first()
+        self.assertIn(first_step.step_code, {
+            ServiceRequestStep.STEP_TEAM_LEADER,
+            ServiceRequestStep.STEP_IT_REPAIR,
+        })
 
-    def test_pending_for_it_staff(self):
-        self._create_it_request()
-        from service_requests.permissions import pending_steps_for_user
+    def test_pending_for_it_staff_in_equipment_module(self):
+        from service_requests.workflow import approve_step
 
-        pending = pending_steps_for_user(self.it_staff)
+        req = self._create_it_request()
+        tl_step = req.steps.filter(step_code=ServiceRequestStep.STEP_TEAM_LEADER).first()
+        if tl_step:
+            approve_step(tl_step, actor=self.team_leader)
+        from equipment.services.it_repair_queue import pending_it_repair_steps_for_user
+
+        pending = pending_it_repair_steps_for_user(self.it_staff)
         self.assertEqual(pending.count(), 1)
         self.assertEqual(pending.first().step_code, ServiceRequestStep.STEP_IT_REPAIR)
+
+    def test_it_staff_not_in_service_requests_pending(self):
+        from service_requests.permissions import pending_steps_for_user
+
+        self._create_it_request()
+        pending = pending_steps_for_user(self.it_staff)
+        self.assertEqual(pending.count(), 0)
 

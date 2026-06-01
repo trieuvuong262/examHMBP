@@ -235,30 +235,17 @@
                         {{ reject_form.reason }}
                         <button type="submit" class="btn btn-outline-danger w-100 mt-2">Từ chối</button>
                     </form>
-                    {% elif can_handle_current and current_step.step_code == 'it_repair_execution' %}
-                    <form method="post" enctype="multipart/form-data">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="complete_it_repair">
-                        <label class="form-label">{{ it_repair_form.note.label }} <span class="text-danger">*</span></label>
-                        {{ it_repair_form.note }}
-                        <label class="form-label mt-2">{{ it_repair_form.repair_cost.label }}</label>
-                        {{ it_repair_form.repair_cost }}
-                        <label class="form-label mt-2">{{ it_repair_form.expected_return_date.label }}</label>
-                        {{ it_repair_form.expected_return_date }}
-                        <div class="mt-3">
-                            {% include 'tasks/includes/upload_fields.html' %}
+                    {% elif current_step.step_code == 'it_repair_execution' %}
+                    <div class="alert alert-info border-0 small mb-0">
+                        <i class="bi bi-pc-display me-1"></i>
+                        Bước xử lý IT được thực hiện trong module
+                        <strong>Quản lý thiết bị</strong>.
+                        {% if equipment_it_url %}
+                        <div class="mt-2">
+                            <a href="{{ equipment_it_url }}" class="btn btn-sm btn-hm">Mở xử lý tại Quản lý thiết bị</a>
                         </div>
-                        <button type="submit" class="btn btn-success w-100 mt-3">Hoàn thành sửa chữa</button>
-                    </form>
-                    {% elif can_handle_current and current_step.step_code == 'requester_confirmation' %}
-                    <form method="post">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="confirm_repair">
-                        <p class="small text-muted">Xác nhận thiết bị / sự cố đã được xử lý ổn.</p>
-                        <label class="form-label">{{ requester_confirm_form.note.label }}</label>
-                        {{ requester_confirm_form.note }}
-                        <button type="submit" class="btn btn-success w-100 mt-3">Xác nhận hoàn thành</button>
-                    </form>
+                        {% endif %}
+                    </div>
                     {% elif can_handle_current and current_step.is_execution %}
                     <form method="post" enctype="multipart/form-data">
                         {% csrf_token %}

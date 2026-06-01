@@ -59,17 +59,22 @@ from .flow import (
     normalize_flow_tab,
 )
 from .workflow_it import (
-    complete_it_repair_step,
-    complete_requester_confirmation,
     create_it_repair_request,
     get_it_repair_request_type,
 )
 
 
+def _pending_count_for_flow(user, flow_tab):
+    qs = pending_steps_for_user(user)
+    if flow_tab == FLOW_HO_TRO:
+        return qs.filter(request__request_type__code=RequestType.CODE_IT_REPAIR).count()
+    return qs.filter(request__request_type__code=RequestType.CODE_ASSET_PURCHASE).count()
+
+
 def _subnav_context(request, *, flow_tab=FLOW_DE_XUAT):
     return {
         'flow_tab': flow_tab,
-        'pending_count': pending_steps_for_user(request.user).count(),
+        'pending_count': _pending_count_for_flow(request.user, flow_tab),
         'can_manage_catalog': can_manage_recurring_catalog(request.user),
     }
 
@@ -529,72 +534,6 @@ def request_detail(request, pk):
                     messages.success(request, 'Đã ghi nhận đặt hàng — chờ người nhận xác nhận.')
                     return redirect('service_requests:detail', pk=pk)
 
-            if action == 'complete_it_repair' and can_handle_current:
-                if current_step.step_code != ServiceRequestStep.STEP_IT_REPAIR:
-                    raise ValueError('Bước hiện tại không phải xử lý IT.')
-                it_repair_form = ItRepairCompleteForm(request.POST)
-                if it_repair_form.is_valid():
-                    if not current_step.assignee_id:
-                        claim_step(current_step, actor=request.user)
-                        current_step.refresh_from_db()
-                    prepared = read_separate_uploads(
-                        request.FILES.getlist('images'),
-                        request.FILES.getlist('files'),
-                    )
-                    complete_it_repair_step(
-                        current_step,
-                        actor=request.user,
-                        note=it_repair_form.cleaned_data['note'].strip(),
-                        repair_cost=it_repair_form.cleaned_data.get('repair_cost'),
-                        expected_return_date=it_repair_form.cleaned_data.get('expected_return_date'),
-                    )
-                    if prepared:
-                        _save_attachments(
-                            service_request,
-                            prepared,
-                            uploaded_by=request.user,
-                            stage=ServiceRequestAttachment.STAGE_RESULT,
-                            step=current_step,
-                        )
-                    from equipment.services.email_notify import notify_repair_completed
-                    notify_repair_completed(
-                        service_request=service_request,
-                        repair_note=it_repair_form.cleaned_data['note'].strip(),
-                        repaired_by=request.user.get_full_name() or request.user.username,
-                    )
-                    if service_request.equipment_id:
-                        from equipment.models import Device
-                        dev = service_request.equipment
-                        dev.status = Device.STATUS_MAINTENANCE
-                        dev.save(update_fields=['status', 'updated_at'])
-                    messages.success(request, 'Đã hoàn thành sửa chữa — chờ người gửi xác nhận.')
-                    return redirect('service_requests:detail', pk=pk)
-
-            if action == 'confirm_repair' and can_handle_current:
-                if current_step.step_code != ServiceRequestStep.STEP_REQUESTER_CONFIRM:
-                    raise ValueError('Bước hiện tại không phải xác nhận người gửi.')
-                requester_confirm_form = RequesterConfirmForm(request.POST)
-                if requester_confirm_form.is_valid():
-                    complete_requester_confirmation(
-                        current_step,
-                        actor=request.user,
-                        note=requester_confirm_form.cleaned_data.get('note', '').strip(),
-                    )
-                    if service_request.equipment_id:
-                        from equipment.models import Device, MaintenanceLog
-                        dev = service_request.equipment
-                        dev.status = Device.STATUS_ACTIVE
-                        dev.save(update_fields=['status', 'updated_at'])
-                        MaintenanceLog.objects.filter(
-                            device=dev,
-                            service_request=service_request,
-                            is_resolved=False,
-                        ).update(is_resolved=True)
-                    from equipment.services.email_notify import notify_repair_confirmed
-                    notify_repair_confirmed(service_request=service_request)
-                    messages.success(request, 'Đã xác nhận hoàn thành yêu cầu.')
-                    return redirect('service_requests:detail', pk=pk)
-
             if action == 'complete' and can_handle_current and current_step.is_execution:
                 if service_request.is_it_repair:
                     raise ValueError('Dùng form xử lý IT cho yêu cầu sửa chữa.')
@@ -638,6 +577,14 @@ def request_detail(request, pk):
         and first_active.status == ServiceRequestStep.STATUS_PENDING
     )
 
+    equipment_it_url = ''
+    if (
+        service_request.is_it_repair
+        and current_step
+        and current_step.step_code == ServiceRequestStep.STEP_IT_REPAIR
+    ):
+        equipment_it_url = reverse('equipment:it_repair_detail', kwargs={'pk': service_request.pk})
+
     ctx = _subnav_context(request, flow_tab=flow_tab)
     ctx.update({
         'service_request': service_request,
@@ -656,6 +603,7 @@ def request_detail(request, pk):
         'purchase_form': purchase_form,
         'it_repair_form': it_repair_form,
         'requester_confirm_form': requester_confirm_form,
+        'equipment_it_url': equipment_it_url,
     })
     return render(request, 'service_requests/detail.html', ctx)
 

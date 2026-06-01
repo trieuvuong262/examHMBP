@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-tools me-2"></i>Hỗ trợ kỹ thuật</h2>
+            <p class="text-muted mb-0">Xử lý sự cố thiết bị — yêu cầu do nhân viên gửi từ module Yêu cầu.</p>
+        </div>
+    </div>
+
+    {% include 'equipment/includes/subnav.html' %}
+
+    <form method="get" class="row g-2 mb-3">
+        <div class="col-md-6 col-lg-5">
+            <input type="search" name="q" value="{{ search_query }}" class="form-control" placeholder="Tìm tiêu đề, người gửi, vị trí...">
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-outline-hm">Tìm</button>
+        </div>
+    </form>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Yêu cầu</th>
+                            <th>Người gửi</th>
+                            <th>Ưu tiên</th>
+                            <th>Thiết bị / vị trí</th>
+                            <th>Trạng thái</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for step in page_obj %}
+                        <tr>
+                            <td>
+                                <div class="fw-semibold">{{ step.request.title }}</div>
+                                <div class="small text-muted">{{ step.request.created_at|date:"d/m/Y H:i" }}</div>
+                            </td>
+                            <td>
+                                {{ step.request.requester.profile.full_name|default:step.request.requester.username }}
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark border">{{ step.request.get_priority_display }}</span>
+                            </td>
+                            <td class="small">
+                                {% if step.request.equipment %}
+                                <a href="{% url 'equipment:device_detail_manage' step.request.equipment_id %}">{{ step.request.equipment.name }}</a>
+                                {% elif step.request.equipment_label %}
+                                {{ step.request.equipment_label }}
+                                {% else %}—{% endif %}
+                                {% if step.request.location_text %}
+                                <div class="text-muted">{{ step.request.location_text }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if step.assignee %}
+                                <span class="text-success small">Đã nhận: {{ step.assignee.profile.full_name|default:step.assignee.username }}</span>
+                                {% else %}
+                                <span class="text-warning small">Chờ IT tiếp nhận</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <a href="{% url 'equipment:it_repair_detail' step.request_id %}" class="btn btn-sm btn-hm">Xử lý</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">Không có yêu cầu chờ xử lý.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string %}
+</div>
+{% endblock %}

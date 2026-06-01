@@ -147,17 +147,17 @@ def notify_repair_completed(*, service_request, repair_note: str, repaired_by: s
         return False
 
     device_label = device.name if device else (service_request.equipment_label or 'Thiết bị')
-    subject = f'[JustPlay] Đã xử lý: {device_label}'
+    subject = f'[JustPlay] Đã xử lý xong: {device_label}'
     message = f"""Kính gửi Anh/Chị,
 
-Thiết bị / yêu cầu đã được IT xử lý. Vui lòng xác nhận trên portal.
+Thiết bị / yêu cầu đã được IT xử lý và đóng trên hệ thống.
 
 - Yêu cầu: {service_request.title}
 - Thiết bị: {device_label}
 - Kỹ thuật viên: {repaired_by}
 - Ghi chú: {repair_note or '—'}
 
-Xác nhận tại: {_request_url(service_request.pk)}
+Chi tiết: {_request_url(service_request.pk)}
 """
     return _send(subject, message, recipients)
 
