@@ -46,7 +46,7 @@
                     <div class="col-lg-4 col-md-5">
                         <label class="form-label small text-muted mb-1">Tìm kiếm</label>
                         <input type="search" name="q" value="{{ q }}" class="form-control form-control-sm"
-                               placeholder="Tên, serial, model, phòng ban…">
+                               placeholder="Mã TB, tên, serial, model, phòng ban…">
                     </div>
                     <div class="col-lg-3 col-md-4">
                         <label class="form-label small text-muted mb-1">Loại thiết bị</label>
@@ -131,7 +131,7 @@
                     <thead class="table-light">
                         <tr>
                             <th style="width:48px">QR</th>
-                            <th>Thiết bị</th>
+                            <th>Mã / Thiết bị</th>
                             <th>Loại</th>
                             <th>Model / Serial</th>
                             <th>Phòng ban / NSD</th>
@@ -152,6 +152,7 @@
                                 {% endif %}
                             </td>
                             <td>
+                                <div class="font-monospace small text-muted">{{ device.device_code }}</div>
                                 <a href="{% url 'equipment:device_detail_manage' device.id %}" class="fw-semibold text-decoration-none">{{ device.name }}</a>
                                 <div class="small text-muted">{{ device.get_managed_by_display }}{% if device.usage_room %} · {{ device.usage_room }}{% endif %}</div>
                             </td>

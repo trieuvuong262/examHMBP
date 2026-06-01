@@ -15,7 +15,7 @@
                 {% if can_edit and form %}{{ form.name.value|default:device.name }}{% else %}{{ device.name }}{% endif %}
             </h2>
             <p class="text-muted mb-0">
-                {{ device.get_category_display }} · {{ device.get_status_display }}
+                <code>{{ device.device_code }}</code> · {{ device.get_category_display }} · {{ device.get_status_display }}
                 {% if device.serial_number %} · S/N {{ device.serial_number }}{% endif %}
             </p>
         </div>
@@ -52,6 +52,8 @@
                 <div class="card-header bg-white fw-bold">Thông tin thiết bị</div>
                 <div class="card-body">
                     <dl class="row mb-0">
+                        <dt class="col-sm-4">Mã thiết bị</dt>
+                        <dd class="col-sm-8"><code>{{ device.device_code }}</code></dd>
                         <dt class="col-sm-4">Loại</dt>
                         <dd class="col-sm-8">{{ device.get_category_display }}</dd>
                         <dt class="col-sm-4">Trạng thái</dt>
@@ -117,15 +119,15 @@
                     <div class="jp-eq-qr-preview mb-3">
                         <img src="{{ device.qr_code.url }}?v={{ device.updated_at|date:'U' }}" alt="Tem QR {{ device.name }}">
                     </div>
-                    <p class="small text-muted mb-3">In tem dán thiết bị — quét mã để báo hỏng.</p>
+                    <p class="small text-muted mb-3">In tem dán thiết bị — quét mã để xem thông tin và báo hỏng.</p>
                     {% else %}
                     <div class="jp-eq-qr-placeholder mx-auto mb-3" style="width:120px;height:120px;font-size:2rem">
                         <i class="bi bi-qr-code"></i>
                     </div>
                     <p class="text-muted mb-3">Tem QR sẽ được tạo khi cập nhật thiết bị.</p>
                     {% endif %}
-                    <a href="{% url 'equipment:device_qr_public' device.id %}" class="btn btn-sm btn-hm w-100" target="_blank">
-                        <i class="bi bi-box-arrow-up-right me-1"></i>Trang báo hỏng
+                    <a href="{% url 'equipment:device_qr_public' device.device_code %}" class="btn btn-sm btn-outline-hm w-100" target="_blank">
+                        <i class="bi bi-box-arrow-up-right me-1"></i>Trang quét QR
                     </a>
                     {% if can_edit %}
                     <p class="small text-muted mt-3 mb-0">Bấm <strong>Cập nhật</strong> để vẽ lại tem theo thông tin mới.</p>

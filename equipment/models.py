@@ -33,6 +33,12 @@ class Device(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    device_code = models.CharField(
+        max_length=50,
+        unique=True,
+        db_index=True,
+        verbose_name='Mã thiết bị',
+    )
     name = models.CharField(max_length=200, verbose_name='Tên thiết bị')
     managed_by = models.CharField(
         max_length=20, choices=MANAGED_CHOICES, default=MANAGED_IT, verbose_name='Bộ phận quản lý',
@@ -154,7 +160,14 @@ class Device(models.Model):
         return '—'
 
     def save(self, *args, **kwargs):
+        from equipment.services.device_code import allocate_device_code, normalize_device_code
+
         self.total_price = self.quantity * self.unit_price
+
+        if not self.device_code:
+            self.device_code = allocate_device_code()
+        else:
+            self.device_code = normalize_device_code(self.device_code)
 
         if self.hostname and not self.ip_address:
             try:

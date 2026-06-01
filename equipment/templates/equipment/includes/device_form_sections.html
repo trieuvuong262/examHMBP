@@ -1,6 +1,12 @@
 <div class="jp-eq-form-section mb-4">
     <h6 class="fw-bold text-hm mb-3"><i class="bi bi-info-circle me-1"></i>Thông tin chung</h6>
     <div class="row g-3">
+        <div class="col-md-4">
+            <label class="form-label fw-semibold" for="{{ form.device_code.id_for_label }}">{{ form.device_code.label }}</label>
+            {{ form.device_code }}
+            {% if form.device_code.help_text %}<div class="form-text">{{ form.device_code.help_text }}</div>{% endif %}
+            {% if form.device_code.errors %}<div class="text-danger small">{{ form.device_code.errors }}</div>{% endif %}
+        </div>
         <div class="col-md-8">
             <label class="form-label fw-semibold" for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
             {{ form.name }}

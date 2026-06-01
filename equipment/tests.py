@@ -402,6 +402,7 @@ class DeviceFormCategoryTests(TestCase):
         device = Device.objects.create(name='May test', category='SEW_LOCKSTITCH', status=Device.STATUS_ACTIVE)
         form = DeviceForm(
             {
+                'device_code': device.device_code,
                 'name': 'May test 2',
                 'managed_by': Device.MANAGED_MAINTENANCE,
                 'category': 'SEW_LOCKSTITCH',
@@ -429,6 +430,29 @@ class DeviceFormCategoryTests(TestCase):
         device.refresh_from_db()
         self.assertEqual(device.name, 'May test 2')
         self.assertTrue(device.qr_code)
+
+
+class DeviceCodeTests(TestCase):
+    def test_auto_generate_device_code(self):
+        from equipment.models import Device
+
+        device = Device.objects.create(name='PC A', category='PC', status=Device.STATUS_ACTIVE)
+        self.assertTrue(device.device_code.startswith('TB-'))
+        second = Device.objects.create(name='PC B', category='PC', status=Device.STATUS_ACTIVE)
+        self.assertNotEqual(device.device_code, second.device_code)
+
+    def test_qr_public_by_device_code(self):
+        from equipment.models import Device
+
+        device = Device.objects.create(
+            name='PC QR',
+            device_code='TB-TEST01',
+            category='PC',
+            status=Device.STATUS_ACTIVE,
+        )
+        response = self.client.get(f'/thiet-bi/qr/{device.device_code}/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'TB-TEST01')
 
 
 class DeviceImportExportTests(TestCase):

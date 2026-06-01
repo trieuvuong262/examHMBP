@@ -147,6 +147,7 @@ CATEGORY_ALIASES = {
 
 # Cột import/export
 IMPORT_COLUMNS_BASE = [
+    ('device_code', 'Mã thiết bị', False),
     ('name', 'Tên thiết bị', True),
     ('managed_by', 'Bộ phận QL (IT / MAINTENANCE / OTHER)', False),
     ('status', 'Trạng thái (new / active / broken / maintenance / scrapped)', False),

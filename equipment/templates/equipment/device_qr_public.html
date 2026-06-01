@@ -6,7 +6,7 @@
     <div class="text-center mb-4">
         <img src="{% static 'images/logo/logo.png' %}" alt="JustPlay" style="height:48px" class="mb-2">
         <h2 class="fw-bold text-hm">{{ device.name }}</h2>
-        <p class="text-muted mb-0">{{ device.usage_department_label }}{% if device.usage_room %} · {{ device.usage_room }}{% endif %}</p>
+        <p class="text-muted mb-0"><code>{{ device.device_code }}</code> · {{ device.usage_department_label }}{% if device.usage_room %} · {{ device.usage_room }}{% endif %}</p>
     </div>
 
     <div class="card border-0 shadow-sm mb-4">

@@ -269,6 +269,7 @@ def device_list(request):
     if q:
         qs = qs.filter(
             Q(name__icontains=q)
+            | Q(device_code__icontains=q)
             | Q(serial_number__icontains=q)
             | Q(model_number__icontains=q)
             | Q(hostname__icontains=q)
@@ -380,10 +381,20 @@ def device_edit(request, device_id):
     return device_detail_manage(request, device_id)
 
 
+def _get_device_by_key(device_key):
+    from uuid import UUID
+
+    try:
+        UUID(str(device_key))
+    except (ValueError, AttributeError, TypeError):
+        return get_object_or_404(Device, device_code__iexact=str(device_key))
+    return get_object_or_404(Device, pk=device_key)
+
+
 @require_http_methods(['GET', 'POST'])
-def device_qr_public(request, device_id):
+def device_qr_public(request, device_key):
     """Trang công khai quét QR — báo hỏng tạo yêu cầu Hỗ trợ kỹ thuật."""
-    device = get_object_or_404(Device, pk=device_id)
+    device = _get_device_by_key(device_key)
     latest_log = None
     if device.status in (Device.STATUS_BROKEN, Device.STATUS_MAINTENANCE):
         latest_log = device.logs.filter(is_resolved=False).order_by('-created_at').first()
@@ -396,7 +407,7 @@ def device_qr_public(request, device_id):
 
         if device.status in (Device.STATUS_BROKEN, Device.STATUS_MAINTENANCE):
             messages.warning(request, 'Thiết bị đang được xử lý — vui lòng chờ IT hoàn tất.')
-            return redirect('equipment:device_qr_public', device_id=device.id)
+            return redirect('equipment:device_qr_public', device_key=device.device_code)
 
         form = ReportIssueForm(request.POST)
         if form.is_valid():
@@ -405,7 +416,7 @@ def device_qr_public(request, device_id):
             request_type = get_it_repair_request_type()
             if not request_type:
                 messages.error(request, 'Hệ thống chưa cấu hình loại yêu cầu Hỗ trợ kỹ thuật.')
-                return redirect('equipment:device_qr_public', device_id=device.id)
+                return redirect('equipment:device_qr_public', device_key=device.device_code)
 
             location = device.usage_room or device.usage_department_label
             title = f'Báo hỏng: {device.name}'
@@ -417,7 +428,7 @@ def device_qr_public(request, device_id):
                 incident_category=form.cleaned_data['incident_category'],
                 priority=form.cleaned_data['priority'],
                 location_text=location,
-                equipment_label=device.name,
+                equipment_label=f'{device.device_code} — {device.name}',
                 equipment_serial=device.serial_number or '',
                 blocks_work=form.cleaned_data.get('blocks_work', False),
                 equipment=device,

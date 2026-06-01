@@ -23,12 +23,11 @@ INNER = 8
 HEADER_H = 46
 RIGHT_W = 210
 QR_SIZE = 168
-BTN_H = 34
 
 
-def device_public_url(device_id) -> str:
+def device_public_url(device_code: str) -> str:
     base = getattr(settings, 'PORTAL_PUBLIC_BASE_URL', 'http://localhost:8000').rstrip('/')
-    return f'{base}/thiet-bi/qr/{device_id}/'
+    return f'{base}/thiet-bi/qr/{device_code}/'
 
 
 def _font_search_paths(*filenames: str):
@@ -74,11 +73,9 @@ def generate_asset_tag(device) -> tuple[File, str]:
     font_brand = _load_font(16, bold=True)
     font_sub = _load_font(10, bold=True)
     font_name = _load_font(20, bold=True)
+    font_code = _load_font(15, bold=True)
     font_row = _load_font(13)
     font_label = _load_font(10, bold=True)
-    font_btn = _load_font(12, bold=True)
-    font_id = _load_font(10)
-    font_caption = _load_font(9)
 
     img = Image.new('RGB', (TAG_W, TAG_H), BG_WHITE)
     draw = ImageDraw.Draw(img)
@@ -97,12 +94,17 @@ def generate_asset_tag(device) -> tuple[File, str]:
     draw.line((split_x, body_top, split_x, body_bottom), fill=LINE_GRAY, width=1)
 
     left_x = INNER + 14
-    left_max_w = split_x - left_x - 12
     y = body_top + 4
 
     name = (device.name or 'Thiết bị')[:36]
     draw.text((left_x, y), name, font=font_name, fill=BLACK)
     y += _text_height(draw, name, font_name) + 6
+
+    device_code = (getattr(device, 'device_code', None) or '—')[:32]
+    label_w = 88
+    draw.text((left_x, y), 'MÃ THIẾT BỊ', font=font_label, fill=TEXT_MUTED)
+    draw.text((left_x + label_w, y), device_code, font=font_code, fill=BLACK)
+    y += _text_height(draw, device_code, font_code) + 8
 
     category = device.get_category_display() if hasattr(device, 'get_category_display') else ''
     if category:
@@ -120,36 +122,23 @@ def generate_asset_tag(device) -> tuple[File, str]:
         ('MODEL', device.model_number or '—'),
         ('SERIAL', (device.serial_number or '—')[:32]),
     ]
-    label_w = 88
     row_h = 19
     for label, value in rows:
-        if y + row_h > body_bottom - BTN_H - 8:
+        if y + row_h > body_bottom - 8:
             break
         draw.text((left_x, y), label, font=font_label, fill=TEXT_MUTED)
         draw.text((left_x + label_w, y), str(value)[:38], font=font_row, fill=BLACK_SOFT)
         y += row_h
 
-    btn_y = body_bottom - BTN_H
-    btn_w = split_x - left_x - 4
-    draw.rectangle((left_x, btn_y, left_x + btn_w, btn_y + BTN_H), fill=BLACK)
-    btn_text = 'Quét để báo hỏng'
-    btn_tw = _text_width(draw, btn_text, font_btn)
-    draw.text(
-        (left_x + (btn_w - btn_tw) // 2, btn_y + 9),
-        btn_text,
-        font=font_btn,
-        fill='white',
-    )
-
     qr_x = split_x + (RIGHT_W - QR_SIZE) // 2
-    qr_y = body_top + 6
+    qr_y = body_top + 16
     draw.rectangle(
         (qr_x - 6, qr_y - 6, qr_x + QR_SIZE + 6, qr_y + QR_SIZE + 6),
         outline=BLACK,
         width=2,
     )
 
-    qr_data = device_public_url(device.id)
+    qr_data = device_public_url(device_code if device_code != '—' else str(device.id))
     qr = qrcode.QRCode(box_size=6, border=2, error_correction=qrcode.constants.ERROR_CORRECT_M)
     qr.add_data(qr_data)
     qr.make(fit=True)
@@ -157,29 +146,11 @@ def generate_asset_tag(device) -> tuple[File, str]:
     qr_img = qr_img.resize((QR_SIZE, QR_SIZE), Image.Resampling.LANCZOS)
     img.paste(qr_img, (qr_x, qr_y))
 
-    caption = 'Quét mã báo hỏng'
-    cap_w = _text_width(draw, caption, font_caption)
-    draw.text(
-        (split_x + (RIGHT_W - cap_w) // 2, qr_y + QR_SIZE + 10),
-        caption,
-        font=font_caption,
-        fill=TEXT_MUTED,
-    )
-
-    device_id_short = str(device.id).split('-')[0].upper()
-    id_text = f'ID {device_id_short}'
-    id_w = _text_width(draw, id_text, font_id)
-    draw.text(
-        (TAG_W - INNER - 10 - id_w, body_bottom - 12),
-        id_text,
-        font=font_id,
-        fill=TEXT_MUTED,
-    )
-
     buffer = io.BytesIO()
     img.save(buffer, format='PNG', optimize=True)
     buffer.seek(0)
-    filename = f'AssetTag_{device.id}_{int(time.time())}.png'
+    code_slug = device_code.replace('/', '-') if device_code != '—' else str(device.id)
+    filename = f'AssetTag_{code_slug}_{int(time.time())}.png'
     return File(buffer, name=filename), filename
 
 
@@ -187,7 +158,7 @@ def should_redraw_tag(update_fields) -> bool:
     if not update_fields:
         return True
     tag_fields = {
-        'name', 'category', 'usage_department', 'usage_department_text', 'model_number',
+        'device_code', 'name', 'category', 'usage_department', 'usage_department_text', 'model_number',
         'serial_number', 'handover_date', 'assigned_user', 'assigned_user_text', 'qr_code',
     }
     return bool(set(update_fields).intersection(tag_fields))

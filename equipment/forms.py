@@ -10,6 +10,7 @@ class DeviceForm(forms.ModelForm):
     class Meta:
         model = Device
         fields = [
+            'device_code',
             'name',
             'managed_by',
             'category',
@@ -31,6 +32,7 @@ class DeviceForm(forms.ModelForm):
             'ip_address',
         ]
         widgets = {
+            'device_code': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'TB-000001'}),
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'managed_by': forms.Select(attrs={'class': 'form-select'}),
             'category': forms.Select(attrs={'class': 'form-select'}),
@@ -94,6 +96,8 @@ class DeviceForm(forms.ModelForm):
         )
         self.fields['assigned_user'].label_from_instance = self._user_choice_label
         self.fields['assigned_user'].required = False
+        self.fields['device_code'].required = False
+        self.fields['device_code'].help_text = 'Để trống để hệ thống tự sinh mã (TB-000001).'
 
     @staticmethod
     def _user_choice_label(user):
@@ -115,6 +119,19 @@ class DeviceForm(forms.ModelForm):
         if self.instance.pk and self.instance.category == normalized:
             return normalized
         raise forms.ValidationError('Loại thiết bị không hợp lệ.')
+
+    def clean_device_code(self):
+        from equipment.services.device_code import normalize_device_code
+
+        value = normalize_device_code(self.cleaned_data.get('device_code'))
+        if not value:
+            return ''
+        qs = Device.objects.filter(device_code__iexact=value)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError('Mã thiết bị đã tồn tại.')
+        return value
 
 
 class DeviceCategoryForm(forms.ModelForm):

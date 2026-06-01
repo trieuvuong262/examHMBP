@@ -18,6 +18,7 @@ from equipment.models import Device
 
 # Cột export (mã DB → tiêu đề Excel)
 EXPORT_COLUMNS = [
+    ('device_code', 'Mã thiết bị'),
     ('name', 'Tên thiết bị'),
     ('category', 'Loại (mã)'),
     ('category_label', 'Loại thiết bị'),
@@ -49,6 +50,7 @@ STATUS_MAP = dict(Device.STATUS_CHOICES)
 
 # Alias cột Excel (tiếng Việt / tên cũ)
 COLUMN_ALIASES = {
+    'device_code': ('device_code', 'Mã thiết bị', 'ma thiet bi'),
     'name': ('name', 'Tên thiết bị', 'ten thiet bi'),
     'managed_by': ('managed_by', 'Bộ phận QL', 'bo phan ql'),
     'status': ('status', 'Trạng thái', 'trang thai'),
@@ -127,6 +129,7 @@ def apply_device_list_filters(qs, params):
     if q:
         qs = qs.filter(
             Q(name__icontains=q)
+            | Q(device_code__icontains=q)
             | Q(serial_number__icontains=q)
             | Q(model_number__icontains=q)
             | Q(hostname__icontains=q)
@@ -178,6 +181,7 @@ def devices_to_dataframe(devices) -> pd.DataFrame:
     rows = []
     for d in devices:
         rows.append({
+            'device_code': d.device_code,
             'name': d.name,
             'category': d.category,
             'category_label': category_map().get(d.category, d.category),
@@ -274,7 +278,11 @@ def import_devices_from_excel(file_obj, category_code: str) -> tuple[int, list[s
             ip_value = str(ip_raw).strip()
 
         try:
+            from equipment.services.device_code import normalize_device_code
+
+            device_code_raw = normalize_device_code(_cell(row, 'device_code'))
             Device.objects.create(
+                device_code=device_code_raw,
                 name=_safe_str(name),
                 category=category_code,
                 managed_by=_safe_str(_cell(row, 'managed_by'), default_managed) or default_managed,

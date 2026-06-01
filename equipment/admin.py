@@ -21,6 +21,7 @@ class MaintenanceLogInline(admin.TabularInline):
 @admin.register(Device)
 class DeviceAdmin(admin.ModelAdmin):
     list_display = (
+        'device_code',
         'name',
         'category',
         'status',
@@ -34,6 +35,7 @@ class DeviceAdmin(admin.ModelAdmin):
     )
     list_filter = ('status', 'category', 'managed_by', 'is_online')
     search_fields = (
+        'device_code',
         'name',
         'serial_number',
         'hostname',
@@ -49,7 +51,7 @@ class DeviceAdmin(admin.ModelAdmin):
     inlines = [MaintenanceLogInline]
     fieldsets = (
         ('Thiết bị', {
-            'fields': ('name', 'category', 'status', 'managed_by', 'description'),
+            'fields': ('device_code', 'name', 'category', 'status', 'managed_by', 'description'),
         }),
         ('Người dùng & phòng ban', {
             'fields': (
