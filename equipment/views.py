@@ -21,12 +21,19 @@ from PortalJustPlay.pagination import paginate_queryset
 from .forms import DeviceForm, ReportIssueForm
 from .models import Device, MaintenanceLog
 from .services.wmi_scan import (
+    apply_probe_payload_to_device,
     discover_device_from_ip,
+    is_local_wmi_available,
+    is_relay_scan_available,
+    is_scan_available,
     is_wmi_scan_supported,
     parse_ip_range,
     scan_device_wmi,
+    scan_unavailable_message,
+    upsert_device_from_probe,
     wmi_unavailable_message,
 )
+from .services.scan_relay_client import ScanRelayError, scan_range_remote, scan_targets_remote
 
 
 def _access_required(view_func):
@@ -208,7 +215,12 @@ def device_list(request):
         'category_choices': Device.CATEGORY_CHOICES,
         'status_choices': Device.STATUS_CHOICES,
         'can_edit': user_can_edit_module(request.user, MODULE_EQUIPMENT),
-        'wmi_scan_available': is_wmi_scan_supported(),
+        'scan_available': is_scan_available(),
+        'scan_via_relay': is_relay_scan_available() and not is_local_wmi_available(),
+        'wmi_scan_available': is_scan_available(),
+        'scan_default_user': getattr(settings, 'EQUIPMENT_SCAN_DEFAULT_USER', ''),
+        'scan_default_start_ip': getattr(settings, 'EQUIPMENT_SCAN_DEFAULT_START_IP', ''),
+        'scan_default_end_ip': getattr(settings, 'EQUIPMENT_SCAN_DEFAULT_END_IP', ''),
         **_subnav_context(),
     })
 
@@ -510,9 +522,9 @@ def delete_bulk_devices(request):
     return redirect('equipment:device_list')
 
 
-def _require_wmi_scan(request):
-    if not is_wmi_scan_supported():
-        messages.error(request, wmi_unavailable_message())
+def _require_scan(request):
+    if not is_scan_available():
+        messages.error(request, scan_unavailable_message())
         return False
     return True
 
@@ -520,7 +532,7 @@ def _require_wmi_scan(request):
 @_edit_required
 @require_http_methods(['POST'])
 def scan_selected_devices(request):
-    if not _require_wmi_scan(request):
+    if not _require_scan(request):
         return redirect('equipment:device_list')
 
     device_ids = request.POST.getlist('device_ids')
@@ -534,27 +546,54 @@ def scan_selected_devices(request):
         messages.error(request, 'Vui lòng nhập tài khoản và mật khẩu Admin để quét WMI.')
         return redirect('equipment:device_list')
 
-    devices = Device.objects.filter(id__in=device_ids)
+    devices = list(Device.objects.filter(id__in=device_ids))
     count_ip = 0
     count_wmi = 0
     count_qr = 0
 
-    for device in devices:
-        ip_updated, wmi_updated, qr_redrawn = scan_device_wmi(
-            device,
-            username=scan_user,
-            password=scan_pass,
-        )
-        if ip_updated:
-            count_ip += 1
-        if wmi_updated:
-            count_wmi += 1
-        if qr_redrawn:
-            count_qr += 1
+    if is_local_wmi_available():
+        for device in devices:
+            ip_updated, wmi_updated, qr_redrawn = scan_device_wmi(
+                device,
+                username=scan_user,
+                password=scan_pass,
+            )
+            if ip_updated:
+                count_ip += 1
+            if wmi_updated:
+                count_wmi += 1
+            if qr_redrawn:
+                count_qr += 1
+    else:
+        try:
+            targets = [
+                {
+                    'id': str(d.id),
+                    'hostname': d.hostname or '',
+                    'ip_address': str(d.ip_address) if d.ip_address else '',
+                }
+                for d in devices
+            ]
+            data = scan_targets_remote(targets=targets, scan_user=scan_user, scan_pass=scan_pass)
+            device_map = {str(d.id): d for d in devices}
+            for entry in data.get('results', []):
+                device = device_map.get(entry.get('id'))
+                if not device:
+                    continue
+                ip_u, wmi_u, qr_u = apply_probe_payload_to_device(device, entry)
+                if ip_u:
+                    count_ip += 1
+                if wmi_u:
+                    count_wmi += 1
+                if qr_u:
+                    count_qr += 1
+        except ScanRelayError as exc:
+            messages.error(request, str(exc))
+            return redirect('equipment:device_list')
 
     messages.success(
         request,
-        f'Hoàn tất quét {devices.count()} thiết bị. '
+        f'Hoàn tất quét {len(devices)} thiết bị. '
         f'Cập nhật IP: {count_ip}. WMI: {count_wmi}. Vẽ lại tem QR: {count_qr}.',
     )
     return redirect('equipment:device_list')
@@ -563,7 +602,7 @@ def scan_selected_devices(request):
 @_edit_required
 @require_http_methods(['POST'])
 def scan_network_range(request):
-    if not _require_wmi_scan(request):
+    if not _require_scan(request):
         return redirect('equipment:device_list')
 
     start_ip = (request.POST.get('start_ip') or '').strip()
@@ -584,16 +623,35 @@ def scan_network_range(request):
     found_count = 0
     new_device_count = 0
 
-    for ip_str in ip_list:
+    if is_local_wmi_available():
+        for ip_str in ip_list:
+            try:
+                result = discover_device_from_ip(ip_str, username=scan_user, password=scan_pass)
+                if result:
+                    found_count += 1
+                    _, created = result
+                    if created:
+                        new_device_count += 1
+            except Exception:
+                continue
+    else:
         try:
-            result = discover_device_from_ip(ip_str, username=scan_user, password=scan_pass)
-            if result:
+            data = scan_range_remote(
+                start_ip=start_ip,
+                end_ip=end_ip,
+                scan_user=scan_user,
+                scan_pass=scan_pass,
+            )
+            for probe in data.get('probes', []):
+                device, created = upsert_device_from_probe(probe)
+                if device is None:
+                    continue
                 found_count += 1
-                _, created = result
                 if created:
                     new_device_count += 1
-        except Exception:
-            continue
+        except ScanRelayError as exc:
+            messages.error(request, str(exc))
+            return redirect('equipment:device_list')
 
     messages.success(
         request,
@@ -645,11 +703,11 @@ def api_agent_report(request):
 @_edit_required
 def scan_relay_guide(request):
     """Hướng dẫn quét WMI tập trung từ máy Windows IT (production VPS)."""
-    portal_url = getattr(settings, 'PORTAL_PUBLIC_BASE_URL', '').rstrip('/')
-    has_secret = bool(getattr(settings, 'EQUIPMENT_AGENT_SECRET', ''))
+    from equipment.services.scan_backend import relay_http_url
+
     return render(request, 'equipment/scan_relay.html', {
-        'portal_url': portal_url,
-        'has_agent_secret': has_secret,
-        'wmi_scan_available': is_wmi_scan_supported(),
+        'relay_http_url': relay_http_url(),
+        'has_relay_secret': bool(getattr(settings, 'EQUIPMENT_RELAY_SECRET', '')),
+        'scan_available': is_scan_available(),
         **_subnav_context(),
     })

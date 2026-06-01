@@ -1,11 +1,9 @@
-"""Quét WMI / dải IP — chỉ hỗ trợ Windows (dev/local)."""
+"""Quét WMI / dải IP — local Windows hoặc relay HTTP (máy IT)."""
 
 from __future__ import annotations
 
-import platform
 import socket
 
-from django.conf import settings
 from django.utils import timezone
 
 from equipment.relay.wmi_standalone import (
@@ -18,30 +16,54 @@ from equipment.relay.wmi_standalone import (
 )
 
 __all__ = [
+    'apply_probe_payload_to_device',
     'apply_wmi_info_to_device',
     'discover_device_from_ip',
     'get_info_via_powershell',
     'is_bad_serial',
+    'is_local_wmi_available',
+    'is_relay_scan_available',
+    'is_scan_available',
     'is_wmi_scan_supported',
     'parse_ip_range',
     'port_135_open',
     'probe_ip',
     'scan_device_wmi',
+    'scan_unavailable_message',
     'wmi_unavailable_message',
 ]
 
 
+def is_local_wmi_available() -> bool:
+    from equipment.services.scan_backend import is_local_wmi_available as _local
+
+    return _local()
+
+
+def is_relay_scan_available() -> bool:
+    from equipment.services.scan_backend import is_relay_scan_available as _relay
+
+    return _relay()
+
+
+def is_scan_available() -> bool:
+    from equipment.services.scan_backend import is_scan_available as _available
+
+    return _available()
+
+
 def is_wmi_scan_supported() -> bool:
-    """WMI qua PowerShell — Windows và môi trường dev/local."""
-    if platform.system().lower() != 'windows':
-        return False
-    return bool(getattr(settings, 'IS_LOCAL', False) or getattr(settings, 'DEBUG', False))
+    return is_scan_available()
+
+
+def scan_unavailable_message() -> str:
+    from equipment.services.scan_backend import scan_unavailable_message as _msg
+
+    return _msg()
 
 
 def wmi_unavailable_message() -> str:
-    if platform.system().lower() != 'windows':
-        return 'Quét WMI chỉ chạy trên Windows (máy dev). Production: dùng scan_relay.py trên máy IT.'
-    return 'Quét WMI chỉ bật khi DEBUG hoặc DJANGO_ENV=local. Production: dùng scan_relay.py trên máy IT.'
+    return scan_unavailable_message()
 
 
 def resolve_device_ip(device) -> tuple[str | None, bool]:
@@ -86,6 +108,40 @@ def apply_wmi_info_to_device(device, info: dict) -> bool:
         if not important_change:
             device.save(update_fields=['configuration', 'updated_at'])
     return important_change
+
+
+def apply_probe_payload_to_device(device, payload: dict) -> tuple[bool, bool, bool]:
+    """
+    Áp kết quả quét (local hoặc relay) lên Device.
+    Returns: (ip_updated, wmi_updated, qr_redrawn)
+    """
+    ip_updated = bool(payload.get('ip_updated'))
+    wmi_updated = bool(payload.get('wmi_updated'))
+    qr_redrawn = bool(payload.get('qr_redrawn'))
+
+    if payload.get('ip_address'):
+        device.ip_address = payload['ip_address']
+    if 'is_online' in payload:
+        device.is_online = bool(payload['is_online'])
+    if payload.get('hostname'):
+        device.hostname = payload['hostname']
+
+    probe = payload.get('probe')
+    if probe:
+        important = apply_wmi_info_to_device(device, probe)
+        if important:
+            qr_redrawn = True
+        wmi_updated = True
+
+    device.last_scan_date = timezone.now()
+    if qr_redrawn or ip_updated:
+        device.save()
+    elif wmi_updated:
+        device.save(update_fields=['last_scan_date', 'updated_at', 'configuration'])
+    else:
+        device.save(update_fields=['last_scan_date', 'updated_at'])
+
+    return ip_updated, wmi_updated, qr_redrawn
 
 
 def scan_device_wmi(device, *, username: str, password: str) -> tuple[bool, bool, bool]:
@@ -147,5 +203,38 @@ def discover_device_from_ip(ip_str: str, *, username: str, password: str):
     device.last_scan_date = timezone.now()
     if created and device.hostname:
         device.name = device.hostname
+    device.save()
+    return device, created
+
+
+def upsert_device_from_probe(probe: dict):
+    """Tạo hoặc cập nhật thiết bị từ kết quả quét (relay / local)."""
+    from equipment.models import Device
+
+    ip_str = probe.get('ip') or probe.get('ip_address')
+    serial = probe.get('serial')
+    if not serial or is_bad_serial(serial):
+        return None, False
+
+    hostname = probe.get('hostname') or ''
+    device, created = Device.objects.get_or_create(
+        serial_number=serial,
+        defaults={
+            'name': hostname or f"{probe.get('model', 'PC')} — {ip_str}",
+            'managed_by': Device.MANAGED_IT,
+            'category': 'PC',
+            'status': Device.STATUS_ACTIVE,
+        },
+    )
+    if ip_str:
+        device.ip_address = ip_str
+    if hostname:
+        device.hostname = hostname
+    device.model_number = probe.get('model') or device.model_number
+    device.configuration = build_configuration(probe)
+    device.is_online = True
+    device.last_scan_date = timezone.now()
+    if created and hostname:
+        device.name = hostname
     device.save()
     return device, created

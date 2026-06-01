@@ -135,6 +135,63 @@ def port_135_open(ip: str, *, timeout: float = 1.0) -> bool:
         return False
 
 
+def resolve_target_ip(hostname: str | None, ip_address: str | None) -> tuple[str | None, bool, bool]:
+    """Trả về (ip, ip_changed, is_online)."""
+    socket.setdefaulttimeout(2)
+    target_ip = None
+    ip_changed = False
+    is_online = True
+
+    if hostname:
+        try:
+            resolved = socket.gethostbyname(hostname)
+            if ip_address != resolved:
+                ip_changed = True
+            target_ip = resolved
+        except OSError:
+            is_online = False
+            if ip_address:
+                target_ip = str(ip_address)
+
+    if not target_ip and ip_address:
+        target_ip = str(ip_address)
+
+    return target_ip, ip_changed, is_online
+
+
+def scan_target_entry(
+    *,
+    target_id: str,
+    hostname: str | None,
+    ip_address: str | None,
+    username: str,
+    password: str,
+) -> dict:
+    """Quét một mục tiêu — payload cho portal."""
+    target_ip, ip_changed, is_online = resolve_target_ip(hostname, ip_address)
+    result = {
+        'id': target_id,
+        'ip_updated': ip_changed,
+        'wmi_updated': False,
+        'qr_redrawn': False,
+        'ip_address': target_ip,
+        'is_online': is_online,
+        'hostname': hostname,
+        'probe': None,
+    }
+
+    if target_ip and username and password and port_135_open(target_ip):
+        probe = probe_ip(target_ip, username=username, password=password)
+        if probe:
+            result['wmi_updated'] = True
+            result['probe'] = probe
+            result['hostname'] = probe.get('hostname') or hostname
+            result['ip_address'] = probe.get('ip') or target_ip
+            result['is_online'] = True
+
+    return result
+
+
 def resolve_hostname(ip: str) -> str:
     try:
         return socket.gethostbyaddr(ip)[0]

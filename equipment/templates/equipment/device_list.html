@@ -6,19 +6,21 @@
     <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-hdd-stack me-2"></i>Danh sách thiết bị</h2>
-            <p class="text-muted mb-0">{{ filtered_count }} / {{ total_count }} thiết bị</p>
+            <p class="text-muted mb-0">{{ filtered_count }} / {{ total_count }} thiết bị
+                {% if scan_via_relay %}<span class="badge bg-secondary ms-1">Quét qua relay IT</span>{% endif %}
+            </p>
         </div>
         <div class="d-flex flex-wrap gap-2 align-items-center">
-            {% if can_edit and wmi_scan_available %}
+            {% if can_edit and scan_available %}
             <button type="button" class="btn btn-dark btn-sm" data-bs-toggle="modal" data-bs-target="#scanModal">
-                <i class="bi bi-search me-1"></i>Quét WMI
+                <i class="bi bi-search me-1"></i>Quét
             </button>
             <button type="button" class="btn btn-outline-dark btn-sm" data-bs-toggle="modal" data-bs-target="#rangeScanModal">
                 <i class="bi bi-broadcast me-1"></i>Quét dải IP
             </button>
             {% elif can_edit %}
-            <a href="{% url 'equipment:scan_relay_guide' %}" class="btn btn-dark btn-sm" title="Quét từ máy Windows IT">
-                <i class="bi bi-broadcast-pin me-1"></i>Quét relay
+            <a href="{% url 'equipment:scan_relay_guide' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-info-circle me-1"></i>Cấu hình quét
             </a>
             {% endif %}
             {% if can_edit %}
@@ -115,9 +117,9 @@
                 onclick="return confirm('Xóa các thiết bị đã chọn? Hành động không hoàn tác được.');">
             <i class="bi bi-trash me-1"></i>Xóa đã chọn (<span id="selectedCount">0</span>)
         </button>
-        {% if wmi_scan_available %}
+        {% if scan_available %}
         <button type="button" class="btn btn-dark btn-sm" data-bs-toggle="modal" data-bs-target="#scanModal">
-            <i class="bi bi-search me-1"></i>Quét WMI đã chọn
+            <i class="bi bi-search me-1"></i>Quét đã chọn
         </button>
         {% endif %}
     </div>
@@ -200,19 +202,22 @@
     </form>
 </div>
 
-{% if can_edit and wmi_scan_available %}
+{% if can_edit and scan_available %}
 <div class="modal fade" id="scanModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header bg-dark text-white">
-                <h5 class="modal-title"><i class="bi bi-terminal me-2"></i>Quét WMI</h5>
+                <h5 class="modal-title"><i class="bi bi-terminal me-2"></i>Quét thông tin (WMI)</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div class="alert alert-info small mb-3">Chọn thiết bị trong bảng trước khi quét.</div>
+                <div class="alert alert-info small mb-3">
+                    Quét <strong>IP, Model, Serial, cấu hình</strong>. Chọn thiết bị trong bảng trước khi quét.
+                    {% if scan_via_relay %}<br>Quét thực hiện trên máy IT qua Tailscale.{% endif %}
+                </div>
                 <div class="mb-3">
-                    <label class="form-label fw-bold">Tài khoản Admin</label>
-                    <input type="text" id="scanUser" class="form-control" placeholder="DOMAIN\administrator">
+                    <label class="form-label fw-bold">Tài khoản Admin (Domain)</label>
+                    <input type="text" id="scanUser" class="form-control" placeholder="JUSTPLAY\it-admin" value="{{ scan_default_user }}">
                 </div>
                 <div class="mb-0">
                     <label class="form-label fw-bold">Mật khẩu</label>
@@ -237,19 +242,20 @@
             <form method="post" action="{% url 'equipment:scan_network_range' %}">
                 {% csrf_token %}
                 <div class="modal-body">
+                    <div class="alert alert-warning small">Tìm máy mới trong dải IP và tự thêm vào danh sách (tối đa 255 IP).</div>
                     <div class="row g-2 mb-3">
                         <div class="col-6">
                             <label class="form-label fw-bold">Từ IP</label>
-                            <input type="text" name="start_ip" class="form-control" placeholder="192.168.1.1" required>
+                            <input type="text" name="start_ip" class="form-control" placeholder="192.168.1.1" value="{{ scan_default_start_ip }}" required>
                         </div>
                         <div class="col-6">
                             <label class="form-label fw-bold">Đến IP</label>
-                            <input type="text" name="end_ip" class="form-control" placeholder="192.168.1.50" required>
+                            <input type="text" name="end_ip" class="form-control" placeholder="192.168.1.254" value="{{ scan_default_end_ip }}" required>
                         </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Tài khoản Admin</label>
-                        <input type="text" name="scan_user" class="form-control" required>
+                        <input type="text" name="scan_user" class="form-control" value="{{ scan_default_user }}" required>
                     </div>
                     <div class="mb-0">
                         <label class="form-label fw-bold">Mật khẩu</label>

@@ -3,8 +3,8 @@
 {% block content %}
 <div class="container jp-page py-3 py-md-4 mb-5">
     <div class="jp-page-header mb-3 mb-md-4">
-        <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-broadcast-pin me-2"></i>Quét thiết bị tập trung (scan relay)</h2>
-        <p class="text-muted mb-0">Production VPS: quét WMI từ <strong>1 máy Windows IT</strong> trong LAN — không cài trên từng PC.</p>
+        <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-broadcast-pin me-2"></i>Quét thiết bị (relay IT)</h2>
+        <p class="text-muted mb-0">Bấm <strong>Quét</strong> trên portal → VPS gọi máy Windows IT → WMI trong LAN (giống hospital).</p>
     </div>
 
     {% include 'equipment/includes/subnav.html' %}
@@ -13,12 +13,12 @@
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm mb-3">
                 <div class="card-body p-4">
-                    <h5 class="fw-bold mb-3">Cách hoạt động</h5>
+                    <h5 class="fw-bold mb-3">Luồng hoạt động</h5>
                     <ol class="mb-0">
-                        <li class="mb-2">Máy Windows IT (cùng LAN xưởng) chạy <code>scan_relay.py</code>.</li>
-                        <li class="mb-2">Script quét dải IP bằng WMI + tài khoản domain admin.</li>
-                        <li class="mb-2">Kết quả gửi lên portal qua API <code>/thiet-bi/api/agent-report/</code>.</li>
-                        <li>Danh sách thiết bị trên portal tự cập nhật IP, cấu hình, trạng thái online.</li>
+                        <li class="mb-2">IT bấm <strong>Quét</strong> trên danh sách thiết bị (portal VPS).</li>
+                        <li class="mb-2">VPS gửi lệnh qua Tailscale tới <code>scan_relay_server.py</code> trên máy IT.</li>
+                        <li class="mb-2">Máy IT quét WMI dải IP / thiết bị đã chọn trong LAN.</li>
+                        <li>Portal cập nhật DB — không cài gì trên PC nhân viên.</li>
                     </ol>
                 </div>
             </div>
@@ -26,55 +26,47 @@
             <div class="card border-0 shadow-sm mb-3">
                 <div class="card-header bg-white fw-bold">Bước 1 — VPS (.env)</div>
                 <div class="card-body">
-                    <pre class="bg-light p-3 rounded small mb-0">EQUIPMENT_AGENT_SECRET=chuoi-bi-mat-dai-ngau-nhien
-PORTAL_PUBLIC_BASE_URL=https://portal.justplay.vn</pre>
-                    {% if not has_agent_secret %}
-                    <p class="text-warning small mt-2 mb-0"><i class="bi bi-exclamation-triangle me-1"></i>Chưa cấu hình <code>EQUIPMENT_AGENT_SECRET</code> trên server.</p>
-                    {% endif %}
+                    <pre class="bg-light p-3 rounded small mb-0">EQUIPMENT_RELAY_HTTP_URL=http://100.x.x.x:8765
+EQUIPMENT_RELAY_SECRET=chuoi-bi-mat-giong-agent
+EQUIPMENT_SCAN_DEFAULT_USER=JUSTPLAY\it-admin
+EQUIPMENT_SCAN_DEFAULT_START_IP=192.168.1.1
+EQUIPMENT_SCAN_DEFAULT_END_IP=192.168.1.254</pre>
+                    <p class="small text-muted mt-2 mb-0"><code>100.x.x.x</code> = IP Tailscale máy IT. Secret khớp <code>scan_relay.env</code>.</p>
                 </div>
             </div>
 
             <div class="card border-0 shadow-sm mb-3">
                 <div class="card-header bg-white fw-bold">Bước 2 — Máy Windows IT</div>
                 <div class="card-body">
-                    <p class="small text-muted">Trong thư mục project (clone hoặc copy 2 file):</p>
                     <pre class="bg-light p-3 rounded small">copy scan_relay.env.example scan_relay.env
-# Sửa scan_relay.env: URL, secret, dải IP, SCAN_USER / SCAN_PASS
+python scan_relay_server.py
 
-python scan_relay.py --dry-run
-python scan_relay.py</pre>
+# Tự chạy khi login:
+.\scripts\setup-scan-relay-server.ps1 -ProjectDir "D:\Project\PortalJustPlay"</pre>
                 </div>
             </div>
 
             <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white fw-bold">Bước 3 — Tự động (Task Scheduler)</div>
+                <div class="card-header bg-white fw-bold">Bước 3 — Quét theo lịch (tuỳ chọn)</div>
                 <div class="card-body mb-0">
-                    <p class="small">PowerShell (Admin) trên máy IT:</p>
-                    <pre class="bg-light p-3 rounded small mb-0">Set-ExecutionPolicy -Scope Process Bypass
-.\scripts\setup-scan-relay-task.ps1 -ProjectDir "D:\Project\PortalJustPlay"</pre>
-                    <p class="small text-muted mt-2 mb-0">Task chạy khi đăng nhập Windows + lặp mỗi 2 giờ.</p>
+                    <pre class="bg-light p-3 rounded small mb-0">.\scripts\setup-scan-relay-task.ps1 -ProjectDir "D:\Project\PortalJustPlay"</pre>
+                    <p class="small text-muted mt-2 mb-0">Chạy <code>scan_relay.py</code> định kỳ không cần bấm trên web.</p>
                 </div>
             </div>
         </div>
 
         <div class="col-lg-4">
-            <div class="card border-0 shadow-sm border-start border-4 border-hm">
+            <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <h6 class="fw-bold">URL API hiện tại</h6>
-                    <p class="small font-monospace text-break mb-3">
-                        {% if portal_url %}{{ portal_url }}/thiet-bi/api/agent-report/{% else %}<span class="text-muted">Chưa cấu hình PORTAL_PUBLIC_BASE_URL</span>{% endif %}
-                    </p>
-                    <h6 class="fw-bold">Tailscale (tuỳ chọn)</h6>
-                    <p class="small text-muted mb-3">Có thể dùng IP Tailscale VPS thay HTTPS public:<br>
-                        <code>EQUIPMENT_RELAY_URL=http://100.x.x.x</code></p>
-                    {% if wmi_scan_available %}
-                    <p class="small text-success mb-0"><i class="bi bi-check-circle me-1"></i>Môi trường dev: vẫn dùng được Quét WMI trên danh sách thiết bị.</p>
-                    {% else %}
-                    <p class="small text-muted mb-0"><i class="bi bi-info-circle me-1"></i>Production VPS không quét WMI trực tiếp — dùng scan relay.</p>
-                    {% endif %}
+                    <h6 class="fw-bold">Trạng thái</h6>
+                    <ul class="small mb-3">
+                        <li>Relay URL: <code>{{ relay_http_url|default:"—" }}</code></li>
+                        <li>Secret VPS: {% if has_relay_secret %}<span class="text-success">Đã cấu hình</span>{% else %}<span class="text-warning">Chưa có</span>{% endif %}</li>
+                        <li>Quét trên web: {% if scan_available %}<span class="text-success">Sẵn sàng</span>{% else %}<span class="text-danger">Chưa cấu hình relay</span>{% endif %}</li>
+                    </ul>
+                    <a href="{% url 'equipment:device_list' %}" class="btn btn-hm btn-sm">Về danh sách thiết bị</a>
                 </div>
             </div>
-            <a href="{% url 'equipment:device_list' %}" class="btn btn-outline-secondary btn-sm mt-3"><i class="bi bi-arrow-left me-1"></i>Danh sách thiết bị</a>
         </div>
     </div>
 </div>

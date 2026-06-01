@@ -22,19 +22,17 @@ class WmiScanHelpersTests(SimpleTestCase):
 
     @override_settings(DEBUG=True)
     def test_wmi_supported_on_windows_debug(self):
-        from unittest.mock import patch
-        from equipment.services.wmi_scan import is_wmi_scan_supported
+        from equipment.services.scan_backend import is_local_wmi_available
 
-        with patch('equipment.services.wmi_scan.platform.system', return_value='Windows'):
-            self.assertTrue(is_wmi_scan_supported())
+        with patch('equipment.services.scan_backend.platform.system', return_value='Windows'):
+            self.assertTrue(is_local_wmi_available())
 
     @override_settings(DEBUG=True)
-    def test_wmi_not_supported_on_linux(self):
-        from unittest.mock import patch
-        from equipment.services.wmi_scan import is_wmi_scan_supported
+    def test_wmi_not_supported_on_linux_without_relay(self):
+        from equipment.services.scan_backend import is_local_wmi_available
 
-        with patch('equipment.services.wmi_scan.platform.system', return_value='Linux'):
-            self.assertFalse(is_wmi_scan_supported())
+        with patch('equipment.services.scan_backend.platform.system', return_value='Linux'):
+            self.assertFalse(is_local_wmi_available())
 
 
 class EmailNotifyTests(SimpleTestCase):
@@ -66,3 +64,10 @@ class ScanRelayTests(SimpleTestCase):
                 'max_hosts': '255',
             })
         self.assertTrue(any('Windows' in e for e in errors))
+
+    @override_settings(EQUIPMENT_RELAY_HTTP_URL='http://100.1.2.3:8765', EQUIPMENT_RELAY_SECRET='sec')
+    def test_scan_available_via_relay_on_linux(self):
+        from equipment.services.scan_backend import is_scan_available
+
+        with patch('equipment.services.scan_backend.platform.system', return_value='Linux'):
+            self.assertTrue(is_scan_available())
