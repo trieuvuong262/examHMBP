@@ -28,7 +28,7 @@ fonttools==4.61.1
 freetype-py==2.5.1
 google-api-core==2.26.0
 google-api-python-client==2.185.0
-google-auth==2.41.1
+google-auth==2.53.0
 google-auth-httplib2==0.2.0
 google-genai==2.7.0
 googleapis-common-protos==1.71.0
