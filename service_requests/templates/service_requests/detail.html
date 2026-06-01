@@ -9,6 +9,9 @@
                 {{ service_request.request_type.name }} ·
                 gửi bởi {{ service_request.requester.profile.full_name|default:service_request.requester.username }}
                 · {{ service_request.created_at|date:"d/m/Y H:i" }}
+                {% if service_request.is_from_catalog %}
+                · <span class="badge bg-info text-dark">Hàng định kỳ</span>
+                {% endif %}
             </p>
         </div>
         <span class="badge bg-light text-dark border fs-6">{{ service_request.get_status_display }}</span>
@@ -22,12 +25,71 @@
                 <div class="card-header bg-white fw-bold">Nội dung yêu cầu</div>
                 <div class="card-body">
                     <p class="mb-0" style="white-space: pre-wrap;">{{ service_request.description }}</p>
-                    {% if service_request.estimated_cost %}
+                    {% if service_request.needs_advance %}
                     <hr>
-                    <div class="text-muted small">Dự toán</div>
-                    <div class="fw-bold">{{ service_request.estimated_cost|floatformat:0 }} VNĐ</div>
+                    <div class="text-muted small">Tạm ứng</div>
+                    <div>Có{% if service_request.advance_amount %} — {{ service_request.advance_amount|floatformat:0 }} VNĐ{% endif %}</div>
                     {% endif %}
                 </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-white fw-bold">Danh sách hàng hóa</div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Mô tả</th>
+                                    <th>SL đề xuất</th>
+                                    <th>SL xác nhận</th>
+                                    <th>ĐVT</th>
+                                    {% if show_pricing %}<th>Báo giá NCC</th>{% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for line in line_items %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>{{ line.description }}</td>
+                                    <td>{{ line.quantity_requested }}</td>
+                                    <td>{{ line.quantity_confirmed|default:"—" }}</td>
+                                    <td>{{ line.unit }}</td>
+                                    {% if show_pricing %}
+                                    <td>
+                                        {% if line.quotes.all %}
+                                        <ul class="list-unstyled mb-0 small">
+                                            {% for q in line.quotes.all %}
+                                            <li>
+                                                {% if q.is_selected %}<strong>{% endif %}
+                                                {{ q.supplier_name }}: {{ q.unit_price|floatformat:0 }} VNĐ/SP
+                                                {% if q.is_selected %}(đã chọn){% endif %}</strong>
+                                                {% if q.quote_file %}
+                                                · <a href="{{ q.quote_file.url }}" target="_blank">file BG</a>
+                                                {% endif %}
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                        {% else %}—{% endif %}
+                                    </td>
+                                    {% endif %}
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="6" class="text-muted p-3">Chưa có dòng hàng.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% if show_pricing and service_request.selected_total_amount %}
+                <div class="card-footer bg-white">
+                    <strong>Tổng NCC đã chọn:</strong> {{ service_request.selected_total_amount|floatformat:0 }} VNĐ
+                    {% if service_request.approval_tier %}
+                    · Cấp duyệt: {{ service_request.get_approval_tier_display }}
+                    {% endif %}
+                </div>
+                {% endif %}
             </div>
 
             {% if request_attachments %}
@@ -57,7 +119,9 @@
                                 <div>
                                     <div class="fw-bold">Bước {{ step.step_order }}: {{ step.name }}</div>
                                     <div class="small text-muted mt-1">
-                                        {% if step.assignee %}
+                                        {% if step.status == 'skipped' %}
+                                        Bỏ qua theo quy trình
+                                        {% elif step.assignee %}
                                         Người xử lý: {{ step.assignee.profile.full_name|default:step.assignee.username }}
                                         {% elif step.target_department %}
                                         Phòng: {{ step.target_department.name }} (chưa tiếp nhận)
@@ -93,7 +157,19 @@
                     </form>
                     {% endif %}
 
-                    {% if can_handle_current and current_step.is_approval %}
+                    {% if can_handle_current and current_step.step_code == 'procurement_quote' %}
+                    {% include 'service_requests/includes/procurement_quote_form.html' %}
+                    {% elif can_handle_current and current_step.step_code == 'procurement_purchase' %}
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="complete_purchase">
+                        <label class="form-label">{{ purchase_form.goods_receiver.label }} <span class="text-danger">*</span></label>
+                        {{ purchase_form.goods_receiver }}
+                        <label class="form-label mt-2">{{ purchase_form.note.label }} <span class="text-danger">*</span></label>
+                        {{ purchase_form.note }}
+                        <button type="submit" class="btn btn-success w-100 mt-3">Ghi nhận đặt hàng</button>
+                    </form>
+                    {% elif can_handle_current and current_step.is_approval %}
                     <form method="post" class="mb-3">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="approve">
@@ -108,9 +184,7 @@
                         {{ reject_form.reason }}
                         <button type="submit" class="btn btn-outline-danger w-100 mt-2">Từ chối</button>
                     </form>
-                    {% endif %}
-
-                    {% if can_handle_current and current_step.is_execution %}
+                    {% elif can_handle_current and current_step.is_execution %}
                     <form method="post" enctype="multipart/form-data">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="complete">

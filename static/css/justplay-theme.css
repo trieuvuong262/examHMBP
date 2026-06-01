@@ -5643,6 +5643,23 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     background: #262626;
 }
 
+.jp-progress-slider-wrap .form-range.jp-progress-slider {
+    height: 0.5rem;
+    cursor: pointer;
+}
+
+.jp-progress-slider-wrap .form-range.jp-progress-slider:focus {
+    box-shadow: 0 0 0 0.2rem rgba(220, 38, 38, 0.2);
+}
+
+.jp-progress-slider-wrap .form-range.jp-progress-slider::-webkit-slider-thumb {
+    background: var(--jp-brand, #dc2626);
+}
+
+.jp-progress-slider-wrap .form-range.jp-progress-slider::-moz-range-thumb {
+    background: var(--jp-brand, #dc2626);
+}
+
 /* --- Offcanvas & sidebar (dark = đỏ đậm) --- */
 [data-theme="dark"] .offcanvas {
     background: var(--jp-surface-bg);

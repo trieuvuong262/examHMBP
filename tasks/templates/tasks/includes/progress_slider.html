@@ -1,0 +1,14 @@
+<div class="jp-progress-slider-wrap">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <label class="form-label mb-0" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        <span class="badge bg-hm fs-6 jp-progress-slider-value" aria-live="polite">{{ field.value|default:0 }}%</span>
+    </div>
+    {{ field }}
+    <div class="d-flex justify-content-between small text-muted mt-1">
+        <span>0%</span>
+        <span>100%</span>
+    </div>
+    {% if field.errors %}
+    <div class="text-danger small mt-1">{{ field.errors }}</div>
+    {% endif %}
+</div>

@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">Danh mục hàng mua định kỳ</h2>
+            <p class="text-muted mb-0">Quản lý bởi Thu mua — nhân viên chọn khi gửi yêu cầu hàng tháng cố định.</p>
+        </div>
+        <a href="{% url 'service_requests:catalog_create' %}" class="btn btn-hm btn-sm">
+            <i class="bi bi-plus-lg me-1"></i>Thêm hàng
+        </a>
+    </div>
+
+    {% include 'service_requests/includes/subnav.html' %}
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Tên hàng</th>
+                        <th>ĐVT</th>
+                        <th>Trạng thái</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in page_obj %}
+                    <tr>
+                        <td>
+                            <div class="fw-bold">{{ item.name }}</div>
+                            {% if item.description %}<div class="small text-muted">{{ item.description|truncatechars:80 }}</div>{% endif %}
+                        </td>
+                        <td>{{ item.unit }}</td>
+                        <td>
+                            {% if item.is_active %}
+                            <span class="badge bg-success">Đang dùng</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Đã ẩn</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <a href="{% url 'service_requests:catalog_edit' item.pk %}" class="btn btn-sm btn-outline-secondary">Sửa</a>
+                            {% if item.is_active %}
+                            <form method="post" action="{% url 'service_requests:catalog_delete' item.pk %}" class="d-inline" onsubmit="return confirm('Ẩn hàng này?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Ẩn</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-muted p-4 text-center">Chưa có hàng trong danh mục.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

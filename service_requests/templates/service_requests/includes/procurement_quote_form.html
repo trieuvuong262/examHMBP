@@ -1,0 +1,75 @@
+<form method="post" enctype="multipart/form-data" id="procurement-quote-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="submit_quote">
+
+    {% for line in line_items %}
+    <div class="border rounded p-2 mb-3 quote-line-block" data-line-id="{{ line.pk }}">
+        <div class="fw-bold small mb-2">{{ line.description }}</div>
+        <div class="mb-2">
+            <label class="form-label small mb-0">SL xác nhận</label>
+            <input type="number" name="line_{{ line.pk }}_qty" class="form-control form-control-sm"
+                   min="0.01" step="0.01" value="{{ line.quantity_confirmed|default:line.quantity_requested }}" required>
+        </div>
+        <div class="quote-rows" data-line-id="{{ line.pk }}">
+            <div class="small text-muted mb-1">Báo giá NCC (chọn 1 NCC / dòng)</div>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-secondary add-quote-btn" data-line-id="{{ line.pk }}">
+            + Thêm NCC
+        </button>
+    </div>
+    {% endfor %}
+
+    <label class="form-label">Ghi chú</label>
+    <textarea name="quote_note" class="form-control form-control-sm mb-2" rows="2"></textarea>
+    <button type="submit" class="btn btn-success w-100">Hoàn thành báo giá</button>
+</form>
+
+<template id="quote-row-template">
+    <div class="quote-row border-top pt-2 mt-2">
+        <div class="form-check mb-1">
+            <input type="checkbox" class="form-check-input quote-select-cb" name="LINE_PREFIX_quote_INDEX_selected">
+            <label class="form-check-label small">Chọn NCC này</label>
+        </div>
+        <input type="text" name="LINE_PREFIX_quote_INDEX_supplier" class="form-control form-control-sm mb-1" placeholder="Tên NCC" required>
+        <input type="number" name="LINE_PREFIX_quote_INDEX_price" class="form-control form-control-sm mb-1" placeholder="Đơn giá VNĐ" min="0" required>
+        <input type="file" name="LINE_PREFIX_quote_INDEX_file" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png">
+    </div>
+</template>
+
+<script>
+(function () {
+    const template = document.getElementById('quote-row-template');
+    const counters = {};
+
+    function addQuoteRow(lineId, container) {
+        const idx = counters[lineId] || 0;
+        counters[lineId] = idx + 1;
+        const prefix = 'line_' + lineId + '_quote_' + idx + '_';
+        let html = template.innerHTML.replace(/LINE_PREFIX_quote_INDEX_/g, prefix);
+        container.insertAdjacentHTML('beforeend', html);
+        const row = container.lastElementChild;
+        const cb = row.querySelector('.quote-select-cb');
+        cb.addEventListener('change', function () {
+            if (cb.checked) {
+                container.querySelectorAll('.quote-select-cb').forEach(other => {
+                    if (other !== cb) other.checked = false;
+                });
+            }
+        });
+    }
+
+    document.querySelectorAll('.quote-line-block').forEach(block => {
+        const lineId = block.dataset.lineId;
+        const container = block.querySelector('.quote-rows');
+        addQuoteRow(lineId, container);
+    });
+
+    document.querySelectorAll('.add-quote-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const lineId = btn.dataset.lineId;
+            const container = document.querySelector('.quote-rows[data-line-id="' + lineId + '"]');
+            addQuoteRow(lineId, container);
+        });
+    });
+})();
+</script>

@@ -140,12 +140,21 @@ class WorkTaskAssignForm(forms.Form):
         return cleaned
 
 
+class RangeInput(forms.NumberInput):
+    input_type = 'range'
+
+
 class WorkTaskProgressForm(forms.Form):
     progress_percent = forms.IntegerField(
         min_value=0,
         max_value=100,
-        label='Tiến độ (%)',
-        widget=forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'max': 100}),
+        label='Tiến độ',
+        widget=RangeInput(attrs={
+            'class': 'form-range jp-progress-slider',
+            'min': 0,
+            'max': 100,
+            'step': 1,
+        }),
     )
     result_note = forms.CharField(
         required=False,

@@ -1,3 +1,5 @@
+from decimal import Decimal, InvalidOperation
+
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
@@ -9,14 +11,36 @@ from PortalJustPlay.list_search import apply_combined_search, apply_term_search,
 from PortalJustPlay.pagination import paginate_queryset
 from tasks.attachment_utils import read_separate_uploads
 
-from .forms import RejectStepForm, ServiceRequestCreateForm, StepActionForm
-from .models import ServiceRequest, ServiceRequestAttachment, ServiceRequestStep
-from .permissions import can_claim_step, can_handle_step, can_view_request, pending_steps_for_user
+from .forms import (
+    LineItemFormSet,
+    PurchaseCompleteForm,
+    RecurringItemCatalogForm,
+    RejectStepForm,
+    ServiceRequestCreateForm,
+    StepActionForm,
+)
+from .models import (
+    RecurringItemCatalog,
+    ServiceRequest,
+    ServiceRequestAttachment,
+    ServiceRequestStep,
+)
+from .permissions import (
+    can_claim_step,
+    can_handle_step,
+    can_manage_recurring_catalog,
+    can_view_pricing,
+    can_view_request,
+    get_goods_receiver_candidates,
+    pending_steps_for_user,
+)
 from .workflow import (
     approve_step,
     cancel_request,
     claim_step,
     complete_execution_step,
+    complete_procurement_quote,
+    complete_purchase_step,
     create_request_with_steps,
     get_active_request_type,
     log_action,
@@ -34,6 +58,16 @@ def _access_required(view_func):
     return wrapper
 
 
+def _catalog_required(view_func):
+    @_access_required
+    def wrapper(request, *args, **kwargs):
+        if not can_manage_recurring_catalog(request.user):
+            messages.error(request, 'Chỉ Thu mua mới quản lý danh mục định kỳ.')
+            return redirect('service_requests:my')
+        return view_func(request, *args, **kwargs)
+    return wrapper
+
+
 def _save_attachments(request_obj, prepared_files, *, uploaded_by, stage, step=None):
     for original_name, content_file in prepared_files:
         ServiceRequestAttachment.objects.create(
@@ -44,6 +78,64 @@ def _save_attachments(request_obj, prepared_files, *, uploaded_by, stage, step=N
             uploaded_by=uploaded_by,
             stage=stage,
         )
+
+
+def _parse_quote_submission(request, service_request):
+    """Đọc POST: qty + danh sách NCC cho từng dòng hàng."""
+    line_updates = {}
+    for line in service_request.line_items.all():
+        qty_key = f'line_{line.pk}_qty'
+        qty_raw = request.POST.get(qty_key, '').strip()
+        try:
+            qty = Decimal(qty_raw) if qty_raw else None
+        except InvalidOperation:
+            qty = None
+
+        quotes = []
+        idx = 0
+        while True:
+            prefix = f'line_{line.pk}_quote_{idx}_'
+            supplier = request.POST.get(f'{prefix}supplier', '').strip()
+            price_raw = request.POST.get(f'{prefix}price', '').strip()
+            selected = request.POST.get(f'{prefix}selected') == 'on'
+            file_key = f'{prefix}file'
+            if not supplier and not price_raw:
+                break
+            try:
+                unit_price = Decimal(price_raw.replace(',', '')) if price_raw else None
+            except InvalidOperation:
+                unit_price = None
+            quote_file = request.FILES.get(file_key)
+            quotes.append({
+                'supplier_name': supplier,
+                'unit_price': unit_price,
+                'is_selected': selected,
+                'quote_file': quote_file,
+            })
+            idx += 1
+
+        line_updates[line.pk] = {
+            'quantity_confirmed': qty,
+            'quotes': quotes,
+        }
+    return line_updates
+
+
+def _line_items_from_formset(formset, recurring_item=None):
+    items = []
+    for form in formset:
+        if not form.cleaned_data or form.cleaned_data.get('DELETE'):
+            continue
+        desc = (form.cleaned_data.get('description') or '').strip()
+        if not desc:
+            continue
+        items.append({
+            'description': desc,
+            'quantity': form.cleaned_data['quantity'],
+            'unit': form.cleaned_data['unit'],
+            'recurring_item': recurring_item if len(items) == 0 and recurring_item else None,
+        })
+    return items
 
 
 @_access_required
@@ -78,6 +170,7 @@ def my_requests(request):
             (ServiceRequest.STATUS_CANCELLED, 'Đã hủy'),
         ],
         'pending_count': pending_steps_for_user(request.user).count(),
+        'can_manage_catalog': can_manage_recurring_catalog(request.user),
     })
 
 
@@ -99,6 +192,7 @@ def pending_requests(request):
         'query_string': query_string,
         'search_query': search_query,
         'pending_count': qs.count(),
+        'can_manage_catalog': can_manage_recurring_catalog(request.user),
     })
 
 
@@ -106,51 +200,60 @@ def pending_requests(request):
 def create_request(request):
     request_type = get_active_request_type()
     if not request_type:
-        messages.warning(
-            request,
-            'Chưa cấu hình loại yêu cầu. Liên hệ quản trị viên.',
-        )
+        messages.warning(request, 'Chưa cấu hình loại yêu cầu. Liên hệ quản trị viên.')
         return redirect('service_requests:my')
 
     if request.method == 'POST':
         form = ServiceRequestCreateForm(request.POST, request_type=request_type)
-        if form.is_valid():
-            try:
-                service_request = create_request_with_steps(
-                    requester=request.user,
-                    request_type=request_type,
-                    title=form.cleaned_data['title'],
-                    description=form.cleaned_data['description'],
-                    estimated_cost=form.cleaned_data.get('estimated_cost'),
-                )
-                prepared = read_separate_uploads(
-                    request.FILES.getlist('images'),
-                    request.FILES.getlist('files'),
-                )
-                if prepared:
-                    _save_attachments(
-                        service_request,
-                        prepared,
-                        uploaded_by=request.user,
-                        stage=ServiceRequestAttachment.STAGE_REQUEST,
+        line_formset = LineItemFormSet(request.POST, prefix='lines')
+        if form.is_valid() and line_formset.is_valid():
+            recurring_item = form.cleaned_data.get('recurring_item')
+            line_items = _line_items_from_formset(line_formset, recurring_item)
+            if not line_items and not recurring_item:
+                messages.error(request, 'Vui lòng thêm ít nhất một dòng hàng.')
+            else:
+                try:
+                    service_request = create_request_with_steps(
+                        requester=request.user,
+                        request_type=request_type,
+                        title=form.cleaned_data['title'],
+                        description=form.cleaned_data['description'],
+                        line_items=line_items or None,
+                        recurring_item=recurring_item,
+                        needs_advance=form.cleaned_data.get('needs_advance', False),
+                        advance_amount=form.cleaned_data.get('advance_amount'),
                     )
-                    log_action(
-                        service_request,
-                        actor=request.user,
-                        action='attachment',
-                        message=f'Đính kèm {len(prepared)} file',
+                    prepared = read_separate_uploads(
+                        request.FILES.getlist('images'),
+                        request.FILES.getlist('files'),
                     )
-                messages.success(request, 'Đã gửi yêu cầu — đang chờ xử lý theo quy trình.')
-                return redirect('service_requests:detail', pk=service_request.pk)
-            except ValueError as exc:
-                messages.error(request, str(exc))
+                    if prepared:
+                        _save_attachments(
+                            service_request,
+                            prepared,
+                            uploaded_by=request.user,
+                            stage=ServiceRequestAttachment.STAGE_REQUEST,
+                        )
+                        log_action(
+                            service_request,
+                            actor=request.user,
+                            action='attachment',
+                            message=f'Đính kèm {len(prepared)} file',
+                        )
+                    messages.success(request, 'Đã gửi yêu cầu — đang chờ xử lý theo quy trình.')
+                    return redirect('service_requests:detail', pk=service_request.pk)
+                except ValueError as exc:
+                    messages.error(request, str(exc))
     else:
         form = ServiceRequestCreateForm(request_type=request_type)
+        line_formset = LineItemFormSet(prefix='lines')
 
     return render(request, 'service_requests/form.html', {
         'form': form,
+        'line_formset': line_formset,
         'request_type': request_type,
         'pending_count': pending_steps_for_user(request.user).count(),
+        'can_manage_catalog': can_manage_recurring_catalog(request.user),
     })
 
 
@@ -158,13 +261,15 @@ def create_request(request):
 def request_detail(request, pk):
     service_request = get_object_or_404(
         ServiceRequest.objects.select_related(
-            'requester', 'requester__profile', 'request_type',
+            'requester', 'requester__profile', 'request_type', 'recurring_item', 'goods_receiver__profile',
         ).prefetch_related(
             'steps__assignee__profile',
             'steps__target_department',
             'attachments__uploaded_by',
             'logs__actor__profile',
             'logs__step',
+            'line_items__quotes',
+            'line_items__recurring_item',
         ),
         pk=pk,
     )
@@ -175,9 +280,13 @@ def request_detail(request, pk):
     current_step = service_request.current_step
     can_handle_current = bool(current_step and can_handle_step(request.user, current_step))
     can_claim_current = bool(current_step and can_claim_step(request.user, current_step))
+    show_pricing = can_view_pricing(request.user, service_request)
 
     action_form = StepActionForm()
     reject_form = RejectStepForm()
+    purchase_form = PurchaseCompleteForm(
+        receiver_queryset=get_goods_receiver_candidates(service_request),
+    )
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -194,6 +303,23 @@ def request_detail(request, pk):
             if action == 'claim' and can_claim_current:
                 claim_step(current_step, actor=request.user)
                 messages.success(request, 'Đã tiếp nhận yêu cầu.')
+                return redirect('service_requests:detail', pk=pk)
+
+            if action == 'submit_quote' and can_handle_current:
+                if current_step.step_code != ServiceRequestStep.STEP_PROCUREMENT_QUOTE:
+                    raise ValueError('Bước hiện tại không phải kiểm tra giá.')
+                if not current_step.assignee_id:
+                    claim_step(current_step, actor=request.user)
+                    current_step.refresh_from_db()
+                line_updates = _parse_quote_submission(request, service_request)
+                note = request.POST.get('quote_note', '').strip()
+                complete_procurement_quote(
+                    current_step,
+                    actor=request.user,
+                    line_updates=line_updates,
+                    note=note or 'Hoàn thành báo giá NCC',
+                )
+                messages.success(request, 'Đã hoàn thành báo giá — chuyển bước duyệt tiếp theo.')
                 return redirect('service_requests:detail', pk=pk)
 
             if action == 'approve' and can_handle_current and current_step.is_approval:
@@ -214,6 +340,26 @@ def request_detail(request, pk):
                         current_step.refresh_from_db()
                     reject_step(current_step, actor=request.user, reason=reject_form.cleaned_data['reason'])
                     messages.info(request, 'Đã từ chối yêu cầu.')
+                    return redirect('service_requests:detail', pk=pk)
+
+            if action == 'complete_purchase' and can_handle_current:
+                if current_step.step_code != ServiceRequestStep.STEP_PURCHASE:
+                    raise ValueError('Bước hiện tại không phải đặt hàng.')
+                purchase_form = PurchaseCompleteForm(
+                    request.POST,
+                    receiver_queryset=get_goods_receiver_candidates(service_request),
+                )
+                if purchase_form.is_valid():
+                    if not current_step.assignee_id:
+                        claim_step(current_step, actor=request.user)
+                        current_step.refresh_from_db()
+                    complete_purchase_step(
+                        current_step,
+                        actor=request.user,
+                        goods_receiver=purchase_form.cleaned_data['goods_receiver'],
+                        note=purchase_form.cleaned_data['note'].strip(),
+                    )
+                    messages.success(request, 'Đã ghi nhận đặt hàng — chờ người nhận xác nhận.')
                     return redirect('service_requests:detail', pk=pk)
 
             if action == 'complete' and can_handle_current and current_step.is_execution:
@@ -247,22 +393,96 @@ def request_detail(request, pk):
             messages.error(request, str(exc))
             return redirect('service_requests:detail', pk=pk)
 
+    first_active = service_request.steps.exclude(
+        status=ServiceRequestStep.STATUS_SKIPPED,
+    ).order_by('step_order').first()
     can_cancel = (
         service_request.requester_id == request.user.id
         and service_request.status == ServiceRequest.STATUS_IN_PROGRESS
-        and service_request.steps.order_by('step_order').first().status == ServiceRequestStep.STATUS_PENDING
+        and first_active
+        and first_active.status == ServiceRequestStep.STATUS_PENDING
     )
 
     return render(request, 'service_requests/detail.html', {
         'service_request': service_request,
         'steps': service_request.steps.all(),
+        'line_items': service_request.line_items.all(),
         'logs': service_request.logs.all(),
         'request_attachments': service_request.attachments.filter(stage=ServiceRequestAttachment.STAGE_REQUEST),
         'current_step': current_step,
         'can_handle_current': can_handle_current,
         'can_claim_current': can_claim_current,
         'can_cancel': can_cancel,
+        'show_pricing': show_pricing,
         'action_form': action_form,
         'reject_form': reject_form,
+        'purchase_form': purchase_form,
         'pending_count': pending_steps_for_user(request.user).count(),
+        'can_manage_catalog': can_manage_recurring_catalog(request.user),
     })
+
+
+@_catalog_required
+def recurring_catalog_list(request):
+    search_query = get_search_query(request)
+    qs = RecurringItemCatalog.objects.all()
+    qs = apply_term_search(qs, search_query, 'name__icontains', 'description__icontains')
+    page_obj, query_string = paginate_queryset(request, qs)
+    return render(request, 'service_requests/catalog_list.html', {
+        'page_obj': page_obj,
+        'query_string': query_string,
+        'search_query': search_query,
+        'pending_count': pending_steps_for_user(request.user).count(),
+        'can_manage_catalog': True,
+    })
+
+
+@_catalog_required
+def recurring_catalog_create(request):
+    if request.method == 'POST':
+        form = RecurringItemCatalogForm(request.POST)
+        if form.is_valid():
+            item = form.save(commit=False)
+            item.created_by = request.user
+            item.save()
+            messages.success(request, 'Đã thêm hàng vào danh mục định kỳ.')
+            return redirect('service_requests:catalog_list')
+    else:
+        form = RecurringItemCatalogForm()
+    return render(request, 'service_requests/catalog_form.html', {
+        'form': form,
+        'is_edit': False,
+        'pending_count': pending_steps_for_user(request.user).count(),
+        'can_manage_catalog': True,
+    })
+
+
+@_catalog_required
+def recurring_catalog_edit(request, pk):
+    item = get_object_or_404(RecurringItemCatalog, pk=pk)
+    if request.method == 'POST':
+        form = RecurringItemCatalogForm(request.POST, instance=item)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Đã cập nhật danh mục.')
+            return redirect('service_requests:catalog_list')
+    else:
+        form = RecurringItemCatalogForm(instance=item)
+    return render(request, 'service_requests/catalog_form.html', {
+        'form': form,
+        'item': item,
+        'is_edit': True,
+        'pending_count': pending_steps_for_user(request.user).count(),
+        'can_manage_catalog': True,
+    })
+
+
+@_catalog_required
+def recurring_catalog_delete(request, pk):
+    item = get_object_or_404(RecurringItemCatalog, pk=pk)
+    if request.method == 'POST':
+        item.is_active = False
+        item.save(update_fields=['is_active', 'updated_at'])
+        messages.info(request, 'Đã ẩn hàng khỏi danh mục.')
+        return redirect('service_requests:catalog_list')
+    return redirect('service_requests:catalog_list')

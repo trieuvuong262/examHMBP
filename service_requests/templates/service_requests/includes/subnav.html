@@ -13,5 +13,11 @@
            class="btn btn-sm {% if request.resolver_match.url_name == 'create' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
             <i class="bi bi-plus-lg me-1"></i>Gửi yêu cầu
         </a>
+        {% if can_manage_catalog %}
+        <a href="{% url 'service_requests:catalog_list' %}"
+           class="btn btn-sm {% if 'catalog' in request.resolver_match.url_name %}btn-hm{% else %}btn-outline-secondary{% endif %}">
+            Danh mục định kỳ
+        </a>
+        {% endif %}
     </div>
 </nav>

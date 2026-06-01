@@ -1,80 +1,75 @@
+from decimal import Decimal
+
 from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from django.urls import reverse
 
 from assessment.portal_widgets import get_portal_dashboard
 from hrm.models import Department, DepartmentMenuPermission, Profile, RoleModulePermission
-from hrm.permissions import ROLE_DIVISION_HEAD, ROLE_EMPLOYEE
-from service_requests.models import RequestType, RequestTypeStepTemplate, ServiceRequest, ServiceRequestStep
-from service_requests.workflow import approve_step, complete_execution_step, create_request_with_steps, get_active_request_type
+from hrm.permissions import ROLE_DIRECTOR, ROLE_DIVISION_HEAD, ROLE_EMPLOYEE, ROLE_TEAM_LEADER
+from service_requests.models import (
+    RecurringItemCatalog,
+    RequestType,
+    ServiceRequest,
+    ServiceRequestStep,
+)
+from service_requests.permissions import can_manage_recurring_catalog, can_view_pricing
+from service_requests.workflow import (
+    AMOUNT_ACCOUNTING_MIN,
+    AMOUNT_DIRECTOR_MIN,
+    approve_step,
+    complete_execution_step,
+    complete_procurement_quote,
+    complete_purchase_step,
+    create_request_with_steps,
+    get_active_request_type,
+)
 
 
 class ServiceRequestWorkflowTests(TestCase):
     def setUp(self):
+        self.dept_hr = Department.objects.create(name='HCNS', sort_order=0)
         self.dept_prod = Department.objects.create(name='Sản xuất', sort_order=1)
         self.dept_accounting = Department.objects.create(name='Kế toán', sort_order=2)
         self.dept_procurement = Department.objects.create(name='Thu mua', sort_order=3)
 
-        DepartmentMenuPermission.objects.create(
-            department=self.dept_prod,
-            modules=['service_requests', 'tasks'],
-        )
-        DepartmentMenuPermission.objects.create(
-            department=self.dept_accounting,
-            modules=['service_requests'],
-        )
-        DepartmentMenuPermission.objects.create(
-            department=self.dept_procurement,
-            modules=['service_requests'],
-        )
+        for dept in (self.dept_hr, self.dept_prod, self.dept_accounting, self.dept_procurement):
+            DepartmentMenuPermission.objects.create(
+                department=dept,
+                modules=['service_requests', 'tasks'],
+            )
 
         perms = {
             'service_requests': {'view': True, 'edit': True},
             'tasks': {'view': True, 'edit': True},
         }
-        for role in (ROLE_EMPLOYEE, ROLE_DIVISION_HEAD):
+        for role in (ROLE_EMPLOYEE, ROLE_TEAM_LEADER, ROLE_DIVISION_HEAD, ROLE_DIRECTOR):
             RoleModulePermission.objects.update_or_create(
                 role=role,
                 defaults={'module_permissions': perms},
             )
 
+        self.team_leader = self._user('tt_test', ROLE_TEAM_LEADER, self.dept_prod)
         self.div_head = self._user('tbp_test', ROLE_DIVISION_HEAD, self.dept_prod)
         self.employee = self._user('nv_test', ROLE_EMPLOYEE, self.dept_prod)
+        self.employee_hr = self._user('nv_hr', ROLE_EMPLOYEE, self.dept_hr)
         self.accountant = self._user('kt_test', ROLE_EMPLOYEE, self.dept_accounting)
         self.buyer = self._user('tm_test', ROLE_EMPLOYEE, self.dept_procurement)
+        self.director = self._user('gd_test', ROLE_DIRECTOR, self.dept_prod)
 
-        self.div_head.profile.subordinates.set([self.employee])
+        self.team_leader.profile.subordinates.set([self.employee])
+        self.div_head.profile.subordinates.set([self.employee, self.team_leader])
 
         self.request_type, _ = RequestType.objects.get_or_create(
             code=RequestType.CODE_ASSET_PURCHASE,
-            defaults={
-                'name': 'Đề xuất mua tài sản',
-                'is_active': True,
-            },
+            defaults={'name': 'Đề xuất mua tài sản', 'is_active': True},
         )
-        self.request_type.step_templates.all().delete()
-        RequestTypeStepTemplate.objects.create(
-            request_type=self.request_type,
-            step_order=1,
-            name='Trưởng bộ phận duyệt',
-            step_kind=RequestTypeStepTemplate.KIND_APPROVAL,
-            assignee_rule=RequestTypeStepTemplate.RULE_DIRECT_MANAGER,
-        )
-        RequestTypeStepTemplate.objects.create(
-            request_type=self.request_type,
-            step_order=2,
-            name='Kế toán duyệt chi phí',
-            step_kind=RequestTypeStepTemplate.KIND_APPROVAL,
-            assignee_rule=RequestTypeStepTemplate.RULE_DEPARTMENT_QUEUE,
-            target_department=self.dept_accounting,
-        )
-        RequestTypeStepTemplate.objects.create(
-            request_type=self.request_type,
-            step_order=3,
-            name='Thu mua thực hiện',
-            step_kind=RequestTypeStepTemplate.KIND_EXECUTION,
-            assignee_rule=RequestTypeStepTemplate.RULE_DEPARTMENT_QUEUE,
-            target_department=self.dept_procurement,
+
+        self.catalog_item = RecurringItemCatalog.objects.create(
+            name='Giấy A4',
+            unit='ram',
+            is_active=True,
+            created_by=self.buyer,
         )
 
         self.client = Client()
@@ -90,53 +85,223 @@ class ServiceRequestWorkflowTests(TestCase):
         user.refresh_from_db()
         return user
 
-    def test_create_request_assigns_division_head_first(self):
-        req = create_request_with_steps(
-            requester=self.employee,
-            request_type=self.request_type,
-            title='Mua laptop',
-            description='Cần laptop dev',
-            estimated_cost=15000000,
-        )
-        step1 = req.steps.get(step_order=1)
-        self.assertEqual(step1.assignee, self.div_head)
-        self.assertEqual(step1.status, ServiceRequestStep.STATUS_PENDING)
-        step2 = req.steps.get(step_order=2)
-        self.assertEqual(step2.status, ServiceRequestStep.STATUS_BLOCKED)
+    def _create_request(self, **kwargs):
+        defaults = {
+            'requester': self.employee,
+            'request_type': self.request_type,
+            'title': 'Mua vật tư',
+            'description': 'Cần mua vật tư sản xuất',
+            'line_items': [{'description': 'Keo dán', 'quantity': Decimal('10'), 'unit': 'chai'}],
+        }
+        defaults.update(kwargs)
+        return create_request_with_steps(**defaults)
 
-    def test_full_asset_workflow(self):
-        req = create_request_with_steps(
-            requester=self.employee,
-            request_type=self.request_type,
-            title='Mua laptop',
-            description='Cần laptop dev',
+    def _submit_quote(self, req, *, unit_price=Decimal('500000'), qty=Decimal('10')):
+        step = req.steps.get(step_code=ServiceRequestStep.STEP_PROCUREMENT_QUOTE)
+        line = req.line_items.first()
+        complete_procurement_quote(
+            step,
+            actor=self.buyer,
+            line_updates={
+                line.pk: {
+                    'quantity_confirmed': qty,
+                    'quotes': [{
+                        'supplier_name': 'NCC A',
+                        'unit_price': unit_price,
+                        'is_selected': True,
+                    }],
+                },
+            },
+            note='Báo giá xong',
         )
-        step1 = req.steps.get(step_order=1)
-        approve_step(step1, actor=self.div_head, note='Đồng ý')
-
         req.refresh_from_db()
-        step2 = req.steps.get(step_order=2)
-        self.assertEqual(step2.status, ServiceRequestStep.STATUS_PENDING)
-        self.assertIsNone(step2.assignee_id)
 
-        approve_step(step2, actor=self.accountant, note='Đủ ngân sách')
+    def _approve_through_quote(self, req, *, unit_price=Decimal('100000')):
+        if req.steps.filter(step_code=ServiceRequestStep.STEP_TEAM_LEADER).exists():
+            approve_step(req.steps.get(step_code=ServiceRequestStep.STEP_TEAM_LEADER), actor=self.team_leader)
+        if req.steps.filter(step_code=ServiceRequestStep.STEP_DIVISION_HEAD).exists():
+            approve_step(req.steps.get(step_code=ServiceRequestStep.STEP_DIVISION_HEAD), actor=self.div_head)
+        self._submit_quote(req, unit_price=unit_price)
 
-        step3 = req.steps.get(step_order=3)
-        self.assertEqual(step3.status, ServiceRequestStep.STATUS_PENDING)
+    # --- Yêu cầu: Tổ trưởng duyệt nếu phòng có Tổ trưởng & người gửi là NV ---
 
-        complete_execution_step(step3, actor=self.buyer, note='Đã mua Dell Latitude')
+    def test_employee_starts_with_team_leader_when_dept_has_tl(self):
+        req = self._create_request()
+        step1 = req.steps.order_by('step_order').first()
+        self.assertEqual(step1.step_code, ServiceRequestStep.STEP_TEAM_LEADER)
+        self.assertEqual(step1.assignee, self.team_leader)
+
+    # --- Yêu cầu: Bỏ qua Tổ trưởng nếu phòng không có Tổ trưởng ---
+
+    def test_dept_without_team_leader_skips_to_division_head(self):
+        req = self._create_request(requester=self.employee_hr)
+        codes = list(req.steps.values_list('step_code', flat=True))
+        self.assertNotIn(ServiceRequestStep.STEP_TEAM_LEADER, codes)
+        self.assertEqual(codes[0], ServiceRequestStep.STEP_DIVISION_HEAD)
+
+    # --- Yêu cầu: Trưởng BP gửi → bỏ qua duyệt BP, vẫn qua Thu mua ---
+
+    def test_division_head_proposer_skips_approvals_goes_to_procurement(self):
+        req = self._create_request(requester=self.div_head)
+        codes = list(req.steps.values_list('step_code', flat=True))
+        self.assertNotIn(ServiceRequestStep.STEP_TEAM_LEADER, codes)
+        self.assertNotIn(ServiceRequestStep.STEP_DIVISION_HEAD, codes)
+        self.assertEqual(codes[0], ServiceRequestStep.STEP_PROCUREMENT_QUOTE)
+
+    # --- Yêu cầu: Tổ trưởng gửi → bỏ qua bước Tổ trưởng, vẫn cần Trưởng BP ---
+
+    def test_team_leader_proposer_skips_tl_needs_division_head(self):
+        req = self._create_request(requester=self.team_leader)
+        codes = list(req.steps.values_list('step_code', flat=True))
+        self.assertNotIn(ServiceRequestStep.STEP_TEAM_LEADER, codes)
+        self.assertEqual(codes[0], ServiceRequestStep.STEP_DIVISION_HEAD)
+
+    # --- Yêu cầu: <2M → không cần KT/GĐ ---
+
+    def test_low_amount_skips_accountant_after_quote(self):
+        req = self._create_request()
+        self._approve_through_quote(req, unit_price=Decimal('100000'))
+
+        self.assertEqual(req.approval_tier, ServiceRequest.TIER_NONE)
+        self.assertFalse(req.steps.filter(step_code=ServiceRequestStep.STEP_ACCOUNTANT).exists())
+        self.assertFalse(req.steps.filter(step_code=ServiceRequestStep.STEP_DIRECTOR).exists())
+
+    # --- Yêu cầu: 2M–10M → Kế toán duyệt ---
+
+    def test_mid_amount_requires_accountant(self):
+        req = self._create_request()
+        price = AMOUNT_ACCOUNTING_MIN / Decimal('10')
+        self._approve_through_quote(req, unit_price=price)
+
+        self.assertEqual(req.approval_tier, ServiceRequest.TIER_ACCOUNTANT)
+        acct_step = req.steps.get(step_code=ServiceRequestStep.STEP_ACCOUNTANT)
+        self.assertEqual(acct_step.status, ServiceRequestStep.STATUS_PENDING)
+
+    # --- Yêu cầu: >10M → Giám đốc duyệt ---
+
+    def test_high_amount_requires_director(self):
+        req = self._create_request()
+        price = AMOUNT_DIRECTOR_MIN / Decimal('5')
+        self._approve_through_quote(req, unit_price=price)
+
+        self.assertEqual(req.approval_tier, ServiceRequest.TIER_DIRECTOR)
+        dir_step = req.steps.get(step_code=ServiceRequestStep.STEP_DIRECTOR)
+        self.assertEqual(dir_step.status, ServiceRequestStep.STATUS_PENDING)
+
+    # --- Yêu cầu: Hàng định kỳ → bỏ qua KT/GĐ dù giá cao ---
+
+    def test_recurring_catalog_skips_approval_even_high_amount(self):
+        req = self._create_request(
+            recurring_item=self.catalog_item,
+            line_items=None,
+        )
+        self._approve_through_quote(req, unit_price=AMOUNT_DIRECTOR_MIN)
+
+        self.assertTrue(req.is_from_catalog)
+        self.assertEqual(req.approval_tier, ServiceRequest.TIER_NONE)
+        self.assertFalse(req.steps.filter(step_code=ServiceRequestStep.STEP_ACCOUNTANT).exists())
+        self.assertFalse(req.steps.filter(step_code=ServiceRequestStep.STEP_DIRECTOR).exists())
+
+    # --- Yêu cầu: Tạm ứng là checkbox tuỳ chọn ---
+
+    def test_advance_step_only_when_checked(self):
+        req_no = self._create_request(needs_advance=False)
+        self._approve_through_quote(req_no)
+        self.assertFalse(req_no.steps.filter(step_code=ServiceRequestStep.STEP_ADVANCE).exists())
+
+        req_yes = self._create_request(needs_advance=True, advance_amount=Decimal('1000000'))
+        self._approve_through_quote(req_yes)
+        advance = req_yes.steps.get(step_code=ServiceRequestStep.STEP_ADVANCE)
+        self.assertEqual(advance.status, ServiceRequestStep.STATUS_PENDING)
+
+    # --- Yêu cầu: Chỉ Thu mua / KT / GĐ xem giá ---
+
+    def test_price_visibility_roles(self):
+        req = self._create_request()
+        self.assertFalse(can_view_pricing(self.employee, req))
+        self.assertTrue(can_view_pricing(self.buyer, req))
+        self.assertTrue(can_view_pricing(self.accountant, req))
+        self.assertTrue(can_view_pricing(self.director, req))
+
+    # --- Yêu cầu: Danh mục định kỳ chỉ Thu mua quản lý ---
+
+    def test_catalog_manage_permission(self):
+        self.assertTrue(can_manage_recurring_catalog(self.buyer))
+        self.assertFalse(can_manage_recurring_catalog(self.employee))
+
+    # --- Yêu cầu: Quy trình đầy đủ đến hoàn thành ---
+
+    def test_full_workflow_to_completed(self):
+        req = self._create_request()
+        self._approve_through_quote(req, unit_price=Decimal('100000'))
+
+        purchase = req.steps.get(step_code=ServiceRequestStep.STEP_PURCHASE)
+        complete_purchase_step(
+            purchase,
+            actor=self.buyer,
+            goods_receiver=self.employee,
+            note='Đã đặt hàng',
+        )
+        req.refresh_from_db()
+
+        receipt = req.steps.get(step_code=ServiceRequestStep.STEP_RECEIPT)
+        self.assertEqual(receipt.assignee, self.employee)
+        complete_execution_step(receipt, actor=self.employee, note='Đã nhận hàng')
 
         req.refresh_from_db()
         self.assertEqual(req.status, ServiceRequest.STATUS_COMPLETED)
 
-    def test_pending_widget_for_division_head(self):
-        create_request_with_steps(
+    # --- Yêu cầu: Nhiều dòng, nhiều NCC, chọn 1 NCC/dòng ---
+
+    def test_multi_line_multi_supplier_quote(self):
+        req = create_request_with_steps(
             requester=self.employee,
             request_type=self.request_type,
-            title='Mua laptop',
+            title='Mua nhiều món',
             description='Test',
+            line_items=[
+                {'description': 'Keo', 'quantity': Decimal('2'), 'unit': 'chai'},
+                {'description': 'Giấy', 'quantity': Decimal('5'), 'unit': 'ram'},
+            ],
         )
+        approve_step(req.steps.get(step_code=ServiceRequestStep.STEP_TEAM_LEADER), actor=self.team_leader)
+        approve_step(req.steps.get(step_code=ServiceRequestStep.STEP_DIVISION_HEAD), actor=self.div_head)
+
+        step = req.steps.get(step_code=ServiceRequestStep.STEP_PROCUREMENT_QUOTE)
+        lines = list(req.line_items.all())
+        complete_procurement_quote(
+            step,
+            actor=self.buyer,
+            line_updates={
+                lines[0].pk: {
+                    'quantity_confirmed': Decimal('2'),
+                    'quotes': [
+                        {'supplier_name': 'NCC 1', 'unit_price': Decimal('50000'), 'is_selected': True},
+                        {'supplier_name': 'NCC 2', 'unit_price': Decimal('60000'), 'is_selected': False},
+                    ],
+                },
+                lines[1].pk: {
+                    'quantity_confirmed': Decimal('5'),
+                    'quotes': [
+                        {'supplier_name': 'NCC X', 'unit_price': Decimal('100000'), 'is_selected': False},
+                        {'supplier_name': 'NCC Y', 'unit_price': Decimal('80000'), 'is_selected': True},
+                    ],
+                },
+            },
+        )
+        req.refresh_from_db()
+        self.assertEqual(req.selected_total_amount, Decimal('500000'))
+
+    def test_pending_widget_for_division_head_after_team_leader_approves(self):
+        req = self._create_request()
+        approve_step(req.steps.get(step_code=ServiceRequestStep.STEP_TEAM_LEADER), actor=self.team_leader)
         widgets = get_portal_dashboard(self.div_head)
+        titles = [w['title'] for w in widgets]
+        self.assertIn('Yêu cầu chờ xử lý', titles)
+
+    def test_pending_widget_for_team_leader_on_new_request(self):
+        self._create_request()
+        widgets = get_portal_dashboard(self.team_leader)
         titles = [w['title'] for w in widgets]
         self.assertIn('Yêu cầu chờ xử lý', titles)
 
@@ -146,12 +311,19 @@ class ServiceRequestWorkflowTests(TestCase):
         response = self.client.get(reverse('service_requests:create'))
         self.assertEqual(response.status_code, 200)
 
-    def test_employee_sees_my_requests_after_submit(self):
+    def test_employee_submits_request_with_line_items(self):
         self.client.force_login(self.employee)
         response = self.client.post(reverse('service_requests:create'), {
             'title': 'Mua máy in',
             'description': 'Cần máy in A4',
-            'estimated_cost': '5000000',
+            'needs_advance': '',
+            'lines-TOTAL_FORMS': '1',
+            'lines-INITIAL_FORMS': '0',
+            'lines-MIN_NUM_FORMS': '0',
+            'lines-MAX_NUM_FORMS': '20',
+            'lines-0-description': 'Máy in A4',
+            'lines-0-quantity': '1',
+            'lines-0-unit': 'cái',
         })
         self.assertEqual(response.status_code, 302)
         self.assertEqual(ServiceRequest.objects.filter(requester=self.employee).count(), 1)
