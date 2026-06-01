@@ -456,16 +456,18 @@ class ImportExportHubViewTests(TestCase):
         self.client.login(username='admin', password='x')
 
     def test_import_export_hub_import_tab(self):
-        resp = self.client.get('/thiet-bi/nhap-xuat/?tab=import&category=SEW_LOCKSTITCH')
+        resp = self.client.get('/thiet-bi/nhap-xuat/?category=SEW_LOCKSTITCH')
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'Tải file mẫu Excel')
         self.assertContains(resp, 'SEW_LOCKSTITCH')
 
-    def test_import_export_hub_export_tab(self):
+    def test_export_from_device_list_filters(self):
         from equipment.models import Device
 
         Device.objects.create(name='Test PC', category='PC', status=Device.STATUS_ACTIVE)
-        resp = self.client.get('/thiet-bi/nhap-xuat/?tab=export&category=PC')
+        resp = self.client.get('/thiet-bi/xuat-excel/?category=PC')
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, 'Xuất Excel')
-        self.assertContains(resp, '1')
+        self.assertEqual(
+            resp['Content-Type'],
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )

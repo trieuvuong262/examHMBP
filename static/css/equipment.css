@@ -1,5 +1,13 @@
 /* Quản lý thiết bị — danh sách & lọc */
 
+.jp-eq-actions {
+    border-left: 4px solid var(--bs-primary, #0d6efd);
+}
+
+.jp-eq-actions .btn {
+    min-width: 8.5rem;
+}
+
 .jp-eq-stats {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));

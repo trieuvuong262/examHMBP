@@ -12,6 +12,25 @@
 
     {% include 'equipment/includes/subnav.html' %}
 
+    {% if can_edit_equipment %}
+    <div class="card border-0 shadow-sm mb-3 jp-eq-actions">
+        <div class="card-body p-3 d-flex flex-wrap gap-2">
+            <a href="{% url 'equipment:device_add' %}" class="btn btn-hm btn-sm">
+                <i class="bi bi-plus-lg me-1"></i>Thêm thiết bị
+            </a>
+            <a href="{% url 'equipment:import_export_hub' %}" class="btn btn-dark btn-sm">
+                <i class="bi bi-upload me-1"></i>Nhập Excel
+            </a>
+            <a href="{% url 'equipment:category_list' %}" class="btn btn-outline-dark btn-sm">
+                <i class="bi bi-tags me-1"></i>Loại thiết bị
+            </a>
+            <a href="{% url 'equipment:device_list' %}" class="btn btn-outline-hm btn-sm ms-md-auto">
+                <i class="bi bi-hdd-stack me-1"></i>Xem danh sách
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="row g-3 mb-4">
         <div class="col-6 col-lg">
             <a href="{% url 'equipment:device_list' %}" class="text-decoration-none">

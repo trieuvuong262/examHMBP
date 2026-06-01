@@ -32,7 +32,6 @@ from .services.import_export import (
     apply_device_list_filters,
     build_export_filename,
     build_sample_dataframe,
-    count_for_export,
     export_devices_excel,
     import_devices_from_excel,
 )
@@ -78,8 +77,12 @@ def _subnav_context(request=None):
     if request and request.user.is_authenticated:
         from equipment.services.it_repair_queue import pending_it_repair_steps_for_user
         ctx['it_repair_pending_count'] = pending_it_repair_steps_for_user(request.user).count()
+        ctx['can_edit_equipment'] = user_can_edit_module(request.user, MODULE_EQUIPMENT)
+        ctx['can_export_equipment'] = user_can_access_module(request.user, MODULE_EQUIPMENT)
     else:
         ctx['it_repair_pending_count'] = 0
+        ctx['can_edit_equipment'] = False
+        ctx['can_export_equipment'] = False
     return ctx
 
 
@@ -522,49 +525,26 @@ def _equipment_departments():
     )
 
 
-def _import_export_context(request, active_tab: str = 'import'):
-    can_edit = user_can_edit_module(request.user, MODULE_EQUIPMENT)
+def _import_export_context(request):
     selected_category = (request.GET.get('category') or 'PC').strip()
     if selected_category not in valid_codes():
         selected_category = 'PC'
-
-    export_categories = request.GET.getlist('category')
-    export_count = count_for_export(request.GET)
     cmap = category_map()
 
     return {
-        'active_tab': active_tab,
-        'can_edit': can_edit,
+        'can_edit': user_can_edit_module(request.user, MODULE_EQUIPMENT),
         'category_groups': categories_by_group(),
-        'category_group_labels': CATEGORY_GROUP_LABELS,
         'selected_category': selected_category,
         'selected_category_label': cmap.get(selected_category, selected_category),
         'import_columns': import_columns_for_category(selected_category),
-        'export_count': export_count,
-        'export_categories': export_categories,
-        'export_managed_by': request.GET.get('managed_by', ''),
-        'export_status': request.GET.get('status', ''),
-        'export_usage_department': request.GET.get('usage_department', ''),
-        'export_q': request.GET.get('q', '').strip(),
-        'export_is_online': request.GET.get('is_online', ''),
-        'existing_depts': _equipment_departments(),
-        'managed_choices': Device.MANAGED_CHOICES,
-        'status_choices': Device.STATUS_CHOICES,
-        'total_devices': Device.objects.count(),
         **_subnav_context(request),
     }
 
 
-@_access_required
+@_edit_required
 def import_export_hub(request):
-    """Trang Nhập / Xuất Excel — import theo loại thiết bị, export có lọc."""
-    tab = (request.GET.get('tab') or 'import').strip()
-    can_edit = user_can_edit_module(request.user, MODULE_EQUIPMENT)
-    if tab == 'import' and not can_edit:
-        tab = 'export'
-    if tab not in ('import', 'export'):
-        tab = 'import'
-    return render(request, 'equipment/import_export.html', _import_export_context(request, active_tab=tab))
+    """Trang nhập Excel theo loại thiết bị."""
+    return render(request, 'equipment/import_export.html', _import_export_context(request))
 
 
 @_access_required
@@ -581,7 +561,7 @@ def export_devices(request):
     count = qs.count()
     if count == 0:
         messages.warning(request, 'Không có thiết bị nào để xuất (theo bộ lọc hiện tại).')
-        return redirect(f"{reverse('equipment:import_export_hub')}?tab=export")
+        return redirect('equipment:device_list')
 
     categories = params.getlist('category') if hasattr(params, 'getlist') else []
     buffer = export_devices_excel(qs)
@@ -599,7 +579,7 @@ def download_sample(request):
     category = (request.GET.get('category') or 'PC').strip()
     if category not in valid_codes():
         messages.error(request, 'Loại thiết bị không hợp lệ.')
-        return redirect(f"{reverse('equipment:import_export_hub')}?tab=import")
+        return redirect('equipment:import_export_hub')
 
     df = build_sample_dataframe(category)
     label = category_map().get(category, category).replace('/', '-')
@@ -614,7 +594,7 @@ def download_sample(request):
 def import_devices(request):
     if request.method == 'GET':
         category = (request.GET.get('category') or 'PC').strip()
-        url = reverse('equipment:import_export_hub') + f'?tab=import&category={category}'
+        url = reverse('equipment:import_export_hub') + f'?category={category}'
         return redirect(url)
 
     selected_category = (request.POST.get('category') or 'PC').strip()
@@ -625,10 +605,10 @@ def import_devices(request):
     category = (request.POST.get('category') or selected_category).strip()
     if not excel_file:
         messages.error(request, 'Vui lòng chọn file Excel.')
-        return redirect(f"{reverse('equipment:import_export_hub')}?tab=import&category={category}")
+        return redirect(f"{reverse('equipment:import_export_hub')}?category={category}")
     if category not in valid_codes():
         messages.error(request, 'Loại thiết bị không hợp lệ.')
-        return redirect(f"{reverse('equipment:import_export_hub')}?tab=import")
+        return redirect('equipment:import_export_hub')
 
     try:
         count, errors = import_devices_from_excel(excel_file, category)
@@ -646,7 +626,7 @@ def import_devices(request):
             messages.warning(request, 'Không có dòng dữ liệu hợp lệ trong file.')
     except Exception as exc:
         messages.error(request, f'Lỗi đọc file: {exc}')
-        return redirect(f"{reverse('equipment:import_export_hub')}?tab=import&category={category}")
+        return redirect(f"{reverse('equipment:import_export_hub')}?category={category}")
 
     return redirect('equipment:device_list')
 
