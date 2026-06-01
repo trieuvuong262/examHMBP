@@ -20,6 +20,13 @@ from PortalJustPlay.pagination import paginate_queryset
 
 from .forms import DeviceForm, ReportIssueForm
 from .models import Device, MaintenanceLog
+from .services.wmi_scan import (
+    discover_device_from_ip,
+    is_wmi_scan_supported,
+    parse_ip_range,
+    scan_device_wmi,
+    wmi_unavailable_message,
+)
 
 
 def _access_required(view_func):
@@ -52,12 +59,18 @@ def dashboard(request):
     broken_devices = Device.objects.filter(status=Device.STATUS_BROKEN).count()
     maintenance_devices = Device.objects.filter(status=Device.STATUS_MAINTENANCE).count()
     active_devices = Device.objects.filter(status=Device.STATUS_ACTIVE).count()
+    scrapped_devices = Device.objects.filter(status=Device.STATUS_SCRAPPED).count()
     total_cost = MaintenanceLog.objects.aggregate(total=Sum('cost'))['total'] or 0
 
     recent_issues = MaintenanceLog.objects.filter(
         is_resolved=False,
         device__status=Device.STATUS_BROKEN,
-    ).select_related('device').order_by('-created_at')[:5]
+    ).select_related('device', 'device__usage_department').order_by('-created_at')[:5]
+
+    monitoring_issues = MaintenanceLog.objects.filter(
+        is_resolved=False,
+        device__status=Device.STATUS_MAINTENANCE,
+    ).select_related('device').order_by('expected_return_date')[:5]
 
     current_year = date.today().year
     monthly_costs = MaintenanceLog.objects.filter(created_at__year=current_year).annotate(
@@ -73,17 +86,39 @@ def dashboard(request):
     top_depts = MaintenanceLog.objects.values('device__usage_department_text').annotate(
         count=Count('id'),
     ).order_by('-count')[:5]
+    dept_labels = [d['device__usage_department_text'] or '—' for d in top_depts]
+    dept_data = [d['count'] for d in top_depts]
+
+    top_cats = MaintenanceLog.objects.values('device__category').annotate(
+        count=Count('id'),
+    ).order_by('-count')
+    cat_map = dict(Device.CATEGORY_CHOICES)
+    cat_labels = [cat_map.get(item['device__category'], item['device__category']) for item in top_cats]
+    cat_data = [item['count'] for item in top_cats]
+
+    top_cost_depts = MaintenanceLog.objects.values('device__usage_department_text').annotate(
+        total=Sum('cost'),
+    ).order_by('-total')[:5]
+    dept_cost_labels = [d['device__usage_department_text'] or '—' for d in top_cost_depts]
+    dept_cost_data = [int(d['total'] or 0) for d in top_cost_depts]
 
     return render(request, 'equipment/dashboard.html', {
+        'today': date.today(),
         'total_devices': total_devices,
         'broken_devices': broken_devices,
         'maintenance_devices': maintenance_devices,
         'active_devices': active_devices,
+        'scrapped_devices': scrapped_devices,
         'total_cost': total_cost,
         'recent_issues': recent_issues,
-        'cost_data': cost_data,
-        'dept_labels': [d['device__usage_department_text'] or '—' for d in top_depts],
-        'dept_data': [d['count'] for d in top_depts],
+        'monitoring_issues': monitoring_issues,
+        'cost_data_json': json.dumps(cost_data),
+        'dept_labels_json': json.dumps(dept_labels, ensure_ascii=False),
+        'dept_data_json': json.dumps(dept_data),
+        'cat_labels_json': json.dumps(cat_labels, ensure_ascii=False),
+        'cat_data_json': json.dumps(cat_data),
+        'dept_cost_labels_json': json.dumps(dept_cost_labels, ensure_ascii=False),
+        'dept_cost_data_json': json.dumps(dept_cost_data),
         **_subnav_context(),
     })
 
@@ -103,36 +138,77 @@ def device_list(request):
             | Q(ip_address__icontains=q)
             | Q(usage_department_text__icontains=q)
             | Q(assigned_user_text__icontains=q)
+            | Q(usage_department__name__icontains=q)
         )
 
     managed_by = request.GET.get('managed_by')
     if managed_by:
         qs = qs.filter(managed_by=managed_by)
 
-    category = request.GET.get('category')
-    if category:
-        qs = qs.filter(category=category)
+    categories = request.GET.getlist('category')
+    if categories:
+        qs = qs.filter(category__in=categories)
 
     status = request.GET.get('status')
     if status:
         qs = qs.filter(status=status)
 
+    usage_department = request.GET.get('usage_department')
+    if usage_department:
+        qs = qs.filter(
+            Q(usage_department_text=usage_department)
+            | Q(usage_department__name=usage_department)
+        )
+
+    usage_room = request.GET.get('usage_room', '').strip()
+    if usage_room:
+        qs = qs.filter(usage_room__icontains=usage_room)
+
+    is_online = request.GET.get('is_online')
+    if is_online == '1':
+        qs = qs.filter(is_online=True)
+    elif is_online == '0':
+        qs = qs.filter(is_online=False)
+
+    sort_by = request.GET.get('sort')
+    if sort_by == 'price_asc':
+        qs = qs.order_by('total_price')
+    elif sort_by == 'price_desc':
+        qs = qs.order_by('-total_price')
+    else:
+        qs = qs.order_by('-created_at')
+
     qs = apply_term_search(qs, search_query, 'name__icontains', 'serial_number__icontains')
+    filtered_count = qs.count()
     page_obj, query_string = paginate_queryset(request, qs)
+
+    existing_depts = (
+        Device.objects.exclude(usage_department_text='')
+        .values_list('usage_department_text', flat=True)
+        .distinct()
+        .order_by('usage_department_text')
+    )
 
     return render(request, 'equipment/device_list.html', {
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
+        'q': q,
         'total_count': Device.objects.count(),
-        'filtered_count': qs.count(),
+        'filtered_count': filtered_count,
         'current_managed_by': managed_by,
-        'current_category': category,
+        'current_categories': categories,
         'current_status': status,
+        'current_usage_department': usage_department,
+        'current_usage_room': usage_room,
+        'current_sort': sort_by,
+        'current_is_online': is_online,
+        'existing_depts': existing_depts,
         'managed_choices': Device.MANAGED_CHOICES,
         'category_choices': Device.CATEGORY_CHOICES,
         'status_choices': Device.STATUS_CHOICES,
         'can_edit': user_can_edit_module(request.user, MODULE_EQUIPMENT),
+        'wmi_scan_available': is_wmi_scan_supported(),
         **_subnav_context(),
     })
 
@@ -227,6 +303,14 @@ def device_qr_public(request, device_id):
             device.status = Device.STATUS_BROKEN
             device.save(update_fields=['status', 'updated_at'])
 
+            from equipment.services.email_notify import notify_it_new_breakdown
+            notify_it_new_breakdown(
+                device=device,
+                service_request=service_request,
+                reporter_name=reporter_name,
+                issue_description=form.cleaned_data['issue_description'],
+            )
+
             messages.success(request, 'Đã gửi yêu cầu hỗ trợ kỹ thuật.')
             return redirect('service_requests:detail', pk=service_request.pk)
     else:
@@ -280,11 +364,82 @@ def export_devices(request):
     df = pd.DataFrame(list(rows))
     if not df.empty and 'is_online' in df.columns:
         df['is_online'] = df['is_online'].apply(lambda x: 'Online' if x else 'Offline')
+    if not df.empty and 'handover_date' in df.columns:
+        df['handover_date'] = df['handover_date'].astype(str).replace('NaT', '')
+
+    rename_map = {
+        'name': 'Tên thiết bị',
+        'managed_by': 'Bộ phận QL',
+        'category': 'Loại',
+        'status': 'Trạng thái',
+        'usage_department_text': 'Phòng ban sử dụng',
+        'usage_room': 'Phòng / vị trí',
+        'assigned_user_text': 'Người dùng',
+        'contact_email': 'Email liên hệ',
+        'handover_date': 'Ngày bàn giao',
+        'model_number': 'Model',
+        'serial_number': 'Serial Number',
+        'configuration': 'Cấu hình',
+        'description': 'Mô tả',
+        'hostname': 'Hostname',
+        'ip_address': 'Địa chỉ IP',
+        'is_online': 'Trạng thái mạng',
+        'quantity': 'Số lượng',
+        'unit_price': 'Đơn giá',
+        'total_price': 'Thành tiền',
+    }
+    df.rename(columns=rename_map, inplace=True)
 
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = 'attachment; filename=danh_sach_thiet_bi_justplay.xlsx'
     df.to_excel(response, index=False)
     return response
+
+
+@_edit_required
+def download_sample(request):
+    sample = {
+        'name': ['Máy tính Dell OptiPlex 3080'],
+        'managed_by': ['IT'],
+        'category': ['PC'],
+        'status': ['active'],
+        'usage_department_text': ['Phòng Sản xuất'],
+        'usage_room': ['Line 2'],
+        'assigned_user_text': ['Nguyễn Văn A'],
+        'contact_email': ['user@justplay.vn'],
+        'handover_date': ['2025-01-15'],
+        'model_number': ['Dell-3080-SFF'],
+        'serial_number': ['CN-0X1234'],
+        'configuration': ['Core i5, RAM 16GB, SSD 512GB'],
+        'description': ['Máy cấp mới đợt 1'],
+        'hostname': ['PC-SX-01'],
+        'ip_address': ['192.168.1.15'],
+        'is_online': ['Online'],
+        'quantity': [1],
+        'unit_price': [15000000],
+    }
+    df = pd.DataFrame(sample)
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename=file_mau_thiet_bi_justplay.xlsx'
+    df.to_excel(response, index=False)
+    return response
+
+
+def _parse_excel_date(value):
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return None
+    if hasattr(value, 'date'):
+        return value.date()
+    text = str(value).strip()
+    if not text or text.lower() == 'nat':
+        return None
+    for fmt in ('%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y'):
+        try:
+            from datetime import datetime
+            return datetime.strptime(text[:10], fmt).date()
+        except ValueError:
+            continue
+    return None
 
 
 @_edit_required
@@ -303,31 +458,148 @@ def import_devices(request):
         df = df.replace({pd.NA: None})
         count = 0
         for _, row in df.iterrows():
-            name = row.get('name')
+            name = row.get('name') or row.get('Tên thiết bị')
             if not name or (isinstance(name, float) and pd.isna(name)):
                 continue
+            handover_raw = row.get('handover_date') or row.get('Ngày bàn giao')
             Device.objects.create(
                 name=str(name).strip(),
-                managed_by=row.get('managed_by') or Device.MANAGED_IT,
-                category=row.get('category') or 'PC',
-                status=row.get('status') or Device.STATUS_NEW,
-                usage_department_text=str(row.get('usage_department_text') or row.get('usage_department') or ''),
-                usage_room=str(row.get('usage_room') or ''),
-                assigned_user_text=str(row.get('assigned_user_text') or row.get('user') or ''),
-                contact_email=row.get('contact_email') or '',
-                model_number=str(row.get('model_number') or ''),
-                serial_number=str(row.get('serial_number') or ''),
-                configuration=str(row.get('configuration') or ''),
-                description=str(row.get('description') or ''),
-                hostname=str(row.get('hostname') or ''),
-                ip_address=row.get('ip_address') or None,
-                quantity=int(row.get('quantity') or 1),
-                unit_price=int(row.get('unit_price') or 0),
+                managed_by=row.get('managed_by') or row.get('Bộ phận QL') or Device.MANAGED_IT,
+                category=row.get('category') or row.get('Loại') or 'PC',
+                status=row.get('status') or row.get('Trạng thái') or Device.STATUS_NEW,
+                usage_department_text=str(
+                    row.get('usage_department_text')
+                    or row.get('usage_department')
+                    or row.get('Phòng ban sử dụng')
+                    or ''
+                ),
+                usage_room=str(row.get('usage_room') or row.get('Phòng / vị trí') or ''),
+                assigned_user_text=str(
+                    row.get('assigned_user_text') or row.get('user') or row.get('Người dùng') or ''
+                ),
+                contact_email=row.get('contact_email') or row.get('Email liên hệ') or '',
+                handover_date=_parse_excel_date(handover_raw),
+                model_number=str(row.get('model_number') or row.get('Model') or ''),
+                serial_number=str(row.get('serial_number') or row.get('Serial Number') or ''),
+                configuration=str(row.get('configuration') or row.get('Cấu hình') or ''),
+                description=str(row.get('description') or row.get('Mô tả') or ''),
+                hostname=str(row.get('hostname') or row.get('Hostname') or ''),
+                ip_address=row.get('ip_address') or row.get('Địa chỉ IP') or None,
+                quantity=int(row.get('quantity') or row.get('Số lượng') or 1),
+                unit_price=int(row.get('unit_price') or row.get('Đơn giá') or 0),
             )
             count += 1
         messages.success(request, f'Đã nhập {count} thiết bị.')
     except Exception as exc:
         messages.error(request, f'Lỗi đọc file: {exc}')
+    return redirect('equipment:device_list')
+
+
+@_edit_required
+@require_http_methods(['POST'])
+def delete_bulk_devices(request):
+    device_ids = request.POST.getlist('device_ids')
+    if not device_ids:
+        messages.warning(request, 'Vui lòng chọn ít nhất một thiết bị để xóa.')
+        return redirect('equipment:device_list')
+
+    qs = Device.objects.filter(id__in=device_ids)
+    num = qs.count()
+    qs.delete()
+    messages.success(request, f'Đã xóa {num} thiết bị.')
+    return redirect('equipment:device_list')
+
+
+def _require_wmi_scan(request):
+    if not is_wmi_scan_supported():
+        messages.error(request, wmi_unavailable_message())
+        return False
+    return True
+
+
+@_edit_required
+@require_http_methods(['POST'])
+def scan_selected_devices(request):
+    if not _require_wmi_scan(request):
+        return redirect('equipment:device_list')
+
+    device_ids = request.POST.getlist('device_ids')
+    scan_user = (request.POST.get('scan_user') or '').strip()
+    scan_pass = request.POST.get('scan_pass') or ''
+
+    if not device_ids:
+        messages.warning(request, 'Chưa chọn thiết bị nào.')
+        return redirect('equipment:device_list')
+    if not scan_user or not scan_pass:
+        messages.error(request, 'Vui lòng nhập tài khoản và mật khẩu Admin để quét WMI.')
+        return redirect('equipment:device_list')
+
+    devices = Device.objects.filter(id__in=device_ids)
+    count_ip = 0
+    count_wmi = 0
+    count_qr = 0
+
+    for device in devices:
+        ip_updated, wmi_updated, qr_redrawn = scan_device_wmi(
+            device,
+            username=scan_user,
+            password=scan_pass,
+        )
+        if ip_updated:
+            count_ip += 1
+        if wmi_updated:
+            count_wmi += 1
+        if qr_redrawn:
+            count_qr += 1
+
+    messages.success(
+        request,
+        f'Hoàn tất quét {devices.count()} thiết bị. '
+        f'Cập nhật IP: {count_ip}. WMI: {count_wmi}. Vẽ lại tem QR: {count_qr}.',
+    )
+    return redirect('equipment:device_list')
+
+
+@_edit_required
+@require_http_methods(['POST'])
+def scan_network_range(request):
+    if not _require_wmi_scan(request):
+        return redirect('equipment:device_list')
+
+    start_ip = (request.POST.get('start_ip') or '').strip()
+    end_ip = (request.POST.get('end_ip') or '').strip()
+    scan_user = (request.POST.get('scan_user') or '').strip()
+    scan_pass = request.POST.get('scan_pass') or ''
+
+    if not scan_user or not scan_pass:
+        messages.error(request, 'Vui lòng nhập tài khoản và mật khẩu Admin.')
+        return redirect('equipment:device_list')
+
+    try:
+        ip_list = parse_ip_range(start_ip, end_ip)
+    except ValueError as exc:
+        messages.error(request, str(exc))
+        return redirect('equipment:device_list')
+
+    found_count = 0
+    new_device_count = 0
+
+    for ip_str in ip_list:
+        try:
+            result = discover_device_from_ip(ip_str, username=scan_user, password=scan_pass)
+            if result:
+                found_count += 1
+                _, created = result
+                if created:
+                    new_device_count += 1
+        except Exception:
+            continue
+
+    messages.success(
+        request,
+        f'Đã quét dải {start_ip} – {end_ip}. '
+        f'Tìm thấy {found_count} máy. Thêm mới {new_device_count} thiết bị.',
+    )
     return redirect('equipment:device_list')
 
 

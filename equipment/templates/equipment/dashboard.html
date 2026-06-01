@@ -3,43 +3,69 @@
 
 {% block content %}
 <div class="container jp-page py-3 py-md-4 mb-5">
-    <div class="jp-page-header mb-3 mb-md-4">
+    <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
         <div>
-            <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-pc-display me-2"></i>Quản lý thiết bị</h2>
-            <p class="text-muted mb-0">Theo dõi tài sản IT & xưởng, tem QR báo hỏng và lịch sử bảo trì.</p>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-speedometer2 me-2"></i>Tổng quan thiết bị</h2>
+            <p class="text-muted mb-0">Cập nhật {{ today|date:"d/m/Y" }}</p>
         </div>
     </div>
 
     {% include 'equipment/includes/subnav.html' %}
 
     <div class="row g-3 mb-4">
-        <div class="col-6 col-md-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body">
-                    <div class="text-muted small">Tổng thiết bị</div>
-                    <div class="fs-3 fw-bold text-hm">{{ total_devices }}</div>
+        <div class="col-6 col-lg">
+            <a href="{% url 'equipment:device_list' %}" class="text-decoration-none">
+                <div class="card border-0 shadow-sm h-100 border-start border-4 border-hm">
+                    <div class="card-body py-3">
+                        <div class="text-muted small">Tổng thiết bị</div>
+                        <div class="fs-3 fw-bold text-hm">{{ total_devices }}</div>
+                    </div>
                 </div>
-            </div>
+            </a>
         </div>
-        <div class="col-6 col-md-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body">
-                    <div class="text-muted small">Đang hoạt động</div>
-                    <div class="fs-3 fw-bold text-success">{{ active_devices }}</div>
+        <div class="col-6 col-lg">
+            <a href="{% url 'equipment:device_list' %}?status=active" class="text-decoration-none">
+                <div class="card border-0 shadow-sm h-100 border-start border-4 border-success">
+                    <div class="card-body py-3">
+                        <div class="text-muted small">Đang hoạt động</div>
+                        <div class="fs-3 fw-bold text-success">{{ active_devices }}</div>
+                    </div>
                 </div>
-            </div>
+            </a>
         </div>
-        <div class="col-6 col-md-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body">
-                    <div class="text-muted small">Đang hỏng</div>
-                    <div class="fs-3 fw-bold text-danger">{{ broken_devices }}</div>
+        <div class="col-6 col-lg">
+            <a href="{% url 'equipment:device_list' %}?status=broken" class="text-decoration-none">
+                <div class="card border-0 shadow-sm h-100 border-start border-4 border-danger">
+                    <div class="card-body py-3">
+                        <div class="text-muted small">Đang hỏng</div>
+                        <div class="fs-3 fw-bold text-danger">{{ broken_devices }}</div>
+                    </div>
                 </div>
-            </div>
+            </a>
         </div>
-        <div class="col-6 col-md-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body">
+        <div class="col-6 col-lg">
+            <a href="{% url 'equipment:device_list' %}?status=maintenance" class="text-decoration-none">
+                <div class="card border-0 shadow-sm h-100 border-start border-4 border-warning">
+                    <div class="card-body py-3">
+                        <div class="text-muted small">Bảo trì</div>
+                        <div class="fs-3 fw-bold text-warning">{{ maintenance_devices }}</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-6 col-lg">
+            <a href="{% url 'equipment:device_list' %}?status=scrapped" class="text-decoration-none">
+                <div class="card border-0 shadow-sm h-100 border-start border-4 border-secondary">
+                    <div class="card-body py-3">
+                        <div class="text-muted small">Đã hủy</div>
+                        <div class="fs-3 fw-bold text-secondary">{{ scrapped_devices }}</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-6 col-lg">
+            <div class="card border-0 shadow-sm h-100 border-start border-4 border-dark">
+                <div class="card-body py-3">
                     <div class="text-muted small">Chi phí sửa chữa</div>
                     <div class="fs-5 fw-bold">{{ total_cost|intcomma }} ₫</div>
                 </div>
@@ -47,36 +73,265 @@
         </div>
     </div>
 
+    <div class="row g-3 mb-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-white fw-bold text-danger">
+                    <i class="bi bi-exclamation-triangle me-1"></i>Cần xử lý gấp ({{ broken_devices }})
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Thiết bị / Vị trí</th>
+                                <th>Người báo</th>
+                                <th>Thời gian</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in recent_issues %}
+                            <tr>
+                                <td>
+                                    <strong>{{ log.device.name }}</strong>
+                                    <div class="small text-muted">{{ log.device.usage_department_label }}</div>
+                                </td>
+                                <td>{{ log.reported_by }}</td>
+                                <td>{{ log.created_at|date:"d/m/Y H:i" }}</td>
+                                <td class="text-end">
+                                    {% if log.service_request_id %}
+                                    <a href="{% url 'service_requests:detail' log.service_request_id %}" class="btn btn-sm btn-outline-hm">Yêu cầu</a>
+                                    {% else %}
+                                    <a href="{% url 'equipment:device_detail_manage' log.device_id %}" class="btn btn-sm btn-outline-secondary">Chi tiết</a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-center text-success py-4">Không có thiết bị hỏng.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white fw-bold text-warning">
+                    <i class="bi bi-clock-history me-1"></i>Đang theo dõi bảo trì ({{ maintenance_devices }})
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Thiết bị</th>
+                                <th>Ghi chú</th>
+                                <th>Dự kiến xong</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in monitoring_issues %}
+                            <tr>
+                                <td><strong>{{ log.device.name }}</strong></td>
+                                <td class="small text-muted">{{ log.repair_note|default:log.issue_description|truncatechars:80 }}</td>
+                                <td>
+                                    {% if log.expected_return_date %}
+                                        {% if log.expected_return_date < today %}
+                                        <span class="text-danger fw-bold small">{{ log.expected_return_date|date:"d/m/Y" }} (quá hạn)</span>
+                                        {% else %}
+                                        <span class="text-success small fw-bold">{{ log.expected_return_date|date:"d/m/Y" }}</span>
+                                        {% endif %}
+                                    {% else %}
+                                    <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="3" class="text-center text-muted py-4">Không có thiết bị đang bảo trì.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white fw-bold text-hm">
+                    <i class="bi bi-pie-chart me-1"></i>Tỷ lệ trạng thái
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center">
+                    <div style="width:100%;max-width:280px">
+                        <canvas id="statusChart" aria-label="Biểu đồ trạng thái thiết bị"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white fw-bold">Sự cố cần xử lý</div>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>Thiết bị</th>
-                        <th>Người báo</th>
-                        <th>Thời gian</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for log in recent_issues %}
-                    <tr>
-                        <td><strong>{{ log.device.name }}</strong></td>
-                        <td>{{ log.reported_by }}</td>
-                        <td>{{ log.created_at|date:"d/m/Y H:i" }}</td>
-                        <td class="text-end">
-                            {% if log.service_request_id %}
-                            <a href="{% url 'service_requests:detail' log.service_request_id %}" class="btn btn-sm btn-outline-hm">Yêu cầu</a>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr><td colspan="4" class="text-center text-muted py-4">Không có sự cố đang chờ.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2 pb-0">
+            <h6 class="fw-bold mb-0"><i class="bi bi-bar-chart me-1"></i>Phân tích dữ liệu</h6>
+            <ul class="nav nav-pills jp-tab-pills small" id="equipmentChartTabs" role="tablist">
+                <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#chart-dept" type="button">PB báo hỏng</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#chart-cost" type="button">Chi phí/tháng</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#chart-cat" type="button">Theo loại TB</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#chart-dept-cost" type="button">Chi phí/PB</button></li>
+            </ul>
+        </div>
+        <div class="card-body pt-3">
+            <div class="tab-content">
+                <div class="tab-pane fade show active" id="chart-dept">
+                    <div class="eq-chart-wrap"><canvas id="deptChart"></canvas></div>
+                </div>
+                <div class="tab-pane fade" id="chart-cost">
+                    <div class="eq-chart-wrap"><canvas id="costChart"></canvas></div>
+                </div>
+                <div class="tab-pane fade" id="chart-cat">
+                    <div class="eq-chart-wrap"><canvas id="catChart"></canvas></div>
+                </div>
+                <div class="tab-pane fade" id="chart-dept-cost">
+                    <div class="eq-chart-wrap"><canvas id="deptCostChart"></canvas></div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
+<style>
+.eq-chart-wrap {
+    position: relative;
+    height: 320px;
+    width: 100%;
+}
+#equipmentChartTabs .nav-link {
+    color: var(--jp-black-500, #6b7280);
+    border-radius: 999px;
+    padding: 0.35rem 0.85rem;
+}
+#equipmentChartTabs .nav-link.active {
+    background: var(--hm-primary, #dc2626);
+    color: #fff;
+}
+.border-hm { border-color: var(--hm-primary, #dc2626) !important; }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    const JP_PRIMARY = '#dc2626';
+    const JP_PRIMARY_LIGHT = 'rgba(220, 38, 38, 0.15)';
+    const fmtVnd = (v) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v);
+
+    const statusChart = new Chart(document.getElementById('statusChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Hoạt động', 'Hỏng', 'Bảo trì', 'Đã hủy'],
+            datasets: [{
+                data: [{{ active_devices }}, {{ broken_devices }}, {{ maintenance_devices }}, {{ scrapped_devices }}],
+                backgroundColor: ['#16a34a', '#dc2626', '#f59e0b', '#6b7280'],
+                borderWidth: 0,
+                hoverOffset: 6,
+            }],
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 14 } } },
+        },
+    });
+
+    const deptLabels = {{ dept_labels_json|safe }};
+    const deptData = {{ dept_data_json|safe }};
+    const costData = {{ cost_data_json|safe }};
+    const catLabels = {{ cat_labels_json|safe }};
+    const catData = {{ cat_data_json|safe }};
+    const deptCostLabels = {{ dept_cost_labels_json|safe }};
+    const deptCostData = {{ dept_cost_data_json|safe }};
+
+    const chartDefaults = { responsive: true, maintainAspectRatio: false };
+
+    const deptChart = new Chart(document.getElementById('deptChart'), {
+        type: 'bar',
+        data: {
+            labels: deptLabels.length ? deptLabels : ['Chưa có dữ liệu'],
+            datasets: [{
+                label: 'Số lần báo hỏng',
+                data: deptLabels.length ? deptData : [0],
+                backgroundColor: JP_PRIMARY,
+                borderRadius: 4,
+            }],
+        },
+        options: { ...chartDefaults, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } },
+    });
+
+    const costChart = new Chart(document.getElementById('costChart'), {
+        type: 'line',
+        data: {
+            labels: ['T1','T2','T3','T4','T5','T6','T7','T8','T9','T10','T11','T12'],
+            datasets: [{
+                label: 'Chi phí (VNĐ)',
+                data: costData,
+                borderColor: JP_PRIMARY,
+                backgroundColor: JP_PRIMARY_LIGHT,
+                tension: 0.3,
+                fill: true,
+                pointRadius: 4,
+                pointBackgroundColor: '#fff',
+                pointBorderColor: JP_PRIMARY,
+            }],
+        },
+        options: {
+            ...chartDefaults,
+            plugins: {
+                tooltip: { callbacks: { label: (ctx) => fmtVnd(ctx.raw) } },
+            },
+        },
+    });
+
+    const catChart = new Chart(document.getElementById('catChart'), {
+        type: 'doughnut',
+        data: {
+            labels: catLabels.length ? catLabels : ['Chưa có dữ liệu'],
+            datasets: [{
+                data: catLabels.length ? catData : [1],
+                backgroundColor: ['#991b1b', '#dc2626', '#ef4444', '#f87171', '#fca5a5', '#fecaca', '#fee2e2'],
+                borderWidth: 1,
+            }],
+        },
+        options: {
+            ...chartDefaults,
+            plugins: { legend: { position: 'right' } },
+        },
+    });
+
+    const deptCostChart = new Chart(document.getElementById('deptCostChart'), {
+        type: 'bar',
+        data: {
+            labels: deptCostLabels.length ? deptCostLabels : ['Chưa có dữ liệu'],
+            datasets: [{
+                label: 'Tổng chi phí (VNĐ)',
+                data: deptCostLabels.length ? deptCostData : [0],
+                backgroundColor: 'rgba(245, 158, 11, 0.85)',
+                borderRadius: 4,
+            }],
+        },
+        options: {
+            ...chartDefaults,
+            indexAxis: 'y',
+            plugins: {
+                tooltip: { callbacks: { label: (ctx) => fmtVnd(ctx.raw) } },
+            },
+        },
+    });
+
+    document.querySelectorAll('#equipmentChartTabs button[data-bs-toggle="pill"]').forEach(function (btn) {
+        btn.addEventListener('shown.bs.tab', function () {
+            deptChart.resize();
+            costChart.resize();
+            catChart.resize();
+            deptCostChart.resize();
+        });
+    });
+})();
+</script>
 {% endblock %}

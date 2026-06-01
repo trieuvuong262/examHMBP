@@ -126,6 +126,19 @@ PORTAL_PUBLIC_BASE_URL = os.getenv(
 ).rstrip("/")
 EQUIPMENT_TAG_HEADER = os.getenv("EQUIPMENT_TAG_HEADER", "JUSTPLAY — QUẢN LÝ THIẾT BỊ")
 EQUIPMENT_AGENT_SECRET = os.getenv("EQUIPMENT_AGENT_SECRET", "")
+EQUIPMENT_NOTIFY_EMAILS = os.getenv("EQUIPMENT_NOTIFY_EMAILS", "")
+
+# Email — local dùng console; production cấu hình SMTP trong .env
+EMAIL_BACKEND = os.getenv(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend" if IS_LOCAL else "django.core.mail.backends.smtp.EmailBackend",
+)
+EMAIL_HOST = os.getenv("EMAIL_HOST", "")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@portal.justplay.vn")
 
 # Giới hạn dung lượng File Upload (Tối đa 10MB) để chống DoS
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024 

@@ -363,6 +363,12 @@ def create_it_repair(request):
                         action='attachment',
                         message=f'Đính kèm {len(prepared)} file',
                     )
+                profile = getattr(request.user, 'profile', None)
+                reporter_name = (
+                    profile.full_name if profile and profile.full_name else request.user.username
+                )
+                from equipment.services.email_notify import notify_breakdown_from_request
+                notify_breakdown_from_request(service_request, reporter_name=reporter_name)
                 messages.success(request, 'Đã gửi yêu cầu hỗ trợ kỹ thuật — đang chờ xử lý.')
                 return redirect('service_requests:detail', pk=service_request.pk)
             except ValueError as exc:
@@ -550,6 +556,17 @@ def request_detail(request, pk):
                             stage=ServiceRequestAttachment.STAGE_RESULT,
                             step=current_step,
                         )
+                    from equipment.services.email_notify import notify_repair_completed
+                    notify_repair_completed(
+                        service_request=service_request,
+                        repair_note=it_repair_form.cleaned_data['note'].strip(),
+                        repaired_by=request.user.get_full_name() or request.user.username,
+                    )
+                    if service_request.equipment_id:
+                        from equipment.models import Device
+                        dev = service_request.equipment
+                        dev.status = Device.STATUS_MAINTENANCE
+                        dev.save(update_fields=['status', 'updated_at'])
                     messages.success(request, 'Đã hoàn thành sửa chữa — chờ người gửi xác nhận.')
                     return redirect('service_requests:detail', pk=pk)
 
@@ -563,6 +580,18 @@ def request_detail(request, pk):
                         actor=request.user,
                         note=requester_confirm_form.cleaned_data.get('note', '').strip(),
                     )
+                    if service_request.equipment_id:
+                        from equipment.models import Device, MaintenanceLog
+                        dev = service_request.equipment
+                        dev.status = Device.STATUS_ACTIVE
+                        dev.save(update_fields=['status', 'updated_at'])
+                        MaintenanceLog.objects.filter(
+                            device=dev,
+                            service_request=service_request,
+                            is_resolved=False,
+                        ).update(is_resolved=True)
+                    from equipment.services.email_notify import notify_repair_confirmed
+                    notify_repair_confirmed(service_request=service_request)
                     messages.success(request, 'Đã xác nhận hoàn thành yêu cầu.')
                     return redirect('service_requests:detail', pk=pk)
 
