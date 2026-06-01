@@ -6,100 +6,22 @@
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-chat-square-text-fill me-2"></i>{{ feedback.title }}</h2>
             <p class="text-muted mb-0 jp-hide-mobile-subtitle">
-                Gửi bởi {{ feedback.submitter.get_full_name|default:feedback.submitter.username }}
+                {{ feedback.submitter_display }}
                 · {{ feedback.created_at|date:"d/m/Y H:i" }}
             </p>
         </div>
-        <a href="{% if can_manage %}{% url 'feedback:review_list' %}{% else %}{% url 'feedback:my_list' %}{% endif %}" class="btn btn-outline-secondary">
+        <a href="{% url 'feedback:list' %}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i>Quay lại
         </a>
     </div>
 
-    {% include 'feedback/includes/subnav.html' %}
-
-    <div class="row g-3">
-        <div class="col-lg-8">
-            <div class="card border-0 shadow-sm mb-3">
-                <div class="card-body p-3 p-md-4">
-                    <div class="d-flex flex-wrap gap-2 mb-3">
-                        <span class="badge bg-light text-dark border">{{ feedback.get_category_display }}</span>
-                        <span class="badge bg-light text-dark border">{{ feedback.get_status_display }}</span>
-                        {% if feedback.assigned_to %}
-                        <span class="badge bg-primary-subtle text-primary">
-                            Phụ trách: {{ feedback.assigned_to.get_full_name|default:feedback.assigned_to.username }}
-                        </span>
-                        {% endif %}
-                    </div>
-                    <div class="text-body">{{ feedback.body|linebreaks }}</div>
-                </div>
-            </div>
-
-            {% if feedback.replies.all %}
-            <div class="card border-0 shadow-sm mb-3">
-                <div class="card-header bg-white border-bottom fw-bold">
-                    <i class="bi bi-chat-dots me-1"></i>Trao đổi
-                </div>
-                <div class="card-body p-3 p-md-4">
-                    {% for reply in feedback.replies.all %}
-                    <div class="mb-3 pb-3 {% if not forloop.last %}border-bottom{% endif %}">
-                        <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap mb-1">
-                            <strong>
-                                {{ reply.author.get_full_name|default:reply.author.username }}
-                                {% if reply.is_staff_reply %}
-                                <span class="badge bg-hm text-white ms-1">Ban quản lý</span>
-                                {% endif %}
-                            </strong>
-                            <small class="text-muted">{{ reply.created_at|date:"d/m/Y H:i" }}</small>
-                        </div>
-                        <div class="text-body">{{ reply.body|linebreaks }}</div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-3 p-md-4">
+            {% if feedback.is_anonymous %}
+            <span class="badge bg-secondary-subtle text-secondary mb-3"><i class="bi bi-incognito"></i> Ẩn danh</span>
             {% endif %}
-
-            {% if is_owner and feedback.is_open %}
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white border-bottom fw-bold">Bổ sung góp ý</div>
-                <div class="card-body p-3 p-md-4">
-                    <form method="post">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="follow_up">
-                        <div class="mb-3">
-                            {{ reply_form.body }}
-                            {% if reply_form.body.errors %}<div class="text-danger small mt-1">{{ reply_form.body.errors }}</div>{% endif %}
-                        </div>
-                        <button type="submit" class="btn btn-hm fw-bold">Gửi bổ sung</button>
-                    </form>
-                </div>
-            </div>
-            {% endif %}
+            <div class="text-body">{{ feedback.body|linebreaks }}</div>
         </div>
-
-        {% if can_manage %}
-        <div class="col-lg-4">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white border-bottom fw-bold">Xử lý góp ý</div>
-                <div class="card-body p-3 p-md-4">
-                    <form method="post">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="respond">
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold" for="{{ status_form.status.id_for_label }}">{{ status_form.status.label }}</label>
-                            {{ status_form.status }}
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold" for="{{ status_form.body.id_for_label }}">{{ status_form.body.label }}</label>
-                            {{ status_form.body }}
-                        </div>
-                        <button type="submit" class="btn btn-hm fw-bold w-100">
-                            <i class="bi bi-check-circle me-1"></i>Cập nhật
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-        {% endif %}
     </div>
 </div>
 {% endblock %}

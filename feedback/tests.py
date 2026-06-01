@@ -2,6 +2,7 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from django.urls import reverse
 
+from assessment.portal_widgets import get_portal_dashboard
 from feedback.models import Feedback
 from hrm.models import Department, DepartmentMenuPermission, Profile, RoleModulePermission
 from hrm.module_permissions import MODULE_FEEDBACK
@@ -25,7 +26,7 @@ class FeedbackAccessTests(TestCase):
         )
 
         self.employee = self._user('nv1', ROLE_EMPLOYEE)
-        self.hr = self._user('hr1', ROLE_TEAM_LEADER)
+        self.manager = self._user('hr1', ROLE_TEAM_LEADER)
         self.client = Client()
 
     def _user(self, username, role):
@@ -34,59 +35,71 @@ class FeedbackAccessTests(TestCase):
             department=self.dept,
             role=role,
         )
-        return user
+        return User.objects.select_related('profile').get(pk=user.pk)
 
-    def test_employee_can_create_and_view_own_feedback(self):
+    def test_employee_can_submit_feedback(self):
         self.client.login(username='nv1', password='pass')
-        resp = self.client.get(reverse('feedback:create'))
-        self.assertEqual(resp.status_code, 200)
-
         resp = self.client.post(reverse('feedback:create'), {
             'title': 'Cải thiện quy trình',
-            'category': Feedback.CATEGORY_PROCESS,
             'body': 'Đề xuất rút gọn bước duyệt',
+            'is_anonymous': 'on',
         })
         self.assertEqual(resp.status_code, 302)
         feedback = Feedback.objects.get()
-        self.assertEqual(feedback.submitter_id, self.employee.id)
+        self.assertTrue(feedback.is_anonymous)
+        self.assertEqual(feedback.submitter_display(), 'Ẩn danh')
 
-        resp = self.client.get(reverse('feedback:detail', args=[feedback.pk]))
-        self.assertEqual(resp.status_code, 200)
-
-    def test_employee_cannot_view_others_feedback(self):
-        other = self._user('nv2', ROLE_EMPLOYEE)
+    def test_employee_cannot_view_list_or_detail(self):
         feedback = Feedback.objects.create(
-            submitter=other,
+            submitter=self.employee,
             title='Riêng tư',
             body='Nội dung',
         )
         self.client.login(username='nv1', password='pass')
-        resp = self.client.get(reverse('feedback:detail', args=[feedback.pk]))
-        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(self.client.get(reverse('feedback:list')).status_code, 302)
+        self.assertEqual(self.client.get(reverse('feedback:detail', args=[feedback.pk])).status_code, 302)
 
-    def test_hr_can_respond(self):
-        feedback = Feedback.objects.create(
+    def test_manager_sees_submitter_when_not_anonymous(self):
+        Feedback.objects.create(
             submitter=self.employee,
             title='Góp ý IT',
             body='Máy chậm',
-            category=Feedback.CATEGORY_TOOL,
+            is_anonymous=False,
         )
         self.client.login(username='hr1', password='pass')
-        resp = self.client.post(reverse('feedback:detail', args=[feedback.pk]), {
-            'action': 'respond',
-            'status': Feedback.STATUS_RESOLVED,
-            'body': 'Đã kiểm tra và xử lý',
-        })
-        self.assertEqual(resp.status_code, 302)
-        feedback.refresh_from_db()
-        self.assertEqual(feedback.status, Feedback.STATUS_RESOLVED)
-        self.assertEqual(feedback.replies.count(), 1)
-
-    def test_review_list_requires_edit_permission(self):
-        self.client.login(username='nv1', password='pass')
-        resp = self.client.get(reverse('feedback:review_list'))
-        self.assertEqual(resp.status_code, 302)
-
-        self.client.login(username='hr1', password='pass')
-        resp = self.client.get(reverse('feedback:review_list'))
+        resp = self.client.get(reverse('feedback:list'))
         self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'nv1')
+
+    def test_manager_sees_anonymous_label(self):
+        Feedback.objects.create(
+            submitter=self.employee,
+            title='Góp ý ẩn danh',
+            body='Nội dung',
+            is_anonymous=True,
+        )
+        self.client.login(username='hr1', password='pass')
+        resp = self.client.get(reverse('feedback:detail', args=[Feedback.objects.get().pk]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Ẩn danh')
+        self.assertNotContains(resp, 'nv1')
+
+    def test_home_widget_for_manager(self):
+        Feedback.objects.create(
+            submitter=self.employee,
+            title='Widget test',
+            body='Body',
+        )
+        widgets = get_portal_dashboard(self.manager)
+        feedback_widgets = [w for w in widgets if w.get('title') == 'Góp ý']
+        self.assertEqual(len(feedback_widgets), 1)
+        self.assertEqual(feedback_widgets[0]['badge'], 1)
+
+    def test_no_home_widget_for_employee(self):
+        Feedback.objects.create(
+            submitter=self.employee,
+            title='Widget test',
+            body='Body',
+        )
+        widgets = get_portal_dashboard(self.employee)
+        self.assertFalse(any(w.get('title') == 'Góp ý' for w in widgets))

@@ -46,6 +46,10 @@
     --jp-sidebar-gradient: linear-gradient(180deg, var(--jp-black-900) 0%, var(--jp-black-800) 100%);
     --jp-sidebar-drawer-bg: var(--jp-black-900);
     --jp-sidebar-status-ring: var(--jp-black-900);
+    --jp-sidebar-scroll-w: 5px;
+    --jp-sidebar-scroll-track: rgba(255, 255, 255, 0.04);
+    --jp-sidebar-scroll-thumb: rgba(255, 255, 255, 0.22);
+    --jp-sidebar-scroll-thumb-hover: rgba(255, 255, 255, 0.38);
     --jp-page-bg: var(--hm-bg-light);
     --jp-surface-bg: #ffffff;
     --jp-surface-muted: #f8fafc;
@@ -3168,6 +3172,35 @@ textarea.form-control {
         padding-left: 0.45rem;
         padding-right: 0.45rem;
         overflow-x: visible;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--jp-sidebar-scroll-thumb) transparent;
+    }
+
+    html.jp-sidebar-collapsed .jp-sidebar-nav::-webkit-scrollbar {
+        width: var(--jp-sidebar-scroll-w);
+    }
+
+    html.jp-sidebar-collapsed .jp-sidebar-nav::-webkit-scrollbar-track {
+        background: transparent;
+        margin: 0.35rem 0;
+    }
+
+    html.jp-sidebar-collapsed .jp-sidebar-nav::-webkit-scrollbar-thumb {
+        background: var(--jp-sidebar-scroll-thumb);
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    html.jp-sidebar-collapsed .jp-sidebar-nav::-webkit-scrollbar-thumb:hover {
+        background: var(--jp-sidebar-scroll-thumb-hover);
+    }
+
+    html.jp-sidebar-collapsed .jp-sidebar-menu-scroll {
+        flex: none;
+        overflow: visible;
+        margin: 0;
+        padding: 0;
     }
 
     html.jp-sidebar-collapsed .jp-sidebar-brand {
@@ -3252,9 +3285,68 @@ textarea.form-control {
     flex-direction: column;
     height: 100%;
     min-height: 100%;
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: hidden;
     padding: 0.85rem 0.65rem 1rem;
+}
+
+.jp-sidebar-brand,
+.jp-sidebar-profile,
+.jp-sidebar-footer {
+    flex-shrink: 0;
+}
+
+.jp-sidebar-menu-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable;
+    margin: 0 -0.2rem;
+    padding: 0 0.15rem 0.2rem 0.35rem;
+    scrollbar-width: thin;
+    scrollbar-color: var(--jp-sidebar-scroll-thumb) transparent;
+}
+
+.jp-sidebar-menu-scroll::-webkit-scrollbar {
+    width: var(--jp-sidebar-scroll-w);
+}
+
+.jp-sidebar-menu-scroll::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 0.35rem 0;
+    border-radius: 999px;
+}
+
+.jp-sidebar-menu-scroll::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+        180deg,
+        var(--jp-sidebar-scroll-thumb) 0%,
+        rgba(255, 255, 255, 0.14) 100%
+    );
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background-clip: padding-box;
+    min-height: 2.5rem;
+    transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.jp-sidebar-menu-scroll:hover::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+        180deg,
+        var(--jp-sidebar-scroll-thumb-hover) 0%,
+        rgba(255, 255, 255, 0.24) 100%
+    );
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.jp-sidebar-menu-scroll::-webkit-scrollbar-thumb:active {
+    background: rgba(255, 255, 255, 0.42);
+}
+
+.jp-sidebar-menu-scroll:hover {
+    scrollbar-color: var(--jp-sidebar-scroll-thumb-hover) var(--jp-sidebar-scroll-track);
 }
 
 .jp-sidebar-brand {
@@ -3731,6 +3823,7 @@ html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
     margin-top: auto;
     padding-top: 0.75rem;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
 }
 
 .jp-sidebar-logout:hover {
@@ -3855,9 +3948,17 @@ html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
     background: var(--jp-sidebar-drawer-bg);
 }
 
+.jp-sidebar-drawer .offcanvas-body {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 0;
+}
+
 .jp-sidebar-drawer .jp-sidebar-nav {
-    height: auto;
-    min-height: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
 }
 
 .jp-sidebar-drawer .jp-sidebar-profile,

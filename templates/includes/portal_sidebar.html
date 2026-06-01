@@ -49,6 +49,7 @@
     </div>
     {% endwith %}
 
+    <div class="jp-sidebar-menu-scroll">
     <ul class="jp-sidebar-menu">
         <li>
             <a href="{% url 'home_portal' %}" class="jp-sidebar-link {% if request.path == '/' %}active{% endif %}">
@@ -207,25 +208,19 @@
             </button>
             <ul class="jp-sidebar-submenu" id="jp-sidebar-feedback-submenu">
                 <li>
-                    <a href="{% url 'feedback:my_list' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'my_list' or request.resolver_match.url_name == 'detail' %}active{% endif %}">
-                        <i class="bi bi-person-lines-fill"></i><span>Góp ý của tôi</span>
-                    </a>
-                </li>
-                {% if jp_can_edit_feedback %}
-                <li>
-                    <a href="{% url 'feedback:review_list' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'review_list' %}active{% endif %}">
-                        <i class="bi bi-inbox-fill"></i><span>Chờ xử lý</span>
-                    </a>
-                </li>
-                {% endif %}
-                <li>
                     <a href="{% url 'feedback:create' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'create' %}active{% endif %}">
                         <i class="bi bi-plus-circle"></i><span>Gửi góp ý</span>
                     </a>
                 </li>
+                {% if jp_can_edit_feedback %}
+                <li>
+                    <a href="{% url 'feedback:list' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'list' or request.resolver_match.url_name == 'detail' %}active{% endif %}">
+                        <i class="bi bi-inbox-fill"></i><span>Danh sách góp ý</span>
+                    </a>
+                </li>
+                {% endif %}
             </ul>
         </li>
         {% endif %}
@@ -289,6 +284,7 @@
         </li>
         {% endif %}
     </ul>
+    </div>
 
     <div class="jp-sidebar-footer">
         <a href="{% url 'password_change' %}" class="jp-sidebar-link jp-sidebar-link-muted">

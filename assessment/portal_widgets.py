@@ -15,10 +15,12 @@ from hrm.permissions import (
 from hrm.module_permissions import (
     MODULE_ASSESSMENT,
     MODULE_EQUIPMENT,
+    MODULE_FEEDBACK,
     MODULE_SERVICE_REQUESTS,
     MODULE_TASKS,
     MODULE_TRAINING,
     user_can_access_module,
+    user_can_edit_module,
 )
 from reports.models import DailyWorkReport
 from tasks.models import WorkTask, WorkTaskHandoff
@@ -280,6 +282,26 @@ def _equipment_it_widgets(user):
     }]
 
 
+def _feedback_widgets(user):
+    if not user_can_edit_module(user, MODULE_FEEDBACK):
+        return []
+
+    from feedback.models import Feedback
+
+    count = Feedback.objects.count()
+    if not count:
+        return []
+    return [{
+        'level': 'info',
+        'icon': 'bi-chat-square-text-fill',
+        'title': 'Góp ý',
+        'text': f'Có {count} góp ý — xem danh sách để nắm ý kiến nhân viên.',
+        'url': reverse('feedback:list'),
+        'action': 'Xem góp ý',
+        'badge': count,
+    }]
+
+
 def get_portal_dashboard(user):
     """Trả về danh sách widget nhắc việc (dict) cho trang chủ."""
     widgets = []
@@ -328,6 +350,7 @@ def get_portal_dashboard(user):
     widgets.extend(_exam_widgets(user))
     widgets.extend(_service_request_widgets(user))
     widgets.extend(_equipment_it_widgets(user))
+    widgets.extend(_feedback_widgets(user))
 
     # --- HOD / GM: team chưa nộp BC ---
     if can_view_team_reports(user):
