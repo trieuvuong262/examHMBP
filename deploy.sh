@@ -207,6 +207,7 @@ git clean -ffd \
   -e media/ \
   -e staticfiles \
   -e staticfiles/ \
+  -e static/equipment/JustPlayAgent.exe \
   -e '*.log' 2>/dev/null || true
 echo "    At commit: $(git rev-parse --short HEAD)"
 
@@ -231,6 +232,22 @@ compose exec -T web python manage.py migrate --noinput
 
 verify_migrations
 
+verify_agent_exe() {
+  echo "==> Verify JustPlayAgent.exe"
+  local exe_host="${PROJECT_DIR}/static/equipment/JustPlayAgent.exe"
+  if [[ ! -f "${exe_host}" ]]; then
+    echo "    WARNING: Thieu ${exe_host}"
+    echo "             Tren may Windows: scripts/build-justplay-agent.cmd"
+    echo "             Copy len VPS: static/equipment/JustPlayAgent.exe"
+    return 0
+  fi
+  if compose exec -T web test -f /app/static/equipment/JustPlayAgent.exe; then
+    echo "    JustPlayAgent.exe OK ($(wc -c < "${exe_host}" | tr -d ' ') bytes)"
+  else
+    echo "    WARNING: Container chua thay JustPlayAgent.exe — kiem tra volume mount."
+  fi
+}
+
 verify_agent_gate() {
   echo "==> Verify agent install gate"
   if compose exec -T web python manage.py check_agent_gate 2>/dev/null; then
@@ -248,6 +265,7 @@ PY
 }
 
 verify_agent_gate
+verify_agent_exe
 
 verify_nas_rclone() {
   echo "==> Verify NAS rclone in web container"

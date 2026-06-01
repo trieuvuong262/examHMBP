@@ -1,11 +1,13 @@
 @echo off
 cd /d "%~dp0.."
 pip install pyinstaller -q
-pyinstaller --onefile --clean --name JustPlayAgent --paths . justplay_agent.py
+python -m PyInstaller --onefile --clean --name JustPlayAgent --paths . justplay_agent.py
 if exist dist\JustPlayAgent.exe (
+    if not exist static\equipment mkdir static\equipment
+    copy /Y dist\JustPlayAgent.exe static\equipment\JustPlayAgent.exe
     echo.
-    echo OK: dist\JustPlayAgent.exe
-    echo Copy cung justplay_agent.ini len tung PC
+    echo OK: static\equipment\JustPlayAgent.exe
+    echo Deploy len VPS: git push hoac scp file len server
 ) else (
     echo Build failed
     exit /b 1

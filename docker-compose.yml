@@ -23,6 +23,7 @@ services:
     volumes:
       - static_volume:/app/staticfiles
       - media_volume:/app/media
+      - ./static/equipment:/app/static/equipment:ro
       - /mnt/nas-portal:/mnt/nas-portal
       - /root/.config/rclone:/root/.config/rclone:ro
     environment:
