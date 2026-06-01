@@ -32,7 +32,7 @@
 
                 {% if shared_pc %}
                 <div class="card border-success mb-4">
-                    <div class="card-body">
+                    <div class="card-body text-center">
                         <h2 class="h6 fw-bold text-success mb-2">
                             <i class="bi bi-people me-1"></i>PC dùng chung — đã có JustPlay Agent
                         </h2>
@@ -42,18 +42,18 @@
                             (serial <code class="small">{{ shared_pc.device.serial_number }}</code>)
                             đã cài agent.
                             {% if shared_pc.registered_users %}
-                            Người đã đăng ký:
+                            <br>Người đã đăng ký:
                             {% for u in shared_pc.registered_users %}
                             <span class="badge bg-light text-dark border">{{ u.username }}</span>
                             {% endfor %}
                             {% endif %}
                         </p>
-                        <p class="small text-muted mb-3">
+                        <p class="small text-muted mb-4">
                             Nếu bạn dùng chung PC này, bấm <strong>Xác nhận</strong> — không cần tải file cài lại.
                         </p>
-                        <form method="post" action="{% url 'equipment:agent_confirm_shared_pc' %}">
+                        <form method="post" action="{% url 'equipment:agent_confirm_shared_pc' %}" class="d-inline-block">
                             {% csrf_token %}
-                            <button type="submit" class="btn btn-success btn-lg">
+                            <button type="submit" class="btn btn-success btn-lg px-5">
                                 <i class="bi bi-check-circle me-1"></i>Xác nhận
                             </button>
                         </form>

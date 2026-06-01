@@ -18,7 +18,10 @@
         <span class="navbar-brand text-white d-flex align-items-center m-0">
             <img src="{{ site_logo }}" alt="JustPlay" class="me-2">
         </span>
-        <a href="{% url 'logout' %}" class="btn btn-sm btn-outline-light">Đăng xuất</a>
+        <form action="{% url 'logout' %}" method="post" class="m-0">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-light">Đăng xuất</button>
+        </form>
     </div>
 </nav>
 
