@@ -57,6 +57,17 @@
                         {% if form.assignees.errors %}<div class="text-danger small">{{ form.assignees.errors }}</div>{% endif %}
                         <div class="form-text">Giữ Ctrl (Windows) hoặc Cmd (Mac) để chọn nhiều người. Mỗi dòng hiển thị: <strong>Họ tên · Mã NS · account</strong>.</div>
                     </div>
+                    <div class="col-12">
+                        <div class="form-check">
+                            {{ form.skip_completion_review }}
+                            <label class="form-check-label" for="{{ form.skip_completion_review.id_for_label }}">
+                                {{ form.skip_completion_review.label }}
+                            </label>
+                            {% if form.skip_completion_review.help_text %}
+                            <div class="form-text">{{ form.skip_completion_review.help_text }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
 
                 <div class="mt-4 d-flex gap-2">

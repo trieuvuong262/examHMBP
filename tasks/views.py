@@ -279,6 +279,7 @@ def assign_task(request):
                     task_type=form.cleaned_data['task_type'],
                     priority=form.cleaned_data['priority'],
                     due_date=form.cleaned_data['due_date'],
+                    skip_completion_review=form.cleaned_data['skip_completion_review'],
                     assigner=request.user,
                     assignee=assignee,
                 )
@@ -396,15 +397,28 @@ def task_detail(request, pk):
         }:
             submit_form = WorkTaskSubmitForm(request.POST)
             if submit_form.is_valid():
-                task.status = WorkTask.STATUS_PENDING_REVIEW
                 task.result_note = submit_form.cleaned_data['result_note']
                 task.progress_percent = max(task.progress_percent, 100)
                 task.submitted_at = timezone.now()
-                task.save(update_fields=[
-                    'status', 'result_note', 'progress_percent', 'submitted_at', 'updated_at',
-                ])
-                log_task_action(task, request.user, WorkTaskLog.ACTION_SUBMIT, task.result_note)
-                messages.success(request, 'Đã nộp chờ cấp trên duyệt.')
+                if task.skip_completion_review:
+                    task.status = WorkTask.STATUS_COMPLETED
+                    task.completed_at = timezone.now()
+                    task.save(update_fields=[
+                        'status', 'result_note', 'progress_percent',
+                        'submitted_at', 'completed_at', 'updated_at',
+                    ])
+                    log_task_action(
+                        task, request.user, WorkTaskLog.ACTION_SUBMIT,
+                        f'{task.result_note} (hoàn thành — không cần duyệt)',
+                    )
+                    messages.success(request, 'Đã hoàn thành công việc.')
+                else:
+                    task.status = WorkTask.STATUS_PENDING_REVIEW
+                    task.save(update_fields=[
+                        'status', 'result_note', 'progress_percent', 'submitted_at', 'updated_at',
+                    ])
+                    log_task_action(task, request.user, WorkTaskLog.ACTION_SUBMIT, task.result_note)
+                    messages.success(request, 'Đã nộp chờ cấp trên duyệt.')
                 return _redirect_task_detail(task)
 
         if action == 'approve' and is_assigner and task.status == WorkTask.STATUS_PENDING_REVIEW:
@@ -527,6 +541,7 @@ def reassign_task(request, pk):
                 task_type=old_task.task_type,
                 priority=old_task.priority,
                 due_date=old_task.due_date,
+                skip_completion_review=old_task.skip_completion_review,
                 assigner=request.user,
                 assignee=new_assignee,
                 reassigned_from=old_task,

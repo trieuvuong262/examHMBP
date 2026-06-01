@@ -15,6 +15,9 @@
             <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ task.title }}</h2>
             <p class="text-muted mb-1">
                 <span class="badge {{ task.status_badge_class }}">{{ task.get_status_display }}</span>
+                {% if task.skip_completion_review and not is_project_step %}
+                <span class="badge bg-secondary-subtle text-secondary-emphasis border">Miễn duyệt hoàn thành</span>
+                {% endif %}
                 · Giao bởi {{ task.assigner.profile.full_name|default:task.assigner.username }}
                 {% if project %}
                 · <a href="{% if is_cross_dept %}{% url 'tasks:cross_dept_detail' project.pk %}{% else %}{% url 'tasks:project_detail' project.pk %}{% endif %}">Dự án: {{ project.title }}</a>
@@ -180,14 +183,21 @@
                 </div>
             </div>
             <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-white fw-bold">Nộp hoàn thành</div>
+                <div class="card-header bg-white fw-bold">
+                    {% if task.skip_completion_review %}Hoàn thành công việc{% else %}Nộp hoàn thành{% endif %}
+                </div>
                 <div class="card-body">
                     <form method="post">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="submit">
                         <label class="form-label">{{ submit_form.result_note.label }}</label>
                         {{ submit_form.result_note }}
+                        {% if task.skip_completion_review %}
+                        <p class="form-text mb-0 mt-2">Việc này không cần cấp trên duyệt — nộp xong sẽ được chốt hoàn thành.</p>
+                        <button type="submit" class="btn btn-hm mt-3">Hoàn thành</button>
+                        {% else %}
                         <button type="submit" class="btn btn-hm mt-3">Nộp chờ duyệt</button>
+                        {% endif %}
                     </form>
                 </div>
             </div>
@@ -216,7 +226,7 @@
             </div>
             {% endif %}
 
-            {% if is_assigner and task.status == 'pending_review' %}
+            {% if is_assigner and task.status == 'pending_review' and not task.skip_completion_review %}
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white fw-bold">Duyệt công việc</div>
                 <div class="card-body">

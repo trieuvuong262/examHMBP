@@ -69,7 +69,12 @@
                 <tbody>
                     {% for task in page_obj %}
                     <tr>
-                        <td><strong>{{ task.title }}</strong></td>
+                        <td>
+                            <strong>{{ task.title }}</strong>
+                            {% if task.skip_completion_review %}
+                            <span class="badge bg-secondary-subtle text-secondary-emphasis border ms-1">Miễn duyệt</span>
+                            {% endif %}
+                        </td>
                         <td>{% include 'tasks/includes/user_brief.html' with user=task.assignee %}</td>
                         <td><span class="badge bg-light text-dark border">{{ task.get_priority_display }}</span></td>
                         <td>{{ task.due_date|date:"d/m/Y"|default:"—" }}</td>

@@ -176,6 +176,38 @@ class TaskWorkflowTests(TestCase):
         task.refresh_from_db()
         self.assertEqual(task.status, WorkTask.STATUS_COMPLETED)
 
+    def test_skip_completion_review_workflow(self):
+        task = WorkTask.objects.create(
+            title='Việc lặp',
+            assigner=self.leader,
+            assignee=self.employee,
+            skip_completion_review=True,
+        )
+
+        self.client.force_login(self.employee)
+        self.client.post(reverse('tasks:detail', args=[task.pk]), {'action': 'acknowledge'})
+        self.client.post(reverse('tasks:detail', args=[task.pk]), {
+            'action': 'submit',
+            'result_note': 'Đã xong',
+        })
+        task.refresh_from_db()
+        self.assertEqual(task.status, WorkTask.STATUS_COMPLETED)
+        self.assertIsNotNone(task.completed_at)
+
+    def test_assign_with_skip_completion_review(self):
+        self.client.force_login(self.leader)
+        response = self.client.post(reverse('tasks:assign'), {
+            'title': 'Việc đơn giản',
+            'description': '',
+            'task_type': WorkTask.TYPE_GENERAL,
+            'priority': WorkTask.PRIORITY_NORMAL,
+            'assignees': [self.employee.pk],
+            'skip_completion_review': True,
+        })
+        self.assertEqual(response.status_code, 302)
+        task = WorkTask.objects.get(assigner=self.leader, title='Việc đơn giản')
+        self.assertTrue(task.skip_completion_review)
+
     def test_reject_and_reassign(self):
         self.leader.profile.subordinates.add(self.other)
         task = WorkTask.objects.create(

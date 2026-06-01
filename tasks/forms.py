@@ -39,6 +39,12 @@ class WorkTaskAssignForm(forms.Form):
         widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size': 6}),
         help_text='Chọn một hoặc nhiều người — mỗi người một công việc riêng, duyệt riêng.',
     )
+    skip_completion_review = forms.BooleanField(
+        required=False,
+        label='Không cần duyệt hoàn thành',
+        help_text='Phù hợp việc lặp lại hoặc đơn giản — nhân viên hoàn thành sẽ được chốt luôn.',
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+    )
 
     def __init__(self, *args, assigner=None, **kwargs):
         super().__init__(*args, **kwargs)

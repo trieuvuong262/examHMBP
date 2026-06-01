@@ -57,6 +57,9 @@
                     <tr class="{% if task.is_overdue %}table-danger-subtle{% endif %}">
                         <td>
                             <strong>{{ task.title }}</strong>
+                            {% if task.skip_completion_review %}
+                            <span class="badge bg-secondary-subtle text-secondary-emphasis border ms-1">Miễn duyệt</span>
+                            {% endif %}
                             {% if task.is_overdue %}<span class="badge bg-danger ms-1">Quá hạn</span>{% endif %}
                         </td>
                         <td>{{ task.assigner.profile.full_name|default:task.assigner.username }}</td>

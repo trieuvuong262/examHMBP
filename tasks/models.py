@@ -105,6 +105,11 @@ class WorkTask(models.Model):
         blank=True,
     )
     due_date = models.DateField(null=True, blank=True, verbose_name='Hạn hoàn thành')
+    skip_completion_review = models.BooleanField(
+        default=False,
+        verbose_name='Không cần duyệt hoàn thành',
+        help_text='Nhân viên nộp xong được chốt hoàn thành luôn, không qua bước chờ duyệt.',
+    )
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING_ACK, db_index=True,
     )
