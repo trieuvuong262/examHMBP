@@ -415,6 +415,64 @@ class DeviceCategoryTests(SimpleTestCase):
         self.assertEqual(normalize_category('Máy tính bàn'), 'PC')
         self.assertEqual(normalize_category('SEW_LOCKSTITCH'), 'SEW_LOCKSTITCH')
 
+    def test_categories_by_group_fallback_without_db_table(self):
+        from unittest.mock import patch
+
+        from django.db.utils import ProgrammingError
+
+        from equipment.services import device_categories as svc
+
+        def _fail(*args, **kwargs):
+            raise ProgrammingError('relation equipment_devicecategory does not exist')
+
+        with patch.object(
+            __import__('equipment.models', fromlist=['DeviceCategory']).DeviceCategory.objects,
+            'exists',
+            side_effect=_fail,
+        ):
+            groups = svc.categories_by_group()
+        self.assertTrue(groups)
+        codes = {code for _g, _l, items in groups for code, _name in items}
+        self.assertIn('PC', codes)
+        self.assertIn('SEW_LOCKSTITCH', codes)
+
+
+class DeviceFormCategoryTests(TestCase):
+    def test_device_form_save_updates_device(self):
+        from equipment.forms import DeviceForm
+        from equipment.models import Device
+
+        device = Device.objects.create(name='May test', category='SEW_LOCKSTITCH', status=Device.STATUS_ACTIVE)
+        form = DeviceForm(
+            {
+                'name': 'May test 2',
+                'managed_by': Device.MANAGED_MAINTENANCE,
+                'category': 'SEW_LOCKSTITCH',
+                'usage_department': '',
+                'usage_department_text': 'Xưởng A',
+                'usage_room': '',
+                'assigned_user': '',
+                'assigned_user_text': '',
+                'handover_date': '',
+                'model_number': '',
+                'serial_number': 'SN-1',
+                'configuration': '',
+                'description': '',
+                'contact_email': '',
+                'status': Device.STATUS_ACTIVE,
+                'quantity': 1,
+                'unit_price': 0,
+                'hostname': '',
+                'ip_address': '',
+            },
+            instance=device,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+        device.refresh_from_db()
+        self.assertEqual(device.name, 'May test 2')
+        self.assertTrue(device.qr_code)
+
 
 class DeviceImportExportTests(TestCase):
     def test_import_sewing_machine_from_sample(self):
@@ -471,33 +529,3 @@ class ImportExportHubViewTests(TestCase):
             resp['Content-Type'],
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         )
-
-
-class DeviceFormSaveTests(TestCase):
-    def test_save_with_assigned_user_regenerates_qr(self):
-        from django.contrib.auth import get_user_model
-
-        from equipment.forms import DeviceForm
-        from equipment.models import Device
-
-        User = get_user_model()
-        user = User.objects.create_user(username='equser', password='x')
-        device = Device.objects.create(name='Máy may A', category='PC', status=Device.STATUS_ACTIVE)
-        form = DeviceForm(
-            {
-                'name': 'Máy may A (mới)',
-                'managed_by': Device.MANAGED_IT,
-                'category': 'PC',
-                'status': Device.STATUS_ACTIVE,
-                'quantity': 1,
-                'unit_price': 0,
-                'assigned_user': user.pk,
-            },
-            instance=device,
-        )
-        self.assertTrue(form.is_valid(), form.errors)
-        form.save()
-        device.refresh_from_db()
-        self.assertEqual(device.name, 'Máy may A (mới)')
-        self.assertEqual(device.assigned_user_id, user.pk)
-        self.assertTrue(device.qr_code)

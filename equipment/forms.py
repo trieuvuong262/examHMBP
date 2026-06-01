@@ -5,15 +5,6 @@ from hrm.models import Department
 
 from .models import Device, DeviceCategory
 
-User = get_user_model()
-
-
-def _user_display(user) -> str:
-    profile = getattr(user, 'profile', None)
-    if profile and profile.full_name:
-        return profile.full_name
-    return user.get_full_name() or user.username
-
 
 class DeviceForm(forms.ModelForm):
     class Meta:
@@ -63,22 +54,56 @@ class DeviceForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        from equipment.services.device_categories import categories_by_group
+        from equipment.services.device_categories import categories_by_group, category_label
 
-        choices = []
+        choices: list[tuple[str, str]] = []
         for _g, _label, items in categories_by_group():
             choices.extend(items)
-        self.fields['category'].widget = forms.Select(attrs={'class': 'form-select', 'data-jp-category-select': '1'})
+
+        if self.instance and self.instance.pk and self.instance.category:
+            codes = {code for code, _name in choices}
+            if self.instance.category not in codes:
+                choices.insert(
+                    0,
+                    (self.instance.category, category_label(self.instance.category)),
+                )
+
+        self.fields['category'].widget = forms.Select(
+            attrs={'class': 'form-select', 'data-jp-category-select': '1'},
+        )
         self.fields['category'].choices = choices
         self.fields['usage_department'].queryset = Department.objects.order_by('name')
         self.fields['usage_department'].required = False
+
+        User = get_user_model()
         self.fields['assigned_user'].queryset = (
             User.objects.filter(profile__is_employed=True)
             .select_related('profile')
             .order_by('profile__full_name', 'username')
         )
-        self.fields['assigned_user'].label_from_instance = _user_display
+        self.fields['assigned_user'].label_from_instance = self._user_choice_label
         self.fields['assigned_user'].required = False
+
+    @staticmethod
+    def _user_choice_label(user):
+        profile = getattr(user, 'profile', None)
+        if profile and profile.full_name:
+            return profile.full_name
+        return user.get_full_name() or user.username
+
+    def clean_category(self):
+        from equipment.services.device_categories import normalize_category_value, valid_codes
+
+        value = (self.cleaned_data.get('category') or '').strip()
+        if not value:
+            raise forms.ValidationError('Vui lòng chọn loại thiết bị.')
+        normalized = normalize_category_value(value) or value
+        choice_codes = {code for code, _label in self.fields['category'].choices}
+        if normalized in choice_codes or normalized in valid_codes():
+            return normalized
+        if self.instance.pk and self.instance.category == normalized:
+            return normalized
+        raise forms.ValidationError('Loại thiết bị không hợp lệ.')
 
 
 class DeviceCategoryForm(forms.ModelForm):
