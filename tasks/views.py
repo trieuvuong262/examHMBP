@@ -3,6 +3,7 @@ import uuid
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -16,6 +17,8 @@ from hrm.permissions import (
     can_view_task,
     get_task_assignable_users,
     is_cross_dept_read_only_viewer,
+    is_director,
+    is_division_head,
 )
 from PortalJustPlay.list_search import apply_combined_search, apply_term_search, get_search_query, search_terms
 from PortalJustPlay.pagination import paginate_queryset
@@ -28,9 +31,10 @@ from .forms import (
     WorkTaskReviewForm,
     WorkTaskSubmitForm,
 )
-from .models import WorkTask, WorkTaskAttachment, WorkTaskHandoff, WorkTaskLog
+from .models import WorkTask, WorkTaskAttachment, WorkTaskHandoff, WorkTaskLog, WorkTaskRecurrence
 from .attachment_utils import read_separate_uploads, save_task_attachments, copy_task_attachments
 from .project_utils import unlock_dependent_steps
+from .recurrence_utils import create_recurrence_and_first_task
 from .utils import log_task_action
 
 
@@ -253,6 +257,14 @@ def _handle_attachment_upload(request, task, *, stage, actor):
 
 @_assign_access_required
 def assign_task(request):
+    assignable_users = get_task_assignable_users(request.user)
+    team_count = assignable_users.count()
+    assignee_scope_hint = 'nhân viên cấp dưới trực tiếp'
+    if is_director(request.user):
+        assignee_scope_hint = 'toàn bộ nhân viên'
+    elif is_division_head(request.user):
+        assignee_scope_hint = 'nhân viên trong phòng ban'
+
     if request.method == 'POST':
         form = WorkTaskAssignForm(request.POST, assigner=request.user)
         if form.is_valid():
@@ -265,35 +277,73 @@ def assign_task(request):
                 messages.error(request, '; '.join(getattr(exc, 'messages', [str(exc)])))
                 return render(request, 'tasks/assign.html', {
                     'form': form,
-                    'team_count': get_task_assignable_users(request.user).count(),
+                    'assignable_users': assignable_users,
+                    'selected_ids': request.POST.getlist('assignees'),
+                    'team_count': team_count,
+                    'assignee_scope_hint': assignee_scope_hint,
                     'can_assign': True,
                     'can_receive': can_receive_assigned_tasks(request.user),
                 })
 
             created = []
+            is_recurring = form.cleaned_data.get('is_recurring')
+            frequency = form.cleaned_data.get('recurrence_frequency')
             for assignee in assignees:
-                task = WorkTask.objects.create(
-                    assignment_batch=batch,
-                    title=form.cleaned_data['title'],
-                    description=form.cleaned_data['description'],
-                    task_type=form.cleaned_data['task_type'],
-                    priority=form.cleaned_data['priority'],
-                    due_date=form.cleaned_data['due_date'],
-                    skip_completion_review=form.cleaned_data['skip_completion_review'],
-                    assigner=request.user,
-                    assignee=assignee,
-                )
-                if prepared_files:
-                    save_task_attachments(
-                        task,
-                        prepared_files,
-                        uploaded_by=request.user,
-                        stage=WorkTaskAttachment.STAGE_ASSIGN,
+                if is_recurring:
+                    recurrence, task = create_recurrence_and_first_task(
+                        assigner=request.user,
+                        assignee=assignee,
+                        title=form.cleaned_data['title'],
+                        description=form.cleaned_data['description'],
+                        task_type=form.cleaned_data['task_type'],
+                        priority=form.cleaned_data['priority'],
+                        skip_completion_review=form.cleaned_data['skip_completion_review'],
+                        frequency=frequency,
+                        interval=form.cleaned_data['recurrence_interval'] or 1,
+                        weekday=form.cleaned_data.get('recurrence_weekday')
+                        if frequency == WorkTaskRecurrence.FREQ_WEEKLY else None,
+                        day_of_month=form.cleaned_data.get('recurrence_day_of_month')
+                        if frequency == WorkTaskRecurrence.FREQ_MONTHLY else None,
+                        end_date=form.cleaned_data.get('recurrence_end_date'),
+                        due_date=form.cleaned_data['due_date'],
+                        prepared_files=prepared_files,
+                        actor=request.user,
                     )
-                log_task_action(task, request.user, WorkTaskLog.ACTION_ASSIGNED, f'Giao cho {assignee.username}')
+                    task.assignment_batch = batch
+                    task.save(update_fields=['assignment_batch', 'updated_at'])
+                    log_task_action(
+                        task, request.user, WorkTaskLog.ACTION_ASSIGNED,
+                        f'Giao lặp cho {assignee.username} — {recurrence.schedule_label}',
+                    )
+                else:
+                    task = WorkTask.objects.create(
+                        assignment_batch=batch,
+                        title=form.cleaned_data['title'],
+                        description=form.cleaned_data['description'],
+                        task_type=form.cleaned_data['task_type'],
+                        priority=form.cleaned_data['priority'],
+                        due_date=form.cleaned_data['due_date'],
+                        skip_completion_review=form.cleaned_data['skip_completion_review'],
+                        assigner=request.user,
+                        assignee=assignee,
+                    )
+                    if prepared_files:
+                        save_task_attachments(
+                            task,
+                            prepared_files,
+                            uploaded_by=request.user,
+                            stage=WorkTaskAttachment.STAGE_ASSIGN,
+                        )
+                    log_task_action(task, request.user, WorkTaskLog.ACTION_ASSIGNED, f'Giao cho {assignee.username}')
                 created.append(task)
             count = len(created)
-            messages.success(request, f'Đã giao {count} công việc — mỗi người một bản ghi riêng.')
+            if is_recurring:
+                messages.success(
+                    request,
+                    f'Đã tạo {count} công việc lặp — giao ngay lần đầu, các lần sau tự động theo chu kỳ.',
+                )
+            else:
+                messages.success(request, f'Đã giao {count} công việc — mỗi người một bản ghi riêng.')
             if count == 1:
                 return redirect('tasks:detail', pk=created[0].pk)
             return redirect('tasks:assigned')
@@ -302,10 +352,63 @@ def assign_task(request):
 
     return render(request, 'tasks/assign.html', {
         'form': form,
-        'team_count': get_task_assignable_users(request.user).count(),
+        'assignable_users': assignable_users,
+        'selected_ids': [],
+        'team_count': team_count,
+        'assignee_scope_hint': assignee_scope_hint,
         'can_assign': True,
         'can_receive': can_receive_assigned_tasks(request.user),
     })
+
+
+@_assign_access_required
+def recurring_tasks(request):
+    search_query = get_search_query(request)
+    qs = WorkTaskRecurrence.objects.filter(assigner=request.user).select_related(
+        'assignee', 'assignee__profile',
+    )
+    active_count = qs.filter(is_active=True).count()
+    qs = apply_combined_search(qs, search_query, lambda term: (
+        Q(title__icontains=term)
+        | Q(description__icontains=term)
+        | Q(assignee__username__icontains=term)
+        | Q(assignee__profile__full_name__icontains=term)
+        | Q(assignee__profile__employee_code__icontains=term)
+    ))
+    page_obj, query_string = paginate_queryset(request, qs)
+    return render(request, 'tasks/recurring_list.html', {
+        'page_obj': page_obj,
+        'query_string': query_string,
+        'search_query': search_query,
+        'can_assign': True,
+        'can_receive': can_receive_assigned_tasks(request.user),
+        'active_count': qs.filter(is_active=True).count(),
+    })
+
+
+@_assign_access_required
+def recurrence_action(request, pk):
+    recurrence = get_object_or_404(WorkTaskRecurrence, pk=pk, assigner=request.user)
+    if request.method != 'POST':
+        return redirect('tasks:recurring')
+
+    action = request.POST.get('action')
+    if action == 'pause':
+        recurrence.is_active = False
+        recurrence.save(update_fields=['is_active', 'updated_at'])
+        messages.info(request, 'Đã tạm dừng công việc lặp.')
+    elif action == 'resume':
+        recurrence.is_active = True
+        if recurrence.next_run_date < timezone.localdate():
+            recurrence.next_run_date = timezone.localdate()
+        recurrence.save(update_fields=['is_active', 'next_run_date', 'updated_at'])
+        messages.success(request, 'Đã tiếp tục công việc lặp.')
+    elif action == 'cancel':
+        recurrence.is_active = False
+        recurrence.end_date = timezone.localdate()
+        recurrence.save(update_fields=['is_active', 'end_date', 'updated_at'])
+        messages.warning(request, 'Đã dừng hẳn công việc lặp — không tạo thêm lần nào.')
+    return redirect('tasks:recurring')
 
 
 @_tasks_access_required

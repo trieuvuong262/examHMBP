@@ -19,7 +19,8 @@ from hrm.permissions import (
     format_team_user_label,
     get_task_assignable_users,
 )
-from tasks.models import InternalProject, ProjectComment, WorkTask, WorkTaskAttachment, WorkTaskHandoff
+from tasks.models import InternalProject, ProjectComment, WorkTask, WorkTaskAttachment, WorkTaskHandoff, WorkTaskRecurrence
+from tasks.recurrence_utils import compute_next_run_date, process_due_recurrences
 
 
 class TaskWorkflowTests(TestCase):
@@ -68,6 +69,26 @@ class TaskWorkflowTests(TestCase):
         assignable = get_task_assignable_users(self.leader)
         self.assertIn(self.employee, assignable)
         self.assertNotIn(self.director, assignable)
+
+    def test_director_sees_all_company_employees(self):
+        dept2 = Department.objects.create(name='Phòng khác', sort_order=2)
+        DepartmentMenuPermission.objects.create(department=dept2, modules=['tasks'])
+        emp2 = self._user('nv_phong2', ROLE_EMPLOYEE, dept2)
+        assignable = get_task_assignable_users(self.director)
+        self.assertIn(self.employee, assignable)
+        self.assertIn(emp2, assignable)
+        self.assertNotIn(self.director, assignable)
+
+    def test_division_head_sees_department_employees(self):
+        hod = self._user('truong_bp', ROLE_DIVISION_HEAD, self.employee.profile.department)
+        other_dept = Department.objects.create(name='Phòng lẻ', sort_order=3)
+        DepartmentMenuPermission.objects.create(department=other_dept, modules=['tasks'])
+        outsider = self._user('nv_ngoai', ROLE_EMPLOYEE, other_dept)
+        assignable = get_task_assignable_users(hod)
+        self.assertIn(self.employee, assignable)
+        self.assertIn(self.other, assignable)
+        self.assertNotIn(outsider, assignable)
+        self.assertNotIn(hod, assignable)
 
     def test_director_my_tasks_redirects_to_assigned(self):
         WorkTask.objects.create(
@@ -207,6 +228,87 @@ class TaskWorkflowTests(TestCase):
         self.assertEqual(response.status_code, 302)
         task = WorkTask.objects.get(assigner=self.leader, title='Việc đơn giản')
         self.assertTrue(task.skip_completion_review)
+
+    def test_assign_recurring_creates_recurrence_and_first_task(self):
+        self.client.force_login(self.leader)
+        response = self.client.post(reverse('tasks:assign'), {
+            'title': 'Chốt ca hàng ngày',
+            'description': 'Báo cáo cuối ca',
+            'task_type': WorkTask.TYPE_GENERAL,
+            'priority': WorkTask.PRIORITY_NORMAL,
+            'assignees': [self.employee.pk],
+            'skip_completion_review': True,
+            'is_recurring': True,
+            'recurrence_frequency': WorkTaskRecurrence.FREQ_DAILY,
+            'recurrence_interval': 1,
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(WorkTaskRecurrence.objects.count(), 1)
+        recurrence = WorkTaskRecurrence.objects.get()
+        self.assertEqual(recurrence.frequency, WorkTaskRecurrence.FREQ_DAILY)
+        task = WorkTask.objects.get(recurrence=recurrence)
+        self.assertEqual(task.assignee, self.employee)
+        self.assertEqual(task.status, WorkTask.STATUS_PENDING_ACK)
+
+    def test_process_due_recurrences_spawns_task(self):
+        from datetime import date
+
+        recurrence = WorkTaskRecurrence.objects.create(
+            assigner=self.leader,
+            assignee=self.employee,
+            title='Việc định kỳ',
+            frequency=WorkTaskRecurrence.FREQ_DAILY,
+            interval=1,
+            start_date=date(2026, 5, 27),
+            next_run_date=date(2026, 5, 28),
+        )
+        created = process_due_recurrences(for_date=date(2026, 5, 28))
+        self.assertEqual(created, 1)
+        task = WorkTask.objects.get(recurrence=recurrence)
+        self.assertEqual(task.title, 'Việc định kỳ')
+        recurrence.refresh_from_db()
+        self.assertEqual(recurrence.next_run_date, date(2026, 5, 29))
+
+    def test_process_due_recurrences_skips_when_open_task(self):
+        from datetime import date
+
+        recurrence = WorkTaskRecurrence.objects.create(
+            assigner=self.leader,
+            assignee=self.employee,
+            title='Việc đang mở',
+            frequency=WorkTaskRecurrence.FREQ_DAILY,
+            interval=1,
+            start_date=date(2026, 5, 27),
+            next_run_date=date(2026, 5, 28),
+        )
+        WorkTask.objects.create(
+            title='Việc đang mở',
+            assigner=self.leader,
+            assignee=self.employee,
+            recurrence=recurrence,
+            status=WorkTask.STATUS_IN_PROGRESS,
+        )
+        created = process_due_recurrences(for_date=date(2026, 5, 28))
+        self.assertEqual(created, 0)
+        self.assertEqual(WorkTask.objects.filter(recurrence=recurrence).count(), 1)
+
+    def test_compute_next_run_date_weekly(self):
+        from datetime import date
+
+        recurrence = WorkTaskRecurrence.objects.create(
+            assigner=self.leader,
+            assignee=self.employee,
+            title='Tuần',
+            frequency=WorkTaskRecurrence.FREQ_WEEKLY,
+            interval=1,
+            weekday=0,
+            start_date=date(2026, 6, 1),
+            next_run_date=date(2026, 6, 1),
+        )
+        self.assertEqual(
+            compute_next_run_date(recurrence, date(2026, 6, 1)),
+            date(2026, 6, 8),
+        )
 
     def test_reject_and_reassign(self):
         self.leader.profile.subordinates.add(self.other)

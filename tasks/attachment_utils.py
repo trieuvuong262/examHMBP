@@ -89,6 +89,44 @@ def save_task_attachments(task, prepared_files, *, uploaded_by, stage):
     return created
 
 
+def save_recurrence_attachments(recurrence, prepared_files, *, uploaded_by):
+    from .models import WorkTaskRecurrenceAttachment
+
+    created = []
+    for original_name, content_file in prepared_files:
+        att = WorkTaskRecurrenceAttachment.objects.create(
+            recurrence=recurrence,
+            file=content_file,
+            original_name=original_name,
+            uploaded_by=uploaded_by,
+        )
+        created.append(att)
+    return created
+
+
+def copy_recurrence_attachments_to_task(recurrence, target_task, *, uploaded_by=None):
+    from .models import WorkTaskAttachment
+
+    copied = []
+    for att in recurrence.attachments.all():
+        att.file.open('rb')
+        try:
+            content = att.file.read()
+        finally:
+            att.file.close()
+        name = att.display_name
+        copied.append(
+            WorkTaskAttachment.objects.create(
+                task=target_task,
+                file=ContentFile(content, name=name),
+                original_name=name,
+                uploaded_by=uploaded_by or att.uploaded_by,
+                stage=WorkTaskAttachment.STAGE_ASSIGN,
+            ),
+        )
+    return copied
+
+
 def copy_task_attachments(source_task, target_task, *, stages=None, uploaded_by=None):
     from .models import WorkTaskAttachment
 

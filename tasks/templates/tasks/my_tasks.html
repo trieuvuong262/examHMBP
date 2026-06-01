@@ -60,6 +60,9 @@
                             {% if task.skip_completion_review %}
                             <span class="badge bg-secondary-subtle text-secondary-emphasis border ms-1">Miễn duyệt</span>
                             {% endif %}
+                            {% if task.recurrence_id %}
+                            <span class="badge bg-info-subtle text-info-emphasis border ms-1"><i class="bi bi-arrow-repeat"></i></span>
+                            {% endif %}
                             {% if task.is_overdue %}<span class="badge bg-danger ms-1">Quá hạn</span>{% endif %}
                         </td>
                         <td>{{ task.assigner.profile.full_name|default:task.assigner.username }}</td>

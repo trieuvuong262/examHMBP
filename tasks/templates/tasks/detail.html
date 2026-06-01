@@ -18,6 +18,9 @@
                 {% if task.skip_completion_review and not is_project_step %}
                 <span class="badge bg-secondary-subtle text-secondary-emphasis border">Miễn duyệt hoàn thành</span>
                 {% endif %}
+                {% if task.recurrence_id and not is_project_step %}
+                <span class="badge bg-info-subtle text-info-emphasis border"><i class="bi bi-arrow-repeat me-1"></i>Lặp theo chu kỳ</span>
+                {% endif %}
                 · Giao bởi {{ task.assigner.profile.full_name|default:task.assigner.username }}
                 {% if project %}
                 · <a href="{% if is_cross_dept %}{% url 'tasks:cross_dept_detail' project.pk %}{% else %}{% url 'tasks:project_detail' project.pk %}{% endif %}">Dự án: {{ project.title }}</a>

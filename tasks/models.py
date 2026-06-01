@@ -110,6 +110,14 @@ class WorkTask(models.Model):
         verbose_name='Không cần duyệt hoàn thành',
         help_text='Nhân viên nộp xong được chốt hoàn thành luôn, không qua bước chờ duyệt.',
     )
+    recurrence = models.ForeignKey(
+        'WorkTaskRecurrence',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='instances',
+        verbose_name='Chu kỳ lặp',
+    )
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING_ACK, db_index=True,
     )
@@ -213,6 +221,111 @@ class WorkTask(models.Model):
             self.STATUS_PENDING_CLAIM: 'bg-warning-subtle text-warning-emphasis',
         }
         return mapping.get(self.status, 'bg-secondary-subtle text-secondary')
+
+
+class WorkTaskRecurrence(models.Model):
+    FREQ_DAILY = 'daily'
+    FREQ_WEEKLY = 'weekly'
+    FREQ_MONTHLY = 'monthly'
+    FREQ_CHOICES = [
+        (FREQ_DAILY, 'Hàng ngày'),
+        (FREQ_WEEKLY, 'Hàng tuần'),
+        (FREQ_MONTHLY, 'Hàng tháng'),
+    ]
+
+    assigner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='created_task_recurrences',
+        verbose_name='Người giao',
+    )
+    assignee = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='recurring_work_tasks',
+        verbose_name='Người nhận',
+    )
+    title = models.CharField(max_length=200, verbose_name='Tiêu đề')
+    description = models.TextField(blank=True, verbose_name='Mô tả')
+    task_type = models.CharField(
+        max_length=20, choices=WorkTask.TYPE_CHOICES, default=WorkTask.TYPE_GENERAL,
+    )
+    priority = models.CharField(
+        max_length=10, choices=WorkTask.PRIORITY_CHOICES, default=WorkTask.PRIORITY_NORMAL,
+    )
+    skip_completion_review = models.BooleanField(default=False)
+    frequency = models.CharField(max_length=10, choices=FREQ_CHOICES, default=FREQ_WEEKLY)
+    interval = models.PositiveSmallIntegerField(default=1, verbose_name='Mỗi N chu kỳ')
+    weekday = models.PositiveSmallIntegerField(
+        null=True, blank=True, verbose_name='Thứ trong tuần (0=Thứ Hai)',
+    )
+    day_of_month = models.PositiveSmallIntegerField(
+        null=True, blank=True, verbose_name='Ngày trong tháng',
+    )
+    due_offset_days = models.PositiveSmallIntegerField(
+        null=True, blank=True, verbose_name='Hạn sau N ngày kể từ ngày giao',
+    )
+    start_date = models.DateField(verbose_name='Ngày bắt đầu')
+    end_date = models.DateField(null=True, blank=True, verbose_name='Ngày kết thúc')
+    next_run_date = models.DateField(db_index=True, verbose_name='Lần giao tiếp theo')
+    is_active = models.BooleanField(default=True, db_index=True)
+    last_generated_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Công việc lặp'
+        verbose_name_plural = 'Công việc lặp'
+
+    def __str__(self):
+        return f'{self.title} → {self.assignee} ({self.get_frequency_display()})'
+
+    @property
+    def schedule_label(self):
+        interval = max(self.interval, 1)
+        if self.frequency == self.FREQ_DAILY:
+            if interval == 1:
+                return 'Hàng ngày'
+            return f'Mỗi {interval} ngày'
+        if self.frequency == self.FREQ_WEEKLY:
+            weekday_names = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy', 'Chủ Nhật']
+            day = weekday_names[self.weekday] if self.weekday is not None else '—'
+            if interval == 1:
+                return f'Hàng tuần — {day}'
+            return f'Mỗi {interval} tuần — {day}'
+        if self.frequency == self.FREQ_MONTHLY:
+            dom = self.day_of_month or '—'
+            if interval == 1:
+                return f'Hàng tháng — ngày {dom}'
+            return f'Mỗi {interval} tháng — ngày {dom}'
+        return self.get_frequency_display()
+
+
+class WorkTaskRecurrenceAttachment(models.Model):
+    recurrence = models.ForeignKey(
+        WorkTaskRecurrence,
+        on_delete=models.CASCADE,
+        related_name='attachments',
+    )
+    file = models.FileField(upload_to='tasks/recurrence/%Y/%m/')
+    original_name = models.CharField(max_length=255, blank=True)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='work_task_recurrence_attachments',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    @property
+    def display_name(self):
+        if self.original_name:
+            return self.original_name
+        return os.path.basename(self.file.name)
 
 
 class WorkTaskAttachment(models.Model):

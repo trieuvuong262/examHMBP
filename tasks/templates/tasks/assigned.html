@@ -74,6 +74,9 @@
                             {% if task.skip_completion_review %}
                             <span class="badge bg-secondary-subtle text-secondary-emphasis border ms-1">Miễn duyệt</span>
                             {% endif %}
+                            {% if task.recurrence_id %}
+                            <span class="badge bg-info-subtle text-info-emphasis border ms-1"><i class="bi bi-arrow-repeat"></i></span>
+                            {% endif %}
                         </td>
                         <td>{% include 'tasks/includes/user_brief.html' with user=task.assignee %}</td>
                         <td><span class="badge bg-light text-dark border">{{ task.get_priority_display }}</span></td>

@@ -180,18 +180,55 @@ def _has_tasks_module_access(user) -> bool:
 
 
 def get_task_assignable_users(assigner):
-    """Nhân viên có thể được giao việc — cấp dưới trực tiếp; Trưởng BP: cả phòng ban."""
+    """
+    Nhân viên có thể được giao việc:
+    - Giám đốc: toàn bộ nhân viên đang làm việc (trừ giám đốc khác)
+    - Trưởng bộ phận: toàn bộ nhân viên cùng phòng ban
+    - Tổ trưởng: nhân viên cấp dưới trực tiếp (cấu hình Nhân sự)
+    """
     profile = get_profile(assigner)
-    if profile and profile.role == ROLE_DIVISION_HEAD and profile.department_id:
+    if not profile:
+        return User.objects.none()
+
+    if profile.role == ROLE_DIRECTOR:
+        return _all_company_task_users(exclude_pk=assigner.pk)
+
+    if profile.role == ROLE_DIVISION_HEAD and profile.department_id:
         return _department_task_users(profile.department).exclude(pk=assigner.pk)
 
-    return get_report_team_users(assigner).exclude(profile__role=ROLE_DIRECTOR)
+    return _filter_task_recipient_users(
+        get_report_team_users(assigner),
+        exclude_pk=assigner.pk,
+    )
+
+
+def _filter_task_recipient_users(qs, *, exclude_pk=None):
+    """Lọc người có thể nhận việc — đang làm việc, có module Công việc, không phải giám đốc."""
+    from hrm.module_permissions import MODULE_TASKS, user_can_access_module
+
+    if exclude_pk:
+        qs = qs.exclude(pk=exclude_pk)
+    eligible_ids = [
+        user.pk for user in qs.select_related('profile')
+        if user_can_access_module(user, MODULE_TASKS)
+        and can_receive_assigned_tasks(user)
+    ]
+    return User.objects.filter(pk__in=eligible_ids).select_related('profile').order_by(
+        'profile__full_name', 'username',
+    )
+
+
+def _all_company_task_users(*, exclude_pk=None):
+    """Toàn bộ nhân viên active — dùng khi giám đốc giao việc."""
+    qs = User.objects.filter(
+        profile__is_employed=True,
+        is_active=True,
+    ).select_related('profile').order_by('profile__full_name', 'username')
+    return _filter_task_recipient_users(qs, exclude_pk=exclude_pk)
 
 
 def _department_task_users(department):
     """Nhân viên active trong phòng ban, có quyền module Công việc (trừ Giám đốc)."""
-    from hrm.module_permissions import MODULE_TASKS, user_can_access_module
-
     if department is None:
         return User.objects.none()
 
@@ -200,13 +237,7 @@ def _department_task_users(department):
         profile__is_employed=True,
         is_active=True,
     ).select_related('profile').order_by('profile__full_name', 'username')
-    eligible_ids = [
-        user.pk for user in qs
-        if user_can_access_module(user, MODULE_TASKS) and user_role(user) != ROLE_DIRECTOR
-    ]
-    return User.objects.filter(pk__in=eligible_ids).select_related('profile').order_by(
-        'profile__full_name', 'username',
-    )
+    return _filter_task_recipient_users(qs)
 
 
 def has_task_subordinates(user) -> bool:

@@ -15,6 +15,10 @@
            class="btn btn-sm {% if request.resolver_match.url_name == 'assign' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
             <i class="bi bi-plus-lg me-1"></i>Giao việc
         </a>
+        <a href="{% url 'tasks:recurring' %}"
+           class="btn btn-sm {% if request.resolver_match.url_name == 'recurring' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
+            <i class="bi bi-arrow-repeat me-1"></i>Việc lặp
+        </a>
         {% endif %}
     </div>
 </nav>

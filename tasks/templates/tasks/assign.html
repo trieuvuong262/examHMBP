@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block content %}
 <div class="container jp-page jp-tasks-page py-3 py-md-4 mb-5">
@@ -13,7 +14,11 @@
 
     {% if team_count == 0 %}
     <div class="alert alert-warning border-0 shadow-sm">
+        {% if assignee_scope_hint != 'nhân viên cấp dưới trực tiếp' %}
+        Chưa có {{ assignee_scope_hint }} khả dụng để giao việc. Kiểm tra nhân viên đang làm việc và quyền module <strong>Công việc</strong>.
+        {% else %}
         Chưa có nhân viên cấp dưới trực tiếp. Cấu hình tại <strong>Nhân sự → Sửa nhân viên → Nhân viên cấp dưới trực tiếp</strong>.
+        {% endif %}
     </div>
     {% endif %}
 
@@ -52,10 +57,10 @@
                     </div>
                     <div class="col-12">
                         <label class="form-label fw-bold">{{ form.assignees.label }}</label>
-                        {{ form.assignees }}
+                        {% include 'tasks/includes/assignee_picker.html' with field=form.assignees users=assignable_users selected_ids=selected_ids %}
                         {% if form.assignees.help_text %}<div class="form-text">{{ form.assignees.help_text }}</div>{% endif %}
                         {% if form.assignees.errors %}<div class="text-danger small">{{ form.assignees.errors }}</div>{% endif %}
-                        <div class="form-text">Giữ Ctrl (Windows) hoặc Cmd (Mac) để chọn nhiều người. Mỗi dòng hiển thị: <strong>Họ tên · Mã NS · account</strong>.</div>
+                        <div class="form-text">Hiển thị {{ assignee_scope_hint }} — tìm theo <strong>họ tên · mã NS · account</strong>.</div>
                     </div>
                     <div class="col-12">
                         <div class="form-check">
@@ -68,6 +73,52 @@
                             {% endif %}
                         </div>
                     </div>
+                    <div class="col-12">
+                        <div class="form-check">
+                            {{ form.is_recurring }}
+                            <label class="form-check-label" for="{{ form.is_recurring.id_for_label }}">
+                                {{ form.is_recurring.label }}
+                            </label>
+                            {% if form.is_recurring.help_text %}
+                            <div class="form-text">{{ form.is_recurring.help_text }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-12" id="recurrence-options" hidden>
+                        <div class="border rounded-3 p-3 bg-light-subtle">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">{{ form.recurrence_frequency.label }}</label>
+                                    {{ form.recurrence_frequency }}
+                                    {% if form.recurrence_frequency.errors %}<div class="text-danger small">{{ form.recurrence_frequency.errors }}</div>{% endif %}
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">{{ form.recurrence_interval.label }}</label>
+                                    <div class="input-group">
+                                        {{ form.recurrence_interval }}
+                                        <span class="input-group-text recurrence-interval-unit">tuần</span>
+                                    </div>
+                                    {% if form.recurrence_interval.errors %}<div class="text-danger small">{{ form.recurrence_interval.errors }}</div>{% endif %}
+                                </div>
+                                <div class="col-md-4 recurrence-weekly-field">
+                                    <label class="form-label fw-bold">{{ form.recurrence_weekday.label }}</label>
+                                    {{ form.recurrence_weekday }}
+                                    {% if form.recurrence_weekday.errors %}<div class="text-danger small">{{ form.recurrence_weekday.errors }}</div>{% endif %}
+                                </div>
+                                <div class="col-md-4 recurrence-monthly-field" hidden>
+                                    <label class="form-label fw-bold">{{ form.recurrence_day_of_month.label }}</label>
+                                    {{ form.recurrence_day_of_month }}
+                                    <div class="form-text">Chọn ngày 1–28 để tránh tháng ngắn.</div>
+                                    {% if form.recurrence_day_of_month.errors %}<div class="text-danger small">{{ form.recurrence_day_of_month.errors }}</div>{% endif %}
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">{{ form.recurrence_end_date.label }}</label>
+                                    {{ form.recurrence_end_date }}
+                                    {% if form.recurrence_end_date.errors %}<div class="text-danger small">{{ form.recurrence_end_date.errors }}</div>{% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="mt-4 d-flex gap-2">
@@ -78,4 +129,37 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/tasks-assignee-picker.js' %}"></script>
+<script>
+(function () {
+    const toggle = document.getElementById('id_is_recurring');
+    const panel = document.getElementById('recurrence-options');
+    const freq = document.getElementById('id_recurrence_frequency');
+    const unit = document.querySelector('.recurrence-interval-unit');
+    const weeklyField = document.querySelector('.recurrence-weekly-field');
+    const monthlyField = document.querySelector('.recurrence-monthly-field');
+    if (!toggle || !panel) return;
+
+    function syncFrequency() {
+        const value = freq ? freq.value : 'weekly';
+        if (unit) {
+            unit.textContent = value === 'daily' ? 'ngày' : (value === 'monthly' ? 'tháng' : 'tuần');
+        }
+        if (weeklyField) weeklyField.hidden = value !== 'weekly';
+        if (monthlyField) monthlyField.hidden = value !== 'monthly';
+    }
+
+    function syncPanel() {
+        panel.hidden = !toggle.checked;
+        if (toggle.checked) syncFrequency();
+    }
+
+    toggle.addEventListener('change', syncPanel);
+    if (freq) freq.addEventListener('change', syncFrequency);
+    syncPanel();
+})();
+</script>
 {% endblock %}
