@@ -138,3 +138,71 @@ class LibraryQATests(TestCase):
         res = self.client.get(reverse('documents:qa'))
         self.assertEqual(res.status_code, 200)
         self.assertContains(res, 'id="qa-history-data"')
+
+
+class DocumentSourceFileTests(TestCase):
+    def setUp(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from documents.models import Document, DocumentCategory
+
+        self.dept = Department.objects.create(name='HR Dept')
+        DepartmentMenuPermission.objects.create(
+            department=self.dept,
+            modules=['documents'],
+        )
+        RoleModulePermission.objects.update_or_create(
+            role=ROLE_EMPLOYEE,
+            defaults={
+                'module_permissions': {
+                    MODULE_DOCUMENTS: {'view': True, 'edit': False},
+                },
+            },
+        )
+        self.user = User.objects.create_user(username='docuser', password='pass1234')
+        Profile.objects.filter(user=self.user).update(
+            full_name='Doc User',
+            department=self.dept,
+            role=ROLE_EMPLOYEE,
+            is_employed=True,
+        )
+        self.client = Client()
+        self.client.force_login(self.user)
+
+        self.category = DocumentCategory.objects.create(
+            name='Nhân sự',
+            slug='nhan-su-test',
+            is_active=True,
+        )
+        self.pdf_bytes = b'%PDF-1.4 test'
+        self.pdf_upload = SimpleUploadedFile('quy-che.pdf', self.pdf_bytes, content_type='application/pdf')
+        self.doc = Document.objects.create(
+            category=self.category,
+            title='Quy chế test',
+            slug='quy-che-test',
+            content_type=Document.TYPE_TEXT,
+            body='<p>Nội dung tóm tắt trên portal.</p>',
+            original_file=self.pdf_upload,
+            is_active=True,
+        )
+
+    def test_browse_shows_original_file_actions(self):
+        url = reverse('documents:browse_document', args=[self.category.slug, self.doc.slug])
+        res = self.client.get(url)
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, 'Tài liệu gốc')
+        self.assertContains(res, 'Tải về')
+        self.assertContains(res, 'quy-che.pdf')
+
+    def test_download_requires_login(self):
+        url = reverse('documents:file_download', args=[self.doc.pk])
+        anon = Client()
+        res = anon.get(url)
+        self.assertEqual(res.status_code, 302)
+
+    def test_authenticated_user_can_download_original(self):
+        url = reverse('documents:file_download', args=[self.doc.pk])
+        res = self.client.get(url)
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('attachment', res.get('Content-Disposition', ''))
+        self.assertEqual(b''.join(res.streaming_content), self.pdf_bytes)

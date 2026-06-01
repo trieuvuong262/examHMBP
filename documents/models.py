@@ -1,3 +1,5 @@
+import os
+
 from django.conf import settings
 from django.db import models
 from django.utils.text import slugify
@@ -67,6 +69,18 @@ class Document(models.Model):
         null=True,
         verbose_name='File PDF',
     )
+    original_file = models.FileField(
+        upload_to='documents/originals/%Y/%m/',
+        blank=True,
+        null=True,
+        verbose_name='File gốc',
+        help_text='Bản gốc tuỳ chọn — nhân viên có thể xem (PDF) hoặc tải về.',
+    )
+    original_filename = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name='Tên file gốc',
+    )
     sort_order = models.PositiveIntegerField(default=0, verbose_name='Thứ tự')
     is_active = models.BooleanField(default=True, verbose_name='Đang hiển thị')
     created_by = models.ForeignKey(
@@ -89,7 +103,39 @@ class Document(models.Model):
     def __str__(self):
         return self.title
 
+    @property
+    def source_file(self):
+        """File gốc để xem / tải — PDF chính hoặc file đính kèm."""
+        if self.content_type == self.TYPE_PDF and self.pdf_file:
+            return self.pdf_file
+        if self.original_file:
+            return self.original_file
+        return None
+
+    @property
+    def source_display_name(self):
+        if self.original_filename:
+            return self.original_filename
+        if self.source_file:
+            return os.path.basename(self.source_file.name)
+        return ''
+
+    @property
+    def source_is_pdf(self):
+        name = self.source_display_name.lower()
+        return name.endswith('.pdf') or self.content_type == self.TYPE_PDF
+
+    @property
+    def has_source_file(self):
+        return bool(self.source_file)
+
     def save(self, *args, **kwargs):
+        if self.original_file:
+            uploaded_name = getattr(self.original_file, 'name', '') or ''
+            if uploaded_name and not self.original_filename:
+                self.original_filename = os.path.basename(uploaded_name)
+        else:
+            self.original_filename = ''
         if not self.slug:
             base = slugify(self.title, allow_unicode=True) or 'tai-lieu'
             slug = base

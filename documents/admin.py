@@ -22,5 +22,5 @@ class DocumentCategoryAdmin(admin.ModelAdmin):
 class DocumentAdmin(admin.ModelAdmin):
     list_display = ('title', 'category', 'content_type', 'sort_order', 'is_active', 'updated_at')
     list_filter = ('category', 'content_type', 'is_active')
-    search_fields = ('title', 'slug', 'summary')
+    search_fields = ('title', 'slug', 'summary', 'original_filename')
     prepopulated_fields = {'slug': ('title',)}

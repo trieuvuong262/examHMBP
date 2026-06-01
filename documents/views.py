@@ -3,9 +3,9 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.db.models import Prefetch, Q
-from django.http import JsonResponse
+from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 
 from PortalJustPlay.list_search import apply_combined_search, apply_term_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
@@ -85,6 +85,45 @@ def _resolve_selected_document(categories, category_slug=None, doc_slug=None):
                 break
 
     return selected_category, selected_document
+
+
+def _get_active_document_or_404(pk):
+    return get_object_or_404(
+        Document.objects.select_related('category'),
+        pk=pk,
+        is_active=True,
+        category__is_active=True,
+    )
+
+
+def _document_file_response(document, *, as_attachment=False):
+    source = document.source_file
+    if not source:
+        raise Http404('Không có file gốc.')
+    try:
+        handle = source.open('rb')
+    except FileNotFoundError as exc:
+        raise Http404('File không tồn tại.') from exc
+
+    filename = document.source_display_name or 'tai-lieu'
+    response = FileResponse(handle, as_attachment=as_attachment, filename=filename)
+    if not as_attachment and document.source_is_pdf:
+        response['Content-Type'] = 'application/pdf'
+    return response
+
+
+@_documents_access_required
+@require_GET
+def document_file_view(request, pk):
+    document = _get_active_document_or_404(pk)
+    return _document_file_response(document, as_attachment=False)
+
+
+@_documents_access_required
+@require_GET
+def document_file_download(request, pk):
+    document = _get_active_document_or_404(pk)
+    return _document_file_response(document, as_attachment=True)
 
 
 @_documents_access_required

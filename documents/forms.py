@@ -29,6 +29,7 @@ class DocumentForm(forms.ModelForm):
             'content_type',
             'body',
             'pdf_file',
+            'original_file',
             'sort_order',
             'is_active',
         ]
@@ -39,6 +40,10 @@ class DocumentForm(forms.ModelForm):
             'summary': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Mô tả ngắn hiển thị trên cây thư mục...'}),
             'content_type': forms.Select(attrs={'class': 'form-select', 'id': 'id_content_type'}),
             'pdf_file': forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': '.pdf,application/pdf'}),
+            'original_file': forms.ClearableFileInput(attrs={
+                'class': 'form-control',
+                'accept': '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,application/pdf',
+            }),
             'sort_order': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }

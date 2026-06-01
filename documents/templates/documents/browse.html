@@ -1,120 +1,13 @@
-{% extends 'base.html' %}
-{% load static %}
-
-{% block content %}
-<div class="container-fluid jp-page jp-documents-page py-3 py-md-4 mb-5">
-    <div class="jp-page-header mb-2 mb-md-3">
-        <div>
-            <h1 class="jp-page-title text-hm mb-1">
-                <i class="bi bi-folder2-open me-2"></i>Tài liệu
-            </h1>
-            <p class="text-muted mb-0 jp-hide-mobile-subtitle">
-                Quy chế, quy trình và tài liệu tham khảo — chọn mục bên trái để xem nội dung.
-            </p>
-        </div>
-    </div>
-
-    {% include 'documents/includes/documents_admin_bar.html' with is_admin=is_admin %}
-
-    <div class="row g-3 g-lg-4 jp-documents-layout">
-        <div class="col-lg-4 col-xl-3">
-            <div class="jp-doc-tree card border-0 shadow-sm">
-                <div class="jp-doc-tree-header">
-                    <i class="bi bi-diagram-3-fill me-1"></i> Danh mục
-                </div>
-                <div class="jp-doc-tree-body" id="docTree">
-                    {% for category in categories %}
-                    <div class="jp-doc-tree-group {% if selected_category and selected_category.id == category.id %}is-open{% endif %}">
-                        <button type="button"
-                            class="jp-doc-tree-category {% if selected_category and selected_category.id == category.id %}is-active{% endif %}"
-                            data-doc-tree-toggle
-                            aria-expanded="{% if selected_category and selected_category.id == category.id %}true{% else %}false{% endif %}">
-                            <i class="bi {{ category.icon|default:'bi-folder2' }} jp-doc-tree-cat-icon"></i>
-                            <span class="jp-doc-tree-cat-label">{{ category.name }}</span>
-                            <span class="jp-doc-tree-cat-count">{{ category.documents.all|length }}</span>
-                            <i class="bi bi-chevron-down jp-doc-tree-chevron"></i>
-                        </button>
-                        <ul class="jp-doc-tree-items list-unstyled mb-0">
-                            {% for doc in category.documents.all %}
-                            <li>
-                                <a href="{% url 'documents:browse_document' category.slug doc.slug %}"
-                                   class="jp-doc-tree-item {% if selected_document and selected_document.id == doc.id %}is-active{% endif %}">
-                                    <i class="bi bi-file-earmark-text"></i>
-                                    <span>{{ doc.title }}</span>
-                                </a>
-                            </li>
-                            {% empty %}
-                            <li class="jp-doc-tree-empty">Chưa có tài liệu</li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-                    {% empty %}
-                    <div class="jp-doc-tree-empty-state text-center py-4 px-3">
-                        <i class="bi bi-inbox display-6 text-muted opacity-50"></i>
-                        <p class="text-muted small mb-0 mt-2">Chưa có nhóm tài liệu nào.</p>
-                        {% if is_admin %}
-                        <a href="{% url 'documents:admin_hub' %}" class="btn btn-sm btn-hm mt-3">Thiết lập ngay</a>
-                        {% endif %}
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-
-        <div class="col-lg-8 col-xl-9">
-            <div class="jp-doc-panel card border-0 shadow-sm">
-                {% if selected_document %}
-                <div class="jp-doc-panel-header">
-                    <div class="jp-doc-panel-breadcrumb text-muted small mb-1">
-                        <i class="bi {{ selected_category.icon|default:'bi-folder2' }} me-1"></i>
-                        {{ selected_category.name }}
-                    </div>
-                    <h2 class="jp-doc-panel-title mb-1">{{ selected_document.title }}</h2>
-                    {% if selected_document.summary %}
-                    <p class="text-muted mb-0 small">{{ selected_document.summary }}</p>
-                    {% endif %}
-                    <div class="jp-doc-panel-meta small text-muted mt-2">
-                        Cập nhật {{ selected_document.updated_at|date:"d/m/Y H:i" }}
-                    </div>
-                </div>
                 <div class="jp-doc-panel-body">
                     {% if selected_document.content_type == 'PDF' and selected_document.pdf_file %}
-                    <div class="jp-doc-pdf-toolbar mb-3">
-                        <a href="{{ selected_document.pdf_file.url }}" target="_blank" rel="noopener"
-                           class="btn btn-sm btn-outline-hm fw-bold">
-                            <i class="bi bi-box-arrow-up-right me-1"></i>Mở tab mới
-                        </a>
-                        <a href="{{ selected_document.pdf_file.url }}" download
-                           class="btn btn-sm btn-outline-secondary fw-bold">
-                            <i class="bi bi-download me-1"></i>Tải PDF
-                        </a>
-                    </div>
+                    {% include 'documents/includes/source_file_panel.html' with document=selected_document %}
                     <div class="jp-doc-pdf-frame ratio ratio-4x3">
-                        <iframe src="{{ selected_document.pdf_file.url }}#toolbar=1" title="{{ selected_document.title }}"></iframe>
+                        <iframe src="{% url 'documents:file_view' selected_document.pk %}#toolbar=1" title="{{ selected_document.title }}"></iframe>
                     </div>
                     {% else %}
                     <div class="guide-prose jp-doc-prose">
                         {{ selected_document.body|safe }}
                     </div>
+                    {% include 'documents/includes/source_file_panel.html' with document=selected_document %}
                     {% endif %}
                 </div>
-                {% else %}
-                <div class="jp-doc-panel-empty text-center py-5 px-4">
-                    <div class="jp-doc-panel-empty-icon mb-3">
-                        <i class="bi bi-file-earmark-richtext"></i>
-                    </div>
-                    <h3 class="h5 fw-bold text-hm">Chọn tài liệu để xem</h3>
-                    <p class="text-muted mb-0 mx-auto" style="max-width: 420px;">
-                        Mở nhóm thư mục bên trái và chọn tài liệu — nội dung sẽ hiển thị tại đây.
-                    </p>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-{% block scripts %}
-<script src="{% static 'js/documents.js' %}"></script>
-{% endblock %}

@@ -61,6 +61,18 @@
                             {% if form.pdf_file.errors %}<div class="text-danger small">{{ form.pdf_file.errors }}</div>{% endif %}
                         </div>
 
+                        <div class="mb-3" id="field-original">
+                            <label class="form-label fw-bold">File gốc (tuỳ chọn)</label>
+                            {{ form.original_file }}
+                            <div class="form-text">
+                                Đính kèm bản scan/PDF/Word gốc. Nhân viên có thể xem (PDF) hoặc tải về.
+                                {% if document and document.original_filename %}
+                                <br>File hiện tại: <strong>{{ document.original_filename }}</strong>
+                                {% endif %}
+                            </div>
+                            {% if form.original_file.errors %}<div class="text-danger small">{{ form.original_file.errors }}</div>{% endif %}
+                        </div>
+
                         <div class="mb-4">
                             <div class="form-check">
                                 {{ form.is_active }}
