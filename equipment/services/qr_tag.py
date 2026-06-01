@@ -1,9 +1,8 @@
-"""Tạo tem QR tài sản — vuông, tông đen, không bo góc."""
+"""Tạo tem QR tài sản — hình chữ nhật, tông đen, không bo góc."""
 
 import io
 import os
 import time
-from datetime import datetime
 from pathlib import Path
 
 import qrcode
@@ -15,13 +14,16 @@ BLACK = (0, 0, 0)
 BLACK_SOFT = (30, 30, 30)
 TEXT_MUTED = (100, 100, 100)
 BG_WHITE = (255, 255, 255)
+LINE_GRAY = (220, 220, 220)
 
-TAG_SIZE = 480
-PADDING = 22
-HEADER_HEIGHT = 52
-QR_SIZE = 164
-BTN_W = 300
-BTN_H = 40
+TAG_W = 720
+TAG_H = 260
+BORDER = 3
+INNER = 8
+HEADER_H = 46
+RIGHT_W = 210
+QR_SIZE = 168
+BTN_H = 34
 
 
 def device_public_url(device_id) -> str:
@@ -62,55 +64,87 @@ def _text_width(draw, text: str, font) -> int:
     return bbox[2] - bbox[0]
 
 
-def _draw_centered_text(draw, y, text, font, fill, width=TAG_SIZE):
-    tw = _text_width(draw, text, font)
-    draw.text(((width - tw) // 2, y), text, font=font, fill=fill)
+def _text_height(draw, text: str, font) -> int:
+    bbox = draw.textbbox((0, 0), text, font=font)
+    return bbox[3] - bbox[1]
 
 
 def generate_asset_tag(device) -> tuple[File, str]:
-    """Vẽ tem QR vuông PNG — góc vuông, nút đen «Quét để báo hỏng»."""
-    font_brand = _load_font(17, bold=True)
-    font_sub = _load_font(11, bold=True)
-    font_name = _load_font(21, bold=True)
-    font_row = _load_font(14)
-    font_label = _load_font(11, bold=True)
-    font_btn = _load_font(13, bold=True)
-    font_id = _load_font(11)
+    """Tem ngang: trái = thông tin thiết bị, phải = mã QR."""
+    font_brand = _load_font(16, bold=True)
+    font_sub = _load_font(10, bold=True)
+    font_name = _load_font(20, bold=True)
+    font_row = _load_font(13)
+    font_label = _load_font(10, bold=True)
+    font_btn = _load_font(12, bold=True)
+    font_id = _load_font(10)
+    font_caption = _load_font(9)
 
-    img = Image.new('RGB', (TAG_SIZE, TAG_SIZE), BG_WHITE)
+    img = Image.new('RGB', (TAG_W, TAG_H), BG_WHITE)
     draw = ImageDraw.Draw(img)
 
-    draw.rectangle((4, 4, TAG_SIZE - 4, TAG_SIZE - 4), outline=BLACK, width=3)
-    draw.rectangle((8, 8, TAG_SIZE - 8, 8 + HEADER_HEIGHT), fill=BLACK)
+    draw.rectangle((BORDER, BORDER, TAG_W - BORDER, TAG_H - BORDER), outline=BLACK, width=BORDER)
+    draw.rectangle((INNER, INNER, TAG_W - INNER, INNER + HEADER_H), fill=BLACK)
 
     header_text = getattr(settings, 'EQUIPMENT_TAG_HEADER', 'JUSTPLAY')
-    _draw_centered_text(draw, 16, header_text, font_brand, 'white')
-    _draw_centered_text(draw, 34, 'QUẢN LÝ THIẾT BỊ', font_sub, (190, 190, 190))
+    draw.text((INNER + 12, INNER + 10), header_text, font=font_brand, fill='white')
+    draw.text((INNER + 12, INNER + 28), 'QUẢN LÝ THIẾT BỊ', font=font_sub, fill=(190, 190, 190))
 
-    y = 8 + HEADER_HEIGHT + 14
-    name = (device.name or 'Thiết bị')[:26]
-    _draw_centered_text(draw, y, name, font_name, BLACK)
-    y += 28
+    body_top = INNER + HEADER_H + 10
+    body_bottom = TAG_H - INNER - 8
+    split_x = TAG_W - INNER - RIGHT_W
 
-    dept_label = device.usage_department_label
-    user_label = device.assigned_user_label if hasattr(device, 'assigned_user_label') else (device.assigned_user_text or '')
+    draw.line((split_x, body_top, split_x, body_bottom), fill=LINE_GRAY, width=1)
+
+    left_x = INNER + 14
+    left_max_w = split_x - left_x - 12
+    y = body_top + 4
+
+    name = (device.name or 'Thiết bị')[:36]
+    draw.text((left_x, y), name, font=font_name, fill=BLACK)
+    y += _text_height(draw, name, font_name) + 6
+
+    category = device.get_category_display() if hasattr(device, 'get_category_display') else ''
+    if category:
+        draw.text((left_x, y), f'Loại: {category[:40]}', font=font_row, fill=BLACK_SOFT)
+        y += 20
+
+    dept_label = device.usage_department_label if hasattr(device, 'usage_department_label') else '—'
+    user_label = device.assigned_user_label if hasattr(device, 'assigned_user_label') else (device.assigned_user_text or '—')
+    if user_label == '—':
+        user_label = device.assigned_user_text or '—'
+
     rows = [
         ('PHÒNG BAN', dept_label),
-        ('NGƯỜI DÙNG', user_label if user_label and user_label != '—' else '—'),
+        ('NGƯỜI DÙNG', user_label),
         ('MODEL', device.model_number or '—'),
-        ('SERIAL', (device.serial_number or '—')[:28]),
+        ('SERIAL', (device.serial_number or '—')[:32]),
     ]
-    label_w = 92
-    left = PADDING + 6
+    label_w = 88
+    row_h = 19
     for label, value in rows:
-        draw.text((left, y), label, font=font_label, fill=TEXT_MUTED)
-        draw.text((left + label_w, y), str(value)[:32], font=font_row, fill=BLACK_SOFT)
-        y += 21
+        if y + row_h > body_bottom - BTN_H - 8:
+            break
+        draw.text((left_x, y), label, font=font_label, fill=TEXT_MUTED)
+        draw.text((left_x + label_w, y), str(value)[:38], font=font_row, fill=BLACK_SOFT)
+        y += row_h
 
-    qr_y = y + 6
-    qr_x = (TAG_SIZE - QR_SIZE) // 2
+    btn_y = body_bottom - BTN_H
+    btn_w = split_x - left_x - 4
+    draw.rectangle((left_x, btn_y, left_x + btn_w, btn_y + BTN_H), fill=BLACK)
+    btn_text = 'Quét để báo hỏng'
+    btn_tw = _text_width(draw, btn_text, font_btn)
+    draw.text(
+        (left_x + (btn_w - btn_tw) // 2, btn_y + 9),
+        btn_text,
+        font=font_btn,
+        fill='white',
+    )
+
+    qr_x = split_x + (RIGHT_W - QR_SIZE) // 2
+    qr_y = body_top + 6
     draw.rectangle(
-        (qr_x - 8, qr_y - 8, qr_x + QR_SIZE + 8, qr_y + QR_SIZE + 8),
+        (qr_x - 6, qr_y - 6, qr_x + QR_SIZE + 6, qr_y + QR_SIZE + 6),
         outline=BLACK,
         width=2,
     )
@@ -123,15 +157,24 @@ def generate_asset_tag(device) -> tuple[File, str]:
     qr_img = qr_img.resize((QR_SIZE, QR_SIZE), Image.Resampling.LANCZOS)
     img.paste(qr_img, (qr_x, qr_y))
 
-    btn_x = (TAG_SIZE - BTN_W) // 2
-    btn_y = qr_y + QR_SIZE + 12
-    draw.rectangle((btn_x, btn_y, btn_x + BTN_W, btn_y + BTN_H), fill=BLACK)
-    _draw_centered_text(draw, btn_y + 11, 'Quét để báo hỏng', font_btn, 'white')
+    caption = 'Quét mã báo hỏng'
+    cap_w = _text_width(draw, caption, font_caption)
+    draw.text(
+        (split_x + (RIGHT_W - cap_w) // 2, qr_y + QR_SIZE + 10),
+        caption,
+        font=font_caption,
+        fill=TEXT_MUTED,
+    )
 
     device_id_short = str(device.id).split('-')[0].upper()
     id_text = f'ID {device_id_short}'
     id_w = _text_width(draw, id_text, font_id)
-    draw.text((TAG_SIZE - PADDING - id_w, TAG_SIZE - PADDING - 12), id_text, font=font_id, fill=TEXT_MUTED)
+    draw.text(
+        (TAG_W - INNER - 10 - id_w, body_bottom - 12),
+        id_text,
+        font=font_id,
+        fill=TEXT_MUTED,
+    )
 
     buffer = io.BytesIO()
     img.save(buffer, format='PNG', optimize=True)
@@ -144,7 +187,7 @@ def should_redraw_tag(update_fields) -> bool:
     if not update_fields:
         return True
     tag_fields = {
-        'name', 'usage_department', 'usage_department_text', 'model_number',
+        'name', 'category', 'usage_department', 'usage_department_text', 'model_number',
         'serial_number', 'handover_date', 'assigned_user', 'assigned_user_text', 'qr_code',
     }
     return bool(set(update_fields).intersection(tag_fields))

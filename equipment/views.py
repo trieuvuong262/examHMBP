@@ -366,13 +366,6 @@ def device_list(request):
         'can_edit': user_can_edit_module(request.user, MODULE_EQUIPMENT),
         'can_edit_equipment': user_can_edit_module(request.user, MODULE_EQUIPMENT),
         'can_export': user_can_access_module(request.user, MODULE_EQUIPMENT),
-        'scan_available': is_scan_available(),
-        'scan_via_relay': is_relay_scan_available() and not is_local_wmi_available(),
-        'agent_scan_mode': is_agent_scan_available() and not is_relay_scan_available() and not is_local_wmi_available(),
-        'wmi_scan_available': is_scan_available(),
-        'scan_default_user': getattr(settings, 'EQUIPMENT_SCAN_DEFAULT_USER', ''),
-        'scan_default_start_ip': getattr(settings, 'EQUIPMENT_SCAN_DEFAULT_START_IP', ''),
-        'scan_default_end_ip': getattr(settings, 'EQUIPMENT_SCAN_DEFAULT_END_IP', ''),
         **_subnav_context(request),
     })
 

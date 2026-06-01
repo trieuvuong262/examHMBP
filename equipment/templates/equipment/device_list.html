@@ -20,19 +20,6 @@
         </div>
     </div>
 
-    {% if can_edit and not scan_available and not agent_scan_mode %}
-    <div class="alert alert-warning border-0 shadow-sm mb-3 py-2 small">
-        <strong>Quét WMI chưa sẵn sàng.</strong>
-        <a href="{% url 'equipment:scan_relay_guide' %}" class="alert-link">Hướng dẫn bật quét →</a>
-    </div>
-    {% elif can_edit and scan_available %}
-    <div class="alert alert-light border shadow-sm mb-3 py-2 small d-flex flex-wrap align-items-center gap-2">
-        <span><i class="bi bi-broadcast me-1"></i>Quét mạng PC:</span>
-        <button type="button" class="btn btn-dark btn-sm" data-bs-toggle="modal" data-bs-target="#lanScanModal">Toàn LAN</button>
-        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#rangeScanModal">Dải IP</button>
-    </div>
-    {% endif %}
-
     <div class="jp-eq-stats mb-3">
         <div class="jp-eq-stat">
             <div class="jp-eq-stat-value text-hm">{{ filtered_count|intcomma }}</div>
@@ -175,73 +162,4 @@
         </div>
         {% endif %}
 </div>
-
-{% if can_edit and scan_available %}
-<div class="modal fade" id="lanScanModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form method="post" action="{% url 'equipment:scan_lan_network' %}">
-                {% csrf_token %}
-                <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title"><i class="bi bi-broadcast me-2"></i>Quét toàn mạng LAN</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-info small">
-                        Quét PC cùng lớp mạng với máy Windows IT.
-                        {% if scan_via_relay %} Portal gọi máy bạn qua <strong>Tailscale</strong>.{% endif %}
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Tài khoản Admin (Domain)</label>
-                        <input type="text" name="scan_user" class="form-control" placeholder="JUSTPLAY\it-admin" value="{{ scan_default_user }}" required>
-                    </div>
-                    <div class="mb-0">
-                        <label class="form-label fw-bold">Mật khẩu</label>
-                        <input type="password" name="scan_pass" class="form-control" required autocomplete="current-password">
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Huỷ</button>
-                    <button type="submit" class="btn btn-dark fw-bold">Bắt đầu quét</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="rangeScanModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form method="post" action="{% url 'equipment:scan_network_range' %}">
-                {% csrf_token %}
-                <div class="modal-body pt-4">
-                    <h5 class="fw-bold mb-3">Quét dải IP tùy chỉnh</h5>
-                    <div class="row g-2 mb-3">
-                        <div class="col-6">
-                            <label class="form-label fw-bold">Từ IP</label>
-                            <input type="text" name="start_ip" class="form-control" value="{{ scan_default_start_ip }}" required>
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label fw-bold">Đến IP</label>
-                            <input type="text" name="end_ip" class="form-control" value="{{ scan_default_end_ip }}" required>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Tài khoản Admin</label>
-                        <input type="text" name="scan_user" class="form-control" value="{{ scan_default_user }}" required>
-                    </div>
-                    <div class="mb-0">
-                        <label class="form-label fw-bold">Mật khẩu</label>
-                        <input type="password" name="scan_pass" class="form-control" required autocomplete="current-password">
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
-                    <button type="submit" class="btn btn-hm">Quét dải này</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-{% endif %}
 {% endblock %}
