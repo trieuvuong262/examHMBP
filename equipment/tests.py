@@ -398,13 +398,15 @@ class DeviceFormCategoryTests(TestCase):
     def test_device_form_save_updates_device(self):
         from equipment.forms import DeviceForm
         from equipment.models import Device
+        from hrm.models import Department
 
+        dept, _ = Department.objects.get_or_create(name='Bảo trì xưởng')
         device = Device.objects.create(name='May test', category='SEW_LOCKSTITCH', status=Device.STATUS_ACTIVE)
         form = DeviceForm(
             {
                 'device_code': device.device_code,
                 'name': 'May test 2',
-                'managed_by': Device.MANAGED_MAINTENANCE,
+                'managed_department': dept.pk,
                 'category': 'SEW_LOCKSTITCH',
                 'usage_department': '',
                 'usage_department_text': 'Xưởng A',
@@ -471,7 +473,7 @@ class DeviceImportExportTests(TestCase):
         self.assertEqual(errors, [])
         device = Device.objects.get()
         self.assertEqual(device.category, 'SEW_LOCKSTITCH')
-        self.assertEqual(device.managed_by, Device.MANAGED_MAINTENANCE)
+        self.assertEqual(device.managed_department.name, 'Bảo trì xưởng')
 
     def test_build_sample_dataframe_for_sample_room_category(self):
         from equipment.services.import_export import build_sample_dataframe
@@ -528,14 +530,13 @@ class ImportExportHubViewTests(TestCase):
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         )
 
-    def test_device_list_scoped_by_managed_by(self):
+    def test_device_list_scoped_by_category(self):
         from equipment.models import Device
 
-        Device.objects.create(name='PC A', category='PC', managed_by=Device.MANAGED_IT, status=Device.STATUS_ACTIVE)
+        Device.objects.create(name='PC A', category='PC', status=Device.STATUS_ACTIVE)
         Device.objects.create(
             name='May A',
             category='SEW_LOCKSTITCH',
-            managed_by=Device.MANAGED_MAINTENANCE,
             status=Device.STATUS_ACTIVE,
         )
         it_resp = self.client.get('/thiet-bi/it/danh-sach/')
@@ -546,3 +547,65 @@ class ImportExportHubViewTests(TestCase):
         self.assertNotContains(it_resp, 'May A')
         self.assertContains(prod_resp, 'May A')
         self.assertNotContains(prod_resp, 'PC A')
+
+
+class DeviceUpdateLogTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+        self.user = User.objects.create_superuser(username='admin', password='x', email='a@test.com')
+        self.client = __import__('django.test', fromlist=['Client']).Client()
+        self.client.login(username='admin', password='x')
+
+    def test_create_logs_on_device_add(self):
+        from equipment.models import Device, DeviceUpdateLog
+
+        resp = self.client.post('/thiet-bi/it/them/', {
+            'name': 'PC Test',
+            'category': 'PC',
+            'status': Device.STATUS_ACTIVE,
+            'quantity': 1,
+            'unit_price': 0,
+        })
+        self.assertEqual(resp.status_code, 302)
+        device = Device.objects.get(name='PC Test')
+        log = DeviceUpdateLog.objects.get(device=device)
+        self.assertEqual(log.action, DeviceUpdateLog.ACTION_CREATE)
+        self.assertEqual(log.changed_by_id, self.user.pk)
+
+    def test_update_logs_on_device_edit(self):
+        from equipment.models import Device, DeviceUpdateLog
+
+        device = Device.objects.create(
+            name='PC Old',
+            category='PC',
+            status=Device.STATUS_ACTIVE,
+        )
+        resp = self.client.post(f'/thiet-bi/{device.id}/', {
+            'name': 'PC New',
+            'category': 'PC',
+            'status': Device.STATUS_BROKEN,
+            'quantity': 1,
+            'unit_price': 0,
+        })
+        self.assertEqual(resp.status_code, 302)
+        log = DeviceUpdateLog.objects.filter(device=device, action=DeviceUpdateLog.ACTION_UPDATE).first()
+        self.assertIsNotNone(log)
+        self.assertIn('Tên', log.summary)
+        self.assertIn('Trạng thái', log.summary)
+
+    def test_update_history_page(self):
+        from equipment.models import Device
+        from equipment.services.device_update_log import log_device_created
+
+        device = Device.objects.create(
+            name='PC View',
+            category='PC',
+            status=Device.STATUS_ACTIVE,
+        )
+        log_device_created(device, self.user)
+        resp = self.client.get(f'/thiet-bi/{device.id}/lich-su-cap-nhat/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Lịch sử cập nhật')
+        self.assertContains(resp, 'Tạo thiết bị')

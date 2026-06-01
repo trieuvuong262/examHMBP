@@ -58,6 +58,7 @@ urlpatterns = [
     path('<uuid:device_id>/', views.device_detail_manage, name='device_detail_manage'),
     path('<uuid:device_id>/sua/', views.device_edit, name='device_edit'),
     path('<uuid:device_id>/lich-su/', views.device_history, name='device_history'),
+    path('<uuid:device_id>/lich-su-cap-nhat/', views.device_update_history, name='device_update_history'),
     path('api/agent-report/', views.api_agent_report, name='api_agent_report'),
     path('api/agent-poll/', views.api_agent_poll, name='api_agent_poll'),
     path('agent/', views.agent_guide, name='agent_guide'),

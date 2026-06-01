@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from django.urls import reverse
 
-from equipment.models import Device
-
 SCOPE_IT = 'it'
 SCOPE_PRODUCTION = 'production'
 
@@ -20,24 +18,25 @@ SCOPE_SHORT_LABELS = {
 }
 
 
-def managed_by_for_scope(scope: str | None) -> str | None:
-    if scope == SCOPE_IT:
-        return Device.MANAGED_IT
-    if scope == SCOPE_PRODUCTION:
-        return Device.MANAGED_MAINTENANCE
-    return None
+def scope_for_device(device) -> str:
+    from equipment.services.device_categories import import_profile_for_code
 
-
-def scope_for_managed_by(managed_by: str | None) -> str:
-    if managed_by == Device.MANAGED_MAINTENANCE:
-        return SCOPE_PRODUCTION
-    return SCOPE_IT
+    if device is None:
+        return SCOPE_IT
+    if import_profile_for_code(getattr(device, 'category', '')) == 'it':
+        return SCOPE_IT
+    return SCOPE_PRODUCTION
 
 
 def filter_devices_for_scope(qs, scope: str | None):
-    managed = managed_by_for_scope(scope)
-    if managed:
-        return qs.filter(managed_by=managed)
+    from equipment.services.device_categories import category_codes_for_profile
+
+    if scope == SCOPE_IT:
+        codes = category_codes_for_profile('it')
+        return qs.filter(category__in=codes) if codes else qs.none()
+    if scope == SCOPE_PRODUCTION:
+        codes = category_codes_for_profile('machine')
+        return qs.filter(category__in=codes) if codes else qs.none()
     return qs
 
 
@@ -92,7 +91,7 @@ def it_repair_detail_url(equipment_scope: str | None, pk) -> str:
 def merge_scope_context(request, equipment_scope: str | None = None, device=None) -> dict:
     scope = equipment_scope or scope_from_path(getattr(request, 'path', ''))
     if not scope and device is not None:
-        scope = scope_for_managed_by(getattr(device, 'managed_by', None))
+        scope = scope_for_device(device)
     if not scope:
         scope = SCOPE_IT
     return scope_context(scope)

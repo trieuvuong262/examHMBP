@@ -14,6 +14,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods
 
+from hrm.models import Department
 from hrm.module_permissions import MODULE_EQUIPMENT, user_can_access_module, user_can_edit_module
 from PortalJustPlay.list_search import apply_term_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
@@ -33,9 +34,8 @@ from .scope import (
     SCOPE_PRODUCTION,
     filter_devices_for_scope,
     it_repair_detail_url,
-    managed_by_for_scope,
     merge_scope_context,
-    scope_for_managed_by,
+    scope_for_device,
     scope_urls,
 )
 from .services.import_export import (
@@ -209,9 +209,7 @@ def legacy_it_repair_detail(request, pk):
         ServiceRequest.objects.select_related('equipment'),
         pk=pk,
     )
-    scope = scope_for_managed_by(
-        service_request.equipment.managed_by if service_request.equipment_id else None
-    )
+    scope = scope_for_device(service_request.equipment if service_request.equipment_id else None)
     return redirect(it_repair_detail_url(scope, pk))
 
 
@@ -332,9 +330,9 @@ def device_list(request, equipment_scope=SCOPE_IT):
             | Q(usage_department__name__icontains=q)
         )
 
-    managed_by = request.GET.get('managed_by')
-    if managed_by:
-        qs = qs.filter(managed_by=managed_by)
+    managed_department = request.GET.get('managed_department')
+    if managed_department:
+        qs = qs.filter(managed_department_id=managed_department)
 
     categories = request.GET.getlist('category')
     category = (request.GET.get('category') or '').strip()
@@ -389,7 +387,7 @@ def device_list(request, equipment_scope=SCOPE_IT):
         'stat_broken': scope_total_qs.filter(status=Device.STATUS_BROKEN).count(),
         'stat_maintenance': scope_total_qs.filter(status=Device.STATUS_MAINTENANCE).count(),
         'stat_online': scope_total_qs.filter(is_online=True).count(),
-        'current_managed_by': managed_by,
+        'current_managed_department': managed_department,
         'current_category': category,
         'current_categories': categories,
         'current_status': status,
@@ -398,7 +396,7 @@ def device_list(request, equipment_scope=SCOPE_IT):
         'current_sort': sort_by,
         'current_is_online': is_online,
         'existing_depts': existing_depts,
-        'managed_choices': Device.MANAGED_CHOICES,
+        'managed_departments': Department.objects.filter(is_active=True).order_by('sort_order', 'name'),
         'category_choices': category_choices(),
         'category_groups': categories_by_group(),
         'status_choices': Device.STATUS_CHOICES,
@@ -411,21 +409,26 @@ def device_list(request, equipment_scope=SCOPE_IT):
 
 @_edit_required
 def device_add(request, equipment_scope=SCOPE_IT):
-    default_managed = managed_by_for_scope(equipment_scope) or Device.MANAGED_IT
+    from equipment.services.managed_department import default_managed_department_for_scope
+
     if request.method == 'POST':
-        form = DeviceForm(request.POST)
+        form = DeviceForm(request.POST, equipment_scope=equipment_scope)
         if form.is_valid():
             device = form.save(commit=False)
-            if not form.cleaned_data.get('managed_by'):
-                device.managed_by = default_managed
+            if not form.cleaned_data.get('managed_department'):
+                device.managed_department = default_managed_department_for_scope(equipment_scope)
             device.save()
+            from equipment.services.device_update_log import log_device_created
+
+            log_device_created(device, request.user)
             messages.success(request, 'Đã thêm thiết bị mới.')
             return _redirect_device_list(equipment_scope)
     else:
-        form = DeviceForm(initial={'managed_by': default_managed})
+        form = DeviceForm(equipment_scope=equipment_scope)
     return render(request, 'equipment/device_form.html', {
         'form': form,
         'is_edit': False,
+        'is_it_device': equipment_scope == SCOPE_IT,
         **_subnav_context(request, equipment_scope),
     })
 
@@ -527,6 +530,7 @@ def device_qr_public(request, device_key):
 def device_detail_manage(request, device_id):
     device = get_object_or_404(
         Device.objects.select_related(
+            'managed_department',
             'usage_department',
             'assigned_user__profile',
             'assigned_user__profile__department',
@@ -542,23 +546,39 @@ def device_detail_manage(request, device_id):
         if not can_edit:
             messages.error(request, 'Bạn không có quyền chỉnh sửa thiết bị.')
             return redirect('equipment:device_detail_manage', device_id=device.id)
-        form = DeviceForm(request.POST, instance=device)
+        form = DeviceForm(request.POST, instance=device, equipment_scope=merge_scope_context(request, device=device).get('equipment_scope'))
         if form.is_valid():
+            from equipment.services.device_update_log import log_device_update
+
+            before = Device.objects.select_related(
+                'managed_department',
+                'usage_department',
+                'assigned_user__profile',
+            ).get(pk=device.pk)
             form.save()
+            after = Device.objects.select_related(
+                'managed_department',
+                'usage_department',
+                'assigned_user__profile',
+            ).get(pk=device.pk)
+            log_device_update(before, after, request.user)
             messages.success(request, 'Đã cập nhật thiết bị và tạo lại tem QR.')
             return redirect('equipment:device_detail_manage', device_id=device.id)
     elif can_edit:
-        form = DeviceForm(instance=device)
+        scope_ctx = merge_scope_context(request, device=device)
+        form = DeviceForm(instance=device, equipment_scope=scope_ctx.get('equipment_scope'))
 
     logs = device.logs.select_related('service_request').order_by('-created_at')[:10]
     shared_users = list(get_registered_users(device)) if device.is_shared_pc else []
+    scope_ctx = merge_scope_context(request, device=device)
     return render(request, 'equipment/device_detail_manage.html', {
         'device': device,
         'form': form,
         'shared_users': shared_users,
         'logs': logs,
         'can_edit': can_edit,
-        **_subnav_context(request, device=device),
+        'is_it_device': device.is_it_equipment,
+        **scope_ctx,
     })
 
 
@@ -569,6 +589,19 @@ def device_history(request, device_id):
     return render(request, 'equipment/device_history.html', {
         'device': device,
         'logs': logs,
+        'history_tab': 'incident',
+        **_subnav_context(request, device=device),
+    })
+
+
+@_access_required
+def device_update_history(request, device_id):
+    device = get_object_or_404(Device, pk=device_id)
+    logs = device.update_logs.select_related('changed_by').order_by('-created_at')
+    return render(request, 'equipment/device_update_history.html', {
+        'device': device,
+        'logs': logs,
+        'history_tab': 'update',
         **_subnav_context(request, device=device),
     })
 

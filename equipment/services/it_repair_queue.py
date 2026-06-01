@@ -3,8 +3,8 @@
 from django.contrib.auth.models import User
 from django.db.models import Q
 
-from equipment.models import Device
-from equipment.scope import managed_by_for_scope
+from equipment.scope import SCOPE_IT, SCOPE_PRODUCTION
+from equipment.services.device_categories import category_codes_for_profile
 from hrm.module_permissions import MODULE_EQUIPMENT, user_can_access_module
 from hrm.permissions import get_profile
 from service_requests.models import RequestType, RequestTypeStepTemplate, ServiceRequest, ServiceRequestStep
@@ -44,15 +44,19 @@ def can_claim_it_repair_step(user, step: ServiceRequestStep) -> bool:
 
 
 def _filter_steps_for_equipment_scope(qs, equipment_scope: str | None):
-    managed = managed_by_for_scope(equipment_scope)
-    if not managed:
+    if not equipment_scope:
         return qs
-    if equipment_scope == 'production':
-        return qs.filter(request__equipment__managed_by=Device.MANAGED_MAINTENANCE)
+    if equipment_scope == SCOPE_PRODUCTION:
+        codes = category_codes_for_profile('machine')
+        if not codes:
+            return qs.none()
+        return qs.filter(request__equipment__category__in=codes)
+    codes = category_codes_for_profile('it')
+    if not codes:
+        return qs.filter(request__equipment__isnull=True)
     return qs.filter(
         Q(request__equipment__isnull=True)
-        | Q(request__equipment__managed_by=Device.MANAGED_IT)
-        | Q(request__equipment__managed_by=Device.MANAGED_OTHER)
+        | Q(request__equipment__category__in=codes)
     )
 
 

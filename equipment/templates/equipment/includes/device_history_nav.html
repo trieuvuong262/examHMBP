@@ -1,0 +1,10 @@
+<div class="d-flex flex-wrap gap-2 mb-3">
+    <a href="{% url 'equipment:device_history' device.id %}"
+       class="btn btn-sm {% if history_tab == 'incident' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
+        Lịch sử sự cố
+    </a>
+    <a href="{% url 'equipment:device_update_history' device.id %}"
+       class="btn btn-sm {% if history_tab == 'update' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
+        Lịch sử cập nhật
+    </a>
+</div>

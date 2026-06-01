@@ -154,7 +154,7 @@
                             <td>
                                 <div class="font-monospace small text-muted">{{ device.device_code }}</div>
                                 <a href="{% url 'equipment:device_detail_manage' device.id %}" class="fw-semibold text-decoration-none">{{ device.name }}</a>
-                                <div class="small text-muted">{{ device.get_managed_by_display }}{% if device.usage_room %} · {{ device.usage_room }}{% endif %}</div>
+                                <div class="small text-muted">{{ device.managed_department_label }}{% if device.usage_room %} · {{ device.usage_room }}{% endif %}</div>
                             </td>
                             <td><span class="badge bg-light text-dark border">{{ device.get_category_display }}</span></td>
                             <td class="small">

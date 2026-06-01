@@ -149,7 +149,7 @@ CATEGORY_ALIASES = {
 IMPORT_COLUMNS_BASE = [
     ('device_code', 'Mã thiết bị', False),
     ('name', 'Tên thiết bị', True),
-    ('managed_by', 'Bộ phận QL (IT / MAINTENANCE / OTHER)', False),
+    ('managed_department', 'Bộ phận quản lý (tên phòng ban)', False),
     ('status', 'Trạng thái (new / active / broken / maintenance / scrapped)', False),
     ('usage_department_text', 'Phòng ban sử dụng', False),
     ('usage_room', 'Phòng / vị trí (Line, khu vực…)', False),
@@ -193,7 +193,7 @@ IMPORT_PROFILE_COLUMNS = {
 SAMPLE_ROWS = {
     'PC': {
         'name': 'PC Dell OptiPlex 3080 — Line 2',
-        'managed_by': 'IT',
+        'managed_department': 'IT / CNTT',
         'status': 'active',
         'usage_department_text': 'Phòng Sản xuất',
         'usage_room': 'Line 2',
@@ -211,7 +211,7 @@ SAMPLE_ROWS = {
     },
     'SEW_LOCKSTITCH': {
         'name': 'Máy may 1 kim Juki DDL-8700 — Line 3',
-        'managed_by': 'MAINTENANCE',
+        'managed_department': 'Bảo trì xưởng',
         'status': 'active',
         'usage_department_text': 'Xưởng may',
         'usage_room': 'Line 3 — vị trí 12',
@@ -226,7 +226,7 @@ SAMPLE_ROWS = {
     },
     'CUT_MACHINE': {
         'name': 'Máy cắt dao rung Bullmer',
-        'managed_by': 'MAINTENANCE',
+        'managed_department': 'Bảo trì xưởng',
         'status': 'active',
         'usage_department_text': 'Phòng cắt',
         'usage_room': 'Khu cắt A',
@@ -240,7 +240,7 @@ SAMPLE_ROWS = {
     },
     'PACK_MACHINE': {
         'name': 'Máy hút chân không đóng gói',
-        'managed_by': 'MAINTENANCE',
+        'managed_department': 'Bảo trì xưởng',
         'status': 'active',
         'usage_department_text': 'Kho thành phẩm',
         'usage_room': 'Khu đóng gói',
@@ -251,7 +251,7 @@ SAMPLE_ROWS = {
     },
     'EMB_MACHINE': {
         'name': 'Máy thêu Tajima 6 đầu',
-        'managed_by': 'MAINTENANCE',
+        'managed_department': 'Bảo trì xưởng',
         'status': 'active',
         'usage_department_text': 'Xưởng thêu',
         'usage_room': 'Khu thêu 1',
@@ -305,7 +305,7 @@ def sample_row_for_category(code: str) -> dict:
     label = CATEGORY_MAP.get(code, code)
     row = {
         'name': f'Ví dụ: {label}',
-        'managed_by': 'MAINTENANCE' if profile == 'machine' else 'IT',
+        'managed_department': 'Bảo trì xưởng' if profile == 'machine' else 'IT / CNTT',
         'status': 'active',
         'usage_department_text': 'Phòng ban mẫu',
         'usage_room': 'Vị trí mẫu',

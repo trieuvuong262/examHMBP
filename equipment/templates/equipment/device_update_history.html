@@ -3,7 +3,7 @@
 {% block content %}
 <div class="container jp-page py-3 py-md-4 mb-5">
     <div class="jp-page-header mb-3">
-        <h2 class="fw-bold text-hm mb-1">Lịch sử sự cố — {{ device.name }}</h2>
+        <h2 class="fw-bold text-hm mb-1">Lịch sử cập nhật — {{ device.name }}</h2>
         <p class="text-muted mb-2"><code>{{ device.device_code }}</code></p>
         <a href="{% url 'equipment:device_detail_manage' device.id %}" class="small">← Quay lại chi tiết</a>
     </div>
@@ -16,27 +16,25 @@
                 <thead class="table-light">
                     <tr>
                         <th>Thời gian</th>
-                        <th>Người báo</th>
-                        <th>Mô tả</th>
-                        <th>Yêu cầu</th>
-                        <th>Trạng thái</th>
+                        <th>Loại</th>
+                        <th>Người cập nhật</th>
+                        <th>Nội dung thay đổi</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for log in logs %}
                     <tr>
-                        <td>{{ log.created_at|date:"d/m/Y H:i" }}</td>
-                        <td>{{ log.reported_by }}</td>
-                        <td>{{ log.issue_description|truncatechars:100 }}</td>
+                        <td class="text-nowrap">{{ log.created_at|date:"d/m/Y H:i" }}</td>
+                        <td>{{ log.get_action_display }}</td>
                         <td>
-                            {% if log.service_request_id %}
-                            <a href="{% url 'service_requests:detail' log.service_request_id %}">#{{ log.service_request_id }}</a>
+                            {% if log.changed_by %}
+                            {{ log.changed_by.get_full_name|default:log.changed_by.username }}
                             {% else %}—{% endif %}
                         </td>
-                        <td>{% if log.is_resolved %}Đã xử lý{% else %}Đang mở{% endif %}</td>
+                        <td>{{ log.summary }}</td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="5" class="text-center text-muted py-4">Chưa có lịch sử.</td></tr>
+                    <tr><td colspan="4" class="text-center text-muted py-4">Chưa có lịch sử cập nhật.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

@@ -22,8 +22,7 @@ EXPORT_COLUMNS = [
     ('name', 'Tên thiết bị'),
     ('category', 'Loại (mã)'),
     ('category_label', 'Loại thiết bị'),
-    ('managed_by', 'Bộ phận QL (mã)'),
-    ('managed_by_label', 'Bộ phận quản lý'),
+    ('managed_department_label', 'Bộ phận quản lý'),
     ('status', 'Trạng thái (mã)'),
     ('status_label', 'Trạng thái'),
     ('usage_department_text', 'Phòng ban sử dụng'),
@@ -45,14 +44,15 @@ EXPORT_COLUMNS = [
     ('updated_at', 'Cập nhật lần cuối'),
 ]
 
-MANAGED_MAP = dict(Device.MANAGED_CHOICES)
 STATUS_MAP = dict(Device.STATUS_CHOICES)
 
 # Alias cột Excel (tiếng Việt / tên cũ)
 COLUMN_ALIASES = {
     'device_code': ('device_code', 'Mã thiết bị', 'ma thiet bi'),
     'name': ('name', 'Tên thiết bị', 'ten thiet bi'),
-    'managed_by': ('managed_by', 'Bộ phận QL', 'bo phan ql'),
+    'managed_department': (
+        'managed_department', 'managed_department_label', 'managed_by', 'Bộ phận quản lý', 'bo phan quan ly',
+    ),
     'status': ('status', 'Trạng thái', 'trang thai'),
     'usage_department_text': (
         'usage_department_text', 'usage_department', 'Phòng ban sử dụng', 'phong ban su dung',
@@ -139,9 +139,9 @@ def apply_device_list_filters(qs, params):
             | Q(usage_department__name__icontains=q)
         )
 
-    managed_by = params.get('managed_by')
-    if managed_by:
-        qs = qs.filter(managed_by=managed_by)
+    managed_department = params.get('managed_department')
+    if managed_department:
+        qs = qs.filter(managed_department_id=managed_department)
 
     categories = params.getlist('category') if hasattr(params, 'getlist') else []
     if not categories and params.get('category'):
@@ -185,8 +185,7 @@ def devices_to_dataframe(devices) -> pd.DataFrame:
             'name': d.name,
             'category': d.category,
             'category_label': category_map().get(d.category, d.category),
-            'managed_by': d.managed_by,
-            'managed_by_label': MANAGED_MAP.get(d.managed_by, d.managed_by),
+            'managed_department_label': d.managed_department_label if d.managed_department_id else '',
             'status': d.status,
             'status_label': STATUS_MAP.get(d.status, d.status),
             'usage_department_text': d.usage_department_text or (
@@ -250,12 +249,13 @@ def import_devices_from_excel(file_obj, category_code: str) -> tuple[int, list[s
     if df.empty:
         return 0, ['File Excel không có dữ liệu.']
 
+    from equipment.services.device_categories import import_profile_for_code
+    from equipment.services.managed_department import default_managed_department_for_scope, resolve_managed_department
+
     count = 0
     errors = []
-    default_managed = (
-        Device.MANAGED_IT if category_code in ('PC', 'Laptop', 'Printer', 'Network', 'Internet', 'CCTV', 'PHONE', 'ATTENDANCE', 'DISPLAY')
-        else Device.MANAGED_MAINTENANCE
-    )
+    default_scope = 'it' if import_profile_for_code(category_code) == 'it' else 'production'
+    default_dept = default_managed_department_for_scope(default_scope)
 
     for idx, row in df.iterrows():
         row_num = int(idx) + 2  # header = dòng 1
@@ -281,11 +281,13 @@ def import_devices_from_excel(file_obj, category_code: str) -> tuple[int, list[s
             from equipment.services.device_code import normalize_device_code
 
             device_code_raw = normalize_device_code(_cell(row, 'device_code'))
+            managed_raw = _cell(row, 'managed_department') or _cell(row, 'managed_by')
+            managed_dept = resolve_managed_department(managed_raw) or default_dept
             Device.objects.create(
                 device_code=device_code_raw,
                 name=_safe_str(name),
                 category=category_code,
-                managed_by=_safe_str(_cell(row, 'managed_by'), default_managed) or default_managed,
+                managed_department=managed_dept,
                 status=_safe_str(_cell(row, 'status'), Device.STATUS_NEW) or Device.STATUS_NEW,
                 usage_department_text=_safe_str(_cell(row, 'usage_department_text')),
                 usage_room=_safe_str(_cell(row, 'usage_room')),

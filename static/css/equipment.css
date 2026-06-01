@@ -22,6 +22,50 @@
     top: 1rem;
 }
 
+.jp-eq-detail-header {
+    border-bottom: 1px solid var(--bs-border-color-translucent);
+    padding-bottom: 1rem;
+}
+
+.jp-eq-scope-badge {
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.jp-eq-scope-it {
+    background: rgba(13, 110, 253, 0.1);
+    color: #0d6efd;
+    border: 1px solid rgba(13, 110, 253, 0.25);
+}
+
+.jp-eq-scope-prod {
+    background: rgba(220, 38, 38, 0.08);
+    color: var(--hm-primary, #dc2626);
+    border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+.jp-eq-detail-stats .jp-eq-stat-value {
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.35;
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.jp-eq-detail-dl dt {
+    color: var(--bs-secondary-color);
+    font-weight: 500;
+}
+
+.jp-eq-detail-dl dd {
+    margin-bottom: 0.65rem;
+}
+
+.jp-eq-detail-dl dd:last-child,
+.jp-eq-detail-dl dt:last-of-type {
+    margin-bottom: 0;
+}
+
 .jp-eq-actions {
     border-left: 4px solid var(--bs-primary, #0d6efd);
 }

@@ -98,6 +98,23 @@ def import_profile_for_code(code: str) -> str:
     return static_import_profile(code)
 
 
+def category_codes_for_profile(profile: str) -> list[str]:
+    if _db_categories_ready():
+        from equipment.models import DeviceCategory
+
+        rows = DeviceCategory.objects.filter(is_active=True, import_profile=profile).values_list('code', flat=True)
+        codes = list(rows)
+        if codes:
+            return codes
+    from equipment.categories import CATEGORY_CHOICES, IMPORT_PROFILE_BY_GROUP
+
+    return [
+        code
+        for code, _label, group in CATEGORY_CHOICES
+        if IMPORT_PROFILE_BY_GROUP.get(group, 'machine') == profile
+    ]
+
+
 def group_for_code(code: str) -> str:
     if _db_categories_ready():
         from equipment.models import DeviceCategory

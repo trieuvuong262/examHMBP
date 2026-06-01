@@ -12,7 +12,7 @@ class DeviceForm(forms.ModelForm):
         fields = [
             'device_code',
             'name',
-            'managed_by',
+            'managed_department',
             'category',
             'usage_department',
             'usage_department_text',
@@ -34,7 +34,7 @@ class DeviceForm(forms.ModelForm):
         widgets = {
             'device_code': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'TB-000001'}),
             'name': forms.TextInput(attrs={'class': 'form-control'}),
-            'managed_by': forms.Select(attrs={'class': 'form-select'}),
+            'managed_department': forms.Select(attrs={'class': 'form-select'}),
             'category': forms.Select(attrs={'class': 'form-select'}),
             'usage_department': forms.Select(attrs={'class': 'form-select'}),
             'usage_department_text': forms.TextInput(attrs={'class': 'form-control'}),
@@ -54,9 +54,10 @@ class DeviceForm(forms.ModelForm):
             'ip_address': forms.TextInput(attrs={'class': 'form-control'}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, equipment_scope=None, **kwargs):
         super().__init__(*args, **kwargs)
         from equipment.services.device_categories import categories_by_group, category_label
+        from equipment.services.managed_department import default_managed_department_for_scope
 
         grouped = categories_by_group()
         choices: list[tuple[str, str]] = []
@@ -85,8 +86,15 @@ class DeviceForm(forms.ModelForm):
         category_field.extra_option = extra_option
         self.fields['category'] = category_field
 
-        self.fields['usage_department'].queryset = Department.objects.order_by('name')
+        self.fields['usage_department'].queryset = Department.objects.filter(is_active=True).order_by('sort_order', 'name')
         self.fields['usage_department'].required = False
+
+        self.fields['managed_department'].queryset = Department.objects.filter(is_active=True).order_by('sort_order', 'name')
+        self.fields['managed_department'].required = False
+        if not self.instance.pk and equipment_scope:
+            default_dept = default_managed_department_for_scope(equipment_scope)
+            if default_dept:
+                self.fields['managed_department'].initial = default_dept.pk
 
         User = get_user_model()
         self.fields['assigned_user'].queryset = (

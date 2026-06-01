@@ -8,15 +8,6 @@ from equipment.services.qr_tag import generate_asset_tag, remove_old_qr_file, sh
 
 
 class Device(models.Model):
-    MANAGED_IT = 'IT'
-    MANAGED_MAINTENANCE = 'MAINTENANCE'
-    MANAGED_OTHER = 'OTHER'
-    MANAGED_CHOICES = [
-        (MANAGED_IT, 'IT / CNTT'),
-        (MANAGED_MAINTENANCE, 'Bảo trì xưởng'),
-        (MANAGED_OTHER, 'Khác'),
-    ]
-
     CATEGORY_CHOICES = []  # runtime — dùng services/device_categories.py
 
     STATUS_NEW = 'new'
@@ -39,8 +30,13 @@ class Device(models.Model):
         verbose_name='Mã thiết bị',
     )
     name = models.CharField(max_length=200, verbose_name='Tên thiết bị')
-    managed_by = models.CharField(
-        max_length=20, choices=MANAGED_CHOICES, default=MANAGED_IT, verbose_name='Bộ phận quản lý',
+    managed_department = models.ForeignKey(
+        'hrm.Department',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='managed_equipment',
+        verbose_name='Bộ phận quản lý',
     )
     category = models.CharField(
         max_length=50, default='PC', db_index=True, verbose_name='Loại thiết bị',
@@ -99,6 +95,18 @@ class Device(models.Model):
     def get_category_display(self):
         from equipment.services.device_categories import category_label
         return category_label(self.category)
+
+    @property
+    def managed_department_label(self):
+        if self.managed_department_id:
+            return self.managed_department.name
+        return '—'
+
+    @property
+    def is_it_equipment(self) -> bool:
+        from equipment.services.device_categories import import_profile_for_code
+
+        return import_profile_for_code(self.category) == 'it'
 
     @property
     def usage_department_label(self):
@@ -258,6 +266,36 @@ class MaintenanceLog(models.Model):
 
     def __str__(self):
         return f'{self.device.name} · {self.created_at:%Y-%m-%d}'
+
+
+class DeviceUpdateLog(models.Model):
+    ACTION_CREATE = 'create'
+    ACTION_UPDATE = 'update'
+    ACTION_CHOICES = [
+        (ACTION_CREATE, 'Tạo mới'),
+        (ACTION_UPDATE, 'Cập nhật'),
+    ]
+
+    device = models.ForeignKey(Device, on_delete=models.CASCADE, related_name='update_logs')
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='equipment_update_logs',
+        verbose_name='Người cập nhật',
+    )
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES, default=ACTION_UPDATE)
+    summary = models.TextField(verbose_name='Nội dung thay đổi')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Lịch sử cập nhật thiết bị'
+        verbose_name_plural = 'Lịch sử cập nhật thiết bị'
+
+    def __str__(self):
+        return f'{self.device.device_code} · {self.created_at:%Y-%m-%d %H:%M}'
 
 
 class EquipmentScanControl(models.Model):

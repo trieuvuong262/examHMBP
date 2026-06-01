@@ -33,7 +33,7 @@ class DeviceAdmin(admin.ModelAdmin):
         'is_online',
         'last_scan_date',
     )
-    list_filter = ('status', 'category', 'managed_by', 'is_online')
+    list_filter = ('status', 'category', 'managed_department', 'is_online')
     search_fields = (
         'device_code',
         'name',
@@ -51,7 +51,7 @@ class DeviceAdmin(admin.ModelAdmin):
     inlines = [MaintenanceLogInline]
     fieldsets = (
         ('Thiết bị', {
-            'fields': ('device_code', 'name', 'category', 'status', 'managed_by', 'description'),
+            'fields': ('device_code', 'name', 'category', 'status', 'managed_department', 'description'),
         }),
         ('Người dùng & phòng ban', {
             'fields': (
