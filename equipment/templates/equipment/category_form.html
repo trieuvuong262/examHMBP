@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/equipment.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <h2 class="fw-bold text-hm mb-1 jp-page-title">
+            <i class="bi bi-tag me-2"></i>{% if is_edit %}Sửa loại thiết bị{% else %}Thêm loại thiết bị{% endif %}
+        </h2>
+    </div>
+
+    {% include 'equipment/includes/subnav.html' %}
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+            <form method="post">
+                {% csrf_token %}
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">{{ form.code.label }}</label>
+                        {{ form.code }}
+                        {% if form.code.help_text %}<div class="form-text">{{ form.code.help_text }}</div>{% endif %}
+                        {{ form.code.errors }}
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label fw-bold">{{ form.name.label }}</label>
+                        {{ form.name }}
+                        {{ form.name.errors }}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">{{ form.group.label }}</label>
+                        {{ form.group }}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">{{ form.import_profile.label }}</label>
+                        {{ form.import_profile }}
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold">{{ form.sort_order.label }}</label>
+                        {{ form.sort_order }}
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <div class="form-check mb-2">
+                            {{ form.is_active }}
+                            <label class="form-check-label">{{ form.is_active.label }}</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-hm">Lưu</button>
+                    <a href="{% url 'equipment:category_list' %}" class="btn btn-outline-secondary ms-2">Hủy</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

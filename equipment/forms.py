@@ -2,7 +2,7 @@ from django import forms
 
 from hrm.models import Department, Profile
 
-from .models import Device
+from .models import Device, DeviceCategory
 
 
 class DeviceForm(forms.ModelForm):
@@ -53,12 +53,52 @@ class DeviceForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        from equipment.services.device_categories import categories_by_group
+
+        choices = []
+        for _g, _label, items in categories_by_group():
+            choices.extend(items)
+        self.fields['category'].widget = forms.Select(attrs={'class': 'form-select', 'data-jp-category-select': '1'})
+        self.fields['category'].choices = choices
         self.fields['usage_department'].queryset = Department.objects.order_by('name')
         self.fields['usage_department'].required = False
         self.fields['assigned_user'].queryset = Profile.objects.filter(
             is_employed=True,
         ).select_related('user').order_by('full_name')
         self.fields['assigned_user'].required = False
+
+
+class DeviceCategoryForm(forms.ModelForm):
+    class Meta:
+        model = DeviceCategory
+        fields = ['code', 'name', 'group', 'import_profile', 'sort_order', 'is_active']
+        widgets = {
+            'code': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'VD: SEW_OVERLOCK'}),
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'group': forms.Select(attrs={'class': 'form-select'}),
+            'import_profile': forms.Select(attrs={'class': 'form-select'}),
+            'sort_order': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from equipment.categories import CATEGORY_GROUP_LABELS
+
+        self.fields['group'].choices = [(k, v) for k, v in CATEGORY_GROUP_LABELS.items()]
+        if self.instance and self.instance.pk:
+            self.fields['code'].disabled = True
+        self.fields['code'].help_text = 'Mã duy nhất, không dấu — không đổi sau khi tạo.'
+
+    def clean_code(self):
+        code = (self.cleaned_data.get('code') or '').strip().upper().replace(' ', '_')
+        if not code:
+            raise forms.ValidationError('Vui lòng nhập mã loại.')
+        if self.instance.pk:
+            return self.instance.code
+        if DeviceCategory.objects.filter(code=code).exists():
+            raise forms.ValidationError('Mã loại đã tồn tại.')
+        return code
 
 
 class ReportIssueForm(forms.Form):

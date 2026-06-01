@@ -18,10 +18,12 @@ from hrm.module_permissions import MODULE_EQUIPMENT, user_can_access_module, use
 from PortalJustPlay.list_search import apply_term_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
-from equipment.categories import (
-    CATEGORY_CHOICES_BY_GROUP,
-    CATEGORY_MAP,
-    import_columns_for_category,
+from equipment.categories import CATEGORY_GROUP_LABELS, import_columns_for_category
+from equipment.services.device_categories import (
+    categories_by_group,
+    category_choices,
+    category_map,
+    valid_codes,
 )
 
 from .forms import DeviceForm, ReportIssueForm
@@ -120,7 +122,7 @@ def dashboard(request):
     top_cats = MaintenanceLog.objects.values('device__category').annotate(
         count=Count('id'),
     ).order_by('-count')
-    cat_map = dict(Device.CATEGORY_CHOICES)
+    cat_map = category_map()
     cat_labels = [cat_map.get(item['device__category'], item['device__category']) for item in top_cats]
     cat_data = [item['count'] for item in top_cats]
 
@@ -351,8 +353,8 @@ def device_list(request):
         'current_is_online': is_online,
         'existing_depts': existing_depts,
         'managed_choices': Device.MANAGED_CHOICES,
-        'category_choices': Device.CATEGORY_CHOICES,
-        'category_groups': CATEGORY_CHOICES_BY_GROUP,
+        'category_choices': category_choices(),
+        'category_groups': categories_by_group(),
         'status_choices': Device.STATUS_CHOICES,
         'can_edit': user_can_edit_module(request.user, MODULE_EQUIPMENT),
         'can_export': user_can_access_module(request.user, MODULE_EQUIPMENT),
@@ -523,18 +525,20 @@ def _equipment_departments():
 def _import_export_context(request, active_tab: str = 'import'):
     can_edit = user_can_edit_module(request.user, MODULE_EQUIPMENT)
     selected_category = (request.GET.get('category') or 'PC').strip()
-    if selected_category not in CATEGORY_MAP:
+    if selected_category not in valid_codes():
         selected_category = 'PC'
 
     export_categories = request.GET.getlist('category')
     export_count = count_for_export(request.GET)
+    cmap = category_map()
 
     return {
         'active_tab': active_tab,
         'can_edit': can_edit,
-        'category_groups': CATEGORY_CHOICES_BY_GROUP,
+        'category_groups': categories_by_group(),
+        'category_group_labels': CATEGORY_GROUP_LABELS,
         'selected_category': selected_category,
-        'selected_category_label': CATEGORY_MAP.get(selected_category, selected_category),
+        'selected_category_label': cmap.get(selected_category, selected_category),
         'import_columns': import_columns_for_category(selected_category),
         'export_count': export_count,
         'export_categories': export_categories,
@@ -593,12 +597,12 @@ def export_devices(request):
 @_edit_required
 def download_sample(request):
     category = (request.GET.get('category') or 'PC').strip()
-    if category not in CATEGORY_MAP:
+    if category not in valid_codes():
         messages.error(request, 'Loại thiết bị không hợp lệ.')
         return redirect(f"{reverse('equipment:import_export_hub')}?tab=import")
 
     df = build_sample_dataframe(category)
-    label = CATEGORY_MAP.get(category, category).replace('/', '-')
+    label = category_map().get(category, category).replace('/', '-')
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = f'attachment; filename="mau_{category}_{label[:30]}.xlsx"'
     df.to_excel(response, index=False)
@@ -614,7 +618,7 @@ def import_devices(request):
         return redirect(url)
 
     selected_category = (request.POST.get('category') or 'PC').strip()
-    if selected_category not in CATEGORY_MAP:
+    if selected_category not in valid_codes():
         selected_category = 'PC'
 
     excel_file = request.FILES.get('excel_file')
@@ -622,7 +626,7 @@ def import_devices(request):
     if not excel_file:
         messages.error(request, 'Vui lòng chọn file Excel.')
         return redirect(f"{reverse('equipment:import_export_hub')}?tab=import&category={category}")
-    if category not in CATEGORY_MAP:
+    if category not in valid_codes():
         messages.error(request, 'Loại thiết bị không hợp lệ.')
         return redirect(f"{reverse('equipment:import_export_hub')}?tab=import")
 
@@ -631,7 +635,7 @@ def import_devices(request):
         if count:
             messages.success(
                 request,
-                f'Đã nhập {count} thiết bị loại «{CATEGORY_MAP.get(category, category)}».',
+                f'Đã nhập {count} thiết bị loại «{category_map().get(category, category)}».',
             )
         if errors:
             preview = '; '.join(errors[:5])
@@ -645,6 +649,84 @@ def import_devices(request):
         return redirect(f"{reverse('equipment:import_export_hub')}?tab=import&category={category}")
 
     return redirect('equipment:device_list')
+
+
+@_edit_required
+def category_list(request):
+    from equipment.models import DeviceCategory
+
+    search = (request.GET.get('q') or '').strip()
+    qs = DeviceCategory.objects.all()
+    if search:
+        qs = qs.filter(
+            Q(code__icontains=search) | Q(name__icontains=search) | Q(group__icontains=search)
+        )
+    categories = qs.order_by('group', 'sort_order', 'name')
+    return render(request, 'equipment/category_list.html', {
+        'categories': categories,
+        'search_query': search,
+        'group_labels': CATEGORY_GROUP_LABELS,
+        **_subnav_context(request),
+    })
+
+
+@_edit_required
+@require_http_methods(['GET', 'POST'])
+def category_add(request):
+    from equipment.forms import DeviceCategoryForm
+
+    if request.method == 'POST':
+        form = DeviceCategoryForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Đã thêm loại «{form.instance.name}».')
+            return redirect('equipment:category_list')
+    else:
+        form = DeviceCategoryForm()
+    return render(request, 'equipment/category_form.html', {
+        'form': form,
+        'is_edit': False,
+        **_subnav_context(request),
+    })
+
+
+@_edit_required
+@require_http_methods(['GET', 'POST'])
+def category_edit(request, pk):
+    from equipment.forms import DeviceCategoryForm
+    from equipment.models import DeviceCategory
+
+    category = get_object_or_404(DeviceCategory, pk=pk)
+    if request.method == 'POST':
+        form = DeviceCategoryForm(request.POST, instance=category)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Đã cập nhật loại thiết bị.')
+            return redirect('equipment:category_list')
+    else:
+        form = DeviceCategoryForm(instance=category)
+    return render(request, 'equipment/category_form.html', {
+        'form': form,
+        'category': category,
+        'is_edit': True,
+        **_subnav_context(request),
+    })
+
+
+@_edit_required
+@require_http_methods(['POST'])
+def category_delete(request, pk):
+    from equipment.models import Device, DeviceCategory
+
+    category = get_object_or_404(DeviceCategory, pk=pk)
+    in_use = Device.objects.filter(category=category.code).count()
+    if in_use:
+        messages.error(request, f'Không xóa được — còn {in_use} thiết bị đang dùng loại này.')
+        return redirect('equipment:category_list')
+    name = category.name
+    category.delete()
+    messages.success(request, f'Đã xóa loại «{name}».')
+    return redirect('equipment:category_list')
 
 
 @_edit_required

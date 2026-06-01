@@ -35,8 +35,19 @@
 
 .jp-eq-category-menu {
     min-width: 100%;
-    max-height: 260px;
+    max-height: 320px;
     overflow-y: auto;
+    padding-top: 0;
+}
+
+.jp-eq-category-menu .jp-category-search {
+    border-radius: 0.35rem;
+}
+
+.jp-eq-category-menu .sticky-top {
+    top: 0;
+    z-index: 2;
+    padding-top: 0.5rem;
 }
 
 .jp-eq-category-menu .form-check {

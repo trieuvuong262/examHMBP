@@ -4,7 +4,6 @@ import uuid
 from django.conf import settings
 from django.db import models
 
-from equipment.categories import DEVICE_CATEGORY_CHOICES
 from equipment.services.qr_tag import generate_asset_tag, remove_old_qr_file, should_redraw_tag
 
 
@@ -18,7 +17,7 @@ class Device(models.Model):
         (MANAGED_OTHER, 'Khác'),
     ]
 
-    CATEGORY_CHOICES = DEVICE_CATEGORY_CHOICES
+    CATEGORY_CHOICES = []  # runtime — dùng services/device_categories.py
 
     STATUS_NEW = 'new'
     STATUS_ACTIVE = 'active'
@@ -39,7 +38,7 @@ class Device(models.Model):
         max_length=20, choices=MANAGED_CHOICES, default=MANAGED_IT, verbose_name='Bộ phận quản lý',
     )
     category = models.CharField(
-        max_length=50, choices=CATEGORY_CHOICES, default='PC', verbose_name='Loại thiết bị',
+        max_length=50, default='PC', db_index=True, verbose_name='Loại thiết bị',
     )
     usage_department = models.ForeignKey(
         'hrm.Department',
@@ -91,6 +90,10 @@ class Device(models.Model):
 
     def __str__(self):
         return self.name
+
+    def get_category_display(self):
+        from equipment.services.device_categories import category_label
+        return category_label(self.category)
 
     @property
     def usage_department_label(self):
@@ -174,6 +177,45 @@ class Device(models.Model):
                 kwargs['update_fields'] = fields
 
         super().save(*args, **kwargs)
+
+
+class DeviceCategory(models.Model):
+    IMPORT_IT = 'it'
+    IMPORT_MACHINE = 'machine'
+    IMPORT_PROFILE_CHOICES = [
+        (IMPORT_IT, 'IT (có Hostname, IP…)'),
+        (IMPORT_MACHINE, 'Máy xưởng'),
+    ]
+
+    code = models.CharField(max_length=50, unique=True, verbose_name='Mã loại')
+    name = models.CharField(max_length=200, verbose_name='Tên hiển thị')
+    group = models.CharField(max_length=30, verbose_name='Nhóm')
+    import_profile = models.CharField(
+        max_length=20, choices=IMPORT_PROFILE_CHOICES, default=IMPORT_MACHINE,
+        verbose_name='Mẫu import Excel',
+    )
+    sort_order = models.PositiveIntegerField(default=0, verbose_name='Thứ tự')
+    is_active = models.BooleanField(default=True, verbose_name='Đang dùng')
+    is_system = models.BooleanField(default=False, verbose_name='Loại hệ thống')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['group', 'sort_order', 'name']
+        verbose_name = 'Loại thiết bị'
+        verbose_name_plural = 'Loại thiết bị'
+
+    def __str__(self):
+        return f'{self.name} ({self.code})'
+
+    @property
+    def group_label(self):
+        from equipment.categories import CATEGORY_GROUP_LABELS
+        return CATEGORY_GROUP_LABELS.get(self.group, self.group)
+
+    @property
+    def device_count(self):
+        return Device.objects.filter(category=self.code).count()
 
 
 class MaintenanceLog(models.Model):

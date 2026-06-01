@@ -8,11 +8,10 @@ from io import BytesIO
 import pandas as pd
 from django.db.models import Q
 
-from equipment.categories import (
-    CATEGORY_MAP,
-    import_columns_for_category,
-    normalize_category,
-    sample_row_for_category,
+from equipment.categories import import_columns_for_category, sample_row_for_category
+from equipment.services.device_categories import (
+    category_map,
+    normalize_category_value,
 )
 from equipment.models import Device
 
@@ -181,7 +180,7 @@ def devices_to_dataframe(devices) -> pd.DataFrame:
         rows.append({
             'name': d.name,
             'category': d.category,
-            'category_label': CATEGORY_MAP.get(d.category, d.category),
+            'category_label': category_map().get(d.category, d.category),
             'managed_by': d.managed_by,
             'managed_by_label': MANAGED_MAP.get(d.managed_by, d.managed_by),
             'status': d.status,
@@ -221,7 +220,7 @@ def build_export_filename(count: int, category_codes: list[str] | None = None) -
     stamp = datetime.now().strftime('%Y%m%d_%H%M')
     if category_codes and len(category_codes) == 1:
         code = category_codes[0]
-        label = CATEGORY_MAP.get(code, code).replace('/', '-').replace(' ', '_')[:20]
+        label = category_map().get(code, code).replace('/', '-').replace(' ', '_')[:20]
         return f'thiet_bi_{label}_{count}_{stamp}.xlsx'
     return f'thiet_bi_justplay_{count}_{stamp}.xlsx'
 
@@ -239,7 +238,7 @@ def import_devices_from_excel(file_obj, category_code: str) -> tuple[int, list[s
     Nhập thiết bị từ Excel theo loại đã chọn.
     Trả về (số bản ghi thành công, danh sách lỗi).
     """
-    if category_code not in CATEGORY_MAP:
+    if category_code not in category_map():
         return 0, [f'Loại thiết bị không hợp lệ: {category_code}']
 
     df = pd.read_excel(file_obj)
@@ -262,7 +261,7 @@ def import_devices_from_excel(file_obj, category_code: str) -> tuple[int, list[s
 
         file_category = _cell(row, 'category') or _cell(row, 'Loại')
         if file_category:
-            normalized = normalize_category(file_category)
+            normalized = normalize_category_value(file_category)
             if normalized and normalized != category_code:
                 errors.append(
                     f'Dòng {row_num}: loại trong file ({file_category}) khác loại đã chọn ({category_code}).'

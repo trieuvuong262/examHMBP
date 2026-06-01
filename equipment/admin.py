@@ -3,6 +3,7 @@ from django.contrib import admin
 from .models import (
     AgentInstallToken,
     Device,
+    DeviceCategory,
     EquipmentScanControl,
     MaintenanceLog,
     UserAgentRegistration,
@@ -80,6 +81,14 @@ class DeviceAdmin(admin.ModelAdmin):
             'classes': ('collapse',),
         }),
     )
+
+
+@admin.register(DeviceCategory)
+class DeviceCategoryAdmin(admin.ModelAdmin):
+    list_display = ('code', 'name', 'group', 'import_profile', 'sort_order', 'is_active', 'is_system')
+    list_filter = ('group', 'import_profile', 'is_active')
+    search_fields = ('code', 'name')
+    ordering = ('group', 'sort_order', 'name')
 
 
 @admin.register(MaintenanceLog)

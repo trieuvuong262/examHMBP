@@ -13,6 +13,11 @@
             <p class="text-muted mb-0">{{ filtered_count }} / {{ total_count }} thiết bị</p>
         </div>
         <div class="d-flex flex-wrap gap-2 align-items-center">
+            {% if can_edit %}
+            <a href="{% url 'equipment:device_add' %}" class="btn btn-hm btn-sm">
+                <i class="bi bi-plus-lg me-1"></i>Thêm thiết bị
+            </a>
+            {% endif %}
             {% if can_edit and agent_scan_mode %}
             <form method="post" action="{% url 'equipment:request_agent_rescan' %}" class="d-inline">
                 {% csrf_token %}
@@ -144,10 +149,19 @@
                                 <span id="categoryFilterLabel">Tất cả loại</span>
                             </button>
                             <div class="dropdown-menu jp-eq-category-menu shadow-sm">
+                                <div class="px-2 pb-2 sticky-top bg-white border-bottom">
+                                    <input type="search"
+                                           class="form-control form-control-sm jp-category-search"
+                                           placeholder="Gõ để tìm loại…"
+                                           autocomplete="off"
+                                           aria-label="Tìm loại thiết bị">
+                                </div>
+                                <div class="jp-category-options">
                                 {% for group_code, group_label, items in category_groups %}
-                                <div class="px-2 py-1 small fw-bold text-muted">{{ group_label }}</div>
+                                <div class="jp-category-group" data-group-label="{{ group_label|lower }}">
+                                <div class="px-2 py-1 small fw-bold text-muted jp-category-group-title">{{ group_label }}</div>
                                 {% for val, label in items %}
-                                <div class="form-check ms-2">
+                                <div class="form-check ms-2 jp-category-item" data-label="{{ label|lower }}">
                                     <input class="form-check-input jp-category-check"
                                            type="checkbox"
                                            name="category"
@@ -157,8 +171,11 @@
                                     <label class="form-check-label" for="cat-{{ val }}">{{ label }}</label>
                                 </div>
                                 {% endfor %}
-                                {% if not forloop.last %}<div class="dropdown-divider my-1"></div>{% endif %}
+                                </div>
+                                {% if not forloop.last %}<div class="dropdown-divider my-1 jp-category-divider"></div>{% endif %}
                                 {% endfor %}
+                                </div>
+                                <div class="jp-category-empty small text-muted px-3 py-2 d-none">Không khớp loại nào.</div>
                                 <div class="border-top mt-1 pt-1 px-2 d-flex gap-1">
                                     <button type="button" class="btn btn-link btn-sm p-0" id="categoryClearBtn">Bỏ chọn</button>
                                 </div>
@@ -407,6 +424,39 @@
     var categoryChecks = document.querySelectorAll('.jp-category-check');
     var categoryLabel = document.getElementById('categoryFilterLabel');
     var categoryClear = document.getElementById('categoryClearBtn');
+    var categorySearch = document.querySelector('.jp-category-search');
+    var categoryEmpty = document.querySelector('.jp-category-empty');
+
+    function filterCategoryOptions(query) {
+        var q = (query || '').trim().toLowerCase();
+        var anyVisible = false;
+        document.querySelectorAll('.jp-category-group').forEach(function (group) {
+            var groupVisible = false;
+            group.querySelectorAll('.jp-category-item').forEach(function (item) {
+                var label = item.getAttribute('data-label') || '';
+                var match = !q || label.indexOf(q) !== -1;
+                item.classList.toggle('d-none', !match);
+                if (match) groupVisible = true;
+            });
+            var title = group.querySelector('.jp-category-group-title');
+            var groupLabel = group.getAttribute('data-group-label') || '';
+            var showGroup = groupVisible || (q && groupLabel.indexOf(q) !== -1);
+            group.classList.toggle('d-none', !showGroup);
+            if (title) title.classList.toggle('d-none', q && !groupVisible && groupLabel.indexOf(q) === -1);
+            if (groupVisible) anyVisible = true;
+        });
+        document.querySelectorAll('.jp-category-divider').forEach(function (el) {
+            el.classList.add('d-none');
+        });
+        if (categoryEmpty) categoryEmpty.classList.toggle('d-none', anyVisible || !q);
+    }
+
+    if (categorySearch) {
+        categorySearch.addEventListener('input', function () {
+            filterCategoryOptions(categorySearch.value);
+        });
+        categorySearch.addEventListener('click', function (e) { e.stopPropagation(); });
+    }
 
     function updateCategoryLabel() {
         if (!categoryLabel) return;

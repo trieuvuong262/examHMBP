@@ -20,6 +20,10 @@
         </a>
         {% endif %}
         {% if jp_can_edit_equipment %}
+        <a href="{% url 'equipment:category_list' %}"
+           class="btn btn-sm {% if 'category_' in request.resolver_match.url_name %}btn-hm{% else %}btn-outline-secondary{% endif %}">
+            <i class="bi bi-tags me-1"></i>Loại thiết bị
+        </a>
         <a href="{% url 'equipment:device_add' %}"
            class="btn btn-sm {% if request.resolver_match.url_name == 'device_add' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
             <i class="bi bi-plus-lg me-1"></i>Thêm thiết bị

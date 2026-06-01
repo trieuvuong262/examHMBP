@@ -275,8 +275,9 @@ def import_profile_for_category(code: str) -> str:
 
 
 def import_columns_for_category(code: str) -> list:
-    profile = import_profile_for_category(code)
-    return IMPORT_PROFILE_COLUMNS[profile]
+    from equipment.services.device_categories import import_profile_for_code
+    profile = import_profile_for_code(code)
+    return IMPORT_PROFILE_COLUMNS.get(profile, IMPORT_COLUMNS_MACHINE)
 
 
 def normalize_category(value) -> str | None:
@@ -300,7 +301,7 @@ def sample_row_for_category(code: str) -> dict:
     if code in SAMPLE_ROWS:
         return dict(SAMPLE_ROWS[code])
     profile = import_profile_for_category(code)
-    label = CATEGORY_MAP.get(code, code)
+    label = category_map().get(code, code)
     row = {
         'name': f'Ví dụ: {label}',
         'managed_by': 'MAINTENANCE' if profile == 'machine' else 'IT',
