@@ -3,36 +3,15 @@ from unittest.mock import patch
 from django.test import SimpleTestCase, TestCase, override_settings
 
 from equipment.services.email_notify import get_it_notify_emails
-from equipment.services.wmi_scan import is_bad_serial as scan_bad_serial, parse_ip_range
 
 
-class WmiScanHelpersTests(SimpleTestCase):
+class AgentCoreTests(SimpleTestCase):
     def test_is_bad_serial(self):
-        self.assertTrue(scan_bad_serial('Default string'))
-        self.assertTrue(scan_bad_serial(None))
-        self.assertFalse(scan_bad_serial('ABC123456'))
+        from equipment.agent.core import is_bad_serial
 
-    def test_parse_ip_range(self):
-        ips = parse_ip_range('192.168.1.1', '192.168.1.3')
-        self.assertEqual(ips, ['192.168.1.1', '192.168.1.2', '192.168.1.3'])
-
-    def test_parse_ip_range_too_large(self):
-        with self.assertRaises(ValueError):
-            parse_ip_range('10.0.0.0', '10.0.2.0')
-
-    @override_settings(DEBUG=True)
-    def test_wmi_supported_on_windows_debug(self):
-        from equipment.services.scan_backend import is_local_wmi_available
-
-        with patch('equipment.services.scan_backend.platform.system', return_value='Windows'):
-            self.assertTrue(is_local_wmi_available())
-
-    @override_settings(DEBUG=True)
-    def test_wmi_not_supported_on_linux_without_relay(self):
-        from equipment.services.scan_backend import is_local_wmi_available
-
-        with patch('equipment.services.scan_backend.platform.system', return_value='Linux'):
-            self.assertFalse(is_local_wmi_available())
+        self.assertTrue(is_bad_serial('Default string'))
+        self.assertTrue(is_bad_serial(None))
+        self.assertFalse(is_bad_serial('ABC123456'))
 
 
 class EmailNotifyTests(SimpleTestCase):
@@ -42,28 +21,6 @@ class EmailNotifyTests(SimpleTestCase):
             emails = get_it_notify_emails()
         self.assertEqual(emails, ['a@test.com', 'b@test.com'])
 
-
-class ScanRelayTests(SimpleTestCase):
-    def test_probe_ip_skips_closed_port(self):
-        from equipment.relay.wmi_standalone import probe_ip
-
-        with patch('equipment.relay.wmi_standalone.port_135_open', return_value=False):
-            self.assertIsNone(probe_ip('192.168.1.99', username='u', password='p'))
-
-    def test_scan_relay_validate_requires_windows(self):
-        import scan_relay
-
-        with patch('scan_relay.platform.system', return_value='Linux'):
-            errors = scan_relay.validate_config({
-                'portal_url': 'https://example.com',
-                'api_secret': 'x',
-                'start_ip': '192.168.1.1',
-                'end_ip': '192.168.1.2',
-                'scan_user': 'u',
-                'scan_pass': 'p',
-                'max_hosts': '255',
-            })
-        self.assertTrue(any('Windows' in e for e in errors))
 
 class AgentInstallFlowTests(TestCase):
     @override_settings(

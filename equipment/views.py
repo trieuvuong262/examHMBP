@@ -35,21 +35,6 @@ from .services.import_export import (
     export_devices_excel,
     import_devices_from_excel,
 )
-from .services.wmi_scan import (
-    apply_probe_payload_to_device,
-    discover_device_from_ip,
-    is_local_wmi_available,
-    is_relay_scan_available,
-    is_scan_available,
-    is_wmi_scan_supported,
-    parse_ip_range,
-    scan_device_wmi,
-    scan_unavailable_message,
-    upsert_device_from_probe,
-    wmi_unavailable_message,
-)
-from .services.scan_backend import is_agent_scan_available, relay_http_url
-from .services.scan_relay_client import ScanRelayError, scan_lan_remote, scan_range_remote, scan_targets_remote
 
 
 def _access_required(view_func):
@@ -728,194 +713,6 @@ def delete_bulk_devices(request):
     return redirect('equipment:device_list')
 
 
-def _require_scan(request):
-    if not is_scan_available():
-        messages.error(request, scan_unavailable_message())
-        return False
-    return True
-
-
-def _save_probes_to_db(probes: list[dict]) -> tuple[int, int]:
-    found_count = 0
-    new_device_count = 0
-    for probe in probes:
-        device, created = upsert_device_from_probe(probe)
-        if device is None:
-            continue
-        found_count += 1
-        if created:
-            new_device_count += 1
-    return found_count, new_device_count
-
-
-@_edit_required
-@require_http_methods(['POST'])
-def scan_lan_network(request):
-    """Quét toàn mạng LAN (/24) — qua Tailscale tới máy Windows IT."""
-    if not _require_scan(request):
-        return redirect('equipment:device_list')
-
-    scan_user = (request.POST.get('scan_user') or '').strip()
-    scan_pass = request.POST.get('scan_pass') or ''
-    if not scan_user or not scan_pass:
-        messages.error(request, 'Vui lòng nhập tài khoản và mật khẩu Admin domain.')
-        return redirect('equipment:device_list')
-
-    try:
-        if is_local_wmi_available():
-            from equipment.relay.wmi_standalone import detect_lan_ip_range, scan_ip_list
-
-            start_ip, end_ip, lan_label = detect_lan_ip_range()
-            ips = parse_ip_range(start_ip, end_ip)
-            probes = scan_ip_list(ips, username=scan_user, password=scan_pass)
-        else:
-            data = scan_lan_remote(scan_user=scan_user, scan_pass=scan_pass)
-            probes = data.get('probes', [])
-            start_ip = data.get('start_ip', '')
-            end_ip = data.get('end_ip', '')
-            lan_label = data.get('lan_label') or f'{start_ip} – {end_ip}'
-    except ScanRelayError as exc:
-        messages.error(request, str(exc))
-        return redirect('equipment:device_list')
-    except ValueError as exc:
-        messages.error(request, str(exc))
-        return redirect('equipment:device_list')
-
-    found_count, new_device_count = _save_probes_to_db(probes)
-    messages.success(
-        request,
-        f'Đã quét toàn LAN {lan_label}. '
-        f'Tìm thấy {found_count} máy. Thêm mới {new_device_count} thiết bị.',
-    )
-    return redirect('equipment:device_list')
-
-
-@_edit_required
-@require_http_methods(['POST'])
-def scan_selected_devices(request):
-    if not _require_scan(request):
-        return redirect('equipment:device_list')
-
-    device_ids = request.POST.getlist('device_ids')
-    scan_user = (request.POST.get('scan_user') or '').strip()
-    scan_pass = request.POST.get('scan_pass') or ''
-
-    if not device_ids:
-        messages.warning(request, 'Chưa chọn thiết bị nào.')
-        return redirect('equipment:device_list')
-    if not scan_user or not scan_pass:
-        messages.error(request, 'Vui lòng nhập tài khoản và mật khẩu Admin để quét WMI.')
-        return redirect('equipment:device_list')
-
-    devices = list(Device.objects.filter(id__in=device_ids))
-    count_ip = 0
-    count_wmi = 0
-    count_qr = 0
-
-    if is_local_wmi_available():
-        for device in devices:
-            ip_updated, wmi_updated, qr_redrawn = scan_device_wmi(
-                device,
-                username=scan_user,
-                password=scan_pass,
-            )
-            if ip_updated:
-                count_ip += 1
-            if wmi_updated:
-                count_wmi += 1
-            if qr_redrawn:
-                count_qr += 1
-    else:
-        try:
-            targets = [
-                {
-                    'id': str(d.id),
-                    'hostname': d.hostname or '',
-                    'ip_address': str(d.ip_address) if d.ip_address else '',
-                }
-                for d in devices
-            ]
-            data = scan_targets_remote(targets=targets, scan_user=scan_user, scan_pass=scan_pass)
-            device_map = {str(d.id): d for d in devices}
-            for entry in data.get('results', []):
-                device = device_map.get(entry.get('id'))
-                if not device:
-                    continue
-                ip_u, wmi_u, qr_u = apply_probe_payload_to_device(device, entry)
-                if ip_u:
-                    count_ip += 1
-                if wmi_u:
-                    count_wmi += 1
-                if qr_u:
-                    count_qr += 1
-        except ScanRelayError as exc:
-            messages.error(request, str(exc))
-            return redirect('equipment:device_list')
-
-    messages.success(
-        request,
-        f'Hoàn tất quét {len(devices)} thiết bị. '
-        f'Cập nhật IP: {count_ip}. WMI: {count_wmi}. Vẽ lại tem QR: {count_qr}.',
-    )
-    return redirect('equipment:device_list')
-
-
-@_edit_required
-@require_http_methods(['POST'])
-def scan_network_range(request):
-    if not _require_scan(request):
-        return redirect('equipment:device_list')
-
-    start_ip = (request.POST.get('start_ip') or '').strip()
-    end_ip = (request.POST.get('end_ip') or '').strip()
-    scan_user = (request.POST.get('scan_user') or '').strip()
-    scan_pass = request.POST.get('scan_pass') or ''
-
-    if not scan_user or not scan_pass:
-        messages.error(request, 'Vui lòng nhập tài khoản và mật khẩu Admin.')
-        return redirect('equipment:device_list')
-
-    try:
-        ip_list = parse_ip_range(start_ip, end_ip)
-    except ValueError as exc:
-        messages.error(request, str(exc))
-        return redirect('equipment:device_list')
-
-    found_count = 0
-    new_device_count = 0
-
-    if is_local_wmi_available():
-        for ip_str in ip_list:
-            try:
-                result = discover_device_from_ip(ip_str, username=scan_user, password=scan_pass)
-                if result:
-                    found_count += 1
-                    _, created = result
-                    if created:
-                        new_device_count += 1
-            except Exception:
-                continue
-    else:
-        try:
-            data = scan_range_remote(
-                start_ip=start_ip,
-                end_ip=end_ip,
-                scan_user=scan_user,
-                scan_pass=scan_pass,
-            )
-            found_count, new_device_count = _save_probes_to_db(data.get('probes', []))
-        except ScanRelayError as exc:
-            messages.error(request, str(exc))
-            return redirect('equipment:device_list')
-
-    messages.success(
-        request,
-        f'Đã quét dải {start_ip} – {end_ip}. '
-        f'Tìm thấy {found_count} máy. Thêm mới {new_device_count} thiết bị.',
-    )
-    return redirect('equipment:device_list')
-
-
 @csrf_exempt
 def api_agent_report(request):
     if request.method != 'POST':
@@ -928,7 +725,7 @@ def api_agent_report(request):
             return JsonResponse({'status': 'error', 'message': 'Sai Secret Key'}, status=403)
 
         serial = data.get('serial')
-        from equipment.services.wmi_scan import is_bad_serial
+        from equipment.agent.core import is_bad_serial
 
         if is_bad_serial(serial):
             return JsonResponse({'status': 'error', 'message': 'Serial không hợp lệ'}, status=400)
@@ -979,9 +776,8 @@ def api_agent_poll(request):
 def request_agent_rescan(request):
     """Portal: yêu cầu mọi agent báo cáo lại (trong ~1–2 phút)."""
     from equipment.models import EquipmentScanControl
-    from equipment.services.scan_backend import is_agent_scan_available
 
-    if not is_agent_scan_available():
+    if not getattr(settings, 'EQUIPMENT_AGENT_SECRET', ''):
         messages.error(request, 'Chưa cấu hình EQUIPMENT_AGENT_SECRET trên server.')
         return redirect('equipment:device_list')
 
@@ -1191,16 +987,5 @@ def agent_guide(request):
     return render(request, 'equipment/agent_guide.html', {
         'portal_url': portal_url,
         'has_agent_secret': bool(getattr(settings, 'EQUIPMENT_AGENT_SECRET', '')),
-        **_subnav_context(request),
-    })
-
-
-@_edit_required
-def scan_relay_guide(request):
-    """Hướng dẫn quét WMI tập trung (relay Tailscale — tuỳ chọn)."""
-    return render(request, 'equipment/scan_relay.html', {
-        'relay_http_url': relay_http_url(),
-        'has_relay_secret': bool(getattr(settings, 'EQUIPMENT_RELAY_SECRET', '')),
-        'scan_available': is_scan_available(),
         **_subnav_context(request),
     })

@@ -23,9 +23,6 @@ urlpatterns = [
     path('file-mau/', views.download_sample, name='download_sample'),
     path('nhap-excel/', views.import_devices, name='import_devices'),
     path('xoa-hang-loat/', views.delete_bulk_devices, name='delete_bulk_devices'),
-    path('quet-wmi/', views.scan_selected_devices, name='scan_selected_devices'),
-    path('quet-lan/', views.scan_lan_network, name='scan_lan_network'),
-    path('quet-dai-ip/', views.scan_network_range, name='scan_network_range'),
     path('api/agent-report/', views.api_agent_report, name='api_agent_report'),
     path('api/agent-poll/', views.api_agent_poll, name='api_agent_poll'),
     path('agent/', views.agent_guide, name='agent_guide'),
@@ -37,5 +34,4 @@ urlpatterns = [
     path('agent/trang-thai/', views.api_agent_install_status, name='api_agent_install_status'),
     path('agent/ping/', views.agent_config_ping, name='agent_config_ping'),
     path('agent/quet/', views.request_agent_rescan, name='request_agent_rescan'),
-    path('quet-relay/', views.scan_relay_guide, name='scan_relay_guide'),
 ]

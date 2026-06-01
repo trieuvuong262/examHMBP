@@ -1,6 +1,5 @@
 .env
 .env.local
-scan_relay.env
 __pycache__/
 *.pyc
 *.pyo
