@@ -10,7 +10,7 @@ class InternalProjectForm(forms.ModelForm):
     members = forms.ModelMultipleChoiceField(
         queryset=User.objects.none(),
         label='Thành viên dự án',
-        widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size': 8}),
+        widget=forms.CheckboxSelectMultiple(),
         help_text='Thành viên dự án — cấp dưới trực tiếp hoặc nhân sự cùng phòng (Trưởng bộ phận). Dùng @username trong comment để nhắc.',
     )
 

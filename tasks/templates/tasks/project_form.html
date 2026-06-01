@@ -1,11 +1,12 @@
 {% extends 'base.html' %}
+{% load user_picker %}
 
 {% block content %}
 <div class="container jp-page jp-tasks-page py-3 py-md-4 mb-5">
     <div class="jp-page-header mb-3 mb-md-4">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title">{% if is_create %}Tạo dự án nội bộ{% else %}Sửa dự án{% endif %}</h2>
-            <p class="text-muted mb-0">Thành viên chỉ gồm cấp dưới trực tiếp của bạn.</p>
+            <p class="text-muted mb-0">Thành viên dự án — chọn từ danh sách nhân viên khả dụng.</p>
         </div>
     </div>
 
@@ -18,7 +19,11 @@
                 {% for field in form %}
                 <div class="mb-3">
                     <label class="form-label fw-bold" for="{{ field.id_for_label }}">{{ field.label }}</label>
-                    {{ field }}
+                    {% if field.name == 'members' %}
+                        {% user_picker field=field placeholder='Chọn thành viên dự án...' %}
+                    {% else %}
+                        {{ field }}
+                    {% endif %}
                     {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
                     {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
                 </div>

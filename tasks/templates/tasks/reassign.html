@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load user_picker %}
 
 {% block content %}
 <div class="container jp-page jp-tasks-page py-3 py-md-4 mb-5">
@@ -21,7 +22,7 @@
             <form method="post">
                 {% csrf_token %}
                 <label class="form-label fw-bold">{{ form.assignee.label }}</label>
-                {{ form.assignee }}
+                {% user_picker field=form.assignee mode='single' placeholder='Chọn người nhận việc...' show_bulk_actions=False %}
                 {% if form.assignee.errors %}<div class="text-danger small">{{ form.assignee.errors }}</div>{% endif %}
                 <p class="form-text mt-2">Tạo bản ghi mới cho người được chọn; việc cũ chuyển sang trạng thái "Đã giao lại".</p>
                 <div class="mt-3 d-flex gap-2">

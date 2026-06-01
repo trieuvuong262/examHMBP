@@ -1,0 +1,61 @@
+{# Dropdown chọn nhân viên — tìm kiếm + checkbox/radio #}
+<div class="jp-user-picker"
+     data-field-name="{{ field.html_name }}"
+     data-mode="{{ mode }}">
+    <button type="button"
+            class="jp-user-picker-toggle form-control text-start d-flex align-items-center justify-content-between"
+            aria-haspopup="listbox"
+            aria-expanded="false">
+        <span class="jp-user-picker-label text-muted">{{ placeholder }}</span>
+        <i class="bi bi-chevron-down ms-2 flex-shrink-0"></i>
+    </button>
+
+    <div class="jp-user-picker-menu shadow-sm border rounded-3" hidden>
+        <div class="p-2 border-bottom">
+            <input type="search"
+                   class="form-control form-control-sm jp-user-picker-search"
+                   placeholder="Tìm theo tên, mã NS, account..."
+                   autocomplete="off">
+        </div>
+        {% if show_bulk_actions %}
+        <div class="jp-user-picker-actions px-2 py-1 border-bottom d-flex gap-2">
+            <button type="button" class="btn btn-link btn-sm p-0 jp-user-picker-all">Chọn tất cả</button>
+            <button type="button" class="btn btn-link btn-sm p-0 text-secondary jp-user-picker-none">Bỏ chọn</button>
+        </div>
+        {% endif %}
+        <div class="jp-user-picker-list" role="listbox">
+            {% for user in users %}
+            <label class="jp-user-picker-option d-flex align-items-start gap-2"
+                   data-user-id="{{ user.pk }}"
+                   data-role="{{ user.profile.role|default:'' }}"
+                   data-position="{{ user.profile.job_position|default:'' }}"
+                   data-search="{{ user.profile.full_name|default:user.username|lower }} {{ user.profile.employee_code|default:''|lower }} {{ user.username|lower }} {{ user.profile.job_position|default:''|lower }} {{ user.profile.get_role_display|default:''|lower }}">
+                {% if mode == 'single' %}
+                <input type="radio"
+                       class="form-check-input mt-1 flex-shrink-0"
+                       name="{{ field.html_name }}"
+                       value="{{ user.pk }}"
+                       {% if user.pk|stringformat:"s" in selected_ids %}checked{% endif %}>
+                {% else %}
+                <input type="checkbox"
+                       class="form-check-input mt-1 flex-shrink-0"
+                       name="{{ field.html_name }}"
+                       value="{{ user.pk }}"
+                       {% if user.pk|stringformat:"s" in selected_ids %}checked{% endif %}>
+                {% endif %}
+                <span>
+                    <strong>{{ user.profile.full_name|default:user.username }}</strong>
+                    <span class="d-block small text-muted">
+                        {{ user.profile.employee_code|default:"—" }} · {{ user.username }}
+                        {% if user.profile.job_position %} · {{ user.profile.job_position }}{% endif %}
+                    </span>
+                </span>
+            </label>
+            {% empty %}
+            <p class="text-muted small mb-0 p-3">Không có nhân viên nào để chọn.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="jp-user-picker-chips d-flex flex-wrap gap-1 mt-2"></div>
+</div>

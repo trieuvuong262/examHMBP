@@ -1,9 +1,7 @@
 {% extends "base.html" %}
+{% load user_picker %}
 
 {% block content %}
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
-
 <style>
     :root {
         --hm-primary: #dc2626;
@@ -164,9 +162,9 @@
 
                                 <div class="select2-hm-wrapper">
                                     <label class="form-label fw-bold small text-dark mb-2">Danh sách nhân viên dự thi <span class="text-danger">*</span></label>
-                                    {{ form.assigned_users }}
+                                    {% user_picker field=form.assigned_users placeholder='Chọn nhân viên dự thi...' %}
                                     <div class="form-text x-small mt-2 text-muted">
-                                        <i class="bi bi-info-circle me-1"></i>Gõ tên hoặc chức danh để tìm kiếm.
+                                        <i class="bi bi-info-circle me-1"></i>Tìm theo tên, mã NS, account hoặc vị trí.
                                     </div>
                                 </div>
                             </div>
@@ -311,65 +309,28 @@
 </div>
 {% endif %}
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-
 <script>
-    $(document).ready(function() {
-        $('select[name="assigned_users"]').select2({
-            theme: 'bootstrap-5',
-            placeholder: "🔍 Tìm nhân viên hoặc chức danh...",
-            allowClear: true,
-            width: '100%',
-            closeOnSelect: false
-        }).on('select2:unselecting', function (e) {
-            $(this).data('state', 'unselecting');
-        }).on('select2:open', function(e) {
-            if ($(this).data('state') === 'unselecting') {
-                $(this).removeData('state');
-                const self = $(this);
-                setTimeout(function() {
-                    self.parent().find('.select2-search__field').val('').trigger('input');
-                    self.select2('close');
-                }, 1);
-            }
+    document.addEventListener('DOMContentLoaded', function() {
+        const fieldName = 'assigned_users';
+
+        document.querySelectorAll('.btn-quick-select[data-pos]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const position = btn.dataset.pos || '';
+                const added = window.JpUserPicker.selectByFilter(fieldName, function(opt) {
+                    return (opt.dataset.search || '').includes(position.toLowerCase());
+                }, true);
+                flashButton(btn, added > 0);
+            });
         });
 
-        $('.btn-quick-select').click(function() {
-            const btn = $(this);
-            const position = btn.data('pos');
-            const selectElement = $('select[name="assigned_users"]');
-            const currentValues = selectElement.val() || [];
-            let addedCount = 0;
-
-            selectElement.find('option').each(function() {
-                const text = $(this).text();
-                if (text.includes(position)) {
-                    if (!currentValues.includes($(this).val())) {
-                        currentValues.push($(this).val());
-                        addedCount++;
-                    }
+        const clearBtn = document.getElementById('btn-clear-users');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function() {
+                if (confirm('Xác nhận xóa toàn bộ danh sách đã chọn?')) {
+                    window.JpUserPicker.clear(fieldName);
                 }
             });
-
-            if (addedCount > 0) {
-                selectElement.val(currentValues).trigger('change');
-                const originalHtml = btn.html();
-                btn.html('<i class="bi bi-check-circle-fill me-1"></i>Đã thêm');
-                btn.css('opacity', '0.7');
-                setTimeout(() => { btn.html(originalHtml).css('opacity', '1'); }, 1200);
-            } else {
-                const originalHtml = btn.html();
-                btn.html('<i class="bi bi-info-circle me-1"></i>Đã chọn');
-                setTimeout(() => { btn.html(originalHtml); }, 1200);
-            }
-        });
-
-        $('#btn-clear-users').click(function() {
-            if(confirm('Xác nhận xóa toàn bộ danh sách đã chọn?')) {
-                $('select[name="assigned_users"]').val(null).trigger('change');
-            }
-        });
+        }
 
         const isActiveSwitch = document.getElementById('isActiveSwitch');
         const statusLabel = document.getElementById('statusLabel');
@@ -381,6 +342,18 @@
                     statusLabel.innerHTML = '<span class="text-secondary"><i class="bi bi-circle small me-1"></i>Đang khóa</span>';
                 }
             });
+        }
+
+        function flashButton(btn, success) {
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = success
+                ? '<i class="bi bi-check-circle-fill me-1"></i>Đã thêm'
+                : '<i class="bi bi-info-circle me-1"></i>Đã chọn';
+            btn.style.opacity = '0.7';
+            setTimeout(function() {
+                btn.innerHTML = originalHtml;
+                btn.style.opacity = '1';
+            }, 1200);
         }
     });
 </script>

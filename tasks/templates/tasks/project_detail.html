@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static user_picker %}
 
 {% block content %}
 <div class="container jp-page jp-tasks-page py-3 py-md-4 mb-5">
@@ -187,7 +187,7 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">{{ step_form.assignee.label }}</label>
-                                {{ step_form.assignee }}
+                                {% user_picker field=step_form.assignee mode='single' placeholder='Chọn người phụ trách...' show_bulk_actions=False %}
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">{{ step_form.depends_on.label }}</label>

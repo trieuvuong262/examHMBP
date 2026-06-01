@@ -277,8 +277,6 @@ def assign_task(request):
                 messages.error(request, '; '.join(getattr(exc, 'messages', [str(exc)])))
                 return render(request, 'tasks/assign.html', {
                     'form': form,
-                    'assignable_users': assignable_users,
-                    'selected_ids': request.POST.getlist('assignees'),
                     'team_count': team_count,
                     'assignee_scope_hint': assignee_scope_hint,
                     'can_assign': True,
@@ -352,8 +350,6 @@ def assign_task(request):
 
     return render(request, 'tasks/assign.html', {
         'form': form,
-        'assignable_users': assignable_users,
-        'selected_ids': [],
         'team_count': team_count,
         'assignee_scope_hint': assignee_scope_hint,
         'can_assign': True,

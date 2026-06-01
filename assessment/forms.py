@@ -21,7 +21,7 @@ class ExamForm(forms.ModelForm):
             ),
             'duration_minutes': forms.NumberInput(attrs={'class': 'form-control'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'assigned_users': forms.SelectMultiple(attrs={'class': 'form-select select2-user'}),
+            'assigned_users': forms.CheckboxSelectMultiple(),
         }
 
     def __init__(self, *args, **kwargs):

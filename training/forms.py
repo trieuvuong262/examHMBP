@@ -14,7 +14,7 @@ class CourseForm(forms.ModelForm):
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Mô tả ngắn gọn về khóa học...'}),
             'thumbnail': forms.ClearableFileInput(attrs={'class': 'form-control'}),
             'final_exam': forms.Select(attrs={'class': 'form-select'}),
-            'assigned_users': forms.SelectMultiple(attrs={'class': 'form-select select2-user'}),
+            'assigned_users': forms.CheckboxSelectMultiple(),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         

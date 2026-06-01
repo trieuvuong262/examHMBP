@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static user_picker %}
 
 {% block content %}
 <div class="container jp-page jp-tasks-page py-3 py-md-4 mb-5">
@@ -57,7 +57,7 @@
                     </div>
                     <div class="col-12">
                         <label class="form-label fw-bold">{{ form.assignees.label }}</label>
-                        {% include 'tasks/includes/assignee_picker.html' with field=form.assignees users=assignable_users selected_ids=selected_ids %}
+                        {% user_picker field=form.assignees %}
                         {% if form.assignees.help_text %}<div class="form-text">{{ form.assignees.help_text }}</div>{% endif %}
                         {% if form.assignees.errors %}<div class="text-danger small">{{ form.assignees.errors }}</div>{% endif %}
                         <div class="form-text">Hiển thị {{ assignee_scope_hint }} — tìm theo <strong>họ tên · mã NS · account</strong>.</div>
@@ -132,7 +132,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{% static 'js/tasks-assignee-picker.js' %}"></script>
 <script>
 (function () {
     const toggle = document.getElementById('id_is_recurring');

@@ -95,7 +95,7 @@ class CustomUserForm(forms.Form):
     subordinates = forms.ModelMultipleChoiceField(
         queryset=User.objects.select_related('profile').order_by('profile__full_name', 'username'),
         required=False,
-        widget=forms.SelectMultiple(attrs={'class': 'form-select select2-multiple'}),
+        widget=forms.CheckboxSelectMultiple(),
         label='Nhân viên cấp dưới trực tiếp',
         help_text='Người được chọn sẽ nộp báo cáo cho quản lý này; quản lý xem và duyệt báo cáo của họ.',
     )
