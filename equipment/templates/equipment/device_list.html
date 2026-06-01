@@ -20,17 +20,7 @@
         </div>
     </div>
 
-    {% if can_edit and agent_scan_mode %}
-    <div class="alert alert-info border-0 shadow-sm mb-3 py-2 small">
-        <i class="bi bi-info-circle me-1"></i>
-        Mỗi PC cần <strong>JustPlayAgent.exe</strong> (1 lần). Bấm <strong>Quét tất cả PC</strong> để yêu cầu agent online báo cáo lại.
-        <a href="{% url 'equipment:agent_guide' %}" class="alert-link">Hướng dẫn cài →</a>
-        <form method="post" action="{% url 'equipment:request_agent_rescan' %}" class="d-inline ms-2">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-dark btn-sm py-0">Quét tất cả PC</button>
-        </form>
-    </div>
-    {% elif can_edit and not scan_available %}
+    {% if can_edit and not scan_available and not agent_scan_mode %}
     <div class="alert alert-warning border-0 shadow-sm mb-3 py-2 small">
         <strong>Quét WMI chưa sẵn sàng.</strong>
         <a href="{% url 'equipment:scan_relay_guide' %}" class="alert-link">Hướng dẫn bật quét →</a>
@@ -39,7 +29,6 @@
     <div class="alert alert-light border shadow-sm mb-3 py-2 small d-flex flex-wrap align-items-center gap-2">
         <span><i class="bi bi-broadcast me-1"></i>Quét mạng PC:</span>
         <button type="button" class="btn btn-dark btn-sm" data-bs-toggle="modal" data-bs-target="#lanScanModal">Toàn LAN</button>
-        <button type="button" class="btn btn-outline-dark btn-sm" data-bs-toggle="modal" data-bs-target="#scanModal">Đã chọn</button>
         <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#rangeScanModal">Dải IP</button>
     </div>
     {% endif %}
@@ -116,43 +105,12 @@
         </div>
     </div>
 
-    {% if can_edit or can_export %}
-    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-        {% if can_edit %}
-        <div class="form-check mb-0">
-            <input class="form-check-input" type="checkbox" id="selectAllTop" aria-label="Chọn tất cả">
-            <label class="form-check-label small text-muted" for="selectAllTop">Chọn tất cả</label>
-        </div>
-        {% endif %}
-        {% if can_export %}
-        <button type="button" id="btnBulkExport" class="btn btn-outline-hm btn-sm ms-auto" disabled>
-            <i class="bi bi-download me-1"></i>Xuất đã chọn (<span id="exportSelectedCount">0</span>)
-        </button>
-        {% endif %}
-        {% if can_edit %}
-        <button type="button" id="btnBulkDelete" class="btn btn-danger btn-sm{% if not can_export %} ms-auto{% endif %}" disabled>
-            <i class="bi bi-trash me-1"></i>Xóa đã chọn (<span id="selectedCount">0</span>)
-        </button>
-        {% endif %}
-    </div>
-    {% endif %}
-
-    <form id="bulkActionForm" method="post" action="">
-        {% csrf_token %}
-        <input type="hidden" name="scan_user" id="hiddenScanUser">
-        <input type="hidden" name="scan_pass" id="hiddenScanPass">
-
-        {% if page_obj %}
+    {% if page_obj %}
         <div class="card border-0 shadow-sm overflow-hidden">
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0 jp-eq-table">
                     <thead class="table-light">
                         <tr>
-                            {% if can_edit or can_export %}
-                            <th style="width:36px" class="text-center">
-                                <input class="form-check-input" type="checkbox" id="selectAll" aria-label="Chọn tất cả">
-                            </th>
-                            {% endif %}
                             <th style="width:48px">QR</th>
                             <th>Thiết bị</th>
                             <th>Loại</th>
@@ -165,11 +123,6 @@
                     <tbody>
                         {% for device in page_obj %}
                         <tr>
-                            {% if can_edit or can_export %}
-                            <td class="text-center">
-                                <input class="form-check-input device-checkbox" type="checkbox" name="device_ids" value="{{ device.id }}">
-                            </td>
-                            {% endif %}
                             <td class="jp-eq-qr-cell text-center">
                                 {% if device.qr_code %}
                                 <a href="{{ device.qr_code.url }}" download title="Tải tem QR">
@@ -221,7 +174,6 @@
             <div class="card-body text-center text-muted py-5">Không tìm thấy thiết bị.</div>
         </div>
         {% endif %}
-    </form>
 </div>
 
 {% if can_edit and scan_available %}
@@ -253,32 +205,6 @@
                     <button type="submit" class="btn btn-dark fw-bold">Bắt đầu quét</button>
                 </div>
             </form>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="scanModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-dark text-white">
-                <h5 class="modal-title"><i class="bi bi-terminal me-2"></i>Quét thiết bị đã chọn</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="alert alert-info small mb-3">Chọn checkbox trong bảng trước khi quét.</div>
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Tài khoản Admin (Domain)</label>
-                    <input type="text" id="scanUser" class="form-control" placeholder="JUSTPLAY\it-admin" value="{{ scan_default_user }}">
-                </div>
-                <div class="mb-0">
-                    <label class="form-label fw-bold">Mật khẩu</label>
-                    <input type="password" id="scanPass" class="form-control" autocomplete="current-password">
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Huỷ</button>
-                <button type="button" class="btn btn-dark fw-bold" id="btnStartWmiScan">Bắt đầu quét</button>
-            </div>
         </div>
     </div>
 </div>
@@ -317,85 +243,5 @@
         </div>
     </div>
 </div>
-{% endif %}
-{% endblock %}
-
-{% block scripts %}
-{% if can_edit or can_export %}
-<script>
-(function () {
-    const selectAll = document.getElementById('selectAll');
-    const selectAllTop = document.getElementById('selectAllTop');
-    const checkboxes = document.querySelectorAll('.device-checkbox');
-    const bulkForm = document.getElementById('bulkActionForm');
-    const btnDelete = document.getElementById('btnBulkDelete');
-    const btnExport = document.getElementById('btnBulkExport');
-    const selectedCount = document.getElementById('selectedCount');
-    const exportSelectedCount = document.getElementById('exportSelectedCount');
-    const btnScan = document.getElementById('btnStartWmiScan');
-
-    function syncSelectAll(checked) {
-        if (selectAll) selectAll.checked = checked;
-        if (selectAllTop) selectAllTop.checked = checked;
-    }
-
-    function updateSelectionUI() {
-        const n = document.querySelectorAll('.device-checkbox:checked').length;
-        if (selectedCount) selectedCount.textContent = String(n);
-        if (exportSelectedCount) exportSelectedCount.textContent = String(n);
-        if (btnDelete) btnDelete.disabled = n === 0;
-        if (btnExport) btnExport.disabled = n === 0;
-    }
-
-    function onSelectAllChange(checked) {
-        checkboxes.forEach(function (cb) { cb.checked = checked; });
-        syncSelectAll(checked);
-        updateSelectionUI();
-    }
-
-    if (selectAll) {
-        selectAll.addEventListener('change', function () { onSelectAllChange(selectAll.checked); });
-    }
-    if (selectAllTop) {
-        selectAllTop.addEventListener('change', function () { onSelectAllChange(selectAllTop.checked); });
-    }
-    checkboxes.forEach(function (cb) {
-        cb.addEventListener('change', function () {
-            if (!cb.checked) syncSelectAll(false);
-            updateSelectionUI();
-        });
-    });
-
-    if (btnDelete && bulkForm) {
-        btnDelete.addEventListener('click', function () {
-            if (!confirm('Xóa các thiết bị đã chọn? Hành động không hoàn tác được.')) return;
-            bulkForm.action = "{% url 'equipment:delete_bulk_devices' %}";
-            bulkForm.submit();
-        });
-    }
-
-    if (btnExport && bulkForm) {
-        btnExport.addEventListener('click', function () {
-            bulkForm.action = "{% url 'equipment:export_devices' %}";
-            bulkForm.method = 'post';
-            bulkForm.submit();
-        });
-    }
-
-    if (btnScan && bulkForm) {
-        btnScan.addEventListener('click', function () {
-            const checked = document.querySelectorAll('.device-checkbox:checked');
-            if (!checked.length) { alert('Chọn ít nhất một thiết bị.'); return; }
-            const user = document.getElementById('scanUser').value.trim();
-            const pass = document.getElementById('scanPass').value;
-            if (!user || !pass) { alert('Nhập tài khoản và mật khẩu Admin.'); return; }
-            document.getElementById('hiddenScanUser').value = user;
-            document.getElementById('hiddenScanPass').value = pass;
-            bulkForm.action = "{% url 'equipment:scan_selected_devices' %}";
-            bulkForm.submit();
-        });
-    }
-})();
-</script>
 {% endif %}
 {% endblock %}
