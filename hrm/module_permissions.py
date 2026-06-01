@@ -5,6 +5,8 @@ Mỗi phòng ban có danh sách module được phép truy cập.
 Thành viên thuộc phòng ban chỉ thấy menu và URL tương ứng.
 """
 
+import re
+
 from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.shortcuts import redirect
@@ -24,7 +26,8 @@ MODULE_DOCUMENTS = 'documents'
 MODULE_PERMISSIONS = 'permissions'
 MODULE_AUDIT = 'audit'
 MODULE_TASKS = 'tasks'
-MODULE_SERVICE_REQUESTS = 'service_requests'
+MODULE_DE_XUAT = 'de_xuat'
+MODULE_HO_TRO = 'ho_tro'
 MODULE_NAS_STORAGE = 'nas_storage'
 MODULE_EQUIPMENT = 'equipment'
 MODULE_FEEDBACK = 'feedback'
@@ -42,7 +45,8 @@ MODULE_CHOICES = [
     (MODULE_PERMISSIONS, 'Phân quyền'),
     (MODULE_AUDIT, 'Nhật ký thao tác'),
     (MODULE_TASKS, 'Công việc'),
-    (MODULE_SERVICE_REQUESTS, 'Yêu cầu'),
+    (MODULE_DE_XUAT, 'Đề xuất mới'),
+    (MODULE_HO_TRO, 'Hỗ trợ kỹ thuật'),
     (MODULE_NAS_STORAGE, 'Thư mục NAS'),
     (MODULE_EQUIPMENT, 'Quản lý thiết bị'),
     (MODULE_FEEDBACK, 'Góp ý'),
@@ -82,7 +86,8 @@ PATH_MODULE_RULES = [
     ('/tai-lieu/', MODULE_DOCUMENTS),
     ('/nhat-ky/', MODULE_AUDIT),
     ('/cong-viec/', MODULE_TASKS),
-    ('/yeu-cau/', MODULE_SERVICE_REQUESTS),
+    ('/yeu-cau/de-xuat/', MODULE_DE_XUAT),
+    ('/yeu-cau/ho-tro/', MODULE_HO_TRO),
     ('/thu-muc-nas/', MODULE_NAS_STORAGE),
     ('/thiet-bi/', MODULE_EQUIPMENT),
     ('/gop-y/', MODULE_FEEDBACK),
@@ -128,6 +133,9 @@ def get_department_enabled_modules(department) -> set:
         return set(ALL_MODULE_KEYS)
 
     enabled = {m for m in (perm.modules or []) if m in ALL_MODULE_KEYS}
+    if 'service_requests' in (perm.modules or []):
+        enabled.add(MODULE_DE_XUAT)
+        enabled.add(MODULE_HO_TRO)
     if not enabled:
         return set(ALL_MODULE_KEYS)
     return enabled
@@ -235,6 +243,25 @@ def resolve_module_from_request(path: str, tab: str | None = None) -> str | None
     for prefix, module_key in PATH_MODULE_RULES:
         if path.startswith(prefix):
             return module_key
+
+    legacy_detail = re.match(r'^/yeu-cau/(\d+)/$', path)
+    if legacy_detail:
+        pk = int(legacy_detail.group(1))
+        try:
+            from service_requests.models import RequestType, ServiceRequest
+            code = ServiceRequest.objects.filter(pk=pk).values_list(
+                'request_type__code', flat=True,
+            ).first()
+            if code == RequestType.CODE_IT_REPAIR:
+                return MODULE_HO_TRO
+            if code == RequestType.CODE_ASSET_PURCHASE:
+                return MODULE_DE_XUAT
+        except Exception:
+            pass
+        return None
+
+    if path.startswith('/yeu-cau/'):
+        return None
 
     if path.rstrip('/') == '/dashboard' or path == '/dashboard/':
         if tab and tab in DASHBOARD_TAB_MODULES:

@@ -7,11 +7,13 @@ from django.urls import reverse
 
 from django.db.models import Q
 
-from hrm.module_permissions import MODULE_SERVICE_REQUESTS, user_can_access_module
-from PortalJustPlay.list_search import apply_combined_search, apply_term_search, get_search_query
-from PortalJustPlay.pagination import paginate_queryset
-from tasks.attachment_utils import read_separate_uploads
-
+from .access import user_can_access_flow
+from .flow import (
+    FLOW_DE_XUAT,
+    FLOW_HO_TRO,
+    FLOW_LABELS,
+    normalize_flow_tab,
+)
 from .forms import (
     DivisionHeadApproveForm,
     ItRepairCompleteForm,
@@ -53,11 +55,9 @@ from .workflow import (
     log_action,
     reject_step,
 )
-from .flow import (
-    FLOW_DE_XUAT,
-    FLOW_HO_TRO,
-    normalize_flow_tab,
-)
+from PortalJustPlay.list_search import apply_combined_search, apply_term_search, get_search_query
+from PortalJustPlay.pagination import paginate_queryset
+from tasks.attachment_utils import read_separate_uploads
 from .workflow_it import (
     create_it_repair_request,
     get_it_repair_request_type,
@@ -93,18 +93,34 @@ def _list_url_for_request(service_request):
     return reverse('service_requests:de_xuat_my')
 
 
-def _access_required(view_func):
-    @login_required
-    def wrapper(request, *args, **kwargs):
-        if not user_can_access_module(request.user, MODULE_SERVICE_REQUESTS):
-            messages.error(request, 'Bạn không có quyền truy cập module Yêu cầu.')
-            return redirect('home_portal')
-        return view_func(request, *args, **kwargs)
-    return wrapper
+def _detail_url(service_request):
+    if service_request.is_it_repair:
+        return reverse('service_requests:ho_tro_detail', kwargs={'pk': service_request.pk})
+    return reverse('service_requests:de_xuat_detail', kwargs={'pk': service_request.pk})
+
+
+def _flow_access_required(view_func=None, *, flow_tab=None):
+    def decorator(fn):
+        @login_required
+        def wrapper(request, *args, **kwargs):
+            ft = normalize_flow_tab(
+                kwargs.get('flow_tab') or flow_tab or request.resolver_match.kwargs.get('flow_tab'),
+            )
+            if not user_can_access_flow(request.user, ft):
+                messages.error(
+                    request,
+                    f'Bạn không có quyền truy cập module {FLOW_LABELS.get(ft, ft)}.',
+                )
+                return redirect('home_portal')
+            return fn(request, *args, **kwargs)
+        return wrapper
+    if view_func is not None:
+        return decorator(view_func)
+    return decorator
 
 
 def _catalog_required(view_func):
-    @_access_required
+    @_flow_access_required(flow_tab=FLOW_DE_XUAT)
     def wrapper(request, *args, **kwargs):
         if not can_manage_recurring_catalog(request.user):
             messages.error(request, 'Chỉ Thu mua mới quản lý danh mục định kỳ.')
@@ -183,12 +199,18 @@ def _line_items_from_formset(formset, recurring_item=None):
     return items
 
 
-@_access_required
+@login_required
 def request_hub(request):
-    return redirect('service_requests:de_xuat_my')
+    from hrm.module_permissions import MODULE_DE_XUAT, MODULE_HO_TRO, user_can_access_module
+    if user_can_access_module(request.user, MODULE_DE_XUAT):
+        return redirect('service_requests:de_xuat_my')
+    if user_can_access_module(request.user, MODULE_HO_TRO):
+        return redirect('service_requests:ho_tro_my')
+    messages.error(request, 'Bạn không có quyền truy cập module Yêu cầu.')
+    return redirect('home_portal')
 
 
-@_access_required
+@_flow_access_required
 def my_requests(request, flow_tab=None):
     search_query = get_search_query(request)
     flow_tab = normalize_flow_tab(flow_tab or request.GET.get('loai'))
@@ -223,7 +245,7 @@ def my_requests(request, flow_tab=None):
     return render(request, 'service_requests/my_list.html', ctx)
 
 
-@_access_required
+@_flow_access_required
 def pending_requests(request, flow_tab=None):
     search_query = get_search_query(request)
     flow_tab = normalize_flow_tab(flow_tab or request.GET.get('loai'))
@@ -253,7 +275,7 @@ def pending_requests(request, flow_tab=None):
     return render(request, 'service_requests/pending_list.html', ctx)
 
 
-@_access_required
+@_flow_access_required(flow_tab=FLOW_DE_XUAT)
 def create_request(request):
     request_type = get_active_request_type()
     if not request_type:
@@ -298,7 +320,7 @@ def create_request(request):
                             message=f'Đính kèm {len(prepared)} file',
                         )
                     messages.success(request, 'Đã gửi yêu cầu — đang chờ xử lý theo quy trình.')
-                    return redirect('service_requests:detail', pk=service_request.pk)
+                    return redirect(_detail_url(service_request))
                 except ValueError as exc:
                     messages.error(request, str(exc))
     else:
@@ -313,7 +335,7 @@ def create_request(request):
     })
 
 
-@_access_required
+@_flow_access_required(flow_tab=FLOW_HO_TRO)
 def create_it_repair(request):
     request_type = get_it_repair_request_type()
     if not request_type:
@@ -375,7 +397,7 @@ def create_it_repair(request):
                 from equipment.services.email_notify import notify_breakdown_from_request
                 notify_breakdown_from_request(service_request, reporter_name=reporter_name)
                 messages.success(request, 'Đã gửi yêu cầu hỗ trợ kỹ thuật — đang chờ xử lý.')
-                return redirect('service_requests:detail', pk=service_request.pk)
+                return redirect(_detail_url(service_request))
             except ValueError as exc:
                 messages.error(request, str(exc))
     else:
@@ -400,8 +422,14 @@ def create_it_repair(request):
     })
 
 
-@_access_required
-def request_detail(request, pk):
+@login_required
+def request_detail_legacy(request, pk):
+    service_request = get_object_or_404(ServiceRequest, pk=pk)
+    return redirect(_detail_url(service_request))
+
+
+@login_required
+def request_detail(request, pk, flow_tab=None):
     service_request = get_object_or_404(
         ServiceRequest.objects.select_related(
             'requester', 'requester__profile', 'request_type', 'recurring_item', 'goods_receiver__profile',
@@ -439,7 +467,15 @@ def request_detail(request, pk):
     it_repair_form = ItRepairCompleteForm()
     requester_confirm_form = RequesterConfirmForm()
 
-    flow_tab = FLOW_HO_TRO if service_request.is_it_repair else FLOW_DE_XUAT
+    flow_tab = normalize_flow_tab(
+        flow_tab or (FLOW_HO_TRO if service_request.is_it_repair else FLOW_DE_XUAT),
+    )
+    if not user_can_access_flow(request.user, flow_tab):
+        messages.error(
+            request,
+            f'Bạn không có quyền truy cập module {FLOW_LABELS.get(flow_tab, flow_tab)}.',
+        )
+        return redirect('home_portal')
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -451,12 +487,12 @@ def request_detail(request, pk):
 
             if not current_step:
                 messages.error(request, 'Yêu cầu không còn bước đang xử lý.')
-                return redirect('service_requests:detail', pk=pk)
+                return redirect(_detail_url(service_request))
 
             if action == 'claim' and can_claim_current:
                 claim_step(current_step, actor=request.user)
                 messages.success(request, 'Đã tiếp nhận yêu cầu.')
-                return redirect('service_requests:detail', pk=pk)
+                return redirect(_detail_url(service_request))
 
             if action == 'submit_quote' and can_handle_current:
                 if current_step.step_code != ServiceRequestStep.STEP_PROCUREMENT_QUOTE:
@@ -473,7 +509,7 @@ def request_detail(request, pk):
                     note=note or 'Hoàn thành báo giá NCC',
                 )
                 messages.success(request, 'Đã hoàn thành báo giá — chuyển bước duyệt tiếp theo.')
-                return redirect('service_requests:detail', pk=pk)
+                return redirect(_detail_url(service_request))
 
             if action == 'approve' and can_handle_current and current_step.is_approval:
                 if current_step.step_code == ServiceRequestStep.STEP_DIVISION_HEAD:
@@ -492,7 +528,7 @@ def request_detail(request, pk):
                             procurement_assignee=division_head_form.cleaned_data['procurement_assignee'],
                         )
                         messages.success(request, 'Đã duyệt và chỉ định nhân viên Thu mua.')
-                        return redirect('service_requests:detail', pk=pk)
+                        return redirect(_detail_url(service_request))
                     messages.error(request, 'Vui lòng chọn nhân viên Thu mua xử lý.')
                 else:
                     action_form = StepActionForm(request.POST)
@@ -502,7 +538,7 @@ def request_detail(request, pk):
                             current_step.refresh_from_db()
                         approve_step(current_step, actor=request.user, note=action_form.cleaned_data.get('note', ''))
                         messages.success(request, 'Đã duyệt bước này.')
-                        return redirect('service_requests:detail', pk=pk)
+                        return redirect(_detail_url(service_request))
 
             if action == 'reject' and can_handle_current and current_step.is_approval:
                 reject_form = RejectStepForm(request.POST)
@@ -512,7 +548,7 @@ def request_detail(request, pk):
                         current_step.refresh_from_db()
                     reject_step(current_step, actor=request.user, reason=reject_form.cleaned_data['reason'])
                     messages.info(request, 'Đã từ chối yêu cầu.')
-                    return redirect('service_requests:detail', pk=pk)
+                    return redirect(_detail_url(service_request))
 
             if action == 'complete_purchase' and can_handle_current:
                 if current_step.step_code != ServiceRequestStep.STEP_PURCHASE:
@@ -532,7 +568,7 @@ def request_detail(request, pk):
                         note=purchase_form.cleaned_data['note'].strip(),
                     )
                     messages.success(request, 'Đã ghi nhận đặt hàng — chờ người nhận xác nhận.')
-                    return redirect('service_requests:detail', pk=pk)
+                    return redirect(_detail_url(service_request))
 
             if action == 'complete' and can_handle_current and current_step.is_execution:
                 if service_request.is_it_repair:
@@ -560,12 +596,12 @@ def request_detail(request, pk):
                             step=current_step,
                         )
                     messages.success(request, 'Đã hoàn thành bước thực hiện.')
-                    return redirect('service_requests:detail', pk=pk)
+                    return redirect(_detail_url(service_request))
                 messages.error(request, 'Vui lòng nhập kết quả xử lý.')
 
         except ValueError as exc:
             messages.error(request, str(exc))
-            return redirect('service_requests:detail', pk=pk)
+            return redirect(_detail_url(service_request))
 
     first_active = service_request.steps.exclude(
         status=ServiceRequestStep.STATUS_SKIPPED,

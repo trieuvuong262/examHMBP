@@ -29,7 +29,8 @@ M = {
     'permissions': 'permissions',
     'audit': 'audit',
     'tasks': 'tasks',
-    'service_requests': 'service_requests',
+    'de_xuat': 'de_xuat',
+    'ho_tro': 'ho_tro',
     'nas_storage': 'nas_storage',
 }
 
@@ -76,7 +77,8 @@ def _portal_employee() -> dict:
         M['guide']: VIEW,
         M['documents']: VIEW,
         M['tasks']: VIEW,
-        M['service_requests']: _f(view=True, create=True),
+        M['de_xuat']: _f(view=True, create=True),
+        M['ho_tro']: _f(view=True, create=True),
         M['nas_storage']: VIEW,
     })
 
@@ -91,7 +93,8 @@ def _portal_manager() -> dict:
             M['reports']: MGR,
             M['guide']: MGR,
             M['tasks']: EDIT,
-            M['service_requests']: MGR,
+            M['de_xuat']: MGR,
+            M['ho_tro']: MGR,
             M['documents']: MGR,
         },
     )

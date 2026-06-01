@@ -36,11 +36,12 @@ class ServiceRequestWorkflowTests(TestCase):
         for dept in (self.dept_hr, self.dept_prod, self.dept_accounting, self.dept_procurement):
             DepartmentMenuPermission.objects.create(
                 department=dept,
-                modules=['service_requests', 'tasks'],
+                modules=['de_xuat', 'ho_tro', 'tasks'],
             )
 
         perms = {
-            'service_requests': {'view': True, 'edit': True},
+            'de_xuat': {'view': True, 'edit': True},
+            'ho_tro': {'view': True, 'edit': True},
             'tasks': {'view': True, 'edit': True},
         }
         for role in (ROLE_EMPLOYEE, ROLE_TEAM_LEADER, ROLE_DIVISION_HEAD, ROLE_DIRECTOR):
@@ -314,13 +315,13 @@ class ServiceRequestWorkflowTests(TestCase):
         approve_step(req.steps.get(step_code=ServiceRequestStep.STEP_TEAM_LEADER), actor=self.team_leader)
         widgets = get_portal_dashboard(self.div_head)
         titles = [w['title'] for w in widgets]
-        self.assertIn('Yêu cầu chờ xử lý', titles)
+        self.assertIn('Đề xuất chờ xử lý', titles)
 
     def test_pending_widget_for_team_leader_on_new_request(self):
         self._create_request()
         widgets = get_portal_dashboard(self.team_leader)
         titles = [w['title'] for w in widgets]
-        self.assertIn('Yêu cầu chờ xử lý', titles)
+        self.assertIn('Đề xuất chờ xử lý', titles)
 
     def test_create_page_renders(self):
         self.assertIsNotNone(get_active_request_type())
@@ -354,11 +355,12 @@ class ItRepairWorkflowTests(TestCase):
         for dept in (self.dept_it, self.dept_prod):
             DepartmentMenuPermission.objects.create(
                 department=dept,
-                modules=['service_requests', 'equipment', 'tasks'],
+                modules=['de_xuat', 'ho_tro', 'equipment', 'tasks'],
             )
 
         perms = {
-            'service_requests': {'view': True, 'edit': True},
+            'de_xuat': {'view': True, 'edit': True},
+            'ho_tro': {'view': True, 'edit': True},
             'equipment': {'view': True, 'edit': True},
             'tasks': {'view': True, 'edit': True},
         }

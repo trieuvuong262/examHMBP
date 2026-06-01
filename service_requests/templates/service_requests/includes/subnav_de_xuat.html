@@ -1,0 +1,23 @@
+<nav class="jp-tasks-subnav mb-3 mb-md-4" aria-label="Đề xuất mới">
+    <div class="jp-tab-pills d-flex flex-wrap gap-2">
+        <a href="{% url 'service_requests:de_xuat_my' %}"
+           class="btn btn-sm {% if request.resolver_match.url_name == 'de_xuat_my' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
+            Yêu cầu của tôi
+        </a>
+        <a href="{% url 'service_requests:de_xuat_pending' %}"
+           class="btn btn-sm {% if request.resolver_match.url_name == 'de_xuat_pending' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
+            Chờ tôi xử lý
+            {% if pending_count %}<span class="badge bg-danger ms-1">{{ pending_count }}</span>{% endif %}
+        </a>
+        <a href="{% url 'service_requests:create' %}"
+           class="btn btn-sm {% if request.resolver_match.url_name == 'create' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
+            <i class="bi bi-plus-lg me-1"></i>Gửi đề xuất mua
+        </a>
+        {% if can_manage_catalog %}
+        <a href="{% url 'service_requests:catalog_list' %}"
+           class="btn btn-sm {% if 'catalog' in request.resolver_match.url_name %}btn-hm{% else %}btn-outline-secondary{% endif %}">
+            Danh mục định kỳ
+        </a>
+        {% endif %}
+    </div>
+</nav>

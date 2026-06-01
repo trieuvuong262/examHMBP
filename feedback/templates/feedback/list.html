@@ -5,7 +5,10 @@
     <div class="jp-page-header mb-3 mb-md-4">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-inbox-fill me-2"></i>Danh sách góp ý</h2>
-            <p class="text-muted mb-0 jp-hide-mobile-subtitle">Tổng {{ total_count }} góp ý — chỉ xem, không cần thao tác thêm.</p>
+            <p class="text-muted mb-0 jp-hide-mobile-subtitle">
+                Tổng {{ total_count }} góp ý
+                {% if unviewed_count %} · <span class="text-warning-emphasis">{{ unviewed_count }} chưa xem</span>{% endif %}
+            </p>
         </div>
         <a href="{% url 'feedback:create' %}" class="btn btn-outline-secondary">
             <i class="bi bi-plus-lg me-1"></i>Gửi góp ý
@@ -31,22 +34,35 @@
                         <th>Tiêu đề</th>
                         <th>Người gửi</th>
                         <th>Ngày gửi</th>
+                        <th>Trạng thái</th>
                         <th></th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in page_obj %}
-                    <tr>
+                    <tr class="{% if not item.is_viewed %}table-warning{% endif %}">
                         <td><strong>{{ item.title }}</strong></td>
                         <td>{{ item.submitter_display }}</td>
                         <td>{{ item.created_at|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            {% if item.is_viewed %}
+                            <span class="badge bg-success-subtle text-success border">
+                                <i class="bi bi-check-circle me-1"></i>Đã xem
+                            </span>
+                            <div class="small text-muted mt-1">{{ item.viewer_display }} · {{ item.viewed_at|date:"d/m/Y H:i" }}</div>
+                            {% else %}
+                            <span class="badge bg-warning-subtle text-warning-emphasis border">
+                                <i class="bi bi-circle me-1"></i>Chưa xem
+                            </span>
+                            {% endif %}
+                        </td>
                         <td class="text-end">
                             <a href="{% url 'feedback:detail' item.pk %}" class="btn btn-sm btn-outline-hm">Xem</a>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="4" class="text-center text-muted py-5">Chưa có góp ý nào.</td>
+                        <td colspan="5" class="text-center text-muted py-5">Chưa có góp ý nào.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

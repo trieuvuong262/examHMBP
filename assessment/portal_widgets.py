@@ -14,9 +14,10 @@ from hrm.permissions import (
 )
 from hrm.module_permissions import (
     MODULE_ASSESSMENT,
+    MODULE_DE_XUAT,
     MODULE_EQUIPMENT,
     MODULE_FEEDBACK,
-    MODULE_SERVICE_REQUESTS,
+    MODULE_HO_TRO,
     MODULE_TASKS,
     MODULE_TRAINING,
     user_can_access_module,
@@ -223,11 +224,11 @@ def _exam_widgets(user):
     }]
 
 
-def _service_request_widgets(user):
-    if not user_can_access_module(user, MODULE_SERVICE_REQUESTS):
+def _de_xuat_widgets(user):
+    if not user_can_access_module(user, MODULE_DE_XUAT):
         return []
 
-    from service_requests.models import ServiceRequest
+    from service_requests.models import RequestType, ServiceRequest
     from service_requests.permissions import pending_steps_for_user
 
     widgets = []
@@ -235,26 +236,71 @@ def _service_request_widgets(user):
     my_open = ServiceRequest.objects.filter(
         requester=user,
         status=ServiceRequest.STATUS_IN_PROGRESS,
+        request_type__code=RequestType.CODE_ASSET_PURCHASE,
     ).count()
     if my_open:
         widgets.append({
             'level': 'info',
-            'icon': 'bi-send-fill',
-            'title': 'Yêu cầu đang xử lý',
-            'text': f'{my_open} yêu cầu bạn gửi chưa hoàn thành — theo dõi tiến trình duyệt.',
-            'url': reverse('service_requests:my') + '?status=in_progress',
-            'action': 'Xem yêu cầu',
+            'icon': 'bi-lightbulb-fill',
+            'title': 'Đề xuất đang xử lý',
+            'text': f'{my_open} đề xuất bạn gửi chưa hoàn thành — theo dõi tiến trình duyệt.',
+            'url': reverse('service_requests:de_xuat_my') + '?status=in_progress',
+            'action': 'Xem đề xuất',
             'badge': my_open,
         })
 
-    pending = pending_steps_for_user(user).count()
+    pending = pending_steps_for_user(user).filter(
+        request__request_type__code=RequestType.CODE_ASSET_PURCHASE,
+    ).count()
     if pending:
         widgets.append({
             'level': 'warning',
             'icon': 'bi-inbox-fill',
-            'title': 'Yêu cầu chờ xử lý',
+            'title': 'Đề xuất chờ xử lý',
             'text': f'{pending} bước cần bạn duyệt hoặc tiếp nhận.',
-            'url': reverse('service_requests:pending'),
+            'url': reverse('service_requests:de_xuat_pending'),
+            'action': 'Xử lý',
+            'badge': pending,
+        })
+
+    return widgets
+
+
+def _ho_tro_widgets(user):
+    if not user_can_access_module(user, MODULE_HO_TRO):
+        return []
+
+    from service_requests.models import RequestType, ServiceRequest
+    from service_requests.permissions import pending_steps_for_user
+
+    widgets = []
+
+    my_open = ServiceRequest.objects.filter(
+        requester=user,
+        status=ServiceRequest.STATUS_IN_PROGRESS,
+        request_type__code=RequestType.CODE_IT_REPAIR,
+    ).count()
+    if my_open:
+        widgets.append({
+            'level': 'info',
+            'icon': 'bi-tools',
+            'title': 'Hỗ trợ đang xử lý',
+            'text': f'{my_open} yêu cầu hỗ trợ chưa hoàn thành.',
+            'url': reverse('service_requests:ho_tro_my') + '?status=in_progress',
+            'action': 'Xem yêu cầu',
+            'badge': my_open,
+        })
+
+    pending = pending_steps_for_user(user).filter(
+        request__request_type__code=RequestType.CODE_IT_REPAIR,
+    ).count()
+    if pending:
+        widgets.append({
+            'level': 'warning',
+            'icon': 'bi-inbox-fill',
+            'title': 'Hỗ trợ chờ xử lý',
+            'text': f'{pending} bước cần bạn duyệt hoặc xác nhận.',
+            'url': reverse('service_requests:ho_tro_pending'),
             'action': 'Xử lý',
             'badge': pending,
         })
@@ -288,17 +334,17 @@ def _feedback_widgets(user):
 
     from feedback.models import Feedback
 
-    count = Feedback.objects.count()
-    if not count:
+    unviewed = Feedback.objects.filter(viewed_at__isnull=True).count()
+    if not unviewed:
         return []
     return [{
-        'level': 'info',
+        'level': 'warning',
         'icon': 'bi-chat-square-text-fill',
-        'title': 'Góp ý',
-        'text': f'Có {count} góp ý — xem danh sách để nắm ý kiến nhân viên.',
+        'title': 'Góp ý chưa xem',
+        'text': f'Còn {unviewed} góp ý chưa xem — mở danh sách để đọc.',
         'url': reverse('feedback:list'),
         'action': 'Xem góp ý',
-        'badge': count,
+        'badge': unviewed,
     }]
 
 
@@ -348,7 +394,8 @@ def get_portal_dashboard(user):
     widgets.extend(_task_widgets(user))
     widgets.extend(_training_widgets(user))
     widgets.extend(_exam_widgets(user))
-    widgets.extend(_service_request_widgets(user))
+    widgets.extend(_de_xuat_widgets(user))
+    widgets.extend(_ho_tro_widgets(user))
     widgets.extend(_equipment_it_widgets(user))
     widgets.extend(_feedback_widgets(user))
 

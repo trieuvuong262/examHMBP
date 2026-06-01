@@ -159,29 +159,69 @@
             </ul>
         </li>
         {% endif %}
-        {% if jp_can_service_requests %}
-        <li class="jp-sidebar-group{% if 'yeu-cau' in request.path %} is-open{% endif %}">
+        {% if jp_can_de_xuat %}
+        <li class="jp-sidebar-group{% if '/yeu-cau/de-xuat' in request.path %} is-open{% endif %}">
             <button type="button"
                     class="jp-sidebar-group-toggle"
                     data-jp-sidebar-group-toggle
-                    aria-expanded="{% if 'yeu-cau' in request.path %}true{% else %}false{% endif %}"
-                    aria-controls="jp-sidebar-requests-submenu">
+                    aria-expanded="{% if '/yeu-cau/de-xuat' in request.path %}true{% else %}false{% endif %}"
+                    aria-controls="jp-sidebar-de-xuat-submenu">
                 <span class="jp-sidebar-group-toggle-main">
-                    <i class="bi bi-send-fill"></i><span>Yêu cầu</span>
+                    <i class="bi bi-lightbulb-fill"></i><span>Đề xuất mới</span>
                 </span>
                 <i class="bi bi-chevron-down jp-sidebar-group-chevron" aria-hidden="true"></i>
             </button>
-            <ul class="jp-sidebar-submenu" id="jp-sidebar-requests-submenu">
+            <ul class="jp-sidebar-submenu" id="jp-sidebar-de-xuat-submenu">
                 <li>
                     <a href="{% url 'service_requests:de_xuat_my' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if '/yeu-cau/de-xuat' in request.path %}active{% endif %}">
-                        <i class="bi bi-lightbulb"></i><span>Đề xuất mới</span>
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'de_xuat_my' %}active{% endif %}">
+                        <i class="bi bi-person-lines-fill"></i><span>Yêu cầu của tôi</span>
                     </a>
                 </li>
                 <li>
+                    <a href="{% url 'service_requests:de_xuat_pending' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'de_xuat_pending' %}active{% endif %}">
+                        <i class="bi bi-inbox-fill"></i><span>Chờ xử lý</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'service_requests:create' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'create' %}active{% endif %}">
+                        <i class="bi bi-plus-circle"></i><span>Gửi đề xuất</span>
+                    </a>
+                </li>
+            </ul>
+        </li>
+        {% endif %}
+        {% if jp_can_ho_tro %}
+        <li class="jp-sidebar-group{% if '/yeu-cau/ho-tro' in request.path %} is-open{% endif %}">
+            <button type="button"
+                    class="jp-sidebar-group-toggle"
+                    data-jp-sidebar-group-toggle
+                    aria-expanded="{% if '/yeu-cau/ho-tro' in request.path %}true{% else %}false{% endif %}"
+                    aria-controls="jp-sidebar-ho-tro-submenu">
+                <span class="jp-sidebar-group-toggle-main">
+                    <i class="bi bi-tools"></i><span>Hỗ trợ kỹ thuật</span>
+                </span>
+                <i class="bi bi-chevron-down jp-sidebar-group-chevron" aria-hidden="true"></i>
+            </button>
+            <ul class="jp-sidebar-submenu" id="jp-sidebar-ho-tro-submenu">
+                <li>
                     <a href="{% url 'service_requests:ho_tro_my' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if '/yeu-cau/ho-tro' in request.path %}active{% endif %}">
-                        <i class="bi bi-tools"></i><span>Hỗ trợ kỹ thuật</span>
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'ho_tro_my' %}active{% endif %}">
+                        <i class="bi bi-person-lines-fill"></i><span>Yêu cầu của tôi</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'service_requests:ho_tro_pending' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'ho_tro_pending' %}active{% endif %}">
+                        <i class="bi bi-inbox-fill"></i><span>Chờ duyệt</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'service_requests:create_it_repair' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'create_it_repair' %}active{% endif %}">
+                        <i class="bi bi-plus-circle"></i><span>Gửi yêu cầu hỗ trợ</span>
                     </a>
                 </li>
             </ul>

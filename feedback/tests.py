@@ -91,9 +91,31 @@ class FeedbackAccessTests(TestCase):
             body='Body',
         )
         widgets = get_portal_dashboard(self.manager)
-        feedback_widgets = [w for w in widgets if w.get('title') == 'Góp ý']
+        feedback_widgets = [w for w in widgets if w.get('title') == 'Góp ý chưa xem']
         self.assertEqual(len(feedback_widgets), 1)
         self.assertEqual(feedback_widgets[0]['badge'], 1)
+
+    def test_home_widget_hidden_when_all_viewed(self):
+        feedback = Feedback.objects.create(
+            submitter=self.employee,
+            title='Đã xem',
+            body='Body',
+        )
+        feedback.mark_viewed_by(self.manager)
+        widgets = get_portal_dashboard(self.manager)
+        self.assertFalse(any(w.get('title') == 'Góp ý chưa xem' for w in widgets))
+
+    def test_viewing_marks_feedback_as_read(self):
+        feedback = Feedback.objects.create(
+            submitter=self.employee,
+            title='Cần xem',
+            body='Nội dung',
+        )
+        self.client.login(username='hr1', password='pass')
+        self.client.get(reverse('feedback:detail', args=[feedback.pk]))
+        feedback.refresh_from_db()
+        self.assertIsNotNone(feedback.viewed_at)
+        self.assertEqual(feedback.viewed_by_id, self.manager.id)
 
     def test_no_home_widget_for_employee(self):
         Feedback.objects.create(
@@ -102,4 +124,4 @@ class FeedbackAccessTests(TestCase):
             body='Body',
         )
         widgets = get_portal_dashboard(self.employee)
-        self.assertFalse(any(w.get('title') == 'Góp ý' for w in widgets))
+        self.assertFalse(any(w.get('title') == 'Góp ý chưa xem' for w in widgets))

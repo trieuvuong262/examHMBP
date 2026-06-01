@@ -1,17 +1,16 @@
-from decimal import Decimal
-
 from django.contrib.auth.models import User
 
-from hrm.module_permissions import MODULE_SERVICE_REQUESTS, user_can_access_module
+from hrm.module_permissions import MODULE_DE_XUAT, MODULE_HO_TRO, user_can_access_module
 from hrm.permissions import ROLE_DIRECTOR, get_profile, is_director
 
+from .access import module_for_request, user_can_access_any_request_module
 from .models import RequestTypeStepTemplate, ServiceRequest, ServiceRequestStep
 from .workflow import get_accounting_department, get_procurement_department
 from .workflow_it import get_it_department
 
 
 def get_it_staff_candidates():
-    """Nhân viên IT có quyền module Yêu cầu."""
+    """Nhân viên IT có quyền module Hỗ trợ kỹ thuật."""
     dept = get_it_department()
     if not dept:
         return User.objects.none()
@@ -21,12 +20,14 @@ def get_it_staff_candidates():
         is_active=True,
     ).select_related('profile').order_by('profile__full_name', 'username')
     return qs.filter(
-        pk__in=[user.pk for user in qs if user_can_access_module(user, MODULE_SERVICE_REQUESTS)],
+        pk__in=[user.pk for user in qs if user_can_access_module(user, MODULE_HO_TRO)],
     )
 
 
-def _has_module_access(user) -> bool:
-    return user_can_access_module(user, MODULE_SERVICE_REQUESTS)
+def _has_module_access(user, request_obj: ServiceRequest | None = None) -> bool:
+    if request_obj is not None:
+        return user_can_access_module(user, module_for_request(request_obj))
+    return user_can_access_any_request_module(user)
 
 
 def _user_in_department(user, department) -> bool:
@@ -38,7 +39,7 @@ def _user_in_department(user, department) -> bool:
 
 def can_view_pricing(user, request_obj: ServiceRequest) -> bool:
     """Chỉ Thu mua, Kế toán, Giám đốc xem được giá."""
-    if not _has_module_access(user):
+    if not user_can_access_module(user, MODULE_DE_XUAT):
         return False
     if is_director(user):
         return True
@@ -54,13 +55,13 @@ def can_view_pricing(user, request_obj: ServiceRequest) -> bool:
 
 def can_manage_recurring_catalog(user) -> bool:
     """Thu mua quản lý danh mục hàng định kỳ."""
-    if not _has_module_access(user):
+    if not user_can_access_module(user, MODULE_DE_XUAT):
         return False
     return _user_in_department(user, get_procurement_department())
 
 
 def can_view_request(user, request_obj: ServiceRequest) -> bool:
-    if not _has_module_access(user):
+    if not _has_module_access(user, request_obj):
         return False
     if request_obj.requester_id == user.id:
         return True
@@ -83,7 +84,7 @@ def can_view_request(user, request_obj: ServiceRequest) -> bool:
 def can_handle_step(user, step: ServiceRequestStep) -> bool:
     if step.step_code == ServiceRequestStep.STEP_IT_REPAIR:
         return False
-    if not _has_module_access(user):
+    if not _has_module_access(user, step.request):
         return False
     if step.status not in ServiceRequestStep.OPEN_HANDLER_STATUSES:
         return False
@@ -115,7 +116,7 @@ def can_claim_step(user, step: ServiceRequestStep) -> bool:
 
 def pending_steps_for_user(user):
     """Bước chờ user xử lý (đã gán hoặc queue phòng ban)."""
-    if not _has_module_access(user):
+    if not user_can_access_any_request_module(user):
         return ServiceRequestStep.objects.none()
 
     profile = get_profile(user)
@@ -149,7 +150,7 @@ def pending_steps_for_user(user):
 
 
 def get_procurement_staff_candidates():
-    """Nhân viên Thu mua có quyền module Yêu cầu."""
+    """Nhân viên Thu mua có quyền module Đề xuất mới."""
     dept = get_procurement_department()
     if not dept:
         return User.objects.none()
@@ -159,7 +160,7 @@ def get_procurement_staff_candidates():
         is_active=True,
     ).select_related('profile').order_by('profile__full_name', 'username')
     return qs.filter(
-        pk__in=[user.pk for user in qs if user_can_access_module(user, MODULE_SERVICE_REQUESTS)],
+        pk__in=[user.pk for user in qs if user_can_access_module(user, MODULE_DE_XUAT)],
     )
 
 

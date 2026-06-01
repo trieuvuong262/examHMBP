@@ -22,7 +22,9 @@ urlpatterns = [
     path('ho-tro/cho-xu-ly/', views.pending_requests, {'flow_tab': 'ho_tro'}, name='ho_tro_pending'),
     path('ho-tro/tao/', views.create_it_repair, name='create_it_repair'),
 
-    path('<int:pk>/', views.request_detail, name='detail'),
+    path('de-xuat/<int:pk>/', views.request_detail, {'flow_tab': 'de_xuat'}, name='de_xuat_detail'),
+    path('ho-tro/<int:pk>/', views.request_detail, {'flow_tab': 'ho_tro'}, name='ho_tro_detail'),
+    path('<int:pk>/', views.request_detail_legacy, name='detail'),
 
     # Alias cũ — chuyển hướng
     path('cua-toi/', views.my_requests, {'flow_tab': 'de_xuat'}, name='my'),
