@@ -7,26 +7,15 @@
 
 {% block content %}
 <div class="container jp-page py-3 py-md-4 mb-5">
-    <div class="jp-page-header mb-3 mb-md-4">
-        <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-hdd-stack me-2"></i>Danh sách thiết bị</h2>
-        <p class="text-muted mb-0">{{ filtered_count|intcomma }} / {{ total_count|intcomma }} thiết bị</p>
+    <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-3">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-hdd-stack me-2"></i>Danh sách thiết bị</h2>
+            <p class="text-muted mb-0">{{ filtered_count|intcomma }} / {{ total_count|intcomma }} thiết bị</p>
+        </div>
+        {% include 'equipment/includes/list_toolbar.html' %}
     </div>
 
     {% include 'equipment/includes/subnav.html' %}
-
-    <div class="card border-0 shadow-sm mb-3 jp-eq-actions">
-        <div class="card-body py-3 px-3 px-md-4">
-            <div class="small text-muted fw-semibold text-uppercase mb-2" style="letter-spacing:.04em">Thao tác nhanh</div>
-            {% include 'equipment/includes/list_toolbar.html' %}
-        </div>
-    </div>
-
-    {% if jp_can_equipment and not jp_can_edit_equipment and not can_edit_equipment and not can_edit %}
-    <div class="alert alert-warning border-0 shadow-sm mb-3 py-2 small">
-        Tài khoản đang chỉ có quyền <strong>xem</strong> thiết bị. Bấm Thêm / Nhập sẽ bị từ chối —
-        cần quyền <strong>Sửa</strong> module Quản lý thiết bị (Phân quyền → nhóm quyền phòng ban).
-    </div>
-    {% endif %}
 
     {% if can_edit and agent_scan_mode %}
     <div class="alert alert-info border-0 shadow-sm mb-3 py-2 small">
