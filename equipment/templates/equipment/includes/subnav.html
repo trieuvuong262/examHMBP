@@ -13,19 +13,17 @@
             <i class="bi bi-tools me-1"></i>Hỗ trợ kỹ thuật
             {% if it_repair_pending_count %}<span class="badge bg-danger ms-1">{{ it_repair_pending_count }}</span>{% endif %}
         </a>
-        {% if can_edit_equipment or jp_can_edit_equipment %}
         <a href="{% url 'equipment:import_export_hub' %}"
            class="btn btn-sm {% if request.resolver_match.url_name == 'import_export_hub' or request.resolver_match.url_name == 'import_devices' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
             <i class="bi bi-upload me-1"></i>Nhập Excel
-        </a>
-        <a href="{% url 'equipment:category_list' %}"
-           class="btn btn-sm {% if 'category_' in request.resolver_match.url_name %}btn-hm{% else %}btn-outline-secondary{% endif %}">
-            <i class="bi bi-tags me-1"></i>Loại thiết bị
         </a>
         <a href="{% url 'equipment:device_add' %}"
            class="btn btn-sm {% if request.resolver_match.url_name == 'device_add' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
             <i class="bi bi-plus-lg me-1"></i>Thêm thiết bị
         </a>
-        {% endif %}
+        <a href="{% url 'equipment:category_list' %}"
+           class="btn btn-sm {% if 'category_' in request.resolver_match.url_name %}btn-hm{% else %}btn-outline-secondary{% endif %}">
+            <i class="bi bi-tags me-1"></i>Loại thiết bị
+        </a>
     </div>
 </nav>

@@ -4,6 +4,10 @@
     white-space: nowrap;
 }
 
+.jp-eq-actions .jp-eq-list-toolbar {
+    width: 100%;
+}
+
 .jp-eq-form-section {
     padding-bottom: 0.25rem;
 }
