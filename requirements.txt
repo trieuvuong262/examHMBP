@@ -26,12 +26,11 @@ Faker==40.1.2
 fire==0.7.1
 fonttools==4.61.1
 freetype-py==2.5.1
-google-ai-generativelanguage==0.6.15
 google-api-core==2.26.0
 google-api-python-client==2.185.0
 google-auth==2.41.1
 google-auth-httplib2==0.2.0
-google-generativeai==0.8.6
+google-genai==2.7.0
 googleapis-common-protos==1.71.0
 grpcio==1.75.1
 grpcio-status==1.71.2

@@ -3,8 +3,9 @@
 import logging
 import time
 
-import google.generativeai as genai
-from google.api_core import exceptions as google_exceptions
+from google import genai
+from google.genai import errors as genai_errors
+from google.genai import types
 
 from .knowledge_base import build_portal_knowledge
 from .qa_config import get_gemini_credentials, models_to_try
@@ -38,55 +39,80 @@ class QAAssistantError(RuntimeError):
     """Lỗi trợ lý AI — message an toàn để hiển thị cho user."""
 
 
-def _configure_client():
+def _get_client() -> genai.Client:
     api_key, _ = get_gemini_credentials()
     if not api_key:
         raise QAAssistantError('Trợ lý AI chưa được "đánh thức". Nhờ quản trị viên bật trong Cấu hình AI.')
-    genai.configure(api_key=api_key)
+    return genai.Client(api_key=api_key)
 
 
-def _build_model(model_name: str, user, system_instruction: str, request=None, question: str = ''):
+def _build_config(user, system_instruction: str, request=None, question: str = '') -> types.GenerateContentConfig:
     knowledge = build_portal_knowledge(user, request=request, question=question)
     system_text = f'{system_instruction}\n\n[NGỮ CẢNH HỆ THỐNG]\n{knowledge}'
-    return genai.GenerativeModel(model_name, system_instruction=system_text)
+    return types.GenerateContentConfig(system_instruction=system_text)
+
+
+def _history_to_contents(history: list) -> list[types.Content]:
+    contents = []
+    for turn in history:
+        role = turn.get('role')
+        text = (turn.get('text') or '').strip()
+        if role in {'user', 'model'} and text:
+            contents.append(types.Content(role=role, parts=[types.Part(text=text[:800])]))
+    return contents
+
+
+def _is_not_found(exc: Exception) -> bool:
+    return isinstance(exc, genai_errors.ClientError) and (
+        exc.code == 404 or exc.status == 'NOT_FOUND'
+    )
+
+
+def _is_resource_exhausted(exc: Exception) -> bool:
+    return isinstance(exc, genai_errors.ClientError) and (
+        exc.code == 429 or exc.status == 'RESOURCE_EXHAUSTED'
+    )
 
 
 def _friendly_api_error(exc: Exception) -> QAAssistantError:
-    if isinstance(exc, google_exceptions.NotFound):
-        return QAAssistantError(
-            'Trợ lý AI đang cập nhật "bộ não" — nhờ IT kiểm tra cấu hình model giúp bạn nhé.'
-        )
-    if isinstance(exc, google_exceptions.ResourceExhausted):
-        return QAAssistantError(
-            'Trợ lý AI đang nghỉ giữa hiệp — uống ngụm nước rồi hỏi lại sau vài phút nhé ☕ '
-            'Nếu vẫn im lì thì nhắn IT: có thể trợ lý đang… quá siêng nên cần recharge.'
-        )
-    if isinstance(exc, google_exceptions.InvalidArgument):
-        return QAAssistantError(
-            'Cấu hình trợ lý AI hơi lạ một chút — nhờ quản trị viên xem lại giúp bạn.'
-        )
-    if isinstance(exc, google_exceptions.PermissionDenied):
-        return QAAssistantError(
-            'Trợ lý AI không nhận ra "vé vào cửa" — nhờ IT xem lại cấu hình API key nhé.'
-        )
-    if isinstance(exc, google_exceptions.Unauthenticated):
-        return QAAssistantError(
-            'Trợ lý AI không nhận ra "vé vào cửa" — nhờ IT xem lại cấu hình API key nhé.'
-        )
+    if isinstance(exc, genai_errors.ClientError):
+        if _is_not_found(exc):
+            return QAAssistantError(
+                'Trợ lý AI đang cập nhật "bộ não" — nhờ IT kiểm tra cấu hình model giúp bạn nhé.'
+            )
+        if _is_resource_exhausted(exc):
+            return QAAssistantError(
+                'Trợ lý AI đang nghỉ giữa hiệp — uống ngụm nước rồi hỏi lại sau vài phút nhé ☕ '
+                'Nếu vẫn im lì thì nhắn IT: có thể trợ lý đang… quá siêng nên cần recharge.'
+            )
+        if exc.code == 400 or exc.status == 'INVALID_ARGUMENT':
+            return QAAssistantError(
+                'Cấu hình trợ lý AI hơi lạ một chút — nhờ quản trị viên xem lại giúp bạn.'
+            )
+        if exc.code == 403 or exc.status == 'PERMISSION_DENIED':
+            return QAAssistantError(
+                'Trợ lý AI không nhận ra "vé vào cửa" — nhờ IT xem lại cấu hình API key nhé.'
+            )
+        if exc.code == 401 or exc.status == 'UNAUTHENTICATED':
+            return QAAssistantError(
+                'Trợ lý AI không nhận ra "vé vào cửa" — nhờ IT xem lại cấu hình API key nhé.'
+            )
     logger.exception('QA assistant API error')
     return QAAssistantError(
         'Mạng với trợ lý AI đang "giật lag" một chút — thử refresh trang hoặc hỏi lại sau nhé.'
     )
 
 
-def _invoke_with_quota_retry(model, send_fn):
+def _invoke_with_quota_retry(model_name: str, send_fn):
     last_exc = None
     for attempt, delay in enumerate((0, *QUOTA_RETRY_DELAYS)):
         if delay:
             time.sleep(delay)
         try:
-            return send_fn(model)
-        except google_exceptions.ResourceExhausted as exc:
+            return send_fn(model_name)
+        except genai_errors.ClientError as exc:
+            if not _is_resource_exhausted(exc):
+                raise
             logger.warning('QA quota hit (attempt %s), retry in %ss', attempt + 1, delay)
             last_exc = exc
             continue
@@ -94,27 +120,24 @@ def _invoke_with_quota_retry(model, send_fn):
 
 
 def _generate_with_fallback(user, system_instruction: str, send_fn, request=None, question: str = ''):
-    _configure_client()
     _, primary = get_gemini_credentials()
     last_exc = None
 
     for model_name in models_to_try(primary):
         try:
-            model = _build_model(
-                model_name, user, system_instruction,
-                request=request, question=question,
-            )
-            return _invoke_with_quota_retry(model, send_fn)
-        except google_exceptions.NotFound as exc:
-            logger.warning('QA model not found: %s', model_name)
-            last_exc = exc
-            continue
-        except google_exceptions.ResourceExhausted as exc:
-            logger.warning('QA model quota exceeded after retries: %s', model_name)
-            last_exc = exc
-            continue
+            return _invoke_with_quota_retry(model_name, send_fn)
+        except genai_errors.ClientError as exc:
+            if _is_not_found(exc):
+                logger.warning('QA model not found: %s', model_name)
+                last_exc = exc
+                continue
+            if _is_resource_exhausted(exc):
+                logger.warning('QA model quota exceeded after retries: %s', model_name)
+                last_exc = exc
+                continue
+            raise _friendly_api_error(exc) from exc
         except Exception as exc:
-            if isinstance(exc, (google_exceptions.NotFound, google_exceptions.ResourceExhausted)):
+            if _is_not_found(exc) or _is_resource_exhausted(exc):
                 last_exc = exc
                 continue
             raise _friendly_api_error(exc) from exc
@@ -134,10 +157,19 @@ def ask_portal_assistant(user, question: str, history: list | None = None, reque
         role = turn.get('role')
         text = (turn.get('text') or '').strip()
         if role in {'user', 'model'} and text:
-            chat_history.append({'role': role, 'parts': [text[:800]]})
+            chat_history.append({'role': role, 'text': text[:800]})
 
-    def send(model):
-        chat = model.start_chat(history=chat_history)
+    def send(model_name):
+        client = _get_client()
+        config = _build_config(
+            user, SYSTEM_INSTRUCTION,
+            request=request, question=question,
+        )
+        chat = client.chats.create(
+            model=model_name,
+            config=config,
+            history=_history_to_contents(chat_history),
+        )
         response = chat.send_message(question)
         answer = (response.text or '').strip()
         if not answer:
