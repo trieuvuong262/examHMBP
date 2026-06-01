@@ -7,12 +7,21 @@
             <div class="card-body p-4 p-md-5">
                 <div class="text-center mb-4">
                     <div class="text-hm mb-2"><i class="bi bi-shield-lock display-5"></i></div>
+                    {% if shared_pc %}
+                    <h1 class="fw-bold h3 mb-2">Xác nhận PC dùng chung</h1>
+                    <p class="text-muted mb-0">
+                        Tài khoản <strong>{{ portal_user.username }}</strong> chưa có trong
+                        <strong>Quản lý thiết bị</strong>. Máy này đã có JustPlay Agent —
+                        bạn chỉ cần xác nhận để vào portal.
+                    </p>
+                    {% else %}
                     <h1 class="fw-bold h3 mb-2">Cần cài JustPlay Agent trước khi vào portal</h1>
                     <p class="text-muted mb-0">
                         Tài khoản <strong>{{ portal_user.username }}</strong> chưa có trong
                         <strong>Quản lý thiết bị</strong>. Bạn phải cài agent trên PC Windows này
                         để đăng ký thiết bị — sau đó mới truy cập được các màn hình khác.
                     </p>
+                    {% endif %}
                 </div>
 
                 <div class="alert alert-warning border-0 small">
@@ -44,15 +53,13 @@
                         </p>
                         <form method="post" action="{% url 'equipment:agent_confirm_shared_pc' %}">
                             {% csrf_token %}
-                            <button type="submit" class="btn btn-success">
-                                <i class="bi bi-check-circle me-1"></i>Xác nhận PC dùng chung
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="bi bi-check-circle me-1"></i>Xác nhận
                             </button>
                         </form>
                     </div>
                 </div>
-
-                <div class="text-center text-muted small mb-3">— hoặc cài agent lần đầu trên máy mới —</div>
-                {% endif %}
+                {% else %}
 
                 <h2 class="h6 fw-bold text-uppercase text-muted mb-3">Hướng dẫn cài (3 bước)</h2>
                 <ol class="mb-4">
@@ -99,6 +106,7 @@
                     File cài tự tải <code>JustPlayAgent.exe</code>, tạo cấu hình và đăng ký chạy nền mỗi lần đăng nhập Windows.
                     Nếu đã được IT gán thiết bị trước đó mà vẫn thấy trang này, liên hệ IT kiểm tra cột <em>Người dùng</em>.
                 </p>
+                {% endif %}
             </div>
         </div>
     </div>

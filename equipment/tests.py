@@ -394,4 +394,6 @@ class AgentInstallFlowTests(TestCase):
         )
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'PC dùng chung')
-        self.assertContains(resp, 'Xác nhận PC dùng chung')
+        self.assertContains(resp, 'Xác nhận')
+        self.assertNotContains(resp, 'Hướng dẫn cài (3 bước)')
+        self.assertNotContains(resp, 'Tải file cài')
