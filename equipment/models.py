@@ -4,7 +4,7 @@ import uuid
 from django.conf import settings
 from django.db import models
 
-from equipment.categories import DEVICE_CATEGORY_CHOICES as CATEGORY_CHOICES
+from equipment.categories import DEVICE_CATEGORY_CHOICES
 from equipment.services.qr_tag import generate_asset_tag, remove_old_qr_file, should_redraw_tag
 
 
@@ -17,6 +17,8 @@ class Device(models.Model):
         (MANAGED_MAINTENANCE, 'Bảo trì xưởng'),
         (MANAGED_OTHER, 'Khác'),
     ]
+
+    CATEGORY_CHOICES = DEVICE_CATEGORY_CHOICES
 
     STATUS_NEW = 'new'
     STATUS_ACTIVE = 'active'
