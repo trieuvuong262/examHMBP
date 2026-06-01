@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3">
+        <h2 class="fw-bold text-hm mb-1">Lịch sử — {{ device.name }}</h2>
+        <a href="{% url 'equipment:device_detail_manage' device.id %}" class="small">← Quay lại chi tiết</a>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Thời gian</th>
+                        <th>Người báo</th>
+                        <th>Mô tả</th>
+                        <th>Yêu cầu</th>
+                        <th>Trạng thái</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td>{{ log.created_at|date:"d/m/Y H:i" }}</td>
+                        <td>{{ log.reported_by }}</td>
+                        <td>{{ log.issue_description|truncatechars:100 }}</td>
+                        <td>
+                            {% if log.service_request_id %}
+                            <a href="{% url 'service_requests:detail' log.service_request_id %}">#{{ log.service_request_id }}</a>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td>{% if log.is_resolved %}Đã xử lý{% else %}Đang mở{% endif %}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-center text-muted py-4">Chưa có lịch sử.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

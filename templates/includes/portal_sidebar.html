@@ -160,8 +160,15 @@
         {% endif %}
         {% if jp_can_service_requests %}
         <li>
-            <a href="{% url 'service_requests:my' %}" class="jp-sidebar-link {% if 'yeu-cau' in request.path %}active{% endif %}">
+            <a href="{% url 'service_requests:de_xuat_my' %}" class="jp-sidebar-link {% if 'yeu-cau' in request.path %}active{% endif %}">
                 <i class="bi bi-send-fill"></i><span>Yêu cầu</span>
+            </a>
+        </li>
+        {% endif %}
+        {% if jp_can_equipment %}
+        <li>
+            <a href="{% url 'equipment:dashboard' %}" class="jp-sidebar-link {% if 'thiet-bi' in request.path %}active{% endif %}">
+                <i class="bi bi-pc-display"></i><span>Quản lý thiết bị</span>
             </a>
         </li>
         {% endif %}

@@ -213,6 +213,14 @@ class ServiceRequest(models.Model):
         max_digits=14, decimal_places=0, null=True, blank=True, verbose_name='Chi phí sửa (VNĐ)',
     )
     expected_return_date = models.DateField(null=True, blank=True, verbose_name='Dự kiến hoàn thành')
+    equipment = models.ForeignKey(
+        'equipment.Device',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='service_requests',
+        verbose_name='Thiết bị liên kết',
+    )
 
     class Meta:
         ordering = ['-created_at']

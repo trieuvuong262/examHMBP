@@ -26,6 +26,7 @@ MODULE_AUDIT = 'audit'
 MODULE_TASKS = 'tasks'
 MODULE_SERVICE_REQUESTS = 'service_requests'
 MODULE_NAS_STORAGE = 'nas_storage'
+MODULE_EQUIPMENT = 'equipment'
 
 MODULE_CHOICES = [
     (MODULE_ANNOUNCEMENTS, 'Thông báo'),
@@ -42,6 +43,7 @@ MODULE_CHOICES = [
     (MODULE_TASKS, 'Công việc'),
     (MODULE_SERVICE_REQUESTS, 'Yêu cầu'),
     (MODULE_NAS_STORAGE, 'Thư mục NAS'),
+    (MODULE_EQUIPMENT, 'Quản lý thiết bị'),
 ]
 
 ALL_MODULE_KEYS = {key for key, _ in MODULE_CHOICES}
@@ -80,7 +82,13 @@ PATH_MODULE_RULES = [
     ('/cong-viec/', MODULE_TASKS),
     ('/yeu-cau/', MODULE_SERVICE_REQUESTS),
     ('/thu-muc-nas/', MODULE_NAS_STORAGE),
+    ('/thiet-bi/', MODULE_EQUIPMENT),
 ]
+
+EQUIPMENT_PUBLIC_PREFIXES = (
+    '/thiet-bi/qr/',
+    '/thiet-bi/api/agent-report/',
+)
 
 DASHBOARD_TAB_MODULES = {
     'recruitment': MODULE_RECRUITMENT,
@@ -205,6 +213,10 @@ def resolve_module_from_request(path: str, tab: str | None = None) -> str | None
     """Xác định module từ URL. None = không thuộc module menu."""
     if path in ('', '/'):
         return None
+
+    for prefix in EQUIPMENT_PUBLIC_PREFIXES:
+        if path.startswith(prefix):
+            return None
 
     for prefix in EXEMPT_PATH_PREFIXES:
         if path.startswith(prefix):

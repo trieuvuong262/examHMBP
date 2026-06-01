@@ -62,6 +62,7 @@ def create_it_repair_request(
     equipment_label='',
     equipment_serial='',
     blocks_work=False,
+    equipment=None,
 ):
     service_request = ServiceRequest.objects.create(
         requester=requester,
@@ -74,13 +75,14 @@ def create_it_repair_request(
         equipment_label=equipment_label,
         equipment_serial=equipment_serial,
         blocks_work=blocks_work,
+        equipment=equipment,
     )
 
     steps = _build_it_repair_steps(service_request)
     if not steps:
         raise ValueError('Không thể tạo quy trình IT.')
 
-    log_action(service_request, actor=requester, action='created', message='Gửi yêu cầu sửa chữa IT')
+    log_action(service_request, actor=requester, action='created', message='Gửi yêu cầu hỗ trợ kỹ thuật')
     first_active = service_request.steps.exclude(
         status=ServiceRequestStep.STATUS_SKIPPED,
     ).order_by('step_order').first()

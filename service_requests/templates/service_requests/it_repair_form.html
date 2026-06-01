@@ -4,7 +4,7 @@
 <div class="container jp-page py-3 py-md-4 mb-5">
     <div class="jp-page-header mb-3 mb-md-4">
         <div>
-            <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-pc-display-horizontal me-2"></i>Báo hỏng IT</h2>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-tools me-2"></i>Hỗ trợ kỹ thuật</h2>
             <p class="text-muted mb-0">{{ request_type.name }} — gửi thẳng IT xử lý, không cần duyệt Tổ trưởng / Trưởng BP.</p>
         </div>
     </div>
@@ -23,6 +23,14 @@
 
             <form method="post" enctype="multipart/form-data" novalidate>
                 {% csrf_token %}
+                {% if linked_equipment %}
+                <input type="hidden" name="equipment_id" value="{{ linked_equipment.id }}">
+                <div class="alert alert-light border mb-3">
+                    <i class="bi bi-pc-display me-1"></i>
+                    Liên kết thiết bị: <strong>{{ linked_equipment.name }}</strong>
+                    {% if linked_equipment.serial_number %}<span class="text-muted">({{ linked_equipment.serial_number }})</span>{% endif %}
+                </div>
+                {% endif %}
                 {% if form.non_field_errors %}
                 <div class="alert alert-danger">{{ form.non_field_errors }}</div>
                 {% endif %}
@@ -80,7 +88,7 @@
 
                 <div class="d-flex gap-2 flex-wrap">
                     <button type="submit" class="btn btn-hm fw-bold px-4">Gửi yêu cầu</button>
-                    <a href="{% url 'service_requests:my' %}?loai=it_repair" class="btn btn-outline-secondary">Huỷ</a>
+                    <a href="{% url 'service_requests:ho_tro_my' %}" class="btn btn-outline-secondary">Huỷ</a>
                 </div>
             </form>
         </div>

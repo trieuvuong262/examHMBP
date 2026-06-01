@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-pc-display me-2"></i>Quản lý thiết bị</h2>
+            <p class="text-muted mb-0">Theo dõi tài sản IT & xưởng, tem QR báo hỏng và lịch sử bảo trì.</p>
+        </div>
+    </div>
+
+    {% include 'equipment/includes/subnav.html' %}
+
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Tổng thiết bị</div>
+                    <div class="fs-3 fw-bold text-hm">{{ total_devices }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Đang hoạt động</div>
+                    <div class="fs-3 fw-bold text-success">{{ active_devices }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Đang hỏng</div>
+                    <div class="fs-3 fw-bold text-danger">{{ broken_devices }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Chi phí sửa chữa</div>
+                    <div class="fs-5 fw-bold">{{ total_cost|intcomma }} ₫</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white fw-bold">Sự cố cần xử lý</div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Thiết bị</th>
+                        <th>Người báo</th>
+                        <th>Thời gian</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in recent_issues %}
+                    <tr>
+                        <td><strong>{{ log.device.name }}</strong></td>
+                        <td>{{ log.reported_by }}</td>
+                        <td>{{ log.created_at|date:"d/m/Y H:i" }}</td>
+                        <td class="text-end">
+                            {% if log.service_request_id %}
+                            <a href="{% url 'service_requests:detail' log.service_request_id %}" class="btn btn-sm btn-outline-hm">Yêu cầu</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-center text-muted py-4">Không có sự cố đang chờ.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

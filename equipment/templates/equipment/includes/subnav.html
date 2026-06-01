@@ -1,0 +1,22 @@
+<nav class="jp-tasks-subnav mb-3 mb-md-4" aria-label="Quản lý thiết bị">
+    <div class="jp-tab-pills d-flex flex-wrap gap-2">
+        <a href="{% url 'equipment:dashboard' %}"
+           class="btn btn-sm {% if request.resolver_match.url_name == 'dashboard' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
+            <i class="bi bi-speedometer2 me-1"></i>Tổng quan
+        </a>
+        <a href="{% url 'equipment:device_list' %}"
+           class="btn btn-sm {% if 'device_list' in request.resolver_match.url_name or 'device_add' in request.resolver_match.url_name or 'device_edit' in request.resolver_match.url_name or 'device_detail' in request.resolver_match.url_name %}btn-hm{% else %}btn-outline-secondary{% endif %}">
+            <i class="bi bi-hdd-stack me-1"></i>Danh sách thiết bị
+        </a>
+        {% if jp_can_edit_equipment %}
+        <a href="{% url 'equipment:device_add' %}"
+           class="btn btn-sm {% if request.resolver_match.url_name == 'device_add' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
+            <i class="bi bi-plus-lg me-1"></i>Thêm thiết bị
+        </a>
+        <a href="{% url 'equipment:import_devices' %}"
+           class="btn btn-sm {% if request.resolver_match.url_name == 'import_devices' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
+            <i class="bi bi-file-earmark-arrow-up me-1"></i>Nhập Excel
+        </a>
+        {% endif %}
+    </div>
+</nav>

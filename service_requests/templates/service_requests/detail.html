@@ -37,7 +37,12 @@
                         <dd class="col-sm-8">{{ service_request.location_text|default:"—" }}</dd>
                         {% if service_request.equipment_label %}
                         <dt class="col-sm-4">Thiết bị</dt>
-                        <dd class="col-sm-8">{{ service_request.equipment_label }}{% if service_request.equipment_serial %} · S/N: {{ service_request.equipment_serial }}{% endif %}</dd>
+                        <dd class="col-sm-8">
+                            {{ service_request.equipment_label }}{% if service_request.equipment_serial %} · S/N: {{ service_request.equipment_serial }}{% endif %}
+                            {% if service_request.equipment_id %}
+                            · <a href="{% url 'equipment:device_detail_manage' service_request.equipment_id %}">Xem trong kho</a>
+                            {% endif %}
+                        </dd>
                         {% endif %}
                         {% if service_request.blocks_work %}
                         <dt class="col-sm-4">Ảnh hưởng</dt>

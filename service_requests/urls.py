@@ -1,4 +1,5 @@
 from django.urls import path
+from django.views.generic import RedirectView
 
 from . import views
 
@@ -6,13 +7,36 @@ app_name = 'service_requests'
 
 urlpatterns = [
     path('', views.request_hub, name='hub'),
-    path('cua-toi/', views.my_requests, name='my'),
-    path('cho-xu-ly/', views.pending_requests, name='pending'),
-    path('tao/', views.create_request, name='create'),
-    path('sua-it/tao/', views.create_it_repair, name='create_it_repair'),
-    path('danh-muc-dinh-ky/', views.recurring_catalog_list, name='catalog_list'),
-    path('danh-muc-dinh-ky/them/', views.recurring_catalog_create, name='catalog_create'),
-    path('danh-muc-dinh-ky/<int:pk>/sua/', views.recurring_catalog_edit, name='catalog_edit'),
-    path('danh-muc-dinh-ky/<int:pk>/an/', views.recurring_catalog_delete, name='catalog_delete'),
+
+    # Đề xuất mới (mua hàng / đề xuất)
+    path('de-xuat/cua-toi/', views.my_requests, {'flow_tab': 'de_xuat'}, name='de_xuat_my'),
+    path('de-xuat/cho-xu-ly/', views.pending_requests, {'flow_tab': 'de_xuat'}, name='de_xuat_pending'),
+    path('de-xuat/tao/', views.create_request, name='create'),
+    path('de-xuat/danh-muc-dinh-ky/', views.recurring_catalog_list, name='catalog_list'),
+    path('de-xuat/danh-muc-dinh-ky/them/', views.recurring_catalog_create, name='catalog_create'),
+    path('de-xuat/danh-muc-dinh-ky/<int:pk>/sua/', views.recurring_catalog_edit, name='catalog_edit'),
+    path('de-xuat/danh-muc-dinh-ky/<int:pk>/an/', views.recurring_catalog_delete, name='catalog_delete'),
+
+    # Hỗ trợ kỹ thuật (sửa chữa thiết bị)
+    path('ho-tro/cua-toi/', views.my_requests, {'flow_tab': 'ho_tro'}, name='ho_tro_my'),
+    path('ho-tro/cho-xu-ly/', views.pending_requests, {'flow_tab': 'ho_tro'}, name='ho_tro_pending'),
+    path('ho-tro/tao/', views.create_it_repair, name='create_it_repair'),
+
     path('<int:pk>/', views.request_detail, name='detail'),
+
+    # Alias cũ — chuyển hướng
+    path('cua-toi/', views.my_requests, {'flow_tab': 'de_xuat'}, name='my'),
+    path('cho-xu-ly/', views.pending_requests, {'flow_tab': 'de_xuat'}, name='pending'),
+    path('tao/', RedirectView.as_view(pattern_name='service_requests:create', permanent=False)),
+    path('sua-it/tao/', RedirectView.as_view(pattern_name='service_requests:create_it_repair', permanent=False)),
+    path('danh-muc-dinh-ky/', RedirectView.as_view(pattern_name='service_requests:catalog_list', permanent=False)),
+    path('danh-muc-dinh-ky/them/', RedirectView.as_view(pattern_name='service_requests:catalog_create', permanent=False)),
+    path(
+        'danh-muc-dinh-ky/<int:pk>/sua/',
+        RedirectView.as_view(pattern_name='service_requests:catalog_edit', permanent=False),
+    ),
+    path(
+        'danh-muc-dinh-ky/<int:pk>/an/',
+        RedirectView.as_view(pattern_name='service_requests:catalog_delete', permanent=False),
+    ),
 ]

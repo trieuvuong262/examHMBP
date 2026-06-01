@@ -118,6 +118,15 @@ CSRF_TRUSTED_ORIGINS = build_csrf_trusted_origins(
     extra_from_env=csrf_trusted_origins_env,
 )
 
+USE_HTTPS = env_bool("USE_HTTPS", not IS_LOCAL)
+_default_public_host = 'localhost:8000' if IS_LOCAL else PORTAL_DOMAIN
+PORTAL_PUBLIC_BASE_URL = os.getenv(
+    "PORTAL_PUBLIC_BASE_URL",
+    f"{'https' if USE_HTTPS else 'http'}://{_default_public_host}",
+).rstrip("/")
+EQUIPMENT_TAG_HEADER = os.getenv("EQUIPMENT_TAG_HEADER", "JUSTPLAY — QUẢN LÝ THIẾT BỊ")
+EQUIPMENT_AGENT_SECRET = os.getenv("EQUIPMENT_AGENT_SECRET", "")
+
 # Giới hạn dung lượng File Upload (Tối đa 10MB) để chống DoS
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024 
 
@@ -148,6 +157,7 @@ INSTALLED_APPS = [
     'audit.apps.AuditConfig',
     'tasks.apps.TasksConfig',
     'service_requests.apps.ServiceRequestsConfig',
+    'equipment.apps.EquipmentConfig',
     'nas_storage.apps.NasStorageConfig',
     'tools.apps.ToolsConfig',
     'django_cleanup.apps.CleanupConfig', # 👉 Thêm dòng này vào cuối
