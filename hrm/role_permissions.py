@@ -20,6 +20,7 @@ from hrm.module_permissions import (
     MODULE_SERVICE_REQUESTS,
     MODULE_NAS_STORAGE,
     MODULE_EQUIPMENT,
+    MODULE_FEEDBACK,
     MODULE_TRAINING,
     bypass_department_modules,
 )
@@ -51,6 +52,7 @@ def default_role_permissions() -> dict:
         MODULE_SERVICE_REQUESTS: _perm(True, False),
         MODULE_NAS_STORAGE: _perm(True, True),
         MODULE_EQUIPMENT: _perm(True, False),
+        MODULE_FEEDBACK: _perm(True, False),
         MODULE_PERMISSIONS: _perm(False, False),
         MODULE_AUDIT: _perm(False, False),
         MODULE_RECRUITMENT: _perm(False, False),
@@ -63,6 +65,7 @@ def default_role_permissions() -> dict:
         MODULE_TASKS: _perm(True, True),
         MODULE_SERVICE_REQUESTS: _perm(True, True),
         MODULE_EQUIPMENT: _perm(True, True),
+        MODULE_FEEDBACK: _perm(True, True),
     }
     team_leader = {**employee_modules, **manager_extra}
     division_head = {

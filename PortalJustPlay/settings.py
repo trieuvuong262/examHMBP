@@ -179,6 +179,7 @@ INSTALLED_APPS = [
     'tasks.apps.TasksConfig',
     'service_requests.apps.ServiceRequestsConfig',
     'equipment.apps.EquipmentConfig',
+    'feedback.apps.FeedbackConfig',
     'nas_storage.apps.NasStorageConfig',
     'tools.apps.ToolsConfig',
     'django_cleanup.apps.CleanupConfig', # 👉 Thêm dòng này vào cuối

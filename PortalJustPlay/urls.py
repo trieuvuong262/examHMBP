@@ -20,6 +20,7 @@ urlpatterns = [
     path('cong-viec/', include('tasks.urls')),
     path('yeu-cau/', include('service_requests.urls')),
     path('thiet-bi/', include('equipment.urls')),
+    path('gop-y/', include('feedback.urls')),
     path('change-password/', MyPasswordChangeView.as_view(template_name='registration/password_change_form.html'), name='password_change'),
     path('change-password/done/', auth_views.PasswordChangeDoneView.as_view(template_name='registration/password_change_done.html'), name='password_change_done'),
     path('profile/avatar/', update_avatar, name='update_avatar'),

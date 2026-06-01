@@ -27,6 +27,7 @@ MODULE_TASKS = 'tasks'
 MODULE_SERVICE_REQUESTS = 'service_requests'
 MODULE_NAS_STORAGE = 'nas_storage'
 MODULE_EQUIPMENT = 'equipment'
+MODULE_FEEDBACK = 'feedback'
 
 MODULE_CHOICES = [
     (MODULE_ANNOUNCEMENTS, 'Thông báo'),
@@ -44,6 +45,7 @@ MODULE_CHOICES = [
     (MODULE_SERVICE_REQUESTS, 'Yêu cầu'),
     (MODULE_NAS_STORAGE, 'Thư mục NAS'),
     (MODULE_EQUIPMENT, 'Quản lý thiết bị'),
+    (MODULE_FEEDBACK, 'Góp ý'),
 ]
 
 ALL_MODULE_KEYS = {key for key, _ in MODULE_CHOICES}
@@ -83,6 +85,7 @@ PATH_MODULE_RULES = [
     ('/yeu-cau/', MODULE_SERVICE_REQUESTS),
     ('/thu-muc-nas/', MODULE_NAS_STORAGE),
     ('/thiet-bi/', MODULE_EQUIPMENT),
+    ('/gop-y/', MODULE_FEEDBACK),
 ]
 
 EQUIPMENT_PUBLIC_PREFIXES = (

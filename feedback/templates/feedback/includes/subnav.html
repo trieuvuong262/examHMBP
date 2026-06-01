@@ -1,0 +1,19 @@
+<nav class="jp-tasks-subnav mb-3 mb-md-4" aria-label="Góp ý">
+    <div class="jp-tab-pills d-flex flex-wrap gap-2">
+        <a href="{% url 'feedback:my_list' %}"
+           class="btn btn-sm {% if request.resolver_match.url_name == 'my_list' or request.resolver_match.url_name == 'detail' and not is_review_queue %}btn-hm{% else %}btn-outline-secondary{% endif %}">
+            Góp ý của tôi
+        </a>
+        {% if jp_can_edit_feedback %}
+        <a href="{% url 'feedback:review_list' %}"
+           class="btn btn-sm {% if request.resolver_match.url_name == 'review_list' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
+            Chờ xử lý
+            {% if pending_count %}<span class="badge bg-danger ms-1">{{ pending_count }}</span>{% endif %}
+        </a>
+        {% endif %}
+        <a href="{% url 'feedback:create' %}"
+           class="btn btn-sm {% if request.resolver_match.url_name == 'create' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
+            <i class="bi bi-plus-lg me-1"></i>Gửi góp ý
+        </a>
+    </div>
+</nav>

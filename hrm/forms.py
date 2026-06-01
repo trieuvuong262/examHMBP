@@ -288,6 +288,8 @@ PERM_GROUP_MODULE_ICONS = {
     'tasks': 'bi-kanban',
     'service_requests': 'bi-headset',
     'nas_storage': 'bi-hdd-network',
+    'equipment': 'bi-pc-display',
+    'feedback': 'bi-chat-square-text',
 }
 
 

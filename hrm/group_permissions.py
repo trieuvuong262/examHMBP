@@ -140,6 +140,8 @@ MODULE_LIST_META = {
     'tasks': {'icon': 'bi-kanban', 'short': 'CV'},
     'service_requests': {'icon': 'bi-headset', 'short': 'YC'},
     'nas_storage': {'icon': 'bi-hdd-network', 'short': 'NAS'},
+    'equipment': {'icon': 'bi-pc-display', 'short': 'TB'},
+    'feedback': {'icon': 'bi-chat-square-text', 'short': 'GY'},
 }
 
 
