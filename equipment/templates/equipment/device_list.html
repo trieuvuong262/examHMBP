@@ -10,7 +10,7 @@
     {% include 'equipment/includes/subnav.html' %}
 
     <div class="jp-page-header mb-3">
-        <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-hdd-stack me-2"></i>Danh sách thiết bị</h2>
+        <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-hdd-stack me-2"></i>Danh sách — {{ equipment_scope_short }}</h2>
         <p class="text-muted mb-0">{{ filtered_count|intcomma }} / {{ total_count|intcomma }} thiết bị</p>
     </div>
 
@@ -118,7 +118,7 @@
                     </div>
                 </div>
                 <div class="mt-2 text-end">
-                    <a href="{% url 'equipment:device_list' %}" class="btn btn-link btn-sm text-muted p-0">Xóa bộ lọc</a>
+                    <a href="{{ equipment_urls.device_list }}" class="btn btn-link btn-sm text-muted p-0">Xóa bộ lọc</a>
                 </div>
             </form>
         </div>

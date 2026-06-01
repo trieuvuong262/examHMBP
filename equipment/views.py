@@ -28,6 +28,14 @@ from equipment.services.device_categories import (
 
 from .forms import DeviceForm, ReportIssueForm
 from .models import Device, MaintenanceLog
+from .scope import (
+    SCOPE_IT,
+    SCOPE_PRODUCTION,
+    filter_devices_for_scope,
+    managed_by_for_scope,
+    merge_scope_context,
+    scope_urls,
+)
 from .services.import_export import (
     apply_device_list_filters,
     build_export_filename,
@@ -52,12 +60,12 @@ def _edit_required(view_func):
     def wrapper(request, *args, **kwargs):
         if not user_can_edit_module(request.user, MODULE_EQUIPMENT):
             messages.error(request, 'Bạn không có quyền chỉnh sửa thiết bị.')
-            return redirect('equipment:dashboard')
+            return redirect('equipment:dashboard_it')
         return view_func(request, *args, **kwargs)
     return wrapper
 
 
-def _subnav_context(request=None):
+def _subnav_context(request=None, equipment_scope=None, device=None):
     ctx = {}
     if request and request.user.is_authenticated:
         from equipment.services.it_repair_queue import pending_it_repair_steps_for_user
@@ -68,30 +76,45 @@ def _subnav_context(request=None):
         ctx['it_repair_pending_count'] = 0
         ctx['can_edit_equipment'] = False
         ctx['can_export_equipment'] = False
+    ctx.update(merge_scope_context(request, equipment_scope, device))
     return ctx
 
 
-@_access_required
-def dashboard(request):
-    total_devices = Device.objects.count()
-    broken_devices = Device.objects.filter(status=Device.STATUS_BROKEN).count()
-    maintenance_devices = Device.objects.filter(status=Device.STATUS_MAINTENANCE).count()
-    active_devices = Device.objects.filter(status=Device.STATUS_ACTIVE).count()
-    scrapped_devices = Device.objects.filter(status=Device.STATUS_SCRAPPED).count()
-    total_cost = MaintenanceLog.objects.aggregate(total=Sum('cost'))['total'] or 0
+def _redirect_device_list(equipment_scope=None):
+    return redirect(scope_urls(equipment_scope or SCOPE_IT)['device_list'])
 
-    recent_issues = MaintenanceLog.objects.filter(
+
+def _redirect_import_hub(equipment_scope=None, category=''):
+    url = scope_urls(equipment_scope or SCOPE_IT)['import_export_hub']
+    if category:
+        url = f'{url}?category={category}'
+    return redirect(url)
+
+
+@_access_required
+def dashboard(request, equipment_scope=SCOPE_IT):
+    device_qs = filter_devices_for_scope(Device.objects.all(), equipment_scope)
+    total_devices = device_qs.count()
+    broken_devices = device_qs.filter(status=Device.STATUS_BROKEN).count()
+    maintenance_devices = device_qs.filter(status=Device.STATUS_MAINTENANCE).count()
+    active_devices = device_qs.filter(status=Device.STATUS_ACTIVE).count()
+    scrapped_devices = device_qs.filter(status=Device.STATUS_SCRAPPED).count()
+
+    log_qs = MaintenanceLog.objects.filter(device__in=device_qs)
+    total_cost = log_qs.aggregate(total=Sum('cost'))['total'] or 0
+
+    recent_issues = log_qs.filter(
         is_resolved=False,
         device__status=Device.STATUS_BROKEN,
     ).select_related('device', 'device__usage_department').order_by('-created_at')[:5]
 
-    monitoring_issues = MaintenanceLog.objects.filter(
+    monitoring_issues = log_qs.filter(
         is_resolved=False,
         device__status=Device.STATUS_MAINTENANCE,
     ).select_related('device').order_by('expected_return_date')[:5]
 
     current_year = date.today().year
-    monthly_costs = MaintenanceLog.objects.filter(created_at__year=current_year).annotate(
+    monthly_costs = log_qs.filter(created_at__year=current_year).annotate(
         month=ExtractMonth('created_at'),
     ).values('month').annotate(total=Sum('cost')).order_by('month')
     cost_data = [0] * 12
@@ -101,20 +124,20 @@ def dashboard(request):
         if month and 1 <= month <= 12:
             cost_data[month - 1] = int(total or 0)
 
-    top_depts = MaintenanceLog.objects.values('device__usage_department_text').annotate(
+    top_depts = log_qs.values('device__usage_department_text').annotate(
         count=Count('id'),
     ).order_by('-count')[:5]
     dept_labels = [d['device__usage_department_text'] or '—' for d in top_depts]
     dept_data = [d['count'] for d in top_depts]
 
-    top_cats = MaintenanceLog.objects.values('device__category').annotate(
+    top_cats = log_qs.values('device__category').annotate(
         count=Count('id'),
     ).order_by('-count')
     cat_map = category_map()
     cat_labels = [cat_map.get(item['device__category'], item['device__category']) for item in top_cats]
     cat_data = [item['count'] for item in top_cats]
 
-    top_cost_depts = MaintenanceLog.objects.values('device__usage_department_text').annotate(
+    top_cost_depts = log_qs.values('device__usage_department_text').annotate(
         total=Sum('cost'),
     ).order_by('-total')[:5]
     dept_cost_labels = [d['device__usage_department_text'] or '—' for d in top_cost_depts]
@@ -137,12 +160,12 @@ def dashboard(request):
         'cat_data_json': json.dumps(cat_data),
         'dept_cost_labels_json': json.dumps(dept_cost_labels, ensure_ascii=False),
         'dept_cost_data_json': json.dumps(dept_cost_data),
-        **_subnav_context(request),
+        **_subnav_context(request, equipment_scope),
     })
 
 
 @_access_required
-def it_repair_list(request):
+def it_repair_list(request, equipment_scope=SCOPE_IT):
     """Hàng đợi Hỗ trợ kỹ thuật — IT xử lý trong module thiết bị."""
     from equipment.services.it_repair_queue import pending_it_repair_steps_for_user
 
@@ -162,12 +185,17 @@ def it_repair_list(request):
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
-        **_subnav_context(request),
+        **_subnav_context(request, equipment_scope),
     })
 
 
 @_access_required
-def it_repair_detail(request, pk):
+def legacy_it_repair_detail(request, pk):
+    return redirect('equipment:it_repair_detail_it', pk=pk)
+
+
+@_access_required
+def it_repair_detail(request, pk, equipment_scope=SCOPE_IT):
     """Xử lý một yêu cầu Hỗ trợ kỹ thuật."""
     from equipment.services.it_repair_queue import (
         can_claim_it_repair_step,
@@ -187,7 +215,7 @@ def it_repair_detail(request, pk):
     )
     if not service_request.is_it_repair:
         messages.error(request, 'Yêu cầu không thuộc loại Hỗ trợ kỹ thuật.')
-        return redirect('equipment:it_repair_list')
+        return redirect('equipment:it_repair_list_it')
 
     current_step = service_request.current_step
     if not current_step or current_step.step_code != ServiceRequestStep.STEP_IT_REPAIR:
@@ -198,7 +226,7 @@ def it_repair_detail(request, pk):
     can_claim = can_claim_it_repair_step(request.user, current_step)
     if not can_handle and not can_claim:
         messages.error(request, 'Bạn không có quyền xử lý yêu cầu này.')
-        return redirect('equipment:it_repair_list')
+        return redirect('equipment:it_repair_list_it')
 
     it_repair_form = ItRepairCompleteForm()
 
@@ -208,7 +236,7 @@ def it_repair_detail(request, pk):
             if action == 'claim' and can_claim:
                 claim_step(current_step, actor=request.user)
                 messages.success(request, 'Đã tiếp nhận yêu cầu.')
-                return redirect('equipment:it_repair_detail', pk=pk)
+                return redirect('equipment:it_repair_detail_it', pk=pk)
 
             if action == 'complete_it_repair' and can_handle:
                 it_repair_form = ItRepairCompleteForm(request.POST)
@@ -244,10 +272,10 @@ def it_repair_detail(request, pk):
                         repaired_by=request.user.get_full_name() or request.user.username,
                     )
                     messages.success(request, 'Đã hoàn thành xử lý — yêu cầu đã đóng.')
-                    return redirect('equipment:it_repair_list')
+                    return redirect('equipment:it_repair_list_it')
         except ValueError as exc:
             messages.error(request, str(exc))
-            return redirect('equipment:it_repair_detail', pk=pk)
+            return redirect('equipment:it_repair_detail_it', pk=pk)
 
     return render(request, 'equipment/it_repair_detail.html', {
         'service_request': service_request,
@@ -256,14 +284,18 @@ def it_repair_detail(request, pk):
         'can_claim': can_claim,
         'it_repair_form': it_repair_form,
         'logs': service_request.logs.all()[:20],
-        **_subnav_context(request),
+        **_subnav_context(request, equipment_scope),
     })
 
 
 @_access_required
-def device_list(request):
+def device_list(request, equipment_scope=SCOPE_IT):
     search_query = get_search_query(request)
-    qs = Device.objects.select_related('usage_department', 'assigned_user__profile')
+    qs = filter_devices_for_scope(
+        Device.objects.select_related('usage_department', 'assigned_user__profile'),
+        equipment_scope,
+    )
+    scope_total_qs = filter_devices_for_scope(Device.objects.all(), equipment_scope)
 
     q = request.GET.get('q', '').strip()
     if q:
@@ -330,12 +362,12 @@ def device_list(request):
         'query_string': query_string,
         'search_query': search_query,
         'q': q,
-        'total_count': Device.objects.count(),
+        'total_count': scope_total_qs.count(),
         'filtered_count': filtered_count,
-        'stat_active': Device.objects.filter(status=Device.STATUS_ACTIVE).count(),
-        'stat_broken': Device.objects.filter(status=Device.STATUS_BROKEN).count(),
-        'stat_maintenance': Device.objects.filter(status=Device.STATUS_MAINTENANCE).count(),
-        'stat_online': Device.objects.filter(is_online=True).count(),
+        'stat_active': scope_total_qs.filter(status=Device.STATUS_ACTIVE).count(),
+        'stat_broken': scope_total_qs.filter(status=Device.STATUS_BROKEN).count(),
+        'stat_maintenance': scope_total_qs.filter(status=Device.STATUS_MAINTENANCE).count(),
+        'stat_online': scope_total_qs.filter(is_online=True).count(),
         'current_managed_by': managed_by,
         'current_category': category,
         'current_categories': categories,
@@ -352,24 +384,28 @@ def device_list(request):
         'can_edit': user_can_edit_module(request.user, MODULE_EQUIPMENT),
         'can_edit_equipment': user_can_edit_module(request.user, MODULE_EQUIPMENT),
         'can_export': user_can_access_module(request.user, MODULE_EQUIPMENT),
-        **_subnav_context(request),
+        **_subnav_context(request, equipment_scope),
     })
 
 
 @_edit_required
-def device_add(request):
+def device_add(request, equipment_scope=SCOPE_IT):
+    default_managed = managed_by_for_scope(equipment_scope) or Device.MANAGED_IT
     if request.method == 'POST':
         form = DeviceForm(request.POST)
         if form.is_valid():
-            form.save()
+            device = form.save(commit=False)
+            if not form.cleaned_data.get('managed_by'):
+                device.managed_by = default_managed
+            device.save()
             messages.success(request, 'Đã thêm thiết bị mới.')
-            return redirect('equipment:device_list')
+            return _redirect_device_list(equipment_scope)
     else:
-        form = DeviceForm()
+        form = DeviceForm(initial={'managed_by': default_managed})
     return render(request, 'equipment/device_form.html', {
         'form': form,
         'is_edit': False,
-        **_subnav_context(request),
+        **_subnav_context(request, equipment_scope),
     })
 
 
@@ -501,7 +537,7 @@ def device_detail_manage(request, device_id):
         'shared_users': shared_users,
         'logs': logs,
         'can_edit': can_edit,
-        **_subnav_context(request),
+        **_subnav_context(request, device=device),
     })
 
 
@@ -512,7 +548,7 @@ def device_history(request, device_id):
     return render(request, 'equipment/device_history.html', {
         'device': device,
         'logs': logs,
-        **_subnav_context(request),
+        **_subnav_context(request, device=device),
     })
 
 
@@ -525,10 +561,11 @@ def _equipment_departments():
     )
 
 
-def _import_export_context(request):
-    selected_category = (request.GET.get('category') or 'PC').strip()
+def _import_export_context(request, equipment_scope=SCOPE_IT):
+    default_category = 'PC' if equipment_scope == SCOPE_IT else 'SEW_LOCKSTITCH'
+    selected_category = (request.GET.get('category') or default_category).strip()
     if selected_category not in valid_codes():
-        selected_category = 'PC'
+        selected_category = default_category
     cmap = category_map()
 
     return {
@@ -537,31 +574,32 @@ def _import_export_context(request):
         'selected_category': selected_category,
         'selected_category_label': cmap.get(selected_category, selected_category),
         'import_columns': import_columns_for_category(selected_category),
-        **_subnav_context(request),
+        **_subnav_context(request, equipment_scope),
     }
 
 
 @_edit_required
-def import_export_hub(request):
+def import_export_hub(request, equipment_scope=SCOPE_IT):
     """Trang nhập Excel theo loại thiết bị."""
-    return render(request, 'equipment/import_export.html', _import_export_context(request))
+    return render(request, 'equipment/import_export.html', _import_export_context(request, equipment_scope))
 
 
 @_access_required
-def export_devices(request):
+def export_devices(request, equipment_scope=SCOPE_IT):
     if request.method == 'POST':
         params = request.POST
     else:
         params = request.GET
 
-    qs = apply_device_list_filters(
+    base_qs = filter_devices_for_scope(
         Device.objects.select_related('usage_department', 'assigned_user__profile'),
-        params,
+        equipment_scope,
     )
+    qs = apply_device_list_filters(base_qs, params)
     count = qs.count()
     if count == 0:
         messages.warning(request, 'Không có thiết bị nào để xuất (theo bộ lọc hiện tại).')
-        return redirect('equipment:device_list')
+        return _redirect_device_list(equipment_scope)
 
     categories = params.getlist('category') if hasattr(params, 'getlist') else []
     buffer = export_devices_excel(qs)
@@ -575,11 +613,12 @@ def export_devices(request):
 
 
 @_edit_required
-def download_sample(request):
-    category = (request.GET.get('category') or 'PC').strip()
+def download_sample(request, equipment_scope=SCOPE_IT):
+    default_category = 'PC' if equipment_scope == SCOPE_IT else 'SEW_LOCKSTITCH'
+    category = (request.GET.get('category') or default_category).strip()
     if category not in valid_codes():
         messages.error(request, 'Loại thiết bị không hợp lệ.')
-        return redirect('equipment:import_export_hub')
+        return _redirect_import_hub(equipment_scope)
 
     df = build_sample_dataframe(category)
     label = category_map().get(category, category).replace('/', '-')
@@ -591,24 +630,24 @@ def download_sample(request):
 
 @_edit_required
 @require_http_methods(['GET', 'POST'])
-def import_devices(request):
+def import_devices(request, equipment_scope=SCOPE_IT):
+    default_category = 'PC' if equipment_scope == SCOPE_IT else 'SEW_LOCKSTITCH'
     if request.method == 'GET':
-        category = (request.GET.get('category') or 'PC').strip()
-        url = reverse('equipment:import_export_hub') + f'?category={category}'
-        return redirect(url)
+        category = (request.GET.get('category') or default_category).strip()
+        return _redirect_import_hub(equipment_scope, category)
 
-    selected_category = (request.POST.get('category') or 'PC').strip()
+    selected_category = (request.POST.get('category') or default_category).strip()
     if selected_category not in valid_codes():
-        selected_category = 'PC'
+        selected_category = default_category
 
     excel_file = request.FILES.get('excel_file')
     category = (request.POST.get('category') or selected_category).strip()
     if not excel_file:
         messages.error(request, 'Vui lòng chọn file Excel.')
-        return redirect(f"{reverse('equipment:import_export_hub')}?category={category}")
+        return _redirect_import_hub(equipment_scope, category)
     if category not in valid_codes():
         messages.error(request, 'Loại thiết bị không hợp lệ.')
-        return redirect('equipment:import_export_hub')
+        return _redirect_import_hub(equipment_scope)
 
     try:
         count, errors = import_devices_from_excel(excel_file, category)
@@ -626,13 +665,17 @@ def import_devices(request):
             messages.warning(request, 'Không có dòng dữ liệu hợp lệ trong file.')
     except Exception as exc:
         messages.error(request, f'Lỗi đọc file: {exc}')
-        return redirect(f"{reverse('equipment:import_export_hub')}?category={category}")
+        return _redirect_import_hub(equipment_scope, category)
 
-    return redirect('equipment:device_list')
+    return _redirect_device_list(equipment_scope)
+
+
+def _redirect_category_list(equipment_scope=None):
+    return redirect(scope_urls(equipment_scope or SCOPE_IT)['category_list'])
 
 
 @_edit_required
-def category_list(request):
+def category_list(request, equipment_scope=SCOPE_IT):
     from equipment.models import DeviceCategory
 
     search = (request.GET.get('q') or '').strip()
@@ -646,13 +689,13 @@ def category_list(request):
         'categories': categories,
         'search_query': search,
         'group_labels': CATEGORY_GROUP_LABELS,
-        **_subnav_context(request),
+        **_subnav_context(request, equipment_scope),
     })
 
 
 @_edit_required
 @require_http_methods(['GET', 'POST'])
-def category_add(request):
+def category_add(request, equipment_scope=SCOPE_IT):
     from equipment.forms import DeviceCategoryForm
 
     if request.method == 'POST':
@@ -660,19 +703,19 @@ def category_add(request):
         if form.is_valid():
             form.save()
             messages.success(request, f'Đã thêm loại «{form.instance.name}».')
-            return redirect('equipment:category_list')
+            return _redirect_category_list(equipment_scope)
     else:
         form = DeviceCategoryForm()
     return render(request, 'equipment/category_form.html', {
         'form': form,
         'is_edit': False,
-        **_subnav_context(request),
+        **_subnav_context(request, equipment_scope),
     })
 
 
 @_edit_required
 @require_http_methods(['GET', 'POST'])
-def category_edit(request, pk):
+def category_edit(request, pk, equipment_scope=SCOPE_IT):
     from equipment.forms import DeviceCategoryForm
     from equipment.models import DeviceCategory
 
@@ -682,46 +725,46 @@ def category_edit(request, pk):
         if form.is_valid():
             form.save()
             messages.success(request, 'Đã cập nhật loại thiết bị.')
-            return redirect('equipment:category_list')
+            return _redirect_category_list(equipment_scope)
     else:
         form = DeviceCategoryForm(instance=category)
     return render(request, 'equipment/category_form.html', {
         'form': form,
         'category': category,
         'is_edit': True,
-        **_subnav_context(request),
+        **_subnav_context(request, equipment_scope),
     })
 
 
 @_edit_required
 @require_http_methods(['POST'])
-def category_delete(request, pk):
+def category_delete(request, pk, equipment_scope=SCOPE_IT):
     from equipment.models import Device, DeviceCategory
 
     category = get_object_or_404(DeviceCategory, pk=pk)
     in_use = Device.objects.filter(category=category.code).count()
     if in_use:
         messages.error(request, f'Không xóa được — còn {in_use} thiết bị đang dùng loại này.')
-        return redirect('equipment:category_list')
+        return _redirect_category_list(equipment_scope)
     name = category.name
     category.delete()
     messages.success(request, f'Đã xóa loại «{name}».')
-    return redirect('equipment:category_list')
+    return _redirect_category_list(equipment_scope)
 
 
 @_edit_required
 @require_http_methods(['POST'])
-def delete_bulk_devices(request):
+def delete_bulk_devices(request, equipment_scope=SCOPE_IT):
     device_ids = request.POST.getlist('device_ids')
     if not device_ids:
         messages.warning(request, 'Vui lòng chọn ít nhất một thiết bị để xóa.')
-        return redirect('equipment:device_list')
+        return _redirect_device_list(equipment_scope)
 
     qs = Device.objects.filter(id__in=device_ids)
     num = qs.count()
     qs.delete()
     messages.success(request, f'Đã xóa {num} thiết bị.')
-    return redirect('equipment:device_list')
+    return _redirect_device_list(equipment_scope)
 
 
 @csrf_exempt
@@ -790,7 +833,7 @@ def request_agent_rescan(request):
 
     if not getattr(settings, 'EQUIPMENT_AGENT_SECRET', ''):
         messages.error(request, 'Chưa cấu hình EQUIPMENT_AGENT_SECRET trên server.')
-        return redirect('equipment:device_list')
+        return _redirect_device_list(SCOPE_IT)
 
     when = EquipmentScanControl.request_agent_rescan()
     messages.success(
@@ -798,7 +841,7 @@ def request_agent_rescan(request):
         f'Đã gửi tín hiệu quét tới các PC có Agent (lúc {when:%H:%M:%S}). '
         f'PC online sẽ cập nhật trong 1–2 phút — tải lại trang.',
     )
-    return redirect('equipment:device_list')
+    return _redirect_device_list(SCOPE_IT)
 
 
 @login_required

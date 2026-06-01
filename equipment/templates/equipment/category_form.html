@@ -13,7 +13,7 @@
         <h2 class="fw-bold text-hm mb-1 jp-page-title">
             <i class="bi bi-tag me-2"></i>{% if is_edit %}Sửa loại thiết bị{% else %}Thêm loại thiết bị{% endif %}
         </h2>
-        <a href="{% url 'equipment:category_list' %}" class="btn btn-outline-secondary btn-sm">
+        <a href="{{ equipment_urls.category_list }}" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-arrow-left me-1"></i>Loại thiết bị
         </a>
     </div>
@@ -55,7 +55,7 @@
                 </div>
                 <div class="mt-4">
                     <button type="submit" class="btn btn-hm">Lưu</button>
-                    <a href="{% url 'equipment:category_list' %}" class="btn btn-outline-secondary ms-2">Hủy</a>
+                    <a href="{{ equipment_urls.category_list }}" class="btn btn-outline-secondary ms-2">Hủy</a>
                 </div>
             </form>
         </div>

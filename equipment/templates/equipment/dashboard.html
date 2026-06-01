@@ -6,13 +6,13 @@
     {% include 'equipment/includes/subnav.html' %}
 
     <div class="jp-page-header mb-3 mb-md-4">
-        <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-speedometer2 me-2"></i>Tổng quan thiết bị</h2>
+        <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-speedometer2 me-2"></i>{{ equipment_scope_label }}</h2>
         <p class="text-muted mb-0">Cập nhật {{ today|date:"d/m/Y" }}</p>
     </div>
 
     <div class="row g-3 mb-4">
         <div class="col-6 col-lg">
-            <a href="{% url 'equipment:device_list' %}" class="text-decoration-none">
+            <a href="{{ equipment_urls.device_list }}" class="text-decoration-none">
                 <div class="card border-0 shadow-sm h-100 border-start border-4 border-hm">
                     <div class="card-body py-3">
                         <div class="text-muted small">Tổng thiết bị</div>
@@ -22,7 +22,7 @@
             </a>
         </div>
         <div class="col-6 col-lg">
-            <a href="{% url 'equipment:device_list' %}?status=active" class="text-decoration-none">
+            <a href="{{ equipment_urls.device_list }}?status=active" class="text-decoration-none">
                 <div class="card border-0 shadow-sm h-100 border-start border-4 border-success">
                     <div class="card-body py-3">
                         <div class="text-muted small">Đang hoạt động</div>
@@ -32,7 +32,7 @@
             </a>
         </div>
         <div class="col-6 col-lg">
-            <a href="{% url 'equipment:device_list' %}?status=broken" class="text-decoration-none">
+            <a href="{{ equipment_urls.device_list }}?status=broken" class="text-decoration-none">
                 <div class="card border-0 shadow-sm h-100 border-start border-4 border-danger">
                     <div class="card-body py-3">
                         <div class="text-muted small">Đang hỏng</div>
@@ -42,7 +42,7 @@
             </a>
         </div>
         <div class="col-6 col-lg">
-            <a href="{% url 'equipment:device_list' %}?status=maintenance" class="text-decoration-none">
+            <a href="{{ equipment_urls.device_list }}?status=maintenance" class="text-decoration-none">
                 <div class="card border-0 shadow-sm h-100 border-start border-4 border-warning">
                     <div class="card-body py-3">
                         <div class="text-muted small">Bảo trì</div>
@@ -52,7 +52,7 @@
             </a>
         </div>
         <div class="col-6 col-lg">
-            <a href="{% url 'equipment:device_list' %}?status=scrapped" class="text-decoration-none">
+            <a href="{{ equipment_urls.device_list }}?status=scrapped" class="text-decoration-none">
                 <div class="card border-0 shadow-sm h-100 border-start border-4 border-secondary">
                     <div class="card-body py-3">
                         <div class="text-muted small">Đã hủy</div>

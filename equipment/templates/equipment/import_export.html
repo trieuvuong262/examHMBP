@@ -14,7 +14,7 @@
             <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-upload me-2"></i>Nhập Excel</h2>
             <p class="text-muted mb-0">Tải file mẫu theo loại thiết bị, điền dữ liệu rồi upload</p>
         </div>
-        <a href="{% url 'equipment:device_list' %}" class="btn btn-outline-secondary btn-sm">
+        <a href="{{ equipment_urls.device_list }}" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-arrow-left me-1"></i>Danh sách thiết bị
         </a>
     </div>
@@ -39,13 +39,13 @@
                         <div class="small text-muted">Loại đang chọn</div>
                         <div class="fw-bold">{{ selected_category_label }}</div>
                     </div>
-                    <a href="{% url 'equipment:download_sample' %}?category={{ selected_category }}"
+                    <a href="{{ equipment_urls.download_sample }}?category={{ selected_category }}"
                        class="btn btn-outline-hm btn-sm w-100">
                         <i class="bi bi-download me-1"></i>Tải file mẫu Excel
                     </a>
                     <p class="small text-muted mt-3 mb-0">
                         Mỗi lần nhập <strong>một loại</strong>. Quản lý loại mới tại
-                        <a href="{% url 'equipment:category_list' %}">Loại thiết bị</a>.
+                        <a href="{{ equipment_urls.category_list }}">Loại thiết bị</a>.
                     </p>
                 </div>
             </div>
@@ -81,7 +81,7 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-body p-4">
                     <h6 class="fw-bold mb-3"><span class="badge bg-hm me-1">3</span> Tải file lên</h6>
-                    <form method="post" action="{% url 'equipment:import_devices' %}" enctype="multipart/form-data">
+                    <form method="post" action="{{ equipment_urls.import_devices }}" enctype="multipart/form-data">
                         {% csrf_token %}
                         <input type="hidden" name="category" value="{{ selected_category }}">
                         <div class="mb-3">
@@ -91,7 +91,7 @@
                         <button type="submit" class="btn btn-hm">
                             <i class="bi bi-upload me-1"></i>Nhập {{ selected_category_label }}
                         </button>
-                        <a href="{% url 'equipment:device_list' %}" class="btn btn-outline-secondary ms-2">Hủy</a>
+                        <a href="{{ equipment_urls.device_list }}" class="btn btn-outline-secondary ms-2">Hủy</a>
                     </form>
                 </div>
             </div>

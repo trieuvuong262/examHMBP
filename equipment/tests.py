@@ -503,13 +503,13 @@ class ImportExportHubViewTests(TestCase):
         self.client.login(username='admin', password='x')
 
     def test_import_export_hub_import_tab(self):
-        resp = self.client.get('/thiet-bi/nhap-xuat/?category=SEW_LOCKSTITCH')
+        resp = self.client.get('/thiet-bi/san-xuat/nhap-xuat/?category=SEW_LOCKSTITCH')
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'Tải file mẫu Excel')
         self.assertContains(resp, 'SEW_LOCKSTITCH')
 
     def test_download_sample_for_category_without_preset_row(self):
-        resp = self.client.get('/thiet-bi/file-mau/?category=SAMPLE_SEW')
+        resp = self.client.get('/thiet-bi/san-xuat/file-mau/?category=SAMPLE_SEW')
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.content)
         self.assertEqual(
@@ -521,9 +521,28 @@ class ImportExportHubViewTests(TestCase):
         from equipment.models import Device
 
         Device.objects.create(name='Test PC', category='PC', status=Device.STATUS_ACTIVE)
-        resp = self.client.get('/thiet-bi/xuat-excel/?category=PC')
+        resp = self.client.get('/thiet-bi/it/xuat-excel/?category=PC')
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(
             resp['Content-Type'],
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         )
+
+    def test_device_list_scoped_by_managed_by(self):
+        from equipment.models import Device
+
+        Device.objects.create(name='PC A', category='PC', managed_by=Device.MANAGED_IT, status=Device.STATUS_ACTIVE)
+        Device.objects.create(
+            name='May A',
+            category='SEW_LOCKSTITCH',
+            managed_by=Device.MANAGED_MAINTENANCE,
+            status=Device.STATUS_ACTIVE,
+        )
+        it_resp = self.client.get('/thiet-bi/it/danh-sach/')
+        prod_resp = self.client.get('/thiet-bi/san-xuat/danh-sach/')
+        self.assertEqual(it_resp.status_code, 200)
+        self.assertEqual(prod_resp.status_code, 200)
+        self.assertContains(it_resp, 'PC A')
+        self.assertNotContains(it_resp, 'May A')
+        self.assertContains(prod_resp, 'May A')
+        self.assertNotContains(prod_resp, 'PC A')

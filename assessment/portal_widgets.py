@@ -322,7 +322,7 @@ def _equipment_it_widgets(user):
         'icon': 'bi-tools',
         'title': 'Hỗ trợ kỹ thuật',
         'text': f'{pending} sự cố chờ IT xử lý trong Quản lý thiết bị.',
-        'url': reverse('equipment:it_repair_list'),
+        'url': reverse('equipment:it_repair_list_it'),
         'action': 'Xử lý',
         'badge': pending,
     }]

@@ -15,10 +15,10 @@
             <p class="text-muted mb-0">Thêm, sửa, xóa loại — dùng khi nhập Excel và lọc danh sách</p>
         </div>
         <div class="d-flex flex-wrap gap-2">
-            <a href="{% url 'equipment:device_list' %}" class="btn btn-outline-secondary btn-sm">
+            <a href="{{ equipment_urls.device_list }}" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-arrow-left me-1"></i>Danh sách thiết bị
             </a>
-            <a href="{% url 'equipment:category_add' %}" class="btn btn-hm btn-sm">
+            <a href="{% if equipment_scope == 'production' %}{% url 'equipment:category_add_production' %}{% else %}{% url 'equipment:category_add_it' %}{% endif %}" class="btn btn-hm btn-sm">
                 <i class="bi bi-plus-lg me-1"></i>Thêm loại
             </a>
         </div>
@@ -36,7 +36,7 @@
                     <button type="submit" class="btn btn-hm btn-sm w-100">Tìm</button>
                 </div>
                 <div class="col-md-2">
-                    <a href="{% url 'equipment:category_list' %}" class="btn btn-outline-secondary btn-sm w-100">Xóa lọc</a>
+                    <a href="{{ equipment_urls.category_list }}" class="btn btn-outline-secondary btn-sm w-100">Xóa lọc</a>
                 </div>
             </form>
         </div>
@@ -68,9 +68,9 @@
                             {% if cat.is_active %}<span class="badge bg-success">Dùng</span>{% else %}<span class="badge bg-secondary">Ẩn</span>{% endif %}
                         </td>
                         <td class="text-end text-nowrap">
-                            <a href="{% url 'equipment:category_edit' cat.pk %}" class="btn btn-sm btn-outline-hm">Sửa</a>
+                            <a href="{% if equipment_scope == 'production' %}{% url 'equipment:category_edit_production' cat.pk %}{% else %}{% url 'equipment:category_edit_it' cat.pk %}{% endif %}" class="btn btn-sm btn-outline-hm">Sửa</a>
                             {% if cat.device_count == 0 %}
-                            <form method="post" action="{% url 'equipment:category_delete' cat.pk %}" class="d-inline"
+                            <form method="post" action="{% if equipment_scope == 'production' %}{% url 'equipment:category_delete_production' cat.pk %}{% else %}{% url 'equipment:category_delete_it' cat.pk %}{% endif %}" class="d-inline"
                                   onsubmit="return confirm('Xóa loại {{ cat.name }}?');">
                                 {% csrf_token %}
                                 <button type="submit" class="btn btn-sm btn-outline-danger">Xóa</button>
