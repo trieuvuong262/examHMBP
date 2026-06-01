@@ -3,6 +3,7 @@ from decimal import Decimal, InvalidOperation
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 
 from django.db.models import Q
 
@@ -13,15 +14,19 @@ from tasks.attachment_utils import read_separate_uploads
 
 from .forms import (
     DivisionHeadApproveForm,
+    ItRepairCompleteForm,
+    ItRepairCreateForm,
     LineItemFormSet,
     PurchaseCompleteForm,
     RecurringItemCatalogForm,
     RejectStepForm,
+    RequesterConfirmForm,
     ServiceRequestCreateForm,
     StepActionForm,
 )
 from .models import (
     RecurringItemCatalog,
+    RequestType,
     ServiceRequest,
     ServiceRequestAttachment,
     ServiceRequestStep,
@@ -48,6 +53,28 @@ from .workflow import (
     log_action,
     reject_step,
 )
+from .workflow_it import (
+    complete_it_repair_step,
+    complete_requester_confirmation,
+    create_it_repair_request,
+    get_it_repair_request_type,
+)
+
+
+def _subnav_context(request, *, flow_tab='procurement'):
+    return {
+        'flow_tab': flow_tab,
+        'pending_count': pending_steps_for_user(request.user).count(),
+        'can_manage_catalog': can_manage_recurring_catalog(request.user),
+    }
+
+
+def _filter_by_flow(qs, flow_tab):
+    if flow_tab == 'it_repair':
+        return qs.filter(request_type__code=RequestType.CODE_IT_REPAIR)
+    if flow_tab == 'procurement':
+        return qs.filter(request_type__code=RequestType.CODE_ASSET_PURCHASE)
+    return qs
 
 
 def _access_required(view_func):
@@ -148,18 +175,27 @@ def request_hub(request):
 @_access_required
 def my_requests(request):
     search_query = get_search_query(request)
+    flow_tab = request.GET.get('loai', 'procurement')
+    if flow_tab not in ('procurement', 'it_repair', ''):
+        flow_tab = 'procurement'
+    if not flow_tab:
+        flow_tab = 'procurement'
+
     qs = ServiceRequest.objects.filter(
         requester=request.user,
     ).select_related('request_type').prefetch_related('steps')
+    qs = _filter_by_flow(qs, flow_tab)
     status = request.GET.get('status', '')
     if status:
         qs = qs.filter(status=status)
     qs = apply_term_search(
         qs, search_query,
         'title__icontains', 'description__icontains', 'request_type__name__icontains',
+        'equipment_label__icontains', 'location_text__icontains',
     )
     page_obj, query_string = paginate_queryset(request, qs)
-    return render(request, 'service_requests/my_list.html', {
+    ctx = _subnav_context(request, flow_tab=flow_tab)
+    ctx.update({
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
@@ -171,15 +207,23 @@ def my_requests(request):
             (ServiceRequest.STATUS_REJECTED, 'Từ chối'),
             (ServiceRequest.STATUS_CANCELLED, 'Đã hủy'),
         ],
-        'pending_count': pending_steps_for_user(request.user).count(),
-        'can_manage_catalog': can_manage_recurring_catalog(request.user),
     })
+    return render(request, 'service_requests/my_list.html', ctx)
 
 
 @_access_required
 def pending_requests(request):
     search_query = get_search_query(request)
+    flow_tab = request.GET.get('loai', 'procurement')
+    if flow_tab not in ('procurement', 'it_repair'):
+        flow_tab = 'procurement'
+
     qs = pending_steps_for_user(request.user)
+    if flow_tab == 'it_repair':
+        qs = qs.filter(request__request_type__code=RequestType.CODE_IT_REPAIR)
+    else:
+        qs = qs.filter(request__request_type__code=RequestType.CODE_ASSET_PURCHASE)
+
     qs = apply_combined_search(qs, search_query, lambda term: (
         Q(request__title__icontains=term)
         | Q(request__description__icontains=term)
@@ -187,15 +231,16 @@ def pending_requests(request):
         | Q(request__requester__username__icontains=term)
         | Q(request__requester__profile__full_name__icontains=term)
         | Q(request__requester__profile__employee_code__icontains=term)
+        | Q(request__equipment_label__icontains=term)
     ))
     page_obj, query_string = paginate_queryset(request, qs)
-    return render(request, 'service_requests/pending_list.html', {
+    ctx = _subnav_context(request, flow_tab=flow_tab)
+    ctx.update({
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
-        'pending_count': qs.count(),
-        'can_manage_catalog': can_manage_recurring_catalog(request.user),
     })
+    return render(request, 'service_requests/pending_list.html', ctx)
 
 
 @_access_required
@@ -254,8 +299,69 @@ def create_request(request):
         'form': form,
         'line_formset': line_formset,
         'request_type': request_type,
-        'pending_count': pending_steps_for_user(request.user).count(),
-        'can_manage_catalog': can_manage_recurring_catalog(request.user),
+        **_subnav_context(request, flow_tab='procurement'),
+    })
+
+
+@_access_required
+def create_it_repair(request):
+    request_type = get_it_repair_request_type()
+    if not request_type:
+        messages.warning(request, 'Chưa cấu hình loại yêu cầu Sửa IT. Liên hệ quản trị viên.')
+        return redirect(f"{reverse('service_requests:my')}?loai=it_repair")
+
+    profile = getattr(request.user, 'profile', None)
+    default_location = ''
+    if profile and profile.department_id:
+        default_location = profile.department.name
+
+    if request.method == 'POST':
+        form = ItRepairCreateForm(request.POST, request_type=request_type)
+        if form.is_valid():
+            try:
+                service_request = create_it_repair_request(
+                    requester=request.user,
+                    request_type=request_type,
+                    title=form.cleaned_data['title'],
+                    description=form.cleaned_data['description'],
+                    incident_category=form.cleaned_data['incident_category'],
+                    priority=form.cleaned_data['priority'],
+                    location_text=form.cleaned_data['location_text'],
+                    equipment_label=form.cleaned_data.get('equipment_label', ''),
+                    equipment_serial=form.cleaned_data.get('equipment_serial', ''),
+                    blocks_work=form.cleaned_data.get('blocks_work', False),
+                )
+                prepared = read_separate_uploads(
+                    request.FILES.getlist('images'),
+                    request.FILES.getlist('files'),
+                )
+                if prepared:
+                    _save_attachments(
+                        service_request,
+                        prepared,
+                        uploaded_by=request.user,
+                        stage=ServiceRequestAttachment.STAGE_REQUEST,
+                    )
+                    log_action(
+                        service_request,
+                        actor=request.user,
+                        action='attachment',
+                        message=f'Đính kèm {len(prepared)} file',
+                    )
+                messages.success(request, 'Đã gửi yêu cầu sửa IT — đang chờ xử lý.')
+                return redirect('service_requests:detail', pk=service_request.pk)
+            except ValueError as exc:
+                messages.error(request, str(exc))
+    else:
+        form = ItRepairCreateForm(
+            request_type=request_type,
+            initial={'location_text': default_location, 'priority': ServiceRequest.PRIORITY_NORMAL},
+        )
+
+    return render(request, 'service_requests/it_repair_form.html', {
+        'form': form,
+        'request_type': request_type,
+        **_subnav_context(request, flow_tab='it_repair'),
     })
 
 
@@ -282,7 +388,10 @@ def request_detail(request, pk):
     current_step = service_request.current_step
     can_handle_current = bool(current_step and can_handle_step(request.user, current_step))
     can_claim_current = bool(current_step and can_claim_step(request.user, current_step))
-    show_pricing = can_view_pricing(request.user, service_request)
+    show_pricing = (
+        service_request.is_procurement
+        and can_view_pricing(request.user, service_request)
+    )
 
     action_form = StepActionForm()
     reject_form = RejectStepForm()
@@ -292,6 +401,10 @@ def request_detail(request, pk):
     purchase_form = PurchaseCompleteForm(
         receiver_queryset=get_goods_receiver_candidates(service_request),
     )
+    it_repair_form = ItRepairCompleteForm()
+    requester_confirm_form = RequesterConfirmForm()
+
+    flow_tab = 'it_repair' if service_request.is_it_repair else 'procurement'
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -386,7 +499,52 @@ def request_detail(request, pk):
                     messages.success(request, 'Đã ghi nhận đặt hàng — chờ người nhận xác nhận.')
                     return redirect('service_requests:detail', pk=pk)
 
+            if action == 'complete_it_repair' and can_handle_current:
+                if current_step.step_code != ServiceRequestStep.STEP_IT_REPAIR:
+                    raise ValueError('Bước hiện tại không phải xử lý IT.')
+                it_repair_form = ItRepairCompleteForm(request.POST)
+                if it_repair_form.is_valid():
+                    if not current_step.assignee_id:
+                        claim_step(current_step, actor=request.user)
+                        current_step.refresh_from_db()
+                    prepared = read_separate_uploads(
+                        request.FILES.getlist('images'),
+                        request.FILES.getlist('files'),
+                    )
+                    complete_it_repair_step(
+                        current_step,
+                        actor=request.user,
+                        note=it_repair_form.cleaned_data['note'].strip(),
+                        repair_cost=it_repair_form.cleaned_data.get('repair_cost'),
+                        expected_return_date=it_repair_form.cleaned_data.get('expected_return_date'),
+                    )
+                    if prepared:
+                        _save_attachments(
+                            service_request,
+                            prepared,
+                            uploaded_by=request.user,
+                            stage=ServiceRequestAttachment.STAGE_RESULT,
+                            step=current_step,
+                        )
+                    messages.success(request, 'Đã hoàn thành sửa chữa — chờ người gửi xác nhận.')
+                    return redirect('service_requests:detail', pk=pk)
+
+            if action == 'confirm_repair' and can_handle_current:
+                if current_step.step_code != ServiceRequestStep.STEP_REQUESTER_CONFIRM:
+                    raise ValueError('Bước hiện tại không phải xác nhận người gửi.')
+                requester_confirm_form = RequesterConfirmForm(request.POST)
+                if requester_confirm_form.is_valid():
+                    complete_requester_confirmation(
+                        current_step,
+                        actor=request.user,
+                        note=requester_confirm_form.cleaned_data.get('note', '').strip(),
+                    )
+                    messages.success(request, 'Đã xác nhận hoàn thành yêu cầu.')
+                    return redirect('service_requests:detail', pk=pk)
+
             if action == 'complete' and can_handle_current and current_step.is_execution:
+                if service_request.is_it_repair:
+                    raise ValueError('Dùng form xử lý IT cho yêu cầu sửa chữa.')
                 action_form = StepActionForm(request.POST)
                 if action_form.is_valid() and action_form.cleaned_data.get('note', '').strip():
                     if not current_step.assignee_id:
@@ -427,7 +585,8 @@ def request_detail(request, pk):
         and first_active.status == ServiceRequestStep.STATUS_PENDING
     )
 
-    return render(request, 'service_requests/detail.html', {
+    ctx = _subnav_context(request, flow_tab=flow_tab)
+    ctx.update({
         'service_request': service_request,
         'steps': service_request.steps.all(),
         'line_items': service_request.line_items.all(),
@@ -442,9 +601,10 @@ def request_detail(request, pk):
         'reject_form': reject_form,
         'division_head_form': division_head_form,
         'purchase_form': purchase_form,
-        'pending_count': pending_steps_for_user(request.user).count(),
-        'can_manage_catalog': can_manage_recurring_catalog(request.user),
+        'it_repair_form': it_repair_form,
+        'requester_confirm_form': requester_confirm_form,
     })
+    return render(request, 'service_requests/detail.html', ctx)
 
 
 @_catalog_required
@@ -453,13 +613,14 @@ def recurring_catalog_list(request):
     qs = RecurringItemCatalog.objects.all()
     qs = apply_term_search(qs, search_query, 'name__icontains', 'description__icontains')
     page_obj, query_string = paginate_queryset(request, qs)
-    return render(request, 'service_requests/catalog_list.html', {
+    ctx = _subnav_context(request, flow_tab='procurement')
+    ctx.update({
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
-        'pending_count': pending_steps_for_user(request.user).count(),
         'can_manage_catalog': True,
     })
+    return render(request, 'service_requests/catalog_list.html', ctx)
 
 
 @_catalog_required
@@ -477,8 +638,7 @@ def recurring_catalog_create(request):
     return render(request, 'service_requests/catalog_form.html', {
         'form': form,
         'is_edit': False,
-        'pending_count': pending_steps_for_user(request.user).count(),
-        'can_manage_catalog': True,
+        **_subnav_context(request, flow_tab='procurement'),
     })
 
 
@@ -497,8 +657,7 @@ def recurring_catalog_edit(request, pk):
         'form': form,
         'item': item,
         'is_edit': True,
-        'pending_count': pending_steps_for_user(request.user).count(),
-        'can_manage_catalog': True,
+        **_subnav_context(request, flow_tab='procurement'),
     })
 
 

@@ -344,3 +344,125 @@ class ServiceRequestWorkflowTests(TestCase):
         })
         self.assertEqual(response.status_code, 302)
         self.assertEqual(ServiceRequest.objects.filter(requester=self.employee).count(), 1)
+
+
+class ItRepairWorkflowTests(TestCase):
+    def setUp(self):
+        self.dept_it = Department.objects.create(name='Phòng IT', sort_order=0)
+        self.dept_prod = Department.objects.create(name='Xưởng SX', sort_order=1)
+
+        for dept in (self.dept_it, self.dept_prod):
+            DepartmentMenuPermission.objects.create(
+                department=dept,
+                modules=['service_requests', 'tasks'],
+            )
+
+        perms = {
+            'service_requests': {'view': True, 'edit': True},
+            'tasks': {'view': True, 'edit': True},
+        }
+        for role in (ROLE_EMPLOYEE, ROLE_TEAM_LEADER, ROLE_DIVISION_HEAD, ROLE_DIRECTOR):
+            RoleModulePermission.objects.update_or_create(
+                role=role,
+                defaults={'module_permissions': perms},
+            )
+
+        self.it_staff = self._user('it_nv', ROLE_EMPLOYEE, self.dept_it)
+        self.employee = self._user('nv_prod', ROLE_EMPLOYEE, self.dept_prod)
+        self.team_leader = self._user('tt_prod', ROLE_TEAM_LEADER, self.dept_prod)
+        self.team_leader.profile.subordinates.set([self.employee])
+
+        self.it_type, _ = RequestType.objects.get_or_create(
+            code=RequestType.CODE_IT_REPAIR,
+            defaults={'name': 'Sửa chữa IT', 'is_active': True},
+        )
+        self.client = Client()
+
+    def _user(self, username, role, dept):
+        user = User.objects.create_user(username=username, password='testpass123')
+        Profile.objects.filter(user=user).update(
+            department=dept,
+            role=role,
+            full_name=username,
+            is_employed=True,
+        )
+        user.refresh_from_db()
+        return user
+
+    def _create_it_request(self, **kwargs):
+        from service_requests.workflow_it import create_it_repair_request
+
+        defaults = {
+            'requester': self.employee,
+            'request_type': self.it_type,
+            'title': 'Máy không vào mạng',
+            'description': 'Không ping được gateway',
+            'incident_category': ServiceRequest.INCIDENT_NETWORK,
+            'priority': ServiceRequest.PRIORITY_HIGH,
+            'location_text': 'Xưởng may',
+        }
+        defaults.update(kwargs)
+        return create_it_repair_request(**defaults)
+
+    def test_no_team_leader_or_division_head_steps(self):
+        req = self._create_it_request()
+        codes = list(req.steps.values_list('step_code', flat=True))
+        self.assertEqual(codes, [
+            ServiceRequestStep.STEP_IT_REPAIR,
+            ServiceRequestStep.STEP_REQUESTER_CONFIRM,
+        ])
+
+    def test_it_claim_and_complete_then_requester_confirms(self):
+        req = self._create_it_request()
+        it_step = req.steps.get(step_code=ServiceRequestStep.STEP_IT_REPAIR)
+
+        from service_requests.workflow_it import complete_it_repair_step, complete_requester_confirmation
+        from service_requests.workflow import claim_step
+
+        claim_step(it_step, actor=self.it_staff)
+        it_step.refresh_from_db()
+        self.assertEqual(it_step.assignee_id, self.it_staff.id)
+
+        complete_it_repair_step(
+            it_step,
+            actor=self.it_staff,
+            note='Đã cấu hình lại IP tĩnh',
+            repair_cost=Decimal('0'),
+        )
+
+        confirm_step = req.steps.get(step_code=ServiceRequestStep.STEP_REQUESTER_CONFIRM)
+        self.assertEqual(confirm_step.status, ServiceRequestStep.STATUS_PENDING)
+        self.assertEqual(confirm_step.assignee_id, self.employee.id)
+
+        complete_requester_confirmation(confirm_step, actor=self.employee, note='OK')
+        req.refresh_from_db()
+        self.assertEqual(req.status, ServiceRequest.STATUS_COMPLETED)
+
+    def test_create_it_repair_form(self):
+        self.client.force_login(self.employee)
+        response = self.client.get(reverse('service_requests:create_it_repair'))
+        self.assertEqual(response.status_code, 200)
+
+        response = self.client.post(reverse('service_requests:create_it_repair'), {
+            'title': 'Laptop không lên nguồn',
+            'description': 'Bấm nút không có đèn',
+            'incident_category': ServiceRequest.INCIDENT_HW,
+            'priority': ServiceRequest.PRIORITY_URGENT,
+            'location_text': 'Văn phòng',
+            'equipment_label': 'Laptop Dell',
+            'equipment_serial': '',
+            'blocks_work': 'on',
+        })
+        self.assertEqual(response.status_code, 302)
+        req = ServiceRequest.objects.get(requester=self.employee, request_type=self.it_type)
+        self.assertTrue(req.blocks_work)
+        self.assertEqual(req.steps.first().step_code, ServiceRequestStep.STEP_IT_REPAIR)
+
+    def test_pending_for_it_staff(self):
+        self._create_it_request()
+        from service_requests.permissions import pending_steps_for_user
+
+        pending = pending_steps_for_user(self.it_staff)
+        self.assertEqual(pending.count(), 1)
+        self.assertEqual(pending.first().step_code, ServiceRequestStep.STEP_IT_REPAIR)
+

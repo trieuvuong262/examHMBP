@@ -7,6 +7,7 @@ from django.db import models
 
 class RequestType(models.Model):
     CODE_ASSET_PURCHASE = 'asset_purchase'
+    CODE_IT_REPAIR = 'it_repair'
 
     code = models.CharField(max_length=50, unique=True, verbose_name='Mã loại')
     name = models.CharField(max_length=200, verbose_name='Tên loại')
@@ -172,6 +173,47 @@ class ServiceRequest(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     completed_at = models.DateTimeField(null=True, blank=True)
 
+    INCIDENT_HW = 'hw'
+    INCIDENT_SW = 'sw'
+    INCIDENT_NETWORK = 'network'
+    INCIDENT_ACCOUNT = 'account'
+    INCIDENT_OTHER = 'other'
+    INCIDENT_CATEGORY_CHOICES = [
+        (INCIDENT_HW, 'Phần cứng'),
+        (INCIDENT_SW, 'Phần mềm'),
+        (INCIDENT_NETWORK, 'Mạng / Internet'),
+        (INCIDENT_ACCOUNT, 'Tài khoản / quyền truy cập'),
+        (INCIDENT_OTHER, 'Khác'),
+    ]
+
+    PRIORITY_LOW = 'low'
+    PRIORITY_NORMAL = 'normal'
+    PRIORITY_HIGH = 'high'
+    PRIORITY_URGENT = 'urgent'
+    PRIORITY_CHOICES = [
+        (PRIORITY_LOW, 'Thấp'),
+        (PRIORITY_NORMAL, 'Bình thường'),
+        (PRIORITY_HIGH, 'Cao'),
+        (PRIORITY_URGENT, 'Khẩn — chặn công việc'),
+    ]
+
+    incident_category = models.CharField(
+        max_length=20, choices=INCIDENT_CATEGORY_CHOICES, blank=True, verbose_name='Loại sự cố',
+    )
+    priority = models.CharField(
+        max_length=20, choices=PRIORITY_CHOICES, blank=True, verbose_name='Mức độ ưu tiên',
+    )
+    location_text = models.CharField(max_length=200, blank=True, verbose_name='Vị trí')
+    equipment_label = models.CharField(
+        max_length=200, blank=True, verbose_name='Thiết bị (tên/mã)',
+    )
+    equipment_serial = models.CharField(max_length=100, blank=True, verbose_name='Serial')
+    blocks_work = models.BooleanField(default=False, verbose_name='Đang chặn công việc')
+    repair_cost = models.DecimalField(
+        max_digits=14, decimal_places=0, null=True, blank=True, verbose_name='Chi phí sửa (VNĐ)',
+    )
+    expected_return_date = models.DateField(null=True, blank=True, verbose_name='Dự kiến hoàn thành')
+
     class Meta:
         ordering = ['-created_at']
         verbose_name = 'Yêu cầu nội bộ'
@@ -179,6 +221,14 @@ class ServiceRequest(models.Model):
 
     def __str__(self):
         return self.title
+
+    @property
+    def is_it_repair(self):
+        return self.request_type.code == RequestType.CODE_IT_REPAIR
+
+    @property
+    def is_procurement(self):
+        return self.request_type.code == RequestType.CODE_ASSET_PURCHASE
 
     @property
     def is_open(self):
@@ -310,6 +360,8 @@ class ServiceRequestStep(models.Model):
     STEP_ADVANCE = 'advance_payment'
     STEP_PURCHASE = 'procurement_purchase'
     STEP_RECEIPT = 'goods_receipt'
+    STEP_IT_REPAIR = 'it_repair_execution'
+    STEP_REQUESTER_CONFIRM = 'requester_confirmation'
 
     request = models.ForeignKey(
         ServiceRequest,

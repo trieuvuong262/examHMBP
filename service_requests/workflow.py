@@ -421,6 +421,8 @@ def unlock_next_steps(completed_step):
             if child.step_code == ServiceRequestStep.STEP_RECEIPT:
                 receiver = completed_step.request.goods_receiver
                 child.assignee = receiver
+            elif child.step_code == ServiceRequestStep.STEP_REQUESTER_CONFIRM:
+                child.assignee = requester
             else:
                 child.assignee = _resolve_assignee(child.assignee_rule, requester)
         elif child.assignee_rule == RequestTypeStepTemplate.RULE_DIRECTOR:

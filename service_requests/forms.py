@@ -134,6 +134,99 @@ class PurchaseCompleteForm(forms.Form):
             self.fields['goods_receiver'].queryset = receiver_queryset
 
 
+class ItRepairCreateForm(forms.ModelForm):
+    class Meta:
+        model = ServiceRequest
+        fields = [
+            'title',
+            'description',
+            'incident_category',
+            'priority',
+            'location_text',
+            'equipment_label',
+            'equipment_serial',
+            'blocks_work',
+        ]
+        widgets = {
+            'title': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'VD: Máy tính không vào mạng',
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Mô tả triệu chứng, thời điểm phát sinh, đã thử gì...',
+            }),
+            'incident_category': forms.Select(attrs={'class': 'form-select'}),
+            'priority': forms.Select(attrs={'class': 'form-select'}),
+            'location_text': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'VD: Xưởng may — Line 2',
+            }),
+            'equipment_label': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Tên hoặc mã thiết bị (tuỳ chọn)',
+            }),
+            'equipment_serial': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Serial (tuỳ chọn)',
+            }),
+            'blocks_work': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        labels = {
+            'title': 'Tiêu đề',
+            'description': 'Mô tả sự cố',
+            'incident_category': 'Loại sự cố',
+            'priority': 'Mức độ ưu tiên',
+            'location_text': 'Vị trí',
+            'equipment_label': 'Thiết bị',
+            'equipment_serial': 'Serial',
+            'blocks_work': 'Đang chặn công việc / sản xuất',
+        }
+
+    def __init__(self, *args, request_type=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.request_type = request_type
+        self.fields['incident_category'].required = True
+        self.fields['priority'].required = True
+        self.fields['location_text'].required = True
+        self.fields['equipment_label'].required = False
+        self.fields['equipment_serial'].required = False
+
+    def clean(self):
+        cleaned = super().clean()
+        if not self.request_type or not self.request_type.is_active:
+            raise forms.ValidationError('Loại yêu cầu không khả dụng.')
+        return cleaned
+
+
+class ItRepairCompleteForm(forms.Form):
+    note = forms.CharField(
+        required=True,
+        label='Kết quả / cách xử lý',
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+    )
+    repair_cost = forms.DecimalField(
+        required=False,
+        min_value=Decimal('0'),
+        label='Chi phí sửa (VNĐ)',
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
+    )
+    expected_return_date = forms.DateField(
+        required=False,
+        label='Ngày hoàn thành thực tế',
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+    )
+
+
+class RequesterConfirmForm(forms.Form):
+    note = forms.CharField(
+        required=False,
+        label='Ghi chú xác nhận',
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+    )
+
+
 class RecurringItemCatalogForm(forms.ModelForm):
     class Meta:
         model = RecurringItemCatalog

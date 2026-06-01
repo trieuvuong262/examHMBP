@@ -7,6 +7,22 @@ from hrm.permissions import ROLE_DIRECTOR, get_profile, is_director
 
 from .models import RequestTypeStepTemplate, ServiceRequest, ServiceRequestStep
 from .workflow import get_accounting_department, get_procurement_department
+from .workflow_it import get_it_department
+
+
+def get_it_staff_candidates():
+    """Nhân viên IT có quyền module Yêu cầu."""
+    dept = get_it_department()
+    if not dept:
+        return User.objects.none()
+    qs = User.objects.filter(
+        profile__department=dept,
+        profile__is_employed=True,
+        is_active=True,
+    ).select_related('profile').order_by('profile__full_name', 'username')
+    return qs.filter(
+        pk__in=[user.pk for user in qs if user_can_access_module(user, MODULE_SERVICE_REQUESTS)],
+    )
 
 
 def _has_module_access(user) -> bool:
