@@ -7,9 +7,9 @@
             <div class="card-body p-4 text-center">
                 {% if ready %}
                 <div class="text-success mb-3"><i class="bi bi-check-circle-fill display-4"></i></div>
-                <h2 class="fw-bold mb-2">Đăng ký thiết bị thành công!</h2>
+                <h2 class="fw-bold mb-2">Đăng ký thành công!</h2>
                 <p class="text-muted mb-4">
-                    Tài khoản của bạn đã có trong quản lý thiết bị{% if serial %} (serial <code>{{ serial }}</code>){% endif %}.
+                    Tài khoản của bạn đã được xác nhận{% if serial %} (mã PC <code>{{ serial }}</code>){% endif %}.
                     Bạn có thể vào portal bình thường.
                 </p>
                 <a href="{% url 'home_portal' %}" class="btn btn-hm btn-lg">Vào portal</a>
@@ -17,10 +17,16 @@
                 <div class="spinner-border text-hm mb-3" role="status" aria-hidden="true"></div>
                 <h2 class="fw-bold mb-2">Đang hoàn tất đăng ký…</h2>
                 <p class="text-muted mb-3" id="jpAgentDoneHint">
-                    Agent đang quét PC và gửi thông tin lên quản lý thiết bị.
-                    Trang sẽ tự chuyển khi thành công.
+                    Agent đang quét PC và gửi thông tin lên portal.
+                    Trang sẽ tự chuyển khi thành công (thường trong 1–2 phút).
                 </p>
-                <a href="{% url 'equipment:agent_install_gate' %}" class="btn btn-outline-secondary btn-sm">
+                <div id="jpAgentDoneActions" class="d-none">
+                    <p class="small text-warning mb-3" id="jpAgentDoneWarn"></p>
+                    <a href="{% url 'equipment:agent_install_gate' %}" class="btn btn-hm">
+                        <i class="bi bi-arrow-repeat me-1"></i>Tải lại file cài và chạy lại
+                    </a>
+                </div>
+                <a href="{% url 'equipment:agent_install_gate' %}" class="btn btn-outline-secondary btn-sm mt-2" id="jpAgentDoneBack">
                     Quay lại hướng dẫn cài
                 </a>
                 {% endif %}
@@ -36,6 +42,7 @@
 (function () {
     var statusUrl = '{% url "equipment:api_agent_install_status" %}';
     var homeUrl = '{% url "home_portal" %}';
+    var gateUrl = '{% url "equipment:agent_install_gate" %}';
     var tries = 0;
     var timer = setInterval(function () {
         tries += 1;
@@ -45,15 +52,27 @@
                 if (data.ready) {
                     clearInterval(timer);
                     window.location.href = homeUrl;
+                    return;
+                }
+                if (data.shared_confirm_available) {
+                    clearInterval(timer);
+                    window.location.href = gateUrl;
                 }
             })
             .catch(function () {});
-        if (tries >= 40) {
-            clearInterval(timer);
+        if (tries >= 20) {
             var hint = document.getElementById('jpAgentDoneHint');
+            var actions = document.getElementById('jpAgentDoneActions');
+            var warn = document.getElementById('jpAgentDoneWarn');
             if (hint) {
-                hint.textContent = 'Chưa nhận được thông tin từ agent. Quay lại trang hướng dẫn và chạy lại file cài.';
+                hint.textContent = 'Chưa nhận được xác nhận từ agent.';
             }
+            if (actions) actions.classList.remove('d-none');
+            if (warn) {
+                warn.textContent = 'Mở lại file JustPlay-CaiDat-*.cmd (chuột phải → Run as administrator), chọn đúng Máy công ty, đợi dòng THANH CONG.';
+            }
+            var back = document.getElementById('jpAgentDoneBack');
+            if (back) back.classList.add('d-none');
         }
     }, 3000);
 })();

@@ -64,6 +64,35 @@ class AgentInstallFlowTests(TestCase):
         self.assertIsNotNone(tok.used_at)
 
     @override_settings(EQUIPMENT_AGENT_SECRET='sec')
+    def test_agent_report_with_used_token_still_registers_user(self):
+        from django.contrib.auth import get_user_model
+
+        from equipment.models import UserAgentRegistration
+        from equipment.services.agent_install import create_install_token
+
+        User = get_user_model()
+        user = User.objects.create_user(username='reuse', password='x')
+        tok = create_install_token(user)
+        tok.mark_used()
+
+        client = __import__('django.test', fromlist=['Client']).Client()
+        payload = {
+            'api_secret': 'sec',
+            'serial': 'SN-REUSE-01',
+            'hostname': 'PC-REUSE',
+            'install_token': tok.token,
+            'portal_user_id': user.pk,
+            'machine_type': 'company',
+        }
+        resp = client.post(
+            '/thiet-bi/api/agent-report/',
+            data=__import__('json').dumps(payload),
+            content_type='application/json',
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(UserAgentRegistration.objects.filter(user=user, serial_number='SN-REUSE-01').exists())
+
+    @override_settings(EQUIPMENT_AGENT_SECRET='sec')
     def test_personal_agent_report_no_device(self):
         from django.contrib.auth import get_user_model
 

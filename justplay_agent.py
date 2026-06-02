@@ -24,6 +24,8 @@ def main() -> int:
     )
     import time
 
+    force_once = '--once' in sys.argv
+
     def run_once() -> int:
         cfg = load_config()
         report_url, poll_url, secret = normalize_urls(cfg)
@@ -40,7 +42,7 @@ def main() -> int:
         rescan_at = poll_rescan(poll_url=poll_url, api_secret=secret, serial=info['serial'])
         server_rescan = rescan_at or ''
         last_acked = state.get('last_acked_rescan', '')
-        force = server_rescan and server_rescan != last_acked
+        force = force_once or (server_rescan and server_rescan != last_acked)
         interval = int(cfg_get(cfg, 'agent', 'interval_minutes', '30') or '30')
         last_report = state.get('last_report_ts', 0)
         due = (time.time() - last_report) >= interval * 60

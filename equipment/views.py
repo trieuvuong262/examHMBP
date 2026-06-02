@@ -869,12 +869,14 @@ def api_agent_report(request):
             MACHINE_TYPE_PERSONAL,
             register_personal_agent_from_report,
             resolve_machine_type_from_report,
+            resolve_user_from_agent_data,
         )
 
         if is_bad_serial(serial):
             return JsonResponse({'status': 'error', 'message': 'Serial không hợp lệ'}, status=400)
 
-        if resolve_machine_type_from_report(data) == MACHINE_TYPE_PERSONAL:
+        machine_type = resolve_machine_type_from_report(data)
+        if machine_type == MACHINE_TYPE_PERSONAL:
             if not register_personal_agent_from_report(data=data):
                 return JsonResponse(
                     {'status': 'error', 'message': 'Không xác định được tài khoản portal'},
@@ -905,7 +907,28 @@ def api_agent_report(request):
 
         link_user_from_agent_report(data=data, device=device)
 
-        return JsonResponse({'status': 'success', 'created': created, 'device_id': str(device.id)})
+        from equipment.services.agent_install import (
+            user_is_in_equipment_registry,
+        )
+
+        user, _ = resolve_user_from_agent_data(data)
+        registered = bool(user and user_is_in_equipment_registry(user))
+        if user and not registered:
+            return JsonResponse(
+                {
+                    'status': 'error',
+                    'message': 'Đã nhận PC nhưng chưa gắn được tài khoản — chạy lại file cài hoặc liên hệ IT',
+                    'device_id': str(device.id),
+                },
+                status=400,
+            )
+
+        return JsonResponse({
+            'status': 'success',
+            'created': created,
+            'device_id': str(device.id),
+            'registered': registered,
+        })
     except Exception as exc:
         return JsonResponse({'status': 'error', 'message': str(exc)}, status=500)
 

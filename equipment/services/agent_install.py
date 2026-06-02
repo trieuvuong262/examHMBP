@@ -131,14 +131,41 @@ def resolve_machine_type_from_report(data: dict) -> str:
     return normalize_machine_type(data.get('machine_type'))
 
 
+def resolve_user_from_agent_data(data: dict):
+    """Lấy user từ install_token (kể cả đã dùng) hoặc portal_user_id."""
+    from django.contrib.auth import get_user_model
+
+    from equipment.models import AgentInstallToken
+
+    User = get_user_model()
+    install_token = (data.get('install_token') or '').strip()
+
+    if install_token:
+        tok = (
+            AgentInstallToken.objects.filter(token=install_token)
+            .select_related('user__profile__department', 'user__profile__division')
+            .first()
+        )
+        if tok:
+            return tok.user, tok
+
+    uid = data.get('portal_user_id')
+    if uid is not None and str(uid).isdigit():
+        user = User.objects.select_related('profile__department', 'profile__division').filter(
+            pk=int(uid),
+        ).first()
+        if user:
+            return user, None
+
+    return None, None
+
+
 def register_personal_agent_from_report(*, data: dict) -> bool:
     """
     Máy cá nhân: chỉ lưu UserAgentRegistration (device=null), không tạo thiết bị IT.
     Trả về True nếu đã gắn user.
     """
-    from django.contrib.auth import get_user_model
-
-    from equipment.models import AgentInstallToken, UserAgentRegistration
+    from equipment.models import UserAgentRegistration
 
     serial = (data.get('serial') or '').strip()
     if not serial:
@@ -149,27 +176,11 @@ def register_personal_agent_from_report(*, data: dict) -> bool:
     if is_bad_serial(serial):
         return False
 
-    User = get_user_model()
-    user = None
-    install_token = (data.get('install_token') or '').strip()
-
-    if install_token:
-        tok = (
-            AgentInstallToken.objects.filter(token=install_token)
-            .select_related('user')
-            .first()
-        )
-        if tok and tok.is_valid():
-            user = tok.user
-            tok.mark_used()
-
-    if not user:
-        uid = data.get('portal_user_id')
-        if uid is not None and str(uid).isdigit():
-            user = User.objects.filter(pk=int(uid)).first()
-
+    user, tok = resolve_user_from_agent_data(data)
     if not user:
         return False
+    if tok and tok.is_valid():
+        tok.mark_used()
 
     UserAgentRegistration.objects.update_or_create(
         user=user,
@@ -181,30 +192,15 @@ def register_personal_agent_from_report(*, data: dict) -> bool:
 
 def link_user_from_agent_report(*, data: dict, device) -> None:
     """Gán user portal + hồ sơ HRM + đăng ký PC sau khi agent báo cáo."""
-    from django.contrib.auth import get_user_model
-
-    from equipment.models import AgentInstallToken, UserAgentRegistration
+    from equipment.models import UserAgentRegistration
     from equipment.services.agent_device import (
         apply_agent_payload_from_data,
         apply_user_profile_to_device,
     )
 
-    User = get_user_model()
-    user = None
-    install_token = (data.get('install_token') or '').strip()
-
-    if install_token:
-        tok = AgentInstallToken.objects.filter(token=install_token).select_related('user').first()
-        if tok and tok.is_valid():
-            user = tok.user
-            tok.mark_used()
-
-    if not user:
-        uid = data.get('portal_user_id')
-        if uid is not None and str(uid).isdigit():
-            user = User.objects.select_related('profile__department', 'profile__division').filter(
-                pk=int(uid),
-            ).first()
+    user, tok = resolve_user_from_agent_data(data)
+    if user and tok and tok.is_valid():
+        tok.mark_used()
 
     fields: set[str] = set()
     if user:
@@ -311,6 +307,7 @@ def build_installer_cmd(*, user, token: str, machine_type: str | None = None) ->
         ')',
         'echo.',
         'echo [4/4] Quet PC va gui len portal...',
+        'if exist "%JP_DIR%\\.justplay_agent_state.json" del /f /q "%JP_DIR%\\.justplay_agent_state.json" >nul 2>&1',
         'timeout /t 3 /nobreak >nul',
         '"%JP_DIR%\\JustPlayAgent.exe" --once',
         'if errorlevel 1 (',
