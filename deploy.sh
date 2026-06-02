@@ -161,6 +161,30 @@ if [[ ! -f ".env" ]]; then
   exit 1
 fi
 
+ensure_ssl_conf() {
+  echo "==> Ensure nginx SSL config"
+  local ssl_conf="${PROJECT_DIR}/PortalJustPlay/nginx/ssl.conf"
+  local ssl_example="${PROJECT_DIR}/PortalJustPlay/nginx/ssl.conf.example"
+  if ! grep -qE '^USE_HTTPS=(1|true|yes|on)' .env 2>/dev/null; then
+    echo "    HTTPS disabled in .env — skip."
+    return 0
+  fi
+  if [[ -d "${ssl_conf}" ]]; then
+    echo "    WARNING: ${ssl_conf} is a directory (broken Docker bind) — removing."
+    rm -rf "${ssl_conf}"
+  fi
+  if [[ ! -f "${ssl_conf}" ]]; then
+    if [[ ! -f "${ssl_example}" ]]; then
+      echo "ERROR: USE_HTTPS=1 but missing ${ssl_conf} and ${ssl_example}"
+      exit 1
+    fi
+    cp "${ssl_example}" "${ssl_conf}"
+    echo "    Created ${ssl_conf} from ssl.conf.example"
+  else
+    echo "    ${ssl_conf} OK"
+  fi
+}
+
 ensure_agent_gate_env() {
   echo "==> Ensure agent gate .env keys"
   local env_file="${PROJECT_DIR}/.env"
@@ -223,6 +247,8 @@ ensure_migrations
 
 echo "==> 5) Run migrations (before start web)"
 run_migrate_service "migrate --noinput via migrate service"
+
+ensure_ssl_conf
 
 echo "==> 6) Build and start app services"
 compose up -d --build web nginx
