@@ -8,7 +8,13 @@ from io import BytesIO
 import pandas as pd
 from django.db.models import Q
 
-from equipment.categories import import_columns_for_category, sample_row_for_category
+from equipment.categories import (
+    IMPORT_COLUMNS_IT,
+    IMPORT_COLUMNS_MACHINE,
+    import_columns_for_category,
+    sample_row_for_category,
+)
+from equipment.scope import SCOPE_PRODUCTION
 from equipment.services.device_categories import (
     category_map,
     normalize_category_value,
@@ -16,33 +22,46 @@ from equipment.services.device_categories import (
 from equipment.models import Device
 
 
-# Cột export (mã DB → tiêu đề Excel)
-EXPORT_COLUMNS = [
-    ('device_code', 'Mã thiết bị'),
-    ('name', 'Tên thiết bị'),
-    ('category', 'Loại (mã)'),
-    ('category_label', 'Loại thiết bị'),
-    ('managed_department_label', 'Bộ phận quản lý'),
-    ('status', 'Trạng thái (mã)'),
-    ('status_label', 'Trạng thái'),
-    ('usage_department_text', 'Phòng ban sử dụng'),
-    ('usage_room', 'Phòng / vị trí'),
-    ('assigned_user_text', 'Người dùng'),
-    ('contact_email', 'Email liên hệ'),
-    ('handover_date', 'Ngày bàn giao'),
-    ('model_number', 'Model'),
-    ('serial_number', 'Serial Number'),
-    ('configuration', 'Cấu hình'),
-    ('description', 'Mô tả'),
-    ('hostname', 'Hostname'),
-    ('ip_address', 'Địa chỉ IP'),
-    ('is_online', 'Trạng thái mạng'),
-    ('quantity', 'Số lượng'),
-    ('unit_price', 'Đơn giá'),
-    ('total_price', 'Thành tiền'),
-    ('created_at', 'Ngày tạo'),
-    ('updated_at', 'Cập nhật lần cuối'),
-]
+def export_columns_for_scope(equipment_scope: str | None) -> list[tuple[str, str]]:
+    """
+    Cột xuất Excel khớp mẫu nhập theo phạm vi IT / sản xuất (+ vài cột tra cứu).
+    """
+    if equipment_scope == SCOPE_PRODUCTION:
+        import_cols = IMPORT_COLUMNS_MACHINE
+    else:
+        import_cols = IMPORT_COLUMNS_IT
+
+    cols: list[tuple[str, str]] = [(key, label) for key, label, _required in import_cols]
+
+    name_idx = next(i for i, (key, _label) in enumerate(cols) if key == 'name')
+    cols[name_idx + 1:name_idx + 1] = [
+        ('category', 'Loại (mã)'),
+        ('category_label', 'Loại thiết bị'),
+    ]
+
+    status_idx = next(i for i, (key, _label) in enumerate(cols) if key == 'status')
+    cols.insert(status_idx + 1, ('status_label', 'Trạng thái (hiển thị)'))
+
+    if equipment_scope == SCOPE_PRODUCTION:
+        desc_idx = next(i for i, (key, _label) in enumerate(cols) if key == 'description')
+        cols.insert(desc_idx + 1, ('configuration', 'Thông số kỹ thuật'))
+        cols.extend([
+            ('total_price', 'Thành tiền (VNĐ)'),
+        ])
+    else:
+        cols.extend([
+            ('is_online', 'Trạng thái mạng'),
+        ])
+
+    cols.extend([
+        ('created_at', 'Ngày tạo'),
+        ('updated_at', 'Cập nhật lần cuối'),
+    ])
+    return cols
+
+
+def export_sheet_title_for_scope(equipment_scope: str | None) -> str:
+    return 'Thiết bị sản xuất' if equipment_scope == SCOPE_PRODUCTION else 'Thiết bị IT'
 
 STATUS_MAP = dict(Device.STATUS_CHOICES)
 
@@ -177,61 +196,89 @@ def apply_device_list_filters(qs, params):
     return qs.order_by('-created_at')
 
 
-def devices_to_dataframe(devices) -> pd.DataFrame:
-    rows = []
-    for d in devices:
-        rows.append({
-            'device_code': d.device_code,
-            'name': d.name,
-            'category': d.category,
-            'category_label': category_map().get(d.category, d.category),
-            'managed_department_label': d.managed_department_label if d.managed_department_id else '',
-            'status': d.status,
-            'status_label': STATUS_MAP.get(d.status, d.status),
-            'usage_department_text': d.usage_department_text or (
-                d.usage_department.name if d.usage_department_id else ''
-            ),
-            'usage_room': d.usage_room,
-            'assigned_user_text': d.assigned_user_text or d.assigned_user_label,
-            'contact_email': d.contact_email,
-            'handover_date': d.handover_date.isoformat() if d.handover_date else '',
-            'model_number': d.model_number,
-            'serial_number': d.serial_number,
-            'configuration': d.configuration,
-            'description': d.description,
-            'hostname': d.hostname,
-            'ip_address': str(d.ip_address) if d.ip_address else '',
-            'is_online': 'Online' if d.is_online else 'Offline',
-            'quantity': d.quantity,
-            'unit_price': int(d.unit_price or 0),
-            'total_price': int(d.total_price or 0),
-            'created_at': d.created_at.strftime('%Y-%m-%d %H:%M') if d.created_at else '',
-            'updated_at': d.updated_at.strftime('%Y-%m-%d %H:%M') if d.updated_at else '',
-        })
+def _device_export_row(device) -> dict:
+    managed_label = ''
+    if device.managed_department_id:
+        managed_label = device.managed_department_label
+    return {
+        'device_code': device.device_code,
+        'name': device.name,
+        'category': device.category,
+        'category_label': category_map().get(device.category, device.category),
+        'managed_department': managed_label,
+        'managed_department_label': managed_label,
+        'status': device.status,
+        'status_label': STATUS_MAP.get(device.status, device.status),
+        'usage_department_text': device.usage_department_text or (
+            device.usage_department.name if device.usage_department_id else ''
+        ),
+        'usage_room': device.usage_room,
+        'assigned_user_text': device.assigned_user_text or device.assigned_user_label,
+        'contact_email': device.contact_email,
+        'handover_date': device.handover_date.isoformat() if device.handover_date else '',
+        'model_number': device.model_number,
+        'serial_number': device.serial_number,
+        'configuration': device.configuration,
+        'description': device.description,
+        'hostname': device.hostname,
+        'ip_address': str(device.ip_address) if device.ip_address else '',
+        'is_online': 'Online' if device.is_online else 'Offline',
+        'quantity': device.quantity,
+        'unit_price': int(device.unit_price or 0),
+        'total_price': int(device.total_price or 0),
+        'created_at': device.created_at.strftime('%Y-%m-%d %H:%M') if device.created_at else '',
+        'updated_at': device.updated_at.strftime('%Y-%m-%d %H:%M') if device.updated_at else '',
+    }
+
+
+def devices_to_dataframe(devices, equipment_scope: str | None = None) -> pd.DataFrame:
+    export_cols = export_columns_for_scope(equipment_scope)
+    col_keys = [key for key, _label in export_cols]
+    col_labels = [label for _key, label in export_cols]
+
+    rows = [_device_export_row(d) for d in devices]
     if not rows:
-        return pd.DataFrame(columns=[label for _key, label in EXPORT_COLUMNS])
+        return pd.DataFrame(columns=col_labels)
+
     df = pd.DataFrame(rows)
-    rename = {key: label for key, label in EXPORT_COLUMNS}
-    return df[[key for key, _label in EXPORT_COLUMNS if key in df.columns]].rename(columns=rename)
+    ordered = [key for key in col_keys if key in df.columns]
+    rename = {key: label for key, label in export_cols}
+    return df[ordered].rename(columns=rename)
 
 
 def count_for_export(params) -> int:
     return apply_device_list_filters(Device.objects.all(), params).count()
 
 
-def build_export_filename(count: int, category_codes: list[str] | None = None) -> str:
+def build_export_filename(
+    count: int,
+    equipment_scope: str | None = None,
+    category_codes: list[str] | None = None,
+) -> str:
     stamp = datetime.now().strftime('%Y%m%d_%H%M')
+    scope_slug = 'san_xuat' if equipment_scope == SCOPE_PRODUCTION else 'IT'
     if category_codes and len(category_codes) == 1:
         code = category_codes[0]
         label = category_map().get(code, code).replace('/', '-').replace(' ', '_')[:20]
-        return f'thiet_bi_{label}_{count}_{stamp}.xlsx'
-    return f'thiet_bi_justplay_{count}_{stamp}.xlsx'
+        return f'thiet_bi_{scope_slug}_{label}_{count}_{stamp}.xlsx'
+    return f'thiet_bi_{scope_slug}_{count}_{stamp}.xlsx'
 
 
-def export_devices_excel(queryset) -> BytesIO:
-    df = devices_to_dataframe(queryset)
+def export_devices_excel(queryset, equipment_scope: str | None = None) -> BytesIO:
+    df = devices_to_dataframe(queryset, equipment_scope=equipment_scope)
     buffer = BytesIO()
-    df.to_excel(buffer, index=False, engine='openpyxl')
+    sheet_name = export_sheet_title_for_scope(equipment_scope)[:31]
+    with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name=sheet_name)
+        worksheet = writer.sheets[sheet_name]
+        for column_cells in worksheet.columns:
+            letter = column_cells[0].column_letter
+            max_length = 0
+            for cell in column_cells:
+                value = cell.value
+                if value is not None:
+                    max_length = max(max_length, len(str(value)))
+            worksheet.column_dimensions[letter].width = min(max(max_length + 2, 10), 42)
     buffer.seek(0)
     return buffer
 

@@ -685,8 +685,8 @@ def export_devices(request, equipment_scope=SCOPE_IT):
         return _redirect_device_list(equipment_scope)
 
     categories = params.getlist('category') if hasattr(params, 'getlist') else []
-    buffer = export_devices_excel(qs)
-    filename = build_export_filename(count, categories or None)
+    buffer = export_devices_excel(qs, equipment_scope=equipment_scope)
+    filename = build_export_filename(count, equipment_scope, categories or None)
     response = HttpResponse(
         buffer.getvalue(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

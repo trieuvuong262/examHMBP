@@ -434,6 +434,24 @@ class ScopeCategoryFilterTests(TestCase):
 
 
 class DeviceFormCategoryTests(TestCase):
+    def test_device_form_template_renders_category_options(self):
+        from django.template import Context, Template
+
+        from equipment.forms import DeviceForm
+        from equipment.scope import SCOPE_IT, SCOPE_PRODUCTION
+
+        snippet = (
+            '{% for g, gl, items in form.category.field.grouped_choices %}'
+            '{% for val, label in items %}{{ label }};{% endfor %}{% endfor %}'
+        )
+        tpl = Template(snippet)
+        it_html = tpl.render(Context({'form': DeviceForm(equipment_scope=SCOPE_IT)}))
+        prod_html = tpl.render(Context({'form': DeviceForm(equipment_scope=SCOPE_PRODUCTION)}))
+        self.assertIn('Máy tính bàn (PC)', it_html)
+        self.assertNotIn('Máy may 1 kim', it_html)
+        self.assertIn('Máy may 1 kim', prod_html)
+        self.assertNotIn('Máy tính bàn (PC)', prod_html)
+
     def test_device_form_save_updates_device(self):
         from equipment.forms import DeviceForm
         from equipment.models import Device
@@ -524,14 +542,47 @@ class DeviceImportExportTests(TestCase):
 
     def test_export_respects_category_filter(self):
         from equipment.models import Device
+        from equipment.scope import SCOPE_PRODUCTION
         from equipment.services.import_export import devices_to_dataframe
 
         Device.objects.create(name='PC A', category='PC', status=Device.STATUS_ACTIVE)
         Device.objects.create(name='May B', category='SEW_LOCKSTITCH', status=Device.STATUS_ACTIVE)
         qs = Device.objects.filter(category='SEW_LOCKSTITCH')
-        df = devices_to_dataframe(qs)
+        df = devices_to_dataframe(qs, equipment_scope=SCOPE_PRODUCTION)
         self.assertEqual(len(df), 1)
         self.assertIn('Máy may 1 kim', df.iloc[0]['Loại thiết bị'])
+
+    def test_export_columns_differ_by_scope(self):
+        from equipment.models import Device
+        from equipment.scope import SCOPE_IT, SCOPE_PRODUCTION
+        from equipment.services.import_export import devices_to_dataframe
+
+        Device.objects.create(
+            name='PC',
+            category='PC',
+            status=Device.STATUS_ACTIVE,
+            hostname='pc-01',
+            ip_address='10.0.0.1',
+        )
+        Device.objects.create(
+            name='May',
+            category='SEW_LOCKSTITCH',
+            status=Device.STATUS_ACTIVE,
+            quantity=2,
+            unit_price=1000,
+        )
+        df_it = devices_to_dataframe(Device.objects.filter(category='PC'), equipment_scope=SCOPE_IT)
+        df_prod = devices_to_dataframe(
+            Device.objects.filter(category='SEW_LOCKSTITCH'),
+            equipment_scope=SCOPE_PRODUCTION,
+        )
+        self.assertIn('Hostname', df_it.columns)
+        self.assertIn('Địa chỉ IP', df_it.columns)
+        self.assertIn('Trạng thái mạng', df_it.columns)
+        self.assertNotIn('Hostname', df_prod.columns)
+        self.assertNotIn('Thành tiền (VNĐ)', df_it.columns)
+        self.assertIn('Thành tiền (VNĐ)', df_prod.columns)
+        self.assertIn('Thông số kỹ thuật', df_prod.columns)
 
 
 class ImportExportHubViewTests(TestCase):
