@@ -341,26 +341,46 @@ def build_agent_ini_content(
     return '\r\n'.join(lines)
 
 
-def _installer_portal_shortcut_ps() -> str:
-    """PowerShell: shortcut Desktop + mo Edge/Chrome che do app."""
+def _installer_portal_app_ps() -> str:
+    """Shortcut Desktop + Edge/Chrome --install-app (PWA) + trang huong dan."""
     return (
-        '$u=$env:JP_PORTAL_URL; if (-not $u) { exit 0 }; '
+        '$u=$env:JP_PORTAL_URL; $page=$env:JP_APP_PAGE; '
+        'if (-not $u) { exit 0 }; '
         '$desk=[Environment]::GetFolderPath(''Desktop''); '
         '$lnk=Join-Path $desk ''JustPlay Portal.lnk''; '
         '$icon=Join-Path $env:LOCALAPPDATA ''JustPlayAgent\\portal-icon.png''; '
-        '$candidates=@('
+        '$edge=@('
         '${env:ProgramFiles(x86)}\\Microsoft\\Edge\\Application\\msedge.exe,'
-        '$env:ProgramFiles\\Microsoft\\Edge\\Application\\msedge.exe,'
+        '$env:ProgramFiles\\Microsoft\\Edge\\Application\\msedge.exe'
+        '); '
+        '$chrome=@('
         '${env:ProgramFiles(x86)}\\Google\\Chrome\\Application\\chrome.exe,'
         '$env:ProgramFiles\\Google\\Chrome\\Application\\chrome.exe'
         '); '
-        '$exe=$null; foreach ($p in $candidates) { if (Test-Path $p) { $exe=$p; break } }; '
+        '$exe=$null; foreach ($p in ($edge+$chrome)) { if (Test-Path $p) { $exe=$p; break } }; '
         '$sh=New-Object -ComObject WScript.Shell; '
         '$sc=$sh.CreateShortcut($lnk); '
         'if ($exe) { $sc.TargetPath=$exe; $sc.Arguments=''--app=''+$u } else { $sc.TargetPath=$u }; '
-        'if (Test-Path $icon) { $sc.IconLocation=$icon+ '',0'' }; '
+        'if (Test-Path $icon) { $sc.IconLocation=$icon+'',0'' }; '
         '$sc.Description=''JustPlay Portal''; $sc.Save(); '
-        'if ($exe) { Start-Process $exe -ArgumentList (''--app=''+$u) } else { Start-Process $u }'
+        'foreach ($p in $edge) { '
+        '  if (Test-Path $p) { '
+        '    Start-Process $p -ArgumentList (''--install-app=''+$u) -ErrorAction SilentlyContinue; '
+        '    break '
+        '  } '
+        '}; '
+        'foreach ($p in $chrome) { '
+        '  if (Test-Path $p) { '
+        '    Start-Process $p -ArgumentList (''--install-app=''+$u) -ErrorAction SilentlyContinue; '
+        '    break '
+        '  } '
+        '}; '
+        'Start-Sleep -Seconds 2; '
+        'if ($page) { '
+        '  foreach ($p in $edge) { if (Test-Path $p) { Start-Process $p $page; exit 0 } }; '
+        '  foreach ($p in $chrome) { if (Test-Path $p) { Start-Process $p $page; exit 0 } }; '
+        '  Start-Process $page '
+        '}'
     )
 
 
@@ -369,6 +389,7 @@ def build_installer_cmd(*, user, token: str, machine_type: str | None = None) ->
     payload = user_agent_payload(user)
     machine_type = normalize_machine_type(machine_type)
     portal_url = f'{base}/'
+    portal_app_page = f'{base}/thiet-bi/agent/cai-portal-app/?autoinstall=1'
     portal_icon_url = f'{base}/static/images/logo/icon-192.png'
     exe_url = f'{base}/thiet-bi/agent/exe/'
     done_url = f'{base}/thiet-bi/agent/hoan-tat/?token={token}'
@@ -465,14 +486,16 @@ def build_installer_cmd(*, user, token: str, machine_type: str | None = None) ->
         'echo      OK',
         'echo.',
         f'set "JP_PORTAL_URL={portal_url}"',
-        'echo [5/6] Tao loi tat JustPlay Portal tren Desktop...',
+        f'set "JP_APP_PAGE={portal_app_page}"',
+        'echo [5/6] Cai ung dung JustPlay Portal (Edge / Chrome)...',
         f'curl -fsSL "{portal_icon_url}" -o "%JP_DIR%\\portal-icon.png" 2>> "%JP_LOG%"',
         (
             'powershell -NoProfile -ExecutionPolicy Bypass -Command '
-            f'"{_installer_portal_shortcut_ps()}" 2>> "%JP_LOG%"'
+            f'"{_installer_portal_app_ps()}" 2>> "%JP_LOG%"'
         ),
-        'echo      Da tao shortcut + mo che do app (Edge/Chrome).',
-        'echo      Tren trinh duyet: menu ^> Cai dat ung dung de ghim day du.',
+        'echo      Da tao shortcut Desktop + goi cai PWA (--install-app).',
+        'echo      Neu hoi xac nhan: bam Cai dat / Install.',
+        'echo      Hoac tren trang vua mo: bam nut Cai JustPlay Portal.',
         'echo.',
         'echo [6/6] Mo trang xac nhan portal...',
         f'start "" "{done_url}"',

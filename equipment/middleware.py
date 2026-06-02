@@ -16,6 +16,7 @@ class AgentInstallGateMiddleware:
         '/thiet-bi/agent/xac-nhan-chung/',
         '/thiet-bi/agent/tai-cai-dat',
         '/thiet-bi/agent/exe/',
+        '/thiet-bi/agent/cai-portal-app/',
         '/thiet-bi/agent/hoan-tat/',
         '/thiet-bi/agent/trang-thai/',
         '/thiet-bi/agent/ping/',

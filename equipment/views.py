@@ -1118,6 +1118,20 @@ def agent_serve_exe(request):
 
 
 @login_required
+def agent_portal_app_install(request):
+    """Trang cài PWA — file .cmd mo sau khi chay agent (Edge/Chrome --install-app)."""
+    from django.conf import settings
+
+    base = (getattr(settings, 'PORTAL_PUBLIC_BASE_URL', '') or '').rstrip('/')
+    if not base:
+        base = request.build_absolute_uri('/').rstrip('/')
+    return render(request, 'equipment/agent_portal_app_install.html', {
+        'portal_url': f'{base}/',
+        'autoinstall': request.GET.get('autoinstall') == '1',
+    })
+
+
+@login_required
 def agent_install_done(request):
     """Trang xác nhận sau cài — chờ agent gửi thông tin lên quản lý thiết bị."""
     from equipment.services.agent_install import (

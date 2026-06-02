@@ -108,6 +108,24 @@
     </div>
 </div>
 
+<div class="jp-eq-form-section mb-4">
+    <h6 class="fw-bold text-hm mb-3"><i class="bi bi-display me-1"></i>UltraViewer <span class="text-muted fw-normal">(chỉ IT)</span></h6>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label fw-semibold" for="{{ form.ultraviewer_id.id_for_label }}">{{ form.ultraviewer_id.label }}</label>
+            {{ form.ultraviewer_id }}
+            {% if form.ultraviewer_id.help_text %}<div class="form-text">{{ form.ultraviewer_id.help_text }}</div>{% endif %}
+            {% if form.ultraviewer_id.errors %}<div class="text-danger small">{{ form.ultraviewer_id.errors }}</div>{% endif %}
+        </div>
+        <div class="col-md-6">
+            <label class="form-label fw-semibold" for="{{ form.ultraviewer_password.id_for_label }}">{{ form.ultraviewer_password.label }}</label>
+            {{ form.ultraviewer_password }}
+            {% if form.ultraviewer_password.help_text %}<div class="form-text">{{ form.ultraviewer_password.help_text }}</div>{% endif %}
+            {% if form.ultraviewer_password.errors %}<div class="text-danger small">{{ form.ultraviewer_password.errors }}</div>{% endif %}
+        </div>
+    </div>
+</div>
+
 <div class="jp-eq-form-section mb-0">
     <h6 class="fw-bold text-hm mb-3"><i class="bi bi-cash-stack me-1"></i>Giá trị tài sản <span class="text-muted fw-normal">(tuỳ chọn)</span></h6>
     <div class="row g-3">

@@ -348,10 +348,12 @@ class AgentInstallFlowTests(TestCase):
         tok = create_install_token(user, machine_type=MACHINE_TYPE_COMPANY)
         cmd = build_installer_cmd(user=user, token=tok.token, machine_type=MACHINE_TYPE_COMPANY)
         self.assertIn('[4/6] Quet PC, UltraViewer', cmd)
-        self.assertIn('[5/6] Tao loi tat JustPlay Portal', cmd)
+        self.assertIn('[5/6] Cai ung dung JustPlay Portal', cmd)
         self.assertIn('[6/6] Mo trang xac nhan portal', cmd)
         self.assertIn('portal-icon.png', cmd)
         self.assertIn('--app=', cmd)
+        self.assertIn('--install-app=', cmd)
+        self.assertIn('cai-portal-app', cmd)
 
     @override_settings(
         EQUIPMENT_AGENT_SECRET='sec',
@@ -751,6 +753,17 @@ class ScopeCategoryFilterTests(TestCase):
 
 
 class DeviceFormCategoryTests(TestCase):
+    def test_it_form_has_ultraviewer_production_form_does_not(self):
+        from equipment.forms import DeviceForm
+        from equipment.scope import SCOPE_IT, SCOPE_PRODUCTION
+
+        it_form = DeviceForm(equipment_scope=SCOPE_IT)
+        prod_form = DeviceForm(equipment_scope=SCOPE_PRODUCTION)
+        self.assertIn('ultraviewer_id', it_form.fields)
+        self.assertIn('ultraviewer_password', it_form.fields)
+        self.assertNotIn('ultraviewer_id', prod_form.fields)
+        self.assertNotIn('ultraviewer_password', prod_form.fields)
+
     def test_device_form_template_renders_category_options(self):
         from django.template import Context, Template
 

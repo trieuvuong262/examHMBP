@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_head %}
+<link rel="manifest" href="{% url 'site_manifest' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container py-4 py-md-5" style="max-width: 560px;">
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-4 p-md-5 text-center">
+            <img src="{% static 'images/logo/icon-192.png' %}" alt="JustPlay" width="72" height="72" class="mb-3 rounded-3">
+            <h1 class="h4 fw-bold mb-2">Cài JustPlay Portal</h1>
+            <p class="text-muted small mb-4">
+                Ứng dụng mở nhanh từ Desktop / Start — dùng sau khi cài Agent.
+            </p>
+
+            <button type="button" class="btn btn-hm btn-lg w-100 mb-2 d-none" id="jpPwaInstallBtn">
+                <i class="bi bi-download me-1"></i>Cài JustPlay Portal
+            </button>
+            <p class="small text-success d-none mb-3" id="jpPwaInstalledMsg">
+                <i class="bi bi-check-circle-fill me-1"></i>Đã cài ứng dụng — mở từ Start hoặc Desktop.
+            </p>
+            <p class="small text-muted d-none mb-3" id="jpPwaWaitingHint">
+                Đang chờ trình duyệt cho phép cài…
+            </p>
+
+            <div class="text-start border rounded p-3 bg-light small mb-3">
+                <div class="fw-bold mb-2"><i class="bi bi-browser-edge text-primary me-1"></i> Microsoft Edge</div>
+                <ol class="mb-3 ps-3">
+                    <li>Thanh địa chỉ: biểu tượng <strong>⊕ Cài đặt</strong> hoặc <strong>Ứng dụng có sẵn</strong></li>
+                    <li>Hoặc menu <strong>⋯</strong> → <strong>Ứng dụng</strong> → <strong>Cài trang web này</strong></li>
+                </ol>
+                <div class="fw-bold mb-2"><i class="bi bi-browser-chrome text-warning me-1"></i> Google Chrome</div>
+                <ol class="mb-0 ps-3">
+                    <li>Thanh địa chỉ: <strong>⊕ Cài đặt</strong> / <strong>Install</strong></li>
+                    <li>Hoặc menu <strong>⋮</strong> → <strong>Cài đặt</strong> → <strong>Cài trang web dưới dạng ứng dụng</strong></li>
+                </ol>
+            </div>
+
+            <a href="{% url 'home_portal' %}" class="btn btn-outline-secondary">Bỏ qua — vào portal</a>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    'use strict';
+    var installBtn = document.getElementById('jpPwaInstallBtn');
+    var installedMsg = document.getElementById('jpPwaInstalledMsg');
+    var waitingHint = document.getElementById('jpPwaWaitingHint');
+    var deferredPrompt = null;
+    var autoinstall = {{ autoinstall|yesno:"true,false" }};
+
+    function showInstallButton() {
+        if (installBtn) installBtn.classList.remove('d-none');
+        if (waitingHint) waitingHint.classList.add('d-none');
+    }
+
+    window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        deferredPrompt = e;
+        showInstallButton();
+        if (autoinstall) {
+            tryInstall();
+        }
+    });
+
+    function tryInstall() {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(function (choice) {
+            deferredPrompt = null;
+            if (choice.outcome === 'accepted' && installBtn) {
+                installBtn.classList.add('d-none');
+                if (installedMsg) installedMsg.classList.remove('d-none');
+            }
+        }).catch(function () {});
+    }
+
+    if (installBtn) {
+        installBtn.addEventListener('click', tryInstall);
+    }
+
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+        if (installBtn) installBtn.classList.add('d-none');
+        if (installedMsg) installedMsg.classList.remove('d-none');
+    } else if (autoinstall && waitingHint) {
+        waitingHint.classList.remove('d-none');
+        setTimeout(function () {
+            if (!deferredPrompt && waitingHint) {
+                waitingHint.textContent = 'Trình duyệt chưa hiện hộp cài — làm theo hướng dẫn Edge/Chrome bên dưới.';
+            }
+        }, 8000);
+    }
+})();
+</script>
+{% endblock %}

@@ -29,6 +29,8 @@ TRACKED_FIELDS: list[tuple[str, str]] = [
     ('unit_price', 'Đơn giá'),
     ('hostname', 'Hostname'),
     ('ip_address', 'IP'),
+    ('ultraviewer_id', 'UltraViewer ID'),
+    ('ultraviewer_password', 'UltraViewer mật khẩu'),
 ]
 
 

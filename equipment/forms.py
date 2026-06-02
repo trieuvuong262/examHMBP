@@ -30,6 +30,8 @@ class DeviceForm(forms.ModelForm):
             'unit_price',
             'hostname',
             'ip_address',
+            'ultraviewer_id',
+            'ultraviewer_password',
         ]
         widgets = {
             'device_code': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'TB-000001'}),
@@ -52,6 +54,17 @@ class DeviceForm(forms.ModelForm):
             'unit_price': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
             'hostname': forms.TextInput(attrs={'class': 'form-control'}),
             'ip_address': forms.TextInput(attrs={'class': 'form-control'}),
+            'ultraviewer_id': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'VD: 12345678',
+                'inputmode': 'numeric',
+                'autocomplete': 'off',
+            }),
+            'ultraviewer_password': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Mật khẩu cố định UltraViewer',
+                'autocomplete': 'off',
+            }),
         }
 
     def __init__(self, *args, equipment_scope=None, **kwargs):
@@ -114,6 +127,20 @@ class DeviceForm(forms.ModelForm):
         self.fields['assigned_user'].required = False
         self.fields['device_code'].required = False
         self.fields['device_code'].help_text = 'Để trống để hệ thống tự sinh mã (TB-000001).'
+
+        if equipment_scope and not is_it_scope(equipment_scope):
+            for name in ('ultraviewer_id', 'ultraviewer_password'):
+                self.fields.pop(name, None)
+        else:
+            self.fields['ultraviewer_id'].required = False
+            self.fields['ultraviewer_password'].required = False
+            self.fields['ultraviewer_id'].label = 'UltraViewer ID'
+            self.fields['ultraviewer_password'].label = 'UltraViewer mật khẩu'
+            self.fields['ultraviewer_id'].help_text = 'Chỉ thiết bị IT. Agent có thể tự điền nếu đã cài UltraViewer.'
+            self.fields['ultraviewer_password'].help_text = (
+                'Mật khẩu cố định (đặt trong UltraViewer). Thiết bị sản xuất không dùng.'
+            )
+
         self._apply_scope_labels(equipment_scope)
 
     def _apply_scope_labels(self, equipment_scope):
