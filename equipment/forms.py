@@ -136,9 +136,9 @@ class DeviceForm(forms.ModelForm):
             self.fields['ultraviewer_password'].required = False
             self.fields['ultraviewer_id'].label = 'UltraViewer ID'
             self.fields['ultraviewer_password'].label = 'UltraViewer mật khẩu'
-            self.fields['ultraviewer_id'].help_text = 'Chỉ thiết bị IT. Agent có thể tự điền nếu đã cài UltraViewer.'
+            self.fields['ultraviewer_id'].help_text = 'Chỉ thiết bị IT. Agent tự điền khi cài (UltraViewer).'
             self.fields['ultraviewer_password'].help_text = (
-                'Mật khẩu cố định (đặt trong UltraViewer). Thiết bị sản xuất không dùng.'
+                'Mật khẩu cố định chuẩn IT — agent tự đặt khi cài. Thiết bị sản xuất không dùng.'
             )
 
         self._apply_scope_labels(equipment_scope)

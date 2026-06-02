@@ -15,14 +15,24 @@ class AgentCoreTests(SimpleTestCase):
 
 
 class UltraviewerCollectTests(SimpleTestCase):
+    @override_settings(EQUIPMENT_ULTRAVIEWER_FIXED_PASSWORD='123123sS')
     @patch('equipment.agent.ultraviewer.run_powershell')
     def test_collect_ultraviewer_parses_preferid_and_password(self, mock_ps):
         from equipment.agent.ultraviewer import collect_ultraviewer
 
-        mock_ps.return_value = '{"id":"212097888","password":"MyFixedPass1"}'
+        mock_ps.return_value = '{"id":"212097888","password":"123123sS"}'
         data = collect_ultraviewer()
         self.assertEqual(data['ultraviewer_id'], '212097888')
-        self.assertEqual(data['ultraviewer_password'], 'MyFixedPass1')
+        self.assertEqual(data['ultraviewer_password'], '123123sS')
+
+    @override_settings(EQUIPMENT_ULTRAVIEWER_FIXED_PASSWORD='123123sS')
+    @patch('equipment.agent.ultraviewer.run_powershell')
+    def test_collect_ultraviewer_uses_standard_password_when_ui_empty(self, mock_ps):
+        from equipment.agent.ultraviewer import collect_ultraviewer
+
+        mock_ps.return_value = '{"id":"212097888","password":""}'
+        data = collect_ultraviewer()
+        self.assertEqual(data['ultraviewer_password'], '123123sS')
 
 
 class UltraviewerDeviceTests(TestCase):
@@ -349,6 +359,8 @@ class AgentInstallFlowTests(TestCase):
         cmd = build_installer_cmd(user=user, token=tok.token, machine_type=MACHINE_TYPE_COMPANY)
         self.assertIn('[4/6] Quet PC, UltraViewer', cmd)
         self.assertIn('ultraviewer_sidecar.json', cmd)
+        self.assertIn('JP_UV_PASSWORD=123123sS', cmd)
+        self.assertIn('dat mat khau co dinh', cmd)
         self.assertIn('[5/6] Cai ung dung JustPlay Portal', cmd)
         self.assertIn('[6/6] Mo trang xac nhan portal', cmd)
         self.assertNotIn('CreateShortcut', cmd)

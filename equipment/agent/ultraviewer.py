@@ -1,17 +1,23 @@
-"""Đọc UltraViewer ID (PreferID registry) và mật khẩu cố định (cửa sổ app khi đang chạy)."""
+"""UltraViewer: đặt mật khẩu cố định chuẩn IT + đọc PreferID + báo lên portal."""
 
 from __future__ import annotations
 
 import base64
 import json
+import os
 import platform
 import re
 
 from equipment.agent.core import run_powershell
 
+DEFAULT_ULTRAVIEWER_FIXED_PASSWORD = '123123sS'
+
 _COLLECT_PS = r"""
 $ErrorActionPreference = 'SilentlyContinue'
 $out = @{ id = ''; password = '' }
+
+$targetPwd = $env:JP_UV_PASSWORD
+if (-not $targetPwd) { $targetPwd = 'DEFAULT_PWD_PLACEHOLDER' }
 
 function Is-Printable([string]$s) {
     if (-not $s) { return $false }
@@ -32,7 +38,6 @@ function Add-Candidate([System.Collections.Generic.List[string]]$list, [string]$
     }
 }
 
-# --- ID: HKLM PreferID (Reg.ini thường rỗng trên bản 6.6.x) ---
 foreach ($regPath in @(
     'HKLM:\SOFTWARE\WOW6432Node\UltraViewer',
     'HKLM:\Software\UltraViewer',
@@ -51,7 +56,101 @@ foreach ($regPath in @(
     } catch {}
 }
 
-# --- Mật khẩu cố định: UI Automation (Edit + Text trên cửa sổ UltraViewer) ---
+function Set-UltraViewerFixedPassword([string]$pwd) {
+    $names = @('UltraViewer_Desktop', 'UltraViewer')
+    $proc = Get-Process -Name $names -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $proc) { return $false }
+
+    try {
+        Add-Type -AssemblyName UIAutomationClient
+        Add-Type -AssemblyName UIAutomationTypes
+        Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+public class JpWin32 {
+    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+}
+'@
+    } catch { return $false }
+
+    $ae = [System.Windows.Automation.AutomationElement]
+    $procCond = New-Object System.Windows.Automation.PropertyCondition($ae::ProcessIdProperty, $proc.Id)
+    $win = $ae::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Children, $procCond)
+    if (-not $win) { return $false }
+
+    $hwnd = [IntPtr]$win.Current.NativeWindowHandle
+    if ($hwnd -ne [IntPtr]::Zero) {
+        [void][JpWin32]::ShowWindow($hwnd, 9)
+        [void][JpWin32]::SetForegroundWindow($hwnd)
+        Start-Sleep -Milliseconds 600
+    }
+
+    $btnCond = New-Object System.Windows.Automation.PropertyCondition(
+        $ae::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)
+    $buttons = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $btnCond)
+
+    $clicked = $false
+    foreach ($btn in $buttons) {
+        $blob = ([string]$btn.Current.Name + ' ' + [string]$btn.Current.HelpText + ' ' + [string]$btn.Current.AutomationId)
+        if ($blob -match '(?i)(custom|fixed|permanent|private|personal|rieng).*pass|pass.*(custom|fixed|permanent)|\bkey\b|chìa|chia khoa|mat khau|password') {
+            try {
+                $inv = $btn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
+                if ($inv) { $inv.Invoke(); $clicked = $true; break }
+            } catch {}
+        }
+    }
+    if (-not $clicked) {
+        foreach ($btn in $buttons) {
+            $rect = $btn.Current.BoundingRectangle
+            if ($rect.Width -gt 0 -and $rect.Width -le 48 -and $rect.Height -le 48) {
+                try {
+                    $inv = $btn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
+                    if ($inv) { $inv.Invoke(); $clicked = $true; break }
+                } catch {}
+            }
+        }
+    }
+    Start-Sleep -Seconds 2
+
+    $editCond = New-Object System.Windows.Automation.PropertyCondition(
+        $ae::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)
+    $allEdits = [System.Windows.Automation.AutomationElement]::RootElement.FindAll(
+        [System.Windows.Automation.TreeScope]::Descendants, $editCond)
+    $pwdEdits = @()
+    foreach ($el in $allEdits) {
+        if ($el.Current.ProcessId -eq $proc.Id) { $pwdEdits += $el }
+    }
+
+    $filled = 0
+    foreach ($el in $pwdEdits) {
+        try {
+            $vp = $el.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
+            if ($vp) {
+                $vp.SetValue($pwd)
+                $filled++
+            }
+        } catch {}
+        if ($filled -ge 2) { break }
+    }
+    if ($filled -lt 1) { return $false }
+
+    Start-Sleep -Milliseconds 500
+    $allBtns = [System.Windows.Automation.AutomationElement]::RootElement.FindAll(
+        [System.Windows.Automation.TreeScope]::Descendants, $btnCond)
+    foreach ($btn in $allBtns) {
+        if ($btn.Current.ProcessId -ne $proc.Id) { continue }
+        $n = [string]$btn.Current.Name
+        if ($n -match '^(OK|Ok|Yes|Save|Lưu|Luu|Đồng ý|Dong y)$') {
+            try {
+                $inv = $btn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
+                if ($inv) { $inv.Invoke(); return $true }
+            } catch {}
+        }
+    }
+    return $true
+}
+
 function Read-PasswordFromWindow {
     $names = @('UltraViewer_Desktop', 'UltraViewer')
     $proc = Get-Process -Name $names -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -84,35 +183,6 @@ function Read-PasswordFromWindow {
         Add-Candidate $candidates $val $skipId
     }
 
-    $textType = New-Object System.Windows.Automation.PropertyCondition(
-        $ae::ControlTypeProperty, [System.Windows.Automation.ControlType]::Text)
-    $texts = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $textType)
-    foreach ($el in $texts) {
-        foreach ($propName in @('Name', 'HelpText')) {
-            $val = [string]$el.Current.$propName
-            Add-Candidate $candidates $val $skipId
-        }
-    }
-
-    $trueCond = [System.Windows.Automation.Condition]::TrueCondition
-    $all = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $trueCond)
-    foreach ($el in $all) {
-        $name = [string]$el.Current.Name
-        if ($name -match '(?i)(pass|password|mật khẩu|mat khau)') {
-            $sib = $el
-            for ($i = 0; $i -lt 3; $i++) {
-                try {
-                    $walker = [System.Windows.Automation.TreeWalker]::ControlViewWalker
-                    $sib = $walker.GetNextSibling($sib)
-                    if ($sib) {
-                        $n = [string]$sib.Current.Name
-                        Add-Candidate $candidates $n $skipId
-                    }
-                } catch { break }
-            }
-        }
-    }
-
     if ($candidates.Count -gt 0) {
         $best = $candidates | Sort-Object Length -Descending | Select-Object -First 1
         $out.password = $best
@@ -129,9 +199,15 @@ if ($uvExe -and -not (Get-Process -Name 'UltraViewer_Desktop','UltraViewer' -EA 
     Start-Sleep -Seconds 8
 }
 
-Read-PasswordFromWindow
+if ($uvExe) {
+    [void](Set-UltraViewerFixedPassword $targetPwd)
+    Start-Sleep -Seconds 1
+}
 
-if ($env:JP_DIR -and ($out.id -or $out.password)) {
+Read-PasswordFromWindow
+$out.password = $targetPwd
+
+if ($env:JP_DIR) {
     $sidecar = @{
         ultraviewer_id = $out.id
         ultraviewer_password = $out.password
@@ -144,27 +220,69 @@ $out | ConvertTo-Json -Compress
 """
 
 
-def ultraviewer_collect_b64() -> str:
+def resolve_ultraviewer_password() -> str:
+    pwd = os.environ.get('JP_UV_PASSWORD', '').strip()
+    if pwd:
+        return pwd[:128]
+    try:
+        from django.conf import settings
+
+        return (
+            getattr(settings, 'EQUIPMENT_ULTRAVIEWER_FIXED_PASSWORD', None)
+            or DEFAULT_ULTRAVIEWER_FIXED_PASSWORD
+        )[:128]
+    except Exception:
+        return DEFAULT_ULTRAVIEWER_FIXED_PASSWORD
+
+
+def build_collect_ps(fixed_password: str | None = None) -> str:
+    pwd = (fixed_password or resolve_ultraviewer_password()).replace("'", "''")
+    return _COLLECT_PS.replace('DEFAULT_PWD_PLACEHOLDER', pwd)
+
+
+def ultraviewer_collect_b64(fixed_password: str | None = None) -> str:
     """PowerShell -EncodedCommand cho file .cmd cài agent."""
-    return base64.b64encode(_COLLECT_PS.encode('utf-16le')).decode('ascii')
+    return base64.b64encode(build_collect_ps(fixed_password).encode('utf-16le')).decode('ascii')
 
 
 def collect_ultraviewer() -> dict:
     if platform.system() != 'Windows':
         return {}
-    import os
-
     from equipment.agent.core import exe_dir
 
     os.environ['JP_DIR'] = str(exe_dir())
-    raw = run_powershell(_COLLECT_PS, timeout=120)
+    if not os.environ.get('JP_UV_PASSWORD'):
+        os.environ['JP_UV_PASSWORD'] = resolve_ultraviewer_password()
+    raw = run_powershell(build_collect_ps(), timeout=150)
     if not raw:
-        return {}
+        return _fallback_payload()
     try:
         data = json.loads(raw)
     except json.JSONDecodeError:
-        return {}
-    return _normalize_uv_payload(data)
+        return _fallback_payload()
+    result = _normalize_uv_payload(data)
+    if not result.get('ultraviewer_password'):
+        result['ultraviewer_password'] = resolve_ultraviewer_password()
+    return result
+
+
+def _fallback_payload() -> dict:
+    """Registry ID + mật khẩu chuẩn khi UI Automation thất bại."""
+    from equipment.agent.core import run_powershell
+
+    rid = ''
+    raw = run_powershell(
+        "(Get-ItemProperty 'HKLM:\\SOFTWARE\\WOW6432Node\\UltraViewer' -EA 0).PreferID",
+        timeout=15,
+    )
+    if raw:
+        uv_id = re.sub(r'\D', '', raw.strip())
+        if uv_id and 6 <= len(uv_id) <= 12:
+            rid = uv_id
+    out = {'ultraviewer_password': resolve_ultraviewer_password()}
+    if rid:
+        out['ultraviewer_id'] = rid[:32]
+    return out
 
 
 def load_ultraviewer_sidecar(agent_dir=None) -> dict:
@@ -179,7 +297,10 @@ def load_ultraviewer_sidecar(agent_dir=None) -> dict:
         data = json.loads(path.read_text(encoding='utf-8-sig'))
     except (json.JSONDecodeError, OSError):
         return {}
-    return _normalize_uv_payload(data)
+    result = _normalize_uv_payload(data)
+    if not result.get('ultraviewer_password'):
+        result['ultraviewer_password'] = resolve_ultraviewer_password()
+    return result
 
 
 def _normalize_uv_payload(data: dict) -> dict:
