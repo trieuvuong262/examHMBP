@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import secrets
 from datetime import timedelta
 
@@ -304,10 +305,40 @@ def _cmd_escape(value: str) -> str:
     return s
 
 
-def _powershell_ini_line(key: str, value: str) -> str:
-    """Một dòng ini an toàn (Unicode, ký tự đặc biệt)."""
-    safe = (value or '').replace("'", "''")
-    return f"Add-Content -LiteralPath $ini -Value '{key}={safe}' -Encoding UTF8"
+def build_agent_ini_content(
+    *,
+    base_url: str,
+    secret: str,
+    payload: dict,
+    token: str,
+    machine_type: str,
+) -> str:
+    """Nội dung justplay_agent.ini — UTF-8, không qua cmd echo."""
+    lines = [
+        '[portal]',
+        f'url={base_url}',
+        f'secret={secret}',
+        '',
+        '[user]',
+        f'portal_user_id={payload["portal_user_id"]}',
+        f'username={payload["username"]}',
+        f'full_name={payload["full_name"]}',
+        f'email={payload["email"]}',
+        f'department={payload["department"]}',
+        f'department_id={payload["department_id"]}',
+        f'division={payload["division"]}',
+        f'job_position={payload["job_position"]}',
+        f'job_title={payload["job_title"]}',
+        f'employee_code={payload["employee_code"]}',
+        f'install_token={token}',
+        f'machine_type={machine_type}',
+        '',
+        '[agent]',
+        'interval_minutes=30',
+        'poll_seconds=60',
+        '',
+    ]
+    return '\r\n'.join(lines)
 
 
 def build_installer_cmd(*, user, token: str, machine_type: str | None = None) -> str:
@@ -317,6 +348,15 @@ def build_installer_cmd(*, user, token: str, machine_type: str | None = None) ->
     exe_url = f'{base}/thiet-bi/agent/exe/'
     done_url = f'{base}/thiet-bi/agent/hoan-tat/?token={token}'
     secret = getattr(settings, 'EQUIPMENT_AGENT_SECRET', '')
+    ini_b64 = base64.b64encode(
+        build_agent_ini_content(
+            base_url=base,
+            secret=secret,
+            payload=payload,
+            token=token,
+            machine_type=machine_type,
+        ).encode('utf-8'),
+    ).decode('ascii')
 
     lines = [
         '@echo off',
@@ -356,32 +396,21 @@ def build_installer_cmd(*, user, token: str, machine_type: str | None = None) ->
         'echo [2/4] Tao cau hinh...',
         'set "JP_INI=%JP_DIR%\\justplay_agent.ini"',
         'del /f /q "%JP_INI%" >nul 2>&1',
-        'powershell -NoProfile -ExecutionPolicy Bypass -Command ^',
-        '  "$ini=\'%JP_DIR%\\justplay_agent.ini\'; ^',
-        '  New-Item -ItemType File -Path $ini -Force | Out-Null; ^',
-        f"  Add-Content -LiteralPath $ini -Value '[portal]' -Encoding UTF8; ^",
-        f"  Add-Content -LiteralPath $ini -Value 'url={base}' -Encoding UTF8; ^",
-        f"  Add-Content -LiteralPath $ini -Value 'secret={secret}' -Encoding UTF8; ^",
-        '  Add-Content -LiteralPath $ini -Value '' -Encoding UTF8; ^',
-        "  Add-Content -LiteralPath $ini -Value '[user]' -Encoding UTF8; ^",
-        f"  Add-Content -LiteralPath $ini -Value 'portal_user_id={payload['portal_user_id']}' -Encoding UTF8; ^",
-        f"  {_powershell_ini_line('username', payload['username'])}; ^",
-        f"  {_powershell_ini_line('full_name', payload['full_name'])}; ^",
-        f"  {_powershell_ini_line('email', payload['email'])}; ^",
-        f"  {_powershell_ini_line('department', payload['department'])}; ^",
-        f"  Add-Content -LiteralPath $ini -Value 'department_id={payload['department_id']}' -Encoding UTF8; ^",
-        f"  {_powershell_ini_line('division', payload['division'])}; ^",
-        f"  {_powershell_ini_line('job_position', payload['job_position'])}; ^",
-        f"  {_powershell_ini_line('job_title', payload['job_title'])}; ^",
-        f"  {_powershell_ini_line('employee_code', payload['employee_code'])}; ^",
-        f"  Add-Content -LiteralPath $ini -Value 'install_token={token}' -Encoding UTF8; ^",
-        f"  Add-Content -LiteralPath $ini -Value 'machine_type={machine_type}' -Encoding UTF8; ^",
-        '  Add-Content -LiteralPath $ini -Value '' -Encoding UTF8; ^',
-        "  Add-Content -LiteralPath $ini -Value '[agent]' -Encoding UTF8; ^",
-        "  Add-Content -LiteralPath $ini -Value 'interval_minutes=30' -Encoding UTF8; ^",
-        "  Add-Content -LiteralPath $ini -Value 'poll_seconds=60' -Encoding UTF8",
+        (
+            'powershell -NoProfile -ExecutionPolicy Bypass -Command '
+            f'"[IO.File]::WriteAllBytes(\'%JP_DIR%\\justplay_agent.ini\', '
+            f'[Convert]::FromBase64String(\'{ini_b64}\'))"'
+        ),
         'if not exist "%JP_INI%" (',
         '  echo  LOI: Khong tao duoc justplay_agent.ini',
+        '  goto :end_fail',
+        ')',
+        'findstr /C:"install_token=" "%JP_INI%" >nul 2>&1 || (',
+        '  echo  LOI: File cau hinh thieu install_token',
+        '  goto :end_fail',
+        ')',
+        'findstr /C:"portal_user_id=" "%JP_INI%" >nul 2>&1 || (',
+        '  echo  LOI: File cau hinh thieu portal_user_id',
         '  goto :end_fail',
         ')',
         'echo      OK',

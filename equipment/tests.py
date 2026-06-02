@@ -192,6 +192,32 @@ class AgentInstallFlowTests(TestCase):
         EQUIPMENT_AGENT_SECRET='sec',
         PORTAL_PUBLIC_BASE_URL='https://portal.example.com',
     )
+    def test_installer_cmd_writes_ini_via_base64(self):
+        from django.contrib.auth import get_user_model
+
+        from equipment.services.agent_install import (
+            MACHINE_TYPE_COMPANY,
+            build_agent_ini_content,
+            build_installer_cmd,
+            create_install_token,
+        )
+
+        User = get_user_model()
+        user = User.objects.create_user(username='ini_test', password='x')
+        profile = getattr(user, 'profile', None)
+        if profile:
+            profile.job_position = 'Công nhân (may'
+            profile.save()
+        tok = create_install_token(user, machine_type=MACHINE_TYPE_COMPANY)
+        cmd = build_installer_cmd(user=user, token=tok.token, machine_type=MACHINE_TYPE_COMPANY)
+        self.assertIn('FromBase64String', cmd)
+        self.assertNotIn('; ^', cmd)
+        self.assertIn('findstr /C:"install_token="', cmd)
+
+    @override_settings(
+        EQUIPMENT_AGENT_SECRET='sec',
+        PORTAL_PUBLIC_BASE_URL='https://portal.example.com',
+    )
     def test_installer_cmd_includes_machine_type(self):
         from django.contrib.auth import get_user_model
 
@@ -205,7 +231,14 @@ class AgentInstallFlowTests(TestCase):
         user = User.objects.create_user(username='nv02', password='x')
         tok = create_install_token(user, machine_type=MACHINE_TYPE_PERSONAL)
         cmd = build_installer_cmd(user=user, token=tok.token, machine_type=MACHINE_TYPE_PERSONAL)
-        self.assertIn('machine_type=personal', cmd)
+        self.assertIn('FromBase64String', cmd)
+        import base64
+        import re
+
+        match = re.search(r"FromBase64String\('([^']+)'\)", cmd)
+        self.assertIsNotNone(match)
+        ini_text = base64.b64decode(match.group(1)).decode('utf-8')
+        self.assertIn('machine_type=personal', ini_text)
         self.assertEqual(tok.machine_type, MACHINE_TYPE_PERSONAL)
 
     @override_settings(EQUIPMENT_AGENT_SECRET='sec')
