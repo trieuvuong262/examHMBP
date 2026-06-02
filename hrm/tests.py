@@ -439,6 +439,19 @@ class UserSearchTests(TestCase):
         self.assertNotContains(response, '>admin<')
         self.assertNotContains(response, '@admin')
 
+    def test_user_list_filter_by_department(self):
+        dept_may = Department.objects.get(name='Phòng May')
+        response = self.client.get(reverse('user_list'), {'department': str(dept_may.pk)})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Nguyễn Văn An')
+        self.assertNotContains(response, 'Trần Văn B')
+
+    def test_user_list_filter_unassigned_department(self):
+        response = self.client.get(reverse('user_list'), {'department': 'none'})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Trần Văn B')
+        self.assertNotContains(response, 'Nguyễn Văn An')
+
     def test_hr_edit_can_update_other_user_avatar(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
 

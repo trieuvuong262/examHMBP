@@ -888,18 +888,21 @@ def api_agent_report(request):
                 'registered': True,
             })
 
+        from equipment.services.agent_device import apply_agent_hardware_to_device
+        from equipment.services.chassis_category import infer_it_category_from_agent_data
+        from equipment.services.agent_install import link_user_from_agent_report
+
+        inferred_category = infer_it_category_from_agent_data(data) or 'PC'
         device, created = Device.objects.get_or_create(
             serial_number=serial,
             defaults={
                 'name': data.get('hostname') or f'PC-{serial[-6:]}',
                 'status': Device.STATUS_ACTIVE,
+                'category': inferred_category,
             },
         )
 
-        from equipment.services.agent_device import apply_agent_hardware_to_device
-        from equipment.services.agent_install import link_user_from_agent_report
-
-        hw_fields = apply_agent_hardware_to_device(device, data)
+        hw_fields = apply_agent_hardware_to_device(device, data, created=created)
         device.is_online = True
         device.last_scan_date = timezone.now()
         hw_fields.extend(['is_online', 'last_scan_date'])

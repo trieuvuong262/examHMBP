@@ -14,6 +14,86 @@ class AgentCoreTests(SimpleTestCase):
         self.assertFalse(is_bad_serial('ABC123456'))
 
 
+class ChassisCategoryTests(SimpleTestCase):
+    def test_infer_laptop_from_notebook_chassis(self):
+        from equipment.services.chassis_category import infer_it_category_from_chassis
+
+        self.assertEqual(infer_it_category_from_chassis([10]), 'Laptop')
+        self.assertEqual(infer_it_category_from_chassis([9]), 'Laptop')
+
+    def test_infer_pc_from_desktop_chassis(self):
+        from equipment.services.chassis_category import infer_it_category_from_chassis
+
+        self.assertEqual(infer_it_category_from_chassis([3]), 'PC')
+        self.assertEqual(infer_it_category_from_chassis([13]), 'PC')
+
+    def test_laptop_wins_when_mixed_with_docking(self):
+        from equipment.services.chassis_category import infer_it_category_from_chassis
+
+        self.assertEqual(infer_it_category_from_chassis([12, 3]), 'Laptop')
+
+    def test_parse_chassis_types_string(self):
+        from equipment.services.chassis_category import parse_chassis_types
+
+        self.assertEqual(parse_chassis_types('9,10'), [9, 10])
+
+
+class AgentCategoryFromChassisTests(TestCase):
+    @override_settings(EQUIPMENT_AGENT_SECRET='sec')
+    def test_agent_report_sets_laptop_category_from_chassis(self):
+        from django.contrib.auth import get_user_model
+
+        from equipment.models import Device
+
+        User = get_user_model()
+        user = User.objects.create_user(username='lapuser', password='x')
+
+        client = __import__('django.test', fromlist=['Client']).Client()
+        payload = {
+            'api_secret': 'sec',
+            'serial': 'SN-LAP-01',
+            'hostname': 'LAPTOP-01',
+            'chassis_types': [10],
+            'machine_type': 'company',
+            'portal_user_id': user.pk,
+            'username': user.username,
+        }
+        resp = client.post(
+            '/thiet-bi/api/agent-report/',
+            data=__import__('json').dumps(payload),
+            content_type='application/json',
+        )
+        self.assertEqual(resp.status_code, 200)
+        device = Device.objects.get(serial_number='SN-LAP-01')
+        self.assertEqual(device.category, 'Laptop')
+        self.assertIn('Notebook', device.configuration)
+
+    @override_settings(EQUIPMENT_AGENT_SECRET='sec')
+    def test_agent_report_keeps_manual_category(self):
+        from equipment.models import Device
+
+        Device.objects.create(
+            serial_number='SN-PC-KEEP',
+            name='PC',
+            category='PC',
+        )
+        client = __import__('django.test', fromlist=['Client']).Client()
+        payload = {
+            'api_secret': 'sec',
+            'serial': 'SN-PC-KEEP',
+            'hostname': 'DESKTOP-01',
+            'chassis_types': [10],
+            'machine_type': 'company',
+        }
+        client.post(
+            '/thiet-bi/api/agent-report/',
+            data=__import__('json').dumps(payload),
+            content_type='application/json',
+        )
+        device = Device.objects.get(serial_number='SN-PC-KEEP')
+        self.assertEqual(device.category, 'PC')
+
+
 class EmailNotifyTests(SimpleTestCase):
     @override_settings(EQUIPMENT_NOTIFY_EMAILS='a@test.com,b@test.com')
     def test_get_it_notify_emails_from_env(self):

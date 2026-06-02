@@ -52,7 +52,7 @@
                 <i class="bi bi-diagram-3"></i><span class="jp-hrm-tool-label"> Cơ cấu</span>
             </a>
             {% if jp_can_export_hrm %}
-            <a href="{% url 'user_export_excel' %}" class="btn btn-outline-hm fw-bold shadow-sm jp-hrm-tool-btn" title="Xuất Excel">
+            <a href="{% url 'user_export_excel' %}{% if query_string %}?{{ query_string }}{% endif %}" class="btn btn-outline-hm fw-bold shadow-sm jp-hrm-tool-btn" title="Xuất Excel">
                 <i class="bi bi-download"></i><span class="jp-hrm-tool-label"> Xuất Excel</span>
             </a>
             {% endif %}
@@ -70,26 +70,45 @@
             <div class="jp-hrm-card-header-main">
                 <h5 class="mb-0 fw-bold text-dark">Dữ liệu nhân sự <span class="text-muted fw-normal">({{ page_obj.paginator.count }})</span></h5>
                 <p class="text-muted small mb-0 d-none d-md-block" id="userVisibleCount">
-                    {% if search_query %}Kết quả tìm “{{ search_query }}” — {{ page_obj.paginator.count }} nhân viên{% endif %}
+                    {% if search_query or current_department %}
+                    Đang lọc —
+                    {% if current_department %}
+                        {% if current_department == 'none' %}chưa gán phòng ban{% else %}phòng ban đã chọn{% endif %}
+                    {% endif %}
+                    {% if search_query %} · tìm “{{ search_query }}”{% endif %}
+                    — {{ page_obj.paginator.count }} nhân viên
+                    {% endif %}
                 </p>
             </div>
             <div class="jp-hrm-filters">
-                <form method="get" class="jp-hrm-search input-group" role="search">
-                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
-                    <input type="search"
-                           name="q"
-                           id="userSearch"
-                           class="form-control bg-light border-start-0 border-end-0"
-                           placeholder="Tìm mã NS, tên, account, email, phòng ban..."
-                           value="{{ search_query }}"
-                           autocomplete="off">
-                    <input type="hidden" name="sort" value="{{ sort_key }}">
-                    {% if search_query %}
-                    <a href="{% url 'user_list' %}?sort={{ sort_key }}" class="btn btn-light border" title="Xóa tìm kiếm">
-                        <i class="bi bi-x-lg"></i>
+                <form method="get" class="d-flex flex-wrap gap-2 align-items-stretch w-100" role="search" id="userListFilterForm">
+                    <div class="jp-hrm-search input-group flex-grow-1" style="min-width: 12rem;">
+                        <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                        <input type="search"
+                               name="q"
+                               id="userSearch"
+                               class="form-control bg-light border-start-0 border-end-0"
+                               placeholder="Tìm mã NS, tên, account, email..."
+                               value="{{ search_query }}"
+                               autocomplete="off">
+                        <input type="hidden" name="sort" value="{{ sort_key }}">
+                        <button type="submit" class="btn btn-outline-hm">Tìm</button>
+                    </div>
+                    <div style="min-width: 11rem;">
+                        <label for="userDepartmentFilter" class="visually-hidden">Phòng ban</label>
+                        <select name="department" id="userDepartmentFilter" class="form-select h-100" aria-label="Lọc phòng ban">
+                            <option value="">Tất cả phòng ban</option>
+                            <option value="none" {% if current_department == 'none' %}selected{% endif %}>Chưa gán phòng ban</option>
+                            {% for dept in departments %}
+                            <option value="{{ dept.pk }}" {% if current_department == dept.pk|stringformat:"s" %}selected{% endif %}>{{ dept.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% if search_query or current_department %}
+                    <a href="{% url 'user_list' %}?sort={{ sort_key }}" class="btn btn-light border align-self-stretch" title="Xóa bộ lọc">
+                        <i class="bi bi-x-lg"></i><span class="d-none d-md-inline ms-1">Xóa lọc</span>
                     </a>
                     {% endif %}
-                    <button type="submit" class="btn btn-outline-hm">Tìm</button>
                 </form>
                 <div class="jp-hrm-sort">
                     <label for="userSort" class="visually-hidden">Sắp xếp theo</label>
@@ -454,6 +473,14 @@ function autoCopySync(text) {
         url.searchParams.delete('page');
         window.location.href = url.toString();
     });
+
+    const deptFilter = document.getElementById('userDepartmentFilter');
+    if (deptFilter) {
+        deptFilter.addEventListener('change', function() {
+            const form = document.getElementById('userListFilterForm');
+            if (form) form.submit();
+        });
+    }
 
     // LOADING KHI IMPORT
     const importForm = document.getElementById('importExcelForm');

@@ -4,7 +4,17 @@ from __future__ import annotations
 
 
 def build_configuration_text(data: dict) -> str:
+    from equipment.services.chassis_category import (
+        chassis_types_display,
+        parse_chassis_types,
+    )
+
     lines = []
+    chassis_types = parse_chassis_types(data.get('chassis_types'))
+    chassis_label = chassis_types_display(chassis_types)
+    if chassis_label:
+        lines.append(f'Loại vỏ (chassis): {chassis_label}')
+
     mapping = (
         ('cpu', 'CPU'),
         ('ram', 'RAM (GB)'),
@@ -56,7 +66,7 @@ def apply_user_profile_to_device(device, user) -> list[str]:
     return updated
 
 
-def apply_agent_hardware_to_device(device, data: dict) -> list[str]:
+def apply_agent_hardware_to_device(device, data: dict, *, created: bool = False) -> list[str]:
     from equipment.models import Device
 
     updated: list[str] = []
@@ -78,8 +88,11 @@ def apply_agent_hardware_to_device(device, data: dict) -> list[str]:
         device.configuration = config
         updated.append('configuration')
 
-    if not device.category:
-        device.category = 'PC'
+    from equipment.services.chassis_category import infer_it_category_from_agent_data
+
+    inferred = infer_it_category_from_agent_data(data)
+    if inferred and created:
+        device.category = inferred
         updated.append('category')
     if device.status in ('', Device.STATUS_NEW):
         device.status = Device.STATUS_ACTIVE

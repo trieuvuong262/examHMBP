@@ -20,6 +20,18 @@ def filter_users_by_search(queryset, query: str):
     return apply_user_search(queryset, query)
 
 
+def filter_users_by_department(queryset, department_id: str | None):
+    """Lọc theo phòng ban (profile.department_id)."""
+    raw = (department_id or '').strip()
+    if not raw:
+        return queryset
+    if raw == 'none':
+        return queryset.filter(profile__department__isnull=True)
+    if raw.isdigit():
+        return queryset.filter(profile__department_id=int(raw))
+    return queryset
+
+
 def user_display_label(user: User) -> str:
     profile = getattr(user, 'profile', None)
     full_name = profile.full_name if profile and profile.full_name else user.get_full_name() or user.username

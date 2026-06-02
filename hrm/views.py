@@ -35,7 +35,11 @@ from hrm.forms import (
     PermissionGroupPermissionForm,
     RolePermissionForm,
 )
-from hrm.user_search import exclude_hidden_hrm_users, filter_users_by_search
+from hrm.user_search import (
+    exclude_hidden_hrm_users,
+    filter_users_by_department,
+    filter_users_by_search,
+)
 from PortalJustPlay.list_search import apply_term_search, apply_user_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 from django.http import JsonResponse
@@ -101,14 +105,18 @@ def user_list(request):
         sort_key = 'newest'
     order_by = USER_LIST_SORTS[sort_key][0]
     search_query = get_search_query(request)
+    department_id = (request.GET.get('department') or '').strip()
 
     users_qs = User.objects.select_related(
         'profile', 'profile__department', 'profile__division',
     )
     users_qs = exclude_hidden_hrm_users(users_qs)
     users_qs = filter_users_by_search(users_qs, search_query)
+    users_qs = filter_users_by_department(users_qs, department_id)
     users_qs = users_qs.order_by(order_by, 'username')
     page_obj, query_string = paginate_queryset(request, users_qs)
+
+    departments = Department.objects.filter(is_active=True).order_by('sort_order', 'name')
 
     return render(request, 'assessment/admin/user_list.html', {
         'users': page_obj.object_list,
@@ -117,6 +125,8 @@ def user_list(request):
         'sort_key': sort_key,
         'sort_options': USER_LIST_SORTS,
         'search_query': search_query,
+        'departments': departments,
+        'current_department': department_id,
     })
 
 
@@ -402,9 +412,16 @@ def user_export_excel(request):
         messages.error(request, 'Bạn không có quyền xuất Excel danh sách nhân viên.')
         return redirect('user_list')
 
+    search_query = get_search_query(request)
+    department_id = (request.GET.get('department') or '').strip()
+
     users = User.objects.select_related(
         'profile', 'profile__department', 'profile__division',
-    ).all().order_by('profile__employee_code', 'username')
+    )
+    users = exclude_hidden_hrm_users(users)
+    users = filter_users_by_search(users, search_query)
+    users = filter_users_by_department(users, department_id)
+    users = users.order_by('profile__employee_code', 'username')
     rows = [user_to_excel_row(u) for u in users]
     df = pd.DataFrame(rows, columns=EXCEL_ALL_HEADERS)
 

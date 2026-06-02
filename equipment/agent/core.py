@@ -105,6 +105,29 @@ def resolve_serial() -> str:
     return ''
 
 
+def resolve_chassis_types() -> list[int]:
+    """Win32_SystemEnclosure.ChassisTypes — có thể nhiều giá trị."""
+    if platform.system() != 'Windows':
+        return []
+    raw = run_powershell(
+        '$e = Get-CimInstance Win32_SystemEnclosure -ErrorAction SilentlyContinue | Select-Object -First 1; '
+        'if (-not $e -or -not $e.ChassisTypes) { "" } '
+        'else { ($e.ChassisTypes | ForEach-Object { [string]$_ }) -join "," }'
+    )
+    if not raw:
+        return []
+    types: list[int] = []
+    for part in raw.split(','):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            types.append(int(part))
+        except ValueError:
+            continue
+    return types
+
+
 def collect_info() -> dict | None:
     serial = resolve_serial()
     if not serial:
@@ -141,7 +164,8 @@ def collect_info() -> dict | None:
     manufacturer = run_powershell(
         '(Get-CimInstance Win32_ComputerSystem -ErrorAction SilentlyContinue).Manufacturer'
     )
-    return {
+    chassis_types = resolve_chassis_types()
+    payload: dict = {
         'serial': serial,
         'hostname': hostname,
         'model': model,
@@ -153,6 +177,9 @@ def collect_info() -> dict | None:
         'os_build': os_build,
         'manufacturer': manufacturer,
     }
+    if chassis_types:
+        payload['chassis_types'] = chassis_types
+    return payload
 
 
 def _state_path() -> Path:
