@@ -6,8 +6,10 @@
     {% include 'equipment/includes/subnav.html' %}
 
     <div class="jp-page-header mb-3 mb-md-4">
-        <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-speedometer2 me-2"></i>{{ equipment_scope_label }}</h2>
-        <p class="text-muted mb-0">Cập nhật {{ today|date:"d/m/Y" }}</p>
+        <h2 class="fw-bold text-hm mb-1 jp-page-title">
+            <i class="bi bi-{{ scope_icon|default:'speedometer2' }} me-2"></i>{{ equipment_scope_label }}
+        </h2>
+        <p class="text-muted mb-0">{{ scope_page_intro }} · Cập nhật {{ today|date:"d/m/Y" }}</p>
     </div>
 
     <div class="row g-3 mb-4">
@@ -62,9 +64,28 @@
             </a>
         </div>
         <div class="col-6 col-lg">
+            {% if is_it_scope %}
+            <a href="{{ equipment_urls.device_list }}?is_online=1" class="text-decoration-none">
+                <div class="card border-0 shadow-sm h-100 border-start border-4 border-primary">
+                    <div class="card-body py-3">
+                        <div class="text-muted small">{{ scope_dashboard_extra_label }}</div>
+                        <div class="fs-3 fw-bold text-primary">{{ online_devices }}</div>
+                    </div>
+                </div>
+            </a>
+            {% else %}
             <div class="card border-0 shadow-sm h-100 border-start border-4 border-dark">
                 <div class="card-body py-3">
-                    <div class="text-muted small">Chi phí sửa chữa</div>
+                    <div class="text-muted small">Tổng giá trị tài sản</div>
+                    <div class="fs-5 fw-bold">{{ asset_value|intcomma }} ₫</div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        <div class="col-6 col-lg">
+            <div class="card border-0 shadow-sm h-100 border-start border-4 border-secondary">
+                <div class="card-body py-3">
+                    <div class="text-muted small">Chi phí sửa (tích lũy)</div>
                     <div class="fs-5 fw-bold">{{ total_cost|intcomma }} ₫</div>
                 </div>
             </div>
@@ -81,7 +102,7 @@
                     <table class="table table-hover align-middle mb-0">
                         <thead class="table-light">
                             <tr>
-                                <th>Thiết bị / Vị trí</th>
+                                <th>Thiết bị / {{ scope_dashboard_issues_location }}</th>
                                 <th>Người báo</th>
                                 <th>Thời gian</th>
                                 <th></th>

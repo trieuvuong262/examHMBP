@@ -10,10 +10,13 @@
     {% include 'equipment/includes/subnav.html' %}
 
     <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
-        <h2 class="fw-bold text-hm mb-1 jp-page-title">
-            <i class="bi bi-{% if is_edit %}pencil{% else %}plus-circle{% endif %} me-2"></i>
-            {% if is_edit %}Sửa thiết bị{% else %}Thêm thiết bị{% endif %}
-        </h2>
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">
+                <i class="bi bi-{% if is_edit %}pencil{% else %}plus-circle{% endif %} me-2"></i>
+                {% if is_edit %}{{ scope_edit_title|default:"Sửa thiết bị" }}{% else %}{{ scope_add_title|default:"Thêm thiết bị" }}{% endif %}
+            </h2>
+            <p class="text-muted mb-0 small">{{ scope_page_intro }}</p>
+        </div>
         <a href="{{ equipment_urls.device_list }}" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-arrow-left me-1"></i>Danh sách thiết bị
         </a>

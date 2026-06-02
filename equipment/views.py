@@ -156,6 +156,9 @@ def dashboard(request, equipment_scope=SCOPE_IT):
     dept_cost_labels = [d['device__usage_department_text'] or '—' for d in top_cost_depts]
     dept_cost_data = [int(d['total'] or 0) for d in top_cost_depts]
 
+    online_devices = device_qs.filter(is_online=True).count()
+    asset_value = device_qs.aggregate(total=Sum('total_price'))['total'] or 0
+
     return render(request, 'equipment/dashboard.html', {
         'today': date.today(),
         'total_devices': total_devices,
@@ -173,6 +176,8 @@ def dashboard(request, equipment_scope=SCOPE_IT):
         'cat_data_json': json.dumps(cat_data),
         'dept_cost_labels_json': json.dumps(dept_cost_labels, ensure_ascii=False),
         'dept_cost_data_json': json.dumps(dept_cost_data),
+        'online_devices': online_devices,
+        'asset_value': asset_value,
         **_subnav_context(request, equipment_scope),
     })
 
@@ -319,6 +324,8 @@ def it_repair_detail(request, pk, equipment_scope=SCOPE_IT):
 
 @_access_required
 def device_list(request, equipment_scope=SCOPE_IT):
+    from equipment.services.scope_ui import categories_by_group_for_scope
+
     search_query = get_search_query(request)
     qs = filter_devices_for_scope(
         Device.objects.select_related('usage_department', 'assigned_user__profile'),
@@ -408,7 +415,7 @@ def device_list(request, equipment_scope=SCOPE_IT):
         'existing_depts': existing_depts,
         'managed_departments': Department.objects.filter(is_active=True).order_by('sort_order', 'name'),
         'category_choices': category_choices(),
-        'category_groups': categories_by_group(),
+        'category_groups': categories_by_group_for_scope(equipment_scope),
         'status_choices': Device.STATUS_CHOICES,
         'can_edit': user_can_edit_module(request.user, MODULE_EQUIPMENT),
         'can_edit_equipment': user_can_edit_module(request.user, MODULE_EQUIPMENT),
@@ -629,6 +636,8 @@ def _equipment_departments():
 
 
 def _import_export_context(request, equipment_scope=SCOPE_IT):
+    from equipment.services.scope_ui import categories_by_group_for_scope
+
     default_category = 'PC' if equipment_scope == SCOPE_IT else 'SEW_LOCKSTITCH'
     selected_category = (request.GET.get('category') or default_category).strip()
     if selected_category not in valid_codes():
@@ -637,7 +646,7 @@ def _import_export_context(request, equipment_scope=SCOPE_IT):
 
     return {
         'can_edit': user_can_edit_module(request.user, MODULE_EQUIPMENT),
-        'category_groups': categories_by_group(),
+        'category_groups': categories_by_group_for_scope(equipment_scope),
         'selected_category': selected_category,
         'selected_category_label': cmap.get(selected_category, selected_category),
         'import_columns': import_columns_for_category(selected_category),
@@ -744,9 +753,11 @@ def _redirect_category_list(equipment_scope=None):
 @_edit_required
 def category_list(request, equipment_scope=SCOPE_IT):
     from equipment.models import DeviceCategory
+    from equipment.services.scope_ui import is_it_scope
 
     search = (request.GET.get('q') or '').strip()
-    qs = DeviceCategory.objects.all()
+    profile = 'it' if is_it_scope(equipment_scope) else 'machine'
+    qs = DeviceCategory.objects.filter(import_profile=profile)
     if search:
         qs = qs.filter(
             Q(code__icontains=search) | Q(name__icontains=search) | Q(group__icontains=search)

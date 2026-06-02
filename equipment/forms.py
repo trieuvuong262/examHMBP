@@ -56,10 +56,18 @@ class DeviceForm(forms.ModelForm):
 
     def __init__(self, *args, equipment_scope=None, **kwargs):
         super().__init__(*args, **kwargs)
-        from equipment.services.device_categories import categories_by_group, category_label
+        from equipment.services.device_categories import category_label
         from equipment.services.managed_department import default_managed_department_for_scope
+        from equipment.services.scope_ui import categories_by_group_for_scope, is_it_scope
 
-        grouped = categories_by_group()
+        self._equipment_scope = equipment_scope
+        from equipment.services.device_categories import categories_by_group
+
+        grouped = (
+            categories_by_group_for_scope(equipment_scope)
+            if equipment_scope
+            else categories_by_group()
+        )
         choices: list[tuple[str, str]] = []
         for _g, _label, items in grouped:
             choices.extend(items)
@@ -106,6 +114,40 @@ class DeviceForm(forms.ModelForm):
         self.fields['assigned_user'].required = False
         self.fields['device_code'].required = False
         self.fields['device_code'].help_text = 'Để trống để hệ thống tự sinh mã (TB-000001).'
+        self._apply_scope_labels(equipment_scope)
+
+    def _apply_scope_labels(self, equipment_scope):
+        from equipment.scope import SCOPE_PRODUCTION
+        from equipment.services.scope_ui import is_it_scope
+
+        it = is_it_scope(equipment_scope) if equipment_scope else True
+        if it:
+            self.fields['name'].widget.attrs.setdefault('placeholder', 'VD: Laptop Dell Latitude 5540')
+            self.fields['usage_room'].label = 'Phòng / vị trí đặt máy'
+            self.fields['usage_room'].widget.attrs.setdefault('placeholder', 'VD: Tầng 2 · Phòng IT')
+            self.fields['model_number'].label = 'Model / hãng'
+            self.fields['configuration'].label = 'Cấu hình HW / SW'
+            self.fields['description'].widget.attrs.setdefault(
+                'placeholder', 'Ghi chú bảo hành, phần mềm cài sẵn…',
+            )
+            self.fields['hostname'].widget.attrs.setdefault('placeholder', 'VD: PC-HR-01')
+            self.fields['ip_address'].widget.attrs.setdefault('placeholder', 'VD: 192.168.1.10')
+        else:
+            self.fields['name'].widget.attrs.setdefault('placeholder', 'VD: Máy may Juki DDL-8700')
+            self.fields['usage_room'].label = 'Chuyền / vị trí lắp máy'
+            self.fields['usage_room'].widget.attrs.setdefault('placeholder', 'VD: Chuyền 3 · Cụm may áo')
+            self.fields['model_number'].label = 'Model máy'
+            self.fields['configuration'].label = 'Thông số kỹ thuật'
+            self.fields['description'].widget.attrs.setdefault(
+                'placeholder', 'Công suất, phụ tùng chính, lịch bảo dưỡng…',
+            )
+            self.fields['quantity'].help_text = 'Số máy cùng loại tại một vị trí (nếu có).'
+            self.fields['unit_price'].help_text = 'Giá mua hoặc giá trị còn lại (VNĐ).'
+
+        if equipment_scope == SCOPE_PRODUCTION:
+            self.fields['managed_department'].help_text = 'Thường là Bảo trì xưởng / Sản xuất.'
+        else:
+            self.fields['managed_department'].help_text = 'Thường là IT / CNTT.'
 
     @staticmethod
     def _user_choice_label(user):

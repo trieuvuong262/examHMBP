@@ -86,12 +86,16 @@ def scope_urls(scope: str | None) -> dict[str, str]:
 
 
 def scope_context(scope: str | None) -> dict:
-    return {
+    from equipment.services.scope_ui import scope_ui_context
+
+    ctx = {
         'equipment_scope': scope,
         'equipment_scope_label': SCOPE_LABELS.get(scope or '', ''),
         'equipment_scope_short': SCOPE_SHORT_LABELS.get(scope or '', ''),
         'equipment_urls': scope_urls(scope),
     }
+    ctx.update(scope_ui_context(scope))
+    return ctx
 
 
 def it_repair_detail_url(equipment_scope: str | None, pk) -> str:

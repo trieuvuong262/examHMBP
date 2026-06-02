@@ -1,0 +1,68 @@
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white fw-bold"><i class="bi bi-info-circle me-1"></i>Thông tin máy</div>
+    <div class="card-body">
+        <dl class="row mb-0 jp-eq-detail-dl">
+            <dt class="col-sm-4">Mã thiết bị</dt>
+            <dd class="col-sm-8"><code>{{ device.device_code }}</code></dd>
+            <dt class="col-sm-4">Loại máy</dt>
+            <dd class="col-sm-8">{{ device.get_category_display }}</dd>
+            <dt class="col-sm-4">Trạng thái</dt>
+            <dd class="col-sm-8">{{ device.get_status_display }}</dd>
+            <dt class="col-sm-4">Bộ phận quản lý</dt>
+            <dd class="col-sm-8">{{ device.managed_department_label }}</dd>
+            {% if device.description %}
+            <dt class="col-sm-4">Mô tả / ghi chú</dt>
+            <dd class="col-sm-8">{{ device.description }}</dd>
+            {% endif %}
+        </dl>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white fw-bold"><i class="bi bi-geo-alt me-1"></i>Phân bổ tại xưởng</div>
+    <div class="card-body">
+        <dl class="row mb-0 jp-eq-detail-dl">
+            <dt class="col-sm-4">Phòng ban</dt>
+            <dd class="col-sm-8">{{ device.usage_department_label }}</dd>
+            <dt class="col-sm-4">Chuyền / vị trí</dt>
+            <dd class="col-sm-8">{{ device.usage_room|default:"—" }}</dd>
+            <dt class="col-sm-4">Người phụ trách</dt>
+            <dd class="col-sm-8">{{ device.assigned_user_label }}</dd>
+            <dt class="col-sm-4">Ngày bàn giao</dt>
+            <dd class="col-sm-8">{% if device.handover_date %}{{ device.handover_date|date:"d/m/Y" }}{% else %}—{% endif %}</dd>
+        </dl>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white fw-bold"><i class="bi bi-tools me-1"></i>Thông số kỹ thuật</div>
+    <div class="card-body">
+        <dl class="row mb-0 jp-eq-detail-dl">
+            <dt class="col-sm-4">Model máy</dt>
+            <dd class="col-sm-8">{{ device.model_number|default:"—" }}</dd>
+            <dt class="col-sm-4">Serial</dt>
+            <dd class="col-sm-8"><code>{{ device.serial_number|default:"—" }}</code></dd>
+            {% if device.configuration %}
+            <dt class="col-sm-4">Thông số</dt>
+            <dd class="col-sm-8"><pre class="mb-0 small bg-light p-2 rounded border">{{ device.configuration }}</pre></dd>
+            {% endif %}
+        </dl>
+    </div>
+</div>
+
+{% load humanize %}
+{% if device.quantity > 1 or device.unit_price %}
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white fw-bold"><i class="bi bi-cash-stack me-1"></i>Số lượng &amp; giá trị</div>
+    <div class="card-body">
+        <dl class="row mb-0 jp-eq-detail-dl">
+            <dt class="col-sm-4">Số lượng</dt>
+            <dd class="col-sm-8">{{ device.quantity }}</dd>
+            <dt class="col-sm-4">Đơn giá</dt>
+            <dd class="col-sm-8">{{ device.unit_price|intcomma }} đ</dd>
+            <dt class="col-sm-4">Thành tiền</dt>
+            <dd class="col-sm-8 fw-bold text-hm">{{ device.total_price|intcomma }} đ</dd>
+        </dl>
+    </div>
+</div>
+{% endif %}

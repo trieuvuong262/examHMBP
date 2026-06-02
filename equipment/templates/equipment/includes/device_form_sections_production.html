@@ -1,0 +1,115 @@
+<div class="jp-eq-form-section mb-4">
+    <h6 class="fw-bold text-hm mb-3"><i class="bi bi-info-circle me-1"></i>Thông tin máy</h6>
+    <div class="row g-3">
+        <div class="col-md-4">
+            <label class="form-label fw-semibold" for="{{ form.device_code.id_for_label }}">{{ form.device_code.label }}</label>
+            {{ form.device_code }}
+            {% if form.device_code.help_text %}<div class="form-text">{{ form.device_code.help_text }}</div>{% endif %}
+        </div>
+        <div class="col-md-8">
+            <label class="form-label fw-semibold" for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+            {{ form.name }}
+        </div>
+        <div class="col-md-4">
+            <label class="form-label fw-semibold" for="{{ form.status.id_for_label }}">{{ form.status.label }}</label>
+            {{ form.status }}
+        </div>
+        <div class="col-md-4">
+            <label class="form-label fw-semibold" for="{{ form.category.id_for_label }}">{{ form.category.label }}</label>
+            <select name="category" id="{{ form.category.id_for_label }}" class="form-select" required>
+                {% if form.category.extra_option %}
+                <option value="{{ form.category.extra_option.0 }}"{% if form.category.value|stringformat:"s" == form.category.extra_option.0 %} selected{% endif %}>{{ form.category.extra_option.1 }}</option>
+                {% endif %}
+                {% for group_code, group_label, items in form.category.grouped_choices %}
+                <optgroup label="{{ group_label }}">
+                    {% for val, label in items %}
+                    <option value="{{ val }}"{% if form.category.value|stringformat:"s" == val %} selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </optgroup>
+                {% endfor %}
+            </select>
+            <div class="form-text">Chỉ loại máy xưởng (may, cắt, ủi, bàn ủi…).</div>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label fw-semibold" for="{{ form.managed_department.id_for_label }}">{{ form.managed_department.label }}</label>
+            {{ form.managed_department }}
+            {% if form.managed_department.help_text %}<div class="form-text">{{ form.managed_department.help_text }}</div>{% endif %}
+        </div>
+        <div class="col-12">
+            <label class="form-label fw-semibold" for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
+            {{ form.description }}
+        </div>
+    </div>
+</div>
+
+<div class="jp-eq-form-section mb-4">
+    <h6 class="fw-bold text-hm mb-3"><i class="bi bi-geo-alt me-1"></i>Phân bổ tại xưởng</h6>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label fw-semibold" for="{{ form.usage_department.id_for_label }}">{{ form.usage_department.label }}</label>
+            {{ form.usage_department }}
+            <div class="form-text">Phòng / bộ phận sở hữu vận hành.</div>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label fw-semibold" for="{{ form.usage_department_text.id_for_label }}">{{ form.usage_department_text.label }}</label>
+            {{ form.usage_department_text }}
+        </div>
+        <div class="col-md-6">
+            <label class="form-label fw-semibold" for="{{ form.usage_room.id_for_label }}">{{ form.usage_room.label }}</label>
+            {{ form.usage_room }}
+        </div>
+        <div class="col-md-6">
+            <label class="form-label fw-semibold" for="{{ form.handover_date.id_for_label }}">{{ form.handover_date.label }}</label>
+            {{ form.handover_date }}
+            <div class="form-text">Ngày đưa máy vào chuyền / bàn giao vận hành.</div>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label fw-semibold" for="{{ form.assigned_user.id_for_label }}">{{ form.assigned_user.label }}</label>
+            {{ form.assigned_user }}
+            <div class="form-text">Tổ trưởng / người phụ trách máy.</div>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label fw-semibold" for="{{ form.assigned_user_text.id_for_label }}">{{ form.assigned_user_text.label }}</label>
+            {{ form.assigned_user_text }}
+        </div>
+        <div class="col-md-6">
+            <label class="form-label fw-semibold" for="{{ form.contact_email.id_for_label }}">{{ form.contact_email.label }}</label>
+            {{ form.contact_email }}
+        </div>
+    </div>
+</div>
+
+<div class="jp-eq-form-section mb-4">
+    <h6 class="fw-bold text-hm mb-3"><i class="bi bi-tools me-1"></i>Thông số kỹ thuật</h6>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label fw-semibold" for="{{ form.model_number.id_for_label }}">{{ form.model_number.label }}</label>
+            {{ form.model_number }}
+        </div>
+        <div class="col-md-6">
+            <label class="form-label fw-semibold" for="{{ form.serial_number.id_for_label }}">{{ form.serial_number.label }}</label>
+            {{ form.serial_number }}
+        </div>
+        <div class="col-12">
+            <label class="form-label fw-semibold" for="{{ form.configuration.id_for_label }}">{{ form.configuration.label }}</label>
+            {{ form.configuration }}
+            <div class="form-text">Công suất, số kim, phụ tùng, nhà cung cấp bảo hành…</div>
+        </div>
+    </div>
+</div>
+
+<div class="jp-eq-form-section mb-0">
+    <h6 class="fw-bold text-hm mb-3"><i class="bi bi-cash-stack me-1"></i>Số lượng &amp; giá trị</h6>
+    <div class="row g-3">
+        <div class="col-md-4">
+            <label class="form-label fw-semibold" for="{{ form.quantity.id_for_label }}">{{ form.quantity.label }}</label>
+            {{ form.quantity }}
+            {% if form.quantity.help_text %}<div class="form-text">{{ form.quantity.help_text }}</div>{% endif %}
+        </div>
+        <div class="col-md-8">
+            <label class="form-label fw-semibold" for="{{ form.unit_price.id_for_label }}">{{ form.unit_price.label }}</label>
+            {{ form.unit_price }}
+            {% if form.unit_price.help_text %}<div class="form-text">{{ form.unit_price.help_text }}</div>{% endif %}
+        </div>
+    </div>
+</div>
