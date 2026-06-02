@@ -51,7 +51,7 @@ pull_image_with_retry() {
 }
 
 pull_deploy_images() {
-  echo "==> 5b) Pull Docker images (tránh TLS timeout lúc build)"
+  echo "    Pull Docker images (Hub / mirror)..."
   pull_image_with_retry "${DOCKER_PYTHON_IMAGE}" 5
   pull_image_with_retry "postgres:15-alpine" 3
   pull_image_with_retry "nginx:alpine" 3
@@ -78,13 +78,25 @@ wait_for_db() {
 run_migrate_service() {
   local label="$1"
   echo "==> ${label}"
-  compose run --rm --build migrate
+  compose run --rm migrate
 }
 
 run_manage() {
-  compose run --rm --no-deps --build \
+  # Không --build ở đây: build một lần qua ensure_web_image() để tránh treo im lặng
+  compose run --rm --no-deps \
     -v "${PROJECT_DIR}:/app" \
     web python manage.py "$@"
+}
+
+ensure_web_image() {
+  echo "==> Build web Docker image (can take several minutes on first run)..."
+  export DOCKER_PYTHON_IMAGE
+  if ! compose build web; then
+    echo "ERROR: docker compose build web failed."
+    echo "    Thu: docker pull ${DOCKER_PYTHON_IMAGE}  (xem scripts/docker-daemon-mirror.example.json)"
+    exit 1
+  fi
+  echo "    Web image ready."
 }
 
 cleanup_stale_files() {
@@ -149,14 +161,14 @@ cleanup_stale_files() {
 
 ensure_migrations() {
   echo "==> Ensure migrations are up to date (makemigrations check only)"
-  if ! run_manage makemigrations --check --dry-run >/dev/null 2>&1; then
+  echo "    Running: python manage.py makemigrations --check --dry-run"
+  if run_manage makemigrations --check --dry-run; then
+    echo "    Migration files match models."
+  else
     echo "ERROR: Model changes chưa có migration trên repo."
     echo "       Chạy makemigrations ở máy dev, commit và push rồi deploy lại."
     echo "       Không tự tạo migration trên VPS — tránh lệch index/schema."
-    run_manage makemigrations --check --dry-run || true
     exit 1
-  else
-    echo "    Migration files match models."
   fi
 }
 
@@ -275,21 +287,23 @@ echo "==> 3) Start database"
 compose up -d db
 wait_for_db
 
-echo "==> 4) Create migrations if models changed"
+echo "==> 4) Pull base images + build web (tránh treo ở makemigrations)"
+pull_deploy_images
+ensure_web_image
+
+echo "==> 5) Create migrations if models changed"
 ensure_migrations
 
-echo "==> 5) Run migrations (before start web)"
+echo "==> 6) Run migrations (before start web)"
 run_migrate_service "migrate --noinput via migrate service"
 
 ensure_ssl_conf
 
-pull_deploy_images
-
-echo "==> 6) Build and start app services"
+echo "==> 7) Start app services"
 export DOCKER_PYTHON_IMAGE
-compose up -d --build web nginx
+compose up -d web nginx
 
-echo "==> 7) Run migrations again on running web"
+echo "==> 8) Run migrations again on running web"
 compose exec -T web python manage.py migrate --noinput
 
 verify_migrations
@@ -339,7 +353,7 @@ verify_nas_rclone() {
   fi
 }
 
-echo "==> 8) PWA icons from static/images/logo/logo.png"
+echo "==> 9) PWA icons from static/images/logo/logo.png"
 if [ -f "static/images/logo/logo.png" ]; then
   if command -v python3 >/dev/null 2>&1; then
     python3 scripts/generate_pwa_icons.py
@@ -350,22 +364,22 @@ else
   echo "    WARNING: static/images/logo/logo.png missing — skip icon generation"
 fi
 
-echo "==> 9) Collect static files (clear old assets)"
+echo "==> 10) Collect static files (clear old assets)"
 compose exec -T web python manage.py collectstatic --noinput --clear
 
-echo "==> 10) Cleanup orphan media (files not referenced in DB/HTML)"
+echo "==> 11) Cleanup orphan media (files not referenced in DB/HTML)"
 if grep -qE '^CLEANUP_ORPHAN_MEDIA=(0|false|no|off)' .env 2>/dev/null; then
   echo "    Skipped (CLEANUP_ORPHAN_MEDIA is disabled in .env)."
 else
   compose exec -T web python manage.py cleanup_orphan_media
 fi
 
-echo "==> 11) Show status"
+echo "==> 12) Show status"
 compose ps
 
 verify_nas_rclone
 
-echo "==> 12) Cleanup old Docker images"
+echo "==> 13) Cleanup old Docker images"
 docker image prune -f
 
 echo ""
