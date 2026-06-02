@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# Cron backup Portal (DB + source + media) lên NAS — 02:00 hàng ngày.
+# Cron backup Portal (DB + source + media) lên NAS — 00:00 mỗi ngày (giờ server VPS).
 # Usage: sudo bash scripts/setup-backup-cron.sh
 
 set -Eeuo pipefail
 
 PROJECT_DIR="${PROJECT_DIR:-/opt/portaljustplay}"
-CRON_LINE="0 2 * * * cd ${PROJECT_DIR} && docker compose exec -T web python manage.py backup_to_nas >> /var/log/portal-backup-nas.log 2>&1"
+CRON_LINE="0 0 * * * cd ${PROJECT_DIR} && docker compose exec -T web python manage.py backup_to_nas >> /var/log/portal-backup-nas.log 2>&1"
 
-if crontab -l 2>/dev/null | grep -qF 'backup_to_nas'; then
-  echo "Cron backup_to_nas đã tồn tại."
-else
-  (crontab -l 2>/dev/null; echo "${CRON_LINE}") | crontab -
-  echo "Đã thêm cron: ${CRON_LINE}"
-fi
+TMP=$(mktemp)
+crontab -l 2>/dev/null | grep -v 'backup_to_nas' > "${TMP}" || true
+echo "${CRON_LINE}" >> "${TMP}"
+crontab "${TMP}"
+rm -f "${TMP}"
 
-echo "Kiểm tra thử (có thể mất vài phút):"
-cd "${PROJECT_DIR}"
-docker compose exec -T web python manage.py backup_to_nas
+echo "Đã cấu hình cron backup (00:00 hàng ngày):"
+echo "  ${CRON_LINE}"
+echo "  Log: /var/log/portal-backup-nas.log"
+echo "  NAS: synology:backup/YYYY-MM-DD/"
