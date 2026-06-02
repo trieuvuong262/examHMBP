@@ -81,6 +81,12 @@ class Device(models.Model):
     ip_address = models.GenericIPAddressField(protocol='IPv4', blank=True, null=True, verbose_name='IP')
     is_online = models.BooleanField(default=False, verbose_name='Trạng thái mạng')
     last_scan_date = models.DateTimeField(null=True, blank=True, verbose_name='Lần quét cuối')
+    ultraviewer_id = models.CharField(
+        max_length=32, blank=True, verbose_name='UltraViewer ID',
+    )
+    ultraviewer_password = models.CharField(
+        max_length=128, blank=True, verbose_name='UltraViewer mật khẩu',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

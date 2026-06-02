@@ -57,6 +57,10 @@
                 {% if device.is_online %}<span class="text-success fw-semibold">Online</span>{% else %}<span class="text-secondary">Offline</span>{% endif %}
                 {% if device.last_scan_date %}<span class="text-muted small"> · quét {{ device.last_scan_date|date:"d/m/Y H:i" }}</span>{% endif %}
             </dd>
+            <dt class="col-sm-4">UltraViewer ID</dt>
+            <dd class="col-sm-8">{% if device.ultraviewer_id %}<code>{{ device.ultraviewer_id }}</code>{% else %}—{% endif %}</dd>
+            <dt class="col-sm-4">UltraViewer mật khẩu</dt>
+            <dd class="col-sm-8">{% if device.ultraviewer_password %}<code>{{ device.ultraviewer_password }}</code>{% else %}—{% endif %}</dd>
         </dl>
     </div>
 </div>

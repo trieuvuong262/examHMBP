@@ -15,6 +15,13 @@ def build_configuration_text(data: dict) -> str:
     if chassis_label:
         lines.append(f'Loại vỏ (chassis): {chassis_label}')
 
+    uv_id = (data.get('ultraviewer_id') or '').strip()
+    uv_pass = (data.get('ultraviewer_password') or '').strip()
+    if uv_id:
+        lines.append(f'UltraViewer ID: {uv_id}')
+    if uv_pass:
+        lines.append(f'UltraViewer mật khẩu: {uv_pass}')
+
     mapping = (
         ('cpu', 'CPU'),
         ('ram', 'RAM (GB)'),
@@ -102,6 +109,15 @@ def apply_agent_hardware_to_device(device, data: dict, *, created: bool = False)
     if name and (not device.name or device.name.startswith('PC-')):
         device.name = name
         updated.append('name')
+
+    uv_id = (data.get('ultraviewer_id') or '').strip()
+    if uv_id:
+        device.ultraviewer_id = uv_id[:32]
+        updated.append('ultraviewer_id')
+    uv_pass = (data.get('ultraviewer_password') or '').strip()
+    if uv_pass:
+        device.ultraviewer_password = uv_pass[:128]
+        updated.append('ultraviewer_password')
 
     return updated
 

@@ -341,10 +341,35 @@ def build_agent_ini_content(
     return '\r\n'.join(lines)
 
 
+def _installer_portal_shortcut_ps() -> str:
+    """PowerShell: shortcut Desktop + mo Edge/Chrome che do app."""
+    return (
+        '$u=$env:JP_PORTAL_URL; if (-not $u) { exit 0 }; '
+        '$desk=[Environment]::GetFolderPath(''Desktop''); '
+        '$lnk=Join-Path $desk ''JustPlay Portal.lnk''; '
+        '$icon=Join-Path $env:LOCALAPPDATA ''JustPlayAgent\\portal-icon.png''; '
+        '$candidates=@('
+        '${env:ProgramFiles(x86)}\\Microsoft\\Edge\\Application\\msedge.exe,'
+        '$env:ProgramFiles\\Microsoft\\Edge\\Application\\msedge.exe,'
+        '${env:ProgramFiles(x86)}\\Google\\Chrome\\Application\\chrome.exe,'
+        '$env:ProgramFiles\\Google\\Chrome\\Application\\chrome.exe'
+        '); '
+        '$exe=$null; foreach ($p in $candidates) { if (Test-Path $p) { $exe=$p; break } }; '
+        '$sh=New-Object -ComObject WScript.Shell; '
+        '$sc=$sh.CreateShortcut($lnk); '
+        'if ($exe) { $sc.TargetPath=$exe; $sc.Arguments=''--app=''+$u } else { $sc.TargetPath=$u }; '
+        'if (Test-Path $icon) { $sc.IconLocation=$icon+ '',0'' }; '
+        '$sc.Description=''JustPlay Portal''; $sc.Save(); '
+        'if ($exe) { Start-Process $exe -ArgumentList (''--app=''+$u) } else { Start-Process $u }'
+    )
+
+
 def build_installer_cmd(*, user, token: str, machine_type: str | None = None) -> str:
     base = getattr(settings, 'PORTAL_PUBLIC_BASE_URL', '').rstrip('/')
     payload = user_agent_payload(user)
     machine_type = normalize_machine_type(machine_type)
+    portal_url = f'{base}/'
+    portal_icon_url = f'{base}/static/images/logo/icon-192.png'
     exe_url = f'{base}/thiet-bi/agent/exe/'
     done_url = f'{base}/thiet-bi/agent/hoan-tat/?token={token}'
     secret = getattr(settings, 'EQUIPMENT_AGENT_SECRET', '')
@@ -379,7 +404,7 @@ def build_installer_cmd(*, user, token: str, machine_type: str | None = None) ->
         'echo [%date% %time%] Bat dau >> "%JP_LOG%"',
         'echo Thu muc: %JP_DIR%',
         'echo.',
-        'echo [1/4] Tai JustPlayAgent.exe...',
+        'echo [1/6] Tai JustPlayAgent.exe...',
         f'curl -fsSL "{exe_url}" -o "%JP_DIR%\\JustPlayAgent.exe" 2>> "%JP_LOG%"',
         'if not exist "%JP_DIR%\\JustPlayAgent.exe" (',
         '  echo curl that bai - thu PowerShell...',
@@ -393,7 +418,7 @@ def build_installer_cmd(*, user, token: str, machine_type: str | None = None) ->
         ')',
         'echo      OK',
         'echo.',
-        'echo [2/4] Tao cau hinh...',
+        'echo [2/6] Tao cau hinh...',
         'set "JP_INI=%JP_DIR%\\justplay_agent.ini"',
         'del /f /q "%JP_INI%" >nul 2>&1',
         (
@@ -415,7 +440,7 @@ def build_installer_cmd(*, user, token: str, machine_type: str | None = None) ->
         ')',
         'echo      OK',
         'echo.',
-        'echo [3/4] Dang ky chay khi dang nhap Windows...',
+        'echo [3/6] Dang ky chay khi dang nhap Windows...',
         'reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "JustPlayAgent" /t REG_SZ /d "\"%JP_DIR%\\JustPlayAgent.exe\"" /f >nul 2>> "%JP_LOG%"',
         'net session >nul 2>&1',
         'if not errorlevel 1 (',
@@ -426,7 +451,7 @@ def build_installer_cmd(*, user, token: str, machine_type: str | None = None) ->
         '  echo      OK ^(Registry - khong can admin^)',
         ')',
         'echo.',
-        'echo [4/4] Quet PC va gui len portal...',
+        'echo [4/6] Quet PC, UltraViewer, gui len portal...',
         'if exist "%JP_DIR%\\.justplay_agent_state.json" del /f /q "%JP_DIR%\\.justplay_agent_state.json" >nul 2>&1',
         'timeout /t 3 /nobreak >nul',
         '"%JP_DIR%\\JustPlayAgent.exe" --once',
@@ -437,12 +462,26 @@ def build_installer_cmd(*, user, token: str, machine_type: str | None = None) ->
         '  echo  Log: %JP_LOG%',
         '  goto :end_fail',
         ')',
+        'echo      OK',
+        'echo.',
+        f'set "JP_PORTAL_URL={portal_url}"',
+        'echo [5/6] Tao loi tat JustPlay Portal tren Desktop...',
+        f'curl -fsSL "{portal_icon_url}" -o "%JP_DIR%\\portal-icon.png" 2>> "%JP_LOG%"',
+        (
+            'powershell -NoProfile -ExecutionPolicy Bypass -Command '
+            f'"{_installer_portal_shortcut_ps()}" 2>> "%JP_LOG%"'
+        ),
+        'echo      Da tao shortcut + mo che do app (Edge/Chrome).',
+        'echo      Tren trinh duyet: menu ^> Cai dat ung dung de ghim day du.',
+        'echo.',
+        'echo [6/6] Mo trang xac nhan portal...',
+        f'start "" "{done_url}"',
         'echo.',
         'echo  ========================================',
-        'echo   THANH CONG - da gui thong tin PC',
+        'echo   THANH CONG',
+        'echo   - Da gui thong tin PC + UltraViewer (neu co)',
+        'echo   - Da tao loi tat JustPlay Portal',
         'echo  ========================================',
-        f'start "" "{done_url}"',
-        'echo  Trang portal se mo de xac nhan.',
         'echo.',
         'goto :end_ok',
         ':end_fail',

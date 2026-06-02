@@ -179,6 +179,10 @@ def collect_info() -> dict | None:
     }
     if chassis_types:
         payload['chassis_types'] = chassis_types
+
+    from equipment.agent.ultraviewer import collect_ultraviewer
+
+    payload.update(collect_ultraviewer())
     return payload
 
 

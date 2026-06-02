@@ -14,6 +14,42 @@ class AgentCoreTests(SimpleTestCase):
         self.assertFalse(is_bad_serial('ABC123456'))
 
 
+class UltraviewerCollectTests(SimpleTestCase):
+    @patch('equipment.agent.ultraviewer.run_powershell')
+    def test_collect_ultraviewer_parses_json(self, mock_ps):
+        from equipment.agent.ultraviewer import collect_ultraviewer
+
+        mock_ps.return_value = '{"id":"12345678","password":"MyPass99"}'
+        data = collect_ultraviewer()
+        self.assertEqual(data['ultraviewer_id'], '12345678')
+        self.assertEqual(data['ultraviewer_password'], 'MyPass99')
+
+
+class UltraviewerDeviceTests(TestCase):
+    def test_apply_ultraviewer_to_device(self):
+        from equipment.models import Device
+        from equipment.services.agent_device import apply_agent_hardware_to_device
+
+        device = Device.objects.create(
+            name='PC-TEST',
+            device_code='EQ-UV1',
+            serial_number='SN-UV-001',
+        )
+        apply_agent_hardware_to_device(
+            device,
+            {
+                'hostname': 'PC01',
+                'ultraviewer_id': '99887766',
+                'ultraviewer_password': 'fixed-pass',
+            },
+            created=True,
+        )
+        device.save()
+        device.refresh_from_db()
+        self.assertEqual(device.ultraviewer_id, '99887766')
+        self.assertEqual(device.ultraviewer_password, 'fixed-pass')
+
+
 class ChassisCategoryTests(SimpleTestCase):
     def test_infer_laptop_from_notebook_chassis(self):
         from equipment.services.chassis_category import infer_it_category_from_chassis
@@ -293,6 +329,29 @@ class AgentInstallFlowTests(TestCase):
         self.assertIn('FromBase64String', cmd)
         self.assertNotIn('; ^', cmd)
         self.assertIn('findstr /C:"install_token="', cmd)
+
+    @override_settings(
+        EQUIPMENT_AGENT_SECRET='sec',
+        PORTAL_PUBLIC_BASE_URL='https://portal.example.com',
+    )
+    def test_installer_cmd_has_ultraviewer_and_portal_steps(self):
+        from django.contrib.auth import get_user_model
+
+        from equipment.services.agent_install import (
+            MACHINE_TYPE_COMPANY,
+            build_installer_cmd,
+            create_install_token,
+        )
+
+        User = get_user_model()
+        user = User.objects.create_user(username='steps6', password='x')
+        tok = create_install_token(user, machine_type=MACHINE_TYPE_COMPANY)
+        cmd = build_installer_cmd(user=user, token=tok.token, machine_type=MACHINE_TYPE_COMPANY)
+        self.assertIn('[4/6] Quet PC, UltraViewer', cmd)
+        self.assertIn('[5/6] Tao loi tat JustPlay Portal', cmd)
+        self.assertIn('[6/6] Mo trang xac nhan portal', cmd)
+        self.assertIn('portal-icon.png', cmd)
+        self.assertIn('--app=', cmd)
 
     @override_settings(
         EQUIPMENT_AGENT_SECRET='sec',
