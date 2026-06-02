@@ -347,9 +347,15 @@ $u = $env:JP_PORTAL_URL
 $page = $env:JP_APP_PAGE
 $iconUrl = $env:JP_ICON_URL
 $jpDir = $env:JP_DIR
-if (-not $u) { exit 0 }
+if (-not $jpDir) { $jpDir = Join-Path $env:LOCALAPPDATA 'JustPlayAgent' }
+if (-not $u) {
+    Write-Error '[5/6] PWA: thieu JP_PORTAL_URL'
+    exit 1
+}
 if (-not $page) { $page = $u }
 $installUrl = $u.TrimEnd('/') + '/'
+$pwaProfile = Join-Path $jpDir 'browser-pwa-profile'
+if (-not (Test-Path $pwaProfile)) { New-Item -ItemType Directory -Path $pwaProfile -Force | Out-Null }
 
 function Write-JpLog([string]$msg) {
     if ($env:JP_LOG) { Add-Content -Path $env:JP_LOG -Value $msg -Encoding UTF8 -ErrorAction SilentlyContinue }
@@ -454,26 +460,60 @@ $chrome = @(
     $env:ProgramFiles + '\Google\Chrome\Application\chrome.exe'
 )
 
+function Start-JpBrowserWindow([string]$browserPath, [string]$url, [string[]]$extra) {
+    if (-not $browserPath -or -not $url) { return $false }
+    $args = @(
+        "--user-data-dir=$pwaProfile",
+        '--no-first-run',
+        '--no-default-browser-check',
+        '--new-window',
+        $url
+    )
+    if ($extra) { $args = $extra + $args }
+    try {
+        $proc = Start-Process -FilePath $browserPath -ArgumentList $args -PassThru -WindowStyle Normal -ErrorAction Stop
+        Write-JpLog "[5/6] PWA: mo $url (pid=$($proc.Id))"
+        return $true
+    } catch {
+        Write-JpLog "[5/6] PWA: mo trang that bai — $($_.Exception.Message)"
+        return $false
+    }
+}
+
 $browser = $null
 foreach ($p in ($edge + $chrome)) {
     if (Test-Path $p) { $browser = $p; break }
 }
 if (-not $browser) {
-    Write-JpLog '[5/6] PWA: khong tim thay Edge/Chrome'
-    if ($page) { Start-Process $page }
-    exit 0
+    Write-JpLog '[5/6] PWA: khong tim thay Edge/Chrome — thu trinh duyet mac dinh'
+    try {
+        Start-Process $page -ErrorAction Stop
+        Write-JpLog '[5/6] PWA: da mo bang Start-Process (mac dinh)'
+    } catch {
+        Write-Error '[5/6] PWA: khong mo duoc trinh duyet'
+        exit 1
+    }
+    Start-Sleep -Seconds 20
+} else {
+    Write-JpLog '[5/6] PWA: mo trang Cai JustPlay Portal (cua so moi)'
+    if (-not (Start-JpBrowserWindow $browser $page)) { exit 1 }
+    Start-Sleep -Seconds 25
+
+    Write-JpLog '[5/6] PWA: goi --install-app (trang cai)'
+    Start-Process -FilePath $browser -ArgumentList @(
+        "--user-data-dir=$pwaProfile",
+        '--no-first-run',
+        ('--install-app=' + $page)
+    ) -WindowStyle Normal -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 4
+    Write-JpLog '[5/6] PWA: goi --install-app (start_url)'
+    Start-Process -FilePath $browser -ArgumentList @(
+        "--user-data-dir=$pwaProfile",
+        '--no-first-run',
+        ('--install-app=' + $installUrl)
+    ) -WindowStyle Normal -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 3
 }
-
-Write-JpLog '[5/6] PWA: mo trang cai + dang ky service worker'
-Start-Process -FilePath $browser -ArgumentList @($page) -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 25
-
-Write-JpLog '[5/6] PWA: goi --install-app (trang cai)'
-Start-Process -FilePath $browser -ArgumentList @('--install-app=' + $page) -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 3
-Write-JpLog '[5/6] PWA: goi --install-app (start_url)'
-Start-Process -FilePath $browser -ArgumentList @('--install-app=' + $installUrl) -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 2
 
 Deploy-JustPlayPortalShortcuts $browser $installUrl
 
@@ -644,6 +684,17 @@ def build_installer_cmd(*, user, token: str, machine_type: str | None = None) ->
         '  echo  Xem log: %JP_LOG%',
         '  goto :end_fail',
         ')',
+        'echo      Mo trang Cai JustPlay Portal ^(Edge/Chrome^)...',
+        'if exist "%ProgramFiles%\\Microsoft\\Edge\\Application\\msedge.exe" (',
+        '  start "" "%ProgramFiles%\\Microsoft\\Edge\\Application\\msedge.exe" --user-data-dir="%JP_DIR%\\browser-pwa-profile" --new-window "%JP_APP_PAGE%"',
+        ') else if exist "%ProgramFiles(x86)%\\Microsoft\\Edge\\Application\\msedge.exe" (',
+        '  start "" "%ProgramFiles(x86)%\\Microsoft\\Edge\\Application\\msedge.exe" --user-data-dir="%JP_DIR%\\browser-pwa-profile" --new-window "%JP_APP_PAGE%"',
+        ') else if exist "%ProgramFiles%\\Google\\Chrome\\Application\\chrome.exe" (',
+        '  start "" "%ProgramFiles%\\Google\\Chrome\\Application\\chrome.exe" --user-data-dir="%JP_DIR%\\browser-pwa-profile" --new-window "%JP_APP_PAGE%"',
+        ') else (',
+        '  start "" "%JP_APP_PAGE%"',
+        ')',
+        'echo      Neu khong thay cua so: kiem tra taskbar Edge/Chrome.',
         'echo      Dang chay cai Portal ^(co the mat 30-60 giay^)...',
         'powershell -NoProfile -ExecutionPolicy Bypass -File "%JP_DIR%\\jp-portal-install.ps1" 2>> "%JP_LOG%"',
         'if errorlevel 1 (',
@@ -658,6 +709,7 @@ def build_installer_cmd(*, user, token: str, machine_type: str | None = None) ->
         'echo      auto-start khi dang nhap Windows (Registry JustPlayPortal).',
         'echo.',
         'echo [6/6] Mo trang xac nhan portal...',
+        'timeout /t 5 /nobreak >nul',
         f'start "" "{done_url}"',
         'echo.',
         'echo  ========================================',

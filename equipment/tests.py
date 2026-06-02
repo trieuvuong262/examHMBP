@@ -415,10 +415,15 @@ class AgentInstallFlowTests(TestCase):
         self.assertIn('JP_ICON_URL=', cmd)
         self.assertIn('jp-portal-install.ps1', cmd)
         self.assertIn('-File "%JP_DIR%\\jp-portal-install.ps1"', cmd)
+        self.assertIn('browser-pwa-profile', cmd)
+        self.assertIn('--new-window', cmd)
+        self.assertIn('Mo trang Cai JustPlay Portal', cmd)
         self.assertIn('cai-portal-app', cmd)
         from equipment.services.agent_install import portal_install_powershell_script
 
         portal_ps = portal_install_powershell_script()
+        self.assertIn('browser-pwa-profile', portal_ps)
+        self.assertIn('--new-window', portal_ps)
         self.assertIn('--install-app=', portal_ps)
         self.assertIn('Start-Sleep -Seconds 25', portal_ps)
         self.assertIn('Deploy-JustPlayPortalShortcuts', portal_ps)

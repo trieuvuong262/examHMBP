@@ -22,6 +22,8 @@ class ForcePasswordChangeMiddleware:
                     request.path.startswith('/admin-panel/'),
                     request.path.startswith('/static/'),
                     request.path.startswith('/media/'),
+                    request.path.startswith('/thiet-bi/agent/'),
+                    request.path in ('/sw.js', '/manifest.webmanifest'),
                 ]):
                     return redirect('password_change')
 
