@@ -64,19 +64,8 @@ from .workflow_it import (
 )
 
 
-def _pending_count_for_flow(user, flow_tab):
-    qs = pending_steps_for_user(user)
-    if flow_tab == FLOW_HO_TRO:
-        return qs.filter(request__request_type__code=RequestType.CODE_IT_REPAIR).count()
-    return qs.filter(request__request_type__code=RequestType.CODE_ASSET_PURCHASE).count()
-
-
 def _subnav_context(request, *, flow_tab=FLOW_DE_XUAT):
-    return {
-        'flow_tab': flow_tab,
-        'pending_count': _pending_count_for_flow(request.user, flow_tab),
-        'can_manage_catalog': can_manage_recurring_catalog(request.user),
-    }
+    return {'flow_tab': flow_tab}
 
 
 def _filter_by_flow(qs, flow_tab):
@@ -640,6 +629,7 @@ def request_detail(request, pk, flow_tab=None):
         'it_repair_form': it_repair_form,
         'requester_confirm_form': requester_confirm_form,
         'equipment_it_url': equipment_it_url,
+        'list_url': _list_url_for_request(service_request),
     })
     return render(request, 'service_requests/detail.html', ctx)
 

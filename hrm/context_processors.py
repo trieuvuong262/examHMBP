@@ -71,6 +71,9 @@ def portal_permissions(request):
             'jp_can_tasks': False,
             'jp_can_de_xuat': False,
             'jp_can_ho_tro': False,
+            'jp_de_xuat_pending_count': 0,
+            'jp_ho_tro_pending_count': 0,
+            'jp_can_manage_catalog': False,
             'jp_can_nas_storage': False,
             'jp_can_equipment': False,
             'jp_can_feedback': False,
@@ -96,7 +99,7 @@ def portal_permissions(request):
             'jp_can_manage_permissions': False,
         }
     enabled = get_user_enabled_modules(user)
-    return {
+    base = {
         'jp_can_portal_admin': is_portal_admin(user),
         'jp_can_edit_guide': can_edit_user_guide(user),
         'jp_is_hod': is_hod(user),
@@ -147,3 +150,7 @@ def portal_permissions(request):
         'jp_can_export_hrm': user_can_export_module(user, MODULE_HRM),
         'jp_can_manage_permissions': user_can_edit_module(user, MODULE_PERMISSIONS) or bypass_department_modules(user),
     }
+    from service_requests.portal_nav import portal_nav_context
+
+    base.update(portal_nav_context(user))
+    return base

@@ -195,6 +195,7 @@
                             <a href="{% url 'service_requests:de_xuat_pending' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'de_xuat_pending' %}active{% endif %}">
                                 <i class="bi bi-inbox-fill"></i><span>Chờ xử lý</span>
+                                {% if jp_de_xuat_pending_count %}<span class="badge bg-danger ms-1">{{ jp_de_xuat_pending_count }}</span>{% endif %}
                             </a>
                         </li>
                         <li>
@@ -203,6 +204,14 @@
                                 <i class="bi bi-plus-circle"></i><span>Gửi đề xuất</span>
                             </a>
                         </li>
+                        {% if jp_can_manage_catalog %}
+                        <li>
+                            <a href="{% url 'service_requests:catalog_list' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if 'catalog' in request.resolver_match.url_name %}active{% endif %}">
+                                <i class="bi bi-journal-text"></i><span>Danh mục định kỳ</span>
+                            </a>
+                        </li>
+                        {% endif %}
                     </ul>
                 </li>
                 {% endif %}
@@ -229,6 +238,7 @@
                             <a href="{% url 'service_requests:ho_tro_pending' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'ho_tro_pending' %}active{% endif %}">
                                 <i class="bi bi-inbox-fill"></i><span>Chờ duyệt</span>
+                                {% if jp_ho_tro_pending_count %}<span class="badge bg-danger ms-1">{{ jp_ho_tro_pending_count }}</span>{% endif %}
                             </a>
                         </li>
                         <li>

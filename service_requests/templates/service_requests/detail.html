@@ -3,7 +3,7 @@
 
 {% block content %}
 <div class="container jp-page py-3 py-md-4 mb-5">
-    <div class="jp-page-header mb-3 mb-md-4">
+    <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ service_request.title }}</h2>
             <p class="text-muted mb-0">
@@ -15,10 +15,13 @@
                 {% endif %}
             </p>
         </div>
-        <span class="badge bg-light text-dark border fs-6">{{ service_request.get_status_display }}</span>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <span class="badge bg-light text-dark border fs-6">{{ service_request.get_status_display }}</span>
+            <a href="{{ list_url }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Quay lại
+            </a>
+        </div>
     </div>
-
-    {% include 'service_requests/includes/subnav.html' %}
 
     <div class="row g-3 g-md-4">
         <div class="col-lg-8">
