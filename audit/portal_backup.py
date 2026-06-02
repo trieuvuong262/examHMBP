@@ -106,6 +106,18 @@ def create_source_archive(src_dir: Path, dest_tar: Path, *, label: str) -> None:
                 tar.add(full, arcname=arcname, recursive=False)
 
 
+def sanitize_pg_dump_sql(sql: bytes) -> bytes:
+    """Bỏ SET chỉ có trên PG16+ để restore được lên PostgreSQL 15."""
+    skip_prefixes = (
+        b'SET transaction_timeout',
+        b'SET idle_in_transaction_session_timeout',
+    )
+    return b''.join(
+        line for line in sql.splitlines(keepends=True)
+        if not any(line.startswith(prefix) for prefix in skip_prefixes)
+    )
+
+
 def create_database_dump(dest_gz: Path) -> None:
     db = settings.DATABASES['default']
     dest_gz.parent.mkdir(parents=True, exist_ok=True)
@@ -135,7 +147,7 @@ def create_database_dump(dest_gz: Path) -> None:
         err = (proc.stderr or proc.stdout or b'').decode('utf-8', errors='replace')[:2000]
         raise PortalBackupError(f'pg_dump lỗi: {err}')
     with gzip.open(dest_gz, 'wb', compresslevel=6) as gz:
-        gz.write(proc.stdout)
+        gz.write(sanitize_pg_dump_sql(proc.stdout))
 
 
 def rclone_copy_file(local_path: Path, remote_target: str) -> None:

@@ -14,7 +14,12 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import connection
 
-from audit.portal_backup import PortalBackupError, _rclone_env, rclone_listing_available
+from audit.portal_backup import (
+    PortalBackupError,
+    _rclone_env,
+    rclone_listing_available,
+    sanitize_pg_dump_sql,
+)
 
 
 class Command(BaseCommand):
@@ -126,7 +131,7 @@ class Command(BaseCommand):
         self._drop_temp_db(test_db, ignore_missing=True)
         self._run_psql(['-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-c', f'CREATE DATABASE "{test_db}";'])
         with gzip.open(sql_gz, 'rb') as gz:
-            sql_data = gz.read()
+            sql_data = sanitize_pg_dump_sql(gz.read())
         cmd, env = self._psql_base()
         proc = subprocess.run(
             cmd + ['-d', test_db, '-v', 'ON_ERROR_STOP=1'],
