@@ -346,6 +346,7 @@ $ErrorActionPreference = 'SilentlyContinue'
 $u = $env:JP_PORTAL_URL
 $page = $env:JP_APP_PAGE
 if (-not $u) { exit 0 }
+if (-not $page) { $page = $u }
 
 $edge = @(
     ${env:ProgramFiles(x86)} + '\Microsoft\Edge\Application\msedge.exe',
@@ -356,29 +357,37 @@ $chrome = @(
     $env:ProgramFiles + '\Google\Chrome\Application\chrome.exe'
 )
 
-# 1) Mở portal (đăng ký service worker) rồi gọi cài PWA — giống menu Install app
 $browser = $null
 foreach ($p in ($edge + $chrome)) {
     if (Test-Path $p) { $browser = $p; break }
 }
-if ($browser) {
-    Start-Process -FilePath $browser -ArgumentList @($u) -ErrorAction SilentlyContinue
-    Start-Sleep -Seconds 4
-    Start-Process -FilePath $browser -ArgumentList @('--install-app=' + $u) -ErrorAction SilentlyContinue
-    Start-Sleep -Seconds 2
+if (-not $browser) {
+    if ($page) { Start-Process $page }
+    exit 0
 }
 
-# 2) Trang hỗ trợ + nút beforeinstallprompt (autoinstall)
-if ($page -and $browser) {
-    Start-Process -FilePath $browser -ArgumentList @($page)
-} elseif ($page) {
-    Start-Process $page
-}
+# 1) Trang cài PWA (đăng ký SW, không cần đăng nhập) — bắt buộc trước --install-app
+Start-Process -FilePath $browser -ArgumentList @($page) -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 10
+
+# 2) Hộp thoại Install app (Edge/Chrome) — giống menu Apps > Install JustPlay Portal
+$installUrl = $u.TrimEnd('/') + '/'
+Start-Process -FilePath $browser -ArgumentList @('--install-app=' + $installUrl) -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 2
+
+# 3) Trang chủ portal (đã đăng nhập sẽ thấy menu Install sau khi SW active)
+Start-Process -FilePath $browser -ArgumentList @($u) -ErrorAction SilentlyContinue
 """
 
 
 def _installer_portal_ps_b64() -> str:
     return base64.b64encode(_PORTAL_INSTALL_PS.encode('utf-16le')).decode('ascii')
+
+
+def _ultraviewer_collect_b64() -> str:
+    from equipment.agent.ultraviewer import ultraviewer_collect_b64
+
+    return ultraviewer_collect_b64()
 
 
 def build_installer_cmd(*, user, token: str, machine_type: str | None = None) -> str:
@@ -470,8 +479,15 @@ def build_installer_cmd(*, user, token: str, machine_type: str | None = None) ->
         ')',
         'echo.',
         'echo [4/6] Quet PC, UltraViewer, gui len portal...',
+        'if exist "%JP_DIR%\\ultraviewer_sidecar.json" del /f /q "%JP_DIR%\\ultraviewer_sidecar.json" >nul 2>&1',
+        'echo      Doc UltraViewer (registry + cua so)...',
+        (
+            'powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand '
+            f'{_ultraviewer_collect_b64()} 2>> "%JP_LOG%"'
+        ),
+        'if exist "%JP_DIR%\\ultraviewer_sidecar.json" (echo      UltraViewer: da luu sidecar) else (echo      UltraViewer: chi co ID neu mo app + mat khau co dinh)',
         'if exist "%JP_DIR%\\.justplay_agent_state.json" del /f /q "%JP_DIR%\\.justplay_agent_state.json" >nul 2>&1',
-        'timeout /t 3 /nobreak >nul',
+        'timeout /t 2 /nobreak >nul',
         '"%JP_DIR%\\JustPlayAgent.exe" --once',
         'if errorlevel 1 (',
         '  echo.',

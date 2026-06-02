@@ -20,3 +20,9 @@ class SiteManifestTests(TestCase):
         self.assertIn('javascript', response['Content-Type'])
         self.assertEqual(response.get('Service-Worker-Allowed'), '/')
         self.assertIn(b'install', response.content)
+
+    def test_portal_app_install_page_public(self):
+        response = self.client.get('/thiet-bi/agent/cai-portal-app/?autoinstall=1')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Install JustPlay Portal')
+        self.assertContains(response, 'serviceWorker')

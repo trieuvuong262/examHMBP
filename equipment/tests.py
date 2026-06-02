@@ -348,18 +348,21 @@ class AgentInstallFlowTests(TestCase):
         tok = create_install_token(user, machine_type=MACHINE_TYPE_COMPANY)
         cmd = build_installer_cmd(user=user, token=tok.token, machine_type=MACHINE_TYPE_COMPANY)
         self.assertIn('[4/6] Quet PC, UltraViewer', cmd)
+        self.assertIn('ultraviewer_sidecar.json', cmd)
         self.assertIn('[5/6] Cai ung dung JustPlay Portal', cmd)
         self.assertIn('[6/6] Mo trang xac nhan portal', cmd)
         self.assertNotIn('CreateShortcut', cmd)
-        self.assertIn('-EncodedCommand', cmd)
+        self.assertGreaterEqual(cmd.count('-EncodedCommand'), 2)
         self.assertIn('cai-portal-app', cmd)
         import base64
         import re
 
         match = re.search(r'-EncodedCommand\s+(\S+)', cmd)
         self.assertIsNotNone(match)
-        portal_ps = base64.b64decode(match.group(1)).decode('utf-16le')
+        matches = re.findall(r'-EncodedCommand\s+(\S+)', cmd)
+        portal_ps = base64.b64decode(matches[-1]).decode('utf-16le')
         self.assertIn('--install-app=', portal_ps)
+        self.assertIn('Start-Sleep -Seconds 10', portal_ps)
         self.assertNotIn('CreateShortcut', portal_ps)
 
     @override_settings(

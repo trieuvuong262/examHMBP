@@ -1117,9 +1117,8 @@ def agent_serve_exe(request):
     return response
 
 
-@login_required
 def agent_portal_app_install(request):
-    """Trang cài PWA — file .cmd mo sau khi chay agent (Edge/Chrome --install-app)."""
+    """Trang cài PWA công khai — SW + manifest; file .cmd mở trước --install-app."""
     from django.conf import settings
 
     base = (getattr(settings, 'PORTAL_PUBLIC_BASE_URL', '') or '').rstrip('/')

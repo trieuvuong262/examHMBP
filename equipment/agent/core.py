@@ -180,9 +180,12 @@ def collect_info() -> dict | None:
     if chassis_types:
         payload['chassis_types'] = chassis_types
 
-    from equipment.agent.ultraviewer import collect_ultraviewer
+    from equipment.agent.ultraviewer import collect_ultraviewer, load_ultraviewer_sidecar
 
     payload.update(collect_ultraviewer())
+    for key, val in load_ultraviewer_sidecar().items():
+        if val:
+            payload[key] = val
     return payload
 
 
