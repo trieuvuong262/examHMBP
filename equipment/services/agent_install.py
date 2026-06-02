@@ -390,10 +390,19 @@ def _installer_uv_password() -> str:
     return resolve_ultraviewer_password()
 
 
+def _installer_uv_setup_url() -> str:
+    from equipment.agent.ultraviewer import resolve_ultraviewer_setup_url
+
+    return resolve_ultraviewer_setup_url()
+
+
 def _ultraviewer_collect_b64() -> str:
     from equipment.agent.ultraviewer import ultraviewer_collect_b64
 
-    return ultraviewer_collect_b64(_installer_uv_password())
+    return ultraviewer_collect_b64(
+        _installer_uv_password(),
+        _installer_uv_setup_url(),
+    )
 
 
 def build_installer_cmd(*, user, token: str, machine_type: str | None = None) -> str:
@@ -486,13 +495,14 @@ def build_installer_cmd(*, user, token: str, machine_type: str | None = None) ->
         'echo.',
         'echo [4/6] Quet PC, UltraViewer, gui len portal...',
         f'set "JP_UV_PASSWORD={_installer_uv_password()}"',
+        f'set "JP_UV_SETUP_URL={_installer_uv_setup_url()}"',
         'if exist "%JP_DIR%\\ultraviewer_sidecar.json" del /f /q "%JP_DIR%\\ultraviewer_sidecar.json" >nul 2>&1',
-        'echo      UltraViewer: dat mat khau co dinh + doc ID...',
+        'echo      UltraViewer: cai neu chua co, dat mat khau co dinh, doc ID...',
         (
             'powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand '
             f'{_ultraviewer_collect_b64()} 2>> "%JP_LOG%"'
         ),
-        'if exist "%JP_DIR%\\ultraviewer_sidecar.json" (echo      UltraViewer: OK) else (echo      UltraViewer: can cai UltraViewer tren may)',
+        'if exist "%JP_DIR%\\ultraviewer_sidecar.json" (echo      UltraViewer: OK) else (echo      UltraViewer: that bai - chay .cmd voi quyen Administrator)',
         'if exist "%JP_DIR%\\.justplay_agent_state.json" del /f /q "%JP_DIR%\\.justplay_agent_state.json" >nul 2>&1',
         'timeout /t 2 /nobreak >nul',
         '"%JP_DIR%\\JustPlayAgent.exe" --once',

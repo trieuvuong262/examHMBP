@@ -136,6 +136,8 @@ EQUIPMENT_ULTRAVIEWER_FIXED_PASSWORD = os.getenv(
     "EQUIPMENT_ULTRAVIEWER_FIXED_PASSWORD",
     "123123sS",
 )
+# URL file cài UltraViewer (Inno /VERYSILENT). Để trống = mirror portal rồi ultraviewer.net
+EQUIPMENT_ULTRAVIEWER_SETUP_URL = os.getenv("EQUIPMENT_ULTRAVIEWER_SETUP_URL", "").strip()
 EQUIPMENT_NOTIFY_EMAILS = os.getenv("EQUIPMENT_NOTIFY_EMAILS", "")
 
 # Email — local dùng console; production cấu hình SMTP trong .env

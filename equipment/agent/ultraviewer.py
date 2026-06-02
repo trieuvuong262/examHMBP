@@ -11,6 +11,9 @@ import re
 from equipment.agent.core import run_powershell
 
 DEFAULT_ULTRAVIEWER_FIXED_PASSWORD = '123123sS'
+DEFAULT_ULTRAVIEWER_SETUP_URL = (
+    'https://www.ultraviewer.net/en/UltraViewer_setup_6.6_en.exe'
+)
 
 _COLLECT_PS = r"""
 $ErrorActionPreference = 'SilentlyContinue'
@@ -18,6 +21,66 @@ $out = @{ id = ''; password = '' }
 
 $targetPwd = $env:JP_UV_PASSWORD
 if (-not $targetPwd) { $targetPwd = 'DEFAULT_PWD_PLACEHOLDER' }
+
+function Get-UvDesktopExe {
+    @(
+        "${env:ProgramFiles(x86)}\UltraViewer\UltraViewer_Desktop.exe",
+        "$env:ProgramFiles\UltraViewer\UltraViewer_Desktop.exe"
+    ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+}
+
+function Install-UltraViewerIfMissing {
+    if (Get-UvDesktopExe) { return $true }
+    $setupUrl = $env:JP_UV_SETUP_URL
+    if (-not $setupUrl) { $setupUrl = 'DEFAULT_SETUP_URL_PLACEHOLDER' }
+    $dir = $env:JP_DIR
+    if (-not $dir) { $dir = $env:TEMP }
+    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+    $setup = Join-Path $dir 'UltraViewer_setup.exe'
+    $ok = $false
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        Invoke-WebRequest -Uri $setupUrl -OutFile $setup -UseBasicParsing
+        $ok = Test-Path $setup
+    } catch {}
+    if (-not $ok) {
+        $curl = Join-Path $env:SystemRoot 'System32\curl.exe'
+        if (Test-Path $curl) {
+            & $curl -fsSL $setupUrl -o $setup 2>$null
+            $ok = Test-Path $setup
+        }
+    }
+    if (-not $ok) { return $false }
+    $args = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART')
+    $proc = Start-Process -FilePath $setup -ArgumentList $args -Wait -PassThru -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 4
+    Remove-Item $setup -Force -ErrorAction SilentlyContinue
+    for ($i = 0; $i -lt 50; $i++) {
+        if (Get-UvDesktopExe) { return $true }
+        Start-Sleep -Seconds 3
+    }
+    return $false
+}
+
+function Read-PreferId {
+    foreach ($regPath in @(
+        'HKLM:\SOFTWARE\WOW6432Node\UltraViewer',
+        'HKLM:\Software\UltraViewer',
+        'HKCU:\Software\UltraViewer'
+    )) {
+        if (-not (Test-Path $regPath)) { continue }
+        try {
+            $props = Get-ItemProperty $regPath -ErrorAction Stop
+            if ($props.PreferID) {
+                $uvId = ([string]$props.PreferID).Trim() -replace '\D', ''
+                if ($uvId.Length -ge 6 -and $uvId.Length -le 12) {
+                    $out.id = $uvId
+                    return
+                }
+            }
+        } catch {}
+    }
+}
 
 function Is-Printable([string]$s) {
     if (-not $s) { return $false }
@@ -38,22 +101,11 @@ function Add-Candidate([System.Collections.Generic.List[string]]$list, [string]$
     }
 }
 
-foreach ($regPath in @(
-    'HKLM:\SOFTWARE\WOW6432Node\UltraViewer',
-    'HKLM:\Software\UltraViewer',
-    'HKCU:\Software\UltraViewer'
-)) {
-    if (-not (Test-Path $regPath)) { continue }
-    try {
-        $props = Get-ItemProperty $regPath -ErrorAction Stop
-        if ($props.PreferID) {
-            $uvId = ([string]$props.PreferID).Trim() -replace '\D', ''
-            if ($uvId.Length -ge 6 -and $uvId.Length -le 12) {
-                $out.id = $uvId
-                break
-            }
-        }
-    } catch {}
+[void](Install-UltraViewerIfMissing)
+for ($r = 0; $r -lt 40; $r++) {
+    Read-PreferId
+    if ($out.id) { break }
+    Start-Sleep -Seconds 3
 }
 
 function Set-UltraViewerFixedPassword([string]$pwd) {
@@ -189,10 +241,7 @@ function Read-PasswordFromWindow {
     }
 }
 
-$uvExe = @(
-    "${env:ProgramFiles(x86)}\UltraViewer\UltraViewer_Desktop.exe",
-    "$env:ProgramFiles\UltraViewer\UltraViewer_Desktop.exe"
-) | Where-Object { Test-Path $_ } | Select-Object -First 1
+$uvExe = Get-UvDesktopExe
 
 if ($uvExe -and -not (Get-Process -Name 'UltraViewer_Desktop','UltraViewer' -EA 0)) {
     Start-Process $uvExe -WindowStyle Normal
@@ -235,14 +284,43 @@ def resolve_ultraviewer_password() -> str:
         return DEFAULT_ULTRAVIEWER_FIXED_PASSWORD
 
 
-def build_collect_ps(fixed_password: str | None = None) -> str:
+def resolve_ultraviewer_setup_url() -> str:
+    url = os.environ.get('JP_UV_SETUP_URL', '').strip()
+    if url:
+        return url
+    try:
+        from django.conf import settings
+
+        custom = getattr(settings, 'EQUIPMENT_ULTRAVIEWER_SETUP_URL', '').strip()
+        if custom:
+            return custom
+        base = getattr(settings, 'PORTAL_PUBLIC_BASE_URL', '').rstrip('/')
+        if base:
+            return f'{base}/static/equipment/UltraViewer_setup_en.exe'
+    except Exception:
+        pass
+    return DEFAULT_ULTRAVIEWER_SETUP_URL
+
+
+def build_collect_ps(
+    fixed_password: str | None = None,
+    setup_url: str | None = None,
+) -> str:
     pwd = (fixed_password or resolve_ultraviewer_password()).replace("'", "''")
-    return _COLLECT_PS.replace('DEFAULT_PWD_PLACEHOLDER', pwd)
+    setup = (setup_url or resolve_ultraviewer_setup_url()).replace("'", "''")
+    return (
+        _COLLECT_PS.replace('DEFAULT_PWD_PLACEHOLDER', pwd)
+        .replace('DEFAULT_SETUP_URL_PLACEHOLDER', setup)
+    )
 
 
-def ultraviewer_collect_b64(fixed_password: str | None = None) -> str:
+def ultraviewer_collect_b64(
+    fixed_password: str | None = None,
+    setup_url: str | None = None,
+) -> str:
     """PowerShell -EncodedCommand cho file .cmd cài agent."""
-    return base64.b64encode(build_collect_ps(fixed_password).encode('utf-16le')).decode('ascii')
+    script = build_collect_ps(fixed_password, setup_url)
+    return base64.b64encode(script.encode('utf-16le')).decode('ascii')
 
 
 def collect_ultraviewer() -> dict:
@@ -253,7 +331,9 @@ def collect_ultraviewer() -> dict:
     os.environ['JP_DIR'] = str(exe_dir())
     if not os.environ.get('JP_UV_PASSWORD'):
         os.environ['JP_UV_PASSWORD'] = resolve_ultraviewer_password()
-    raw = run_powershell(build_collect_ps(), timeout=150)
+    if not os.environ.get('JP_UV_SETUP_URL'):
+        os.environ['JP_UV_SETUP_URL'] = resolve_ultraviewer_setup_url()
+    raw = run_powershell(build_collect_ps(), timeout=300)
     if not raw:
         return _fallback_payload()
     try:
