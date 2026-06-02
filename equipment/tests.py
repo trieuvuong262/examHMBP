@@ -58,6 +58,39 @@ class UltraviewerDeviceTests(TestCase):
         device.refresh_from_db()
         self.assertEqual(device.ultraviewer_id, '99887766')
         self.assertEqual(device.ultraviewer_password, 'fixed-pass')
+        self.assertNotIn('UltraViewer ID', device.configuration)
+        self.assertNotIn('UltraViewer mật khẩu', device.configuration)
+
+    def test_agent_device_name_starts_with_pc(self):
+        from equipment.services.agent_device import agent_device_display_name
+
+        self.assertEqual(
+            agent_device_display_name({'hostname': 'DESKTOP-ABC'}, 'SN1234567890'),
+            'PC-DESKTOP-ABC',
+        )
+        self.assertTrue(
+            agent_device_display_name({'hostname': 'PC-HR-01'}, 'x').startswith('PC-'),
+        )
+
+    def test_agent_apply_sets_managed_department_it(self):
+        from equipment.models import Device
+        from equipment.services.agent_device import apply_agent_hardware_to_device
+        from hrm.models import Department
+
+        dept, _ = Department.objects.get_or_create(
+            name='IT / CNTT',
+            defaults={'is_active': True, 'sort_order': 0},
+        )
+        device = Device.objects.create(serial_number='SN-IT-DEPT', name='OLD')
+        apply_agent_hardware_to_device(
+            device,
+            {'hostname': 'WORKSTATION', 'cpu': 'i5'},
+            created=True,
+        )
+        device.save()
+        device.refresh_from_db()
+        self.assertTrue(device.name.startswith('PC-'))
+        self.assertEqual(device.managed_department_id, dept.pk)
 
 
 class ChassisCategoryTests(SimpleTestCase):
@@ -371,6 +404,8 @@ class AgentInstallFlowTests(TestCase):
         self.assertIn('Install-UltraViewerIfMissing', uv_ps)
         self.assertIn('Test-UvInstallComplete', uv_ps)
         self.assertIn('LanguageList.ini', uv_ps)
+        self.assertIn('Click-UvGoldenKeyButton', uv_ps)
+        self.assertIn('Set-UvPasswordViaSendKeys', uv_ps)
         self.assertIn('[5/6] Cai ung dung JustPlay Portal', cmd)
         self.assertIn('[6/6] Mo trang xac nhan portal', cmd)
         self.assertIn('JP_ICON_URL=', cmd)

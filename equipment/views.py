@@ -892,13 +892,19 @@ def api_agent_report(request):
         from equipment.services.chassis_category import infer_it_category_from_agent_data
         from equipment.services.agent_install import link_user_from_agent_report
 
+        from equipment.services.agent_device import agent_device_display_name
+        from equipment.services.managed_department import default_managed_department_for_scope
+        from equipment.scope import SCOPE_IT
+
         inferred_category = infer_it_category_from_agent_data(data) or 'PC'
+        it_dept = default_managed_department_for_scope(SCOPE_IT)
         device, created = Device.objects.get_or_create(
             serial_number=serial,
             defaults={
-                'name': data.get('hostname') or f'PC-{serial[-6:]}',
+                'name': agent_device_display_name(data, serial),
                 'status': Device.STATUS_ACTIVE,
                 'category': inferred_category,
+                'managed_department': it_dept,
             },
         )
 

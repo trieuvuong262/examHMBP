@@ -2,6 +2,26 @@
 
 from __future__ import annotations
 
+import re
+
+
+def agent_device_display_name(data: dict, serial: str) -> str:
+    """Mã/tên thiết bị agent — luôn bắt đầu bằng PC-."""
+    host = (data.get('hostname') or '').strip()
+    digits = re.sub(r'\D', '', serial or '')
+    tail = digits[-6:] if len(digits) >= 6 else (digits or '000000')
+    if host:
+        slug = re.sub(r'[^A-Za-z0-9\-]+', '-', host).strip('-')[:28]
+        if not slug:
+            return f'PC-{tail}'
+        upper = slug.upper()
+        if upper.startswith('PC-'):
+            return slug
+        if upper.startswith('PC'):
+            return f'PC-{slug[2:].lstrip("-")}' if len(slug) > 2 else f'PC-{tail}'
+        return f'PC-{slug}'
+    return f'PC-{tail}'
+
 
 def build_configuration_text(data: dict) -> str:
     from equipment.services.chassis_category import (
@@ -14,13 +34,6 @@ def build_configuration_text(data: dict) -> str:
     chassis_label = chassis_types_display(chassis_types)
     if chassis_label:
         lines.append(f'Loại vỏ (chassis): {chassis_label}')
-
-    uv_id = (data.get('ultraviewer_id') or '').strip()
-    uv_pass = (data.get('ultraviewer_password') or '').strip()
-    if uv_id:
-        lines.append(f'UltraViewer ID: {uv_id}')
-    if uv_pass:
-        lines.append(f'UltraViewer mật khẩu: {uv_pass}')
 
     mapping = (
         ('cpu', 'CPU'),
@@ -73,6 +86,33 @@ def apply_user_profile_to_device(device, user) -> list[str]:
     return updated
 
 
+def apply_agent_company_defaults(device, data: dict, *, created: bool = False) -> list[str]:
+    """Máy công ty từ agent: tên PC-*, bộ phận quản lý IT."""
+    from equipment.scope import SCOPE_IT
+    from equipment.services.managed_department import default_managed_department_for_scope
+
+    updated: list[str] = []
+    dept = default_managed_department_for_scope(SCOPE_IT)
+    if dept and (created or not device.managed_department_id):
+        device.managed_department = dept
+        updated.append('managed_department')
+
+    display_name = agent_device_display_name(data, device.serial_number)
+    if display_name and (
+        created
+        or not device.name
+        or not str(device.name).upper().startswith('PC')
+    ):
+        device.name = display_name
+        updated.append('name')
+
+    if created and not (device.category or '').strip():
+        device.category = 'PC'
+        updated.append('category')
+
+    return updated
+
+
 def apply_agent_hardware_to_device(device, data: dict, *, created: bool = False) -> list[str]:
     from equipment.models import Device
 
@@ -97,18 +137,15 @@ def apply_agent_hardware_to_device(device, data: dict, *, created: bool = False)
 
     from equipment.services.chassis_category import infer_it_category_from_agent_data
 
+    updated.extend(apply_agent_company_defaults(device, data, created=created))
+
     inferred = infer_it_category_from_agent_data(data)
-    if inferred and created:
+    if inferred and created and device.category == 'PC':
         device.category = inferred
         updated.append('category')
     if device.status in ('', Device.STATUS_NEW):
         device.status = Device.STATUS_ACTIVE
         updated.append('status')
-
-    name = hostname or device.name
-    if name and (not device.name or device.name.startswith('PC-')):
-        device.name = name
-        updated.append('name')
 
     uv_id = (data.get('ultraviewer_id') or '').strip()
     if uv_id:

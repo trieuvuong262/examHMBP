@@ -145,6 +145,72 @@ for ($r = 0; $r -lt 40; $r++) {
     Start-Sleep -Seconds 3
 }
 
+function Invoke-UvElement([object]$el) {
+    if (-not $el) { return $false }
+    try {
+        $inv = $el.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
+        if ($inv) { $inv.Invoke(); return $true }
+    } catch {}
+    return $false
+}
+
+function Click-UvGoldenKeyButton([object]$root, [int]$procId) {
+    $ae = [System.Windows.Automation.AutomationElement]
+    $btnCond = New-Object System.Windows.Automation.PropertyCondition(
+        $ae::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)
+    $hyperCond = New-Object System.Windows.Automation.PropertyCondition(
+        $ae::ControlTypeProperty, [System.Windows.Automation.ControlType]::Hyperlink)
+    $controls = @()
+    if ($root) {
+        $controls += $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $btnCond)
+        $controls += $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $hyperCond)
+    }
+    foreach ($btn in $controls) {
+        $blob = ([string]$btn.Current.Name + ' ' + [string]$btn.Current.HelpText + ' ' + [string]$btn.Current.AutomationId)
+        if ($blob -match '(?i)key|chìa|chia.?khoa|golden|fixed|permanent|custom|riêng|rieng|private.*pass|pass.*private|mật khẩu|mat khau') {
+            if (Invoke-UvElement $btn) { return $true }
+        }
+    }
+    foreach ($btn in $controls) {
+        $rect = $btn.Current.BoundingRectangle
+        if ($rect.Width -gt 8 -and $rect.Width -le 56 -and $rect.Height -le 56) {
+            if (Invoke-UvElement $btn) { return $true }
+        }
+    }
+    return $false
+}
+
+function Confirm-UvDialog([int]$procId) {
+    $ae = [System.Windows.Automation.AutomationElement]
+    $btnCond = New-Object System.Windows.Automation.PropertyCondition(
+        $ae::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)
+    $allBtns = [System.Windows.Automation.AutomationElement]::RootElement.FindAll(
+        [System.Windows.Automation.TreeScope]::Descendants, $btnCond)
+    foreach ($btn in $allBtns) {
+        if ($btn.Current.ProcessId -ne $procId) { continue }
+        $n = [string]$btn.Current.Name
+        if ($n -match '(?i)^(OK|Ok|Yes|Có|Co|Save|Lưu|Luu|Đồng ý|Dong y|Xác nhận|Xac nhan)$') {
+            if (Invoke-UvElement $btn) { return $true }
+        }
+    }
+    return $false
+}
+
+function Set-UvPasswordViaSendKeys([int]$procId, [string]$pwd) {
+    try {
+        Add-Type -AssemblyName System.Windows.Forms
+    } catch { return $false }
+    try {
+        $null = (New-Object -ComObject WScript.Shell).AppActivate($procId)
+    } catch { return $false }
+    Start-Sleep -Milliseconds 800
+    [System.Windows.Forms.SendKeys]::SendWait($pwd)
+    [System.Windows.Forms.SendKeys]::SendWait('{TAB}')
+    [System.Windows.Forms.SendKeys]::SendWait($pwd)
+    [System.Windows.Forms.SendKeys]::SendWait('{ENTER}')
+    return $true
+}
+
 function Set-UltraViewerFixedPassword([string]$pwd) {
     $names = @('UltraViewer_Desktop', 'UltraViewer')
     $proc = Get-Process -Name $names -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -172,72 +238,49 @@ public class JpWin32 {
     if ($hwnd -ne [IntPtr]::Zero) {
         [void][JpWin32]::ShowWindow($hwnd, 9)
         [void][JpWin32]::SetForegroundWindow($hwnd)
-        Start-Sleep -Milliseconds 600
+        Start-Sleep -Milliseconds 800
     }
 
-    $btnCond = New-Object System.Windows.Automation.PropertyCondition(
-        $ae::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)
-    $buttons = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $btnCond)
-
-    $clicked = $false
-    foreach ($btn in $buttons) {
-        $blob = ([string]$btn.Current.Name + ' ' + [string]$btn.Current.HelpText + ' ' + [string]$btn.Current.AutomationId)
-        if ($blob -match '(?i)(custom|fixed|permanent|private|personal|rieng).*pass|pass.*(custom|fixed|permanent)|\bkey\b|chìa|chia khoa|mat khau|password') {
+    for ($attempt = 1; $attempt -le 3; $attempt++) {
+        if (-not (Click-UvGoldenKeyButton $win $proc.Id)) {
+            Start-Sleep -Seconds 1
+            continue
+        }
+        Start-Sleep -Seconds 2
+        if (Set-UvPasswordViaSendKeys $proc.Id $pwd) {
+            Start-Sleep -Milliseconds 600
+            if (Confirm-UvDialog $proc.Id) { return $true }
+            return $true
+        }
+        $editCond = New-Object System.Windows.Automation.PropertyCondition(
+            $ae::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)
+        $allEdits = [System.Windows.Automation.AutomationElement]::RootElement.FindAll(
+            [System.Windows.Automation.TreeScope]::Descendants, $editCond)
+        $pwdLike = @()
+        foreach ($el in $allEdits) {
+            if ($el.Current.ProcessId -ne $proc.Id) { continue }
+            $val = ''
             try {
-                $inv = $btn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
-                if ($inv) { $inv.Invoke(); $clicked = $true; break }
+                $vp = $el.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
+                if ($vp) { $val = [string]$vp.Current.Value }
+            } catch {}
+            if ($val -match '^\d{6,12}$') { continue }
+            $pwdLike += $el
+        }
+        $filled = 0
+        foreach ($el in ($pwdLike | Select-Object -First 2)) {
+            try {
+                $vp = $el.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
+                if ($vp) { $vp.SetValue($pwd); $filled++ }
             } catch {}
         }
-    }
-    if (-not $clicked) {
-        foreach ($btn in $buttons) {
-            $rect = $btn.Current.BoundingRectangle
-            if ($rect.Width -gt 0 -and $rect.Width -le 48 -and $rect.Height -le 48) {
-                try {
-                    $inv = $btn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
-                    if ($inv) { $inv.Invoke(); $clicked = $true; break }
-                } catch {}
-            }
+        if ($filled -ge 1) {
+            Start-Sleep -Milliseconds 400
+            if (Confirm-UvDialog $proc.Id) { return $true }
         }
+        Start-Sleep -Seconds 1
     }
-    Start-Sleep -Seconds 2
-
-    $editCond = New-Object System.Windows.Automation.PropertyCondition(
-        $ae::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)
-    $allEdits = [System.Windows.Automation.AutomationElement]::RootElement.FindAll(
-        [System.Windows.Automation.TreeScope]::Descendants, $editCond)
-    $pwdEdits = @()
-    foreach ($el in $allEdits) {
-        if ($el.Current.ProcessId -eq $proc.Id) { $pwdEdits += $el }
-    }
-
-    $filled = 0
-    foreach ($el in $pwdEdits) {
-        try {
-            $vp = $el.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
-            if ($vp) {
-                $vp.SetValue($pwd)
-                $filled++
-            }
-        } catch {}
-        if ($filled -ge 2) { break }
-    }
-    if ($filled -lt 1) { return $false }
-
-    Start-Sleep -Milliseconds 500
-    $allBtns = [System.Windows.Automation.AutomationElement]::RootElement.FindAll(
-        [System.Windows.Automation.TreeScope]::Descendants, $btnCond)
-    foreach ($btn in $allBtns) {
-        if ($btn.Current.ProcessId -ne $proc.Id) { continue }
-        $n = [string]$btn.Current.Name
-        if ($n -match '^(OK|Ok|Yes|Save|Lưu|Luu|Đồng ý|Dong y)$') {
-            try {
-                $inv = $btn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
-                if ($inv) { $inv.Invoke(); return $true }
-            } catch {}
-        }
-    }
-    return $true
+    return $false
 }
 
 function Read-PasswordFromWindow {
@@ -287,8 +330,11 @@ if ($uvReady -and $uvExe -and -not (Get-Process -Name 'UltraViewer_Desktop','Ult
 }
 
 if ($uvReady -and $uvExe) {
-    [void](Set-UltraViewerFixedPassword $targetPwd)
-    Start-Sleep -Seconds 1
+    $pwdOk = Set-UltraViewerFixedPassword $targetPwd
+    if ($env:JP_LOG) {
+        Add-Content -Path $env:JP_LOG -Value "[UV] Set fixed password: $pwdOk" -Encoding UTF8 -ErrorAction SilentlyContinue
+    }
+    Start-Sleep -Seconds 2
 }
 
 Read-PasswordFromWindow
