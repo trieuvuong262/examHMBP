@@ -1,14 +1,17 @@
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db.models import Q
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from PortalJustPlay.list_search import apply_combined_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
-from hrm.module_permissions import MODULE_AUDIT, user_can_access_module
+from hrm.module_permissions import MODULE_AUDIT, user_can_access_module, user_can_edit_module
 
-from .models import UserActivityLog
+from .models import PortalBackupJob, UserActivityLog
+from .portal_backup import PortalBackupError, latest_backup_job, start_backup_async
 
 
 def _audit_access_required(view_func):
@@ -68,6 +71,11 @@ def log_list(request):
         'to': date_to,
     }
 
+    backup_job = latest_backup_job()
+    backup_running = PortalBackupJob.objects.filter(
+        status__in=(PortalBackupJob.STATUS_PENDING, PortalBackupJob.STATUS_RUNNING),
+    ).exists()
+
     return render(request, 'audit/log_list.html', {
         'page_obj': page_obj,
         'logs': page_obj.object_list,
@@ -75,7 +83,28 @@ def log_list(request):
         'filters': filters,
         'filter_query': filter_query,
         'stats': stats,
+        'can_run_backup': user_can_edit_module(request.user, MODULE_AUDIT),
+        'backup_job': backup_job,
+        'backup_running': backup_running,
     })
+
+
+@_audit_access_required
+@require_POST
+def backup_run(request):
+    if not user_can_edit_module(request.user, MODULE_AUDIT):
+        messages.error(request, 'Chỉ tài khoản có quyền sửa Nhật ký mới được chạy backup.')
+        return redirect('audit:log_list')
+    try:
+        job = start_backup_async(trigger=PortalBackupJob.TRIGGER_MANUAL, user=request.user)
+    except PortalBackupError as exc:
+        messages.error(request, str(exc))
+        return redirect('audit:log_list')
+    messages.success(
+        request,
+        f'Đã bắt đầu backup lên NAS (job #{job.pk}). Tải lại trang sau vài phút để xem kết quả.',
+    )
+    return redirect('audit:log_list')
 
 
 @_audit_access_required

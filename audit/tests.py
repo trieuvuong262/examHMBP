@@ -1,8 +1,10 @@
+from unittest.mock import patch
+
 from django.contrib.auth.models import User
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from audit.models import UserActivityLog
+from audit.models import PortalBackupJob, UserActivityLog
 from audit.utils import sanitize_mapping, infer_action, build_summary, get_client_device_info, is_private_ip
 from audit.summaries import describe_post_highlights, resolve_url_description
 from django.test import RequestFactory
@@ -175,3 +177,74 @@ class AuditAccessTests(TestCase):
                 action=UserActivityLog.ACTION_VIEW,
             ).exists()
         )
+
+
+class PortalBackupTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.dept = Department.objects.create(name='IT Backup', sort_order=1)
+        DepartmentMenuPermission.objects.create(
+            department=self.dept,
+            modules=['audit'],
+        )
+        RoleModulePermission.objects.update_or_create(
+            role=ROLE_DIRECTOR,
+            defaults={'module_permissions': {MODULE_AUDIT: {'view': True, 'edit': True}}},
+        )
+        RoleModulePermission.objects.update_or_create(
+            role=ROLE_EMPLOYEE,
+            defaults={'module_permissions': {MODULE_AUDIT: {'view': False, 'edit': False}}},
+        )
+        self.director = User.objects.create_user(username='backup_director', password='testpass123')
+        director_profile = Profile.objects.get(user=self.director)
+        director_profile.department = self.dept
+        director_profile.role = ROLE_DIRECTOR
+        director_profile.full_name = 'Director'
+        director_profile.save()
+        self.employee = User.objects.create_user(username='backup_employee', password='testpass123')
+        employee_profile = Profile.objects.get(user=self.employee)
+        employee_profile.role = ROLE_EMPLOYEE
+        employee_profile.save()
+
+    def test_backup_button_requires_edit_permission(self):
+        self.client.force_login(self.employee)
+        response = self.client.post(reverse('audit:backup_run'))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(PortalBackupJob.objects.count(), 0)
+
+    @patch('audit.views.start_backup_async')
+    def test_director_can_trigger_backup(self, mock_start):
+        job = PortalBackupJob.objects.create(trigger=PortalBackupJob.TRIGGER_MANUAL, status=PortalBackupJob.STATUS_PENDING)
+        mock_start.return_value = job
+        self.client.force_login(self.director)
+        response = self.client.post(reverse('audit:backup_run'))
+        self.assertEqual(response.status_code, 302)
+        mock_start.assert_called_once()
+
+    @override_settings(PORTAL_BACKUP_SOURCE_DIRS='/tmp/portal-backup-src-test')
+    @patch('audit.portal_backup.rclone_copy_file')
+    @patch('audit.portal_backup.create_database_dump')
+    @patch('audit.portal_backup.rclone_listing_available', return_value=True)
+    @patch('audit.portal_backup.prune_old_remote_backups', return_value=0)
+    def test_run_portal_backup_success(self, _prune, _rclone_ok, mock_dump, _copy):
+        def _fake_dump(dest_gz):
+            dest_gz.parent.mkdir(parents=True, exist_ok=True)
+            dest_gz.write_bytes(b'-- fake sql gzip')
+
+        mock_dump.side_effect = _fake_dump
+        import os
+        from pathlib import Path
+
+        from audit.portal_backup import run_portal_backup
+
+        src = Path('/tmp/portal-backup-src-test')
+        src.mkdir(parents=True, exist_ok=True)
+        (src / 'app.py').write_text('print(1)', encoding='utf-8')
+        try:
+            manifest = run_portal_backup(trigger='scheduled')
+        finally:
+            (src / 'app.py').unlink(missing_ok=True)
+            os.rmdir(src)
+        self.assertIn('remote_path', manifest)
+        job = PortalBackupJob.objects.order_by('-pk').first()
+        self.assertEqual(job.status, PortalBackupJob.STATUS_SUCCESS)

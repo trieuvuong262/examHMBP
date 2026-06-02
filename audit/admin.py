@@ -2,7 +2,7 @@ from django.contrib import admin, messages
 from django.shortcuts import redirect, render
 from django.urls import path, reverse
 
-from .models import UserActivityLog
+from .models import PortalBackupJob, UserActivityLog
 
 _BULK_DELETE_SESSION_KEY = 'audit_admin_bulk_delete_pks'
 _DELETE_BATCH_SIZE = 500
@@ -104,3 +104,11 @@ class UserActivityLogAdmin(admin.ModelAdmin):
             deleted, _ = UserActivityLog.objects.filter(pk__in=chunk).delete()
             total += deleted
         messages.success(request, f'Đã xóa {total:,} nhật ký thao tác.')
+
+
+@admin.register(PortalBackupJob)
+class PortalBackupJobAdmin(admin.ModelAdmin):
+    list_display = ('created_at', 'trigger', 'status', 'started_by', 'remote_path', 'finished_at')
+    list_filter = ('status', 'trigger')
+    readonly_fields = ('artifacts', 'message', 'remote_path', 'created_at', 'started_at', 'finished_at')
+    search_fields = ('remote_path', 'message', 'started_by__username')

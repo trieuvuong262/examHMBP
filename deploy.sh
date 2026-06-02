@@ -351,6 +351,12 @@ verify_nas_rclone() {
     echo "    WARNING: rclone không kết nối được NAS trong container."
     echo "             Kiểm tra: /root/.config/rclone/rclone.conf và scripts/setup-rclone-nas.sh"
   fi
+  if compose exec -T web rclone lsd synology:backup >/dev/null 2>&1; then
+    echo "    NAS backup folder OK (synology:backup)"
+  else
+    echo "    WARNING: Không thấy synology:backup — tạo shared folder 'backup' trên Synology"
+    echo "             hoặc đặt NAS_BACKUP_RCLONE_REMOTE trong .env"
+  fi
 }
 
 echo "==> 9) PWA icons from static/images/logo/logo.png"
@@ -387,6 +393,8 @@ echo "Deploy completed successfully."
 echo ""
 echo "Recurring tasks (công việc lặp): chạy cron hàng ngày:"
 echo "  sudo bash scripts/setup-recurring-tasks-cron.sh"
+echo "Backup NAS (DB + source):"
+echo "  sudo bash scripts/setup-backup-cron.sh"
 echo ""
 echo "Auto deploy: xem docs/HUONG_DAN_AUTO_DEPLOY.md"
 echo "Optional — tạo dữ liệu demo:"

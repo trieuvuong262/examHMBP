@@ -11,6 +11,7 @@ WORKDIR /app
 # Cài đặt thư viện hệ thống cần thiết cho PostgreSQL + rclone (đồng bộ NAS)
 RUN apt-get update && apt-get install -y \
     libpq-dev \
+    postgresql-client \
     gcc \
     pkg-config \
     libcairo2-dev \

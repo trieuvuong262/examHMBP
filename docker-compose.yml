@@ -25,6 +25,8 @@ services:
       - static_volume:/app/staticfiles
       - media_volume:/app/media
       - ./static/equipment:/app/static/equipment:ro
+      # Mã nguồn trên VPS (git pull) — đặt HOST_PROJECT_DIR=/opt/portaljustplay trong .env
+      - ${HOST_PROJECT_DIR:-.}:/backup-source:ro
       - /mnt/nas-portal:/mnt/nas-portal
       - /root/.config/rclone:/root/.config/rclone:ro
     environment:

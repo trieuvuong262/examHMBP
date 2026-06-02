@@ -116,3 +116,57 @@ class UserActivityLog(models.Model):
             parts.append(str(self.ip_address))
 
         return ' · '.join(parts) if parts else '—'
+
+
+class PortalBackupJob(models.Model):
+    TRIGGER_MANUAL = 'manual'
+    TRIGGER_SCHEDULED = 'scheduled'
+    TRIGGER_CHOICES = [
+        (TRIGGER_MANUAL, 'Thủ công'),
+        (TRIGGER_SCHEDULED, 'Tự động'),
+    ]
+
+    STATUS_PENDING = 'pending'
+    STATUS_RUNNING = 'running'
+    STATUS_SUCCESS = 'success'
+    STATUS_FAILED = 'failed'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Chờ'),
+        (STATUS_RUNNING, 'Đang chạy'),
+        (STATUS_SUCCESS, 'Thành công'),
+        (STATUS_FAILED, 'Thất bại'),
+    ]
+
+    trigger = models.CharField(max_length=16, choices=TRIGGER_CHOICES, default=TRIGGER_SCHEDULED)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+    started_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='portal_backup_jobs',
+    )
+    remote_path = models.CharField(max_length=500, blank=True)
+    message = models.TextField(blank=True)
+    artifacts = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Backup Portal lên NAS'
+        verbose_name_plural = 'Backup Portal lên NAS'
+
+    def __str__(self):
+        return f'{self.get_trigger_display()} · {self.get_status_display()} · {self.created_at:%Y-%m-%d %H:%M}'
+
+    @property
+    def duration_display(self) -> str:
+        if not self.started_at or not self.finished_at:
+            return '—'
+        delta = self.finished_at - self.started_at
+        secs = int(delta.total_seconds())
+        if secs < 60:
+            return f'{secs}s'
+        return f'{secs // 60} phút {secs % 60}s'

@@ -363,6 +363,13 @@ NAS_RCLONE_REMOTE = os.getenv('NAS_RCLONE_REMOTE', 'synology:DATACHUNG')
 NAS_RCLONE_CONFIG = os.getenv('NAS_RCLONE_CONFIG', '/root/.config/rclone/rclone.conf')
 NAS_AUTO_SYNC_INTERVAL = int(os.getenv('NAS_AUTO_SYNC_INTERVAL', '15'))
 NAS_SHARE_EXPIRE_DAYS = int(os.getenv('NAS_SHARE_EXPIRE_DAYS', '30'))
+# Backup Portal → NAS (database + source + media)
+# Mặc định: share/thư mục gốc ``backup`` trên NAS — synology:backup
+NAS_BACKUP_RCLONE_REMOTE = os.getenv('NAS_BACKUP_RCLONE_REMOTE', 'synology:backup').strip()
+NAS_BACKUP_REL_PATH = os.getenv('NAS_BACKUP_REL_PATH', '').strip()
+NAS_BACKUP_RETENTION_DAYS = int(os.getenv('NAS_BACKUP_RETENTION_DAYS', '30'))
+PORTAL_BACKUP_SOURCE_DIRS = os.getenv('PORTAL_BACKUP_SOURCE_DIRS', '/app,/backup-source')
+PORTAL_BACKUP_INCLUDE_MEDIA = os.getenv('PORTAL_BACKUP_INCLUDE_MEDIA', '1').lower() in ('1', 'true', 'yes', 'on')
 GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash')
 
 # ==============================================================================
