@@ -1,12 +1,20 @@
 {% load static %}
 {% static 'images/logo/logo.png' as site_logo %}
+{% static 'images/logo/apple-touch-icon.png' as apple_icon %}
+{% static 'images/logo/favicon-16.png' as favicon_16 %}
+{% static 'images/logo/favicon-32.png' as favicon_32 %}
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Cài JustPlay Agent — JustPlay Portal</title>
-    <link rel="icon" type="image/png" href="{{ site_logo }}">
+    <meta name="theme-color" content="#dc2626">
+    <meta name="apple-mobile-web-app-title" content="JustPlay">
+    <link rel="manifest" href="{% url 'site_manifest' %}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ favicon_16 }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ favicon_32 }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ apple_icon }}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">

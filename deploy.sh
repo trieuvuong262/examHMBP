@@ -303,22 +303,33 @@ verify_nas_rclone() {
   fi
 }
 
-echo "==> 8) Collect static files (clear old assets)"
+echo "==> 8) PWA icons from static/images/logo/logo.png"
+if [ -f "static/images/logo/logo.png" ]; then
+  if command -v python3 >/dev/null 2>&1; then
+    python3 scripts/generate_pwa_icons.py
+  else
+    python scripts/generate_pwa_icons.py
+  fi
+else
+  echo "    WARNING: static/images/logo/logo.png missing — skip icon generation"
+fi
+
+echo "==> 9) Collect static files (clear old assets)"
 compose exec -T web python manage.py collectstatic --noinput --clear
 
-echo "==> 9) Cleanup orphan media (files not referenced in DB/HTML)"
+echo "==> 10) Cleanup orphan media (files not referenced in DB/HTML)"
 if grep -qE '^CLEANUP_ORPHAN_MEDIA=(0|false|no|off)' .env 2>/dev/null; then
   echo "    Skipped (CLEANUP_ORPHAN_MEDIA is disabled in .env)."
 else
   compose exec -T web python manage.py cleanup_orphan_media
 fi
 
-echo "==> 10) Show status"
+echo "==> 11) Show status"
 compose ps
 
 verify_nas_rclone
 
-echo "==> 11) Cleanup old Docker images"
+echo "==> 12) Cleanup old Docker images"
 docker image prune -f
 
 echo ""
