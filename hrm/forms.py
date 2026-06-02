@@ -130,6 +130,27 @@ class CustomUserForm(forms.Form):
 
         self.fields['subordinates'].label_from_instance = user_display_label
 
+        if not self.user_id:
+            self.fields['full_name'].widget.attrs.update({
+                'autocomplete': 'off',
+                'data-lpignore': 'true',
+                'data-1p-ignore': 'true',
+            })
+            self.fields['username'].widget.attrs.update({
+                'autocomplete': 'off',
+                'autocapitalize': 'off',
+                'autocorrect': 'off',
+                'spellcheck': 'false',
+                'data-lpignore': 'true',
+                'data-1p-ignore': 'true',
+                'data-form-type': 'other',
+            })
+            self.fields['password'].widget.attrs['autocomplete'] = 'new-password'
+            self.fields['email'].widget.attrs.update({
+                'autocomplete': 'off',
+                'data-lpignore': 'true',
+            })
+
     def clean_username(self):
         username = self.cleaned_data.get('username')
         qs = User.objects.filter(username=username)

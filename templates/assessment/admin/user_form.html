@@ -5,8 +5,14 @@
 {% block content %}
 {% with org_dept_url=org_base_url|add:'?tab=department' org_div_url=org_base_url|add:'?tab=division' %}
 <div class="container-fluid jp-page jp-hrm-page jp-user-form-page py-2 py-md-3 px-2 px-md-4 mb-4">
-    <form method="post" id="userForm" enctype="multipart/form-data" novalidate>
+    <form method="post" id="userForm" enctype="multipart/form-data" novalidate{% if not is_edit %} autocomplete="off"{% endif %}>
         {% csrf_token %}
+        {% if not is_edit %}
+        <div class="jp-autofill-trap" aria-hidden="true" tabindex="-1">
+            <input type="text" name="jp_autofill_trap_user" value="" tabindex="-1" autocomplete="username">
+            <input type="password" name="jp_autofill_trap_pass" value="" tabindex="-1" autocomplete="current-password">
+        </div>
+        {% endif %}
 
         <div class="jp-page-header jp-user-form-header mb-3">
             <div class="jp-page-header-main">
@@ -18,9 +24,6 @@
                         <h2 class="jp-page-title fw-bold text-dark mb-0">
                             <i class="bi bi-person-plus-fill text-hm me-2"></i>{{ title }}
                         </h2>
-                        {% if not is_edit %}
-                        <p class="text-muted small mb-0 mt-1">Nhập họ tên trước → gợi ý account → kiểm tra mật khẩu → Lưu</p>
-                        {% endif %}
                     </div>
                 </div>
                 <nav aria-label="breadcrumb" class="d-none d-md-block mt-2">
@@ -89,7 +92,7 @@
                     <div class="card-body p-3 p-md-4">
                         <div class="row g-3">
                             <div class="col-12">
-                                {% include 'assessment/admin/includes/user_form_field.html' with field=form.full_name required=True hint='Nhập xong rời ô — hệ thống gợi ý Account bên phải' %}
+                                {% include 'assessment/admin/includes/user_form_field.html' with field=form.full_name required=True hint='Nhập họ tên — Account bên phải tự gợi ý (hoặc bấm «Gợi ý account»)' %}
                             </div>
                             <div class="col-sm-6 col-md-4">
                                 {% include 'assessment/admin/includes/user_form_field.html' with field=form.employee_code %}
@@ -139,7 +142,19 @@
                             <span>Tài khoản portal</span>
                         </div>
                         <div class="card-body p-3 p-md-4">
-                            {% include 'assessment/admin/includes/user_form_field.html' with field=form.username required=True hint='Tên đăng nhập — không dấu, không khoảng trắng' %}
+                            <div class="jp-form-field{% if form.username.errors %} is-invalid{% endif %}">
+                                <label class="jp-form-label jp-form-label-row" for="{{ form.username.id_for_label }}">
+                                    <span>{{ form.username.label }} <span class="text-danger">*</span></span>
+                                    <button type="button" class="btn btn-link btn-sm p-0 jp-form-link" id="jpSuggestUsername" title="Gợi ý từ họ tên">
+                                        Gợi ý account
+                                    </button>
+                                </label>
+                                {{ form.username }}
+                                <div class="form-text">Tên đăng nhập — không dấu, không khoảng trắng</div>
+                                {% for error in form.username.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
 
                             {% if not is_edit %}
                             <div class="jp-form-field{% if form.password.errors %} is-invalid{% endif %} mb-3">
@@ -163,7 +178,6 @@
                                 {% for error in form.password.errors %}
                                 <div class="invalid-feedback d-block">{{ error }}</div>
                                 {% endfor %}
-                                <div class="form-text">Gửi mật khẩu này cho nhân viên sau khi Lưu.</div>
                             </div>
                             {% else %}
                             <div class="alert alert-light border small mb-3 py-2">
@@ -183,7 +197,7 @@
                         </div>
                         <div class="card-body p-3 p-md-4">
                             {% include 'assessment/admin/includes/user_form_field.html' with field=form.role label='Vai trò HT' required=True %}
-                            {% include 'assessment/admin/includes/user_form_field.html' with field=form.permission_group hint='Để trống = nhóm mặc định theo vai trò' %}
+                            {% include 'assessment/admin/includes/user_form_field.html' with field=form.permission_group %}
                         </div>
                     </div>
 
@@ -279,22 +293,80 @@
     {% if not is_edit %}
     const fullNameInput = document.querySelector('input[name="full_name"]');
     const usernameInput = document.querySelector('input[name="username"]');
+    const suggestBtn = document.getElementById('jpSuggestUsername');
+    const suggestUrl = '{% url "user_suggest_username" %}';
+
     if (fullNameInput && usernameInput) {
-        fullNameInput.addEventListener('blur', function () {
-            if (usernameInput.value.trim()) return;
+        let usernameManual = false;
+        let suggestTimer = null;
+        let lastFetchedName = '';
+
+        function markUsernameManual() {
+            usernameManual = true;
+            usernameInput.dataset.jpManual = '1';
+        }
+
+        usernameInput.addEventListener('keydown', markUsernameManual);
+        usernameInput.addEventListener('paste', markUsernameManual);
+        usernameInput.addEventListener('drop', markUsernameManual);
+
+        function applySuggestion(username) {
+            if (!username || usernameManual) return;
+            usernameInput.value = username;
+            usernameInput.classList.add('is-valid');
+            usernameInput.classList.remove('is-invalid');
+        }
+
+        function fetchSuggestion(force) {
             const name = fullNameInput.value.trim();
-            if (!name) return;
-            fetch('{% url "user_suggest_username" %}?full_name=' + encodeURIComponent(name), {
+            if (!name) return Promise.resolve();
+            if (!force && usernameManual) return Promise.resolve();
+            if (!force && name === lastFetchedName) return Promise.resolve();
+            lastFetchedName = name;
+            return fetch(suggestUrl + '?full_name=' + encodeURIComponent(name), {
                 headers: { 'Accept': 'application/json' },
             })
                 .then(function (r) { return r.json(); })
                 .then(function (data) {
-                    if (data.username && !usernameInput.value.trim()) {
-                        usernameInput.value = data.username;
-                        usernameInput.classList.add('is-valid');
-                    }
+                    if (data.username) applySuggestion(data.username);
                 })
                 .catch(function () {});
+        }
+
+        function scheduleSuggest(force) {
+            clearTimeout(suggestTimer);
+            suggestTimer = setTimeout(function () { fetchSuggestion(force); }, force ? 0 : 400);
+        }
+
+        fullNameInput.addEventListener('input', function () {
+            lastFetchedName = '';
+            scheduleSuggest(false);
+        });
+        fullNameInput.addEventListener('change', function () { scheduleSuggest(true); });
+        fullNameInput.addEventListener('blur', function () { scheduleSuggest(true); });
+
+        fullNameInput.addEventListener('animationstart', function (e) {
+            if (e.animationName === 'jp-autofill-start') scheduleSuggest(true);
+        });
+        usernameInput.addEventListener('animationstart', function (e) {
+            if (e.animationName === 'jp-autofill-start' && !usernameManual) {
+                fullNameInput.value.trim() && scheduleSuggest(true);
+            }
+        });
+
+        if (suggestBtn) {
+            suggestBtn.addEventListener('click', function () {
+                usernameManual = false;
+                delete usernameInput.dataset.jpManual;
+                lastFetchedName = '';
+                fetchSuggestion(true);
+            });
+        }
+
+        [300, 900, 1800].forEach(function (ms) {
+            setTimeout(function () {
+                if (fullNameInput.value.trim() && !usernameManual) scheduleSuggest(true);
+            }, ms);
         });
     }
     {% endif %}
