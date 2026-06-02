@@ -171,8 +171,8 @@
                                     <button type="button" class="btn btn-sm btn-outline-hm" id="jpRegenPwd">
                                         <i class="bi bi-arrow-clockwise me-1"></i>Tạo mật khẩu mới
                                     </button>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="jpCopyPwd">
-                                        <i class="bi bi-clipboard me-1"></i>Sao chép
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="jpCopyPwd" title="Sao chép tài khoản và mật khẩu">
+                                        <i class="bi bi-clipboard me-1"></i><span class="jp-copy-label"> Sao chép</span>
                                     </button>
                                 </div>
                                 {% for error in form.password.errors %}
@@ -279,14 +279,51 @@
         });
     }
 
+    const usernameInputForCopy = document.querySelector('input[name="username"]');
     const copyBtn = document.getElementById('jpCopyPwd');
     if (copyBtn && pwdInput) {
         copyBtn.addEventListener('click', function () {
-            if (!pwdInput.value) return;
-            navigator.clipboard.writeText(pwdInput.value).catch(function () {
-                pwdInput.select();
-                document.execCommand('copy');
-            });
+            const pwd = (pwdInput.value || '').trim();
+            if (!pwd) return;
+            const account = usernameInputForCopy ? (usernameInputForCopy.value || '').trim() : '';
+            const text = 'Tài khoản: ' + account + '\nMật khẩu: ' + pwd;
+            const icon = copyBtn.querySelector('i');
+            const label = copyBtn.querySelector('.jp-copy-label');
+
+            function showCopied() {
+                copyBtn.classList.add('btn-success');
+                copyBtn.classList.remove('btn-outline-secondary');
+                if (icon) icon.className = 'bi bi-check-lg me-1';
+                if (label) label.textContent = ' Đã sao chép';
+                setTimeout(function () {
+                    copyBtn.classList.remove('btn-success');
+                    copyBtn.classList.add('btn-outline-secondary');
+                    if (icon) icon.className = 'bi bi-clipboard me-1';
+                    if (label) label.textContent = ' Sao chép';
+                }, 2000);
+            }
+
+            function fallbackCopy() {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.setAttribute('readonly', '');
+                ta.style.position = 'fixed';
+                ta.style.left = '-9999px';
+                document.body.appendChild(ta);
+                ta.select();
+                try {
+                    document.execCommand('copy');
+                    showCopied();
+                } finally {
+                    document.body.removeChild(ta);
+                }
+            }
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(showCopied).catch(fallbackCopy);
+            } else {
+                fallbackCopy();
+            }
         });
     }
 
