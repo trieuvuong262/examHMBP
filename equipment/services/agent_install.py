@@ -355,6 +355,19 @@ function Write-JpLog([string]$msg) {
     if ($env:JP_LOG) { Add-Content -Path $env:JP_LOG -Value $msg -Encoding UTF8 -ErrorAction SilentlyContinue }
 }
 
+function Get-JpPortalIconFile {
+    if (-not $iconUrl -or -not $jpDir) { return $null }
+    $iconFile = Join-Path $jpDir 'portal-icon.png'
+    if (-not (Test-Path $iconFile)) {
+        try {
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+            Invoke-WebRequest -Uri $iconUrl -OutFile $iconFile -UseBasicParsing
+        } catch {}
+    }
+    if (Test-Path $iconFile) { return $iconFile }
+    return $null
+}
+
 function Add-JpPortalAppShortcut([string]$browser, [string]$appUrl, [string]$linkPath) {
     if (-not $browser -or -not $appUrl -or -not $linkPath) { return $false }
     try {
@@ -365,19 +378,69 @@ function Add-JpPortalAppShortcut([string]$browser, [string]$appUrl, [string]$lin
         $lnk.TargetPath = $browser
         $lnk.Arguments = '--app=' + $appUrl
         $lnk.Description = 'JustPlay Portal'
-        if ($iconUrl -and $jpDir) {
-            $iconFile = Join-Path $jpDir 'portal-icon.png'
-            if (-not (Test-Path $iconFile)) {
-                try {
-                    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-                    Invoke-WebRequest -Uri $iconUrl -OutFile $iconFile -UseBasicParsing
-                } catch {}
-            }
-            if (Test-Path $iconFile) { $lnk.IconLocation = "$iconFile,0" }
-        }
+        $iconFile = Get-JpPortalIconFile
+        if ($iconFile) { $lnk.IconLocation = "$iconFile,0" }
         $lnk.Save()
         return $true
     } catch { return $false }
+}
+
+function Invoke-ShortcutShellVerb([string]$linkPath, [string]$verb) {
+    if (-not (Test-Path $linkPath)) { return $false }
+    try {
+        $dir = Split-Path $linkPath -Parent
+        $name = [System.IO.Path]::GetFileName($linkPath)
+        $shell = New-Object -ComObject Shell.Application
+        $folder = $shell.Namespace($dir)
+        if (-not $folder) { return $false }
+        $item = $folder.ParseName($name)
+        if (-not $item) { return $false }
+        $item.InvokeVerb($verb)
+        return $true
+    } catch { return $false }
+}
+
+function Set-JpPortalAutoStart([string]$browser, [string]$appUrl) {
+    if (-not $browser -or -not $appUrl) { return }
+    $runCmd = "`"$browser`" --app=$appUrl"
+    try {
+        Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' `
+            -Name 'JustPlayPortal' -Value $runCmd -ErrorAction Stop
+        Write-JpLog '[5/6] PWA: auto-start Run (JustPlayPortal)'
+    } catch {
+        Write-JpLog '[5/6] PWA: auto-start Run that bai'
+    }
+}
+
+function Deploy-JustPlayPortalShortcuts([string]$browser, [string]$appUrl) {
+    $desktop = Join-Path ([Environment]::GetFolderPath('Desktop')) 'JustPlay Portal.lnk'
+    $programs = Join-Path ([Environment]::GetFolderPath('Programs')) 'JustPlay Portal.lnk'
+    $startup = Join-Path ([Environment]::GetFolderPath('Startup')) 'JustPlay Portal.lnk'
+    $commonPrograms = Join-Path ([Environment]::GetFolderPath('CommonPrograms')) 'JustPlay Portal.lnk'
+
+    foreach ($path in @($programs, $desktop, $startup, $commonPrograms)) {
+        if (Add-JpPortalAppShortcut $browser $appUrl $path) {
+            Write-JpLog "[5/6] PWA: shortcut $path"
+        }
+    }
+
+    if (Test-Path $programs) { Copy-Item $programs $desktop -Force -ErrorAction SilentlyContinue }
+    if (Test-Path $programs) { Copy-Item $programs $startup -Force -ErrorAction SilentlyContinue }
+
+    if (Invoke-ShortcutShellVerb $desktop 'pintostartmenu') {
+        Write-JpLog '[5/6] PWA: pin Start menu (verb)'
+    }
+    if (Invoke-ShortcutShellVerb $desktop 'taskbarpin') {
+        Write-JpLog '[5/6] PWA: pin taskbar (verb)'
+    }
+
+    $taskbarDir = Join-Path $env:APPDATA 'Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar'
+    if ((Test-Path $taskbarDir) -and (Test-Path $desktop)) {
+        Copy-Item $desktop (Join-Path $taskbarDir 'JustPlay Portal.lnk') -Force -ErrorAction SilentlyContinue
+        Write-JpLog '[5/6] PWA: copy taskbar Quick Launch'
+    }
+
+    Set-JpPortalAutoStart $browser $appUrl
 }
 
 $edge = @(
@@ -410,15 +473,9 @@ Write-JpLog '[5/6] PWA: goi --install-app (start_url)'
 Start-Process -FilePath $browser -ArgumentList @('--install-app=' + $installUrl) -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 2
 
-$programs = Join-Path ([Environment]::GetFolderPath('Programs')) 'JustPlay Portal.lnk'
-$desktop = Join-Path ([Environment]::GetFolderPath('Desktop')) 'JustPlay Portal.lnk'
-if (Add-JpPortalAppShortcut $browser $installUrl $programs) {
-    Write-JpLog '[5/6] PWA: da tao Start Menu (app mode)'
-}
-if (Add-JpPortalAppShortcut $browser $installUrl $desktop) {
-    Write-JpLog '[5/6] PWA: da tao Desktop (app mode)'
-}
+Deploy-JustPlayPortalShortcuts $browser $installUrl
 
+Write-JpLog '[5/6] PWA: Desktop + Startup + pin (best-effort) + auto-start Run'
 Write-JpLog '[5/6] PWA: neu chua thay hop thoai — tren tab dang mo bam nut Cai hoac menu Apps > Install'
 """
 
@@ -545,7 +602,7 @@ def build_installer_cmd(*, user, token: str, machine_type: str | None = None) ->
             'powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand '
             f'{_ultraviewer_collect_b64()} 2>> "%JP_LOG%"'
         ),
-        'if exist "%JP_DIR%\\ultraviewer_sidecar.json" (echo      UltraViewer: OK) else (echo      UltraViewer: that bai - chay .cmd voi quyen Administrator)',
+        'if exist "%JP_DIR%\\ultraviewer_sidecar.json" (echo      UltraViewer: OK) else (echo      UltraViewer: that bai - chuot phai .cmd -^> Run as administrator)',
         'if exist "%JP_DIR%\\.justplay_agent_state.json" del /f /q "%JP_DIR%\\.justplay_agent_state.json" >nul 2>&1',
         'timeout /t 2 /nobreak >nul',
         '"%JP_DIR%\\JustPlayAgent.exe" --once',
@@ -568,8 +625,8 @@ def build_installer_cmd(*, user, token: str, machine_type: str | None = None) ->
         ),
         'echo      Da mo trang cai + goi Install app (Edge/Chrome).',
         'echo      Neu co hop thoai: bam **Cai dat** / **Install**.',
-        'echo      Hoac tren tab vua mo: nut **Cai JustPlay Portal** hoac ... - Apps - Install JustPlay Portal.',
-        'echo      Da tao shortcut Start/Desktop (app mode) neu PWA chua cai duoc.',
+        'echo      Tu dong: Desktop shortcut, Startup, pin taskbar/Start (neu Windows cho phep),',
+        'echo      auto-start khi dang nhap Windows (Registry JustPlayPortal).',
         'echo.',
         'echo [6/6] Mo trang xac nhan portal...',
         f'start "" "{done_url}"',

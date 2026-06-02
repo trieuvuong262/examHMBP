@@ -12,7 +12,7 @@ from equipment.agent.core import run_powershell
 
 DEFAULT_ULTRAVIEWER_FIXED_PASSWORD = '123123sS'
 DEFAULT_ULTRAVIEWER_SETUP_URL = (
-    'https://www.ultraviewer.net/en/UltraViewer_setup_6.6_en.exe'
+    'https://www.ultraviewer.net/vi/UltraViewer_setup_6.6_vi.exe'
 )
 
 _COLLECT_PS = r"""
@@ -29,8 +29,46 @@ function Get-UvDesktopExe {
     ) | Where-Object { Test-Path $_ } | Select-Object -First 1
 }
 
+function Test-UvInstallComplete {
+    $exe = Get-UvDesktopExe
+    if (-not $exe) { return $false }
+    $langIni = Join-Path (Split-Path $exe -Parent) 'Language\LanguageList.ini'
+    return (Test-Path $langIni)
+}
+
+function Stop-UvProcesses {
+    Get-Process -Name 'UltraViewer_Desktop','UltraViewer' -ErrorAction SilentlyContinue |
+        Stop-Process -Force -ErrorAction SilentlyContinue
+}
+
+function Remove-BrokenUvInstall {
+    Stop-UvProcesses
+    foreach ($root in @(
+        "${env:ProgramFiles(x86)}\UltraViewer",
+        "$env:ProgramFiles\UltraViewer"
+    )) {
+        if (-not (Test-Path $root)) { continue }
+        $unins = Join-Path $root 'unins000.exe'
+        if (Test-Path $unins) {
+            Start-Process -FilePath $unins -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -ErrorAction SilentlyContinue
+        }
+    }
+    Start-Sleep -Seconds 3
+}
+
+function Start-UvSetup([string]$setupPath) {
+    $args = '/SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LANG=vietnamese'
+    $p = Start-Process -FilePath $setupPath -ArgumentList $args -Wait -PassThru -Verb RunAs -ErrorAction SilentlyContinue
+    if (-not $p) {
+        Start-Process -FilePath $setupPath -ArgumentList $args -Wait -PassThru -ErrorAction SilentlyContinue | Out-Null
+    }
+}
+
 function Install-UltraViewerIfMissing {
-    if (Get-UvDesktopExe) { return $true }
+    if (Test-UvInstallComplete) { return $true }
+    if (Get-UvDesktopExe) {
+        Remove-BrokenUvInstall
+    }
     $setupUrl = $env:JP_UV_SETUP_URL
     if (-not $setupUrl) { $setupUrl = 'DEFAULT_SETUP_URL_PLACEHOLDER' }
     $dir = $env:JP_DIR
@@ -41,22 +79,21 @@ function Install-UltraViewerIfMissing {
     try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         Invoke-WebRequest -Uri $setupUrl -OutFile $setup -UseBasicParsing
-        $ok = Test-Path $setup
+        $ok = (Test-Path $setup) -and ((Get-Item $setup).Length -gt 1000000)
     } catch {}
     if (-not $ok) {
         $curl = Join-Path $env:SystemRoot 'System32\curl.exe'
         if (Test-Path $curl) {
             & $curl -fsSL $setupUrl -o $setup 2>$null
-            $ok = Test-Path $setup
+            $ok = (Test-Path $setup) -and ((Get-Item $setup).Length -gt 1000000)
         }
     }
     if (-not $ok) { return $false }
-    $args = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART')
-    $proc = Start-Process -FilePath $setup -ArgumentList $args -Wait -PassThru -ErrorAction SilentlyContinue
-    Start-Sleep -Seconds 4
+    Start-UvSetup $setup
+    Start-Sleep -Seconds 6
     Remove-Item $setup -Force -ErrorAction SilentlyContinue
-    for ($i = 0; $i -lt 50; $i++) {
-        if (Get-UvDesktopExe) { return $true }
+    for ($i = 0; $i -lt 60; $i++) {
+        if (Test-UvInstallComplete) { return $true }
         Start-Sleep -Seconds 3
     }
     return $false
@@ -242,13 +279,14 @@ function Read-PasswordFromWindow {
 }
 
 $uvExe = Get-UvDesktopExe
+$uvReady = Test-UvInstallComplete
 
-if ($uvExe -and -not (Get-Process -Name 'UltraViewer_Desktop','UltraViewer' -EA 0)) {
-    Start-Process $uvExe -WindowStyle Normal
-    Start-Sleep -Seconds 8
+if ($uvReady -and $uvExe -and -not (Get-Process -Name 'UltraViewer_Desktop','UltraViewer' -EA 0)) {
+    Start-Process -FilePath $uvExe -WindowStyle Normal -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 10
 }
 
-if ($uvExe) {
+if ($uvReady -and $uvExe) {
     [void](Set-UltraViewerFixedPassword $targetPwd)
     Start-Sleep -Seconds 1
 }
@@ -333,7 +371,7 @@ def collect_ultraviewer() -> dict:
         os.environ['JP_UV_PASSWORD'] = resolve_ultraviewer_password()
     if not os.environ.get('JP_UV_SETUP_URL'):
         os.environ['JP_UV_SETUP_URL'] = resolve_ultraviewer_setup_url()
-    raw = run_powershell(build_collect_ps(), timeout=300)
+    raw = run_powershell(build_collect_ps(), timeout=360)
     if not raw:
         return _fallback_payload()
     try:

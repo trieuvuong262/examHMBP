@@ -369,6 +369,8 @@ class AgentInstallFlowTests(TestCase):
         self.assertGreaterEqual(len(uv_match), 1)
         uv_ps = base64.b64decode(uv_match[0]).decode('utf-16le')
         self.assertIn('Install-UltraViewerIfMissing', uv_ps)
+        self.assertIn('Test-UvInstallComplete', uv_ps)
+        self.assertIn('LanguageList.ini', uv_ps)
         self.assertIn('[5/6] Cai ung dung JustPlay Portal', cmd)
         self.assertIn('[6/6] Mo trang xac nhan portal', cmd)
         self.assertIn('JP_ICON_URL=', cmd)
@@ -377,7 +379,10 @@ class AgentInstallFlowTests(TestCase):
         portal_ps = base64.b64decode(uv_match[-1]).decode('utf-16le')
         self.assertIn('--install-app=', portal_ps)
         self.assertIn('Start-Sleep -Seconds 25', portal_ps)
-        self.assertIn('Add-JpPortalAppShortcut', portal_ps)
+        self.assertIn('Deploy-JustPlayPortalShortcuts', portal_ps)
+        self.assertIn('taskbarpin', portal_ps)
+        self.assertIn('pintostartmenu', portal_ps)
+        self.assertIn('JustPlayPortal', portal_ps)
         self.assertIn('--app=', portal_ps)
 
     @override_settings(
