@@ -178,13 +178,34 @@ class ServiceRequest(models.Model):
     INCIDENT_NETWORK = 'network'
     INCIDENT_ACCOUNT = 'account'
     INCIDENT_OTHER = 'other'
-    INCIDENT_CATEGORY_CHOICES = [
+    INCIDENT_IT_CATEGORY_CHOICES = [
         (INCIDENT_HW, 'Phần cứng'),
         (INCIDENT_SW, 'Phần mềm'),
         (INCIDENT_NETWORK, 'Mạng / Internet'),
         (INCIDENT_ACCOUNT, 'Tài khoản / quyền truy cập'),
         (INCIDENT_OTHER, 'Khác'),
     ]
+
+    INCIDENT_M_STOP = 'm_stop'
+    INCIDENT_M_MECH = 'm_mech'
+    INCIDENT_M_ELEC = 'm_elec'
+    INCIDENT_M_PARTS = 'm_parts'
+    INCIDENT_M_QUALITY = 'm_quality'
+    INCIDENT_M_SAFETY = 'm_safety'
+    INCIDENT_M_OTHER = 'm_other'
+    INCIDENT_PRODUCTION_CATEGORY_CHOICES = [
+        (INCIDENT_M_STOP, 'Máy ngừng / không chạy'),
+        (INCIDENT_M_MECH, 'Cơ khí / truyền động'),
+        (INCIDENT_M_ELEC, 'Điện / khí nén / PLC'),
+        (INCIDENT_M_PARTS, 'Phụ tùng / vật tư'),
+        (INCIDENT_M_QUALITY, 'Chất lượng sản phẩm / lỗi may'),
+        (INCIDENT_M_SAFETY, 'An toàn lao động'),
+        (INCIDENT_M_OTHER, 'Khác'),
+    ]
+
+    INCIDENT_CATEGORY_CHOICES = (
+        INCIDENT_IT_CATEGORY_CHOICES + INCIDENT_PRODUCTION_CATEGORY_CHOICES
+    )
 
     PRIORITY_LOW = 'low'
     PRIORITY_NORMAL = 'normal'
@@ -266,6 +287,18 @@ class ServiceRequest(models.Model):
                 ServiceRequestStep.STATUS_IN_PROGRESS,
             },
         ).order_by('step_order').first()
+
+
+def incident_category_choices_for_repair_scope(repair_equipment_scope):
+    from equipment.scope import SCOPE_PRODUCTION, normalize_repair_equipment_scope
+
+    if normalize_repair_equipment_scope(repair_equipment_scope) == SCOPE_PRODUCTION:
+        return ServiceRequest.INCIDENT_PRODUCTION_CATEGORY_CHOICES
+    return ServiceRequest.INCIDENT_IT_CATEGORY_CHOICES
+
+
+def valid_incident_category_codes_for_repair_scope(repair_equipment_scope):
+    return {code for code, _ in incident_category_choices_for_repair_scope(repair_equipment_scope)}
 
 
 class ProcurementLineItem(models.Model):

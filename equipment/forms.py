@@ -233,13 +233,37 @@ class ReportIssueForm(forms.Form):
         widget=forms.Select(attrs={'class': 'form-select'}),
     )
     blocks_work = forms.BooleanField(
-        label='Đang chặn công việc / sản xuất',
+        label='Đang chặn công việc',
         required=False,
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
     )
 
-    def __init__(self, *args, **kwargs):
-        from service_requests.models import ServiceRequest
+    def __init__(self, *args, repair_equipment_scope=None, **kwargs):
+        from equipment.scope import SCOPE_PRODUCTION, normalize_repair_equipment_scope
+        from service_requests.models import (
+            ServiceRequest,
+            incident_category_choices_for_repair_scope,
+            valid_incident_category_codes_for_repair_scope,
+        )
+
         super().__init__(*args, **kwargs)
-        self.fields['incident_category'].choices = ServiceRequest.INCIDENT_CATEGORY_CHOICES
-        self.fields['priority'].choices = ServiceRequest.PRIORITY_CHOICES
+        scope = normalize_repair_equipment_scope(repair_equipment_scope)
+        is_production = scope == SCOPE_PRODUCTION
+        self.repair_equipment_scope = scope
+        self.fields['incident_category'].choices = incident_category_choices_for_repair_scope(scope)
+        self._valid_incident_codes = valid_incident_category_codes_for_repair_scope(scope)
+        self.fields['priority'].choices = [
+            (c, 'Khẩn — chặn sản xuất' if is_production and c == 'urgent' else (
+                'Khẩn — chặn công việc' if not is_production and c == 'urgent' else label
+            ))
+            for c, label in ServiceRequest.PRIORITY_CHOICES
+        ]
+        self.fields['blocks_work'].label = (
+            'Đang chặn sản xuất / chuyền' if is_production else 'Đang chặn công việc'
+        )
+
+    def clean_incident_category(self):
+        value = self.cleaned_data.get('incident_category')
+        if value and value not in self._valid_incident_codes:
+            raise forms.ValidationError('Loại sự cố không hợp lệ cho thiết bị này.')
+        return value

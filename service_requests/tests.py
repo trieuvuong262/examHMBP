@@ -491,7 +491,7 @@ class ItRepairWorkflowTests(TestCase):
             'repair_scope': 'production',
             'title': 'Máy may hỏng',
             'description': 'Không cắt chỉ',
-            'incident_category': ServiceRequest.INCIDENT_HW,
+            'incident_category': ServiceRequest.INCIDENT_M_MECH,
             'priority': ServiceRequest.PRIORITY_HIGH,
             'location_text': 'Chuyền 1',
             'equipment_label': 'Máy may Juki',

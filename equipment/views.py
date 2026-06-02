@@ -486,7 +486,10 @@ def device_qr_public(request, device_key):
             messages.warning(request, 'Thiết bị đang được xử lý — vui lòng chờ IT hoàn tất.')
             return redirect('equipment:device_qr_public', device_key=device.device_code)
 
-        form = ReportIssueForm(request.POST)
+        from equipment.scope import scope_for_device
+
+        device_scope = scope_for_device(device)
+        form = ReportIssueForm(request.POST, repair_equipment_scope=device_scope)
         if form.is_valid():
             from service_requests.workflow_it import create_it_repair_request, get_it_repair_request_type
 
@@ -497,7 +500,6 @@ def device_qr_public(request, device_key):
 
             location = device.usage_room or device.usage_department_label
             title = f'Báo hỏng: {device.name}'
-            from equipment.scope import scope_for_device
 
             service_request = create_it_repair_request(
                 requester=request.user,
@@ -511,7 +513,7 @@ def device_qr_public(request, device_key):
                 equipment_serial=device.serial_number or '',
                 blocks_work=form.cleaned_data.get('blocks_work', False),
                 equipment=device,
-                repair_equipment_scope=scope_for_device(device),
+                repair_equipment_scope=device_scope,
             )
             profile = getattr(request.user, 'profile', None)
             reporter_name = profile.full_name if profile and profile.full_name else request.user.username
@@ -536,7 +538,12 @@ def device_qr_public(request, device_key):
             messages.success(request, 'Đã gửi yêu cầu hỗ trợ kỹ thuật.')
             return redirect('service_requests:detail', pk=service_request.pk)
     else:
-        form = ReportIssueForm(initial={'priority': 'normal'})
+        from equipment.scope import scope_for_device
+
+        form = ReportIssueForm(
+            initial={'priority': 'normal'},
+            repair_equipment_scope=scope_for_device(device),
+        )
 
     return render(request, 'equipment/device_qr_public.html', {
         'device': device,

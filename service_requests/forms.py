@@ -181,17 +181,57 @@ class ItRepairCreateForm(forms.ModelForm):
             'location_text': 'Vị trí',
             'equipment_label': 'Thiết bị',
             'equipment_serial': 'Serial',
-            'blocks_work': 'Đang chặn công việc / sản xuất',
+            'blocks_work': 'Đang chặn công việc',
         }
 
-    def __init__(self, *args, request_type=None, **kwargs):
+    def __init__(self, *args, request_type=None, repair_equipment_scope=None, **kwargs):
+        from equipment.scope import SCOPE_PRODUCTION, normalize_repair_equipment_scope
+        from service_requests.models import (
+            incident_category_choices_for_repair_scope,
+            valid_incident_category_codes_for_repair_scope,
+        )
+
         super().__init__(*args, **kwargs)
         self.request_type = request_type
+        self.repair_equipment_scope = normalize_repair_equipment_scope(repair_equipment_scope)
+        is_production = self.repair_equipment_scope == SCOPE_PRODUCTION
+
+        self.fields['incident_category'].choices = incident_category_choices_for_repair_scope(
+            self.repair_equipment_scope,
+        )
+        self.fields['blocks_work'].label = (
+            'Đang chặn sản xuất / chuyền' if is_production else 'Đang chặn công việc'
+        )
+        if is_production:
+            self.fields['title'].widget.attrs['placeholder'] = 'VD: Máy may dừng giữa ca'
+            self.fields['description'].widget.attrs['placeholder'] = (
+                'Mô tả triệu chứng, thời điểm, ảnh hưởng chuyền...'
+            )
+            self.fields['equipment_label'].widget.attrs['placeholder'] = 'Mã hoặc tên máy (tuỳ chọn)'
+            self.fields['priority'].choices = [
+                (c, 'Khẩn — chặn sản xuất' if c == 'urgent' else label)
+                for c, label in self.fields['priority'].choices
+            ]
+        else:
+            self.fields['priority'].choices = [
+                (c, 'Khẩn — chặn công việc' if c == 'urgent' else label)
+                for c, label in self.fields['priority'].choices
+            ]
+
+        self._valid_incident_codes = valid_incident_category_codes_for_repair_scope(
+            self.repair_equipment_scope,
+        )
         self.fields['incident_category'].required = True
         self.fields['priority'].required = True
         self.fields['location_text'].required = True
         self.fields['equipment_label'].required = False
         self.fields['equipment_serial'].required = False
+
+    def clean_incident_category(self):
+        value = self.cleaned_data.get('incident_category')
+        if value and value not in self._valid_incident_codes:
+            raise forms.ValidationError('Loại sự cố không hợp lệ cho phạm vi thiết bị đã chọn.')
+        return value
 
     def clean(self):
         cleaned = super().clean()

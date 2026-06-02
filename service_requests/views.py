@@ -385,7 +385,11 @@ def create_it_repair(request, equipment_scope=None):
         scope_ctx = scope_context(repair_scope)
 
     if request.method == 'POST':
-        form = ItRepairCreateForm(request.POST, request_type=request_type)
+        form = ItRepairCreateForm(
+            request.POST,
+            request_type=request_type,
+            repair_equipment_scope=repair_scope,
+        )
         if form.is_valid():
             try:
                 service_request = create_it_repair_request(
@@ -441,7 +445,11 @@ def create_it_repair(request, equipment_scope=None):
                 'equipment_serial': linked_equipment.serial_number or '',
                 'location_text': linked_equipment.usage_room or linked_equipment.usage_department_label or default_location,
             })
-        form = ItRepairCreateForm(request_type=request_type, initial=initial)
+        form = ItRepairCreateForm(
+            request_type=request_type,
+            repair_equipment_scope=repair_scope,
+            initial=initial,
+        )
 
     tab_it_active = repair_scope != SCOPE_PRODUCTION
     return render(request, 'service_requests/it_repair_form.html', {
