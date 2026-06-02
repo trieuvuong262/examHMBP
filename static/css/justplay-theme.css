@@ -2899,6 +2899,62 @@ textarea.form-control {
     margin-bottom: 0.65rem;
 }
 
+.jp-user-form-layout {
+    align-items: flex-start;
+}
+
+.jp-user-form-panel {
+    overflow: hidden;
+    background: #fff;
+}
+
+.jp-user-form-panel-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--jp-black-700, #334155);
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.jp-user-form-panel-head i {
+    color: var(--hm-primary, #dc2626);
+    font-size: 1rem;
+}
+
+.jp-user-form-panel-head-account {
+    background: linear-gradient(180deg, #fff5f5 0%, #fef2f2 100%);
+}
+
+.jp-user-form-sidebar {
+    position: sticky;
+    top: calc(var(--jp-header-height, 56px) + 0.75rem);
+}
+
+.jp-form-field {
+    margin-bottom: 0;
+}
+
+.jp-form-field.is-invalid .form-control,
+.jp-form-field.is-invalid .form-select {
+    border-color: var(--bs-danger, #dc3545);
+}
+
+.jp-form-field .invalid-feedback {
+    font-size: 0.8rem;
+}
+
+@media (max-width: 991.98px) {
+    .jp-user-form-sidebar {
+        position: static;
+    }
+}
+
 .jp-form-label {
     display: block;
     font-size: 0.72rem;

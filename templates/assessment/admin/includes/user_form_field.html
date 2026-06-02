@@ -1,0 +1,16 @@
+{# field, label, required=False, hint='', link_url='', link_label='' #}
+<div class="jp-form-field{% if field.errors %} is-invalid{% endif %}">
+    <label class="jp-form-label{% if link_url %} jp-form-label-row{% endif %}" for="{{ field.id_for_label }}">
+        {% if link_url %}
+        <span>{{ label|default:field.label }}{% if required %} <span class="text-danger">*</span>{% endif %}</span>
+        <a href="{{ link_url }}" class="jp-form-link">{{ link_label }}</a>
+        {% else %}
+        {{ label|default:field.label }}{% if required %} <span class="text-danger">*</span>{% endif %}
+        {% endif %}
+    </label>
+    {{ field }}
+    {% if hint %}<div class="form-text">{{ hint }}</div>{% endif %}
+    {% for error in field.errors %}
+    <div class="invalid-feedback d-block">{{ error }}</div>
+    {% endfor %}
+</div>
