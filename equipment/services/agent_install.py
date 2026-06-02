@@ -157,7 +157,72 @@ def resolve_user_from_agent_data(data: dict):
         if user:
             return user, None
 
+    username = (data.get('username') or '').strip()
+    if username:
+        user = User.objects.select_related('profile__department', 'profile__division').filter(
+            username__iexact=username,
+        ).first()
+        if user:
+            return user, None
+
     return None, None
+
+
+def ensure_user_registered_for_device(*, user, device) -> bool:
+    """Đảm bảo user có trong registry sau báo cáo agent (máy công ty)."""
+    from equipment.services.shared_pc import confirm_user_on_shared_device, user_registered_on_device
+
+    if not user or not device:
+        return False
+    if user_is_in_equipment_registry(user):
+        return True
+    if not user_registered_on_device(user, device):
+        confirm_user_on_shared_device(user, device)
+    return user_is_in_equipment_registry(user)
+
+
+def try_reconcile_agent_registration(request) -> bool:
+    """
+    Trang hoàn tất: agent đã gửi PC lên portal nhưng poll chưa thấy registry —
+    gắn user theo cookie hostname / serial hoặc thiết bị vừa quét.
+    """
+    from datetime import timedelta
+
+    from equipment.models import Device
+    from equipment.services.shared_pc import (
+        confirm_user_on_shared_device,
+        find_device_for_client_request,
+        user_registered_on_device,
+    )
+
+    user = request.user
+    if not user.is_authenticated or user_is_in_equipment_registry(user):
+        return user_is_in_equipment_registry(user)
+
+    device = find_device_for_client_request(request)
+    since = timezone.now() - timedelta(hours=2)
+
+    if not device:
+        hostname = (request.COOKIES.get('jp_hostname') or '').strip()
+        if hostname:
+            device = (
+                Device.objects.filter(
+                    hostname__iexact=hostname,
+                    last_scan_date__gte=since,
+                )
+                .order_by('-last_scan_date')
+                .first()
+            )
+
+    if not device:
+        serial = (request.COOKIES.get('jp_agent_serial') or '').strip()
+        if serial:
+            device = Device.objects.filter(serial_number=serial).first()
+
+    if device and not user_registered_on_device(user, device):
+        confirm_user_on_shared_device(user, device)
+
+    return user_is_in_equipment_registry(user)
 
 
 def register_personal_agent_from_report(*, data: dict) -> bool:
@@ -223,7 +288,26 @@ def link_user_from_agent_report(*, data: dict, device) -> None:
 
 
 def _cmd_escape(value: str) -> str:
-    return (value or '').replace('^', '^^').replace('&', '^&').replace('|', '^|').replace('<', '^<')
+    """Escape cho echo trong khối ( ) của cmd — tránh đứt file .ini."""
+    s = value or ''
+    for char, repl in (
+        ('^', '^^'),
+        ('&', '^&'),
+        ('|', '^|'),
+        ('<', '^<'),
+        ('>', '^>'),
+        (')', '^)'),
+        ('(', '^('),
+        ('%', '%%'),
+    ):
+        s = s.replace(char, repl)
+    return s
+
+
+def _powershell_ini_line(key: str, value: str) -> str:
+    """Một dòng ini an toàn (Unicode, ký tự đặc biệt)."""
+    safe = (value or '').replace("'", "''")
+    return f"Add-Content -LiteralPath $ini -Value '{key}={safe}' -Encoding UTF8"
 
 
 def build_installer_cmd(*, user, token: str, machine_type: str | None = None) -> str:
@@ -270,29 +354,36 @@ def build_installer_cmd(*, user, token: str, machine_type: str | None = None) ->
         'echo      OK',
         'echo.',
         'echo [2/4] Tao cau hinh...',
-        '(',
-        'echo [portal]',
-        f'echo url={base}',
-        f'echo secret={secret}',
-        'echo.',
-        'echo [user]',
-        f'echo portal_user_id={payload["portal_user_id"]}',
-        f'echo username={_cmd_escape(payload["username"])}',
-        f'echo full_name={_cmd_escape(payload["full_name"])}',
-        f'echo email={_cmd_escape(payload["email"])}',
-        f'echo department={_cmd_escape(payload["department"])}',
-        f'echo department_id={payload["department_id"]}',
-        f'echo division={_cmd_escape(payload["division"])}',
-        f'echo job_position={_cmd_escape(payload["job_position"])}',
-        f'echo job_title={_cmd_escape(payload["job_title"])}',
-        f'echo employee_code={_cmd_escape(payload["employee_code"])}',
-        f'echo install_token={token}',
-        f'echo machine_type={machine_type}',
-        'echo.',
-        'echo [agent]',
-        'echo interval_minutes=30',
-        'echo poll_seconds=60',
-        ') > "%JP_DIR%\\justplay_agent.ini"',
+        'set "JP_INI=%JP_DIR%\\justplay_agent.ini"',
+        'del /f /q "%JP_INI%" >nul 2>&1',
+        'powershell -NoProfile -ExecutionPolicy Bypass -Command ^',
+        '  "$ini=\'%JP_DIR%\\justplay_agent.ini\'; ^',
+        '  New-Item -ItemType File -Path $ini -Force | Out-Null; ^',
+        f"  Add-Content -LiteralPath $ini -Value '[portal]' -Encoding UTF8; ^",
+        f"  Add-Content -LiteralPath $ini -Value 'url={base}' -Encoding UTF8; ^",
+        f"  Add-Content -LiteralPath $ini -Value 'secret={secret}' -Encoding UTF8; ^",
+        '  Add-Content -LiteralPath $ini -Value '' -Encoding UTF8; ^',
+        "  Add-Content -LiteralPath $ini -Value '[user]' -Encoding UTF8; ^",
+        f"  Add-Content -LiteralPath $ini -Value 'portal_user_id={payload['portal_user_id']}' -Encoding UTF8; ^",
+        f"  {_powershell_ini_line('username', payload['username'])}; ^",
+        f"  {_powershell_ini_line('full_name', payload['full_name'])}; ^",
+        f"  {_powershell_ini_line('email', payload['email'])}; ^",
+        f"  {_powershell_ini_line('department', payload['department'])}; ^",
+        f"  Add-Content -LiteralPath $ini -Value 'department_id={payload['department_id']}' -Encoding UTF8; ^",
+        f"  {_powershell_ini_line('division', payload['division'])}; ^",
+        f"  {_powershell_ini_line('job_position', payload['job_position'])}; ^",
+        f"  {_powershell_ini_line('job_title', payload['job_title'])}; ^",
+        f"  {_powershell_ini_line('employee_code', payload['employee_code'])}; ^",
+        f"  Add-Content -LiteralPath $ini -Value 'install_token={token}' -Encoding UTF8; ^",
+        f"  Add-Content -LiteralPath $ini -Value 'machine_type={machine_type}' -Encoding UTF8; ^",
+        '  Add-Content -LiteralPath $ini -Value '' -Encoding UTF8; ^',
+        "  Add-Content -LiteralPath $ini -Value '[agent]' -Encoding UTF8; ^",
+        "  Add-Content -LiteralPath $ini -Value 'interval_minutes=30' -Encoding UTF8; ^",
+        "  Add-Content -LiteralPath $ini -Value 'poll_seconds=60' -Encoding UTF8",
+        'if not exist "%JP_INI%" (',
+        '  echo  LOI: Khong tao duoc justplay_agent.ini',
+        '  goto :end_fail',
+        ')',
         'echo      OK',
         'echo.',
         'echo [3/4] Dang ky chay khi dang nhap Windows...',

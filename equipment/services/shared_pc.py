@@ -83,16 +83,9 @@ def confirm_user_on_shared_device(user, device: Device) -> Device:
     )
 
     if not device.assigned_user_id:
-        apply_user_profile_to_device(device, user)
-        device.save(
-            update_fields=[
-                'assigned_user',
-                'assigned_user_text',
-                'department',
-                'position',
-                'updated_at',
-            ],
-        )
+        fields = apply_user_profile_to_device(device, user)
+        fields.append('updated_at')
+        device.save(update_fields=sorted(set(fields)))
     return device
 
 

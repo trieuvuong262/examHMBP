@@ -64,6 +64,66 @@ class AgentInstallFlowTests(TestCase):
         self.assertIsNotNone(tok.used_at)
 
     @override_settings(EQUIPMENT_AGENT_SECRET='sec')
+    def test_agent_report_username_fallback_registers_user(self):
+        from django.contrib.auth import get_user_model
+
+        from equipment.models import UserAgentRegistration
+        from equipment.services.agent_install import user_is_in_equipment_registry
+
+        User = get_user_model()
+        user = User.objects.create_user(username='adia', password='x')
+
+        client = __import__('django.test', fromlist=['Client']).Client()
+        payload = {
+            'api_secret': 'sec',
+            'serial': 'SN-USER-ONLY',
+            'hostname': 'PC-ADIA',
+            'username': 'adia',
+            'machine_type': 'company',
+        }
+        resp = client.post(
+            '/thiet-bi/api/agent-report/',
+            data=__import__('json').dumps(payload),
+            content_type='application/json',
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(user_is_in_equipment_registry(user))
+
+    @override_settings(EQUIPMENT_AGENT_SECRET='sec')
+    def test_reconcile_registration_by_hostname_cookie(self):
+        from django.contrib.auth import get_user_model
+        from django.test import Client, RequestFactory
+        from django.utils import timezone
+
+        from equipment.models import Device, UserAgentRegistration
+        from equipment.services.agent_install import try_reconcile_agent_registration
+
+        User = get_user_model()
+        user = User.objects.create_user(username='gate1', password='x')
+        other = User.objects.create_user(username='other', password='x')
+        device = Device.objects.create(
+            serial_number='SN-RECON',
+            name='PC',
+            hostname='DESKTOP-RECON',
+            last_scan_date=timezone.now(),
+        )
+        UserAgentRegistration.objects.create(
+            user=other,
+            serial_number='SN-RECON',
+            device=device,
+        )
+
+        factory = RequestFactory()
+        request = factory.get('/thiet-bi/agent/trang-thai/')
+        request.user = user
+        request.COOKIES = {'jp_hostname': 'DESKTOP-RECON'}
+
+        self.assertTrue(try_reconcile_agent_registration(request))
+        self.assertTrue(
+            UserAgentRegistration.objects.filter(user=user, serial_number='SN-RECON').exists(),
+        )
+
+    @override_settings(EQUIPMENT_AGENT_SECRET='sec')
     def test_agent_report_with_used_token_still_registers_user(self):
         from django.contrib.auth import get_user_model
 

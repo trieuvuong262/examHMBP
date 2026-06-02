@@ -908,16 +908,20 @@ def api_agent_report(request):
         link_user_from_agent_report(data=data, device=device)
 
         from equipment.services.agent_install import (
+            ensure_user_registered_for_device,
             user_is_in_equipment_registry,
         )
 
         user, _ = resolve_user_from_agent_data(data)
+        if user:
+            ensure_user_registered_for_device(user=user, device=device)
+
         registered = bool(user and user_is_in_equipment_registry(user))
-        if user and not registered:
+        if not registered:
             return JsonResponse(
                 {
                     'status': 'error',
-                    'message': 'Đã nhận PC nhưng chưa gắn được tài khoản — chạy lại file cài hoặc liên hệ IT',
+                    'message': 'Đã nhận PC nhưng chưa gắn được tài khoản portal — tải lại file cài',
                     'device_id': str(device.id),
                 },
                 status=400,
@@ -927,7 +931,7 @@ def api_agent_report(request):
             'status': 'success',
             'created': created,
             'device_id': str(device.id),
-            'registered': registered,
+            'registered': True,
         })
     except Exception as exc:
         return JsonResponse({'status': 'error', 'message': str(exc)}, status=500)
@@ -1113,9 +1117,13 @@ def agent_serve_exe(request):
 @login_required
 def agent_install_done(request):
     """Trang xác nhận sau cài — chờ agent gửi thông tin lên quản lý thiết bị."""
-    from equipment.services.agent_install import user_is_in_equipment_registry
+    from equipment.services.agent_install import (
+        try_reconcile_agent_registration,
+        user_is_in_equipment_registry,
+    )
 
     token_str = request.GET.get('token', '').strip()
+    try_reconcile_agent_registration(request)
     ready = user_is_in_equipment_registry(request.user)
     serial = ''
 
@@ -1141,9 +1149,13 @@ def agent_install_done(request):
 @login_required
 def api_agent_install_status(request):
     """Poll — user đã có trong quản lý thiết bị chưa."""
-    from equipment.services.agent_install import user_is_in_equipment_registry
+    from equipment.services.agent_install import (
+        try_reconcile_agent_registration,
+        user_is_in_equipment_registry,
+    )
     from equipment.services.shared_pc import get_shared_pc_context_for_gate
 
+    try_reconcile_agent_registration(request)
     if user_is_in_equipment_registry(request.user):
         return JsonResponse({'ready': True, 'registered': True})
 

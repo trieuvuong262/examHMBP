@@ -40,7 +40,7 @@
 {% if not ready %}
 <script>
 (function () {
-    var statusUrl = '{% url "equipment:api_agent_install_status" %}';
+    var statusUrl = '{% url "equipment:api_agent_install_status" %}?token={{ token|urlencode }}';
     var homeUrl = '{% url "home_portal" %}';
     var gateUrl = '{% url "equipment:agent_install_gate" %}';
     var tries = 0;
