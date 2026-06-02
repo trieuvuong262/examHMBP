@@ -345,8 +345,40 @@ _PORTAL_INSTALL_PS = r"""
 $ErrorActionPreference = 'SilentlyContinue'
 $u = $env:JP_PORTAL_URL
 $page = $env:JP_APP_PAGE
+$iconUrl = $env:JP_ICON_URL
+$jpDir = $env:JP_DIR
 if (-not $u) { exit 0 }
 if (-not $page) { $page = $u }
+$installUrl = $u.TrimEnd('/') + '/'
+
+function Write-JpLog([string]$msg) {
+    if ($env:JP_LOG) { Add-Content -Path $env:JP_LOG -Value $msg -Encoding UTF8 -ErrorAction SilentlyContinue }
+}
+
+function Add-JpPortalAppShortcut([string]$browser, [string]$appUrl, [string]$linkPath) {
+    if (-not $browser -or -not $appUrl -or -not $linkPath) { return $false }
+    try {
+        $dir = Split-Path $linkPath -Parent
+        if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+        $wsh = New-Object -ComObject WScript.Shell
+        $lnk = $wsh.CreateShortcut($linkPath)
+        $lnk.TargetPath = $browser
+        $lnk.Arguments = '--app=' + $appUrl
+        $lnk.Description = 'JustPlay Portal'
+        if ($iconUrl -and $jpDir) {
+            $iconFile = Join-Path $jpDir 'portal-icon.png'
+            if (-not (Test-Path $iconFile)) {
+                try {
+                    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                    Invoke-WebRequest -Uri $iconUrl -OutFile $iconFile -UseBasicParsing
+                } catch {}
+            }
+            if (Test-Path $iconFile) { $lnk.IconLocation = "$iconFile,0" }
+        }
+        $lnk.Save()
+        return $true
+    } catch { return $false }
+}
 
 $edge = @(
     ${env:ProgramFiles(x86)} + '\Microsoft\Edge\Application\msedge.exe',
@@ -362,21 +394,32 @@ foreach ($p in ($edge + $chrome)) {
     if (Test-Path $p) { $browser = $p; break }
 }
 if (-not $browser) {
+    Write-JpLog '[5/6] PWA: khong tim thay Edge/Chrome'
     if ($page) { Start-Process $page }
     exit 0
 }
 
-# 1) Trang cài PWA (đăng ký SW, không cần đăng nhập) — bắt buộc trước --install-app
+Write-JpLog '[5/6] PWA: mo trang cai + dang ky service worker'
 Start-Process -FilePath $browser -ArgumentList @($page) -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 10
+Start-Sleep -Seconds 25
 
-# 2) Hộp thoại Install app (Edge/Chrome) — giống menu Apps > Install JustPlay Portal
-$installUrl = $u.TrimEnd('/') + '/'
+Write-JpLog '[5/6] PWA: goi --install-app (trang cai)'
+Start-Process -FilePath $browser -ArgumentList @('--install-app=' + $page) -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 3
+Write-JpLog '[5/6] PWA: goi --install-app (start_url)'
 Start-Process -FilePath $browser -ArgumentList @('--install-app=' + $installUrl) -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 2
 
-# 3) Trang chủ portal (đã đăng nhập sẽ thấy menu Install sau khi SW active)
-Start-Process -FilePath $browser -ArgumentList @($u) -ErrorAction SilentlyContinue
+$programs = Join-Path ([Environment]::GetFolderPath('Programs')) 'JustPlay Portal.lnk'
+$desktop = Join-Path ([Environment]::GetFolderPath('Desktop')) 'JustPlay Portal.lnk'
+if (Add-JpPortalAppShortcut $browser $installUrl $programs) {
+    Write-JpLog '[5/6] PWA: da tao Start Menu (app mode)'
+}
+if (Add-JpPortalAppShortcut $browser $installUrl $desktop) {
+    Write-JpLog '[5/6] PWA: da tao Desktop (app mode)'
+}
+
+Write-JpLog '[5/6] PWA: neu chua thay hop thoai — tren tab dang mo bam nut Cai hoac menu Apps > Install'
 """
 
 
@@ -517,14 +560,16 @@ def build_installer_cmd(*, user, token: str, machine_type: str | None = None) ->
         'echo.',
         f'set "JP_PORTAL_URL={portal_url}"',
         f'set "JP_APP_PAGE={portal_app_page}"',
+        f'set "JP_ICON_URL={portal_icon_url}"',
         'echo [5/6] Cai ung dung JustPlay Portal (Install app)...',
         (
             'powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand '
             f'{_installer_portal_ps_b64()} 2>> "%JP_LOG%"'
         ),
-        'echo      Edge/Chrome: bam Cai dat / Install trong hop thoai.',
-        'echo      Hoac: ... - More tools - Apps - Install JustPlay Portal.',
-        'echo      Trang phu mo neu can bam nut Cai JustPlay Portal.',
+        'echo      Da mo trang cai + goi Install app (Edge/Chrome).',
+        'echo      Neu co hop thoai: bam **Cai dat** / **Install**.',
+        'echo      Hoac tren tab vua mo: nut **Cai JustPlay Portal** hoac ... - Apps - Install JustPlay Portal.',
+        'echo      Da tao shortcut Start/Desktop (app mode) neu PWA chua cai duoc.',
         'echo.',
         'echo [6/6] Mo trang xac nhan portal...',
         f'start "" "{done_url}"',

@@ -371,13 +371,14 @@ class AgentInstallFlowTests(TestCase):
         self.assertIn('Install-UltraViewerIfMissing', uv_ps)
         self.assertIn('[5/6] Cai ung dung JustPlay Portal', cmd)
         self.assertIn('[6/6] Mo trang xac nhan portal', cmd)
-        self.assertNotIn('CreateShortcut', cmd)
+        self.assertIn('JP_ICON_URL=', cmd)
         self.assertGreaterEqual(cmd.count('-EncodedCommand'), 2)
         self.assertIn('cai-portal-app', cmd)
         portal_ps = base64.b64decode(uv_match[-1]).decode('utf-16le')
         self.assertIn('--install-app=', portal_ps)
-        self.assertIn('Start-Sleep -Seconds 10', portal_ps)
-        self.assertNotIn('CreateShortcut', portal_ps)
+        self.assertIn('Start-Sleep -Seconds 25', portal_ps)
+        self.assertIn('Add-JpPortalAppShortcut', portal_ps)
+        self.assertIn('--app=', portal_ps)
 
     @override_settings(
         EQUIPMENT_AGENT_SECRET='sec',

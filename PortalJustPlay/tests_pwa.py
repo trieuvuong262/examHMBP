@@ -20,6 +20,7 @@ class SiteManifestTests(TestCase):
         self.assertIn('javascript', response['Content-Type'])
         self.assertEqual(response.get('Service-Worker-Allowed'), '/')
         self.assertIn(b'install', response.content)
+        self.assertNotIn(b'fetch', response.content)
 
     def test_portal_app_install_page_public(self):
         response = self.client.get('/thiet-bi/agent/cai-portal-app/?autoinstall=1')

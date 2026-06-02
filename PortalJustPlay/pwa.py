@@ -33,6 +33,15 @@ def site_manifest(request):
         'theme_color': '#dc2626',
         'lang': 'vi',
         'prefer_related_applications': False,
+        'categories': ['business', 'productivity'],
+        'shortcuts': [
+            {
+                'name': 'Trang chủ',
+                'short_name': 'Home',
+                'url': f'{origin}/',
+                'icons': [{'src': icon_base + 'icon-192.png', 'sizes': '192x192'}],
+            },
+        ],
         'icons': [
             {
                 'src': icon_base + 'icon-192.png',

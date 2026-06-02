@@ -1,6 +1,10 @@
 {% extends "equipment/base_agent_gate.html" %}
 {% load static %}
 
+{% block extra_head %}
+<link rel="manifest" href="{% url 'site_manifest' %}">
+{% endblock %}
+
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-lg-7">
@@ -9,8 +13,13 @@
                 <img src="{% static 'images/logo/icon-192.png' %}" alt="JustPlay" width="72" height="72" class="mb-3 rounded-3">
                 <h1 class="h4 fw-bold mb-2">Cài JustPlay Portal</h1>
                 <p class="text-muted small mb-4">
-                    Ứng dụng mở từ <strong>Start</strong> hoặc menu <strong>⋯ → Apps → Install JustPlay Portal</strong>.
+                    Cửa sổ riêng (PWA) — mở từ <strong>Start</strong> hoặc menu
+                    <strong>⋯ → Apps → Install JustPlay Portal</strong>.
                 </p>
+
+                <div class="alert alert-info small text-start mb-3" id="jpPwaStatus">
+                    Đang đăng ký ứng dụng…
+                </div>
 
                 <button type="button" class="btn btn-hm btn-lg w-100 mb-2 d-none" id="jpPwaInstallBtn">
                     <i class="bi bi-download me-1"></i>Cài JustPlay Portal
@@ -18,24 +27,18 @@
                 <p class="small text-success d-none mb-3" id="jpPwaInstalledMsg">
                     <i class="bi bi-check-circle-fill me-1"></i>Đã cài — mở từ Start hoặc Desktop.
                 </p>
-                <p class="small text-muted d-none mb-3" id="jpPwaWaitingHint">
-                    Đang chờ trình duyệt…
-                </p>
 
                 <div class="text-start border rounded p-3 bg-light small mb-3">
                     <div class="fw-bold mb-2"><i class="bi bi-browser-edge text-primary me-1"></i> Microsoft Edge</div>
                     <ol class="mb-3 ps-3">
-                        <li><strong>⋯</strong> → <strong>Apps</strong> → <strong>Install JustPlay Portal</strong></li>
-                        <li>Hoặc <strong>⋯</strong> → <strong>More tools</strong> → <strong>Apps</strong> → <strong>Install JustPlay Portal</strong></li>
+                        <li>Hộp thoại <strong>Cài đặt</strong> / <strong>Install</strong> → bấm <strong>Cài</strong></li>
+                        <li>Hoặc <strong>⋯</strong> → <strong>Apps</strong> → <strong>Install JustPlay Portal</strong></li>
                     </ol>
                     <div class="fw-bold mb-2"><i class="bi bi-browser-chrome text-warning me-1"></i> Google Chrome</div>
                     <ol class="mb-0 ps-3">
-                        <li><strong>⋮</strong> → <strong>Install JustPlay Portal</strong></li>
-                        <li>Hoặc <strong>⋮</strong> → <strong>More tools</strong> → <strong>Apps</strong> → <strong>Install JustPlay Portal</strong></li>
+                        <li>Bấm nút <strong>Cài JustPlay Portal</strong> phía trên (khi hiện)</li>
+                        <li>Hoặc <strong>⋮</strong> → <strong>Install JustPlay Portal</strong></li>
                     </ol>
-                    <p class="mb-0 mt-2 text-muted">
-                        Không thấy mục cài: đợi 10 giây trên trang này, tải lại (F5), rồi thử lại.
-                    </p>
                 </div>
 
                 {% if user.is_authenticated %}
@@ -55,13 +58,35 @@
     'use strict';
     var installBtn = document.getElementById('jpPwaInstallBtn');
     var installedMsg = document.getElementById('jpPwaInstalledMsg');
-    var waitingHint = document.getElementById('jpPwaWaitingHint');
+    var statusEl = document.getElementById('jpPwaStatus');
     var deferredPrompt = null;
     var autoinstall = {{ autoinstall|yesno:"true,false" }};
+    var swUrl = '{% url "portal_service_worker" %}';
+
+    function setStatus(msg, cls) {
+        if (!statusEl) return;
+        statusEl.textContent = msg;
+        statusEl.className = 'alert small text-start mb-3 ' + (cls || 'alert-info');
+    }
 
     function showInstallButton() {
         if (installBtn) installBtn.classList.remove('d-none');
-        if (waitingHint) waitingHint.classList.add('d-none');
+        setStatus('Trình duyệt cho phép cài — bấm nút bên dưới hoặc chấp nhận hộp thoại Install.', 'alert-success');
+    }
+
+    function tryInstall() {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(function (choice) {
+            deferredPrompt = null;
+            if (choice.outcome === 'accepted') {
+                if (installBtn) installBtn.classList.add('d-none');
+                if (installedMsg) installedMsg.classList.remove('d-none');
+                setStatus('Đã cài JustPlay Portal.', 'alert-success');
+            } else {
+                setStatus('Bạn đã bỏ qua — dùng menu ⋯ → Apps → Install JustPlay Portal.', 'alert-warning');
+            }
+        }).catch(function () {});
     }
 
     window.addEventListener('beforeinstallprompt', function (e) {
@@ -69,21 +94,9 @@
         deferredPrompt = e;
         showInstallButton();
         if (autoinstall) {
-            tryInstall();
+            setTimeout(tryInstall, 800);
         }
     });
-
-    function tryInstall() {
-        if (!deferredPrompt) return;
-        deferredPrompt.prompt();
-        deferredPrompt.userChoice.then(function (choice) {
-            deferredPrompt = null;
-            if (choice.outcome === 'accepted' && installBtn) {
-                installBtn.classList.add('d-none');
-                if (installedMsg) installedMsg.classList.remove('d-none');
-            }
-        }).catch(function () {});
-    }
 
     if (installBtn) {
         installBtn.addEventListener('click', tryInstall);
@@ -92,14 +105,39 @@
     if (window.matchMedia('(display-mode: standalone)').matches) {
         if (installBtn) installBtn.classList.add('d-none');
         if (installedMsg) installedMsg.classList.remove('d-none');
-    } else if (autoinstall && waitingHint) {
-        waitingHint.classList.remove('d-none');
-        setTimeout(function () {
-            if (!deferredPrompt && waitingHint) {
-                waitingHint.textContent = 'Chưa hiện hộp cài — dùng menu ⋯ → Apps → Install JustPlay Portal (xem hướng dẫn).';
-            }
-        }, 12000);
+        setStatus('Ứng dụng đã được cài.', 'alert-success');
+        return;
     }
+
+    if (!('serviceWorker' in navigator)) {
+        setStatus('Trình duyệt không hỗ trợ PWA — dùng Edge hoặc Chrome.', 'alert-warning');
+        return;
+    }
+
+    navigator.serviceWorker.register(swUrl, { scope: '/' })
+        .then(function () { return navigator.serviceWorker.ready; })
+        .then(function () {
+            setStatus('Service worker đã sẵn sàng. Đang chờ hộp thoại cài…', 'alert-info');
+            if (!autoinstall) return;
+            var waited = 0;
+            var timer = setInterval(function () {
+                waited += 1000;
+                if (deferredPrompt) {
+                    clearInterval(timer);
+                    return;
+                }
+                if (waited >= 30000) {
+                    clearInterval(timer);
+                    setStatus(
+                        'Chưa hiện hộp thoại tự động — bấm ⋯ → Apps → Install JustPlay Portal, hoặc chờ cửa sổ Install từ file cài.',
+                        'alert-warning'
+                    );
+                }
+            }, 1000);
+        })
+        .catch(function () {
+            setStatus('Không đăng ký được service worker — kiểm tra HTTPS và /sw.js trên server.', 'alert-danger');
+        });
 })();
 </script>
 {% endblock %}
