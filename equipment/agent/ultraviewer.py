@@ -1,4 +1,4 @@
-"""Đọc ID / mật khẩu UltraViewer trên Windows (registry, file, UI nếu đang chạy)."""
+"""Đọc UltraViewer ID (PreferID registry) và mật khẩu cố định (cửa sổ app khi đang chạy)."""
 
 from __future__ import annotations
 
@@ -10,150 +10,90 @@ from equipment.agent.core import run_powershell
 
 _COLLECT_PS = r"""
 $ErrorActionPreference = 'SilentlyContinue'
-$out = @{ id = ''; password = ''; source = '' }
+$out = @{ id = ''; password = '' }
 
-function Set-Field([string]$key, [string]$val, [string]$src) {
-    if (-not $val) { return }
-    $val = $val.Trim()
-    if (-not $val) { return }
-    if (-not $out[$key]) {
-        $out[$key] = $val
-        if ($src -and -not $out.source) { $out.source = $src }
-    }
-}
-
-function Test-Id([string]$s) {
+function Is-Printable([string]$s) {
     if (-not $s) { return $false }
-    $d = ($s -replace '\D', '')
-    return ($d.Length -ge 6 -and $d.Length -le 12)
-}
-
-function Normalize-Id([string]$s) {
-    if (-not $s) { return '' }
-    if ($s -match '^\d{6,12}$') { return $s }
-    $d = ($s -replace '\D', '')
-    if ($d.Length -ge 6 -and $d.Length -le 12) { return $d }
-    return ''
-}
-
-function Scan-Text([string]$text, [string]$src) {
-    if (-not $text) { return }
-    foreach ($line in ($text -split "[\r\n]+")) {
-        $line = $line.Trim()
-        if (-not $line) { continue }
-        if ($line -match '(?i)(?:id|clientid|yourid|partnerid|ultraviewerid|machineno|mayid)\s*[=:]\s*(\d{6,12})') {
-            Set-Field 'id' $matches[1] $src
-        }
-        if ($line -match '(?i)(?:password|pass|matkhau|custompass|fixedpass|pwd)\s*[=:]\s*(.+)$') {
-            Set-Field 'password' $matches[1].Trim() $src
-        }
+    foreach ($ch in $s.ToCharArray()) {
+        $code = [int][char]$ch
+        if ($code -lt 32 -or $code -gt 126) { return $false }
     }
-    foreach ($m in [regex]::Matches($text, '\b\d{8,10}\b')) {
-        if (-not $out.id) { Set-Field 'id' $m.Value $src }
-    }
+    return $true
 }
 
-function Read-IniFile([string]$path) {
-    if (-not (Test-Path $path)) { return }
-    foreach ($enc in @('Unicode', 'UTF8', 'Default')) {
-        try {
-            $raw = [IO.File]::ReadAllText($path, [Text.Encoding]::$enc)
-            Scan-Text $raw "ini:$([IO.Path]::GetFileName($path)):$enc"
-        } catch {}
-    }
-    try {
-        $bytes = [IO.File]::ReadAllBytes($path)
-        $ascii = -join ($bytes | ForEach-Object { if ($_ -ge 32 -and $_ -le 126) { [char]$_ } else { ' ' } })
-        Scan-Text $ascii "ini-bytes:$([IO.Path]::GetFileName($path))"
-    } catch {}
-}
-
-$dirs = @(
-    (Join-Path $env:APPDATA 'UltraViewer'),
-    (Join-Path ${env:ProgramData} 'UltraViewer'),
-    (Join-Path ${env:ProgramFiles(x86)} 'UltraViewer'),
-    (Join-Path $env:ProgramFiles 'UltraViewer')
-)
-foreach ($dir in $dirs) {
-    if (-not (Test-Path $dir)) { continue }
-    Get-ChildItem $dir -File -ErrorAction SilentlyContinue | ForEach-Object {
-        if ($_.Extension -match '\.(ini|txt|cfg|dat)$' -or $_.Name -match '^(?i)reg') {
-            Read-IniFile $_.FullName
-        }
-    }
-}
-
-$regPaths = @(
-    'HKCU:\Software\UltraViewer',
-    'HKCU:\Software\VB and VBA Program Settings\UltraViewer_Desktop',
+# --- ID: HKLM PreferID (Reg.ini thường rỗng trên bản 6.6.x) ---
+foreach ($regPath in @(
     'HKLM:\SOFTWARE\WOW6432Node\UltraViewer',
     'HKLM:\Software\UltraViewer'
-)
-foreach ($regPath in $regPaths) {
+)) {
+    if (-not (Test-Path $regPath)) { continue }
     try {
-        $key = Get-Item $regPath -ErrorAction Stop
-        foreach ($name in $key.Property) {
-            $val = [string](Get-ItemProperty -Path $regPath -Name $name -ErrorAction SilentlyContinue).$name
-            if (-not $val) { continue }
-            if ($name -match '(?i)id|client') { Set-Field 'id' (Normalize-Id $val) "reg:$name" }
-            if ($name -match '(?i)pass|pwd|matkhau') { Set-Field 'password' $val "reg:$name" }
+        $props = Get-ItemProperty $regPath -ErrorAction Stop
+        if ($props.PreferID) {
+            $uvId = ([string]$props.PreferID).Trim() -replace '\D', ''
+            if ($uvId.Length -ge 6 -and $uvId.Length -le 12) {
+                $out.id = $uvId
+                break
+            }
         }
     } catch {}
 }
 
-function Read-UltraViewerWindow {
+# --- Mật khẩu cố định: chỉ đọc từ cửa sổ UltraViewer (không lưu plaintext trong Reg.ini) ---
+function Read-PasswordFromWindow {
     $names = @('UltraViewer_Desktop', 'UltraViewer')
     $proc = Get-Process -Name $names -ErrorAction SilentlyContinue | Select-Object -First 1
     if (-not $proc) { return }
+
     try {
         Add-Type -AssemblyName UIAutomationClient
         Add-Type -AssemblyName UIAutomationTypes
     } catch { return }
+
     $ae = [System.Windows.Automation.AutomationElement]
     $cond = New-Object System.Windows.Automation.PropertyCondition(
         $ae::ProcessIdProperty, $proc.Id)
     $win = $ae::RootElement.FindFirst(
         [System.Windows.Automation.TreeScope]::Children, $cond)
     if (-not $win) { return }
-    $types = @(
-        [System.Windows.Automation.ControlType]::Edit,
-        [System.Windows.Automation.ControlType]::Text
-    )
-    foreach ($t in $types) {
-        $tc = New-Object System.Windows.Automation.PropertyCondition(
-            $ae::ControlTypeProperty, $t)
-        $found = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $tc)
-        foreach ($el in $found) {
-            $val = ''
-            try {
-                $vp = $el.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
-                if ($vp) { $val = $vp.Current.Value }
-            } catch {}
-            if (-not $val) {
-                try { $val = $el.Current.Name } catch {}
-            }
-            if (-not $val) { continue }
-            if (Test-Id $val) { Set-Field 'id' (Normalize-Id $val) 'ui' }
-            elseif ($val.Length -ge 4 -and $val.Length -le 64 -and $val -notmatch '^\d+$') {
-                Set-Field 'password' $val 'ui'
-            }
+
+    $editType = New-Object System.Windows.Automation.PropertyCondition(
+        $ae::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)
+    $edits = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $editType)
+
+    $candidates = New-Object System.Collections.Generic.List[string]
+    foreach ($el in $edits) {
+        $val = ''
+        try {
+            $vp = $el.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
+            if ($vp) { $val = [string]$vp.Current.Value }
+        } catch {}
+        if (-not $val) { continue }
+        if (-not (Is-Printable $val)) { continue }
+        if ($val -eq $out.id) { continue }
+        if ($val -match '^\d{1,5}$') { continue }
+        if ($val.Length -ge 4 -and $val.Length -le 64) {
+            [void]$candidates.Add($val)
         }
+    }
+
+    if ($candidates.Count -gt 0) {
+        $best = $candidates | Sort-Object Length -Descending | Select-Object -First 1
+        $out.password = $best
     }
 }
 
 $uvExe = @(
-    (Join-Path ${env:ProgramFiles(x86)} 'UltraViewer\UltraViewer_Desktop.exe'),
-    (Join-Path $env:ProgramFiles 'UltraViewer\UltraViewer_Desktop.exe')
+    "${env:ProgramFiles(x86)}\UltraViewer\UltraViewer_Desktop.exe",
+    "$env:ProgramFiles\UltraViewer\UltraViewer_Desktop.exe"
 ) | Where-Object { Test-Path $_ } | Select-Object -First 1
 
 if ($uvExe -and -not (Get-Process -Name 'UltraViewer_Desktop','UltraViewer' -EA 0)) {
-    Start-Process $uvExe -WindowStyle Minimized
-    Start-Sleep -Seconds 4
+    Start-Process $uvExe -WindowStyle Normal
+    Start-Sleep -Seconds 5
 }
 
-Read-UltraViewerWindow
-
-if ($out.id) { $out.id = Normalize-Id $out.id }
+Read-PasswordFromWindow
 
 $out | ConvertTo-Json -Compress
 """
@@ -170,10 +110,10 @@ def collect_ultraviewer() -> dict:
     except json.JSONDecodeError:
         return {}
     result = {}
-    uv_id = (data.get('id') or '').strip()
-    uv_pass = (data.get('password') or '').strip()
-    if uv_id and re.fullmatch(r'\d{6,12}', uv_id):
+    uv_id = re.sub(r'\D', '', (data.get('id') or '').strip())
+    if uv_id and 6 <= len(uv_id) <= 12:
         result['ultraviewer_id'] = uv_id[:32]
-    if uv_pass and len(uv_pass) >= 2:
+    uv_pass = (data.get('password') or '').strip()
+    if uv_pass and all(32 <= ord(c) <= 126 for c in uv_pass) and 4 <= len(uv_pass) <= 64:
         result['ultraviewer_password'] = uv_pass[:128]
     return result

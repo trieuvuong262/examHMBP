@@ -16,13 +16,13 @@ class AgentCoreTests(SimpleTestCase):
 
 class UltraviewerCollectTests(SimpleTestCase):
     @patch('equipment.agent.ultraviewer.run_powershell')
-    def test_collect_ultraviewer_parses_json(self, mock_ps):
+    def test_collect_ultraviewer_parses_preferid_and_password(self, mock_ps):
         from equipment.agent.ultraviewer import collect_ultraviewer
 
-        mock_ps.return_value = '{"id":"12345678","password":"MyPass99"}'
+        mock_ps.return_value = '{"id":"212097888","password":"MyFixedPass1"}'
         data = collect_ultraviewer()
-        self.assertEqual(data['ultraviewer_id'], '12345678')
-        self.assertEqual(data['ultraviewer_password'], 'MyPass99')
+        self.assertEqual(data['ultraviewer_id'], '212097888')
+        self.assertEqual(data['ultraviewer_password'], 'MyFixedPass1')
 
 
 class UltraviewerDeviceTests(TestCase):
@@ -350,7 +350,7 @@ class AgentInstallFlowTests(TestCase):
         self.assertIn('[4/6] Quet PC, UltraViewer', cmd)
         self.assertIn('[5/6] Cai ung dung JustPlay Portal', cmd)
         self.assertIn('[6/6] Mo trang xac nhan portal', cmd)
-        self.assertIn('portal-icon.png', cmd)
+        self.assertNotIn('CreateShortcut', cmd)
         self.assertIn('-EncodedCommand', cmd)
         self.assertIn('cai-portal-app', cmd)
         import base64
@@ -360,7 +360,7 @@ class AgentInstallFlowTests(TestCase):
         self.assertIsNotNone(match)
         portal_ps = base64.b64decode(match.group(1)).decode('utf-16le')
         self.assertIn('--install-app=', portal_ps)
-        self.assertIn('--app=', portal_ps)
+        self.assertNotIn('CreateShortcut', portal_ps)
 
     @override_settings(
         EQUIPMENT_AGENT_SECRET='sec',
