@@ -54,13 +54,13 @@ def cfg_get(cfg: configparser.ConfigParser, section: str, key: str, default: str
     return default
 
 
-def run_powershell(script: str) -> str:
+def run_powershell(script: str, *, timeout: int = 45) -> str:
     if platform.system() != 'Windows':
         return ''
     kwargs: dict = {
         'capture_output': True,
         'text': True,
-        'timeout': 45,
+        'timeout': timeout,
     }
     if hasattr(subprocess, 'CREATE_NO_WINDOW'):
         kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW

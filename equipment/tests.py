@@ -351,9 +351,16 @@ class AgentInstallFlowTests(TestCase):
         self.assertIn('[5/6] Cai ung dung JustPlay Portal', cmd)
         self.assertIn('[6/6] Mo trang xac nhan portal', cmd)
         self.assertIn('portal-icon.png', cmd)
-        self.assertIn('--app=', cmd)
-        self.assertIn('--install-app=', cmd)
+        self.assertIn('-EncodedCommand', cmd)
         self.assertIn('cai-portal-app', cmd)
+        import base64
+        import re
+
+        match = re.search(r'-EncodedCommand\s+(\S+)', cmd)
+        self.assertIsNotNone(match)
+        portal_ps = base64.b64decode(match.group(1)).decode('utf-16le')
+        self.assertIn('--install-app=', portal_ps)
+        self.assertIn('--app=', portal_ps)
 
     @override_settings(
         EQUIPMENT_AGENT_SECRET='sec',

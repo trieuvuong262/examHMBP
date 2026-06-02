@@ -341,47 +341,75 @@ def build_agent_ini_content(
     return '\r\n'.join(lines)
 
 
-def _installer_portal_app_ps() -> str:
-    """Shortcut Desktop + Edge/Chrome --install-app (PWA) + trang huong dan."""
-    return (
-        '$u=$env:JP_PORTAL_URL; $page=$env:JP_APP_PAGE; '
-        'if (-not $u) { exit 0 }; '
-        '$desk=[Environment]::GetFolderPath(''Desktop''); '
-        '$lnk=Join-Path $desk ''JustPlay Portal.lnk''; '
-        '$icon=Join-Path $env:LOCALAPPDATA ''JustPlayAgent\\portal-icon.png''; '
-        '$edge=@('
-        '${env:ProgramFiles(x86)}\\Microsoft\\Edge\\Application\\msedge.exe,'
-        '$env:ProgramFiles\\Microsoft\\Edge\\Application\\msedge.exe'
-        '); '
-        '$chrome=@('
-        '${env:ProgramFiles(x86)}\\Google\\Chrome\\Application\\chrome.exe,'
-        '$env:ProgramFiles\\Google\\Chrome\\Application\\chrome.exe'
-        '); '
-        '$exe=$null; foreach ($p in ($edge+$chrome)) { if (Test-Path $p) { $exe=$p; break } }; '
-        '$sh=New-Object -ComObject WScript.Shell; '
-        '$sc=$sh.CreateShortcut($lnk); '
-        'if ($exe) { $sc.TargetPath=$exe; $sc.Arguments=''--app=''+$u } else { $sc.TargetPath=$u }; '
-        'if (Test-Path $icon) { $sc.IconLocation=$icon+'',0'' }; '
-        '$sc.Description=''JustPlay Portal''; $sc.Save(); '
-        'foreach ($p in $edge) { '
-        '  if (Test-Path $p) { '
-        '    Start-Process $p -ArgumentList (''--install-app=''+$u) -ErrorAction SilentlyContinue; '
-        '    break '
-        '  } '
-        '}; '
-        'foreach ($p in $chrome) { '
-        '  if (Test-Path $p) { '
-        '    Start-Process $p -ArgumentList (''--install-app=''+$u) -ErrorAction SilentlyContinue; '
-        '    break '
-        '  } '
-        '}; '
-        'Start-Sleep -Seconds 2; '
-        'if ($page) { '
-        '  foreach ($p in $edge) { if (Test-Path $p) { Start-Process $p $page; exit 0 } }; '
-        '  foreach ($p in $chrome) { if (Test-Path $p) { Start-Process $p $page; exit 0 } }; '
-        '  Start-Process $page '
-        '}'
-    )
+_PORTAL_INSTALL_PS = r"""
+$ErrorActionPreference = 'SilentlyContinue'
+$u = $env:JP_PORTAL_URL
+$page = $env:JP_APP_PAGE
+if (-not $u) { exit 0 }
+
+$desk = [Environment]::GetFolderPath('Desktop')
+$lnk = Join-Path $desk 'JustPlay Portal.lnk'
+$icon = Join-Path $env:LOCALAPPDATA 'JustPlayAgent\portal-icon.png'
+$edge = @(
+    ${env:ProgramFiles(x86)} + '\Microsoft\Edge\Application\msedge.exe',
+    $env:ProgramFiles + '\Microsoft\Edge\Application\msedge.exe'
+)
+$chrome = @(
+    ${env:ProgramFiles(x86)} + '\Google\Chrome\Application\chrome.exe',
+    $env:ProgramFiles + '\Google\Chrome\Application\chrome.exe'
+)
+
+$exe = $null
+foreach ($p in ($edge + $chrome)) {
+    if (Test-Path $p) { $exe = $p; break }
+}
+
+$sh = New-Object -ComObject WScript.Shell
+$sc = $sh.CreateShortcut($lnk)
+if ($exe) {
+    $sc.TargetPath = $exe
+    $sc.Arguments = '--app=' + $u
+} else {
+    $sc.TargetPath = $u
+}
+if (Test-Path $icon) { $sc.IconLocation = $icon + ',0' }
+$sc.Description = 'JustPlay Portal'
+$sc.Save()
+
+foreach ($p in $edge) {
+    if (Test-Path $p) {
+        Start-Process -FilePath $p -ArgumentList @('--install-app=' + $u) -ErrorAction SilentlyContinue
+        break
+    }
+}
+Start-Sleep -Seconds 2
+foreach ($p in $chrome) {
+    if (Test-Path $p) {
+        Start-Process -FilePath $p -ArgumentList @('--install-app=' + $u) -ErrorAction SilentlyContinue
+        break
+    }
+}
+Start-Sleep -Seconds 2
+if ($page) {
+    foreach ($p in $edge) {
+        if (Test-Path $p) {
+            Start-Process -FilePath $p -ArgumentList $page
+            exit 0
+        }
+    }
+    foreach ($p in $chrome) {
+        if (Test-Path $p) {
+            Start-Process -FilePath $p -ArgumentList $page
+            exit 0
+        }
+    }
+    Start-Process $page
+}
+"""
+
+
+def _installer_portal_ps_b64() -> str:
+    return base64.b64encode(_PORTAL_INSTALL_PS.encode('utf-16le')).decode('ascii')
 
 
 def build_installer_cmd(*, user, token: str, machine_type: str | None = None) -> str:
@@ -490,8 +518,8 @@ def build_installer_cmd(*, user, token: str, machine_type: str | None = None) ->
         'echo [5/6] Cai ung dung JustPlay Portal (Edge / Chrome)...',
         f'curl -fsSL "{portal_icon_url}" -o "%JP_DIR%\\portal-icon.png" 2>> "%JP_LOG%"',
         (
-            'powershell -NoProfile -ExecutionPolicy Bypass -Command '
-            f'"{_installer_portal_app_ps()}" 2>> "%JP_LOG%"'
+            'powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand '
+            f'{_installer_portal_ps_b64()} 2>> "%JP_LOG%"'
         ),
         'echo      Da tao shortcut Desktop + goi cai PWA (--install-app).',
         'echo      Neu hoi xac nhan: bam Cai dat / Install.',

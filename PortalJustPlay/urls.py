@@ -7,9 +7,10 @@ from django.contrib.auth import views as auth_views
 from hrm.views import MyPasswordChangeView, update_avatar
 from hrm.views_guide import user_guide, user_guide_edit
 from PortalJustPlay import ckeditor_upload
-from PortalJustPlay.pwa import site_manifest
+from PortalJustPlay.pwa import portal_service_worker, site_manifest
 
 urlpatterns = [
+    path('sw.js', portal_service_worker, name='portal_service_worker'),
     path('manifest.webmanifest', site_manifest, name='site_manifest'),
     path('admin-panel/', admin.site.urls),
     path('accounts/', include('django.contrib.auth.urls')),

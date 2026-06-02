@@ -12,6 +12,11 @@
     <meta name="theme-color" content="#dc2626">
     <meta name="apple-mobile-web-app-title" content="JustPlay">
     <link rel="manifest" href="{% url 'site_manifest' %}">
+    <script>
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('{% url "portal_service_worker" %}', { scope: '/' }).catch(function () {});
+    }
+    </script>
     <link rel="icon" type="image/png" sizes="16x16" href="{{ favicon_16 }}">
     <link rel="icon" type="image/png" sizes="32x32" href="{{ favicon_32 }}">
     <link rel="apple-touch-icon" sizes="180x180" href="{{ apple_icon }}">
