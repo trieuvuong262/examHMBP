@@ -1,5 +1,6 @@
-# Sử dụng Python 3.13.12 bản slim để tối ưu dung lượng
-FROM python:3.13.12-slim
+# Tag 3.13-slim (ổn định trên Hub). VPS: pull trước khi build (deploy.sh bước 5b).
+ARG PYTHON_BASE_IMAGE=python:3.13-slim
+FROM ${PYTHON_BASE_IMAGE}
 
 # Ngăn Python tạo file .pyc và không buffer log
 ENV PYTHONDONTWRITEBYTECODE=1

@@ -18,7 +18,10 @@ services:
     restart: always
 
   web:
-    build: .
+    build:
+      context: .
+      args:
+        PYTHON_BASE_IMAGE: ${DOCKER_PYTHON_IMAGE:-python:3.13-slim}
     command: gunicorn PortalJustPlay.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120
     volumes:
       - static_volume:/app/staticfiles
@@ -48,7 +51,10 @@ services:
     restart: always
 
   migrate:
-    build: .
+    build:
+      context: .
+      args:
+        PYTHON_BASE_IMAGE: ${DOCKER_PYTHON_IMAGE:-python:3.13-slim}
     command: python manage.py migrate --noinput
     env_file: .env
     depends_on:

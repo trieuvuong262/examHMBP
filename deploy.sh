@@ -21,7 +21,40 @@ if [[ -f "docker-compose.ssl.yml" ]] && grep -qE '^USE_HTTPS=(1|true|yes|on)' .e
 fi
 
 compose() {
-  docker compose "${compose_files[@]}" "$@"
+  # Tránh cảnh báo Bake khi VPS chưa cài docker-buildx-plugin
+  COMPOSE_BAKE="${COMPOSE_BAKE:-false}" docker compose "${compose_files[@]}" "$@"
+}
+
+# Image base — khớp Dockerfile (ARG PYTHON_BASE_IMAGE)
+DOCKER_PYTHON_IMAGE="${DOCKER_PYTHON_IMAGE:-python:3.13-slim}"
+
+pull_image_with_retry() {
+  local image="$1"
+  local max_attempts="${2:-5}"
+  local attempt=1
+  while [[ "${attempt}" -le "${max_attempts}" ]]; do
+    echo "    pull ${image} (${attempt}/${max_attempts})..."
+    if docker pull "${image}"; then
+      echo "    OK: ${image}"
+      return 0
+    fi
+    echo "    Failed (TLS timeout / Hub unreachable?) — retry in 15s..."
+    sleep 15
+    attempt=$((attempt + 1))
+  done
+  echo "ERROR: Cannot pull ${image} from Docker Hub."
+  echo "    1) Thử lại: docker pull ${image}"
+  echo "    2) Cấu hình mirror: scripts/docker-daemon-mirror.example.json → /etc/docker/daemon.json"
+  echo "       rồi: systemctl restart docker"
+  echo "    3) Hoặc build trên máy khác, docker save | scp | docker load"
+  return 1
+}
+
+pull_deploy_images() {
+  echo "==> 5b) Pull Docker images (tránh TLS timeout lúc build)"
+  pull_image_with_retry "${DOCKER_PYTHON_IMAGE}" 5
+  pull_image_with_retry "postgres:15-alpine" 3
+  pull_image_with_retry "nginx:alpine" 3
 }
 
 wait_for_db() {
@@ -250,7 +283,10 @@ run_migrate_service "migrate --noinput via migrate service"
 
 ensure_ssl_conf
 
+pull_deploy_images
+
 echo "==> 6) Build and start app services"
+export DOCKER_PYTHON_IMAGE
 compose up -d --build web nginx
 
 echo "==> 7) Run migrations again on running web"

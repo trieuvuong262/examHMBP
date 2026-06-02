@@ -1,0 +1,8 @@
+{
+  "registry-mirrors": [
+    "https://docker.1ms.run",
+    "https://docker.m.daocloud.io"
+  ],
+  "max-concurrent-downloads": 3,
+  "max-download-attempts": 5
+}
