@@ -13,19 +13,30 @@ def is_it_scope(scope: str | None) -> bool:
     return scope != SCOPE_PRODUCTION
 
 
+def _filter_category_groups(groups, allowed: set[str]):
+    result = []
+    for group_code, group_label, items in groups:
+        filtered = [(code, name) for code, name in items if code in allowed]
+        if filtered:
+            result.append((group_code, group_label, filtered))
+    return result
+
+
 def categories_by_group_for_scope(scope: str | None):
     """Chỉ loại thuộc profile it hoặc machine."""
+    from equipment.categories import CATEGORY_CHOICES_BY_GROUP
+
     profile = 'it' if is_it_scope(scope) else 'machine'
     allowed = set(category_codes_for_profile(profile))
     if not allowed:
         return categories_by_group()
 
-    result = []
-    for group_code, group_label, items in categories_by_group():
-        filtered = [(code, name) for code, name in items if code in allowed]
-        if filtered:
-            result.append((group_code, group_label, filtered))
-    return result
+    filtered = _filter_category_groups(categories_by_group(), allowed)
+    if filtered:
+        return filtered
+
+    # DB có loại active nhưng không khớp profile (thiếu/sai import_profile) — dùng seed tĩnh.
+    return _filter_category_groups(CATEGORY_CHOICES_BY_GROUP, allowed)
 
 
 def scope_ui_context(scope: str | None) -> dict:

@@ -394,6 +394,45 @@ class DeviceCategoryTests(SimpleTestCase):
         self.assertIn('SEW_LOCKSTITCH', codes)
 
 
+class ScopeCategoryFilterTests(TestCase):
+    def test_it_scope_shows_it_types_when_db_only_has_machine_rows(self):
+        """VPS/DB chỉ seed máy xưởng — tab IT vẫn phải có PC, Laptop…"""
+        from equipment.models import DeviceCategory
+        from equipment.scope import SCOPE_IT
+        from equipment.services.scope_ui import categories_by_group_for_scope
+
+        DeviceCategory.objects.all().delete()
+        DeviceCategory.objects.create(
+            code='SEW_LOCKSTITCH',
+            name='Máy may 1 kim',
+            group='sewing',
+            import_profile='machine',
+            is_active=True,
+        )
+        groups = categories_by_group_for_scope(SCOPE_IT)
+        codes = {code for _g, _l, items in groups for code, _name in items}
+        self.assertIn('PC', codes)
+        self.assertNotIn('SEW_LOCKSTITCH', codes)
+
+    def test_production_scope_uses_machine_types_from_static_when_db_skewed(self):
+        from equipment.models import DeviceCategory
+        from equipment.scope import SCOPE_PRODUCTION
+        from equipment.services.scope_ui import categories_by_group_for_scope
+
+        DeviceCategory.objects.all().delete()
+        DeviceCategory.objects.create(
+            code='PC',
+            name='PC',
+            group='it',
+            import_profile='it',
+            is_active=True,
+        )
+        groups = categories_by_group_for_scope(SCOPE_PRODUCTION)
+        codes = {code for _g, _l, items in groups for code, _name in items}
+        self.assertIn('SEW_LOCKSTITCH', codes)
+        self.assertNotIn('PC', codes)
+
+
 class DeviceFormCategoryTests(TestCase):
     def test_device_form_save_updates_device(self):
         from equipment.forms import DeviceForm
