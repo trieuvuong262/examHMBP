@@ -321,11 +321,24 @@ class EquipmentScanControl(models.Model):
 
 
 class AgentInstallToken(models.Model):
+    MACHINE_COMPANY = 'company'
+    MACHINE_PERSONAL = 'personal'
+    MACHINE_TYPE_CHOICES = [
+        (MACHINE_COMPANY, 'Máy công ty'),
+        (MACHINE_PERSONAL, 'Máy cá nhân'),
+    ]
+
     token = models.CharField(max_length=64, unique=True, db_index=True)
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='agent_install_tokens',
+    )
+    machine_type = models.CharField(
+        max_length=20,
+        choices=MACHINE_TYPE_CHOICES,
+        default=MACHINE_COMPANY,
+        verbose_name='Loại máy',
     )
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()

@@ -9,6 +9,17 @@ from django.conf import settings
 from django.utils import timezone
 
 
+MACHINE_TYPE_COMPANY = 'company'
+MACHINE_TYPE_PERSONAL = 'personal'
+VALID_MACHINE_TYPES = {MACHINE_TYPE_COMPANY, MACHINE_TYPE_PERSONAL}
+
+
+def normalize_machine_type(value: str | None) -> str:
+    if value in VALID_MACHINE_TYPES:
+        return value
+    return MACHINE_TYPE_COMPANY
+
+
 def agent_gate_enabled() -> bool:
     """Bật màn hình bắt buộc cài agent (middleware + trang gate)."""
     return bool(getattr(settings, 'EQUIPMENT_REQUIRE_AGENT_INSTALL', False))
@@ -96,15 +107,76 @@ def user_agent_payload(user) -> dict:
     }
 
 
-def create_install_token(user) -> 'AgentInstallToken':
+def create_install_token(user, machine_type: str | None = None) -> 'AgentInstallToken':
     from equipment.models import AgentInstallToken
 
     AgentInstallToken.objects.filter(user=user, used_at__isnull=True).delete()
     return AgentInstallToken.objects.create(
         user=user,
         token=secrets.token_urlsafe(32),
+        machine_type=normalize_machine_type(machine_type),
         expires_at=timezone.now() + timedelta(hours=48),
     )
+
+
+def resolve_machine_type_from_report(data: dict) -> str:
+    """Ưu tiên install_token trên server, sau đó field agent gửi kèm."""
+    from equipment.models import AgentInstallToken
+
+    install_token = (data.get('install_token') or '').strip()
+    if install_token:
+        tok = AgentInstallToken.objects.filter(token=install_token).only('machine_type').first()
+        if tok:
+            return normalize_machine_type(tok.machine_type)
+    return normalize_machine_type(data.get('machine_type'))
+
+
+def register_personal_agent_from_report(*, data: dict) -> bool:
+    """
+    Máy cá nhân: chỉ lưu UserAgentRegistration (device=null), không tạo thiết bị IT.
+    Trả về True nếu đã gắn user.
+    """
+    from django.contrib.auth import get_user_model
+
+    from equipment.models import AgentInstallToken, UserAgentRegistration
+
+    serial = (data.get('serial') or '').strip()
+    if not serial:
+        return False
+
+    from equipment.agent.core import is_bad_serial
+
+    if is_bad_serial(serial):
+        return False
+
+    User = get_user_model()
+    user = None
+    install_token = (data.get('install_token') or '').strip()
+
+    if install_token:
+        tok = (
+            AgentInstallToken.objects.filter(token=install_token)
+            .select_related('user')
+            .first()
+        )
+        if tok and tok.is_valid():
+            user = tok.user
+            tok.mark_used()
+
+    if not user:
+        uid = data.get('portal_user_id')
+        if uid is not None and str(uid).isdigit():
+            user = User.objects.filter(pk=int(uid)).first()
+
+    if not user:
+        return False
+
+    UserAgentRegistration.objects.update_or_create(
+        user=user,
+        serial_number=serial,
+        defaults={'device': None},
+    )
+    return True
 
 
 def link_user_from_agent_report(*, data: dict, device) -> None:
@@ -158,9 +230,10 @@ def _cmd_escape(value: str) -> str:
     return (value or '').replace('^', '^^').replace('&', '^&').replace('|', '^|').replace('<', '^<')
 
 
-def build_installer_cmd(*, user, token: str) -> str:
+def build_installer_cmd(*, user, token: str, machine_type: str | None = None) -> str:
     base = getattr(settings, 'PORTAL_PUBLIC_BASE_URL', '').rstrip('/')
     payload = user_agent_payload(user)
+    machine_type = normalize_machine_type(machine_type)
     exe_url = f'{base}/thiet-bi/agent/exe/'
     done_url = f'{base}/thiet-bi/agent/hoan-tat/?token={token}'
     secret = getattr(settings, 'EQUIPMENT_AGENT_SECRET', '')
@@ -218,6 +291,7 @@ def build_installer_cmd(*, user, token: str) -> str:
         f'echo job_title={_cmd_escape(payload["job_title"])}',
         f'echo employee_code={_cmd_escape(payload["employee_code"])}',
         f'echo install_token={token}',
+        f'echo machine_type={machine_type}',
         'echo.',
         'echo [agent]',
         'echo interval_minutes=30',

@@ -199,7 +199,7 @@ def user_fields_from_config(cfg: configparser.ConfigParser) -> dict:
         'portal_user_id', 'username', 'full_name', 'email',
         'department', 'department_id', 'division',
         'job_position', 'job_title', 'employee_code',
-        'install_token',
+        'install_token', 'machine_type',
     )
     out = {}
     for key in keys:

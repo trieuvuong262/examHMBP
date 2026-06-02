@@ -64,6 +64,62 @@ class AgentInstallFlowTests(TestCase):
         self.assertIsNotNone(tok.used_at)
 
     @override_settings(EQUIPMENT_AGENT_SECRET='sec')
+    def test_personal_agent_report_no_device(self):
+        from django.contrib.auth import get_user_model
+
+        from equipment.models import AgentInstallToken, Device, UserAgentRegistration
+        from equipment.services.agent_install import (
+            MACHINE_TYPE_PERSONAL,
+            create_install_token,
+            user_is_in_equipment_registry,
+        )
+
+        User = get_user_model()
+        user = User.objects.create_user(username='homepc', password='x')
+        tok = create_install_token(user, machine_type=MACHINE_TYPE_PERSONAL)
+
+        client = __import__('django.test', fromlist=['Client']).Client()
+        payload = {
+            'api_secret': 'sec',
+            'serial': 'PERS-SN-001',
+            'hostname': 'HOME-LAPTOP',
+            'install_token': tok.token,
+            'portal_user_id': user.pk,
+            'machine_type': MACHINE_TYPE_PERSONAL,
+        }
+        resp = client.post(
+            '/thiet-bi/api/agent-report/',
+            data=__import__('json').dumps(payload),
+            content_type='application/json',
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json().get('personal'))
+        self.assertFalse(Device.objects.filter(serial_number='PERS-SN-001').exists())
+        reg = UserAgentRegistration.objects.get(user=user, serial_number='PERS-SN-001')
+        self.assertIsNone(reg.device_id)
+        self.assertTrue(user_is_in_equipment_registry(user))
+
+    @override_settings(
+        EQUIPMENT_AGENT_SECRET='sec',
+        PORTAL_PUBLIC_BASE_URL='https://portal.example.com',
+    )
+    def test_installer_cmd_includes_machine_type(self):
+        from django.contrib.auth import get_user_model
+
+        from equipment.services.agent_install import (
+            MACHINE_TYPE_PERSONAL,
+            build_installer_cmd,
+            create_install_token,
+        )
+
+        User = get_user_model()
+        user = User.objects.create_user(username='nv02', password='x')
+        tok = create_install_token(user, machine_type=MACHINE_TYPE_PERSONAL)
+        cmd = build_installer_cmd(user=user, token=tok.token, machine_type=MACHINE_TYPE_PERSONAL)
+        self.assertIn('machine_type=personal', cmd)
+        self.assertEqual(tok.machine_type, MACHINE_TYPE_PERSONAL)
+
+    @override_settings(EQUIPMENT_AGENT_SECRET='sec')
     def test_install_status_when_user_in_registry(self):
         from django.contrib.auth import get_user_model
 
@@ -350,10 +406,10 @@ class AgentInstallFlowTests(TestCase):
             HTTP_USER_AGENT='Mozilla/5.0 Windows NT 10.0',
         )
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, 'PC dùng chung')
+        self.assertContains(resp, 'dùng chung')
         self.assertContains(resp, 'Xác nhận')
-        self.assertNotContains(resp, 'Hướng dẫn cài (3 bước)')
-        self.assertNotContains(resp, 'Tải file cài')
+        self.assertContains(resp, 'Máy cá nhân')
+        self.assertContains(resp, 'Tải file cài')
 
 
 class DeviceCategoryTests(SimpleTestCase):

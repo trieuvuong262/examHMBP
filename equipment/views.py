@@ -865,9 +865,26 @@ def api_agent_report(request):
 
         serial = data.get('serial')
         from equipment.agent.core import is_bad_serial
+        from equipment.services.agent_install import (
+            MACHINE_TYPE_PERSONAL,
+            register_personal_agent_from_report,
+            resolve_machine_type_from_report,
+        )
 
         if is_bad_serial(serial):
             return JsonResponse({'status': 'error', 'message': 'Serial không hợp lệ'}, status=400)
+
+        if resolve_machine_type_from_report(data) == MACHINE_TYPE_PERSONAL:
+            if not register_personal_agent_from_report(data=data):
+                return JsonResponse(
+                    {'status': 'error', 'message': 'Không xác định được tài khoản portal'},
+                    status=400,
+                )
+            return JsonResponse({
+                'status': 'success',
+                'personal': True,
+                'registered': True,
+            })
 
         device, created = Device.objects.get_or_create(
             serial_number=serial,
@@ -949,10 +966,14 @@ def agent_install_gate(request):
 
     shared_pc = get_shared_pc_context_for_gate(request, request.user)
 
+    from equipment.services.agent_install import MACHINE_TYPE_COMPANY, MACHINE_TYPE_PERSONAL
+
     return render(request, 'equipment/agent_install_gate.html', {
         'portal_user': request.user,
         'agent_download_ready': agent_install_enabled(),
         'shared_pc': shared_pc,
+        'machine_type_company': MACHINE_TYPE_COMPANY,
+        'machine_type_personal': MACHINE_TYPE_PERSONAL,
     })
 
 
@@ -1019,12 +1040,19 @@ def agent_download_installer(request):
         create_install_token,
     )
 
+    from equipment.services.agent_install import normalize_machine_type
+
     if not agent_install_enabled():
         messages.error(request, 'Chưa bật Agent trên server (EQUIPMENT_AGENT_SECRET).')
-        return redirect('home_portal')
+        return redirect('equipment:agent_install_gate')
 
-    token = create_install_token(request.user)
-    content = build_installer_cmd(user=request.user, token=token.token)
+    machine_type = normalize_machine_type(request.GET.get('machine_type'))
+    token = create_install_token(request.user, machine_type=machine_type)
+    content = build_installer_cmd(
+        user=request.user,
+        token=token.token,
+        machine_type=machine_type,
+    )
     filename = f'JustPlay-CaiDat-{request.user.username}.cmd'
     response = HttpResponse(content, content_type='application/octet-stream')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
