@@ -4,6 +4,14 @@
 
 set -Eeuo pipefail
 
+if ! command -v crontab >/dev/null 2>&1; then
+  echo "==> Cài cron (chưa có trên server)..."
+  apt-get update -qq
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq cron
+  systemctl enable cron
+  systemctl start cron
+fi
+
 PROJECT_DIR="${PROJECT_DIR:-/opt/portaljustplay}"
 CRON_LINE="0 0 * * * cd ${PROJECT_DIR} && docker compose exec -T web python manage.py backup_to_nas >> /var/log/portal-backup-nas.log 2>&1"
 
