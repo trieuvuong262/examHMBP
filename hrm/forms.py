@@ -25,7 +25,8 @@ class CustomUserForm(forms.Form):
         widget=forms.PasswordInput(attrs={**INPUT, 'placeholder': '••••••••'}),
     )
     email = forms.EmailField(
-        widget=forms.EmailInput(attrs={**INPUT, 'placeholder': 'annt@justplay.vn'}),
+        required=False,
+        widget=forms.EmailInput(attrs={**INPUT, 'placeholder': 'annt@justplay.vn (tuỳ chọn)'}),
     )
 
     # Thông tin nhân sự
@@ -137,6 +138,22 @@ class CustomUserForm(forms.Form):
         if qs.exists():
             raise forms.ValidationError('Tên đăng nhập này đã tồn tại!')
         return username
+
+    def clean_email(self):
+        email = (self.cleaned_data.get('email') or '').strip()
+        return email
+
+    def clean_full_name(self):
+        name = (self.cleaned_data.get('full_name') or '').strip()
+        if not name:
+            raise forms.ValidationError('Họ và tên không được để trống.')
+        return name
+
+    def clean_password(self):
+        password = self.cleaned_data.get('password') or ''
+        if not self.user_id and not str(password).strip():
+            raise forms.ValidationError('Mật khẩu bắt buộc khi thêm nhân viên mới.')
+        return password
 
     def clean_employee_code(self):
         code = (self.cleaned_data.get('employee_code') or '').strip()

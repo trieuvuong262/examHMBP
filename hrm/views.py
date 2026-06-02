@@ -7,7 +7,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import PasswordChangeView
 from django.urls import reverse_lazy, reverse
 from django.contrib.auth import logout
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
+from django.views.decorators.http import require_GET
 from django.db import transaction
 from django.db.models import Count
 # Import từ các app khác sang
@@ -117,6 +118,13 @@ def user_list(request):
     page_obj, query_string = paginate_queryset(request, users_qs)
 
     departments = Department.objects.filter(is_active=True).order_by('sort_order', 'name')
+    current_department_label = ''
+    if department_id == 'none':
+        current_department_label = 'Chưa gán phòng ban'
+    elif department_id.isdigit():
+        dept = departments.filter(pk=int(department_id)).first()
+        if dept:
+            current_department_label = dept.name
 
     return render(request, 'assessment/admin/user_list.html', {
         'users': page_obj.object_list,
@@ -127,6 +135,8 @@ def user_list(request):
         'search_query': search_query,
         'departments': departments,
         'current_department': department_id,
+        'current_department_label': current_department_label,
+        'filters_active': bool(search_query or department_id),
     })
 
 
@@ -140,30 +150,46 @@ def user_add(request):
             e = form.cleaned_data['email']
             f = form.cleaned_data['full_name']
 
-            if User.objects.filter(username=u).exists():
-                messages.error(request, f"Tên đăng nhập '{u}' đã tồn tại!")
-            else:
-                user = User.objects.create_user(
-                    username=u,
-                    email=e,
-                    password=p,
-                    first_name=f,
-                )
-                profile, _ = Profile.objects.update_or_create(
-                    user=user,
-                    defaults=_profile_fields_from_form(form),
-                )
-                profile.subordinates.set(form.cleaned_data['subordinates'])
-                profile.save()
-                messages.success(request, f"Thành công: Đã thêm {f}. Tài khoản: {u} | Mật khẩu mới là: {p}")
-                return redirect('user_list')
+            user = User.objects.create_user(
+                username=u,
+                email=e,
+                password=p,
+                first_name=f,
+            )
+            profile, _ = Profile.objects.update_or_create(
+                user=user,
+                defaults=_profile_fields_from_form(form),
+            )
+            profile.subordinates.set(form.cleaned_data['subordinates'])
+            profile.save()
+            messages.success(
+                request,
+                f'Thành công: Đã thêm {f}. Tài khoản: {u} | Mật khẩu: {p}',
+            )
+            return redirect('user_list')
+
+        messages.error(request, 'Không lưu được — vui lòng kiểm tra các ô báo đỏ bên dưới.')
     else:
-        form = CustomUserForm()
-    
+        form = CustomUserForm(initial={
+            'password': generate_secure_password(),
+        })
+
     return render(request, 'assessment/admin/user_form.html', {
-        'form': form, 
-        'title': 'Thêm nhân viên mới'
+        'form': form,
+        'title': 'Thêm nhân viên mới',
+        'is_edit': False,
     })
+
+
+@admin_only
+@require_GET
+def user_suggest_username(request):
+    """Gợi ý account từ họ tên (form thêm NV)."""
+    full_name = (request.GET.get('full_name') or '').strip()
+    if not full_name:
+        return JsonResponse({'username': ''})
+    return JsonResponse({'username': generate_hm_username(full_name)})
+
 
 AVATAR_MAX_SIZE = 5 * 1024 * 1024
 

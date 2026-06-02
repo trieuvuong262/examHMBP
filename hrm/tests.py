@@ -395,6 +395,50 @@ class ProfileAvatarTests(TestCase):
         self.assertContains(response, 'jpAvatarZoomModal')
 
 
+class UserAddFormTests(TestCase):
+    def setUp(self):
+        RoleModulePermission.objects.update_or_create(
+            role=ROLE_DIRECTOR,
+            defaults={'module_permissions': {MODULE_HRM: {'view': True, 'edit': True}}},
+        )
+        self.admin = User.objects.create_user(username='hr_add', password='testpass123', is_staff=True)
+        Profile.objects.filter(user=self.admin).update(
+            role=ROLE_DIRECTOR,
+            full_name='HR Add',
+            is_employed=True,
+            permission_group=None,
+        )
+        self.client = Client(HTTP_HOST='testserver')
+        self.client.force_login(self.admin)
+
+    def test_user_add_get_prefills_password(self):
+        response = self.client.get(reverse('user_add'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="password"')
+
+    def test_user_add_post_success_without_email(self):
+        response = self.client.post(reverse('user_add'), {
+            'username': 'newstaff01',
+            'password': 'TestPass1',
+            'email': '',
+            'full_name': 'Nguyễn Văn Mới',
+            'role': ROLE_EMPLOYEE,
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(User.objects.filter(username='newstaff01').exists())
+
+    def test_user_add_post_shows_errors_when_missing_name(self):
+        response = self.client.post(reverse('user_add'), {
+            'username': 'x',
+            'password': 'TestPass1',
+            'full_name': '',
+            'role': ROLE_EMPLOYEE,
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Không lưu được')
+        self.assertContains(response, 'Họ và tên')
+
+
 class UserSearchTests(TestCase):
     def setUp(self):
         dept = Department.objects.create(name='Phòng May', sort_order=1)

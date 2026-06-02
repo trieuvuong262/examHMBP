@@ -21,6 +21,7 @@ urlpatterns = [
     
     path('dashboard/users/', hrm_views.user_list, name='user_list'),
     path('dashboard/users/add/', hrm_views.user_add, name='user_add'),
+    path('dashboard/users/suggest-username/', hrm_views.user_suggest_username, name='user_suggest_username'),
     path('dashboard/users/edit/<int:user_id>/', hrm_views.user_edit, name='user_edit'),
     path('dashboard/users/delete/<int:user_id>/', hrm_views.user_delete, name='user_delete'),
     path('dashboard/users/<int:user_id>/reset-password/', hrm_views.user_password_reset, name='user_password_reset'),

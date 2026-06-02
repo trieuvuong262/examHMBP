@@ -2541,6 +2541,44 @@ textarea.form-control {
     }
 }
 
+/* Nhân sự — thanh lọc danh sách (phòng ban + tìm + sắp xếp) */
+.jp-hrm-list-filters {
+    background: linear-gradient(180deg, #f8f9fb 0%, #fff 100%);
+}
+
+.jp-hrm-list-filters .form-label {
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.jp-hrm-list-filters .form-select,
+.jp-hrm-list-filters .form-control,
+.jp-hrm-list-filters .input-group-text {
+    min-height: var(--jp-touch, 42px);
+}
+
+.jp-hrm-list-filters .jp-hrm-search.input-group {
+    max-width: none;
+    width: 100%;
+}
+
+.jp-hrm-list-filters .jp-hrm-search.input-group:focus-within {
+    box-shadow: 0 0 0 0.2rem rgba(220, 38, 38, 0.12);
+    border-radius: var(--jp-radius-xs, 4px);
+}
+
+[data-theme="dark"] .jp-hrm-list-filters {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, transparent 100%);
+}
+
+[data-theme="dark"] .jp-hrm-list-filters .input-group-text,
+[data-theme="dark"] .jp-hrm-list-filters .form-select,
+[data-theme="dark"] .jp-hrm-list-filters .form-control {
+    background-color: var(--jp-surface, #1e1e1e);
+    border-color: var(--jp-border, #333);
+    color: var(--jp-text, #f1f1f1);
+}
+
 @media (min-width: 768px) {
     .jp-hrm-search {
         max-width: 360px;
