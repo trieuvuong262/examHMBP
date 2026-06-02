@@ -18,6 +18,11 @@ urlpatterns = [
     path('de-xuat/danh-muc-dinh-ky/<int:pk>/an/', views.recurring_catalog_delete, name='catalog_delete'),
 
     # Hỗ trợ kỹ thuật (sửa chữa thiết bị)
+    path(
+        'ho-tro/',
+        RedirectView.as_view(pattern_name='service_requests:ho_tro_my', permanent=False),
+        name='ho_tro_hub',
+    ),
     path('ho-tro/cua-toi/', views.my_requests, {'flow_tab': 'ho_tro'}, name='ho_tro_my'),
     path('ho-tro/cho-xu-ly/', views.pending_requests, {'flow_tab': 'ho_tro'}, name='ho_tro_pending'),
     path('ho-tro/tao/', RedirectView.as_view(pattern_name='service_requests:create_it_repair_it', permanent=False), name='create_it_repair'),
