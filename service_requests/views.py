@@ -325,7 +325,18 @@ def create_request(request):
 
 
 @_flow_access_required(flow_tab=FLOW_HO_TRO)
-def create_it_repair(request):
+def create_it_repair(request, equipment_scope=None):
+    from equipment.scope import (
+        SCOPE_IT,
+        SCOPE_PRODUCTION,
+        normalize_repair_equipment_scope,
+        scope_context,
+        scope_for_device,
+    )
+
+    repair_scope = normalize_repair_equipment_scope(equipment_scope)
+    scope_ctx = scope_context(repair_scope)
+
     request_type = get_it_repair_request_type()
     if not request_type:
         messages.warning(request, 'Chưa cấu hình loại yêu cầu Hỗ trợ kỹ thuật. Liên hệ quản trị viên.')
@@ -342,6 +353,13 @@ def create_it_repair(request):
         try:
             from equipment.models import Device
             linked_equipment = Device.objects.filter(pk=equipment_id).first()
+            if linked_equipment and scope_for_device(linked_equipment) != repair_scope:
+                messages.error(
+                    request,
+                    f'Thiết bị này thuộc {scope_context(scope_for_device(linked_equipment))["equipment_scope_short"]}, '
+                    f'không khớp form {scope_ctx["equipment_scope_short"]}.',
+                )
+                linked_equipment = None
         except Exception:
             linked_equipment = None
 
@@ -361,6 +379,7 @@ def create_it_repair(request):
                     equipment_serial=form.cleaned_data.get('equipment_serial', ''),
                     blocks_work=form.cleaned_data.get('blocks_work', False),
                     equipment=linked_equipment,
+                    repair_equipment_scope=repair_scope,
                 )
                 prepared = read_separate_uploads(
                     request.FILES.getlist('images'),
@@ -407,6 +426,9 @@ def create_it_repair(request):
         'form': form,
         'request_type': request_type,
         'linked_equipment': linked_equipment,
+        'repair_scope': repair_scope,
+        'is_production_repair': repair_scope == SCOPE_PRODUCTION,
+        **scope_ctx,
         **_subnav_context(request, flow_tab=FLOW_HO_TRO),
     })
 

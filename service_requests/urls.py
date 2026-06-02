@@ -20,7 +20,9 @@ urlpatterns = [
     # Hỗ trợ kỹ thuật (sửa chữa thiết bị)
     path('ho-tro/cua-toi/', views.my_requests, {'flow_tab': 'ho_tro'}, name='ho_tro_my'),
     path('ho-tro/cho-xu-ly/', views.pending_requests, {'flow_tab': 'ho_tro'}, name='ho_tro_pending'),
-    path('ho-tro/tao/', views.create_it_repair, name='create_it_repair'),
+    path('ho-tro/tao/', RedirectView.as_view(pattern_name='service_requests:create_it_repair_it', permanent=False), name='create_it_repair'),
+    path('ho-tro/tao/it/', views.create_it_repair, {'equipment_scope': 'it'}, name='create_it_repair_it'),
+    path('ho-tro/tao/san-xuat/', views.create_it_repair, {'equipment_scope': 'production'}, name='create_it_repair_production'),
 
     path('de-xuat/<int:pk>/', views.request_detail, {'flow_tab': 'de_xuat'}, name='de_xuat_detail'),
     path('ho-tro/<int:pk>/', views.request_detail, {'flow_tab': 'ho_tro'}, name='ho_tro_detail'),
@@ -30,7 +32,7 @@ urlpatterns = [
     path('cua-toi/', views.my_requests, {'flow_tab': 'de_xuat'}, name='my'),
     path('cho-xu-ly/', views.pending_requests, {'flow_tab': 'de_xuat'}, name='pending'),
     path('tao/', RedirectView.as_view(pattern_name='service_requests:create', permanent=False)),
-    path('sua-it/tao/', RedirectView.as_view(pattern_name='service_requests:create_it_repair', permanent=False)),
+    path('sua-it/tao/', RedirectView.as_view(pattern_name='service_requests:create_it_repair_it', permanent=False)),
     path('danh-muc-dinh-ky/', RedirectView.as_view(pattern_name='service_requests:catalog_list', permanent=False)),
     path('danh-muc-dinh-ky/them/', RedirectView.as_view(pattern_name='service_requests:catalog_create', permanent=False)),
     path(

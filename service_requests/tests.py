@@ -450,10 +450,10 @@ class ItRepairWorkflowTests(TestCase):
 
     def test_create_it_repair_form(self):
         self.client.force_login(self.employee)
-        response = self.client.get(reverse('service_requests:create_it_repair'))
+        response = self.client.get(reverse('service_requests:create_it_repair_it'))
         self.assertEqual(response.status_code, 200)
 
-        response = self.client.post(reverse('service_requests:create_it_repair'), {
+        response = self.client.post(reverse('service_requests:create_it_repair_it'), {
             'title': 'Laptop không lên nguồn',
             'description': 'Bấm nút không có đèn',
             'incident_category': ServiceRequest.INCIDENT_HW,
@@ -465,12 +465,52 @@ class ItRepairWorkflowTests(TestCase):
         })
         self.assertEqual(response.status_code, 302)
         req = ServiceRequest.objects.get(requester=self.employee, request_type=self.it_type)
+        self.assertEqual(req.repair_equipment_scope, 'it')
         self.assertTrue(req.blocks_work)
         first_step = req.steps.exclude(status=ServiceRequestStep.STATUS_SKIPPED).order_by('step_order').first()
         self.assertIn(first_step.step_code, {
             ServiceRequestStep.STEP_TEAM_LEADER,
             ServiceRequestStep.STEP_IT_REPAIR,
         })
+
+    def test_production_repair_form_sets_scope_and_queue(self):
+        from equipment.scope import SCOPE_PRODUCTION
+        from equipment.services.managed_department import default_managed_department_for_scope
+        from equipment.services.it_repair_queue import pending_it_repair_steps_for_user
+        from service_requests.workflow import approve_step
+
+        maint_dept = default_managed_department_for_scope(SCOPE_PRODUCTION)
+        maint_staff = self._user('bt_nv', ROLE_EMPLOYEE, maint_dept)
+
+        self.client.force_login(self.employee)
+        response = self.client.get(reverse('service_requests:create_it_repair_production'))
+        self.assertEqual(response.status_code, 200)
+
+        response = self.client.post(reverse('service_requests:create_it_repair_production'), {
+            'title': 'Máy may hỏng',
+            'description': 'Không cắt chỉ',
+            'incident_category': ServiceRequest.INCIDENT_HW,
+            'priority': ServiceRequest.PRIORITY_HIGH,
+            'location_text': 'Chuyền 1',
+            'equipment_label': 'Máy may Juki',
+            'equipment_serial': '',
+        })
+        self.assertEqual(response.status_code, 302)
+        req = ServiceRequest.objects.filter(
+            requester=self.employee,
+            repair_equipment_scope=SCOPE_PRODUCTION,
+        ).latest('pk')
+        it_step = req.steps.get(step_code=ServiceRequestStep.STEP_IT_REPAIR)
+        self.assertEqual(it_step.target_department_id, maint_dept.id)
+
+        tl_step = req.steps.filter(step_code=ServiceRequestStep.STEP_TEAM_LEADER).first()
+        if tl_step:
+            approve_step(tl_step, actor=self.team_leader)
+
+        it_pending = pending_it_repair_steps_for_user(maint_staff, SCOPE_PRODUCTION)
+        self.assertEqual(it_pending.count(), 1)
+        prod_it_pending = pending_it_repair_steps_for_user(self.it_staff, SCOPE_PRODUCTION)
+        self.assertEqual(prod_it_pending.count(), 0)
 
     def test_pending_for_it_staff_in_equipment_module(self):
         from service_requests.workflow import approve_step
@@ -481,7 +521,7 @@ class ItRepairWorkflowTests(TestCase):
             approve_step(tl_step, actor=self.team_leader)
         from equipment.services.it_repair_queue import pending_it_repair_steps_for_user
 
-        pending = pending_it_repair_steps_for_user(self.it_staff)
+        pending = pending_it_repair_steps_for_user(self.it_staff, 'it')
         self.assertEqual(pending.count(), 1)
         self.assertEqual(pending.first().step_code, ServiceRequestStep.STEP_IT_REPAIR)
 

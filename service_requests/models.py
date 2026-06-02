@@ -221,6 +221,12 @@ class ServiceRequest(models.Model):
         related_name='service_requests',
         verbose_name='Thiết bị liên kết',
     )
+    repair_equipment_scope = models.CharField(
+        max_length=20,
+        blank=True,
+        db_index=True,
+        verbose_name='Phạm vi thiết bị (hỗ trợ kỹ thuật)',
+    )
 
     class Meta:
         ordering = ['-created_at']
@@ -233,6 +239,16 @@ class ServiceRequest(models.Model):
     @property
     def is_it_repair(self):
         return self.request_type.code == RequestType.CODE_IT_REPAIR
+
+    def effective_repair_equipment_scope(self) -> str:
+        """Phạm vi IT / sản xuất — dùng cho hàng đợi Quản lý thiết bị."""
+        from equipment.scope import SCOPE_IT, normalize_repair_equipment_scope, scope_for_device
+
+        if self.repair_equipment_scope:
+            return normalize_repair_equipment_scope(self.repair_equipment_scope)
+        if self.equipment_id:
+            return scope_for_device(self.equipment)
+        return SCOPE_IT
 
     @property
     def is_procurement(self):

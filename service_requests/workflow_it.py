@@ -1,6 +1,8 @@
-"""Quy trình Hỗ trợ kỹ thuật — Tổ trưởng (nếu có) → IT xử lý → hoàn thành."""
+"""Quy trình Hỗ trợ kỹ thuật — Tổ trưởng (nếu có) → phòng xử lý theo phạm vi thiết bị → hoàn thành."""
 
 from django.db import transaction
+
+from equipment.scope import SCOPE_IT, SCOPE_PRODUCTION, normalize_repair_equipment_scope
 
 from .models import RequestType, RequestTypeStepTemplate, ServiceRequest, ServiceRequestStep
 from .workflow import (
@@ -16,6 +18,23 @@ from .workflow import (
 
 def get_it_department():
     return get_department_by_patterns('IT', 'cntt', 'công nghệ', 'cong nghe')
+
+
+def get_repair_handler_department(repair_equipment_scope: str | None):
+    """Phòng tiếp nhận: IT/CNTT hoặc bảo trì sản xuất."""
+    scope = normalize_repair_equipment_scope(repair_equipment_scope)
+    if scope == SCOPE_PRODUCTION:
+        from equipment.services.managed_department import default_managed_department_for_scope
+
+        return default_managed_department_for_scope(SCOPE_PRODUCTION)
+    return get_it_department()
+
+
+def repair_handler_step_name(repair_equipment_scope: str | None) -> str:
+    scope = normalize_repair_equipment_scope(repair_equipment_scope)
+    if scope == SCOPE_PRODUCTION:
+        return 'Bảo trì xử lý sự cố'
+    return 'IT xử lý sự cố'
 
 
 def get_it_repair_request_type():
@@ -48,7 +67,8 @@ def apply_it_repair_completion_side_effects(service_request, *, repair_cost=None
 
 def _build_it_repair_steps(service_request):
     requester = service_request.requester
-    it_dept = get_it_department()
+    repair_scope = service_request.effective_repair_equipment_scope()
+    handler_dept = get_repair_handler_department(repair_scope)
     order = 1
     previous = None
     first_active = None
@@ -74,10 +94,10 @@ def _build_it_repair_steps(service_request):
         service_request,
         step_order=order,
         step_code=ServiceRequestStep.STEP_IT_REPAIR,
-        name='IT xử lý sự cố',
+        name=repair_handler_step_name(repair_scope),
         step_kind=RequestTypeStepTemplate.KIND_EXECUTION,
         assignee_rule=RequestTypeStepTemplate.RULE_DEPARTMENT_QUEUE,
-        target_department=it_dept,
+        target_department=handler_dept,
         depends_on=previous,
     )
     if not first_active:
@@ -99,7 +119,14 @@ def create_it_repair_request(
     equipment_serial='',
     blocks_work=False,
     equipment=None,
+    repair_equipment_scope='',
 ):
+    scope = normalize_repair_equipment_scope(repair_equipment_scope)
+    if equipment is not None:
+        from equipment.scope import scope_for_device
+
+        scope = scope_for_device(equipment)
+
     service_request = ServiceRequest.objects.create(
         requester=requester,
         request_type=request_type,
@@ -112,6 +139,7 @@ def create_it_repair_request(
         equipment_serial=equipment_serial,
         blocks_work=blocks_work,
         equipment=equipment,
+        repair_equipment_scope=scope,
     )
 
     steps = _build_it_repair_steps(service_request)

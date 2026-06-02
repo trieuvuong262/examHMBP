@@ -24,7 +24,7 @@
             <form method="post" novalidate>
                 {% csrf_token %}
                 {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
-                {% include 'equipment/includes/device_form_sections.html' with is_it_device=is_it_device|default:equipment_scope == 'it' %}
+                {% include 'equipment/includes/device_form_sections.html' with is_it_device=is_it_device %}
                 <div class="d-flex gap-2 mt-4 pt-2 border-top">
                     <button type="submit" class="btn btn-hm fw-bold px-4">
                         {% if is_edit %}Cập nhật{% else %}Thêm thiết bị{% endif %}

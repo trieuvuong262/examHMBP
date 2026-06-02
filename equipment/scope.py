@@ -17,6 +17,17 @@ SCOPE_SHORT_LABELS = {
     SCOPE_PRODUCTION: 'Thiết bị sản xuất',
 }
 
+REPAIR_EQUIPMENT_SCOPE_CHOICES = [
+    (SCOPE_IT, SCOPE_SHORT_LABELS[SCOPE_IT]),
+    (SCOPE_PRODUCTION, SCOPE_SHORT_LABELS[SCOPE_PRODUCTION]),
+]
+
+
+def normalize_repair_equipment_scope(value: str | None) -> str:
+    if value in (SCOPE_IT, SCOPE_PRODUCTION):
+        return value
+    return SCOPE_IT
+
 
 def scope_for_device(device) -> str:
     from equipment.services.device_categories import import_profile_for_code

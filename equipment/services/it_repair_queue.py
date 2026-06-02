@@ -46,18 +46,22 @@ def can_claim_it_repair_step(user, step: ServiceRequestStep) -> bool:
 def _filter_steps_for_equipment_scope(qs, equipment_scope: str | None):
     if not equipment_scope:
         return qs
+
+    explicit = Q(request__repair_equipment_scope=equipment_scope)
+    legacy = Q(request__repair_equipment_scope='')
     if equipment_scope == SCOPE_PRODUCTION:
         codes = category_codes_for_profile('machine')
-        if not codes:
-            return qs.none()
-        return qs.filter(request__equipment__category__in=codes)
-    codes = category_codes_for_profile('it')
-    if not codes:
-        return qs.filter(request__equipment__isnull=True)
-    return qs.filter(
-        Q(request__equipment__isnull=True)
-        | Q(request__equipment__category__in=codes)
-    )
+        if codes:
+            legacy &= Q(request__equipment__category__in=codes)
+        else:
+            legacy = Q(pk__in=[])
+    else:
+        codes = category_codes_for_profile('it')
+        if codes:
+            legacy &= Q(request__equipment__isnull=True) | Q(request__equipment__category__in=codes)
+        else:
+            legacy &= Q(request__equipment__isnull=True)
+    return qs.filter(explicit | legacy)
 
 
 def pending_it_repair_steps_for_user(user, equipment_scope: str | None = None):

@@ -32,6 +32,7 @@ from .models import Device, MaintenanceLog
 from .scope import (
     SCOPE_IT,
     SCOPE_PRODUCTION,
+    SCOPE_SHORT_LABELS,
     filter_devices_for_scope,
     it_repair_detail_url,
     merge_scope_context,
@@ -234,6 +235,15 @@ def it_repair_detail(request, pk, equipment_scope=SCOPE_IT):
     )
     if not service_request.is_it_repair:
         messages.error(request, 'Yêu cầu không thuộc loại Hỗ trợ kỹ thuật.')
+        return _redirect_it_repair_list(equipment_scope)
+
+    req_scope = service_request.effective_repair_equipment_scope()
+    if equipment_scope and req_scope != equipment_scope:
+        messages.error(
+            request,
+            f'Yêu cầu thuộc hàng đợi {SCOPE_SHORT_LABELS.get(req_scope, req_scope)}, '
+            f'không phải {SCOPE_SHORT_LABELS.get(equipment_scope, equipment_scope)}.',
+        )
         return _redirect_it_repair_list(equipment_scope)
 
     current_step = service_request.current_step
@@ -480,6 +490,8 @@ def device_qr_public(request, device_key):
 
             location = device.usage_room or device.usage_department_label
             title = f'Báo hỏng: {device.name}'
+            from equipment.scope import scope_for_device
+
             service_request = create_it_repair_request(
                 requester=request.user,
                 request_type=request_type,
@@ -492,6 +504,7 @@ def device_qr_public(request, device_key):
                 equipment_serial=device.serial_number or '',
                 blocks_work=form.cleaned_data.get('blocks_work', False),
                 equipment=device,
+                repair_equipment_scope=scope_for_device(device),
             )
             profile = getattr(request.user, 'profile', None)
             reporter_name = profile.full_name if profile and profile.full_name else request.user.username

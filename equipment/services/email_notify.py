@@ -33,25 +33,38 @@ def _dedupe_emails(addresses) -> list[str]:
 
 def get_it_notify_emails() -> list[str]:
     """Email nhóm IT / cấu hình thêm / superuser fallback."""
+    return get_repair_notify_emails('it')
+
+
+def get_repair_notify_emails(repair_equipment_scope: str | None) -> list[str]:
+    """Email phòng xử lý theo phạm vi thiết bị IT / sản xuất."""
+    from equipment.scope import SCOPE_PRODUCTION, normalize_repair_equipment_scope
+    from equipment.services.managed_department import default_managed_department_for_scope
+    from service_requests.workflow_it import get_it_department
+
+    scope = normalize_repair_equipment_scope(repair_equipment_scope)
     emails = []
 
     extra = getattr(settings, 'EQUIPMENT_NOTIFY_EMAILS', '') or ''
     emails.extend(e.strip() for e in extra.split(',') if e.strip())
 
     try:
-        from service_requests.workflow_it import get_it_department
         from hrm.models import Profile
 
-        it_dept = get_it_department()
-        if it_dept:
+        dept = (
+            default_managed_department_for_scope(SCOPE_PRODUCTION)
+            if scope == SCOPE_PRODUCTION
+            else get_it_department()
+        )
+        if dept:
             profiles = Profile.objects.filter(
-                department=it_dept,
+                department=dept,
                 is_employed=True,
                 user__is_active=True,
             ).select_related('user')
             emails.extend(p.user.email for p in profiles if p.user.email)
     except Exception:
-        logger.exception('Không lấy được email phòng IT')
+        logger.exception('Không lấy được email phòng xử lý hỗ trợ kỹ thuật')
 
     if not emails:
         emails.extend(
@@ -89,7 +102,7 @@ def _request_url(service_request_id: int) -> str:
 
 
 def notify_it_new_breakdown(*, device, service_request, reporter_name: str, issue_description: str):
-    recipients = get_it_notify_emails()
+    recipients = get_repair_notify_emails(service_request.effective_repair_equipment_scope())
     subject = f'[JustPlay] Báo hỏng thiết bị: {device.name}'
     message = f"""Hệ thống nhận yêu cầu hỗ trợ kỹ thuật mới:
 
@@ -116,7 +129,7 @@ def notify_breakdown_from_request(service_request, *, reporter_name: str):
             issue_description=service_request.description,
         )
 
-    recipients = get_it_notify_emails()
+    recipients = get_repair_notify_emails(service_request.effective_repair_equipment_scope())
     subject = f'[JustPlay] Hỗ trợ kỹ thuật: {service_request.title}'
     message = f"""Yêu cầu hỗ trợ kỹ thuật mới:
 
