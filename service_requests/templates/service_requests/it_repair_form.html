@@ -5,18 +5,38 @@
     <div class="jp-page-header mb-3 mb-md-4">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title">
-                <i class="bi bi-{% if is_production_repair %}gear-wide-connected{% else %}pc-display{% endif %} me-2"></i>
-                Gửi yêu cầu hỗ trợ — {{ equipment_scope_short }}
+                <i class="bi bi-tools me-2"></i>Gửi yêu cầu hỗ trợ kỹ thuật
             </h2>
             <p class="text-muted mb-0">
-                {{ request_type.name }} — Tổ trưởng duyệt (nếu có), sau đó xử lý tại
-                <strong>{{ equipment_scope_label }}</strong> → Hỗ trợ kỹ thuật — {{ equipment_scope_short }}.
+                Chọn loại thiết bị cần hỗ trợ — yêu cầu sẽ được chuyển đúng hàng đợi
+                <strong>Quản lý thiết bị IT</strong> hoặc <strong>sản xuất</strong>.
             </p>
         </div>
     </div>
 
+    <div class="jp-tab-pills mb-3 d-flex flex-wrap gap-2" role="tablist">
+        <a href="{{ create_url_it }}{% if linked_equipment %}&equipment={{ linked_equipment.id }}{% endif %}"
+           class="btn btn-sm {% if tab_it_active %}btn-hm{% else %}btn-outline-secondary{% endif %}"
+           role="tab"
+           aria-selected="{% if tab_it_active %}true{% else %}false{% endif %}">
+            <i class="bi bi-pc-display me-1"></i>Thiết bị IT
+        </a>
+        <a href="{{ create_url_production }}{% if linked_equipment %}&equipment={{ linked_equipment.id }}{% endif %}"
+           class="btn btn-sm {% if not tab_it_active %}btn-hm{% else %}btn-outline-secondary{% endif %}"
+           role="tab"
+           aria-selected="{% if not tab_it_active %}true{% else %}false{% endif %}">
+            <i class="bi bi-gear-wide-connected me-1"></i>Thiết bị sản xuất
+        </a>
+    </div>
+
     <div class="card border-0 shadow-sm">
         <div class="card-body p-3 p-md-4">
+            <div class="alert alert-light border mb-3 py-2 px-3 small">
+                <i class="bi bi-{% if is_production_repair %}gear-wide-connected{% else %}pc-display{% endif %} me-1"></i>
+                Đang gửi cho: <strong>{{ equipment_scope_short }}</strong> —
+                xử lý tại {{ equipment_scope_label }} → Hỗ trợ kỹ thuật — {{ equipment_scope_short }}.
+            </div>
+
             <div class="alert alert-light border mb-4">
                 <strong>Quy trình:</strong>
                 <ol class="mb-0 mt-2 ps-3 small">
@@ -34,6 +54,7 @@
 
             <form method="post" enctype="multipart/form-data" novalidate>
                 {% csrf_token %}
+                <input type="hidden" name="repair_scope" value="{{ repair_scope }}">
                 {% if linked_equipment %}
                 <input type="hidden" name="equipment_id" value="{{ linked_equipment.id }}">
                 <div class="alert alert-light border mb-3">

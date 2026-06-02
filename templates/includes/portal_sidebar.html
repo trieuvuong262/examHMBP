@@ -242,15 +242,9 @@
                             </a>
                         </li>
                         <li>
-                            <a href="{% url 'service_requests:create_it_repair_it' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'create_it_repair_it' %}active{% endif %}">
-                                <i class="bi bi-pc-display"></i><span>Gửi hỗ trợ — Thiết bị IT</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{% url 'service_requests:create_it_repair_production' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'create_it_repair_production' %}active{% endif %}">
-                                <i class="bi bi-gear-wide-connected"></i><span>Gửi hỗ trợ — Thiết bị sản xuất</span>
+                            <a href="{% url 'service_requests:create_it_repair' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'create_it_repair' or request.resolver_match.url_name == 'create_it_repair_it' or request.resolver_match.url_name == 'create_it_repair_production' %}active{% endif %}">
+                                <i class="bi bi-plus-circle"></i><span>Gửi yêu cầu hỗ trợ</span>
                             </a>
                         </li>
                     </ul>

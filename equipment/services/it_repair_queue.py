@@ -5,7 +5,12 @@ from django.db.models import Q
 
 from equipment.scope import SCOPE_IT, SCOPE_PRODUCTION
 from equipment.services.device_categories import category_codes_for_profile
-from hrm.module_permissions import MODULE_EQUIPMENT, user_can_access_module
+from hrm.module_permissions import (
+    MODULE_EQUIPMENT,
+    bypass_department_modules,
+    user_can_access_module,
+    user_can_edit_module,
+)
 from hrm.permissions import get_profile
 from service_requests.models import RequestType, RequestTypeStepTemplate, ServiceRequest, ServiceRequestStep
 from service_requests.workflow_it import get_it_department
@@ -15,14 +20,12 @@ def _has_equipment_access(user) -> bool:
     return user_can_access_module(user, MODULE_EQUIPMENT)
 
 
-def can_handle_it_repair_step(user, step: ServiceRequestStep) -> bool:
-    """IT xử lý sự cố — quyền module Quản lý thiết bị + thuộc phòng IT."""
-    if not _has_equipment_access(user):
-        return False
-    if step.step_code != ServiceRequestStep.STEP_IT_REPAIR:
-        return False
-    if step.status not in ServiceRequestStep.OPEN_HANDLER_STATUSES:
-        return False
+def _can_access_repair_step_by_department(user, step: ServiceRequestStep) -> bool:
+    """Hàng đợi phòng ban — hoặc admin/superuser có quyền sửa thiết bị."""
+    if bypass_department_modules(user):
+        return True
+    if user_can_edit_module(user, MODULE_EQUIPMENT):
+        return True
     if step.assignee_id:
         return step.assignee_id == user.id
     if step.assignee_rule == RequestTypeStepTemplate.RULE_DEPARTMENT_QUEUE:
@@ -33,6 +36,19 @@ def can_handle_it_repair_step(user, step: ServiceRequestStep) -> bool:
             and step.target_department_id == profile.department_id,
         )
     return False
+
+
+def can_handle_it_repair_step(user, step: ServiceRequestStep) -> bool:
+    """Xử lý sự cố — quyền module Quản lý thiết bị + phòng xử lý hoặc quản trị."""
+    if not _has_equipment_access(user):
+        return False
+    if step.step_code != ServiceRequestStep.STEP_IT_REPAIR:
+        return False
+    if step.status not in ServiceRequestStep.OPEN_HANDLER_STATUSES:
+        return False
+    if step.assignee_id:
+        return step.assignee_id == user.id
+    return _can_access_repair_step_by_department(user, step)
 
 
 def can_claim_it_repair_step(user, step: ServiceRequestStep) -> bool:
@@ -69,9 +85,6 @@ def pending_it_repair_steps_for_user(user, equipment_scope: str | None = None):
     if not _has_equipment_access(user):
         return ServiceRequestStep.objects.none()
 
-    profile = get_profile(user)
-    dept_id = profile.department_id if profile else None
-
     qs = ServiceRequestStep.objects.filter(
         step_code=ServiceRequestStep.STEP_IT_REPAIR,
         request__status=ServiceRequest.STATUS_IN_PROGRESS,
@@ -87,14 +100,18 @@ def pending_it_repair_steps_for_user(user, equipment_scope: str | None = None):
         'assignee__profile',
     )
 
-    filters = Q(assignee=user)
-    if dept_id:
-        filters |= Q(
-            assignee__isnull=True,
-            assignee_rule=RequestTypeStepTemplate.RULE_DEPARTMENT_QUEUE,
-            target_department_id=dept_id,
-        )
-    qs = qs.filter(filters)
+    if not (bypass_department_modules(user) or user_can_edit_module(user, MODULE_EQUIPMENT)):
+        profile = get_profile(user)
+        dept_id = profile.department_id if profile else None
+        filters = Q(assignee=user)
+        if dept_id:
+            filters |= Q(
+                assignee__isnull=True,
+                assignee_rule=RequestTypeStepTemplate.RULE_DEPARTMENT_QUEUE,
+                target_department_id=dept_id,
+            )
+        qs = qs.filter(filters)
+
     qs = _filter_steps_for_equipment_scope(qs, equipment_scope)
     return qs.order_by('-request__priority', '-request__created_at', 'step_order')
 

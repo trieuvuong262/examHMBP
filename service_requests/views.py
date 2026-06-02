@@ -324,6 +324,26 @@ def create_request(request):
     })
 
 
+def _resolve_it_repair_tab_scope(request, *, equipment_scope=None, linked_equipment=None):
+    """Tab IT / sản xuất — POST > GET tab > thiết bị liên kết > mặc định IT."""
+    from equipment.scope import SCOPE_PRODUCTION, normalize_repair_equipment_scope, scope_for_device
+
+    if request.method == 'POST':
+        raw = request.POST.get('repair_scope') or request.POST.get('tab')
+        if raw:
+            return normalize_repair_equipment_scope(raw)
+    tab = (request.GET.get('tab') or '').strip().lower()
+    if tab in ('production', 'san-xuat', 'san_xuat'):
+        return SCOPE_PRODUCTION
+    if tab == 'it':
+        return normalize_repair_equipment_scope('it')
+    if equipment_scope:
+        return normalize_repair_equipment_scope(equipment_scope)
+    if linked_equipment is not None:
+        return scope_for_device(linked_equipment)
+    return normalize_repair_equipment_scope('it')
+
+
 @_flow_access_required(flow_tab=FLOW_HO_TRO)
 def create_it_repair(request, equipment_scope=None):
     from equipment.scope import (
@@ -333,9 +353,6 @@ def create_it_repair(request, equipment_scope=None):
         scope_context,
         scope_for_device,
     )
-
-    repair_scope = normalize_repair_equipment_scope(equipment_scope)
-    scope_ctx = scope_context(repair_scope)
 
     request_type = get_it_repair_request_type()
     if not request_type:
@@ -353,15 +370,19 @@ def create_it_repair(request, equipment_scope=None):
         try:
             from equipment.models import Device
             linked_equipment = Device.objects.filter(pk=equipment_id).first()
-            if linked_equipment and scope_for_device(linked_equipment) != repair_scope:
-                messages.error(
-                    request,
-                    f'Thiết bị này thuộc {scope_context(scope_for_device(linked_equipment))["equipment_scope_short"]}, '
-                    f'không khớp form {scope_ctx["equipment_scope_short"]}.',
-                )
-                linked_equipment = None
         except Exception:
             linked_equipment = None
+
+    repair_scope = _resolve_it_repair_tab_scope(
+        request,
+        equipment_scope=equipment_scope,
+        linked_equipment=linked_equipment,
+    )
+    scope_ctx = scope_context(repair_scope)
+
+    if linked_equipment and scope_for_device(linked_equipment) != repair_scope:
+        repair_scope = scope_for_device(linked_equipment)
+        scope_ctx = scope_context(repair_scope)
 
     if request.method == 'POST':
         form = ItRepairCreateForm(request.POST, request_type=request_type)
@@ -422,12 +443,16 @@ def create_it_repair(request, equipment_scope=None):
             })
         form = ItRepairCreateForm(request_type=request_type, initial=initial)
 
+    tab_it_active = repair_scope != SCOPE_PRODUCTION
     return render(request, 'service_requests/it_repair_form.html', {
         'form': form,
         'request_type': request_type,
         'linked_equipment': linked_equipment,
         'repair_scope': repair_scope,
         'is_production_repair': repair_scope == SCOPE_PRODUCTION,
+        'tab_it_active': tab_it_active,
+        'create_url_it': reverse('service_requests:create_it_repair') + '?tab=it',
+        'create_url_production': reverse('service_requests:create_it_repair') + '?tab=production',
         **scope_ctx,
         **_subnav_context(request, flow_tab=FLOW_HO_TRO),
     })
