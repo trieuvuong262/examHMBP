@@ -152,5 +152,14 @@ def portal_permissions(request):
     }
     from service_requests.portal_nav import portal_nav_context
 
-    base.update(portal_nav_context(user))
+    try:
+        base.update(portal_nav_context(user))
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning('portal_nav_context failed: %s', exc)
+        base.update({
+            'jp_de_xuat_pending_count': 0,
+            'jp_ho_tro_pending_count': 0,
+            'jp_can_manage_catalog': False,
+        })
     return base

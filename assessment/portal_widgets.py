@@ -312,9 +312,14 @@ def _equipment_it_widgets(user):
     if not user_can_access_module(user, MODULE_EQUIPMENT):
         return []
 
+    from django.db.utils import DatabaseError, OperationalError, ProgrammingError
+
     from equipment.services.it_repair_queue import pending_it_repair_steps_for_user
 
-    pending = pending_it_repair_steps_for_user(user).count()
+    try:
+        pending = pending_it_repair_steps_for_user(user).count()
+    except (ProgrammingError, OperationalError, DatabaseError):
+        return []
     if not pending:
         return []
     return [{

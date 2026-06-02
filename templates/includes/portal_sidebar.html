@@ -207,7 +207,7 @@
                         {% if jp_can_manage_catalog %}
                         <li>
                             <a href="{% url 'service_requests:catalog_list' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if 'catalog' in request.resolver_match.url_name %}active{% endif %}">
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name and 'catalog' in request.resolver_match.url_name %}active{% endif %}">
                                 <i class="bi bi-journal-text"></i><span>Danh mục định kỳ</span>
                             </a>
                         </li>
