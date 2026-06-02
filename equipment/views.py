@@ -892,7 +892,8 @@ def api_agent_report(request):
         from equipment.services.chassis_category import infer_it_category_from_agent_data
         from equipment.services.agent_install import link_user_from_agent_report
 
-        from equipment.services.agent_device import agent_device_display_name
+        from equipment.services.agent_device import agent_device_default_name
+        from equipment.services.device_code import allocate_agent_device_code
         from equipment.services.managed_department import default_managed_department_for_scope
         from equipment.scope import SCOPE_IT
 
@@ -901,7 +902,8 @@ def api_agent_report(request):
         device, created = Device.objects.get_or_create(
             serial_number=serial,
             defaults={
-                'name': agent_device_display_name(data, serial),
+                'name': agent_device_default_name(data, serial),
+                'device_code': allocate_agent_device_code(),
                 'status': Device.STATUS_ACTIVE,
                 'category': inferred_category,
                 'managed_department': it_dept,
@@ -1109,6 +1111,16 @@ def _agent_exe_path() -> Path | None:
         if candidate.is_file():
             return candidate
     return None
+
+
+def agent_jp_portal_install_ps1(request):
+    """Script PowerShell bước 5 installer — tải qua curl (tránh giới hạn dòng CMD)."""
+    from equipment.services.agent_install import portal_install_powershell_script
+
+    body = portal_install_powershell_script().encode('utf-8')
+    response = HttpResponse(body, content_type='application/octet-stream')
+    response['Content-Disposition'] = 'attachment; filename="jp-portal-install.ps1"'
+    return response
 
 
 def agent_serve_exe(request):

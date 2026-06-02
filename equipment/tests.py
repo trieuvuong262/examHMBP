@@ -61,16 +61,18 @@ class UltraviewerDeviceTests(TestCase):
         self.assertNotIn('UltraViewer ID', device.configuration)
         self.assertNotIn('UltraViewer mật khẩu', device.configuration)
 
-    def test_agent_device_name_starts_with_pc(self):
-        from equipment.services.agent_device import agent_device_display_name
+    def test_agent_device_name_uses_hostname(self):
+        from equipment.services.agent_device import agent_device_default_name
 
         self.assertEqual(
-            agent_device_display_name({'hostname': 'DESKTOP-ABC'}, 'SN1234567890'),
-            'PC-DESKTOP-ABC',
+            agent_device_default_name({'hostname': 'DESKTOP-ABC'}, 'SN1234567890'),
+            'DESKTOP-ABC',
         )
-        self.assertTrue(
-            agent_device_display_name({'hostname': 'PC-HR-01'}, 'x').startswith('PC-'),
+        self.assertEqual(
+            agent_device_default_name({'hostname': 'PC-HR-01'}, 'x'),
+            'PC-HR-01',
         )
+        self.assertEqual(agent_device_default_name({}, 'SN1234567890'), 'PC-345678')
 
     def test_agent_apply_sets_managed_department_it(self):
         from equipment.models import Device
@@ -89,7 +91,7 @@ class UltraviewerDeviceTests(TestCase):
         )
         device.save()
         device.refresh_from_db()
-        self.assertTrue(device.name.startswith('PC-'))
+        self.assertEqual(device.name, 'WORKSTATION')
         self.assertEqual(device.managed_department_id, dept.pk)
 
 
@@ -145,6 +147,8 @@ class AgentCategoryFromChassisTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         device = Device.objects.get(serial_number='SN-LAP-01')
         self.assertEqual(device.category, 'Laptop')
+        self.assertEqual(device.name, 'LAPTOP-01')
+        self.assertTrue(device.device_code.startswith('PC-'))
         self.assertIn('Notebook', device.configuration)
 
     @override_settings(EQUIPMENT_AGENT_SECRET='sec')
@@ -409,9 +413,12 @@ class AgentInstallFlowTests(TestCase):
         self.assertIn('[5/6] Cai ung dung JustPlay Portal', cmd)
         self.assertIn('[6/6] Mo trang xac nhan portal', cmd)
         self.assertIn('JP_ICON_URL=', cmd)
-        self.assertGreaterEqual(cmd.count('-EncodedCommand'), 2)
+        self.assertIn('jp-portal-install.ps1', cmd)
+        self.assertIn('-File "%JP_DIR%\\jp-portal-install.ps1"', cmd)
         self.assertIn('cai-portal-app', cmd)
-        portal_ps = base64.b64decode(uv_match[-1]).decode('utf-16le')
+        from equipment.services.agent_install import portal_install_powershell_script
+
+        portal_ps = portal_install_powershell_script()
         self.assertIn('--install-app=', portal_ps)
         self.assertIn('Start-Sleep -Seconds 25', portal_ps)
         self.assertIn('Deploy-JustPlayPortalShortcuts', portal_ps)
@@ -894,6 +901,19 @@ class DeviceCodeTests(TestCase):
         self.assertTrue(device.device_code.startswith('TB-'))
         second = Device.objects.create(name='PC B', category='PC', status=Device.STATUS_ACTIVE)
         self.assertNotEqual(device.device_code, second.device_code)
+
+    def test_allocate_agent_device_code_pc_prefix(self):
+        from equipment.models import Device
+        from equipment.services.device_code import allocate_agent_device_code
+
+        Device.objects.create(
+            name='Agent PC',
+            device_code='PC-000003',
+            category='PC',
+            status=Device.STATUS_ACTIVE,
+        )
+        code = allocate_agent_device_code()
+        self.assertEqual(code, 'PC-000004')
 
     def test_qr_public_by_device_code(self):
         from equipment.models import Device

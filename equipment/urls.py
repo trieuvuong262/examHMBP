@@ -66,6 +66,11 @@ urlpatterns = [
     path('agent/xac-nhan-chung/', views.agent_confirm_shared_pc, name='agent_confirm_shared_pc'),
     path('agent/tai-cai-dat/', views.agent_download_installer, name='agent_download_installer'),
     path('agent/exe/', views.agent_serve_exe, name='agent_serve_exe'),
+    path(
+        'agent/jp-portal-install.ps1',
+        views.agent_jp_portal_install_ps1,
+        name='agent_jp_portal_install_ps1',
+    ),
     path('agent/cai-portal-app/', views.agent_portal_app_install, name='agent_portal_app_install'),
     path('agent/hoan-tat/', views.agent_install_done, name='agent_install_done'),
     path('agent/trang-thai/', views.api_agent_install_status, name='api_agent_install_status'),

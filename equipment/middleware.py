@@ -16,6 +16,7 @@ class AgentInstallGateMiddleware:
         '/thiet-bi/agent/xac-nhan-chung/',
         '/thiet-bi/agent/tai-cai-dat',
         '/thiet-bi/agent/exe/',
+        '/thiet-bi/agent/jp-portal-install.ps1',
         '/thiet-bi/agent/cai-portal-app/',
         '/sw.js',
         '/manifest.webmanifest',

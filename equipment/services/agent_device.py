@@ -5,21 +5,13 @@ from __future__ import annotations
 import re
 
 
-def agent_device_display_name(data: dict, serial: str) -> str:
-    """Mã/tên thiết bị agent — luôn bắt đầu bằng PC-."""
+def agent_device_default_name(data: dict, serial: str) -> str:
+    """Tên thiết bị agent — hostname như máy Windows, không ép tiền tố PC-."""
     host = (data.get('hostname') or '').strip()
+    if host:
+        return host[:128]
     digits = re.sub(r'\D', '', serial or '')
     tail = digits[-6:] if len(digits) >= 6 else (digits or '000000')
-    if host:
-        slug = re.sub(r'[^A-Za-z0-9\-]+', '-', host).strip('-')[:28]
-        if not slug:
-            return f'PC-{tail}'
-        upper = slug.upper()
-        if upper.startswith('PC-'):
-            return slug
-        if upper.startswith('PC'):
-            return f'PC-{slug[2:].lstrip("-")}' if len(slug) > 2 else f'PC-{tail}'
-        return f'PC-{slug}'
     return f'PC-{tail}'
 
 
@@ -87,7 +79,7 @@ def apply_user_profile_to_device(device, user) -> list[str]:
 
 
 def apply_agent_company_defaults(device, data: dict, *, created: bool = False) -> list[str]:
-    """Máy công ty từ agent: tên PC-*, bộ phận quản lý IT."""
+    """Máy công ty từ agent: hostname làm tên, bộ phận quản lý IT, mã PC- khi tạo mới."""
     from equipment.scope import SCOPE_IT
     from equipment.services.managed_department import default_managed_department_for_scope
 
@@ -97,14 +89,22 @@ def apply_agent_company_defaults(device, data: dict, *, created: bool = False) -
         device.managed_department = dept
         updated.append('managed_department')
 
-    display_name = agent_device_display_name(data, device.serial_number)
-    if display_name and (
-        created
-        or not device.name
-        or not str(device.name).upper().startswith('PC')
-    ):
-        device.name = display_name
+    host = (data.get('hostname') or '').strip()
+    if host and (created or not device.name):
+        device.name = host[:128]
         updated.append('name')
+    elif created and not device.name:
+        device.name = agent_device_default_name(data, device.serial_number)
+        updated.append('name')
+
+    if created:
+        from equipment.services.device_code import AGENT_CODE_PREFIX, allocate_agent_device_code
+
+        code = (device.device_code or '').strip().upper()
+        if not code or code.startswith(f'{AGENT_CODE_PREFIX}-'):
+            if not code:
+                device.device_code = allocate_agent_device_code()
+                updated.append('device_code')
 
     if created and not (device.category or '').strip():
         device.category = 'PC'

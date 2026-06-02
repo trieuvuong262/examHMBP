@@ -355,6 +355,8 @@ function Write-JpLog([string]$msg) {
     if ($env:JP_LOG) { Add-Content -Path $env:JP_LOG -Value $msg -Encoding UTF8 -ErrorAction SilentlyContinue }
 }
 
+Write-JpLog '[5/6] PWA: bat dau'
+
 function Get-JpPortalIconFile {
     if (-not $iconUrl -or -not $jpDir) { return $null }
     $iconFile = Join-Path $jpDir 'portal-icon.png'
@@ -477,7 +479,14 @@ Deploy-JustPlayPortalShortcuts $browser $installUrl
 
 Write-JpLog '[5/6] PWA: Desktop + Startup + pin (best-effort) + auto-start Run'
 Write-JpLog '[5/6] PWA: neu chua thay hop thoai — tren tab dang mo bam nut Cai hoac menu Apps > Install'
+Write-JpLog '[5/6] PWA: xong'
+exit 0
 """
+
+
+def portal_install_powershell_script() -> str:
+    """Script PowerShell bước 5 — phục vụ tải qua /thiet-bi/agent/jp-portal-install.ps1."""
+    return _PORTAL_INSTALL_PS
 
 
 def _installer_portal_ps_b64() -> str:
@@ -619,10 +628,30 @@ def build_installer_cmd(*, user, token: str, machine_type: str | None = None) ->
         f'set "JP_APP_PAGE={portal_app_page}"',
         f'set "JP_ICON_URL={portal_icon_url}"',
         'echo [5/6] Cai ung dung JustPlay Portal (Install app)...',
+        'echo      Dang tai script cai Portal...',
+        f'curl -fsSL "{base}/thiet-bi/agent/jp-portal-install.ps1" -o "%JP_DIR%\\jp-portal-install.ps1" 2>> "%JP_LOG%"',
+        'if not exist "%JP_DIR%\\jp-portal-install.ps1" (',
+        '  echo      curl that bai - thu PowerShell...',
         (
-            'powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand '
-            f'{_installer_portal_ps_b64()} 2>> "%JP_LOG%"'
+            '  powershell -NoProfile -ExecutionPolicy Bypass -Command '
+            f'"[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; '
+            f'Invoke-WebRequest -Uri \'{base}/thiet-bi/agent/jp-portal-install.ps1\' '
+            f'-OutFile \'%JP_DIR%\\jp-portal-install.ps1\' -UseBasicParsing" 2>> "%JP_LOG%"'
         ),
+        ')',
+        'if not exist "%JP_DIR%\\jp-portal-install.ps1" (',
+        '  echo  LOI: Khong tai duoc jp-portal-install.ps1',
+        '  echo  Xem log: %JP_LOG%',
+        '  goto :end_fail',
+        ')',
+        'echo      Dang chay cai Portal ^(co the mat 30-60 giay^)...',
+        'powershell -NoProfile -ExecutionPolicy Bypass -File "%JP_DIR%\\jp-portal-install.ps1" 2>> "%JP_LOG%"',
+        'if errorlevel 1 (',
+        '  echo  LOI: Buoc 5 cai Portal that bai',
+        '  echo  Xem log: %JP_LOG%',
+        '  goto :end_fail',
+        ')',
+        'echo      OK',
         'echo      Da mo trang cai + goi Install app (Edge/Chrome).',
         'echo      Neu co hop thoai: bam **Cai dat** / **Install**.',
         'echo      Tu dong: Desktop shortcut, Startup, pin taskbar/Start (neu Windows cho phep),',
