@@ -471,6 +471,100 @@ def list_directory_via_rclone(rel_path: str, *, user=None, fresh: bool = False) 
     return listing
 
 
+def nas_item_kind(rel_path: str, *, user=None) -> str | None:
+    """'file', 'dir', hoặc None — kiểm tra mount rồi rclone."""
+    dept_code = user_department_folder_code(user) if user else None
+    rel = strip_legacy_dept_prefix(rel_path, dept_code)
+    if not rel:
+        return None
+
+    local_root = nas_local_mount_root(user) if user else nas_mount_root()
+    local = local_root / rel
+    try:
+        if local.is_file():
+            return 'file'
+        if local.is_dir():
+            return 'dir'
+    except OSError:
+        pass
+
+    if not rclone_listing_available():
+        return None
+
+    target = _rclone_remote_path(rel, user=user)
+    try:
+        proc = subprocess.run(
+            ['rclone', 'lsl', target],
+            capture_output=True,
+            text=True,
+            timeout=20,
+            check=False,
+            env=_rclone_env(),
+        )
+        if proc.returncode == 0 and (proc.stdout or '').strip():
+            return 'file'
+        proc = subprocess.run(
+            ['rclone', 'lsd', target],
+            capture_output=True,
+            text=True,
+            timeout=20,
+            check=False,
+            env=_rclone_env(),
+        )
+        if proc.returncode == 0:
+            return 'dir'
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return None
+
+
+def delete_nas_item(user, rel_path: str) -> str:
+    """
+    Xóa file/thư mục trên NAS (mount hoặc rclone).
+    Trả về tên mục đã xóa.
+    """
+    dept_code = user_department_folder_code(user)
+    rel = strip_legacy_dept_prefix(rel_path, dept_code)
+    if not rel:
+        raise NasPathError('Chưa chọn mục cần xóa.')
+
+    kind = nas_item_kind(rel, user=user)
+    name = Path(rel).name
+    if kind is None:
+        raise NasPathError('Không tìm thấy file hoặc thư mục trên NAS.')
+
+    local = nas_local_mount_root(user) / rel
+
+    if kind == 'file':
+        try:
+            if local.is_file():
+                local.unlink()
+                return name
+        except OSError:
+            pass
+        delete_via_rclone(rel, user=user)
+        return name
+
+    if kind == 'dir':
+        try:
+            if local.is_dir():
+                if any(local.iterdir()):
+                    raise NasPathError('Chỉ xóa được thư mục rỗng.')
+                local.rmdir()
+                return name
+        except NasPathError:
+            raise
+        except OSError:
+            pass
+        listing = list_directory_via_rclone(rel, user=user, fresh=True)
+        if listing['folders'] or listing['files']:
+            raise NasPathError('Chỉ xóa được thư mục rỗng.')
+        delete_dir_via_rclone(rel, user=user)
+        return name
+
+    raise NasPathError('Không tìm thấy file hoặc thư mục trên NAS.')
+
+
 def delete_via_rclone(rel_path: str, *, user=None) -> None:
     target = _rclone_remote_path(rel_path, user=user)
     try:

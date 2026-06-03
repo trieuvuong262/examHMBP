@@ -17,8 +17,7 @@ from hrm.module_permissions import (
 from nas_storage.nas_paths import (
     NasPathError,
     build_breadcrumb,
-    delete_dir_via_rclone,
-    delete_via_rclone,
+    delete_nas_item,
     get_user_nas_roots,
     invalidate_listing_cache,
     list_directory_with_source,
@@ -284,29 +283,21 @@ def delete_entry(request):
     rel_path = strip_legacy_dept_prefix(request.POST.get('path', ''), dept_code)
     parent_rel = strip_legacy_dept_prefix(request.POST.get('parent', ''), dept_code)
 
+    if not rel_path:
+        messages.error(request, 'Chưa chọn mục cần xóa.')
+        return redirect(_browse_url(parent_rel))
+
     try:
-        path = resolve_nas_path(request.user, rel_path)
+        resolve_nas_path(request.user, rel_path)
     except NasPathError as exc:
         messages.error(request, str(exc))
-        return redirect('nas_storage:browse')
-
-    name = path.name
-    if path.is_dir():
-        if any(path.iterdir()):
-            messages.error(request, 'Chỉ xóa được thư mục rỗng.')
-            return redirect(_browse_url(parent_rel or rel_path))
-        try:
-            path.rmdir()
-        except OSError:
-            delete_dir_via_rclone(rel_path, user=request.user)
-    elif path.is_file():
-        try:
-            path.unlink()
-        except OSError:
-            delete_via_rclone(rel_path, user=request.user)
-    else:
-        messages.error(request, 'Không tìm thấy file hoặc thư mục.')
         return redirect(_browse_url(parent_rel))
+
+    try:
+        name = delete_nas_item(request.user, rel_path)
+    except NasPathError as exc:
+        messages.error(request, str(exc))
+        return redirect(_browse_url(parent_rel or rel_path))
 
     invalidate_listing_cache(request.user, parent_rel or rel_path)
     messages.success(request, f'Đã xóa "{name}".')

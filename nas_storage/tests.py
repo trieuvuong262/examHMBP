@@ -201,6 +201,40 @@ class NasBrowseViewTests(TestCase):
         self.assertContains(response, 'bi-download')
 
 
+class NasDeleteTests(TestCase):
+    def setUp(self):
+        self.dept, _ = Department.objects.get_or_create(name='IT', defaults={'sort_order': 1})
+        self.user = User.objects.create_user(username='nas_del_user', password='test')
+        Profile.objects.filter(user=self.user).update(full_name='Del', department=self.dept)
+
+    @override_settings(NAS_MOUNT_ROOT='/tmp/nas-del-test')
+    def test_delete_nas_item_uses_rclone_when_missing_on_mount(self):
+        from unittest.mock import patch
+
+        from nas_storage.nas_paths import delete_nas_item
+
+        rel = 'IT/nas_del_user/only-on-nas.txt'
+        with patch('nas_storage.nas_paths.nas_item_kind', return_value='file'):
+            with patch('nas_storage.nas_paths.delete_via_rclone') as mock_del:
+                name = delete_nas_item(self.user, rel)
+        self.assertEqual(name, 'only-on-nas.txt')
+        mock_del.assert_called_once()
+
+    @override_settings(NAS_MOUNT_ROOT='/tmp/nas-del-test')
+    def test_delete_view_via_rclone_when_not_on_mount(self):
+        from unittest.mock import patch
+
+        self.client.login(username='nas_del_user', password='test')
+        rel = 'IT/nas_del_user/only-on-nas.txt'
+        with patch('nas_storage.views.delete_nas_item', return_value='only-on-nas.txt'):
+            response = self.client.post(
+                reverse('nas_storage:delete'),
+                {'path': rel, 'parent': 'IT/nas_del_user'},
+            )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/thu-muc-nas/', response.url)
+
+
 class NasRcloneListingTests(TestCase):
     @override_settings(NAS_RCLONE_REMOTE='synology:DATACHUNG')
     def test_list_directory_via_rclone_parses_json(self):
