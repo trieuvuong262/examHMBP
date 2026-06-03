@@ -601,7 +601,7 @@ def _org_redirect_for_division(division):
 def org_structure(request):
     from django.db.utils import OperationalError, ProgrammingError
 
-    from hrm.org_structure import build_org_treemap
+    from hrm.org_structure import build_org_tree, build_org_treemap, filter_org_tree
 
     search_query = get_search_query(request)
     try:
@@ -638,12 +638,32 @@ def org_structure(request):
         treemap.unassigned_divisions = [
             div for div in treemap.unassigned_divisions if q in div.name.lower()
         ]
-    max_weight = max((d.treemap_weight for d in treemap.departments), default=1)
+    tree_data = build_org_tree(treemap)
+    if search_query:
+        filtered = filter_org_tree(tree_data, search_query)
+        if filtered is not None:
+            tree_data = filtered
+
+    def _pat(name, pk=0):
+        return reverse(name, args=[pk]).replace(f'/{pk}/', '/{id}/')
+
+    urls = {
+        'userList': reverse('user_list'),
+        'departmentAdd': reverse('department_add'),
+        'divisionAdd': reverse('division_add') + '?department={dept_id}',
+        'deptEdit': _pat('department_edit'),
+        'deptDelete': _pat('department_delete'),
+        'deptPermissions': _pat('department_permissions'),
+        'divEdit': _pat('division_edit'),
+        'divDelete': _pat('division_delete'),
+    }
+
     return render(request, 'assessment/admin/org_structure.html', {
         'treemap': treemap,
         'search_query': search_query,
-        'max_treemap_weight': max_weight,
         'org_structure_clear_url': reverse('org_structure'),
+        'org_tree': tree_data,
+        'org_urls': urls,
     })
 
 

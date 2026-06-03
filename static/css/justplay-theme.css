@@ -3124,6 +3124,188 @@ textarea.form-control {
     color: var(--jp-hm, #0d9488);
 }
 
+/* Sơ đồ cây D3 — giống mindmap / org chart ngang */
+.jp-org-tree-card {
+    overflow: hidden;
+}
+
+.jp-org-tree-mount {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: min(75vh, 42rem);
+    background: #fafafa;
+    border-radius: 0.5rem;
+}
+
+.jp-org-tree-svg {
+    display: block;
+    min-width: 100%;
+}
+
+.jp-org-tree-link {
+    stroke: #cbd5e1;
+    stroke-width: 1.5px;
+}
+
+.jp-org-tree-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    height: 100%;
+    padding: 0.35rem 0.4rem 0.35rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid #f9a8d4;
+    background: linear-gradient(180deg, #fff5f7 0%, #ffe4e6 100%);
+    box-shadow: 0 1px 4px rgba(190, 24, 93, 0.08);
+    font-family: Inter, system-ui, sans-serif;
+    position: relative;
+}
+
+.jp-org-tree-node--root .jp-org-tree-pill {
+    background: linear-gradient(180deg, #fda4af 0%, #fb7185 55%, #f43f5e 100%);
+    border-color: #e11d48;
+    color: #fff;
+    min-width: 11rem;
+}
+
+.jp-org-tree-node--root .jp-org-tree-pill__name,
+.jp-org-tree-node--root .jp-org-tree-pill__sub {
+    color: #fff;
+}
+
+.jp-org-tree-node--department .jp-org-tree-pill {
+    background: linear-gradient(180deg, #fff1f2 0%, #fecdd3 100%);
+    border-color: #fb7185;
+}
+
+.jp-org-tree-node--division .jp-org-tree-pill {
+    background: #fff;
+    border-color: #fbcfe8;
+}
+
+.jp-org-tree-node--position .jp-org-tree-pill {
+    background: #fff;
+    border-color: #e2e8f0;
+    min-width: 8rem;
+}
+
+.jp-org-tree-node--position .jp-org-tree-pill__name {
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.jp-org-tree-node--unassigned .jp-org-tree-pill {
+    border-color: #f59e0b;
+    background: #fffbeb;
+}
+
+.jp-org-tree-pill__body {
+    flex: 1;
+    min-width: 0;
+}
+
+.jp-org-tree-pill__name {
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #1e293b;
+    word-break: break-word;
+}
+
+.jp-org-tree-pill__sub {
+    font-size: 0.62rem;
+    font-weight: 600;
+    opacity: 0.9;
+    line-height: 1.2;
+    color: #64748b;
+}
+
+.jp-org-tree-node--root .jp-org-tree-pill__sub {
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.jp-org-tree-pill__badge {
+    flex-shrink: 0;
+    min-width: 1.65rem;
+    height: 1.65rem;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    background: #fff;
+    border: 1px solid #fda4af;
+    color: #be123c;
+    font-size: 0.72rem;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.jp-org-tree-node--root .jp-org-tree-pill__badge {
+    background: rgba(255, 255, 255, 0.95);
+    color: #be123c;
+}
+
+.jp-org-tree-pill__menu {
+    position: absolute;
+    top: -6px;
+    right: -4px;
+    display: none;
+    gap: 2px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 0.35rem;
+    padding: 2px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.jp-org-tree-pill:hover .jp-org-tree-pill__menu,
+.jp-org-tree-pill:focus-within .jp-org-tree-pill__menu {
+    display: flex;
+}
+
+.jp-org-tree-pill__action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 0.25rem;
+    color: #475569;
+    text-decoration: none;
+    font-size: 0.75rem;
+}
+
+.jp-org-tree-pill__action:hover {
+    background: #f1f5f9;
+    color: var(--jp-hm, #0d9488);
+}
+
+.jp-org-tree-pill__action.is-danger:hover {
+    color: #dc2626;
+}
+
+[data-theme="dark"] .jp-org-tree-mount {
+    background: #0f172a;
+}
+
+[data-theme="dark"] .jp-org-tree-link {
+    stroke: #475569;
+}
+
+[data-theme="dark"] .jp-org-tree-pill {
+    background: rgba(30, 41, 59, 0.9);
+    border-color: #9f1239;
+}
+
+[data-theme="dark"] .jp-org-tree-pill__name {
+    color: #f1f5f9;
+}
+
+[data-theme="dark"] .jp-org-tree-node--division .jp-org-tree-pill,
+[data-theme="dark"] .jp-org-tree-node--position .jp-org-tree-pill {
+    background: rgba(15, 23, 42, 0.85);
+}
+
 /* Cơ cấu tổ chức — sơ đồ ngang (trái GDĐH → phải PB → BP) */
 .jp-org-chart-scroll {
     width: 100%;

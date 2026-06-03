@@ -620,13 +620,15 @@ class OrgStructureTreemapTests(TestCase):
     def test_org_structure_treemap_renders_hierarchy(self):
         response = self.client.get(reverse('org_structure'))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Giám đốc điều hành')
+        self.assertContains(response, 'jp-org-tree-data')
+        self.assertContains(response, 'subtitle')
         self.assertContains(response, 'ORG-DEPT-A')
         self.assertContains(response, 'ORG-DIV-1')
         self.assertContains(response, 'ORG-DIV-ORPHAN')
-        self.assertContains(response, 'jp-org-chart')
-        self.assertContains(response, 'jp-org-chart__gddh')
-        self.assertContains(response, 'jp-org-chart__track')
+        self.assertContains(response, 'jp-org-tree-mount')
+        self.assertContains(response, 'jp-org-tree-data')
+        self.assertContains(response, 'ORG-DEPT-A')
+        self.assertContains(response, 'org_tree.js')
 
     def test_division_form_rejects_duplicate_in_same_department(self):
         from hrm.forms import DivisionForm

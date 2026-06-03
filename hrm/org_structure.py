@@ -10,6 +10,8 @@ from hrm.models import Department, Division, Profile
 from hrm.permissions import ROLE_DIRECTOR
 
 ORG_EXECUTIVE_LABEL = 'Giám đốc điều hành'
+ORG_COMPANY_ROOT = 'Công ty TNHH Just Play'
+MAX_POSITIONS_PER_DIVISION = 12
 
 
 @dataclass
@@ -120,6 +122,105 @@ def build_org_treemap() -> OrgTreemapContext:
             'không quản lý trong sơ đồ này.'
         ),
     )
+
+
+def _position_children(department_id: int, division_id: int) -> list[dict]:
+    rows = (
+        Profile.objects.filter(
+            is_employed=True,
+            department_id=department_id,
+            division_id=division_id,
+        )
+        .exclude(job_position='')
+        .values('job_position')
+        .annotate(count=Count('id'))
+        .order_by('-count', 'job_position')[:MAX_POSITIONS_PER_DIVISION]
+    )
+    return [
+        {
+            'name': row['job_position'],
+            'count': row['count'],
+            'level': 'position',
+            'children': [],
+        }
+        for row in rows
+    ]
+
+
+def build_org_tree(treemap: OrgTreemapContext) -> dict:
+    """Cây JSON cho sơ đồ ngang (D3) — Công ty → Phòng ban → Bộ phận → Vị trí."""
+    children: list[dict] = []
+
+    for dept in treemap.departments:
+        div_children: list[dict] = []
+        for div in dept.divisions:
+            div_children.append({
+                'name': div.name,
+                'count': div.staff_count,
+                'level': 'division',
+                'id': div.pk,
+                'dept_id': dept.pk,
+                'is_active': div.is_active,
+                'children': _position_children(dept.pk, div.pk),
+            })
+        children.append({
+            'name': dept.name,
+            'count': dept.staff_count,
+            'level': 'department',
+            'id': dept.pk,
+            'is_active': dept.is_active,
+            'children': div_children,
+        })
+
+    if treemap.unassigned_divisions:
+        children.append({
+            'name': 'Chưa gán phòng ban',
+            'count': sum(d.staff_count for d in treemap.unassigned_divisions),
+            'level': 'unassigned',
+            'children': [
+                {
+                    'name': div.name,
+                    'count': div.staff_count,
+                    'level': 'division',
+                    'id': div.pk,
+                    'dept_id': None,
+                    'is_active': div.is_active,
+                    'children': [],
+                }
+                for div in treemap.unassigned_divisions
+            ],
+        })
+
+    return {
+        'name': ORG_COMPANY_ROOT,
+        'count': treemap.total_staff,
+        'level': 'root',
+        'subtitle': f'{treemap.executive_label} · {treemap.director_count} GĐ',
+        'children': children,
+    }
+
+
+def filter_org_tree(node: dict, query: str) -> dict | None:
+    """Lọc cây theo từ khóa — giữ nhánh khớp tên."""
+    if not query:
+        return node
+    q = query.lower().strip()
+    if not q:
+        return node
+
+    name = (node.get('name') or '').lower()
+    matched = q in name
+    kids = []
+    for child in node.get('children') or []:
+        kept = filter_org_tree(child, q)
+        if kept is not None:
+            kids.append(kept)
+            matched = True
+    if not matched:
+        return None
+    out = dict(node)
+    out['children'] = kids
+    return out
 
 
 def divisions_for_department(department_id: int | None):
