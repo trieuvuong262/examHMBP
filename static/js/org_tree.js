@@ -114,7 +114,12 @@
         return w + actionStripWidth(buildActions(nodeData, urls));
     }
 
-    const LINK = { radius: 8, minGap: 28 };
+    const LINK = {
+        radius: Math.round(8 * WIDTH_SCALE),
+        minGap: Math.round(28 * WIDTH_SCALE),
+        stubMin: Math.round(20 * WIDTH_SCALE),
+        stubEnd: Math.round(14 * WIDTH_SCALE),
+    };
 
     function targetAnchorX(nodeData) {
         const level = nodeData.level || 'item';
@@ -147,8 +152,8 @@
             return `M${sx},${sy}H${tx}`;
         }
 
-        let mx = sx + Math.min(Math.max(dx * 0.42, 20), dx - 14);
-        mx = Math.max(sx + 8, Math.min(tx - 8, mx));
+        let mx = sx + Math.min(Math.max(dx * 0.42, LINK.stubMin), dx - LINK.stubEnd);
+        mx = Math.max(sx + LINK.stubEnd, Math.min(tx - LINK.stubEnd, mx));
 
         const r = Math.min(
             LINK.radius,
