@@ -365,10 +365,12 @@ verify_nas_rclone() {
 
 echo "==> 9) PWA icons from static/images/logo/logo.png"
 if [ -f "static/images/logo/logo.png" ]; then
-  if command -v python3 >/dev/null 2>&1; then
-    python3 scripts/generate_pwa_icons.py
+  if compose exec -T web python scripts/generate_pwa_icons.py 2>/dev/null; then
+    echo "    PWA icons generated (via web container)."
+  elif command -v python3 >/dev/null 2>&1 && python3 scripts/generate_pwa_icons.py 2>/dev/null; then
+    echo "    PWA icons generated (host python3)."
   else
-    python scripts/generate_pwa_icons.py
+    echo "    WARNING: skip PWA icons (PIL missing on host — optional)."
   fi
 else
   echo "    WARNING: static/images/logo/logo.png missing — skip icon generation"
