@@ -193,6 +193,46 @@ class Division(models.Model):
         return self.division_profiles.count()
 
 
+class DivisionPosition(models.Model):
+    """Vị trí công việc thuộc bộ phận — hiển thị trên sơ đồ (có thể chưa có NV)."""
+    division = models.ForeignKey(
+        Division,
+        on_delete=models.CASCADE,
+        related_name='positions',
+        verbose_name='Bộ phận',
+    )
+    department = models.ForeignKey(
+        Department,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='division_positions',
+        verbose_name='Phòng ban',
+    )
+    name = models.CharField(max_length=150, verbose_name='Tên vị trí')
+    sort_order = models.PositiveIntegerField(default=0, verbose_name='Thứ tự hiển thị')
+    is_active = models.BooleanField(default=True, verbose_name='Đang sử dụng')
+
+    class Meta:
+        ordering = ['sort_order', 'name']
+        verbose_name = 'Vị trí (bộ phận)'
+        verbose_name_plural = 'Vị trí (bộ phận)'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['division', 'name'],
+                name='hrm_division_position_div_name_uniq',
+            ),
+        ]
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        if self.division_id and not self.department_id:
+            self.department_id = self.division.department_id
+        super().save(*args, **kwargs)
+
+
 class Profile(models.Model):
     POSITION_CHOICES = POSITION_CHOICES
     ROLE_CHOICES = ROLE_CHOICES

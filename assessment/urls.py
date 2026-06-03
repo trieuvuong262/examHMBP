@@ -45,6 +45,9 @@ urlpatterns = [
     path('dashboard/divisions/add/', hrm_views.division_add, name='division_add'),
     path('dashboard/divisions/edit/<int:pk>/', hrm_views.division_edit, name='division_edit'),
     path('dashboard/divisions/delete/<int:pk>/', hrm_views.division_delete, name='division_delete'),
-    
+    path('dashboard/org/positions/add/', hrm_views.org_position_add, name='org_position_add'),
+    path('dashboard/org/positions/edit/<int:pk>/', hrm_views.org_position_edit, name='org_position_edit'),
+    path('dashboard/org/positions/delete/<int:pk>/', hrm_views.org_position_delete, name='org_position_delete'),
+
     path('login-redirect/', views.login_redirect_view, name='login_redirect'),
 ]

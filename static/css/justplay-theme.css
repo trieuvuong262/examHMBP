@@ -3131,12 +3131,34 @@ textarea.form-control {
 
 .jp-org-tree-mount {
     width: 100%;
-    overflow-x: auto;
-    overflow-y: auto;
-    max-height: min(70vh, 36rem);
+    overflow: hidden;
+    min-height: 420px;
+    max-height: min(78vh, 44rem);
     background: #fafafa;
     border-radius: 0.35rem;
     padding: 0.25rem;
+    cursor: grab;
+    touch-action: none;
+}
+
+.jp-org-tree-mount--pan:active {
+    cursor: grabbing;
+}
+
+.jp-org-tree-col-head-bg {
+    fill: #e2e8f0;
+    stroke: #cbd5e1;
+    stroke-width: 1;
+}
+
+.jp-org-tree-col-head-label {
+    font-family: Inter, system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    fill: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    pointer-events: none;
 }
 
 .jp-org-tree-svg {
@@ -3227,7 +3249,7 @@ textarea.form-control {
 
 .jp-org-tree-pill-label {
     font-family: Inter, system-ui, sans-serif;
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 700;
     fill: #1e293b;
     pointer-events: none;
@@ -3235,7 +3257,7 @@ textarea.form-control {
 
 .jp-org-tree-pill-sub {
     font-family: Inter, system-ui, sans-serif;
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 600;
     fill: #64748b;
     pointer-events: none;

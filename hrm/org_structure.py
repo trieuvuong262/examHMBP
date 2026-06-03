@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 from django.db.models import Count, Prefetch, Q
 
-from hrm.models import Department, Division, Profile
+from hrm.models import Department, Division, DivisionPosition, Profile
 from hrm.permissions import ROLE_DIRECTOR
 
 ORG_EXECUTIVE_LABEL = 'Giám đốc điều hành'
@@ -118,33 +118,60 @@ def build_org_treemap() -> OrgTreemapContext:
         departments=dept_nodes,
         unassigned_divisions=unassigned,
         position_hint=(
-            'Vị trí (cấp thấp nhất) nhập tự do tại hồ sơ nhân viên — '
-            'không quản lý trong sơ đồ này.'
+            'Vị trí: thêm từ nút + trên bộ phận trong sơ đồ hoặc gán khi thêm nhân viên. '
+            'Tên vị trí trùng với hồ sơ NV sẽ gộp số lượng.'
         ),
     )
 
 
-def _position_children(department_id: int, division_id: int) -> list[dict]:
-    rows = (
-        Profile.objects.filter(
-            is_employed=True,
-            department_id=department_id,
-            division_id=division_id,
-        )
-        .exclude(job_position='')
-        .values('job_position')
-        .annotate(count=Count('id'))
-        .order_by('-count', 'job_position')[:MAX_POSITIONS_PER_DIVISION]
-    )
-    return [
-        {
-            'name': row['job_position'],
-            'count': row['count'],
+def _staff_counts_by_position(department_id: int | None, division_id: int) -> dict[str, int]:
+    qs = Profile.objects.filter(is_employed=True, division_id=division_id).exclude(job_position='')
+    if department_id:
+        qs = qs.filter(department_id=department_id)
+    rows = qs.values('job_position').annotate(count=Count('id'))
+    return {row['job_position']: row['count'] for row in rows}
+
+
+def _position_children(department_id: int | None, division_id: int) -> list[dict]:
+    counts = _staff_counts_by_position(department_id, division_id)
+    defined = DivisionPosition.objects.filter(
+        division_id=division_id,
+        is_active=True,
+    ).order_by('sort_order', 'name')
+    seen: set[str] = set()
+    out: list[dict] = []
+
+    for pos in defined:
+        seen.add(pos.name)
+        out.append({
+            'name': pos.name,
+            'count': counts.get(pos.name, 0),
             'level': 'position',
+            'id': pos.pk,
+            'division_id': division_id,
+            'dept_id': department_id,
+            'is_defined': True,
             'children': [],
-        }
-        for row in rows
-    ]
+        })
+
+    extras = sorted(
+        ((name, cnt) for name, cnt in counts.items() if name not in seen),
+        key=lambda item: (-item[1], item[0].lower()),
+    )
+    for name, cnt in extras:
+        if len(out) >= MAX_POSITIONS_PER_DIVISION:
+            break
+        out.append({
+            'name': name,
+            'count': cnt,
+            'level': 'position',
+            'id': None,
+            'division_id': division_id,
+            'dept_id': department_id,
+            'is_defined': False,
+            'children': [],
+        })
+    return out[:MAX_POSITIONS_PER_DIVISION]
 
 
 def build_org_tree(treemap: OrgTreemapContext) -> dict:
@@ -185,7 +212,7 @@ def build_org_tree(treemap: OrgTreemapContext) -> dict:
                     'id': div.pk,
                     'dept_id': None,
                     'is_active': div.is_active,
-                    'children': [],
+                    'children': _position_children(None, div.pk),
                 }
                 for div in treemap.unassigned_divisions
             ],

@@ -10,13 +10,21 @@ from django.contrib.auth import logout
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_GET
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, Prefetch
 # Import từ các app khác sang
 from hrm.module_permissions import ALL_MODULE_KEYS, MODULE_CHOICES, MODULE_LABELS
 from assessment.decorators import admin_only
 from assessment.forms import UserForm # Tạm thời Form vẫn để ở nhà cũ, mốt mình dời sau
 from django.utils.text import slugify
-from hrm.models import Profile, Department, Division, DepartmentMenuPermission, PermissionGroup, RoleModulePermission
+from hrm.models import (
+    Profile,
+    Department,
+    Division,
+    DivisionPosition,
+    DepartmentMenuPermission,
+    PermissionGroup,
+    RoleModulePermission,
+)
 from hrm.group_permissions import group_list_summary
 from hrm.role_permissions import ROLE_LABELS, default_role_permissions
 from hrm.permissions import ROLE_CHOICES
@@ -186,9 +194,17 @@ def user_add(request):
 
         messages.error(request, 'Không lưu được — vui lòng kiểm tra các ô báo đỏ bên dưới.')
     else:
-        form = CustomUserForm(initial={
-            'password': generate_secure_password(),
-        })
+        initial = {'password': generate_secure_password()}
+        dept_id = (request.GET.get('department') or '').strip()
+        div_id = (request.GET.get('division') or '').strip()
+        job_position = (request.GET.get('job_position') or '').strip()
+        if dept_id.isdigit():
+            initial['department'] = int(dept_id)
+        if div_id.isdigit():
+            initial['division'] = int(div_id)
+        if job_position:
+            initial['job_position'] = job_position
+        form = CustomUserForm(initial=initial)
 
     return render(request, 'assessment/admin/user_form.html', {
         'form': form,
@@ -649,14 +665,29 @@ def org_structure(request):
 
     urls = {
         'userList': reverse('user_list'),
+        'userAdd': reverse('user_add') + '?department={dept_id}&division={div_id}&job_position={position}',
         'departmentAdd': reverse('department_add'),
         'divisionAdd': reverse('division_add') + '?department={dept_id}',
+        'positionAdd': reverse('org_position_add') + '?department={dept_id}&division={div_id}',
         'deptEdit': _pat('department_edit'),
         'deptDelete': _pat('department_delete'),
         'deptPermissions': _pat('department_permissions'),
         'divEdit': _pat('division_edit'),
         'divDelete': _pat('division_delete'),
+        'positionEdit': _pat('org_position_edit'),
+        'positionDelete': _pat('org_position_delete'),
     }
+
+    position_qs = DivisionPosition.objects.filter(is_active=True).order_by('sort_order', 'name')
+    division_manage_qs = Division.objects.prefetch_related(
+        Prefetch('positions', queryset=position_qs),
+    ).order_by('sort_order', 'name')
+    manage_departments = Department.objects.prefetch_related(
+        Prefetch('divisions', queryset=division_manage_qs),
+    ).order_by('sort_order', 'name')
+    manage_unassigned = Division.objects.filter(department__isnull=True).prefetch_related(
+        Prefetch('positions', queryset=position_qs),
+    ).order_by('sort_order', 'name')
 
     return render(request, 'assessment/admin/org_structure.html', {
         'treemap': treemap,
@@ -664,6 +695,8 @@ def org_structure(request):
         'org_structure_clear_url': reverse('org_structure'),
         'org_tree': tree_data,
         'org_urls': urls,
+        'manage_departments': manage_departments,
+        'manage_unassigned': manage_unassigned,
     })
 
 
@@ -996,6 +1029,84 @@ def division_delete(request, pk):
     return render(request, 'assessment/admin/division_confirm_delete.html', {
         'division': division,
     })
+
+
+@admin_only
+def org_position_add(request):
+    from hrm.forms import DivisionPositionForm
+
+    if request.method == 'POST':
+        form = DivisionPositionForm(request.POST)
+        if form.is_valid():
+            position = form.save()
+            messages.success(request, f'Đã thêm vị trí "{position.name}".')
+            return _org_redirect_for_division(position.division)
+    else:
+        initial = {}
+        div_id = (request.GET.get('division') or '').strip()
+        dept_id = (request.GET.get('department') or '').strip()
+        if div_id.isdigit():
+            initial['division'] = int(div_id)
+        elif dept_id.isdigit():
+            div = Division.objects.filter(department_id=int(dept_id)).order_by('sort_order', 'name').first()
+            if div:
+                initial['division'] = div.pk
+        form = DivisionPositionForm(initial=initial)
+    return render(request, 'assessment/admin/org_position_form.html', {
+        'form': form,
+        'title': 'Thêm vị trí',
+    })
+
+
+@admin_only
+def org_position_edit(request, pk):
+    from hrm.forms import DivisionPositionForm
+    from hrm.models import DivisionPosition
+
+    position = get_object_or_404(DivisionPosition, pk=pk)
+    if request.method == 'POST':
+        form = DivisionPositionForm(request.POST, instance=position)
+        if form.is_valid():
+            position = form.save()
+            messages.success(request, f'Đã cập nhật vị trí "{position.name}".')
+            return _org_redirect_for_division(position.division)
+    else:
+        form = DivisionPositionForm(instance=position)
+    return render(request, 'assessment/admin/org_position_form.html', {
+        'form': form,
+        'title': 'Sửa vị trí',
+        'position': position,
+        'is_edit': True,
+    })
+
+
+@admin_only
+def org_position_delete(request, pk):
+    from hrm.models import DivisionPosition
+
+    position = get_object_or_404(DivisionPosition, pk=pk)
+    if request.method == 'POST':
+        in_use = Profile.objects.filter(
+            is_employed=True,
+            division=position.division,
+            job_position=position.name,
+        ).exists()
+        if in_use:
+            messages.error(
+                request,
+                f'Không thể xóa "{position.name}" vì còn nhân viên đang dùng vị trí này.',
+            )
+        else:
+            name = position.name
+            division = position.division
+            position.delete()
+            messages.success(request, f'Đã xóa vị trí "{name}".')
+            return _org_redirect_for_division(division)
+        return _org_redirect_for_division(position.division)
+    return render(request, 'assessment/admin/org_position_confirm_delete.html', {
+        'position': position,
+    })
+
 
 @admin_only
 def user_toggle_employed(request, user_id):

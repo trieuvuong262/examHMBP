@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.db.models import Q
-from .models import Profile, Department, Division, DepartmentMenuPermission, PermissionGroup
+from .models import Profile, Department, Division, DivisionPosition, DepartmentMenuPermission, PermissionGroup
 from hrm.org_structure import divisions_for_department
 from hrm.choices import GENDER_FORM_CHOICES
 from hrm.permissions import ROLE_EMPLOYEE
@@ -289,6 +289,47 @@ class DivisionForm(forms.ModelForm):
         if not dept:
             raise forms.ValidationError('Phòng ban không được để trống.')
         return dept
+
+
+class DivisionPositionForm(forms.ModelForm):
+    class Meta:
+        model = DivisionPosition
+        fields = ['division', 'name', 'sort_order', 'is_active']
+        widgets = {
+            'division': forms.Select(attrs=SELECT),
+            'name': forms.TextInput(attrs={
+                **INPUT,
+                'placeholder': 'VD: Công nhân may, Trưởng ca…',
+            }),
+            'sort_order': forms.NumberInput(attrs={**INPUT, 'min': 0}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        labels = {
+            'division': 'Bộ phận',
+            'name': 'Tên vị trí',
+            'sort_order': 'Thứ tự hiển thị',
+            'is_active': 'Đang sử dụng',
+        }
+
+    def __init__(self, *args, **kwargs):
+        division_qs = kwargs.pop('division_queryset', None)
+        super().__init__(*args, **kwargs)
+        qs = division_qs or Division.objects.filter(is_active=True).select_related('department')
+        self.fields['division'].queryset = qs.order_by('department__sort_order', 'department__name', 'sort_order', 'name')
+
+    def clean_name(self):
+        name = (self.cleaned_data.get('name') or '').strip()
+        if not name:
+            raise forms.ValidationError('Tên vị trí không được để trống.')
+        division = self.cleaned_data.get('division')
+        if not division:
+            return name
+        dup = DivisionPosition.objects.filter(division=division, name__iexact=name)
+        if self.instance.pk:
+            dup = dup.exclude(pk=self.instance.pk)
+        if dup.exists():
+            raise forms.ValidationError('Vị trí này đã tồn tại trong bộ phận đã chọn.')
+        return name
 
 
 class DepartmentMenuPermissionForm(forms.Form):

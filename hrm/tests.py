@@ -629,8 +629,9 @@ class OrgStructureTreemapTests(TestCase):
         self.assertContains(response, 'jp-org-tree-data')
         self.assertContains(response, 'ORG-DEPT-A')
         self.assertContains(response, 'org_tree.js')
-        self.assertContains(response, 'org-manage-tables')
+        self.assertContains(response, 'org-manage-panel')
         self.assertContains(response, 'jp-org-urls-data')
+        self.assertContains(response, 'positionAdd')
 
     def test_division_form_rejects_duplicate_in_same_department(self):
         from hrm.forms import DivisionForm
@@ -650,6 +651,26 @@ class OrgStructureTreemapTests(TestCase):
             'is_active': True,
         })
         self.assertTrue(form_b.is_valid())
+
+    def test_division_position_in_org_tree(self):
+        from hrm.models import DivisionPosition
+
+        div = Division.objects.get(name='ORG-DIV-1')
+        DivisionPosition.objects.create(
+            division=div,
+            department=self.dept,
+            name='ORG-POS-QC',
+        )
+        response = self.client.get(reverse('org_structure'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'ORG-POS-QC')
+
+    def test_org_position_add_get(self):
+        div = Division.objects.get(name='ORG-DIV-1')
+        url = reverse('org_position_add') + f'?division={div.pk}&department={self.dept.pk}'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Thêm vị trí')
 
     def test_resolve_division_scoped_to_department(self):
         from hrm.choices import resolve_division
