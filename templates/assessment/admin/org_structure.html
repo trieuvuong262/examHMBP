@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/justplay-theme.css' %}?v=20260530d">
+<link rel="stylesheet" href="{% static 'css/justplay-theme.css' %}?v=20260531a">
 {% endblock %}
 
 {% block content %}
@@ -227,7 +227,7 @@
 {{ org_tree|json_script:"jp-org-tree-data" }}
 {{ org_urls|json_script:"jp-org-urls-data" }}
 <script src="{% static 'vendor/d3.min.js' %}?v=7.9.0"></script>
-<script src="{% static 'js/org_tree.js' %}?v=20260530d"></script>
+<script src="{% static 'js/org_tree.js' %}?v=20260531a"></script>
 <script>
 (function () {
     var panel = document.getElementById('org-manage-panel');

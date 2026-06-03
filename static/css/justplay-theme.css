@@ -3127,7 +3127,8 @@ textarea.form-control {
 /* Sơ đồ cây D3 — cơ cấu tổ chức ngang */
 .jp-org-tree-card {
     overflow: visible;
-    border-radius: 0.65rem !important;
+    border-radius: 0.85rem !important;
+    box-shadow: 0 10px 40px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(13, 148, 136, 0.08);
 }
 
 .jp-org-tree-card > .card-body {
@@ -3138,13 +3139,18 @@ textarea.form-control {
     position: relative;
     overflow-x: auto;
     overflow-y: auto;
-    background: linear-gradient(165deg, #f8fafc 0%, #f1f5f9 48%, #fff 100%);
-    border-radius: 0.65rem;
+    background-color: #f1f5f9;
+    background-image:
+        linear-gradient(165deg, rgba(255, 255, 255, 0.92) 0%, rgba(241, 245, 249, 0.88) 55%, rgba(248, 250, 252, 0.95) 100%),
+        radial-gradient(circle at 1px 1px, rgba(148, 163, 184, 0.18) 1px, transparent 0);
+    background-size: auto, 22px 22px;
+    border-radius: 0.75rem;
     min-height: 460px;
     max-height: min(80vh, 46rem);
     width: 100%;
     scrollbar-width: thin;
-    scrollbar-color: #94a3b8 #f1f5f9;
+    scrollbar-color: #0d9488 #e2e8f0;
+    border: 1px solid rgba(13, 148, 136, 0.14);
 }
 
 .jp-org-chart-viewport--wide {
@@ -3163,16 +3169,17 @@ textarea.form-control {
 .jp-org-chart-headers-bar {
     position: relative;
     z-index: 2;
-    height: 44px;
+    height: 48px;
     overflow: visible;
-    background: linear-gradient(90deg, #0f766e 0%, #0d9488 42%, #14b8a6 100%);
-    box-shadow: 0 2px 8px rgba(15, 118, 110, 0.25);
+    background: linear-gradient(105deg, #0f766e 0%, #0d9488 38%, #14b8a6 72%, #2dd4bf 100%);
+    box-shadow: 0 4px 14px rgba(15, 118, 110, 0.28);
     flex-shrink: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .jp-org-chart-headers-track {
     position: relative;
-    height: 44px;
+    height: 48px;
     min-width: 100%;
     will-change: transform;
 }
@@ -3180,7 +3187,7 @@ textarea.form-control {
 .jp-org-chart-col-label {
     position: absolute;
     top: 0;
-    height: 44px;
+    height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -3240,19 +3247,63 @@ textarea.form-control {
     cursor: grabbing;
 }
 
-.jp-org-tree-col-guide {
-    stroke: #e2e8f0;
-    stroke-width: 1;
-    stroke-dasharray: 4 6;
+.jp-org-tree-col-band {
     pointer-events: none;
+}
+
+.jp-org-tree-col-band--0 { fill: rgba(15, 118, 110, 0.06); }
+.jp-org-tree-col-band--1 { fill: rgba(13, 148, 136, 0.05); }
+.jp-org-tree-col-band--2 { fill: rgba(20, 184, 166, 0.045); }
+.jp-org-tree-col-band--3 { fill: rgba(100, 116, 139, 0.04); }
+.jp-org-tree-col-band--4 { fill: rgba(148, 163, 184, 0.035); }
+
+.jp-org-tree-col-guide {
+    stroke: rgba(13, 148, 136, 0.2);
+    stroke-width: 1;
+    stroke-dasharray: 5 8;
+    pointer-events: none;
+}
+
+.jp-org-tree-link-shadow {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 6;
+    pointer-events: none;
+    opacity: 0.35;
 }
 
 .jp-org-tree-link {
     fill: none;
-    stroke: #94a3b8;
-    stroke-width: 2px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2.25;
     pointer-events: none;
+    transition: stroke-width 0.15s ease;
 }
+
+.jp-org-tree-link--to-department { stroke: #0d9488; }
+.jp-org-tree-link--to-division { stroke: #14b8a6; }
+.jp-org-tree-link--to-position { stroke: #64748b; }
+.jp-org-tree-link--to-employee { stroke: #94a3b8; }
+.jp-org-tree-link--to-item { stroke: #cbd5e1; }
+
+.jp-org-tree-link-shadow.jp-org-tree-link--to-department { stroke: rgba(13, 148, 136, 0.35); }
+.jp-org-tree-link-shadow.jp-org-tree-link--to-division { stroke: rgba(20, 184, 166, 0.3); }
+.jp-org-tree-link-shadow.jp-org-tree-link--to-position { stroke: rgba(100, 116, 139, 0.28); }
+.jp-org-tree-link-shadow.jp-org-tree-link--to-employee { stroke: rgba(148, 163, 184, 0.25); }
+
+.jp-org-tree-link-dot {
+    pointer-events: none;
+    stroke: #fff;
+    stroke-width: 1.5;
+}
+
+.jp-org-tree-link-dot.jp-org-tree-link--to-department { fill: #0d9488; }
+.jp-org-tree-link-dot.jp-org-tree-link--to-division { fill: #14b8a6; }
+.jp-org-tree-link-dot.jp-org-tree-link--to-position { fill: #64748b; }
+.jp-org-tree-link-dot.jp-org-tree-link--to-employee { fill: #94a3b8; }
+.jp-org-tree-link-dot.jp-org-tree-link--to-item { fill: #cbd5e1; }
 
 .jp-org-tree-node.is-clickable .jp-org-tree-pill-rect {
     cursor: pointer;
@@ -3268,8 +3319,7 @@ textarea.form-control {
 
 .jp-org-tree-node.is-clickable:hover .jp-org-tree-pill-rect,
 .jp-org-tree-pill-hit:focus .jp-org-tree-pill-rect {
-    filter: brightness(0.97);
-    stroke-width: 1.8;
+    filter: brightness(1.02) drop-shadow(0 4px 14px rgba(13, 148, 136, 0.18));
 }
 
 .jp-org-tree-actions {
@@ -3286,6 +3336,7 @@ textarea.form-control {
     fill: #fff;
     stroke: #cbd5e1;
     stroke-width: 1.2;
+    filter: drop-shadow(0 1px 2px rgba(15, 23, 42, 0.06));
 }
 
 .jp-org-tree-action-link.is-danger .jp-org-tree-action-bg {
@@ -3293,7 +3344,8 @@ textarea.form-control {
 }
 
 .jp-org-tree-action-link:hover .jp-org-tree-action-bg {
-    fill: #f1f5f9;
+    fill: #ecfdf5;
+    stroke: #5eead4;
 }
 
 .jp-org-tree-action-link.is-danger:hover .jp-org-tree-action-bg {
@@ -3304,7 +3356,7 @@ textarea.form-control {
     font-family: Inter, system-ui, sans-serif;
     font-size: 11px;
     font-weight: 700;
-    fill: #475569;
+    fill: #0f766e;
     pointer-events: none;
 }
 
@@ -3318,9 +3370,9 @@ textarea.form-control {
 
 .jp-org-tree-pill-rect {
     fill: #fff;
-    stroke: #fda4af;
+    stroke: #99f6e4;
     stroke-width: 1.5;
-    filter: drop-shadow(0 2px 6px rgba(15, 23, 42, 0.08));
+    filter: drop-shadow(0 2px 8px rgba(15, 23, 42, 0.07));
 }
 
 .jp-org-tree-pill-label {
@@ -3345,8 +3397,8 @@ textarea.form-control {
 }
 
 .jp-org-tree-pill-badge-bg {
-    fill: #fff;
-    stroke: #fda4af;
+    fill: #ecfdf5;
+    stroke: #5eead4;
     stroke-width: 1;
 }
 
@@ -3354,15 +3406,15 @@ textarea.form-control {
     font-family: Inter, system-ui, sans-serif;
     font-size: 10px;
     font-weight: 800;
-    fill: #be123c;
+    fill: #0f766e;
     pointer-events: none;
 }
 
 .jp-org-tree-node--root .jp-org-tree-pill-rect {
-    fill: #f43f5e;
-    stroke: #be123c;
+    fill: url(#jp-org-root-grad);
+    stroke: #0f766e;
     stroke-width: 2;
-    filter: drop-shadow(0 3px 10px rgba(190, 24, 93, 0.25));
+    filter: drop-shadow(0 4px 14px rgba(13, 148, 136, 0.35));
 }
 
 .jp-org-tree-node--root .jp-org-tree-pill-label,
@@ -3375,19 +3427,19 @@ textarea.form-control {
 }
 
 .jp-org-tree-node--department .jp-org-tree-pill-rect {
-    fill: #fff1f2;
-    stroke: #f43f5e;
+    fill: #f0fdfa;
+    stroke: #14b8a6;
     stroke-width: 1.5;
 }
 
 .jp-org-tree-node--division .jp-org-tree-pill-rect {
     fill: #fff;
-    stroke: #f9a8d4;
+    stroke: #5eead4;
 }
 
 .jp-org-tree-node--position .jp-org-tree-pill-rect {
     fill: #f8fafc;
-    stroke: #94a3b8;
+    stroke: #cbd5e1;
 }
 
 .jp-org-tree-node--position .jp-org-tree-pill-label {
@@ -3434,13 +3486,30 @@ textarea.form-control {
     background: #0f172a;
 }
 
-[data-theme="dark"] .jp-org-tree-link {
-    stroke: #475569;
+[data-theme="dark"] .jp-org-chart-viewport {
+    background-color: #0f172a;
+    border-color: rgba(45, 212, 191, 0.2);
 }
 
+[data-theme="dark"] .jp-org-tree-col-band--0 { fill: rgba(45, 212, 191, 0.08); }
+[data-theme="dark"] .jp-org-tree-col-band--1 { fill: rgba(20, 184, 166, 0.06); }
+[data-theme="dark"] .jp-org-tree-col-band--2 { fill: rgba(94, 234, 212, 0.05); }
+[data-theme="dark"] .jp-org-tree-col-band--3 { fill: rgba(100, 116, 139, 0.06); }
+[data-theme="dark"] .jp-org-tree-col-band--4 { fill: rgba(71, 85, 105, 0.05); }
+
+[data-theme="dark"] .jp-org-tree-link--to-department { stroke: #2dd4bf; }
+[data-theme="dark"] .jp-org-tree-link--to-division { stroke: #5eead4; }
+[data-theme="dark"] .jp-org-tree-link--to-position { stroke: #94a3b8; }
+[data-theme="dark"] .jp-org-tree-link--to-employee { stroke: #64748b; }
+
 [data-theme="dark"] .jp-org-tree-pill-rect {
-    fill: rgba(30, 41, 59, 0.95);
-    stroke: #9f1239;
+    fill: rgba(30, 41, 59, 0.96);
+    stroke: #14b8a6;
+}
+
+[data-theme="dark"] .jp-org-tree-node--root .jp-org-tree-pill-rect {
+    fill: #115e59;
+    stroke: #2dd4bf;
 }
 
 [data-theme="dark"] .jp-org-tree-pill-label {

@@ -14,7 +14,7 @@
         chartPadRight: 100,
     };
 
-    const PILL_RX = 8;
+    const PILL_RX = 10;
     const COLUMN_LABELS = [
         'Tổng / Giám đốc',
         'Phòng ban',
@@ -110,14 +110,41 @@
         return w + actionStripWidth(buildActions(nodeData, urls));
     }
 
-    function elbowPath(d, nodeW, urls) {
-        const sw = nodeTotalWidth(d.source.data, nodeW, urls);
-        const sx = d.source.y + sw;
+    const LINK = { radius: 14, targetInset: 10, stubMin: 24 };
+
+    function linkTargetLevel(d) {
+        return d.target.data.level || 'item';
+    }
+
+    function roundedLinkPath(d, nodeW, urls) {
+        const sx = d.source.y + nodeTotalWidth(d.source.data, nodeW, urls);
         const sy = d.source.x;
-        const tx = d.target.y;
+        const tx = d.target.y + LINK.targetInset;
         const ty = d.target.x;
-        const mx = (sx + tx) / 2;
-        return `M${sx},${sy}H${mx}V${ty}H${tx}`;
+
+        if (Math.abs(sy - ty) < 0.5) {
+            return `M${sx},${sy}H${tx}`;
+        }
+
+        const gap = tx - sx;
+        const stub = Math.max(LINK.stubMin, gap * 0.4);
+        const mx = sx + stub;
+        const r = Math.min(
+            LINK.radius,
+            Math.abs(ty - sy) / 2,
+            stub / 2,
+            Math.max(6, (tx - mx) / 2),
+        );
+        const vDir = ty > sy ? 1 : -1;
+
+        return [
+            `M${sx},${sy}`,
+            `H${mx - r}`,
+            `Q${mx},${sy} ${mx},${sy + vDir * r}`,
+            `V${ty - vDir * r}`,
+            `Q${mx},${ty} ${mx + r},${ty}`,
+            `H${tx}`,
+        ].join(' ');
     }
 
     function fillUrl(tpl, vals) {
@@ -350,6 +377,16 @@
             .attr('width', svgW)
             .attr('height', svgH);
 
+        const defs = svg.append('defs');
+        const rootGrad = defs.append('linearGradient')
+            .attr('id', 'jp-org-root-grad')
+            .attr('x1', '0%')
+            .attr('y1', '0%')
+            .attr('x2', '100%')
+            .attr('y2', '100%');
+        rootGrad.append('stop').attr('offset', '0%').attr('stop-color', '#0f766e');
+        rootGrad.append('stop').attr('offset', '100%').attr('stop-color', '#14b8a6');
+
         const zoomRoot = svg.append('g').attr('class', 'jp-org-tree-zoom');
         zoomRoot.append('rect')
             .attr('class', 'jp-org-tree-pan-surface')
@@ -362,6 +399,18 @@
             .attr('transform', `translate(${margin.left},${margin.top - yMin})`);
 
         g.append('g')
+            .attr('class', 'jp-org-tree-col-bands')
+            .selectAll('rect')
+            .data(columns)
+            .join('rect')
+            .attr('class', (_, i) => `jp-org-tree-col-band jp-org-tree-col-band--${i}`)
+            .attr('x', (d) => d.x)
+            .attr('y', -12)
+            .attr('width', (d) => d.w)
+            .attr('height', innerH + 24)
+            .attr('rx', 10);
+
+        g.append('g')
             .attr('class', 'jp-org-tree-col-guides')
             .selectAll('line')
             .data(columns)
@@ -372,14 +421,33 @@
             .attr('y1', -8)
             .attr('y2', innerH + 8);
 
-        g.append('g')
-            .attr('class', 'jp-org-tree-links')
-            .selectAll('path')
+        const linkG = g.append('g').attr('class', 'jp-org-tree-links');
+        const linkPath = (d) => roundedLinkPath(d, nodeW, urls);
+        const linkClass = (d) => `jp-org-tree-link--to-${linkTargetLevel(d)}`;
+
+        linkG.selectAll('path.jp-org-tree-link-shadow')
             .data(links)
             .join('path')
-            .attr('class', 'jp-org-tree-link')
+            .attr('class', (d) => `jp-org-tree-link-shadow ${linkClass(d)}`)
             .attr('fill', 'none')
-            .attr('d', (d) => elbowPath(d, nodeW, urls));
+            .attr('d', linkPath);
+
+        linkG.selectAll('path.jp-org-tree-link')
+            .data(links)
+            .join('path')
+            .attr('class', (d) => `jp-org-tree-link ${linkClass(d)}`)
+            .attr('fill', 'none')
+            .attr('d', linkPath);
+
+        g.append('g')
+            .attr('class', 'jp-org-tree-link-dots')
+            .selectAll('circle')
+            .data(links)
+            .join('circle')
+            .attr('class', (d) => `jp-org-tree-link-dot ${linkClass(d)}`)
+            .attr('cx', (d) => d.target.y + 6)
+            .attr('cy', (d) => d.target.x)
+            .attr('r', 3.5);
 
         const nodeG = g.append('g')
             .attr('class', 'jp-org-tree-nodes')
