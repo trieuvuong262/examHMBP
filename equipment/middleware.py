@@ -39,7 +39,9 @@ class AgentInstallGateMiddleware:
         return self.get_response(request)
 
     def _is_gate_path(self, path: str) -> bool:
-        return path.rstrip('/') == self._gate_url.rstrip('/')
+        gate = self._gate_url.rstrip('/')
+        current = path.rstrip('/')
+        return current == gate or current.startswith(gate + '/')
 
     def _path_allowed(self, path: str) -> bool:
         if path.startswith('/admin-panel/'):

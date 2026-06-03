@@ -986,6 +986,7 @@ def agent_install_gate(request):
         return redirect('home_portal')
     if user_is_in_equipment_registry(request.user):
         return redirect('home_portal')
+    # Chỉ đẩy về trang chủ khi gate không còn áp dụng (vd. không phải Windows) — tránh vòng với middleware
     if not is_agent_install_required(request):
         return redirect('home_portal')
 
@@ -1175,19 +1176,24 @@ def agent_install_done(request):
 def api_agent_install_status(request):
     """Poll — user đã có trong quản lý thiết bị chưa."""
     from equipment.services.agent_install import (
+        complete_personal_install_from_token,
+        is_agent_install_required,
         try_reconcile_agent_registration,
         user_is_in_equipment_registry,
     )
     from equipment.services.shared_pc import get_shared_pc_context_for_gate
 
-    from equipment.services.agent_install import complete_personal_install_from_token
-
     token_str = request.GET.get('token', '').strip()
     if token_str:
         complete_personal_install_from_token(request.user, token_str)
     try_reconcile_agent_registration(request)
+    gate_required = is_agent_install_required(request)
     if user_is_in_equipment_registry(request.user):
-        return JsonResponse({'ready': True, 'registered': True})
+        return JsonResponse({
+            'ready': True,
+            'registered': True,
+            'gate_required': gate_required,
+        })
 
     shared = get_shared_pc_context_for_gate(request, request.user)
     if shared:
@@ -1197,7 +1203,7 @@ def api_agent_install_status(request):
             'device_name': shared['device'].hostname or shared['device'].name,
         })
 
-    return JsonResponse({'ready': False})
+    return JsonResponse({'ready': False, 'gate_required': gate_required})
 
 
 @require_GET

@@ -182,6 +182,10 @@ verify_migrations() {
     exit 1
   fi
   echo "    All migrations applied."
+  if ! compose exec -T web python manage.py showmigrations nas_storage 2>/dev/null | grep -q '0003_nasuserfolderaccess.*\[X\]'; then
+    echo "    WARNING: Chua thay nas_storage.0003_nasuserfolderaccess — tinh nang Cap nhat link NAS chua san sang."
+    echo "             Chay: docker compose exec web python manage.py migrate nas_storage"
+  fi
 }
 
 echo "==> Deploying PortalJustPlay"

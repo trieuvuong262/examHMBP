@@ -14,12 +14,14 @@ class ForcePasswordChangeMiddleware:
                     reverse('password_change'),
                     reverse('password_change_done'),
                     reverse('logout'),
+                    reverse('login_redirect'),
                 ]
 
                 if not any([
                     request.path in allowed_urls,
                     request.path.startswith('/admin/'),
                     request.path.startswith('/admin-panel/'),
+                    request.path.startswith('/accounts/'),
                     request.path.startswith('/static/'),
                     request.path.startswith('/media/'),
                     request.path.startswith('/thiet-bi/agent/'),

@@ -558,17 +558,16 @@ class AgentInstallFlowTests(TestCase):
         self.assertTrue(resp.json()['ready'])
 
     @override_settings(EQUIPMENT_REQUIRE_AGENT_INSTALL=True, EQUIPMENT_AGENT_SECRET='sec')
-    def test_middleware_blocks_superuser_not_admin(self):
+    def test_middleware_skips_admin_username(self):
         from django.contrib.auth import get_user_model
         from django.test import Client
 
         User = get_user_model()
-        user = User.objects.create_superuser(username='itboss', password='x', email='it@test.com')
+        user = User.objects.create_superuser(username='admin', password='x', email='a@test.com')
         client = Client()
         client.force_login(user)
         resp = client.get('/', HTTP_USER_AGENT='Mozilla/5.0 Windows NT 10.0')
-        self.assertEqual(resp.status_code, 302)
-        self.assertIn('/thiet-bi/agent/yeu-cau-cai', resp.url)
+        self.assertEqual(resp.status_code, 200)
 
     @override_settings(EQUIPMENT_REQUIRE_AGENT_INSTALL=True, EQUIPMENT_AGENT_SECRET='sec')
     def test_middleware_skips_admin_username(self):
@@ -580,6 +579,22 @@ class AgentInstallFlowTests(TestCase):
         client = Client()
         client.force_login(user)
         resp = client.get('/', HTTP_USER_AGENT='Mozilla/5.0 Windows NT 10.0')
+        self.assertEqual(resp.status_code, 200)
+
+    @override_settings(EQUIPMENT_REQUIRE_AGENT_INSTALL=True, EQUIPMENT_AGENT_SECRET='sec')
+    def test_gate_page_no_redirect_loop(self):
+        from django.contrib.auth import get_user_model
+        from django.test import Client
+
+        User = get_user_model()
+        user = User.objects.create_user(username='loop_user', password='x')
+        client = Client()
+        client.force_login(user)
+        resp = client.get(
+            '/thiet-bi/agent/yeu-cau-cai/',
+            HTTP_USER_AGENT='Mozilla/5.0 Windows NT 10.0',
+            follow=False,
+        )
         self.assertEqual(resp.status_code, 200)
 
     @override_settings(EQUIPMENT_REQUIRE_AGENT_INSTALL=True, EQUIPMENT_AGENT_SECRET='sec')

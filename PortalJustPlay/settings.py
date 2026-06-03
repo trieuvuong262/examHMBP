@@ -389,7 +389,9 @@ if not DEBUG:
         SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
         SESSION_COOKIE_SECURE = env_bool('SESSION_COOKIE_SECURE', True)
         CSRF_COOKIE_SECURE = env_bool('CSRF_COOKIE_SECURE', True)
-        SECURE_SSL_REDIRECT = env_bool('SECURE_SSL_REDIRECT', True)
+        # Mặc định TẮT — nginx/ssl.conf xử lý HTTPS; bật Django redirect dễ gây ERR_TOO_MANY_REDIRECTS
+        # khi proxy gửi X-Forwarded-Proto: http (Cloudflare Flexible, port 80, cấu hình thiếu).
+        SECURE_SSL_REDIRECT = env_bool('SECURE_SSL_REDIRECT', False)
         SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', '31536000'))
         SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', True)
         SECURE_HSTS_PRELOAD = env_bool('SECURE_HSTS_PRELOAD', False)

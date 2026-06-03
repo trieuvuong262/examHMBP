@@ -32,7 +32,15 @@ def agent_install_enabled() -> bool:
 
 
 def is_exempt_from_agent_gate(user) -> bool:
-    """Chỉ tài khoản admin (cấu hình) được bỏ qua gate."""
+    """Tài khoản admin / Giám đốc / danh sách EQUIPMENT_AGENT_GATE_EXEMPT_USERNAMES."""
+    from hrm.module_permissions import bypass_department_modules
+    from hrm.permissions import ROLE_DIRECTOR, get_profile
+
+    if bypass_department_modules(user):
+        return True
+    profile = get_profile(user)
+    if profile and profile.role == ROLE_DIRECTOR:
+        return True
     raw = getattr(settings, 'EQUIPMENT_AGENT_GATE_EXEMPT_USERNAMES', 'admin')
     allowed = {name.strip().lower() for name in raw.split(',') if name.strip()}
     return user.username.lower() in allowed

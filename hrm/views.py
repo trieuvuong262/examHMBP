@@ -126,6 +126,8 @@ def user_list(request):
         if dept:
             current_department_label = dept.name
 
+    from nas_storage.user_folders import nas_folders_feature_available
+
     return render(request, 'assessment/admin/user_list.html', {
         'users': page_obj.object_list,
         'page_obj': page_obj,
@@ -137,6 +139,7 @@ def user_list(request):
         'current_department': department_id,
         'current_department_label': current_department_label,
         'filters_active': bool(search_query or department_id),
+        'nas_folders_available': nas_folders_feature_available(),
     })
 
 
@@ -224,46 +227,89 @@ def _save_profile_avatar(profile, upload, request):
 
 
 @admin_only
+def user_nas_folders(request, user_id):
+    """Cấu hình thư mục NAS riêng cho từng tài khoản."""
+    from nas_storage.user_folders import (
+        copy_department_defaults_to_user,
+        nas_folders_feature_available,
+        nas_folders_page_context,
+        save_user_nas_folder_formset,
+        user_has_custom_nas_folders,
+    )
+
+    user_obj = get_object_or_404(User, id=user_id)
+    profile, _created = Profile.objects.get_or_create(user=user_obj)
+
+    if request.method == 'POST' and request.POST.get('nas_copy_defaults'):
+        if not nas_folders_feature_available():
+            messages.error(
+                request,
+                'Chưa migrate nas_storage trên server. Chạy: python manage.py migrate nas_storage',
+            )
+        else:
+            created_count = copy_department_defaults_to_user(user_obj)
+            if created_count:
+                messages.success(
+                    request,
+                    f'Đã tạo {created_count} thư mục từ map mặc định phòng ban.',
+                )
+            elif user_has_custom_nas_folders(user_obj):
+                messages.info(request, 'User đã có thư mục NAS tùy chỉnh.')
+            else:
+                messages.warning(
+                    request,
+                    'Không có map mặc định (chưa gán phòng ban hoặc mã thư mục).',
+                )
+        return redirect('user_nas_folders', user_id=user_obj.id)
+
+    if request.method == 'POST':
+        ctx = nas_folders_page_context(user_obj, post_data=request.POST)
+        if ctx['nas_migration_missing']:
+            messages.error(request, 'Chưa migrate bảng NAS trên server.')
+        elif ctx['nas_formset'].is_valid():
+            save_user_nas_folder_formset(user_obj, ctx['nas_formset'])
+            messages.success(request, 'Đã lưu link NAS cho tài khoản này.')
+            return redirect('user_nas_folders', user_id=user_obj.id)
+        else:
+            messages.error(request, 'Kiểm tra lại bảng đường dẫn NAS.')
+        return render(
+            request,
+            'assessment/admin/user_nas_folders.html',
+            {
+                'user_instance': user_obj,
+                'profile': profile,
+                **ctx,
+            },
+        )
+
+    ctx = nas_folders_page_context(user_obj)
+    return render(
+        request,
+        'assessment/admin/user_nas_folders.html',
+        {
+            'user_instance': user_obj,
+            'profile': profile,
+            **ctx,
+        },
+    )
+
+
+@admin_only
 def user_edit(request, user_id):
     user_obj = get_object_or_404(User, id=user_id)
     # Lấy profile, tự động tạo nếu chưa có
     profile, created = Profile.objects.get_or_create(user=user_obj)
 
-    from nas_storage.nas_paths import department_default_nas_roots
-    from nas_storage.user_folders import (
-        build_nas_folder_formset,
-        copy_department_defaults_to_user,
-        save_user_nas_folder_formset,
-        user_has_custom_nas_folders,
-    )
-
-    if request.method == 'POST' and request.POST.get('nas_copy_defaults'):
-        created_count = copy_department_defaults_to_user(user_obj)
-        if created_count:
-            messages.success(
-                request,
-                f'Đã tạo {created_count} thư mục NAS từ cấu hình mặc định phòng ban — có thể chỉnh tiếp bên dưới.',
-            )
-        elif user_has_custom_nas_folders(user_obj):
-            messages.info(request, 'User đã có thư mục NAS tùy chỉnh.')
-        else:
-            messages.warning(
-                request,
-                'Không có map mặc định (chưa gán phòng ban hoặc mã thư mục phòng ban).',
-            )
-        return redirect('user_edit', user_id=user_obj.id)
+    from nas_storage.user_folders import nas_folders_feature_available
 
     if request.method == 'POST':
         # TRUYỀN user_id VÀO ĐÂY: Để hàm clean_username trong forms.py không báo lỗi trùng chính mình
         form = CustomUserForm(request.POST, user_id=user_obj.id)
-        nas_formset = build_nas_folder_formset(user=user_obj, data=request.POST)
 
         # Đang sửa nên không bắt buộc nhập mật khẩu
         form.fields['password'].required = False
 
-        form_ok = form.is_valid()
-        nas_ok = nas_formset.is_valid()
-        if form_ok and nas_ok:
+        if form.is_valid():
             # 1. Cập nhật bảng User mặc định của Django
             user_obj.username = form.cleaned_data['username']
             user_obj.email = form.cleaned_data['email']
@@ -296,8 +342,6 @@ def user_edit(request, user_id):
             # Hàm save() của profile sẽ tự xử lý quyền nếu role là Giám đốc
             profile.save()
 
-            save_user_nas_folder_formset(user_obj, nas_formset)
-
             avatar_upload = request.FILES.get('avatar')
             if avatar_upload:
                 avatar_result = _save_profile_avatar(profile, avatar_upload, request)
@@ -308,17 +352,13 @@ def user_edit(request, user_id):
                         'is_edit': True,
                         'user_instance': user_obj,
                         'profile': profile,
-                        'nas_formset': nas_formset,
-                        'nas_default_roots': department_default_nas_roots(user_obj),
-                        'nas_using_custom': user_has_custom_nas_folders(user_obj),
+                        'nas_folders_available': nas_folders_feature_available(),
                     })
 
             messages.success(request, f"Cập nhật {profile.full_name} thành công!")
             return redirect('user_list')
         else:
             messages.error(request, "Vui lòng kiểm tra lại dữ liệu nhập vào.")
-            if not nas_ok:
-                messages.error(request, 'Kiểm tra lại bảng thư mục NAS bên dưới.')
     else:
         # Đổ dữ liệu hiện tại vào Form để sếp thấy mà sửa
         initial_data = {
@@ -340,7 +380,6 @@ def user_edit(request, user_id):
         # Truyền user_id để form biết đường loại trừ chính mình khỏi danh sách chọn cấp dưới
         form = CustomUserForm(initial=initial_data, user_id=user_obj.id)
         form.fields['password'].required = False
-        nas_formset = build_nas_folder_formset(user=user_obj)
 
     return render(request, 'assessment/admin/user_form.html', {
         'form': form,
@@ -348,9 +387,7 @@ def user_edit(request, user_id):
         'is_edit': True,
         'user_instance': user_obj,
         'profile': profile,
-        'nas_formset': nas_formset,
-        'nas_default_roots': department_default_nas_roots(user_obj),
-        'nas_using_custom': user_has_custom_nas_folders(user_obj),
+        'nas_folders_available': nas_folders_feature_available(),
     })
 @admin_only
 def user_delete(request, user_id):

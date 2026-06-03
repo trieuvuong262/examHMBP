@@ -77,6 +77,50 @@ class NasPathTests(TestCase):
             resolve_nas_path(self.user, 'IT/Other')
 
 
+class NasUserFoldersViewTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        from hrm.models import Department, Profile
+        from hrm.permissions import ROLE_EMPLOYEE
+
+        User = get_user_model()
+        self.dept = Department.objects.create(name='NAS-FOLDERS-TEST-DEPT', sort_order=99)
+        self.admin = User.objects.create_superuser(username='admin', password='x', email='a@test.com')
+        self.target = User.objects.create_user(username='nasuser', password='x')
+        Profile.objects.filter(user=self.target).update(
+            full_name='NAS User',
+            department=self.dept,
+            role=ROLE_EMPLOYEE,
+        )
+        self.client.login(username='admin', password='x')
+
+    def test_user_nas_folders_page_renders(self):
+        url = reverse('user_nas_folders', args=[self.target.id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Cập nhật link NAS')
+        self.assertContains(response, 'Lưu link NAS')
+
+    def test_user_nas_folders_save_custom_path(self):
+        url = reverse('user_nas_folders', args=[self.target.id])
+        response = self.client.post(url, {
+            'nas_folders-TOTAL_FORMS': '1',
+            'nas_folders-INITIAL_FORMS': '0',
+            'nas_folders-MIN_NUM_FORMS': '0',
+            'nas_folders-MAX_NUM_FORMS': '1000',
+            'nas_folders-0-label': 'Du an',
+            'nas_folders-0-rel_path': 'IT/du-an-1',
+            'nas_folders-0-description': '',
+            'nas_folders-0-sort_order': '0',
+            'nas_folders-0-is_active': 'on',
+        })
+        self.assertEqual(response.status_code, 302)
+        roots = get_user_nas_roots(self.target)
+        self.assertEqual(len(roots), 1)
+        self.assertEqual(roots[0].rel_path, 'IT/du-an-1')
+
+
 class NasModuleRegistrationTests(TestCase):
     def test_resolve_module_from_url(self):
         self.assertEqual(resolve_module_from_request('/thu-muc-nas/'), MODULE_NAS_STORAGE)
