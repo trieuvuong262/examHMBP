@@ -79,7 +79,8 @@ class Device(models.Model):
     )
     hostname = models.CharField(max_length=100, blank=True, verbose_name='Hostname')
     ip_address = models.GenericIPAddressField(protocol='IPv4', blank=True, null=True, verbose_name='IP')
-    is_online = models.BooleanField(default=False, verbose_name='Trạng thái mạng')
+    windows_version = models.CharField(max_length=200, blank=True, verbose_name='Phiên bản Windows')
+    windows_license = models.CharField(max_length=128, blank=True, verbose_name='License Windows')
     last_scan_date = models.DateTimeField(null=True, blank=True, verbose_name='Lần quét cuối')
     ultraviewer_id = models.CharField(
         max_length=32, blank=True, verbose_name='UltraViewer ID',

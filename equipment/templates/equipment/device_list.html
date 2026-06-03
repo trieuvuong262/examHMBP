@@ -39,12 +39,6 @@
             <div class="jp-eq-stat-value text-warning">{{ stat_maintenance }}</div>
             <div class="jp-eq-stat-label">Bảo trì</div>
         </div>
-        {% if is_it_scope %}
-        <div class="jp-eq-stat">
-            <div class="jp-eq-stat-value text-primary">{{ stat_online }}</div>
-            <div class="jp-eq-stat-label">Online</div>
-        </div>
-        {% endif %}
     </div>
 
     <div class="card border-0 shadow-sm mb-3">
@@ -121,16 +115,7 @@
                             {% endfor %}
                         </select>
                     </div>
-                    {% if is_it_scope %}
-                    <div class="col-lg-2 col-md-3">
-                        <label class="form-label small text-muted mb-1">Mạng</label>
-                        <select name="is_online" class="form-select form-select-sm">
-                            <option value="">Tất cả</option>
-                            <option value="1" {% if current_is_online == '1' %}selected{% endif %}>Online</option>
-                            <option value="0" {% if current_is_online == '0' %}selected{% endif %}>Offline</option>
-                        </select>
-                    </div>
-                    {% else %}
+                    {% if is_production_scope %}
                     <div class="col-lg-2 col-md-3">
                         <label class="form-label small text-muted mb-1">Chuyền / vị trí</label>
                         <input type="search" name="usage_room" value="{{ current_usage_room }}" class="form-control form-control-sm" placeholder="Lọc chuyền…">

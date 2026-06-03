@@ -33,6 +33,8 @@ def build_configuration_text(data: dict) -> str:
         ('disk', 'Ổ cứng (GB)'),
         ('os', 'Hệ điều hành'),
         ('os_build', 'Build OS'),
+        ('windows_version', 'Phiên bản Windows'),
+        ('windows_license', 'License Windows'),
         ('manufacturer', 'Hãng'),
     )
     for key, label in mapping:
@@ -155,6 +157,21 @@ def apply_agent_hardware_to_device(device, data: dict, *, created: bool = False)
     if uv_pass:
         device.ultraviewer_password = uv_pass[:128]
         updated.append('ultraviewer_password')
+
+    win_ver = (data.get('windows_version') or '').strip()
+    if win_ver:
+        device.windows_version = win_ver[:200]
+        updated.append('windows_version')
+    win_lic = (data.get('windows_license') or '').strip()
+    if win_lic:
+        device.windows_license = win_lic[:128]
+        updated.append('windows_license')
+
+    if created or not device.last_scan_date:
+        from django.utils import timezone
+
+        device.last_scan_date = timezone.now()
+        updated.append('last_scan_date')
 
     return updated
 

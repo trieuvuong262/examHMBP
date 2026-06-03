@@ -64,23 +64,12 @@
             </a>
         </div>
         <div class="col-6 col-lg">
-            {% if is_it_scope %}
-            <a href="{{ equipment_urls.device_list }}?is_online=1" class="text-decoration-none">
-                <div class="card border-0 shadow-sm h-100 border-start border-4 border-primary">
-                    <div class="card-body py-3">
-                        <div class="text-muted small">{{ scope_dashboard_extra_label }}</div>
-                        <div class="fs-3 fw-bold text-primary">{{ online_devices }}</div>
-                    </div>
-                </div>
-            </a>
-            {% else %}
             <div class="card border-0 shadow-sm h-100 border-start border-4 border-dark">
                 <div class="card-body py-3">
-                    <div class="text-muted small">Tổng giá trị tài sản</div>
+                    <div class="text-muted small">{{ scope_dashboard_extra_label }}</div>
                     <div class="fs-5 fw-bold">{{ asset_value|intcomma }} ₫</div>
                 </div>
             </div>
-            {% endif %}
         </div>
         <div class="col-6 col-lg">
             <div class="card border-0 shadow-sm h-100 border-start border-4 border-secondary">

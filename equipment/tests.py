@@ -152,6 +152,28 @@ class AgentCategoryFromChassisTests(TestCase):
         self.assertIn('Notebook', device.configuration)
 
     @override_settings(EQUIPMENT_AGENT_SECRET='sec')
+    def test_agent_report_stores_windows_license_and_version(self):
+        from equipment.models import Device
+
+        client = __import__('django.test', fromlist=['Client']).Client()
+        payload = {
+            'api_secret': 'sec',
+            'serial': 'SN-WIN-01',
+            'hostname': 'PC-WIN',
+            'windows_version': 'Microsoft Windows 11 Pro (10.0.22631) · 23H2',
+            'windows_license': 'Da kich hoat · XXXXX-XXXXX',
+            'machine_type': 'company',
+        }
+        client.post(
+            '/thiet-bi/api/agent-report/',
+            data=__import__('json').dumps(payload),
+            content_type='application/json',
+        )
+        device = Device.objects.get(serial_number='SN-WIN-01')
+        self.assertIn('Windows 11', device.windows_version)
+        self.assertIn('kich hoat', device.windows_license)
+
+    @override_settings(EQUIPMENT_AGENT_SECRET='sec')
     def test_agent_report_keeps_manual_category(self):
         from equipment.models import Device
 
@@ -394,7 +416,7 @@ class AgentInstallFlowTests(TestCase):
         user = User.objects.create_user(username='steps6', password='x')
         tok = create_install_token(user, machine_type=MACHINE_TYPE_COMPANY)
         cmd = build_installer_cmd(user=user, token=tok.token, machine_type=MACHINE_TYPE_COMPANY)
-        self.assertIn('[4/6] Quet PC, UltraViewer', cmd)
+        self.assertIn('[4/5] Quet PC, UltraViewer', cmd)
         self.assertIn('ultraviewer_sidecar.json', cmd)
         self.assertIn('JP_UV_PASSWORD=123123sS', cmd)
         self.assertIn('JP_UV_SETUP_URL=', cmd)
@@ -410,8 +432,9 @@ class AgentInstallFlowTests(TestCase):
         self.assertIn('LanguageList.ini', uv_ps)
         self.assertIn('Click-UvGoldenKeyButton', uv_ps)
         self.assertIn('Set-UvPasswordViaSendKeys', uv_ps)
-        self.assertIn('[5/6] Cai ung dung JustPlay Portal', cmd)
-        self.assertIn('[6/6] Mo trang xac nhan portal', cmd)
+        self.assertIn('[5/5] Cai ung dung JustPlay Portal', cmd)
+        self.assertIn('Go bo Agent tu khoi dong', cmd)
+        self.assertNotIn('schtasks /Create /TN "JustPlay-Agent"', cmd)
         self.assertIn('JP_ICON_URL=', cmd)
         self.assertIn('jp-portal-install.ps1', cmd)
         self.assertIn('-File "%JP_DIR%\\jp-portal-install.ps1"', cmd)

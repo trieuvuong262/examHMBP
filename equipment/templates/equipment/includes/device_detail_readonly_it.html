@@ -52,11 +52,14 @@
             <dd class="col-sm-8">{{ device.hostname|default:"—" }}</dd>
             <dt class="col-sm-4">IP</dt>
             <dd class="col-sm-8"><code>{{ device.ip_address|default:"—" }}</code></dd>
-            <dt class="col-sm-4">Trạng thái mạng</dt>
-            <dd class="col-sm-8">
-                {% if device.is_online %}<span class="text-success fw-semibold">Online</span>{% else %}<span class="text-secondary">Offline</span>{% endif %}
-                {% if device.last_scan_date %}<span class="text-muted small"> · quét {{ device.last_scan_date|date:"d/m/Y H:i" }}</span>{% endif %}
-            </dd>
+            <dt class="col-sm-4">Phiên bản Windows</dt>
+            <dd class="col-sm-8">{{ device.windows_version|default:"—" }}</dd>
+            <dt class="col-sm-4">License Windows</dt>
+            <dd class="col-sm-8">{{ device.windows_license|default:"—" }}</dd>
+            {% if device.last_scan_date %}
+            <dt class="col-sm-4">Agent quét (lần đầu)</dt>
+            <dd class="col-sm-8">{{ device.last_scan_date|date:"d/m/Y H:i" }}</dd>
+            {% endif %}
             <dt class="col-sm-4">UltraViewer ID</dt>
             <dd class="col-sm-8">{% if device.ultraviewer_id %}<code>{{ device.ultraviewer_id }}</code>{% else %}—{% endif %}</dd>
             <dt class="col-sm-4">UltraViewer mật khẩu</dt>

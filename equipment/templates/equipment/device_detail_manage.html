@@ -27,12 +27,6 @@
                     {% else %}
                     <span class="badge bg-light text-dark border">{{ device.get_status_display }}</span>
                     {% endif %}
-                    {% if is_it_device %}
-                    <span class="badge {% if device.is_online %}bg-success{% else %}bg-secondary{% endif %}">
-                        <i class="bi bi-circle-fill me-1" style="font-size:0.45rem"></i>
-                        {% if device.is_online %}Online{% else %}Offline{% endif %}
-                    </span>
-                    {% endif %}
                 </div>
                 <h2 class="fw-bold text-hm mb-1 jp-page-title">
                     {% if can_edit and form %}{{ form.name.value|default:device.name }}{% else %}{{ device.name }}{% endif %}
@@ -173,13 +167,15 @@
 
             {% if is_it_device %}
             <div class="card border-0 shadow-sm mt-3">
-                <div class="card-header bg-white fw-bold"><i class="bi bi-hdd-network me-1"></i>Trạng thái mạng</div>
+                <div class="card-header bg-white fw-bold"><i class="bi bi-windows me-1"></i>Windows &amp; mạng</div>
                 <ul class="list-group list-group-flush small">
                     <li class="list-group-item d-flex justify-content-between">
-                        <span class="text-muted">Trạng thái</span>
-                        <span class="{% if device.is_online %}text-success fw-semibold{% else %}text-secondary{% endif %}">
-                            {% if device.is_online %}Online{% else %}Offline{% endif %}
-                        </span>
+                        <span class="text-muted">Phiên bản</span>
+                        <span class="text-end ms-2">{{ device.windows_version|default:"—" }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span class="text-muted">License</span>
+                        <span>{{ device.windows_license|default:"—" }}</span>
                     </li>
                     <li class="list-group-item d-flex justify-content-between">
                         <span class="text-muted">Hostname</span>
@@ -190,7 +186,7 @@
                         <span><code>{{ device.ip_address|default:"—" }}</code></span>
                     </li>
                     <li class="list-group-item d-flex justify-content-between">
-                        <span class="text-muted">Quét cuối</span>
+                        <span class="text-muted">Quét Agent</span>
                         <span>{% if device.last_scan_date %}{{ device.last_scan_date|date:"d/m/Y H:i" }}{% else %}—{% endif %}</span>
                     </li>
                 </ul>

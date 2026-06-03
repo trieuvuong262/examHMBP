@@ -50,7 +50,8 @@ def export_columns_for_scope(equipment_scope: str | None) -> list[tuple[str, str
         ])
     else:
         cols.extend([
-            ('is_online', 'Trạng thái mạng'),
+            ('windows_version', 'Phiên bản Windows'),
+            ('windows_license', 'License Windows'),
         ])
 
     cols.extend([
@@ -183,12 +184,6 @@ def apply_device_list_filters(qs, params):
     if usage_room:
         qs = qs.filter(usage_room__icontains=usage_room)
 
-    is_online = params.get('is_online')
-    if is_online == '1':
-        qs = qs.filter(is_online=True)
-    elif is_online == '0':
-        qs = qs.filter(is_online=False)
-
     device_ids = params.getlist('device_ids') if hasattr(params, 'getlist') else []
     if device_ids:
         qs = qs.filter(id__in=device_ids)
@@ -222,7 +217,8 @@ def _device_export_row(device) -> dict:
         'description': device.description,
         'hostname': device.hostname,
         'ip_address': str(device.ip_address) if device.ip_address else '',
-        'is_online': 'Online' if device.is_online else 'Offline',
+        'windows_version': device.windows_version,
+        'windows_license': device.windows_license,
         'quantity': device.quantity,
         'unit_price': int(device.unit_price or 0),
         'total_price': int(device.total_price or 0),

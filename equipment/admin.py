@@ -30,10 +30,9 @@ class DeviceAdmin(admin.ModelAdmin):
         'hostname',
         'ip_address',
         'serial_number',
-        'is_online',
         'last_scan_date',
     )
-    list_filter = ('status', 'category', 'managed_department', 'is_online')
+    list_filter = ('status', 'category', 'managed_department')
     search_fields = (
         'device_code',
         'name',
@@ -71,7 +70,8 @@ class DeviceAdmin(admin.ModelAdmin):
                 'hostname',
                 'ip_address',
                 'configuration',
-                'is_online',
+                'windows_version',
+                'windows_license',
                 'last_scan_date',
             ),
         }),

@@ -47,7 +47,7 @@ def scope_ui_context(scope: str | None) -> dict:
             'is_production_scope': False,
             'scope_icon': 'pc-display',
             'scope_page_intro': (
-                'Máy tính, mạng, thiết bị văn phòng — theo dõi hostname, IP và Agent quét tự động.'
+                'Máy tính, mạng, thiết bị văn phòng — Agent quét một lần khi cài, theo dõi hostname, IP, Windows.'
             ),
             'scope_list_search_placeholder': 'Mã TB, tên, serial, hostname, IP, người dùng…',
             'scope_list_col_specs': 'Hostname / IP',
@@ -56,7 +56,7 @@ def scope_ui_context(scope: str | None) -> dict:
             'scope_edit_title': 'Sửa thiết bị IT',
             'scope_category_intro': 'Loại dùng cho nhập Excel và lọc danh sách thiết bị IT (PC, mạng, in ấn…).',
             'scope_import_intro': 'Mỗi file Excel một loại thiết bị IT — cột hostname/IP nếu có trong mẫu.',
-            'scope_dashboard_extra_label': 'Đang online',
+            'scope_dashboard_extra_label': 'Tổng giá trị tài sản',
             'scope_dashboard_issues_location': 'Phòng / vị trí',
         }
     return {

@@ -156,7 +156,6 @@ def dashboard(request, equipment_scope=SCOPE_IT):
     dept_cost_labels = [d['device__usage_department_text'] or '—' for d in top_cost_depts]
     dept_cost_data = [int(d['total'] or 0) for d in top_cost_depts]
 
-    online_devices = device_qs.filter(is_online=True).count()
     asset_value = device_qs.aggregate(total=Sum('total_price'))['total'] or 0
 
     return render(request, 'equipment/dashboard.html', {
@@ -176,7 +175,6 @@ def dashboard(request, equipment_scope=SCOPE_IT):
         'cat_data_json': json.dumps(cat_data),
         'dept_cost_labels_json': json.dumps(dept_cost_labels, ensure_ascii=False),
         'dept_cost_data_json': json.dumps(dept_cost_data),
-        'online_devices': online_devices,
         'asset_value': asset_value,
         **_subnav_context(request, equipment_scope),
     })
@@ -373,12 +371,6 @@ def device_list(request, equipment_scope=SCOPE_IT):
     if usage_room:
         qs = qs.filter(usage_room__icontains=usage_room)
 
-    is_online = request.GET.get('is_online')
-    if is_online == '1':
-        qs = qs.filter(is_online=True)
-    elif is_online == '0':
-        qs = qs.filter(is_online=False)
-
     sort_by = request.GET.get('sort')
     if sort_by == 'price_asc':
         qs = qs.order_by('total_price')
@@ -403,7 +395,6 @@ def device_list(request, equipment_scope=SCOPE_IT):
         'stat_active': scope_total_qs.filter(status=Device.STATUS_ACTIVE).count(),
         'stat_broken': scope_total_qs.filter(status=Device.STATUS_BROKEN).count(),
         'stat_maintenance': scope_total_qs.filter(status=Device.STATUS_MAINTENANCE).count(),
-        'stat_online': scope_total_qs.filter(is_online=True).count(),
         'current_managed_department': managed_department,
         'current_category': category,
         'current_categories': categories,
@@ -411,7 +402,6 @@ def device_list(request, equipment_scope=SCOPE_IT):
         'current_usage_department': usage_department,
         'current_usage_room': usage_room,
         'current_sort': sort_by,
-        'current_is_online': is_online,
         'existing_depts': existing_depts,
         'managed_departments': Department.objects.filter(is_active=True).order_by('sort_order', 'name'),
         'category_choices': category_choices(),
@@ -911,9 +901,6 @@ def api_agent_report(request):
         )
 
         hw_fields = apply_agent_hardware_to_device(device, data, created=created)
-        device.is_online = True
-        device.last_scan_date = timezone.now()
-        hw_fields.extend(['is_online', 'last_scan_date'])
         device.save(update_fields=sorted(set(hw_fields)))
 
         link_user_from_agent_report(data=data, device=device)
@@ -979,7 +966,7 @@ def request_agent_rescan(request):
     messages.success(
         request,
         f'Đã gửi tín hiệu quét tới các PC có Agent (lúc {when:%H:%M:%S}). '
-        f'PC online sẽ cập nhật trong 1–2 phút — tải lại trang.',
+        'Để cập nhật lại PC: chạy lại file cài Agent trên máy đó (quét một lần).',
     )
     return _redirect_device_list(SCOPE_IT)
 

@@ -161,6 +161,25 @@ def collect_info() -> dict | None:
     os_build = run_powershell(
         '(Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue).Version'
     )
+    display_version = run_powershell(
+        "(Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion' "
+        "-ErrorAction SilentlyContinue).DisplayVersion"
+    )
+    windows_version = os_caption or ''
+    if os_build:
+        windows_version = f'{windows_version} ({os_build})'.strip() if windows_version else os_build
+    if display_version:
+        windows_version = f'{windows_version} · {display_version}'.strip(' ·')
+    windows_license = run_powershell(
+        '$p = Get-CimInstance SoftwareLicensingProduct -ErrorAction SilentlyContinue | '
+        "Where-Object { $_.PartialProductKey -and $_.ApplicationID -eq "
+        "'55c92734-d682-4d71-983e-d6ec7f882a58' } | Select-Object -First 1; "
+        'if (-not $p) { "" } else { '
+        '$s = switch ($p.LicenseStatus) { 0 {"Chua kich hoat"} 1 {"Da kich hoat"} '
+        '2 {"Grace OOB"} 3 {"Grace OOT"} 4 {"Grace - Non-Genuine"} 5 {"Thong bao"} '
+        '6 {"Extended Grace"} default { [string]$p.LicenseStatus } }; '
+        'if ($p.PartialProductKey) { "$s · $($p.PartialProductKey)" } else { $s } }'
+    )
     manufacturer = run_powershell(
         '(Get-CimInstance Win32_ComputerSystem -ErrorAction SilentlyContinue).Manufacturer'
     )
@@ -175,6 +194,8 @@ def collect_info() -> dict | None:
         'ip': ip,
         'os': os_caption,
         'os_build': os_build,
+        'windows_version': windows_version,
+        'windows_license': windows_license,
         'manufacturer': manufacturer,
     }
     if chassis_types:

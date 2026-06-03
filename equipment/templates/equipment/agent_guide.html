@@ -22,8 +22,8 @@
             <h5 class="fw-bold mb-2">Cách hoạt động</h5>
             <ol class="mb-0">
                 <li>Cài <strong>JustPlayAgent.exe</strong> + file <code>justplay_agent.ini</code> trên từng PC.</li>
-                <li>Agent tự chạy khi đăng nhập Windows, gửi serial/IP/cấu hình lên portal.</li>
-                <li>Agent tự báo cáo định kỳ; nếu cần cập nhật ngay, IT POST <code>/thiet-bi/agent/quet/</code> (yêu cầu rescan toàn bộ agent).</li>
+                <li>Agent <strong>chỉ quét một lần</strong> khi cài (file .cmd hoặc <code>JustPlayAgent.exe</code>), gửi serial/IP/cấu hình/license Windows lên portal.</li>
+                <li>Không tự chạy khi đăng nhập Windows, không quét định kỳ.</li>
             </ol>
         </div>
     </div>
@@ -66,11 +66,8 @@ url=https://portal.justplay.vn
 secret=mat-khau-bi-mat-tu-dat
 
 [agent]
-interval_minutes=30
-poll_seconds=60</pre>
-            <p class="mb-2">Cài tự chạy khi login:</p>
-            <pre class="bg-light p-3 rounded small mb-0">scripts\install-justplay-agent.cmd "C:\JustPlayAgent"</pre>
-            <p class="small text-muted mt-2 mb-0">Test tay: <code>JustPlayAgent.exe --once</code></p>
+scan_once=1</pre>
+            <p class="small text-muted mt-2 mb-0">Chạy thử: <code>JustPlayAgent.exe</code> (một lần rồi thoát).</p>
         </div>
     </div>
 
