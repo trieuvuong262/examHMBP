@@ -3262,6 +3262,14 @@ textarea.form-control {
 .jp-org-tree-link--from-department { stroke: var(--hm-primary); }
 .jp-org-tree-link--from-division { stroke: #f87171; }
 .jp-org-tree-link--from-position { stroke: #94a3b8; }
+.jp-org-tree-link--from-position.jp-org-tree-link--to-employee {
+    stroke: #64748b;
+    stroke-width: 1.75;
+    opacity: 0.92;
+}
+.jp-org-tree-link-arrow-fill {
+    fill: #64748b;
+}
 .jp-org-tree-link--from-unassigned { stroke: #f59e0b; }
 .jp-org-tree-link--from-employee,
 .jp-org-tree-link--from-item { stroke: #cbd5e1; }
@@ -3554,6 +3562,12 @@ textarea.form-control {
 [data-theme="dark"] .jp-org-tree-link--from-root { stroke: #f87171; }
 [data-theme="dark"] .jp-org-tree-link--from-department { stroke: #ef4444; }
 [data-theme="dark"] .jp-org-tree-link--from-division { stroke: #fca5a5; }
+[data-theme="dark"] .jp-org-tree-link--from-position.jp-org-tree-link--to-employee {
+    stroke: #94a3b8;
+}
+[data-theme="dark"] .jp-org-tree-link-arrow-fill {
+    fill: #94a3b8;
+}
 
 [data-theme="dark"] .jp-org-tree-pill-rect {
     fill: rgba(30, 41, 59, 0.96);

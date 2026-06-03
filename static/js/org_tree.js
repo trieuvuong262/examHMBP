@@ -148,10 +148,13 @@
         stubEnd: Math.round(14 * WIDTH_SCALE),
     };
 
-    function targetAnchorX(nodeData) {
+    function targetAnchorX(nodeData, nodeW) {
         const level = nodeData.level || 'item';
         if (isExpandableLevel(level)) return 16;
-        if (level === 'employee') return 6;
+        if (level === 'employee') {
+            const { w } = pillSize('employee', !!nodeData.subtitle, nodeW);
+            return Math.max(5, Math.round(w * 0.06));
+        }
         return 2;
     }
 
@@ -160,17 +163,40 @@
     }
 
     function linkClass(d) {
-        return `jp-org-tree-link--from-${linkSourceLevel(d)}`;
+        const from = linkSourceLevel(d);
+        const to = d.target.data.level || 'item';
+        let cls = `jp-org-tree-link--from-${from}`;
+        if (to === 'employee') cls += ' jp-org-tree-link--to-employee';
+        return cls;
+    }
+
+    function isPositionToEmployeeLink(d) {
+        return linkSourceLevel(d) === 'position' && (d.target.data.level || '') === 'employee';
+    }
+
+    /** Đường cong Vị trí → Nhân viên (Bezier ngang–dọc mượt). */
+    function positionToEmployeePath(sx, sy, tx, ty) {
+        const dx = tx - sx;
+        if (dx <= 3) {
+            return `M${sx},${sy}L${tx},${ty}`;
+        }
+        const tension = Math.min(0.58, Math.max(0.36, 0.42 + (dx - 40) / (dx * 4)));
+        const cx = sx + dx * tension;
+        return `M${sx},${sy} C${cx},${sy} ${cx},${ty} ${tx},${ty}`;
     }
 
     /** Đường vuông góc bo góc — tránh path lỗi khi khoảng cách ngắn. */
     function roundedLinkPath(d, nodeW, urls) {
         const sx = d.source.y + nodeTotalWidth(d.source.data, nodeW, urls);
         const sy = d.source.x;
-        const tx = d.target.y + targetAnchorX(d.target.data);
+        const tx = d.target.y + targetAnchorX(d.target.data, nodeW);
         const ty = d.target.x;
         const dx = tx - sx;
         const dy = ty - sy;
+
+        if (isPositionToEmployeeLink(d)) {
+            return positionToEmployeePath(sx, sy, tx, ty);
+        }
 
         const minGap = LINK.minGap;
         const stubMin = LINK.stubMin;
@@ -503,6 +529,18 @@
         rootGrad.append('stop').attr('offset', '0%').attr('stop-color', '#b91c1c');
         rootGrad.append('stop').attr('offset', '100%').attr('stop-color', '#dc2626');
 
+        const posEmpMarker = defs.append('marker')
+            .attr('id', 'jp-org-arrow-pos-emp')
+            .attr('viewBox', '0 0 10 10')
+            .attr('refX', 9)
+            .attr('refY', 5)
+            .attr('markerWidth', 7)
+            .attr('markerHeight', 7)
+            .attr('orient', 'auto');
+        posEmpMarker.append('path')
+            .attr('d', 'M 1 1 L 9 5 L 1 9 Z')
+            .attr('class', 'jp-org-tree-link-arrow-fill');
+
         const zoomRoot = svg.append('g').attr('class', 'jp-org-tree-zoom');
         zoomRoot.append('rect')
             .attr('class', 'jp-org-tree-pan-surface')
@@ -533,6 +571,9 @@
             .join('path')
             .attr('class', (d) => `jp-org-tree-link ${linkClass(d)}`)
             .attr('fill', 'none')
+            .attr('marker-end', (d) => (
+                isPositionToEmployeeLink(d) ? 'url(#jp-org-arrow-pos-emp)' : null
+            ))
             .attr('d', linkPath);
 
         const nodeG = g.append('g')
