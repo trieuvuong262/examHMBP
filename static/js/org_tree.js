@@ -26,14 +26,13 @@
     const COLUMN_LABELS = [
         'Tổng / Giám đốc',
         'Phòng ban',
-        'Trưởng phòng',
         'Bộ phận',
         'Vị trí',
         'Nhân viên',
     ];
 
     function isExpandableLevel(level) {
-        return level === 'position' || level === 'department_head';
+        return level === 'position';
     }
 
     const ZOOM = {
@@ -77,9 +76,9 @@
             return { w: Math.round((200 + gap * 0.5) * s), h: hasSubtitle ? 52 : 42 };
         }
         if (level === 'department') {
-            return { w: Math.round((188 + gap * 0.45) * s), h: 44 };
+            return { w: Math.round((188 + gap * 0.45) * s), h: hasSubtitle ? 52 : 44 };
         }
-        if (level === 'position' || level === 'department_head') {
+        if (level === 'position') {
             const raw = Math.round(Math.max(nodeW - 12, 220 + gap * 0.7) * s);
             const maxW = Math.round((nodeW - LINK_GAP_RESERVE) * s);
             return { w: Math.min(raw, maxW), h: 40 };
@@ -263,6 +262,19 @@
         const out = [];
 
         if (level === 'department' && id) {
+            if (!nodeData.has_head && urls.deptHeadAssign) {
+                out.push({
+                    href: urls.deptHeadAssign.replace('{dept_id}', String(id)),
+                    title: 'Gán trưởng phòng',
+                    glyph: '+',
+                });
+            } else if (nodeData.head_user_id && urls.userEdit) {
+                out.push({
+                    href: urls.userEdit.replace('{id}', String(nodeData.head_user_id)),
+                    title: 'Sửa trưởng phòng',
+                    glyph: '✎',
+                });
+            }
             if (urls.divisionAdd) {
                 out.push({ href: urls.divisionAdd.replace('{dept_id}', String(id)), title: 'Thêm bộ phận', glyph: '+' });
             }
@@ -274,40 +286,6 @@
             }
             if (urls.deptDelete) {
                 out.push({ href: urls.deptDelete.replace('{id}', String(id)), title: 'Xóa', glyph: '×', danger: true });
-            }
-        }
-
-        if (level === 'department_head') {
-            const deptId = nodeData.dept_id;
-            if (nodeData.is_placeholder && urls.deptHeadAdd && deptId) {
-                out.push({
-                    href: urls.deptHeadAdd.replace('{dept_id}', String(deptId)),
-                    title: 'Thêm trưởng phòng',
-                    glyph: '+',
-                });
-            } else {
-                if (urls.userAdd && deptId) {
-                    out.push({
-                        href: fillUrl(urls.userAdd, {
-                            dept_id: deptId,
-                            div_id: '',
-                            position: nodeData.name || '',
-                        }),
-                        title: 'Thêm nhân viên',
-                        glyph: '+',
-                    });
-                }
-                if (id && urls.deptHeadEdit) {
-                    out.push({ href: urls.deptHeadEdit.replace('{id}', String(id)), title: 'Sửa trưởng phòng', glyph: '✎' });
-                }
-                if (id && urls.deptHeadDelete) {
-                    out.push({
-                        href: urls.deptHeadDelete.replace('{id}', String(id)),
-                        title: 'Xóa',
-                        glyph: '×',
-                        danger: true,
-                    });
-                }
             }
         }
 
@@ -523,7 +501,6 @@
                 let cls = `jp-org-tree-node jp-org-tree-node--${lvl}`;
                 if (primaryHref(d.data, urls)) cls += ' is-clickable';
                 if (isExpandableLevel(lvl)) cls += expanded ? ' is-expanded' : ' is-collapsed';
-                if (lvl === 'department_head' && d.data.is_placeholder) cls += ' is-placeholder';
                 return cls;
             })
             .attr('transform', (d) => `translate(${d.y},${d.x})`);
