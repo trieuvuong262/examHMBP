@@ -6,15 +6,25 @@
 2. Đảm bảo SSH vào VPS không hỏi mật khẩu (`ssh root@103.90.224.203`).
 3. Chạy (**dùng `.bat` hoặc `.cmd`**, không gọi trực tiếp `publish.ps1` nếu PowerShell báo Execution Policy):
 
-```cmd
-cd /d d:\Project\PortalJustPlay
-publish.bat
+Trong **PowerShell** (terminal Cursor), phải có `.\` trước tên file:
+
+```powershell
+cd d:\Project\PortalJustPlay
+.\publish.bat
+.\publish.bat "update moi"
 ```
 
 Hoặc:
 
+```powershell
+.\update.cmd "update moi"
+```
+
+Trong **CMD** (Command Prompt) thì không cần `.\`:
+
 ```cmd
-update.cmd "update moi"
+cd /d d:\Project\PortalJustPlay
+publish.bat "update moi"
 ```
 
 Nếu vẫn muốn `.ps1`:

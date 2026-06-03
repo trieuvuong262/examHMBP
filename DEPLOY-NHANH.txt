@@ -1,0 +1,11 @@
+Deploy local -> Git -> VPS (PowerShell trong Cursor):
+
+  cd d:\Project\PortalJustPlay
+  .\update.cmd
+  .\update.cmd "update moi"
+
+Hoac:
+
+  .\publish.bat "update moi"
+
+(Lu y: bat buoc co .\ o dau — khong go publish.bat)
