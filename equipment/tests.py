@@ -509,6 +509,31 @@ class AgentInstallFlowTests(TestCase):
         ini_text = base64.b64decode(match.group(1)).decode('utf-8')
         self.assertIn('machine_type=personal', ini_text)
         self.assertEqual(tok.machine_type, MACHINE_TYPE_PERSONAL)
+        self.assertIn('[4/4] Cai ung dung JustPlay Portal', cmd)
+        self.assertNotIn('[4/5] Quet PC, UltraViewer', cmd)
+        self.assertNotIn('JustPlayAgent.exe" --once', cmd)
+        self.assertIn('May ca nhan: khong quet PC/UltraViewer', cmd)
+
+    @override_settings(EQUIPMENT_AGENT_SECRET='sec')
+    def test_complete_personal_install_from_token(self):
+        from django.contrib.auth import get_user_model
+
+        from equipment.models import UserAgentRegistration
+        from equipment.services.agent_install import (
+            MACHINE_TYPE_PERSONAL,
+            complete_personal_install_from_token,
+            create_install_token,
+            user_is_in_equipment_registry,
+        )
+
+        User = get_user_model()
+        user = User.objects.create_user(username='pers01', password='x')
+        tok = create_install_token(user, machine_type=MACHINE_TYPE_PERSONAL)
+        self.assertTrue(complete_personal_install_from_token(user, tok.token))
+        self.assertTrue(user_is_in_equipment_registry(user))
+        reg = UserAgentRegistration.objects.get(user=user)
+        self.assertIsNone(reg.device_id)
+        self.assertTrue(reg.serial_number.startswith('PERSONAL-'))
 
     @override_settings(EQUIPMENT_AGENT_SECRET='sec')
     def test_install_status_when_user_in_registry(self):

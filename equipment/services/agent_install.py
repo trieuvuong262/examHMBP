@@ -226,6 +226,40 @@ def try_reconcile_agent_registration(request) -> bool:
     return user_is_in_equipment_registry(user)
 
 
+def complete_personal_install_from_token(user, token_str: str) -> bool:
+    """
+    Máy cá nhân: không quét PC ở bước 4 installer — đánh dấu đã cài khi mở trang hoàn tất
+    (token personal hợp lệ).
+    """
+    from equipment.models import AgentInstallToken, UserAgentRegistration
+
+    token_str = (token_str or '').strip()
+    if not user or not user.is_authenticated or not token_str:
+        return False
+    if user_is_in_equipment_registry(user):
+        return True
+
+    tok = (
+        AgentInstallToken.objects.filter(
+            token=token_str,
+            user=user,
+            machine_type=MACHINE_TYPE_PERSONAL,
+        )
+        .first()
+    )
+    if not tok or not tok.is_valid():
+        return False
+
+    serial = f'PERSONAL-{user.pk}'
+    UserAgentRegistration.objects.update_or_create(
+        user=user,
+        serial_number=serial,
+        defaults={'device': None},
+    )
+    tok.mark_used()
+    return True
+
+
 def register_personal_agent_from_report(*, data: dict) -> bool:
     """
     Máy cá nhân: chỉ lưu UserAgentRegistration (device=null), không tạo thiết bị IT.
@@ -554,10 +588,40 @@ def _ultraviewer_collect_b64() -> str:
     )
 
 
+def _installer_company_scan_lines(*, step: int, total: int) -> list[str]:
+    return [
+        f'echo [{step}/{total}] Quet PC, UltraViewer, gui len portal...',
+        f'set "JP_UV_PASSWORD={_installer_uv_password()}"',
+        f'set "JP_UV_SETUP_URL={_installer_uv_setup_url()}"',
+        'if exist "%JP_DIR%\\ultraviewer_sidecar.json" del /f /q "%JP_DIR%\\ultraviewer_sidecar.json" >nul 2>&1',
+        'echo      UltraViewer: cai neu chua co, dat mat khau co dinh, doc ID...',
+        (
+            'powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand '
+            f'{_ultraviewer_collect_b64()} 2>> "%JP_LOG%"'
+        ),
+        'if exist "%JP_DIR%\\ultraviewer_sidecar.json" (echo      UltraViewer: OK) else (echo      UltraViewer: that bai - chuot phai .cmd -^> Run as administrator)',
+        'if exist "%JP_DIR%\\.justplay_agent_state.json" del /f /q "%JP_DIR%\\.justplay_agent_state.json" >nul 2>&1',
+        'timeout /t 2 /nobreak >nul',
+        '"%JP_DIR%\\JustPlayAgent.exe" --once',
+        'if errorlevel 1 (',
+        '  echo.',
+        '  echo  LOI: Agent khong gui duoc thong tin PC.',
+        '  echo  Thu: chuot phai file cai -^> Run as administrator',
+        '  echo  Log: %JP_LOG%',
+        '  goto :end_fail',
+        ')',
+        'echo      OK',
+        'echo.',
+    ]
+
+
 def build_installer_cmd(*, user, token: str, machine_type: str | None = None) -> str:
     base = getattr(settings, 'PORTAL_PUBLIC_BASE_URL', '').rstrip('/')
     payload = user_agent_payload(user)
     machine_type = normalize_machine_type(machine_type)
+    is_personal = machine_type == MACHINE_TYPE_PERSONAL
+    total_steps = 4 if is_personal else 5
+    portal_step = 4 if is_personal else 5
     portal_url = f'{base}/'
     portal_app_page = f'{base}/thiet-bi/agent/cai-portal-app/?autoinstall=1'
     portal_icon_url = f'{base}/static/images/logo/icon-192.png'
@@ -595,7 +659,7 @@ def build_installer_cmd(*, user, token: str, machine_type: str | None = None) ->
         'echo [%date% %time%] Bat dau >> "%JP_LOG%"',
         'echo Thu muc: %JP_DIR%',
         'echo.',
-        'echo [1/5] Tai JustPlayAgent.exe...',
+        f'echo [1/{total_steps}] Tai JustPlayAgent.exe...',
         f'curl -fsSL "{exe_url}" -o "%JP_DIR%\\JustPlayAgent.exe" 2>> "%JP_LOG%"',
         'if not exist "%JP_DIR%\\JustPlayAgent.exe" (',
         '  echo curl that bai - thu PowerShell...',
@@ -609,7 +673,7 @@ def build_installer_cmd(*, user, token: str, machine_type: str | None = None) ->
         ')',
         'echo      OK',
         'echo.',
-        'echo [2/5] Tao cau hinh...',
+        f'echo [2/{total_steps}] Tao cau hinh...',
         'set "JP_INI=%JP_DIR%\\justplay_agent.ini"',
         'del /f /q "%JP_INI%" >nul 2>&1',
         (
@@ -631,37 +695,23 @@ def build_installer_cmd(*, user, token: str, machine_type: str | None = None) ->
         ')',
         'echo      OK',
         'echo.',
-        'echo [3/5] Go bo Agent tu khoi dong Windows (neu co ban cu)...',
+        f'echo [3/{total_steps}] Go bo Agent tu khoi dong Windows (neu co ban cu)...',
         'reg delete "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "JustPlayAgent" /f >nul 2>> "%JP_LOG%"',
         'schtasks /Delete /TN "JustPlay-Agent" /F >nul 2>&1',
-        'echo      OK ^(Agent chi quet 1 lan khi cai^)',
-        'echo.',
-        'echo [4/5] Quet PC, UltraViewer, gui len portal...',
-        f'set "JP_UV_PASSWORD={_installer_uv_password()}"',
-        f'set "JP_UV_SETUP_URL={_installer_uv_setup_url()}"',
-        'if exist "%JP_DIR%\\ultraviewer_sidecar.json" del /f /q "%JP_DIR%\\ultraviewer_sidecar.json" >nul 2>&1',
-        'echo      UltraViewer: cai neu chua co, dat mat khau co dinh, doc ID...',
         (
-            'powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand '
-            f'{_ultraviewer_collect_b64()} 2>> "%JP_LOG%"'
+            'echo      OK ^(May ca nhan: khong quet PC/UltraViewer^)'
+            if is_personal
+            else 'echo      OK ^(Agent chi quet 1 lan khi cai^)'
         ),
-        'if exist "%JP_DIR%\\ultraviewer_sidecar.json" (echo      UltraViewer: OK) else (echo      UltraViewer: that bai - chuot phai .cmd -^> Run as administrator)',
-        'if exist "%JP_DIR%\\.justplay_agent_state.json" del /f /q "%JP_DIR%\\.justplay_agent_state.json" >nul 2>&1',
-        'timeout /t 2 /nobreak >nul',
-        '"%JP_DIR%\\JustPlayAgent.exe" --once',
-        'if errorlevel 1 (',
-        '  echo.',
-        '  echo  LOI: Agent khong gui duoc thong tin PC.',
-        '  echo  Thu: chuot phai file cai -^> Run as administrator',
-        '  echo  Log: %JP_LOG%',
-        '  goto :end_fail',
-        ')',
-        'echo      OK',
         'echo.',
+    ]
+    if not is_personal:
+        lines.extend(_installer_company_scan_lines(step=4, total=total_steps))
+    lines.extend([
         f'set "JP_PORTAL_URL={portal_url}"',
         f'set "JP_APP_PAGE={portal_app_page}"',
         f'set "JP_ICON_URL={portal_icon_url}"',
-        'echo [5/5] Cai ung dung JustPlay Portal (Install app)...',
+        f'echo [{portal_step}/{total_steps}] Cai ung dung JustPlay Portal (Install app)...',
         'echo      Dang tai script cai Portal...',
         f'curl -fsSL "{base}/thiet-bi/agent/jp-portal-install.ps1" -o "%JP_DIR%\\jp-portal-install.ps1" 2>> "%JP_LOG%"',
         'if not exist "%JP_DIR%\\jp-portal-install.ps1" (',
@@ -697,7 +747,7 @@ def build_installer_cmd(*, user, token: str, machine_type: str | None = None) ->
         '    echo      Canh bao: script PWA co loi nho - trang cai da mo, thu bam Install thu cong',
         '    goto :step5_ok',
         '  )',
-        '  echo  LOI: Buoc 5 cai Portal that bai',
+        f'  echo  LOI: Buoc {portal_step} cai Portal that bai',
         '  echo  Xem log: %JP_LOG%',
         '  goto :end_fail',
         ')',
@@ -714,8 +764,18 @@ def build_installer_cmd(*, user, token: str, machine_type: str | None = None) ->
         'echo.',
         'echo  ========================================',
         'echo   THANH CONG',
-        'echo   - Da gui thong tin PC + UltraViewer (neu co)',
-        'echo   - Da goi cai ung dung Portal (Install app)',
+    ])
+    if is_personal:
+        lines.extend([
+            'echo   - May ca nhan: da cai ung dung Portal (khong quet PC/UltraViewer)',
+            'echo   - Mo trang xac nhan de vao portal',
+        ])
+    else:
+        lines.extend([
+            'echo   - Da gui thong tin PC + UltraViewer (neu co)',
+            'echo   - Da goi cai ung dung Portal (Install app)',
+        ])
+    lines.extend([
         'echo  ========================================',
         'echo.',
         'goto :end_ok',
@@ -728,5 +788,5 @@ def build_installer_cmd(*, user, token: str, machine_type: str | None = None) ->
         'echo  Nhan phim bat ky de dong...',
         'pause >nul',
         'exit /b 0',
-    ]
+    ])
     return '\r\n'.join(lines) + '\r\n'

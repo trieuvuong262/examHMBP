@@ -1140,11 +1140,14 @@ def agent_portal_app_install(request):
 def agent_install_done(request):
     """Trang xác nhận sau cài — chờ agent gửi thông tin lên quản lý thiết bị."""
     from equipment.services.agent_install import (
+        complete_personal_install_from_token,
         try_reconcile_agent_registration,
         user_is_in_equipment_registry,
     )
 
     token_str = request.GET.get('token', '').strip()
+    if token_str:
+        complete_personal_install_from_token(request.user, token_str)
     try_reconcile_agent_registration(request)
     ready = user_is_in_equipment_registry(request.user)
     serial = ''
@@ -1177,6 +1180,11 @@ def api_agent_install_status(request):
     )
     from equipment.services.shared_pc import get_shared_pc_context_for_gate
 
+    from equipment.services.agent_install import complete_personal_install_from_token
+
+    token_str = request.GET.get('token', '').strip()
+    if token_str:
+        complete_personal_install_from_token(request.user, token_str)
     try_reconcile_agent_registration(request)
     if user_is_in_equipment_registry(request.user):
         return JsonResponse({'ready': True, 'registered': True})

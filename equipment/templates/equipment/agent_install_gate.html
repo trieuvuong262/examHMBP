@@ -41,8 +41,8 @@
                             <div class="ms-2">
                                 <div class="fw-bold"><i class="bi bi-house-laptop me-1"></i>Máy cá nhân</div>
                                 <div class="small text-muted mt-1">
-                                    Máy của bạn — vẫn cài agent để xác thực, <strong>không</strong> đưa vào
-                                    danh sách thiết bị công ty.
+                                    Máy của bạn — cài Portal, <strong>không</strong> quét PC / UltraViewer,
+                                    không đưa vào danh sách thiết bị công ty.
                                 </div>
                             </div>
                         </label>
@@ -77,17 +77,23 @@
                 <div id="jpGatePersonal" class="d-none">
                     <h2 class="h6 fw-bold text-uppercase text-muted mb-3">Bước 2 — Cài agent (máy cá nhân)</h2>
                     <div class="alert alert-light border small mb-3">
-                        Sau khi cài, portal chỉ lưu mã đăng ký để không hỏi lại — máy không xuất hiện trong
-                        Quản lý thiết bị.
+                        File cài <strong>4 bước</strong> (không quét PC). Sau khi cài Portal, portal lưu đăng ký
+                        máy cá nhân — không xuất hiện trong Quản lý thiết bị IT.
                     </div>
                 </div>
 
-                <ol class="mb-4 jp-install-steps">
+                <ol class="mb-4 jp-install-steps" id="jpInstallStepsCompany">
                     <li class="mb-2">Bấm <strong>Tải file cài</strong> — lưu <code>JustPlay-CaiDat-{{ portal_user.username }}.cmd</code></li>
-                    <li class="mb-2"><strong>Double-click</strong> file — chờ 6 bước (agent, UltraViewer, cài Portal…)</li>
+                    <li class="mb-2"><strong>Double-click</strong> file — chờ <strong>5 bước</strong> (quét PC, UltraViewer, cài Portal…)</li>
                     <li class="mb-2">Chưa có <strong>UltraViewer</strong> — file cài sẽ tự cài (cần <strong>Run as administrator</strong>)</li>
                     <li class="mb-2">Bước 5: cài <em>JustPlay Portal</em> — tự ghim taskbar/Start, shortcut Desktop, mở khi đăng nhập Windows</li>
                     <li class="mb-2">Trang tự vào portal khi hoàn tất</li>
+                </ol>
+                <ol class="mb-4 jp-install-steps d-none" id="jpInstallStepsPersonal">
+                    <li class="mb-2">Bấm <strong>Tải file cài</strong> — chọn <strong>Máy cá nhân</strong> trước khi tải</li>
+                    <li class="mb-2"><strong>Double-click</strong> file — chờ <strong>4 bước</strong> (không quét PC / UltraViewer)</li>
+                    <li class="mb-2">Bước 4: cài <em>JustPlay Portal</em> — shortcut Desktop, mở khi đăng nhập Windows</li>
+                    <li class="mb-2">Trang xác nhận mở tự động — vào portal khi thành công</li>
                 </ol>
 
                 <div class="d-grid d-sm-flex gap-2 mb-4">
@@ -142,6 +148,8 @@
     var waitingEl = document.getElementById('jpAgentWaiting');
     var companyPanel = document.getElementById('jpGateCompany');
     var personalPanel = document.getElementById('jpGatePersonal');
+    var stepsCompany = document.getElementById('jpInstallStepsCompany');
+    var stepsPersonal = document.getElementById('jpInstallStepsPersonal');
     var pollTimer = null;
 
     function selectedType() {
@@ -153,6 +161,8 @@
         var isPersonal = selectedType() === personalType;
         if (companyPanel) companyPanel.classList.toggle('d-none', isPersonal);
         if (personalPanel) personalPanel.classList.toggle('d-none', !isPersonal);
+        if (stepsCompany) stepsCompany.classList.toggle('d-none', isPersonal);
+        if (stepsPersonal) stepsPersonal.classList.toggle('d-none', !isPersonal);
         if (downloadBtn) {
             var base = downloadBtn.getAttribute('data-base-url');
             downloadBtn.href = base + '?machine_type=' + encodeURIComponent(selectedType());
