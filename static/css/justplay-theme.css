@@ -3126,14 +3126,18 @@ textarea.form-control {
 
 /* Sơ đồ cây D3 — cơ cấu tổ chức ngang */
 .jp-org-tree-card {
-    overflow: hidden;
+    overflow: visible;
     border-radius: 0.65rem !important;
+}
+
+.jp-org-tree-card > .card-body {
+    overflow: visible;
 }
 
 .jp-org-chart-viewport {
     position: relative;
     overflow-x: auto;
-    overflow-y: hidden;
+    overflow-y: auto;
     background: linear-gradient(165deg, #f8fafc 0%, #f1f5f9 48%, #fff 100%);
     border-radius: 0.65rem;
     min-height: 460px;
@@ -3158,11 +3162,12 @@ textarea.form-control {
 
 .jp-org-chart-headers-bar {
     position: relative;
-    z-index: 3;
+    z-index: 2;
     height: 44px;
-    overflow: hidden;
+    overflow: visible;
     background: linear-gradient(90deg, #0f766e 0%, #0d9488 42%, #14b8a6 100%);
     box-shadow: 0 2px 8px rgba(15, 118, 110, 0.25);
+    flex-shrink: 0;
 }
 
 .jp-org-chart-headers-track {
@@ -3200,12 +3205,14 @@ textarea.form-control {
 
 .jp-org-tree-mount {
     width: 100%;
-    overflow: hidden;
+    overflow: visible;
     min-height: 400px;
-    max-height: calc(min(80vh, 46rem) - 44px);
+    max-height: none;
     cursor: grab;
     touch-action: none;
     user-select: none;
+    position: relative;
+    z-index: 1;
 }
 
 .jp-org-tree-mount:active {
@@ -3381,8 +3388,12 @@ textarea.form-control {
 }
 
 .jp-org-tree-node--position .jp-org-tree-pill-label {
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 600;
+}
+
+.jp-org-tree-node--position .jp-org-tree-pill-rect {
+    stroke: #94a3b8;
 }
 
 .jp-org-tree-node--unassigned .jp-org-tree-pill-rect {

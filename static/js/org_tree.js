@@ -11,11 +11,12 @@
      * fillViewport: true = giãn cột lấp đầy chiều rộng màn hình (sơ đồ ngang).
      */
     const LAYOUT = {
-        nodeWMin: 260,
-        nodeWMax: 420,
+        nodeWMin: 300,
+        nodeWMax: 520,
         fillViewport: true,
         nodeH: 56,
-        pillScale: 1,
+        pillScale: 1.05,
+        chartPadRight: 80,
     };
 
     const PILL_RX = 8;
@@ -46,9 +47,19 @@
             return { w: Math.round((188 + gap * 0.45) * s), h: 44 };
         }
         if (level === 'position') {
-            return { w: Math.round((170 + gap * 0.35) * s), h: 36 };
+            return { w: Math.round(Math.max(nodeW - 12, 220 + gap * 0.7) * s), h: 36 };
         }
-        return { w: Math.round((178 + gap * 0.4) * s), h: 40 };
+        return { w: Math.round((178 + gap * 0.5) * s), h: 40 };
+    }
+
+    function nodeContentRight(nodes, nodeW, urls) {
+        return d3.max(nodes, (d) => {
+            const level = d.data.level || 'item';
+            const { w: pillW } = pillSize(level, !!d.data.subtitle, nodeW);
+            const actions = buildActions(d.data, urls);
+            const actionW = actions.length ? actions.length * 22 + 8 : 0;
+            return d.y + pillW + actionW;
+        }) ?? 0;
     }
 
     function elbowPath(d, nodeW) {
@@ -222,7 +233,12 @@
         mount.innerHTML = '';
         const data = window.JP_ORG_TREE;
         const urls = window.JP_ORG_URLS || {};
-        const margin = { top: 16, right: 48, bottom: 20, left: 20 };
+        const margin = {
+            top: 16,
+            right: LAYOUT.chartPadRight,
+            bottom: 20,
+            left: 20,
+        };
 
         const vp = document.getElementById('jp-org-chart-viewport');
         const vpW = (vp && vp.clientWidth) || mount.clientWidth || 1200;
@@ -242,11 +258,11 @@
 
         const yMin = d3.min(nodes, (d) => d.x) ?? 0;
         const yMax = d3.max(nodes, (d) => d.x) ?? 0;
-        const xMax = d3.max(nodes, (d) => d.y) ?? 0;
+        const contentRight = nodeContentRight(nodes, nodeW, urls);
         const maxPillH = d3.max(nodes, (d) => pillSize(d.data.level || 'item', !!d.data.subtitle, nodeW).h)
             ?? LAYOUT.nodeH;
         const innerH = yMax - yMin + maxPillH;
-        const chartW = xMax + 56;
+        const chartW = contentRight + 32;
         const chartH = innerH;
         const svgW = chartW + margin.left + margin.right;
         const svgH = chartH + margin.top + margin.bottom;
@@ -347,7 +363,7 @@
                 .attr('class', 'jp-org-tree-pill-label')
                 .attr('x', 14)
                 .attr('y', hasSub ? -2 : 5)
-                .text(truncate(d.data.name, 28));
+                .text(truncate(d.data.name, level === 'position' ? 42 : 28));
 
             if (d.data.subtitle) {
                 pill.append('text')
