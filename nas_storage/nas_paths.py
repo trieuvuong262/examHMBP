@@ -51,7 +51,8 @@ def department_folder_code(department_name: str | None) -> str | None:
     return slug or None
 
 
-def get_user_nas_roots(user) -> list[NasRootEntry]:
+def department_default_nas_roots(user) -> list[NasRootEntry]:
+    """Map mặc định: {MÃ_PB}/{username} và {MÃ_PB}/_CHUNG."""
     profile = get_profile(user)
     if not profile or not profile.department:
         return []
@@ -59,7 +60,7 @@ def get_user_nas_roots(user) -> list[NasRootEntry]:
     if not dept_code:
         return []
     username = user.username
-    roots = [
+    return [
         NasRootEntry(
             key='personal',
             label='Thư mục cá nhân',
@@ -73,7 +74,14 @@ def get_user_nas_roots(user) -> list[NasRootEntry]:
             description=f'Tài liệu dùng chung · {profile.department.name}',
         ),
     ]
-    return roots
+
+
+def get_user_nas_roots(user) -> list[NasRootEntry]:
+    from nas_storage.user_folders import custom_roots_from_db, user_has_custom_nas_folders
+
+    if user_has_custom_nas_folders(user):
+        return custom_roots_from_db(user)
+    return department_default_nas_roots(user)
 
 
 def _allowed_rel_prefixes(user) -> list[str]:

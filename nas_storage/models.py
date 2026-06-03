@@ -47,3 +47,39 @@ class NasShareLink(models.Model):
             self.save(update_fields=['is_active'])
             return True
         return False
+
+
+class NasUserFolderAccess(models.Model):
+    """Liên kết user Portal ↔ thư mục trên NAS (tùy chỉnh, thay cho map mặc định phòng ban)."""
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='nas_folder_accesses',
+        verbose_name='Tài khoản',
+    )
+    label = models.CharField(max_length=120, verbose_name='Tên hiển thị')
+    rel_path = models.CharField(
+        max_length=500,
+        verbose_name='Đường dẫn NAS',
+        help_text='VD: HCNS/Annt hoặc IT/_CHUNG (tương đối gốc mount NAS)',
+    )
+    description = models.CharField(max_length=255, blank=True, verbose_name='Mô tả')
+    sort_order = models.PositiveSmallIntegerField(default=0, verbose_name='Thứ tự')
+    is_active = models.BooleanField(default=True, verbose_name='Đang dùng')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['sort_order', 'id']
+        verbose_name = 'Thư mục NAS (theo user)'
+        verbose_name_plural = 'Thư mục NAS (theo user)'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'rel_path'],
+                name='nas_storage_user_folder_rel_path_uniq',
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f'{self.user.username}: {self.label} ({self.rel_path})'

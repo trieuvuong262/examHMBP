@@ -132,11 +132,14 @@ def browse(request):
                 'entry': entry,
                 'exists': exists,
             })
+        from nas_storage.user_folders import user_has_custom_nas_folders
+
         return render(request, 'nas_storage/browse.html', {
             'root_entries': root_entries,
             'rel_path': '',
             'breadcrumbs': [{'label': 'Thư mục NAS', 'rel_path': ''}],
             'auto_sync_interval': getattr(settings, 'NAS_AUTO_SYNC_INTERVAL', 15),
+            'nas_using_custom': user_has_custom_nas_folders(request.user),
         })
 
     if share and not is_path_under_share(rel_path, share.rel_path):

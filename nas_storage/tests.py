@@ -9,14 +9,17 @@ from django.urls import reverse
 from hrm.models import Department, Profile
 from hrm.module_permissions import MODULE_NAS_STORAGE, resolve_module_from_request
 from nas_storage.models import NasShareLink
+from nas_storage.models import NasUserFolderAccess
 from nas_storage.nas_paths import (
     NasPathError,
+    department_default_nas_roots,
     department_folder_code,
     get_user_nas_roots,
     list_directory_via_rclone,
     normalize_rel_path,
     resolve_nas_path,
 )
+from nas_storage.user_folders import user_has_custom_nas_folders
 from nas_storage.share_access import get_active_share, is_path_under_share
 
 
@@ -34,6 +37,26 @@ class NasPathTests(TestCase):
         self.assertEqual(len(roots), 2)
         self.assertEqual(roots[0].rel_path, 'HCNS/Annt')
         self.assertEqual(roots[1].rel_path, 'HCNS/_CHUNG')
+
+    def test_custom_nas_roots_override_department_defaults(self):
+        NasUserFolderAccess.objects.create(
+            user=self.user,
+            label='Dự án A',
+            rel_path='IT/du-an-a',
+            sort_order=0,
+        )
+        self.assertTrue(user_has_custom_nas_folders(self.user))
+        roots = get_user_nas_roots(self.user)
+        self.assertEqual(len(roots), 1)
+        self.assertEqual(roots[0].rel_path, 'IT/du-an-a')
+        import os
+        os.makedirs('/tmp/nas-test/IT/du-an-a', exist_ok=True)
+        path = resolve_nas_path(self.user, 'IT/du-an-a')
+        self.assertTrue(str(path).endswith('IT/du-an-a'))
+
+    def test_department_default_roots_helper(self):
+        defaults = department_default_nas_roots(self.user)
+        self.assertEqual(len(defaults), 2)
 
     def test_normalize_rejects_traversal(self):
         with self.assertRaises(NasPathError):

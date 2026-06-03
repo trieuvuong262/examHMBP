@@ -229,14 +229,41 @@ def user_edit(request, user_id):
     # Lấy profile, tự động tạo nếu chưa có
     profile, created = Profile.objects.get_or_create(user=user_obj)
 
+    from nas_storage.nas_paths import department_default_nas_roots
+    from nas_storage.user_folders import (
+        build_nas_folder_formset,
+        copy_department_defaults_to_user,
+        save_user_nas_folder_formset,
+        user_has_custom_nas_folders,
+    )
+
+    if request.method == 'POST' and request.POST.get('nas_copy_defaults'):
+        created_count = copy_department_defaults_to_user(user_obj)
+        if created_count:
+            messages.success(
+                request,
+                f'Đã tạo {created_count} thư mục NAS từ cấu hình mặc định phòng ban — có thể chỉnh tiếp bên dưới.',
+            )
+        elif user_has_custom_nas_folders(user_obj):
+            messages.info(request, 'User đã có thư mục NAS tùy chỉnh.')
+        else:
+            messages.warning(
+                request,
+                'Không có map mặc định (chưa gán phòng ban hoặc mã thư mục phòng ban).',
+            )
+        return redirect('user_edit', user_id=user_obj.id)
+
     if request.method == 'POST':
         # TRUYỀN user_id VÀO ĐÂY: Để hàm clean_username trong forms.py không báo lỗi trùng chính mình
         form = CustomUserForm(request.POST, user_id=user_obj.id)
-        
-        # Đang sửa nên không bắt buộc nhập mật khẩu
-        form.fields['password'].required = False 
+        nas_formset = build_nas_folder_formset(user=user_obj, data=request.POST)
 
-        if form.is_valid():
+        # Đang sửa nên không bắt buộc nhập mật khẩu
+        form.fields['password'].required = False
+
+        form_ok = form.is_valid()
+        nas_ok = nas_formset.is_valid()
+        if form_ok and nas_ok:
             # 1. Cập nhật bảng User mặc định của Django
             user_obj.username = form.cleaned_data['username']
             user_obj.email = form.cleaned_data['email']
@@ -269,6 +296,8 @@ def user_edit(request, user_id):
             # Hàm save() của profile sẽ tự xử lý quyền nếu role là Giám đốc
             profile.save()
 
+            save_user_nas_folder_formset(user_obj, nas_formset)
+
             avatar_upload = request.FILES.get('avatar')
             if avatar_upload:
                 avatar_result = _save_profile_avatar(profile, avatar_upload, request)
@@ -279,12 +308,17 @@ def user_edit(request, user_id):
                         'is_edit': True,
                         'user_instance': user_obj,
                         'profile': profile,
+                        'nas_formset': nas_formset,
+                        'nas_default_roots': department_default_nas_roots(user_obj),
+                        'nas_using_custom': user_has_custom_nas_folders(user_obj),
                     })
 
             messages.success(request, f"Cập nhật {profile.full_name} thành công!")
             return redirect('user_list')
         else:
             messages.error(request, "Vui lòng kiểm tra lại dữ liệu nhập vào.")
+            if not nas_ok:
+                messages.error(request, 'Kiểm tra lại bảng thư mục NAS bên dưới.')
     else:
         # Đổ dữ liệu hiện tại vào Form để sếp thấy mà sửa
         initial_data = {
@@ -306,13 +340,17 @@ def user_edit(request, user_id):
         # Truyền user_id để form biết đường loại trừ chính mình khỏi danh sách chọn cấp dưới
         form = CustomUserForm(initial=initial_data, user_id=user_obj.id)
         form.fields['password'].required = False
+        nas_formset = build_nas_folder_formset(user=user_obj)
 
     return render(request, 'assessment/admin/user_form.html', {
-        'form': form, 
+        'form': form,
         'title': 'Chỉnh sửa nhân sự',
         'is_edit': True,
         'user_instance': user_obj,
         'profile': profile,
+        'nas_formset': nas_formset,
+        'nas_default_roots': department_default_nas_roots(user_obj),
+        'nas_using_custom': user_has_custom_nas_folders(user_obj),
     })
 @admin_only
 def user_delete(request, user_id):
