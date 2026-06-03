@@ -779,10 +779,10 @@ def department_edit(request, pk):
 def department_delete(request, pk):
     department = get_object_or_404(Department, pk=pk)
     if request.method == 'POST':
-        if department.profiles.exists():
+        if department.employee_count:
             messages.error(
                 request,
-                f'Không thể xóa "{department.name}" vì còn {department.profiles.count()} nhân viên.',
+                f'Không thể xóa "{department.name}" vì còn {department.employee_count} nhân viên.',
             )
         else:
             name = department.name
@@ -1042,10 +1042,10 @@ def division_edit(request, pk):
 def division_delete(request, pk):
     division = get_object_or_404(Division, pk=pk)
     if request.method == 'POST':
-        if division.division_profiles.exists():
+        if division.employee_count:
             messages.error(
                 request,
-                f'Không thể xóa "{division.name}" vì còn {division.division_profiles.count()} nhân viên.',
+                f'Không thể xóa "{division.name}" vì còn {division.employee_count} nhân viên.',
             )
         else:
             name = division.name

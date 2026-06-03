@@ -25,6 +25,13 @@ def exclude_hidden_hrm_profiles(queryset):
     return queryset.exclude(hidden_hrm_username_q(user_prefix='user__'))
 
 
+def visible_employed_profiles(**filters):
+    """Hồ sơ NV đang làm việc, không tính tài khoản hệ thống (admin)."""
+    from hrm.models import Profile
+
+    return exclude_hidden_hrm_profiles(Profile.objects.filter(is_employed=True, **filters))
+
+
 def filter_users_by_search(queryset, query: str):
     return apply_user_search(queryset, query)
 

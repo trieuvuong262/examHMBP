@@ -67,7 +67,9 @@ class Department(models.Model):
 
     @property
     def employee_count(self):
-        return self.profiles.count()
+        from hrm.user_search import visible_employed_profiles
+
+        return visible_employed_profiles(department_id=self.pk).count()
 
     def get_enabled_modules(self):
         from hrm.module_permissions import get_department_enabled_modules
@@ -190,7 +192,9 @@ class Division(models.Model):
 
     @property
     def employee_count(self):
-        return self.division_profiles.count()
+        from hrm.user_search import visible_employed_profiles
+
+        return visible_employed_profiles(division_id=self.pk).count()
 
 
 class DivisionPosition(models.Model):

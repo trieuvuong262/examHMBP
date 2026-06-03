@@ -692,6 +692,36 @@ class OrgStructureTreemapTests(TestCase):
         self.assertNotContains(response, 'ADM01')
         self.assertNotContains(response, '"level": "employee", "id": %d' % admin_user.pk)
 
+    def test_division_delete_ignores_hidden_admin_profile(self):
+        from hrm.models import DivisionPosition
+
+        div = Division.objects.get(name='ORG-DIV-1')
+        DivisionPosition.objects.create(
+            division=div,
+            department=self.dept,
+            name='QC-DEL',
+        )
+        admin_user = User.objects.create_user(
+            username='admin',
+            password='x',
+            is_superuser=True,
+        )
+        Profile.objects.update_or_create(
+            user=admin_user,
+            defaults={
+                'full_name': 'Hidden Admin',
+                'department': self.dept,
+                'division': div,
+                'job_position': 'QC-DEL',
+                'is_employed': True,
+            },
+        )
+        self.assertEqual(div.employee_count, 0)
+        response = self.client.get(reverse('division_delete', args=[div.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Xóa bộ phận')
+        self.assertNotContains(response, 'đang có <strong>1</strong> nhân viên')
+
     def test_org_tree_includes_employee_children(self):
         from hrm.models import DivisionPosition
 
