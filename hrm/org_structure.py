@@ -49,7 +49,6 @@ class OrgTreemapContext:
     total_staff: int
     departments: list[OrgDepartmentNode]
     unassigned_divisions: list[OrgDivisionNode]
-    position_hint: str
 
 
 def _division_queryset():
@@ -124,10 +123,6 @@ def build_org_treemap() -> OrgTreemapContext:
         total_staff=total_staff,
         departments=dept_nodes,
         unassigned_divisions=unassigned,
-        position_hint=(
-            'Bấm ô Vị trí để mở/đóng danh sách nhân viên. Nút + trên vị trí = thêm NV; '
-            'Import Excel gán theo Phòng ban · Bộ phận · Vị trí.'
-        ),
     )
 
 

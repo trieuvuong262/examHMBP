@@ -6,8 +6,10 @@
 
     /** Khoảng cách ngang giữa các cột. */
     const WIDTH_SCALE = 1.75;
-    /** Chừa chỗ cho mũi tên Vị trí → NV (không đẩy thêm cả cột). */
-    const LINK_GAP_RESERVE = 52;
+    /** Chừa chỗ cho mũi tên Vị trí → NV trong ô Vị trí. */
+    const LINK_GAP_RESERVE = 48;
+    /** Đẩy cột NV nhẹ (~15% nodeW) — mũi tên dài hơn chút, không quá xa. */
+    const EMPLOYEE_X_NUDGE = 0.15;
 
     const LAYOUT = {
         widthScale: WIDTH_SCALE,
@@ -118,6 +120,16 @@
         let total = w + actionStripWidth(buildActions(nodeData, urls));
         if (level === 'position') total += 18;
         return total;
+    }
+
+    function nudgeEmployeeColumn(nodes, nodeW) {
+        const extra = Math.round(nodeW * EMPLOYEE_X_NUDGE);
+        if (extra <= 0) return;
+        nodes.forEach((n) => {
+            if ((n.data.level || '') === 'employee') {
+                n.y += extra;
+            }
+        });
     }
 
     const LINK = {
@@ -397,6 +409,7 @@
         treeLayout(root);
 
         const nodes = root.descendants();
+        nudgeEmployeeColumn(nodes, nodeW);
         const links = root.links();
         const columns = columnPositions(nodes, nodeW);
         renderHtmlHeaders(headerTrack, columns, margin.left);

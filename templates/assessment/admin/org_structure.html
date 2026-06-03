@@ -37,15 +37,10 @@
         </div>
     </div>
 
-    <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
-        <form method="get" class="jp-hrm-search input-group flex-grow-1" role="search" style="max-width: 28rem;">
+    <div class="mb-3">
+        <form method="get" class="jp-hrm-search input-group" role="search" style="max-width: 28rem;">
             {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tìm phòng ban / bộ phận / vị trí...' clear_url=org_structure_clear_url %}
         </form>
-        <div class="jp-org-legend small text-muted">
-            <span><i class="bi bi-arrows-move text-hm"></i> Kéo để di chuyển</span>
-            <span class="ms-2"><i class="bi bi-zoom-in text-hm"></i> Cuộn chuột để phóng to</span>
-            <span class="ms-2 d-none d-md-inline">Bấm <strong>Vị trí</strong> (▶) mở NV · Nút <strong>+ ✎ ×</strong> trên ô để thao tác</span>
-        </div>
     </div>
 
     {% if migration_required %}
@@ -211,7 +206,6 @@
                     <ul class="small text-muted mt-3 mb-0 ps-3">
                         <li>Bắt buộc <strong>Họ và tên</strong>; <strong>Phòng ban · Bộ phận · Vị trí</strong> khớp sheet danh mục.</li>
                         <li>Trùng Account/Mã NS → cập nhật; thiếu vị trí trong danh mục → tự tạo khi import.</li>
-                        <li>Sau import, bấm ô <strong>Vị trí</strong> trên sơ đồ để xem nhân viên.</li>
                     </ul>
                 </div>
                 <div class="modal-footer border-0 p-3 p-md-4 pt-0">
@@ -223,17 +217,13 @@
     </div>
     {% endif %}
 
-    <p class="text-muted small mt-3 mb-0">
-        <i class="bi bi-info-circle text-hm me-1"></i>
-        {% if treemap %}{{ treemap.position_hint }}{% endif %}
-    </p>
 </div>
 
 {% if not migration_required %}
 {{ org_tree|json_script:"jp-org-tree-data" }}
 {{ org_urls|json_script:"jp-org-urls-data" }}
 <script src="{% static 'vendor/d3.min.js' %}?v=7.9.0"></script>
-<script src="{% static 'js/org_tree.js' %}?v=20260531e"></script>
+<script src="{% static 'js/org_tree.js' %}?v=20260531f"></script>
 <script>
 (function () {
     var panel = document.getElementById('org-manage-panel');
