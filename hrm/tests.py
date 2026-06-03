@@ -630,6 +630,8 @@ class OrgStructureTreemapTests(TestCase):
         self.assertContains(response, 'ORG-DEPT-A')
         self.assertContains(response, 'org_tree.js')
         self.assertContains(response, 'org-manage-panel')
+        self.assertContains(response, 'jp-org-chart-headers-bar')
+        self.assertContains(response, 'Phòng ban')
         self.assertContains(response, 'jp-org-urls-data')
         self.assertContains(response, 'positionAdd')
 

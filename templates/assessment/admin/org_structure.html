@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/justplay-theme.css' %}?v=20260529a">
+<link rel="stylesheet" href="{% static 'css/justplay-theme.css' %}?v=20260529b">
 {% endblock %}
 
 {% block content %}
@@ -52,9 +52,14 @@
     </div>
     {% else %}
     <div class="card border-0 shadow-sm jp-org-tree-card">
-        <div class="card-body p-2 p-md-3">
-            <div id="jp-org-tree-mount" class="jp-org-tree-mount">
-                <p class="text-muted small p-3 mb-0">Đang tải sơ đồ…</p>
+        <div class="card-body p-0">
+            <div class="jp-org-chart-viewport" id="jp-org-chart-viewport">
+                <div class="jp-org-chart-headers-bar" aria-hidden="false">
+                    <div id="jp-org-headers-track" class="jp-org-chart-headers-track"></div>
+                </div>
+                <div id="jp-org-tree-mount" class="jp-org-tree-mount">
+                    <p class="text-muted small p-3 mb-0">Đang tải sơ đồ…</p>
+                </div>
             </div>
         </div>
     </div>
@@ -181,6 +186,6 @@
 {{ org_tree|json_script:"jp-org-tree-data" }}
 {{ org_urls|json_script:"jp-org-urls-data" }}
 <script src="{% static 'vendor/d3.min.js' %}?v=7.9.0"></script>
-<script src="{% static 'js/org_tree.js' %}?v=20260529a"></script>
+<script src="{% static 'js/org_tree.js' %}?v=20260529b"></script>
 {% endif %}
 {% endblock %}
