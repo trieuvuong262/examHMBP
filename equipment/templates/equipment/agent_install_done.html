@@ -17,8 +17,9 @@
                 <div class="spinner-border text-hm mb-3" role="status" aria-hidden="true"></div>
                 <h2 class="fw-bold mb-2">Đang hoàn tất đăng ký…</h2>
                 <p class="text-muted mb-3" id="jpAgentDoneHint">
-                    Agent đang quét PC và gửi thông tin lên portal.
-                    Trang sẽ tự chuyển khi thành công (thường trong 1–2 phút).
+                    Đang xác nhận đăng ký với portal…
+                    Nếu đã chạy file cài máy cá nhân, trang sẽ tự vào portal trong vài giây.
+                    Máy công ty cần agent gửi thông tin PC (thường 1–2 phút).
                 </p>
                 <div id="jpAgentDoneActions" class="d-none">
                     <p class="small text-warning mb-3" id="jpAgentDoneWarn"></p>
@@ -69,7 +70,7 @@
             }
             if (actions) actions.classList.remove('d-none');
             if (warn) {
-                warn.textContent = 'Mở lại file JustPlay-CaiDat-*.cmd (chuột phải → Run as administrator), chọn đúng Máy công ty, đợi dòng THANH CONG.';
+                warn.textContent = 'Quay lại tab portal đã đăng nhập (hoặc mở portal.justplay.vn). Nếu vẫn kẹt: chạy lại file .cmd, chọn đúng loại máy, đợi dòng THANH CONG.';
             }
             var back = document.getElementById('jpAgentDoneBack');
             if (back) back.classList.add('d-none');

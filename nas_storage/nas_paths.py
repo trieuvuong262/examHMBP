@@ -19,6 +19,9 @@ from hrm.permissions import get_profile
 
 DEPT_SHARED_FOLDER = '_CHUNG'
 
+# Mặc định: KD-MKT là remote gốc synology:KD-MKT (không DATACHUNG/KD-MKT)
+_DEFAULT_DEPT_ROOT_REMOTES = {'KD-MKT': 'synology:KD-MKT'}
+
 
 @dataclass(frozen=True)
 class NasRootEntry:
@@ -51,27 +54,95 @@ def department_folder_code(department_name: str | None) -> str | None:
     return slug or None
 
 
+def user_department_folder_code(user) -> str | None:
+    if not getattr(user, 'is_authenticated', False):
+        return None
+    from hrm.models import Profile
+
+    dept_name = (
+        Profile.objects.filter(user_id=user.pk)
+        .values_list('department__name', flat=True)
+        .first()
+    )
+    return department_folder_code(dept_name)
+
+
+def dept_nas_root_remotes() -> dict[str, str]:
+    """Mã phòng ban → rclone remote gốc (vd. synology:KD-MKT)."""
+    remotes = dict(_DEFAULT_DEPT_ROOT_REMOTES)
+    raw = (getattr(settings, 'NAS_DEPT_ROOT_REMOTES', '') or '').strip()
+    for part in raw.split(','):
+        part = part.strip()
+        if ':' not in part:
+            continue
+        code, remote = part.split(':', 1)
+        code = code.strip().upper()
+        remote = remote.strip()
+        if code and remote:
+            remotes[code] = remote
+    return remotes
+
+
+def uses_dept_nas_root_remote(dept_code: str | None) -> bool:
+    return bool(dept_code and dept_code in dept_nas_root_remotes())
+
+
+def strip_legacy_dept_prefix(rel_path: str, dept_code: str | None) -> str:
+    """Chuẩn hóa đường dẫn cũ KD-MKT/user → user khi phòng ban dùng remote gốc."""
+    rel = normalize_rel_path(rel_path)
+    if not dept_code or not uses_dept_nas_root_remote(dept_code):
+        return rel
+    prefix = f'{dept_code}/'
+    if rel == dept_code:
+        return ''
+    if rel.startswith(prefix):
+        return rel[len(prefix):]
+    return rel
+
+
 def department_default_nas_roots(user) -> list[NasRootEntry]:
-    """Map mặc định: {MÃ_PB}/{username} và {MÃ_PB}/_CHUNG."""
-    profile = get_profile(user)
-    if not profile or not profile.department:
+    """Map mặc định: share gốc hoặc {MÃ_PB}/{username} + _CHUNG."""
+    from hrm.models import Profile
+
+    row = (
+        Profile.objects.filter(user_id=user.pk)
+        .values_list('department__name', 'full_name')
+        .first()
+    )
+    if not row or not row[0]:
         return []
-    dept_code = department_folder_code(profile.department.name)
+    dept_name, _full_name = row
+    dept_code = department_folder_code(dept_name)
     if not dept_code:
         return []
     username = user.username
+    if uses_dept_nas_root_remote(dept_code):
+        return [
+            NasRootEntry(
+                key='personal',
+                label='Thư mục cá nhân',
+                rel_path=username,
+                description=f'{dept_name} · {username}',
+            ),
+            NasRootEntry(
+                key='dept_shared',
+                label='Chung phòng ban',
+                rel_path=DEPT_SHARED_FOLDER,
+                description=f'Tài liệu dùng chung · {dept_name}',
+            ),
+        ]
     return [
         NasRootEntry(
             key='personal',
             label='Thư mục cá nhân',
             rel_path=f'{dept_code}/{username}',
-            description=f'{profile.department.name} · {username}',
+            description=f'{dept_name} · {username}',
         ),
         NasRootEntry(
             key='dept_shared',
             label='Chung phòng ban',
             rel_path=f'{dept_code}/{DEPT_SHARED_FOLDER}',
-            description=f'Tài liệu dùng chung · {profile.department.name}',
+            description=f'Tài liệu dùng chung · {dept_name}',
         ),
     ]
 
@@ -85,7 +156,11 @@ def get_user_nas_roots(user) -> list[NasRootEntry]:
 
 
 def _allowed_rel_prefixes(user) -> list[str]:
-    return [entry.rel_path for entry in get_user_nas_roots(user)]
+    dept_code = user_department_folder_code(user)
+    prefixes = []
+    for entry in get_user_nas_roots(user):
+        prefixes.append(strip_legacy_dept_prefix(entry.rel_path, dept_code))
+    return prefixes
 
 
 def normalize_rel_path(raw: str) -> str:
@@ -104,7 +179,8 @@ def normalize_rel_path(raw: str) -> str:
 
 
 def resolve_nas_path(user, rel_path: str) -> Path:
-    rel = normalize_rel_path(rel_path)
+    dept_code = user_department_folder_code(user)
+    rel = strip_legacy_dept_prefix(rel_path, dept_code)
     if not rel:
         raise NasPathError('Chưa chọn thư mục.')
 
@@ -126,8 +202,16 @@ def resolve_nas_path(user, rel_path: str) -> Path:
     return candidate
 
 
-def list_directory(path: Path, *, fresh: bool = False, rel_path: str = '') -> dict:
-    listing, _source, _stale = list_directory_with_source(path, fresh=fresh, rel_path=rel_path)
+def list_directory(
+    path: Path,
+    *,
+    fresh: bool = False,
+    rel_path: str = '',
+    user=None,
+) -> dict:
+    listing, _source, _stale = list_directory_with_source(
+        path, fresh=fresh, rel_path=rel_path, user=user,
+    )
     return listing
 
 
@@ -150,51 +234,76 @@ def rclone_listing_available() -> bool:
     return True
 
 
-def nas_path_exists(rel_path: str) -> bool:
-    """Kiểm tra file/thư mục còn trên NAS — ưu tiên rclone."""
-    rel = normalize_rel_path(rel_path)
+def nas_path_exists(rel_path: str, *, user=None) -> bool:
+    """Kiểm tra thư mục — ưu tiên mount (nhanh), tránh 2 lần rclone trên trang gốc."""
+    dept_code = user_department_folder_code(user) if user else None
+    rel = strip_legacy_dept_prefix(rel_path, dept_code)
     if not rel:
         return False
-    if rclone_listing_available():
-        try:
-            target = _rclone_remote_path(rel)
-            proc = subprocess.run(
-                ['rclone', 'lsl', target],
-                capture_output=True,
-                text=True,
-                timeout=30,
-                check=False,
-                env=_rclone_env(),
-            )
-            if proc.returncode == 0:
-                return True
-            proc = subprocess.run(
-                ['rclone', 'lsd', target],
-                capture_output=True,
-                text=True,
-                timeout=30,
-                check=False,
-                env=_rclone_env(),
-            )
-            return proc.returncode == 0
-        except (OSError, subprocess.TimeoutExpired):
-            pass
+
     candidate = nas_mount_root() / rel
-    return candidate.exists()
+    try:
+        if candidate.exists():
+            return True
+    except OSError:
+        pass
+
+    if uses_dept_nas_root_remote(dept_code) and rclone_listing_available():
+        return True
+
+    if not rclone_listing_available():
+        return False
+
+    try:
+        target = _rclone_remote_path(rel, user=user)
+        proc = subprocess.run(
+            ['rclone', 'lsd', target],
+            capture_output=True,
+            text=True,
+            timeout=12,
+            check=False,
+            env=_rclone_env(),
+        )
+        return proc.returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
 
 
-def list_directory_with_source(path: Path, *, fresh: bool = False, rel_path: str = '') -> tuple[dict, str, bool]:
-    """Trả về (listing, source, stale). Luôn ưu tiên rclone — mount chỉ fallback khi không bắt buộc fresh."""
-    rel = normalize_rel_path(rel_path)
+def list_directory_with_source(
+    path: Path,
+    *,
+    fresh: bool = False,
+    rel_path: str = '',
+    user=None,
+) -> tuple[dict, str, bool]:
+    """Trả về (listing, source, stale). Mặc định đọc mount (nhanh); rclone khi refresh hoặc mount trống."""
+    dept_code = user_department_folder_code(user) if user else None
+    rel = strip_legacy_dept_prefix(rel_path, dept_code)
+
+    if not fresh:
+        try:
+            if path.is_dir():
+                listing = _list_directory_local(path)
+                return listing, 'mount', False
+        except NasPathError:
+            pass
+
     if rel and rclone_listing_available():
         try:
-            return list_directory_via_rclone(rel), 'rclone', False
+            return list_directory_via_rclone(rel, user=user, fresh=fresh), 'rclone', False
         except NasPathError:
             if fresh:
                 raise NasPathError(
                     'Không đồng bộ được từ NAS (rclone). '
                     'Liên hệ IT kiểm tra cấu hình rclone trên server.'
                 )
+            try:
+                if path.is_dir():
+                    listing = _list_directory_local(path)
+                    return listing, 'mount', True
+            except NasPathError:
+                pass
+            raise
 
     listing = _list_directory_local(path)
     return listing, 'mount', bool(fresh and rel)
@@ -235,9 +344,22 @@ def _list_directory_local(path: Path) -> dict:
     return {'folders': folders, 'files': files}
 
 
-def _rclone_remote_path(rel_path: str) -> str:
+def _rclone_remote_path(rel_path: str, *, user=None) -> str:
+    dept_code = user_department_folder_code(user) if user else None
+    rel = strip_legacy_dept_prefix(rel_path, dept_code)
+    remotes = dept_nas_root_remotes()
+
+    if dept_code and dept_code in remotes:
+        base = remotes[dept_code].rstrip('/')
+        return f'{base}/{rel}' if rel else base
+
     base = getattr(settings, 'NAS_RCLONE_REMOTE', 'synology:DATACHUNG').rstrip('/')
-    rel = normalize_rel_path(rel_path)
+    kd_remote = remotes.get('KD-MKT')
+    if kd_remote and rel and (rel == 'KD-MKT' or rel.startswith('KD-MKT/')):
+        stripped = rel[7:].lstrip('/') if len(rel) > 6 else ''
+        kd_base = kd_remote.rstrip('/')
+        return f'{kd_base}/{stripped}' if stripped else kd_base
+
     if rel:
         return f'{base}/{rel}'
     return base
@@ -251,15 +373,47 @@ def _rclone_env() -> dict:
     return env
 
 
-def list_directory_via_rclone(rel_path: str) -> dict:
-    """Đọc trực tiếp qua rclone — bỏ qua cache FUSE mount."""
-    target = _rclone_remote_path(rel_path)
+def _listing_cache_key(user, rel_path: str) -> str | None:
+    if not user or not getattr(user, 'pk', None):
+        return None
+    return f'nas:lsjson:{user.pk}:{rel_path}'
+
+
+def invalidate_listing_cache(user, rel_path: str = '') -> None:
+    from django.core.cache import cache
+
+    if not user or not getattr(user, 'pk', None):
+        return
+    if rel_path:
+        cache.delete(_listing_cache_key(user, rel_path))
+        return
+    prefix = f'nas:lsjson:{user.pk}:'
+    try:
+        cache.delete_pattern(f'{prefix}*')
+    except AttributeError:
+        pass
+
+
+def list_directory_via_rclone(rel_path: str, *, user=None, fresh: bool = False) -> dict:
+    """Đọc trực tiếp qua rclone — có cache ngắn để mở thư mục nhanh hơn."""
+    dept_code = user_department_folder_code(user) if user else None
+    rel = strip_legacy_dept_prefix(rel_path, dept_code)
+    cache_key = _listing_cache_key(user, rel) if user and not fresh else None
+    if cache_key:
+        from django.core.cache import cache
+
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+    target = _rclone_remote_path(rel, user=user)
+    timeout = int(getattr(settings, 'NAS_RCLONE_LIST_TIMEOUT', '60'))
     try:
         proc = subprocess.run(
             ['rclone', 'lsjson', target, '--no-mimetype'],
             capture_output=True,
             text=True,
-            timeout=90,
+            timeout=timeout,
             check=False,
             env=_rclone_env(),
         )
@@ -303,11 +457,17 @@ def list_directory_via_rclone(rel_path: str) -> dict:
 
     folders.sort(key=lambda x: x['name'].lower())
     files.sort(key=lambda x: x['name'].lower())
-    return {'folders': folders, 'files': files}
+    listing = {'folders': folders, 'files': files}
+    if cache_key:
+        from django.core.cache import cache
+
+        ttl = int(getattr(settings, 'NAS_LISTING_CACHE_SECONDS', 45))
+        cache.set(cache_key, listing, ttl)
+    return listing
 
 
-def delete_via_rclone(rel_path: str) -> None:
-    target = _rclone_remote_path(rel_path)
+def delete_via_rclone(rel_path: str, *, user=None) -> None:
+    target = _rclone_remote_path(rel_path, user=user)
     try:
         proc = subprocess.run(
             ['rclone', 'deletefile', target],
@@ -324,8 +484,8 @@ def delete_via_rclone(rel_path: str) -> None:
         raise NasPathError(err or 'Không xóa được file trên NAS.')
 
 
-def delete_dir_via_rclone(rel_path: str) -> None:
-    target = _rclone_remote_path(rel_path)
+def delete_dir_via_rclone(rel_path: str, *, user=None) -> None:
+    target = _rclone_remote_path(rel_path, user=user)
     try:
         proc = subprocess.run(
             ['rclone', 'rmdir', target],
@@ -346,8 +506,9 @@ def listing_synced_at() -> str:
     return datetime.now(timezone.utc).astimezone().strftime('%H:%M:%S')
 
 
-def build_breadcrumb(rel_path: str) -> list[dict]:
-    rel = normalize_rel_path(rel_path)
+def build_breadcrumb(rel_path: str, *, user=None) -> list[dict]:
+    dept_code = user_department_folder_code(user) if user else None
+    rel = strip_legacy_dept_prefix(rel_path, dept_code)
     if not rel:
         return []
     crumbs = [{'label': 'Thư mục NAS', 'rel_path': ''}]

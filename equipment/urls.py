@@ -73,6 +73,11 @@ urlpatterns = [
     ),
     path('agent/cai-portal-app/', views.agent_portal_app_install, name='agent_portal_app_install'),
     path('agent/hoan-tat/', views.agent_install_done, name='agent_install_done'),
+    path(
+        'agent/api/hoan-tat-ca-nhan/',
+        views.api_complete_personal_install,
+        name='api_complete_personal_install',
+    ),
     path('agent/trang-thai/', views.api_agent_install_status, name='api_agent_install_status'),
     path('agent/ping/', views.agent_config_ping, name='agent_config_ping'),
     path('agent/quet/', views.request_agent_rescan, name='request_agent_rescan'),

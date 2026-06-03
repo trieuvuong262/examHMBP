@@ -1137,6 +1137,22 @@ def agent_portal_app_install(request):
     })
 
 
+@require_GET
+def api_complete_personal_install(request):
+    """
+    Hoàn tất đăng ký máy cá nhân — không cần cookie đăng nhập.
+    Installer gọi qua curl sau khi cài xong (trình duyệt mở từ .cmd thường không có session).
+    """
+    from equipment.services.agent_install import complete_personal_install_from_token
+
+    token_str = request.GET.get('token', '').strip()
+    if not token_str:
+        return JsonResponse({'ok': False, 'error': 'missing_token'}, status=400)
+    if complete_personal_install_from_token(token_str):
+        return JsonResponse({'ok': True})
+    return JsonResponse({'ok': False, 'error': 'invalid_or_expired_token'}, status=400)
+
+
 @login_required
 def agent_install_done(request):
     """Trang xác nhận sau cài — chờ agent gửi thông tin lên quản lý thiết bị."""
@@ -1148,7 +1164,10 @@ def agent_install_done(request):
 
     token_str = request.GET.get('token', '').strip()
     if token_str:
-        complete_personal_install_from_token(request.user, token_str)
+        complete_personal_install_from_token(
+            token_str,
+            user=request.user if request.user.is_authenticated else None,
+        )
     try_reconcile_agent_registration(request)
     ready = user_is_in_equipment_registry(request.user)
     serial = ''
@@ -1185,7 +1204,7 @@ def api_agent_install_status(request):
 
     token_str = request.GET.get('token', '').strip()
     if token_str:
-        complete_personal_install_from_token(request.user, token_str)
+        complete_personal_install_from_token(token_str, user=request.user)
     try_reconcile_agent_registration(request)
     gate_required = is_agent_install_required(request)
     if user_is_in_equipment_registry(request.user):

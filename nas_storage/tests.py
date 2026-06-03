@@ -25,9 +25,40 @@ from nas_storage.share_access import get_active_share, is_path_under_share
 
 class NasPathTests(TestCase):
     def setUp(self):
-        self.dept = Department.objects.create(name='HÀNH CHÍNH NHÂN SỰ', sort_order=1)
-        self.user = User.objects.create_user(username='Annt', password='test')
-        Profile.objects.create(user=self.user, full_name='Test User', department=self.dept)
+        self.dept, _ = Department.objects.get_or_create(
+            name='HÀNH CHÍNH NHÂN SỰ',
+            defaults={'sort_order': 1},
+        )
+        self.user = User.objects.create_user(username='naspath_annt', password='test')
+        Profile.objects.filter(user=self.user).update(
+            full_name='Test User',
+            department=self.dept,
+        )
+
+    @override_settings(NAS_DEPT_ROOT_REMOTES='KD-MKT:synology:KD-MKT')
+    def test_kd_mkt_default_roots_use_share_root(self):
+        dept, _ = Department.objects.get_or_create(
+            name='KINH DOANH - MARKETING',
+            defaults={'sort_order': 2},
+        )
+        user = User.objects.create_user(username='mkt1', password='test')
+        Profile.objects.filter(user=user).update(full_name='MKT', department=dept)
+        roots = get_user_nas_roots(user)
+        self.assertEqual(roots[0].rel_path, 'mkt1')
+        self.assertEqual(roots[1].rel_path, '_CHUNG')
+
+    @override_settings(NAS_DEPT_ROOT_REMOTES='KD-MKT:synology:KD-MKT')
+    def test_kd_mkt_rclone_path_not_under_datachung(self):
+        from nas_storage.nas_paths import _rclone_remote_path
+
+        dept, _ = Department.objects.get_or_create(
+            name='KINH DOANH - MARKETING',
+            defaults={'sort_order': 3},
+        )
+        user = User.objects.create_user(username='mkt2', password='test')
+        Profile.objects.filter(user=user).update(full_name='MKT2', department=dept)
+        self.assertEqual(_rclone_remote_path('mkt2', user=user), 'synology:KD-MKT/mkt2')
+        self.assertEqual(_rclone_remote_path('KD-MKT/mkt2', user=user), 'synology:KD-MKT/mkt2')
 
     def test_department_folder_code(self):
         self.assertEqual(department_folder_code('HÀNH CHÍNH NHÂN SỰ'), 'HCNS')
@@ -35,7 +66,7 @@ class NasPathTests(TestCase):
     def test_user_roots(self):
         roots = get_user_nas_roots(self.user)
         self.assertEqual(len(roots), 2)
-        self.assertEqual(roots[0].rel_path, 'HCNS/Annt')
+        self.assertEqual(roots[0].rel_path, 'HCNS/naspath_annt')
         self.assertEqual(roots[1].rel_path, 'HCNS/_CHUNG')
 
     def test_custom_nas_roots_override_department_defaults(self):
@@ -52,7 +83,7 @@ class NasPathTests(TestCase):
         import os
         os.makedirs('/tmp/nas-test/IT/du-an-a', exist_ok=True)
         path = resolve_nas_path(self.user, 'IT/du-an-a')
-        self.assertTrue(str(path).endswith('IT/du-an-a'))
+        self.assertTrue(path.as_posix().endswith('IT/du-an-a'))
 
     def test_department_default_roots_helper(self):
         defaults = department_default_nas_roots(self.user)
@@ -65,9 +96,9 @@ class NasPathTests(TestCase):
     @override_settings(NAS_MOUNT_ROOT='/tmp/nas-test')
     def test_resolve_allowed_path(self):
         import os
-        os.makedirs('/tmp/nas-test/HCNS/Annt', exist_ok=True)
-        path = resolve_nas_path(self.user, 'HCNS/Annt')
-        self.assertTrue(str(path).endswith('HCNS/Annt'))
+        os.makedirs('/tmp/nas-test/HCNS/naspath_annt', exist_ok=True)
+        path = resolve_nas_path(self.user, 'HCNS/naspath_annt')
+        self.assertTrue(path.as_posix().endswith('HCNS/naspath_annt'))
 
     @override_settings(NAS_MOUNT_ROOT='/tmp/nas-test')
     def test_resolve_denies_other_dept(self):

@@ -234,33 +234,44 @@ def try_reconcile_agent_registration(request) -> bool:
     return user_is_in_equipment_registry(user)
 
 
-def complete_personal_install_from_token(user, token_str: str) -> bool:
+def complete_personal_install_from_token(token_str: str, *, user=None) -> bool:
     """
-    Máy cá nhân: không quét PC ở bước 4 installer — đánh dấu đã cài khi mở trang hoàn tất
-    (token personal hợp lệ).
+    Máy cá nhân: đăng ký UserAgentRegistration (không tạo Device IT).
+    Gọi từ trang hoàn tất (có đăng nhập), API công khai (installer curl), hoặc poll có token.
+    Nếu truyền user — token phải thuộc đúng user đó.
     """
     from equipment.models import AgentInstallToken, UserAgentRegistration
 
     token_str = (token_str or '').strip()
-    if not user or not user.is_authenticated or not token_str:
+    if not token_str:
         return False
-    if user_is_in_equipment_registry(user):
-        return True
 
     tok = (
         AgentInstallToken.objects.filter(
             token=token_str,
-            user=user,
             machine_type=MACHINE_TYPE_PERSONAL,
         )
+        .select_related('user')
         .first()
     )
-    if not tok or not tok.is_valid():
+    if not tok:
+        return False
+    target = tok.user
+    if user is not None:
+        if not getattr(user, 'is_authenticated', False) or user.pk != target.pk:
+            return False
+
+    if user_is_in_equipment_registry(target):
+        if tok.is_valid():
+            tok.mark_used()
+        return True
+
+    if not tok.is_valid():
         return False
 
-    serial = f'PERSONAL-{user.pk}'
+    serial = f'PERSONAL-{target.pk}'
     UserAgentRegistration.objects.update_or_create(
-        user=user,
+        user=target,
         serial_number=serial,
         defaults={'device': None},
     )
@@ -635,6 +646,7 @@ def build_installer_cmd(*, user, token: str, machine_type: str | None = None) ->
     portal_icon_url = f'{base}/static/images/logo/icon-192.png'
     exe_url = f'{base}/thiet-bi/agent/exe/'
     done_url = f'{base}/thiet-bi/agent/hoan-tat/?token={token}'
+    personal_complete_api = f'{base}/thiet-bi/agent/api/hoan-tat-ca-nhan/?token={token}'
     secret = getattr(settings, 'EQUIPMENT_AGENT_SECRET', '')
     ini_b64 = base64.b64encode(
         build_agent_ini_content(
@@ -768,6 +780,16 @@ def build_installer_cmd(*, user, token: str, machine_type: str | None = None) ->
         'echo.',
         'echo      Mo trang xac nhan portal...',
         'timeout /t 5 /nobreak >nul',
+    ])
+    if is_personal:
+        lines.extend([
+            f'echo      Dang luu dang ky may ca nhan len portal...',
+            f'curl -fsSL "{personal_complete_api}" >> "%JP_LOG%" 2>&1',
+            'if errorlevel 1 (',
+            '  echo      Canh bao: chua goi duoc API hoan tat — mo trang xac nhan de thu lai',
+            ')',
+        ])
+    lines.extend([
         f'start "" "{done_url}"',
         'echo.',
         'echo  ========================================',

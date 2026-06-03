@@ -513,6 +513,26 @@ class AgentInstallFlowTests(TestCase):
         self.assertNotIn('[4/5] Quet PC, UltraViewer', cmd)
         self.assertNotIn('JustPlayAgent.exe" --once', cmd)
         self.assertIn('May ca nhan: khong quet PC/UltraViewer', cmd)
+        self.assertIn('/thiet-bi/agent/api/hoan-tat-ca-nhan/', cmd)
+
+    @override_settings(EQUIPMENT_AGENT_SECRET='sec')
+    def test_api_complete_personal_install_no_login(self):
+        from django.contrib.auth import get_user_model
+
+        from equipment.services.agent_install import (
+            MACHINE_TYPE_PERSONAL,
+            create_install_token,
+            user_is_in_equipment_registry,
+        )
+
+        User = get_user_model()
+        user = User.objects.create_user(username='api_pers', password='x')
+        tok = create_install_token(user, machine_type=MACHINE_TYPE_PERSONAL)
+        client = __import__('django.test', fromlist=['Client']).Client()
+        resp = client.get(f'/thiet-bi/agent/api/hoan-tat-ca-nhan/?token={tok.token}')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json().get('ok'))
+        self.assertTrue(user_is_in_equipment_registry(user))
 
     @override_settings(EQUIPMENT_AGENT_SECRET='sec')
     def test_complete_personal_install_from_token(self):
@@ -529,7 +549,7 @@ class AgentInstallFlowTests(TestCase):
         User = get_user_model()
         user = User.objects.create_user(username='pers01', password='x')
         tok = create_install_token(user, machine_type=MACHINE_TYPE_PERSONAL)
-        self.assertTrue(complete_personal_install_from_token(user, tok.token))
+        self.assertTrue(complete_personal_install_from_token(tok.token, user=user))
         self.assertTrue(user_is_in_equipment_registry(user))
         reg = UserAgentRegistration.objects.get(user=user)
         self.assertIsNone(reg.device_id)

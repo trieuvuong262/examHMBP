@@ -22,6 +22,7 @@ from nas_storage.nas_paths import (
     delete_dir_via_rclone,
     delete_via_rclone,
     get_user_nas_roots,
+    invalidate_listing_cache,
     list_directory_with_source,
     listing_fingerprint,
     listing_synced_at,
@@ -29,6 +30,8 @@ from nas_storage.nas_paths import (
     nas_path_exists,
     normalize_rel_path,
     resolve_nas_path,
+    strip_legacy_dept_prefix,
+    user_department_folder_code,
 )
 from nas_storage.share_access import (
     get_active_share,
@@ -50,7 +53,9 @@ def _access_required(view_func):
 
 
 def _rel_from_request(request) -> str:
-    return normalize_rel_path(request.GET.get('path', ''))
+    raw = request.GET.get('path', '')
+    dept_code = user_department_folder_code(request.user)
+    return strip_legacy_dept_prefix(raw, dept_code)
 
 
 def _share_from_request(request):
@@ -67,12 +72,14 @@ def _attach_rel_paths(listing: dict, rel_path: str) -> None:
 
 def _listing_context(request, rel_path: str, *, fresh: bool = False, share=None) -> dict:
     path = resolve_path_for_request(request.user, rel_path, share=share)
-    listing, source, stale = list_directory_with_source(path, fresh=fresh, rel_path=rel_path)
+    listing, source, stale = list_directory_with_source(
+        path, fresh=fresh, rel_path=rel_path, user=request.user,
+    )
     _attach_rel_paths(listing, rel_path)
     share_mode = share is not None
     return {
         'rel_path': rel_path,
-        'breadcrumbs': build_breadcrumb(rel_path),
+        'breadcrumbs': build_breadcrumb(rel_path, user=request.user),
         'folders': listing['folders'],
         'files': listing['files'],
         'can_upload': (not share_mode) and user_can_create_module(request.user, MODULE_NAS_STORAGE),
@@ -127,7 +134,7 @@ def browse(request):
     if not rel_path:
         root_entries = []
         for entry in roots:
-            exists = nas_path_exists(entry.rel_path)
+            exists = nas_path_exists(entry.rel_path, user=request.user)
             root_entries.append({
                 'entry': entry,
                 'exists': exists,
@@ -147,7 +154,7 @@ def browse(request):
         return redirect('nas_storage:share_open', token=share.token)
 
     try:
-        ctx = _listing_context(request, rel_path, fresh=True, share=share)
+        ctx = _listing_context(request, rel_path, fresh=fresh, share=share)
     except NasPathError as exc:
         messages.error(request, str(exc))
         if share:
@@ -159,7 +166,7 @@ def browse(request):
             return redirect('nas_storage:share_open', token=share.token)
         return redirect('nas_storage:browse')
 
-    if request.GET.get('refresh') == '1':
+    if fresh:
         if ctx.get('listing_source') == 'rclone':
             messages.success(request, f'Đã đồng bộ lúc {ctx["synced_at"]} (trực tiếp từ NAS).')
         elif ctx.get('listing_stale'):
@@ -308,7 +315,10 @@ def upload(request):
         messages.error(request, 'Bạn không có quyền tải lên file.')
         return redirect('nas_storage:browse')
 
-    rel_dir = normalize_rel_path(request.POST.get('path', ''))
+    rel_dir = strip_legacy_dept_prefix(
+        request.POST.get('path', ''),
+        user_department_folder_code(request.user),
+    )
     if not rel_dir:
         messages.error(request, 'Chọn thư mục đích trước khi tải lên.')
         return redirect('nas_storage:browse')
@@ -342,6 +352,7 @@ def upload(request):
         for chunk in uploaded.chunks():
             out.write(chunk)
 
+    invalidate_listing_cache(request.user, rel_dir)
     messages.success(request, f'Đã tải lên "{filename}".')
     return redirect(_browse_url(rel_dir, refresh=True))
 
@@ -353,8 +364,9 @@ def delete_entry(request):
         messages.error(request, 'Bạn không có quyền xóa.')
         return redirect('nas_storage:browse')
 
-    rel_path = normalize_rel_path(request.POST.get('path', ''))
-    parent_rel = normalize_rel_path(request.POST.get('parent', ''))
+    dept_code = user_department_folder_code(request.user)
+    rel_path = strip_legacy_dept_prefix(request.POST.get('path', ''), dept_code)
+    parent_rel = strip_legacy_dept_prefix(request.POST.get('parent', ''), dept_code)
 
     try:
         path = resolve_nas_path(request.user, rel_path)
@@ -370,15 +382,16 @@ def delete_entry(request):
         try:
             path.rmdir()
         except OSError:
-            delete_dir_via_rclone(rel_path)
+            delete_dir_via_rclone(rel_path, user=request.user)
     elif path.is_file():
         try:
             path.unlink()
         except OSError:
-            delete_via_rclone(rel_path)
+            delete_via_rclone(rel_path, user=request.user)
     else:
         messages.error(request, 'Không tìm thấy file hoặc thư mục.')
         return redirect(_browse_url(parent_rel))
 
+    invalidate_listing_cache(request.user, parent_rel or rel_path)
     messages.success(request, f'Đã xóa "{name}".')
     return redirect(_browse_url(parent_rel, refresh=True))

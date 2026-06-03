@@ -22,6 +22,7 @@ class AgentInstallGateMiddleware:
         '/manifest.webmanifest',
         '/thiet-bi/agent/hoan-tat/',
         '/thiet-bi/agent/trang-thai/',
+        '/thiet-bi/agent/api/hoan-tat-ca-nhan/',
         '/thiet-bi/agent/ping/',
         '/thiet-bi/api/agent-report/',
         '/thiet-bi/api/agent-poll/',
