@@ -13,6 +13,22 @@ class AgentCoreTests(SimpleTestCase):
         self.assertTrue(is_bad_serial(None))
         self.assertFalse(is_bad_serial('ABC123456'))
 
+    def test_windows_license_script_does_not_require_partial_key_in_filter(self):
+        from equipment.agent.core import _WINDOWS_LICENSE_PS
+
+        self.assertIn('SoftwareLicensingProduct', _WINDOWS_LICENSE_PS)
+        self.assertNotIn('PartialProductKey -and', _WINDOWS_LICENSE_PS)
+        self.assertIn('slmgr.vbs', _WINDOWS_LICENSE_PS)
+
+    @patch('equipment.agent.core.run_powershell')
+    def test_resolve_windows_license_delegates_to_powershell(self, mock_ps):
+        from equipment.agent.core import resolve_windows_license
+
+        mock_ps.return_value = 'Da kich hoat - ABCDE'
+        with patch('equipment.agent.core.platform.system', return_value='Windows'):
+            self.assertEqual(resolve_windows_license(), 'Da kich hoat - ABCDE')
+        mock_ps.assert_called_once()
+
 
 class UltraviewerCollectTests(SimpleTestCase):
     @override_settings(EQUIPMENT_ULTRAVIEWER_FIXED_PASSWORD='123123sS')
@@ -445,6 +461,8 @@ class AgentInstallFlowTests(TestCase):
         from equipment.services.agent_install import portal_install_powershell_script
 
         portal_ps = portal_install_powershell_script()
+        self.assertNotIn('\u2014', portal_ps)
+        self.assertIn('PWA: xong', portal_ps)
         self.assertIn('browser-pwa-profile', portal_ps)
         self.assertIn('--new-window', portal_ps)
         self.assertIn('--install-app=', portal_ps)
@@ -454,6 +472,16 @@ class AgentInstallFlowTests(TestCase):
         self.assertIn('pintostartmenu', portal_ps)
         self.assertIn('JustPlayPortal', portal_ps)
         self.assertIn('--app=', portal_ps)
+
+    def test_jp_portal_install_ps1_served_with_utf8_bom(self):
+        from django.test import Client
+        from django.urls import reverse
+
+        client = Client()
+        resp = client.get(reverse('equipment:agent_jp_portal_install_ps1'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.content.startswith(b'\xef\xbb\xbf'))
+        self.assertIn(b'PWA: xong', resp.content)
 
     @override_settings(
         EQUIPMENT_AGENT_SECRET='sec',

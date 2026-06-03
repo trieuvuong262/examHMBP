@@ -348,7 +348,7 @@ $iconUrl = $env:JP_ICON_URL
 $jpDir = $env:JP_DIR
 if (-not $jpDir) { $jpDir = Join-Path $env:LOCALAPPDATA 'JustPlayAgent' }
 if (-not $u) {
-    Write-Error '[5/6] PWA: thieu JP_PORTAL_URL'
+    Write-Error '[5/5] PWA: thieu JP_PORTAL_URL'
     exit 1
 }
 if (-not $page) { $page = $u }
@@ -360,7 +360,7 @@ function Write-JpLog([string]$msg) {
     if ($env:JP_LOG) { Add-Content -Path $env:JP_LOG -Value $msg -Encoding UTF8 -ErrorAction SilentlyContinue }
 }
 
-Write-JpLog '[5/6] PWA: bat dau'
+Write-JpLog '[5/5] PWA: bat dau'
 
 function Get-JpPortalIconFile {
     if (-not $iconUrl -or -not $jpDir) { return $null }
@@ -413,9 +413,9 @@ function Set-JpPortalAutoStart([string]$browser, [string]$appUrl) {
     try {
         Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' `
             -Name 'JustPlayPortal' -Value $runCmd -ErrorAction Stop
-        Write-JpLog '[5/6] PWA: auto-start Run (JustPlayPortal)'
+        Write-JpLog '[5/5] PWA: auto-start Run (JustPlayPortal)'
     } catch {
-        Write-JpLog '[5/6] PWA: auto-start Run that bai'
+        Write-JpLog '[5/5] PWA: auto-start Run that bai'
     }
 }
 
@@ -427,7 +427,7 @@ function Deploy-JustPlayPortalShortcuts([string]$browser, [string]$appUrl) {
 
     foreach ($path in @($programs, $desktop, $startup, $commonPrograms)) {
         if (Add-JpPortalAppShortcut $browser $appUrl $path) {
-            Write-JpLog "[5/6] PWA: shortcut $path"
+            Write-JpLog "[5/5] PWA: shortcut $path"
         }
     }
 
@@ -435,16 +435,16 @@ function Deploy-JustPlayPortalShortcuts([string]$browser, [string]$appUrl) {
     if (Test-Path $programs) { Copy-Item $programs $startup -Force -ErrorAction SilentlyContinue }
 
     if (Invoke-ShortcutShellVerb $desktop 'pintostartmenu') {
-        Write-JpLog '[5/6] PWA: pin Start menu (verb)'
+        Write-JpLog '[5/5] PWA: pin Start menu (verb)'
     }
     if (Invoke-ShortcutShellVerb $desktop 'taskbarpin') {
-        Write-JpLog '[5/6] PWA: pin taskbar (verb)'
+        Write-JpLog '[5/5] PWA: pin taskbar (verb)'
     }
 
     $taskbarDir = Join-Path $env:APPDATA 'Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar'
     if ((Test-Path $taskbarDir) -and (Test-Path $desktop)) {
         Copy-Item $desktop (Join-Path $taskbarDir 'JustPlay Portal.lnk') -Force -ErrorAction SilentlyContinue
-        Write-JpLog '[5/6] PWA: copy taskbar Quick Launch'
+        Write-JpLog '[5/5] PWA: copy taskbar Quick Launch'
     }
 
     Set-JpPortalAutoStart $browser $appUrl
@@ -471,10 +471,10 @@ function Start-JpBrowserWindow([string]$browserPath, [string]$url, [string[]]$ex
     if ($extra) { $args = $extra + $args }
     try {
         $proc = Start-Process -FilePath $browserPath -ArgumentList $args -PassThru -WindowStyle Normal -ErrorAction Stop
-        Write-JpLog "[5/6] PWA: mo $url (pid=$($proc.Id))"
+        Write-JpLog "[5/5] PWA: mo $url (pid=$($proc.Id))"
         return $true
     } catch {
-        Write-JpLog "[5/6] PWA: mo trang that bai — $($_.Exception.Message)"
+        Write-JpLog "[5/5] PWA: mo trang that bai - $($_.Exception.Message)"
         return $false
     }
 }
@@ -484,28 +484,29 @@ foreach ($p in ($edge + $chrome)) {
     if (Test-Path $p) { $browser = $p; break }
 }
 if (-not $browser) {
-    Write-JpLog '[5/6] PWA: khong tim thay Edge/Chrome — thu trinh duyet mac dinh'
+    Write-JpLog '[5/5] PWA: khong tim thay Edge/Chrome - thu trinh duyet mac dinh'
     try {
         Start-Process $page -ErrorAction Stop
-        Write-JpLog '[5/6] PWA: da mo bang Start-Process (mac dinh)'
+        Write-JpLog '[5/5] PWA: da mo bang Start-Process (mac dinh)'
     } catch {
-        Write-Error '[5/6] PWA: khong mo duoc trinh duyet'
-        exit 1
+        Write-JpLog '[5/5] PWA: khong mo duoc trinh duyet mac dinh'
     }
     Start-Sleep -Seconds 20
 } else {
-    Write-JpLog '[5/6] PWA: mo trang Cai JustPlay Portal (cua so moi)'
-    if (-not (Start-JpBrowserWindow $browser $page)) { exit 1 }
+    Write-JpLog '[5/5] PWA: mo trang Cai JustPlay Portal (cua so moi)'
+    if (-not (Start-JpBrowserWindow $browser $page)) {
+        try { Start-Process $page -ErrorAction Stop } catch {}
+    }
     Start-Sleep -Seconds 25
 
-    Write-JpLog '[5/6] PWA: goi --install-app (trang cai)'
+    Write-JpLog '[5/5] PWA: goi --install-app (trang cai)'
     Start-Process -FilePath $browser -ArgumentList @(
         "--user-data-dir=$pwaProfile",
         '--no-first-run',
         ('--install-app=' + $page)
     ) -WindowStyle Normal -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 4
-    Write-JpLog '[5/6] PWA: goi --install-app (start_url)'
+    Write-JpLog '[5/5] PWA: goi --install-app (start_url)'
     Start-Process -FilePath $browser -ArgumentList @(
         "--user-data-dir=$pwaProfile",
         '--no-first-run',
@@ -516,9 +517,9 @@ if (-not $browser) {
 
 Deploy-JustPlayPortalShortcuts $browser $installUrl
 
-Write-JpLog '[5/6] PWA: Desktop + Startup + pin (best-effort) + auto-start Run'
-Write-JpLog '[5/6] PWA: neu chua thay hop thoai — tren tab dang mo bam nut Cai hoac menu Apps > Install'
-Write-JpLog '[5/6] PWA: xong'
+Write-JpLog '[5/5] PWA: Desktop + Startup + pin (best-effort) + auto-start Run'
+Write-JpLog '[5/5] PWA: neu chua thay hop thoai - tren tab dang mo bam nut Cai hoac menu Apps > Install'
+Write-JpLog '[5/5] PWA: xong'
 exit 0
 """
 
@@ -691,10 +692,16 @@ def build_installer_cmd(*, user, token: str, machine_type: str | None = None) ->
         'echo      Dang chay cai Portal ^(co the mat 30-60 giay^)...',
         'powershell -NoProfile -ExecutionPolicy Bypass -File "%JP_DIR%\\jp-portal-install.ps1" 2>> "%JP_LOG%"',
         'if errorlevel 1 (',
+        '  findstr /C:"PWA: xong" "%JP_LOG%" >nul 2>&1',
+        '  if not errorlevel 1 (',
+        '    echo      Canh bao: script PWA co loi nho - trang cai da mo, thu bam Install thu cong',
+        '    goto :step5_ok',
+        '  )',
         '  echo  LOI: Buoc 5 cai Portal that bai',
         '  echo  Xem log: %JP_LOG%',
         '  goto :end_fail',
         ')',
+        ':step5_ok',
         'echo      OK',
         'echo      Da mo trang cai + goi Install app (Edge/Chrome).',
         'echo      Neu co hop thoai: bam **Cai dat** / **Install**.',

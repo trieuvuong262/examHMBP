@@ -128,6 +128,61 @@ def resolve_chassis_types() -> list[int]:
     return types
 
 
+# Windows 11 Education / volume thuong kich hoat nhung WMI khong tra PartialProductKey.
+_WINDOWS_LICENSE_PS = r"""
+$statusMap = @{0='Chua kich hoat';1='Da kich hoat';2='Grace OOB';3='Grace OOT';4='Grace - Non-Genuine';5='Thong bao';6='Extended Grace'}
+function Out-Lic([string]$status, [string]$key) {
+    $k = ($key | ForEach-Object { $_.ToString().Trim() })
+    if ($k) { return "$status - $k" }
+    return $status
+}
+$winApp = '55c92734-d682-4d71-983e-d6ec7f882a58'
+$all = @(Get-CimInstance SoftwareLicensingProduct -ErrorAction SilentlyContinue |
+    Where-Object { $_.ApplicationID -eq $winApp -and $_.Name -like 'Windows*' })
+$p = $all | Where-Object { $_.PartialProductKey } |
+    Sort-Object { [int]$_.LicenseStatus } | Select-Object -First 1
+if (-not $p) { $p = $all | Where-Object { $_.LicenseStatus -eq 1 } | Select-Object -First 1 }
+if (-not $p) { $p = $all | Select-Object -First 1 }
+if ($p) {
+    $st = $statusMap[[int]$p.LicenseStatus]
+    if (-not $st) { $st = "Status $($p.LicenseStatus)" }
+    Out-Lic $st $p.PartialProductKey
+    exit
+}
+$txt = & cscript //nologo "$env:SystemRoot\System32\slmgr.vbs" /dli 2>$null | Out-String
+if ($txt) {
+    $st = ''
+    if ($txt -match 'LICENSE STATUS:\s*([^\r\n]+)') {
+        $st = ($Matches[1] -replace '-', '' -replace '\s+', ' ').Trim()
+        if ($st -match '(?i)^licensed') { $st = 'Da kich hoat' }
+        elseif ($st -match '(?i)notification') { $st = 'Thong bao' }
+        elseif ($st -match '(?i)unlicensed') { $st = 'Chua kich hoat' }
+    }
+    $pk = ''
+    if ($txt -match '(?i)(partial product key|last 5 characters of product key):\s*([A-Z0-9]{5})') {
+        $pk = $Matches[2]
+    }
+    if ($st) { Out-Lic $st $pk; exit }
+}
+$plat = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -ErrorAction SilentlyContinue)
+if ($plat.ProductName) {
+    $edition = $plat.ProductName
+    $oa = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SoftwareProtectionPlatform' -ErrorAction SilentlyContinue)
+    if ($oa -and [int]$oa.PAOActivationStatus -eq 1) {
+        Out-Lic 'Da kich hoat (Digital)' $edition
+        exit
+    }
+}
+""".strip()
+
+
+def resolve_windows_license() -> str:
+    """Trang thai kich hoat Windows + 5 ky tu key (neu WMI/slmgr tra ve)."""
+    if platform.system() != 'Windows':
+        return ''
+    return run_powershell(_WINDOWS_LICENSE_PS, timeout=60)
+
+
 def collect_info() -> dict | None:
     serial = resolve_serial()
     if not serial:
@@ -170,16 +225,7 @@ def collect_info() -> dict | None:
         windows_version = f'{windows_version} ({os_build})'.strip() if windows_version else os_build
     if display_version:
         windows_version = f'{windows_version} · {display_version}'.strip(' ·')
-    windows_license = run_powershell(
-        '$p = Get-CimInstance SoftwareLicensingProduct -ErrorAction SilentlyContinue | '
-        "Where-Object { $_.PartialProductKey -and $_.ApplicationID -eq "
-        "'55c92734-d682-4d71-983e-d6ec7f882a58' } | Select-Object -First 1; "
-        'if (-not $p) { "" } else { '
-        '$s = switch ($p.LicenseStatus) { 0 {"Chua kich hoat"} 1 {"Da kich hoat"} '
-        '2 {"Grace OOB"} 3 {"Grace OOT"} 4 {"Grace - Non-Genuine"} 5 {"Thong bao"} '
-        '6 {"Extended Grace"} default { [string]$p.LicenseStatus } }; '
-        'if ($p.PartialProductKey) { "$s · $($p.PartialProductKey)" } else { $s } }'
-    )
+    windows_license = resolve_windows_license()
     manufacturer = run_powershell(
         '(Get-CimInstance Win32_ComputerSystem -ErrorAction SilentlyContinue).Manufacturer'
     )

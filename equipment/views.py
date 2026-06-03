@@ -1104,8 +1104,9 @@ def agent_jp_portal_install_ps1(request):
     """Script PowerShell bước 5 installer — tải qua curl (tránh giới hạn dòng CMD)."""
     from equipment.services.agent_install import portal_install_powershell_script
 
-    body = portal_install_powershell_script().encode('utf-8')
-    response = HttpResponse(body, content_type='application/octet-stream')
+    # UTF-8 BOM — Windows PowerShell 5.x doc file .ps1 (tranh loi parse ky tu dac biet)
+    body = portal_install_powershell_script().encode('utf-8-sig')
+    response = HttpResponse(body, content_type='application/octet-stream; charset=utf-8')
     response['Content-Disposition'] = 'attachment; filename="jp-portal-install.ps1"'
     return response
 
