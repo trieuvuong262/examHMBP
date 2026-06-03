@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/justplay-theme.css' %}?v=20260531a">
+<link rel="stylesheet" href="{% static 'css/justplay-theme.css' %}?v=20260531b">
 {% endblock %}
 
 {% block content %}
@@ -27,7 +27,7 @@
             <button type="button" class="btn btn-outline-hm fw-bold shadow-sm jp-hrm-tool-btn" data-bs-toggle="modal" data-bs-target="#orgImportExcelModal" title="Import nhân viên từ Excel">
                 <i class="bi bi-file-earmark-excel-fill"></i><span class="jp-hrm-tool-label"> Import Excel</span>
             </button>
-            <button type="button" class="btn btn-outline-dark fw-bold shadow-sm jp-hrm-tool-btn" id="org-manage-toggle" data-bs-toggle="collapse" data-bs-target="#org-manage-panel" aria-expanded="false" aria-controls="org-manage-panel">
+            <button type="button" class="btn btn-outline-hm fw-bold shadow-sm jp-hrm-tool-btn" id="org-manage-toggle" data-bs-toggle="collapse" data-bs-target="#org-manage-panel" aria-expanded="false" aria-controls="org-manage-panel">
                 <i class="bi bi-pencil-square"></i><span class="jp-hrm-tool-label"> Cập nhật sơ đồ</span>
             </button>
             {% endif %}
@@ -70,15 +70,21 @@
 
     {% if treemap and not migration_required %}
     <div class="collapse mt-4" id="org-manage-panel">
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white py-3 border-bottom">
-                <h5 class="mb-0 fw-bold text-dark">
-                    <i class="bi bi-pencil-square text-hm me-2"></i>Cập nhật sơ đồ
-                </h5>
+        <div class="card border-0 jp-org-manage-card">
+            <div class="card-header jp-org-manage-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <div>
+                    <h5 class="mb-0 fw-bold">
+                        <i class="bi bi-pencil-square me-2"></i>Cập nhật sơ đồ
+                    </h5>
+                    <p class="small mb-0 mt-1">Chỉnh phòng ban, bộ phận, vị trí — thay đổi hiển thị ngay trên sơ đồ phía trên.</p>
+                </div>
+                <a href="{% url 'department_add' %}" class="btn btn-sm btn-light fw-bold text-danger">
+                    <i class="bi bi-plus-lg"></i> Phòng ban
+                </a>
             </div>
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0 jp-org-manage-table">
-                    <thead class="bg-light text-uppercase small">
+                    <thead class="text-uppercase small">
                         <tr>
                             <th class="ps-4 py-3 text-muted">Phòng ban</th>
                             <th class="text-muted text-center">NV</th>
@@ -227,7 +233,7 @@
 {{ org_tree|json_script:"jp-org-tree-data" }}
 {{ org_urls|json_script:"jp-org-urls-data" }}
 <script src="{% static 'vendor/d3.min.js' %}?v=7.9.0"></script>
-<script src="{% static 'js/org_tree.js' %}?v=20260531a"></script>
+<script src="{% static 'js/org_tree.js' %}?v=20260531b"></script>
 <script>
 (function () {
     var panel = document.getElementById('org-manage-panel');

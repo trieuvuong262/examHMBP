@@ -110,33 +110,54 @@
         return w + actionStripWidth(buildActions(nodeData, urls));
     }
 
-    const LINK = { radius: 14, targetInset: 10, stubMin: 24 };
+    const LINK = { radius: 8, minGap: 28 };
 
-    function linkTargetLevel(d) {
-        return d.target.data.level || 'item';
+    function targetAnchorX(nodeData) {
+        const level = nodeData.level || 'item';
+        if (level === 'position') return 16;
+        if (level === 'employee') return 6;
+        return 2;
     }
 
+    function linkSourceLevel(d) {
+        return d.source.data.level || 'item';
+    }
+
+    function linkClass(d) {
+        return `jp-org-tree-link--from-${linkSourceLevel(d)}`;
+    }
+
+    /** Đường vuông góc bo góc — tránh path lỗi khi khoảng cách ngắn. */
     function roundedLinkPath(d, nodeW, urls) {
         const sx = d.source.y + nodeTotalWidth(d.source.data, nodeW, urls);
         const sy = d.source.x;
-        const tx = d.target.y + LINK.targetInset;
+        const tx = d.target.y + targetAnchorX(d.target.data);
         const ty = d.target.x;
+        const dx = tx - sx;
+        const dy = ty - sy;
 
-        if (Math.abs(sy - ty) < 0.5) {
+        if (dx <= 4) {
+            return `M${sx},${sy}L${tx},${ty}`;
+        }
+        if (Math.abs(dy) < 1) {
             return `M${sx},${sy}H${tx}`;
         }
 
-        const gap = tx - sx;
-        const stub = Math.max(LINK.stubMin, gap * 0.4);
-        const mx = sx + stub;
+        let mx = sx + Math.min(Math.max(dx * 0.42, 20), dx - 14);
+        mx = Math.max(sx + 8, Math.min(tx - 8, mx));
+
         const r = Math.min(
             LINK.radius,
-            Math.abs(ty - sy) / 2,
-            stub / 2,
-            Math.max(6, (tx - mx) / 2),
+            (mx - sx) / 2,
+            (tx - mx) / 2,
+            Math.abs(dy) / 2,
         );
-        const vDir = ty > sy ? 1 : -1;
 
+        if (r < 2 || dx < LINK.minGap) {
+            return `M${sx},${sy}H${mx}V${ty}H${tx}`;
+        }
+
+        const vDir = dy > 0 ? 1 : -1;
         return [
             `M${sx},${sy}`,
             `H${mx - r}`,
@@ -384,8 +405,8 @@
             .attr('y1', '0%')
             .attr('x2', '100%')
             .attr('y2', '100%');
-        rootGrad.append('stop').attr('offset', '0%').attr('stop-color', '#0f766e');
-        rootGrad.append('stop').attr('offset', '100%').attr('stop-color', '#14b8a6');
+        rootGrad.append('stop').attr('offset', '0%').attr('stop-color', '#b91c1c');
+        rootGrad.append('stop').attr('offset', '100%').attr('stop-color', '#dc2626');
 
         const zoomRoot = svg.append('g').attr('class', 'jp-org-tree-zoom');
         zoomRoot.append('rect')
@@ -423,14 +444,6 @@
 
         const linkG = g.append('g').attr('class', 'jp-org-tree-links');
         const linkPath = (d) => roundedLinkPath(d, nodeW, urls);
-        const linkClass = (d) => `jp-org-tree-link--to-${linkTargetLevel(d)}`;
-
-        linkG.selectAll('path.jp-org-tree-link-shadow')
-            .data(links)
-            .join('path')
-            .attr('class', (d) => `jp-org-tree-link-shadow ${linkClass(d)}`)
-            .attr('fill', 'none')
-            .attr('d', linkPath);
 
         linkG.selectAll('path.jp-org-tree-link')
             .data(links)
@@ -438,16 +451,6 @@
             .attr('class', (d) => `jp-org-tree-link ${linkClass(d)}`)
             .attr('fill', 'none')
             .attr('d', linkPath);
-
-        g.append('g')
-            .attr('class', 'jp-org-tree-link-dots')
-            .selectAll('circle')
-            .data(links)
-            .join('circle')
-            .attr('class', (d) => `jp-org-tree-link-dot ${linkClass(d)}`)
-            .attr('cx', (d) => d.target.y + 6)
-            .attr('cy', (d) => d.target.x)
-            .attr('r', 3.5);
 
         const nodeG = g.append('g')
             .attr('class', 'jp-org-tree-nodes')
