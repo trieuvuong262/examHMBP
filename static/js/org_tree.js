@@ -8,8 +8,9 @@
     const WIDTH_SCALE = 1.75;
     /** Chừa chỗ cho mũi tên Vị trí → NV trong ô Vị trí. */
     const LINK_GAP_RESERVE = 48;
-    /** Đẩy cột NV nhẹ (~15% nodeW) — mũi tên dài hơn chút, không quá xa. */
-    const EMPLOYEE_X_NUDGE = 0.15;
+    /** Đẩy cột NV thêm so với layout cây (tỷ lệ nodeW + gap cố định). */
+    const EMPLOYEE_X_NUDGE = 0.28;
+    const POSITION_EMPLOYEE_EXTRA_GAP = 48;
 
     const LAYOUT = {
         widthScale: WIDTH_SCALE,
@@ -132,7 +133,9 @@
     }
 
     function nudgeEmployeeColumn(nodes, nodeW) {
-        const extra = Math.round(nodeW * EMPLOYEE_X_NUDGE);
+        const extra = Math.round(
+            nodeW * EMPLOYEE_X_NUDGE + POSITION_EMPLOYEE_EXTRA_GAP * WIDTH_SCALE,
+        );
         if (extra <= 0) return;
         nodes.forEach((n) => {
             if ((n.data.level || '') === 'employee') {
@@ -180,7 +183,7 @@
         if (dx <= 3) {
             return `M${sx},${sy}L${tx},${ty}`;
         }
-        const tension = Math.min(0.58, Math.max(0.36, 0.42 + (dx - 40) / (dx * 4)));
+        const tension = Math.min(0.54, Math.max(0.34, 0.38 + (dx - 72) / (dx * 5)));
         const cx = sx + dx * tension;
         return `M${sx},${sy} C${cx},${sy} ${cx},${ty} ${tx},${ty}`;
     }
