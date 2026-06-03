@@ -188,12 +188,22 @@ def resolve_department(name):
     return dept
 
 
-def resolve_division(name):
-    """Tìm bộ phận theo tên (không phân biệt hoa thường)."""
+def resolve_division(name, department=None):
+    """Tìm bộ phận theo tên; ưu tiên đúng phòng ban khi import."""
     if not name or not str(name).strip():
         return None
     from hrm.models import Division
     text = str(name).strip()
+    if department is not None:
+        div = Division.objects.filter(
+            name__iexact=text,
+            department=department,
+            is_active=True,
+        ).first()
+        if not div:
+            div = Division.objects.filter(name__iexact=text, department=department).first()
+        if div:
+            return div
     div = Division.objects.filter(name__iexact=text, is_active=True).first()
     if not div:
         div = Division.objects.filter(name__iexact=text).first()
@@ -227,11 +237,12 @@ def user_to_excel_row(user):
 
 def profile_defaults_from_import(data):
     """Dict field profile từ dữ liệu đã parse Excel."""
+    dept = resolve_department(data.get('department', ''))
     return {
         'employee_code': data.get('employee_code') or None,
         'full_name': data.get('full_name', ''),
-        'department': resolve_department(data.get('department', '')),
-        'division': resolve_division(data.get('division', '')),
+        'department': dept,
+        'division': resolve_division(data.get('division', ''), department=dept),
         'job_position': (data.get('job_position') or '').strip(),
         'job_title': data.get('job_title', ''),
         'join_date': data.get('join_date'),

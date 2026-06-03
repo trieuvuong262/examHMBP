@@ -82,6 +82,19 @@ def _profile_fields_from_form(form):
     }
 
 
+def _user_form_extra_context():
+    import json
+
+    from hrm.models import Division
+
+    return {
+        'division_dept_map': json.dumps({
+            str(pk): dept_id
+            for pk, dept_id in Division.objects.values_list('pk', 'department_id')
+        }),
+    }
+
+
 # ==========================================
 # 1. QUẢN LÝ DANH SÁCH NHÂN VIÊN
 # ==========================================
@@ -181,6 +194,7 @@ def user_add(request):
         'form': form,
         'title': 'Thêm nhân viên mới',
         'is_edit': False,
+        **_user_form_extra_context(),
     })
 
 
@@ -353,6 +367,7 @@ def user_edit(request, user_id):
                         'user_instance': user_obj,
                         'profile': profile,
                         'nas_folders_available': nas_folders_feature_available(),
+                        **_user_form_extra_context(),
                     })
 
             messages.success(request, f"Cập nhật {profile.full_name} thành công!")
@@ -388,6 +403,7 @@ def user_edit(request, user_id):
         'user_instance': user_obj,
         'profile': profile,
         'nas_folders_available': nas_folders_feature_available(),
+        **_user_form_extra_context(),
     })
 @admin_only
 def user_delete(request, user_id):
@@ -568,46 +584,51 @@ def user_download_template(request):
     return response
 
 
-def _org_redirect(tab):
-    return redirect(f"{reverse('org_structure')}?tab={tab}")
+def _org_redirect(anchor=''):
+    url = reverse('org_structure')
+    if anchor:
+        url = f'{url}#{anchor}'
+    return redirect(url)
+
+
+def _org_redirect_for_division(division):
+    if division.department_id:
+        return _org_redirect(f'dept-{division.department_id}')
+    return _org_redirect()
 
 
 @admin_only
 def org_structure(request):
-    tab = request.GET.get('tab', 'department')
-    if tab not in {'department', 'division'}:
-        tab = 'department'
+    from hrm.org_structure import build_org_treemap
+
     search_query = get_search_query(request)
-    departments_qs = Department.objects.annotate(
-        staff_count=Count('profiles'),
-    ).order_by('sort_order', 'name')
-    divisions_qs = Division.objects.annotate(
-        staff_count=Count('division_profiles'),
-    ).order_by('sort_order', 'name')
-    departments_qs = apply_term_search(departments_qs, search_query, 'name__icontains')
-    divisions_qs = apply_term_search(divisions_qs, search_query, 'name__icontains')
-    dept_page, dept_query_string = paginate_queryset(
-        request, departments_qs, page_param='dept_page',
-    )
-    div_page, div_query_string = paginate_queryset(
-        request, divisions_qs, page_param='div_page',
-    )
+    treemap = build_org_treemap()
+    if search_query:
+        q = search_query.lower()
+        treemap.departments = [
+            dept for dept in treemap.departments
+            if q in dept.name.lower()
+            or any(q in div.name.lower() for div in dept.divisions)
+        ]
+        for dept in treemap.departments:
+            dept.divisions = [
+                div for div in dept.divisions if q in div.name.lower() or q in dept.name.lower()
+            ]
+        treemap.unassigned_divisions = [
+            div for div in treemap.unassigned_divisions if q in div.name.lower()
+        ]
+    max_weight = max((d.treemap_weight for d in treemap.departments), default=1)
     return render(request, 'assessment/admin/org_structure.html', {
-        'departments': dept_page.object_list,
-        'divisions': div_page.object_list,
-        'dept_page': dept_page,
-        'div_page': div_page,
-        'dept_query_string': dept_query_string,
-        'div_query_string': div_query_string,
+        'treemap': treemap,
         'search_query': search_query,
-        'org_structure_clear_url': f"{reverse('org_structure')}?tab={tab}",
-        'active_tab': tab,
+        'max_treemap_weight': max_weight,
+        'org_structure_clear_url': reverse('org_structure'),
     })
 
 
 @admin_only
 def department_list(request):
-    return _org_redirect('department')
+    return _org_redirect()
 
 
 @admin_only
@@ -623,7 +644,7 @@ def department_add(request):
                 defaults={'modules': sorted(ALL_MODULE_KEYS)},
             )
             messages.success(request, f'Đã thêm phòng ban "{department.name}".')
-            return _org_redirect('department')
+            return _org_redirect()
     else:
         form = DepartmentForm()
     return render(request, 'assessment/admin/department_form.html', {
@@ -640,7 +661,7 @@ def department_edit(request, pk):
         if form.is_valid():
             department = form.save()
             messages.success(request, f'Đã cập nhật phòng ban "{department.name}".')
-            return _org_redirect('department')
+            return _org_redirect()
     else:
         form = DepartmentForm(instance=department)
     return render(request, 'assessment/admin/department_form.html', {
@@ -664,7 +685,7 @@ def department_delete(request, pk):
             name = department.name
             department.delete()
             messages.success(request, f'Đã xóa phòng ban "{name}".')
-        return _org_redirect('department')
+        return _org_redirect()
     return render(request, 'assessment/admin/department_confirm_delete.html', {
         'department': department,
     })
@@ -880,11 +901,15 @@ def division_add(request):
     if request.method == 'POST':
         form = DivisionForm(request.POST)
         if form.is_valid():
-            form.save()
-            messages.success(request, f'Đã thêm bộ phận "{form.instance.name}".')
-            return _org_redirect('division')
+            division = form.save()
+            messages.success(request, f'Đã thêm bộ phận "{division.name}".')
+            return _org_redirect_for_division(division)
     else:
-        form = DivisionForm()
+        initial = {}
+        dept_id = (request.GET.get('department') or '').strip()
+        if dept_id.isdigit():
+            initial['department'] = int(dept_id)
+        form = DivisionForm(initial=initial)
     return render(request, 'assessment/admin/division_form.html', {
         'form': form,
         'title': 'Thêm bộ phận',
@@ -897,9 +922,9 @@ def division_edit(request, pk):
     if request.method == 'POST':
         form = DivisionForm(request.POST, instance=division)
         if form.is_valid():
-            form.save()
+            division = form.save()
             messages.success(request, f'Đã cập nhật bộ phận "{division.name}".')
-            return _org_redirect('division')
+            return _org_redirect_for_division(division)
     else:
         form = DivisionForm(instance=division)
     return render(request, 'assessment/admin/division_form.html', {
@@ -921,9 +946,12 @@ def division_delete(request, pk):
             )
         else:
             name = division.name
+            dept_id = division.department_id
             division.delete()
             messages.success(request, f'Đã xóa bộ phận "{name}".')
-        return _org_redirect('division')
+            if dept_id:
+                return _org_redirect(f'dept-{dept_id}')
+        return _org_redirect()
     return render(request, 'assessment/admin/division_confirm_delete.html', {
         'division': division,
     })

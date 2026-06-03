@@ -2,7 +2,14 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from hrm.models import Department, DepartmentMenuPermission, PermissionGroup, Profile, RoleModulePermission
+from hrm.models import (
+    Department,
+    DepartmentMenuPermission,
+    Division,
+    PermissionGroup,
+    Profile,
+    RoleModulePermission,
+)
 from hrm.module_permissions import (
     ALL_MODULE_KEYS,
     MODULE_HRM,
@@ -583,3 +590,65 @@ class MediaCleanupTests(TestCase):
                 result = cleanup_orphan_media(dry_run=False)
                 self.assertEqual(result['removed_count'], 1)
                 self.assertFalse(orphan_file.exists())
+
+
+class OrgStructureTreemapTests(TestCase):
+    def setUp(self):
+        from hrm.permissions import ROLE_DIRECTOR
+
+        RoleModulePermission.objects.update_or_create(
+            role=ROLE_DIRECTOR,
+            defaults={'module_permissions': {MODULE_HRM: {'view': True, 'edit': True}}},
+        )
+        self.admin = User.objects.create_user(
+            username='org_admin',
+            password='test',
+            is_staff=True,
+        )
+        Profile.objects.filter(user=self.admin).update(
+            role=ROLE_DIRECTOR,
+            full_name='Org Admin',
+            is_employed=True,
+        )
+        self.dept = Department.objects.create(name='ORG-DEPT-A', sort_order=1)
+        self.dept_b = Department.objects.create(name='ORG-DEPT-B', sort_order=2)
+        Division.objects.create(name='ORG-DIV-1', department=self.dept, sort_order=1)
+        Division.objects.create(name='ORG-DIV-2', department=self.dept, sort_order=2)
+        Division.objects.create(name='ORG-DIV-ORPHAN', department=None, sort_order=3)
+        self.client.force_login(self.admin)
+
+    def test_org_structure_treemap_renders_hierarchy(self):
+        response = self.client.get(reverse('org_structure'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Giám đốc điều hành')
+        self.assertContains(response, 'ORG-DEPT-A')
+        self.assertContains(response, 'ORG-DIV-1')
+        self.assertContains(response, 'ORG-DIV-ORPHAN')
+        self.assertContains(response, 'Cấp 4')
+
+    def test_division_form_rejects_duplicate_in_same_department(self):
+        from hrm.forms import DivisionForm
+
+        Division.objects.create(name='QC-SHARED', department=self.dept)
+        form = DivisionForm({
+            'department': self.dept.pk,
+            'name': 'QC-SHARED',
+            'sort_order': 0,
+            'is_active': True,
+        })
+        self.assertFalse(form.is_valid())
+        form_b = DivisionForm({
+            'department': self.dept_b.pk,
+            'name': 'QC-SHARED',
+            'sort_order': 0,
+            'is_active': True,
+        })
+        self.assertTrue(form_b.is_valid())
+
+    def test_resolve_division_scoped_to_department(self):
+        from hrm.choices import resolve_division
+
+        Division.objects.create(name='QC-SCOPE', department=self.dept)
+        div_b = Division.objects.create(name='QC-SCOPE', department=self.dept_b)
+        div = resolve_division('QC-SCOPE', department=self.dept_b)
+        self.assertEqual(div.pk, div_b.pk)

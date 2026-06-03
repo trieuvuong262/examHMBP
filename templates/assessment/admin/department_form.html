@@ -6,7 +6,7 @@
         <div class="col-12 col-lg-7">
             <nav aria-label="breadcrumb" class="mb-3">
                 <ol class="breadcrumb bg-white p-2 p-md-3 shadow-sm small mb-0">
-                    <li class="breadcrumb-item"><a href="{% url 'org_structure' %}?tab=department" class="text-decoration-none text-muted">Phòng ban</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'org_structure' %}" class="text-decoration-none text-muted">Cơ cấu tổ chức</a></li>
                     <li class="breadcrumb-item active fw-bold text-hm">{{ title }}</li>
                 </ol>
             </nav>
@@ -37,7 +37,7 @@
                             </div>
                         </div>
                         <div class="d-flex flex-column flex-sm-row gap-2 justify-content-end">
-                            <a href="{% url 'org_structure' %}?tab=department" class="btn btn-light fw-bold px-4">Hủy</a>
+                            <a href="{% url 'org_structure' %}" class="btn btn-light fw-bold px-4">Hủy</a>
                             <button type="submit" class="btn btn-hm text-white fw-bold px-5">Lưu</button>
                         </div>
                     </form>

@@ -1,9 +1,8 @@
 {% extends "base.html" %}
 {% load user_picker %}
-{% url 'org_structure' as org_base_url %}
+{% url 'org_structure' as org_structure_url %}
 
 {% block content %}
-{% with org_dept_url=org_base_url|add:'?tab=department' org_div_url=org_base_url|add:'?tab=division' %}
 <div class="container-fluid jp-page jp-hrm-page jp-user-form-page py-2 py-md-3 px-2 px-md-4 mb-4">
     <form method="post" id="userForm" enctype="multipart/form-data" novalidate{% if not is_edit %} autocomplete="off"{% endif %}>
         {% csrf_token %}
@@ -116,12 +115,17 @@
                         <span>Tổ chức & công việc</span>
                     </div>
                     <div class="card-body p-3 p-md-4">
+                        <p class="small text-muted mb-3">
+                            Thứ tự sơ đồ: <strong>Giám đốc điều hành</strong> (vai trò Giám đốc)
+                            → <strong>Phòng ban</strong> → <strong>Bộ phận</strong> → <strong>Vị trí</strong> (nhập tự do).
+                            <a href="{{ org_structure_url }}">Cơ cấu tổ chức</a>
+                        </p>
                         <div class="row g-3">
                             <div class="col-sm-6">
-                                {% include 'assessment/admin/includes/user_form_field.html' with field=form.department link_url=org_dept_url link_label='Quản lý' %}
+                                {% include 'assessment/admin/includes/user_form_field.html' with field=form.department link_url=org_structure_url link_label='Sơ đồ' %}
                             </div>
                             <div class="col-sm-6">
-                                {% include 'assessment/admin/includes/user_form_field.html' with field=form.division link_url=org_div_url link_label='Quản lý' %}
+                                {% include 'assessment/admin/includes/user_form_field.html' with field=form.division link_url=org_structure_url link_label='Sơ đồ' %}
                             </div>
                             <div class="col-sm-6">
                                 {% include 'assessment/admin/includes/user_form_field.html' with field=form.job_position label='Vị trí' %}
@@ -251,7 +255,10 @@
         </div>
     </form>
 </div>
-{% endwith %}
+
+{% if division_dept_map %}
+<script type="application/json" id="jpDivisionsByDept">{{ division_dept_map|safe }}</script>
+{% endif %}
 
 <script>
 (function () {
@@ -269,6 +276,41 @@
     if (roleSelect) {
         roleSelect.addEventListener('change', toggleSubordinates);
         toggleSubordinates();
+    }
+
+    const deptSelect = document.querySelector('select[name="department"]');
+    const divSelect = document.querySelector('select[name="division"]');
+    const divMapEl = document.getElementById('jpDivisionsByDept');
+    if (deptSelect && divSelect && divMapEl) {
+        let divDeptMap = {};
+        try {
+            divDeptMap = JSON.parse(divMapEl.textContent || '{}');
+        } catch (e) {
+            divDeptMap = {};
+        }
+
+        function filterDivisionOptions() {
+            const deptId = deptSelect.value || '';
+            let selectedHidden = false;
+            Array.from(divSelect.options).forEach(function (opt) {
+                if (!opt.value) {
+                    opt.hidden = false;
+                    return;
+                }
+                const divDept = divDeptMap[opt.value];
+                const hide = !!(deptId && divDept && String(divDept) !== deptId);
+                opt.hidden = hide;
+                if (opt.selected && hide) {
+                    selectedHidden = true;
+                }
+            });
+            if (selectedHidden) {
+                divSelect.value = '';
+            }
+        }
+
+        deptSelect.addEventListener('change', filterDivisionOptions);
+        filterDivisionOptions();
     }
 
     const errBox = document.getElementById('userFormErrors');

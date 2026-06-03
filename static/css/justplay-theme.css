@@ -3084,6 +3084,62 @@ textarea.form-control {
     border: 1px solid #e2e8f0;
 }
 
+.jp-org-treemap-root {
+    border-left: 4px solid var(--jp-hm, #0d9488);
+}
+
+.jp-org-treemap-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+    align-items: stretch;
+}
+
+.jp-org-dept-tile {
+    grid-column: span 1;
+    min-height: 12rem;
+}
+
+@media (min-width: 992px) {
+    .jp-org-dept-tile {
+        grid-row: span 1;
+    }
+    .jp-org-dept-tile[style*="--jp-org-weight"] {
+        flex-grow: calc(var(--jp-org-weight) / var(--jp-org-max, 1));
+    }
+}
+
+.jp-org-level-label {
+    letter-spacing: 0.06em;
+}
+
+.jp-org-div-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.5rem;
+}
+
+.jp-org-div-cell {
+    background: var(--bs-light, #f8f9fa);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 0.5rem;
+    padding: 0.65rem 0.75rem;
+}
+
+.jp-org-div-cell.jp-org-inactive {
+    opacity: 0.65;
+}
+
+.jp-org-div-actions {
+    display: flex;
+    gap: 0.25rem;
+}
+
+[data-theme="dark"] .jp-org-div-cell {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
 .jp-org-tabs .nav-link.active .badge {
     background: rgba(255, 255, 255, 0.92) !important;
     color: var(--hm-primary) !important;

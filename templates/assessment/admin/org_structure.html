@@ -10,178 +10,149 @@
             <nav aria-label="breadcrumb" class="d-none d-md-block">
                 <ol class="breadcrumb mb-0 small">
                     <li class="breadcrumb-item"><a href="{% url 'user_list' %}" class="text-decoration-none text-muted">Nhân sự</a></li>
-                    <li class="breadcrumb-item active fw-bold text-hm">Phòng ban & Bộ phận</li>
+                    <li class="breadcrumb-item active fw-bold text-hm">Sơ đồ tổ chức</li>
                 </ol>
             </nav>
+            <p class="text-muted small mb-0 mt-2">
+                Phân cấp: <strong>{{ treemap.executive_label }}</strong>
+                → <strong>Phòng ban</strong>
+                → <strong>Bộ phận</strong>
+                → <strong>Vị trí</strong> (tại hồ sơ nhân viên).
+            </p>
         </div>
         <div class="jp-hrm-toolbar">
             <a href="{% url 'user_list' %}" class="btn btn-outline-hm fw-bold shadow-sm jp-hrm-tool-btn">
                 <i class="bi bi-people-fill"></i><span class="jp-hrm-tool-label"> Nhân sự</span>
             </a>
-            {% if active_tab == 'division' %}
-            <a href="{% url 'division_add' %}" class="btn btn-hm shadow-sm text-white fw-bold jp-hrm-tool-btn jp-hrm-tool-btn-primary">
-                <i class="bi bi-plus-lg"></i><span class="jp-hrm-tool-label"> Thêm bộ phận</span>
-            </a>
-            {% else %}
             <a href="{% url 'department_add' %}" class="btn btn-hm shadow-sm text-white fw-bold jp-hrm-tool-btn jp-hrm-tool-btn-primary">
-                <i class="bi bi-plus-lg"></i><span class="jp-hrm-tool-label"> Thêm phòng ban</span>
+                <i class="bi bi-building"></i><span class="jp-hrm-tool-label"> Thêm phòng ban</span>
             </a>
-            {% endif %}
         </div>
     </div>
 
-    <ul class="nav nav-tabs jp-org-tabs mb-3 border-0 gap-2">
-        <li class="nav-item">
-            <a class="nav-link fw-bold {% if active_tab == 'department' %}active{% endif %}"
-               href="{% url 'org_structure' %}?tab=department{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">
-                <i class="bi bi-building me-1"></i>Phòng ban
-                <span class="badge bg-light text-dark ms-1">{{ dept_page.paginator.count }}</span>
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link fw-bold {% if active_tab == 'division' %}active{% endif %}"
-               href="{% url 'org_structure' %}?tab=division{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">
-                <i class="bi bi-diagram-2 me-1"></i>Bộ phận
-                <span class="badge bg-light text-dark ms-1">{{ div_page.paginator.count }}</span>
-            </a>
-        </li>
-    </ul>
-
-    {% if active_tab == 'department' %}
-    <div class="card border-0 shadow-sm jp-hrm-list-card overflow-hidden">
-        <div class="card-header bg-white py-3 border-bottom jp-hrm-card-header">
-            <div class="jp-hrm-card-header-main">
-                <h5 class="mb-0 fw-bold text-dark">Danh sách phòng ban</h5>
-                <p class="text-muted small mb-0 mt-1">
-                    {% if search_query %}
-                    Kết quả tìm “{{ search_query }}” — {{ dept_page.paginator.count }} phòng ban
-                    {% else %}
-                    {{ dept_page.paginator.count }} phòng ban
-                    {% endif %}
-                </p>
-            </div>
-            <div class="jp-hrm-filters">
-                <form method="get" class="jp-hrm-search input-group" role="search">
-                    <input type="hidden" name="tab" value="department">
-                    {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tìm tên phòng ban...' clear_url=org_structure_clear_url %}
-                </form>
-            </div>
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body py-3">
+            <form method="get" class="jp-hrm-search input-group" role="search">
+                {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tìm phòng ban hoặc bộ phận...' clear_url=org_structure_clear_url %}
+            </form>
         </div>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="bg-light text-uppercase small">
-                    <tr>
-                        <th class="ps-4 py-3 text-muted">STT</th>
-                        <th class="text-muted">Tên phòng ban</th>
-                        <th class="text-muted text-center">Nhân viên</th>
-                        <th class="text-muted text-center">Thứ tự</th>
-                        <th class="text-muted text-center">Trạng thái</th>
-                        <th class="text-end pe-4 text-muted">Thao tác</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for dept in departments %}
-                    <tr>
-                        <td class="ps-4 fw-bold text-muted">{{ dept_page.start_index|add:forloop.counter0 }}</td>
-                        <td class="fw-semibold">{{ dept.name }}</td>
-                        <td class="text-center"><span class="badge bg-light text-dark border">{{ dept.staff_count }}</span></td>
-                        <td class="text-center text-muted">{{ dept.sort_order }}</td>
-                        <td class="text-center">
-                            {% if dept.is_active %}
-                            <span class="badge bg-success-subtle text-success border border-success-subtle">Đang dùng</span>
-                            {% else %}
-                            <span class="badge bg-secondary-subtle text-secondary border">Ngưng</span>
-                            {% endif %}
-                        </td>
-                        <td class="text-end pe-4">
-                            <div class="d-inline-flex gap-1">
-                                <a href="{% url 'department_permissions' dept.pk %}" class="btn btn-sm btn-outline-dark" title="Phân quyền menu"><i class="bi bi-shield-lock"></i></a>
-                                <a href="{% url 'department_edit' dept.pk %}" class="btn btn-sm btn-outline-hm" title="Sửa"><i class="bi bi-pencil-square"></i></a>
-                                <a href="{% url 'department_delete' dept.pk %}" class="btn btn-sm btn-outline-danger" title="Xóa"><i class="bi bi-trash"></i></a>
-                            </div>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="6" class="text-center py-5 text-muted">Chưa có phòng ban. <a href="{% url 'department_add' %}">Thêm phòng ban</a></td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% if dept_page.has_other_pages %}
-        <div class="card-footer bg-white border-top py-3">
-            {% include 'includes/pagination.html' with page_obj=dept_page page_param='dept_page' query_string=dept_query_string %}
-        </div>
-        {% endif %}
     </div>
-    {% else %}
-    <div class="card border-0 shadow-sm jp-hrm-list-card overflow-hidden">
-        <div class="card-header bg-white py-3 border-bottom jp-hrm-card-header">
-            <div class="jp-hrm-card-header-main">
-                <h5 class="mb-0 fw-bold text-dark">Danh sách bộ phận</h5>
-                <p class="text-muted small mb-0 mt-1">
-                    {% if search_query %}
-                    Kết quả tìm “{{ search_query }}” — {{ div_page.paginator.count }} bộ phận
-                    {% else %}
-                    {{ div_page.paginator.count }} bộ phận
-                    {% endif %}
+
+    <div class="jp-org-treemap-root card border-0 shadow-sm mb-4" id="org-executive">
+        <div class="card-body p-3 p-md-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div>
+                <div class="jp-org-level-label text-uppercase small text-muted fw-bold letter-spacing">Cấp 1</div>
+                <h3 class="fw-bold text-dark mb-1">
+                    <i class="bi bi-person-badge-fill text-hm me-2"></i>{{ treemap.executive_label }}
+                </h3>
+                <p class="text-muted small mb-0">
+                    Vai trò hệ thống <strong>Giám đốc</strong> trên hồ sơ nhân viên.
+                    Hiện có <strong>{{ treemap.director_count }}</strong> tài khoản giám đốc
+                    · <strong>{{ treemap.total_staff }}</strong> nhân viên đang làm việc.
                 </p>
             </div>
-            <div class="jp-hrm-filters">
-                <form method="get" class="jp-hrm-search input-group" role="search">
-                    <input type="hidden" name="tab" value="division">
-                    {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tìm tên bộ phận...' clear_url=org_structure_clear_url %}
-                </form>
+            <a href="{% url 'user_list' %}?q=" class="btn btn-outline-hm btn-sm fw-bold">
+                <i class="bi bi-people me-1"></i>Danh sách nhân sự
+            </a>
+        </div>
+    </div>
+
+    <div class="jp-org-treemap-grid mb-3">
+        {% for dept in treemap.departments %}
+        <section class="jp-org-dept-tile card border-0 shadow-sm"
+                 id="dept-{{ dept.pk }}"
+                 style="--jp-org-weight: {{ dept.treemap_weight }}; --jp-org-max: {{ max_treemap_weight }};">
+            <div class="card-header bg-white border-bottom py-3">
+                <div class="d-flex flex-wrap align-items-start justify-content-between gap-2">
+                    <div>
+                        <div class="jp-org-level-label text-uppercase x-small text-muted fw-bold">Cấp 2 · Phòng ban</div>
+                        <h5 class="fw-bold text-dark mb-1">{{ dept.name }}</h5>
+                        <span class="badge bg-light text-dark border">{{ dept.staff_count }} NV</span>
+                        {% if not dept.is_active %}
+                        <span class="badge bg-secondary-subtle text-secondary border ms-1">Ngưng</span>
+                        {% endif %}
+                    </div>
+                    <div class="d-inline-flex flex-wrap gap-1">
+                        <a href="{% url 'division_add' %}?department={{ dept.pk }}"
+                           class="btn btn-sm btn-hm text-white fw-bold" title="Thêm bộ phận">
+                            <i class="bi bi-plus-lg"></i>
+                        </a>
+                        <a href="{% url 'department_permissions' dept.pk %}"
+                           class="btn btn-sm btn-outline-dark" title="Phân quyền menu">
+                            <i class="bi bi-shield-lock"></i>
+                        </a>
+                        <a href="{% url 'department_edit' dept.pk %}" class="btn btn-sm btn-outline-hm" title="Sửa">
+                            <i class="bi bi-pencil-square"></i>
+                        </a>
+                        <a href="{% url 'department_delete' dept.pk %}" class="btn btn-sm btn-outline-danger" title="Xóa">
+                            <i class="bi bi-trash"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-3">
+                {% if dept.divisions %}
+                <div class="jp-org-div-grid">
+                    {% for div in dept.divisions %}
+                    <div class="jp-org-div-cell {% if not div.is_active %}jp-org-inactive{% endif %}">
+                        <div class="jp-org-level-label x-small text-muted">Cấp 3 · Bộ phận</div>
+                        <div class="fw-semibold text-dark">{{ div.name }}</div>
+                        <div class="small text-muted">{{ div.staff_count }} NV</div>
+                        <div class="jp-org-div-actions mt-2">
+                            <a href="{% url 'division_edit' div.pk %}" class="btn btn-sm btn-outline-hm py-0 px-2" title="Sửa">
+                                <i class="bi bi-pencil-square"></i>
+                            </a>
+                            <a href="{% url 'division_delete' div.pk %}" class="btn btn-sm btn-outline-danger py-0 px-2" title="Xóa">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted small mb-0">
+                    Chưa có bộ phận.
+                    <a href="{% url 'division_add' %}?department={{ dept.pk }}">Thêm bộ phận</a>
+                </p>
+                {% endif %}
+            </div>
+        </section>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-light border text-center py-5">
+                Chưa có phòng ban.
+                <a href="{% url 'department_add' %}">Thêm phòng ban đầu tiên</a>
             </div>
         </div>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="bg-light text-uppercase small">
-                    <tr>
-                        <th class="ps-4 py-3 text-muted">STT</th>
-                        <th class="text-muted">Tên bộ phận</th>
-                        <th class="text-muted text-center">Nhân viên</th>
-                        <th class="text-muted text-center">Thứ tự</th>
-                        <th class="text-muted text-center">Trạng thái</th>
-                        <th class="text-end pe-4 text-muted">Thao tác</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for div in divisions %}
-                    <tr>
-                        <td class="ps-4 fw-bold text-muted">{{ div_page.start_index|add:forloop.counter0 }}</td>
-                        <td class="fw-semibold">{{ div.name }}</td>
-                        <td class="text-center"><span class="badge bg-light text-dark border">{{ div.staff_count }}</span></td>
-                        <td class="text-center text-muted">{{ div.sort_order }}</td>
-                        <td class="text-center">
-                            {% if div.is_active %}
-                            <span class="badge bg-success-subtle text-success border border-success-subtle">Đang dùng</span>
-                            {% else %}
-                            <span class="badge bg-secondary-subtle text-secondary border">Ngưng</span>
-                            {% endif %}
-                        </td>
-                        <td class="text-end pe-4">
-                            <div class="d-inline-flex gap-1">
-                                <a href="{% url 'division_edit' div.pk %}" class="btn btn-sm btn-outline-hm" title="Sửa"><i class="bi bi-pencil-square"></i></a>
-                                <a href="{% url 'division_delete' div.pk %}" class="btn btn-sm btn-outline-danger" title="Xóa"><i class="bi bi-trash"></i></a>
-                            </div>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="6" class="text-center py-5 text-muted">Chưa có bộ phận. <a href="{% url 'division_add' %}">Thêm bộ phận</a></td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        {% endfor %}
+    </div>
+
+    {% if treemap.unassigned_divisions %}
+    <div class="card border-warning border-2 shadow-sm mb-3" id="org-unassigned">
+        <div class="card-header bg-warning-subtle py-3">
+            <h5 class="mb-0 fw-bold text-dark">
+                <i class="bi bi-exclamation-triangle me-2"></i>Bộ phận chưa gán phòng ban
+            </h5>
         </div>
-        {% if div_page.has_other_pages %}
-        <div class="card-footer bg-white border-top py-3">
-            {% include 'includes/pagination.html' with page_obj=div_page page_param='div_page' query_string=div_query_string %}
+        <div class="card-body">
+            <div class="jp-org-div-grid">
+                {% for div in treemap.unassigned_divisions %}
+                <div class="jp-org-div-cell">
+                    <div class="fw-semibold">{{ div.name }}</div>
+                    <div class="small text-muted">{{ div.staff_count }} NV</div>
+                    <div class="mt-2">
+                        <a href="{% url 'division_edit' div.pk %}" class="btn btn-sm btn-outline-hm">Gán phòng ban</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
         </div>
-        {% endif %}
     </div>
     {% endif %}
+
+    <div class="alert alert-light border small mb-0">
+        <i class="bi bi-info-circle text-hm me-1"></i>
+        <strong>Cấp 4 — Vị trí:</strong> {{ treemap.position_hint }}
+    </div>
 </div>
 {% endblock %}

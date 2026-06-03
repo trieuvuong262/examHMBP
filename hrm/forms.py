@@ -2,6 +2,7 @@ from django import forms
 from django.contrib.auth.models import User
 from django.db.models import Q
 from .models import Profile, Department, Division, DepartmentMenuPermission, PermissionGroup
+from hrm.org_structure import divisions_for_department
 from hrm.choices import GENDER_FORM_CHOICES
 from hrm.permissions import ROLE_EMPLOYEE
 from hrm.module_permissions import ALL_MODULE_KEYS, MODULE_CHOICES, MODULE_LABELS
@@ -56,7 +57,11 @@ class CustomUserForm(forms.Form):
     job_position = forms.CharField(
         label='Vị trí',
         required=False,
-        widget=forms.TextInput(attrs={**INPUT, 'placeholder': 'VD: Công nhân may'}),
+        widget=forms.TextInput(attrs={
+            **INPUT,
+            'placeholder': 'VD: Công nhân may, Nhân viên QC…',
+        }),
+        help_text='Nhập tự do — cấp thấp nhất trong sơ đồ tổ chức.',
     )
     job_title = forms.CharField(
         label='Chức vụ',
@@ -121,13 +126,29 @@ class CustomUserForm(forms.Form):
             dept_qs = Department.objects.filter(Q(is_active=True) | Q(pk=current_pk))
         self.fields['department'].queryset = dept_qs.order_by('sort_order', 'name')
 
-        div_qs = Division.objects.filter(is_active=True)
+        dept = self.initial.get('department') or self.data.get('department')
+        dept_pk = None
+        if dept:
+            dept_pk = dept.pk if isinstance(dept, Department) else dept
+            try:
+                dept_pk = int(dept_pk)
+            except (TypeError, ValueError):
+                dept_pk = None
+        div_qs = divisions_for_department(dept_pk)
         if self.initial.get('division'):
             current = self.initial['division']
             current_pk = current.pk if isinstance(current, Division) else current
-            div_qs = Division.objects.filter(Q(is_active=True) | Q(pk=current_pk))
-        self.fields['division'].queryset = div_qs.order_by('sort_order', 'name')
+            div_qs = Division.objects.filter(Q(pk__in=div_qs.values('pk')) | Q(pk=current_pk)).distinct()
+        self.fields['division'].queryset = div_qs.select_related('department').order_by(
+            'department__sort_order', 'department__name', 'sort_order', 'name',
+        )
 
+        def _division_label(obj):
+            if obj.department_id:
+                return obj.name
+            return f'{obj.name} (chưa gán phòng ban)'
+
+        self.fields['division'].label_from_instance = _division_label
         self.fields['subordinates'].label_from_instance = user_display_label
 
         if not self.user_id:
@@ -187,6 +208,17 @@ class CustomUserForm(forms.Form):
             raise forms.ValidationError('Mã NS này đã được sử dụng!')
         return code
 
+    def clean(self):
+        cleaned = super().clean()
+        dept = cleaned.get('department')
+        div = cleaned.get('division')
+        if div and div.department_id and dept and div.department_id != dept.id:
+            self.add_error(
+                'division',
+                'Bộ phận này không thuộc phòng ban đã chọn — chọn lại hoặc cập nhật tại Cơ cấu tổ chức.',
+            )
+        return cleaned
+
 
 class DepartmentForm(forms.ModelForm):
     class Meta:
@@ -218,28 +250,45 @@ class DepartmentForm(forms.ModelForm):
 class DivisionForm(forms.ModelForm):
     class Meta:
         model = Division
-        fields = ['name', 'sort_order', 'is_active']
+        fields = ['department', 'name', 'sort_order', 'is_active']
         widgets = {
+            'department': forms.Select(attrs=SELECT),
             'name': forms.TextInput(attrs={**INPUT, 'placeholder': 'VD: QC'}),
             'sort_order': forms.NumberInput(attrs={**INPUT, 'min': 0}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         labels = {
+            'department': 'Phòng ban',
             'name': 'Tên bộ phận',
             'sort_order': 'Thứ tự hiển thị',
             'is_active': 'Đang sử dụng',
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['department'].queryset = Department.objects.filter(is_active=True).order_by(
+            'sort_order', 'name',
+        )
+        self.fields['department'].empty_label = '-- Chọn phòng ban --'
+        self.fields['department'].required = True
+
     def clean_name(self):
         name = (self.cleaned_data.get('name') or '').strip()
         if not name:
             raise forms.ValidationError('Tên bộ phận không được để trống.')
-        qs = Division.objects.filter(name__iexact=name)
+        dept = self.cleaned_data.get('department')
+        qs = Division.objects.filter(name__iexact=name, department=dept)
         if self.instance.pk:
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
-            raise forms.ValidationError('Bộ phận này đã tồn tại.')
+            raise forms.ValidationError('Bộ phận này đã tồn tại trong phòng ban đã chọn.')
         return name
+
+    def clean_department(self):
+        dept = self.cleaned_data.get('department')
+        if not dept:
+            raise forms.ValidationError('Phòng ban không được để trống.')
+        return dept
 
 
 class DepartmentMenuPermissionForm(forms.Form):
