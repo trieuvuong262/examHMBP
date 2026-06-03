@@ -3124,159 +3124,90 @@ textarea.form-control {
     color: var(--jp-hm, #0d9488);
 }
 
-.jp-org-treemap {
+/* Cơ cấu tổ chức — sơ đồ ngang (trái GDĐH → phải PB → BP) */
+.jp-org-chart-scroll {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 0.65rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.07);
+}
+
+.jp-org-chart {
     display: flex;
     flex-direction: row;
     align-items: stretch;
-    gap: 3px;
-    border-radius: 0.65rem;
-    overflow: hidden;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
-    min-height: 16rem;
-    max-height: min(70vh, 32rem);
+    gap: 0;
+    min-height: 14rem;
+    min-width: min(100%, 48rem);
+    background: #e2e8f0;
 }
 
-.jp-org-treemap--horizontal {
-    overflow-x: auto;
-    overflow-y: hidden;
-}
-
-/* Trái — GDĐH (ô lớn nhất) */
-.jp-org-treemap__root {
-    flex: 0 0 8.5rem;
+.jp-org-chart__gddh {
+    flex: 0 0 11.5rem;
     display: flex;
     flex-direction: column;
-    align-items: center;
     justify-content: center;
-    gap: 0.65rem;
-    padding: 1rem 0.65rem;
-    background: linear-gradient(180deg, #0f766e 0%, #0d9488 45%, #14b8a6 100%);
+    gap: 0.5rem;
+    padding: 1rem;
+    background: linear-gradient(160deg, #0f766e, #14b8a6);
     color: #fff;
-    text-align: center;
     position: sticky;
     left: 0;
-    z-index: 3;
-    box-shadow: 4px 0 12px rgba(0, 0, 0, 0.08);
+    z-index: 2;
+    box-shadow: 4px 0 10px rgba(0, 0, 0, 0.06);
 }
 
-.jp-org-treemap__root-label {
-    font-size: 0.95rem;
+.jp-org-chart__gddh-badge {
+    font-size: 0.65rem;
     font-weight: 800;
-    line-height: 1.25;
-    writing-mode: vertical-rl;
-    text-orientation: mixed;
-    transform: rotate(180deg);
-    letter-spacing: 0.04em;
-    max-height: 12rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    opacity: 0.85;
 }
 
-.jp-org-treemap__root-meta {
+.jp-org-chart__gddh-title {
+    font-size: 1.05rem;
+    font-weight: 800;
+    line-height: 1.3;
+    word-break: break-word;
+}
+
+.jp-org-chart__gddh-meta {
     display: flex;
     flex-direction: column;
-    gap: 0.15rem;
-    font-size: 0.68rem;
-    font-weight: 700;
+    gap: 0.2rem;
+    font-size: 0.75rem;
+    font-weight: 600;
     opacity: 0.95;
 }
 
-.jp-org-treemap__root-link {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2rem;
-    height: 2rem;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
-    color: #fff;
-    text-decoration: none;
-}
-
-.jp-org-treemap__root-link:hover {
-    background: rgba(255, 255, 255, 0.35);
-    color: #fff;
-}
-
-/* Phải — luồng ngang phòng ban → bộ phận */
-.jp-org-treemap__flow {
+.jp-org-chart__track {
     display: flex;
     flex-direction: row;
     align-items: stretch;
     flex: 1;
-    min-width: min-content;
     gap: 4px;
-    padding: 3px 3px 3px 0;
-    background: #e2e8f0;
+    padding: 4px;
+    min-width: 0;
 }
 
-.jp-org-treemap__group {
+.jp-org-chart__dept {
     display: flex;
-    flex-direction: row;
-    align-items: stretch;
-    flex: 1 1 auto;
-    min-width: 6rem;
+    flex-direction: column;
+    flex: var(--jp-dept-flex, 1) 1 12rem;
+    min-width: 11rem;
+    max-width: 28rem;
     background: var(--jp-org-dept-bg, #f0f9ff);
-    border-radius: 0.35rem;
+    border: 1px solid rgba(0, 0, 0, 0.07);
+    border-radius: 0.5rem;
     overflow: hidden;
-    border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
-.jp-org-treemap__group--warn {
+.jp-org-chart__dept--warn {
     border-color: #f59e0b;
     background: #fffbeb;
-}
-
-.jp-org-treemap__dept-pillar {
-    flex: 0 0 3.25rem;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.5rem 0.25rem;
-    background: var(--jp-org-dept-head, #0284c7);
-    color: #fff;
-    position: relative;
-}
-
-.jp-org-treemap__dept-pillar--warn {
-    background: #d97706;
-}
-
-.jp-org-treemap__pillar-name {
-    font-size: 0.65rem;
-    font-weight: 800;
-    line-height: 1.15;
-    writing-mode: vertical-rl;
-    text-orientation: mixed;
-    transform: rotate(180deg);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-height: 9rem;
-    word-break: break-word;
-}
-
-.jp-org-treemap__pillar-count {
-    font-size: 0.62rem;
-    font-weight: 700;
-    opacity: 0.9;
-    writing-mode: vertical-rl;
-    transform: rotate(180deg);
-}
-
-.jp-org-treemap__pillar-count::after {
-    content: ' NV';
-}
-
-.jp-org-treemap__pillar-tools {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    opacity: 0;
-    transition: opacity 0.12s ease;
-}
-
-.jp-org-treemap__dept-pillar:hover .jp-org-treemap__pillar-tools,
-.jp-org-treemap__dept-pillar:focus-within .jp-org-treemap__pillar-tools {
-    opacity: 1;
 }
 
 .jp-org-dept-hue-0 { --jp-org-dept-bg: #e0f2fe; --jp-org-dept-head: #0284c7; }
@@ -3288,179 +3219,217 @@ textarea.form-control {
 .jp-org-dept-hue-6 { --jp-org-dept-bg: #ffedd5; --jp-org-dept-head: #ea580c; }
 .jp-org-dept-hue-7 { --jp-org-dept-bg: #ccfbf1; --jp-org-dept-head: #0d9488; }
 
-.jp-org-treemap__divs {
+.jp-org-chart__dept-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.35rem;
+    padding: 0.5rem 0.55rem;
+    background: var(--jp-org-dept-head, #0284c7);
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.jp-org-chart__dept-info {
+    min-width: 0;
+    flex: 1;
+}
+
+.jp-org-chart__dept-label {
+    display: block;
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.85;
+}
+
+.jp-org-chart__dept-name {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 800;
+    line-height: 1.2;
+    word-break: break-word;
+}
+
+.jp-org-chart__dept-count {
+    font-size: 0.68rem;
+    font-weight: 600;
+    opacity: 0.9;
+}
+
+.jp-org-chart__dept-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.jp-org-chart__divs {
     display: flex;
     flex-direction: row;
     flex-wrap: nowrap;
     align-items: stretch;
     flex: 1;
-    gap: 2px;
-    padding: 3px;
-    background: var(--jp-org-dept-bg, #f8fafc);
-    min-width: 0;
-    overflow-x: auto;
-}
-
-.jp-org-treemap__divs--strip {
-    min-height: 3.5rem;
-    background: #fffbeb;
-    border: 1px dashed #f59e0b;
-    border-radius: 0.5rem;
+    gap: 3px;
     padding: 4px;
+    min-height: 5.5rem;
 }
 
-.jp-org-treemap__div {
+.jp-org-chart__div {
     position: relative;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    min-height: 2.75rem;
-    padding: 0.35rem 0.4rem;
-    background: rgba(255, 255, 255, 0.72);
-    border: 1px solid rgba(15, 118, 110, 0.2);
-    border-radius: 0.35rem;
-    overflow: hidden;
-    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+    flex: 1 1 4.5rem;
+    min-width: 4.5rem;
+    max-width: 14rem;
+    min-height: 4.5rem;
+    padding: 0.4rem 0.45rem;
+    background: #fff;
+    border: 1px solid rgba(15, 118, 110, 0.22);
+    border-radius: 0.4rem;
 }
 
-.jp-org-treemap__div:hover,
-.jp-org-treemap__div:focus-within {
+.jp-org-chart__div:hover,
+.jp-org-chart__div:focus-within {
     border-color: var(--jp-hm, #0d9488);
-    box-shadow: 0 2px 8px rgba(13, 148, 136, 0.2);
+    box-shadow: 0 2px 8px rgba(13, 148, 136, 0.18);
     z-index: 1;
 }
 
-.jp-org-treemap__div.is-inactive {
+.jp-org-chart__div.is-inactive {
     opacity: 0.55;
 }
 
-.jp-org-treemap__div--empty {
+.jp-org-chart__div--empty {
     flex: 1 1 100%;
     align-items: center;
     justify-content: center;
     text-align: center;
-    font-size: 0.75rem;
+    font-size: 0.78rem;
     font-weight: 700;
     color: var(--jp-hm, #0d9488);
     text-decoration: none;
     border-style: dashed;
     background: transparent;
+    max-width: none;
 }
 
-.jp-org-treemap__div--warn {
+.jp-org-chart__div--warn {
     border-color: #f59e0b;
     background: #fffbeb;
 }
 
-.jp-org-treemap__div-name {
-    font-size: 0.68rem;
+.jp-org-chart__div-name {
+    font-size: 0.72rem;
     font-weight: 700;
-    line-height: 1.15;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
+    line-height: 1.2;
     word-break: break-word;
+    padding-right: 1.5rem;
 }
 
-.jp-org-treemap__div-count {
-    font-size: 0.62rem;
+.jp-org-chart__div-count {
+    font-size: 0.65rem;
     font-weight: 800;
     color: var(--jp-hm, #0d9488);
-    margin-top: 0.15rem;
+    margin-top: 0.25rem;
 }
 
-.jp-org-treemap__div-count::after {
-    content: ' NV';
-    font-weight: 600;
-    opacity: 0.85;
-}
-
-.jp-org-treemap__div-tools {
+.jp-org-chart__div-tools {
     position: absolute;
-    top: 2px;
-    right: 2px;
+    top: 3px;
+    right: 3px;
     display: flex;
-    gap: 1px;
+    gap: 2px;
     opacity: 0;
     transition: opacity 0.12s ease;
 }
 
-.jp-org-treemap__div:hover .jp-org-treemap__div-tools,
-.jp-org-treemap__div:focus-within .jp-org-treemap__div-tools {
+.jp-org-chart__div:hover .jp-org-chart__div-tools,
+.jp-org-chart__div:focus-within .jp-org-chart__div-tools,
+.jp-org-chart__dept:hover .jp-org-chart__div-tools {
     opacity: 1;
+}
+
+.jp-org-chart__empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    background: #f8fafc;
+    color: #64748b;
+    font-weight: 600;
+    min-height: 14rem;
 }
 
 .jp-org-tool {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1.35rem;
-    height: 1.35rem;
-    border-radius: 0.25rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 0.3rem;
     background: rgba(255, 255, 255, 0.95);
     color: #334155;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     text-decoration: none;
-    border: none;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.jp-org-chart__dept-head .jp-org-tool {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    box-shadow: none;
+}
+
+.jp-org-chart__dept-head .jp-org-tool:hover {
+    background: rgba(255, 255, 255, 0.35);
+    color: #fff;
 }
 
 .jp-org-tool:hover {
-    background: #fff;
     color: var(--jp-hm, #0d9488);
 }
 
 .jp-org-tool-danger:hover {
-    color: #dc2626;
-}
-
-.jp-org-treemap__empty {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 12rem;
-    background: #f8fafc;
-    color: #64748b;
-    font-weight: 600;
+    color: #dc2626 !important;
 }
 
 @media (max-width: 767.98px) {
-    .jp-org-treemap {
-        min-height: 14rem;
-        max-height: none;
+    .jp-org-chart__gddh {
+        flex: 0 0 9rem;
+        padding: 0.75rem;
     }
 
-    .jp-org-treemap__root {
-        flex: 0 0 5.5rem;
+    .jp-org-chart__gddh-title {
+        font-size: 0.9rem;
     }
 
-    .jp-org-treemap__root-label {
-        font-size: 0.8rem;
-        max-height: 8rem;
+    .jp-org-chart__dept {
+        min-width: 9.5rem;
     }
 
-    .jp-org-treemap__pillar-tools,
-    .jp-org-treemap__div-tools {
+    .jp-org-chart__div-tools,
+    .jp-org-chart__dept-tools {
         opacity: 1;
     }
 }
 
-[data-theme="dark"] .jp-org-treemap {
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+[data-theme="dark"] .jp-org-chart-scroll {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
 }
 
-[data-theme="dark"] .jp-org-treemap__flow {
+[data-theme="dark"] .jp-org-chart {
     background: #1e293b;
 }
 
-[data-theme="dark"] .jp-org-treemap__div {
-    background: rgba(15, 23, 42, 0.65);
-    border-color: rgba(148, 163, 184, 0.25);
+[data-theme="dark"] .jp-org-chart__div {
+    background: rgba(15, 23, 42, 0.75);
+    border-color: rgba(148, 163, 184, 0.3);
 }
 
-[data-theme="dark"] .jp-org-treemap__div-name {
+[data-theme="dark"] .jp-org-chart__div-name {
     color: #e2e8f0;
 }
 
@@ -3469,7 +3438,7 @@ textarea.form-control {
     color: #e2e8f0;
 }
 
-[data-theme="dark"] .jp-org-treemap__empty {
+[data-theme="dark"] .jp-org-chart__empty {
     background: rgba(15, 23, 42, 0.5);
     color: #94a3b8;
 }

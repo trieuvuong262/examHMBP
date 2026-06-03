@@ -599,10 +599,31 @@ def _org_redirect_for_division(division):
 
 @admin_only
 def org_structure(request):
+    from django.db.utils import OperationalError, ProgrammingError
+
     from hrm.org_structure import build_org_treemap
 
     search_query = get_search_query(request)
-    treemap = build_org_treemap()
+    try:
+        treemap = build_org_treemap()
+    except (OperationalError, ProgrammingError) as exc:
+        err = str(exc).lower()
+        if 'department_id' in err or 'division' in err:
+            messages.error(
+                request,
+                'Chưa migrate cơ cấu tổ chức. IT chạy: python manage.py migrate hrm',
+            )
+            treemap = None
+        else:
+            raise
+    if treemap is None:
+        return render(request, 'assessment/admin/org_structure.html', {
+            'treemap': None,
+            'search_query': search_query,
+            'max_treemap_weight': 1,
+            'org_structure_clear_url': reverse('org_structure'),
+            'migration_required': True,
+        })
     if search_query:
         q = search_query.lower()
         treemap.departments = [
