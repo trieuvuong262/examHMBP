@@ -29,6 +29,8 @@
         wheelFactor: 0.00065,
     };
 
+    const ACTION = { size: 22, gap: 2 };
+
     const chartState = {
         collapsed: new Set(),
         fullData: null,
@@ -70,30 +72,52 @@
         return { w: Math.round((178 + gap * 0.5) * s), h: 40 };
     }
 
+    function actionStripWidth(actions) {
+        if (!actions || !actions.length) return 0;
+        return actions.length * (ACTION.size + ACTION.gap) + 6;
+    }
+
     function nodeContentRight(nodes, nodeW, urls) {
         return d3.max(nodes, (d) => {
             const level = d.data.level || 'item';
             const { w: pillW } = pillSize(level, !!d.data.subtitle, nodeW);
             const actions = buildActions(d.data, urls);
-            const actionW = actions.length ? actions.length * 22 + 8 : 0;
-            const chevron = level === 'position' ? 14 : 0;
-            return d.y + pillW + actionW + chevron;
+            const chevron = level === 'position' ? 18 : 0;
+            return d.y + pillW + actionStripWidth(actions) + chevron;
         }) ?? 0;
     }
 
-    function elbowPath(d, nodeW) {
-        const sw = pillSize(d.source.data.level || 'item', !!d.source.data.subtitle, nodeW).w;
+    function ellipsizeSvgText(textSel, fullText, maxWidth) {
+        let s = String(fullText || '').trim();
+        const node = textSel.node();
+        if (!node || maxWidth <= 4) {
+            textSel.text('');
+            return;
+        }
+        textSel.text(s);
+        if (node.getComputedTextLength() <= maxWidth) return;
+        while (s.length > 1) {
+            s = s.slice(0, -1);
+            textSel.text(`${s}…`);
+            if (node.getComputedTextLength() <= maxWidth) return;
+        }
+        textSel.text('…');
+    }
+
+    function nodeTotalWidth(nodeData, nodeW, urls) {
+        const level = nodeData.level || 'item';
+        const { w } = pillSize(level, !!nodeData.subtitle, nodeW);
+        return w + actionStripWidth(buildActions(nodeData, urls));
+    }
+
+    function elbowPath(d, nodeW, urls) {
+        const sw = nodeTotalWidth(d.source.data, nodeW, urls);
         const sx = d.source.y + sw;
         const sy = d.source.x;
         const tx = d.target.y;
         const ty = d.target.x;
         const mx = (sx + tx) / 2;
         return `M${sx},${sy}H${mx}V${ty}H${tx}`;
-    }
-
-    function truncate(text, max) {
-        const s = String(text || '');
-        return s.length > max ? `${s.slice(0, max - 1)}…` : s;
     }
 
     function fillUrl(tpl, vals) {
@@ -243,6 +267,7 @@
     function syncHeaderColumns(trackEl, columns, marginLeft, transform) {
         if (!trackEl || !columns || !columns.length) return;
         trackEl.style.transform = 'none';
+        const headerFs = Math.round(11 * Math.min(1.25, Math.max(0.8, transform.k)));
         const labels = trackEl.querySelectorAll('.jp-org-chart-col-label');
         columns.forEach((col, i) => {
             const el = labels[i];
@@ -250,24 +275,8 @@
             const left = transform.x + transform.k * (marginLeft + col.x);
             el.style.left = `${left}px`;
             el.style.width = `${transform.k * col.w}px`;
+            el.style.fontSize = `${headerFs}px`;
         });
-    }
-
-    /** Giữ chữ/nét ổn định khi zoom — bù scale của nhóm zoom. */
-    function applyCrispZoomStyles(zoomRoot, k) {
-        const inv = 1 / k;
-        zoomRoot.selectAll('[data-base-fs]').each(function () {
-            const base = Number(this.getAttribute('data-base-fs')) || 13;
-            d3.select(this).style('font-size', `${base * inv}px`);
-        });
-        zoomRoot.selectAll('[data-base-sw]').each(function () {
-            const base = Number(this.getAttribute('data-base-sw')) || 1.5;
-            d3.select(this).attr('stroke-width', base * inv);
-        });
-        zoomRoot.selectAll('.jp-org-tree-link').attr('stroke-width', 2 * inv);
-        const heavyFilter = k < 0.55 || k > 1.85;
-        zoomRoot.selectAll('.jp-org-tree-pill-rect')
-            .style('filter', heavyFilter ? 'none' : null);
     }
 
     function clampTransform(transform) {
@@ -284,7 +293,6 @@
         if (sync) {
             syncHeaderColumns(trackEl || sync.trackEl, sync.columns, sync.marginLeft, transform);
         }
-        applyCrispZoomStyles(zoomRoot, transform.k);
     }
 
     function scheduleZoomApply(trackEl, zoomRoot, transform) {
@@ -371,7 +379,7 @@
             .join('path')
             .attr('class', 'jp-org-tree-link')
             .attr('fill', 'none')
-            .attr('d', (d) => elbowPath(d, nodeW));
+            .attr('d', (d) => elbowPath(d, nodeW, urls));
 
         const nodeG = g.append('g')
             .attr('class', 'jp-org-tree-nodes')
@@ -401,14 +409,19 @@
 
             const pill = sel.append('g').attr('class', 'jp-org-tree-pill');
 
-            const labelFs = level === 'employee' ? 11 : level === 'position' ? 12 : 13;
-            const subFs = level === 'employee' ? 9 : 10;
             const pillStroke = level === 'root' ? 2 : level === 'position' && expanded ? 2 : 1.5;
+            const chevW = isPosition ? 18 : 0;
+            const actW = actionStripWidth(actions);
+            const badgeW = level !== 'employee' ? 30 : 0;
+            const innerPillW = pillW + actW;
+            const pillX = chevW;
+            const labelX = chevW + 12;
+            const badgeX = innerPillW - actW - badgeW - 8;
+            const labelMaxW = Math.max(24, badgeX - labelX - 6);
 
             if (isPosition) {
                 pill.append('text')
                     .attr('class', 'jp-org-tree-expand-icon')
-                    .attr('data-base-fs', 11)
                     .attr('x', 6)
                     .attr('y', 5)
                     .text(expanded ? '▼' : '▶');
@@ -416,13 +429,15 @@
 
             pill.append('rect')
                 .attr('class', 'jp-org-tree-pill-rect')
-                .attr('data-base-sw', pillStroke)
-                .attr('x', isPosition ? 18 : 0)
+                .attr('x', pillX)
                 .attr('y', -pillH / 2)
-                .attr('width', isPosition ? pillW - 18 : pillW)
+                .attr('width', innerPillW - pillX)
                 .attr('height', pillH)
                 .attr('rx', PILL_RX)
                 .attr('ry', PILL_RX);
+            if (pillStroke > 1.5) {
+                pill.select('.jp-org-tree-pill-rect').attr('stroke-width', pillStroke);
+            }
 
             if (isPosition) {
                 pill.style('cursor', 'pointer').on('click', (ev) => {
@@ -436,30 +451,24 @@
                 });
             }
 
-            const labelX = isPosition ? 28 : 14;
-            pill.append('text')
+            const labelSel = pill.append('text')
                 .attr('class', 'jp-org-tree-pill-label')
-                .attr('data-base-fs', labelFs)
                 .attr('x', labelX)
-                .attr('y', hasSub ? -2 : 5)
-                .text(truncate(d.data.name, level === 'position' ? 38 : level === 'employee' ? 32 : 28));
+                .attr('y', hasSub ? -2 : 5);
+            ellipsizeSvgText(labelSel, d.data.name, labelMaxW);
 
             if (d.data.subtitle) {
-                pill.append('text')
+                const subSel = pill.append('text')
                     .attr('class', 'jp-org-tree-pill-sub')
-                    .attr('data-base-fs', subFs)
                     .attr('x', labelX)
-                    .attr('y', 14)
-                    .text(truncate(d.data.subtitle, 28));
+                    .attr('y', 14);
+                ellipsizeSvgText(subSel, d.data.subtitle, labelMaxW);
             }
 
             if (level !== 'employee') {
-                const badgeW = 30;
                 const badgeH = 22;
-                const badgeX = (isPosition ? 18 : 0) + pillW - 18 - badgeW;
                 pill.append('rect')
                     .attr('class', 'jp-org-tree-pill-badge-bg')
-                    .attr('data-base-sw', 1)
                     .attr('x', badgeX)
                     .attr('y', -badgeH / 2)
                     .attr('width', badgeW)
@@ -468,7 +477,6 @@
                     .attr('ry', 5);
                 pill.append('text')
                     .attr('class', 'jp-org-tree-pill-badge-txt')
-                    .attr('data-base-fs', 10)
                     .attr('x', badgeX + badgeW / 2)
                     .attr('y', 5)
                     .attr('text-anchor', 'middle')
@@ -476,23 +484,29 @@
             }
 
             if (actions.length) {
-                const baseX = (isPosition ? 18 : 0) + pillW - 4;
-                const menu = sel.append('g')
+                const menuX = innerPillW - actW + 2;
+                const menuY = -ACTION.size / 2;
+                const menu = pill.append('g')
                     .attr('class', 'jp-org-tree-actions')
-                    .attr('transform', `translate(${baseX},${-pillH / 2 - 4})`);
+                    .attr('transform', `translate(${menuX},${menuY})`);
                 actions.forEach((act, i) => {
-                    const ag = menu.append('g').attr('transform', `translate(${i * 22},0)`);
+                    const step = ACTION.size + ACTION.gap;
+                    const ag = menu.append('g').attr('transform', `translate(${i * step},0)`);
                     const link = ag.append('a')
                         .attr('href', act.href)
                         .attr('class', `jp-org-tree-action-link${act.danger ? ' is-danger' : ''}`)
                         .attr('title', act.title)
+                        .attr('aria-label', act.title)
                         .on('click', (ev) => ev.stopPropagation());
-                    link.append('rect').attr('class', 'jp-org-tree-action-bg').attr('width', 20).attr('height', 20).attr('rx', 4);
+                    link.append('rect')
+                        .attr('class', 'jp-org-tree-action-bg')
+                        .attr('width', ACTION.size)
+                        .attr('height', ACTION.size)
+                        .attr('rx', 5);
                     link.append('text')
                         .attr('class', 'jp-org-tree-action-icon')
-                        .attr('data-base-fs', 11)
-                        .attr('x', 10)
-                        .attr('y', 14)
+                        .attr('x', ACTION.size / 2)
+                        .attr('y', ACTION.size - 6)
                         .attr('text-anchor', 'middle')
                         .text(act.glyph);
                 });

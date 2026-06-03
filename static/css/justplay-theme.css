@@ -3273,13 +3273,6 @@ textarea.form-control {
 }
 
 .jp-org-tree-actions {
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.15s ease;
-}
-
-.jp-org-tree-node:hover .jp-org-tree-actions,
-.jp-org-tree-node:focus-within .jp-org-tree-actions {
     opacity: 1;
     pointer-events: auto;
 }
@@ -3291,8 +3284,8 @@ textarea.form-control {
 
 .jp-org-tree-action-bg {
     fill: #fff;
-    stroke: #e2e8f0;
-    stroke-width: 1;
+    stroke: #cbd5e1;
+    stroke-width: 1.2;
 }
 
 .jp-org-tree-action-link.is-danger .jp-org-tree-action-bg {
@@ -3336,6 +3329,11 @@ textarea.form-control {
     font-weight: 700;
     fill: #1e293b;
     pointer-events: none;
+}
+
+.jp-org-tree-pill-label,
+.jp-org-tree-pill-sub {
+    letter-spacing: -0.01em;
 }
 
 .jp-org-tree-pill-sub {
