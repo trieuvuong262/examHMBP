@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_head %}
-<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="{% static 'css/justplay-theme.css' %}?v=20260528d">
 {% endblock %}
 
 {% block content %}
@@ -15,7 +15,7 @@
             <nav aria-label="breadcrumb" class="d-none d-md-block">
                 <ol class="breadcrumb mb-0 small">
                     <li class="breadcrumb-item"><a href="{% url 'user_list' %}" class="text-decoration-none text-muted">Nhân sự</a></li>
-                    <li class="breadcrumb-item active fw-bold text-hm">Sơ đồ cây</li>
+                    <li class="breadcrumb-item active fw-bold text-hm">Sơ đồ cây ngang</li>
                 </ol>
             </nav>
         </div>
@@ -34,7 +34,7 @@
             {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tìm phòng ban / bộ phận / vị trí...' clear_url=org_structure_clear_url %}
         </form>
         <div class="jp-org-legend small text-muted">
-            <span><i class="bi bi-arrow-right text-hm"></i> Trái → phải: Công ty → Phòng ban → Bộ phận → Vị trí</span>
+            <span><i class="bi bi-arrow-right text-hm"></i> Trái → phải · Công ty → Phòng ban → Bộ phận → Vị trí</span>
         </div>
     </div>
 
@@ -46,7 +46,9 @@
     {% else %}
     <div class="card border-0 shadow-sm jp-org-tree-card">
         <div class="card-body p-2 p-md-3">
-            <div id="jp-org-tree-mount" class="jp-org-tree-mount"></div>
+            <div id="jp-org-tree-mount" class="jp-org-tree-mount">
+                <p class="text-muted small p-3 mb-0">Đang tải sơ đồ…</p>
+            </div>
         </div>
     </div>
     {% endif %}
@@ -54,21 +56,13 @@
     <p class="text-muted small mt-3 mb-0">
         <i class="bi bi-info-circle text-hm me-1"></i>
         {% if treemap %}{{ treemap.position_hint }}{% endif %}
-        · Di chuột nút để sửa / thêm.
     </p>
 </div>
 
 {% if not migration_required %}
 {{ org_tree|json_script:"jp-org-tree-data" }}
 {{ org_urls|json_script:"jp-org-urls-data" }}
-<script src="{% static 'js/org_tree.js' %}?v=20260528b"></script>
-<script>
-(function () {
-    const el = document.getElementById('jp-org-tree-data');
-    const urlEl = document.getElementById('jp-org-urls-data');
-    if (el) window.JP_ORG_TREE = JSON.parse(el.textContent);
-    if (urlEl) window.JP_ORG_URLS = JSON.parse(urlEl.textContent);
-})();
-</script>
+<script src="{% static 'vendor/d3.min.js' %}?v=7.9.0"></script>
+<script src="{% static 'js/org_tree.js' %}?v=20260528d"></script>
 {% endif %}
 {% endblock %}

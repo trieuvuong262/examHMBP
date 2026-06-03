@@ -1,170 +1,151 @@
 /**
- * Sơ đồ cây cơ cấu tổ chức (D3) — ngang trái → phải.
+ * Sơ đồ cây ngang — Công ty → Phòng ban → Bộ phận → Vị trí (D3).
  */
 (function () {
     'use strict';
 
-    const mount = document.getElementById('jp-org-tree-mount');
-    if (!mount || !window.JP_ORG_TREE) return;
+    function showError(mount, msg) {
+        mount.innerHTML = `<div class="alert alert-warning m-3">${msg}</div>`;
+    }
 
-    const data = window.JP_ORG_TREE;
-    const urls = window.JP_ORG_URLS || {};
+    window.jpOrgTreeInit = function jpOrgTreeInit() {
+        const mount = document.getElementById('jp-org-tree-mount');
+        if (!mount) return;
 
-    const width = Math.max(mount.clientWidth || 900, 720);
-    const nodeX = 240;
-    const nodeY = 44;
-    const margin = { top: 24, right: 40, bottom: 24, left: 16 };
+        if (typeof d3 === 'undefined') {
+            showError(mount, 'Không tải được thư viện D3. Tải lại trang hoặc liên hệ IT.');
+            return;
+        }
+        if (!window.JP_ORG_TREE) {
+            showError(mount, 'Không có dữ liệu sơ đồ. Tải lại trang.');
+            return;
+        }
 
-    const root = d3.hierarchy(data);
-    const tree = d3.tree().nodeSize([nodeY, nodeX]);
-    tree(root);
+        mount.innerHTML = '';
+        const data = window.JP_ORG_TREE;
+        const urls = window.JP_ORG_URLS || {};
 
-    const nodes = root.descendants();
-    const links = root.links();
+        const nodeH = 52;
+        const nodeW = 260;
+        const margin = { top: 28, right: 48, bottom: 28, left: 20 };
 
-    const yMin = d3.min(nodes, (d) => d.x) ?? 0;
-    const yMax = d3.max(nodes, (d) => d.x) ?? 0;
-    const xMax = d3.max(nodes, (d) => d.y) ?? 0;
-    const height = yMax - yMin + nodeY + margin.top + margin.bottom;
-    const svgWidth = xMax + margin.left + margin.right + 120;
+        const root = d3.hierarchy(data);
+        const layout = d3.tree()
+            .nodeSize([nodeH, nodeW])
+            .separation((a, b) => (a.parent === b.parent ? 1 : 1.2));
+        layout(root);
 
-    const svg = d3.select(mount)
-        .append('svg')
-        .attr('width', svgWidth)
-        .attr('height', height)
-        .attr('class', 'jp-org-tree-svg');
+        const nodes = root.descendants();
+        const links = root.links();
+        const yMin = d3.min(nodes, (d) => d.x) ?? 0;
+        const yMax = d3.max(nodes, (d) => d.x) ?? 0;
+        const xMax = d3.max(nodes, (d) => d.y) ?? 0;
+        const innerH = yMax - yMin + nodeH;
+        const svgW = xMax + margin.left + margin.right + 80;
+        const svgH = innerH + margin.top + margin.bottom;
 
-    const g = svg.append('g')
-        .attr('transform', `translate(${margin.left},${margin.top - yMin})`);
+        const svg = d3.select(mount)
+            .append('svg')
+            .attr('class', 'jp-org-tree-svg')
+            .attr('width', svgW)
+            .attr('height', svgH)
+            .attr('viewBox', `0 0 ${svgW} ${svgH}`);
 
-    g.selectAll('.jp-org-tree-link')
-        .data(links)
-        .join('path')
-        .attr('class', 'jp-org-tree-link')
-        .attr('fill', 'none')
-        .attr('d', d3.linkHorizontal()
+        const g = svg.append('g')
+            .attr('transform', `translate(${margin.left},${margin.top - yMin})`);
+
+        const linkGen = d3.linkHorizontal()
             .x((d) => d.y)
-            .y((d) => d.x));
+            .y((d) => d.x);
 
-    const node = g.selectAll('.jp-org-tree-node')
-        .data(nodes)
-        .join('g')
-        .attr('class', (d) => `jp-org-tree-node jp-org-tree-node--${d.data.level || 'item'}`)
-        .attr('transform', (d) => `translate(${d.y},${d.x})`);
+        g.append('g')
+            .attr('class', 'jp-org-tree-links')
+            .selectAll('path')
+            .data(links)
+            .join('path')
+            .attr('class', 'jp-org-tree-link')
+            .attr('d', linkGen);
 
-    node.each(function (d) {
-        const fo = d3.select(this)
-            .append('foreignObject')
-            .attr('x', 0)
-            .attr('y', -18)
-            .attr('width', 210)
-            .attr('height', 52)
-            .attr('class', 'jp-org-tree-fo');
+        const nodeG = g.append('g')
+            .attr('class', 'jp-org-tree-nodes')
+            .selectAll('g')
+            .data(nodes)
+            .join('g')
+            .attr('class', (d) => `jp-org-tree-node jp-org-tree-node--${d.data.level || 'item'}`)
+            .attr('transform', (d) => `translate(${d.y},${d.x})`);
 
-        const div = fo.append('xhtml:div')
-            .attr('class', 'jp-org-tree-pill');
+        nodeG.each(function (d) {
+            const sel = d3.select(this);
+            const level = d.data.level || 'item';
+            const pillW = level === 'root' ? 200 : level === 'department' ? 190 : 175;
+            const pillH = d.data.subtitle ? 46 : 36;
+            const rx = pillH / 2;
 
-        const info = div.append('div').attr('class', 'jp-org-tree-pill__body');
-        info.append('div').attr('class', 'jp-org-tree-pill__name').text(truncate(d.data.name, 42));
-        if (d.data.subtitle) {
-            info.append('div').attr('class', 'jp-org-tree-pill__sub').text(d.data.subtitle);
-        }
+            sel.append('rect')
+                .attr('class', 'jp-org-tree-pill-rect')
+                .attr('x', 0)
+                .attr('y', -pillH / 2)
+                .attr('width', pillW)
+                .attr('height', pillH)
+                .attr('rx', rx)
+                .attr('ry', rx);
 
-        div.append('div')
-            .attr('class', 'jp-org-tree-pill__badge')
-            .text(String(d.data.count ?? 0));
+            sel.append('text')
+                .attr('class', 'jp-org-tree-pill-label')
+                .attr('x', 12)
+                .attr('y', d.data.subtitle ? -4 : 4)
+                .text(truncate(d.data.name, 28));
 
-        const actions = buildActions(d.data);
-        if (actions.length) {
-            const menu = div.append('div').attr('class', 'jp-org-tree-pill__menu');
-            actions.forEach((a) => {
-                menu.append('a')
-                    .attr('href', a.href)
-                    .attr('class', `jp-org-tree-pill__action ${a.danger ? 'is-danger' : ''}`)
-                    .attr('title', a.title)
-                    .html(`<i class="bi ${a.icon}"></i>`);
-            });
-        }
-    });
+            if (d.data.subtitle) {
+                sel.append('text')
+                    .attr('class', 'jp-org-tree-pill-sub')
+                    .attr('x', 12)
+                    .attr('y', 12)
+                    .text(truncate(d.data.subtitle, 32));
+            }
 
-    mount.style.minHeight = `${height}px`;
+            const badgeX = pillW - 8;
+            sel.append('circle')
+                .attr('class', 'jp-org-tree-pill-badge-bg')
+                .attr('cx', badgeX)
+                .attr('cy', 0)
+                .attr('r', 14);
+
+            sel.append('text')
+                .attr('class', 'jp-org-tree-pill-badge-txt')
+                .attr('x', badgeX)
+                .attr('y', 4)
+                .attr('text-anchor', 'middle')
+                .text(String(d.data.count ?? 0));
+
+            const title = `${d.data.name} — ${d.data.count ?? 0} NV`;
+            sel.append('title').text(title);
+        });
+
+        mount.style.minHeight = `${Math.min(svgH, 640)}px`;
+    };
 
     function truncate(text, max) {
         const s = String(text || '');
         return s.length > max ? `${s.slice(0, max - 1)}…` : s;
     }
 
-    function buildActions(nodeData) {
-        const level = nodeData.level;
-        const id = nodeData.id;
-        const deptId = nodeData.dept_id;
-        const out = [];
-
-        if (level === 'department' && id) {
-            if (urls.divisionAdd) {
-                out.push({
-                    href: urls.divisionAdd.replace('{dept_id}', String(id)),
-                    icon: 'bi-plus-lg',
-                    title: 'Thêm bộ phận',
-                });
-            }
-            if (urls.deptPermissions) {
-                out.push({
-                    href: urls.deptPermissions.replace('{id}', String(id)),
-                    icon: 'bi-shield-lock',
-                    title: 'Phân quyền',
-                });
-            }
-            if (urls.deptEdit) {
-                out.push({
-                    href: urls.deptEdit.replace('{id}', String(id)),
-                    icon: 'bi-pencil-square',
-                    title: 'Sửa phòng ban',
-                });
-            }
-            if (urls.deptDelete) {
-                out.push({
-                    href: urls.deptDelete.replace('{id}', String(id)),
-                    icon: 'bi-trash',
-                    title: 'Xóa',
-                    danger: true,
-                });
+    function boot() {
+        if (document.getElementById('jp-org-tree-data') && !window.JP_ORG_TREE) {
+            try {
+                window.JP_ORG_TREE = JSON.parse(document.getElementById('jp-org-tree-data').textContent);
+                const u = document.getElementById('jp-org-urls-data');
+                if (u) window.JP_ORG_URLS = JSON.parse(u.textContent);
+            } catch (e) {
+                console.error(e);
             }
         }
+        window.jpOrgTreeInit();
+    }
 
-        if (level === 'division' && id) {
-            if (urls.divEdit) {
-                out.push({
-                    href: urls.divEdit.replace('{id}', String(id)),
-                    icon: 'bi-pencil-square',
-                    title: 'Sửa bộ phận',
-                });
-            }
-            if (urls.divDelete) {
-                out.push({
-                    href: urls.divDelete.replace('{id}', String(id)),
-                    icon: 'bi-trash',
-                    title: 'Xóa',
-                    danger: true,
-                });
-            }
-            if (deptId && urls.divisionAdd) {
-                out.push({
-                    href: urls.divisionAdd.replace('{dept_id}', String(deptId)),
-                    icon: 'bi-building',
-                    title: 'Phòng ban',
-                });
-            }
-        }
-
-        if (level === 'root' && urls.userList) {
-            out.push({
-                href: urls.userList,
-                icon: 'bi-people',
-                title: 'Nhân sự',
-            });
-        }
-
-        return out;
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', boot);
+    } else {
+        boot();
     }
 })();
