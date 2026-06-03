@@ -3133,9 +3133,10 @@ textarea.form-control {
     width: 100%;
     overflow-x: auto;
     overflow-y: auto;
-    max-height: min(75vh, 42rem);
+    max-height: min(70vh, 36rem);
     background: #fafafa;
-    border-radius: 0.5rem;
+    border-radius: 0.35rem;
+    padding: 0.25rem;
 }
 
 .jp-org-tree-svg {
@@ -3226,7 +3227,7 @@ textarea.form-control {
 
 .jp-org-tree-pill-label {
     font-family: Inter, system-ui, sans-serif;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
     fill: #1e293b;
     pointer-events: none;
@@ -3234,7 +3235,7 @@ textarea.form-control {
 
 .jp-org-tree-pill-sub {
     font-family: Inter, system-ui, sans-serif;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 600;
     fill: #64748b;
     pointer-events: none;
@@ -3248,7 +3249,7 @@ textarea.form-control {
 
 .jp-org-tree-pill-badge-txt {
     font-family: Inter, system-ui, sans-serif;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 800;
     fill: #be123c;
     pointer-events: none;
@@ -3284,7 +3285,7 @@ textarea.form-control {
 }
 
 .jp-org-tree-node--position .jp-org-tree-pill-label {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
 }
 

@@ -9,12 +9,19 @@
         mount.innerHTML = `<div class="alert alert-warning m-3">${msg}</div>`;
     }
 
+    const PILL_RX = 4;
+
     function pillSize(level, hasSubtitle) {
-        const h = hasSubtitle ? 46 : 36;
-        if (level === 'root') return { w: 200, h };
-        if (level === 'department') return { w: 190, h };
-        if (level === 'position') return { w: 165, h: 34 };
-        return { w: 175, h };
+        if (level === 'root') {
+            return { w: 152, h: hasSubtitle ? 34 : 26 };
+        }
+        if (level === 'department') {
+            return { w: 142, h: hasSubtitle ? 32 : 26 };
+        }
+        if (level === 'position') {
+            return { w: 108, h: 22 };
+        }
+        return { w: 132, h: 26 };
     }
 
     /** Đường nối vuông góc: ra phải từ nút cha → xuống/lên → vào nút con. */
@@ -138,14 +145,14 @@
         const data = window.JP_ORG_TREE;
         const urls = window.JP_ORG_URLS || {};
 
-        const nodeH = 52;
-        const nodeW = 260;
-        const margin = { top: 28, right: 48, bottom: 28, left: 20 };
+        const nodeH = 30;
+        const nodeW = 156;
+        const margin = { top: 10, right: 20, bottom: 10, left: 8 };
 
         const root = d3.hierarchy(data);
         const layout = d3.tree()
             .nodeSize([nodeH, nodeW])
-            .separation((a, b) => (a.parent === b.parent ? 1 : 1.2));
+            .separation((a, b) => (a.parent === b.parent ? 0.88 : 1.02));
         layout(root);
 
         const nodes = root.descendants();
@@ -153,8 +160,9 @@
         const yMin = d3.min(nodes, (d) => d.x) ?? 0;
         const yMax = d3.max(nodes, (d) => d.x) ?? 0;
         const xMax = d3.max(nodes, (d) => d.y) ?? 0;
-        const innerH = yMax - yMin + nodeH;
-        const svgW = xMax + margin.left + margin.right + 120;
+        const maxPillH = d3.max(nodes, (d) => pillSize(d.data.level || 'item', !!d.data.subtitle).h) ?? nodeH;
+        const innerH = yMax - yMin + maxPillH;
+        const svgW = xMax + margin.left + margin.right + 36;
         const svgH = innerH + margin.top + margin.bottom;
 
         const svg = d3.select(mount)
@@ -192,7 +200,7 @@
             const level = d.data.level || 'item';
             const hasSub = !!d.data.subtitle;
             const { w: pillW, h: pillH } = pillSize(level, hasSub);
-            const rx = pillH / 2;
+            const rx = PILL_RX;
             const href = primaryHref(d.data, urls);
             const actions = buildActions(d.data, urls);
 
@@ -224,41 +232,46 @@
 
             pill.append('text')
                 .attr('class', 'jp-org-tree-pill-label')
-                .attr('x', 12)
-                .attr('y', hasSub ? -4 : 4)
-                .text(truncate(d.data.name, 28));
+                .attr('x', 8)
+                .attr('y', hasSub ? -3 : 3)
+                .text(truncate(d.data.name, 22));
 
             if (d.data.subtitle) {
                 pill.append('text')
                     .attr('class', 'jp-org-tree-pill-sub')
-                    .attr('x', 12)
-                    .attr('y', 12)
-                    .text(truncate(d.data.subtitle, 32));
+                    .attr('x', 8)
+                    .attr('y', 10)
+                    .text(truncate(d.data.subtitle, 24));
             }
 
-            const badgeX = pillW - 8;
-            pill.append('circle')
+            const badgeW = 22;
+            const badgeH = 18;
+            const badgeX = pillW - badgeW - 4;
+            pill.append('rect')
                 .attr('class', 'jp-org-tree-pill-badge-bg')
-                .attr('cx', badgeX)
-                .attr('cy', 0)
-                .attr('r', 14);
+                .attr('x', badgeX)
+                .attr('y', -badgeH / 2)
+                .attr('width', badgeW)
+                .attr('height', badgeH)
+                .attr('rx', 3)
+                .attr('ry', 3);
 
             pill.append('text')
                 .attr('class', 'jp-org-tree-pill-badge-txt')
-                .attr('x', badgeX)
-                .attr('y', 4)
+                .attr('x', badgeX + badgeW / 2)
+                .attr('y', 3)
                 .attr('text-anchor', 'middle')
                 .text(String(d.data.count ?? 0));
 
             if (actions.length) {
                 const menu = sel.append('g')
                     .attr('class', 'jp-org-tree-actions')
-                    .attr('transform', `translate(${pillW - 4},${-pillH / 2 - 4})`);
+                    .attr('transform', `translate(${pillW - 2},${-pillH / 2 - 2})`);
 
                 actions.forEach((act, i) => {
                     const ag = menu.append('g')
                         .attr('class', 'jp-org-tree-action')
-                        .attr('transform', `translate(${i * 22},0)`);
+                        .attr('transform', `translate(${i * 18},0)`);
 
                     const link = ag.append('a')
                         .attr('href', act.href)
@@ -271,13 +284,13 @@
                         .attr('class', 'jp-org-tree-action-bg')
                         .attr('x', 0)
                         .attr('y', 0)
-                        .attr('width', 20)
-                        .attr('height', 20)
-                        .attr('rx', 4);
+                        .attr('width', 16)
+                        .attr('height', 16)
+                        .attr('rx', 2);
                     link.append('text')
                         .attr('class', 'jp-org-tree-action-icon')
-                        .attr('x', 10)
-                        .attr('y', 14)
+                        .attr('x', 8)
+                        .attr('y', 12)
                         .attr('text-anchor', 'middle')
                         .text(actionGlyph(act.icon));
                 });
@@ -286,7 +299,7 @@
             pill.append('title').text(`${d.data.name} — ${d.data.count ?? 0} NV`);
         });
 
-        mount.style.minHeight = `${Math.min(svgH, 640)}px`;
+        mount.style.minHeight = `${Math.min(svgH, 480)}px`;
     };
 
     function actionGlyph(biClass) {
