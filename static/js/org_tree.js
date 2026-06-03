@@ -73,7 +73,9 @@
             return { w: Math.round((188 + gap * 0.45) * s), h: 44 };
         }
         if (level === 'position') {
-            return { w: Math.round(Math.max(nodeW - 12, 220 + gap * 0.7) * s), h: 40 };
+            const raw = Math.round(Math.max(nodeW - 12, 220 + gap * 0.7) * s);
+            const maxW = Math.round((nodeW - LINK_GAP_RESERVE) * s);
+            return { w: Math.min(raw, maxW), h: 40 };
         }
         return { w: Math.round((178 + gap * 0.5) * s), h: 40 };
     }
@@ -118,16 +120,6 @@
         return total;
     }
 
-    /** D3 tree đặt NV sát Vị trí — đẩy cột NV sang phải để mũi tên đủ chỗ bo góc. */
-    function spreadEmployeeColumn(nodes, nodeW) {
-        const extra = Math.round(nodeW * EMPLOYEE_X_FACTOR);
-        nodes.forEach((n) => {
-            if ((n.data.level || '') === 'employee') {
-                n.y += extra;
-            }
-        });
-    }
-
     const LINK = {
         radius: Math.round(8 * WIDTH_SCALE),
         minGap: Math.round(28 * WIDTH_SCALE),
@@ -152,8 +144,6 @@
 
     /** Đường vuông góc bo góc — tránh path lỗi khi khoảng cách ngắn. */
     function roundedLinkPath(d, nodeW, urls) {
-        const toEmployee = (d.target.data.level || '') === 'employee';
-        const fromPosition = (d.source.data.level || '') === 'position';
         const sx = d.source.y + nodeTotalWidth(d.source.data, nodeW, urls);
         const sy = d.source.x;
         const tx = d.target.y + targetAnchorX(d.target.data);
@@ -161,9 +151,9 @@
         const dx = tx - sx;
         const dy = ty - sy;
 
-        const minGap = toEmployee ? LINK.minGap * 1.15 : LINK.minGap;
-        const stubMin = (toEmployee && fromPosition) ? LINK.stubMin * 1.35 : LINK.stubMin;
-        const stubEnd = toEmployee ? LINK.stubEnd * 1.2 : LINK.stubEnd;
+        const minGap = LINK.minGap;
+        const stubMin = LINK.stubMin;
+        const stubEnd = LINK.stubEnd;
 
         if (dx <= 4) {
             return `M${sx},${sy}L${tx},${ty}`;
@@ -407,7 +397,6 @@
         treeLayout(root);
 
         const nodes = root.descendants();
-        spreadEmployeeColumn(nodes, nodeW);
         const links = root.links();
         const columns = columnPositions(nodes, nodeW);
         renderHtmlHeaders(headerTrack, columns, margin.left);
