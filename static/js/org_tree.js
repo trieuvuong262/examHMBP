@@ -4,14 +4,18 @@
 (function () {
     'use strict';
 
+    /** Khoảng cách ngang giữa các cột — ×1.5 để đường nối có chỗ bo góc đẹp hơn. */
+    const WIDTH_SCALE = 1.5;
+
     const LAYOUT = {
-        nodeWMin: 300,
-        nodeWMax: 520,
+        widthScale: WIDTH_SCALE,
+        nodeWMin: Math.round(300 * WIDTH_SCALE),
+        nodeWMax: Math.round(520 * WIDTH_SCALE),
         fillViewport: true,
         nodeH: 50,
         nodeHEmployee: 36,
         pillScale: 1.05,
-        chartPadRight: 100,
+        chartPadRight: Math.round(100 * WIDTH_SCALE),
     };
 
     const PILL_RX = 10;
