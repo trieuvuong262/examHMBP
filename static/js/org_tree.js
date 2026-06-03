@@ -4,8 +4,10 @@
 (function () {
     'use strict';
 
-    /** Khoảng cách ngang giữa các cột — ×1.5 để đường nối có chỗ bo góc đẹp hơn. */
-    const WIDTH_SCALE = 1.5;
+    /** Khoảng cách ngang giữa các cột. */
+    const WIDTH_SCALE = 1.75;
+    /** Thêm khoảng trống trước cột Nhân viên (so với Vị trí). */
+    const EMPLOYEE_X_FACTOR = 1.1;
 
     const LAYOUT = {
         widthScale: WIDTH_SCALE,
@@ -111,7 +113,19 @@
     function nodeTotalWidth(nodeData, nodeW, urls) {
         const level = nodeData.level || 'item';
         const { w } = pillSize(level, !!nodeData.subtitle, nodeW);
-        return w + actionStripWidth(buildActions(nodeData, urls));
+        let total = w + actionStripWidth(buildActions(nodeData, urls));
+        if (level === 'position') total += 18;
+        return total;
+    }
+
+    /** D3 tree đặt NV sát Vị trí — đẩy cột NV sang phải để mũi tên đủ chỗ bo góc. */
+    function spreadEmployeeColumn(nodes, nodeW) {
+        const extra = Math.round(nodeW * EMPLOYEE_X_FACTOR);
+        nodes.forEach((n) => {
+            if ((n.data.level || '') === 'employee') {
+                n.y += extra;
+            }
+        });
     }
 
     const LINK = {
@@ -138,12 +152,18 @@
 
     /** Đường vuông góc bo góc — tránh path lỗi khi khoảng cách ngắn. */
     function roundedLinkPath(d, nodeW, urls) {
+        const toEmployee = (d.target.data.level || '') === 'employee';
+        const fromPosition = (d.source.data.level || '') === 'position';
         const sx = d.source.y + nodeTotalWidth(d.source.data, nodeW, urls);
         const sy = d.source.x;
         const tx = d.target.y + targetAnchorX(d.target.data);
         const ty = d.target.x;
         const dx = tx - sx;
         const dy = ty - sy;
+
+        const minGap = toEmployee ? LINK.minGap * 1.15 : LINK.minGap;
+        const stubMin = (toEmployee && fromPosition) ? LINK.stubMin * 1.35 : LINK.stubMin;
+        const stubEnd = toEmployee ? LINK.stubEnd * 1.2 : LINK.stubEnd;
 
         if (dx <= 4) {
             return `M${sx},${sy}L${tx},${ty}`;
@@ -152,8 +172,8 @@
             return `M${sx},${sy}H${tx}`;
         }
 
-        let mx = sx + Math.min(Math.max(dx * 0.42, LINK.stubMin), dx - LINK.stubEnd);
-        mx = Math.max(sx + LINK.stubEnd, Math.min(tx - LINK.stubEnd, mx));
+        let mx = sx + Math.min(Math.max(dx * 0.45, stubMin), dx - stubEnd);
+        mx = Math.max(sx + stubEnd, Math.min(tx - stubEnd, mx));
 
         const r = Math.min(
             LINK.radius,
@@ -162,7 +182,7 @@
             Math.abs(dy) / 2,
         );
 
-        if (r < 2 || dx < LINK.minGap) {
+        if (r < 2 || dx < minGap) {
             return `M${sx},${sy}H${mx}V${ty}H${tx}`;
         }
 
@@ -387,6 +407,7 @@
         treeLayout(root);
 
         const nodes = root.descendants();
+        spreadEmployeeColumn(nodes, nodeW);
         const links = root.links();
         const columns = columnPositions(nodes, nodeW);
         renderHtmlHeaders(headerTrack, columns, margin.left);
@@ -427,18 +448,6 @@
         const g = zoomRoot.append('g')
             .attr('class', 'jp-org-tree-chart')
             .attr('transform', `translate(${margin.left},${margin.top - yMin})`);
-
-        g.append('g')
-            .attr('class', 'jp-org-tree-col-bands')
-            .selectAll('rect')
-            .data(columns)
-            .join('rect')
-            .attr('class', (_, i) => `jp-org-tree-col-band jp-org-tree-col-band--${i}`)
-            .attr('x', (d) => d.x)
-            .attr('y', -12)
-            .attr('width', (d) => d.w)
-            .attr('height', innerH + 24)
-            .attr('rx', 10);
 
         g.append('g')
             .attr('class', 'jp-org-tree-col-guides')
