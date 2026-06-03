@@ -787,3 +787,57 @@ class OrgStructureTreemapTests(TestCase):
         div_b = Division.objects.create(name='QC-SCOPE', department=self.dept_b)
         div = resolve_division('QC-SCOPE', department=self.dept_b)
         self.assertEqual(div.pk, div_b.pk)
+
+    def test_auto_sort_order_on_create(self):
+        from hrm.forms import DepartmentForm, DivisionForm, DivisionPositionForm
+        from hrm.models import DivisionPosition
+
+        auto_dept = DepartmentForm().fields['sort_order'].initial
+        self.assertIsNotNone(auto_dept)
+        form = DepartmentForm({'name': 'AUTO-D3', 'sort_order': auto_dept, 'is_active': True})
+        self.assertTrue(form.is_valid(), form.errors)
+        d3 = form.save()
+        self.assertEqual(d3.sort_order, auto_dept)
+
+        div = Division.objects.get(name='ORG-DIV-1')
+        Division.objects.filter(department=self.dept).exclude(pk=div.pk).delete()
+        Division.objects.create(name='AUTO-DIV-A', department=self.dept, sort_order=0)
+        Division.objects.create(name='AUTO-DIV-B', department=self.dept, sort_order=2)
+        auto_div = DivisionForm(initial={'department': self.dept.pk}).fields['sort_order'].initial
+        self.assertIsNotNone(auto_div)
+        dform = DivisionForm({
+            'department': self.dept.pk,
+            'name': 'AUTO-DIV-C',
+            'sort_order': auto_div,
+            'is_active': True,
+        }, initial={'department': self.dept.pk})
+        self.assertTrue(dform.is_valid(), dform.errors)
+        new_div = dform.save()
+        self.assertEqual(new_div.sort_order, auto_div)
+
+        DivisionPosition.objects.filter(division=div).delete()
+        DivisionPosition.objects.create(
+            division=div, department=self.dept, name='AUTO-P1', sort_order=0,
+        )
+        auto_pos = DivisionPositionForm(initial={'division': div.pk}).fields['sort_order'].initial
+        self.assertIsNotNone(auto_pos)
+        pform = DivisionPositionForm({
+            'division': div.pk,
+            'name': 'AUTO-P2',
+            'sort_order': auto_pos,
+            'is_active': True,
+        }, initial={'division': div.pk})
+        self.assertTrue(pform.is_valid(), pform.errors)
+        pos = pform.save()
+        self.assertEqual(pos.sort_order, auto_pos)
+
+        # Sửa thủ công thứ tự thì giữ nguyên
+        dform_manual = DivisionForm({
+            'department': self.dept.pk,
+            'name': 'AUTO-DIV-MANUAL',
+            'sort_order': 99,
+            'is_active': True,
+        }, initial={'department': self.dept.pk})
+        self.assertTrue(dform_manual.is_valid())
+        manual = dform_manual.save()
+        self.assertEqual(manual.sort_order, 99)

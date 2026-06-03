@@ -2,6 +2,7 @@ from django import forms
 from django.contrib.auth.models import User
 from django.db.models import Q
 from .models import Profile, Department, Division, DivisionPosition, DepartmentMenuPermission, PermissionGroup
+from .sort_order import next_sort_order, resolve_sort_order_on_create
 from hrm.org_structure import divisions_for_department
 from hrm.choices import GENDER_FORM_CHOICES
 from hrm.permissions import ROLE_EMPLOYEE
@@ -235,6 +236,25 @@ class DepartmentForm(forms.ModelForm):
             'is_active': 'Đang sử dụng',
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.instance.pk:
+            self.fields['sort_order'].initial = next_sort_order(Department.objects.all())
+            self.fields['sort_order'].help_text = 'Tự động đánh số tiếp theo khi thêm mới (có thể sửa).'
+
+    def save(self, commit=True):
+        obj = super().save(commit=False)
+        if not obj.pk:
+            obj.sort_order = resolve_sort_order_on_create(
+                posted=self.cleaned_data['sort_order'],
+                field_initial=self.fields['sort_order'].initial,
+                scope_changed=False,
+                queryset=Department.objects.all(),
+            )
+        if commit:
+            obj.save()
+        return obj
+
     def clean_name(self):
         name = (self.cleaned_data.get('name') or '').strip()
         if not name:
@@ -271,6 +291,35 @@ class DivisionForm(forms.ModelForm):
         )
         self.fields['department'].empty_label = '-- Chọn phòng ban --'
         self.fields['department'].required = True
+        if not self.instance.pk:
+            dept_id = self._initial_department_id()
+            if dept_id:
+                qs = Division.objects.filter(department_id=dept_id)
+                self.fields['sort_order'].initial = next_sort_order(qs)
+            self.fields['sort_order'].help_text = 'Tự động đánh số trong phòng ban đã chọn (có thể sửa).'
+
+    def _initial_department_id(self):
+        raw = self.initial.get('department') if self.initial else None
+        if raw:
+            return int(raw)
+        if self.data.get('department', '').isdigit():
+            return int(self.data['department'])
+        return None
+
+    def save(self, commit=True):
+        obj = super().save(commit=False)
+        if not obj.pk and obj.department_id:
+            init_dept = self.initial.get('department') if self.initial else None
+            scope_changed = init_dept is not None and obj.department_id != int(init_dept)
+            obj.sort_order = resolve_sort_order_on_create(
+                posted=self.cleaned_data['sort_order'],
+                field_initial=self.fields['sort_order'].initial,
+                scope_changed=scope_changed,
+                queryset=Division.objects.filter(department_id=obj.department_id),
+            )
+        if commit:
+            obj.save()
+        return obj
 
     def clean_name(self):
         name = (self.cleaned_data.get('name') or '').strip()
@@ -316,6 +365,35 @@ class DivisionPositionForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         qs = division_qs or Division.objects.filter(is_active=True).select_related('department')
         self.fields['division'].queryset = qs.order_by('department__sort_order', 'department__name', 'sort_order', 'name')
+        if not self.instance.pk:
+            div_id = self._initial_division_id()
+            if div_id:
+                pos_qs = DivisionPosition.objects.filter(division_id=div_id)
+                self.fields['sort_order'].initial = next_sort_order(pos_qs)
+            self.fields['sort_order'].help_text = 'Tự động đánh số trong bộ phận đã chọn (có thể sửa).'
+
+    def _initial_division_id(self):
+        raw = self.initial.get('division') if self.initial else None
+        if raw:
+            return int(raw)
+        if self.data.get('division', '').isdigit():
+            return int(self.data['division'])
+        return None
+
+    def save(self, commit=True):
+        obj = super().save(commit=False)
+        if not obj.pk and obj.division_id:
+            init_div = self.initial.get('division') if self.initial else None
+            scope_changed = init_div is not None and obj.division_id != int(init_div)
+            obj.sort_order = resolve_sort_order_on_create(
+                posted=self.cleaned_data['sort_order'],
+                field_initial=self.fields['sort_order'].initial,
+                scope_changed=scope_changed,
+                queryset=DivisionPosition.objects.filter(division_id=obj.division_id),
+            )
+        if commit:
+            obj.save()
+        return obj
 
     def clean_name(self):
         name = (self.cleaned_data.get('name') or '').strip()
