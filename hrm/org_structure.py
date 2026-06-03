@@ -7,15 +7,19 @@ from dataclasses import dataclass, field
 from django.db.models import Count, Prefetch, Q
 
 _HEAD_POSITION_NAMES = ('Trưởng phòng', 'Trưởng Phòng', 'TRUONG PHONG')
+_DIVISION_HEAD_POSITION_NAMES = ('Trưởng bộ phận', 'Trưởng Bộ Phận', 'TRUONG BO PHAN')
 
 from hrm.models import Department, Division, DivisionPosition, Profile
-from hrm.permissions import ROLE_DIRECTOR
+from hrm.permissions import ROLE_DIRECTOR, ROLE_DIVISION_HEAD
 from hrm.user_search import exclude_hidden_hrm_profiles, hidden_hrm_username_q
 
 ORG_EXECUTIVE_LABEL = 'Giám đốc điều hành'
 ORG_COMPANY_ROOT = 'Công ty TNHH Just Play'
 ORG_DEPARTMENT_HEAD_LABEL = 'Trưởng phòng'
 ORG_DEPARTMENT_HEAD_PREFIX = 'Trưởng Phòng:'
+ORG_DIVISION_HEAD_LABEL = 'Trưởng bộ phận'
+ORG_DIVISION_HEAD_PREFIX = 'Trưởng Bộ Phận:'
+ORG_DIRECTOR_PREFIX = 'Giám đốc:'
 MAX_POSITIONS_PER_DIVISION = 12
 MAX_EMPLOYEES_PER_POSITION = 80
 
@@ -162,6 +166,85 @@ def _department_head_profiles(department_id: int):
     ).select_related('user').order_by('employee_code', 'full_name')
 
 
+def _division_head_profiles(department_id: int | None, division_id: int):
+    """NV trưởng bộ phận — gắn bộ phận, vai trò Trưởng bộ phận hoặc vị trí tương ứng."""
+    qs = exclude_hidden_hrm_profiles(
+        Profile.objects.filter(
+            is_employed=True,
+            division_id=division_id,
+        ).filter(
+            Q(role=ROLE_DIVISION_HEAD) | Q(job_position__in=_DIVISION_HEAD_POSITION_NAMES),
+        ),
+    )
+    if department_id:
+        qs = qs.filter(department_id=department_id)
+    return qs.select_related('user').order_by('employee_code', 'full_name')
+
+
+def _division_head_line(
+    department_id: int | None,
+    division_id: int,
+) -> tuple[str, int | None, bool]:
+    profiles = list(_division_head_profiles(department_id, division_id)[:3])
+    names = [
+        (p.full_name or p.user.first_name or p.user.username or '').strip()
+        for p in profiles
+    ]
+    names = [n for n in names if n]
+    if not names:
+        return '', None, False
+    subtitle = f'{ORG_DIVISION_HEAD_PREFIX} {", ".join(names)}'
+    head_user_id = profiles[0].user_id if len(profiles) == 1 else None
+    return subtitle, head_user_id, True
+
+
+def _executive_director_profiles():
+    return exclude_hidden_hrm_profiles(
+        Profile.objects.filter(is_employed=True, role=ROLE_DIRECTOR),
+    ).select_related('user').order_by('employee_code', 'full_name')
+
+
+def _executive_director_line() -> tuple[str, int | None, bool]:
+    profiles = list(_executive_director_profiles()[:5])
+    names = [
+        (p.full_name or p.user.first_name or p.user.username or '').strip()
+        for p in profiles
+    ]
+    names = [n for n in names if n]
+    if not names:
+        return '', None, False
+    subtitle = f'{ORG_DIRECTOR_PREFIX} {", ".join(names)}'
+    head_user_id = profiles[0].user_id if len(profiles) == 1 else None
+    return subtitle, head_user_id, True
+
+
+def _division_tree_node(
+    *,
+    name: str,
+    staff_count: int,
+    division_id: int,
+    department_id: int | None,
+    is_active: bool,
+    children: list[dict],
+) -> dict:
+    head_subtitle, head_user_id, has_head = _division_head_line(department_id, division_id)
+    node: dict = {
+        'name': name,
+        'count': staff_count,
+        'level': 'division',
+        'id': division_id,
+        'dept_id': department_id,
+        'is_active': is_active,
+        'has_head': has_head,
+        'head_user_id': head_user_id,
+        'head_position': ORG_DIVISION_HEAD_LABEL,
+        'children': children,
+    }
+    if head_subtitle:
+        node['subtitle'] = head_subtitle
+    return node
+
+
 def _department_head_line(department_id: int) -> tuple[str, int | None, bool]:
     """Dòng phụ dưới tên phòng ban — vd. «Trưởng Phòng: Nguyễn Thành An»."""
     profiles = list(_department_head_profiles(department_id)[:3])
@@ -270,15 +353,16 @@ def build_org_tree(treemap: OrgTreemapContext) -> dict:
     for dept in treemap.departments:
         div_children: list[dict] = []
         for div in dept.divisions:
-            div_children.append({
-                'name': div.name,
-                'count': div.staff_count,
-                'level': 'division',
-                'id': div.pk,
-                'dept_id': dept.pk,
-                'is_active': div.is_active,
-                'children': _position_children(dept.pk, div.pk),
-            })
+            div_children.append(
+                _division_tree_node(
+                    name=div.name,
+                    staff_count=div.staff_count,
+                    division_id=div.pk,
+                    department_id=dept.pk,
+                    is_active=div.is_active,
+                    children=_position_children(dept.pk, div.pk),
+                ),
+            )
         head_subtitle, head_user_id, has_head = _department_head_line(dept.pk)
         dept_node: dict = {
             'name': dept.name,
@@ -301,26 +385,32 @@ def build_org_tree(treemap: OrgTreemapContext) -> dict:
             'count': sum(d.staff_count for d in treemap.unassigned_divisions),
             'level': 'unassigned',
             'children': [
-                {
-                    'name': div.name,
-                    'count': div.staff_count,
-                    'level': 'division',
-                    'id': div.pk,
-                    'dept_id': None,
-                    'is_active': div.is_active,
-                    'children': _position_children(None, div.pk),
-                }
+                _division_tree_node(
+                    name=div.name,
+                    staff_count=div.staff_count,
+                    division_id=div.pk,
+                    department_id=None,
+                    is_active=div.is_active,
+                    children=_position_children(None, div.pk),
+                )
                 for div in treemap.unassigned_divisions
             ],
         })
 
-    return {
+    dir_subtitle, dir_user_id, has_director = _executive_director_line()
+    root: dict = {
         'name': ORG_COMPANY_ROOT,
         'count': treemap.total_staff,
         'level': 'root',
-        'subtitle': f'{treemap.executive_label} · {treemap.director_count} GĐ',
+        'has_head': has_director,
+        'head_user_id': dir_user_id,
         'children': children,
     }
+    if dir_subtitle:
+        root['subtitle'] = dir_subtitle
+    else:
+        root['subtitle'] = f'{treemap.executive_label} · {treemap.director_count} GĐ'
+    return root
 
 
 def filter_org_tree(node: dict, query: str) -> dict | None:

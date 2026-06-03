@@ -42,6 +42,8 @@
     };
 
     const ACTION = { size: 22, gap: 2 };
+    /** Gán trưởng phòng / trưởng BP / giám đốc — khác nút + thêm danh mục. */
+    const HEAD_ASSIGN_GLYPH = '★';
 
     const chartState = {
         collapsed: new Set(),
@@ -77,6 +79,9 @@
         }
         if (level === 'department') {
             return { w: Math.round((188 + gap * 0.45) * s), h: hasSubtitle ? 52 : 44 };
+        }
+        if (level === 'division') {
+            return { w: Math.round((178 + gap * 0.5) * s), h: hasSubtitle ? 52 : 40 };
         }
         if (level === 'position') {
             const raw = Math.round(Math.max(nodeW - 12, 220 + gap * 0.7) * s);
@@ -261,12 +266,34 @@
         const divId = nodeData.division_id;
         const out = [];
 
+        if (level === 'root') {
+            if (!nodeData.has_head && urls.directorAssign) {
+                out.push({
+                    href: urls.directorAssign,
+                    title: 'Gán giám đốc',
+                    glyph: HEAD_ASSIGN_GLYPH,
+                });
+            } else if (nodeData.head_user_id && urls.userEdit) {
+                out.push({
+                    href: urls.userEdit.replace('{id}', String(nodeData.head_user_id)),
+                    title: 'Sửa giám đốc',
+                    glyph: '✎',
+                });
+            } else if (nodeData.has_head && urls.directorAssign) {
+                out.push({
+                    href: urls.directorAssign,
+                    title: 'Thêm giám đốc',
+                    glyph: HEAD_ASSIGN_GLYPH,
+                });
+            }
+        }
+
         if (level === 'department' && id) {
             if (!nodeData.has_head && urls.deptHeadAssign) {
                 out.push({
                     href: urls.deptHeadAssign.replace('{dept_id}', String(id)),
                     title: 'Gán trưởng phòng',
-                    glyph: '+',
+                    glyph: HEAD_ASSIGN_GLYPH,
                 });
             } else if (nodeData.head_user_id && urls.userEdit) {
                 out.push({
@@ -290,6 +317,25 @@
         }
 
         if (level === 'division' && id) {
+            if (!nodeData.has_head && urls.divHeadAssign) {
+                out.push({
+                    href: fillUrl(urls.divHeadAssign, { dept_id: deptId || '', div_id: id }),
+                    title: 'Gán trưởng bộ phận',
+                    glyph: HEAD_ASSIGN_GLYPH,
+                });
+            } else if (nodeData.head_user_id && urls.userEdit) {
+                out.push({
+                    href: urls.userEdit.replace('{id}', String(nodeData.head_user_id)),
+                    title: 'Sửa trưởng bộ phận',
+                    glyph: '✎',
+                });
+            } else if (nodeData.has_head && urls.divHeadAssign) {
+                out.push({
+                    href: fillUrl(urls.divHeadAssign, { dept_id: deptId || '', div_id: id }),
+                    title: 'Thêm trưởng bộ phận',
+                    glyph: HEAD_ASSIGN_GLYPH,
+                });
+            }
             if (urls.positionAdd) {
                 out.push({
                     href: fillUrl(urls.positionAdd, { dept_id: deptId || '', div_id: id }),

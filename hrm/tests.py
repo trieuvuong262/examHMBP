@@ -823,6 +823,43 @@ class OrgStructureTreemapTests(TestCase):
         self.assertContains(response, f'"head_user_id": {user.pk}')
         self.assertContains(response, 'has_head')
 
+    def test_org_tree_division_head_subtitle_and_urls(self):
+        from hrm.org_structure import (
+            ORG_DIVISION_HEAD_LABEL,
+            ORG_DIVISION_HEAD_PREFIX,
+            build_org_tree,
+            build_org_treemap,
+        )
+        from hrm.permissions import ROLE_DIVISION_HEAD
+
+        div = Division.objects.get(name='ORG-DIV-1')
+        user = User.objects.create_user(username='divhead1', password='x')
+        Profile.objects.update_or_create(
+            user=user,
+            defaults={
+                'full_name': 'Trưởng BP Test',
+                'department': self.dept,
+                'division': div,
+                'role': ROLE_DIVISION_HEAD,
+                'job_position': ORG_DIVISION_HEAD_LABEL,
+                'is_employed': True,
+            },
+        )
+        tree = build_org_tree(build_org_treemap())
+        dept_node = next(
+            c for c in tree['children']
+            if c.get('level') == 'department' and c.get('id') == self.dept.pk
+        )
+        div_node = next(c for c in dept_node['children'] if c.get('id') == div.pk)
+        self.assertTrue(div_node.get('has_head'))
+        self.assertIn('Trưởng BP Test', div_node['subtitle'])
+        self.assertTrue(div_node['subtitle'].startswith(ORG_DIVISION_HEAD_PREFIX))
+
+        response = self.client.get(reverse('org_structure'))
+        self.assertContains(response, 'divHeadAssign')
+        self.assertContains(response, 'directorAssign')
+        self.assertContains(response, ROLE_DIVISION_HEAD)
+
     def test_resolve_division_scoped_to_department(self):
         from hrm.choices import resolve_division
 

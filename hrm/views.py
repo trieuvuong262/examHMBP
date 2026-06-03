@@ -198,12 +198,18 @@ def user_add(request):
         dept_id = (request.GET.get('department') or '').strip()
         div_id = (request.GET.get('division') or '').strip()
         job_position = (request.GET.get('job_position') or '').strip()
+        role = (request.GET.get('role') or '').strip().upper()
         if dept_id.isdigit():
             initial['department'] = int(dept_id)
         if div_id.isdigit():
             initial['division'] = int(div_id)
         if job_position:
             initial['job_position'] = job_position
+        from hrm.permissions import ROLE_CHOICES
+
+        valid_roles = {code for code, _ in ROLE_CHOICES}
+        if role in valid_roles:
+            initial['role'] = role
         form = CustomUserForm(initial=initial)
 
     return render(request, 'assessment/admin/user_form.html', {
@@ -672,7 +678,11 @@ def org_structure(request):
 
     from urllib.parse import quote
 
-    from hrm.org_structure import ORG_DEPARTMENT_HEAD_LABEL
+    from hrm.org_structure import (
+        ORG_DEPARTMENT_HEAD_LABEL,
+        ORG_DIVISION_HEAD_LABEL,
+    )
+    from hrm.permissions import ROLE_DIRECTOR, ROLE_DIVISION_HEAD
 
     urls = {
         'userList': reverse('user_list'),
@@ -684,6 +694,13 @@ def org_structure(request):
             reverse('user_add')
             + f'?department={{dept_id}}&job_position={quote(ORG_DEPARTMENT_HEAD_LABEL)}'
         ),
+        'divHeadAssign': (
+            reverse('user_add')
+            + f'?department={{dept_id}}&division={{div_id}}'
+            + f'&job_position={quote(ORG_DIVISION_HEAD_LABEL)}'
+            + f'&role={ROLE_DIVISION_HEAD}'
+        ),
+        'directorAssign': reverse('user_add') + f'?role={ROLE_DIRECTOR}',
         'deptEdit': _pat('department_edit'),
         'deptDelete': _pat('department_delete'),
         'deptPermissions': _pat('department_permissions'),

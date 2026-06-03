@@ -3486,6 +3486,17 @@ textarea.form-control {
     stroke: #f9a8d4;
 }
 
+.jp-org-tree-node--division .jp-org-tree-pill-sub {
+    font-size: 10px;
+    font-weight: 600;
+    fill: #831843;
+}
+
+.jp-org-tree-node--root .jp-org-tree-pill-sub {
+    font-size: 10px;
+    font-weight: 600;
+}
+
 .jp-org-tree-node--position .jp-org-tree-pill-rect {
     fill: #f8fafc;
     stroke: #94a3b8;
