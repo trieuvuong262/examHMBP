@@ -1,8 +1,26 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.db.models import Q
-from .models import Profile, Department, Division, DivisionPosition, DepartmentMenuPermission, PermissionGroup
+from .models import (
+    Profile,
+    Department,
+    DepartmentPosition,
+    Division,
+    DivisionPosition,
+    DepartmentMenuPermission,
+    PermissionGroup,
+)
+from hrm.org_structure import ORG_DEPARTMENT_HEAD_LABEL
 from .sort_order import next_sort_order, resolve_sort_order_on_create
+
+
+def _coerce_pk(value):
+    if value is None or value == '':
+        return None
+    if isinstance(value, int):
+        return value
+    s = str(value).strip()
+    return int(s) if s.isdigit() else None
 from hrm.org_structure import divisions_for_department
 from hrm.choices import GENDER_FORM_CHOICES
 from hrm.permissions import ROLE_EMPLOYEE
@@ -299,18 +317,15 @@ class DivisionForm(forms.ModelForm):
             self.fields['sort_order'].help_text = 'Tự động đánh số trong phòng ban đã chọn (có thể sửa).'
 
     def _initial_department_id(self):
-        raw = self.initial.get('department') if self.initial else None
-        if raw:
-            return int(raw)
-        if self.data.get('department', '').isdigit():
-            return int(self.data['department'])
-        return None
+        return _coerce_pk(self.initial.get('department') if self.initial else None) or _coerce_pk(
+            self.data.get('department') if self.data else None,
+        )
 
     def save(self, commit=True):
         obj = super().save(commit=False)
         if not obj.pk and obj.department_id:
-            init_dept = self.initial.get('department') if self.initial else None
-            scope_changed = init_dept is not None and obj.department_id != int(init_dept)
+            init_dept = _coerce_pk(self.initial.get('department') if self.initial else None)
+            scope_changed = init_dept is not None and obj.department_id != init_dept
             obj.sort_order = resolve_sort_order_on_create(
                 posted=self.cleaned_data['sort_order'],
                 field_initial=self.fields['sort_order'].initial,
@@ -331,6 +346,79 @@ class DivisionForm(forms.ModelForm):
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
             raise forms.ValidationError('Bộ phận này đã tồn tại trong phòng ban đã chọn.')
+        return name
+
+    def clean_department(self):
+        dept = self.cleaned_data.get('department')
+        if not dept:
+            raise forms.ValidationError('Phòng ban không được để trống.')
+        return dept
+
+
+class DepartmentPositionForm(forms.ModelForm):
+    class Meta:
+        model = DepartmentPosition
+        fields = ['department', 'name', 'sort_order', 'is_active']
+        widgets = {
+            'department': forms.Select(attrs=SELECT),
+            'name': forms.TextInput(attrs={**INPUT, 'placeholder': ORG_DEPARTMENT_HEAD_LABEL}),
+            'sort_order': forms.NumberInput(attrs={**INPUT, 'min': 0}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        labels = {
+            'department': 'Phòng ban',
+            'name': 'Tên vị trí',
+            'sort_order': 'Thứ tự hiển thị',
+            'is_active': 'Đang sử dụng',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['department'].queryset = Department.objects.filter(is_active=True).order_by(
+            'sort_order', 'name',
+        )
+        self.fields['department'].empty_label = '-- Chọn phòng ban --'
+        self.fields['department'].required = True
+        if not self.instance.pk:
+            dept_id = self._initial_department_id()
+            if dept_id:
+                pos_qs = DepartmentPosition.objects.filter(department_id=dept_id)
+                self.fields['sort_order'].initial = next_sort_order(pos_qs)
+            self.fields['name'].initial = ORG_DEPARTMENT_HEAD_LABEL
+            self.fields['sort_order'].help_text = 'Tự động đánh số trong phòng ban (có thể sửa).'
+
+    def _initial_department_id(self):
+        return _coerce_pk(self.initial.get('department') if self.initial else None) or _coerce_pk(
+            self.data.get('department') if self.data else None,
+        )
+
+    def save(self, commit=True):
+        obj = super().save(commit=False)
+        if not obj.pk and obj.department_id:
+            init_dept = _coerce_pk(self.initial.get('department') if self.initial else None)
+            scope_changed = init_dept is not None and obj.department_id != init_dept
+            obj.sort_order = resolve_sort_order_on_create(
+                posted=self.cleaned_data['sort_order'],
+                field_initial=self.fields['sort_order'].initial,
+                scope_changed=scope_changed,
+                queryset=DepartmentPosition.objects.filter(department_id=obj.department_id),
+            )
+        if commit:
+            obj.save()
+        return obj
+
+    def clean_name(self):
+        name = (self.cleaned_data.get('name') or '').strip()
+        if not name:
+            raise forms.ValidationError('Tên vị trí không được để trống.')
+        dept = self.cleaned_data.get('department')
+        if not dept:
+            return name
+        dup = DepartmentPosition.objects.filter(department=dept, name__iexact=name)
+        if self.instance.pk:
+            dup = dup.exclude(pk=self.instance.pk)
+        if dup.exists():
+            raise forms.ValidationError('Vị trí này đã tồn tại trong phòng ban đã chọn.')
         return name
 
     def clean_department(self):
@@ -373,18 +461,15 @@ class DivisionPositionForm(forms.ModelForm):
             self.fields['sort_order'].help_text = 'Tự động đánh số trong bộ phận đã chọn (có thể sửa).'
 
     def _initial_division_id(self):
-        raw = self.initial.get('division') if self.initial else None
-        if raw:
-            return int(raw)
-        if self.data.get('division', '').isdigit():
-            return int(self.data['division'])
-        return None
+        return _coerce_pk(self.initial.get('division') if self.initial else None) or _coerce_pk(
+            self.data.get('division') if self.data else None,
+        )
 
     def save(self, commit=True):
         obj = super().save(commit=False)
         if not obj.pk and obj.division_id:
-            init_div = self.initial.get('division') if self.initial else None
-            scope_changed = init_div is not None and obj.division_id != int(init_div)
+            init_div = _coerce_pk(self.initial.get('division') if self.initial else None)
+            scope_changed = init_div is not None and obj.division_id != init_div
             obj.sort_order = resolve_sort_order_on_create(
                 posted=self.cleaned_data['sort_order'],
                 field_initial=self.fields['sort_order'].initial,

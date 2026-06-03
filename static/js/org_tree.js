@@ -26,10 +26,15 @@
     const COLUMN_LABELS = [
         'Tổng / Giám đốc',
         'Phòng ban',
+        'Trưởng phòng',
         'Bộ phận',
         'Vị trí',
         'Nhân viên',
     ];
+
+    function isExpandableLevel(level) {
+        return level === 'position' || level === 'department_head';
+    }
 
     const ZOOM = {
         min: 0.5,
@@ -74,7 +79,7 @@
         if (level === 'department') {
             return { w: Math.round((188 + gap * 0.45) * s), h: 44 };
         }
-        if (level === 'position') {
+        if (level === 'position' || level === 'department_head') {
             const raw = Math.round(Math.max(nodeW - 12, 220 + gap * 0.7) * s);
             const maxW = Math.round((nodeW - LINK_GAP_RESERVE) * s);
             return { w: Math.min(raw, maxW), h: 40 };
@@ -92,7 +97,7 @@
             const level = d.data.level || 'item';
             const { w: pillW } = pillSize(level, !!d.data.subtitle, nodeW);
             const actions = buildActions(d.data, urls);
-            const chevron = level === 'position' ? 18 : 0;
+            const chevron = isExpandableLevel(level) ? 18 : 0;
             return d.y + pillW + actionStripWidth(actions) + chevron;
         }) ?? 0;
     }
@@ -118,7 +123,7 @@
         const level = nodeData.level || 'item';
         const { w } = pillSize(level, !!nodeData.subtitle, nodeW);
         let total = w + actionStripWidth(buildActions(nodeData, urls));
-        if (level === 'position') total += 18;
+        if (isExpandableLevel(level)) total += 18;
         return total;
     }
 
@@ -141,7 +146,7 @@
 
     function targetAnchorX(nodeData) {
         const level = nodeData.level || 'item';
-        if (level === 'position') return 16;
+        if (isExpandableLevel(level)) return 16;
         if (level === 'employee') return 6;
         return 2;
     }
@@ -213,7 +218,7 @@
     }
 
     function collectPositionKeys(node, keys) {
-        if (node.level === 'position' && node.position_key) {
+        if (isExpandableLevel(node.level) && node.position_key) {
             keys.add(node.position_key);
         }
         (node.children || []).forEach((c) => collectPositionKeys(c, keys));
@@ -222,7 +227,7 @@
     function cloneWithCollapse(tree, collapsed) {
         const copy = JSON.parse(JSON.stringify(tree));
         function walk(n) {
-            if (n.level === 'position' && collapsed.has(n.position_key)) {
+            if (isExpandableLevel(n.level) && collapsed.has(n.position_key)) {
                 n.children = [];
             } else {
                 (n.children || []).forEach(walk);
@@ -269,6 +274,40 @@
             }
             if (urls.deptDelete) {
                 out.push({ href: urls.deptDelete.replace('{id}', String(id)), title: 'Xóa', glyph: '×', danger: true });
+            }
+        }
+
+        if (level === 'department_head') {
+            const deptId = nodeData.dept_id;
+            if (nodeData.is_placeholder && urls.deptHeadAdd && deptId) {
+                out.push({
+                    href: urls.deptHeadAdd.replace('{dept_id}', String(deptId)),
+                    title: 'Thêm trưởng phòng',
+                    glyph: '+',
+                });
+            } else {
+                if (urls.userAdd && deptId) {
+                    out.push({
+                        href: fillUrl(urls.userAdd, {
+                            dept_id: deptId,
+                            div_id: '',
+                            position: nodeData.name || '',
+                        }),
+                        title: 'Thêm nhân viên',
+                        glyph: '+',
+                    });
+                }
+                if (id && urls.deptHeadEdit) {
+                    out.push({ href: urls.deptHeadEdit.replace('{id}', String(id)), title: 'Sửa trưởng phòng', glyph: '✎' });
+                }
+                if (id && urls.deptHeadDelete) {
+                    out.push({
+                        href: urls.deptHeadDelete.replace('{id}', String(id)),
+                        title: 'Xóa',
+                        glyph: '×',
+                        danger: true,
+                    });
+                }
             }
         }
 
@@ -479,10 +518,12 @@
             .join('g')
             .attr('class', (d) => {
                 const lvl = d.data.level || 'item';
-                const expanded = lvl === 'position' && !chartState.collapsed.has(positionKey(d.data));
+                const expanded = isExpandableLevel(lvl)
+                    && !chartState.collapsed.has(positionKey(d.data));
                 let cls = `jp-org-tree-node jp-org-tree-node--${lvl}`;
                 if (primaryHref(d.data, urls)) cls += ' is-clickable';
-                if (lvl === 'position') cls += expanded ? ' is-expanded' : ' is-collapsed';
+                if (isExpandableLevel(lvl)) cls += expanded ? ' is-expanded' : ' is-collapsed';
+                if (lvl === 'department_head' && d.data.is_placeholder) cls += ' is-placeholder';
                 return cls;
             })
             .attr('transform', (d) => `translate(${d.y},${d.x})`);
@@ -494,14 +535,14 @@
             const { w: pillW, h: pillH } = pillSize(level, hasSub, nodeW);
             const href = primaryHref(d.data, urls);
             const actions = buildActions(d.data, urls);
-            const isPosition = level === 'position';
-            const pKey = isPosition ? positionKey(d.data) : '';
-            const expanded = isPosition && !chartState.collapsed.has(pKey);
+            const isExpandable = isExpandableLevel(level);
+            const pKey = isExpandable ? positionKey(d.data) : '';
+            const expanded = isExpandable && !chartState.collapsed.has(pKey);
 
             const pill = sel.append('g').attr('class', 'jp-org-tree-pill');
 
-            const pillStroke = level === 'root' ? 2 : level === 'position' && expanded ? 2 : 1.5;
-            const chevW = isPosition ? 18 : 0;
+            const pillStroke = level === 'root' ? 2 : isExpandable && expanded ? 2 : 1.5;
+            const chevW = isExpandable ? 18 : 0;
             const actW = actionStripWidth(actions);
             const badgeW = level !== 'employee' ? 30 : 0;
             const innerPillW = pillW + actW;
@@ -510,7 +551,7 @@
             const badgeX = innerPillW - actW - badgeW - 8;
             const labelMaxW = Math.max(24, badgeX - labelX - 6);
 
-            if (isPosition) {
+            if (isExpandable) {
                 pill.append('text')
                     .attr('class', 'jp-org-tree-expand-icon')
                     .attr('x', 6)
@@ -530,7 +571,7 @@
                 pill.select('.jp-org-tree-pill-rect').attr('stroke-width', pillStroke);
             }
 
-            if (isPosition) {
+            if (isExpandable) {
                 pill.style('cursor', 'pointer').on('click', (ev) => {
                     if (ev.defaultPrevented) return;
                     togglePosition(pKey);
@@ -606,7 +647,9 @@
             const hint = level === 'employee'
                 ? `${d.data.name}${d.data.subtitle ? ` (${d.data.subtitle})` : ''}`
                 : `${d.data.name} — ${d.data.count ?? 0} NV`;
-            pill.append('title').text(isPosition ? `${hint} — bấm để ${expanded ? 'đóng' : 'mở'} danh sách NV` : hint);
+            pill.append('title').text(
+                isExpandable ? `${hint} — bấm để ${expanded ? 'đóng' : 'mở'} danh sách NV` : hint,
+            );
         });
 
         chartState.headerSync = {

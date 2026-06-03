@@ -780,6 +780,55 @@ class OrgStructureTreemapTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Thêm vị trí')
 
+    def test_org_tree_shows_department_head_slot(self):
+        from hrm.org_structure import ORG_DEPARTMENT_HEAD_LABEL, build_org_tree, build_org_treemap
+
+        treemap = build_org_treemap()
+        tree = build_org_tree(treemap)
+        dept_node = next(
+            c for c in tree['children']
+            if c.get('level') == 'department' and c.get('id') == self.dept.pk
+        )
+        head = dept_node['children'][0]
+        self.assertEqual(head['level'], 'department_head')
+        self.assertEqual(head['name'], ORG_DEPARTMENT_HEAD_LABEL)
+        self.assertTrue(head['is_placeholder'])
+
+        response = self.client.get(reverse('org_structure'))
+        self.assertContains(response, 'deptHeadAdd')
+        self.assertContains(response, 'department_head')
+
+    def test_org_dept_head_add_and_tree(self):
+        from hrm.models import DepartmentPosition
+        from hrm.org_structure import ORG_DEPARTMENT_HEAD_LABEL
+
+        url = reverse('org_dept_head_add') + f'?department={self.dept.pk}'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Thêm trưởng phòng')
+
+        pos = DepartmentPosition.objects.create(
+            department=self.dept,
+            name=ORG_DEPARTMENT_HEAD_LABEL,
+            sort_order=0,
+        )
+        user = User.objects.create_user(username='depthead1', password='x', first_name='Head')
+        Profile.objects.update_or_create(
+            user=user,
+            defaults={
+                'full_name': 'Trưởng PB Test',
+                'employee_code': 'TH1',
+                'department': self.dept,
+                'division': None,
+                'job_position': ORG_DEPARTMENT_HEAD_LABEL,
+                'is_employed': True,
+            },
+        )
+        response = self.client.get(reverse('org_structure'))
+        self.assertContains(response, '"level": "department_head"')
+        self.assertContains(response, 'TH1')
+        pos.delete()
+
     def test_resolve_division_scoped_to_department(self):
         from hrm.choices import resolve_division
 

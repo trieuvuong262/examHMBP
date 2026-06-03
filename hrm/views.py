@@ -21,6 +21,7 @@ from hrm.models import (
     Department,
     Division,
     DivisionPosition,
+    DepartmentPosition,
     DepartmentMenuPermission,
     PermissionGroup,
     RoleModulePermission,
@@ -620,6 +621,10 @@ def _org_redirect_for_division(division):
     return _org_redirect(tab='divisions')
 
 
+def _org_redirect_for_department(department):
+    return _org_redirect(tab='departments')
+
+
 @admin_only
 def org_structure(request):
     from django.db.utils import OperationalError, ProgrammingError
@@ -676,6 +681,9 @@ def org_structure(request):
         'departmentAdd': reverse('department_add'),
         'divisionAdd': reverse('division_add') + '?department={dept_id}',
         'positionAdd': reverse('org_position_add') + '?department={dept_id}&division={div_id}',
+        'deptHeadAdd': reverse('org_dept_head_add') + '?department={dept_id}',
+        'deptHeadEdit': _pat('org_dept_head_edit'),
+        'deptHeadDelete': _pat('org_dept_head_delete'),
         'deptEdit': _pat('department_edit'),
         'deptDelete': _pat('department_delete'),
         'deptPermissions': _pat('department_permissions'),
@@ -1055,6 +1063,84 @@ def division_delete(request, pk):
         return _org_redirect(tab='divisions')
     return render(request, 'assessment/admin/division_confirm_delete.html', {
         'division': division,
+    })
+
+
+@admin_only
+def org_dept_head_add(request):
+    from hrm.forms import DepartmentPositionForm
+    from hrm.org_structure import ORG_DEPARTMENT_HEAD_LABEL
+
+    if request.method == 'POST':
+        form = DepartmentPositionForm(request.POST)
+        if form.is_valid():
+            position = form.save()
+            messages.success(request, f'Đã thêm {position.name} cho phòng ban "{position.department.name}".')
+            return _org_redirect_for_department(position.department)
+    else:
+        initial = {'name': ORG_DEPARTMENT_HEAD_LABEL}
+        dept_id = (request.GET.get('department') or '').strip()
+        if dept_id.isdigit():
+            initial['department'] = int(dept_id)
+            dept = Department.objects.filter(pk=int(dept_id)).first()
+            if dept and DepartmentPosition.objects.filter(
+                department=dept,
+                name__iexact=ORG_DEPARTMENT_HEAD_LABEL,
+            ).exists():
+                messages.info(request, f'Phòng ban "{dept.name}" đã có {ORG_DEPARTMENT_HEAD_LABEL}.')
+                return _org_redirect_for_department(dept)
+        form = DepartmentPositionForm(initial=initial)
+    return render(request, 'assessment/admin/org_dept_head_form.html', {
+        'form': form,
+        'title': 'Thêm trưởng phòng',
+    })
+
+
+@admin_only
+def org_dept_head_edit(request, pk):
+    from hrm.forms import DepartmentPositionForm
+
+    position = get_object_or_404(DepartmentPosition, pk=pk)
+    if request.method == 'POST':
+        form = DepartmentPositionForm(request.POST, instance=position)
+        if form.is_valid():
+            position = form.save()
+            messages.success(request, f'Đã cập nhật {position.name}.')
+            return _org_redirect_for_department(position.department)
+    else:
+        form = DepartmentPositionForm(instance=position)
+    return render(request, 'assessment/admin/org_dept_head_form.html', {
+        'form': form,
+        'title': 'Sửa trưởng phòng',
+        'position': position,
+        'is_edit': True,
+    })
+
+
+@admin_only
+def org_dept_head_delete(request, pk):
+    position = get_object_or_404(DepartmentPosition, pk=pk)
+    if request.method == 'POST':
+        in_use = Profile.objects.filter(
+            is_employed=True,
+            department=position.department,
+            division__isnull=True,
+            job_position=position.name,
+        ).exists()
+        if in_use:
+            messages.error(
+                request,
+                f'Không thể xóa "{position.name}" vì còn nhân viên đang dùng vị trí này.',
+            )
+        else:
+            name = position.name
+            department = position.department
+            position.delete()
+            messages.success(request, f'Đã xóa {name}.')
+            return _org_redirect_for_department(department)
+        return _org_redirect_for_department(position.department)
+    return render(request, 'assessment/admin/org_dept_head_confirm_delete.html', {
+        'position': position,
     })
 
 

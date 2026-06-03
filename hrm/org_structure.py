@@ -6,12 +6,13 @@ from dataclasses import dataclass, field
 
 from django.db.models import Count, Prefetch, Q
 
-from hrm.models import Department, Division, DivisionPosition, Profile
+from hrm.models import Department, DepartmentPosition, Division, DivisionPosition, Profile
 from hrm.permissions import ROLE_DIRECTOR
 from hrm.user_search import exclude_hidden_hrm_profiles, hidden_hrm_username_q
 
 ORG_EXECUTIVE_LABEL = 'Giám đốc điều hành'
 ORG_COMPANY_ROOT = 'Công ty TNHH Just Play'
+ORG_DEPARTMENT_HEAD_LABEL = 'Trưởng phòng'
 MAX_POSITIONS_PER_DIVISION = 12
 MAX_EMPLOYEES_PER_POSITION = 80
 
@@ -20,6 +21,16 @@ def position_node_key(division_id: int, position_name: str, position_id: int | N
     if position_id:
         return f'id:{position_id}'
     return f'div:{division_id}:pos:{position_name}'
+
+
+def department_head_node_key(
+    department_id: int,
+    position_name: str,
+    position_id: int | None = None,
+) -> str:
+    if position_id:
+        return f'dept-head:id:{position_id}'
+    return f'dept:{department_id}:head:{position_name}'
 
 
 @dataclass
@@ -146,6 +157,88 @@ def build_org_treemap() -> OrgTreemapContext:
     )
 
 
+def _staff_count_department_head(department_id: int, position_name: str) -> int:
+    return exclude_hidden_hrm_profiles(
+        Profile.objects.filter(
+            is_employed=True,
+            department_id=department_id,
+            division__isnull=True,
+            job_position__iexact=position_name,
+        ),
+    ).count()
+
+
+def _department_head_employee_nodes(department_id: int, position_name: str) -> list[dict]:
+    qs = exclude_hidden_hrm_profiles(
+        Profile.objects.filter(
+            is_employed=True,
+            department_id=department_id,
+            division__isnull=True,
+            job_position__iexact=position_name,
+        ),
+    ).select_related('user').order_by('employee_code', 'full_name')
+    return [
+        {
+            'name': (p.full_name or p.user.first_name or p.user.username or '').strip(),
+            'subtitle': (p.employee_code or '').strip(),
+            'count': 0,
+            'level': 'employee',
+            'id': p.user_id,
+            'user_id': p.user_id,
+            'employee_code': p.employee_code or '',
+            'dept_id': department_id,
+            'division_id': None,
+            'position_name': position_name,
+            'children': [],
+        }
+        for p in qs[:MAX_EMPLOYEES_PER_POSITION]
+    ]
+
+
+def _department_head_children(department_id: int) -> list[dict]:
+    defined = list(
+        DepartmentPosition.objects.filter(
+            department_id=department_id,
+            is_active=True,
+        ).order_by('sort_order', 'name'),
+    )
+    if defined:
+        return [
+            {
+                'name': pos.name,
+                'count': _staff_count_department_head(department_id, pos.name),
+                'level': 'department_head',
+                'id': pos.pk,
+                'dept_id': department_id,
+                'is_defined': True,
+                'is_placeholder': False,
+                'position_key': department_head_node_key(department_id, pos.name, pos.pk),
+                'children': _department_head_employee_nodes(department_id, pos.name),
+            }
+            for pos in defined
+        ]
+    return [
+        {
+            'name': ORG_DEPARTMENT_HEAD_LABEL,
+            'count': _staff_count_department_head(department_id, ORG_DEPARTMENT_HEAD_LABEL),
+            'level': 'department_head',
+            'id': None,
+            'dept_id': department_id,
+            'is_defined': False,
+            'is_placeholder': True,
+            'position_key': department_head_node_key(
+                department_id,
+                ORG_DEPARTMENT_HEAD_LABEL,
+                None,
+            ),
+            'children': _department_head_employee_nodes(
+                department_id,
+                ORG_DEPARTMENT_HEAD_LABEL,
+            ),
+        },
+    ]
+
+
 def _staff_counts_by_position(department_id: int | None, division_id: int) -> dict[str, int]:
     qs = exclude_hidden_hrm_profiles(
         Profile.objects.filter(is_employed=True, division_id=division_id).exclude(job_position=''),
@@ -237,9 +330,9 @@ def build_org_tree(treemap: OrgTreemapContext) -> dict:
     children: list[dict] = []
 
     for dept in treemap.departments:
-        div_children: list[dict] = []
+        dept_children: list[dict] = _department_head_children(dept.pk)
         for div in dept.divisions:
-            div_children.append({
+            dept_children.append({
                 'name': div.name,
                 'count': div.staff_count,
                 'level': 'division',
@@ -254,7 +347,7 @@ def build_org_tree(treemap: OrgTreemapContext) -> dict:
             'level': 'department',
             'id': dept.pk,
             'is_active': dept.is_active,
-            'children': div_children,
+            'children': dept_children,
         })
 
     if treemap.unassigned_divisions:

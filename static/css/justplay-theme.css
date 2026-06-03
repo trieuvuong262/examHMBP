@@ -3480,6 +3480,25 @@ textarea.form-control {
     stroke: #f9a8d4;
 }
 
+.jp-org-tree-node--department_head .jp-org-tree-pill-rect {
+    fill: #fff7ed;
+    stroke: #ea580c;
+}
+
+.jp-org-tree-node--department_head .jp-org-tree-pill-label {
+    fill: #9a3412;
+    font-weight: 700;
+}
+
+.jp-org-tree-node--department_head.is-placeholder .jp-org-tree-pill-rect {
+    stroke-dasharray: 6 4;
+    fill: #fffbeb;
+}
+
+.jp-org-tree-node--department_head.is-expanded .jp-org-tree-pill-rect {
+    stroke-width: 2;
+}
+
 .jp-org-tree-node--position .jp-org-tree-pill-rect {
     fill: #f8fafc;
     stroke: #94a3b8;

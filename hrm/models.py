@@ -76,6 +76,33 @@ class Department(models.Model):
         return get_department_enabled_modules(self)
 
 
+class DepartmentPosition(models.Model):
+    """Vị trí cấp phòng ban (vd. Trưởng phòng) — hiển thị trên sơ đồ, dưới phòng ban."""
+    department = models.ForeignKey(
+        Department,
+        on_delete=models.CASCADE,
+        related_name='department_positions',
+        verbose_name='Phòng ban',
+    )
+    name = models.CharField(max_length=150, verbose_name='Tên vị trí')
+    sort_order = models.PositiveIntegerField(default=0, verbose_name='Thứ tự hiển thị')
+    is_active = models.BooleanField(default=True, verbose_name='Đang sử dụng')
+
+    class Meta:
+        ordering = ['sort_order', 'name']
+        verbose_name = 'Vị trí (phòng ban)'
+        verbose_name_plural = 'Vị trí (phòng ban)'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['department', 'name'],
+                name='hrm_department_position_dept_name_uniq',
+            ),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
 class DepartmentMenuPermission(models.Model):
     """Menu/module được phép truy cập theo phòng ban."""
     department = models.OneToOneField(
