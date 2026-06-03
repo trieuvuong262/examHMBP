@@ -5,31 +5,54 @@
 (function () {
     'use strict';
 
+    /**
+     * Cấu hình chiều ngang — chỉnh trước khi deploy.
+     * nodeWMin/nodeWMax: khoảng cách giữa các cấp (Tổng → PB → BP → Vị trí).
+     * fillViewport: true = giãn cột lấp đầy chiều rộng màn hình (sơ đồ ngang).
+     */
+    const LAYOUT = {
+        nodeWMin: 260,
+        nodeWMax: 420,
+        fillViewport: true,
+        nodeH: 56,
+        pillScale: 1,
+    };
+
     const PILL_RX = 8;
-    const NODE_H = 56;
-    const NODE_W = 232;
     const HEADER_H = 44;
     const COLUMN_LABELS = ['Tổng / Giám đốc', 'Phòng ban', 'Bộ phận', 'Vị trí'];
+
+    function resolveNodeW(viewportWidth, maxDepth) {
+        const levels = Math.max(maxDepth + 1, COLUMN_LABELS.length);
+        if (!LAYOUT.fillViewport) {
+            return LAYOUT.nodeWMin;
+        }
+        const usable = Math.max(720, viewportWidth - 40);
+        const perLevel = usable / levels;
+        return Math.min(LAYOUT.nodeWMax, Math.max(LAYOUT.nodeWMin, perLevel));
+    }
 
     function showError(mount, msg) {
         mount.innerHTML = `<div class="alert alert-warning m-3">${msg}</div>`;
     }
 
-    function pillSize(level, hasSubtitle) {
+    function pillSize(level, hasSubtitle, nodeW) {
+        const gap = Math.max(24, nodeW - 200);
+        const s = LAYOUT.pillScale;
         if (level === 'root') {
-            return { w: 236, h: hasSubtitle ? 52 : 42 };
+            return { w: Math.round((200 + gap * 0.5) * s), h: hasSubtitle ? 52 : 42 };
         }
         if (level === 'department') {
-            return { w: 218, h: 44 };
+            return { w: Math.round((188 + gap * 0.45) * s), h: 44 };
         }
         if (level === 'position') {
-            return { w: 196, h: 36 };
+            return { w: Math.round((170 + gap * 0.35) * s), h: 36 };
         }
-        return { w: 208, h: 40 };
+        return { w: Math.round((178 + gap * 0.4) * s), h: 40 };
     }
 
-    function elbowPath(d) {
-        const sw = pillSize(d.source.data.level || 'item', !!d.source.data.subtitle).w;
+    function elbowPath(d, nodeW) {
+        const sw = pillSize(d.source.data.level || 'item', !!d.source.data.subtitle, nodeW).w;
         const sx = d.source.y + sw;
         const sy = d.source.x;
         const tx = d.target.y;
@@ -141,19 +164,22 @@
         return out;
     }
 
-    function columnPositions(nodes) {
+    function columnPositions(nodes, nodeW) {
         const colX = new Map();
+        const colW = new Map();
         nodes.forEach((n) => {
             const cur = colX.get(n.depth);
+            const pw = pillSize(n.data.level || 'item', !!n.data.subtitle, nodeW).w;
             if (cur === undefined || n.y < cur) {
                 colX.set(n.depth, n.y);
             }
+            colW.set(n.depth, Math.max(colW.get(n.depth) || 0, pw, nodeW - 8));
         });
         return COLUMN_LABELS.map((label, depth) => ({
             label,
             depth,
-            x: colX.has(depth) ? colX.get(depth) : depth * NODE_W,
-            w: NODE_W - 4,
+            x: colX.has(depth) ? colX.get(depth) : depth * nodeW,
+            w: colW.get(depth) || nodeW - 4,
         }));
     }
 
@@ -196,22 +222,29 @@
         mount.innerHTML = '';
         const data = window.JP_ORG_TREE;
         const urls = window.JP_ORG_URLS || {};
-        const margin = { top: 16, right: 40, bottom: 20, left: 16 };
+        const margin = { top: 16, right: 48, bottom: 20, left: 20 };
+
+        const vp = document.getElementById('jp-org-chart-viewport');
+        const vpW = (vp && vp.clientWidth) || mount.clientWidth || 1200;
 
         const root = d3.hierarchy(data);
+        const maxDepth = d3.max(root.descendants(), (d) => d.depth) ?? 3;
+        const nodeW = resolveNodeW(vpW, maxDepth);
+
         d3.tree()
-            .nodeSize([NODE_H, NODE_W])
+            .nodeSize([LAYOUT.nodeH, nodeW])
             .separation((a, b) => (a.parent === b.parent ? 1 : 1.06))(root);
 
         const nodes = root.descendants();
         const links = root.links();
-        const columns = columnPositions(nodes);
+        const columns = columnPositions(nodes, nodeW);
         renderHtmlHeaders(headerTrack, columns, margin.left);
 
         const yMin = d3.min(nodes, (d) => d.x) ?? 0;
         const yMax = d3.max(nodes, (d) => d.x) ?? 0;
         const xMax = d3.max(nodes, (d) => d.y) ?? 0;
-        const maxPillH = d3.max(nodes, (d) => pillSize(d.data.level || 'item', !!d.data.subtitle).h) ?? NODE_H;
+        const maxPillH = d3.max(nodes, (d) => pillSize(d.data.level || 'item', !!d.data.subtitle, nodeW).h)
+            ?? LAYOUT.nodeH;
         const innerH = yMax - yMin + maxPillH;
         const chartW = xMax + 56;
         const chartH = innerH;
@@ -269,7 +302,7 @@
             .join('path')
             .attr('class', 'jp-org-tree-link')
             .attr('fill', 'none')
-            .attr('d', elbowPath);
+            .attr('d', (d) => elbowPath(d, nodeW));
 
         const nodeG = g.append('g')
             .attr('class', 'jp-org-tree-nodes')
@@ -286,7 +319,7 @@
             const sel = d3.select(this);
             const level = d.data.level || 'item';
             const hasSub = !!d.data.subtitle;
-            const { w: pillW, h: pillH } = pillSize(level, hasSub);
+            const { w: pillW, h: pillH } = pillSize(level, hasSub, nodeW);
             const href = primaryHref(d.data, urls);
             const actions = buildActions(d.data, urls);
 
@@ -394,9 +427,15 @@
 
         svg.call(zoom).on('dblclick.zoom', null);
 
-        const vp = document.getElementById('jp-org-chart-viewport');
-        const vpW = (vp && vp.clientWidth) || mount.clientWidth || 900;
-        const fitScale = Math.min(1.05, Math.max(0.55, (vpW - 24) / svgW));
+        if (headerTrack) {
+            headerTrack.style.minWidth = `${svgW}px`;
+        }
+        if (vp) {
+            vp.classList.toggle('jp-org-chart-viewport--wide', svgW > vpW);
+        }
+
+        // Chỉ thu nhỏ khi sơ đồ RỘNG HƠN khung; nếu còn dư chỗ ngang thì giữ scale = 1
+        const fitScale = svgW > vpW ? Math.max(0.35, (vpW - 32) / svgW) : 1;
         const initial = d3.zoomIdentity
             .translate(12, 8)
             .scale(fitScale);

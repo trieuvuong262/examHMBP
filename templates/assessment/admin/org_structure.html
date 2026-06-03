@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/justplay-theme.css' %}?v=20260529b">
+<link rel="stylesheet" href="{% static 'css/justplay-theme.css' %}?v=20260529c">
 {% endblock %}
 
 {% block content %}
@@ -41,7 +41,7 @@
         <div class="jp-org-legend small text-muted">
             <span><i class="bi bi-arrows-move text-hm"></i> Kéo để di chuyển</span>
             <span class="ms-2"><i class="bi bi-zoom-in text-hm"></i> Cuộn chuột để phóng to</span>
-            <span class="ms-2 d-none d-md-inline">Bấm ô để sửa · Bộ phận: nút + thêm vị trí</span>
+            <span class="ms-2 d-none d-md-inline">Bấm ô để sửa · Sơ đồ tự giãn theo chiều ngang màn hình</span>
         </div>
     </div>
 
@@ -186,6 +186,6 @@
 {{ org_tree|json_script:"jp-org-tree-data" }}
 {{ org_urls|json_script:"jp-org-urls-data" }}
 <script src="{% static 'vendor/d3.min.js' %}?v=7.9.0"></script>
-<script src="{% static 'js/org_tree.js' %}?v=20260529b"></script>
+<script src="{% static 'js/org_tree.js' %}?v=20260529c"></script>
 {% endif %}
 {% endblock %}

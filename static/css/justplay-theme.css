@@ -3132,11 +3132,28 @@ textarea.form-control {
 
 .jp-org-chart-viewport {
     position: relative;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
     background: linear-gradient(165deg, #f8fafc 0%, #f1f5f9 48%, #fff 100%);
     border-radius: 0.65rem;
     min-height: 460px;
     max-height: min(80vh, 46rem);
+    width: 100%;
+    scrollbar-width: thin;
+    scrollbar-color: #94a3b8 #f1f5f9;
+}
+
+.jp-org-chart-viewport--wide {
+    cursor: grab;
+}
+
+.jp-org-chart-viewport::-webkit-scrollbar {
+    height: 10px;
+}
+
+.jp-org-chart-viewport::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 5px;
 }
 
 .jp-org-chart-headers-bar {
