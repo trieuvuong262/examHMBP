@@ -99,6 +99,9 @@ EQUIPMENT_PUBLIC_PREFIXES = (
     '/thiet-bi/api/agent-poll/',
 )
 
+# Bắt buộc cài agent — không cần quyền menu «Quản lý thiết bị» (tránh loop gate ↔ home)
+AGENT_INSTALL_PATH_PREFIX = '/thiet-bi/agent/'
+
 DASHBOARD_TAB_MODULES = {
     'recruitment': MODULE_RECRUITMENT,
     'training': MODULE_TRAINING,
@@ -229,6 +232,9 @@ def resolve_module_from_request(path: str, tab: str | None = None) -> str | None
     for prefix in EQUIPMENT_PUBLIC_PREFIXES:
         if path.startswith(prefix):
             return None
+
+    if path.startswith(AGENT_INSTALL_PATH_PREFIX):
+        return None
 
     for prefix in EXEMPT_PATH_PREFIXES:
         if path.startswith(prefix):
