@@ -160,9 +160,9 @@ class NasModuleRegistrationTests(TestCase):
 
 class NasBrowseViewTests(TestCase):
     def setUp(self):
-        self.dept = Department.objects.create(name='IT', sort_order=1)
+        self.dept, _ = Department.objects.get_or_create(name='IT', defaults={'sort_order': 1})
         self.user = User.objects.create_user(username='VuongIT', password='test')
-        Profile.objects.create(user=self.user, full_name='Vuong', department=self.dept)
+        Profile.objects.filter(user=self.user).update(full_name='Vuong', department=self.dept)
         self.client.login(username='VuongIT', password='test')
 
     def test_browse_requires_login(self):
@@ -180,24 +180,25 @@ class NasBrowseViewTests(TestCase):
             response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'a.txt')
-        self.assertContains(response, 'jp-nas-reload-btn')
+        self.assertContains(response, 'Tải lại')
+        self.assertNotContains(response, 'Tải lên')
+        self.assertNotContains(response, 'jp-nas-auto-sync')
 
-    @override_settings(NAS_MOUNT_ROOT='/tmp/nas-browse-test')
-    def test_sync_list_returns_json(self):
+    def test_browse_page_has_share_and_download_actions(self):
         import os
-        os.makedirs('/tmp/nas-browse-test/IT/VuongIT', exist_ok=True)
-        listing = {'folders': [{'name': 'docs', 'size': 0, 'modified': 0, 'is_dir': True}], 'files': []}
-        with patch('nas_storage.views.list_directory_with_source', return_value=(listing, 'rclone', False)):
-            url = reverse('nas_storage:sync') + '?path=IT/VuongIT'
-            response = self.client.get(url, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertIn('html', data)
-        self.assertEqual(data['folder_count'], 1)
-        self.assertIn('docs', data['html'])
-        self.assertIn('listing_key', data)
-        self.assertIn('source', data)
-        self.assertTrue(data.get('ok'))
+        with override_settings(NAS_MOUNT_ROOT='/tmp/nas-browse-share'):
+            os.makedirs('/tmp/nas-browse-share/IT/VuongIT', exist_ok=True)
+            with open('/tmp/nas-browse-share/IT/VuongIT/doc.pdf', 'wb') as fh:
+                fh.write(b'%PDF')
+            listing = {
+                'folders': [],
+                'files': [{'name': 'doc.pdf', 'size': 4, 'modified': 0, 'is_dir': False, 'mime': 'application/pdf'}],
+            }
+            with patch('nas_storage.views.list_directory_with_source', return_value=(listing, 'mount', False)):
+                response = self.client.get(reverse('nas_storage:browse') + '?path=IT/VuongIT')
+        self.assertContains(response, 'jp-nas-share-btn')
+        self.assertContains(response, 'tai-xuong')
+        self.assertContains(response, 'bi-download')
 
 
 class NasRcloneListingTests(TestCase):

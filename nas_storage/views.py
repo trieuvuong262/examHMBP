@@ -6,14 +6,12 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import redirect, render
-from django.template.loader import render_to_string
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
 from hrm.module_permissions import (
     MODULE_NAS_STORAGE,
     user_can_access_module,
-    user_can_create_module,
     user_can_delete_module,
 )
 from nas_storage.nas_paths import (
@@ -82,7 +80,6 @@ def _listing_context(request, rel_path: str, *, fresh: bool = False, share=None)
         'breadcrumbs': build_breadcrumb(rel_path, user=request.user),
         'folders': listing['folders'],
         'files': listing['files'],
-        'can_upload': (not share_mode) and user_can_create_module(request.user, MODULE_NAS_STORAGE),
         'can_delete': (not share_mode) and user_can_delete_module(request.user, MODULE_NAS_STORAGE),
         'can_share': not share_mode,
         'share_mode': share_mode,
@@ -95,8 +92,6 @@ def _listing_context(request, rel_path: str, *, fresh: bool = False, share=None)
         'listing_source': source,
         'listing_stale': stale,
         'listing_key': listing_fingerprint(listing),
-        'auto_sync_interval': getattr(settings, 'NAS_AUTO_SYNC_INTERVAL', 60),
-        'nas_background_sync_default': getattr(settings, 'NAS_BACKGROUND_SYNC_DEFAULT', False),
     }
 
 
@@ -145,7 +140,6 @@ def browse(request):
             'root_entries': root_entries,
             'rel_path': '',
             'breadcrumbs': [{'label': 'Thư mục NAS', 'rel_path': ''}],
-            'auto_sync_interval': getattr(settings, 'NAS_AUTO_SYNC_INTERVAL', 60),
             'nas_using_custom': user_has_custom_nas_folders(request.user),
         })
 
@@ -176,36 +170,6 @@ def browse(request):
             )
 
     return render(request, 'nas_storage/browse.html', ctx)
-
-
-@_access_required
-@require_GET
-def sync_list(request):
-    rel_path = _rel_from_request(request)
-    share, _token = _share_from_request(request)
-    if not rel_path:
-        return JsonResponse({'ok': False, 'error': 'missing path', 'synced_at': listing_synced_at()})
-
-    if share and not is_path_under_share(rel_path, share.rel_path):
-        return JsonResponse({'ok': False, 'error': 'invalid share', 'synced_at': listing_synced_at()})
-
-    sync_fresh = request.GET.get('refresh') == '1'
-    try:
-        ctx = _listing_context(request, rel_path, fresh=sync_fresh, share=share)
-    except NasPathError as exc:
-        return JsonResponse({'ok': False, 'error': str(exc), 'synced_at': listing_synced_at()})
-
-    html = render_to_string('nas_storage/_listing_body.html', ctx, request=request)
-    return JsonResponse({
-        'ok': True,
-        'html': html,
-        'folder_count': len(ctx['folders']),
-        'file_count': len(ctx['files']),
-        'synced_at': ctx['synced_at'],
-        'listing_key': ctx['listing_key'],
-        'source': ctx['listing_source'],
-        'stale': ctx['listing_stale'],
-    })
 
 
 @login_required
@@ -307,55 +271,6 @@ def download(request):
     if parent:
         response['X-NAS-Parent'] = parent
     return response
-
-
-@_access_required
-@require_POST
-def upload(request):
-    if not user_can_create_module(request.user, MODULE_NAS_STORAGE):
-        messages.error(request, 'Bạn không có quyền tải lên file.')
-        return redirect('nas_storage:browse')
-
-    rel_dir = strip_legacy_dept_prefix(
-        request.POST.get('path', ''),
-        user_department_folder_code(request.user),
-    )
-    if not rel_dir:
-        messages.error(request, 'Chọn thư mục đích trước khi tải lên.')
-        return redirect('nas_storage:browse')
-
-    try:
-        dir_path = resolve_nas_path(request.user, rel_dir)
-    except NasPathError as exc:
-        messages.error(request, str(exc))
-        return redirect('nas_storage:browse')
-
-    if not dir_path.is_dir():
-        messages.error(request, 'Thư mục đích không tồn tại.')
-        return redirect('nas_storage:browse')
-
-    uploaded = request.FILES.get('file')
-    if not uploaded:
-        messages.error(request, 'Chưa chọn file.')
-        return redirect(_browse_url(rel_dir))
-
-    filename = os.path.basename(uploaded.name)
-    if not filename or filename.startswith('.') or '/' in filename or '\\' in filename:
-        messages.error(request, 'Tên file không hợp lệ.')
-        return redirect(_browse_url(rel_dir))
-
-    dest = dir_path / filename
-    if dest.exists():
-        messages.error(request, f'File "{filename}" đã tồn tại.')
-        return redirect(_browse_url(rel_dir))
-
-    with dest.open('wb') as out:
-        for chunk in uploaded.chunks():
-            out.write(chunk)
-
-    invalidate_listing_cache(request.user, rel_dir)
-    messages.success(request, f'Đã tải lên "{filename}".')
-    return redirect(_browse_url(rel_dir, refresh=True))
 
 
 @_access_required

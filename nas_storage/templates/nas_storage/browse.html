@@ -9,7 +9,7 @@
                 <i class="bi bi-hdd-network text-hm me-2"></i>Thư mục NAS
                 {% if nas_using_custom %}<span class="badge bg-info-subtle text-info ms-1 small">Tùy chỉnh</span>{% endif %}
             </h2>
-            <p class="text-muted small mb-0">Dữ liệu chia sẻ theo phòng ban · chỉ tài khoản Portal được phép truy cập</p>
+            <p class="text-muted small mb-0">Xem, tải xuống, chia sẻ link và xóa trên NAS · cần đăng nhập Portal có quyền Thư mục NAS</p>
         </div>
     </div>
 
@@ -74,16 +74,7 @@
 
     <div class="card border-0 shadow-sm overflow-hidden jp-nas-browse-card"
          id="jp-nas-browse"
-         data-sync-url="{% url 'nas_storage:sync' %}"
-         data-share-url="{% url 'nas_storage:share_create' %}"
-         data-rel-path="{{ rel_path|escapejs }}"
-         data-share-token="{{ share_token|default:'' }}"
-         data-interval="{{ auto_sync_interval|default:60 }}"
-         data-listing-key="{{ listing_key|default:'' }}"
-         data-last-sync="{{ synced_at|default:'' }}"
-         data-last-source="{{ listing_source|default:'mount' }}"
-         data-bg-sync-default="{% if nas_background_sync_default %}1{% else %}0{% endif %}"
-         data-reload-url="{% url 'nas_storage:browse' %}?path={{ rel_path|urlencode }}&amp;refresh=1{% if share_token %}&amp;share={{ share_token }}{% endif %}">
+         data-share-url="{% url 'nas_storage:share_create' %}">
         <div class="card-header bg-white border-bottom py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
             <div class="d-flex align-items-center flex-wrap gap-2">
                 {% if parent_rel or rel_path %}
@@ -91,37 +82,15 @@
                     <i class="bi bi-arrow-up"></i> Lên
                 </a>
                 {% endif %}
-                <a href="{% url 'nas_storage:browse' %}?path={{ rel_path|urlencode }}&amp;refresh=1"
+                <a href="{% url 'nas_storage:browse' %}?path={{ rel_path|urlencode }}&amp;refresh=1{% if share_token %}&amp;share={{ share_token }}{% endif %}"
                    class="btn btn-outline-hm btn-sm fw-bold"
-                   id="jp-nas-reload-btn"
-                   title="Đồng bộ trực tiếp từ NAS (bỏ qua cache)">
-                    <i class="bi bi-arrow-clockwise" id="jp-nas-reload-icon"></i> Tải lại
+                   title="Tải lại danh sách từ NAS">
+                    <i class="bi bi-arrow-clockwise"></i> Tải lại
                 </a>
-                <div class="form-check form-switch mb-0 ms-1">
-                    <input class="form-check-input" type="checkbox" role="switch" id="jp-nas-auto-sync"
-                           {% if nas_background_sync_default %}checked{% endif %}>
-                    <label class="form-check-label small text-muted" for="jp-nas-auto-sync" title="Chỉ bật khi cần cập nhật nền từ NAS (chậm hơn)">Tự động</label>
-                </div>
-                <span class="text-muted small" id="jp-nas-summary">
+                <span class="text-muted small">
                     {% if folders or files %}{{ folders|length }} thư mục · {{ files|length }} file{% else %}Thư mục trống{% endif %}
                 </span>
-                <span class="text-muted small jp-nas-sync-status" id="jp-nas-sync-status">
-                    {% if synced_at %}
-                    <i class="bi bi-cloud-check me-1"></i>{{ synced_at }}
-                    {% if listing_source == 'rclone' %}<span class="badge bg-success-subtle text-success ms-1">NAS</span>{% else %}<span class="badge bg-warning-subtle text-warning ms-1">cache</span>{% endif %}
-                    {% endif %}
-                </span>
             </div>
-            {% if can_upload %}
-            <form method="post" action="{% url 'nas_storage:upload' %}" enctype="multipart/form-data" class="d-flex align-items-center gap-2">
-                {% csrf_token %}
-                <input type="hidden" name="path" value="{{ rel_path }}">
-                <input type="file" name="file" class="form-control form-control-sm" required>
-                <button type="submit" class="btn btn-hm text-white btn-sm fw-bold text-nowrap">
-                    <i class="bi bi-upload me-1"></i>Tải lên
-                </button>
-            </form>
-            {% endif %}
         </div>
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
@@ -177,199 +146,7 @@
     var root = document.getElementById('jp-nas-browse');
     if (!root) return;
 
-    var syncUrl = root.dataset.syncUrl;
     var shareCreateUrl = root.dataset.shareUrl;
-    var shareToken = root.dataset.shareToken || '';
-    var relPath = root.dataset.relPath;
-    var reloadUrl = root.dataset.reloadUrl;
-    var intervalSec = parseInt(root.dataset.interval, 10) || 15;
-    var listingKey = root.dataset.listingKey || '';
-    var lastSyncAt = root.dataset.lastSync || '';
-    var lastSource = root.dataset.lastSource || 'rclone';
-    var bodyEl = document.getElementById('jp-nas-listing-body');
-    var summaryEl = document.getElementById('jp-nas-summary');
-    var statusEl = document.getElementById('jp-nas-sync-status');
-    var autoToggle = document.getElementById('jp-nas-auto-sync');
-    var reloadBtn = document.getElementById('jp-nas-reload-btn');
-    var reloadIcon = document.getElementById('jp-nas-reload-icon');
-    var storageKey = 'jp-nas-auto-sync-v4';
-    var bgSyncDefault = root.dataset.bgSyncDefault === '1';
-    var autoEnabled = false;
-    var timer = null;
-    var syncing = false;
-    var syncGen = 0;
-
-    function statusSuffix(source) {
-        if (source === 'rclone') return ' <span class="badge bg-success-subtle text-success ms-1">NAS</span>';
-        if (source === 'mount') return ' <span class="badge bg-warning-subtle text-warning ms-1">cache</span>';
-        return '';
-    }
-
-    function setStatus(text, spinning, source) {
-        if (!statusEl) return;
-        if (spinning) {
-            if (lastSyncAt) {
-                statusEl.innerHTML = '<span class="jp-nas-sync-spin"><i class="bi bi-arrow-repeat"></i></span> '
-                    + lastSyncAt + statusSuffix(lastSource);
-            }
-            return;
-        }
-        if (!text) return;
-        statusEl.innerHTML = '<i class="bi bi-cloud-check me-1"></i>' + text + statusSuffix(source || '');
-    }
-
-    function setReloadSpinning(on) {
-        if (reloadIcon) reloadIcon.classList.toggle('jp-nas-sync-spin', on);
-        if (reloadBtn) reloadBtn.classList.toggle('disabled', on);
-    }
-
-    function updateSummary(folderCount, fileCount) {
-        if (!summaryEl) return;
-        if (!folderCount && !fileCount) {
-            summaryEl.textContent = 'Thư mục trống';
-        } else {
-            summaryEl.textContent = folderCount + ' thư mục · ' + fileCount + ' file';
-        }
-    }
-
-    function fullReload() {
-        var url = reloadUrl;
-        var sep = url.indexOf('?') >= 0 ? '&' : '?';
-        window.location.href = url + sep + '_=' + Date.now();
-    }
-
-    function applyListing(data) {
-        var prevKey = listingKey;
-        if (bodyEl && data.html) {
-            bodyEl.innerHTML = data.html;
-            bindShareButtons(bodyEl);
-        }
-        if (data.listing_key) {
-            listingKey = data.listing_key;
-            root.dataset.listingKey = listingKey;
-        }
-        updateSummary(data.folder_count, data.file_count);
-        lastSyncAt = data.synced_at || lastSyncAt;
-        lastSource = data.source || lastSource;
-        root.dataset.lastSync = lastSyncAt;
-        root.dataset.lastSource = lastSource;
-        setStatus(lastSyncAt, false, lastSource);
-        if (data.listing_key && data.listing_key !== prevKey) {
-            root.classList.add('jp-nas-listing-updated');
-            window.setTimeout(function () {
-                root.classList.remove('jp-nas-listing-updated');
-            }, 1200);
-        }
-    }
-
-    function syncListing() {
-        if (syncing) return Promise.resolve();
-        syncing = true;
-        var myGen = ++syncGen;
-        setStatus('', true);
-        setReloadSpinning(true);
-
-        var url = syncUrl + '?path=' + encodeURIComponent(relPath) + '&refresh=1&_=' + Date.now();
-        if (shareToken) url += '&share=' + encodeURIComponent(shareToken);
-
-        var abortCtrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-        var abortTimer = abortCtrl ? window.setTimeout(function () { abortCtrl.abort(); }, 45000) : null;
-
-        return fetch(url, {
-            method: 'GET',
-            credentials: 'same-origin',
-            cache: 'no-store',
-            signal: abortCtrl ? abortCtrl.signal : undefined,
-            headers: {
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-            .then(function (res) {
-                var ct = (res.headers.get('content-type') || '');
-                if (!ct.includes('application/json')) {
-                    throw new Error('not json');
-                }
-                return res.json();
-            })
-            .then(function (data) {
-                if (myGen !== syncGen) return;
-                if (data.ok === false || (data.error && !data.html)) {
-                    if (lastSyncAt) setStatus(lastSyncAt, false, lastSource);
-                    return;
-                }
-                if (data.html !== undefined) applyListing(data);
-            })
-            .catch(function () {
-                if (myGen !== syncGen) return;
-                if (lastSyncAt) setStatus(lastSyncAt, false, lastSource);
-            })
-            .finally(function () {
-                if (abortTimer) window.clearTimeout(abortTimer);
-                if (myGen === syncGen) {
-                    syncing = false;
-                    setReloadSpinning(false);
-                }
-            });
-    }
-
-    function stopAutoSync() {
-        if (timer) {
-            clearTimeout(timer);
-            timer = null;
-        }
-    }
-
-    function scheduleAutoSync() {
-        stopAutoSync();
-        if (!autoEnabled) return;
-        timer = setTimeout(function () {
-            syncListing().finally(function () {
-                scheduleAutoSync();
-            });
-        }, intervalSec * 1000);
-    }
-
-    if (reloadBtn) {
-        reloadBtn.addEventListener('click', function (e) {
-            e.preventDefault();
-            fullReload();
-        });
-    }
-
-    if (autoToggle) {
-        var saved = localStorage.getItem(storageKey);
-        if (saved === '1') {
-            autoEnabled = true;
-        } else if (saved === '0') {
-            autoEnabled = false;
-        } else {
-            autoEnabled = bgSyncDefault;
-        }
-        autoToggle.checked = autoEnabled;
-        autoToggle.addEventListener('change', function () {
-            autoEnabled = autoToggle.checked;
-            localStorage.setItem(storageKey, autoEnabled ? '1' : '0');
-            if (autoEnabled) {
-                scheduleAutoSync();
-            } else {
-                stopAutoSync();
-            }
-        });
-    }
-
-    if (autoEnabled) {
-        scheduleAutoSync();
-    }
-
-    document.addEventListener('visibilitychange', function () {
-        if (document.hidden) {
-            stopAutoSync();
-        } else if (autoEnabled) {
-            scheduleAutoSync();
-        }
-    });
-
     var shareModalEl = document.getElementById('jp-nas-share-modal');
     var shareModal = shareModalEl ? new bootstrap.Modal(shareModalEl) : null;
     var shareUrlInput = document.getElementById('jp-nas-share-url');
