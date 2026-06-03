@@ -6,8 +6,8 @@
 
     /** Khoảng cách ngang giữa các cột. */
     const WIDTH_SCALE = 1.75;
-    /** Thêm khoảng trống trước cột Nhân viên (so với Vị trí). */
-    const EMPLOYEE_X_FACTOR = 1.1;
+    /** Chừa chỗ cho mũi tên Vị trí → NV (không đẩy thêm cả cột). */
+    const LINK_GAP_RESERVE = 52;
 
     const LAYOUT = {
         widthScale: WIDTH_SCALE,
@@ -64,7 +64,7 @@
         const gap = Math.max(24, nodeW - 200);
         const s = LAYOUT.pillScale;
         if (level === 'employee') {
-            return { w: Math.round(Math.max(160, nodeW - 28) * s), h: 32 };
+            return { w: Math.round(Math.min(200, Math.max(130, nodeW * 0.38)) * s), h: 32 };
         }
         if (level === 'root') {
             return { w: Math.round((200 + gap * 0.5) * s), h: hasSubtitle ? 52 : 42 };

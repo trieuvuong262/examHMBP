@@ -3266,11 +3266,6 @@ textarea.form-control {
 .jp-org-tree-link--from-employee,
 .jp-org-tree-link--from-item { stroke: #cbd5e1; }
 
-/* Vị trí → Nhân viên: nét rõ hơn khi mở danh sách NV */
-.jp-org-tree-link.jp-org-tree-link--from-position {
-    stroke-width: 2.25;
-}
-
 .jp-org-tree-node.is-clickable .jp-org-tree-pill-rect {
     cursor: pointer;
 }
