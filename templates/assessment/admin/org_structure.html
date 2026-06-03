@@ -66,117 +66,122 @@
     {% if treemap and not migration_required %}
     <div class="collapse mt-4" id="org-manage-panel">
         <div class="card border-0 jp-org-manage-card">
-            <div class="card-header jp-org-manage-header d-flex flex-wrap align-items-center justify-content-between gap-2">
-                <div>
-                    <h5 class="mb-0 fw-bold">
-                        <i class="bi bi-pencil-square me-2"></i>Cập nhật sơ đồ
-                    </h5>
-                    <p class="small mb-0 mt-1">Chỉnh phòng ban, bộ phận, vị trí — thay đổi hiển thị ngay trên sơ đồ phía trên.</p>
-                </div>
-                <a href="{% url 'department_add' %}" class="btn btn-sm btn-light fw-bold text-danger">
-                    <i class="bi bi-plus-lg"></i> Phòng ban
-                </a>
+            <div class="card-header jp-org-manage-header">
+                <h5 class="mb-0 fw-bold">
+                    <i class="bi bi-pencil-square me-2"></i>Cập nhật sơ đồ
+                </h5>
+                <p class="small mb-0 mt-1 opacity-90">Thêm / sửa / xóa phòng ban và bộ phận — áp dụng ngay lên sơ đồ phía trên.</p>
             </div>
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0 jp-org-manage-table">
-                    <thead class="text-uppercase small">
-                        <tr>
-                            <th class="ps-4 py-3 text-muted">Phòng ban</th>
-                            <th class="text-muted text-center">NV</th>
-                            <th class="text-muted">Bộ phận</th>
-                            <th class="text-muted">Vị trí (danh mục)</th>
-                            <th class="text-end pe-4 text-muted">Thao tác</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for dept in manage_departments %}
-                            {% with dept_divisions=dept.divisions.all %}
-                            {% for div in dept_divisions %}
-                            <tr>
-                                {% if forloop.first %}
-                                <td class="ps-4 fw-semibold align-top" rowspan="{{ dept_divisions|length }}">
-                                    <a href="{% url 'department_edit' dept.pk %}" class="text-decoration-none text-dark">{{ dept.name }}</a>
-                                    {% if not dept.is_active %}<span class="badge bg-secondary-subtle text-secondary ms-1">Ngưng</span>{% endif %}
-                                    <div class="mt-1 d-flex flex-wrap gap-1">
-                                        <a href="{% url 'division_add' %}?department={{ dept.pk }}" class="btn btn-sm btn-outline-hm py-0" title="Thêm bộ phận"><i class="bi bi-plus-lg"></i></a>
-                                        <a href="{% url 'department_permissions' dept.pk %}" class="btn btn-sm btn-outline-secondary py-0" title="Phân quyền"><i class="bi bi-shield-lock"></i></a>
-                                        <a href="{% url 'department_edit' dept.pk %}" class="btn btn-sm btn-outline-hm py-0" title="Sửa"><i class="bi bi-pencil-square"></i></a>
-                                        <a href="{% url 'department_delete' dept.pk %}" class="btn btn-sm btn-outline-danger py-0" title="Xóa"><i class="bi bi-trash"></i></a>
-                                    </div>
-                                </td>
-                                <td class="text-center align-top" rowspan="{{ dept_divisions|length }}">
-                                    <span class="badge bg-light text-dark border">{{ dept.staff_count|default:0 }}</span>
-                                </td>
-                                {% endif %}
-                                <td class="fw-medium align-top {% if not div.is_active %}text-muted{% endif %}">
-                                    {{ div.name }}
-                                    <div class="mt-1 d-flex flex-wrap gap-1">
-                                        <a href="{% url 'org_position_add' %}?department={{ dept.pk }}&division={{ div.pk }}" class="btn btn-sm btn-outline-hm py-0" title="Thêm vị trí"><i class="bi bi-plus-lg"></i></a>
-                                        <a href="{% url 'division_edit' div.pk %}" class="btn btn-sm btn-outline-hm py-0" title="Sửa bộ phận"><i class="bi bi-pencil-square"></i></a>
-                                        <a href="{% url 'division_delete' div.pk %}" class="btn btn-sm btn-outline-danger py-0" title="Xóa"><i class="bi bi-trash"></i></a>
-                                    </div>
-                                </td>
-                                <td class="small align-top">
-                                    {% for pos in div.positions.all %}
-                                    <div class="d-flex align-items-center justify-content-between gap-2 py-1 border-bottom border-light">
-                                        <span>{{ pos.name }}{% if not pos.is_active %} <span class="text-muted">(ngưng)</span>{% endif %}</span>
-                                        <span>
-                                            <a href="{% url 'org_position_edit' pos.pk %}" class="btn btn-sm btn-link p-0" title="Sửa"><i class="bi bi-pencil-square"></i></a>
-                                            <a href="{% url 'org_position_delete' pos.pk %}" class="btn btn-sm btn-link text-danger p-0" title="Xóa"><i class="bi bi-trash"></i></a>
-                                        </span>
-                                    </div>
+            <div class="jp-org-manage-body">
+                <ul class="nav nav-tabs jp-org-manage-tabs px-3 pt-3" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {% if manage_tab == 'departments' %}active{% endif %}" id="org-tab-depts-btn"
+                                data-bs-toggle="tab" data-bs-target="#org-tab-depts" type="button" role="tab">
+                            <i class="bi bi-building me-1"></i> Phòng ban
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {% if manage_tab == 'divisions' %}active{% endif %}" id="org-tab-divs-btn"
+                                data-bs-toggle="tab" data-bs-target="#org-tab-divs" type="button" role="tab">
+                            <i class="bi bi-diagram-2 me-1"></i> Bộ phận
+                        </button>
+                    </li>
+                </ul>
+                <div class="tab-content p-3 pt-2">
+                    <div class="tab-pane fade {% if manage_tab == 'departments' %}show active{% endif %}" id="org-tab-depts" role="tabpanel">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                            <span class="small text-muted">Danh sách phòng ban trên sơ đồ</span>
+                            <a href="{% url 'department_add' %}" class="btn btn-sm btn-hm text-white fw-bold">
+                                <i class="bi bi-plus-lg"></i> Thêm phòng ban
+                            </a>
+                        </div>
+                        <div class="table-responsive jp-org-manage-table-wrap">
+                            <table class="table table-hover align-middle mb-0 jp-org-manage-table">
+                                <thead class="text-uppercase small">
+                                    <tr>
+                                        <th class="ps-3">Tên phòng ban</th>
+                                        <th class="text-center">Bộ phận</th>
+                                        <th class="text-center">NV</th>
+                                        <th class="text-center">TT</th>
+                                        <th class="text-end pe-3">Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for dept in manage_departments %}
+                                    <tr>
+                                        <td class="ps-3 fw-semibold">
+                                            {{ dept.name }}
+                                            {% if not dept.is_active %}<span class="badge bg-secondary-subtle text-secondary ms-1">Ngưng</span>{% endif %}
+                                        </td>
+                                        <td class="text-center">{{ dept.division_count }}</td>
+                                        <td class="text-center"><span class="badge jp-org-manage-badge">{{ dept.staff_count|default:0 }}</span></td>
+                                        <td class="text-center small text-muted">{{ dept.sort_order }}</td>
+                                        <td class="text-end pe-3">
+                                            <div class="btn-group btn-group-sm jp-org-manage-actions" role="group">
+                                                <a href="{% url 'division_add' %}?department={{ dept.pk }}" class="btn btn-outline-hm" title="Thêm bộ phận"><i class="bi bi-plus-lg"></i></a>
+                                                <a href="{% url 'department_permissions' dept.pk %}" class="btn btn-outline-secondary" title="Phân quyền menu"><i class="bi bi-shield-lock"></i></a>
+                                                <a href="{% url 'department_edit' dept.pk %}" class="btn btn-outline-hm" title="Sửa"><i class="bi bi-pencil-square"></i></a>
+                                                <a href="{% url 'department_delete' dept.pk %}" class="btn btn-outline-danger" title="Xóa"><i class="bi bi-trash"></i></a>
+                                            </div>
+                                        </td>
+                                    </tr>
                                     {% empty %}
-                                    <span class="text-muted">—</span>
+                                    <tr>
+                                        <td colspan="5" class="text-center py-4 text-muted">Chưa có phòng ban.</td>
+                                    </tr>
                                     {% endfor %}
-                                </td>
-                                <td class="text-end pe-4 align-top">
-                                    <a href="{% url 'org_position_add' %}?department={{ dept.pk }}&division={{ div.pk }}" class="btn btn-sm btn-outline-hm">+ Vị trí</a>
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td class="ps-4 fw-semibold">{{ dept.name }}</td>
-                                <td class="text-center"><span class="badge bg-light text-dark border">{{ dept.staff_count|default:0 }}</span></td>
-                                <td colspan="2" class="text-muted small">Chưa có bộ phận</td>
-                                <td class="text-end pe-4">
-                                    <a href="{% url 'division_add' %}?department={{ dept.pk }}" class="btn btn-sm btn-outline-hm">+ Bộ phận</a>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                            {% endwith %}
-                        {% empty %}
-                        <tr>
-                            <td colspan="5" class="text-center py-4 text-muted">
-                                Chưa có phòng ban. <a href="{% url 'department_add' %}">Thêm phòng ban</a>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                        {% for div in manage_unassigned %}
-                        <tr class="table-warning">
-                            {% if forloop.first %}
-                            <td class="ps-4 fw-semibold align-top" rowspan="{{ manage_unassigned|length }}">Chưa gán phòng ban</td>
-                            <td class="text-center align-top" rowspan="{{ manage_unassigned|length }}">—</td>
-                            {% endif %}
-                            <td class="fw-medium align-top">{{ div.name }}</td>
-                            <td class="small align-top">
-                                {% for pos in div.positions.all %}
-                                <div class="d-flex align-items-center justify-content-between gap-2 py-1 border-bottom border-light">
-                                    <span>{{ pos.name }}</span>
-                                    <span>
-                                        <a href="{% url 'org_position_edit' pos.pk %}" class="btn btn-sm btn-link p-0"><i class="bi bi-pencil-square"></i></a>
-                                        <a href="{% url 'org_position_delete' pos.pk %}" class="btn btn-sm btn-link text-danger p-0"><i class="bi bi-trash"></i></a>
-                                    </span>
-                                </div>
-                                {% empty %}<span class="text-muted">—</span>{% endfor %}
-                            </td>
-                            <td class="text-end pe-4 align-top">
-                                <a href="{% url 'org_position_add' %}?division={{ div.pk }}" class="btn btn-sm btn-outline-hm">+ Vị trí</a>
-                                <a href="{% url 'division_edit' div.pk %}" class="btn btn-sm btn-outline-hm"><i class="bi bi-pencil-square"></i></a>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade {% if manage_tab == 'divisions' %}show active{% endif %}" id="org-tab-divs" role="tabpanel">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                            <span class="small text-muted">Bộ phận thuộc phòng ban hoặc chưa gán</span>
+                            <a href="{% url 'division_add' %}" class="btn btn-sm btn-hm text-white fw-bold">
+                                <i class="bi bi-plus-lg"></i> Thêm bộ phận
+                            </a>
+                        </div>
+                        <div class="table-responsive jp-org-manage-table-wrap">
+                            <table class="table table-hover align-middle mb-0 jp-org-manage-table">
+                                <thead class="text-uppercase small">
+                                    <tr>
+                                        <th class="ps-3">Phòng ban</th>
+                                        <th>Tên bộ phận</th>
+                                        <th class="text-center">NV</th>
+                                        <th class="text-center">TT</th>
+                                        <th class="text-end pe-3">Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for div in manage_divisions %}
+                                    <tr class="{% if not div.department_id %}table-warning{% endif %}">
+                                        <td class="ps-3 small">
+                                            {% if div.department %}
+                                            <span class="fw-semibold text-dark">{{ div.department.name }}</span>
+                                            {% else %}
+                                            <span class="text-warning-emphasis fw-semibold">Chưa gán PB</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="fw-medium {% if not div.is_active %}text-muted{% endif %}">{{ div.name }}</td>
+                                        <td class="text-center"><span class="badge jp-org-manage-badge">{{ div.staff_count|default:0 }}</span></td>
+                                        <td class="text-center small text-muted">{{ div.sort_order }}</td>
+                                        <td class="text-end pe-3">
+                                            <div class="btn-group btn-group-sm jp-org-manage-actions" role="group">
+                                                <a href="{% url 'division_edit' div.pk %}" class="btn btn-outline-hm" title="Sửa"><i class="bi bi-pencil-square"></i></a>
+                                                <a href="{% url 'division_delete' div.pk %}" class="btn btn-outline-danger" title="Xóa"><i class="bi bi-trash"></i></a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="5" class="text-center py-4 text-muted">Chưa có bộ phận.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -228,10 +233,16 @@
 (function () {
     var panel = document.getElementById('org-manage-panel');
     var toggle = document.getElementById('org-manage-toggle');
-    if (!panel || !toggle) return;
+    if (!panel) return;
     panel.addEventListener('shown.bs.collapse', function () {
         panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
+    var openPanel = location.hash === '#org-manage-panel'
+        || new URLSearchParams(location.search).has('tab');
+    if (openPanel && typeof bootstrap !== 'undefined') {
+        bootstrap.Collapse.getOrCreateInstance(panel, { toggle: false }).show();
+        if (toggle) toggle.setAttribute('aria-expanded', 'true');
+    }
 })();
 </script>
 {% endif %}

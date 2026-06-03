@@ -630,6 +630,8 @@ class OrgStructureTreemapTests(TestCase):
         self.assertContains(response, 'ORG-DEPT-A')
         self.assertContains(response, 'org_tree.js')
         self.assertContains(response, 'org-manage-panel')
+        self.assertContains(response, 'org-tab-depts')
+        self.assertContains(response, 'org-tab-divs')
         self.assertContains(response, 'Cập nhật sơ đồ')
         self.assertContains(response, 'Sơ đồ tổ chức')
         self.assertNotContains(response, 'Quản lý qua bảng')
@@ -657,6 +659,38 @@ class OrgStructureTreemapTests(TestCase):
             'is_active': True,
         })
         self.assertTrue(form_b.is_valid())
+
+    def test_org_tree_hides_system_admin_account(self):
+        from hrm.models import DivisionPosition
+
+        div = Division.objects.get(name='ORG-DIV-1')
+        DivisionPosition.objects.create(
+            division=div,
+            department=self.dept,
+            name='ORG-ADMIN-POS',
+        )
+        admin_user = User.objects.create_user(
+            username='admin',
+            password='x',
+            first_name='System',
+            is_superuser=True,
+        )
+        Profile.objects.update_or_create(
+            user=admin_user,
+            defaults={
+                'full_name': 'System Admin',
+                'employee_code': 'ADM01',
+                'department': self.dept,
+                'division': div,
+                'job_position': 'ORG-ADMIN-POS',
+                'is_employed': True,
+            },
+        )
+        response = self.client.get(reverse('org_structure'))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'System Admin')
+        self.assertNotContains(response, 'ADM01')
+        self.assertNotContains(response, '"level": "employee", "id": %d' % admin_user.pk)
 
     def test_org_tree_includes_employee_children(self):
         from hrm.models import DivisionPosition

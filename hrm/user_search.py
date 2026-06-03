@@ -9,11 +9,20 @@ from PortalJustPlay.list_search import apply_user_search
 HIDDEN_HRM_LIST_USERNAMES = ('admin',)
 
 
-def exclude_hidden_hrm_users(queryset):
+def hidden_hrm_username_q(*, user_prefix: str = '') -> Q:
+    """Q loại tài khoản hệ thống (admin, …) — `user_prefix` ví dụ `user__`."""
     q = Q()
     for name in HIDDEN_HRM_LIST_USERNAMES:
-        q |= Q(username__iexact=name)
-    return queryset.exclude(q)
+        q |= Q(**{f'{user_prefix}username__iexact': name})
+    return q
+
+
+def exclude_hidden_hrm_users(queryset):
+    return queryset.exclude(hidden_hrm_username_q())
+
+
+def exclude_hidden_hrm_profiles(queryset):
+    return queryset.exclude(hidden_hrm_username_q(user_prefix='user__'))
 
 
 def filter_users_by_search(queryset, query: str):

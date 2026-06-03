@@ -606,17 +606,18 @@ def user_download_template(request):
     return response
 
 
-def _org_redirect(anchor=''):
+def _org_redirect(anchor='', tab=''):
+    """Quay lại sơ đồ; mở panel Cập nhật sơ đồ (tab: departments | divisions)."""
     url = reverse('org_structure')
-    if anchor:
-        url = f'{url}#{anchor}'
+    if tab:
+        url = f'{url}?tab={tab}'
+    frag = anchor if anchor else 'org-manage-panel'
+    url = f'{url}#{frag}'
     return redirect(url)
 
 
 def _org_redirect_for_division(division):
-    if division.department_id:
-        return _org_redirect(f'dept-{division.department_id}')
-    return _org_redirect()
+    return _org_redirect(tab='divisions')
 
 
 @admin_only
@@ -687,22 +688,34 @@ def org_structure(request):
         'importTemplate': reverse('user_download_template'),
     }
 
-    position_qs = DivisionPosition.objects.filter(is_active=True).order_by('sort_order', 'name')
-    division_manage_qs = Division.objects.annotate(
-        staff_count=Count('division_profiles', distinct=True),
-    ).prefetch_related(
-        Prefetch('positions', queryset=position_qs),
-    ).order_by('sort_order', 'name')
-    manage_departments = Department.objects.annotate(
-        staff_count=Count('profiles', distinct=True),
-    ).prefetch_related(
-        Prefetch('divisions', queryset=division_manage_qs),
-    ).order_by('sort_order', 'name')
-    manage_unassigned = Division.objects.filter(department__isnull=True).annotate(
-        staff_count=Count('division_profiles', distinct=True),
-    ).prefetch_related(
-        Prefetch('positions', queryset=position_qs),
-    ).order_by('sort_order', 'name')
+    from hrm.org_structure import _org_profile_count_filter
+
+    manage_departments = (
+        Department.objects.annotate(
+            staff_count=Count(
+                'profiles',
+                filter=_org_profile_count_filter('profiles__'),
+                distinct=True,
+            ),
+            division_count=Count('divisions', distinct=True),
+        )
+        .order_by('sort_order', 'name')
+    )
+    manage_divisions = (
+        Division.objects.select_related('department')
+        .annotate(
+            staff_count=Count(
+                'division_profiles',
+                filter=_org_profile_count_filter('division_profiles__'),
+                distinct=True,
+            ),
+        )
+        .order_by('department__sort_order', 'department__name', 'sort_order', 'name')
+    )
+
+    manage_tab = (request.GET.get('tab') or 'departments').strip()
+    if manage_tab not in ('departments', 'divisions'):
+        manage_tab = 'departments'
 
     return render(request, 'assessment/admin/org_structure.html', {
         'treemap': treemap,
@@ -711,7 +724,8 @@ def org_structure(request):
         'org_tree': tree_data,
         'org_urls': urls,
         'manage_departments': manage_departments,
-        'manage_unassigned': manage_unassigned,
+        'manage_divisions': manage_divisions,
+        'manage_tab': manage_tab,
     })
 
 
@@ -733,7 +747,7 @@ def department_add(request):
                 defaults={'modules': sorted(ALL_MODULE_KEYS)},
             )
             messages.success(request, f'Đã thêm phòng ban "{department.name}".')
-            return _org_redirect()
+            return _org_redirect(tab='departments')
     else:
         form = DepartmentForm()
     return render(request, 'assessment/admin/department_form.html', {
@@ -750,7 +764,7 @@ def department_edit(request, pk):
         if form.is_valid():
             department = form.save()
             messages.success(request, f'Đã cập nhật phòng ban "{department.name}".')
-            return _org_redirect()
+            return _org_redirect(tab='departments')
     else:
         form = DepartmentForm(instance=department)
     return render(request, 'assessment/admin/department_form.html', {
@@ -774,7 +788,7 @@ def department_delete(request, pk):
             name = department.name
             department.delete()
             messages.success(request, f'Đã xóa phòng ban "{name}".')
-        return _org_redirect()
+        return _org_redirect(tab='departments')
     return render(request, 'assessment/admin/department_confirm_delete.html', {
         'department': department,
     })
@@ -1038,9 +1052,7 @@ def division_delete(request, pk):
             dept_id = division.department_id
             division.delete()
             messages.success(request, f'Đã xóa bộ phận "{name}".')
-            if dept_id:
-                return _org_redirect(f'dept-{dept_id}')
-        return _org_redirect()
+        return _org_redirect(tab='divisions')
     return render(request, 'assessment/admin/division_confirm_delete.html', {
         'division': division,
     })

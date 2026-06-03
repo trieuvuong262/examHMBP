@@ -3348,6 +3348,54 @@ textarea.form-control {
     color: rgba(255, 255, 255, 0.88);
 }
 
+.jp-org-manage-body {
+    background: var(--jp-surface-bg, #fff);
+}
+
+.jp-org-manage-tabs {
+    border-bottom: 2px solid var(--jp-surface-border, #e2e8f0);
+    gap: 0.25rem;
+}
+
+.jp-org-manage-tabs .nav-link {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--jp-text-muted, #64748b);
+    border: none;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    padding: 0.65rem 1rem;
+    border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.jp-org-manage-tabs .nav-link:hover {
+    color: var(--hm-primary);
+    background: var(--hm-primary-soft);
+}
+
+.jp-org-manage-tabs .nav-link.active {
+    color: var(--hm-primary-dark);
+    background: #fff;
+    border-bottom-color: var(--hm-primary);
+}
+
+.jp-org-manage-table-wrap {
+    border: 1px solid var(--jp-surface-border, #e2e8f0);
+    border-radius: 0.65rem;
+    overflow: hidden;
+}
+
+.jp-org-manage-actions .btn {
+    padding: 0.2rem 0.45rem;
+}
+
+.jp-org-manage-badge {
+    background: #fff !important;
+    color: var(--hm-primary-dark) !important;
+    border: 1px solid rgba(220, 38, 38, 0.2) !important;
+    font-weight: 700;
+}
+
 .jp-org-manage-table thead th {
     background: #fef2f2;
     color: var(--hm-primary-dark);
@@ -3361,13 +3409,6 @@ textarea.form-control {
 
 .jp-org-manage-table td {
     vertical-align: middle;
-}
-
-.jp-org-manage-table .badge {
-    background: #fff !important;
-    color: var(--hm-primary-dark) !important;
-    border: 1px solid rgba(220, 38, 38, 0.2) !important;
-    font-weight: 700;
 }
 
 .jp-org-tree-pill-rect {

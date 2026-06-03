@@ -8,6 +8,7 @@ from django.db.models import Count, Prefetch, Q
 
 from hrm.models import Department, Division, DivisionPosition, Profile
 from hrm.permissions import ROLE_DIRECTOR
+from hrm.user_search import exclude_hidden_hrm_profiles, hidden_hrm_username_q
 
 ORG_EXECUTIVE_LABEL = 'Giám đốc điều hành'
 ORG_COMPANY_ROOT = 'Công ty TNHH Just Play'
@@ -51,9 +52,20 @@ class OrgTreemapContext:
     unassigned_divisions: list[OrgDivisionNode]
 
 
+def _org_profile_count_filter(related_prefix: str) -> Q:
+    visible = Q(**{f'{related_prefix}is_employed': True})
+    return visible & ~hidden_hrm_username_q(user_prefix=f'{related_prefix}user__')
+
+
 def _division_queryset():
     return (
-        Division.objects.annotate(staff_count=Count('division_profiles', distinct=True))
+        Division.objects.annotate(
+            staff_count=Count(
+                'division_profiles',
+                filter=_org_profile_count_filter('division_profiles__'),
+                distinct=True,
+            ),
+        )
         .order_by('sort_order', 'name')
     )
 
@@ -61,7 +73,13 @@ def _division_queryset():
 def build_org_treemap() -> OrgTreemapContext:
     divisions_qs = _division_queryset()
     departments = (
-        Department.objects.annotate(staff_count=Count('profiles', distinct=True))
+        Department.objects.annotate(
+            staff_count=Count(
+                'profiles',
+                filter=_org_profile_count_filter('profiles__'),
+                distinct=True,
+            ),
+        )
         .prefetch_related(
             Prefetch('divisions', queryset=divisions_qs),
         )
@@ -111,7 +129,9 @@ def build_org_treemap() -> OrgTreemapContext:
     ]
     unassigned.sort(key=lambda d: (-d.treemap_weight, d.sort_order, d.name.lower()))
 
-    total_staff = Profile.objects.filter(is_employed=True).count()
+    total_staff = exclude_hidden_hrm_profiles(
+        Profile.objects.filter(is_employed=True),
+    ).count()
     director_count = Profile.objects.filter(
         is_employed=True,
         role=ROLE_DIRECTOR,
@@ -127,7 +147,9 @@ def build_org_treemap() -> OrgTreemapContext:
 
 
 def _staff_counts_by_position(department_id: int | None, division_id: int) -> dict[str, int]:
-    qs = Profile.objects.filter(is_employed=True, division_id=division_id).exclude(job_position='')
+    qs = exclude_hidden_hrm_profiles(
+        Profile.objects.filter(is_employed=True, division_id=division_id).exclude(job_position=''),
+    )
     if department_id:
         qs = qs.filter(department_id=department_id)
     rows = qs.values('job_position').annotate(count=Count('id'))
@@ -139,10 +161,12 @@ def _employee_nodes(
     division_id: int,
     position_name: str,
 ) -> list[dict]:
-    qs = Profile.objects.filter(
-        is_employed=True,
-        division_id=division_id,
-        job_position__iexact=position_name,
+    qs = exclude_hidden_hrm_profiles(
+        Profile.objects.filter(
+            is_employed=True,
+            division_id=division_id,
+            job_position__iexact=position_name,
+        ),
     ).select_related('user').order_by('employee_code', 'full_name')
     if department_id:
         qs = qs.filter(department_id=department_id)
