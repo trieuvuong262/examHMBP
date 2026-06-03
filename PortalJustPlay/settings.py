@@ -364,8 +364,12 @@ NAS_RCLONE_CONFIG = os.getenv('NAS_RCLONE_CONFIG', '/root/.config/rclone/rclone.
 # Phòng ban dùng share rclone riêng làm gốc (không thêm DATACHUNG/MÃ_PB)
 # VD: KD-MKT:synology:KD-MKT,IT:synology:IT
 NAS_DEPT_ROOT_REMOTES = os.getenv('NAS_DEPT_ROOT_REMOTES', 'KD-MKT:synology:KD-MKT')
-NAS_LISTING_CACHE_SECONDS = int(os.getenv('NAS_LISTING_CACHE_SECONDS', '45'))
-NAS_AUTO_SYNC_INTERVAL = int(os.getenv('NAS_AUTO_SYNC_INTERVAL', '15'))
+# Mount local theo phòng ban (cùng cấu trúc remote gốc) — đọc thư mục nhanh
+NAS_DEPT_MOUNT_ROOTS = os.getenv('NAS_DEPT_MOUNT_ROOTS', 'KD-MKT:/mnt/nas-kd-mkt')
+NAS_LISTING_CACHE_SECONDS = int(os.getenv('NAS_LISTING_CACHE_SECONDS', '120'))
+NAS_RCLONE_FAST_LIST = env_bool('NAS_RCLONE_FAST_LIST', True)
+NAS_AUTO_SYNC_INTERVAL = int(os.getenv('NAS_AUTO_SYNC_INTERVAL', '60'))
+NAS_BACKGROUND_SYNC_DEFAULT = env_bool('NAS_BACKGROUND_SYNC_DEFAULT', False)
 NAS_SHARE_EXPIRE_DAYS = int(os.getenv('NAS_SHARE_EXPIRE_DAYS', '30'))
 # Backup Portal → NAS (database + source + media)
 # Mặc định: share/thư mục gốc ``backup`` trên NAS — synology:backup

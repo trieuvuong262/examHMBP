@@ -67,6 +67,30 @@ def user_department_folder_code(user) -> str | None:
     return department_folder_code(dept_name)
 
 
+def dept_nas_mount_roots() -> dict[str, str]:
+    """Mount local tương ứng share gốc (đọc nhanh, không qua rclone)."""
+    mounts: dict[str, str] = {}
+    raw = (getattr(settings, 'NAS_DEPT_MOUNT_ROOTS', '') or '').strip()
+    for part in raw.split(','):
+        part = part.strip()
+        if ':' not in part:
+            continue
+        code, mpath = part.split(':', 1)
+        code = code.strip().upper()
+        mpath = mpath.strip()
+        if code and mpath:
+            mounts[code] = mpath
+    return mounts
+
+
+def nas_local_mount_root(user) -> Path:
+    dept_code = user_department_folder_code(user)
+    mounts = dept_nas_mount_roots()
+    if dept_code and dept_code in mounts:
+        return Path(mounts[dept_code])
+    return nas_mount_root()
+
+
 def dept_nas_root_remotes() -> dict[str, str]:
     """Mã phòng ban → rclone remote gốc (vd. synology:KD-MKT)."""
     remotes = dict(_DEFAULT_DEPT_ROOT_REMOTES)
@@ -191,7 +215,7 @@ def resolve_nas_path(user, rel_path: str) -> Path:
     if not any(rel == prefix or rel.startswith(prefix + '/') for prefix in allowed):
         raise NasPathError('Bạn không có quyền truy cập thư mục này.')
 
-    mount = nas_mount_root()
+    mount = nas_local_mount_root(user)
     candidate = (mount / rel).resolve()
     mount_resolved = mount.resolve()
     try:
@@ -235,37 +259,17 @@ def rclone_listing_available() -> bool:
 
 
 def nas_path_exists(rel_path: str, *, user=None) -> bool:
-    """Kiểm tra thư mục — ưu tiên mount (nhanh), tránh 2 lần rclone trên trang gốc."""
+    """Kiểm tra nhanh qua mount — không gọi rclone (tránh chậm trang gốc NAS)."""
     dept_code = user_department_folder_code(user) if user else None
     rel = strip_legacy_dept_prefix(rel_path, dept_code)
     if not rel:
         return False
 
-    candidate = nas_mount_root() / rel
+    mount = nas_local_mount_root(user) if user else nas_mount_root()
+    candidate = mount / rel
     try:
-        if candidate.exists():
-            return True
+        return candidate.exists()
     except OSError:
-        pass
-
-    if uses_dept_nas_root_remote(dept_code) and rclone_listing_available():
-        return True
-
-    if not rclone_listing_available():
-        return False
-
-    try:
-        target = _rclone_remote_path(rel, user=user)
-        proc = subprocess.run(
-            ['rclone', 'lsd', target],
-            capture_output=True,
-            text=True,
-            timeout=12,
-            check=False,
-            env=_rclone_env(),
-        )
-        return proc.returncode == 0
-    except (OSError, subprocess.TimeoutExpired):
         return False
 
 
@@ -289,21 +293,19 @@ def list_directory_with_source(
             pass
 
     if rel and rclone_listing_available():
-        try:
-            return list_directory_via_rclone(rel, user=user, fresh=fresh), 'rclone', False
-        except NasPathError:
-            if fresh:
+        if not fresh:
+            try:
+                return list_directory_via_rclone(rel, user=user, fresh=False), 'rclone', False
+            except NasPathError:
+                pass
+        else:
+            try:
+                return list_directory_via_rclone(rel, user=user, fresh=True), 'rclone', False
+            except NasPathError:
                 raise NasPathError(
                     'Không đồng bộ được từ NAS (rclone). '
                     'Liên hệ IT kiểm tra cấu hình rclone trên server.'
-                )
-            try:
-                if path.is_dir():
-                    listing = _list_directory_local(path)
-                    return listing, 'mount', True
-            except NasPathError:
-                pass
-            raise
+                ) from None
 
     listing = _list_directory_local(path)
     return listing, 'mount', bool(fresh and rel)
@@ -408,9 +410,12 @@ def list_directory_via_rclone(rel_path: str, *, user=None, fresh: bool = False) 
 
     target = _rclone_remote_path(rel, user=user)
     timeout = int(getattr(settings, 'NAS_RCLONE_LIST_TIMEOUT', '60'))
+    cmd = ['rclone', 'lsjson', target, '--no-mimetype']
+    if getattr(settings, 'NAS_RCLONE_FAST_LIST', True):
+        cmd.append('--fast-list')
     try:
         proc = subprocess.run(
-            ['rclone', 'lsjson', target, '--no-mimetype'],
+            cmd,
             capture_output=True,
             text=True,
             timeout=timeout,

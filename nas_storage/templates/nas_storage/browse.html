@@ -78,10 +78,11 @@
          data-share-url="{% url 'nas_storage:share_create' %}"
          data-rel-path="{{ rel_path|escapejs }}"
          data-share-token="{{ share_token|default:'' }}"
-         data-interval="{{ auto_sync_interval|default:15 }}"
+         data-interval="{{ auto_sync_interval|default:60 }}"
          data-listing-key="{{ listing_key|default:'' }}"
          data-last-sync="{{ synced_at|default:'' }}"
-         data-last-source="{{ listing_source|default:'rclone' }}"
+         data-last-source="{{ listing_source|default:'mount' }}"
+         data-bg-sync-default="{% if nas_background_sync_default %}1{% else %}0{% endif %}"
          data-reload-url="{% url 'nas_storage:browse' %}?path={{ rel_path|urlencode }}&amp;refresh=1{% if share_token %}&amp;share={{ share_token }}{% endif %}">
         <div class="card-header bg-white border-bottom py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
             <div class="d-flex align-items-center flex-wrap gap-2">
@@ -97,8 +98,9 @@
                     <i class="bi bi-arrow-clockwise" id="jp-nas-reload-icon"></i> Tải lại
                 </a>
                 <div class="form-check form-switch mb-0 ms-1">
-                    <input class="form-check-input" type="checkbox" role="switch" id="jp-nas-auto-sync" checked>
-                    <label class="form-check-label small text-muted" for="jp-nas-auto-sync">Tự động</label>
+                    <input class="form-check-input" type="checkbox" role="switch" id="jp-nas-auto-sync"
+                           {% if nas_background_sync_default %}checked{% endif %}>
+                    <label class="form-check-label small text-muted" for="jp-nas-auto-sync" title="Chỉ bật khi cần cập nhật nền từ NAS (chậm hơn)">Tự động</label>
                 </div>
                 <span class="text-muted small" id="jp-nas-summary">
                     {% if folders or files %}{{ folders|length }} thư mục · {{ files|length }} file{% else %}Thư mục trống{% endif %}
@@ -190,8 +192,9 @@
     var autoToggle = document.getElementById('jp-nas-auto-sync');
     var reloadBtn = document.getElementById('jp-nas-reload-btn');
     var reloadIcon = document.getElementById('jp-nas-reload-icon');
-    var storageKey = 'jp-nas-auto-sync-v3';
-    var autoEnabled = true;
+    var storageKey = 'jp-nas-auto-sync-v4';
+    var bgSyncDefault = root.dataset.bgSyncDefault === '1';
+    var autoEnabled = false;
     var timer = null;
     var syncing = false;
     var syncGen = 0;
@@ -266,7 +269,7 @@
         setStatus('', true);
         setReloadSpinning(true);
 
-        var url = syncUrl + '?path=' + encodeURIComponent(relPath) + '&_=' + Date.now();
+        var url = syncUrl + '?path=' + encodeURIComponent(relPath) + '&refresh=1&_=' + Date.now();
         if (shareToken) url += '&share=' + encodeURIComponent(shareToken);
 
         var abortCtrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -336,28 +339,33 @@
 
     if (autoToggle) {
         var saved = localStorage.getItem(storageKey);
-        autoEnabled = saved !== '0';
+        if (saved === '1') {
+            autoEnabled = true;
+        } else if (saved === '0') {
+            autoEnabled = false;
+        } else {
+            autoEnabled = bgSyncDefault;
+        }
         autoToggle.checked = autoEnabled;
         autoToggle.addEventListener('change', function () {
             autoEnabled = autoToggle.checked;
             localStorage.setItem(storageKey, autoEnabled ? '1' : '0');
             if (autoEnabled) {
                 scheduleAutoSync();
-                syncListing();
             } else {
                 stopAutoSync();
             }
         });
     }
 
-    scheduleAutoSync();
-    window.setTimeout(syncListing, 1000);
+    if (autoEnabled) {
+        scheduleAutoSync();
+    }
 
     document.addEventListener('visibilitychange', function () {
         if (document.hidden) {
             stopAutoSync();
         } else if (autoEnabled) {
-            syncListing();
             scheduleAutoSync();
         }
     });

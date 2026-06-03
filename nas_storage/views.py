@@ -95,7 +95,8 @@ def _listing_context(request, rel_path: str, *, fresh: bool = False, share=None)
         'listing_source': source,
         'listing_stale': stale,
         'listing_key': listing_fingerprint(listing),
-        'auto_sync_interval': getattr(settings, 'NAS_AUTO_SYNC_INTERVAL', 15),
+        'auto_sync_interval': getattr(settings, 'NAS_AUTO_SYNC_INTERVAL', 60),
+        'nas_background_sync_default': getattr(settings, 'NAS_BACKGROUND_SYNC_DEFAULT', False),
     }
 
 
@@ -134,10 +135,9 @@ def browse(request):
     if not rel_path:
         root_entries = []
         for entry in roots:
-            exists = nas_path_exists(entry.rel_path, user=request.user)
             root_entries.append({
                 'entry': entry,
-                'exists': exists,
+                'exists': True,
             })
         from nas_storage.user_folders import user_has_custom_nas_folders
 
@@ -145,7 +145,7 @@ def browse(request):
             'root_entries': root_entries,
             'rel_path': '',
             'breadcrumbs': [{'label': 'Thư mục NAS', 'rel_path': ''}],
-            'auto_sync_interval': getattr(settings, 'NAS_AUTO_SYNC_INTERVAL', 15),
+            'auto_sync_interval': getattr(settings, 'NAS_AUTO_SYNC_INTERVAL', 60),
             'nas_using_custom': user_has_custom_nas_folders(request.user),
         })
 
@@ -189,8 +189,9 @@ def sync_list(request):
     if share and not is_path_under_share(rel_path, share.rel_path):
         return JsonResponse({'ok': False, 'error': 'invalid share', 'synced_at': listing_synced_at()})
 
+    sync_fresh = request.GET.get('refresh') == '1'
     try:
-        ctx = _listing_context(request, rel_path, fresh=True, share=share)
+        ctx = _listing_context(request, rel_path, fresh=sync_fresh, share=share)
     except NasPathError as exc:
         return JsonResponse({'ok': False, 'error': str(exc), 'synced_at': listing_synced_at()})
 
