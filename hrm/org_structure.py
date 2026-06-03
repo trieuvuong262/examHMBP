@@ -19,6 +19,7 @@ class OrgDivisionNode:
     sort_order: int
     is_active: bool
     staff_count: int
+    treemap_weight: int = 1
 
 
 @dataclass
@@ -68,11 +69,13 @@ def build_org_treemap() -> OrgTreemapContext:
                 sort_order=div.sort_order,
                 is_active=div.is_active,
                 staff_count=div.staff_count,
+                treemap_weight=max(div.staff_count, 1),
             )
             for div in dept.divisions.all()
         ]
         div_staff = sum(d.staff_count for d in div_nodes)
         weight = max(dept.staff_count, div_staff, len(div_nodes), 1)
+        div_nodes.sort(key=lambda d: (-d.treemap_weight, d.sort_order, d.name.lower()))
         dept_nodes.append(
             OrgDepartmentNode(
                 pk=dept.pk,
@@ -85,6 +88,8 @@ def build_org_treemap() -> OrgTreemapContext:
             )
         )
 
+    dept_nodes.sort(key=lambda d: (-d.treemap_weight, d.sort_order, d.name.lower()))
+
     unassigned = [
         OrgDivisionNode(
             pk=div.pk,
@@ -92,9 +97,11 @@ def build_org_treemap() -> OrgTreemapContext:
             sort_order=div.sort_order,
             is_active=div.is_active,
             staff_count=div.staff_count,
+            treemap_weight=max(div.staff_count, 1),
         )
         for div in divisions_qs.filter(department__isnull=True)
     ]
+    unassigned.sort(key=lambda d: (-d.treemap_weight, d.sort_order, d.name.lower()))
 
     total_staff = Profile.objects.filter(is_employed=True).count()
     director_count = Profile.objects.filter(
