@@ -270,6 +270,12 @@ def _staff_counts_by_position(department_id: int | None, division_id: int) -> di
     return {row['job_position']: row['count'] for row in rows}
 
 
+def _profile_avatar_url(profile: Profile) -> str:
+    if profile.avatar:
+        return profile.avatar.url
+    return ''
+
+
 def _employee_nodes(
     department_id: int | None,
     division_id: int,
@@ -293,6 +299,7 @@ def _employee_nodes(
             'id': p.user_id,
             'user_id': p.user_id,
             'employee_code': p.employee_code or '',
+            'avatar_url': _profile_avatar_url(p),
             'dept_id': department_id,
             'division_id': division_id,
             'position_name': position_name,

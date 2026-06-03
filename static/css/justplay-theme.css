@@ -3280,10 +3280,16 @@ textarea.form-control {
 
 .jp-org-tree-pill-hit {
     cursor: pointer;
+    pointer-events: all;
 }
 
-.jp-org-tree-pill-hit .jp-org-tree-pill-rect {
-    pointer-events: all;
+.jp-org-tree-node--position:hover .jp-org-tree-pill-rect,
+.jp-org-tree-node--employee:hover .jp-org-tree-pill-rect {
+    filter: brightness(1.02);
+}
+
+.jp-org-tree-node--employee .jp-org-tree-pill-hit {
+    cursor: zoom-in;
 }
 
 .jp-org-tree-node.is-clickable:hover .jp-org-tree-pill-rect,

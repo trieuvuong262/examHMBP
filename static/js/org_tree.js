@@ -37,9 +37,9 @@
     }
 
     const ZOOM = {
-        min: 0.5,
-        max: 2,
-        wheelFactor: 0.00065,
+        min: 0.78,
+        max: 1.85,
+        wheelFactor: 0.00055,
     };
 
     const ACTION = { size: 22, gap: 2 };
@@ -273,9 +273,6 @@
     function primaryHref(nodeData, urls) {
         const level = nodeData.level;
         const id = nodeData.id;
-        if (level === 'employee' && (nodeData.user_id || id) && urls.userEdit) {
-            return urls.userEdit.replace('{id}', String(nodeData.user_id || id));
-        }
         if (level === 'department' && id && urls.deptEdit) {
             return urls.deptEdit.replace('{id}', String(id));
         }
@@ -435,10 +432,50 @@
         });
     }
 
+    function isOrgTreeInteractiveTarget(target) {
+        if (!target || !target.closest) return false;
+        return !!target.closest(
+            '.jp-org-tree-node, .jp-org-tree-pill-hit, .jp-org-tree-action-link',
+        );
+    }
+
+    function showEmployeeAvatar(nodeData) {
+        const modalEl = document.getElementById('jpAvatarZoomModal');
+        const imgEl = document.getElementById('jpAvatarZoomImg');
+        const titleEl = document.getElementById('jpAvatarZoomTitle');
+        if (!modalEl || !imgEl || !window.bootstrap) return;
+
+        const name = (nodeData.name || '').trim() || 'Nhân viên';
+        const url = (nodeData.avatar_url || '').trim();
+        const body = imgEl.parentElement;
+        let emptyHint = body && body.querySelector('.jp-org-avatar-zoom-empty');
+        if (body && !emptyHint) {
+            emptyHint = document.createElement('p');
+            emptyHint.className = 'jp-org-avatar-zoom-empty text-muted mb-0';
+            body.appendChild(emptyHint);
+        }
+        if (titleEl) titleEl.textContent = name;
+        if (url) {
+            imgEl.src = url;
+            imgEl.alt = name;
+            imgEl.classList.remove('d-none');
+            if (emptyHint) emptyHint.classList.add('d-none');
+        } else {
+            imgEl.removeAttribute('src');
+            imgEl.alt = '';
+            imgEl.classList.add('d-none');
+            if (emptyHint) {
+                emptyHint.textContent = 'Chưa có ảnh đại diện';
+                emptyHint.classList.remove('d-none');
+            }
+        }
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+
     function syncHeaderColumns(trackEl, columns, marginLeft, transform) {
         if (!trackEl || !columns || !columns.length) return;
         trackEl.style.transform = 'none';
-        const headerFs = Math.round(11 * Math.min(1.25, Math.max(0.8, transform.k)));
+        const headerFs = Math.max(10, Math.round(11 * Math.min(1.15, Math.max(0.95, transform.k))));
         const labels = trackEl.querySelectorAll('.jp-org-chart-col-label');
         columns.forEach((col, i) => {
             const el = labels[i];
@@ -638,14 +675,43 @@
                 pill.select('.jp-org-tree-pill-rect').attr('stroke-width', pillStroke);
             }
 
+            pill.select('.jp-org-tree-pill-rect').style('pointer-events', 'none');
+            pill.selectAll('text').style('pointer-events', 'none');
+
+            const hit = pill.append('rect')
+                .attr('class', 'jp-org-tree-pill-hit')
+                .attr('x', 0)
+                .attr('y', -pillH / 2)
+                .attr('width', innerPillW)
+                .attr('height', pillH)
+                .attr('fill', 'transparent')
+                .attr('rx', PILL_RX)
+                .attr('ry', PILL_RX)
+                .style('cursor', 'pointer');
+
             if (isExpandable) {
-                pill.style('cursor', 'pointer').on('click', (ev) => {
-                    if (ev.defaultPrevented) return;
+                hit.on('click', (ev) => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
                     togglePosition(pKey);
                 });
+            } else if (level === 'employee') {
+                hit.on('click', (ev) => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    showEmployeeAvatar(d.data);
+                }).on('dblclick', (ev) => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    const editUrl = urls.userEdit && d.data.user_id
+                        ? urls.userEdit.replace('{id}', String(d.data.user_id))
+                        : null;
+                    if (editUrl) window.location.href = editUrl;
+                });
             } else if (href) {
-                pill.style('cursor', 'pointer').on('click', (ev) => {
+                hit.on('click', (ev) => {
                     if (ev.defaultPrevented) return;
+                    ev.stopPropagation();
                     window.location.href = href;
                 });
             }
@@ -714,9 +780,15 @@
             const hint = level === 'employee'
                 ? `${d.data.name}${d.data.subtitle ? ` (${d.data.subtitle})` : ''}`
                 : `${d.data.name} — ${d.data.count ?? 0} NV`;
-            pill.append('title').text(
-                isExpandable ? `${hint} — bấm để ${expanded ? 'đóng' : 'mở'} danh sách NV` : hint,
-            );
+            if (level === 'employee') {
+                pill.append('title').text(
+                    `${hint} — bấm xem avatar, double-click sửa hồ sơ`,
+                );
+            } else {
+                pill.append('title').text(
+                    isExpandable ? `${hint} — bấm để ${expanded ? 'đóng' : 'mở'} danh sách NV` : hint,
+                );
+            }
         });
 
         chartState.headerSync = {
@@ -735,8 +807,7 @@
             .filter((event) => {
                 if (event.type === 'wheel') return true;
                 if (event.type === 'dblclick') return false;
-                const t = event.target;
-                if (t && t.closest && t.closest('.jp-org-tree-action-link')) return false;
+                if (isOrgTreeInteractiveTarget(event.target)) return false;
                 return true;
             })
             .on('zoom', (event) => scheduleZoomApply(headerTrack, zoomRoot, event.transform));
@@ -775,9 +846,7 @@
 
         if (!chartState.fullData) {
             chartState.fullData = JSON.parse(JSON.stringify(window.JP_ORG_TREE));
-            const keys = new Set();
-            collectPositionKeys(chartState.fullData, keys);
-            chartState.collapsed = keys;
+            chartState.collapsed = new Set();
         }
         chartState.urls = window.JP_ORG_URLS || {};
 

@@ -722,6 +722,32 @@ class OrgStructureTreemapTests(TestCase):
         self.assertContains(response, 'Xóa bộ phận')
         self.assertNotContains(response, 'đang có <strong>1</strong> nhân viên')
 
+    def test_org_tree_employee_has_avatar_url_field(self):
+        from hrm.org_structure import build_org_tree, build_org_treemap
+
+        div = Division.objects.get(name='ORG-DIV-1')
+        user = User.objects.create_user(username='orgav1', password='x')
+        Profile.objects.update_or_create(
+            user=user,
+            defaults={
+                'full_name': 'NV Avatar',
+                'department': self.dept,
+                'division': div,
+                'job_position': 'ORG-EMP-POS',
+                'is_employed': True,
+            },
+        )
+        tree = build_org_tree(build_org_treemap())
+        dept = next(c for c in tree['children'] if c.get('id') == self.dept.pk)
+        div_node = next(c for c in dept['children'] if c.get('name') == 'ORG-DIV-1')
+        emp = next(
+            (c for pos in div_node['children'] for c in pos.get('children', [])
+             if c.get('name') == 'NV Avatar'),
+            None,
+        )
+        self.assertIsNotNone(emp)
+        self.assertIn('avatar_url', emp)
+
     def test_org_tree_includes_employee_children(self):
         from hrm.models import DivisionPosition
 
