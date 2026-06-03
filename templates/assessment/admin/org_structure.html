@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/justplay-theme.css' %}?v=20260529d">
+<link rel="stylesheet" href="{% static 'css/justplay-theme.css' %}?v=20260530c">
 {% endblock %}
 
 {% block content %}
@@ -15,7 +15,7 @@
             <nav aria-label="breadcrumb" class="d-none d-md-block">
                 <ol class="breadcrumb mb-0 small">
                     <li class="breadcrumb-item"><a href="{% url 'user_list' %}" class="text-decoration-none text-muted">Nhân sự</a></li>
-                    <li class="breadcrumb-item active fw-bold text-hm">Sơ đồ cây ngang</li>
+                    <li class="breadcrumb-item active fw-bold text-hm">Sơ đồ tổ chức</li>
                 </ol>
             </nav>
         </div>
@@ -24,8 +24,11 @@
                 <i class="bi bi-people-fill"></i><span class="jp-hrm-tool-label"> Nhân sự</span>
             </a>
             {% if treemap and not migration_required %}
-            <button type="button" class="btn btn-outline-dark fw-bold shadow-sm jp-hrm-tool-btn" data-bs-toggle="collapse" data-bs-target="#org-manage-panel" aria-expanded="false" aria-controls="org-manage-panel">
-                <i class="bi bi-table"></i><span class="jp-hrm-tool-label"> Quản lý qua bảng</span>
+            <button type="button" class="btn btn-outline-hm fw-bold shadow-sm jp-hrm-tool-btn" data-bs-toggle="modal" data-bs-target="#orgImportExcelModal" title="Import nhân viên từ Excel">
+                <i class="bi bi-file-earmark-excel-fill"></i><span class="jp-hrm-tool-label"> Import Excel</span>
+            </button>
+            <button type="button" class="btn btn-outline-dark fw-bold shadow-sm jp-hrm-tool-btn" id="org-manage-toggle" data-bs-toggle="collapse" data-bs-target="#org-manage-panel" aria-expanded="false" aria-controls="org-manage-panel">
+                <i class="bi bi-pencil-square"></i><span class="jp-hrm-tool-label"> Cập nhật sơ đồ</span>
             </button>
             {% endif %}
             <a href="{% url 'department_add' %}" class="btn btn-hm shadow-sm text-white fw-bold jp-hrm-tool-btn jp-hrm-tool-btn-primary">
@@ -41,7 +44,7 @@
         <div class="jp-org-legend small text-muted">
             <span><i class="bi bi-arrows-move text-hm"></i> Kéo để di chuyển</span>
             <span class="ms-2"><i class="bi bi-zoom-in text-hm"></i> Cuộn chuột để phóng to</span>
-            <span class="ms-2 d-none d-md-inline">Bấm ô để sửa · Sơ đồ tự giãn theo chiều ngang màn hình</span>
+            <span class="ms-2 d-none d-md-inline">Bấm <strong>Vị trí</strong> (▶) mở NV · Nút <strong>+</strong> thêm NV</span>
         </div>
     </div>
 
@@ -70,7 +73,7 @@
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-white py-3 border-bottom">
                 <h5 class="mb-0 fw-bold text-dark">
-                    <i class="bi bi-table text-hm me-2"></i>Quản lý qua bảng
+                    <i class="bi bi-pencil-square text-hm me-2"></i>Cập nhật sơ đồ
                 </h5>
             </div>
             <div class="table-responsive">
@@ -86,10 +89,11 @@
                     </thead>
                     <tbody>
                         {% for dept in manage_departments %}
-                            {% for div in dept.divisions.all %}
+                            {% with dept_divisions=dept.divisions.all %}
+                            {% for div in dept_divisions %}
                             <tr>
                                 {% if forloop.first %}
-                                <td class="ps-4 fw-semibold align-top" rowspan="{{ dept.divisions.count }}">
+                                <td class="ps-4 fw-semibold align-top" rowspan="{{ dept_divisions|length }}">
                                     <a href="{% url 'department_edit' dept.pk %}" class="text-decoration-none text-dark">{{ dept.name }}</a>
                                     {% if not dept.is_active %}<span class="badge bg-secondary-subtle text-secondary ms-1">Ngưng</span>{% endif %}
                                     <div class="mt-1 d-flex flex-wrap gap-1">
@@ -99,8 +103,8 @@
                                         <a href="{% url 'department_delete' dept.pk %}" class="btn btn-sm btn-outline-danger py-0" title="Xóa"><i class="bi bi-trash"></i></a>
                                     </div>
                                 </td>
-                                <td class="text-center align-top" rowspan="{{ dept.divisions.count }}">
-                                    <span class="badge bg-light text-dark border">{{ dept.staff_count }}</span>
+                                <td class="text-center align-top" rowspan="{{ dept_divisions|length }}">
+                                    <span class="badge bg-light text-dark border">{{ dept.staff_count|default:0 }}</span>
                                 </td>
                                 {% endif %}
                                 <td class="fw-medium align-top {% if not div.is_active %}text-muted{% endif %}">
@@ -131,13 +135,14 @@
                             {% empty %}
                             <tr>
                                 <td class="ps-4 fw-semibold">{{ dept.name }}</td>
-                                <td class="text-center"><span class="badge bg-light text-dark border">{{ dept.staff_count }}</span></td>
+                                <td class="text-center"><span class="badge bg-light text-dark border">{{ dept.staff_count|default:0 }}</span></td>
                                 <td colspan="2" class="text-muted small">Chưa có bộ phận</td>
                                 <td class="text-end pe-4">
                                     <a href="{% url 'division_add' %}?department={{ dept.pk }}" class="btn btn-sm btn-outline-hm">+ Bộ phận</a>
                                 </td>
                             </tr>
                             {% endfor %}
+                            {% endwith %}
                         {% empty %}
                         <tr>
                             <td colspan="5" class="text-center py-4 text-muted">
@@ -148,8 +153,8 @@
                         {% for div in manage_unassigned %}
                         <tr class="table-warning">
                             {% if forloop.first %}
-                            <td class="ps-4 fw-semibold align-top" rowspan="{{ manage_unassigned.count }}">Chưa gán phòng ban</td>
-                            <td class="text-center align-top" rowspan="{{ manage_unassigned.count }}">—</td>
+                            <td class="ps-4 fw-semibold align-top" rowspan="{{ manage_unassigned|length }}">Chưa gán phòng ban</td>
+                            <td class="text-center align-top" rowspan="{{ manage_unassigned|length }}">—</td>
                             {% endif %}
                             <td class="fw-medium align-top">{{ div.name }}</td>
                             <td class="small align-top">
@@ -176,6 +181,42 @@
     </div>
     {% endif %}
 
+    {% if treemap and not migration_required %}
+    <div class="modal fade" id="orgImportExcelModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <form action="{% url 'user_import_excel' %}" method="post" enctype="multipart/form-data" class="modal-content border-0 shadow-lg">
+                {% csrf_token %}
+                <input type="hidden" name="return_to" value="org">
+                <div class="modal-header bg-dark text-white p-3 p-md-4">
+                    <h5 class="modal-title fw-bold mb-0"><i class="bi bi-file-earmark-excel me-2 text-success"></i>Import nhân viên vào sơ đồ</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-3 p-md-4">
+                    <div class="text-center p-3 mb-3 border border-2 border-dashed rounded bg-light">
+                        <p class="small text-muted mb-2 fw-bold">Bước 1 — Tải file mẫu (5 sheet: nhập liệu + danh mục PB/BP/Vị trí + hướng dẫn)</p>
+                        <a href="{% url 'user_download_template' %}" class="btn btn-hm btn-sm px-4 shadow-sm">
+                            <i class="bi bi-cloud-arrow-down-fill me-1"></i> Tải Excel mẫu
+                        </a>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label fw-bold small text-muted text-uppercase">Bước 2 — Chọn file đã điền</label>
+                        <input type="file" name="excel_file" class="form-control form-control-lg" accept=".xlsx,.xls" required>
+                    </div>
+                    <ul class="small text-muted mt-3 mb-0 ps-3">
+                        <li>Bắt buộc <strong>Họ và tên</strong>; <strong>Phòng ban · Bộ phận · Vị trí</strong> khớp sheet danh mục.</li>
+                        <li>Trùng Account/Mã NS → cập nhật; thiếu vị trí trong danh mục → tự tạo khi import.</li>
+                        <li>Sau import, bấm ô <strong>Vị trí</strong> trên sơ đồ để xem nhân viên.</li>
+                    </ul>
+                </div>
+                <div class="modal-footer border-0 p-3 p-md-4 pt-0">
+                    <button type="button" class="btn btn-light fw-bold" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-hm fw-bold px-4">Xử lý import</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
     <p class="text-muted small mt-3 mb-0">
         <i class="bi bi-info-circle text-hm me-1"></i>
         {% if treemap %}{{ treemap.position_hint }}{% endif %}
@@ -186,6 +227,16 @@
 {{ org_tree|json_script:"jp-org-tree-data" }}
 {{ org_urls|json_script:"jp-org-urls-data" }}
 <script src="{% static 'vendor/d3.min.js' %}?v=7.9.0"></script>
-<script src="{% static 'js/org_tree.js' %}?v=20260529d"></script>
+<script src="{% static 'js/org_tree.js' %}?v=20260530c"></script>
+<script>
+(function () {
+    var panel = document.getElementById('org-manage-panel');
+    var toggle = document.getElementById('org-manage-toggle');
+    if (!panel || !toggle) return;
+    panel.addEventListener('shown.bs.collapse', function () {
+        panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+})();
+</script>
 {% endif %}
 {% endblock %}

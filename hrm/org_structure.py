@@ -12,6 +12,13 @@ from hrm.permissions import ROLE_DIRECTOR
 ORG_EXECUTIVE_LABEL = 'Giám đốc điều hành'
 ORG_COMPANY_ROOT = 'Công ty TNHH Just Play'
 MAX_POSITIONS_PER_DIVISION = 12
+MAX_EMPLOYEES_PER_POSITION = 80
+
+
+def position_node_key(division_id: int, position_name: str, position_id: int | None = None) -> str:
+    if position_id:
+        return f'id:{position_id}'
+    return f'div:{division_id}:pos:{position_name}'
 
 
 @dataclass
@@ -118,8 +125,8 @@ def build_org_treemap() -> OrgTreemapContext:
         departments=dept_nodes,
         unassigned_divisions=unassigned,
         position_hint=(
-            'Vị trí: thêm từ nút + trên bộ phận trong sơ đồ hoặc gán khi thêm nhân viên. '
-            'Tên vị trí trùng với hồ sơ NV sẽ gộp số lượng.'
+            'Bấm ô Vị trí để mở/đóng danh sách nhân viên. Nút + trên vị trí = thêm NV; '
+            'Import Excel gán theo Phòng ban · Bộ phận · Vị trí.'
         ),
     )
 
@@ -130,6 +137,36 @@ def _staff_counts_by_position(department_id: int | None, division_id: int) -> di
         qs = qs.filter(department_id=department_id)
     rows = qs.values('job_position').annotate(count=Count('id'))
     return {row['job_position']: row['count'] for row in rows}
+
+
+def _employee_nodes(
+    department_id: int | None,
+    division_id: int,
+    position_name: str,
+) -> list[dict]:
+    qs = Profile.objects.filter(
+        is_employed=True,
+        division_id=division_id,
+        job_position__iexact=position_name,
+    ).select_related('user').order_by('employee_code', 'full_name')
+    if department_id:
+        qs = qs.filter(department_id=department_id)
+    return [
+        {
+            'name': (p.full_name or p.user.first_name or p.user.username or '').strip(),
+            'subtitle': (p.employee_code or '').strip(),
+            'count': 0,
+            'level': 'employee',
+            'id': p.user_id,
+            'user_id': p.user_id,
+            'employee_code': p.employee_code or '',
+            'dept_id': department_id,
+            'division_id': division_id,
+            'position_name': position_name,
+            'children': [],
+        }
+        for p in qs[:MAX_EMPLOYEES_PER_POSITION]
+    ]
 
 
 def _position_children(department_id: int | None, division_id: int) -> list[dict]:
@@ -151,7 +188,8 @@ def _position_children(department_id: int | None, division_id: int) -> list[dict
             'division_id': division_id,
             'dept_id': department_id,
             'is_defined': True,
-            'children': [],
+            'position_key': position_node_key(division_id, pos.name, pos.pk),
+            'children': _employee_nodes(department_id, division_id, pos.name),
         })
 
     extras = sorted(
@@ -169,7 +207,8 @@ def _position_children(department_id: int | None, division_id: int) -> list[dict
             'division_id': division_id,
             'dept_id': department_id,
             'is_defined': False,
-            'children': [],
+            'position_key': position_node_key(division_id, name, None),
+            'children': _employee_nodes(department_id, division_id, name),
         })
     return out[:MAX_POSITIONS_PER_DIVISION]
 
@@ -236,7 +275,8 @@ def filter_org_tree(node: dict, query: str) -> dict | None:
         return node
 
     name = (node.get('name') or '').lower()
-    matched = q in name
+    subtitle = (node.get('subtitle') or '').lower()
+    matched = q in name or (subtitle and q in subtitle)
     kids = []
     for child in node.get('children') or []:
         kept = filter_org_tree(child, q)

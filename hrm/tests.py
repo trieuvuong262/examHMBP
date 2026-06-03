@@ -630,6 +630,10 @@ class OrgStructureTreemapTests(TestCase):
         self.assertContains(response, 'ORG-DEPT-A')
         self.assertContains(response, 'org_tree.js')
         self.assertContains(response, 'org-manage-panel')
+        self.assertContains(response, 'Cập nhật sơ đồ')
+        self.assertContains(response, 'Sơ đồ tổ chức')
+        self.assertNotContains(response, 'Quản lý qua bảng')
+        self.assertNotContains(response, 'Sơ đồ cây ngang')
         self.assertContains(response, 'jp-org-chart-headers-bar')
         self.assertContains(response, 'Phòng ban')
         self.assertContains(response, 'jp-org-urls-data')
@@ -654,6 +658,32 @@ class OrgStructureTreemapTests(TestCase):
         })
         self.assertTrue(form_b.is_valid())
 
+    def test_org_tree_includes_employee_children(self):
+        from hrm.models import DivisionPosition
+
+        div = Division.objects.get(name='ORG-DIV-1')
+        DivisionPosition.objects.create(
+            division=div,
+            department=self.dept,
+            name='ORG-EMP-POS',
+        )
+        user = User.objects.create_user(username='orgemp1', password='x', first_name='Emp One')
+        Profile.objects.update_or_create(
+            user=user,
+            defaults={
+                'full_name': 'Nhân viên Org Test',
+                'employee_code': 'OE1',
+                'department': self.dept,
+                'division': div,
+                'job_position': 'ORG-EMP-POS',
+                'is_employed': True,
+            },
+        )
+        response = self.client.get(reverse('org_structure'))
+        self.assertContains(response, '"level": "employee"')
+        self.assertContains(response, 'OE1')
+        self.assertContains(response, 'ORG-EMP-POS')
+
     def test_division_position_in_org_tree(self):
         from hrm.models import DivisionPosition
 
@@ -666,6 +696,18 @@ class OrgStructureTreemapTests(TestCase):
         response = self.client.get(reverse('org_structure'))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'ORG-POS-QC')
+
+    def test_import_template_multisheet(self):
+        from io import BytesIO
+
+        from openpyxl import load_workbook
+
+        response = self.client.get(reverse('user_download_template'))
+        self.assertEqual(response.status_code, 200)
+        wb = load_workbook(BytesIO(response.content))
+        self.assertIn('Nhap_lieu', wb.sheetnames)
+        self.assertIn('Phong_ban', wb.sheetnames)
+        self.assertIn('Huong_dan', wb.sheetnames)
 
     def test_org_position_add_get(self):
         div = Division.objects.get(name='ORG-DIV-1')

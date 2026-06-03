@@ -481,6 +481,7 @@ def user_import_excel(request):
                                 continue
 
                         profile_defaults = profile_defaults_from_import(data)
+                        _ensure_division_position_from_profile(profile_defaults)
 
                         existing_user.first_name = full_name
                         email = data.get('email', '').strip()
@@ -519,10 +520,12 @@ def user_import_excel(request):
                         first_name=full_name,
                         is_staff=False,
                     )
+                    new_defaults = profile_defaults_from_import(data)
+                    _ensure_division_position_from_profile(new_defaults)
                     Profile.objects.update_or_create(
                         user=user,
                         defaults={
-                            **profile_defaults_from_import(data),
+                            **new_defaults,
                             'must_change_password': True,
                         },
                     )
@@ -536,6 +539,8 @@ def user_import_excel(request):
         except Exception as e:
             messages.error(request, f'Lỗi hệ thống khi xử lý file: {str(e)}')
 
+    if request.POST.get('return_to') == 'org':
+        return redirect('org_structure')
     return redirect('user_list')
 
 @admin_only
@@ -570,30 +575,31 @@ def user_export_excel(request):
     return response
 
 
+def _ensure_division_position_from_profile(profile_defaults: dict) -> None:
+    """Tạo vị trí danh mục khi import NV có bộ phận + tên vị trí."""
+    division = profile_defaults.get('division')
+    job_position = (profile_defaults.get('job_position') or '').strip()
+    if not division or not job_position:
+        return
+    from hrm.models import DivisionPosition
+
+    DivisionPosition.objects.get_or_create(
+        division=division,
+        name=job_position,
+        defaults={
+            'department': profile_defaults.get('department') or division.department,
+            'is_active': True,
+        },
+    )
+
+
 @admin_only
 def user_download_template(request):
-    sample_rows = [
-        {
-            'Mã NS': 'NV001', 'Họ và tên': 'Nguyễn Văn An', 'Account': 'Annt',
-            'Phòng ban': 'SẢN XUẤT', 'Bộ phận': 'QC', 'Vị trí': 'Công nhân may',
-            'Chức vụ': 'Nhân viên', 'Ngày vào': '01/01/2026', 'Ngày sinh': '15/05/1995',
-            'Giới tính': 'Nam', 'password': 'JustPlay@123', 'email': 'annt@justplay.vn',
-        },
-        {
-            'Mã NS': 'NV002', 'Họ và tên': 'Trần Thị Bình', 'Account': '',
-            'Phòng ban': 'ĐẢM BẢO CHẤT LƯỢNG', 'Bộ phận': 'QC', 'Vị trí': 'Nhân viên QC',
-            'Chức vụ': 'Nhân viên', 'Ngày vào': '', 'Ngày sinh': '20/08/1998',
-            'Giới tính': 'Nữ', 'password': '', 'email': '',
-        },
-    ]
-    df = pd.DataFrame(sample_rows, columns=EXCEL_ALL_HEADERS)
+    from hrm.excel_template import build_import_template_xlsx
 
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name='Template_Import')
-
+    content = build_import_template_xlsx()
     response = HttpResponse(
-        output.getvalue(),
+        content,
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
     response['Content-Disposition'] = 'attachment; filename=Mau_Import_Nhan_Vien.xlsx'
@@ -676,16 +682,25 @@ def org_structure(request):
         'divDelete': _pat('division_delete'),
         'positionEdit': _pat('org_position_edit'),
         'positionDelete': _pat('org_position_delete'),
+        'userEdit': _pat('user_edit'),
+        'userImport': reverse('user_import_excel'),
+        'importTemplate': reverse('user_download_template'),
     }
 
     position_qs = DivisionPosition.objects.filter(is_active=True).order_by('sort_order', 'name')
-    division_manage_qs = Division.objects.prefetch_related(
+    division_manage_qs = Division.objects.annotate(
+        staff_count=Count('division_profiles', distinct=True),
+    ).prefetch_related(
         Prefetch('positions', queryset=position_qs),
     ).order_by('sort_order', 'name')
-    manage_departments = Department.objects.prefetch_related(
+    manage_departments = Department.objects.annotate(
+        staff_count=Count('profiles', distinct=True),
+    ).prefetch_related(
         Prefetch('divisions', queryset=division_manage_qs),
     ).order_by('sort_order', 'name')
-    manage_unassigned = Division.objects.filter(department__isnull=True).prefetch_related(
+    manage_unassigned = Division.objects.filter(department__isnull=True).annotate(
+        staff_count=Count('division_profiles', distinct=True),
+    ).prefetch_related(
         Prefetch('positions', queryset=position_qs),
     ).order_by('sort_order', 'name')
 

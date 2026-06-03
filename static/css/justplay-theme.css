@@ -3227,6 +3227,11 @@ textarea.form-control {
     display: block;
 }
 
+.jp-org-tree-svg text {
+    text-rendering: geometricPrecision;
+    -webkit-font-smoothing: antialiased;
+}
+
 .jp-org-tree-pan-surface {
     cursor: grab;
 }
@@ -3384,16 +3389,42 @@ textarea.form-control {
 
 .jp-org-tree-node--position .jp-org-tree-pill-rect {
     fill: #f8fafc;
-    stroke: #cbd5e1;
+    stroke: #94a3b8;
 }
 
 .jp-org-tree-node--position .jp-org-tree-pill-label {
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 700;
 }
 
-.jp-org-tree-node--position .jp-org-tree-pill-rect {
-    stroke: #94a3b8;
+.jp-org-tree-node--position.is-expanded .jp-org-tree-pill-rect {
+    stroke: #0d9488;
+    stroke-width: 2;
+}
+
+.jp-org-tree-expand-icon {
+    font-family: Inter, system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    fill: #0f766e;
+    pointer-events: none;
+}
+
+.jp-org-tree-node--employee .jp-org-tree-pill-rect {
+    fill: #f8fafc;
+    stroke: #cbd5e1;
+    filter: drop-shadow(0 1px 3px rgba(15, 23, 42, 0.06));
+}
+
+.jp-org-tree-node--employee .jp-org-tree-pill-label {
+    font-size: 11px;
+    font-weight: 600;
+    fill: #334155;
+}
+
+.jp-org-tree-node--employee .jp-org-tree-pill-sub {
+    font-size: 9px;
+    fill: #64748b;
 }
 
 .jp-org-tree-node--unassigned .jp-org-tree-pill-rect {

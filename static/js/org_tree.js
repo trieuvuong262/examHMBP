@@ -1,34 +1,49 @@
 /**
- * Sơ đồ cây ngang — Công ty → Phòng ban → Bộ phận → Vị trí (D3).
- * Kéo / zoom; header cột HTML; bấm ô để sửa.
+ * Sơ đồ cây ngang — Công ty → PB → BP → Vị trí → Nhân viên (ẩn/mở).
  */
 (function () {
     'use strict';
 
-    /**
-     * Cấu hình chiều ngang — chỉnh trước khi deploy.
-     * nodeWMin/nodeWMax: khoảng cách giữa các cấp (Tổng → PB → BP → Vị trí).
-     * fillViewport: true = giãn cột lấp đầy chiều rộng màn hình (sơ đồ ngang).
-     */
     const LAYOUT = {
         nodeWMin: 300,
         nodeWMax: 520,
         fillViewport: true,
-        nodeH: 56,
+        nodeH: 50,
+        nodeHEmployee: 36,
         pillScale: 1.05,
-        chartPadRight: 80,
+        chartPadRight: 100,
     };
 
     const PILL_RX = 8;
-    const HEADER_H = 44;
-    const COLUMN_LABELS = ['Tổng / Giám đốc', 'Phòng ban', 'Bộ phận', 'Vị trí'];
+    const COLUMN_LABELS = [
+        'Tổng / Giám đốc',
+        'Phòng ban',
+        'Bộ phận',
+        'Vị trí',
+        'Nhân viên',
+    ];
+
+    const ZOOM = {
+        min: 0.5,
+        max: 2,
+        wheelFactor: 0.00065,
+    };
+
+    const chartState = {
+        collapsed: new Set(),
+        fullData: null,
+        urls: {},
+        savedTransform: null,
+        headerSync: null,
+        zoomRaf: null,
+    };
 
     function resolveNodeW(viewportWidth, maxDepth) {
         const levels = Math.max(maxDepth + 1, COLUMN_LABELS.length);
         if (!LAYOUT.fillViewport) {
             return LAYOUT.nodeWMin;
         }
-        const usable = Math.max(720, viewportWidth - 40);
+        const usable = Math.max(800, viewportWidth - 40);
         const perLevel = usable / levels;
         return Math.min(LAYOUT.nodeWMax, Math.max(LAYOUT.nodeWMin, perLevel));
     }
@@ -40,6 +55,9 @@
     function pillSize(level, hasSubtitle, nodeW) {
         const gap = Math.max(24, nodeW - 200);
         const s = LAYOUT.pillScale;
+        if (level === 'employee') {
+            return { w: Math.round(Math.max(160, nodeW - 28) * s), h: 32 };
+        }
         if (level === 'root') {
             return { w: Math.round((200 + gap * 0.5) * s), h: hasSubtitle ? 52 : 42 };
         }
@@ -47,7 +65,7 @@
             return { w: Math.round((188 + gap * 0.45) * s), h: 44 };
         }
         if (level === 'position') {
-            return { w: Math.round(Math.max(nodeW - 12, 220 + gap * 0.7) * s), h: 36 };
+            return { w: Math.round(Math.max(nodeW - 12, 220 + gap * 0.7) * s), h: 40 };
         }
         return { w: Math.round((178 + gap * 0.5) * s), h: 40 };
     }
@@ -58,7 +76,8 @@
             const { w: pillW } = pillSize(level, !!d.data.subtitle, nodeW);
             const actions = buildActions(d.data, urls);
             const actionW = actions.length ? actions.length * 22 + 8 : 0;
-            return d.y + pillW + actionW;
+            const chevron = level === 'position' ? 14 : 0;
+            return d.y + pillW + actionW + chevron;
         }) ?? 0;
     }
 
@@ -85,24 +104,42 @@
         return u;
     }
 
+    function positionKey(nodeData) {
+        return nodeData.position_key
+            || `div:${nodeData.division_id}:pos:${nodeData.name}`;
+    }
+
+    function collectPositionKeys(node, keys) {
+        if (node.level === 'position' && node.position_key) {
+            keys.add(node.position_key);
+        }
+        (node.children || []).forEach((c) => collectPositionKeys(c, keys));
+    }
+
+    function cloneWithCollapse(tree, collapsed) {
+        const copy = JSON.parse(JSON.stringify(tree));
+        function walk(n) {
+            if (n.level === 'position' && collapsed.has(n.position_key)) {
+                n.children = [];
+            } else {
+                (n.children || []).forEach(walk);
+            }
+        }
+        walk(copy);
+        return copy;
+    }
+
     function primaryHref(nodeData, urls) {
         const level = nodeData.level;
         const id = nodeData.id;
+        if (level === 'employee' && (nodeData.user_id || id) && urls.userEdit) {
+            return urls.userEdit.replace('{id}', String(nodeData.user_id || id));
+        }
         if (level === 'department' && id && urls.deptEdit) {
             return urls.deptEdit.replace('{id}', String(id));
         }
         if (level === 'division' && id && urls.divEdit) {
             return urls.divEdit.replace('{id}', String(id));
-        }
-        if (level === 'position' && id && urls.positionEdit) {
-            return urls.positionEdit.replace('{id}', String(id));
-        }
-        if (level === 'position' && urls.userAdd) {
-            return fillUrl(urls.userAdd, {
-                dept_id: nodeData.dept_id || '',
-                div_id: nodeData.division_id || '',
-                position: nodeData.name || '',
-            });
         }
         if (level === 'root' && urls.userList) {
             return urls.userList;
@@ -149,12 +186,6 @@
         }
 
         if (level === 'position') {
-            if (id && urls.positionEdit) {
-                out.push({ href: urls.positionEdit.replace('{id}', String(id)), title: 'Sửa vị trí', glyph: '✎' });
-            }
-            if (id && urls.positionDelete) {
-                out.push({ href: urls.positionDelete.replace('{id}', String(id)), title: 'Xóa vị trí', glyph: '×', danger: true });
-            }
             if (urls.userAdd && divId) {
                 out.push({
                     href: fillUrl(urls.userAdd, {
@@ -166,10 +197,12 @@
                     glyph: '+',
                 });
             }
-        }
-
-        if (level === 'root' && urls.userList) {
-            out.push({ href: urls.userList, title: 'Nhân sự', glyph: 'NS' });
+            if (id && urls.positionEdit) {
+                out.push({ href: urls.positionEdit.replace('{id}', String(id)), title: 'Sửa danh mục vị trí', glyph: '✎' });
+            }
+            if (id && urls.positionDelete) {
+                out.push({ href: urls.positionDelete.replace('{id}', String(id)), title: 'Xóa vị trí', glyph: '×', danger: true });
+            }
         }
 
         return out;
@@ -203,53 +236,90 @@
             el.style.left = `${marginLeft + col.x}px`;
             el.style.width = `${col.w}px`;
             el.textContent = col.label;
-            el.setAttribute('data-depth', String(col.depth));
             trackEl.appendChild(el);
         });
     }
 
-    function applySyncedTransform(trackEl, zoomRoot, transform) {
-        if (trackEl) {
-            trackEl.style.transform = `translate(${transform.x}px, 0px) scale(${transform.k}, 1)`;
-            trackEl.style.transformOrigin = '0 0';
-        }
-        zoomRoot.attr('transform', transform);
+    function syncHeaderColumns(trackEl, columns, marginLeft, transform) {
+        if (!trackEl || !columns || !columns.length) return;
+        trackEl.style.transform = 'none';
+        const labels = trackEl.querySelectorAll('.jp-org-chart-col-label');
+        columns.forEach((col, i) => {
+            const el = labels[i];
+            if (!el) return;
+            const left = transform.x + transform.k * (marginLeft + col.x);
+            el.style.left = `${left}px`;
+            el.style.width = `${transform.k * col.w}px`;
+        });
     }
 
-    window.jpOrgTreeInit = function jpOrgTreeInit() {
-        const mount = document.getElementById('jp-org-tree-mount');
-        const headerTrack = document.getElementById('jp-org-headers-track');
-        if (!mount) return;
+    /** Giữ chữ/nét ổn định khi zoom — bù scale của nhóm zoom. */
+    function applyCrispZoomStyles(zoomRoot, k) {
+        const inv = 1 / k;
+        zoomRoot.selectAll('[data-base-fs]').each(function () {
+            const base = Number(this.getAttribute('data-base-fs')) || 13;
+            d3.select(this).style('font-size', `${base * inv}px`);
+        });
+        zoomRoot.selectAll('[data-base-sw]').each(function () {
+            const base = Number(this.getAttribute('data-base-sw')) || 1.5;
+            d3.select(this).attr('stroke-width', base * inv);
+        });
+        zoomRoot.selectAll('.jp-org-tree-link').attr('stroke-width', 2 * inv);
+        const heavyFilter = k < 0.55 || k > 1.85;
+        zoomRoot.selectAll('.jp-org-tree-pill-rect')
+            .style('filter', heavyFilter ? 'none' : null);
+    }
 
-        if (typeof d3 === 'undefined') {
-            showError(mount, 'Không tải được thư viện D3. Tải lại trang hoặc liên hệ IT.');
-            return;
+    function clampTransform(transform) {
+        const k = Math.max(ZOOM.min, Math.min(ZOOM.max, transform.k));
+        if (k === transform.k) return transform;
+        return d3.zoomIdentity.translate(transform.x, transform.y).scale(k);
+    }
+
+    function applySyncedTransform(trackEl, zoomRoot, transform) {
+        transform = clampTransform(transform);
+        zoomRoot.attr('transform', transform);
+        chartState.savedTransform = transform;
+        const sync = chartState.headerSync;
+        if (sync) {
+            syncHeaderColumns(trackEl || sync.trackEl, sync.columns, sync.marginLeft, transform);
         }
-        if (!window.JP_ORG_TREE) {
-            showError(mount, 'Không có dữ liệu sơ đồ. Tải lại trang.');
-            return;
+        applyCrispZoomStyles(zoomRoot, transform.k);
+    }
+
+    function scheduleZoomApply(trackEl, zoomRoot, transform) {
+        chartState.pendingTransform = transform;
+        if (chartState.zoomRaf) return;
+        chartState.zoomRaf = requestAnimationFrame(() => {
+            chartState.zoomRaf = null;
+            applySyncedTransform(trackEl, zoomRoot, chartState.pendingTransform);
+        });
+    }
+
+    function togglePosition(key) {
+        if (chartState.collapsed.has(key)) {
+            chartState.collapsed.delete(key);
+        } else {
+            chartState.collapsed.add(key);
         }
+        window.jpOrgTreeInit();
+    }
 
-        mount.innerHTML = '';
-        const data = window.JP_ORG_TREE;
-        const urls = window.JP_ORG_URLS || {};
-        const margin = {
-            top: 16,
-            right: LAYOUT.chartPadRight,
-            bottom: 20,
-            left: 20,
-        };
-
+    function renderChart(mount, headerTrack, data, urls) {
+        const margin = { top: 16, right: LAYOUT.chartPadRight, bottom: 20, left: 20 };
         const vp = document.getElementById('jp-org-chart-viewport');
         const vpW = (vp && vp.clientWidth) || mount.clientWidth || 1200;
 
         const root = d3.hierarchy(data);
-        const maxDepth = d3.max(root.descendants(), (d) => d.depth) ?? 3;
+        const maxDepth = d3.max(root.descendants(), (d) => d.depth) ?? 4;
         const nodeW = resolveNodeW(vpW, maxDepth);
-
-        d3.tree()
+        const treeLayout = d3.tree()
             .nodeSize([LAYOUT.nodeH, nodeW])
-            .separation((a, b) => (a.parent === b.parent ? 1 : 1.06))(root);
+            .separation((a, b) => {
+                const eh = a.data.level === 'employee' || b.data.level === 'employee';
+                return a.parent === b.parent ? (eh ? 0.92 : 1) : 1.05;
+            });
+        treeLayout(root);
 
         const nodes = root.descendants();
         const links = root.links();
@@ -263,9 +333,8 @@
             ?? LAYOUT.nodeH;
         const innerH = yMax - yMin + maxPillH;
         const chartW = contentRight + 32;
-        const chartH = innerH;
         const svgW = chartW + margin.left + margin.right;
-        const svgH = chartH + margin.top + margin.bottom;
+        const svgH = innerH + margin.top + margin.bottom;
 
         const svg = d3.select(mount)
             .append('svg')
@@ -273,25 +342,9 @@
             .attr('width', svgW)
             .attr('height', svgH);
 
-        const defs = svg.append('defs');
-        defs.append('marker')
-            .attr('id', 'jp-org-arrow')
-            .attr('viewBox', '0 -4 8 8')
-            .attr('refX', 6)
-            .attr('refY', 0)
-            .attr('markerWidth', 6)
-            .attr('markerHeight', 6)
-            .attr('orient', 'auto')
-            .append('path')
-            .attr('d', 'M0,-4L8,0L0,4')
-            .attr('fill', '#94a3b8');
-
         const zoomRoot = svg.append('g').attr('class', 'jp-org-tree-zoom');
-
         zoomRoot.append('rect')
             .attr('class', 'jp-org-tree-pan-surface')
-            .attr('x', 0)
-            .attr('y', 0)
             .attr('width', svgW)
             .attr('height', svgH)
             .attr('fill', 'transparent');
@@ -326,8 +379,12 @@
             .data(nodes)
             .join('g')
             .attr('class', (d) => {
-                const clickable = primaryHref(d.data, urls) ? ' is-clickable' : '';
-                return `jp-org-tree-node jp-org-tree-node--${d.data.level || 'item'}${clickable}`;
+                const lvl = d.data.level || 'item';
+                const expanded = lvl === 'position' && !chartState.collapsed.has(positionKey(d.data));
+                let cls = `jp-org-tree-node jp-org-tree-node--${lvl}`;
+                if (primaryHref(d.data, urls)) cls += ' is-clickable';
+                if (lvl === 'position') cls += expanded ? ' is-expanded' : ' is-collapsed';
+                return cls;
             })
             .attr('transform', (d) => `translate(${d.y},${d.x})`);
 
@@ -338,84 +395,102 @@
             const { w: pillW, h: pillH } = pillSize(level, hasSub, nodeW);
             const href = primaryHref(d.data, urls);
             const actions = buildActions(d.data, urls);
+            const isPosition = level === 'position';
+            const pKey = isPosition ? positionKey(d.data) : '';
+            const expanded = isPosition && !chartState.collapsed.has(pKey);
 
-            const pill = sel.append('g')
-                .attr('class', 'jp-org-tree-pill')
-                .style('cursor', href ? 'pointer' : 'default');
+            const pill = sel.append('g').attr('class', 'jp-org-tree-pill');
+
+            const labelFs = level === 'employee' ? 11 : level === 'position' ? 12 : 13;
+            const subFs = level === 'employee' ? 9 : 10;
+            const pillStroke = level === 'root' ? 2 : level === 'position' && expanded ? 2 : 1.5;
+
+            if (isPosition) {
+                pill.append('text')
+                    .attr('class', 'jp-org-tree-expand-icon')
+                    .attr('data-base-fs', 11)
+                    .attr('x', 6)
+                    .attr('y', 5)
+                    .text(expanded ? '▼' : '▶');
+            }
 
             pill.append('rect')
                 .attr('class', 'jp-org-tree-pill-rect')
-                .attr('x', 0)
+                .attr('data-base-sw', pillStroke)
+                .attr('x', isPosition ? 18 : 0)
                 .attr('y', -pillH / 2)
-                .attr('width', pillW)
+                .attr('width', isPosition ? pillW - 18 : pillW)
                 .attr('height', pillH)
                 .attr('rx', PILL_RX)
                 .attr('ry', PILL_RX);
 
-            if (href) {
-                pill.on('click', (ev) => {
+            if (isPosition) {
+                pill.style('cursor', 'pointer').on('click', (ev) => {
+                    if (ev.defaultPrevented) return;
+                    togglePosition(pKey);
+                });
+            } else if (href) {
+                pill.style('cursor', 'pointer').on('click', (ev) => {
                     if (ev.defaultPrevented) return;
                     window.location.href = href;
                 });
             }
 
+            const labelX = isPosition ? 28 : 14;
             pill.append('text')
                 .attr('class', 'jp-org-tree-pill-label')
-                .attr('x', 14)
+                .attr('data-base-fs', labelFs)
+                .attr('x', labelX)
                 .attr('y', hasSub ? -2 : 5)
-                .text(truncate(d.data.name, level === 'position' ? 42 : 28));
+                .text(truncate(d.data.name, level === 'position' ? 38 : level === 'employee' ? 32 : 28));
 
             if (d.data.subtitle) {
                 pill.append('text')
                     .attr('class', 'jp-org-tree-pill-sub')
-                    .attr('x', 14)
+                    .attr('data-base-fs', subFs)
+                    .attr('x', labelX)
                     .attr('y', 14)
-                    .text(truncate(d.data.subtitle, 30));
+                    .text(truncate(d.data.subtitle, 28));
             }
 
-            const badgeW = 30;
-            const badgeH = 22;
-            const badgeX = pillW - badgeW - 8;
-            pill.append('rect')
-                .attr('class', 'jp-org-tree-pill-badge-bg')
-                .attr('x', badgeX)
-                .attr('y', -badgeH / 2)
-                .attr('width', badgeW)
-                .attr('height', badgeH)
-                .attr('rx', 5)
-                .attr('ry', 5);
-
-            pill.append('text')
-                .attr('class', 'jp-org-tree-pill-badge-txt')
-                .attr('x', badgeX + badgeW / 2)
-                .attr('y', 5)
-                .attr('text-anchor', 'middle')
-                .text(String(d.data.count ?? 0));
+            if (level !== 'employee') {
+                const badgeW = 30;
+                const badgeH = 22;
+                const badgeX = (isPosition ? 18 : 0) + pillW - 18 - badgeW;
+                pill.append('rect')
+                    .attr('class', 'jp-org-tree-pill-badge-bg')
+                    .attr('data-base-sw', 1)
+                    .attr('x', badgeX)
+                    .attr('y', -badgeH / 2)
+                    .attr('width', badgeW)
+                    .attr('height', badgeH)
+                    .attr('rx', 5)
+                    .attr('ry', 5);
+                pill.append('text')
+                    .attr('class', 'jp-org-tree-pill-badge-txt')
+                    .attr('data-base-fs', 10)
+                    .attr('x', badgeX + badgeW / 2)
+                    .attr('y', 5)
+                    .attr('text-anchor', 'middle')
+                    .text(String(d.data.count ?? 0));
+            }
 
             if (actions.length) {
+                const baseX = (isPosition ? 18 : 0) + pillW - 4;
                 const menu = sel.append('g')
                     .attr('class', 'jp-org-tree-actions')
-                    .attr('transform', `translate(${pillW - 4},${-pillH / 2 - 4})`);
-
+                    .attr('transform', `translate(${baseX},${-pillH / 2 - 4})`);
                 actions.forEach((act, i) => {
-                    const ag = menu.append('g')
-                        .attr('class', 'jp-org-tree-action')
-                        .attr('transform', `translate(${i * 22},0)`);
-
+                    const ag = menu.append('g').attr('transform', `translate(${i * 22},0)`);
                     const link = ag.append('a')
                         .attr('href', act.href)
                         .attr('class', `jp-org-tree-action-link${act.danger ? ' is-danger' : ''}`)
                         .attr('title', act.title)
-                        .attr('aria-label', act.title)
                         .on('click', (ev) => ev.stopPropagation());
-
-                    link.append('rect')
-                        .attr('class', 'jp-org-tree-action-bg')
-                        .attr('width', 20)
-                        .attr('height', 20)
-                        .attr('rx', 4);
+                    link.append('rect').attr('class', 'jp-org-tree-action-bg').attr('width', 20).attr('height', 20).attr('rx', 4);
                     link.append('text')
                         .attr('class', 'jp-org-tree-action-icon')
+                        .attr('data-base-fs', 11)
                         .attr('x', 10)
                         .attr('y', 14)
                         .attr('text-anchor', 'middle')
@@ -423,41 +498,77 @@
                 });
             }
 
-            pill.append('title').text(`${d.data.name} — ${d.data.count ?? 0} NV`);
+            const hint = level === 'employee'
+                ? `${d.data.name}${d.data.subtitle ? ` (${d.data.subtitle})` : ''}`
+                : `${d.data.name} — ${d.data.count ?? 0} NV`;
+            pill.append('title').text(isPosition ? `${hint} — bấm để ${expanded ? 'đóng' : 'mở'} danh sách NV` : hint);
         });
 
+        chartState.headerSync = {
+            trackEl: headerTrack,
+            columns,
+            marginLeft: margin.left,
+        };
+
         const zoom = d3.zoom()
-            .scaleExtent([0.35, 2.5])
+            .scaleExtent([ZOOM.min, ZOOM.max])
+            .wheelDelta((event) => {
+                const mode = event.deltaMode;
+                const scale = mode === 1 ? 0.05 : mode ? 1 : ZOOM.wheelFactor;
+                return -event.deltaY * scale;
+            })
             .filter((event) => {
                 if (event.type === 'wheel') return true;
                 if (event.type === 'dblclick') return false;
-                const target = event.target;
-                if (target && target.closest) {
-                    if (target.closest('.jp-org-tree-action-link')) return false;
-                }
+                const t = event.target;
+                if (t && t.closest && t.closest('.jp-org-tree-action-link')) return false;
                 return true;
             })
-            .on('zoom', (event) => {
-                applySyncedTransform(headerTrack, zoomRoot, event.transform);
-            });
+            .on('zoom', (event) => scheduleZoomApply(headerTrack, zoomRoot, event.transform));
 
         svg.call(zoom).on('dblclick.zoom', null);
 
-        if (headerTrack) {
-            headerTrack.style.minWidth = `${svgW}px`;
-        }
-        if (vp) {
-            vp.classList.toggle('jp-org-chart-viewport--wide', svgW > vpW);
-        }
+        if (headerTrack) headerTrack.style.minWidth = `${svgW}px`;
+        if (vp) vp.classList.toggle('jp-org-chart-viewport--wide', svgW > vpW);
 
-        // Chỉ thu nhỏ khi sơ đồ RỘNG HƠN khung; nếu còn dư chỗ ngang thì giữ scale = 1
-        const fitScale = svgW > vpW ? Math.max(0.35, (vpW - 32) / svgW) : 1;
-        const initial = d3.zoomIdentity
-            .translate(12, 8)
-            .scale(fitScale);
+        const fitScale = svgW > vpW
+            ? Math.max(ZOOM.min, Math.min(ZOOM.max, (vpW - 32) / svgW))
+            : 1;
+        let initial = chartState.savedTransform
+            || d3.zoomIdentity.translate(12, 8).scale(fitScale);
+        if (initial.k < ZOOM.min) initial = d3.zoomIdentity.translate(initial.x, initial.y).scale(ZOOM.min);
+        if (initial.k > ZOOM.max) initial = d3.zoomIdentity.translate(initial.x, initial.y).scale(ZOOM.max);
         svg.call(zoom.transform, initial);
+        applySyncedTransform(headerTrack, zoomRoot, initial);
 
         mount.classList.add('jp-org-tree-mount--ready');
+    }
+
+    window.jpOrgTreeInit = function jpOrgTreeInit() {
+        const mount = document.getElementById('jp-org-tree-mount');
+        const headerTrack = document.getElementById('jp-org-headers-track');
+        if (!mount) return;
+
+        if (typeof d3 === 'undefined') {
+            showError(mount, 'Không tải được thư viện D3.');
+            return;
+        }
+        if (!window.JP_ORG_TREE) {
+            showError(mount, 'Không có dữ liệu sơ đồ.');
+            return;
+        }
+
+        if (!chartState.fullData) {
+            chartState.fullData = JSON.parse(JSON.stringify(window.JP_ORG_TREE));
+            const keys = new Set();
+            collectPositionKeys(chartState.fullData, keys);
+            chartState.collapsed = keys;
+        }
+        chartState.urls = window.JP_ORG_URLS || {};
+
+        mount.innerHTML = '';
+        const data = cloneWithCollapse(chartState.fullData, chartState.collapsed);
+        renderChart(mount, headerTrack, data, chartState.urls);
     };
 
     function boot() {
@@ -470,6 +581,7 @@
                 console.error(e);
             }
         }
+        chartState.fullData = null;
         window.jpOrgTreeInit();
     }
 
