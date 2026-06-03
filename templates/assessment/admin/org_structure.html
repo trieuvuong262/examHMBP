@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/justplay-theme.css' %}?v=20260528d">
+<link rel="stylesheet" href="{% static 'css/justplay-theme.css' %}?v=20260528e">
 {% endblock %}
 
 {% block content %}
@@ -34,7 +34,7 @@
             {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tìm phòng ban / bộ phận / vị trí...' clear_url=org_structure_clear_url %}
         </form>
         <div class="jp-org-legend small text-muted">
-            <span><i class="bi bi-arrow-right text-hm"></i> Trái → phải · Công ty → Phòng ban → Bộ phận → Vị trí</span>
+            <span><i class="bi bi-arrow-right text-hm"></i> Trái → phải · Bấm ô phòng ban / bộ phận để sửa</span>
         </div>
     </div>
 
@@ -51,6 +51,93 @@
             </div>
         </div>
     </div>
+
+    {% if treemap %}
+    <div class="card border-0 shadow-sm mt-4" id="org-manage-tables">
+        <div class="card-header bg-white py-3 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <h5 class="mb-0 fw-bold text-dark">
+                <i class="bi bi-table text-hm me-2"></i>Quản lý qua bảng
+            </h5>
+            <span class="small text-muted">Sửa / xóa / thêm bộ phận như trước</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 jp-org-manage-table">
+                <thead class="bg-light text-uppercase small">
+                    <tr>
+                        <th class="ps-4 py-3 text-muted">Phòng ban</th>
+                        <th class="text-muted text-center">NV</th>
+                        <th class="text-muted">Bộ phận</th>
+                        <th class="text-muted text-center">NV</th>
+                        <th class="text-end pe-4 text-muted">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for dept in treemap.departments %}
+                        {% for div in dept.divisions %}
+                        <tr>
+                            {% if forloop.first %}
+                            <td class="ps-4 fw-semibold align-top" rowspan="{{ dept.divisions|length|default:1 }}">
+                                <a href="{% url 'department_edit' dept.pk %}" class="text-decoration-none text-dark">{{ dept.name }}</a>
+                                {% if not dept.is_active %}<span class="badge bg-secondary-subtle text-secondary ms-1">Ngưng</span>{% endif %}
+                                <div class="mt-1 d-flex flex-wrap gap-1">
+                                    <a href="{% url 'division_add' %}?department={{ dept.pk }}" class="btn btn-sm btn-outline-hm py-0" title="Thêm bộ phận"><i class="bi bi-plus-lg"></i></a>
+                                    <a href="{% url 'department_permissions' dept.pk %}" class="btn btn-sm btn-outline-secondary py-0" title="Phân quyền"><i class="bi bi-shield-lock"></i></a>
+                                    <a href="{% url 'department_edit' dept.pk %}" class="btn btn-sm btn-outline-hm py-0" title="Sửa phòng ban"><i class="bi bi-pencil-square"></i></a>
+                                    <a href="{% url 'department_delete' dept.pk %}" class="btn btn-sm btn-outline-danger py-0" title="Xóa phòng ban"><i class="bi bi-trash"></i></a>
+                                </div>
+                            </td>
+                            <td class="text-center align-top" rowspan="{{ dept.divisions|length|default:1 }}">
+                                <span class="badge bg-light text-dark border">{{ dept.staff_count }}</span>
+                            </td>
+                            {% endif %}
+                            <td class="fw-medium {% if not div.is_active %}text-muted{% endif %}">{{ div.name }}</td>
+                            <td class="text-center"><span class="badge bg-light text-dark border">{{ div.staff_count }}</span></td>
+                            <td class="text-end pe-4">
+                                <div class="d-inline-flex gap-1">
+                                    <a href="{% url 'division_edit' div.pk %}" class="btn btn-sm btn-outline-hm" title="Sửa bộ phận"><i class="bi bi-pencil-square"></i></a>
+                                    <a href="{% url 'division_delete' div.pk %}" class="btn btn-sm btn-outline-danger" title="Xóa"><i class="bi bi-trash"></i></a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td class="ps-4 fw-semibold">{{ dept.name }}</td>
+                            <td class="text-center"><span class="badge bg-light text-dark border">{{ dept.staff_count }}</span></td>
+                            <td colspan="2" class="text-muted small">Chưa có bộ phận</td>
+                            <td class="text-end pe-4">
+                                <a href="{% url 'division_add' %}?department={{ dept.pk }}" class="btn btn-sm btn-outline-hm">+ Bộ phận</a>
+                                <a href="{% url 'department_edit' dept.pk %}" class="btn btn-sm btn-outline-hm"><i class="bi bi-pencil-square"></i></a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted">
+                            Chưa có phòng ban. <a href="{% url 'department_add' %}">Thêm phòng ban</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if treemap.unassigned_divisions %}
+                    {% for div in treemap.unassigned_divisions %}
+                    <tr class="table-warning">
+                        {% if forloop.first %}
+                        <td class="ps-4 fw-semibold align-top" rowspan="{{ treemap.unassigned_divisions|length }}">Chưa gán phòng ban</td>
+                        <td class="text-center align-top" rowspan="{{ treemap.unassigned_divisions|length }}">—</td>
+                        {% endif %}
+                        <td>{{ div.name }}</td>
+                        <td class="text-center"><span class="badge bg-light text-dark border">{{ div.staff_count }}</span></td>
+                        <td class="text-end pe-4">
+                            <a href="{% url 'division_edit' div.pk %}" class="btn btn-sm btn-outline-hm" title="Gán phòng ban"><i class="bi bi-pencil-square"></i></a>
+                            <a href="{% url 'division_delete' div.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
     {% endif %}
 
     <p class="text-muted small mt-3 mb-0">
@@ -63,6 +150,6 @@
 {{ org_tree|json_script:"jp-org-tree-data" }}
 {{ org_urls|json_script:"jp-org-urls-data" }}
 <script src="{% static 'vendor/d3.min.js' %}?v=7.9.0"></script>
-<script src="{% static 'js/org_tree.js' %}?v=20260528d"></script>
+<script src="{% static 'js/org_tree.js' %}?v=20260528e"></script>
 {% endif %}
 {% endblock %}

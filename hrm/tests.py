@@ -629,6 +629,8 @@ class OrgStructureTreemapTests(TestCase):
         self.assertContains(response, 'jp-org-tree-data')
         self.assertContains(response, 'ORG-DEPT-A')
         self.assertContains(response, 'org_tree.js')
+        self.assertContains(response, 'org-manage-tables')
+        self.assertContains(response, 'jp-org-urls-data')
 
     def test_division_form_rejects_duplicate_in_same_department(self):
         from hrm.forms import DivisionForm

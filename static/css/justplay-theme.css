@@ -3144,8 +3144,78 @@ textarea.form-control {
 }
 
 .jp-org-tree-link {
-    stroke: #cbd5e1;
+    fill: none;
+    stroke: #94a3b8;
     stroke-width: 1.5px;
+}
+
+.jp-org-tree-node.is-clickable .jp-org-tree-pill-rect {
+    cursor: pointer;
+}
+
+.jp-org-tree-pill-hit {
+    cursor: pointer;
+}
+
+.jp-org-tree-pill-hit .jp-org-tree-pill-rect {
+    pointer-events: all;
+}
+
+.jp-org-tree-node.is-clickable:hover .jp-org-tree-pill-rect,
+.jp-org-tree-pill-hit:focus .jp-org-tree-pill-rect {
+    filter: brightness(0.97);
+    stroke-width: 1.8;
+}
+
+.jp-org-tree-actions {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+}
+
+.jp-org-tree-node:hover .jp-org-tree-actions,
+.jp-org-tree-node:focus-within .jp-org-tree-actions {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.jp-org-tree-action-link {
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.jp-org-tree-action-bg {
+    fill: #fff;
+    stroke: #e2e8f0;
+    stroke-width: 1;
+}
+
+.jp-org-tree-action-link.is-danger .jp-org-tree-action-bg {
+    stroke: #fecaca;
+}
+
+.jp-org-tree-action-link:hover .jp-org-tree-action-bg {
+    fill: #f1f5f9;
+}
+
+.jp-org-tree-action-link.is-danger:hover .jp-org-tree-action-bg {
+    fill: #fef2f2;
+}
+
+.jp-org-tree-action-icon {
+    font-family: Inter, system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    fill: #475569;
+    pointer-events: none;
+}
+
+.jp-org-tree-action-link.is-danger .jp-org-tree-action-icon {
+    fill: #dc2626;
+}
+
+.jp-org-manage-table td {
+    vertical-align: middle;
 }
 
 .jp-org-tree-pill-rect {
