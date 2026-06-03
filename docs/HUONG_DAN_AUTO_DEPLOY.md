@@ -4,14 +4,30 @@
 
 1. Một lần: copy `deploy.local.env.example` → `deploy.local.env`, sửa IP/user SSH.
 2. Đảm bảo SSH vào VPS không hỏi mật khẩu (`ssh root@103.90.224.203`).
-3. Chạy:
+3. Chạy (**dùng `.bat` hoặc `.cmd`**, không gọi trực tiếp `publish.ps1` nếu PowerShell báo Execution Policy):
 
-```powershell
-cd d:\Project\PortalJustPlay
-.\publish.ps1
+```cmd
+cd /d d:\Project\PortalJustPlay
+publish.bat
 ```
 
-Hoặc double-click `publish.bat`.
+Hoặc:
+
+```cmd
+update.cmd "update moi"
+```
+
+Nếu vẫn muốn `.ps1`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\publish.ps1 "update moi"
+```
+
+Hoặc bật một lần cho user hiện tại (tuỳ chọn):
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
 
 Script sẽ lần lượt:
 
