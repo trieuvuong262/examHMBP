@@ -48,6 +48,55 @@ def filter_users_by_department(queryset, department_id: str | None):
     return queryset
 
 
+def filter_users_by_division(queryset, division_id: str | None):
+    """Lọc theo bộ phận (profile.division_id)."""
+    raw = (division_id or '').strip()
+    if not raw:
+        return queryset
+    if raw == 'none':
+        return queryset.filter(profile__division__isnull=True)
+    if raw.isdigit():
+        return queryset.filter(profile__division_id=int(raw))
+    return queryset
+
+
+def filter_users_by_job_position(queryset, job_position: str | None):
+    """Lọc theo vị trí (profile.job_position, khớp không phân biệt hoa thường)."""
+    raw = (job_position or '').strip()
+    if not raw:
+        return queryset
+    if raw == 'none':
+        return queryset.filter(
+            Q(profile__job_position='') | Q(profile__job_position__isnull=True),
+        )
+    return queryset.filter(profile__job_position__iexact=raw)
+
+
+def distinct_job_positions_for_filter(
+    *,
+    department_id: str = '',
+    division_id: str = '',
+) -> list[str]:
+    """Danh sách vị trí (distinct) cho dropdown lọc nhân sự."""
+    qs = visible_employed_profiles()
+    dept_raw = (department_id or '').strip()
+    if dept_raw == 'none':
+        qs = qs.filter(department__isnull=True)
+    elif dept_raw.isdigit():
+        qs = qs.filter(department_id=int(dept_raw))
+    div_raw = (division_id or '').strip()
+    if div_raw == 'none':
+        qs = qs.filter(division__isnull=True)
+    elif div_raw.isdigit():
+        qs = qs.filter(division_id=int(div_raw))
+    return list(
+        qs.exclude(job_position='')
+        .values_list('job_position', flat=True)
+        .distinct()
+        .order_by('job_position'),
+    )
+
+
 def user_display_label(user: User) -> str:
     profile = getattr(user, 'profile', None)
     full_name = profile.full_name if profile and profile.full_name else user.get_full_name() or user.username

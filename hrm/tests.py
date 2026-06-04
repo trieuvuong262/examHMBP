@@ -533,6 +533,25 @@ class UserSearchTests(TestCase):
         self.assertContains(response, 'Trần Văn B')
         self.assertNotContains(response, 'Nguyễn Văn An')
 
+    def test_user_list_filter_by_division_and_position(self):
+        dept = Department.objects.get(name='Phòng May')
+        div = Division.objects.create(name='Tổ QC', department=dept, sort_order=1)
+        Profile.objects.filter(user=self.target).update(
+            division=div,
+            job_position='Kiểm tra chất lượng',
+        )
+        response = self.client.get(reverse('user_list'), {
+            'division': str(div.pk),
+            'position': 'Kiểm tra chất lượng',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Nguyễn Văn An')
+        self.assertNotContains(response, 'Trần Văn B')
+
+        response2 = self.client.get(reverse('user_list'), {'division': str(div.pk)})
+        self.assertContains(response2, 'Nguyễn Văn An')
+        self.assertNotContains(response2, 'Trần Văn B')
+
     def test_hr_edit_can_update_other_user_avatar(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
 

@@ -47,7 +47,10 @@ from hrm.forms import (
 from hrm.user_search import (
     exclude_hidden_hrm_users,
     filter_users_by_department,
+    filter_users_by_division,
+    filter_users_by_job_position,
     filter_users_by_search,
+    distinct_job_positions_for_filter,
 )
 from PortalJustPlay.list_search import apply_term_search, apply_user_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
@@ -125,6 +128,8 @@ def user_list(request):
     order_by = USER_LIST_SORTS[sort_key][0]
     search_query = get_search_query(request)
     department_id = (request.GET.get('department') or '').strip()
+    division_id = (request.GET.get('division') or '').strip()
+    job_position = (request.GET.get('position') or '').strip()
 
     users_qs = User.objects.select_related(
         'profile', 'profile__department', 'profile__division',
@@ -132,8 +137,13 @@ def user_list(request):
     users_qs = exclude_hidden_hrm_users(users_qs)
     users_qs = filter_users_by_search(users_qs, search_query)
     users_qs = filter_users_by_department(users_qs, department_id)
+    users_qs = filter_users_by_division(users_qs, division_id)
+    users_qs = filter_users_by_job_position(users_qs, job_position)
     users_qs = users_qs.order_by(order_by, 'username')
     page_obj, query_string = paginate_queryset(request, users_qs)
+
+    from hrm.models import Division
+    from hrm.org_structure import divisions_allowed_by_department_map, divisions_for_department
 
     departments = Department.objects.filter(is_active=True).order_by('sort_order', 'name')
     current_department_label = ''
@@ -143,6 +153,30 @@ def user_list(request):
         dept = departments.filter(pk=int(department_id)).first()
         if dept:
             current_department_label = dept.name
+
+    dept_pk = int(department_id) if department_id.isdigit() else None
+    divisions = divisions_for_department(dept_pk)
+    current_division_label = ''
+    if division_id == 'none':
+        current_division_label = 'Chưa gán bộ phận'
+    elif division_id.isdigit():
+        div = divisions.filter(pk=int(division_id)).first()
+        if not div:
+            div = Division.objects.filter(pk=int(division_id)).first()
+        if div:
+            current_division_label = div.name
+
+    job_positions = distinct_job_positions_for_filter(
+        department_id=department_id,
+        division_id=division_id,
+    )
+    current_position_label = ''
+    if job_position == 'none':
+        current_position_label = 'Chưa có vị trí'
+    elif job_position:
+        current_position_label = job_position
+
+    import json
 
     from nas_storage.user_folders import nas_folders_feature_available
 
@@ -154,9 +188,18 @@ def user_list(request):
         'sort_options': USER_LIST_SORTS,
         'search_query': search_query,
         'departments': departments,
+        'divisions': divisions,
+        'job_positions': job_positions,
         'current_department': department_id,
         'current_department_label': current_department_label,
-        'filters_active': bool(search_query or department_id),
+        'current_division': division_id,
+        'current_division_label': current_division_label,
+        'current_position': job_position,
+        'current_position_label': current_position_label,
+        'divisions_allowed_by_dept': json.dumps(divisions_allowed_by_department_map()),
+        'filters_active': bool(
+            search_query or department_id or division_id or job_position,
+        ),
         'nas_folders_available': nas_folders_feature_available(),
     })
 
@@ -555,6 +598,8 @@ def user_export_excel(request):
 
     search_query = get_search_query(request)
     department_id = (request.GET.get('department') or '').strip()
+    division_id = (request.GET.get('division') or '').strip()
+    job_position = (request.GET.get('position') or '').strip()
 
     users = User.objects.select_related(
         'profile', 'profile__department', 'profile__division',
@@ -562,6 +607,8 @@ def user_export_excel(request):
     users = exclude_hidden_hrm_users(users)
     users = filter_users_by_search(users, search_query)
     users = filter_users_by_department(users, department_id)
+    users = filter_users_by_division(users, division_id)
+    users = filter_users_by_job_position(users, job_position)
     users = users.order_by('profile__employee_code', 'username')
     rows = [user_to_excel_row(u) for u in users]
     df = pd.DataFrame(rows, columns=EXCEL_ALL_HEADERS)
