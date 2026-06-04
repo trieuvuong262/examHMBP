@@ -54,6 +54,7 @@ class ToolsViewTests(TestCase):
     def test_home_shows_tool_cards(self):
         response = self.client.get(reverse('home_portal'))
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'jp-home-tool-card')
         self.assertContains(response, 'PDF → Word')
         self.assertContains(response, 'OCR ảnh')
         self.assertContains(response, 'Ghi chú')
@@ -181,6 +182,7 @@ class ToolsIntegrationTests(TestCase):
 
     def test_client_side_tool_templates(self):
         ocr_response = self.client.get(reverse('tools:ocr'))
+        self.assertContains(ocr_response, 'jpToolLoading')
         self.assertContains(ocr_response, 'tesseract.min.js')
         self.assertContains(ocr_response, 'ocr.js')
 

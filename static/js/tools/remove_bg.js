@@ -8,8 +8,29 @@ const afterImg = document.getElementById('rmbg-after');
 const beforeEmpty = document.getElementById('rmbg-before-empty');
 const afterEmpty = document.getElementById('rmbg-after-empty');
 const downloadBtn = document.getElementById('rmbg-download');
+const loading = window.JpToolLoading;
 
 let resultBlob = null;
+let simTimer = null;
+
+function stopSim() {
+    if (simTimer) {
+        clearInterval(simTimer);
+        simTimer = null;
+    }
+}
+
+function startSimProgress(message, cap) {
+    stopSim();
+    if (!loading) return;
+    let current = 12;
+    loading.show(message, current);
+    simTimer = setInterval(() => {
+        if (current >= cap) return;
+        current += 3;
+        loading.setProgress(current, message);
+    }, 280);
+}
 
 if (fileInput) {
     fileInput.addEventListener('change', function () {
@@ -41,18 +62,28 @@ if (runBtn) {
 
         runBtn.disabled = true;
         downloadBtn.disabled = true;
-        statusEl.textContent = 'Đang tải mô hình & xử lý…';
+        startSimProgress('Đang tải mô hình AI…', 55);
 
         try {
+            startSimProgress('Đang xóa nền ảnh…', 88);
             const blob = await removeBackground(file);
+            stopSim();
             resultBlob = blob;
             afterImg.src = URL.createObjectURL(blob);
             afterImg.classList.remove('d-none');
             afterEmpty.classList.add('d-none');
             downloadBtn.disabled = false;
-            statusEl.textContent = 'Hoàn tất.';
+            if (loading) {
+                loading.setProgress(100, 'Hoàn tất.');
+                window.setTimeout(() => loading.hide(), 450);
+            } else if (statusEl) {
+                statusEl.textContent = 'Hoàn tất.';
+            }
         } catch (err) {
-            statusEl.textContent = 'Lỗi: ' + (err.message || 'không xóa được nền.');
+            stopSim();
+            if (loading) loading.hide();
+            const msg = 'Lỗi: ' + (err.message || 'không xóa được nền.');
+            if (statusEl) statusEl.textContent = msg;
         } finally {
             runBtn.disabled = false;
         }

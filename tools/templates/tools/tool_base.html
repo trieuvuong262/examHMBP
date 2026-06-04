@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block content %}
 <div class="container-fluid jp-page jp-tools-page px-2 px-md-4 py-3 py-md-4 mb-4">
@@ -21,8 +22,20 @@
 
     {% block tool_content %}{% endblock %}
 </div>
+
+<div id="jpToolLoading" class="jp-tool-loading d-none" aria-hidden="true" role="alertdialog" aria-labelledby="jpToolLoadingMsg" aria-modal="true">
+    <div class="jp-tool-loading-panel">
+        <div class="jp-tool-loading-spinner" aria-hidden="true"></div>
+        <p id="jpToolLoadingMsg" class="jp-tool-loading-msg mb-2">Đang xử lý…</p>
+        <div class="progress jp-tool-loading-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div id="jpToolLoadingBar" class="progress-bar bg-hm" style="width: 0%"></div>
+        </div>
+        <p id="jpToolLoadingPct" class="jp-tool-loading-pct mb-0">0%</p>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
+<script src="{% static 'js/tools/tool_loading.js' %}?v=20260535"></script>
 {% block tool_js %}{% endblock %}
 {% endblock %}

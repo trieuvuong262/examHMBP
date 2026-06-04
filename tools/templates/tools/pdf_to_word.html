@@ -9,7 +9,8 @@
                 <div class="alert alert-danger py-2">{{ error }}</div>
                 {% endif %}
 
-                <form method="post" enctype="multipart/form-data">
+                <form method="post" enctype="multipart/form-data" class="jp-tool-form-loading"
+                      data-loading-message="Đang chuyển PDF sang Word…">
                     {% csrf_token %}
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Chọn file PDF</label>

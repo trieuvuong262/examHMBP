@@ -108,13 +108,19 @@
                 </div>
 
                 <div class="jp-home-block-body jp-home-block-body--tools">
-                    <div class="jp-home-tools-grid jp-home-tools-grid--compact">
+                    <div class="jp-home-tools-grid">
                         {% for tool in portal_tools %}
-                        <a href="{% url tool.url_name %}" class="jp-home-tool-tile jp-home-tool-tile--{{ tool.accent }}" title="{{ tool.description }}">
-                            <span class="jp-home-tool-tile-icon">
+                        <a href="{% url tool.url_name %}" class="jp-home-tool-card jp-home-tool-card--{{ tool.accent }}" title="{{ tool.description }}">
+                            <span class="jp-home-tool-icon">
                                 <i class="bi {{ tool.icon }}"></i>
                             </span>
-                            <span class="jp-home-tool-tile-name">{{ tool.name }}</span>
+                            <span class="jp-home-tool-body">
+                                <span class="jp-home-tool-name">{{ tool.name }}</span>
+                                <span class="jp-home-tool-desc">{{ tool.description }}</span>
+                            </span>
+                            <span class="jp-home-tool-arrow" aria-hidden="true">
+                                <i class="bi bi-chevron-right"></i>
+                            </span>
                         </a>
                         {% endfor %}
                     </div>

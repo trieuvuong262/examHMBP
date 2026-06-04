@@ -9,7 +9,7 @@
                 <div class="alert alert-danger py-2">{{ error }}</div>
                 {% endif %}
 
-                <form method="post">
+                <form method="post" class="jp-tool-form-loading" data-loading-message="Đang tạo mã QR…">
                     {% csrf_token %}
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Nội dung mã QR</label>
