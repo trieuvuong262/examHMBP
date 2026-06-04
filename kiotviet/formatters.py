@@ -102,3 +102,99 @@ def format_invoice_detail(raw: dict) -> dict:
         'payments': raw.get('payments') or [],
     })
     return row
+
+
+def format_product_row(row: dict) -> dict:
+    return {
+        'id': row.get('id'),
+        'code': _dash(row.get('code')),
+        'name': _dash(row.get('name')),
+        'full_name': _dash(row.get('fullName')),
+        'bar_code': _dash(row.get('barCode')),
+        'category_name': _dash(row.get('categoryName')),
+        'unit': _dash(row.get('unit')),
+        'base_price': row.get('basePrice'),
+        'allows_sale': row.get('allowsSale'),
+        'is_active': row.get('isActive'),
+    }
+
+
+def format_inventory_rows(product: dict) -> list[dict]:
+    """Mở rộng tồn theo chi nhánh từ product hoặc productOnHands."""
+    code = _dash(product.get('code'))
+    name = _dash(product.get('name') or product.get('fullName'))
+    product_id = product.get('id')
+    rows = []
+    for inv in product.get('inventories') or []:
+        if not isinstance(inv, dict):
+            continue
+        on_hand = inv.get('onHand')
+        if on_hand is None:
+            on_hand = inv.get('onhand')
+        reserved = inv.get('reserved')
+        rows.append({
+            'product_id': product_id,
+            'product_code': code,
+            'product_name': name,
+            'branch_id': inv.get('branchId'),
+            'branch_name': _dash(inv.get('branchName')),
+            'on_hand': on_hand,
+            'reserved': reserved,
+            'cost': inv.get('cost'),
+            'modified_date': inv.get('modifiedDate'),
+        })
+    return rows
+
+
+def format_product_detail(raw: dict) -> dict:
+    row = format_product_row(raw)
+    row.update({
+        'description': _dash(raw.get('description')),
+        'weight': raw.get('weight'),
+        'created_date': raw.get('createdDate'),
+        'modified_date': raw.get('modifiedDate'),
+        'inventories': format_inventory_rows(raw),
+    })
+    return row
+
+
+def format_purchase_order_row(row: dict) -> dict:
+    return {
+        'id': row.get('id'),
+        'code': _dash(row.get('code')),
+        'purchase_date': row.get('purchaseDate'),
+        'branch_name': _dash(row.get('branchName')),
+        'supplier_code': _dash(row.get('supplierCode')),
+        'supplier_name': _dash(row.get('supplierName')),
+        'total': row.get('total'),
+        'status_value': _dash(row.get('statusValue')),
+    }
+
+
+def format_purchase_lines(raw_items) -> list[dict]:
+    if not raw_items:
+        return []
+    if isinstance(raw_items, dict):
+        raw_items = [raw_items]
+    lines = []
+    for item in raw_items:
+        if not isinstance(item, dict):
+            continue
+        lines.append({
+            'product_code': _dash(item.get('productCode') or item.get('ProductCode')),
+            'product_name': _dash(item.get('productName')),
+            'quantity': item.get('quantity'),
+            'price': item.get('price'),
+            'discount': item.get('discount'),
+        })
+    return lines
+
+
+def format_purchase_order_detail(raw: dict) -> dict:
+    row = format_purchase_order_row(raw)
+    row.update({
+        'partner_type': _dash(raw.get('partnerType')),
+        'purchase_name': _dash(raw.get('purchaseName')),
+        'lines': format_purchase_lines(raw.get('purchaseOrderDetails')),
+    })
+    return row

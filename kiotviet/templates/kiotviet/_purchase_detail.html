@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <a href="{% url back_url_name %}" class="btn btn-sm btn-outline-secondary mb-2">
+            <i class="bi bi-arrow-left me-1"></i>Quay lại tra cứu
+        </a>
+        <h2 class="fw-bold text-hm mb-1 jp-page-title">
+            <i class="bi {{ header_icon }} me-2"></i>Phiếu nhập {{ doc.code }}
+        </h2>
+        <p class="text-muted mb-0">{{ doc.supplier_name }} · {{ doc.branch_name }}</p>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white fw-bold">Thông tin phiếu</div>
+                <div class="card-body small">
+                    <dl class="row mb-0">
+                        <dt class="col-5">Ngày nhập</dt>
+                        <dd class="col-7">{{ doc.purchase_date|default:"—" }}</dd>
+                        <dt class="col-5">NCC</dt>
+                        <dd class="col-7">{{ doc.supplier_name }} ({{ doc.supplier_code }})</dd>
+                        <dt class="col-5">Người nhập</dt>
+                        <dd class="col-7">{{ doc.purchase_name }}</dd>
+                        <dt class="col-5">Tổng giá trị</dt>
+                        <dd class="col-7">{% if doc.total is not None %}{{ doc.total|floatformat:0|intcomma }}{% else %}—{% endif %}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white fw-bold">Chi tiết nhập hàng</div>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Mã SP</th>
+                        <th>Tên</th>
+                        <th class="text-end">SL</th>
+                        <th class="text-end">Đơn giá</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for line in doc.lines %}
+                    <tr>
+                        <td><code>{{ line.product_code }}</code></td>
+                        <td>{{ line.product_name }}</td>
+                        <td class="text-end">{{ line.quantity|default:"—" }}</td>
+                        <td class="text-end">{% if line.price is not None %}{{ line.price|floatformat:0|intcomma }}{% else %}—{% endif %}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-center text-muted py-3">Không có dòng chi tiết.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

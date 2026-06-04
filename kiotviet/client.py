@@ -146,6 +146,29 @@ class KiotVietClient:
     def get_invoice_by_code(self, code: str) -> dict:
         return self._request('GET', f'invoices/code/{code}')
 
+    def list_products(self, **params: Any) -> dict:
+        clean = {k: v for k, v in params.items() if v not in (None, '')}
+        return self._request('GET', 'products', params=clean)
+
+    def get_product(self, product_id: int | str, **params: Any) -> dict:
+        clean = {k: v for k, v in params.items() if v not in (None, '')}
+        return self._request('GET', f'products/{product_id}', params=clean)
+
+    def get_product_by_code(self, code: str, **params: Any) -> dict:
+        clean = {k: v for k, v in params.items() if v not in (None, '')}
+        return self._request('GET', f'products/code/{code}', params=clean)
+
+    def list_product_on_hand(self, **params: Any) -> dict:
+        clean = {k: v for k, v in params.items() if v not in (None, '')}
+        return self._request('GET', 'productOnHands', params=clean)
+
+    def list_purchase_orders(self, **params: Any) -> dict:
+        clean = {k: v for k, v in params.items() if v not in (None, '')}
+        return self._request('GET', 'purchaseorders', params=clean)
+
+    def get_purchase_order(self, purchase_order_id: int | str) -> dict:
+        return self._request('GET', f'purchaseorders/{purchase_order_id}')
+
 
 def _safe_json(response: requests.Response) -> Any:
     try:
