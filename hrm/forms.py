@@ -145,27 +145,29 @@ class CustomUserForm(forms.Form):
             dept_qs = Department.objects.filter(Q(is_active=True) | Q(pk=current_pk))
         self.fields['department'].queryset = dept_qs.order_by('sort_order', 'name')
 
-        dept = self.initial.get('department') or self.data.get('department')
-        dept_pk = None
-        if dept:
-            dept_pk = dept.pk if isinstance(dept, Department) else dept
+        div_qs = divisions_for_department(None)
+        div_current = self.initial.get('division') or self.data.get('division')
+        if div_current:
+            current_pk = div_current.pk if isinstance(div_current, Division) else div_current
             try:
-                dept_pk = int(dept_pk)
+                current_pk = int(current_pk)
             except (TypeError, ValueError):
-                dept_pk = None
-        div_qs = divisions_for_department(dept_pk)
-        if self.initial.get('division'):
-            current = self.initial['division']
-            current_pk = current.pk if isinstance(current, Division) else current
-            div_qs = Division.objects.filter(Q(pk__in=div_qs.values('pk')) | Q(pk=current_pk)).distinct()
+                current_pk = None
+            if current_pk:
+                div_qs = Division.objects.filter(
+                    Q(pk__in=div_qs.values('pk')) | Q(pk=current_pk),
+                ).distinct()
         self.fields['division'].queryset = div_qs.select_related('department').order_by(
             'department__sort_order', 'department__name', 'sort_order', 'name',
         )
 
         def _division_label(obj):
+            label = obj.name
+            if not obj.is_active:
+                label = f'{label} (ngưng)'
             if obj.department_id:
-                return obj.name
-            return f'{obj.name} (chưa gán phòng ban)'
+                return label
+            return f'{label} (chưa gán phòng ban)'
 
         self.fields['division'].label_from_instance = _division_label
         self.fields['subordinates'].label_from_instance = user_display_label
@@ -231,11 +233,13 @@ class CustomUserForm(forms.Form):
         cleaned = super().clean()
         dept = cleaned.get('department')
         div = cleaned.get('division')
-        if div and div.department_id and dept and div.department_id != dept.id:
-            self.add_error(
-                'division',
-                'Bộ phận này không thuộc phòng ban đã chọn — chọn lại hoặc cập nhật tại Cơ cấu tổ chức.',
-            )
+        if div and dept:
+            allowed = divisions_for_department(dept.pk if dept else None).filter(pk=div.pk).exists()
+            if not allowed:
+                self.add_error(
+                    'division',
+                    'Bộ phận này không thuộc phòng ban đã chọn — chọn lại hoặc cập nhật tại Cơ cấu tổ chức.',
+                )
         return cleaned
 
 

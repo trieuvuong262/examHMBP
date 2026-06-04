@@ -838,6 +838,45 @@ class OrgStructureTreemapTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Thêm vị trí')
 
+    def test_divisions_for_department_matches_org_and_profiles(self):
+        from hrm.org_structure import divisions_for_department
+
+        div1 = Division.objects.get(name='ORG-DIV-1')
+        div_orphan = Division.objects.get(name='ORG-DIV-ORPHAN')
+        div_inactive = Division.objects.create(
+            name='ORG-DIV-INACTIVE',
+            department=self.dept,
+            is_active=False,
+        )
+        div_wrong_fk = Division.objects.create(
+            name='ORG-DIV-WRONG-FK',
+            department=self.dept_b,
+            is_active=True,
+        )
+        emp = User.objects.create_user(username='div_filter_emp', password='x')
+        Profile.objects.update_or_create(
+            user=emp,
+            defaults={
+                'full_name': 'NV Wrong FK',
+                'department': self.dept,
+                'division': div_wrong_fk,
+                'is_employed': True,
+            },
+        )
+
+        ids = set(divisions_for_department(self.dept.pk).values_list('pk', flat=True))
+        self.assertIn(div1.pk, ids)
+        self.assertIn(div_orphan.pk, ids)
+        self.assertIn(div_inactive.pk, ids)
+        self.assertIn(div_wrong_fk.pk, ids)
+
+    def test_user_add_form_includes_divisions_allowed_json(self):
+        url = reverse('user_add')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'jpDivisionsByDept')
+        self.assertContains(response, str(self.dept.pk))
+
     def test_org_position_edit_moves_employees_to_other_division(self):
         from hrm.models import DivisionPosition
         from hrm.org_structure import build_org_tree, build_org_treemap

@@ -256,8 +256,8 @@
     </form>
 </div>
 
-{% if division_dept_map %}
-<script type="application/json" id="jpDivisionsByDept">{{ division_dept_map|safe }}</script>
+{% if divisions_allowed_by_dept %}
+<script type="application/json" id="jpDivisionsByDept">{{ divisions_allowed_by_dept|safe }}</script>
 {% endif %}
 
 <script>
@@ -282,25 +282,26 @@
     const divSelect = document.querySelector('select[name="division"]');
     const divMapEl = document.getElementById('jpDivisionsByDept');
     if (deptSelect && divSelect && divMapEl) {
-        let divDeptMap = {};
+        let divAllowedByDept = {};
         try {
-            divDeptMap = JSON.parse(divMapEl.textContent || '{}');
+            divAllowedByDept = JSON.parse(divMapEl.textContent || '{}');
         } catch (e) {
-            divDeptMap = {};
+            divAllowedByDept = {};
         }
 
         function filterDivisionOptions() {
             const deptId = deptSelect.value || '';
+            const allowedList = divAllowedByDept[deptId] || divAllowedByDept[''] || [];
+            const allowed = new Set(allowedList.map(String));
             let selectedHidden = false;
             Array.from(divSelect.options).forEach(function (opt) {
                 if (!opt.value) {
                     opt.hidden = false;
                     return;
                 }
-                const divDept = divDeptMap[opt.value];
-                const hide = !!(deptId && divDept && String(divDept) !== deptId);
-                opt.hidden = hide;
-                if (opt.selected && hide) {
+                const show = !deptId || allowed.has(String(opt.value));
+                opt.hidden = !show;
+                if (opt.selected && !show) {
                     selectedHidden = true;
                 }
             });

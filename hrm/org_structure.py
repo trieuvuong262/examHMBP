@@ -470,11 +470,44 @@ def filter_org_tree(node: dict, query: str) -> dict | None:
     return out
 
 
+def _division_ids_with_staff_in_department(department_id: int) -> list[int]:
+    """Bộ phận có NV đang gắn phòng ban này (kể cả FK bộ phận chưa khớp sơ đồ)."""
+    return list(
+        Profile.objects.filter(
+            department_id=department_id,
+            division_id__isnull=False,
+            is_employed=True,
+        )
+        .values_list('division_id', flat=True)
+        .distinct(),
+    )
+
+
 def divisions_for_department(department_id: int | None):
-    """Queryset bộ phận theo phòng ban (dropdown nhân sự)."""
-    qs = Division.objects.filter(is_active=True).select_related('department')
+    """
+    Queryset bộ phận cho dropdown nhân sự — khớp sơ đồ tổ chức:
+    - Bộ phận thuộc phòng ban (FK), kể cả đang ngưng dùng
+    - Bộ phận chưa gán phòng ban
+    - Bộ phận có nhân viên đang làm thuộc phòng ban (theo hồ sơ)
+    """
+    qs = Division.objects.select_related('department')
     if not department_id:
         return qs.order_by('sort_order', 'name')
-    return qs.filter(Q(department_id=department_id) | Q(department__isnull=True)).order_by(
-        'sort_order', 'name',
-    )
+    linked = _division_ids_with_staff_in_department(department_id)
+    return qs.filter(
+        Q(department_id=department_id)
+        | Q(department__isnull=True)
+        | Q(pk__in=linked),
+    ).distinct().order_by('sort_order', 'name')
+
+
+def divisions_allowed_by_department_map() -> dict[str, list[int]]:
+    """Map phòng ban → id bộ phận được chọn (JSON cho form nhân sự)."""
+    out: dict[str, list[int]] = {
+        '': list(divisions_for_department(None).values_list('pk', flat=True)),
+    }
+    for dept_id in Department.objects.values_list('pk', flat=True):
+        out[str(dept_id)] = list(
+            divisions_for_department(dept_id).values_list('pk', flat=True),
+        )
+    return out

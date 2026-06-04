@@ -93,13 +93,10 @@ def _profile_fields_from_form(form):
 def _user_form_extra_context():
     import json
 
-    from hrm.models import Division
+    from hrm.org_structure import divisions_allowed_by_department_map
 
     return {
-        'division_dept_map': json.dumps({
-            str(pk): dept_id
-            for pk, dept_id in Division.objects.values_list('pk', 'department_id')
-        }),
+        'divisions_allowed_by_dept': json.dumps(divisions_allowed_by_department_map()),
     }
 
 
