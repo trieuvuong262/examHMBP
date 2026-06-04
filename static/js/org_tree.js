@@ -454,6 +454,33 @@
         );
     }
 
+    /** Con lăn trên vùng sơ đồ chỉ zoom — không cuộn thanh trượt / trang. */
+    function wireOrgChartViewportWheel(vp) {
+        if (!vp || vp.dataset.jpOrgWheelBound === '1') return;
+        vp.dataset.jpOrgWheelBound = '1';
+        vp.addEventListener(
+            'wheel',
+            (event) => {
+                if (!vp.contains(event.target)) return;
+                event.preventDefault();
+                const svgEl = vp.querySelector('svg.jp-org-tree-svg');
+                if (!svgEl || svgEl.contains(event.target)) return;
+                svgEl.dispatchEvent(new WheelEvent('wheel', {
+                    bubbles: true,
+                    cancelable: true,
+                    clientX: event.clientX,
+                    clientY: event.clientY,
+                    deltaY: event.deltaY,
+                    deltaX: event.deltaX,
+                    deltaMode: event.deltaMode,
+                    ctrlKey: event.ctrlKey,
+                    metaKey: event.metaKey,
+                }));
+            },
+            { passive: false, capture: true },
+        );
+    }
+
     function showEmployeesListModal(nodeData) {
         const modalEl = document.getElementById('orgEmployeesModal');
         const titleEl = document.getElementById('orgEmployeesModalTitle');
@@ -634,9 +661,38 @@
         });
     }
 
+    /** Bbox nội dung thật (node + link), không gồm cột guide / transform layout. */
+    function getTightChartBBox(chart) {
+        const parts = chart.querySelectorAll('.jp-org-tree-nodes, .jp-org-tree-links');
+        if (!parts.length) {
+            return chart.getBBox();
+        }
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+        parts.forEach((el) => {
+            const b = el.getBBox();
+            if (!b.width && !b.height) return;
+            minX = Math.min(minX, b.x);
+            minY = Math.min(minY, b.y);
+            maxX = Math.max(maxX, b.x + b.width);
+            maxY = Math.max(maxY, b.y + b.height);
+        });
+        if (!Number.isFinite(minX)) {
+            return chart.getBBox();
+        }
+        return {
+            x: minX,
+            y: minY,
+            width: Math.max(1, maxX - minX),
+            height: Math.max(1, maxY - minY),
+        };
+    }
+
     function buildExportSvg(chart, defs) {
-        const bbox = chart.getBBox();
-        const pad = 36;
+        const bbox = getTightChartBBox(chart);
+        const pad = 28;
         let bx = bbox.x;
         let by = bbox.y;
         let bw = bbox.width;
@@ -655,7 +711,7 @@
         exportSvg.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
         exportSvg.setAttribute('width', String(w));
         exportSvg.setAttribute('height', String(h));
-        exportSvg.setAttribute('viewBox', `${bx - pad} ${by - pad} ${bw + pad * 2} ${bh + pad * 2}`);
+        exportSvg.setAttribute('viewBox', `0 0 ${w} ${h}`);
 
         const styleEl = document.createElementNS(ns, 'style');
         styleEl.setAttribute('type', 'text/css');
@@ -667,14 +723,16 @@
         }
 
         const bg = document.createElementNS(ns, 'rect');
-        bg.setAttribute('x', String(bx - pad));
-        bg.setAttribute('y', String(by - pad));
-        bg.setAttribute('width', String(bw + pad * 2));
-        bg.setAttribute('height', String(bh + pad * 2));
+        bg.setAttribute('x', '0');
+        bg.setAttribute('y', '0');
+        bg.setAttribute('width', String(w));
+        bg.setAttribute('height', String(h));
         bg.setAttribute('fill', '#ffffff');
         exportSvg.appendChild(bg);
 
-        exportSvg.appendChild(chart.cloneNode(true));
+        const chartClone = chart.cloneNode(true);
+        chartClone.setAttribute('transform', `translate(${pad - bx},${pad - by})`);
+        exportSvg.appendChild(chartClone);
         return exportSvg;
     }
 
@@ -1157,6 +1215,7 @@
             .on('zoom', (event) => scheduleZoomApply(headerTrack, zoomRoot, event.transform));
 
         svg.call(zoom).on('dblclick.zoom', null);
+        wireOrgChartViewportWheel(vp);
 
         if (headerTrack) headerTrack.style.minWidth = `${svgW}px`;
         if (vp) vp.classList.toggle('jp-org-chart-viewport--wide', svgW > vpW);

@@ -3137,16 +3137,15 @@ textarea.form-control {
 
 .jp-org-chart-viewport {
     position: relative;
-    overflow-x: auto;
-    overflow-y: auto;
+    overflow: hidden;
+    overscroll-behavior: contain;
     background: var(--jp-surface-bg, #fff);
     border-radius: 0.75rem;
     min-height: 460px;
     max-height: min(80vh, 46rem);
     width: 100%;
-    scrollbar-width: thin;
-    scrollbar-color: var(--hm-primary) #f1f5f9;
     border: 1px solid var(--jp-surface-border, #e2e8f0);
+    touch-action: none;
 }
 
 .jp-org-chart-viewport--wide {
