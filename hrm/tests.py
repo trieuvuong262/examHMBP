@@ -838,6 +838,59 @@ class OrgStructureTreemapTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Thêm vị trí')
 
+    def test_org_position_edit_moves_employees_to_other_division(self):
+        from hrm.models import DivisionPosition
+        from hrm.org_structure import build_org_tree, build_org_treemap
+
+        div1 = Division.objects.get(name='ORG-DIV-1')
+        div2 = Division.objects.get(name='ORG-DIV-2')
+        pos = DivisionPosition.objects.create(
+            division=div1,
+            department=self.dept,
+            name='May chuyen BP',
+        )
+        emp = User.objects.create_user(username='move_pos_emp', password='x')
+        profile, _ = Profile.objects.update_or_create(
+            user=emp,
+            defaults={
+                'full_name': 'NV Chuyen BP',
+                'employee_code': 'MVBP1',
+                'department': self.dept,
+                'division': div1,
+                'job_position': 'May chuyen BP',
+                'is_employed': True,
+            },
+        )
+        url = reverse('org_position_edit', kwargs={'pk': pos.pk})
+        response = self.client.post(url, {
+            'division': div2.pk,
+            'name': 'May chuyen BP',
+            'sort_order': pos.sort_order,
+            'is_active': True,
+        })
+        self.assertEqual(response.status_code, 302)
+        profile.refresh_from_db()
+        self.assertEqual(profile.division_id, div2.pk)
+        self.assertEqual(profile.department_id, self.dept.pk)
+        self.assertEqual(profile.job_position, 'May chuyen BP')
+
+        tree = build_org_tree(build_org_treemap())
+        div2_node = None
+        for dept in tree.get('children', []):
+            for div in dept.get('children', []):
+                if div.get('id') == div2.pk:
+                    div2_node = div
+                    break
+        self.assertIsNotNone(div2_node)
+        pos_names = [c['name'] for c in div2_node.get('children', []) if c.get('level') == 'position']
+        self.assertIn('May chuyen BP', pos_names)
+        emp_nodes = []
+        for p in div2_node.get('children', []):
+            if p.get('level') == 'position' and p.get('name') == 'May chuyen BP':
+                emp_nodes = p.get('children', [])
+                break
+        self.assertTrue(any(n.get('employee_code') == 'MVBP1' for n in emp_nodes))
+
     def test_org_tree_department_head_as_subtitle(self):
         from hrm.org_structure import (
             ORG_DEPARTMENT_HEAD_LABEL,

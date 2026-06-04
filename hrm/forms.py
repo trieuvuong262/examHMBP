@@ -428,6 +428,38 @@ class DepartmentPositionForm(forms.ModelForm):
         return dept
 
 
+def sync_profiles_for_position_change(*, old_division_id, old_name, position):
+    """Khi sửa vị trí: chuyển NV (division + job_position) theo bộ phận / tên mới."""
+    if not old_division_id or not old_name:
+        return 0
+    new_name = (position.name or '').strip()
+    old_name_s = (old_name or '').strip()
+    if not new_name or not old_name_s:
+        return 0
+    division_changed = old_division_id != position.division_id
+    name_changed = old_name_s.lower() != new_name.lower()
+    if not division_changed and not name_changed:
+        return 0
+    qs = Profile.objects.filter(
+        division_id=old_division_id,
+        job_position__iexact=old_name_s,
+    )
+    count = qs.count()
+    if not count:
+        return 0
+    updates = {}
+    if division_changed:
+        updates['division_id'] = position.division_id
+        division = position.division
+        if division is None and position.division_id:
+            division = Division.objects.only('department_id').get(pk=position.division_id)
+        updates['department_id'] = division.department_id if division else None
+    if name_changed:
+        updates['job_position'] = new_name
+    qs.update(**updates)
+    return count
+
+
 class DivisionPositionForm(forms.ModelForm):
     class Meta:
         model = DivisionPosition
@@ -466,6 +498,19 @@ class DivisionPositionForm(forms.ModelForm):
         )
 
     def save(self, commit=True):
+        old_division_id = None
+        old_name = None
+        if self.instance.pk:
+            prev = (
+                DivisionPosition.objects
+                .only('division_id', 'name')
+                .filter(pk=self.instance.pk)
+                .first()
+            )
+            if prev:
+                old_division_id = prev.division_id
+                old_name = prev.name
+
         obj = super().save(commit=False)
         if not obj.pk and obj.division_id:
             init_div = _coerce_pk(self.initial.get('division') if self.initial else None)
@@ -476,8 +521,15 @@ class DivisionPositionForm(forms.ModelForm):
                 scope_changed=scope_changed,
                 queryset=DivisionPosition.objects.filter(division_id=obj.division_id),
             )
+        self.profiles_synced_count = 0
         if commit:
             obj.save()
+            if self.instance.pk:
+                self.profiles_synced_count = sync_profiles_for_position_change(
+                    old_division_id=old_division_id,
+                    old_name=old_name,
+                    position=obj,
+                )
         return obj
 
     def clean_name(self):

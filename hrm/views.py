@@ -1120,7 +1120,11 @@ def org_position_edit(request, pk):
         form = DivisionPositionForm(request.POST, instance=position)
         if form.is_valid():
             position = form.save()
-            messages.success(request, f'Đã cập nhật vị trí "{position.name}".')
+            moved = getattr(form, 'profiles_synced_count', 0) or 0
+            msg = f'Đã cập nhật vị trí "{position.name}".'
+            if moved:
+                msg += f' Đã chuyển {moved} nhân viên theo bộ phận / vị trí mới.'
+            messages.success(request, msg)
             return _org_redirect_for_division(position.division)
     else:
         form = DivisionPositionForm(instance=position)
