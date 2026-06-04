@@ -10,6 +10,7 @@
             </h2>
             <p class="text-muted mb-0">
                 Dữ liệu từ KiotViet{% if retailer %} · gian hàng <strong>{{ retailer }}</strong>{% endif %}
+                {% if browse_mode %} · <strong>30</strong> sản phẩm/trang (mỗi SP có thể nhiều dòng chi nhánh){% endif %}
             </p>
         </div>
     </div>
@@ -28,7 +29,7 @@
                 <div class="col-12 col-md-7">
                     <label class="form-label fw-bold small mb-1" for="kv-stock-q">Từ khóa</label>
                     <input type="search" class="form-control" id="kv-stock-q" name="q"
-                           value="{{ search_query }}" placeholder="Mã hoặc tên hàng hóa..." autocomplete="off">
+                           value="{{ search_query }}" placeholder="Để trống = xem tồn 30 SP đầu..." autocomplete="off">
                 </div>
                 <div class="col-12 col-md-2">
                     <button type="submit" class="btn btn-hm w-100 fw-bold">
@@ -39,15 +40,25 @@
         </div>
     </div>
 
-    {% if search_query and not api_error %}
+    {% if not api_error %}
     <div class="mb-2 text-muted small">
-        {% if total %}<strong>{{ total }}</strong> dòng tồn theo chi nhánh{% endif %}
+        {% if browse_mode and total %}
+            Tổng <strong>{{ total }}</strong> sản phẩm
+            {% if page_obj %} · trang {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}{% endif %}
+            · đang hiển thị <strong>{{ stock_rows|length }}</strong> dòng tồn
+        {% elif search_query and total %}
+            <strong>{{ stock_rows|length }}</strong> dòng tồn{% if page_obj and page_obj.paginator.num_pages > 1 %} · trang {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}{% endif %}
+        {% endif %}
     </div>
     {% endif %}
 
     {% if search_query and not stock_rows and not api_error %}
     <div class="alert alert-light border shadow-sm mb-0">
         <i class="bi bi-info-circle me-1"></i>Không có tồn kho phù hợp với «{{ search_query }}».
+    </div>
+    {% elif not stock_rows and not api_error and browse_mode %}
+    <div class="alert alert-light border shadow-sm mb-0">
+        <i class="bi bi-info-circle me-1"></i>Chưa có dữ liệu tồn kho từ KiotViet.
     </div>
     {% elif stock_rows %}
     <div class="card border-0 shadow-sm">
@@ -86,10 +97,7 @@
             </table>
         </div>
     </div>
-    {% elif not search_query %}
-    <div class="alert alert-light border shadow-sm mb-0">
-        <i class="bi bi-lightbulb me-1"></i>Nhập mã hoặc tên hàng để xem tồn theo từng chi nhánh.
-    </div>
+    {% include 'kiotviet/_list_pagination.html' %}
     {% endif %}
 </div>
 {% endblock %}

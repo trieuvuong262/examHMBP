@@ -3,6 +3,7 @@ from django.shortcuts import redirect, render
 
 from PortalJustPlay.list_search import get_search_query
 
+from .browse import fetch_api_page, get_page_number, paginate_api_meta
 from .client import KiotVietAPIError, KiotVietClient
 from .decorators import kiotviet_access_required
 from .formatters import format_customer_row
@@ -15,46 +16,49 @@ def customer_lookup(request):
         search_type = 'name'
     query = get_search_query(request)
     customers: list[dict] = []
-    total = None
+    total = 0
     api_error = None
+    page_obj = None
+    query_string = ''
+    browse_mode = not query
+    page = get_page_number(request)
 
-    if query:
-        client = KiotVietClient()
-        params = {
-            'pageSize': 50,
-            'currentItem': 0,
-            'orderBy': 'name',
-            'orderDirection': 'Asc',
-            'includeTotal': 'true',
-        }
-        if search_type == 'code':
-            params['code'] = query
-        elif search_type == 'phone':
-            params['contactNumber'] = query
-        else:
-            params['name'] = query
+    client = KiotVietClient()
+    base_params = {
+        'orderBy': 'name',
+        'orderDirection': 'Asc',
+        'includeTotal': 'true',
+    }
 
-        try:
-            if search_type == 'code' and len(query) <= 64:
-                try:
-                    detail = client.get_customer_by_code(query)
-                    customers = [format_customer_row(detail)]
-                    total = 1
-                except KiotVietAPIError as exc:
-                    if exc.status_code != 404:
-                        raise
-                    payload = client.list_customers(**params)
-                    rows = payload.get('data') or []
-                    customers = [format_customer_row(r) for r in rows]
-                    total = payload.get('total', len(customers))
-            else:
-                payload = client.list_customers(**params)
-                rows = payload.get('data') or []
+    try:
+        if browse_mode:
+            rows, total = fetch_api_page(client.list_customers, base_params, page)
+            customers = [format_customer_row(r) for r in rows]
+        elif search_type == 'code' and len(query) <= 64:
+            try:
+                detail = client.get_customer_by_code(query)
+                customers = [format_customer_row(detail)]
+                total = 1
+            except KiotVietAPIError as exc:
+                if exc.status_code != 404:
+                    raise
+                params = {**base_params, 'code': query}
+                rows, total = fetch_api_page(client.list_customers, params, page)
                 customers = [format_customer_row(r) for r in rows]
-                total = payload.get('total', len(customers))
-        except KiotVietAPIError as exc:
-            api_error = str(exc)
-            messages.error(request, api_error)
+        else:
+            params = dict(base_params)
+            if search_type == 'phone':
+                params['contactNumber'] = query
+            else:
+                params['name'] = query
+            rows, total = fetch_api_page(client.list_customers, params, page)
+            customers = [format_customer_row(r) for r in rows]
+    except KiotVietAPIError as exc:
+        api_error = str(exc)
+        messages.error(request, api_error)
+
+    if total and (browse_mode or query):
+        page_obj, query_string = paginate_api_meta(request, total)
 
     return render(
         request,
@@ -65,7 +69,10 @@ def customer_lookup(request):
             'customers': customers,
             'total': total,
             'api_error': api_error,
-            'retailer': KiotVietClient().retailer if KiotVietClient.is_configured() else '',
+            'page_obj': page_obj,
+            'query_string': query_string,
+            'browse_mode': browse_mode,
+            'retailer': client.retailer if KiotVietClient.is_configured() else '',
         },
     )
 

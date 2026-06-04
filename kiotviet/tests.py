@@ -79,6 +79,32 @@ class KiotVietViewTests(TestCase):
         response = self.http.get(reverse('kiotviet:purchase_lookup'))
         self.assertEqual(response.status_code, 200)
 
+    @patch('kiotviet.views.KiotVietClient.list_customers')
+    def test_customer_browse_shows_first_page(self, mock_list):
+        mock_list.return_value = {
+            'total': 45,
+            'data': [
+                {'id': i, 'code': f'KH{i:02d}', 'name': f'Khách {i}'}
+                for i in range(1, 31)
+            ],
+        }
+        response = self.http.get(reverse('kiotviet:customer_lookup'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'KH01')
+        self.assertContains(response, 'Trang 1/')
+        mock_list.assert_called_once()
+        kwargs = mock_list.call_args.kwargs
+        self.assertEqual(kwargs['pageSize'], 30)
+        self.assertEqual(kwargs['currentItem'], 0)
+
+    @patch('kiotviet.views.KiotVietClient.list_customers')
+    def test_customer_browse_page_two(self, mock_list):
+        mock_list.return_value = {'total': 45, 'data': [{'id': 31, 'code': 'KH31', 'name': 'Khách 31'}]}
+        response = self.http.get(reverse('kiotviet:customer_lookup'), {'page': '2'})
+        self.assertEqual(response.status_code, 200)
+        kwargs = mock_list.call_args.kwargs
+        self.assertEqual(kwargs['currentItem'], 30)
+
     @patch('kiotviet.views.KiotVietClient.get_customer_by_code')
     @patch('kiotviet.views.KiotVietClient.list_customers')
     def test_lookup_search_by_name(self, mock_list, mock_by_code):

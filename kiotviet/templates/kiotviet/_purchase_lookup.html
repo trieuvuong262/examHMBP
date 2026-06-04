@@ -10,6 +10,7 @@
             </h2>
             <p class="text-muted mb-0">
                 Dữ liệu từ KiotViet{% if retailer %} · gian hàng <strong>{{ retailer }}</strong>{% endif %}
+                {% if browse_mode %} · hiển thị <strong>30</strong> phiếu/trang{% endif %}
             </p>
         </div>
     </div>
@@ -26,8 +27,9 @@
                     </select>
                 </div>
                 <div class="col-12 col-md-7">
-                    <input type="search" class="form-control" name="q" value="{{ search_query }}"
-                           placeholder="Mã phiếu hoặc ID..." autocomplete="off">
+                    <label class="form-label fw-bold small mb-1" for="kv-search-q">Từ khóa</label>
+                    <input type="search" class="form-control" id="kv-search-q" name="q" value="{{ search_query }}"
+                           placeholder="Để trống = xem 30 phiếu mới nhất..." autocomplete="off">
                 </div>
                 <div class="col-12 col-md-2">
                     <button type="submit" class="btn btn-hm w-100 fw-bold"><i class="bi bi-search me-1"></i>Tìm</button>
@@ -36,8 +38,12 @@
         </div>
     </div>
 
+    {% include 'kiotviet/_list_meta.html' with items_count=items|length %}
+
     {% if search_query and not items and not api_error %}
-    <div class="alert alert-light border shadow-sm mb-0">Không có phiếu nhập phù hợp.</div>
+    <div class="alert alert-light border shadow-sm mb-0">Không có phiếu nhập phù hợp với «{{ search_query }}».</div>
+    {% elif not items and not api_error and browse_mode %}
+    <div class="alert alert-light border shadow-sm mb-0">Chưa có phiếu nhập từ KiotViet.</div>
     {% elif items %}
     <div class="card border-0 shadow-sm">
         <div class="table-responsive">
@@ -76,8 +82,7 @@
             </table>
         </div>
     </div>
-    {% elif not search_query %}
-    <div class="alert alert-light border shadow-sm mb-0">{{ empty_hint }}</div>
+    {% include 'kiotviet/_list_pagination.html' %}
     {% endif %}
 </div>
 {% endblock %}

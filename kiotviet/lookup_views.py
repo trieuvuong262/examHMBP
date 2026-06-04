@@ -5,6 +5,7 @@ from django.shortcuts import redirect, render
 
 from PortalJustPlay.list_search import get_search_query
 
+from .browse import fetch_api_page, get_page_number, paginate_api_meta
 from .client import KiotVietAPIError, KiotVietClient
 from .formatters import (
     format_invoice_detail,
@@ -17,71 +18,107 @@ from .decorators import kiotviet_access_required
 
 def _list_params(search_type: str, query: str) -> dict:
     params = {
-        'pageSize': 50,
-        'currentItem': 0,
         'orderDirection': 'Desc',
+        'orderBy': 'purchaseDate',
     }
-    if search_type == 'customer_code':
+    if search_type == 'customer_code' and query:
         params['customerCode'] = query
-        params['orderBy'] = 'purchaseDate'
-    else:
-        params['orderBy'] = 'purchaseDate'
     return params
 
 
-@kiotviet_access_required
-def order_lookup(request):
+def _transaction_lookup(
+    request,
+    *,
+    title: str,
+    icon: str,
+    template_name: str,
+    detail_url_name: str,
+    empty_hint: str,
+    type_options: tuple,
+    list_fn,
+    get_by_code_fn,
+    format_row_fn,
+):
     search_type = (request.GET.get('type') or 'code').strip()
-    if search_type not in ('code', 'customer_code'):
-        search_type = 'code'
+    allowed = {opt[0] for opt in type_options}
+    if search_type not in allowed:
+        search_type = type_options[0][0]
     query = get_search_query(request)
     items: list[dict] = []
-    total = None
+    total = 0
     api_error = None
+    page_obj = None
+    query_string = ''
+    browse_mode = not query
+    page = get_page_number(request)
 
-    if query:
-        client = KiotVietClient()
-        try:
-            if search_type == 'code':
-                try:
-                    detail = client.get_order_by_code(query)
-                    items = [format_order_row(detail)]
-                    total = 1
-                except KiotVietAPIError as exc:
-                    if exc.status_code != 404:
-                        raise
-                    payload = client.list_orders(**_list_params('code', query))
-                    rows = payload.get('data') or []
-                    items = [format_order_row(r) for r in rows]
-                    total = payload.get('total', len(items))
-            else:
-                payload = client.list_orders(**_list_params(search_type, query))
-                rows = payload.get('data') or []
-                items = [format_order_row(r) for r in rows]
-                total = payload.get('total', len(items))
-        except KiotVietAPIError as exc:
-            api_error = str(exc)
-            messages.error(request, api_error)
+    client = KiotVietClient()
+    base_params = _list_params(search_type, query)
+
+    try:
+        if browse_mode:
+            rows, total = fetch_api_page(list_fn, base_params, page)
+            items = [format_row_fn(r) for r in rows]
+        elif search_type == 'code':
+            try:
+                detail = get_by_code_fn(query)
+                items = [format_row_fn(detail)]
+                total = 1
+            except KiotVietAPIError as exc:
+                if exc.status_code != 404:
+                    raise
+                rows, total = fetch_api_page(list_fn, base_params, page)
+                items = [format_row_fn(r) for r in rows]
+        else:
+            rows, total = fetch_api_page(list_fn, _list_params('customer_code', query), page)
+            items = [format_row_fn(r) for r in rows]
+    except KiotVietAPIError as exc:
+        api_error = str(exc)
+        messages.error(request, api_error)
+
+    if total and (browse_mode or query):
+        page_obj, query_string = paginate_api_meta(request, total)
 
     return render(
         request,
-        'kiotviet/order_lookup.html',
+        template_name,
         _lookup_context(
             request,
-            title='Tra cứu đơn đặt hàng',
-            icon='bi-cart-check',
+            title=title,
+            icon=icon,
             search_type=search_type,
             search_query=query,
             items=items,
             total=total,
             api_error=api_error,
-            detail_url_name='kiotviet:order_detail',
-            empty_hint='Nhập mã đơn hoặc mã khách hàng để tra cứu đơn đặt hàng.',
-            type_options=(
-                ('code', 'Mã đơn đặt hàng'),
-                ('customer_code', 'Mã khách hàng'),
-            ),
+            detail_url_name=detail_url_name,
+            empty_hint=empty_hint,
+            type_options=type_options,
+            page_obj=page_obj,
+            query_string=query_string,
+            browse_mode=browse_mode,
+            items_count=len(items),
         ),
+    )
+
+
+@kiotviet_access_required
+def order_lookup(request):
+    client = KiotVietClient()
+    return _transaction_lookup(
+        request,
+        title='Tra cứu đơn đặt hàng',
+        icon='bi-cart-check',
+        template_name='kiotviet/order_lookup.html',
+        detail_url_name='kiotviet:order_detail',
+        empty_hint='Nhập mã đơn hoặc mã khách hàng để lọc. Không nhập từ khóa: xem 30 đơn mới nhất.',
+        type_options=(
+            ('code', 'Mã đơn đặt hàng'),
+            ('customer_code', 'Mã khách hàng'),
+        ),
+        list_fn=client.list_orders,
+        get_by_code_fn=client.get_order_by_code,
+        format_row_fn=format_order_row,
     )
 
 
@@ -106,57 +143,21 @@ def order_detail(request, order_id: int):
 
 @kiotviet_access_required
 def invoice_lookup(request):
-    search_type = (request.GET.get('type') or 'code').strip()
-    if search_type not in ('code', 'customer_code'):
-        search_type = 'code'
-    query = get_search_query(request)
-    items: list[dict] = []
-    total = None
-    api_error = None
-
-    if query:
-        client = KiotVietClient()
-        try:
-            if search_type == 'code':
-                try:
-                    detail = client.get_invoice_by_code(query)
-                    items = [format_invoice_row(detail)]
-                    total = 1
-                except KiotVietAPIError as exc:
-                    if exc.status_code != 404:
-                        raise
-                    payload = client.list_invoices(**_list_params('code', query))
-                    rows = payload.get('data') or []
-                    items = [format_invoice_row(r) for r in rows]
-                    total = payload.get('total', len(items))
-            else:
-                payload = client.list_invoices(**_list_params(search_type, query))
-                rows = payload.get('data') or []
-                items = [format_invoice_row(r) for r in rows]
-                total = payload.get('total', len(items))
-        except KiotVietAPIError as exc:
-            api_error = str(exc)
-            messages.error(request, api_error)
-
-    return render(
+    client = KiotVietClient()
+    return _transaction_lookup(
         request,
-        'kiotviet/invoice_lookup.html',
-        _lookup_context(
-            request,
-            title='Tra cứu hóa đơn',
-            icon='bi-receipt',
-            search_type=search_type,
-            search_query=query,
-            items=items,
-            total=total,
-            api_error=api_error,
-            detail_url_name='kiotviet:invoice_detail',
-            empty_hint='Nhập mã hóa đơn hoặc mã khách hàng để tra cứu.',
-            type_options=(
-                ('code', 'Mã hóa đơn'),
-                ('customer_code', 'Mã khách hàng'),
-            ),
+        title='Tra cứu hóa đơn',
+        icon='bi-receipt',
+        template_name='kiotviet/invoice_lookup.html',
+        detail_url_name='kiotviet:invoice_detail',
+        empty_hint='Nhập mã hóa đơn hoặc mã khách hàng để lọc. Không nhập từ khóa: xem 30 hóa đơn mới nhất.',
+        type_options=(
+            ('code', 'Mã hóa đơn'),
+            ('customer_code', 'Mã khách hàng'),
         ),
+        list_fn=client.list_invoices,
+        get_by_code_fn=client.get_invoice_by_code,
+        format_row_fn=format_invoice_row,
     )
 
 

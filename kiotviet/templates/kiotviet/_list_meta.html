@@ -1,0 +1,17 @@
+{% if not api_error %}
+<div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+    <span class="text-muted small">
+        {% if browse_mode %}
+            {% if total %}Tổng <strong>{{ total }}</strong> bản ghi{% if page_obj %} · trang {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}{% endif %}
+            {% else %}Không có dữ liệu{% endif %}
+        {% elif total is not None %}
+            Tìm thấy <strong>{{ total }}</strong> bản ghi
+            {% if page_obj and page_obj.paginator.num_pages > 1 %}
+                · trang {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+            {% elif items_count is not None and items_count < total %}
+                (hiển thị {{ items_count }})
+            {% endif %}
+        {% endif %}
+    </span>
+</div>
+{% endif %}

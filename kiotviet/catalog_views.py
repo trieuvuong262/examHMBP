@@ -5,6 +5,13 @@ from django.shortcuts import redirect, render
 
 from PortalJustPlay.list_search import get_search_query
 
+from .browse import (
+    KV_PAGE_SIZE,
+    fetch_api_page,
+    get_page_number,
+    paginate_api_meta,
+    paginate_list_items,
+)
 from .client import KiotVietAPIError, KiotVietClient
 from .decorators import kiotviet_access_required
 from .formatters import (
@@ -19,13 +26,11 @@ from .lookup_views import _lookup_context
 
 def _product_list_params(search_type: str, query: str) -> dict:
     params = {
-        'pageSize': 50,
-        'currentItem': 0,
         'orderBy': 'name',
         'orderDirection': 'Asc',
         'includeInventory': 'true',
     }
-    if search_type == 'name':
+    if search_type == 'name' and query:
         params['name'] = query
     return params
 
@@ -35,6 +40,11 @@ def _filter_purchase_by_code(rows: list, query: str) -> list:
     return [r for r in rows if str(r.get('code') or '').lower() == q]
 
 
+def _filter_products_by_code(rows: list, query: str) -> list:
+    q = query.strip().lower()
+    return [r for r in rows if str(r.get('code', '')).lower() == q]
+
+
 @kiotviet_access_required
 def product_lookup(request):
     search_type = (request.GET.get('type') or 'code').strip()
@@ -42,44 +52,72 @@ def product_lookup(request):
         search_type = 'code'
     query = get_search_query(request)
     items: list[dict] = []
-    total = None
+    total = 0
     api_error = None
+    page_obj = None
+    query_string = ''
+    browse_mode = not query
+    page = get_page_number(request)
 
-    if query:
-        client = KiotVietClient()
-        try:
-            if search_type == 'code':
-                try:
-                    detail = client.get_product_by_code(
-                        query,
-                        includeInventory='true',
-                    )
-                    items = [format_product_row(detail)]
-                    total = 1
-                except KiotVietAPIError as exc:
-                    if exc.status_code != 404:
-                        raise
-                    payload = client.list_products(**_product_list_params('code', query))
-                    rows = payload.get('data') or []
-                    items = [format_product_row(r) for r in rows if str(r.get('code', '')).lower() == query.lower()]
+    client = KiotVietClient()
+
+    try:
+        if browse_mode:
+            rows, total = fetch_api_page(
+                client.list_products,
+                _product_list_params('name', ''),
+                page,
+            )
+            items = [format_product_row(r) for r in rows]
+        elif search_type == 'code':
+            try:
+                detail = client.get_product_by_code(query, includeInventory='true')
+                items = [format_product_row(detail)]
+                total = 1
+            except KiotVietAPIError as exc:
+                if exc.status_code != 404:
+                    raise
+                rows, total = fetch_api_page(
+                    client.list_products,
+                    _product_list_params('name', ''),
+                    page,
+                )
+                filtered = _filter_products_by_code(rows, query)
+                if filtered:
+                    items = [format_product_row(r) for r in filtered]
                     total = len(items)
-            elif search_type == 'barcode':
-                payload = client.list_products(pageSize=100, currentItem=0, includeInventory='true')
-                rows = payload.get('data') or []
-                items = [
-                    format_product_row(r)
-                    for r in rows
-                    if str(r.get('barCode') or '').lower() == query.lower()
-                ]
-                total = len(items)
-            else:
-                payload = client.list_products(**_product_list_params('name', query))
-                rows = payload.get('data') or []
-                items = [format_product_row(r) for r in rows]
-                total = payload.get('total', len(items))
-        except KiotVietAPIError as exc:
-            api_error = str(exc)
-            messages.error(request, api_error)
+                else:
+                    items = []
+                    total = 0
+        elif search_type == 'barcode':
+            all_matched: list[dict] = []
+            api_total = 0
+            for scan_page in range(1, 6):
+                rows, api_total = fetch_api_page(
+                    client.list_products,
+                    {'includeInventory': 'true', 'orderBy': 'name', 'orderDirection': 'Asc'},
+                    scan_page,
+                )
+                for row in rows:
+                    if str(row.get('barCode') or '').lower() == query.lower():
+                        all_matched.append(format_product_row(row))
+                if len(all_matched) >= KV_PAGE_SIZE or scan_page * KV_PAGE_SIZE >= api_total:
+                    break
+            items, page_obj, query_string = paginate_list_items(request, all_matched)
+            total = len(all_matched)
+        else:
+            rows, total = fetch_api_page(
+                client.list_products,
+                _product_list_params('name', query),
+                page,
+            )
+            items = [format_product_row(r) for r in rows]
+    except KiotVietAPIError as exc:
+        api_error = str(exc)
+        messages.error(request, api_error)
+
+    if total and page_obj is None and (browse_mode or query):
+        page_obj, query_string = paginate_api_meta(request, total)
 
     return render(
         request,
@@ -94,12 +132,16 @@ def product_lookup(request):
             total=total,
             api_error=api_error,
             detail_url_name='kiotviet:product_detail',
-            empty_hint='Nhập mã hàng, tên hoặc mã vạch để tra cứu sản phẩm.',
+            empty_hint='Nhập mã, tên hoặc mã vạch để lọc. Không nhập từ khóa: xem 30 hàng đầu.',
             type_options=(
                 ('code', 'Mã hàng hóa'),
                 ('name', 'Tên hàng hóa'),
                 ('barcode', 'Mã vạch'),
             ),
+            page_obj=page_obj,
+            query_string=query_string,
+            browse_mode=browse_mode,
+            items_count=len(items),
         ),
     )
 
@@ -126,44 +168,56 @@ def stock_lookup(request):
         search_type = 'code'
     query = get_search_query(request)
     stock_rows: list[dict] = []
-    total = None
+    total = 0
     api_error = None
+    page_obj = None
+    query_string = ''
+    browse_mode = not query
+    page = get_page_number(request)
 
-    if query:
-        client = KiotVietClient()
-        try:
-            products: list[dict] = []
-            if search_type == 'code':
-                try:
-                    products = [client.get_product_by_code(query, includeInventory='true')]
-                except KiotVietAPIError as exc:
-                    if exc.status_code != 404:
-                        raise
-                    payload = client.list_product_on_hand(
-                        pageSize=100,
-                        currentItem=0,
-                        orderBy='code',
-                    )
-                    for row in payload.get('data') or []:
-                        if str(row.get('code', '')).lower() == query.lower():
-                            products.append(row)
-            else:
-                payload = client.list_products(**_product_list_params('name', query))
-                products = payload.get('data') or []
+    client = KiotVietClient()
 
-            for product in products:
+    try:
+        if browse_mode:
+            rows, total = fetch_api_page(
+                client.list_product_on_hand,
+                {'orderBy': 'code', 'orderDirection': 'Asc'},
+                page,
+            )
+            for product in rows:
                 stock_rows.extend(format_inventory_rows(product))
-
-            if not stock_rows and search_type == 'code':
-                payload = client.list_product_on_hand(pageSize=100, currentItem=0)
-                for row in payload.get('data') or []:
+        elif search_type == 'code':
+            try:
+                product = client.get_product_by_code(query, includeInventory='true')
+                stock_rows = format_inventory_rows(product)
+                total = len(stock_rows)
+            except KiotVietAPIError as exc:
+                if exc.status_code != 404:
+                    raise
+                rows, _ = fetch_api_page(
+                    client.list_product_on_hand,
+                    {'orderBy': 'code', 'orderDirection': 'Asc'},
+                    1,
+                )
+                for row in rows:
                     if str(row.get('code', '')).lower() == query.lower():
                         stock_rows.extend(format_inventory_rows(row))
+                total = len(stock_rows)
+        else:
+            rows, total = fetch_api_page(
+                client.list_products,
+                _product_list_params('name', query),
+                page,
+            )
+            for product in rows:
+                stock_rows.extend(format_inventory_rows(product))
+    except KiotVietAPIError as exc:
+        api_error = str(exc)
+        messages.error(request, api_error)
 
-            total = len(stock_rows)
-        except KiotVietAPIError as exc:
-            api_error = str(exc)
-            messages.error(request, api_error)
+    if browse_mode or (search_type == 'name' and query):
+        if total:
+            page_obj, query_string = paginate_api_meta(request, total)
 
     return render(
         request,
@@ -174,7 +228,10 @@ def stock_lookup(request):
             'stock_rows': stock_rows,
             'total': total,
             'api_error': api_error,
-            'retailer': KiotVietClient().retailer if KiotVietClient.is_configured() else '',
+            'page_obj': page_obj,
+            'query_string': query_string,
+            'browse_mode': browse_mode,
+            'retailer': client.retailer if KiotVietClient.is_configured() else '',
             'type_options': (
                 ('code', 'Mã hàng hóa'),
                 ('name', 'Tên hàng hóa'),
@@ -190,45 +247,56 @@ def purchase_lookup(request):
         search_type = 'code'
     query = get_search_query(request)
     items: list[dict] = []
-    total = None
+    total = 0
     api_error = None
+    page_obj = None
+    query_string = ''
+    browse_mode = not query
+    page = get_page_number(request)
 
-    if query:
-        client = KiotVietClient()
-        try:
-            if search_type == 'id' and query.isdigit():
+    client = KiotVietClient()
+    list_params = {'orderDirection': 'Desc', 'orderBy': 'purchaseDate'}
+
+    try:
+        if browse_mode:
+            rows, total = fetch_api_page(client.list_purchase_orders, list_params, page)
+            items = [format_purchase_order_row(r) for r in rows]
+        elif search_type == 'id' and query.isdigit():
+            detail = client.get_purchase_order(query)
+            items = [format_purchase_order_row(detail)]
+            total = 1
+        elif query.isdigit():
+            try:
                 detail = client.get_purchase_order(query)
                 items = [format_purchase_order_row(detail)]
                 total = 1
-            else:
-                if query.isdigit():
-                    try:
-                        detail = client.get_purchase_order(query)
-                        items = [format_purchase_order_row(detail)]
-                        total = 1
-                    except KiotVietAPIError as exc:
-                        if exc.status_code != 404:
-                            raise
-                        payload = client.list_purchase_orders(
-                            pageSize=100,
-                            currentItem=0,
-                            orderDirection='Desc',
-                        )
-                        rows = _filter_purchase_by_code(payload.get('data') or [], query)
-                        items = [format_purchase_order_row(r) for r in rows]
-                        total = len(items)
-                else:
-                    payload = client.list_purchase_orders(
-                        pageSize=100,
-                        currentItem=0,
-                        orderDirection='Desc',
-                    )
-                    rows = _filter_purchase_by_code(payload.get('data') or [], query)
-                    items = [format_purchase_order_row(r) for r in rows]
-                    total = len(items)
-        except KiotVietAPIError as exc:
-            api_error = str(exc)
-            messages.error(request, api_error)
+            except KiotVietAPIError as exc:
+                if exc.status_code != 404:
+                    raise
+                rows, _ = fetch_api_page(client.list_purchase_orders, list_params, 1)
+                matched = _filter_purchase_by_code(rows, query)
+                items = [format_purchase_order_row(r) for r in matched]
+                total = len(items)
+        else:
+            all_matched: list[dict] = []
+            api_total = 0
+            for scan_page in range(1, 6):
+                rows, api_total = fetch_api_page(
+                    client.list_purchase_orders,
+                    list_params,
+                    scan_page,
+                )
+                all_matched.extend(_filter_purchase_by_code(rows, query))
+                if all_matched or scan_page * KV_PAGE_SIZE >= api_total:
+                    break
+            items, page_obj, query_string = paginate_list_items(request, all_matched)
+            total = len(all_matched)
+    except KiotVietAPIError as exc:
+        api_error = str(exc)
+        messages.error(request, api_error)
+
+    if total and page_obj is None and (browse_mode or query):
+        page_obj, query_string = paginate_api_meta(request, total)
 
     return render(
         request,
@@ -243,11 +311,15 @@ def purchase_lookup(request):
             total=total,
             api_error=api_error,
             detail_url_name='kiotviet:purchase_detail',
-            empty_hint='Nhập mã phiếu nhập hoặc ID phiếu để tra cứu.',
+            empty_hint='Nhập mã phiếu hoặc ID để lọc. Không nhập từ khóa: xem 30 phiếu mới nhất.',
             type_options=(
                 ('code', 'Mã phiếu nhập'),
                 ('id', 'ID phiếu'),
             ),
+            page_obj=page_obj,
+            query_string=query_string,
+            browse_mode=browse_mode,
+            items_count=len(items),
         ),
     )
 
