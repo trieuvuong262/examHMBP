@@ -30,6 +30,9 @@
             <button type="button" class="btn btn-outline-hm fw-bold shadow-sm jp-hrm-tool-btn" id="org-manage-toggle" data-bs-toggle="collapse" data-bs-target="#org-manage-panel" aria-expanded="false" aria-controls="org-manage-panel">
                 <i class="bi bi-pencil-square"></i><span class="jp-hrm-tool-label"> Cập nhật sơ đồ</span>
             </button>
+            <button type="button" class="btn btn-outline-hm fw-bold shadow-sm jp-hrm-tool-btn" id="org-export-chart-btn" title="Tải sơ đồ dạng ảnh PNG">
+                <i class="bi bi-image"></i><span class="jp-hrm-tool-label"> Export ảnh</span>
+            </button>
             {% endif %}
             <a href="{% url 'department_add' %}" class="btn btn-hm shadow-sm text-white fw-bold jp-hrm-tool-btn jp-hrm-tool-btn-primary">
                 <i class="bi bi-building"></i><span class="jp-hrm-tool-label"> Thêm phòng ban</span>
@@ -220,6 +223,22 @@
             </form>
         </div>
     </div>
+    <div class="modal fade" id="orgEmployeesModal" tabindex="-1" aria-labelledby="orgEmployeesModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header border-0 pb-0">
+                    <div>
+                        <h5 class="modal-title fw-bold" id="orgEmployeesModalTitle">Vị trí</h5>
+                        <p class="small text-muted mb-0" id="orgEmployeesModalSubtitle"></p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body pt-2 pb-4">
+                    <ul class="list-group list-group-flush" id="orgEmployeesModalList"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
     {% endif %}
 
 </div>
@@ -228,7 +247,7 @@
 {{ org_tree|json_script:"jp-org-tree-data" }}
 {{ org_urls|json_script:"jp-org-urls-data" }}
 <script src="{% static 'vendor/d3.min.js' %}?v=7.9.0"></script>
-<script src="{% static 'js/org_tree.js' %}?v=20260533a"></script>
+<script src="{% static 'js/org_tree.js' %}?v=20260534a"></script>
 <script>
 (function () {
     var panel = document.getElementById('org-manage-panel');

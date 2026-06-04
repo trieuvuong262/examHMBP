@@ -22,6 +22,7 @@ ORG_DIVISION_HEAD_PREFIX = 'Trưởng Bộ Phận:'
 ORG_DIRECTOR_PREFIX = 'Giám đốc:'
 MAX_POSITIONS_PER_DIVISION = 12
 MAX_EMPLOYEES_PER_POSITION = 80
+ORG_CHART_EMPLOYEE_PREVIEW = 8
 
 
 def position_node_key(division_id: int, position_name: str, position_id: int | None = None) -> str:
@@ -309,6 +310,33 @@ def _employee_nodes(
     ]
 
 
+def _position_node(
+    *,
+    name: str,
+    staff_count: int,
+    department_id: int | None,
+    division_id: int,
+    position_id: int | None,
+    is_defined: bool,
+) -> dict:
+    all_employees = _employee_nodes(department_id, division_id, name)
+    total = len(all_employees)
+    return {
+        'name': name,
+        'count': staff_count or total,
+        'level': 'position',
+        'id': position_id,
+        'division_id': division_id,
+        'dept_id': department_id,
+        'is_defined': is_defined,
+        'position_key': position_node_key(division_id, name, position_id),
+        'employee_total': total,
+        'has_more_employees': total > ORG_CHART_EMPLOYEE_PREVIEW,
+        'employees_all': all_employees,
+        'children': all_employees[:ORG_CHART_EMPLOYEE_PREVIEW],
+    }
+
+
 def _position_children(department_id: int | None, division_id: int) -> list[dict]:
     counts = _staff_counts_by_position(department_id, division_id)
     defined = DivisionPosition.objects.filter(
@@ -320,17 +348,16 @@ def _position_children(department_id: int | None, division_id: int) -> list[dict
 
     for pos in defined:
         seen.add(pos.name)
-        out.append({
-            'name': pos.name,
-            'count': counts.get(pos.name, 0),
-            'level': 'position',
-            'id': pos.pk,
-            'division_id': division_id,
-            'dept_id': department_id,
-            'is_defined': True,
-            'position_key': position_node_key(division_id, pos.name, pos.pk),
-            'children': _employee_nodes(department_id, division_id, pos.name),
-        })
+        out.append(
+            _position_node(
+                name=pos.name,
+                staff_count=counts.get(pos.name, 0),
+                department_id=department_id,
+                division_id=division_id,
+                position_id=pos.pk,
+                is_defined=True,
+            ),
+        )
 
     extras = sorted(
         ((name, cnt) for name, cnt in counts.items() if name not in seen),
@@ -339,17 +366,16 @@ def _position_children(department_id: int | None, division_id: int) -> list[dict
     for name, cnt in extras:
         if len(out) >= MAX_POSITIONS_PER_DIVISION:
             break
-        out.append({
-            'name': name,
-            'count': cnt,
-            'level': 'position',
-            'id': None,
-            'division_id': division_id,
-            'dept_id': department_id,
-            'is_defined': False,
-            'position_key': position_node_key(division_id, name, None),
-            'children': _employee_nodes(department_id, division_id, name),
-        })
+        out.append(
+            _position_node(
+                name=name,
+                staff_count=cnt,
+                department_id=department_id,
+                division_id=division_id,
+                position_id=None,
+                is_defined=False,
+            ),
+        )
     return out[:MAX_POSITIONS_PER_DIVISION]
 
 

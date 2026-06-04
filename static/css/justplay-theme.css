@@ -3292,6 +3292,28 @@ textarea.form-control {
     cursor: zoom-in;
 }
 
+.jp-org-emp-list-avatar {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.jp-org-emp-list-avatar--empty {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #fce7f3;
+    color: var(--hm-primary);
+    font-weight: 700;
+    font-size: 1rem;
+    border-radius: 50%;
+}
+
+.jp-org-emp-list-item .jp-org-emp-list-name:hover {
+    color: var(--hm-primary) !important;
+}
+
 .jp-org-tree-node.is-clickable:hover .jp-org-tree-pill-rect,
 .jp-org-tree-pill-hit:focus .jp-org-tree-pill-rect {
     filter: brightness(1.02) drop-shadow(0 4px 14px rgba(220, 38, 38, 0.2));

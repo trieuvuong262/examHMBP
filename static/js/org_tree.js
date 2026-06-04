@@ -11,6 +11,8 @@
     /** Đẩy cột NV thêm so với layout cây (tỷ lệ nodeW + gap cố định). */
     const EMPLOYEE_X_NUDGE = 0.28;
     const POSITION_EMPLOYEE_EXTRA_GAP = 48;
+    /** Số NV tối đa hiển thị trên sơ đồ khi mở vị trí (khớp backend). */
+    const EMPLOYEE_PREVIEW_MAX = 8;
 
     const LAYOUT = {
         widthScale: WIDTH_SCALE,
@@ -378,6 +380,14 @@
         }
 
         if (level === 'position') {
+            const empTotal = Number(nodeData.employee_total ?? nodeData.count ?? 0);
+            if (empTotal > 0) {
+                out.push({
+                    action: 'employeesFull',
+                    title: 'Danh sách đầy đủ nhân viên',
+                    glyph: '≡',
+                });
+            }
             if (urls.userAdd && divId) {
                 out.push({
                     href: fillUrl(urls.userAdd, {
@@ -437,6 +447,149 @@
         return !!target.closest(
             '.jp-org-tree-node, .jp-org-tree-pill-hit, .jp-org-tree-action-link',
         );
+    }
+
+    function showEmployeesListModal(nodeData) {
+        const modalEl = document.getElementById('orgEmployeesModal');
+        const titleEl = document.getElementById('orgEmployeesModalTitle');
+        const subEl = document.getElementById('orgEmployeesModalSubtitle');
+        const listEl = document.getElementById('orgEmployeesModalList');
+        if (!modalEl || !listEl || !window.bootstrap) return;
+
+        const employees = nodeData.employees_all || [];
+        const total = Number(nodeData.employee_total ?? employees.length);
+        const posName = (nodeData.name || '').trim() || 'Vị trí';
+        if (titleEl) titleEl.textContent = posName;
+        if (subEl) {
+            subEl.textContent = total
+                ? `${total} nhân viên — bấm tên để xem avatar`
+                : 'Chưa có nhân viên tại vị trí này.';
+        }
+
+        listEl.innerHTML = '';
+        if (!employees.length) {
+            listEl.innerHTML = '<li class="list-group-item text-muted small">Chưa có nhân viên.</li>';
+        } else {
+            const urls = chartState.urls || {};
+            employees.forEach((emp) => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item d-flex align-items-center gap-3 jp-org-emp-list-item';
+                const name = (emp.name || '').trim() || 'Nhân viên';
+                const code = (emp.subtitle || emp.employee_code || '').trim();
+                const editUrl = urls.userEdit && emp.user_id
+                    ? urls.userEdit.replace('{id}', String(emp.user_id))
+                    : '';
+
+                if (emp.avatar_url) {
+                    const img = document.createElement('img');
+                    img.src = emp.avatar_url;
+                    img.alt = '';
+                    img.className = 'jp-org-emp-list-avatar rounded-circle';
+                    img.loading = 'lazy';
+                    li.appendChild(img);
+                } else {
+                    const av = document.createElement('span');
+                    av.className = 'jp-org-emp-list-avatar jp-org-emp-list-avatar--empty';
+                    av.setAttribute('aria-hidden', 'true');
+                    av.textContent = name.charAt(0).toUpperCase();
+                    li.appendChild(av);
+                }
+
+                const body = document.createElement('div');
+                body.className = 'flex-grow-1 min-width-0';
+                const nameBtn = document.createElement('button');
+                nameBtn.type = 'button';
+                nameBtn.className = 'btn btn-link p-0 text-start fw-bold text-dark text-decoration-none jp-org-emp-list-name';
+                nameBtn.textContent = name;
+                nameBtn.addEventListener('click', () => showEmployeeAvatar(emp));
+                body.appendChild(nameBtn);
+                if (code) {
+                    const codeEl = document.createElement('div');
+                    codeEl.className = 'small text-muted';
+                    codeEl.textContent = code;
+                    body.appendChild(codeEl);
+                }
+                li.appendChild(body);
+
+                if (editUrl) {
+                    const editA = document.createElement('a');
+                    editA.href = editUrl;
+                    editA.className = 'btn btn-sm btn-outline-hm fw-bold flex-shrink-0';
+                    editA.textContent = 'Sửa';
+                    li.appendChild(editA);
+                }
+                listEl.appendChild(li);
+            });
+        }
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+
+    function downloadSvgAsPng(svgEl, filename) {
+        const xml = new XMLSerializer().serializeToString(svgEl);
+        const svg64 = btoa(unescape(encodeURIComponent(xml)));
+        const img = new Image();
+        img.onload = function onLoad() {
+            const canvas = document.createElement('canvas');
+            const scale = 2;
+            canvas.width = img.width * scale;
+            canvas.height = img.height * scale;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+            ctx.scale(scale, scale);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, img.width, img.height);
+            ctx.drawImage(img, 0, 0);
+            canvas.toBlob((blob) => {
+                if (!blob) return;
+                const a = document.createElement('a');
+                a.download = filename;
+                a.href = URL.createObjectURL(blob);
+                a.click();
+                URL.revokeObjectURL(a.href);
+            }, 'image/png');
+        };
+        img.src = `data:image/svg+xml;charset=utf-8;base64,${svg64}`;
+    }
+
+    function exportOrgChartImage() {
+        const mount = document.getElementById('jp-org-tree-mount');
+        const svg = mount && mount.querySelector('svg.jp-org-tree-svg');
+        const chart = svg && svg.querySelector('g.jp-org-tree-chart');
+        const defs = svg && svg.querySelector('defs');
+        if (!chart) {
+            window.alert('Chưa có sơ đồ để xuất ảnh.');
+            return;
+        }
+
+        const bbox = chart.getBBox();
+        const pad = 36;
+        const w = Math.ceil(bbox.width + pad * 2);
+        const h = Math.ceil(bbox.height + pad * 2);
+        const ns = 'http://www.w3.org/2000/svg';
+        const exportSvg = document.createElementNS(ns, 'svg');
+        exportSvg.setAttribute('xmlns', ns);
+        exportSvg.setAttribute('width', String(w));
+        exportSvg.setAttribute('height', String(h));
+        exportSvg.setAttribute(
+            'viewBox',
+            `${bbox.x - pad} ${bbox.y - pad} ${bbox.width + pad * 2} ${bbox.height + pad * 2}`,
+        );
+
+        const bg = document.createElementNS(ns, 'rect');
+        bg.setAttribute('x', String(bbox.x - pad));
+        bg.setAttribute('y', String(bbox.y - pad));
+        bg.setAttribute('width', String(bbox.width + pad * 2));
+        bg.setAttribute('height', String(bbox.height + pad * 2));
+        bg.setAttribute('fill', '#ffffff');
+        exportSvg.appendChild(bg);
+
+        if (defs) exportSvg.appendChild(defs.cloneNode(true));
+        const chartClone = chart.cloneNode(true);
+        exportSvg.appendChild(chartClone);
+
+        const stamp = new Date();
+        const fname = `so-do-to-chuc-${stamp.getFullYear()}${String(stamp.getMonth() + 1).padStart(2, '0')}${String(stamp.getDate()).padStart(2, '0')}.png`;
+        downloadSvgAsPng(exportSvg, fname);
     }
 
     function showEmployeeAvatar(nodeData) {
@@ -757,23 +910,42 @@
                 actions.forEach((act, i) => {
                     const step = ACTION.size + ACTION.gap;
                     const ag = menu.append('g').attr('transform', `translate(${i * step},0)`);
-                    const link = ag.append('a')
-                        .attr('href', act.href)
-                        .attr('class', `jp-org-tree-action-link${act.danger ? ' is-danger' : ''}`)
-                        .attr('title', act.title)
-                        .attr('aria-label', act.title)
-                        .on('click', (ev) => ev.stopPropagation());
-                    link.append('rect')
-                        .attr('class', 'jp-org-tree-action-bg')
-                        .attr('width', ACTION.size)
-                        .attr('height', ACTION.size)
-                        .attr('rx', 5);
-                    link.append('text')
-                        .attr('class', 'jp-org-tree-action-icon')
-                        .attr('x', ACTION.size / 2)
-                        .attr('y', ACTION.size - 6)
-                        .attr('text-anchor', 'middle')
-                        .text(act.glyph);
+                    const cls = `jp-org-tree-action-link${act.danger ? ' is-danger' : ''}`;
+                    const drawBtn = (sel) => {
+                        sel.append('rect')
+                            .attr('class', 'jp-org-tree-action-bg')
+                            .attr('width', ACTION.size)
+                            .attr('height', ACTION.size)
+                            .attr('rx', 5);
+                        sel.append('text')
+                            .attr('class', 'jp-org-tree-action-icon')
+                            .attr('x', ACTION.size / 2)
+                            .attr('y', ACTION.size - 6)
+                            .attr('text-anchor', 'middle')
+                            .text(act.glyph);
+                    };
+                    if (act.action === 'employeesFull') {
+                        const btn = ag.append('g')
+                            .attr('class', cls)
+                            .attr('role', 'button')
+                            .attr('title', act.title)
+                            .attr('aria-label', act.title)
+                            .style('cursor', 'pointer')
+                            .on('click', (ev) => {
+                                ev.preventDefault();
+                                ev.stopPropagation();
+                                showEmployeesListModal(d.data);
+                            });
+                        drawBtn(btn);
+                    } else {
+                        const link = ag.append('a')
+                            .attr('href', act.href || '#')
+                            .attr('class', cls)
+                            .attr('title', act.title)
+                            .attr('aria-label', act.title)
+                            .on('click', (ev) => ev.stopPropagation());
+                        drawBtn(link);
+                    }
                 });
             }
 
@@ -784,10 +956,16 @@
                 pill.append('title').text(
                     `${hint} — bấm xem avatar, double-click sửa hồ sơ`,
                 );
-            } else {
+            } else if (isExpandable) {
+                const total = Number(d.data.employee_total ?? 0);
+                const extra = total > EMPLOYEE_PREVIEW_MAX
+                    ? ` (tối đa ${EMPLOYEE_PREVIEW_MAX}/${total} trên sơ đồ)`
+                    : '';
                 pill.append('title').text(
-                    isExpandable ? `${hint} — bấm để ${expanded ? 'đóng' : 'mở'} danh sách NV` : hint,
+                    `${hint} — bấm để ${expanded ? 'đóng' : 'mở'} xem NV${extra}. Nút ≡ = danh sách đầy đủ`,
                 );
+            } else {
+                pill.append('title').text(hint);
             }
         });
 
@@ -846,7 +1024,9 @@
 
         if (!chartState.fullData) {
             chartState.fullData = JSON.parse(JSON.stringify(window.JP_ORG_TREE));
-            chartState.collapsed = new Set();
+            const keys = new Set();
+            collectPositionKeys(chartState.fullData, keys);
+            chartState.collapsed = keys;
         }
         chartState.urls = window.JP_ORG_URLS || {};
 
@@ -869,9 +1049,22 @@
         window.jpOrgTreeInit();
     }
 
+    function wireOrgToolbar() {
+        const exportBtn = document.getElementById('org-export-chart-btn');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => exportOrgChartImage());
+        }
+    }
+
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', boot);
+        document.addEventListener('DOMContentLoaded', () => {
+            boot();
+            wireOrgToolbar();
+        });
     } else {
         boot();
+        wireOrgToolbar();
     }
+
+    window.jpOrgExportChartImage = exportOrgChartImage;
 })();

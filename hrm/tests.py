@@ -748,6 +748,38 @@ class OrgStructureTreemapTests(TestCase):
         self.assertIsNotNone(emp)
         self.assertIn('avatar_url', emp)
 
+    def test_position_node_limits_chart_preview(self):
+        from hrm.models import DivisionPosition
+        from hrm.org_structure import ORG_CHART_EMPLOYEE_PREVIEW, build_org_tree, build_org_treemap
+
+        div = Division.objects.get(name='ORG-DIV-1')
+        DivisionPosition.objects.create(
+            division=div,
+            department=self.dept,
+            name='ORG-PREV-POS',
+        )
+        for i in range(ORG_CHART_EMPLOYEE_PREVIEW + 3):
+            user = User.objects.create_user(username=f'prev{i}', password='x')
+            Profile.objects.update_or_create(
+                user=user,
+                defaults={
+                    'full_name': f'Preview {i}',
+                    'department': self.dept,
+                    'division': div,
+                    'job_position': 'ORG-PREV-POS',
+                    'is_employed': True,
+                },
+            )
+        tree = build_org_tree(build_org_treemap())
+        dept = next(c for c in tree['children'] if c.get('id') == self.dept.pk)
+        div_node = next(c for c in dept['children'] if c.get('name') == 'ORG-DIV-1')
+        pos = next((c for c in div_node['children'] if c.get('name') == 'ORG-PREV-POS'), None)
+        self.assertIsNotNone(pos)
+        self.assertEqual(pos['employee_total'], ORG_CHART_EMPLOYEE_PREVIEW + 3)
+        self.assertTrue(pos['has_more_employees'])
+        self.assertEqual(len(pos['children']), ORG_CHART_EMPLOYEE_PREVIEW)
+        self.assertEqual(len(pos['employees_all']), ORG_CHART_EMPLOYEE_PREVIEW + 3)
+
     def test_org_tree_includes_employee_children(self):
         from hrm.models import DivisionPosition
 
