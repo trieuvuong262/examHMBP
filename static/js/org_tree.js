@@ -524,34 +524,156 @@
         bootstrap.Modal.getOrCreateInstance(modalEl).show();
     }
 
-    function downloadSvgAsPng(svgEl, filename) {
-        const xml = new XMLSerializer().serializeToString(svgEl);
-        const svg64 = btoa(unescape(encodeURIComponent(xml)));
-        const img = new Image();
-        img.onload = function onLoad() {
-            const canvas = document.createElement('canvas');
-            const scale = 2;
-            canvas.width = img.width * scale;
-            canvas.height = img.height * scale;
-            const ctx = canvas.getContext('2d');
-            if (!ctx) return;
-            ctx.scale(scale, scale);
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, img.width, img.height);
-            ctx.drawImage(img, 0, 0);
-            canvas.toBlob((blob) => {
-                if (!blob) return;
-                const a = document.createElement('a');
-                a.download = filename;
-                a.href = URL.createObjectURL(blob);
-                a.click();
-                URL.revokeObjectURL(a.href);
-            }, 'image/png');
-        };
-        img.src = `data:image/svg+xml;charset=utf-8;base64,${svg64}`;
+    /** CSS nhúng vào SVG export — tránh var() và stylesheet ngoài (canvas không đọc được). */
+    const ORG_EXPORT_STYLES = `
+.jp-org-tree-link { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; }
+.jp-org-tree-link--from-root { stroke: #991b1b; }
+.jp-org-tree-link--from-department { stroke: #dc2626; }
+.jp-org-tree-link--from-division { stroke: #f87171; }
+.jp-org-tree-link--from-position { stroke: #94a3b8; }
+.jp-org-tree-link--from-position.jp-org-tree-link--to-employee { stroke: #64748b; stroke-width: 1.75; }
+.jp-org-tree-link--from-unassigned { stroke: #f59e0b; }
+.jp-org-tree-link-arrow-fill { fill: #64748b; }
+.jp-org-tree-pill-rect { fill: #fff; stroke: #fecaca; stroke-width: 1.5; }
+.jp-org-tree-pill-label { font-family: Inter, system-ui, sans-serif; font-size: 13px; font-weight: 700; fill: #1e293b; }
+.jp-org-tree-pill-sub { font-family: Inter, system-ui, sans-serif; font-size: 10px; font-weight: 600; fill: #64748b; }
+.jp-org-tree-pill-badge-bg { fill: #fff; stroke: #fca5a5; stroke-width: 1; }
+.jp-org-tree-pill-badge-txt { font-family: Inter, system-ui, sans-serif; font-size: 10px; font-weight: 800; fill: #dc2626; }
+.jp-org-tree-node--root .jp-org-tree-pill-rect { fill: #dc2626; stroke: #b91c1c; stroke-width: 2; }
+.jp-org-tree-node--root .jp-org-tree-pill-label, .jp-org-tree-node--root .jp-org-tree-pill-sub { fill: #fff; }
+.jp-org-tree-node--department .jp-org-tree-pill-rect { fill: #fff1f2; stroke: #dc2626; }
+.jp-org-tree-node--department .jp-org-tree-pill-sub { fill: #9f1239; }
+.jp-org-tree-node--division .jp-org-tree-pill-rect { fill: #fff; stroke: #f9a8d4; }
+.jp-org-tree-node--division .jp-org-tree-pill-sub { fill: #831843; }
+.jp-org-tree-node--position .jp-org-tree-pill-rect { fill: #f8fafc; stroke: #94a3b8; }
+.jp-org-tree-node--position .jp-org-tree-pill-label { font-size: 12px; }
+.jp-org-tree-node--employee .jp-org-tree-pill-rect { fill: #f8fafc; stroke: #e2e8f0; }
+.jp-org-tree-node--employee .jp-org-tree-pill-label { font-size: 11px; font-weight: 600; fill: #334155; }
+.jp-org-tree-node--employee .jp-org-tree-pill-sub { font-size: 9px; fill: #64748b; }
+.jp-org-tree-expand-icon { font-family: Inter, system-ui, sans-serif; font-size: 11px; font-weight: 700; fill: #64748b; }
+.jp-org-tree-action-bg { fill: #fff; stroke: #cbd5e1; stroke-width: 1.2; }
+.jp-org-tree-action-icon { font-family: Inter, system-ui, sans-serif; font-size: 11px; font-weight: 700; fill: #b91c1c; }
+.jp-org-tree-action-link.is-danger .jp-org-tree-action-icon { fill: #dc2626; }
+`;
+
+    function serializeSvgElement(svgEl) {
+        return `<?xml version="1.0" encoding="UTF-8"?>\n${new XMLSerializer().serializeToString(svgEl)}`;
     }
 
-    function exportOrgChartImage() {
+    function downloadSvgFile(svgEl, filename) {
+        const xml = serializeSvgElement(svgEl);
+        const blob = new Blob([xml], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.download = filename;
+        a.href = url;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+    }
+
+    function downloadSvgAsPng(svgEl, filename) {
+        const xml = serializeSvgElement(svgEl);
+        const w = Math.max(1, parseInt(svgEl.getAttribute('width'), 10) || 800);
+        const h = Math.max(1, parseInt(svgEl.getAttribute('height'), 10) || 600);
+
+        return new Promise((resolve, reject) => {
+            const blob = new Blob([xml], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const img = new Image();
+            const timeout = window.setTimeout(() => {
+                URL.revokeObjectURL(url);
+                reject(new Error('timeout'));
+            }, 15000);
+
+            img.onload = function onLoad() {
+                window.clearTimeout(timeout);
+                URL.revokeObjectURL(url);
+                try {
+                    const scale = 2;
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w * scale;
+                    canvas.height = h * scale;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        reject(new Error('no-canvas'));
+                        return;
+                    }
+                    ctx.scale(scale, scale);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, w, h);
+                    ctx.drawImage(img, 0, 0, w, h);
+                    canvas.toBlob((pngBlob) => {
+                        if (!pngBlob) {
+                            reject(new Error('no-blob'));
+                            return;
+                        }
+                        const a = document.createElement('a');
+                        a.download = filename;
+                        a.href = URL.createObjectURL(pngBlob);
+                        a.click();
+                        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+                        resolve();
+                    }, 'image/png');
+                } catch (err) {
+                    reject(err);
+                }
+            };
+
+            img.onerror = function onErr() {
+                window.clearTimeout(timeout);
+                URL.revokeObjectURL(url);
+                reject(new Error('img-error'));
+            };
+
+            img.src = url;
+        });
+    }
+
+    function buildExportSvg(chart, defs) {
+        const bbox = chart.getBBox();
+        const pad = 36;
+        let bx = bbox.x;
+        let by = bbox.y;
+        let bw = bbox.width;
+        let bh = bbox.height;
+        if (!bw || !bh || bw < 1 || bh < 1) {
+            bx = 0;
+            by = 0;
+            bw = 1200;
+            bh = 800;
+        }
+        const w = Math.ceil(bw + pad * 2);
+        const h = Math.ceil(bh + pad * 2);
+        const ns = 'http://www.w3.org/2000/svg';
+        const exportSvg = document.createElementNS(ns, 'svg');
+        exportSvg.setAttribute('xmlns', ns);
+        exportSvg.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+        exportSvg.setAttribute('width', String(w));
+        exportSvg.setAttribute('height', String(h));
+        exportSvg.setAttribute('viewBox', `${bx - pad} ${by - pad} ${bw + pad * 2} ${bh + pad * 2}`);
+
+        const styleEl = document.createElementNS(ns, 'style');
+        styleEl.setAttribute('type', 'text/css');
+        styleEl.textContent = ORG_EXPORT_STYLES;
+        exportSvg.appendChild(styleEl);
+
+        if (defs) {
+            exportSvg.appendChild(defs.cloneNode(true));
+        }
+
+        const bg = document.createElementNS(ns, 'rect');
+        bg.setAttribute('x', String(bx - pad));
+        bg.setAttribute('y', String(by - pad));
+        bg.setAttribute('width', String(bw + pad * 2));
+        bg.setAttribute('height', String(bh + pad * 2));
+        bg.setAttribute('fill', '#ffffff');
+        exportSvg.appendChild(bg);
+
+        exportSvg.appendChild(chart.cloneNode(true));
+        return exportSvg;
+    }
+
+    async function exportOrgChartImage() {
         const mount = document.getElementById('jp-org-tree-mount');
         const svg = mount && mount.querySelector('svg.jp-org-tree-svg');
         const chart = svg && svg.querySelector('g.jp-org-tree-chart');
@@ -561,35 +683,19 @@
             return;
         }
 
-        const bbox = chart.getBBox();
-        const pad = 36;
-        const w = Math.ceil(bbox.width + pad * 2);
-        const h = Math.ceil(bbox.height + pad * 2);
-        const ns = 'http://www.w3.org/2000/svg';
-        const exportSvg = document.createElementNS(ns, 'svg');
-        exportSvg.setAttribute('xmlns', ns);
-        exportSvg.setAttribute('width', String(w));
-        exportSvg.setAttribute('height', String(h));
-        exportSvg.setAttribute(
-            'viewBox',
-            `${bbox.x - pad} ${bbox.y - pad} ${bbox.width + pad * 2} ${bbox.height + pad * 2}`,
-        );
-
-        const bg = document.createElementNS(ns, 'rect');
-        bg.setAttribute('x', String(bbox.x - pad));
-        bg.setAttribute('y', String(bbox.y - pad));
-        bg.setAttribute('width', String(bbox.width + pad * 2));
-        bg.setAttribute('height', String(bbox.height + pad * 2));
-        bg.setAttribute('fill', '#ffffff');
-        exportSvg.appendChild(bg);
-
-        if (defs) exportSvg.appendChild(defs.cloneNode(true));
-        const chartClone = chart.cloneNode(true);
-        exportSvg.appendChild(chartClone);
-
         const stamp = new Date();
-        const fname = `so-do-to-chuc-${stamp.getFullYear()}${String(stamp.getMonth() + 1).padStart(2, '0')}${String(stamp.getDate()).padStart(2, '0')}.png`;
-        downloadSvgAsPng(exportSvg, fname);
+        const base = `so-do-to-chuc-${stamp.getFullYear()}${String(stamp.getMonth() + 1).padStart(2, '0')}${String(stamp.getDate()).padStart(2, '0')}`;
+        const exportSvg = buildExportSvg(chart, defs);
+
+        try {
+            await downloadSvgAsPng(exportSvg, `${base}.png`);
+        } catch (err) {
+            console.error('Export PNG failed', err);
+            downloadSvgFile(exportSvg, `${base}.svg`);
+            window.alert(
+                'Không tạo được file PNG trên trình duyệt này. Đã tải file SVG — mở bằng trình duyệt hoặc chuyển sang PNG.',
+            );
+        }
     }
 
     function showEmployeeAvatar(nodeData) {
@@ -1052,7 +1158,12 @@
     function wireOrgToolbar() {
         const exportBtn = document.getElementById('org-export-chart-btn');
         if (exportBtn) {
-            exportBtn.addEventListener('click', () => exportOrgChartImage());
+            exportBtn.addEventListener('click', () => {
+                exportBtn.disabled = true;
+                Promise.resolve(exportOrgChartImage()).finally(() => {
+                    exportBtn.disabled = false;
+                });
+            });
         }
     }
 
