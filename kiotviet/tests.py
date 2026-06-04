@@ -59,9 +59,17 @@ class KiotVietViewTests(TestCase):
         response = anon.get(reverse('kiotviet:customer_lookup'))
         self.assertEqual(response.status_code, 302)
 
-    @patch('kiotviet.views.KiotVietClient.list_customers')
+    def test_order_lookup_url(self):
+        response = self.http.get(reverse('kiotviet:order_lookup'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_invoice_lookup_url(self):
+        response = self.http.get(reverse('kiotviet:invoice_lookup'))
+        self.assertEqual(response.status_code, 200)
+
     @patch('kiotviet.views.KiotVietClient.get_customer_by_code')
-    def test_lookup_search_by_name(self, mock_by_code, mock_list):
+    @patch('kiotviet.views.KiotVietClient.list_customers')
+    def test_lookup_search_by_name(self, mock_list, mock_by_code):
         mock_list.return_value = {
             'total': 1,
             'data': [

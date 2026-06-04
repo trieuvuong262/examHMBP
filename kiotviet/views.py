@@ -1,54 +1,14 @@
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 
 from PortalJustPlay.list_search import get_search_query
 
-from .access import kiotviet_is_live, user_can_use_kiotviet
 from .client import KiotVietAPIError, KiotVietClient
+from .decorators import kiotviet_access_required
+from .formatters import format_customer_row
 
 
-def _access_required(view_func):
-    @login_required
-    def wrapper(request, *args, **kwargs):
-        if not kiotviet_is_live():
-            messages.error(
-                request,
-                'KiotViet chưa được cấu hình trên server (.env: KIOTVIET_ENABLED=1 và Client ID/Secret/Retailer).',
-            )
-            return redirect('home_portal')
-        if not user_can_use_kiotviet(request.user):
-            messages.error(request, 'Bạn không có quyền truy cập module KiotViet.')
-            return redirect('home_portal')
-        return view_func(request, *args, **kwargs)
-
-    return wrapper
-
-
-def _format_customer_row(row: dict) -> dict:
-    gender = row.get('gender')
-    if gender is True:
-        gender_label = 'Nam'
-    elif gender is False:
-        gender_label = 'Nữ'
-    else:
-        gender_label = '—'
-    return {
-        'id': row.get('id'),
-        'code': row.get('code') or '—',
-        'name': row.get('name') or '—',
-        'contact_number': row.get('contactNumber') or '—',
-        'email': row.get('email') or '—',
-        'address': row.get('address') or '—',
-        'debt': row.get('debt'),
-        'total_revenue': row.get('totalRevenue'),
-        'reward_point': row.get('rewardPoint'),
-        'gender_label': gender_label,
-        'modified_date': row.get('modifiedDate'),
-    }
-
-
-@_access_required
+@kiotviet_access_required
 def customer_lookup(request):
     search_type = (request.GET.get('type') or 'name').strip()
     if search_type not in ('name', 'code', 'phone'):
@@ -78,19 +38,19 @@ def customer_lookup(request):
             if search_type == 'code' and len(query) <= 64:
                 try:
                     detail = client.get_customer_by_code(query)
-                    customers = [_format_customer_row(detail)]
+                    customers = [format_customer_row(detail)]
                     total = 1
                 except KiotVietAPIError as exc:
                     if exc.status_code != 404:
                         raise
                     payload = client.list_customers(**params)
                     rows = payload.get('data') or []
-                    customers = [_format_customer_row(r) for r in rows]
+                    customers = [format_customer_row(r) for r in rows]
                     total = payload.get('total', len(customers))
             else:
                 payload = client.list_customers(**params)
                 rows = payload.get('data') or []
-                customers = [_format_customer_row(r) for r in rows]
+                customers = [format_customer_row(r) for r in rows]
                 total = payload.get('total', len(customers))
         except KiotVietAPIError as exc:
             api_error = str(exc)
@@ -110,7 +70,7 @@ def customer_lookup(request):
     )
 
 
-@_access_required
+@kiotviet_access_required
 def customer_detail(request, customer_id: int):
     client = KiotVietClient()
     try:
@@ -119,7 +79,7 @@ def customer_detail(request, customer_id: int):
         messages.error(request, str(exc))
         return redirect('kiotviet:customer_lookup')
 
-    customer = _format_customer_row(raw)
+    customer = format_customer_row(raw)
     customer.update(
         {
             'organization': raw.get('organization') or '—',

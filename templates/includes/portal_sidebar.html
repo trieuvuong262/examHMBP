@@ -330,6 +330,18 @@
                         <i class="bi bi-person-vcard"></i><span>Tra cứu khách hàng</span>
                     </a>
                 </li>
+                <li>
+                    <a href="{% url 'kiotviet:order_lookup' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'order_lookup' or request.resolver_match.url_name == 'order_detail' %}active{% endif %}">
+                        <i class="bi bi-cart-check"></i><span>Đơn đặt hàng</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'kiotviet:invoice_lookup' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'invoice_lookup' or request.resolver_match.url_name == 'invoice_detail' %}active{% endif %}">
+                        <i class="bi bi-receipt"></i><span>Hóa đơn</span>
+                    </a>
+                </li>
             </ul>
         </li>
         {% endif %}

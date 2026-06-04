@@ -40,7 +40,8 @@ KIOTVIET_CLIENT_SECRET=<mã bảo mật>
 Sau khi sửa `.env` tại `/opt/portaljustplay/.env`:
 
 ```bash
-docker compose restart web
+# restart KHÔNG nạp lại biến mới — phải recreate:
+docker compose up -d web --force-recreate
 ```
 
 Kiểm tra trong container:

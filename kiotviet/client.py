@@ -126,6 +126,26 @@ class KiotVietClient:
     def get_customer_by_code(self, code: str) -> dict:
         return self._request('GET', f'customers/code/{code}')
 
+    def list_orders(self, **params: Any) -> dict:
+        clean = {k: v for k, v in params.items() if v not in (None, '')}
+        return self._request('GET', 'orders', params=clean)
+
+    def get_order(self, order_id: int | str) -> dict:
+        return self._request('GET', f'orders/{order_id}')
+
+    def get_order_by_code(self, code: str) -> dict:
+        return self._request('GET', f'orders/code/{code}')
+
+    def list_invoices(self, **params: Any) -> dict:
+        clean = {k: v for k, v in params.items() if v not in (None, '')}
+        return self._request('GET', 'invoices', params=clean)
+
+    def get_invoice(self, invoice_id: int | str) -> dict:
+        return self._request('GET', f'invoices/{invoice_id}')
+
+    def get_invoice_by_code(self, code: str) -> dict:
+        return self._request('GET', f'invoices/code/{code}')
+
 
 def _safe_json(response: requests.Response) -> Any:
     try:

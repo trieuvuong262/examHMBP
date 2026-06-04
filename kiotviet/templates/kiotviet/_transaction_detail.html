@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <a href="{% url back_url_name %}" class="btn btn-sm btn-outline-secondary mb-2">
+            <i class="bi bi-arrow-left me-1"></i>Quay lại tra cứu
+        </a>
+        <h2 class="fw-bold text-hm mb-1 jp-page-title">
+            <i class="bi {{ header_icon }} me-2"></i>{{ doc.code }}
+        </h2>
+        <p class="text-muted mb-0">{{ doc.customer_name }} · {{ doc.customer_code }}</p>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white fw-bold">Thông tin chung</div>
+                <div class="card-body small">
+                    <dl class="row mb-0">
+                        <dt class="col-5">Ngày</dt>
+                        <dd class="col-7">{{ doc.purchase_date|default:"—" }}</dd>
+                        <dt class="col-5">Chi nhánh</dt>
+                        <dd class="col-7">{{ doc.branch_name }}</dd>
+                        <dt class="col-5">NV bán</dt>
+                        <dd class="col-7">{{ doc.sold_by_name }}</dd>
+                        <dt class="col-5">Trạng thái</dt>
+                        <dd class="col-7">{{ doc.status_value }}</dd>
+                        {% if doc.description %}
+                        <dt class="col-5">Ghi chú</dt>
+                        <dd class="col-7">{{ doc.description }}</dd>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white fw-bold">Thanh toán</div>
+                <div class="card-body small">
+                    <dl class="row mb-0">
+                        <dt class="col-5">Khách cần trả</dt>
+                        <dd class="col-7">{% if doc.total is not None %}{{ doc.total|floatformat:0|intcomma }}{% else %}—{% endif %}</dd>
+                        <dt class="col-5">Khách đã trả</dt>
+                        <dd class="col-7">{% if doc.total_payment is not None %}{{ doc.total_payment|floatformat:0|intcomma }}{% else %}—{% endif %}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white fw-bold">Chi tiết hàng hóa</div>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Mã SP</th>
+                        <th>Tên</th>
+                        <th class="text-end">SL</th>
+                        <th class="text-end">Đơn giá</th>
+                        <th class="text-end d-none d-md-table-cell">Giảm giá</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for line in doc.lines %}
+                    <tr>
+                        <td><code>{{ line.product_code }}</code></td>
+                        <td>{{ line.product_name }}</td>
+                        <td class="text-end">{{ line.quantity|default:"—" }}</td>
+                        <td class="text-end">{% if line.price is not None %}{{ line.price|floatformat:0|intcomma }}{% else %}—{% endif %}</td>
+                        <td class="text-end d-none d-md-table-cell">{% if line.discount is not None %}{{ line.discount|floatformat:0|intcomma }}{% else %}—{% endif %}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-muted text-center py-3">Không có dòng hàng hóa.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if doc.payments %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white fw-bold">Thanh toán chi tiết</div>
+        <div class="card-body small">
+            <ul class="list-unstyled mb-0">
+                {% for p in doc.payments %}
+                <li class="mb-2 pb-2 border-bottom">
+                    {{ p.method|default:"—" }} —
+                    {% if p.amount is not None %}{{ p.amount|floatformat:0|intcomma }}{% endif %}
+                    <span class="text-muted">({{ p.statusValue|default:p.status }})</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
