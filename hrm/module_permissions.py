@@ -31,6 +31,7 @@ MODULE_HO_TRO = 'ho_tro'
 MODULE_NAS_STORAGE = 'nas_storage'
 MODULE_EQUIPMENT = 'equipment'
 MODULE_FEEDBACK = 'feedback'
+MODULE_KIOTVIET = 'kiotviet'
 
 MODULE_CHOICES = [
     (MODULE_ANNOUNCEMENTS, 'Thông báo'),
@@ -50,6 +51,7 @@ MODULE_CHOICES = [
     (MODULE_NAS_STORAGE, 'Thư mục NAS'),
     (MODULE_EQUIPMENT, 'Quản lý thiết bị'),
     (MODULE_FEEDBACK, 'Góp ý'),
+    (MODULE_KIOTVIET, 'KiotViet'),
 ]
 
 ALL_MODULE_KEYS = {key for key, _ in MODULE_CHOICES}
@@ -91,6 +93,7 @@ PATH_MODULE_RULES = [
     ('/thu-muc-nas/', MODULE_NAS_STORAGE),
     ('/thiet-bi/', MODULE_EQUIPMENT),
     ('/gop-y/', MODULE_FEEDBACK),
+    ('/kiotviet/', MODULE_KIOTVIET),
 ]
 
 EQUIPMENT_PUBLIC_PREFIXES = (

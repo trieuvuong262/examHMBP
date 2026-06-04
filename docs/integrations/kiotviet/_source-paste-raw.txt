@@ -1,0 +1,4679 @@
+này là gì 
+CÔNG TY CP PHẦN MỀM CITIGO 
+ 	Trụ sở Hà Nội:	Chi nhánh Tp.Hồ Chí Minh:
+	Số 1B Yết Kiêu, quận Hoàn Kiếm 	Lầu 6 – Khu B, Tòa nhà WASECO, Số 10 Phổ Quang, 
+	Tel: 04 628 00 488         Fax: 04 628 00 191 
+Phường 2, Q.Tân Bình 
+	Email: sale@citigo.net
+Tel: 04 628 00 488         Fax: 04 628 00 191 
+Email: support@kiotviet.com
+TÀI LIỆU HƯỚNG DẪN SỬ DỤNG PUBLIC API 
+Phiên bản: 4.0 
+ 
+
+ 
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+Contents 
+1. 	GIỚI THIỆU ............................................................................................................... 15 
+2. 	CHỨC NĂNG ............................................................................................................. 17 
+2.1. Authenticate ........................................................................................................ 17 
+2.2. Lấy thông tin Access Token .................................................................................. 18 
+2.3. Nhóm hàng .......................................................................................................... 19 
+2.3.1. Lấy danh sách nhóm hàng ............................................................................. 19 
+2.3.2. Lấy chi tiêt nhóm hàng .................................................................................. 21 
+2.3.3. Thêm mới nhóm hàng ................................................................................... 22 
+2.3.4. Cập nhật nhóm hàng ..................................................................................... 23 
+2.3.5. Xóa nhóm hàng ............................................................................................. 24 
+2.4. Hàng hóa .............................................................................................................. 24 
+2.4.1. Lấy danh sách hàng hóa ................................................................................ 24 
+2.4.2. Lấy chi tiết hàng hóa ..................................................................................... 31 
+2.4.3. Thêm mới hàng hóa ...................................................................................... 36 
+2.4.4. Cập nhật hàng hóa ........................................................................................ 39 
+2.4.5. Xóa hàng hóa................................................................................................. 42 
+2.4.6. Lấy thông tin thuộc tính sản phẩm ................................................................ 42 
+2.4.7 Thêm mới danh sách hàng hóa .......................................................................... 43 
+2.4.8 Cập nhật danh sách hàng hóa ............................................................................ 44 
+2.4.9 Lấy danh sách tồn kho hàng hóa ........................................................................ 45 
+2.5.Đặt hàng............................................................................................................... 47 
+2.5.1. Lấy danh sách đặt hàng ................................................................................. 47 
+2.5.2. Lấy chi tiết đặt hàng ...................................................................................... 51 
+2.5.3. Thêm mới đặt hàng ....................................................................................... 54 
+2.5.4. Cập nhật đặt hàng ......................................................................................... 60 
+2.5.5. Xóa đặt hàng ................................................................................................. 66 
+2.6. Khách hàng .......................................................................................................... 67 
+2.6.1. Lấy danh sách khách hàng ............................................................................. 67 
+2.6.2. Lấy chi tiết khách hàng .................................................................................. 69 
+2.6.3. Thêm mới khách hàng ................................................................................... 70 
+2.6.4. Cập nhật khách hàng ..................................................................................... 72 
+2.6.5. Xóa khách hàng ............................................................................................. 73 
+2.6.6 Thêm mới danh sách khách hàng ....................................................................... 74 
+2.6.7 Cập nhật danh sách khách hàng ......................................................................... 74 
+Công ty CP phần mềm Citigo 	2/157 
+
+ 
+ 
+
+ 
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+2.7.	Lấy danh sách chi nhánh ...................................................................................... 75 
+2.8.	Lấy danh sách người dùng ................................................................................... 76 
+2.9.	Lấy danh sách tài khoản ngân hàng ...................................................................... 78 
+2.10.	Thu khác ........................................................................................................... 79 
+2.10.1.	Lấy danh sách thu khác ............................................................................... 79 
+2.10.2.	Thêm mới thu khác ..................................................................................... 80 
+2.10.3.	Cập nhật thu khác ....................................................................................... 81 
+2.10.4.	Ngừng hoạt động thu khác .......................................................................... 82 
+2.11.	Webhook .......................................................................................................... 82 
+2.11.1.	Đăng ký Webhook ....................................................................................... 83 
+2.11.2.	Huỷ đăng ký Webhook ................................................................................ 83 
+2.11.3.	Khách hàng.................................................................................................. 84 
+2.11.4.	Hàng hóa ..................................................................................................... 85 
+2.11.5.	Tồn kho ....................................................................................................... 87 
+2.11.6.	Đặt hàng ...................................................................................................... 88 
+2.11.7.	Hóa đơn ...................................................................................................... 90 
+2.11.8.	Bảng giá....................................................................................................... 93 
+2.11.9.	Danh mục hàng hóa .................................................................................... 95 
+2.11.10.	Chi nhánh .................................................................................................. 96 
+2.12.	Hóa đơn ........................................................................................................... 97 
+2.12.1.	Lấy danh sách hóa đơn ............................................................................... 98 
+2.12.2.	Lấy chi tiết hóa đơn .................................................................................. 103 
+2.12.3.	Thêm mới hóa đơn ................................................................................... 107 
+2.12.4.	Cập nhật hóa đơn ..................................................................................... 112 
+2.12.5.	Xóa hóa đơn.............................................................................................. 116 
+2.13.	Nhóm khách hàng .......................................................................................... 120 
+2.13.1.	Lấy danh sách nhóm khách hàng ............................................................... 120 
+2.14.	Sổ quỹ ............................................................................................................ 121 
+2.14.1.	Lấy danh sách sổ quỹ................................................................................. 121 
+2.15.	Nhậphàng ...................................................................................................... 123 
+2.15.1.	Lấy danh sách nhập hàng .......................................................................... 123 
+2.15.2.	Lấy chi tiết nhập hàng ............................................................................... 125 
+2.15.3.	Thêm mới nhập hàng ................................................................................ 126 
+2.15.4.	Cập nhật nhập hàng .................................................................................. 130 
+2.15.5.	Xóa nhập hàng .......................................................................................... 133 
+Công ty CP phần mềm Citigo 	3/157 
+
+ 
+ 
+
+ 
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+2.16.	Chuyển hàng................................................................................................... 133 
+2.16.1.	Lấy danh sách chuyển hàng ....................................................................... 133 
+2.16.2.	Lấy chi tiết chuyển hàng ............................................................................ 135 
+2.16.3.	Thêm mới chuyển hàng ............................................................................. 136 
+2.16.4.	Cập nhật chuyển hàng ............................................................................... 138 
+2.16.5.	Xóa phiếu chuyển hàng ............................................................................. 140 
+2.17.	Bảng giá .......................................................................................................... 141 
+2.17.1.	Lấy danh sách bảng giá .............................................................................. 141 
+2.17.2.	Lấy chi tiết bảng giá ................................................................................... 142 
+2.17.3.	Cập nhật chi tiết bảng giá .......................................................................... 143 
+2.18.	Kênh bán hàng ............................................................................................... 144 
+2.18.1.	Lấy danh sách kênh bán hàng.................................................................... 144 
+2.19.	Trả hàng ......................................................................................................... 145 
+2.19.1.	Lấy danh sách trả hàng .............................................................................. 145 
+2.19.2.	Lấy chi tiết phiếu trả hàng ......................................................................... 147 
+2.20.	Đặt hàng nhập ................................................................................................ 149 
+2.20.1.	Lấy danh sách đặt hàng nhập .................................................................... 149 
+2.20.2.	Lấy chi tiết đặt hàng nhập ......................................................................... 153 
+2.21.	Lấy danh sách location ................................................................................... 156 
+2.22.	Thiết lập cửa hàng .......................................................................................... 156 
+Revision History 
+Ngày 	Version 	Nội dung thay đổi 
+16/02/2017 	1.0 	Tạo phiên bản đầu tiên 
+21/06/2017 	1.1 	Cập nhật: 
+-	Mục 2. Chức năng, cập nhật “Authorization”: Bearer {Mã Access 
+Token} trong header của các request. 
+-	Mục 2.4.3. Thêm mới hàng hóa, trong Reqest: 
+	•Xóa "fullName", "categoryName", "basePrice", "weight", 
+"images" 
+•Thêm "masterUnitId", "conversionValue" 
+•Xóa  "productId",  "productCode", "productName" trong 
+"inventories[]" 
+
+Công ty CP phần mềm Citigo 	4/157 
+
+ 
+ 
+
+ 
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+		-	Mục 2.4.4. Cập nhật hàng hóa, trong Request: 
+	•Thêm "branchId", 
+	•Xóa trường "fullName", "categoryName" 
+	•Xóa  "productId",  "productCode", "productName" trong 
+"inventories[]" 
+-	Mục 2.5.3. Thêm mới đặt hàng, trong Request: 
+	•Thêm "totalPayment", "accountId", "makeInvoice" 
+	•Thêm "locationId", partnerDeliveryId" trong "orderDelivery[]" 	•Xóa "payments[]" 
+-	Mục 2.5.4.Cập nhật đơn đặt hàng, trong Request: 	•Thêm "totalPayment", "accountId", "makeInvoice" 	•Xóa "payments[]" 
+31/07/2017 	1.2 	Thêm: 
+-	Thêm Mục 2.12 cung cấp các API cho hóa đơn. 
+Cập nhật: 
+-	Mục 2.5.1. Lấy danh sách đặt hàng: 
+•Thêm tham số “customerCode", "toDate" 
+•Thêm "customerCode”, “createdDate” trong response 
+-	Mục 2.5.2. Lấy chi tiết đặt hàng: 
+•Thêm “createdDate” trong response 
+-	Mục 2.11.6. Đặt hàng và 2.11.7. Hóa đơn 
+•Thêm “customerCode” 
+06/04/2018 	1.3 	Thêm: 
+-	Thêm Mục 2.13 cung cấp các API cho nhóm khách hàng. 
+Cập nhật: 
+-	Mục 2.6.1. Lấy danh sách khách hàng: 
+•Thêm tham số “includeCustomerGroup " trong request 
+•Thêm tham số “groups” trong response 
+-	Mục 2.6.2. Lấy chi tiết khách hàng 
+•Thêm tham số “groups” trong response 
+-	Mục 2.6.3. Thêm mới khách hàng 
+•Thêm tham số “groupIds” trong request 
+
+Công ty CP phần mềm Citigo 	5/157 
+
+ 
+ 
+
+ 
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+		•Thêm tham số “customerGroupDetails” trong response 
+-	Mục 2.6.4. Cập nhật khách hàng 
+•Thêm tham số “groupIds” trong request 
+•Thêm tham số “groups” trong response 
+18/04/2018 	1.4 	Cập nhật: 
+-	Mục 2.4.2. Lấy chi tiết hàng hóa: 
+•Thêm API lấy chi tiết theo Code 
+•Thêm tham số “code” trong request 
+-	Mục 2.5.2. Lấy chi tiết đặt hàng 
+•Thêm API lấy chi tiết theo Code 
+•Thêm tham số “code” trong request 
+-	Mục 2.6.2. Lấy chi tiết khách hàng 
+•Thêm API lấy chi tiết theo Code 
+•Thêm tham số “code” trong request 
+-	Mục 2.12.1. Lấy danh sách hóa đơn 
+•Thêm tham số “orderId” trong request 
+-	Mục 2.12.2. Lấy chi tiết hóa đơn 
+•Thêm API lấy chi tiết theo Code 
+•Thêm tham số “code” trong request 
+16/07/2018 	1.5 	Thêm: 
+-	Thêm mục 2.14 cung cấp các API cho sổ quỹ
+•Thêm mục 2.14.1 : Lấy danh sách sổ quỹ
+Cập nhật: 
+-	Mục 2.6.4. Cập nhật khách hàng 
+•Thêm tham số “taxCode” trong request 
+-	Mục 2.5.1. Lấy danh sách đặt hàng 
+•Thêm tham số “createdDate” trong request 
+-	Mục 2.12.1. Lấy danh sách hóa đơn 
+•Thêm tham số “createdDate” trong request 
+-	Mục 2.4.1. Lấy danh hàng hóa 
+•Thêm tham số “createdDate” trong response 
+-	Mục 2.4.2. Lấy chi tiết hàng hóa 
+
+Công ty CP phần mềm Citigo 	6/157 
+
+ 
+ 
+
+ 
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+			•Thêm tham số “createdDate” trong response 
+-	Mục 2.12.1, 2.12.2:  Lấy danh sách hóa đơn 
+	•Thêm tham số “status”, “statusValue” trong “invoiceDelivery” 		(trạng thái vận đơn) 
+-
+	Mục 2.12.3, 2.12.4: Thêm mới, cập nhật hóa đơn 	•Thêm tham số “status” trong “deliveryDetail” (trạng thái vận 		đơn) 
+-	Mục 2.11.7: Hóa đơn (Webhook) 
+	•Thêm tham số “status”, “statusValue” trong “invoiceDelivery” 		(trạng thái vận đơn) 
+30/07/2018 	1.6 	Thêm: 
+-	Thêm mục 2.10.1: Thêm mới thu khác
+-	Thêm mới 2.10.2: Cập nhật thu khác
+-	Thêm mới 2.10.3: Ngừng hoạt động thu khác
+Cập nhật: 
+-	Mục 2.6.1. Lấy danh sách khách hàng; Mục 2.6.2. Lấy chi tiết khách 	hàng 
+	•Thêm tham số “RewardPoint” trong response 
+-	Mục 2.5.1. Lấy danh sách đặt hàng; Mục 2.5.2. Lấy chi tiết đặt 	hàng; Mục 2.12.1. Lấy danh sách hóa đơn; Mục 2.12.2. Lấy chi tiết 	hóa đơn
+	•Thêm tham số “Note” trong response 
+-	Mục 2.4.4. Cập nhật hàng hóa
+	•Thêm tham số “IsActive” trong request
+	•Thêm tham số “IsRewardPoint” trong request
+-	Mục 2.5.3. Thêm mới đặt hàng; Mục 2.5.4. Cập nhật đặt hàng; 	Mục 2.12.3. Thêm mới hóa đơn
+	•Thêm mới tham số “Surchages” trong request
+-
+	Mục 2.5.2. Lấy chi tiết đặt hàng; Mục 2.5.3. Thêm mới đặt hàng; 	Mục 2.5.4. Cập nhật đặt hàng
+	•Thêm mới tham số “InvoiceOrderSurcharges” trong response
+11/03/2019 	1.7 	Cập nhật: 
+
+Công ty CP phần mềm Citigo 	7/157 
+
+ 
+ 
+
+ 
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+		-	Mục 2.4.1 lấy danh sách hàng hóa 
+•Thêm tham số “orderTemplate” trong response 
+-	Mục 2.12.1 Lấy danh sách hóa đơn; Mục 2.12.2 Lấy chi tiết hóa đơn 
+•Thêm tham số “SaleChannel” trong response 
+-	Mục 2.6.1 Lấy danh sách khách hàng 
+•Thêm tham số để lọc khách hàng theo ngày sinh nhật 
+-	Mục 2.4 Cập nhật hàng hóa thêm tham số mới: 
+•Thêm tham số “minQuantity” (định mức tồn nhỏ nhất) trong 
+response 
+•Thêm tham số “maxQuantity” (định mức tồn nhiều nhất) trong 
+response 
+Thêm: 
+-	Mục 2.15 Phiếu nhập hàng: 
+•Lấy danh sách phiếu nhập hàng 
+•Lấy chi tiết phiếu nhập hàng 
+-	Mục 2.4.6 Thêm API lấy thông tin thuộc tính sản phẩm 
+25/07/2019 	1.8 	Cập nhật: 
+-	Mục 2.4.1 Lấy danh sách hàng hóa 
+	•Thêm tham số “productType” trong request. 	•Thêm tham số “includeMaterial” trong request. 	•Thêm tham số “productFormulas” trong response 
+-	Mục 2.4.2 Lấy chi tiết hàng hóa 
+	•Thêm tham số “productFormulas” trong response 
+-	Mục 2.5.3 Thêm mới đặt hàng 
+	•Thêm tham số “saleChannelId” trong request 	•Thêm tham số “saleChannelId” trong response 
+-	Mục 2.5.4 Cập nhật đặt hàng 
+	•Thêm tham số “saleChannelId” trong request 	•Thêm tham số “saleChannelId” trong response 
+-	Mục 2.12.3 Thêm mới hóa đơn 
+	•Thêm tham số “saleChannelId” trong request 	•Thêm tham số “saleChannelId” trong response 
+
+Công ty CP phần mềm Citigo 	8/157 
+
+ 
+ 
+
+ 
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+		-	Mục 2.12.4 Cập nhật hóa đơn 
+•Thêm tham số “saleChannelId” trong request 
+•Thêm tham số “saleChannelId” trong response 
+Mục 2.15.1 Lấy danh sách nhập hàng, 2.15.2 Lấy chi tiết nhập hàng 
+•Thêm tham số “supplierCode” trong response 
+-	Mục 2.4.1 Lấy danh sách hàng hóa, 2.4.2 Lấy chi tiết hàng hóa: 
+•Thêm tham số “isLotSerialControl” trong response 
+•Thêm tham số “IsBatchExpireControl” trong response 
+•Thêm tham số “productSerials” trong response 
+•Thêm tham số “productBatchExpires” trong response 
+-	Mục 2.12.1 Lấy danh sách hóa đơn, 2.12.2 Lấy chi tiết hóa đơn, 
+2.15.1 Danh sách nhập hàng, 2.15.2 Chi tiết nhập hàng: 
+•Thêm tham số “serialNumbers” trong response 
+•Thêm tham số “productBatchExpire” trong response 
+Thêm: 
+-	Mục 2.16 Bảng giá: 
+•Lấy danh sách bảng giá 
+•Lấy chi tiết bảng giá 
+-	Mục 2.17 Kênh bán hàng: 
+•Lấy danh sách kênh bán hàng 
+-	Mục 2.4.7 Thêm mới danh sách hàng hóa 
+-	Mục 2.4.8  Cập nhật danh sách hàng hóa 
+-	Mục 2.6.6 Thêm mới danh sách khách hàng 
+-	Mục 2.6.7 Cập nhật danh sách khách hàng 
+-	Mục 2.18 Trả hàng: 
+•Thêm mục 2.18.1: Lấy danh sách phiếu trả hàng 
+•Thêm mục 2.18.2: Lấy chi tiết phiếu trả hàng 
+21/09/2019 	1.9 	Cập nhật: 
+-	Mục 2.5.3 Thêm mới đặt hàng: 
+•Thêm tham số “ExpectedDelivery” trong Request 
+-	Mục 2.2.4 Cập nhật đặt hàng: 
+
+Công ty CP phần mềm Citigo 	9/157 
+
+ 
+ 
+
+ 
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+		•Thêm tham số “ExpectedDelivery” trong Request 
+-	Mục 2.12.1 Lấy danh sách hóa đơn 
+•Thêm tham số “FromPurchaseDate” và “ToPurchaDate” trong 
+Request 
+-	Mục 2.12.2  Lấy chi tiết hóa đơn 
+•Thêm tham số “OrderCode” trong Response 
+-	Mục 2.12.3  Thêm mới hóa đơn 
+•Thêm tham số “ExpectedDelivery” trong Request 
+-	Mục 2.4.1 Lấy danh sách hàng hóa 
+•Thêm tham số “MasterProductId” trong Request 
+-	Mục 2.12.4 Cập nhật hóa đơn 
+•Thêm tham số “ExpectedDelivery” trong Request 
+-	Mục 2.5.3 Thêm mới đặt hàng: 
+•Thêm tham số “Note” trong Request 
+-	Mục 2.12.3  Thêm mới hóa đơn 
+•Thêm tham số “Note” trong Request 
+-	Mục 2.4.2. Lấy chi tiết hàng hóa 
+•Thêm tham số “type” trong response 
+-	Mục 2.5.3. Thêm mới đặt hàng 
+•Thêm tham số “partner” trong request header 
+Thêm: 
+-	Mục 2.19 Đặt hàng nhập: 
+•Lấy danh sách Đặt hàng nhập 
+•Lấy chi tiết Đặt hàng nhập 
+-	Mục 2.2 Danh sách location: 
+•Lấy danh sách location 
+-	Thêm mục 2.21 cung cấp các API cho thiết lập cửa hàng 
+-	Mục 2.6.3 Thêm mới khách hàng 
+•Thêm tham số “type” trong response 
+
+Công ty CP phần mềm Citigo 	10/157 
+
+ 
+ 
+
+ 
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+30/10/2019 	2.0 	Cập nhật: 
+-	Mục 2.6.1 Lấy danh sách khách hàng 
+•Thêm tham số và trả về thông tin Psid facebook fanpage của 
+khách hàng 
+-	Mục 2.6.2 Lấy chi tiết khách hàng 
+•Trả về thông tin Psid facebook fanpage của khách hàng 
+
+14/10/2020 	2.1 	Cập nhật lại URL : https://public.kiotapi.com/surchages
+12/01/2021 	2.1.1 	Mục 2.5 và 2.6 sửa lại tên biến “comment” => “comments” cho đối tượng khách hàng 
+20/01/2021 	2.1.2 	Bổ sung thêm trường “barCode” trong API Lấy danh sách hàng hóa, lấy chi tiết hàng hóa, thêm mới/cập nhật hàng hóa. 
+04/06/2021 	2.2 	Bổ sung thêm : 
+2.15.3. Thêm mới nhập hàng 
+2.15.4. Cập nhật nhập hàng 
+2.15.5. Xóa nhập hàng 
+17/6 	2.2.1 	Sửa 1 số lỗi sai  và bỏ thông tin thừa 
+“barCode”: string, // Mã vạch hàng hóa (Tối đa 16 ký tự) trang 23, 27, 32, 33, 35, 36 
+“usingCod”” bool, // Có tạo phiếu giao hàng không? trang 50, trang 55 - “usingPriceCod”: bool,/ Có thu hộ hay không? Trang 51, trang 56 - “description”: string, / Trang 97, 102 
+- “status”: byte, (1: Chờ xử lý, 2: Đang giao hàng) //trạng thái vận đơn trang 98, 100 
+- “status”: byte, (1: Chờ xử lý, 2: Đang giao hàng,3: Giao thành công, 4:Đang chuyển hoàn, 5:Đã chuyển hoàn, 6:Đã hủy, 7: Đang lấy hàng, 8:Chờ lấy lại, 9:Đã lấy hàng, 10:Chờ giao lại, 11:Chờ chuyển hàng, 12:Chờ chuyển hoàn lại) //trạng thái vận đơn trang 103, 105 
+
+Công ty CP phần mềm Citigo 	11/157 
+
+ 
+ 
+
+ 
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+		- “includeInvoiceDelivery”: Boolean, //hóa đơn có giao hàng hay không trang 88 
+- “branchId”: int,            // Id chi nhánh (Không cập nhật trường này) trang 118 
+- "serialNumbers": string, // Danh sách imei 
+	 "productBatchExpire": { 
+		 "id": long,             // Id lô 
+		 "productId": long,       // ID sản phẩm 
+		 "batchName": string,    // Tên 
+		 "fullNameVirgule": string, // Tên đầy đủ 
+		 "createdDate": DateTime, // Ngày tạo lô 
+		 "expireDate": DateTime  // Ngày hết hạn lô 
+		 } 
+Tạo phiếu nhập chưa hỗ trợ hàng hóa IMEI, lô date, thông tin respone dư trang 117, 120 
+- Thay đổi 
+https://public.kiotapi.com/purchaseorders?id={Id}?IsVoidPayment=true thành 
+https://public.kiotapi.com/purchaseorders?id={Id}&IsVoidPayment=true trang 121 
+23/6 	2.2.2 	Hoàn thiện nốt ver 2.2.1 
+Bổ sung : 
+Mục 1 : lưu ý về các trường không bắt buộc 
+26/08/21 	2.2.3 	•Bổ sung : 
+2.4.1 Lấy danh sách hàng hóa : thêm mục get thông tin bảo hành bảo trì 
+2.12.3 và 2.12.4 : thêm mô tả cho trường wardName 
+04/10/2021 	3.0 	•Bổ sung 2.16 – Chuyển hàng 
+
+Công ty CP phần mềm Citigo 	12/157 
+
+ 
+ 
+
+ 
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+		•2.5.3 và 2.5.4 thêm wardName 
+18/10/2021 	3.1 	•Bổ sung : 2.16.4 Cập nhật chuyển hàng 
+28/10/2021 	3.2 	2.12.3 Thêm mới hóa đơn 
+•Bổ sung thông tin Serial/Imei khi tạo hóa đơn 
+02/03/2022 	3.3 	•2.4.9 Lấy danh sách tồn kho hàng hóa 
+•2.12.3 Thêm mới hóa đơn 
+Thêm hàm tạo mới Khách hàng 
+23/03/2022 	3.4 	•	Thêm "includeSoftDeletedAttribute" 
+Lấy danh sách hàng hóa 
+Lấy chi tiết hàng hóa 
+•	Cập nhật thêm các tham số trong danh sách hàng hóa 
+31/03/2022 	3.5 	•	Thêm phương thức thanh toán voucher khi Đặt hàng 
+2.5.3 Thêm mới đặt hàng 
+•	Bổ sung thêm trường Serial/Imei trong mục 
+ 2.4.3 Thêm mới hàng hóa 
+21/06/2022 	3.6 	•	Bổ sung branchID trong : 2.6.3 
+•	Sửa lại link lấy danh sách tồn kho hàng hóa: 2.4.9 
+•	Cập nhật trạng thái vận đơn trong thêm mới/cập nhật hóa 
+đơn: 2.12.3, 2.12.4 
+05/07/2022 	3.7 	2.16.1 Lấy danh sách chuyển hàng 
+Bổ sung: 
+“currentItem”: int?, // Lấy dữ liệu từ bản ghi currentItem,  “fromReceivedDate”: DateTime?, // Từ thời gian nhận chuyển hàng, 
+ “toReceivedDate”: DateTime?, // Đến thời gian nhận chuyển hàng, 
+ “fromTransferDate”: DateTime?, // Từ thời gian chuyển hàng, 
+
+Công ty CP phần mềm Citigo 	13/157 
+
+ 
+ 
+
+ 
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+		 “toTransferDate”: DateTime?, // Đến thời gian chuyển hàng, 	
+21/12/2022 	3.8 		2. Chức năng 
+ Bổ sung:  
+Lưu ý: Với các hàm GET sẽ giới hạn 5000 request/1h 2.4.1 Lấy danh sách hàng hóa 
+- bổ sung: includeWarranties - Lấy thông tin bảo hành -  bỏ: "status": int, // 0: Lô tạm, 1: lô hoàn thành 2.4.2 Lấy chi tiết hàng hóa 
+- bỏ: "status": int, // 0: Lô tạm, 1: lô hoàn thành 	
+				
+17/01/2023 	4.0 	Bổ sung thêm: 
+2.17.3. Cập nhật chi tiết bảng giá 	
+
+Công ty CP phần mềm Citigo 	14/157 
+
+ 
+ 
+
+ 
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+1.GIỚI THIỆU 
+KiotViet Public API được phát triển để hỗ trợ việc tích hợp và trao đổi dữ liệu giữa KiotViet và các nền tảng website, thương mại điện tử, CRM… 
+KiotViet Public API cung cấp cơ chế đọc và ghi các đối tượng sau: 
+•Nhóm hàng: lấy danh sách nhóm hàng hóa với các thông tin về tên nhóm hàng và quan hệ giữa các nhóm hàng (2.3) 
+•Hàng hóa: lấy thông tin sản phẩm, tạo mới, sửa, xóa sản phẩm, thuộc tính của sản phẩm (2.4) 
+•Đặt hàng: lấy thông tin đơn hàng, tạo đơn hàng, cập nhật và hủy đơn hàng (0)
+•Hóa đơn: lấy thông tin hóa đơn, tạo hóa đơn, cập nhật và hủy hóa đơn (2.12)
+•Khách hàng: lấy danh sách khách hàng và thao tác trên thông tin khách hàng (2.6)•Phiếu nhập hàng: thông tin phiếu nhập (2.15)
+•Các API phụ trợ 
+-	Danh sách chi nhánh (0) 
+-	Danh sách người dùng (2.8) 
+-	Danh sách tài khoản ngân hàng (2.9) 
+-	Danh sách thu khác (2.10)
+-	Webhook (2.11)
+-	Nhóm khách hàng (2.13)
+-	Sổ quỹ (2.14)
+Lưu ý :  Các Params có ? ở trong giá trị là những trường có thể không truyền 
+Công ty CP phần mềm Citigo 	15/157 
+
+ 
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+ 
+Công ty CP phần mềm Citigo 	16/157 
+
+ 
+
+ 
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+2.CHỨC NĂNG 
+Mục này mô tả thông tin chi tiết của từng API. Các thông tin bao gồm: 
+•	Tên API 
+•	Mục đích sử dụng của API 
+•	Cấu trúc của API 
+•	Chi tiết tham số trong request 
+•	Nội dung response trả về 
+Chú ý: Ngoại trừ API lấy thông tin Authentication Code và Access Token, toàn bộ các API khác đều có header trong request với thông tin: 
+•	“Retailer”: tên cửa hàng 
+•	“Authorization”: Bearer {Mã Access Token} 
+Ví dụ: 
+Retailer: taphoa 
+Authorization:Bearer 
+eyJhbGciOiJSU0EtT0FFUCIsImVuYyI6IkExMjhDQkMtSFMyNTYiLCJraWQiOiJzQngifQ.h9rN-fArDF-aL0fkpnagyp6QD8Bt8shBdvaqciahnrVimtKnV8mSlK2LvClw5CoXbm312jCBXN8Gmn7bUxGzP78gFSOr GQFB5rlYvisDwpcr3R4aC6IeVsCEoEHnrGvz0_v3fv7mI7YhWCQvcea62Wn5bMtSabTKpj_J9VdKjUwe4V Pp3UYpQoLN8HreL2gmq9BqQC2QBIO25Mk3yPeaJaXTueFXKjYR-
+0f0qSsnw1lEMPRp8ECfq3w0N3CYmc-
+lg2zvqYFLBmQqdxlnwjE__6ebRDtXp_qNKy7LmgLaR3LzKIzUHDdFN4fUQ23hZX5HmQ_9xNcEH_Otg1E BZ5T2Xg.vToCTB4ZmAHWUEjVRg5C0A.Z8UK_2Y-
+dEZeZNNO5drADRbZkrkpLG3FaLMFnPFhAc6iEKiMBorOgdm5uZI4FzMGvbfBUuVU5AlbOr0MxSickdhw Idi1H9pSytHzqAuC2qr_1kvlGkYmr6gz9WAsTWMnPhFQ8DMV5jhNKxYod8zzXUuILdi7eHC2mxAygN_f Ma04yoFfEp3742of57LLgAqkKKY0ADK_LzJGmkcBbe2x4w.sEiuD4cqFqj9Wj9kOZ31gSjq6REOpMUj3hB YBojekzw 
+Lưu ý: Với các hàm GET sẽ giới hạn 5000 request/1h 
+2.1. Authenticate 
+Kiotviet API xác thực dựa trên cơ chế xác thực OAuth 2.0, để kết nối được hệ thống cần có 2 thông tin: ClientId và Mã bảo mật. Thông tin này được truy cập vào “Thiết lập cửa hàng” bằng tài khoản admin => Chọn Thiết lập kết nối API 
+Công ty CP phần mềm Citigo 	17/157 
+
+ 
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+ 
+Trong trường hợp không thể lấy được thông tin trên vui lòng liên hệ với bộ phận CSKH để được hỗ trợ. Sau khi có được thông tin ClientId và Mã bảo mật (client_secret). Có thể sử dụng các thư viện theo từng ngôn ngữ để lấy thông tin Access Token, ví dụ: 
+			+ Với C#: https://www.nuget.org/packages/OAuth2Client/ 
+			+ Với PHP: https://github.com/thephpleague/oauth2-client 
+Thông tin endpoint authenticate như sau: 
+-	Authorization Endpoint: https://id.kiotviet.vn/connect/authorize
+-	Token Endpoint: https://id.kiotviet.vn/connect/token 
+Hoặc có thể call API bên dưới (2.2) 
+2.2. Lấy thông tin Access Token 
+Mục đích sử dụng: API lấy thông tin Access Token để truy cập 
+Phương thức và URL:POSThttps://id.kiotviet.vn/connect/token 
+Request: 
+scopes: PublicApi.Access //Phạm vi truy cập (Public API) 
+grant_type: client_credentials //Thông tin truy cập dạng token 
+client_id: 83a5bcbe-3c39-458c-bdd9-128112cef3f7 //Client Id 
+client_secret: 3B52F3A9DDE194966DAE2CE0A478B2DEC15254D6 //Client secret 
+Header 
+			"Content-Type":"application/x-www-form-urlencoded" 
+scope 
+Body:
+Công ty CP phần mềm Citigo 	18/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+ scopes=PublicApi.Access&grant_type=client_credentials&client_id=e4fe37ab-5d10-4919-bf59-d9a568456d0b&client_secret=01A3703244752CFF6350A801F900742179C7CCDA 
+Response: 
+{ 
+ "access_token": "", 
+ "expires_in": 86400, 
+ "token_type": "Bearer" 
+} 
+
+2.3.	Nhóm hàng 
+Mô tả chi tiết cho các liên quan đến thông tin nhóm hàng hóa như sau: 
+2.3.1.Lấy danh sách nhóm hàng 
+Mục đích sử dụng: Trả về toàn bộ danh mục hàng hóa (nhóm hàng hóa). Danh sách này được sắp xếp theo thứ tự bảng chữ cái (a-z). Hệ thống chỉ cho phép nhóm hàng hóa có tối đa 3 cấp, và không cho phép xóa nhóm hàng cha nếu đang có chứa nhóm hàng con và không cho phép xóa nhóm hàng con nếu đang được sử dụng. 
+Phương thức và URL: GET https://public.kiotapi.com/categories 
+Request: Sử dụng hàm GET với tham số 
+“lastModifiedFrom”: datetime? // thời gian cập nhật 
+“pageSize”: int?, // số items trong 1 trang, mặc định 20 items, tối đa 100 items 
+“currentItem”: int, // lấy dữ liệu từ bản ghi hiện tại, nếu không nhập thì mặc định là 0 “orderBy”: string, //Sắp xếp dữ liệu theo trường orderBy (Ví dụ: orderBy=name) 
+“orderDirection”: string, //Sắp xếp kết quả trả về theo: Tăng dần Asc (Mặc định), giảm dần Desc 
+Công ty CP phần mềm Citigo 	19/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+“hierachicalData”: Boolean, // nếu HierachicalData=true thì mình sẽ lấy nhóm hang theo cấp mà không quan tâm lastModifiedFrom. Ngược lại, HierachicalData=false thì sẽ lấy 1 list nhóm hang theo lastModifiedFrom nhưng không có phân cấp 
+Response: 
+Nếu hierachicalData là true 
+“total”: int, 
+“pageSize”: int, 
+“data”:  [ 
+ { 
+			 “categoryId”: int, // ID nhóm hàng hóa 
+			 "parentId”: int?, // Nếu danh mục có danh mục cha thì có id cụ thể, nếu không có danh mục cha, ParentId=null 
+			 "categoryName": string, // Tên nhóm hàng hóa 
+			 “retailerId”: int, // Id cửa hàng 
+			 “hasChild”: boolean?, // nhóm hàng có con hay không 
+			 “modifiedDate”: datetime? // thời gian cập nhật 
+			 “createdDate”: datetime 
+			 “children”: [] 
+ }], 
+ “removedIds”: int [], // danh sách ID nhóm hàng bị xóa dựa trên Modified Date 
+ "timestamp": datetime 
+} 
+Nếu hierachicalData là fasle 
+“total”: int, 
+
+“pageSize:” int, 
+
+Công ty CP phần mềm Citigo 	20/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+“data”:  [ 
+ { 
+			 “categoryId”: int, // ID nhóm hàng hóa 
+			 “parentId”: int?, // Nếu danh mục có danh mục cha thì có id cụ thể, nếu không có danh mục cha, ParentId=null 
+			 "categoryName": string, // Tên nhóm hàng hóa 
+			 “retailerId”: int, // Id cửa hàng 
+			 “hasChild”: boolean?, // nhóm hàng có con hay không 
+			 “modifiedDate”: datetime? // thời gian cập nhật 
+			 “createdDate”: datetime 
+ }], 
+ “removedIds”: int [], // danh sách ID nhóm hàng bị xóa dựa trên Modified Date 
+ "timestamp": datetime 
+} 
+2.3.2.Lấy chi tiêt nhóm hàng 
+Mục đich sử dụng: Trả lại thông tin chi tiết của nhóm hàng hóa theo ID 
+Phương thức và URL: GET https://public.kiotapi.com/categories/{id} 
+Request: Sử dụng hàm GET với tham số: 
+“id”: long // ID của nhóm hàng 
+Response: 
+
+“data”: { 
+		 “categoryId”: int, // ID nhóm hàng hóa 
+		 "parentId": int?, // Nếu danh mục có danh mục cha  "categoryName": string, // Tên nhóm hàng hóa 
+		 “retailerId”: int, // Id cửa hàng 
+		 “hasChild”: int?, // Id cửa hàng 
+Công ty CP phần mềm Citigo 	21/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+	 “modifiedDate: datetime?, // Thời gian cập nhật 	 “createdDate”: datetime, 
+	 “children”: [] 
+ } 
+2.3.3.Thêm mới nhóm hàng 
+Mục đích sử dụng: Thêm mới một nhóm hàng 
+Phương thức và URL: POST https://public.kiotapi.com/categories 
+Request: JSON mã hóa yêu cầu gồm 1 object nhóm hàng riêng biệt với nhưng tham số sau: “categoryName”: string // tên nhóm hàng hóa 
+“parentId”: int // nếu nhóm hàng có nhóm hàng cha (hệ thống cho phép tối đa 3 cấp nhóm) Body 
+{ 
+	"categoryName": string 
+} 
+Response:
+{ 
+ "message": "Cập nhật dữ liệu thành công", 
+ "data": { 
+		 "categoryId": int, // Id nhóm hàng hóa 
+		 "parentId": int?, // Nếu danh mục có danh mục cha 
+		 “categoryName": string, // Tên nhóm hàng hóa (tối đa 125 ký tự) 		 "retailerId": int, // Id cửa hàng 
+		 "hasChild": boolean?, // Có danh mục con 
+
+Công ty CP phần mềm Citigo 	22/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+		 "modifiedDate": datetime?, 
+		 "createdDate": datetime, 
+		 "children": [] 
+ } 
+} 
+2.3.4.Cập nhật nhóm hàng 
+Mục đích sử dụng: Cập nhật nhóm hàng hóa theo ID 
+Phương thức và URL: PUT https://public.kiotapi.com/categories/id
+Request: Sử dụng hàm PUT với ID nhóm hàng qua 1 object JSON. 
+“id”: long // ID nhóm hàng hóa 
+Body 
+ { 
+			 "parentId": int, // Nếu danh mục có danh mục cha 
+	 "categoryName": string // Tên nhóm hàng hóa (tối đa 125 ký tự)  } 
+Response:
+{ 
+ "message": "Cập nhật dữ liệu thành công", 
+ "data": { 
+		 "categoryId": int, // Id nhóm hàng hóa 
+		 "parentId": int, // Nếu danh mục có danh mục cha 
+		 "categoryName": string, // Tên nhóm hàng hóa (tối đa 125 ký tự) 		 "retailerId": int, // Id cửa hàng 
+		 "hasChild": false, // Có danh mục con 
+
+Công ty CP phần mềm Citigo 	23/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+		 "modifiedDate": datetime, 
+		 "createdDate": datetime, 
+		 "children": [] 
+ } 
+} 
+2.3.5.Xóa nhóm hàng 
+Mục đích sử dụng: Xóa nhóm hàng theo ID 
+Phương thức và URL: DELETE https://public.kiotapi.com/categories/{id} 
+Request: Request sẽ bao gồm Id của nhóm hàng trong URL: 
+“id”: long // ID của nhóm hàng 
+Response: Trả lại thông tin xóa thành công (Code 200) 
+{ 
+	"message": "Xóa dữ liệu thành công" 
+} 
+
+2.4.	Hàng hóa 
+Mô tả chi tiết cho các liên quan đến thông tin hàng hóa như sau: 
+2.4.1.Lấy danh sách hàng hóa 
+Mục đích sử dụng: Trả về toàn bộ hàng hóa theo cửa hàng đã được xác nhận (authenticated retailer) Phương thức và URL:GET https://public.kiotapi.com/products 
+Request: Sử dụng hàm GET với tham số: 
+“orderBy”: string, optional //Sắp xếp dữ liệu theo trường orderBy (ví dụ: orderBy=Name) “lastModifiedFrom”: datetime? // thời gian cập nhật 
+Công ty CP phần mềm Citigo 	24/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+“pageSize”: int, // số items trong 1 trang, mặc định 20 items, tối đa 100 items “currentItem”: int, // lấy dữ liệu từ bản ghi currentItem 
+“includeInventory”: Boolean, // có lấy thông tin tồn kho? 
+“includePricebook”: Boolean, // có lấy thông tin bảng giá? 
+“IncludeSerials”: Boolean, // lấy thông tin serial imei 
+“IncludeBatchExpires”: Boolean, // lấy thông tin lô, hạn sử dụng 
+ 
+“includeWarranties”: Boolean, // Lấy thông tin bảo hành “masterUnitId”: long?, //Id hàng hoá đơn vị cần filter 
+ 
+Commented [ĐTH1]: 21/12/2022 
+ 
+“masterProductId”: long?, //Id hàng hoá cùng loại cần filter 
+“categoryId”: int?, //Id nhóm hàng cần filter 
+“orderDirection”: string, optional 
+"includeRemoveIds": bool, //Có lấy thông tin danh sách Id bị xoá dựa 
+"includeQuantity": bool, //có lấy thông tin định mức tồn 
+"productType": bool, //loại hàng hóa 
+"includeMaterial": bool, //có lấy danh sách hàng thành phần 
+ "isActive": bool? //Hàng đang kinh doanh, 
+ "name": string //search hàng hóa theo tên 
+		 "includeSoftDeletedAttribute": bool //Có lấy thông tin danh sách thuộc tính bị xóa của hàng hóa (mặc định là true nếu không truyền tham số này => Nghĩa là lấy tất cả thuộc tính bao gồm thuộc tính đã bị xóa. Ngược lại nếu = false thì loại bỏ các thuộc tính đã bị xóa). 
+} 
+		Nếu có "OrderDirection", chọn sắp xếp kết quả về theo: 
+		•	ASC (Mặc định) 
+		•	DESC 
+“includeRemoveIds”: Boolean //Có lấy thông tin danh sách Id bị xoá dựa trên lastModifiedFrom, 
+“productType”: int? (optional) //Loại hàng hóa 
+Công ty CP phần mềm Citigo 	25/157 
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+Nếu có "productType", giá trị thuộc : 
+•
+•
+•	1 : hàng combo 
+3: hàng hóa dịch vụ 
+2: các hàng hóa còn lại 
+ “includeMaterial”: Boolean //Có lấy thông tin danh sách hàng thành phần hay không 
+Response: 
+“removeId”: int [], // Danh sách Id hàng hóa bị xóa dựa trên ModifiedDate “total”: int, // Tổng số hàng hóa 
+“pageSize”: int, 
+“data”: [{ 
+		 “id”: long, // ID hàng hóa 
+		 “code”: string, // Code hàng hóa 
+		 “barCode”: string, //Mã vạch hàng hóa 
+	 “retailerId”: int, // Id cửa hàng 
+		 "allowsSale": Boolean, // Sản phẩm được bán trực tiếp hay không 	 "name": string, // Tên sản phẩm 
+	 "categoryId": int, // Id của nhóm hàng hóa 
+
+ "categoryName": string, // Tên của nhóm hàng hóa 
+ "fullName": string, // Tên sản phẩm bao gồm unit và thuộc tính  “description”: string, // Mô tả sản phẩm 
+ "hasVariants": Boolean?, // Sản phẩm có thuộc tính hay không  "attributes": [ 
+	{ 
+	 “productId”: long, // Id sản phẩm 
+	 “attributeName”: string, // tên thuộc tính 
+
+Công ty CP phần mềm Citigo 	26/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+				 “attributeValue”: string // giá trị thuộc tính 
+				}], // danh sách thuộc tính 
+ “unit”: string, // đơn vị tính của 1 sản phẩm, 
+ “masterUnitId”: long, // Id của hàng hóa đơn vị cơ bản (null)  “masterProductId”: long?, 
+ “conversionValue”: double?, // Đơn vị quy đổi 
+			 "units": [ 
+				{“id”: long, // ID sản phẩm 
+				 “code”: string, // Mã sản phẩm 
+				 “name”: string, // Tên sản phẩm 
+				 “fullName”: string, // Tên sản phẩm 
+				 “unit”: string, // Đơn vị tính 
+				 “conversionValue”: double, // Đơn vị quy đổi 				 “basePrice”: decimal, // Giá bán của sản phẩm 				}], // danh sách đơn vị tính 
+ “images”: [{“Image”: string, // ảnh sản phẩm}],  
+				// Danh sách hình ảnh của hàng hóa 
+ “inventories”: 
+[{ 
+			 "productId": long, // Id của sản phẩm 
+			 "productCode": string, // Mã của sản phẩm 
+			 "productName": string, // Tên của sản phẩm 
+			 "branchId": int, // Id của chi nhánh 
+			 "branchName": string, // Tên của chi nhánh 
+ "onHand": double?, // Tồn kho theo chi nhánh 
+ "cost": decimal?, // Giá sản phẩm 
+
+Công ty CP phần mềm Citigo 	27/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+		 “reserved”: double, // Đặt hàng theo chi nhánh }], // danh sách tồn kho trên các chi nhánh 
+ “priceBooks”: // bảng giá (mặc định là bảng giá chung) [{ 
+		 "priceBookId": long, // ID bảng giá 
+		 "priceBookName": string, // Tên bảng giá 
+		 “productId”: long// ID sản phẩm 
+ "isActive": Boolean, // Có được sử dụng? 
+ “startDate”: datetime?, // có hiệu lực từ ngày 
+ “endDate”: datetime?, // có hiệu lực đến ngày 
+ “price”: decimal, // Giá bán theo bảng giá 
+}]// danh sách các bảng giá mà sản phẩm đang được gán, “productFormulas”: // danh sách hàng thành phần (nếu có) [{ 
+		 "materialId": long, // ID hàng thành phần 
+		 "materialCode": string, // Code hàng thành phần 
+		 “materialFullName”: string// tên đầy đủ hàng thành phần  "materialName": string, // tên hàng thành phần 
+ “quantity”: int, // số lượng  
+ “basePrice”: decimal // giá , 
+		 “productId”: long?, // mã hàng combo chưa sản phẩm này  “product”: // chi tiết sản phẩm  
+		 { 
+				“createdDate”: datetime?, // ngày tạo 
+			 “id”: long, // ID sản phẩm của thành phần, 
+				“retailerId”: long, // Id cửa hàng, 
+
+Công ty CP phần mềm Citigo 	28/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+ “code”: string , // code sản phẩm của thành phần, 
+“name”: string?, // tên hàng thành phần, 
+“fullName”: datetime?, // tên đầy đủ hàng thành phần, 
+ “categoryId”: int, // Id của nhóm hàng hóa, 
+“allowsSale”: Boolean, // Sản phẩm được bán trực tiếp hay không, 
+“hasVariants”: Boolean?, // Sản phẩm có thuộc tính hay không, 
+“basePrice”: decimal, // Giá bán của sản phẩm, 
+“unit”: string, // Đơn vị tính, 
+“conversionValue”: double?, // Đơn vị quy đổi, 
+“modifiedDate”: datetime?, // ngày sửa, 
+“isActive”: Boolean, // Có được sử dụng?, 
+“isRewardPoint”: bool?, // có tích điểm hay không, 
+ “orderTemplate”: string, //Mẫu ghi chú (hóa đơn đặt hàng), 
+ “isLotSerialControl”: bool?,//Có phải imei hay không 
+		 “isBatchExpireControl”: bool?,//Có phải Hàng lô/ date hay không 		 "productSerials": [ // Danh sách Imei 
+			 { 
+			 "productId": long, //Id sản phẩm 
+			 "serialNumber": string, //số serial Imei 
+			 "status": int, // 1: còn hàng, 0: hết hàng 
+			 "branchId": int, // id chi nhánh 
+			 "quantity": double?, //Số lượng: 1 
+			 "createdDate": datetime, //ngày tạo 
+			 "modifiedDate": datetime?, //ngày sửa 
+			 } 
+ ], 
+ "productBatchExpires": [ // Danh sách lô 
+			 { 
+					 "productId": long, //Id sản phẩm 
+
+Công ty CP phần mềm Citigo 	29/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+			 "onHand": double, //Tồn kho của lô 
+			 "batchName":  string, //Tên lô 
+			 "expireDate": datetime, //ngày hết hạn lô 
+			 "fullNameVirgule": string, //Tên đầy đủ của lô 
+			 "branchId": int, // id chi nhánh 
+		 } 
+							 ] 
+					 } 
+}], 
+"productWarranties": [ 
+						 { 
+								 "Id": long, // id bảo hành bảo trì 
+								 "description": string, //mô tả 
+								 "numberTime": int, // thời gian bảo hành 
+								 "timeType": int, // kiểu thời gian(ngày:1 tháng:2 năm:3) 								 "warrantyType": int, //kiểu bảo hành (bảo hành:1, bảo trì: 3) 								 "productId": long, //productId 
+								 "retailerId": long, //retailerId 
+								 "createdBy": long?, // người tạo 
+								 "createdDate": datetime?,  // thời gian tạo 
+								 "modifiedDate": datetime?, // thời giant hay đổi 
+						 }, 
+						 … 
+			 ] 
+“basePrice”: decimal?, // giá sản phẩm 
+“weight”: double?, // trọng lượng sản phẩm 
+ “modifiedDate”: datetime // thời gian cập nhật 
+
+Công ty CP phần mềm Citigo 	30/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+ “createdDate”: datetime, // thời gian tạo, 
+ “orderTemplate”: string //Mẫu ghi chú (hóa đơn đặt hàng), 
+ “minQuantity” : int  //Định mức tồn nhỏ nhất 
+ “maxQuantity” : int  //Định mức tồn nhiều nhất, 
+ }], 
+2.4.2.Lấy chi tiết hàng hóa 
+Mục đích sử dụng: Trả lại chi tiết của một sản phẩm cụ thể theo ID, theo Code 
+Phương thức và URL:
+-
+-
+-	Theo Id : GET https://public.kiotapi.com/products/{id} 
+Theo Code : GET https://public.kiotapi.com/products/code{code}
+Có lấy thuộc tính đã xóa mềm của hàng 
+		hóa: GET https://public.kiotapi.com/products/{id}?includeSoftDeletedAttribute=true Request: Sử dụng hàm GET với tham số: 
+“id”: long // ID của hàng hóa 
+“code”: string // Mã của hàng hóa 
+"includeSoftDeletedAttribute": bool //Có lấy thông tin danh sách thuộc tính bị xóa của hàng hóa (mặc định là true nếu không truyền tham số này => Nghĩa là lấy tất cả thuộc tính bao gồm thuộc tính đã bị xóa. Ngược lại nếu = false thì loại bỏ các thuộc tính đã bị xóa). 
+Response: 
+{ 
+		“id”: long, // ID hàng hóa 
+	 “code”: string, // Code hàng hóa 
+	 “barCode”: string, // Mã vạch hàng hóa 
+
+Công ty CP phần mềm Citigo 	31/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+ “retailerId”: int, // Id cửa hàng 
+ "allowsSale": Boolean?, // Sản phẩm được bán trực tiếp hay không  "name": string, // Tên sản phẩm 
+ "categoryId": int, // Id của nhóm hàng hóa 
+ "type": byte?, // Loại hàng hóa 
+ "categoryName": string, // Tên của nhóm hàng hóa 
+ "fullName": string, // Tên sản phẩm bao gồm unit và thuộc tính? 
+ “description”: string, // Mô tả sản phẩm 
+ "hasVariants": Boolean?, // Sản phẩm có thuộc tính hay không  "attributes": [ 
+	{ 
+	 “productId”: long, // Id thuộc tính 
+
+				 “attributeName”: string, // tên thuộc tính 
+				 “attributeValue”: string // giá trị thuộc tính 
+				}], // danh sách thuộc tính 
+ “unit”: string, // đơn vị tính của 1 sản phẩm, 
+ “masterProductId”: long?, 
+ “masterUnitId”: long, // Id của hàng hóa đơn vị cơ bản (null) 
+ “conversionValue”: double?, // Đơn vị quy đổi 
+ "units": [ 
+				{“id”: long, // ID sản phẩm 
+				 “code”: string, // Mã sản phẩm , 
+		 “name”: string, //Tên sản phẩm  
+	 “fullName”: string, //Tên sản phẩm bao gồm unit và thuộc tính       		 “unit”: string, // Đơn vị tính  
+
+Công ty CP phần mềm Citigo 	32/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+				 “conversionValue”: double, // Đơn vị quy đổi 				 “basePrice”: decimal, // Giá bán của sản phẩm 				}], // danh sách đơn vị tính 
+ “images”: string [],// Danh sách hình ảnh của hàng hóa 
+	 “inventories”:  
+		 [{ 
+			"productId": long, // Id của sản phẩm 
+			"productCode": string, // Mã của sản phẩm 
+			"productName": string, // Tên của sản phẩm 
+			"branchId": long, // Id của chi nhánh 
+			"branchName": long, // Tên của chi nhánh 
+			"onHand": double?, // Tồn kho theo chi nhánh 
+			"cost": decimal?, // Giá sản phẩm 
+			“reserved”: double, // Đặt hàng theo chi nhánh 
+		 }], // danh sách tồn kho trên các chi nhánh 
+	 “priceBooks”: // bảng giá (mặc định là bảng giá chung) 
+		 [{ 
+			"priceBookId": long, // ID bảng giá 
+
+"priceBookName": string, // Tên bảng giá 
+“productId”: long// ID sản phẩm 
+"isActive": Boolean, // Có được sử dụng? 
+	“startDate”: datetime?, // có hiệu lực từ ngày 	“endDate”: datetime?, // có hiệu lực đến ngày 	“price”: decimal, // Giá bán theo bảng giá 
+ }]// danh sách các bảng giá mà sản phẩm đang được gán, 
+
+Công ty CP phần mềm Citigo 	33/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+ “productFormulas”: // danh sách hàng thành phần (nếu có) 
+ [{ 
+				"materialId": long, // ID hàng thành phần 
+				"materialCode": string, // Code hàng thành phần 
+				“materialFullName”: string// tên đầy đủ hàng thành phần 
+	 "materialName": string, // tên hàng thành phần 
+				“quantity”: int, // số lượng 
+	 “basePrice”: decimal // giá , 
+				“productId”: long?, // mã hàng combo chưa sản phẩm này 
+				“product”: // chi tiết sản phẩm 
+				{ 
+				“createdDate”: datetime?, // ngày tạo 
+			 “id”: long, // ID sản phẩm của thành phần, 
+			 “retailerId”: long, // Id cửa hàng, 
+		 “code”: string , // code sản phẩm của thành phần, 
+				“name”: string?, // tên hàng thành phần, 
+				“fullName”: datetime?, // tên đầy đủ hàng thành phần, 
+			 “categoryId”: int, // Id của nhóm hàng hóa, 
+				“allowsSale”: Boolean, // Sản phẩm được bán trực tiếp hay không, 				“hasVariants”: Boolean?, // Sản phẩm có thuộc tính hay không, 				“basePrice”: decimal, // Giá bán của sản phẩm, 
+				“unit”: string, // Đơn vị tính, 
+				“conversionValue”: double?, // Đơn vị quy đổi, 
+				“modifiedDate”: datetime?, // ngày sửa, 
+				“isActive”: Boolean, // Có được sử dụng?, 
+				“isRewardPoint”: bool?, // có tích điểm hay không, 
+
+Công ty CP phần mềm Citigo 	34/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+“orderTemplate”: string //Mẫu ghi chú (hóa đơn đặt hàng) 
+} 
+}], 
+ “basePrice”: decimal, // giá sản phẩm 
+ “weight”: double, // trọng lượng sản phẩm 
+ “modifiedDate”: datetime, // thời gian cập nhật 
+ “createdDate”: datetime, // thời gian tạo 
+ “isLotSerialControl”: bool?,//Có phải imei hay không 
+ “isBatchExpireControl”: bool?,//Có phải Hàng lô/ date hay không 
+	 "productSerials": [ // Danh sách Imei 
+			 { 
+			 "productId": long, //Id sản phẩm 
+			 "serialNumber": string, //số serial Imei 
+			 "status": int, // 1: còn hàng, 0: hết hàng 
+			 "branchId": int, // id chi nhánh 
+			 "quantity": double?, //Số lượng: 1 
+			 "createdDate": datetime, //ngày tạo 
+			 "modifiedDate": datetime?, //ngày sửa 
+			 } 
+ ], 
+ "productBatchExpires": [ // Danh sách lô 
+			 { 
+			 "productId": long, //Id sản phẩm 
+			 "onHand": double, //Tồn kho của lô 
+			 "batchName":  string, //Tên lô 
+			 "expireDate": datetime, //ngày hết hạn lô 
+			 "fullNameVirgule": string, //Tên đầy đủ của lô 
+					 "branchId": int, // id chi nhánh 
+			 } 
+					 ] 
+
+Công ty CP phần mềm Citigo 	35/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+} 
+2.4.3.Thêm mới hàng hóa 
+Mục đích sử dụng: Tạo mới hàng hóa 
+Phương thức và URL: POST https://public.kiotapi.com/products 
+Request: JSON mã hóa yêu cầu gồm 1 object hàng hóa: 
+{ 
+		“name”: string, // Tên hàng hóa 
+		“code”: string, // Mã hàng hóa 
+	 “barCode”: string, (Tối đa 16 ký tự) // Mã vạch hàng hóa 
+		“fullName”: string, // Tên sản phẩm bao gồm unit và thuộc tính? 
+	“categoryId”: int, // Id nhóm hàng hóa 
+	"allowsSale": Boolean, // Sản phẩm được bán trực tiếp hay không 	“description”: string, // Mô tả sản phẩm, 
+ “hasVariants”: boolean, // Sản phẩm có thuộc tính hay không 
+ “isProductSerial”: true, // Có phải sản phẩm serial hay không ? 
+		"attributes": [{ 
+			 “attributeName”: string, // tên thuộc tính (Nếu tên thuộc tính chưa tồn tại trong hệ thống thì tự động tạo mới thuộc tính) 
+			 “attributeValue”: string // giá trị thuộc tính 
+			}], // danh sách thuộc tính 
+ “unit”: string, // đơn vị tính của 1 sản phẩm 
+ “masterProductId”: long?, //Id hàng hoá cùng loại 
+ “masterUnitId”: long?, // Id của hàng hóa đơn vị cơ bản = NULL 
+				Neu la don vi co ban 
+ “conversionValue”: double, 
+
+Công ty CP phần mềm Citigo 	36/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+ “inventories”: 
+ [{ 
+			"branchId": long, // Id của chi nhánh 
+			"branchName": long, // Tên của chi nhánh 
+			"onHand": double?, // Tồn kho theo chi nhánh 			"cost": decimal?, // Giá sản phẩm 
+			“reserved”: double, // Đặt hàng theo chi nhánh }], // danh sách tồn kho trên các chi nhánh 
+“basePrice”: decimal?, // giá sản phẩm 
+“weight”: double?, // trọng lượng sản phẩm, 
+		 “images”: string [], // Danh sách hình ảnh của hàng hóa  
+				 + Image: link ảnh của hàng hóa } 
+Response:
+ { 
+			 “id”: int, // ID hàng hóa 
+			 “code”: string, // Mã hàng hóa 
+	 “barCode”: string, // Mã vạch hàng hóa 
+			 “name”: string, // Tên hàng hóa 
+	 “fullName”: string, // 
+			 “description”: string, // Tên hàng hóa 
+				 “images”: string [], // Danh sách hình ảnh của hàng hóa  					 + Image: link ảnh của hàng hóa 	 “categoryId”: int, 
+	 “categoryName”: string, 
+
+Công ty CP phần mềm Citigo 	37/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+ “unit”: string, 
+ “masterProductId”: long?, 
+ “masterUnitId”: long, 
+ “conversionValue”: double?, 
+		 "hasVariants": Boolean, // Sản phẩm có thuộc tính hay không 	 "attributes": [{ 
+			 “productId”: long, // Id thuộc tính 
+			 “attributeName”: string, // tên thuộc tính 
+			 “attributeValue”: string // giá trị thuộc tính 
+			}] // danh sách thuộc tính 
+	 “basePrice”: decimal, // Giá bán 
+	 “inventories”: [ 
+	 { 
+			"productId": long, // Id của sản phẩm 
+			"productCode": string, // Mã của sản phẩm 			"productName": string, // Tên của sản phẩm 			"branchId": long, // Id của chi nhánh 
+			"branchName": long, // Tên của chi nhánh 			"onHand": double?, // Tồn kho theo chi nhánh 			"cost": decimal?, // Giá sản phẩm 
+		 “reserved”: double, // Đặt hàng theo chi nhánh 	 }] 
+	“basePrice”: decimal, // Giá bán theo bảng giá 
+ “retailerId”: int, // Id cửa hàng 
+ “modifiedDate”: datetime, // Thời gian cập nhật 
+
+Công ty CP phần mềm Citigo 	38/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+} 
+2.4.4.Cập nhật hàng hóa 
+Mục đích sử dụng: Cập nhật hàng hóa theo ID 
+Phương thức và URL: PUT https://public.kiotapi.com /products/id 
+Request: Sử dụng hàm PUT với ID hàng hóa qua 1 object JSON. 
+“branchId”: int, //Id chi nhánh hiện tại 
+“id”: long // ID hàng hóa 
+Body 
+{ 
+			“name”: string, // Tên hàng hóa 
+			“code”: string, // Mã hàng hóa 
+	 “barCode”: string, {Tối đa 16 ký tự} //Mã vạch hàng hóa 
+			“categoryId”: int, // Id nhóm hàng hóa 
+			"allowsSale": Boolean, // Sản phẩm được bán trực tiếp hay không 
+			“description”: string, // Mô tả sản phẩm, 
+	 “hasVariants”: boolean, // Sản phẩm có thuộc tính hay không 
+			"attributes": [ 
+				{“attributeName”: string, // tên thuộc tính (Nếu tên thuộc tính chưa tồn tại trong hệ thống thì tự động tạo mới thuộc tính) 
+				 “attributeValue”: string // giá trị thuộc tính 
+				}], // danh sách thuộc tính 
+	 “unit”: string, // đơn vị tính của 1 sản phẩm 
+	 “masterUnitId”: long, // Id của hàng hóa đơn vị cơ bản = NULL 
+					Neu la don vi co ban 
+	 “conversionValue”: double, // 
+
+Công ty CP phần mềm Citigo 	39/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+ “inventories”: 
+ [{ 
+		"branchId": long, // Id của chi nhánh 
+		"branchName": long, // Tên của chi nhánh 
+		"onHand": double?, // Tồn kho theo chi nhánh 
+		"cost": decimal?, // Giá sản phẩm 
+		“reserved”: double, // Đặt hàng theo chi nhánh }], // danh sách tồn kho trên các chi nhánh 
+“basePrice”: decimal, // giá sản phẩm 
+“weight”: double, // trọng lượng sản phẩm, 
+“isActive”: bool?, // true : đang hoạt động, false : ngừng hoạt động “isRewardPoint”: bool?, // có tích điểm hay không 
+} 
+Response: 
+{ 
+ “id”: int, // ID hàng hóa    
+		 “code”: string, // Mã hàng hóa 
+ “barCode”: string, //Mã vạch hàng hóa 
+		 “name”: string, // Tên hàng hóa 
+ “fullName”: string, // 
+		 “description”: string, // Tên hàng hóa 
+			 “images”: string [], // Danh sách hình ảnh của hàng hóa  				 + Image: link ảnh của hàng hóa  “categoryId”: int, 
+ “categoryName”: string, 
+
+Công ty CP phần mềm Citigo 	40/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+ “unit”: string, 
+ “masterUnitId”: long, 
+ “conversionValue”: double, 
+		 "hasVariants": Boolean, // Sản phẩm có thuộc tính hay không 	 "attributes": [ 
+			{“attributeName”: string, // tên thuộc tính 
+			 “attributeValue”: string // giá trị thuộc tính 
+			}] // danh sách thuộc tính 
+		 “basePrice”: decimal, // Giá bán 
+		 “inventory”: [ 
+		 { 
+			"productId": long, // Id của sản phẩm 
+			"productCode": string, // Mã của sản phẩm 			"productName": string, // Tên của sản phẩm 			"branchId": long, // Id của chi nhánh 
+			"branchName": long, // Tên của chi nhánh 			"onHand": double?, // Tồn kho theo chi nhánh 			"cost": decimal?, // Giá sản phẩm 
+			“reserved”: double, // Đặt hàng theo chi nhánh 		 }] 
+		“basePrice”: decimal, // Giá bán theo bảng giá 
+	 “retailerId”: int, // Id cửa hàng 
+	 “modifiedDate”: datetime, // Thời gian cập nhật 
+} 
+
+Công ty CP phần mềm Citigo 	41/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+2.4.5.Xóa hàng hóa 
+Mục đích sử dụng: Xóa hàng hóa theo ID 
+Phương thức và URL: DELETE https://public.kiotapi.com/products/{id} 
+Request: Gồm Id của hàng hóa trong URL: 
+“id”: long // ID của hàng hóa 
+Response: Trả lại thông tin xóa thành công (Code 200) 
+{ 
+	"message": "Xóa dữ liệu thành công" 
+} 
+2.4.6.Lấy thông tin thuộc tính sản phẩm 
+Mục đích sử dụng: lấy toàn bộ thông tin thuộc tính của tất cả các sản phẩm Phương thức và URL: GEThttps://public.kiotapi.com/attributes/allwithdistinctvalue Response: 
+
+[{ 
+	“name”: string, //tên thuộc tính 
+	“id”: long, //id của thuộc tính 
+	“attributeValues”:[ 
+		{ 
+			“value”: string, //giá trị của thuộc tính 			“attributeId” long, // id của thuộc tính 		}, 
+		{ 
+			“value”: string, //giá trị của thuộc tính 			“attributeId” long, // id của thuộc tính 		}, 
+Công ty CP phần mềm Citigo 	42/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+		... 
+	] 
+}] 
+2.4.7 Thêm mới danh sách hàng hóa 
+Mục đích sử dụng: Tạo mới danh sách hàng hóa 
+Phương thức và URL: POST https://public.kiotapi.com/listaddproducts
+Request: JSON mã hóa yêu cầu gồm 1 danh sách object hàng hóa riêng biệt với nhưng tham số sau: 
+{ “listProducts”: [{ 
+“name”: string, // Tên hàng hóa 
+“code”: string, // Mã hàng hóa 
+“fullName”: string, // Tên sản phẩm bao gồm unit và thuộc tính? 
+	“categoryId”: int, // Id nhóm hàng hóa 
+	"allowsSale": Boolean, // Sản phẩm được bán trực tiếp hay không 	“description”: string, // Mô tả sản phẩm, 
+ “hasVariants”: boolean, // Sản phẩm có thuộc tính hay không 
+"attributes": [{ 
+	 “attributeName”: string, // tên thuộc tính (Nếu tên thuộc tính         chưa tồn tại t rong hệ thống thì tự động tạo mới thuộc tính) 
+
+	 “attributeValue”: string // giá trị thuộc tính 
+	}], // danh sách thuộc tính 
+ “unit”: string, // đơn vị tính của 1 sản phẩm 
+ “masterProductId”: long?, //Id hàng hoá cùng loại 
+ “masterUnitId”: long, // Id của hàng hóa đơn vị cơ bản = NULL 		Neu la don vi co ban 
+ “conversionValue”: double, 
+ “branchId”: int?, //Id chi nhánh hiện tại 
+ “inventories”: 
+ [{ 
+	"branchId": long, // Id của chi nhánh 
+	"branchName": long, // Tên của chi nhánh 
+Công ty CP phần mềm Citigo 	43/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+			"onHand": double?, // Tồn kho theo chi nhánh 			"cost": decimal?, // Giá sản phẩm 
+			“reserved”: double, // Đặt hàng theo chi nhánh  }], // danh sách tồn kho trên các chi nhánh 
+	“basePrice”: decimal, // giá sản phẩm 
+	“weight”: double, // trọng lượng sản phẩm, 
+	“images”: string [], // Danh sách hình ảnh của hàng hóa 
+				 + Image: link ảnh của hàng hóa } 
+Response:
+ { "message": "Thêm mới danh sách sản phẩm thành công" } 
+2.4.8 Cập nhật danh sách hàng hóa 
+Mục đích sử dụng: Cập nhật danh sách hàng hóa 
+Phương thức và URL: PUT https://public.kiotapi.com/listupdatedproducts
+Request: JSON mã hóa yêu cầu gồm 1 danh sách object hàng hóa riêng biệt với nhưng tham số sau: 
+{ “listProducts”: [//danh sách hàng hóa 
+{ 
+“id”: long, // Id của hàng hóa 
+“name”: string, // Tên hàng hóa 
+“code”: string, // Mã hàng hóa 
+“fullName”: string, // Tên sản phẩm bao gồm unit và thuộc tính? 
+	“categoryId”: int, // Id nhóm hàng hóa 
+	"allowsSale": Boolean, // Sản phẩm được bán trực tiếp hay không 	“description”: string, // Mô tả sản phẩm, 
+ “hasVariants”: boolean, // Sản phẩm có thuộc tính hay không 
+"attributes": [{ 
+	 “attributeName”: string, // tên thuộc tính (Nếu tên thuộc tính chưa tồn tại tron g hệ thống thì tự động tạo mới thuộc tính) 
+
+Công ty CP phần mềm Citigo 	44/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+			 “attributeValue”: string // giá trị thuộc tính 
+			}], // danh sách thuộc tính 
+ “unit”: string, // đơn vị tính của 1 sản phẩm 
+ “masterProductId”: long?, //Id hàng hoá cùng loại 
+ “masterUnitId”: long, // Id của hàng hóa đơn vị cơ bản = NULL 				Neu la don vi co ban 
+ “conversionValue”: double, 
+ “branchId”: int?, //Id chi nhánh hiện tại 
+ “inventories”: 
+ [{ 
+			"branchId": long, // Id của chi nhánh 
+			"branchName": long, // Tên của chi nhánh 
+			"onHand": double?, // Tồn kho theo chi nhánh 			"cost": decimal?, // Giá sản phẩm 
+			“reserved”: double, // Đặt hàng theo chi nhánh 		}], // danh sách tồn kho trên các chi nhánh 
+“basePrice”: decimal, // giá sản phẩm 
+“weight”: double, // trọng lượng sản phẩm, 
+“images”: string [], // Danh sách hình ảnh của hàng hóa 
+				 + Image: link ảnh của hàng hóa 		},… 
+ ] 
+} 
+Response: 
+{ "message": "Cập nhật danh sách sản phẩm thành công" } 
+2.4.9 Lấy danh sách tồn kho hàng hóa 
+Mục đích sử dụng: Trả về toàn bộ hàng hóa theo cửa hàng đã được xác nhận (authenticated retailer) 
+Phương thức và URL:GET https://public.kiotapi.com/productOnHands
+Request: Sử dụng hàm GET với tham số: 
+Công ty CP phần mềm Citigo 	45/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+ { 
+ “orderBy”: string, optional //Sắp xếp dữ liệu theo trường orderBy (ví dụ: orderBy=Code) 
+ “lastModifiedFrom”: datetime? // thời gian cập nhật 
+ “branchIds”: [int] // danh sách chi nhánh, 
+ “pageSize”: int, // số items trong 1 trang, mặc định 20 items, tối đa 100 items 
+	 “currentItem”: int, // lấy dữ liệu từ bản ghi currentItem } 
+Nếu có "OrderDirection", chọn sắp xếp kết quả về theo:
+•
+•	ASC (Mặc định) 
+DESC
+Response: 
+“total”: int, // Tổng số hàng hóa 
+“pageSize”: int, 
+“data”: [{ 
+	 “id”: long, // ID hàng hóa 
+	 “code”: string, // Code hàng hóa 
+	 “createdDate”: datetime? // ngày tạo 
+	 "inventories": [ 
+		 { 
+			 “branchId”: long, // Id chi nhánh 
+			 “onhand”: double, // tồn kho 
+			 “reserved”: double, // đặt hàng kho 
+			 “modifiedDate”: datetime? //ngày cập nhật 
+		 } 
+	 ], // danh sách tồn kho của hàng hóa theo chi nhánh  }], 
+
+Công ty CP phần mềm Citigo 	46/157 
+
+ 
+
+ 
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+2.5.	Đặt hàng 	
+Hiện tại KiotViet hỗ trợ các thiết lập cho tính năng đặt hàng như sau: 
+ Trong trường hợp người dùng không tích chọn setting cho “Cho phép đặt hàng”, các giao dịch liên 	quan tới đặt hàng sẽ không hiển thị trên Kiotviet nữa. Vì vậy, khi gọi các API liên quan tới phần đặt 	hàng, nếu thiết lập này đang tắt thì API sẽ trả lại thông báo “Thiết lập “Cho phép đặt hàng” đang 	không được bật.”. 
+Trong trường hợp người dùng không tích chọn setting cho “Sử dụng tính năng giao hàng”, các giao dịch sẽ không hiển thị tính năng giao hàng nữa. Vì vậy, khi gọi các API liên quan tới phần giao hàng, nếu thiết lập này đang tắt thì API sẽ trả lại thông báo “Thiết lập “Sử dụng tính năng giao hàng.” đang không được bật”. 
+Trong trường hợp người dùng không tích chọn setting cho “Không cho phép thay đổi thời gian bán hàng”, khi Post/ Put các API liên quan đến thời gian bán hàng thì API sẽ trả lại thông báo “Thiết lập “Không cho phép thay đổi thời gian bán hàng” đang không được bật.”. 
+Mô tả chi tiết cho các API hỗ trợ Đặt hàng như sau: 
+2.5.1.Lấy danh sách đặt hàng 
+Mục đích sử dụng: Trả về danh sách đặt hàng theo cửa hàng đã được xác nhận Phương thức và URL:GET https://public.kiotapi.com/orders 
+Request: Sử dụng hàm GET với tham số: 
+	“branchIds”: int[], optional // ID chi nhánh 
+	 “customerIds”: long[], optional // Id khách hàng 
+	 “customerCode”: string //Mã khách hàng 
+	 “status”: int[], optional // Tình trạng đặt hàng 
+	 “includePayment”: Boolean, // có lấy thông tin thanh toán 
+	 “includeOrderDelivery”: Boolean,  
+	 “lastModifiedFrom”: datetime? // thời gian cập nhật 
+	 “pageSize”: int?, // số items trong 1 trang, mặc định 20 items, tối đa 100 items  
+Công ty CP phần mềm Citigo 	47/157 
+
+ 
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+	 “currentItem”: int, 
+	 “lastModifiedFrom”: datetime? // thời gian cập nhật 
+	 “toDate”: datetime? //Thời gian cập nhật cho đến thời điểm toDate 
+	 “orderBy”: string, //Sắp xếp dữ liệu theo trường orderBy (Ví dụ: orderBy=name) 
+		 “orderDirection”: string, //Sắp xếp kết quả trả về theo: Tăng dần Asc (Mặc định), giảm dần Desc 		 “createdDate”: datetime? //Thời gian tạo 
+		 “saleChannelId” : int?, optional // Id kênh bán hàng, nếu không truyền mặc định kênh khác Response: 
+{ 
+“total”: int, 
+“pageSize”: int, 
+“data”: [{ 
+		“id”: long //Id đặt hàng 
+		“code”: string //Mã đặt hàng 
+		“purchaseDate”: datetime // Ngày đặt hàng 
+		“branchId”: int, //Id chi nhánh 
+		“branchName”: string, //Tên chi nhánh 
+		“soldById”: long?, 
+	 “soldByName”: string 
+		“customerId”: long?, // Id khách hàng 
+		“customerCode”: string, //Mã khách hàng 
+		“customerName”: string, // Tên khách hàng 
+		“total”: decimal, // Khách cần trả 
+		“totalPayment”: decimal, //Khách đã trả 
+		“discountRatio”: double?, // Giảm giá trên đơn theo % 		“discount”: decimal?, // Giảm giá trên đơn theo tiền 
+
+Công ty CP phần mềm Citigo 	48/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+	“status”: int, // trạng thái đơn đặt hàng 
+	“statusValue”: string, // trạng thái đơn đặt hàng bằng chữ 	“description”: string, // ghi chú 
+ “usingCod”: boolean, 
+	“payments” :[{ 
+			“id”: long, 
+			“code”: string, 
+			“amount”: decimal, 
+			“method”: string”, 
+			“status”: byte?, 
+	 “statusValue”: string, 
+	 “transDate”: datetime, 
+	 “bankAccount”: string, 
+	 “accountId”: int? 
+		}], 
+ “orderDetails” :{ 
+			“productId”: long, // Id hàng hóa 
+			“productCode”: string, 
+			“productName”: string, //Tên hàng hóa 
+				(bao gồm thuộc tính và đơn vị tính) 			“quantity”: double, // Số lượng hàng hóa 
+			“price”: decimal, //Giá trị 
+			“discountRatio”: double?, // Giảm giá trên sản phẩm theo % 			“discount”: decimal?, // Giảm giá trên sản phẩm theo tiền 			“note”: string // Ghi chú hàng hóa 
+	}, 
+
+Công ty CP phần mềm Citigo 	49/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+“orderDelivery”:{ 
+								“deliveryCode”: string, 
+				 “type”: byte?, 
+				 “price”: Decimal?, 
+				 “receiver”: string, 
+					 “contactNumber”: string, 
+				 “address”: string, 
+				 “locationId”: int?, 
+				 “locationName”: string, 
+				 “weight”: double?, 
+				 “length”: double?, 
+				 “width”: double?, 
+				 “height”: double?, 
+				 “partnerDeliveryId”: long?, 
+								 “partnerDelivery”:{ 
+									“code”: string, 
+							 “name”: string, 
+							 “address”: string, 
+							 “contactNumber”: string, 
+							 “email”: string 
+								} 
+						} 
+		“retailerId”: int, // Id cửa hàng 
+	 “modifiedDate”: datetime // thời gian cập nhật 
+	 “createdDate”: datetime // thời gian tạo 
+	 “saleChannelId” : int?, optional // Id kênh bán hàng, nếu không truyền mặc định kênh khác 
+
+Công ty CP phần mềm Citigo 	50/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+	 }] 
+} 
+2.5.2.Lấy chi tiết đặt hàng 
+Mục đích sử dụng: Trả về thông tin chi tiết của đơn đặt hàng theo ID, theo Code 
+Phương thức và URL: 
+-	Theo Id :  GET https://public.kiotapi.com/orders/ {id}
+-	Theo Code :  GET https://public.kiotapi.com/orders/code/ {code} 
+Request: Sử dụng hàm GET với tham số: 
+“id”: long // ID của đơn đặt hàng 
+“code”: code // Mã của đơn đặt hàng 
+Response: 
+{ 
+		“id”: long //Id đặt hàng 
+		“code”: string //Mã đặt hàng 
+		“purchaseDate”: datetime // Ngày đặt hàng 
+		“branchId”: int, //Id chi nhánh 
+		“branchName”: string, //Tên chi nhánh 
+		“soldById”: long?, 
+	 “soldByName”: string 
+		“customerId”: long?, // Id khách hàng 
+		“customerName”: string, // Tên khách hàng 
+		“total”: decimal, // Khách cần trả 
+		“totalPayment”: decimal, //Khách đã trả 
+		“discountRatio”: double, // Giảm giá trên đơn theo % 		“discount”: decimal?, // Giảm giá trên đơn theo tiền 
+
+Công ty CP phần mềm Citigo 	51/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+	“status”: int, // trạng thái đơn đặt hàng 
+	“statusValue”: string, // trạng thái đơn đặt hàng bằng chữ 	“description”: string, // ghi chú 
+ “usingCod”: boolean,  
+	“payments” :[{ 
+			“id”: long, 
+			“code”: string, 
+			“amount”: decimal, 
+			“method”: string, 
+			“status”: byte?, 
+	 “statusValue”: string, 
+	 “transDate”: datetime, 
+	 “bankAccount”: string, 
+	 “accountId”: int? 
+		}], 
+ “orderDetails” :{ 
+			“productId”: long, // Id hàng hóa 
+	 “productCode”: string,  
+			“productName”: string, //Tên hàng hóa 
+				(bao gồm thuộc tính và đơn vị tính) 			“quantity”: double, // Số lượng hàng hóa 
+“price”: decimal, //Giá trị 
+“discountRatio”: double?, // Giảm giá trên sản phẩm theo % “discount”: decimal?, // Giảm giá trên sản phẩm theo tiền “note”: string // Ghi chú hàng hóa 
+
+Công ty CP phần mềm Citigo 	52/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+		}, 
+ “orderDelivery”:{ 
+				“deliveryCode”: string, 
+	 “type”: byte?, 
+	 “price”: Decimal?, 
+	 “receiver”: string, 
+	 “contactNumber”: string, 
+	 “address”: string, 
+	 “locationId”: int?, 
+	 “locationName”: string, 
+	 “weight”: double?, 
+	 “length”: double?, 
+	 “width”: double?, 
+	 “height”: double?, 
+	 “partnerDeliveryId”: long?, 
+				 “partnerDelivery”:{ 
+					“code”: string, 
+			 “name”: string, 
+			 “address”: string, 
+			 “contactNumber”: string, 
+			 “email”: string 
+				} 
+		}, 
+		"invoiceOrderSurcharges": [        { 
+				"id": long, 
+				"invoiceId":long?, 
+
+Công ty CP phần mềm Citigo 	53/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+				"surchargeId": long?, 
+				"surchargeName": string, 
+				"surValue": decimal?, 
+				"price": decimal?, 
+				"createdDate": DateTime 
+				} 
+			], 
+	“retailerId”: int, // Id cửa hàng 
+	 “modifiedDate”: datetime // thời gian cập nhật 
+	 “createdDate”: datetime //thời gian tạo 
+} 
+2.5.3.Thêm mới đặt hàng 
+Mục đích sử dụng: Tạo mới đơn đặt hàng 
+Phương thức và URL:POST https://public.kiotapi.com/orders 
+Request: JSON mã hóa yêu cầu gồm 1 object đặt hàng: 
+Chú ý: Khi thêm mới đơn đặt hàng từ MyKiot hoặc KV Sync sẽ thêm param Partner vào header: 	•Từ MyKiot : 
+	oPartner : MyKiot 
+	•Từ KV Sync : 
+	oPartner : KVSync 
+
+{ 
+ “isApplyVoucher”: true, //Có apply voucher khi tạo đặt hàng không  “purchaseDate”: datetime, 
+ “branchId”: int, 
+ “soldById”: long?, 
+Công ty CP phần mềm Citigo 	54/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+ “cashierId”: long, Id nhân viên thu ngân, 
+ “discount”: decimal, 
+ “description”: string, 
+ “method”: string, 
+ “totalPayment”: decimal, //khách đã trả 
+ “accountId”: int?, //Id account tài khoản ngân hàng nếu phương thức thanh toán là TRANSFER, CARD, 
+		 “makeInvoice”: bool, // Tạo hóa đơn từ đơn đặt hàng, tạo phiếu thu cho hóa đơn đó với thời điểm hiện tại , 
+		 “saleChannelId”: int?,optional // Id kênh bán hàng, nếu không truyền mặc định kênh khác  “orderDetails”: [{ 
+								“productId”: long, 
+					 “productCode”: string, 
+					 “productName”: string, 
+					 “quantity”: double, 
+					 “price”: decimal, 
+					 “discount”: decimal?, 
+					 “discountRatio”: double?, 
+								“note”: string 
+						 }], 
+			 “orderDelivery”:{ 
+						“deliveryCode”: string, 
+				 “type”: byte?, 
+				 “price”: Decimal?, 
+				 “receiver”: string, 
+				 “contactNumber”: string, 
+
+Công ty CP phần mềm Citigo 	55/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+		 “address”: string, 
+		 “locationId”: int?, 
+		 “locationName”: string,                 
+		 “wardName”: string,// Tên phường 
+		 “weight”: double, 
+		 “length”: double, 
+		 “width”: double, 
+		 “height”: double, 
+			 “partnerDeliveryId”: long?, 
+						“expectedDelivery”: datetime, 
+						 “partnerDelivery”:{ 
+							“code”: string, 
+					 “name”: string, 
+					 “address”: string, 
+					 “contactNumber”: string, 
+					 “email”: string 
+						} 
+				}, 
+ “customer" : { 
+	 “id”: long, 
+						"code": string, 
+						"name": string, 
+						"gender": boolean, 
+						"birthDate": datetime, 
+						"contactNumber": string, 
+
+Công ty CP phần mềm Citigo 	56/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+	"address": string, 
+ “wardName”: string,// Tên phường 
+"email": string, 
+"comments": string 
+ }, 
+“surchages”:[{ 
+“id”: int, 
+ “code”: string, 
+ “price”: decimal, 
+				}] 
+	 “Payments”: [//Thêm phương thức thanh toán bằng voucher 
+	 { 
+			 "Method": "Voucher", // Giá trị mặc định là Voucher (không đổi) 			 "MethodStr": "Voucher", // Giá trị mặc định là Voucher (không đổi) 			 "Amount": 50000, // Giá trị của voucher 
+			 "Id": -1, // Giá trị mặc định là -1 (không đổi) 
+			 "AccountId": null, // Giá trị mặc định là null (không đổi) 
+			 "VoucherId": 30996, // Id của voucher  
+			 "VoucherCampaignId": 30087 // Id của đợt phát hành voucher 	 } 
+ ] 
+} 
+} 
+Response:
+
+{ 
+		“id”: long, 
+	 “code”: string, 
+	 “purchaseDate”: datetime, 
+Công ty CP phần mềm Citigo 	57/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+ “branchId”: int, 
+ “branchName”: string, 
+ “soldById”: long?, 
+ “soldByName”: string, 
+ “customerId”: long?, 
+ “customerName”: string, 
+ “total”: decimal, // Khách cần trả 
+	“totalPayment”: decimal, //Khách đã trả 
+ “discountRatio”: double?, // Giảm giá trên đơn theo % 
+	“discount”: decimal?, // Giảm giá trên đơn theo tiền 
+	“method”: string, // Phương thức thanh toán (Cash, Card, Transfer) 
+	“status”: int, // trạng thái đơn đặt hàng 
+	“statusValue”: string, // trạng thái đơn đặt hàng bằng chữ 
+	“description”: string, // ghi chú 
+ "usingCod": boolean, 
+	“saleChannelId” : int?, optional // Id kênh bán hàng, nếu không truyền mặc định kênh khác 	“orderDetails” :{ 
+		“productId”: long, // Id hàng hóa 
+		“productName”: string, //Tên hàng hóa 
+			(bao gồm thuộc tính và đơn vị tính) 
+		“quantity”: double, // Số lượng hàng hóa 
+		“price”: decimal, //Giá trị 
+		“discountRatio”: double?, // Giảm giá trên sản phẩm theo % 
+		“discount”: decimal?, // Giảm giá trên sản phẩm theo tiền 
+		“note”: string // Ghi chú hàng hóa 
+	}, 
+
+Công ty CP phần mềm Citigo 	58/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+ “orderDelivery”:{ 
+					“deliveryCode”: string, 
+		 “type”: byte?, 
+	 “price”: Decimal?, 
+	 “receiver”: string, 
+	 “contactNumber”: string, 
+	 “address”: string, 
+	 “locationId”: int?, 
+	 “locationName”: string,  
+	 “wardName”: string,// Tên phường 
+	 “weight”: double?, 
+	 “length”: double?, 
+	 “width”: double?, 
+	 “height”: double?, 
+	 “partnerDeliveryId”: long?, 
+					 “partnerDelivery”:{ 
+						“code”: string, 
+				 “name”: string, 
+				 “address”: string, 
+				 “contactNumber”: string, 
+				 “email”: string 
+					} 
+			} 
+ “payments” :[{ 
+						“id”: long, 
+						“code”: string, 
+
+Công ty CP phần mềm Citigo 	59/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+	“amount”: decimal, 
+	“method”: string, 
+	“status”: byte?, 
+ “statusValue”: string, 
+ “transDate”: datetime, 
+ “bankAccount”: string, 
+ “accountId”: int? 
+		}], 
+	"invoiceOrderSurcharges": [        { 
+		"id": long, 
+		"invoiceId":long?, 
+		"surchargeId": long?, 
+		"surchargeName": string, 
+		"surValue": decimal?, 
+		"price": decimal?, 
+		"createdDate": DateTime 
+		} 
+	] 
+} 
+2.5.4.Cập nhật đặt hàng 
+Mục đích sử dụng: Cập nhật đơn đặt hàng theo ID 
+Phương thức và URL:PUT https://public.kiotapi.com/orders/Id 
+Request: Sử dụng hàm PUT với ID đơn đặt hàng qua 1 object JSON. 
+“id”: long // ID đơn đặt hàng 
+Body 
+Công ty CP phần mềm Citigo 	60/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+{ 
+ “purchaseDate”: datetime, 
+ “branchId”: int, 
+ “soldById”: long?, 
+ “cashierId”: long?, Id nhân viên thu ngân 
+ “discount”: decimal, 
+ “description”: string, 
+ “method”: string, 
+ “totalPayment”: decimal, //Khách đã trả, 
+ “accountId”: int?, //Id account tài khoản ngân hàng nếu phương thức thanh toán là TRANSFER, CARD, 
+ “makeInvoice”: bool, // Tạo hóa đơn từ đơn đặt hàng, tạo phiếu thu cho hóa đơn đó với thời điểm hiện tại, 
+ “saleChannelId”: int?, optional // Id kênh bán hàng, nếu không truyền mặc định kênh khác  “orderDetails”: [{ 
+			“productId”: long, 
+		 “productCode”: string, 
+		 “productName”: string, 
+		 “quantity”: double, 
+		 “price”: decimal, 
+		 “discount”: decimal?, 
+		 “discountRatio”: double? 
+		 }] 
+ “orderDelivery”:{ 
+		“deliveryCode”: string, 
+ “type”: byte?, 
+
+Công ty CP phần mềm Citigo 	61/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+ “price”: Decimal?, 
+ “receiver”: string, 
+ “contactNumber”: string, 
+ “address”: string, 
+ “locationId”: int?, 
+ “locationName”: string,                 
+ “wardName”: string,// Tên phường 
+ “weight”: double?, 
+ “length”: double?, 
+ “width”: double?, 
+ “height”: double?, 
+ “partnerDeliveryId”: long?, 
+			“expectedDelivery”: datetime, 
+			 “partnerDelivery”:{ 
+					“code”: string, 
+		 “name”: string, 
+		 “address”: string, 
+					“contactNumber”: string, 
+		 “email”: string 
+			} 
+		}, 
+		“customer" : { 
+ “id”: long, 
+			"code": string, 
+			"name": string, 
+			"gender": boolean, 
+
+Công ty CP phần mềm Citigo 	62/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+					"birthDate": datetime, 
+					"contactNumber": string, 
+					"address": string, 
+		 “wardName”: string,// Tên phường 
+					"email": string, 
+					"comments": string 
+	 }, 
+				“surchages”:[{ 
+					“id”: int, 
+			 “code”: string, 
+			 “price”: decimal, 
+				}] 
+} 
+Response:
+{ 
+		“id”: long, 
+	 “code”: string, 
+	 “purchaseDate”: datetime, 
+	 “branchId”: int, 
+	 “branchName”: string, 
+	 “soldById”: long?, 
+	 “soldByName”: string, 
+	 “customerId”: long, 
+	 “customerName”: string, 
+	 “total”: decimal, // Khách cần trả 
+
+Công ty CP phần mềm Citigo 	63/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+				“totalPayment”: decimal, //Khách đã trả 
+ “discountRatio”: double?, // Giảm giá trên đơn theo % 
+				“discount”: decimal?, // Giảm giá trên đơn theo tiền 
+				“method”: string, // Phương thức thanh toán (Cash, Card, Transfer) 
+				“status”: int, // trạng thái đơn đặt hàng 
+				“statusValue”: string, // trạng thái đơn đặt hàng bằng chữ 
+				“description”: string, // ghi chú 
+ "usingCod": boolean, 
+				“saleChannelId”: int?, optional // Id kênh bán hàng, nếu không truyền mặc định kênh khác 				“orderDetails” :{ 
+						“productId”: long, // Id hàng hóa 
+						“productName”: string, //Tên hàng hóa 
+							(bao gồm thuộc tính và đơn vị tính) 
+						“quantity”: double, // Số lượng hàng hóa 
+						“price”: decimal, //Giá trị 
+						“discountRatio”: double?, // Giảm giá trên sản phẩm theo % 						“discount”: decimal?, // Giảm giá trên sản phẩm theo tiền 
+				}, 
+ “orderDelivery”:{ 
+					“deliveryCode”: string, 
+			 “type”: byte?, 
+		 “price”: Decimal?, 
+		 “receiver”: string, 
+		 “contactNumber”: string, 
+		 “address”: string, 
+		 “locationId”: int?, 
+
+Công ty CP phần mềm Citigo 	64/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+		 “locationName”: string,  
+			 “wardName”: string,// Tên phường 
+		 “weight”: double?, 
+		 “length”: double?, 
+		 “width”: double?, 
+		 “height”: double?, 
+		 “partnerDeliveryId”: long?, 
+						 “partnerDelivery”:{ 
+							“code”: string, 
+					 “name”: string, 
+					 “address”: string, 
+							“contactNumber”: string, 					 “email”: string 
+						} 
+				}, 
+ “payments” :[{ 
+						“id”: long, 
+						“code”: string, 
+						“amount”: decimal, 
+						“method”: string”, 
+						“status”: byte?, 
+	 “statusValue”: string, 
+		 “transDate”: datetime, 
+		 “bankAccount”: string, 
+		 “accountId”: int? 
+}], 
+
+Công ty CP phần mềm Citigo 	65/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+	"invoiceOrderSurcharges": [        { 
+		"id": long, 
+		"invoiceId":long?, 
+		"surchargeId": long?, 
+		"surchargeName": string, 
+		"surValue": decimal?, 
+		"price": decimal?, 
+		"createdDate": DateTime 
+		} 
+	], 
+} 
+2.5.5.Xóa đặt hàng 
+Mục đích sử dụng: Xóa đơn đặt hàng theo ID 
+Phương thức và URL: DELETE https://public.kiotapi.com/orders/{id}?IsVoidPayment=true 
+Request: Gồm Id của đơn đặt hàng trong URL: 
+“id”: long // ID của đơn đặt hàng 
+“IsVoidPayment”: bool // Hủy phiếu thanh toán, nếu không truyền tham số này thì mặc định không hủy phiếu thanh toán gắn kèm đặt hàng 
+Response: Trả lại thông tin xóa thành công (Code 200) 
+{ 
+	"message": "Xóa dữ liệu thành công" 
+} 
+
+Công ty CP phần mềm Citigo 	66/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+2.6.	Khách hàng 	
+Mô tả chi tiết cho các liên quan đến thông tin hàng hóa như sau: 
+2.6.1.Lấy danh sách khách hàng 
+Mục đích sử dụng: Trả lại danh sách khách hàng theo cửa hàng đã được xác nhận 
+Phương thức và URL:GET https://public.kiotapi.com/customers 
+Request: Sử dụng hàm GET với tham số: 
+		“code”: string, optional // nếu có mã code, cho phép tìm kiếm khách hàng theo mã KH 			“name”: string, optional // tìm kiếm theo tên khách hàng 
+			“contactNumber”: string, optional // tìm kiếm theo số điện thoại khách hàng 
+		 “lastModifiedFrom”: datetime? // thời gian cập nhật 
+		 “pageSize”: int?, // số items trong 1 trang, mặc định 20 items, tối đa 100 items  
+		 “currentItem”: int?, 
+		 “orderBy”: string, //Sắp xếp dữ liệu theo trường orderBy (Ví dụ: orderBy=name) 
+		 “orderDirection”: string, //Sắp xếp kết quả trả về theo: Tăng dần Asc (Mặc định), giảm dần 	Desc 
+			 “includeRemoveIds”: boolean, //Có lấy thông tin danh sách Id bị xoá dựa trên 	lastModifiedFrom 
+			 “includeTotal”: boolean,//Có lấy thông tin TotalInvoice, TotalPoint, TotalRevenue 
+			 “includeCustomerGroup”: boolean,//Có lấy thông tin nhóm khách hàng hay không 			“birthDate”: string //filter khách hàng theo ngày sinh nhật 
+			“groupId”: int,//filter theo nhóm khách hàng 
+			 “includeCustomerSocial”: boolean, // Có lấy thông tin Psid facebook fanpage của khách hàng 	hay không 
+Response: 
+{ 
+“total”: int, 
+
+Công ty CP phần mềm Citigo 	67/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+“pageSize”: int, 
+“data”: [ 
+ { 
+					 “id”: long, // ID khách hàng 
+					 "code": string, // Mã khách hàng 
+				 "name": string, // Tên khách hàng 
+					 “gender”: Boolean?, // Giới tính (true: nam, false: nữ) 
+					 "birthDate": date?, // Ngày sinh khách hàng 
+				 "contactNumber": string, // Số điện thoại khách hàng 
+					 “address”: string, // Địa chỉ khách hàng 
+		 “locationName”: string, // Khu vực 
+					 "email": string, // Email của khách hàng 
+					 "organization": string, // Công ty 
+					 "comments": string, // Ghi chú 
+					 "taxCode": string, // Mã số thuế 
+					 "debt": decimal, // Nợ hiện tại 
+		 "totalInvoiced": decimal?, // Tổng bán 
+						 "totalPoint": double?, // Tổng điểm 
+						 "totalRevenue": decimal?, 
+				 “retailerId”: int, // Id cửa hàng 
+					 “modifiedDate”: datetime? // thời gian cập nhật 
+		 “createdDate”: datetime, 
+						 “rewardPoint”: long?// Điểm hiện tại 
+						 “psidFacebook”: long?// Psid facebook fanpage 
+ }], 
+ “removeId”: int [] // danh sách Id khách hàng bị xóa dựa trên ModifiedDate 
+
+Công ty CP phần mềm Citigo 	68/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+} 
+2.6.2.Lấy chi tiết khách hàng 
+Mục đích sử dụng: Trả lại thông tin chi tiết của khách hàng theo ID, theo Code 
+Phương thức và URL:
+-	Theo Id : GET https://public.kiotapi.com/customers/{id}
+-	Theo Code : GET https://public.kiotapi.com/customers/code/{code} 
+Request: Sử dụng hàm GET với tham số: 
+“id”: long // ID của khách hàng 
+“code”: string // Mã của khách hàng 
+Response: 
+ { 
+			 “id”: long, // ID khách hàng 
+			 "code": string, // Mã khách hàng 
+		 "name": string, // Tên khách hàng 
+			 “gender”: Boolean?, // Giới tính (true: nam, false: nữ) 			 "birthDate": datetime?, // Ngày sinh khách hàng 		 "contactNumber": string, // Số điện thoại khách hàng 			 “address”: string, // Địa chỉ khách hàng 
+		 “locationName”: string, // Khu vực 
+			 "email": string, // Email của khách hàng 
+			 "organization": string, // Công ty 
+			 "comments": string, // Ghi chú 
+			 "taxCode": string, // Mã số thuế 
+ “retailerId”: int, // Id cửa hàng 
+			 "debt": decimal, // Nợ hiện tại 
+
+Công ty CP phần mềm Citigo 	69/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+ "totalInvoiced": decimal?, // Tổng bán 
+		 "totalPoint": double?, // Tổng điểm 
+		 "totalRevenue": decimal?, 
+		 “modifiedDate”: datetime? // thời gian cập nhật  “createdDate”: datetime 
+		 “groups”: string // danh sách tên nhóm khách hàng, 		 “rewardPoint”: long?// Điểm hiện tại 
+		 “psidFacebook”: long?// Psid facebook fanpage } 
+2.6.3.Thêm mới khách hàng 
+Mục đích sử dụng: Tạo mới khách hàng 
+Phương thức và URL: POST https://public.kiotapi.com/customers 
+Request: JSON mã hóa yêu cầu gồm 1 object khách hàng: 
+{ 
+ “code”: string, // Ma khach hang 
+			 “name”: string, // Tên khách hàng 
+			 “gender”: Boolean, // Giới tính (true: nam, false: nữ) 			 "birthDate": datetime?, // Ngày sinh khách hàng 		 "contactNumber": string, // Số điện thoại khách hàng 				 "address": string, // Địa chỉ khách hàng 
+		 "email": string, // Email của khách hàng 
+			 "comments": string, // Ghi chú 
+			 "groupIds": int[] // Danh sách Id nhóm khách hàng  “branchId”: int[] // ID chi nhánh tạo khách hàng            
+
+Công ty CP phần mềm Citigo 	70/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+} 
+Response:
+ { 
+		 “id”: long, // ID khách hàng (với id=-1 là bản ghi đầu tiên chứa    thông tin tổng quan) 		 "code": string, // Mã khách hàng 
+	 "name": string, // Tên khách hàng 
+	 "type": int, // Loại khách hàng ( 0 : Cá nhân, 1 : Công ty ) 
+		 “gender”: Boolean, // Giới tính (true: nam, false: nữ) 
+		 "birthDate": datetime?, // Ngày sinh khách hàng 
+	 "contactNumber": string, // Số điện thoại khách hàng 
+		 “address”: string, // Địa chỉ khách hàng 
+	 “locationName”: string, // Khu vực 
+		 "email": string, // Email của khách hàng 
+		 "organization": string, // Tên công ty của khách hàng (nếu là khách   hàng công ty) 		 "comments": string, // Ghi chú 
+		 "taxCode": string, // Mã số thuế 
+		 “retailerId”: int, // Id cửa hàng 
+		 “modifiedDate”: datetime?, // Thời gian cập nhật 
+	 “createdDate”: datetime 
+	 "customerGroupDetails": [ 
+			 { 
+				 "id": long // Id Chi tiết nhóm khách hàng 
+				 "customerId": long // Id khách hàng 
+				 "groupId": int // Id nhóm khách hàng 
+			 }           
+
+Công ty CP phần mềm Citigo 	71/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+	 ], 
+ } 
+2.6.4.Cập nhật khách hàng 
+Mục đích sử dụng: Cập nhật thông tin khách hàng theo ID 
+Phương thức và URL: PUT https://public.kiotapi.com/customers/Id 
+Request: Sử dụng hàm PUT với ID khách hàng qua 1 object JSON. 
+“id”: long // ID khách hàng 
+Body 
+{ 
+		 “code”: string, // Mã khách hàng 
+		 “name”: string, // Tên khách hàng 
+		 “gender”: Boolean, // Giới tính (true: nam, false: nữ) 		 "birthDate": datetime?, // Ngày sinh khách hàng 	 "contactNumber": string, // Số điện thoại khách hàng 			 "address": string, // Địa chỉ khách hàng 
+	 "email": string, // Email của khách hàng 
+		 "comments": string, // Ghi chú 
+		 "groupIds": int[] // Danh sách Id nhóm khách hàng 		 “taxCode”: string // Mã số thuế 
+} 
+Response:
+{ 
+ “id”: long, // ID khách hàng (với id=-1 là bản ghi đầu tiên chứa thông tin tổng quan)  "code": string, // Mã khách hàng 
+
+Công ty CP phần mềm Citigo 	72/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+	 "name": string, // Tên khách hàng 
+		 “gender”: Boolean, // Giới tính (true: nam, false: nữ) 
+		 "birthDate": datetime?, // Ngày sinh khách hàng 
+	 "contactNumber": string, // Số điện thoại khách hàng 
+		 “address”: string, // Địa chỉ khách hàng 
+	 “locationName”: string, // Khu vực 
+		 "email": string, // Email của khách hàng 
+		 "organization": string, // Tên công ty của khách hàng (nếu là khách   hàng công ty) 		 "comments": string, // Ghi chú 
+		 "taxCode": string, // Mã số thuế 
+	 “retailerId”: int, // Id cửa hàng 
+		 “modifiedDate”: datetime?, // Thời gian cập nhật 
+	 “createdDate”: datetime, 
+	 “groups”: string, // danh sách tên nhóm 
+} 
+2.6.5.Xóa khách hàng 
+Mục đích sử dụng: Xóa khách hàng theo ID 
+Phương thức và URL: DELETE https://public.kiotapi.com/customers/{id} 
+Request: Gồm Id của khách hàng trong URL: 
+“id”: long // ID của khách hàng 
+Response: Trả lại thông tin xóa thành công (Code 200) 
+{ 
+	"message": "Xóa dữ liệu thành công" 
+} 
+
+Công ty CP phần mềm Citigo 	73/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+2.6.6 Thêm mới danh sách khách hàng
+Mục đích sử dụng: Thêm mới danh sách khách hàng 
+Phương thức và URL:POST https://public.kiotapi.com/listaddcutomers 
+Request: JSON mã hóa yêu cầu gồm 1 danh sách object khách hàng riêng biệt với nhưng tham số sau: 
+{ “listCustomers”:[ 
+		{ 
+ “code”: string, // Ma khach hang 
+		 “name”: string, // Tên khách hàng 
+		 “gender”: Boolean, // Giới tính (true: nam, false: nữ) 		 "birthDate": datetime?, // Ngày sinh khách hàng 		 "contactNumber": string, // Số điện thoại khách hàng 		 "address": string, // Địa chỉ khách hàng 
+		 "email": string, // Email của khách hàng 
+		 "comments": string, // Ghi chú 
+		}, 
+ …] 
+} 
+Response: 
+{ 
+	 "message": "Thêm mới danh sách khách hàng thành công" } 
+2.6.7 Cập nhật danh sách khách hàng
+Mục đích sử dụng: Cập nhật danh sách khách hàng 
+Phương thức và URL:PUT https://public.kiotapi.com/listupdatecustomers 
+Request: JSON mã hóa yêu cầu gồm 1 danh sách object khách hàng riêng biệt với nhưng tham số sau:
+{ “listCustomers”:[ // danh sách khách hàng 
+	{ 
+Công ty CP phần mềm Citigo 	74/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+ “id”: long, //Id khách hàng 
+		 “code”: string, // Ma khach hang 
+		 “name”: string, // Tên khách hàng 
+		 “gender”: Boolean, // Giới tính (true: nam, false: nữ) 		 "birthDate": datetime?, // Ngày sinh khách hàng 		 "contactNumber": string, // Số điện thoại khách hàng 		 "address": string, // Địa chỉ khách hàng 
+		 "email": string, // Email của khách hàng 
+		 "comments": string, // Ghi chú 
+		}, 
+ …] 
+} 
+Response: 
+{ 
+	 "message": "Cập nhật danh sách khách hàng thành công" } 
+
+2.7.	Lấy danh sách chi nhánh 
+Mục đích sử dụng: Trả lại danh sách toàn bộ chi nhánh của cửa hàng đã được xác nhận 
+Phương thức và URL:GEThttps://public.kiotapi.com/branches 
+Request: Sử dụng hàm GET với tham số: 
+“lastModifiedFrom”: datetime? // thời gian cập nhật 
+“pageSize”: int?, // số items trong 1 trang, mặc định 20 items, tối đa 100 items 
+“currentItem”: int?, 
+ “orderBy”: string, //Sắp xếp dữ liệu theo trường orderBy (Ví dụ: orderBy=name) 
+ “orderDirection”: string, //Sắp xếp kết quả trả về theo: Tăng dần Asc (Mặc định), giảm dần Desc, 
+“includeRemoveIds”: boolean,  //Có lấy thông tin danh sách Id bị xoá dựa trên lastModifiedFrom 
+Response: 
+{ 
+
+Công ty CP phần mềm Citigo 	75/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+2.8.	
+ "removedIds": int [], // chi nhánh ngừng hoạt động  
+ "total": int,  
+ “pageSize”: int, 
+ "data": [ 
+ { 
+		 "id": int, // Id chi nhánh 
+		 "branchName": string, 
+		 “branchCode”: string, 
+		 "contactNumber": string, 
+		 "retailerId": int, // Id cửa hàng 
+		 "email": string, 
+		 “address”: string, 
+		 "modifiedDate": datetime? 
+			 “createdDate”: datetime 
+		 } 
+ ], 
+ "timestamp": datetime 
+} 
+Lấy danh sách người dùng 
+Mục đích sử dụng: Trả lại danh sách toàn bộ người dùng của cửa hàng đã được xác nhận và không cho thấy thông tin Super Admin (isAdmin = true). 
+Phương thức và URL:GEThttps://public.kiotapi.com/users 
+Request: Sử dụng hàm GET với tham số: 
+ “lastModifiedFrom”: datetime? // thời gian cập nhật 
+“pageSize”: int?, // số items trong 1 trang, mặc định 20 items, tối đa 100 items 
+Công ty CP phần mềm Citigo 	76/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+“currentItem”: int?, 
+“orderBy”: string, //Sắp xếp dữ liệu theo trường orderBy (Ví dụ: orderBy=name) 
+“orderDirection”: string, //Sắp xếp kết quả trả về theo: Tăng dần Asc (Mặc định), giảm dần Desc, 
+“includeRemoveIds”: boolean //Có lấy thông tin danh sách Id bị xoá dựa trên lastModifiedFrom 
+Response: 
+{ 
+“total”: int, 
+“pageSize”: int, 
+“data”: [ 
+ { 
+						 “id”: long, // ID người dùng 
+						 "userName": string, // Tên đăng nhập 
+						 "givenName": string, // Họ tên 
+						 “address”: string, // Địa chỉ 
+						 “mobilePhone”: string // Điện thoại 
+						 “email”: string, // Email 
+						 “description”: string, // ghi chú 
+					 “retailerId”: int, // Id cửa hàng 
+						 “birthDate”: date // Ngày sinh 
+			 “createdDate”: datetime 
+ }], 
+			 “removeIds”: int [] // danh sách khách hàng bị xóa và ngừng hoạt động dựa trên ModifiedDate } 
+
+Công ty CP phần mềm Citigo 	77/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+2.9.	Lấy danh sách tài khoản ngân hàng 	
+Mục đích sử dụng: Trả lại toàn bộ danh sách tài khoản ngân hàng của cửa hàng đã được xác nhận Phương thức và URL: GET https://public.kiotapi.com/BankAccounts 
+Request: Sử dụng hàm GET với tham số 
+“lastModifiedFrom”: datetime? // thời gian cập nhật 
+“pageSize”: int?, // số items trong 1 trang, mặc định 20 items, tối đa 100 items 
+“currentItem”: int?, 
+“orderBy”: string, //Sắp xếp dữ liệu theo trường orderBy (Ví dụ: orderBy=name) 
+“orderDirection”: string, //Sắp xếp kết quả trả về theo: Tăng dần Asc (Mặc định), giảm dần Desc, 
+“includeRemoveIds”: boolean, //Có lấy thông tin danh sách Id bị xoá dựa trên lastModifiedFrom 
+Response: 
+{ 
+“total”: int, 
+“pageSize”: int, 
+“data”: [ 
+ { 
+				“id”: int, // ID tài khoản ngân hàng 
+				"bankName": string, // Tên tài khoản ngân hàng 				"accountNumber": string, // Số tài khoản ngân hàng 				“description”: string, // ghi chú 
+			 “retailerId”: int, // Id cửa hàng 
+				“modifiedDate”: datetime? // thời gian cập nhật, 		 “createdDate”: datatime  
+ }], 
+
+Công ty CP phần mềm Citigo 	78/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+	 “removeIds”: int [] // danh sách khách hàng bị xóa dựa trên ModifiedDate } 
+2.10.Thu khác 
+2.10.1.Lấy danh sách thu khác 
+Mục đích sử dụng: Trả lại toàn bộ danh sách thu khác của cửa hàng đã được xác nhận 
+Phương thức và URL: GET https://public.kiotapi.com/surchages 
+Request: Sử dụng hàm GET với tham số: 
+“branchId”: int?, // Id chi nhánh 
+“lastModifiedFrom”: datetime? // thời gian cập nhật 
+“pageSize”: int?, // số items trong 1 trang, mặc định 20 items, tối đa 100 items 
+“currentItem”: int?, 
+“orderBy”: string, //Sắp xếp dữ liệu theo trường orderBy (Ví dụ: orderBy=name) 
+“orderDirection”: string, //Sắp xếp kết quả trả về theo: Tăng dần Asc (Mặc định), giảm dần Desc, 
+Response:
+{ 
+“total”: int, 
+“pageSize”: int, 
+“data”: [ 
+ { 
+		 “id”: long, // Id thu khác 
+		 "surchargeCode": string, // Mã thu khác 		 "surchargeName": string, // Tên thu khác 		 “valueRatio”: double, // Phần trăm thu khác 
+
+Công ty CP phần mềm Citigo 	79/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+				 “value”: decimal? // Giá trị thu khác 
+			 “retailerId”: int, // Id cửa hàng 
+				 “modifiedDate”: datetime? // thời gian cập nhật 	 “createDate”: datetime 
+ }] 
+} 
+Chú ý: Hiện tại KiotViet hỗ trợ các thiết lập cho tính năng thu khác như sau: 
+Trong trường hợp người dùng không tích chọn setting cho “Hỗ trợ các khoản thu khác khi bán hàng”, khi gọi các API danh sách thu khác, API sẽ trả lại thông báo exception “Chưa bật thu khác trong thiết lập cửa hàng”. 
+2.10.2.Thêm mới thu khác 
+Mục đích sử dụng: Thêm mới một thu khác 
+Phương thức và URL: POST https://public.kiotapi.com/surchages 
+Request: JSON mã hóa yêu cầu gồm 1 object nhóm hàng riêng biệt với nhưng tham số sau: 
+{ 
+“name”: string // tên thu khác 
+“code”: string // mã thu khác (nếu không truyền lên, hệ thống sẽ tự động sinh mã code) 
+“value”: decimal? // giá trị thu khác 
+} 
+Response:
+
+{ 
+ "message": "Thông tin thu khác được cập nhật thành công",  "data": { 
+		“id”: long, // Id thu khác 
+		 "surchargeCode": string, // Mã thu khác 
+		 "surchargeName": string, // Tên thu khác 
+Công ty CP phần mềm Citigo 	80/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+				 “valueRatio”: double, // Phần trăm thu khác 				 “value”: decimal? // Giá trị thu khác 
+			 “retailerId”: int, // Id cửa hàng 
+				 “modifiedDate”: datetime? // thời gian cập nhật 	 “createDate”: datetime 
+ } 
+} 
+2.10.3.Cập nhật thu khác 
+Mục đích sử dụng: Cập nhật một thu khác 
+Phương thức và URL: PUT https://public.kiotapi.com/surchages/id 
+Request: JSON mã hóa yêu cầu gồm 1 object nhóm hàng riêng biệt với nhưng tham số sau: “id”: long // ID thu khác 
+Body 
+{ 
+“name”: string // tên thu khác 
+“code”: string // mã thu khác 
+“value”: decimal // giá trị thu khác 
+} 
+Response:
+{ 
+ "message": "Thông tin thu khác được cập nhật thành công",  "data": { 
+		“id”: long, // Id thu khác 
+		 "surchargeCode": string, // Mã thu khác 
+
+Công ty CP phần mềm Citigo 	81/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+			 "surchargeName": string, // Tên thu khác 
+			 “valueRatio”: double, // Phần trăm thu khác 			 “value”: decimal? // Giá trị thu khác 
+		 “retailerId”: int, // Id cửa hàng 
+			 “modifiedDate”: datetime? // thời gian cập nhật  “createDate”: datetime 
+ } 
+2.10.4.Ngừng hoạt động thu khác 
+Mục đích sử dụng: Ngừng/cho phép hoạt động 1 thu khác 
+Phương thức và URL: POST https://public.kiotapi.com/surchages/id/activesurchage
+Request: JSON mã hóa yêu cầu gồm 1 object nhóm hàng riêng biệt với nhưng tham số sau: 
+“id”: long // ID thu khác 
+Body 
+{ 
+	“isActive”: bool// true: cho phep hoạt động; false : ngừng hoạt động 
+} 
+Response:
+{ 
+ "message": "Cập nhật dữ liệu thành công", 
+} 
+2.11.Webhook 
+Webhook là mô hình một public API chủ động gọi vào một server của bên thứ ba khi có thay đổi xảy ra. Nó tương đương với mô hình data push (trái ngược với polling), trong đó server chủ động gọi cho client thay vì client phải thường xuyên kiểm tra server. 
+Công ty CP phần mềm Citigo 	82/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+API Webhook được mô tả chi tiết như bên dưới: 
+2.11.1.Đăng ký Webhook 
+Mục đích sử dụng: Đăng ký webhook 
+Phương thức và URL: POST https://public.kiotapi.com/webhooks 
+Request: 
+ { 
+		"Webhook": { 
+		“Type”: string, // Loại webhook 
+			“Url”: string, // Địa chỉ đăng ký 
+			“IsActive”: Boolean, // Trạng thái hoạt động 			"Description": string // Mô tả 
+		} 
+} 
+Response: 
+ { 
+	 “id”: long, // webhook id 
+	 “type”: string, //Loại webhook 
+				 “url”: string, // Địa chỉ đăng ký 
+				 “isActive”: Boolean, // Trạng thái hoạt động 				 "description": string, // Mô tả 
+			 "retailerId": int, // Id cửa hàng 
+} 
+2.11.2.Huỷ đăng ký Webhook 
+Mục đích sử dụng: Hủy đăng ký Webhook 
+Phương thức và URL: DELETE https://public.kiotapi.com/webhooks/{id}
+Công ty CP phần mềm Citigo 	83/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+Request: Request sẽ bao gồm Id của webhook trong URL: 
+“id”: int // ID của Webhook 
+Response: Trả lại thông tin xóa thành công (Code 200) 
+{ 
+ "message": "Hủy đăng ký webhook thành công" 
+} 
+2.11.3.Khách hàng 
+customer.update 
+{ 
+	 “Id”: string, 
+	 “Attempt”: int, 
+	 “Notifications”: [{ 
+		 “Action”: string, 
+		 “Data”: [{ 
+			 “Id”: long, 
+			 “Code”: string, 
+			 “Name”: string, 
+			 “Gender”: bool?, 
+			 “BirthDate”: Datetime?, 
+			 “ContactNumber”: string, 
+			 “Address”: string, 
+			 “LocationName”: string, 
+			 “Email”: string, 
+				 “ModifiedDate”: DateTime, 
+			 “Type”: byte?, 
+
+Công ty CP phần mềm Citigo 	84/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+			 “Organization”: string, 
+			 “TaxCode”: string, 
+			 “Comments”: string 
+	 }] 
+	 }] 
+} 
+customer.delete 
+{“RemoveId”: int []} 
+2.11.4.Hàng hóa 
+product.update 
+{ 
+ “Id”: string, 
+ “Attempt”: int, 
+ “Notifications”: [{ 
+		 “Action”: string, 
+		 “Data”: [{ 
+			 “Id”: long, 
+			 “Code”: string, 
+			 “Name”: string, 
+			 “FullName”: string, 
+			 “CategoryId”: int, 
+			 “CategoryName”: string, 
+					 “masterProductId” : long?, 			 “AllowsSale”: bool, 
+
+Công ty CP phần mềm Citigo 	85/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+ “HasVariants”: bool, 
+ “BasePrice”: Decimal, 
+ “Weight”: double?, 
+ “Unit”: string, 
+ “MasterUnitId”: long?, 
+ “ConversionValue”: double?, 
+ “ModifiedDate”: DateTime?, 
+ “Attributes”:[{ 
+			 “ProductId”: long, 
+			 “AttributeName”: string, 
+			 “AttributeValue” : string 
+			 }], 
+	 “Units”:[{ 
+					 “Id”: long, 
+					 “Code”: string, 
+					 “Name”: string, 
+					 “FullName”: string, 
+					 “Unit”: string, 
+					 “ConversionValue”: double, 
+					 “BasePrice”: Decimal 
+			 }], 
+	 “Inventories”: [{ 
+					 “ProductId”: long, 
+					 “ProductCode”: string, 
+					 “ProductName”: string, 
+					 “BranchId”: int, 
+
+Công ty CP phần mềm Citigo 	86/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+			 “BranchName”: string, 
+	 “Cost”: Decimal, 
+	 “OnHand”: double, 
+	 “Reserved”: double 
+ }], 
+ “PriceBooks”:[{ 
+	 “ProductId”: long, 
+	 “PriceBookId”: long, 
+	 “PriceBookName”: string, 
+	 “Price” : Decimal, 
+	 “IsActive”: bool, 
+			 “StartDate”: DateTime?, 
+	 “EndDate”: DateTime? 
+				 }], 
+		 “Images”: [{“Image”: string}] 
+		 }] 
+	 }] 
+} 
+product.delete 
+{“RemoveId”: int []} 
+2.11.5.Tồn kho 
+stock.update 
+Công ty CP phần mềm Citigo 	87/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+{ 
+ “Id”: string, 
+ “Attempt”: int, 
+		 “Notifications”: [{ 
+				 “Action”: string, 
+				 “Data”: [{ 
+					 “ProductId”: long, 
+					 “ProductCode”: string, 
+					 “ProductName”: string, 
+					 “BranchId”: int, 
+							 “BranchName”: string, 
+					 “Cost”: Decimal, 
+					 “OnHand”: double, 
+					 “Reserved”: double 
+				 }] 
+			 }] 
+} 
+2.11.6.Đặt hàng 
+order.update 
+{ 
+	 “Id”: string, 
+	 “Attempt”: int, 
+	 “Notifications”: [{ 
+		 “Action”: string, 
+		 “Data”: [{ 
+
+Công ty CP phần mềm Citigo 	88/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+ “Id”: long, 
+ “Code”: string, 
+ “PurchaseDate”: DateTime, 
+ “BranchId”: int, 
+ “SoldById”: long?, 
+ “SoldByName”: string, 
+ “CustomerId”: long?, 
+		“CustomerCode”: string, 
+ “CustomerName”: string, 
+ “Total”: Decimal, 
+ “TotalPayment”: Decimal, 
+ “Discount”: Decimal?, 
+ “DiscountRatio”: double? 
+ “Status” : int, 
+ “StatusValue”: string, 
+ “Description”: string, 
+ “UsingCod”: bool 
+ “ModifiedDate”: Datetime? 
+ “OrderDetails”:[{ 
+ “ProductId”: long, 
+		 “ProductCode”: string, 
+		 “ProductName”: string, 
+		 “Quantity”: double, 
+		 “Price”: Decimal, 
+		 “Discount”: Decimal?, 
+		 “DiscountRatio”: double? 
+
+Công ty CP phần mềm Citigo 	89/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+		 }] 
+		 }] 
+ }] 
+} 
+2.11.7.Hóa đơn 
+invoice.update 
+{ 
+	 “Id”: string, 
+	 “Attempt”: int, 
+	 “Notifications”:[{ 
+			 “Action”: string, 
+		 “Data”: [{ 
+			 “Id”: long, 
+			 “Code”: string, 
+			 “PurchaseDate”: DateTime, 
+			 “BranchId”: int, 
+			 “BranchName”: string, 
+					 “SoldById”: long, 
+					 “SoldByName”: string, 
+					 “CustomerId”: long?, 
+							 “CustomerCode”: string, 					 “CustomerName”: string, 
+					 “Total”: Decimal, 
+					 “TotalPayment”: Decimal, 
+					 “Discount”: Decimal?, 
+
+Công ty CP phần mềm Citigo 	90/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+	 “DiscountRatio”: double?, 
+	 “Status”: byte, (1: hoàn thành, 2: đã hủy, 3: đang xử lý: 5: không giao được) 	 “StatusValue”: string, 
+	 “Description”: string, 
+		 “UsingCod”: bool, 
+	 “ModifiedDate”: DateTime?, 
+	 “InvoiceDelivery”: { 
+		 “DeliveryCode”: string, 
+						 “Status”: byte, (1: chưa giao hàng, 2: đang giao hàng, 3: đã giao hàng, 4: đang chuyển hoàn, 5 đã chuyển hoàn, 6: đã hủy 
+					 “StatusValue”: string, 
+				 “Type”: byte?, 
+		 “Price”: Decimal?, 
+		 “Receiver”: string, 
+		 “ContactNumber”: string, 
+		 “Address”: string, 
+		 “LocationId”: int?, 
+		 “LocationName”: string, 
+		 “Weight”: double?, 
+					 “Length”: double?, 
+		 “Width”: double?, 
+		 “Height”: double?, 
+		 “PartnerDeliveryId”: long?, 
+				 “PartnerDelivery”:{ 
+								 “Code”: string, 
+								 “Name”: string, 
+
+Công ty CP phần mềm Citigo 	91/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+					 “ContactNumber”: string, 
+					 “Address”: string, 
+					 “Email”: string 
+				 } 
+ }, 
+ “InvoiceDetails”: [{ 
+	 “ProductId”: long, 
+	 “ProductCode”: string, 
+	 “ProductName”: string, 
+	 “Quantity”: double, 
+	 “Price”: Decimal, 
+			 “Discount”: Decimal?, 
+	 “DiscountRatio”: double? 
+ }], 
+ “Payments”: [{ 
+		 “Id”: long, 
+				 “Code”: string, 
+		 “Amount”: Decimal, 
+					 “AccountId”: int?, 
+					 “BankAccount”: string, 
+					 “Description”: string, 
+					 “Method”: string, 
+					 “Status”: byte?, 
+					 “StatusValue”: string, 
+					 “TransDate”: DateTime 
+		 }]       
+
+Công ty CP phần mềm Citigo 	92/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+		 }] 
+ }] 
+} 
+2.11.8.Bảng giá 
+pricebook.update: Nhận request khi có thay đổi thông tin của bảng giá 
+{ 
+	 "Id": string, 
+	 "Attempt": int, 
+	 "Notifications": [{ 
+		 "Action": string, 
+		 "Data": [{ 
+			 "Id": long                      // Id bảng giá 
+			 "Name": string                  // tên bảng giá 
+			 "IsActive": bool,           // trạng thái hoạt động hay không 
+			 "IsGlobal": bool,           // có phải là bảng giá chung không 
+			 "StartDate": date,          // ngày bắt đầu áp dụng 
+			 "EndDate": DateTime,            // ngày hết hạn 
+			 "ForAllCusGroup": bool,     // áp dụng cho tất cả nhóm khách hàng 			 "ForAllUser": bool,         // áp dụng cho tất cả user 
+			 "PriceBookBranches" :[{ 
+				 "Id": long,                 // Id quan hệ bảng giá – chi nhánh 
+				 "PriceBookId": long,        // Id bảng giá 
+				 "BranchId": long,           // Id chi nhánh áp dụng, 
+				 "BranchName": string,       // Tên chi nhánh áp dụng 
+			 }], 
+			 "PriceBookCustomerGroups" :[{ 
+				 "CustomerGroupName": string, 
+				 "Id": long,                 // Id quan hệ bảng giá – nhóm khách hàng 				 "PriceBookId": long,        // Id bảng giá 
+				 "CustomerGroupId": long,    // Id nhóm khách hàng 
+
+Công ty CP phần mềm Citigo 	93/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+		 }], 
+		 "PriceBookUsers" :[{ 
+		 "UserName": string,         // Tên người dùng 
+		 "Id": long,                 // Id quan hệ 
+		 "PriceBookId": long,        // Id bảng giá 
+		 "UserId": long,             // Id người dùng 
+		 }], 
+	 }], 
+ }] 
+} 
+pricebook.delete: Nhận request khi có bảng giá bị xóa 
+{ 
+	 "Id": string, 
+	 "Attempt": int, 
+	 "Notifications": [{ 
+		 "Action": string 
+		 "Data": [ 
+			 long    // Id bảng giá 
+		 ] 
+	 }] 
+} 
+pricebookdetail.update: Nhận quest khi thông tin hàng hóa trong bảng giá thay đổi (ví dụ: thêm hàng hóa vào bảng giá) 
+{ 
+ "Id": string, 
+ "Attempt": int, 
+
+Công ty CP phần mềm Citigo 	94/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+	 "Notifications": [{ 
+		 "Action": string 
+		 "Data": [{ 
+			 "PriceBookId": long,    // Id bảng giá 
+			 "ProductId": long,  // Id hàng hóa 
+			 "Price": decimal 
+		 }] 
+	 }] 
+} 
+pricebookdetail.delete: Nhận request khi hàng hóa trong bảng giá bị xóa khỏi bảng giá 
+{ 
+	 "Id": string, 
+	 "Attempt": int, 
+	 "Notifications": [{ 
+		 "Action": string, 
+		 "Data": [{ 
+				 "PricebookId": long,    // Id bảng giá 
+			 "ProductIds": [ 
+					 long                // ID hàng hóa bị xóa khỏi bảng giá 			 ] 
+		 }] 
+	 }] 
+} 
+2.11.9.Danh mục hàng hóa 
+category.update 
+{ 
+	“Id”: string, 
+
+Công ty CP phần mềm Citigo 	95/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+	 “Attempt”: int, 
+	 “Notifications”: [{ 
+						“Action”: string, 
+			 “Data”: [{ 
+							"Id": int, 
+			 "Name": string, 
+			 "ParentId": int?, 
+			 "IsDeleted": bool, 
+			 "CreatedDate": Datetime, 
+			 "ModifiedDate": Datetime?, 
+			 "RetailerId": int, 
+			 "Rank": int, 
+			 "HasChild": bool 
+					 }] 
+				 }] 
+	 }] 
+} 
+category.delete 
+{ 
+	 “RemoveId”: int [] 
+} 
+
+2.11.10.	Chi nhánh 
+branch.update 
+{ 
+		“Id”: string, 
+	 “Attempt”: int, 
+	 “Notifications”: [{ 
+
+Công ty CP phần mềm Citigo 	96/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+					“Action”: string, 
+		 “Data”: [{ 
+						"Id": long, 
+						"Name" : string, 
+						"ContactNumber":string, 						"SubContactNumber": string, 						"Address": string, 
+						"Location": string, 
+						"WardName": string, 
+						"IsActive": bool, 
+						"IsLock": bool, 
+						"CreatedDate": Datetime, 						"ModifiedDate": Datetim? , 						"RetailerId": int 
+				 }] 
+			 }] 
+ }] 
+} 
+branch.delete 
+{ 
+	 “RemoveId”: int [] 
+} 
+2.12.Hóa đơn 
+Hiện tại KiotViet hỗ trợ các thiết lập cho tính năng hóa đơn như sau: 
+Trong trường hợp người dùng không tích chọn setting cho “Cho phép bán hàng khi hết tồn kho”, 
+thì POST/PUT các API liên quan đến việc bán các sản phẩm đã hết tồn kho, trả lại thông báo “Thiết 
+lập “Cho phép bán hàng khi hết tồn kho” đang không được bật” 
+Công ty CP phần mềm Citigo 	97/157 
+
+ 
+
+ 
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+Trong trường hợp người dùng không tích chọn setting cho “Sử dụng tính năng giao hàng”, các giao dịch liên quan tới giao hàng sẽ không hiển thị trên kiotviet nữa. Vì vậy khi gọi các API liên quan tới phần giao hàng, cần trả lại thông báo “Thiết lập “Sử dụng tính năng giao hàng” đang không được bật”. 
+Trong trường hợp người dùng tích chọn setting “Sử dụng ính năng giao hàng” nhưng không tích chọn setting cho “Quản lý thu hộ tiền”, các giao dịch liên quan tới thu hộ tiền sẽ không hiển thị trên kiotviet nữa. Vì vậy khi gọi các API liên quan tới phần thu hộ tiền, cần trả lại thông báo “Thiết lập “Quản lý thu hộ tiền” đang không được bật”. 
+Trong trường hợp người dùng không tích chọn setting cho “Không cho phép thay đổi thời gian bán hàng”, khi Post/ Put các API liên quan thời gian bán hàng, trả lại thông báo “Thiết lập “Không cho phép thay đổi thời gian bán hàng” đang không được bật”. 
+Mô tả chi tiết cho các API hỗ trợ Hóa đơn như sau: 
+2.12.1.Lấy danh sách hóa đơn 
+Mục đích sử dụng: Trả về danh sách hóa đơn theo cửa hàng đã được xác nhận Phương thức và URL:GET https://public.kiotapi.com/invoices 
+Request: Sử dụng hàm GET với tham số: 
+	“branchIds”: int[], optional // ID chi nhánh 
+	 “customerIds”: long[], optional // Id khách hàng 
+	 “customerCode”: string //Mã khách hàng 
+	 “status”: int[], optional // Tình trạng hóa đơn 
+	 “includePayment”: Boolean, // có lấy thông tin thanh toán 
+	 “includeInvoiceDelivery”: Boolean, //hóa đơn có giao hàng hay không 
+	 “lastModifiedFrom”: datetime? // thời gian cập nhật 
+	 “pageSize”: int?, // số items trong 1 trang, mặc định 20 items, tối đa 100 items  	 “currentItem”: int, 
+	 “lastModifiedFrom”: datetime? // thời gian cập nhật 
+	 “toDate”: datetime? //Thời gian cập nhật cho đến thời điểm toDate 
+	 “orderBy”: string, //Sắp xếp dữ liệu theo trường orderBy (Ví dụ: orderBy=name) 	 “pageSize”: int?, // số items trong 1 trang, mặc định 20 items, tối đa 100 items  
+Công ty CP phần mềm Citigo 	98/157 
+
+ 
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+ “orderDirection”: string, //Sắp xếp kết quả trả về theo: Tăng dần Asc (Mặc định), giảm dần Desc  “orderId”: long?, // Lọc danh sách hóa đơn theo Id của đơn hóa đơn 
+ “createdDate”: datetime? //Thời gian tạo 
+ “fromPurchaseDate”: datetime? //Từ ngày giao dịch 
+ “toPurchaseDate”: datetime? //Đến ngày giao dịch 
+Response: 
+{ 
+“total”: int, 
+“pageSize”: int, 
+“data”: [{ 
+		“id”: long //Id hóa đơn 
+		“code”: string //Mã hóa đơn 
+		“purchaseDate”: datetime // Ngày hóa đơn 
+		“branchId”: int, //Id chi nhánh 
+		“branchName”: string, //Tên chi nhánh 
+		“soldById”: long?, 
+	 “soldByName”: string 
+		“customerId”: long?, // Id khách hàng 
+	 “customerCode”: string, Mã khách hàng 
+		“customerName”: string, // Tên khách hàng 
+		“total”: decimal, // Khách cần trả 
+		“totalPayment”: decimal, //Khách đã trả 
+		“status”: int, // trạng thái hóa đơn 
+		“statusValue”: string, // trạng thái hóa đơn bằng chữ 	 “usingCod”: boolean,  
+
+Công ty CP phần mềm Citigo 	99/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+ “createdDate”: datetime, //Ngày tạo 
+ “modifiedDate”: datetime, //Ngày cập nhật 
+	“payments” :[{ 
+			“id”: long, 
+			“code”: string, 
+			“amount”: decimal, 
+			“method”: string”, 
+			“status”: byte?, 
+		 “statusValue”: string, 
+		 “transDate”: datetime, 
+		 “bankAccount”: string, 
+		 “accountId”: int? 
+}], 
+"invoiceOrderSurcharges": [        { 
+"id": long, 
+"invoiceId":long?, 
+"surchargeId": long?, 
+"surchargeName": string, 
+"surValue": decimal?, 
+"price": decimal?, 
+"createdDate": DateTime 
+} 
+], 
+“invoiceDetails” :{ 
+		“productId”: long, // Id hàng hóa 		“productCode”: string, 
+
+Công ty CP phần mềm Citigo 	100/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+					“productName”: string, //Tên hàng hóa 
+						(bao gồm thuộc tính và đơn vị tính) 					“quantity”: double, // Số lượng hàng hóa 
+					“price”: decimal, //Giá trị 
+					“discountRatio”: double?, // Giảm giá trên sản phẩm theo % 					“discount”: decimal?, // Giảm giá trên sản phẩm theo tiền 					“note”: string // Ghi chú hàng hóa 
+	 "serialNumbers": string, // Danh sách imei 
+					"productBatchExpire": { 
+		 "id": long, // Id lô 
+		 "productId" long, // ID sản phẩm 
+		 "batchName": string, // Tên 
+		 "fullNameVirgule": string, // Tên đầy đủ 
+		 "createdDate": DateTime, // Ngày tạo lô 
+		 "expireDate": DateTime // Ngày hết hạn lô 
+ } 
+}, 
+“SaleChannel”:{ 
+			“IsNotDelete”: bool, 
+			“RetailerId”: long, 
+			“Position”: int, 
+			“IsActivate”: bool, 
+			“CreatedBy”: long, 
+			“CreatedDate”: datetime, 
+			“Id”: long, 
+			“Name”: string 
+
+Công ty CP phần mềm Citigo 	101/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+				},// Để lấy thông tin SaleChannel thì phải truyền thêm 
+				//SaleChannel=true 
+	 “invoiceDelivery”:{ 
+						“deliveryCode”: string, 
+		 “type”: byte?, 
+		 “status”: byte, (1: Chờ xử lý, 2: Đang giao hàng,3: Giao thành công, 4:Đang chuyển hoàn, 5:Đã chuyển hoàn, 6:Đã hủy, 7: Đang lấy hàng, 8:Chờ lấy lại, 9:Đã lấy hàng, 10:Chờ giao lại, 11:Chờ chuyển hàng, 12:Chờ chuyển hoàn lại) //trạng thái vận đơn 
+		 “statusValue”: string, 
+		 “price”: Decimal?, 
+		 “receiver”: string, 
+		 “contactNumber”: string, 
+			 “address”: string, 
+		 “locationId”: int?, 
+		 “locationName”: string, 
+						 “usingPriceCod”: bool, //Thu hộ tiền 
+		 “priceCodPayment”: decimal, //Số tiền thu hộ 
+		 “weight”: double?, 
+		 “length”: double?, 
+		 “width”: double?, 
+		 “height”: double?, 
+		 “partnerDeliveryId”: long?, 
+						 “partnerDelivery”:{ 
+							“code”: string, 
+					 “name”: string, 
+					 “address”: string, 
+
+Công ty CP phần mềm Citigo 	102/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+			 “contactNumber”: string, 
+			 “email”: string 
+				} 
+		} 
+ }] 
+} 
+2.12.2.Lấy chi tiết hóa đơn 
+Mục đích sử dụng: Trả về thông tin chi tiết của hóa đơn theo ID, theo Code 
+Phương thức và URL:
+-	Theo Id : GET https://public.kiotapi.com/invoices/ {id}
+-	Theo Code : GET https://public.kiotapi.com/invoices/code/ {code} 
+Request: Sử dụng hàm GET với tham số: 
+“id”: long // ID của hóa đơn 
+“code”: string // Mã của hóa đơn 
+Response: 
+{ 
+		“id”: long //Id hóa đơn 
+		“code”: string //Mã hóa đơn 
+		“orderCode”: string //Mã hóa đơn 
+		“purchaseDate”: datetime // Ngày hóa đơn 		“branchId”: int, //Id chi nhánh 
+		“branchName”: string, //Tên chi nhánh 		“soldById”: long?, 
+	 “soldByName”: string 
+		“customerId”: long?, // Id khách hàng 
+
+Công ty CP phần mềm Citigo 	103/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+ “customerCode”: string, //Mã khách hàng 
+		“customerName”: string, // Tên khách hàng 
+		“total”: decimal, // Khách cần trả 
+		“totalPayment”: decimal, //Khách đã trả 
+		“status”: int, // trạng thái đơn hóa đơn 
+		“statusValue”: string, // trạng thái đơn hóa đơn bằng chữ 		“description”: string, // ghi chú 
+ “usingCod”: boolean,  
+ “createdDate”: datetime, //Ngày tạo 
+ “modifiedDate”: datetime, //Ngày cập nhật 
+		“payments” :[{ 
+				“id”: long, 
+				“code”: string, 
+				“amount”: decimal, 
+				“method”: string, 
+				“status”: byte?, 
+			 “statusValue”: string, 
+			 “transDate”: datetime, 
+			 “bankAccount”: string, 
+			 “accountId”: int? 
+}], 
+"invoiceOrderSurcharges": [        { 
+"id": long, 
+"invoiceId":long?, 
+"surchargeId": long?, 
+"surchargeName": string, 
+
+Công ty CP phần mềm Citigo 	104/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+						"surValue": decimal?, 
+						"price": decimal?, 
+						"createdDate": DateTime 
+						} 
+	], 
+	“invoiceDetails” :{ 
+								“productId”: long, // Id hàng hóa 
+			 “productCode”: string,  
+								“productName”: string, //Tên hàng hóa 
+									(bao gồm thuộc tính và đơn vị tính) 								“quantity”: double, // Số lượng hàng hóa 
+								“price”: decimal, //Giá trị 
+								“discountRatio”: double?, // Giảm giá trên sản phẩm theo % 								“discount”: decimal?, // Giảm giá trên sản phẩm theo tiền 								“note”: string // Ghi chú hàng hóa 
+							 "serialNumbers": string, // Danh sách imei 
+								"productBatchExpire": { 
+				 "id": long, // Id lô 
+				 "productId" long, // ID sản phẩm 
+				 "batchName": string, // Tên 
+				 "fullNameVirgule": string, // Tên đầy đủ 
+				 "createdDate": DateTime, // Ngày tạo lô 
+				 "expireDate": DateTime // Ngày hết hạn lô 
+	 } 
+	}, 
+ “invoiceDelivery”:{ 
+
+Công ty CP phần mềm Citigo 	105/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+				“deliveryCode”: string, 
+	 “type”: byte?, 
+	 “status”: byte, (1: chưa giao hàng, 2: đang giao hàng, 3: đã giao hàng, 4: đang chuyển hoàn, 5 đã chuyển hoàn, 6: đã hủy) //trạng thái vận đơn 
+	 “statusValue”: string, 
+	 “price”: Decimal?, 
+	 “receiver”: string, 
+	 “contactNumber”: string, 
+	 “address”: string, 
+	 “locationId”: int?, 
+	 “locationName”: string, 
+				 “usingPriceCod”: bool, //Thu hộ tiền 
+	 “priceCodPayment”: decimal, //Số tiền thu hộ 
+	 “weight”: double?, 
+	 “length”: double?, 
+	 “width”: double?, 
+	 “height”: double?, 
+	 “partnerDeliveryId”: long?, 
+				 “partnerDelivery”:{ 
+					“code”: string, 
+			 “name”: string, 
+			 “address”: string, 
+			 “contactNumber”: string, 
+			 “email”: string 
+				}, 
+		“SaleChannel”:{ 
+
+Công ty CP phần mềm Citigo 	106/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+		“IsNotDelete”: bool, 
+		“RetailerId”: long, 
+		“Position”: int, 
+		“IsActivate”: bool, 
+		“CreatedBy”: long, 
+		“CreatedDate”: datetime, 
+		“Id”: long, 
+		“Name”: string 
+	} 
+	} 
+} 
+2.12.3.Thêm mới hóa đơn 
+Mục đích sử dụng: Tạo mới hóa đơn 
+Phương thức và URL:POST https://public.kiotapi.com/invoices 
+Request: JSON mã hóa yêu cầu gồm 1 object hóa đơn: 
+{ 
+		“branchId”: int, 
+	 “purchaseDate”: datetime, 
+	 “customerId”: long?, 
+	 “discount”: decimal?, 
+	 “totalPayment”: decimal, 
+		“saleChannelId”: int? optional // Id kênh bán hàng, nếu không truyền mặc định kênh khác 	 “method”: string, 
+	 “accountId”: int?, 
+	 “usingCod”: bool, 
+
+Công ty CP phần mềm Citigo 	107/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+		 “soldById”: long, 
+		 “orderId”: long?, 
+		 “invoiceDetails”:[{ 
+						“productId”: long, 
+			 “productCode”: string, 
+			 “productName”: string, 
+			 “quantity”: double, 
+			 “price”: decimal, 
+			 “discount”: decimal?, 
+			 “discountRatio”: decimal?, 
+						“note”: string 
+			 “serialNumbers”: string, // Danh sách serial Imei dạng chuỗi, mỗi Imei cách nhau ởi dấu phẩy (,), ví dụ: "ABC,XYZ" 
+					}], 
+ “deliveryDetail”:{ 
+						 “deliveryCode”: string, 
+				 “type”: byte?, 
+				 “status”: byte, (1: Chờ xử lý, 2: Đang giao hàng)//trạng thái vận đơn 
+				 “price”: Decimal?, 
+				 “receiver”: string, 
+				 “contactNumber”: string, 
+				 “address”: string, 
+				 “locationId”: int, 
+				 “locationName”: string 
+				 “wardName”: string,// Tên phường 
+				 “weight”: double, 
+
+Công ty CP phần mềm Citigo 	108/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+ “length”: double, 
+ “width”: double, 
+ “usingPriceCod”: bool, //Thu hộ tiền 
+ “height”: double, 
+ “partnerDeliveryId”: long?, 
+“expectedDelivery”: datetime, 
+ “partnerDelivery”:{ 
+“code”: string, 
+ “name”: string, 
+ “address”: string, 
+ “contactNumber”: string, 
+ “email”: string 
+}, 
+“surchages”:[{ 
+“id”: int, 
+ “code”: string, 
+		 “price”: decimal, 
+			}]}, 
+ “customer" : { 
+	 “id”: long, 
+			"code": string, 
+				"name": string, 
+				"gender": boolean, 
+				"birthDate": datetime, 
+				"contactNumber": string, 
+			"address": string, 
+				"email": string, 
+				"comment": string 
+
+Công ty CP phần mềm Citigo 	109/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+	 }, 
+		} 
+} 
+Response:
+{ 
+		“id”: long, 
+	 “code”: string, 
+	 “purchaseDate”: datetime, 
+	 “branchId”: int, 
+	 “branchName”: string, 
+	 “soldById”: long?, 
+	 “soldByName”: string, 
+	 “customerId”: long?, 
+	 “customerName”: string, 
+		“saleChannelId” : int?, optional // Id kênh bán hàng, nếu không truyền mặc định kênh khác 	 “total”: decimal, // Khách cần trả 
+		“totalPayment”: decimal, //Khách đã trả 
+	 “discountRatio”: double?, // Giảm giá trên đơn theo % 
+		“discount”: decimal?, // Giảm giá trên đơn theo tiền 
+		“method”: string, // Phương thức thanh toán (Cash, Card, Transfer) 
+		“status”: int, // trạng thái hóa đơn 
+		“statusValue”: string, // trạng thái hóa đơn bằng chữ 
+		“description”: string, // ghi chú 
+	 "usingCod": boolean, 
+		“invoiceDetails” :{ 
+
+Công ty CP phần mềm Citigo 	110/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+“productId”: long, // Id hàng hóa 
+				“productName”: string, //Tên hàng hóa 
+					(bao gồm thuộc tính và đơn vị tính) 				“quantity”: double, // Số lượng hàng hóa 
+				“price”: decimal, //Giá trị 
+				“discountRatio”: double?, // Giảm giá trên sản phẩm theo % 				“discount”: decimal?, // Giảm giá trên sản phẩm theo tiền, 				“note”: string // Ghi chú hàng hóa 
+		}, 
+ “deliveryDetail”:{ 
+			“deliveryCode”: string, 
+	 “type”: byte?, 
+	 “status”: byte, (1: chưa giao hàng, 2: đang giao hàng) //trạng thái vận đơn 			“statusValue”: string, 
+	 “price”: Decimal?, 
+	 “receiver”: string, 
+	 “contactNumber”: string, 
+	 “address”: string, 
+	 “locationId”: int?, 
+	 “locationName”: string, 
+			 “usingPriceCod”: bool, //Thu hộ tiền 
+	 “priceCodPayment”: decimal, //Số tiền thu hộ                “weight”: double?, 	 “length”: double?, 
+	 “width”: double?, 
+
+Công ty CP phần mềm Citigo 	111/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+	 “height”: double?, 
+	 “partnerDeliveryId”: long?, 
+				 “partnerDelivery”:{ 
+					“code”: string, 
+			 “name”: string, 
+			 “address”: string, 
+			 “contactNumber”: string, 
+			 “email”: string 
+				} 
+		}, 
+		"invoiceOrderSurcharges": [        { 
+				"id": long, 
+				"invoiceId":long?, 
+				"surchargeId": long?, 
+				"surchargeName": string, 
+				"surValue": decimal?, 
+				"price": decimal?, 
+				"createdDate": DateTime 
+				} 
+		], 
+} 
+2.12.4.Cập nhật hóa đơn 
+Mục đích sử dụng: Cập nhật hóa đơn theo ID 
+Phương thức và URL:PUT https://public.kiotapi.com/invoices/Id 
+Request: Sử dụng hàm PUT với ID hóa đơn qua 1 object JSON. 
+Công ty CP phần mềm Citigo 	112/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+“id”: long // ID hóa đơn 
+Body 
+{ 
+			“purchaseDate”: datetime 
+	 “status”: byte, 
+	 “soldById”: long, 
+			“codPaymentMethod”: string, //Phương thức thanh toán thu hộ (Cash, Tranfer), 	 “codPaymentAccount”: int?, //Id tài khoản ngân hàng nếu thanh toán chuyển khoản, thẻ ngân hang, 
+			“saleChannelId”: int? optional // Id kênh bán hàng, nếu không truyền mặc định kênh khác 	 “deliveryDetail”:{ 
+				 “deliveryCode”: string, 
+		 “type”: byte?, 
+		 “status”: byte,(1: Chờ xử lý, 2: Đang giao hàng,3: Giao thành công, 4:Đang chuyển hoàn, 5:Đã chuyển hoàn, 6:Đã hủy, 7: Đang lấy hàng, 8:Chờ lấy lại, 9:Đã lấy hàng, 10:Chờ giao lại, 11:Chờ chuyển hàng, 12:Chờ chuyển hoàn lại)//trạng thái vận đơn 
+		 “price”: Decimal?, 
+		 “receiver”: string, 
+		 “contactNumber”: string, 
+		 “address”: string, 
+		 “locationId”: int, 
+		 “locationName”: string, 
+		 “wardName”: string, // Tên phường 
+		 “weight”: double, 
+		 “length”: double, 
+				 “usingPriceCod”: bool, //Thu hộ tiền 
+		 “priceCodPayment”: decimal, //Số tiền thu hộ 
+
+Công ty CP phần mềm Citigo 	113/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+	 “width”: double, 
+	 “height”: double, 
+	 “partnerDeliveryId”: long?, 
+				“expectedDelivery”: datetime, 
+				 “partnerDelivery”:{ 
+					“code”: string, 
+			 “name”: string, 
+			 “address”: string, 
+			 “contactNumber”: string, 
+			 “email”: string 
+				} 
+		} 
+} 
+Response:
+{ 
+		“id”: long, 
+	 “code”: string, 
+	 “purchaseDate”: datetime, 
+	 “branchId”: int, 
+	 “branchName”: string 
+	 “soldById”: long?, 
+	 “soldByName”: string, 
+	 “customerId”: long?, 
+	 “customerName”: string, 
+	 “total”: decimal, // Khách cần trả 
+
+Công ty CP phần mềm Citigo 	114/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+				“totalPayment”: decimal, //Khách đã trả 
+		 “discountRatio”: double?, // Giảm giá trên đơn theo % 
+				“discount”: decimal?, // Giảm giá trên đơn theo tiền 
+				“method”: string, // Phương thức thanh toán (Cash, Card, Transfer) 
+				“status”: int, // trạng thái đơn hóa đơn 
+				“statusValue”: string, // trạng thái hóa đơn bằng chữ 
+				“description”: string, // ghi chú 
+		 "usingCod": boolean, 
+				“saleChannelId”: int?, 
+				“invoiceDetails” :{ 
+						“productId”: long, // Id hàng hóa 
+						“productName”: string, //Tên hàng hóa 
+							(bao gồm thuộc tính và đơn vị tính) 
+						“quantity”: double, // Số lượng hàng hóa 
+						“price”: decimal, //Giá trị 
+						“discountRatio”: double?, // Giảm giá trên sản phẩm theo % 						“discount”: decimal?, // Giảm giá trên sản phẩm theo tiền 				}, 
+	 “deliveryDetail”:{ 
+					“deliveryCode”: string, 
+			 “type”: byte?, 
+			 “status”: byte, (1: Chờ xử lý, 2: Đang giao hàng,3: Giao thành công, 4:Đang chuyển hoàn, 5:Đã chuyển hoàn, 6:Đã hủy, 7: Đang lấy hàng, 8:Chờ lấy lại, 9:Đã lấy hàng, 10:Chờ giao lại, 11:Chờ chuyển hàng, 12:Chờ chuyển hoàn lại) //trạng thái vận đơn 
+					“statusValue”: string, 
+			 “price”: Decimal?, 
+
+Công ty CP phần mềm Citigo 	115/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+	 “receiver”: string, 
+	 “contactNumber”: string, 
+	 “address”: string, 
+	 “locationId”: int?, 
+	 “locationName”: string,  
+	 “wardName”: string, // Tên phường 
+				 “usingPriceCod”: bool, //Thu hộ tiền 	 “priceCodPayment”: decimal, //Số tiền thu hộ 	 “weight”: double?, 
+	 “length”: double?, 
+	 “width”: double?, 
+	 “height”: double?, 
+	 “partnerDeliveryId”: long?, 
+				 “partnerDelivery”:{ 
+					“code”: string, 
+			 “name”: string, 
+			 “address”: string, 
+			 “contactNumber”: string, 
+			 “email”: string 
+				} 
+		} 
+} 
+2.12.5.Xóa hóa đơn 
+Mục đích sử dụng: Xóa hóa đơn theo ID 
+Công ty CP phần mềm Citigo 	116/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+Phương thức và URL: DELETE https://public.kiotapi.com/invoices
+Request: : JSON mã hóa yêu cầu gồm 1 object tham số sau: 
+{ 
+“id”: long // ID của hóa đơn 
+“isVoidPayment”:bool // Hủy phiếu thanh toán gắn kèm hóa đơn, nếu không truyền tham 
+số này thì mặc định không hủy phiếu thanh toán gắn kèm hóa đơn 
+} 
+Response: 
+{ 
+		“id”: long, 
+	 “code”: string, 
+	 “purchaseDate”: datetime, 
+	 “branchId”: int, 
+	 “branchName”: string, 
+	 “soldById”: long?, 
+	 “soldByName”: string, 
+	 “customerId”: long?, 
+	 “customerName”: string, 
+		“saleChannelId” : int?, optional // Id kênh bán hàng 
+	 “total”: decimal, // Khách cần trả 
+		“totalPayment”: decimal, //Khách đã trả 
+	 “discountRatio”: double?, // Giảm giá trên đơn theo % 
+		“discount”: decimal?, // Giảm giá trên đơn theo tiền 
+		“method”: string, // Phương thức thanh toán (Cash, Card, Transfer) 
+
+Công ty CP phần mềm Citigo 	117/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+				“status”: 2, // trạng thái đơn 
+				“statusValue”: “Đã hủy”, // trạng thái đơn hóa đơn bằng chữ 
+				“description”: string, // ghi chú 
+		 "usingCod": boolean, 
+				“invoiceDetails” :{ 
+						“productId”: long, // Id hàng hóa 
+						“productName”: string, //Tên hàng hóa 
+							(bao gồm thuộc tính và đơn vị tính) 
+						“quantity”: double, // Số lượng hàng hóa 
+						“price”: decimal, //Giá trị 
+						“discountRatio”: double?, // Giảm giá trên SP theo % 
+						“discount”: decimal?, // Giảm giá trên SP theo tiền, 
+						“note”: string // Ghi chú hàng hóa 
+				}, 
+	 “deliveryDetail”:{ 
+					“deliveryCode”: string, 
+			 “type”: byte?, 
+			 “status”: byte, (1: Chờ xử lý, 2: Đang giao hàng,3: Giao thành công, 4:Đang chuyển hoàn, 5:Đã chuyển hoàn, 6:Đã hủy, 7: Đang lấy hàng, 8:Chờ lấy lại, 9:Đã lấy hàng, 10:Chờ giao lại, 11:Chờ chuyển hàng, 12:Chờ chuyển hoàn lại) //trạng thái vận đơn 
+					“statusValue”: string, 
+			 “price”: Decimal?, 
+			 “receiver”: string, 
+			 “contactNumber”: string, 
+			 “address”: string, 
+			 “locationId”: int?, 
+
+Công ty CP phần mềm Citigo 	118/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+ “locationName”: string, 
+				 “usingPriceCod”: bool, //Thu hộ tiền 
+ “priceCodPayment”: decimal, //Số tiền thu hộ 
+ “weight”: double?, 
+ “length”: double?, 
+ “width”: double?, 
+ “height”: double?, 
+ “partnerDeliveryId”: long?, 
+				 “partnerDelivery”:{ 
+					“code”: string, 
+		 “name”: string, 
+		 “address”: string, 
+		 “contactNumber”: string, 
+		 “email”: string 
+				} 
+	}, 
+	“payments”:[ 
+				{ 
+					“id”: string, 
+		 “code”: string, 
+		 “amount”: decimal, 
+			 “method”: string, 
+		 “status”: byte, 
+					“statusValue”: byte, 
+					“transDate”: datetime 
+				}], 
+
+Công ty CP phần mềm Citigo 	119/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+"invoiceOrderSurcharges": [] 
+} 
+2.13.Nhóm khách hàng 
+2.13.1.Lấy danh sách nhóm khách hàng 
+Mục đích sử dụng:  lấy danh sách nhóm khách hàng 
+Phương thức và URL: GET https://public.kiotapi.com/customers/group
+Response: 
+
+{ 
+	 "total": int // Tổng danh sách nhóm     
+	 "data": [ 
+		 { 
+			 "id": int // Id nhóm khách hàng 
+			 "name": string // Tên nhóm khách hàng, 
+			 "description": string // Ghi chú, 
+			 "createdDate": DateTime // Ngày tạo, 
+			 "createdBy": long // Id người tạo, 
+			 "retailerId": int // Id chi nhánh, 
+			 "discount": decimal? // Giảm giá, 
+ "customerGroupDetails": [ 
+ { 
+ "id": long // Id Chi tiết nhóm khách hàng 
+ "customerId": long // Id khách hàng 
+ "groupId": int // Id nhóm khách hàng 
+ }           
+ ] 
+ }] 
+Công ty CP phần mềm Citigo 	120/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+} 
+2.14.Sổ quỹ 
+2.14.1.Lấy danh sách sổ quỹ 
+Mục đích sử dụng: Trả về danh sách phiếu thu chi trong sổ quỹ theo cửa hàng đã được xác nhận Phương thức và URL:GET https://public.kiotapi.com/cashflow 
+Request: Sử dụng hàm GET với tham số: 
+“branchIds”: int[], optional // ID chi nhánh 
+“code”: string[] //Danh sách mã code của phiếu 
+“userId”: long? //Id người tạo 
+“accountId”: int? //Tài khoản nhận 
+“partnerType”: srting //Loại người nộp/nhận: A: tất cả, C: khách hàng, S: nhà cung cấp, U: nhân viên, D: tối tác giao hàng, O: khác 
+“method”: string[] //Danh sách phương thức thanh toán 
+“cashFlowGroupId”: int?[] //Loại thu/chi 
+“usedForFinancialReporting”: int? //Lọc theo kết qua kinh doanh: 0: không hoạch toán, 1: đưa vào hoạch toán 
+“partnerName”: string //Tên người nộp/nhận 
+“contactNumber”: string//Số điện thoại người nộp/nhận 
+“isReceipt”: bool? //Theo phiếu thu/chi; True: thu, false: chi 
+“includeAccount”: bool //Lấy thông tin tài khoản ngân hàng hay không 
+“includeBranch”: bool? //Lấy tên chi nhánh hay không 
+“includeUser”: bool? //Lấy tên người tạo hay không 
+“startDate”: datetime? // thời gian bắt đầu 
+“endDate”: datetime? // thời gian kết thúc 
+ “status”: int? // trạng thái phiếu; 0: Đã thanh toán, 1: Đã hủy, không truyền: tất cả 
+Công ty CP phần mềm Citigo 	121/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+ “ids”: long?[] // Id phiếu thu/chi 
+ “pageSize”: int?, // số items trong 1 trang, mặc định 20 items, tối đa 100 items 
+Response: 
+{ 
+“total”: int, 
+“pageSize”: int, 
+“data”: [{ 
+			“id”: long //Id phiếu 
+			“code”: string //Mã phiếu 
+			“address”: string // Địa chỉ 
+			“branchId”: int, //Id chi nhánh 
+			“wardName”: string, //Tên phường 
+			“contactNumber”: string, // Số điện thoại 
+		 “createdBy”: long // Id người tạo 
+			“usedForFinancialReporting”: int, 
+		 “cashFlowGroupId”: int?, Id loại thu chi 
+			“method”: string, // phương thức thanh toán 			“partnerType”: string, // Người nộp/nhận 
+			“partnerId”: long?, // Id người nộp/nhận 
+			“status”: int, // trạng thái phiếu 
+			“statusValue”: string, // trạng thái phiếu bằng chữ  “transDate”: datetime, //Ngày tạo 
+		 “amount”: decimal, // Giá trị 
+		 “partnerName”: string, //tên người nộp/nhận 
+			“user”: string, // tên người tạo 
+			“AccountId”:int? // Id tài khoản ngân hàng 
+
+Công ty CP phần mềm Citigo 	122/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+	“Description”:string //Ghi chú 
+	}] 
+} 
+2.15.Nhậphàng 
+2.15.1.Lấy danh sách nhập hàng 
+Mục đích sử dụng: Trả về danh sách nhập hàng 
+Phương thức và URL:GET https://public.kiotapi.com/purchaseorders 
+Request: Sử dụng hàm GET với tham số: 
+	“branchIds”: int[], optional // ID chi nhánh 
+	 “status”: int[], optional // Tình trạng đặt hàng 
+	 “includePayment”: Boolean, // có lấy thông tin thanh toán 
+	 “includeOrderDelivery”: Boolean,  
+	 “pageSize”: int?, // số items trong 1 trang, mặc định 20 items, tối đa 100 items Response: 
+
+“total”: int, 
+“pageSize”: int, 
+“data”: [{ 
+		“id”: long //Id phiếu 
+		“code”: string //Mã phiếu 
+		“branchId”: int, //Id chi nhánh 
+		“branchName”: string, //Tên chi nhánh 
+		“purchaseDate”: datetime, // Ngày nhập hàng 	 “discountRatio”: long // Giảm giá phần trăm 
+		“total”: int, // Giá trị nhập hàng 
+	 “supplierId”: long, //Id nhà cung cấp 
+
+Công ty CP phần mềm Citigo 	123/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+	“supplierName”: string, // Tên nhà cung cấp 
+	“supplierCode”: string, // Mã nhà cung cấp 
+	“partnerType”: string, // Người nộp/nhận 
+	“purchaseById”: long?, // Id người nhập 
+	“purchaseName”: int, // tên người nhập 
+	“purchaseOrderDetails” :[{ 
+							“productId”: long, // Id hàng hóa 
+							“ProductCode”: string, // mã hàng hóa 							“productName”: string, // Tên hàng hóa 							“quantity”: double, // Số lượng hàng hóa 							“price”: decimal, //Giá trị 
+			 “discount”: string,// Giảm giá 
+			 "serialNumbers": string, // Danh sách imei 
+							"productBatchExpire": { 
+				 "id": long, // Id lô 
+				 "productId" long, // ID sản phẩm 
+				 "batchName": string, // Tên 
+				 "fullNameVirgule": string, // Tên đầy đủ 
+				 "createdDate": DateTime, // Ngày tạo lô 
+				 "expireDate": DateTime // Ngày hết hạn lô 
+	 } 
+						}]// Thông tin nhập hàng chi tiết 
+	}] 
+} 
+
+Công ty CP phần mềm Citigo 	124/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+2.15.2.Lấy chi tiết nhập hàng 
+Mục đích sử dụng: Trả lại chi tiết của một sản phẩm cụ thể theo ID 
+Phương thức và URL:GET https://public.kiotapi.com/purchaseorders/{id} 
+Request: Sử dụng hàm GET với tham số: 
+“id”: long // ID của của nhập hàng 
+Response: 
+{ 
+		“id”: long //Id phiếu 
+		“retailerId”: long // Id shope 
+		“code”: string //Mã phiếu 
+		“branchId”: int, //Id chi nhánh 
+		“branchName”: string, //Tên chi nhánh 
+		“purchaseDate”: datetime, // Ngày nhập hàng 	 “discountRatio”: long // Giảm giá phần trăm 
+		“total”: int, // Giá trị nhập hàng 
+	 “supplierId”: long, //Id nhà cung cấp 
+		“supplierName”: string, // Tên nhà cung cấp 		“supplierCode”: string, // Mã nhà cung cấp 
+“partnerType”: string, // Người nộp/nhận 
+“purchaseById”: long?, // Id người nhập 
+“purchaseName”: int, // tên người nhập 
+“purchaseOrderDetails” :[{ 
+	“productId”: long, // Id hàng hóa 
+	“ProductCode”: string, // mã hàng hóa 	“productName”: string, // Tên hàng hóa 
+
+Công ty CP phần mềm Citigo 	125/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+						“quantity”: double, // Số lượng hàng hóa 						“price”: decimal, //Giá trị 
+			 “discount”: string,// Giảm giá 
+						"serialNumbers": string, // Danh sách imei 						"productBatchExpire": { 
+					"id": long, // Id lô 
+				 "productId" long, // ID sản phẩm 
+				 "batchName": string, // Tên 
+				 "fullNameVirgule": string, // Tên đầy đủ 
+				 "createdDate": DateTime, // Ngày tạo lô 
+				 "expireDate": DateTime // Ngày hết hạn lô 
+	 } 
+					}]// Thông tin nhập hàng chi tiết 
+	“payments” :[{ 
+						“id”: long, // Id thanh toán 
+						“code”: string, // mã thanh toán 
+						“method”: string, // phương thức thanh toán 						“status”: int, // trạng thái 
+						“statusValue”: string, //tên trạng thái 
+			 “transDate”: DateTime,// ngày Thanh toán 
+					}]// Thông tin thanh toán 
+} 
+2.15.3.Thêm mới nhập hàng 
+Mục đích sử dụng: Tạo mới phiếu nhập hàng 
+Phương thức và URL: POST https://public.kiotapi.com/purchaseorders
+Công ty CP phần mềm Citigo 	126/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+Request: JSON mã hóa yêu cầu gồm 1 object nhập hàng 
+{ 
+	 “purchaseDate”: datetime,   // Ngày nhập hàng 
+	 “branchId”: int,            // Id chi nhánh 
+	 “supplier”: {      
+		 “code”: string, 
+		 “name”: string, 
+		 “contactNumber”: string, 
+		 “address”: string, 
+		 “email”: string, 
+		 “comment”: string 
+		 }, // Thông tin Nhà cung cấp 
+	 “description”: string       // Ghi chú phiếu nhập 
+	 “isDraft”: int              // Trạng thái của phiếu nhập 
+	 “discount”: decimal?        // Số tiền giảm giá 
+	 “discountRatio”: double?    // Phần trăm giảm giá 
+	 “paidAmount”: decimal,      // Tiền trả trước cho NCC 
+	 “paymentMethod”: string,    // Phương thức thanh toán cho NCC (Cash, Transfer, Card) 	 "accountId" : long          // Id của tài khoản ngân hàng nếu phương thức thanh toán là TRANSFER, CARD (lấy thông tin từ https://public.kiotapi.com/BankAccounts) 
+	 "surcharges” : [{ 
+		 “code”: string,            // Mã chi phí 
+		 “name”: string,            // Tên chi phí 
+		 “value”: decimal?,         // Số tiền thu 
+		 “valueRatio”: decimal?,    // Phần trăm thu 
+Công ty CP phần mềm Citigo 	127/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+ “isSupplierExpense”: bool, // Hoàn lại khi trả hàng nhập 
+ “type”: int,               // Hình thức, chi phí nhập trả nhà cung cấp? 
+ }] // Danh sách thu khác, bao gồm chi phí trả nhà cung cấp hoặc không trả nhà cung cấp. 
+	 “purchaseOrderDetails” :[{      
+		 “productCode”: string,   // Mã hàng hóa 
+		 “description”: string,   // Ghi chú 
+		 “quantity”: double,      // Số lượng hàng hóa 
+		 “price”: decimal,        // Giá nhập 
+		 “discount”: decimal?,    // Giảm giá 
+		 “discountRatio”: double?,// Giảm giá    
+		 }] // Thông tin nhập hàng chi tiết 
+} 
+Response: 
+{ 
+ “id”: long                  // Id phiếu 
+ “retailerId”: long          // Id shop 
+ “code”: string              // Mã phiếu 
+ “branchId”: int,            // Id chi nhánh 
+ “branchName”: string,       // Tên chi nhánh 
+ “purchaseDate”: datetime,   // Ngày nhập hàng 
+ “discount”: decimal         // Số tiền giảm giá 
+ “discountRatio”: long       // Phần trăm giảm giá 
+ “total”: int,               // Giá trị nhập hàng 
+
+Công ty CP phần mềm Citigo 	128/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+	 “supplierId”: long,         // Id nhà cung cấp 
+	 “supplierName”: string,     // Tên nhà cung cấp 
+	 “supplierCode”: string,     // Mã nhà cung cấp 
+	 “partnerType”: string,      // Người nộp/nhận 
+	 “purchaseById”: long?,      // Id người nhập 
+	 “purchaseName”: int,        // Tên người nhập 
+	 “purchaseOrderDetails” :[{ 
+		 “productId”: long,      // Id hàng hóa 
+		 “productCode”: string,  // Mã hàng hóa 
+		 “productName”: string,  // Tên hàng hóa 
+		 “quantity”: double,     // Số lượng hàng hóa 
+		 “price”: decimal,       // Giá nhập 
+		 “discount”: decimal,    // Giảm giá 
+		 “discountRatio”: double?,// Giảm giá 
+		 }] // Thông tin nhập hàng chi tiết 
+	 “payments” :[{ 
+		 “id”: long,         // Id thanh toán 
+		 “code”: string,     // Mã thanh toán 
+		 “method”: string,   // Phương thức thanh toán, 
+		 “amount”: decimal,  // Phương thức thanh toán, 
+		 “status”: int,      // Trạng thái 
+		 “statusValue”: string, // Tên trạng thái 
+		 “transDate”: DateTime, // Ngày Thanh toán 
+	 }]// Thông tin thanh toán 
+} 
+
+Công ty CP phần mềm Citigo 	129/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+2.15.4.Cập nhật nhập hàng 
+Mục đích sử dụng: Cập nhật phiếu nhập hàng theo ID 
+Phương thức và URL: PUT https://public.kiotapi.com/purchaseorders/Id 
+Request: Sử dụng hàm PUT với ID phiếu nhập hàng qua 1 object JSON.
+“id”: long // ID phiếu nhập hàng 
+Body 
+{ 
+	 “purchaseDate”: datetime,   // Ngày nhập hàng 
+	 “branchId”: int,            // Id chi nhánh 
+	 “supplier”: {       
+		 “code”: string, 
+		 “name”: string, 
+		 “contactNumber”: string, 
+		 “address”: string, 
+		 “email”: string, 
+		 “comment”: string 
+		 }, // Thông tin Nhà cung cấp 
+ “description”: string       // Ghi chú phiếu nhập 
+ “isDraft”: bool             // Trạng thái của phiếu nhập. 
+	 “discount”: decimal?        // Số tiền giảm giá 
+	 “discountRatio”: double?    // Phần trăm giảm giá 
+	 “paidAmount”: decimal,      // Tiền trả trước cho NCC 
+	 “paymentMethod”: string,    // Phương thức thanh toán cho NCC (Cash, Transfer, Card) 	 "accountId” : long,          // Id account tài khoản ngân hàng nếu phương thức thanh toán là TRANSFER, CARD, 
+
+Công ty CP phần mềm Citigo 	130/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+ "surcharges” : [{ 
+	 “code”: string,            // Mã chi phí 
+	 “name”: string,            // Tên chi phí 
+	 “value”: decimal?,         // Số tiền thu 
+	 “valueRatio”: decimal?,    // Phần trăm thu 
+	 “isSupplierExpense”: bool, // Hoàn lại khi trả hàng nhập 
+	 “type”: int,               // Hình thức, chi phí nhập trả nhà cung cấp?      
+ }] // Danh sách thu khác, bao gồm chi phí trả nhà cung cấp hoặc không trả nhà cung cấp. 
+ “purchaseOrderDetails” :[{         
+ “productCode”: string,   // Mã hàng hóa 
+ “description”: string,   // Ghi chú 
+ “quantity”: double,      // Số lượng hàng hóa 
+ “price”: decimal,        // Giá nhập 
+ “discount”: decimal?,    // Số tiền giảm giá 
+ “discountRatio”: double?,// Phần trăm giảm giá 
+	 }] // Thông tin nhập hàng chi tiết 
+} 
+Response: 
+{ 
+ “id”: long                  // Id phiếu 
+ “retailerId”: long          // Id shop 
+ “code”: string              // Mã phiếu 
+
+Công ty CP phần mềm Citigo 	131/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+ “branchId”: int,            // Id chi nhánh 
+ “branchName”: string,       // Tên chi nhánh 
+ “purchaseDate”: datetime,   // Ngày nhập hàng 
+ “discount”: decimal         // Số tiền giảm giá 
+ “discountRatio”: long       // Phần trăm giảm giá 
+ “total”: int,               // Giá trị nhập hàng 
+ “supplierId”: long,         // Id nhà cung cấp 
+ “supplierName”: string,     // Tên nhà cung cấp 
+ “supplierCode”: string,     // Mã nhà cung cấp 
+ “partnerType”: string,      // Người nộp/nhận 
+ “purchaseById”: long?,      // Id người nhập 
+ “purchaseName”: int,        // Tên người nhập 
+ “purchaseOrderDetails” :[{ 
+	 “productId”: long,      // Id hàng hóa 
+	 “productCode”: string,  // Mã hàng hóa 
+	 “productName”: string,  // Tên hàng hóa 
+	 “quantity”: double,     // Số lượng hàng hóa 
+	 “price”: decimal,       // Giá nhập 
+	 “discount”: decimal,    // Giảm giá 
+	 “discountRatio”: double?,// Giảm giá 
+	 }] // Thông tin nhập hàng chi tiết 
+ “payments” :[{ 
+	 “id”: long,         // Id thanh toán 
+	 “code”: string,     // Mã thanh toán 
+	 “method”: string,   // Phương thức thanh toán, 
+	 “amount”: decimal,  // Phương thức thanh toán, 
+
+Công ty CP phần mềm Citigo 	132/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+		 “status”: int,      // Trạng thái 
+		 “statusValue”: string, // Tên trạng thái 
+		 “transDate”: DateTime, // Ngày Thanh toán 
+	 }]// Thông tin thanh toán 
+} 
+2.15.5.Xóa nhập hàng 
+Mục đích sử dụng: Xóa đơn đặt hàng theo ID
+Phương 	thức 	và 	URL: 	DELETE 
+https://public.kiotapi.com/purchaseorders?id={Id}&IsVoidPayment=true 
+Request: Gồm Id của phiếu nhập hàng trong URL: 
+“id”: long // ID của phiếu nhập hàng 
+“IsVoidPayment”: bool // Hủy phiếu thanh toán, nếu không truyền tham số này thì mặc định không hủy phiếu thanh toán gắn kèm đặt hàng 
+Response: 
+{ 
+	 "message": "Xóa dữ liệu thành công" 
+} 
+2.16.Chuyển hàng 
+2.16.1.Lấy danh sách chuyển hàng 
+Mục đích sử dụng: Trả về danh sách phiếu chuyển hàng. 
+Phương thức và URL:GET https://public.kiotapi.com/transfers 
+Request: Sử dụng hàm GET với tham số: 
+{ 
+	 “toBranchIds”: int[], optional // IDs chi nhánh nhận 
+
+Công ty CP phần mềm Citigo 	133/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+ “fromBranchIds”: int[], optional // IDs chi nhánh chuyển 
+ “status”: int[], optional // Tình trạng phiếu chuyển 
+ “pageSize”: int?, // số items trong 1 trang, mặc định 20 items, tối đa 100 items  “currentItem”: int?, // Lấy dữ liệu từ bản ghi currentItem, 
+ “fromReceivedDate”: DateTime?, // Từ thời gian nhận chuyển hàng, 
+ “toReceivedDate”: DateTime?, // Đến thời gian nhận chuyển hàng, 
+ “fromTransferDate”: DateTime?, // Từ thời gian chuyển hàng, 
+ “toTransferDate”: DateTime?, // Đến thời gian chuyển hàng, 
+} 
+Response:
+{ 
+	 “total”: int, 
+	 “pageSize”: int, 
+	 “data”: [{ 
+		 “id”: long //Id phiếu 
+		 “code”: string //Mã phiếu 
+		 “fromBranchId”: int, //Id chi nhánh chuyển 
+		 “toBranchId”: int, // Id chi nhánh nhận 
+		 “status”: int, //trạng thái phiếu chuyển 
+		 “retailerId”: long, // Id gian hàng 
+		 “description”: string, // ghi chú 
+		 “transferDetails” :[{ 
+			 “productId”: long, // Id hàng hóa 
+			 “ProductCode”: string, // mã hàng hóa 
+			 “sendQuantity”: double, // Số lượng hàng hóa chuyển 			 “recieveQuantity”: double, // Số lượng hàng hóa nhận 
+
+Công ty CP phần mềm Citigo 	134/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+			 “price”: decimal, //Giá trị 
+			 “sendPrice”: decimal,// giá chuyển 
+			 "receivePrice": decimal, // giá nhận 
+		 }]// Thông tin chuyển hàng chi tiết 
+	 }] 
+} 
+2.16.2.Lấy chi tiết chuyển hàng 
+Mục đích sử dụng: Trả lại chi tiết của một phiếu chuyển hàng cụ thể theo ID 
+Phương thức và URL: 
+Theo Id : GET https://public.kiotapi.com/transfers/{id} 
+Request: Sử dụng hàm GET với tham số: 
+“id”: long // ID của phiếu chuyển hàng 
+Response: 
+{ 
+ "id": long, //ID phiếu chuyển hàng 
+ "code": string, //Mã phiếu chuyển hàng 
+ "status": int, // Trạng thái phiếu chuyển hàng 
+ "transferredDate": datetime, // Ngày chuyển 
+ "receivedDate": datetime, // Ngày nhận 
+ "createdById": long, // ID người tạo 
+ "createdByName": string, //Tên người tạo    
+ "fromBranchId": long, // ID chi nhánh nguồn 
+ "fromBranchName": string, // Tên chi nhánh nguồn  "toBranchId": long, // ID chi nhánh đích 
+ "toBranchName": string, //Tên chi nhánh đích 
+
+Công ty CP phần mềm Citigo 	135/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+	 "noteBySource": string, // Ghi chú nguồn 
+	 "noteByDestination": string, // ghi chú đích 
+	 "details": [ 
+		 { 
+			 "id": long, //ID chi tiết phiếu chuyển hàng 
+			 "productId": long, // ID sản phẩm 
+			 "productCode": string, // Mã sản phẩm 
+			 "productName": string, // Tên sản phẩm 
+			 "transferredQuantity": int, // Số lượng sản phẩm 			 "price": decimal, // Đơn giá sản phẩm 
+			 "totalTransfer": decimal, // Tổng tiền chuyển 			 "totalReceive": decimal // Tổng tiền nhận 
+		 } 
+	 ] 
+} 
+2.16.3.Thêm mới chuyển hàng 
+Mục đích sử dụng: Trả về danh sách phiếu chuyển hàng. 
+Phương thức và URL:POST https://public.kiotapi.com/transfers
+Request body: 
+{ 
+ "fromBranchId": long,       //id chi nhánh chuyển 
+ "toBranchId": long,         //id chi nhánh nhận 
+ "isDraft": int,             //id chi nhánh nhận 
+ "code": string,             //id chi nhánh nhận 
+ "description": string,      //id chi nhánh nhận 
+
+Công ty CP phần mềm Citigo 	136/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+	 "status": int,              //id chi nhánh nhận 
+	 "transferDetails": [ 
+		 { 
+			 "productCode": string,      //mã hàng hóa 
+			 "productId": long,          //id hàng hóa 
+			 "sendQuantity": double,     //số lượng chuyển 			 "recivedQuantity": double,  //số lượng nhận 
+			 "price": decimal            //giá chuyển 
+		 } 
+	 ]                                   //danh sách chi tiết phiếu chuyển   } 
+Response:
+{ 
+	 "message": string, // thông báo thành công 
+	 "data": { 
+		 "code": string,                                         // Mã phiếu chuyển 
+		 "description": string,                                  // Nội dung ghi chú 		 "dispatchedDate": datetime,                             // Ngày chuyển 		 "fromBranchId": long,                                   // id chi nhánh chuyển  		 "id": long,                                             // id phiếu chuyển  
+		 "isActive": bool,                                       // trạng thái 
+		 "retailerId": long,                                     // id retailer 
+		 "status": int,                                          // trạng thái phiếu chuyển 		 "toBranchId": long,                                     // id chi nhánh chuyển 		 "transferDetails": [ 
+
+Công ty CP phần mềm Citigo 	137/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+			 { 
+				 "productCode": string,      //mã hàng hóa 				 "productId": long,          //id hàng hóa 
+				 "sendQuantity": double,     //số lượng chuyển 				 "recivedQuantity": double,  //số lượng nhận 				 "sendPrice": decimal,       //giá chuyển 
+				 "receivePrice": decimal,    //giá nhận 
+				 "price": decimal 
+			 } 
+		 ] 
+	 } 
+} 
+2.16.4.Cập nhật chuyển hàng 
+Mục đích sử dụng: Cập nhật phiếu chuyển hàng theo ID 
+Phương thức và URL: PUT https://public.kiotapi.com /transfers/id 
+Request: Sử dụng hàm PUT với ID phiếu chuyển hàng qua 1 object JSON. 
+“id”: long // ID phiếu chuyển hàng 
+Body 
+
+{ 
+ "fromBranchId": long, // ID chi nhánh nguồn 
+ "toBranchId": long, // ID chi nhánh đích    
+ "isDraft": boolean,  // Tạo dạng phiếu tạm            
+ "code": string, // Mã phiếu chuyển      
+ "description": string, // Mô tả      
+ "status": int, // Trạng thái phiếu chuyển 
+Công ty CP phần mềm Citigo 	138/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+	 "transferDetails": [ 
+		 { 
+			 "transferId": long, // ID phiếu chuyển 
+			 "productCode": string,   // Mã sản phẩm 
+			 "productId": long,     // ID sản phẩm   
+			 "sendQuantity": double, // Số lượng gửi    
+				 "recivedQuantity": double, // Số lượng nhận 
+			 "price": decimal // Đơn giá 
+		 } 
+	 ]                                 
+} 
+Response: 
+
+{ 
+	 "message": string, // Thông báo trạng thái trả về, thành công/thất bại 	 "data": { 
+		 "code": string, // Mã phiếu chuyển 
+		 "description": string, // Mô tả 
+		 "dispatchedDate": datetime, // Ngày tạo 
+		 "fromBranchId": long, // ID chi nhánh nguồn 
+		 "id": long, // ID phiếu chuyển 
+		 "isActive": boolean, // đang hoạt động ? 
+ "retailerId": long, // ID gian hàng 
+ "status": int, // Trạng thái 
+ "toBranchId": long, // ID chi nhánh đích 
+ "transferDetails": [ 
+Công ty CP phần mềm Citigo 	139/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+			 { 
+				 "productId": long, // ID sản phẩm 
+				 "productCode": string, // Mã sản phẩm 				 "sendQuantity": double, // Số lượng gửi 				 "receiveQuantity": double, // Số lượng nhận 				 "sendPrice": decimal, // Giá gửi 
+				 "receivePrice": decimal, // Giá nhận 
+				 "price": decimal, // Đơn giá 
+				 "transferId": long// ID phiếu chuyển 
+			 } 
+		 ] 
+	 } 
+} 
+2.16.5.Xóa phiếu chuyển hàng 
+Mục đích sử dụng: Xóa phiếu chuyển hàng theo ID 
+Phương thức và URL: DELETE https://public.kiotapi.com/transfers/{id} 
+Request: Gồm Id của phiếu chuyển hàng: 
+“id”: long // ID của phiếu chuyển hàng 
+Response: Trả lại thông tin xóa thành công (Code 200) 
+{ 
+ "message": "Xóa dữ liệu thành công" 
+} 
+
+Công ty CP phần mềm Citigo 	140/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+2.17.Bảng giá 
+2.17.1.Lấy danh sách bảng giá 
+Mục đích sử dụng: Trả về danh sách bảng giá 
+Phương thức và URL:GET https://public.kiotapi.com/pricebooks 
+Request: Sử dụng hàm GET với tham số: 
+-	“includePriceBookBranch”: Boolean, optional // Có lấy thông tin danh sách chi nhánh áp 	dụng bảng giá 
+-	“includePriceBookCustomerGroups”: Boolean, optional // Có lấy thông tin danh sách 	nhóm KH áp dụng bảng giá 
+-	“includePriceBookUsers”: Boolean, optional // Có lấy thông tin danh sách người dùng áp 	dụng bảng giá 
+-	“orderBy”: string, //Sắp xếp dữ liệu theo trường orderBy (Ví dụ: orderBy=name) -	“orderDirection”: string, //Sắp xếp kết quả trả về theo: Tăng dần Asc (Mặc định), giảm 	dần Desc 
+-	“currentItem”: int?, 
+-	“pageSize”: int?, // số items trong 1 trang, mặc định 20 items, tối đa 100 items 
+-	“lastModifiedFrom”: datetime? // thời gian cập nhật 
+Response: 
+{ 
+“total”: int, tổng 
+“pageSize”: int, bao nhiêu dòng / 1 trang dữ liệu 
+“data”: [{ 
+	“id”: long // id bảng giá 
+	“name”: string // tên bảng giá 
+	“isActive”: boolean // trạng thái hoạt động hay không 	“isGlobal”: boolean, // có phải là bảng giá chung không 	“startDate”: datetime, // ngày bắt đầu áp dụng 
+	“endDate”: datetime, // ngày hết hạn 
+
+Công ty CP phần mềm Citigo 	141/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+ “forAllCusGroup”: boolean // áp dụng cho tất cả nhóm khách hàng 
+“forAllUser”: boolean, // áp dụng cho tất cả user 
+“priceBookBranches” :// 
+ [{ 
+“id”: long, //Id quan hệ bảng giá – chi nhánh 
+“priceBookId”: long,//ID bảng giá 
+“branchId”: long, //ID chi nhánh áp dụng 
+}], 
+“priceBookCustomerGroups” :// 
+[{ 
+		“customerGroupName”: string, 
+		“id”: long, //Id quan hệ bảng giá – nhóm khách hàng 		“priceBookId”: long,//ID bảng giá 
+		“customerGroupId”: long,//ID nhóm khách hàng 
+}], 
+“priceBookUsers” :[{ 
+		“userName”: string,//Tên người dùng 		“id”: long, //Id quan hệ 
+		“priceBookId”: long, //ID bảng giá 		“userId”: long,//ID người dùng 
+}], 
+ }] 
+} 
+2.17.2.Lấy chi tiết bảng giá 
+Mục đích sử dụng: Trả về thông tin chi tiết của bảng giá theo ID 
+Phương thức và URL:
+Công ty CP phần mềm Citigo 	142/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+-	Theo Id : GET https://public.kiotapi.com/pricebooks/{id}	
+Request: Sử dụng hàm GET với tham số: 
+“id”: long // ID của bảng giá 
+“orderBy”: string, //Sắp xếp dữ liệu theo trường orderBy (Ví dụ: orderBy=name) 
+“orderDirection”: string, //Sắp xếp kết quả trả về theo: Tăng dần Asc (Mặc định), giảm dần Desc 
+“currentItem”: int? // lấy dữ liệu từ bản ghi hiện tại, nếu không nhập thì mặc định là 0 “pageSize”: int?, // số items trong 1 trang, mặc định 20 items, tối đa 100 items 
+“lastModifiedFrom”: datetime? // thời gian cập nhật 
+Response: 
+{ 
+“total”: int, 
+“pageSize”: int, // số items trong 1 trang, mặc định 20 items, tối đa 100 items “data”: [{ 
+		“productId”: long //ID của hàng hóa 
+		“productCode”: string // code của hàng hóa 
+		“price”: decimal // giá 
+ }]}       
+2.17.3.Cập nhật chi tiết bảng giá 
+Mục đích sử dụng: Cập nhật thông tin giá bán của hàng hóa trong bảng giá 
+Phương thức và URL:POST https://public.kiotapi.com/pricebooks/detail 
+Request: Sử dụng hàm POST với tham số: 
+{ 
+ “pricebookId”: long, //ID của bảng giá, mặc định là 0 (Bảng giá chung)  “productId”: long, //ID của hàng hóa 
+ “price”: decimal //Giá của hàng hóa 
+
+Công ty CP phần mềm Citigo 	143/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+} 
+Response:
+{ 
+ "message": string, //Nội dung thông báo 
+ "isSuccess": boolean //Thành công không 
+} 
+2.18.Kênh bán hàng 
+2.18.1.Lấy danh sách kênh bán hàng 
+Mục đích sử dụng: Trả về danh sách hóa đơn theo cửa hàng đã được xác nhận 
+Phương thức và URL:GET https://public.kiotapi.com/salechannel 
+Request: Sử dụng hàm GET với tham số: 
+“orderBy”:string,//Sắp xếp dữ liệu theo trường orderBy 
+(Ví dụ: orderBy=name) 
+“orderDirection”: string, //Sắp xếp kết quả trả về theo: Tăng dần Asc (Mặc định), giảm dần Desc 
+“currentItem”: int?// lấy dữ liệu từ bản ghi hiện tại, nếu không nhập thì mặc định là 0 “pageSize”: int?, // số items trong 1 trang, mặc định 20 items, tối đa 100 items 
+“lastModifiedFrom”: datetime? // thời gian cập nhật 
+Response: 
+{ 
+“total”: int, 
+“pageSize”: int, // số items trong 1 trang, mặc định 20 items, tối đa 100 items “data”: [{ 
+	“id”: long // Id kênh bán hàng 
+	“name”: string // tên kênh bán hàng 
+
+Công ty CP phần mềm Citigo 	144/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+	“isActive”: boolean // còn sử dụng không 
+	“img”: string // đường dẫn ảnh đại diện 
+	“isNotDelete” : boolean // true = không thể xóa  }]}       
+2.19.Trả hàng 
+2.19.1.Lấy danh sách trả hàng 
+Mục đích sử dụng: Trả về danh sách trả hàng theo cửa hàng đã được xác nhận 
+Phương thức và URL:GET https://public.kiotapi.com/returns 
+Request: Sử dụng hàm GET với tham số: 
+“orderBy”: string, optional //Sắp xếp dữ liệu theo trường orderBy (ví dụ: orderBy=Name) “lastModifiedFrom”: datetime? // thời gian cập nhật 
+“pageSize”: int, // số items trong 1 trang, mặc định 20 items, tối đa 100 items 
+“currentItem”: int, // lấy dữ liệu từ bản ghi currentItem 
+“includePayment”: Boolean, // có lấy thông tin danh sách thanh toán? 
+ “orderDirection”: string, optional 
+		Nếu có "OrderDirection", chọn sắp xếp kết quả về theo: 
+		•	ASC (Mặc định) 
+		•	DESC 
+Response: 
+
+{ 
+“total”: int, 
+“pageSize”: int, // số items trong 1 trang, mặc định 20 items, tối đa 100 items “data”: [{ 
+
+Công ty CP phần mềm Citigo 	145/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+	“id”: long //Id trả hàng 
+	“code”: string //Mã trả hàng 
+	“invoiceId”: long? //Id hóa đơn 
+	“returnDate”: datetime // Ngày trả hàng 
+	“branchId”: int, //Id chi nhánh 
+	“branchName”: string, //Tên chi nhánh 
+	“receivedById”: long //Id người nhận trả 
+ “soldByName”: string // Tên người bán hàng 
+	“customerId”: long?, // Id khách hàng 
+ “customerCode”: string, Mã khách hàng 
+	“customerName”: string, // Tên khách hàng 
+	“returnTotal”: decimal, // Tổng tiền trả hàng 
+	“totalPayment”: decimal, //Tổng tiền khách trả 
+	“status”: int, // trạng thái phiếu trả hàng 
+	“statusValue”: string, // trạng thái đơn đặt hàng bằng chữ  “createdDate”: datetime, //Ngày tạo 
+ “modifiedDate”: datetime, //Ngày cập nhật 
+	 “payments” :[{ 
+			“id”: long, 
+			“code”: string, 
+			“amount”: decimal, 
+			“method”: string”, 
+			“status”: byte?, 
+	 “statusValue”: string, 
+	 “transDate”: datetime, 
+	 “bankAccount”: string, 
+
+Công ty CP phần mềm Citigo 	146/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+	 “accountId”: int?, 
+				“description”: string 
+			}], 
+	“returnDetails” :[{ 
+				“productId”: long, // Id hàng hóa 
+				“productCode”: string, // Mã hàng hóa 
+				“productName”: string, //Tên hàng hóa 
+					(bao gồm thuộc tính và đơn vị tính) 				“quantity”: double, // Số lượng hàng hóa 
+				“price”: decimal, //Giá trị 
+				“note”: string // Ghi chú hàng hóa 
+				“usePoint”: bool? // Có dùng tích điểm hay không 				“subTotal”: decimal // Tổng tiền hàng 
+			}] 
+ }]}       
+2.19.2.Lấy chi tiết phiếu trả hàng 
+Mục đích sử dụng: Trả về thông tin chi tiết của phiếu trả hàng theo ID, theo Code Phương thức và URL:
+-	Theo Id : GET https://public.kiotapi.com/returns/ {id}
+-	Theo Code : GET https://public.kiotapi.com/returns/code/ {code} Request: Sử dụng hàm GET với tham số: 
+“id”: long // ID của trả hàng 
+“code”: string // Mã của trả hàng 
+Response: 
+Công ty CP phần mềm Citigo 	147/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+{ 
+		“id”: long //Id trả hàng 
+		“code”: string //Mã trả hàng 
+		“invoiceId”: long? //Id hóa đơn 
+		“returnDate”: datetime // Ngày trả hàng 
+		“branchId”: int, //Id chi nhánh 
+		“branchName”: string, //Tên chi nhánh 
+		“receivedById”: long //Id người nhận trả 
+	 “soldByName”: string // Tên người bán hàng 
+		“customerId”: long?, // Id khách hàng 
+	 “customerCode”: string, Mã khách hàng 
+		“customerName”: string, // Tên khách hàng 
+		“returnTotal”: decimal, // Tổng tiền trả hàng 
+		“returnDiscount”: decimal?, // Giảm giá trả hàng 
+		“returnFee”: decimal?, // Phí trả hàng 
+		“totalPayment”: decimal, //Tổng tiền khách trả 
+		“status”: int, // trạng thái phiếu trả hàng 
+		“statusValue”: string, // trạng thái đơn đặt hàng bằng chữ 	 “createdDate”: datetime, //Ngày tạo 
+	 “modifiedDate”: datetime, //Ngày cập nhật 
+		 “payments” :[{ 
+			“id”: long, 
+			“code”: string, 
+			“amount”: decimal, 
+			“method”: string”, 
+			“status”: byte?, 
+
+Công ty CP phần mềm Citigo 	148/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+		 “statusValue”: string, 
+		 “transDate”: datetime, 
+		 “bankAccount”: string, 
+		 “accountId”: int?, 
+				“description”: string 
+			}], 
+	“returnDetails” :[{ 
+				“productId”: long, // Id hàng hóa 
+				“productCode”: string, // Mã hàng hóa 
+				“productName”: string, //Tên hàng hóa 
+					(bao gồm thuộc tính và đơn vị tính) 				“quantity”: double, // Số lượng hàng hóa 
+				“price”: decimal, //Giá trị 
+				“note”: string // Ghi chú hàng hóa 
+				“usePoint”: bool? // Có dùng tích điểm hay không 				“subTotal”: decimal // Tổng tiền hàng 
+			}] 
+} 
+2.20.Đặt hàng nhập 
+2.20.1.Lấy danh sách đặt hàng nhập 
+Mục đích sử dụng: Trả về danh sách đặt hàng nhập 
+Phương thức và URL:GET https://public.kiotapi.com/ordersuppliers 
+Request: Sử dụng hàm GET với tham số: 
+“branchId”: int? // Id chi nhánh 
+“status”: int? // Trạng thái đặt hàng nhập 
+Công ty CP phần mềm Citigo 	149/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+“productKey”: string, //Mã nhập hàng 
+“supplierKey”: string, // Mã nhà cung cấp 
+“userNamKey”: string, // Mã người tạo 
+“userNamCreatedKey”: string, // Mã người đặt 
+“expensesOthersIds”: string, // Chi phí nhập trả nhà cung cấp 
+“descriptionKey”: string, // Ghi chú 
+“codeKey”: string, // Mã phiếu đặt hàng nhập 
+“purchaseOrderCode”: string, // Mã phiếu nhập hàng 
+Response: 
+{ 
+“total”: int, 
+“pageSize”: int, // số items trong 1 trang, mặc định 20 items, tối đa 100 items “data”: [{ 
+		“id”: long, //Id nhập hàng 
+		“code”: string, //Mã đặt hàng 
+		“invoiceId”: long?,//Id nhập hàng 
+		“orderDate”: datetime, // Ngày đặt 
+		“branchId”: int, //Id chi nhánh 
+		“retailerId”: int, //Id cửa hàng 
+		“userId”: long, //Id người dùng 
+		“description”: string, // Ghi chú 
+		“status”: int, // Trạng thái 
+	 “discountRatio”: string, // Giảm giá theo % 
+		“productQty”: double?, // Số lương 
+	 “discount”: decimal?,// Giảm giá 
+		“createdDate”: datetime, // Ngày tạo 
+
+Công ty CP phần mềm Citigo 	150/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+“createdBy”: long, // Id người tạo 
+“orderSupplierDetails”: [ 
+{ 
+		“id”: long, 
+		“orderSupplierId”: long, 
+		“productId”: long, 
+		“quantity”: double, 
+		“price”: decimal, 
+		“discount”: decimal, 
+		“allocation”: decimal, 
+		“createdDate”: datime, 
+		“description”: string, 
+		“orderByNumber”: int?, 
+		“allocationSuppliers”: decimal?, 		“allocationThirdParty”: decimal?, 		“orderQuantity”: double, 
+		“subTotal”: decimal, 
+} 
+], 
+“OrderSupplierExpensesOthers”:[ 
+{ 
+		“id”: long, 
+		“form”: int?, 
+		“expensesOtherOrder”: byte?, 		“expensesOtherCode”: string, 		“expensesOtherName”: string, 
+
+Công ty CP phần mềm Citigo 	151/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+		“expensesOtherId”: int, 
+		“orderSupplierId”: long?, 
+		“price”: decimal, 
+		“isReturnAuto”: bool?, 
+		“exValue”: decimal?, 
+		“createdDate”: datetime 
+} 
+], 
+		“total”: decimal, 
+		“exReturnSuppliers”: decimal?, 
+		“exReturnThirdParty”: decimal?, 
+		“totalAmt”: decimal?, 
+		“totalQty”: double?, 
+		“totalQuantity”: double, 
+		“subTotal”: decimal, 
+	 “paidAmount”: decimal, 
+	 “toComplete”: bool, 
+	 “statusValue”: string, 
+	 “viewPrice”: bool, 
+	 “supplierDebt”: decimal,  
+	 “supplierOldDebt”: decimal, 
+	 “purchaseOrderCodes”: string, 
+ }]}       
+
+Công ty CP phần mềm Citigo 	152/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+2.20.2.Lấy chi tiết đặt hàng nhập 
+Mục đích sử dụng: Trả về thông tin chi tiết của phiếu đặt hàng nhập 
+Phương thức và URL: 
+GET https://public.kiotapi.com/ordersuppliers/ {id} 
+Request: Sử dụng hàm GET với tham số: 
+“id”: long // ID đặt hàng nhập 
+Response: 
+{ 
+“total”: int, 
+“pageSize”: int, // số items trong 1 trang, mặc định 20 items, tối đa 100 items “data”: [{ 
+		“id”: long, //Id nhập hàng 
+		“code”: string, //Mã đặt hàng 
+		“invoiceId”: long?,//Id nhập hàng 
+		“orderDate”: datetime, // Ngày đặt 
+		“branchId”: int, //Id chi nhánh 
+		“retailerId”: int, //Id cửa hàng 
+		“userId”: long, //Id người dùng 
+		“description”: string, // Ghi chú 
+		“status”: int, // Trạng thái 
+	 “discountRatio”: string, // Giảm giá theo % 
+		“productQty”: double?, // Số lương 
+	 “discount”: decimal?,// Giảm giá 
+		“createdDate”: datetime, // Ngày tạo 
+		“createdBy”: long, // Id người tạo 
+
+Công ty CP phần mềm Citigo 	153/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+“orderSupplierDetails”: [ 
+{ 
+		“id”: long, 
+		“orderSupplierId”: long, 
+		“productId”: long, 
+		“quantity”: double, 
+		“price”: decimal, 
+		“discount”: decimal, 
+		“allocation”: decimal, 
+		“createdDate”: datime, 
+		“description”: string, 
+		“orderByNumber”: int?, 
+		“allocationSuppliers”: decimal?, 		“allocationThirdParty”: decimal?, 		“orderQuantity”: double, 
+		“subTotal”: decimal, 
+} 
+], 
+“OrderSupplierExpensesOthers”:[ 
+{ 
+		“id”: long, 
+		“form”: int?, 
+		“expensesOtherOrder”: byte?, 		“expensesOtherCode”: string, 		“expensesOtherName”: string, 		“expensesOtherId”: int, 
+
+Công ty CP phần mềm Citigo 	154/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+		“orderSupplierId”: long?, 
+		“price”: decimal, 
+		“isReturnAuto”: bool?, 
+		“exValue”: decimal?, 
+		“createdDate”: datetime 
+} 
+], 
+“total”: decimal, 
+“exReturnSuppliers”: decimal?, 
+		“exReturnThirdParty”: decimal?, 
+		“totalAmt”: decimal?, 
+		“totalQty”: double?, 
+		“totalQuantity”: double, 
+		“subTotal”: decimal, 
+	 “paidAmount”: decimal, 
+	 “toComplete”: bool, 
+	 “statusValue”: string, 
+	 “viewPrice”: bool, 
+	 “supplierDebt”: decimal,  
+	 “supplierOldDebt”: decimal, 
+	 “purchaseOrderCodes”: string, 
+ }]}       
+
+Công ty CP phần mềm Citigo 	155/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+2.21.Lấy danh sách location 
+Mục đích sử dụng: Trả về thông tin location 
+Phương thức và URL: 
+GET https://public.kiotapi.com/locations 
+Request: Không có tham số 
+Response: 
+{ 
+“total”: int, 
+“pageSize”: int, // số items trong 1 trang, mặc định 20 items, tối đa 100 items “data”: [{ 
+		“id”: long, //Id location 
+		“name”: string, //Tên location 
+		“normalName": string //Tên không dấu 
+ }] 
+} 
+2.22.Thiết lập cửa hàng 
+Mục đích sử dụng: Trả về danh sách thiết lập cửa hàng 
+Phương thức và URL:GET https://public.kiotapi.com/settings 
+Request: Sử dụng hàm GET 
+Response: 
+{ 
+“ManagerCustomerByBranch” : bool, // Quản lí khách hàng theo chi nhánh “AllowOrderWhenOutStock” : bool, // Cho phép đặt hàng khi hết tồn kho 
+
+Công ty CP phần mềm Citigo 	156/157 
+
+ 
+
+Tài liệu hướng dẫn sử dụng Public API 	 Ver 4.0 
+
+	“AllowSellWhenOrderOutStock” : bool // Bán hàng, chuyển hàng khi sản phẩm đã được đặt hàng 
+} 
+
+Công ty CP phần mềm Citigo 	157/157

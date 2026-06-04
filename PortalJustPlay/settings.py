@@ -186,6 +186,7 @@ INSTALLED_APPS = [
     'service_requests.apps.ServiceRequestsConfig',
     'equipment.apps.EquipmentConfig',
     'feedback.apps.FeedbackConfig',
+    'kiotviet.apps.KiotvietConfig',
     'nas_storage.apps.NasStorageConfig',
     'tools.apps.ToolsConfig',
     'django_cleanup.apps.CleanupConfig', # 👉 Thêm dòng này vào cuối
@@ -356,6 +357,14 @@ CKEDITOR_CONFIGS = {
 
 # Gemini AI — Hỏi đáp Thư viện (đặt key trong .env, không commit)
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
+
+# KiotViet Public API
+KIOTVIET_ENABLED = env_bool('KIOTVIET_ENABLED', False)
+KIOTVIET_RETAILER = os.getenv('KIOTVIET_RETAILER', '').strip()
+KIOTVIET_CLIENT_ID = os.getenv('KIOTVIET_CLIENT_ID', '').strip()
+KIOTVIET_CLIENT_SECRET = os.getenv('KIOTVIET_CLIENT_SECRET', '').strip()
+KIOTVIET_TOKEN_URL = os.getenv('KIOTVIET_TOKEN_URL', 'https://id.kiotviet.vn/connect/token').strip()
+KIOTVIET_API_BASE_URL = os.getenv('KIOTVIET_API_BASE_URL', 'https://public.kiotapi.com').strip()
 
 # NAS (Synology qua Tailscale + rclone mount trên VPS)
 NAS_MOUNT_ROOT = os.getenv('NAS_MOUNT_ROOT', '/mnt/nas-portal')

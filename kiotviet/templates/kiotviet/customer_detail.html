@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <a href="{% url 'kiotviet:customer_lookup' %}" class="btn btn-sm btn-outline-secondary mb-2">
+                <i class="bi bi-arrow-left me-1"></i>Quay lại tra cứu
+            </a>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">
+                <i class="bi bi-person-badge me-2"></i>{{ customer.name }}
+            </h2>
+            <p class="text-muted mb-0">Mã KH: <code>{{ customer.code }}</code></p>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white fw-bold">Thông tin liên hệ</div>
+                <div class="card-body">
+                    <dl class="row mb-0 small">
+                        <dt class="col-sm-4">Điện thoại</dt>
+                        <dd class="col-sm-8">{{ customer.contact_number }}</dd>
+                        <dt class="col-sm-4">Email</dt>
+                        <dd class="col-sm-8">{{ customer.email }}</dd>
+                        <dt class="col-sm-4">Địa chỉ</dt>
+                        <dd class="col-sm-8">{{ customer.address }}</dd>
+                        <dt class="col-sm-4">Khu vực</dt>
+                        <dd class="col-sm-8">{{ customer.location_name }}</dd>
+                        <dt class="col-sm-4">Giới tính</dt>
+                        <dd class="col-sm-8">{{ customer.gender_label }}</dd>
+                        <dt class="col-sm-4">Ngày sinh</dt>
+                        <dd class="col-sm-8">{{ customer.birth_date|default:"—" }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white fw-bold">Công nợ &amp; tích lũy</div>
+                <div class="card-body">
+                    <dl class="row mb-0 small">
+                        <dt class="col-sm-5">Công nợ hiện tại</dt>
+                        <dd class="col-sm-7">
+                            {% if customer.debt is not None %}{{ customer.debt|floatformat:0|intcomma }}{% else %}—{% endif %}
+                        </dd>
+                        <dt class="col-sm-5">Tổng bán</dt>
+                        <dd class="col-sm-7">
+                            {% if customer.total_invoiced is not None %}{{ customer.total_invoiced|floatformat:0|intcomma }}{% else %}—{% endif %}
+                        </dd>
+                        <dt class="col-sm-5">Doanh thu</dt>
+                        <dd class="col-sm-7">
+                            {% if customer.total_revenue is not None %}{{ customer.total_revenue|floatformat:0|intcomma }}{% else %}—{% endif %}
+                        </dd>
+                        <dt class="col-sm-5">Điểm thưởng</dt>
+                        <dd class="col-sm-7">{{ customer.reward_point|default:"—" }}</dd>
+                        <dt class="col-sm-5">Nhóm KH</dt>
+                        <dd class="col-sm-7">{{ customer.groups }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white fw-bold">Khác</div>
+                <div class="card-body">
+                    <dl class="row mb-0 small">
+                        <dt class="col-sm-3 col-lg-2">Công ty</dt>
+                        <dd class="col-sm-9 col-lg-10">{{ customer.organization }}</dd>
+                        <dt class="col-sm-3 col-lg-2">Mã số thuế</dt>
+                        <dd class="col-sm-9 col-lg-10">{{ customer.tax_code }}</dd>
+                        <dt class="col-sm-3 col-lg-2">Ghi chú</dt>
+                        <dd class="col-sm-9 col-lg-10">{{ customer.comments }}</dd>
+                        <dt class="col-sm-3 col-lg-2">Cập nhật</dt>
+                        <dd class="col-sm-9 col-lg-10">{{ customer.modified_date|default:"—" }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

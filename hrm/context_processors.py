@@ -15,6 +15,7 @@ from hrm.module_permissions import (
     MODULE_NAS_STORAGE,
     MODULE_EQUIPMENT,
     MODULE_FEEDBACK,
+    MODULE_KIOTVIET,
     MODULE_TRAINING,
     bypass_department_modules,
     get_user_enabled_modules,
@@ -22,6 +23,8 @@ from hrm.module_permissions import (
     user_can_edit_module,
     user_can_export_module,
 )
+from django.conf import settings
+
 from hrm.permissions import (
     can_assign_tasks,
     can_create_cross_dept_project,
@@ -39,6 +42,14 @@ from hrm.permissions import (
     role_display,
     user_role,
 )
+
+
+def _user_can_kiotviet(user) -> bool:
+    if not getattr(settings, 'KIOTVIET_ENABLED', False):
+        return False
+    if not (getattr(settings, 'KIOTVIET_CLIENT_ID', '') or '').strip():
+        return False
+    return user_can_access_module(user, MODULE_KIOTVIET)
 
 
 def portal_permissions(request):
@@ -77,6 +88,7 @@ def portal_permissions(request):
             'jp_can_nas_storage': False,
             'jp_can_equipment': False,
             'jp_can_feedback': False,
+            'jp_can_kiotviet': False,
             'jp_can_assign_tasks': False,
             'jp_can_create_internal_project': False,
             'jp_can_create_cross_dept': False,
@@ -129,6 +141,7 @@ def portal_permissions(request):
         'jp_can_nas_storage': user_can_access_module(user, MODULE_NAS_STORAGE),
         'jp_can_equipment': user_can_access_module(user, MODULE_EQUIPMENT),
         'jp_can_feedback': user_can_access_module(user, MODULE_FEEDBACK),
+        'jp_can_kiotviet': _user_can_kiotviet(user),
         'jp_can_assign_tasks': can_assign_tasks(user),
         'jp_can_create_internal_project': can_create_internal_project(user),
         'jp_can_create_cross_dept': can_create_cross_dept_project(user),
