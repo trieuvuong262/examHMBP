@@ -26,6 +26,26 @@ def _period_title(period_type: str) -> str:
     return dict(KpiPeriod.PERIOD_CHOICES).get(period_type, period_type)
 
 
+def _kpi_detail_roles(user, kpi_board):
+    """Phân quyền xem/sửa một bảng KPI — chặn IDOR."""
+    viewer_profile = get_profile(user)
+    is_owner = user == kpi_board.employee
+    is_manager = user == kpi_board.direct_manager
+    if viewer_profile and viewer_profile.role in SUBORDINATE_MANAGER_ROLES:
+        is_manager = is_manager or viewer_profile.subordinates.filter(
+            pk=kpi_board.employee_id,
+        ).exists()
+    is_gm_user = is_gm(user) or user == kpi_board.general_manager
+    can_view = (
+        is_owner
+        or is_manager
+        or is_gm_user
+        or user.is_superuser
+        or user_role(user) == ROLE_DIRECTOR
+    )
+    return is_owner, is_manager, is_gm_user, can_view
+
+
 def _get_or_create_period(year: int, period_type: str) -> KpiPeriod:
     title = _period_title(period_type)
     period = KpiPeriod.objects.filter(year=year, period_type=period_type).order_by('id').first()
@@ -124,19 +144,10 @@ def kpi_detail_view(request, kpi_id):
     # 2. Lấy danh sách các kỳ ĐANG MỞ (Q1, Q2, Q3, Q4, H1, H2, Y)
     open_periods = KpiPeriod.objects.filter(year=kpi_board.year, is_active=True).values_list('period_type', flat=True)
     
-    # 3. Phân quyền người dùng
-    viewer_profile = get_profile(request.user)
-    is_owner = (request.user == kpi_board.employee)
-    is_manager = request.user == kpi_board.direct_manager
-    if viewer_profile and viewer_profile.role in SUBORDINATE_MANAGER_ROLES:
-        is_manager = is_manager or viewer_profile.subordinates.filter(
-            pk=kpi_board.employee_id,
-        ).exists()
-    is_gm_user = is_gm(request.user) or request.user == kpi_board.general_manager
-    
-    # Nếu là Manager thì không cần làm Owner (để tránh xung đột logic nút bấm)
-    if is_manager or is_gm_user:
-        is_owner = (request.user == kpi_board.employee) # Giữ nguyên để biết lính tự xem bài mình
+    is_owner, is_manager, is_gm_user, can_view = _kpi_detail_roles(request.user, kpi_board)
+    if not can_view:
+        messages.error(request, 'Bạn không có quyền xem hoặc chỉnh sửa bảng KPI này.')
+        return redirect('kpi_list')
 
     if request.method == 'POST':
         target_period = request.POST.get('target_period') # Nhận Q1, Q2, H1, Y...

@@ -51,7 +51,7 @@ docker compose exec web python manage.py kiotviet_status
 ```
 
 Nếu `kiotviet_is_live() = False` → thiếu biến môi trường.  
-Tài khoản **staff/admin portal** (`is_staff`) hoặc **superuser** / user `admin` luôn thấy menu khi API đã cấu hình.  
+Menu chỉ hiện khi API đã cấu hình **và** user được cấp module **kiotviet** (phòng ban / nhóm quyền). **Superuser** hoặc username **`admin`** bypass; `is_staff` **không** tự mở menu.  
 Nhân viên khác cần bật module **KiotViet** trong **Phân quyền** → phòng ban.
 
 ## Bảo mật

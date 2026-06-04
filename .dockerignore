@@ -1,0 +1,36 @@
+# Secrets & local env — không đưa vào image Docker
+.env
+.env.local
+.env.*.local
+deploy.local.env
+*.pem
+*.key
+
+# Git & IDE
+.git
+.gitignore
+.cursor
+.vscode
+.idea
+
+# Python / test artifacts
+__pycache__
+*.py[cod]
+*.pyo
+.pytest_cache
+.mypy_cache
+.coverage
+htmlcov
+*.egg-info
+.venv
+venv
+
+# Runtime data (volume trên VPS)
+media/
+staticfiles/
+postgres_data/
+
+# Dev / docs không cần trong runtime image
+agent-transcripts
+docs/integrations/kiotviet/_source-paste-raw.txt
+docs/integrations/kiotviet/api-reference-full.txt

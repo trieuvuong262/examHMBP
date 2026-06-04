@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from hrm.models import Department, Profile
+from hrm.models import Department, DepartmentMenuPermission, Profile
 from kiotviet.client import KiotVietAPIError, KiotVietClient
 
 
@@ -145,4 +145,23 @@ class KiotVietViewTests(TestCase):
     @override_settings(KIOTVIET_ENABLED=False)
     def test_disabled_redirects_home(self):
         response = self.http.get(reverse('kiotviet:customer_lookup'))
+        self.assertRedirects(response, reverse('home_portal'))
+
+    def test_staff_without_kiotviet_module_denied(self):
+        DepartmentMenuPermission.objects.create(
+            department=self.dept,
+            modules=['reports'],
+        )
+        staff = User.objects.create_user(
+            username='staff_no_kv',
+            password='pass12345',
+            is_staff=True,
+        )
+        profile, _ = Profile.objects.get_or_create(user=staff)
+        profile.department = self.dept
+        profile.role = 'EMPLOYEE'
+        profile.save()
+        client = Client()
+        client.login(username='staff_no_kv', password='pass12345')
+        response = client.get(reverse('kiotviet:customer_lookup'))
         self.assertRedirects(response, reverse('home_portal'))
