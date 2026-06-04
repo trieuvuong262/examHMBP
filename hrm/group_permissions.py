@@ -143,6 +143,7 @@ MODULE_LIST_META = {
     'nas_storage': {'icon': 'bi-hdd-network', 'short': 'NAS'},
     'equipment': {'icon': 'bi-pc-display', 'short': 'TB'},
     'feedback': {'icon': 'bi-chat-square-text', 'short': 'GY'},
+    'kiotviet': {'icon': 'bi-shop', 'short': 'KV'},
 }
 
 

@@ -2,22 +2,22 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 
-from hrm.module_permissions import MODULE_KIOTVIET, user_can_access_module
 from PortalJustPlay.list_search import get_search_query
 
+from .access import kiotviet_is_live, user_can_use_kiotviet
 from .client import KiotVietAPIError, KiotVietClient
 
 
 def _access_required(view_func):
     @login_required
     def wrapper(request, *args, **kwargs):
-        if not KiotVietClient.is_configured():
+        if not kiotviet_is_live():
             messages.error(
                 request,
-                'KiotViet chưa được cấu hình trên portal (KIOTVIET_ENABLED và thông tin kết nối).',
+                'KiotViet chưa được cấu hình trên server (.env: KIOTVIET_ENABLED=1 và Client ID/Secret/Retailer).',
             )
             return redirect('home_portal')
-        if not user_can_access_module(request.user, MODULE_KIOTVIET):
+        if not user_can_use_kiotviet(request.user):
             messages.error(request, 'Bạn không có quyền truy cập module KiotViet.')
             return redirect('home_portal')
         return view_func(request, *args, **kwargs)

@@ -23,6 +23,36 @@ Xem mẫu trong `.env.example` (`KIOTVIET_*`). Máy dev: đã ghi vào `.env` lo
 
 Xem [authentication.md](./authentication.md).
 
+## Menu không hiện trên VPS?
+
+Menu **KiotViet** chỉ hiện khi **cả hai** điều kiện sau đúng trên server:
+
+1. **Code đã deploy** (có app `kiotviet` + sidebar mới) — `git pull` + `./deploy.sh`
+2. **File `.env` trên VPS** (không commit từ máy dev) có:
+
+```env
+KIOTVIET_ENABLED=1
+KIOTVIET_RETAILER=justsport
+KIOTVIET_CLIENT_ID=fbbc5d8c-14b2-41b2-9ba5-479b3237a2d6
+KIOTVIET_CLIENT_SECRET=<mã bảo mật>
+```
+
+Sau khi sửa `.env` tại `/opt/portaljustplay/.env`:
+
+```bash
+docker compose restart web
+```
+
+Kiểm tra trong container:
+
+```bash
+docker compose exec web python manage.py kiotviet_status
+```
+
+Nếu `kiotviet_is_live() = False` → thiếu biến môi trường.  
+Tài khoản **staff/admin portal** (`is_staff`) hoặc **superuser** / user `admin` luôn thấy menu khi API đã cấu hình.  
+Nhân viên khác cần bật module **KiotViet** trong **Phân quyền** → phòng ban.
+
 ## Bảo mật
 
 - Đã chia sẻ secret trong chat/ảnh → nên **tạo lại Mã bảo mật** trên KiotViet nếu repo hoặc kênh chat không riêng tư.

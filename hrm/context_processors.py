@@ -23,8 +23,6 @@ from hrm.module_permissions import (
     user_can_edit_module,
     user_can_export_module,
 )
-from django.conf import settings
-
 from hrm.permissions import (
     can_assign_tasks,
     can_create_cross_dept_project,
@@ -42,14 +40,6 @@ from hrm.permissions import (
     role_display,
     user_role,
 )
-
-
-def _user_can_kiotviet(user) -> bool:
-    if not getattr(settings, 'KIOTVIET_ENABLED', False):
-        return False
-    if not (getattr(settings, 'KIOTVIET_CLIENT_ID', '') or '').strip():
-        return False
-    return user_can_access_module(user, MODULE_KIOTVIET)
 
 
 def portal_permissions(request):
@@ -141,7 +131,7 @@ def portal_permissions(request):
         'jp_can_nas_storage': user_can_access_module(user, MODULE_NAS_STORAGE),
         'jp_can_equipment': user_can_access_module(user, MODULE_EQUIPMENT),
         'jp_can_feedback': user_can_access_module(user, MODULE_FEEDBACK),
-        'jp_can_kiotviet': _user_can_kiotviet(user),
+        'jp_can_kiotviet': _jp_can_kiotviet(user),
         'jp_can_assign_tasks': can_assign_tasks(user),
         'jp_can_create_internal_project': can_create_internal_project(user),
         'jp_can_create_cross_dept': can_create_cross_dept_project(user),
@@ -176,3 +166,11 @@ def portal_permissions(request):
             'jp_can_manage_catalog': False,
         })
     return base
+
+
+def _jp_can_kiotviet(user) -> bool:
+    try:
+        from kiotviet.access import user_can_use_kiotviet
+        return user_can_use_kiotviet(user)
+    except Exception:
+        return False
