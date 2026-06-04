@@ -30,6 +30,9 @@
             <button type="button" class="btn btn-outline-hm fw-bold shadow-sm jp-hrm-tool-btn" id="org-manage-toggle" data-bs-toggle="collapse" data-bs-target="#org-manage-panel" aria-expanded="false" aria-controls="org-manage-panel">
                 <i class="bi bi-pencil-square"></i><span class="jp-hrm-tool-label"> Cập nhật sơ đồ</span>
             </button>
+            <button type="button" class="btn btn-outline-hm fw-bold shadow-sm jp-hrm-tool-btn" id="org-show-all-employees-btn" title="Hiển thị hoặc ẩn nhân viên ở mọi vị trí">
+                <i class="bi bi-people-fill" id="org-show-all-employees-icon"></i><span class="jp-hrm-tool-label" id="org-show-all-employees-label"> Hiển thị tất cả NV</span>
+            </button>
             <button type="button" class="btn btn-outline-hm fw-bold shadow-sm jp-hrm-tool-btn" id="org-export-chart-btn" title="Tải sơ đồ dạng ảnh PNG">
                 <i class="bi bi-image"></i><span class="jp-hrm-tool-label"> Export ảnh</span>
             </button>
@@ -247,7 +250,7 @@
 {{ org_tree|json_script:"jp-org-tree-data" }}
 {{ org_urls|json_script:"jp-org-urls-data" }}
 <script src="{% static 'vendor/d3.min.js' %}?v=7.9.0"></script>
-<script src="{% static 'js/org_tree.js' %}?v=20260534b"></script>
+<script src="{% static 'js/org_tree.js' %}?v=20260534c"></script>
 <script>
 (function () {
     var panel = document.getElementById('org-manage-panel');

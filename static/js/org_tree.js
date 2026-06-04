@@ -50,6 +50,7 @@
 
     const chartState = {
         collapsed: new Set(),
+        showAllEmployees: false,
         fullData: null,
         urls: {},
         savedTransform: null,
@@ -261,10 +262,14 @@
 
     function cloneWithCollapse(tree, collapsed) {
         const copy = JSON.parse(JSON.stringify(tree));
+        const showAll = chartState.showAllEmployees;
         function walk(n) {
             if (isExpandableLevel(n.level) && collapsed.has(n.position_key)) {
                 n.children = [];
             } else {
+                if (showAll && isExpandableLevel(n.level) && Array.isArray(n.employees_all) && n.employees_all.length) {
+                    n.children = n.employees_all;
+                }
                 (n.children || []).forEach(walk);
             }
         }
@@ -771,11 +776,66 @@
         });
     }
 
+    function allPositionKeys() {
+        const keys = new Set();
+        if (chartState.fullData) {
+            collectPositionKeys(chartState.fullData, keys);
+        }
+        return keys;
+    }
+
+    function isShowingAllEmployees() {
+        if (!chartState.showAllEmployees) return false;
+        const keys = allPositionKeys();
+        if (!keys.size) return false;
+        for (const key of keys) {
+            if (chartState.collapsed.has(key)) return false;
+        }
+        return true;
+    }
+
+    function updateShowAllEmployeesButton() {
+        const btn = document.getElementById('org-show-all-employees-btn');
+        const label = document.getElementById('org-show-all-employees-label');
+        const icon = document.getElementById('org-show-all-employees-icon');
+        if (!btn || !label) return;
+        const showingAll = isShowingAllEmployees();
+        label.textContent = showingAll ? ' Ẩn tất cả NV' : ' Hiển thị tất cả NV';
+        btn.title = showingAll
+            ? 'Ẩn nhân viên ở mọi vị trí trên sơ đồ'
+            : 'Hiển thị nhân viên ở mọi vị trí trên sơ đồ';
+        btn.setAttribute('aria-pressed', showingAll ? 'true' : 'false');
+        if (icon) {
+            icon.className = showingAll ? 'bi bi-eye-slash-fill' : 'bi bi-people-fill';
+        }
+    }
+
+    function toggleShowAllEmployees() {
+        const keys = allPositionKeys();
+        if (isShowingAllEmployees()) {
+            keys.forEach((key) => chartState.collapsed.add(key));
+            chartState.showAllEmployees = false;
+        } else {
+            keys.forEach((key) => chartState.collapsed.delete(key));
+            chartState.showAllEmployees = true;
+        }
+        window.jpOrgTreeInit();
+    }
+
     function togglePosition(key) {
         if (chartState.collapsed.has(key)) {
             chartState.collapsed.delete(key);
         } else {
             chartState.collapsed.add(key);
+        }
+        if (chartState.showAllEmployees) {
+            const keys = allPositionKeys();
+            for (const k of keys) {
+                if (chartState.collapsed.has(k)) {
+                    chartState.showAllEmployees = false;
+                    break;
+                }
+            }
         }
         window.jpOrgTreeInit();
     }
@@ -1112,6 +1172,7 @@
         applySyncedTransform(headerTrack, zoomRoot, initial);
 
         mount.classList.add('jp-org-tree-mount--ready');
+        updateShowAllEmployeesButton();
     }
 
     window.jpOrgTreeInit = function jpOrgTreeInit() {
@@ -1156,6 +1217,12 @@
     }
 
     function wireOrgToolbar() {
+        const showAllBtn = document.getElementById('org-show-all-employees-btn');
+        if (showAllBtn) {
+            showAllBtn.addEventListener('click', () => {
+                toggleShowAllEmployees();
+            });
+        }
         const exportBtn = document.getElementById('org-export-chart-btn');
         if (exportBtn) {
             exportBtn.addEventListener('click', () => {
@@ -1165,6 +1232,7 @@
                 });
             });
         }
+        updateShowAllEmployeesButton();
     }
 
     if (document.readyState === 'loading') {
