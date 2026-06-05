@@ -64,6 +64,8 @@
                         <th class="d-none d-lg-table-cell">ĐVT</th>
                         {% if product_group_mode %}
                         <th class="text-end">Tồn kho</th>
+                        <th class="d-none d-lg-table-cell">Cho phép bán</th>
+                        <th class="d-none d-lg-table-cell">Đang KD</th>
                         {% endif %}
                         <th class="text-end">Giá bán</th>
                         <th></th>
@@ -101,6 +103,12 @@
                         {% if product_group_mode %}
                         <td data-label="Tồn kho" class="text-end fw-semibold">
                             {% if item.total_on_hand is not None %}{{ item.total_on_hand|floatformat:0|intcomma }}{% else %}—{% endif %}
+                        </td>
+                        <td data-label="Cho phép bán" class="d-none d-lg-table-cell">
+                            <span class="badge {{ item.allows_sale_status.badge_class }}">{{ item.allows_sale_status.label }}</span>
+                        </td>
+                        <td data-label="Đang KD" class="d-none d-lg-table-cell">
+                            <span class="badge {{ item.is_active_status.badge_class }}">{{ item.is_active_status.label }}</span>
                         </td>
                         {% endif %}
                         <td data-label="Giá" class="text-end">

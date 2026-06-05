@@ -1,0 +1,31 @@
+<div class="modal fade" id="kvProductImageModal" tabindex="-1" aria-labelledby="kvProductImageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg bg-dark">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title text-white small" id="kvProductImageModalLabel">{{ product_name|default:"Hình ảnh sản phẩm" }}</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body p-2 p-md-3 text-center">
+                <img id="kvProductImageModalImg" src="" alt="" class="img-fluid rounded" style="max-height: 75vh; object-fit: contain;">
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    const modal = document.getElementById('kvProductImageModal');
+    if (!modal) return;
+    modal.addEventListener('show.bs.modal', function (event) {
+        const trigger = event.relatedTarget;
+        const url = trigger && trigger.dataset ? trigger.dataset.imageUrl : '';
+        const img = document.getElementById('kvProductImageModalImg');
+        if (!img || !url) return;
+        img.src = url;
+        img.alt = trigger.getAttribute('aria-label') || 'Hình ảnh sản phẩm';
+    });
+    modal.addEventListener('hidden.bs.modal', function () {
+        const img = document.getElementById('kvProductImageModalImg');
+        if (img) img.src = '';
+    });
+})();
+</script>

@@ -84,6 +84,8 @@ class ProductGroup:
     total_on_hand: float = 0.0
     min_price: float | None = None
     max_price: float | None = None
+    allows_sale_values: list = field(default_factory=list)
+    is_active_values: list = field(default_factory=list)
 
 
 def _build_groups_from_products(
@@ -126,6 +128,8 @@ def _build_groups_from_products(
             total_on_hand=sum(stock_by_id.get(vid, 0.0) for vid in variant_ids),
             min_price=min(prices) if prices else None,
             max_price=max(prices) if prices else None,
+            allows_sale_values=[p.allows_sale for p in variants],
+            is_active_values=[p.is_active for p in variants],
         ))
 
     groups.sort(key=lambda g: g.name.casefold())

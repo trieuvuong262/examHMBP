@@ -193,6 +193,57 @@ def format_product_group_row(group) -> dict:
         'variant_count': group.variant_count,
         'total_on_hand': group.total_on_hand,
         'is_group': group.variant_count > 1,
+        'allows_sale_status': _aggregate_status(group.allows_sale_values),
+        'is_active_status': _aggregate_status(group.is_active_values),
+    }
+
+
+def _build_branch_stock_matrix(variants: list[dict]) -> dict:
+    """Gộp tồn theo chi nhánh; nhóm nhiều size thì thêm cột theo size."""
+    show_size_columns = len(variants) > 1
+    columns = []
+    if show_size_columns:
+        for variant in variants:
+            size_label = variant.get('size_label') or '—'
+            code = variant.get('code') or '—'
+            label = size_label if size_label != '—' else code
+            columns.append({'code': code, 'label': label})
+
+    branch_map: dict[str, dict] = {}
+    for variant in variants:
+        code = variant.get('code') or '—'
+        for inv in variant.get('inventories') or []:
+            branch_name = inv.get('branch_name') or '—'
+            bucket = branch_map.setdefault(branch_name, {
+                'cells': {},
+                'on_hand': 0.0,
+                'reserved': 0.0,
+                'cost': inv.get('cost'),
+            })
+            on_hand = float(inv.get('on_hand') or 0)
+            reserved = float(inv.get('reserved') or 0)
+            bucket['cells'][code] = bucket['cells'].get(code, 0.0) + on_hand
+            bucket['on_hand'] += on_hand
+            bucket['reserved'] += reserved
+            if inv.get('cost') is not None:
+                bucket['cost'] = inv.get('cost')
+
+    rows = []
+    for branch_name in sorted(branch_map.keys(), key=lambda value: value.casefold()):
+        bucket = branch_map[branch_name]
+        rows.append({
+            'branch_name': branch_name,
+            'cells': [bucket['cells'].get(col['code']) for col in columns],
+            'on_hand': bucket['on_hand'],
+            'reserved': bucket['reserved'],
+            'cost': bucket.get('cost'),
+        })
+
+    return {
+        'columns': columns,
+        'rows': rows,
+        'has_data': bool(rows),
+        'show_size_columns': show_size_columns,
     }
 
 
@@ -260,6 +311,7 @@ def format_product_group_detail(raw: dict) -> dict:
         'product_type_label': product_type_label,
         'modified_date': max(modified_dates) if modified_dates else None,
         'description': descriptions[0] if descriptions else '—',
+        'stock_matrix': _build_branch_stock_matrix(variants),
     }
 
 

@@ -3,7 +3,7 @@
 from django.test import TestCase, override_settings
 
 from kiotviet.models import KvProduct, KvProductAttribute, KvProductInventory
-from kiotviet.formatters import format_product_group_detail
+from kiotviet.formatters import format_product_group_detail, format_product_group_row
 from kiotviet.product_groups import browse_product_groups, get_product_group
 from kiotviet.sync_service import upsert_product
 
@@ -95,6 +95,31 @@ class ProductGroupTests(TestCase):
         self.assertEqual(formatted['is_active_status']['label'], 'Có')
         self.assertEqual(formatted['product_type_label'], 'Hàng thường')
         self.assertEqual(formatted['variants'][0]['allows_sale_status']['label'], 'Có')
+
+    def test_stock_matrix_groups_by_branch_and_size(self):
+        self._upsert_size(7624, 'SP007624', 'S', 2)
+        self._upsert_size(7625, 'SP007625', 'M', 5)
+        formatted = format_product_group_detail(get_product_group(self.retailer, 7624))
+        matrix = formatted['stock_matrix']
+        self.assertTrue(matrix['show_size_columns'])
+        self.assertEqual(len(matrix['columns']), 2)
+        self.assertEqual(matrix['rows'][0]['on_hand'], 7.0)
+
+    def test_list_row_includes_statuses(self):
+        upsert_product(self.retailer, {
+            'id': 7624,
+            'code': 'SP007624',
+            'name': self.style_name,
+            'allowsSale': True,
+            'isActive': False,
+            'basePrice': 350000,
+            'modifiedDate': '2024-03-01T08:00:00',
+            'inventories': [{'branchId': 1, 'branchName': 'CN1', 'onHand': 1}],
+        })
+        groups, _ = browse_product_groups(page=1, per_page=30, retailer=self.retailer)
+        row = format_product_group_row(groups[0])
+        self.assertEqual(row['allows_sale_status']['label'], 'Có')
+        self.assertEqual(row['is_active_status']['label'], 'Không')
 
     def test_single_product_stays_one_group(self):
         upsert_product(self.retailer, {

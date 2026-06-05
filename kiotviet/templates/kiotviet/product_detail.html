@@ -28,10 +28,15 @@
                 <div class="card-body">
                     <div class="d-flex flex-wrap gap-2">
                         {% for img in product.images %}
-                        <a href="{{ img }}" target="_blank" rel="noopener noreferrer" class="d-inline-block">
+                        <button type="button"
+                                class="btn p-0 border-0 bg-transparent kv-product-image-trigger"
+                                data-bs-toggle="modal"
+                                data-bs-target="#kvProductImageModal"
+                                data-image-url="{{ img }}"
+                                aria-label="{{ product.name }}">
                             <img src="{{ img }}" alt="{{ product.name }}" class="rounded border"
-                                 style="width: 96px; height: 96px; object-fit: cover;">
-                        </a>
+                                 style="width: 96px; height: 96px; object-fit: cover; cursor: zoom-in;">
+                        </button>
                         {% endfor %}
                     </div>
                 </div>
@@ -92,11 +97,9 @@
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white fw-bold">
-            {% if product.is_group %}Chi tiết theo size / mã{% else %}Tồn kho theo chi nhánh{% endif %}
-        </div>
-        {% if product.is_group %}
+    {% if product.is_group %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white fw-bold">Chi tiết theo size / mã</div>
         <div class="table-responsive">
             <table class="table table-sm align-middle mb-0 jp-table-mobile-stack">
                 <thead class="table-light">
@@ -106,8 +109,8 @@
                         <th class="d-none d-md-table-cell">Mã vạch</th>
                         <th class="text-end">Giá</th>
                         <th class="text-end">Tồn</th>
-                        <th>Cho phép bán</th>
-                        <th>Đang KD</th>
+                        <th class="d-none d-lg-table-cell">Cho phép bán</th>
+                        <th class="d-none d-lg-table-cell">Đang KD</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -120,10 +123,10 @@
                             {% if v.base_price is not None %}{{ v.base_price|floatformat:0|intcomma }}{% else %}—{% endif %}
                         </td>
                         <td data-label="Tồn" class="text-end fw-semibold">{{ v.stock_total|floatformat:0|intcomma }}</td>
-                        <td data-label="Cho phép bán">
+                        <td data-label="Cho phép bán" class="d-none d-lg-table-cell">
                             <span class="badge {{ v.allows_sale_status.badge_class }}">{{ v.allows_sale_status.label }}</span>
                         </td>
-                        <td data-label="Đang KD">
+                        <td data-label="Đang KD" class="d-none d-lg-table-cell">
                             <span class="badge {{ v.is_active_status.badge_class }}">{{ v.is_active_status.label }}</span>
                         </td>
                     </tr>
@@ -131,61 +134,64 @@
                 </tbody>
             </table>
         </div>
-        {% for v in product.variants %}
-        {% if v.inventories %}
-        <div class="border-top">
-            <div class="px-3 py-2 bg-light small fw-semibold">
-                Tồn chi nhánh · <code>{{ v.code }}</code>{% if v.size_label != '—' %} · {{ v.size_label }}{% endif %}
-            </div>
-            <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Chi nhánh</th>
-                            <th class="text-end">Tồn</th>
-                            <th class="text-end">Đặt</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for inv in v.inventories %}
-                        <tr>
-                            <td>{{ inv.branch_name }}</td>
-                            <td class="text-end">{% if inv.on_hand is not None %}{{ inv.on_hand|floatformat:2 }}{% else %}—{% endif %}</td>
-                            <td class="text-end">{% if inv.reserved is not None %}{{ inv.reserved|floatformat:2 }}{% else %}—{% endif %}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+    </div>
+    {% endif %}
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+            <span>Tồn kho theo chi nhánh</span>
+            {% if product.is_group and product.stock_matrix.columns|length > 1 %}
+            <span class="small text-muted fw-normal">Gộp theo size</span>
+            {% endif %}
         </div>
-        {% endif %}
-        {% endfor %}
-        {% else %}
+        {% if product.stock_matrix.has_data %}
         <div class="table-responsive">
-            <table class="table table-sm align-middle mb-0">
+            <table class="table table-sm align-middle mb-0 jp-table-mobile-stack">
                 <thead class="table-light">
                     <tr>
                         <th>Chi nhánh</th>
+                        {% if product.stock_matrix.show_size_columns %}
+                        {% for col in product.stock_matrix.columns %}
+                        <th class="text-end">{{ col.label }}</th>
+                        {% endfor %}
+                        {% endif %}
                         <th class="text-end">Tồn</th>
                         <th class="text-end">Đặt</th>
+                        {% if not product.stock_matrix.show_size_columns %}
                         <th class="text-end d-none d-md-table-cell">Giá vốn</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
-                    {% for inv in product.variants.0.inventories %}
+                    {% for row in product.stock_matrix.rows %}
                     <tr>
-                        <td>{{ inv.branch_name }}</td>
-                        <td class="text-end">{% if inv.on_hand is not None %}{{ inv.on_hand|floatformat:2 }}{% else %}—{% endif %}</td>
-                        <td class="text-end">{% if inv.reserved is not None %}{{ inv.reserved|floatformat:2 }}{% else %}—{% endif %}</td>
-                        <td class="text-end d-none d-md-table-cell">{% if inv.cost is not None %}{{ inv.cost|floatformat:0|intcomma }}{% else %}—{% endif %}</td>
+                        <td data-label="Chi nhánh">{{ row.branch_name }}</td>
+                        {% if product.stock_matrix.show_size_columns %}
+                        {% for cell in row.cells %}
+                        <td data-label="Tồn" class="text-end">
+                            {% if cell is not None %}{{ cell|floatformat:0|intcomma }}{% else %}—{% endif %}
+                        </td>
+                        {% endfor %}
+                        {% endif %}
+                        <td data-label="Tồn" class="text-end fw-semibold">{{ row.on_hand|floatformat:0|intcomma }}</td>
+                        <td data-label="Đặt" class="text-end">{{ row.reserved|floatformat:0|intcomma }}</td>
+                        {% if not product.stock_matrix.show_size_columns %}
+                        <td data-label="Giá vốn" class="text-end d-none d-md-table-cell">
+                            {% if row.cost is not None %}{{ row.cost|floatformat:0|intcomma }}{% else %}—{% endif %}
+                        </td>
+                        {% endif %}
                     </tr>
-                    {% empty %}
-                    <tr><td colspan="4" class="text-muted text-center py-3">Không có dữ liệu tồn.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+        {% else %}
+        <div class="text-muted text-center py-4 small">Không có dữ liệu tồn.</div>
         {% endif %}
     </div>
 </div>
+
+{% if product.images %}
+{% include 'kiotviet/_product_image_modal.html' with product_name=product.name %}
+{% endif %}
 {% endblock %}
