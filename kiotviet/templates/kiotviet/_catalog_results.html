@@ -1,0 +1,103 @@
+{% load humanize %}
+{% include 'kiotviet/_list_meta.html' with items_count=items|length %}
+
+{% if not items and not api_error %}
+{% if search_query or has_active_filters %}
+<div class="alert alert-light border shadow-sm mb-0">
+    <i class="bi bi-info-circle me-1"></i>
+    {% if search_query and has_active_filters %}
+    Không có hàng hoá phù hợp từ khóa «{{ search_query }}» và bộ lọc đang chọn.
+    {% elif search_query %}
+    Không có sản phẩm phù hợp với «{{ search_query }}».
+    {% else %}
+    Không có hàng hoá phù hợp với bộ lọc đang chọn.
+    {% endif %}
+</div>
+{% elif browse_mode %}
+<div class="alert alert-light border shadow-sm mb-0">
+    <i class="bi bi-info-circle me-1"></i>
+    {% if mirror_empty_hint %}{{ mirror_empty_hint }}{% else %}Chưa có dữ liệu trong mirror.{% endif %}
+</div>
+{% endif %}
+{% elif items %}
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 jp-table-mobile-stack">
+            <thead class="table-light">
+                <tr>
+                    <th class="d-none d-md-table-cell" style="width:3.5rem;"></th>
+                    <th>Mã hàng</th>
+                    <th>Tên</th>
+                    <th class="d-none d-md-table-cell" style="min-width:12rem;">Nhóm hàng</th>
+                    <th class="d-none d-lg-table-cell">ĐVT</th>
+                    {% if product_group_mode %}
+                    <th class="text-end">Tồn kho</th>
+                    {% endif %}
+                    <th class="text-end">Giá bán</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td class="d-none d-md-table-cell">
+                        {% if item.image_url %}
+                        <img src="{{ item.image_url }}" alt="" class="rounded border"
+                             style="width:40px;height:40px;object-fit:cover;">
+                        {% else %}
+                        <span class="text-muted small">—</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="Mã">
+                        {% if item.id and detail_url_name %}
+                        <a href="{% url detail_url_name item.id %}" class="text-decoration-none">
+                            <code>{{ item.code }}</code>
+                        </a>
+                        {% else %}
+                        <code>{{ item.code }}</code>
+                        {% endif %}
+                    </td>
+                    <td data-label="Tên">
+                        {% if item.id and detail_url_name %}
+                        <a href="{% url detail_url_name item.id %}" class="text-decoration-none fw-semibold text-hm">{{ item.name }}</a>
+                        {% else %}
+                        {{ item.name }}
+                        {% endif %}
+                    </td>
+                    <td data-label="Nhóm hàng" class="d-none d-md-table-cell small">
+                        {% if product_group_mode and item.category_path_parts %}
+                        <div class="d-flex flex-column gap-1 align-items-start">
+                            {% for part in item.category_path_parts %}
+                            <span class="badge bg-light text-dark border fw-normal">{{ part }}</span>
+                            {% endfor %}
+                        </div>
+                        {% elif product_group_mode and item.category_path %}
+                        <span>{{ item.category_path }}</span>
+                        {% else %}
+                        {{ item.category_name }}
+                        {% endif %}
+                    </td>
+                    <td data-label="ĐVT" class="d-none d-lg-table-cell">{{ item.unit }}</td>
+                    {% if product_group_mode %}
+                    <td data-label="Tồn kho" class="text-end fw-semibold">
+                        {% if item.total_on_hand is not None %}{{ item.total_on_hand|floatformat:0|intcomma }}{% else %}—{% endif %}
+                    </td>
+                    {% endif %}
+                    <td data-label="Giá" class="text-end">
+                        {% if item.min_price is not None and item.max_price is not None and item.min_price != item.max_price %}
+                        {{ item.min_price|floatformat:0|intcomma }} – {{ item.max_price|floatformat:0|intcomma }}
+                        {% elif item.base_price is not None %}{{ item.base_price|floatformat:0|intcomma }}{% else %}—{% endif %}
+                    </td>
+                    <td class="text-end">
+                        {% if item.id %}
+                        <a href="{% url detail_url_name item.id %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% include 'kiotviet/_list_pagination.html' %}
+{% endif %}
