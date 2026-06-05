@@ -1,5 +1,5 @@
 {# Dropdown chọn nhân viên — tìm kiếm + checkbox/radio #}
-<div class="jp-user-picker"
+<div class="jp-user-picker{% if picker_class %} {{ picker_class }}{% endif %}"
      data-field-name="{{ field.html_name }}"
      data-mode="{{ mode }}">
     <button type="button"
@@ -29,7 +29,9 @@
                    data-user-id="{{ user.pk }}"
                    data-role="{{ user.profile.role|default:'' }}"
                    data-position="{{ user.profile.job_position|default:'' }}"
-                   data-search="{{ user.profile.full_name|default:user.username|lower }} {{ user.profile.employee_code|default:''|lower }} {{ user.username|lower }} {{ user.profile.job_position|default:''|lower }} {{ user.profile.get_role_display|default:''|lower }}">
+                   {% if show_org_meta %}data-department-id="{{ user.profile.department_id|default:'' }}"
+                   data-division-id="{{ user.profile.division_id|default:'' }}"{% endif %}
+                   data-search="{{ user.profile.full_name|default:user.username|lower }} {{ user.profile.employee_code|default:''|lower }} {{ user.username|lower }} {{ user.profile.job_position|default:''|lower }} {{ user.profile.get_role_display|default:''|lower }}{% if show_org_meta %} {{ user.profile.department.name|default:''|lower }} {{ user.profile.division.name|default:''|lower }}{% endif %}">
                 {% if mode == 'single' %}
                 <input type="radio"
                        class="form-check-input mt-1 flex-shrink-0"
@@ -43,18 +45,23 @@
                        value="{{ user.pk }}"
                        {% if user.pk|stringformat:"s" in selected_ids %}checked{% endif %}>
                 {% endif %}
-                <span>
-                    <strong>{{ user.profile.full_name|default:user.username }}</strong>
-                    <span class="d-block small text-muted">
+                <span class="flex-grow-1 min-w-0">
+                    <strong class="jp-text-clamp-1">{{ user.profile.full_name|default:user.username }}</strong>
+                    <span class="d-block small text-muted jp-text-clamp-2">
                         {{ user.profile.employee_code|default:"—" }} · {{ user.username }}
                         {% if user.profile.job_position %} · {{ user.profile.job_position }}{% endif %}
+                        {% if show_org_meta and user.profile.department %}
+                        <span class="d-block">{% if user.profile.division %}{{ user.profile.division.name }} · {% endif %}{{ user.profile.department.name }}</span>
+                        {% endif %}
                     </span>
                 </span>
             </label>
             {% empty %}
-            <p class="text-muted small mb-0 p-3">Không có nhân viên nào để chọn.</p>
+            <p class="text-muted small mb-0 p-3 jp-user-picker-empty">Không có nhân viên nào để chọn.</p>
             {% endfor %}
+            <p class="text-muted small mb-0 p-3 jp-user-picker-filter-empty" hidden>Không có kết quả phù hợp.</p>
         </div>
+        <div class="px-2 py-1 border-top small text-muted jp-user-picker-footer" hidden></div>
     </div>
 
     <div class="jp-user-picker-chips d-flex flex-wrap gap-1 mt-2"></div>

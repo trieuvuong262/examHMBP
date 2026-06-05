@@ -4,6 +4,12 @@ from django.contrib.auth.models import User
 from django.db.models import Q
 
 from PortalJustPlay.list_search import apply_user_search
+from hrm.permissions import (
+    ROLE_DIRECTOR,
+    ROLE_DIVISION_HEAD,
+    ROLE_EMPLOYEE,
+    ROLE_TEAM_LEADER,
+)
 
 # Tài khoản quản trị hệ thống — không hiển thị trên danh sách nhân sự
 HIDDEN_HRM_LIST_USERNAMES = ('admin',)
@@ -102,3 +108,88 @@ def user_display_label(user: User) -> str:
     full_name = profile.full_name if profile and profile.full_name else user.get_full_name() or user.username
     code = profile.employee_code if profile and profile.employee_code else '—'
     return f'{full_name} · {code} · {user.username}'
+
+
+def _pk_or_none(value) -> int | None:
+    if value is None or value == '':
+        return None
+    if isinstance(value, int):
+        return value
+    raw = str(value).strip()
+    return int(raw) if raw.isdigit() else None
+
+
+def subordinate_candidate_queryset(
+    *,
+    exclude_user_id: int | None = None,
+    manager_role: str | None = None,
+    department_id=None,
+    division_id=None,
+    extra_user_ids: list[int] | None = None,
+):
+    """
+    Danh sách NV có thể gán làm cấp dưới trực tiếp theo vai trò quản lý.
+    Luôn gồm extra_user_ids (đã chọn trước đó) để không mất khi đổi phòng ban.
+    """
+    role = (manager_role or '').strip()
+    dept_id = _pk_or_none(department_id)
+    div_id = _pk_or_none(division_id)
+
+    if role not in (ROLE_TEAM_LEADER, ROLE_DIVISION_HEAD, ROLE_DIRECTOR):
+        base = User.objects.none()
+    else:
+        base = exclude_hidden_hrm_users(
+            User.objects.filter(is_active=True, profile__is_employed=True),
+        ).exclude(profile__role=ROLE_DIRECTOR)
+
+        if exclude_user_id:
+            base = base.exclude(pk=exclude_user_id)
+
+        if role == ROLE_TEAM_LEADER:
+            base = base.filter(profile__role=ROLE_EMPLOYEE)
+            if div_id:
+                base = base.filter(profile__division_id=div_id)
+            elif dept_id:
+                base = base.filter(profile__department_id=dept_id)
+        elif role == ROLE_DIVISION_HEAD:
+            base = base.filter(profile__role__in=[ROLE_EMPLOYEE, ROLE_TEAM_LEADER])
+            if dept_id:
+                base = base.filter(profile__department_id=dept_id)
+        # ROLE_DIRECTOR: toàn công ty (trừ giám đốc khác)
+
+        base = base.select_related('profile', 'profile__department', 'profile__division')
+
+    extra_ids = [int(x) for x in (extra_user_ids or []) if str(x).isdigit()]
+    if extra_ids:
+        qs = User.objects.filter(
+            Q(pk__in=base.values('pk')) | Q(pk__in=extra_ids),
+        ).select_related('profile', 'profile__department', 'profile__division')
+    else:
+        qs = base
+
+    return exclude_hidden_hrm_users(qs).order_by('profile__full_name', 'username')
+
+
+def subordinate_scope_hint(
+    *,
+    manager_role: str | None = None,
+    department_id=None,
+    division_id=None,
+) -> str:
+    role = (manager_role or '').strip()
+    dept_id = _pk_or_none(department_id)
+    div_id = _pk_or_none(division_id)
+
+    if role == ROLE_TEAM_LEADER:
+        if div_id:
+            return 'Gợi ý: chọn nhân viên cùng bộ phận (vai trò Nhân viên).'
+        if dept_id:
+            return 'Gợi ý: chọn nhân viên cùng phòng ban khi chưa gán bộ phận.'
+        return 'Chọn phòng ban / bộ phận bên trái để thu hẹp danh sách.'
+    if role == ROLE_DIVISION_HEAD:
+        if dept_id:
+            return 'Gợi ý: chọn NV hoặc Tổ trưởng cùng phòng ban.'
+        return 'Chọn phòng ban bên trái để thu hẹp danh sách.'
+    if role == ROLE_DIRECTOR:
+        return 'Gợi ý: chọn nhân viên / tổ trưởng / trưởng bộ phận trong công ty.'
+    return ''

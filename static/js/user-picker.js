@@ -48,11 +48,38 @@
             selected.forEach(function (input) {
                 const opt = input.closest('.jp-user-picker-option');
                 const name = opt.querySelector('strong').textContent;
-                const chip = document.createElement('span');
+                const chip = document.createElement('button');
+                chip.type = 'button';
                 chip.className = 'badge bg-hm-subtle text-hm border jp-user-picker-chip';
-                chip.textContent = name;
+                chip.title = 'Bỏ chọn';
+                chip.textContent = name + ' ×';
+                chip.addEventListener('click', function () {
+                    input.checked = false;
+                    updateLabel();
+                });
                 chips.appendChild(chip);
             });
+            syncListMeta();
+        }
+
+        const filterEmptyEl = root.querySelector('.jp-user-picker-filter-empty');
+        const footerEl = root.querySelector('.jp-user-picker-footer');
+
+        function syncListMeta() {
+            const visible = options.filter(function (opt) { return !opt.hidden; });
+            if (filterEmptyEl) {
+                filterEmptyEl.hidden = visible.length > 0 || options.length === 0;
+            }
+            if (footerEl) {
+                if (!options.length) {
+                    footerEl.hidden = true;
+                } else {
+                    footerEl.hidden = false;
+                    const selected = selectedInputs().length;
+                    footerEl.textContent = 'Hiển thị ' + visible.length + '/' + options.length
+                        + (selected ? ' · Đã chọn ' + selected : '');
+                }
+            }
         }
 
         function filterOptions(query) {
@@ -65,6 +92,7 @@
                 const hay = normalizeText(opt.getAttribute('data-search') || '');
                 opt.hidden = hay.indexOf(q) === -1;
             });
+            syncListMeta();
         }
 
         function openMenu() {
@@ -122,6 +150,7 @@
 
         root._jpUserPickerRefresh = updateLabel;
         updateLabel();
+        syncListMeta();
     }
 
     function refresh(fieldName) {
@@ -156,6 +185,13 @@
 
         refresh(fieldName);
         return added;
+    }
+
+    function selectByDataAttr(fieldName, attr, value, append) {
+        const target = String(value || '');
+        return selectByFilter(fieldName, function (opt) {
+            return String(opt.getAttribute(attr) || '') === target;
+        }, append);
     }
 
     function selectByFilter(fieldName, filterFn, append) {
@@ -195,6 +231,7 @@
         refresh: refresh,
         setSelected: setSelected,
         selectByFilter: selectByFilter,
+        selectByDataAttr: selectByDataAttr,
         clear: clear,
         initAll: function () {
             document.querySelectorAll('.jp-user-picker').forEach(function (root) {

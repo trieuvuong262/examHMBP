@@ -20,7 +20,16 @@ def _selected_ids(field, mode, request):
 
 
 @register.inclusion_tag('includes/user_picker.html', takes_context=True)
-def user_picker(context, field, mode=None, users=None, placeholder=None, show_bulk_actions=True):
+def user_picker(
+    context,
+    field,
+    mode=None,
+    users=None,
+    placeholder=None,
+    show_bulk_actions=True,
+    show_org_meta=False,
+    picker_class='',
+):
     if mode is None:
         mode = 'single' if field.field.__class__.__name__ == 'ModelChoiceField' else 'multiple'
 
@@ -40,4 +49,6 @@ def user_picker(context, field, mode=None, users=None, placeholder=None, show_bu
         'mode': mode,
         'placeholder': placeholder,
         'show_bulk_actions': show_bulk_actions and mode == 'multiple',
+        'show_org_meta': show_org_meta,
+        'picker_class': picker_class,
     }

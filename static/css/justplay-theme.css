@@ -2982,6 +2982,36 @@ body.jp-tool-loading-active {
     overflow: visible;
 }
 
+.jp-subordinates-panel .jp-user-form-panel-head {
+    gap: 0.5rem;
+}
+
+.jp-subordinates-count {
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.jp-subordinates-picker-wrap {
+    max-width: 42rem;
+}
+
+.jp-user-picker--wide .jp-user-picker-menu {
+    max-height: min(420px, 60vh);
+}
+
+.jp-user-picker--wide .jp-user-picker-list {
+    max-height: min(340px, 50vh);
+}
+
+.jp-user-picker-chip {
+    border: 0;
+    cursor: pointer;
+}
+
+.jp-user-picker-chip:hover {
+    opacity: 0.85;
+}
+
 .jp-user-form-panel-head {
     display: flex;
     align-items: center;

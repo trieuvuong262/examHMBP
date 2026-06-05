@@ -27,7 +27,11 @@ from hrm.permissions import ROLE_EMPLOYEE
 from hrm.module_permissions import ALL_MODULE_KEYS, MODULE_CHOICES, MODULE_LABELS
 from hrm.role_permissions import normalize_module_permissions
 from hrm.group_permissions import PERM_ACTIONS, PERM_ACTION_LABELS, normalize_group_permissions
-from hrm.user_search import user_display_label
+from hrm.user_search import (
+    subordinate_candidate_queryset,
+    subordinate_scope_hint,
+    user_display_label,
+)
 
 INPUT = {'class': 'form-control'}
 SELECT = {'class': 'form-select'}
@@ -131,12 +135,38 @@ class CustomUserForm(forms.Form):
         self.fields['join_date'].input_formats = ['%Y-%m-%d']
         self.fields['date_of_birth'].input_formats = ['%Y-%m-%d']
 
-        if self.user_id:
-            self.fields['subordinates'].queryset = (
-                User.objects.select_related('profile')
-                .exclude(id=self.user_id)
-                .order_by('profile__full_name', 'username')
-            )
+        manager_role = (self.data.get('role') or self.initial.get('role') or '').strip()
+        manager_dept = self.data.get('department') or self.initial.get('department')
+        manager_div = self.data.get('division') or self.initial.get('division')
+        if isinstance(manager_dept, Department):
+            manager_dept = manager_dept.pk
+        if isinstance(manager_div, Division):
+            manager_div = manager_div.pk
+
+        extra_sub_ids: list[int] = []
+        if self.data:
+            extra_sub_ids = [int(x) for x in self.data.getlist('subordinates') if str(x).isdigit()]
+        elif self.initial.get('subordinates'):
+            raw_subs = self.initial['subordinates']
+            if hasattr(raw_subs, 'values_list'):
+                extra_sub_ids = list(raw_subs.values_list('pk', flat=True))
+            else:
+                extra_sub_ids = [u.pk for u in raw_subs]
+
+        sub_qs = subordinate_candidate_queryset(
+            exclude_user_id=self.user_id,
+            manager_role=manager_role,
+            department_id=manager_dept,
+            division_id=manager_div,
+            extra_user_ids=extra_sub_ids,
+        )
+        self.fields['subordinates'].queryset = sub_qs
+        self.subordinate_scope_hint = subordinate_scope_hint(
+            manager_role=manager_role,
+            department_id=manager_dept,
+            division_id=manager_div,
+        )
+        self.subordinate_candidate_count = sub_qs.count()
 
         dept_qs = Department.objects.filter(is_active=True)
         if self.initial.get('department'):
