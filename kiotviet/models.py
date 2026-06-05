@@ -117,6 +117,7 @@ class KvProduct(KvRetailerSyncedModel):
     has_variants = models.BooleanField(null=True, blank=True)
     is_active = models.BooleanField(null=True, blank=True)
     product_type = models.SmallIntegerField(null=True, blank=True)
+    image_urls = models.JSONField(default=list, blank=True)
     kv_created_at = models.DateTimeField(null=True, blank=True)
     raw_json = models.JSONField(default=dict, blank=True)
 
@@ -146,6 +147,7 @@ class KvProduct(KvRetailerSyncedModel):
             'isActive': self.is_active,
             'createdDate': self.kv_created_at,
             'modifiedDate': self.kv_modified_at,
+            'images': [{'Image': url} for url in (self.image_urls or [])],
         }
         if include_inventory:
             invs = KvProductInventory.objects.filter(
@@ -546,7 +548,7 @@ class KvSyncConfig(models.Model):
     """Cấu hình đồng bộ KiotViet (một bản ghi / retailer)."""
 
     retailer = models.CharField(max_length=64, unique=True)
-    interval_hours = models.PositiveSmallIntegerField(default=2)
+    interval_minutes = models.PositiveSmallIntegerField(default=30)
     schedule_enabled = models.BooleanField(default=True)
     enabled_entities = models.JSONField(default=list, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -564,7 +566,7 @@ class KvSyncConfig(models.Model):
         verbose_name_plural = 'Cấu hình đồng bộ KiotViet'
 
     def __str__(self) -> str:
-        return f'{self.retailer} · {self.interval_hours}h'
+        return f'{self.retailer} · {self.interval_minutes}p'
 
     @classmethod
     def get_for_retailer(cls, retailer: str) -> KvSyncConfig:

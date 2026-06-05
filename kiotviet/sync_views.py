@@ -14,17 +14,9 @@ from hrm.module_permissions import MODULE_AUDIT, user_can_access_module, user_ca
 from .client import KiotVietClient
 from .mirror import mirror_summary, sync_states
 from .models import KvSyncConfig, KvSyncJob
+from .sync_helpers import SYNC_INTERVAL_CHOICES, cron_hint_for_minutes, normalize_interval_minutes
 from .sync_runner import KvSyncRunnerError, active_sync_job, latest_sync_job, start_sync_async
 from .sync_service import ENTITY_ALL, ENTITY_LABELS, current_retailer
-
-INTERVAL_CHOICES = (
-    (1, 'Mỗi 1 giờ'),
-    (2, 'Mỗi 2 giờ'),
-    (3, 'Mỗi 3 giờ'),
-    (6, 'Mỗi 6 giờ'),
-    (12, 'Mỗi 12 giờ'),
-    (24, 'Mỗi 24 giờ (1 lần/ngày)'),
-)
 
 
 def _audit_access_required(view_func):
@@ -64,26 +56,21 @@ def _sync_page_context(user) -> dict:
     running_job = active_job or (
         latest_job if latest_job and latest_job.is_active else None
     )
+    interval_minutes = config.interval_minutes if config else 30
 
     return {
         'can_edit': user_can_edit_module(user, MODULE_AUDIT),
         'configured': configured,
         'retailer': retailer,
         'config': config,
-        'interval_choices': INTERVAL_CHOICES,
+        'interval_choices': SYNC_INTERVAL_CHOICES,
         'entity_rows': entity_rows,
         'entity_labels': ENTITY_LABELS,
         'mirror_counts': mirror_summary(retailer) if retailer else {},
         'active_job': running_job,
         'latest_job': latest_job,
-        'cron_hint': _cron_hint(config.interval_hours if config else 2),
+        'cron_hint': cron_hint_for_minutes(interval_minutes),
     }
-
-
-def _cron_hint(hours: int) -> str:
-    if hours >= 24:
-        return '0 2 * * *'
-    return f'0 */{hours} * * *'
 
 
 @_audit_access_required
@@ -114,21 +101,14 @@ def kiotviet_sync_save(request):
         messages.error(request, 'Chọn ít nhất một mục cần đồng bộ.')
         return redirect('audit:kiotviet_sync')
 
-    try:
-        interval_hours = int(request.POST.get('interval_hours', '2'))
-    except (TypeError, ValueError):
-        interval_hours = 2
-    if interval_hours not in dict(INTERVAL_CHOICES):
-        interval_hours = 2
-
     config = KvSyncConfig.get_for_retailer(retailer)
-    config.interval_hours = interval_hours
+    config.interval_minutes = normalize_interval_minutes(request.POST.get('interval_minutes'))
     config.schedule_enabled = request.POST.get('schedule_enabled') == 'on'
     config.enabled_entities = entities
     config.updated_by = request.user
     config.save()
 
-    messages.success(request, 'Đã lưu cấu hình đồng bộ KiotViet.')
+    messages.success(request, 'Đã lưu cấu hình đồng bộ KiotViet (chỉ sync mới/thay đổi).')
     return redirect('audit:kiotviet_sync')
 
 
@@ -176,7 +156,15 @@ def kiotviet_sync_status(request, job_id: int):
     except KvSyncJob.DoesNotExist:
         return JsonResponse({'error': 'Job không tồn tại.'}, status=404)
 
+    entities = list(job.entities or [])
+    entity_total = len(entities)
     entity_label = ENTITY_LABELS.get(job.current_entity, job.current_entity)
+    entity_index = 0
+    if job.current_entity and job.current_entity in entities:
+        entity_index = entities.index(job.current_entity) + 1
+    elif not job.is_active and entity_total:
+        entity_index = entity_total
+
     return JsonResponse({
         'id': job.pk,
         'status': job.status,
@@ -184,6 +172,8 @@ def kiotviet_sync_status(request, job_id: int):
         'progress_percent': job.progress_percent,
         'current_entity': job.current_entity,
         'current_entity_label': entity_label,
+        'entity_index': entity_index,
+        'entity_total': entity_total,
         'message': job.message,
         'rows_synced': job.rows_synced,
         'is_active': job.is_active,

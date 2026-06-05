@@ -104,6 +104,17 @@ def format_invoice_detail(raw: dict) -> dict:
     return row
 
 
+def _first_product_image(row: dict) -> str:
+    for item in row.get('images') or []:
+        if isinstance(item, str) and item.strip():
+            return item.strip()
+        if isinstance(item, dict):
+            url = (item.get('Image') or item.get('image') or item.get('url') or '').strip()
+            if url:
+                return url
+    return ''
+
+
 def format_product_row(row: dict) -> dict:
     return {
         'id': row.get('id'),
@@ -116,6 +127,7 @@ def format_product_row(row: dict) -> dict:
         'base_price': row.get('basePrice'),
         'allows_sale': row.get('allowsSale'),
         'is_active': row.get('isActive'),
+        'image_url': _first_product_image(row),
     }
 
 
@@ -148,12 +160,21 @@ def format_inventory_rows(product: dict) -> list[dict]:
 
 def format_product_detail(raw: dict) -> dict:
     row = format_product_row(raw)
+    images = []
+    for item in raw.get('images') or []:
+        if isinstance(item, str) and item.strip():
+            images.append(item.strip())
+        elif isinstance(item, dict):
+            url = (item.get('Image') or item.get('image') or item.get('url') or '').strip()
+            if url:
+                images.append(url)
     row.update({
         'description': _dash(raw.get('description')),
         'weight': raw.get('weight'),
         'created_date': raw.get('createdDate'),
         'modified_date': raw.get('modifiedDate'),
         'inventories': format_inventory_rows(raw),
+        'images': images,
     })
     return row
 

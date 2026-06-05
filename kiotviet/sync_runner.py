@@ -21,14 +21,20 @@ class KvSyncRunnerError(Exception):
 
 def _calc_progress(entity_idx: int, entity_total: int, current_item: int, api_total: int) -> int:
     if entity_total <= 0:
-        return 0
+        return 1
     entity_weight = 100.0 / entity_total
     base = entity_idx * entity_weight
     if api_total > 0:
         pct = base + min(1.0, current_item / api_total) * entity_weight
     else:
-        pct = base + entity_weight * 0.35
-    return max(0, min(99, int(pct)))
+        pct = base + entity_weight * 0.4
+    return max(1, min(99, int(pct)))
+
+
+def _entity_milestone(entity_idx: int, entity_total: int) -> int:
+    if entity_total <= 0:
+        return 99
+    return max(1, min(99, int((entity_idx + 1) / entity_total * 100)))
 
 
 def run_sync_job(*, job_id: int) -> None:
@@ -38,8 +44,9 @@ def run_sync_job(*, job_id: int) -> None:
 
     job.status = KvSyncJob.STATUS_RUNNING
     job.started_at = timezone.now()
-    job.progress_percent = 0
-    job.save(update_fields=['status', 'started_at', 'progress_percent'])
+    job.progress_percent = 1
+    job.message = 'Đang khởi động đồng bộ…'
+    job.save(update_fields=['status', 'started_at', 'progress_percent', 'message'])
 
     entities = [e for e in (job.entities or []) if e]
     if not entities:
@@ -94,11 +101,13 @@ def run_sync_job(*, job_id: int) -> None:
         if result.get('error'):
             has_error = True
         else:
-            rows_total += int(result.get('rows') or 0)
+            rows_total += int(result.get('upserted') if result.get('upserted') is not None else result.get('rows') or 0)
 
         KvSyncJob.objects.filter(pk=job_id).update(
             entity_results=results,
             rows_synced=rows_total,
+            progress_percent=_entity_milestone(entity_idx, entity_total),
+            message=f'Hoàn tất {label} ({entity_idx + 1}/{entity_total})',
         )
 
     job.refresh_from_db()
@@ -106,13 +115,20 @@ def run_sync_job(*, job_id: int) -> None:
     job.rows_synced = rows_total
     job.progress_percent = 100
     job.finished_at = timezone.now()
+    skipped_total = sum(int(r.get('skipped') or 0) for r in results if not r.get('error'))
     if has_error:
         failed = [r.get('entity') for r in results if r.get('error')]
         job.status = KvSyncJob.STATUS_FAILED
         job.message = f'Hoàn tất với lỗi: {", ".join(failed)}'
     else:
         job.status = KvSyncJob.STATUS_SUCCESS
-        job.message = f'Đồng bộ thành công {rows_total:,} bản ghi.'
+        if skipped_total:
+            job.message = (
+                f'Cập nhật {rows_total:,} bản ghi mới/thay đổi · '
+                f'bỏ qua {skipped_total:,} bản ghi không đổi.'
+            )
+        else:
+            job.message = f'Cập nhật {rows_total:,} bản ghi mới/thay đổi.'
     job.current_entity = ''
     job.save()
 

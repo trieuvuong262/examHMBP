@@ -18,6 +18,7 @@ from .kv_parse import (
     parse_kv_float,
     parse_kv_int,
 )
+from .sync_helpers import extract_product_image_urls, needs_upsert
 from .models import (
     KvBranch,
     KvCategory,
@@ -118,7 +119,7 @@ def _sync_paginated(
     entity_type: str,
     retailer: str,
     list_fn: Callable[..., dict],
-    upsert_fn: Callable[[str, dict], None],
+    upsert_fn: Callable[[str, dict], bool],
     base_params: dict[str, Any] | None = None,
     full: bool = False,
     on_progress: ProgressCallback | None = None,
@@ -134,6 +135,8 @@ def _sync_paginated(
     current_item = 0
     max_modified = state.last_modified_from
     rows_total = 0
+    upserted_total = 0
+    skipped_total = 0
     removed_total = 0
     pages = 0
 
@@ -148,7 +151,10 @@ def _sync_paginated(
                 payload.get('removedIds') or [],
             )
             for row in rows:
-                upsert_fn(retailer, row)
+                if upsert_fn(retailer, row):
+                    upserted_total += 1
+                else:
+                    skipped_total += 1
                 max_modified = _track_max_modified(row, max_modified)
                 rows_total += 1
 
@@ -183,6 +189,8 @@ def _sync_paginated(
         return {
             'entity': entity_type,
             'rows': rows_total,
+            'upserted': upserted_total,
+            'skipped': skipped_total,
             'removed': removed_total,
             'pages': pages,
             'records': record_count,
@@ -195,6 +203,8 @@ def _sync_paginated(
         return {
             'entity': entity_type,
             'rows': rows_total,
+            'upserted': upserted_total,
+            'skipped': skipped_total,
             'removed': removed_total,
             'pages': pages,
             'records': state.records_total,
@@ -202,10 +212,13 @@ def _sync_paginated(
         }
 
 
-def upsert_branch(retailer: str, row: dict) -> None:
+def upsert_branch(retailer: str, row: dict) -> bool:
     kid = parse_kv_int(row.get('id'))
     if kid is None:
-        return
+        return False
+    modified = parse_kv_datetime(row.get('modifiedDate'))
+    if not needs_upsert(KvBranch, retailer=retailer, kiotviet_id=kid, incoming_modified=modified):
+        return False
     KvBranch.objects.update_or_create(
         retailer=retailer,
         kiotviet_id=kid,
@@ -220,12 +233,16 @@ def upsert_branch(retailer: str, row: dict) -> None:
             'is_deleted': False,
         },
     )
+    return True
 
 
-def upsert_category(retailer: str, row: dict) -> None:
+def upsert_category(retailer: str, row: dict) -> bool:
     kid = parse_kv_int(row.get('categoryId') or row.get('id'))
     if kid is None:
-        return
+        return False
+    modified = parse_kv_datetime(row.get('modifiedDate'))
+    if not needs_upsert(KvCategory, retailer=retailer, kiotviet_id=kid, incoming_modified=modified):
+        return False
     KvCategory.objects.update_or_create(
         retailer=retailer,
         kiotviet_id=kid,
@@ -238,6 +255,7 @@ def upsert_category(retailer: str, row: dict) -> None:
             'is_deleted': False,
         },
     )
+    return True
 
 
 def _sync_product_children(retailer: str, product_id: int, row: dict) -> None:
@@ -301,10 +319,14 @@ def _sync_product_children(retailer: str, product_id: int, row: dict) -> None:
         )
 
 
-def upsert_product(retailer: str, row: dict) -> None:
+def upsert_product(retailer: str, row: dict) -> bool:
     kid = parse_kv_int(row.get('id'))
     if kid is None:
-        return
+        return False
+    modified = parse_kv_datetime(row.get('modifiedDate'))
+    if not needs_upsert(KvProduct, retailer=retailer, kiotviet_id=kid, incoming_modified=modified):
+        return False
+    image_urls = extract_product_image_urls(row)
     KvProduct.objects.update_or_create(
         retailer=retailer,
         kiotviet_id=kid,
@@ -323,19 +345,24 @@ def upsert_product(retailer: str, row: dict) -> None:
             'has_variants': row.get('hasVariants'),
             'is_active': row.get('isActive'),
             'product_type': parse_kv_int(row.get('productType')),
+            'image_urls': image_urls,
             'kv_created_at': parse_kv_datetime(row.get('createdDate')),
-            'kv_modified_at': parse_kv_datetime(row.get('modifiedDate')),
+            'kv_modified_at': modified,
             'raw_json': row,
             'is_deleted': False,
         },
     )
     _sync_product_children(retailer, kid, row)
+    return True
 
 
-def upsert_customer(retailer: str, row: dict) -> None:
+def upsert_customer(retailer: str, row: dict) -> bool:
     kid = parse_kv_int(row.get('id'))
     if kid is None:
-        return
+        return False
+    modified = parse_kv_datetime(row.get('modifiedDate'))
+    if not needs_upsert(KvCustomer, retailer=retailer, kiotviet_id=kid, incoming_modified=modified):
+        return False
     KvCustomer.objects.update_or_create(
         retailer=retailer,
         kiotviet_id=kid,
@@ -363,6 +390,7 @@ def upsert_customer(retailer: str, row: dict) -> None:
             'is_deleted': False,
         },
     )
+    return True
 
 
 def _sync_transaction_lines(
@@ -397,10 +425,13 @@ def _sync_transaction_lines(
         )
 
 
-def upsert_order(retailer: str, row: dict) -> None:
+def upsert_order(retailer: str, row: dict) -> bool:
     kid = parse_kv_int(row.get('id'))
     if kid is None:
-        return
+        return False
+    modified = parse_kv_datetime(row.get('modifiedDate'))
+    if not needs_upsert(KvOrder, retailer=retailer, kiotviet_id=kid, incoming_modified=modified):
+        return False
     KvOrder.objects.update_or_create(
         retailer=retailer,
         kiotviet_id=kid,
@@ -434,12 +465,16 @@ def upsert_order(retailer: str, row: dict) -> None:
         parent_field='order_kiotviet_id',
         row=row,
     )
+    return True
 
 
-def upsert_invoice(retailer: str, row: dict) -> None:
+def upsert_invoice(retailer: str, row: dict) -> bool:
     kid = parse_kv_int(row.get('id'))
     if kid is None:
-        return
+        return False
+    modified = parse_kv_datetime(row.get('modifiedDate'))
+    if not needs_upsert(KvInvoice, retailer=retailer, kiotviet_id=kid, incoming_modified=modified):
+        return False
     KvInvoice.objects.update_or_create(
         retailer=retailer,
         kiotviet_id=kid,
@@ -471,12 +506,21 @@ def upsert_invoice(retailer: str, row: dict) -> None:
         parent_field='invoice_kiotviet_id',
         row=row,
     )
+    return True
 
 
-def upsert_purchase_order(retailer: str, row: dict) -> None:
+def upsert_purchase_order(retailer: str, row: dict) -> bool:
     kid = parse_kv_int(row.get('id'))
     if kid is None:
-        return
+        return False
+    modified = parse_kv_datetime(row.get('modifiedDate'))
+    if not needs_upsert(
+        KvPurchaseOrder,
+        retailer=retailer,
+        kiotviet_id=kid,
+        incoming_modified=modified,
+    ):
+        return False
     KvPurchaseOrder.objects.update_or_create(
         retailer=retailer,
         kiotviet_id=kid,
@@ -505,6 +549,7 @@ def upsert_purchase_order(retailer: str, row: dict) -> None:
         parent_field='purchase_order_kiotviet_id',
         row=row,
     )
+    return True
 
 
 def sync_entity(

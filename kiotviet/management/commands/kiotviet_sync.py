@@ -59,10 +59,12 @@ class Command(BaseCommand):
                 has_error = True
                 self.stderr.write(self.style.ERROR(f'{entity}: FAIL — {row["error"]}'))
             else:
+                upserted = row.get('upserted', row.get('rows', 0))
+                skipped = row.get('skipped', 0)
                 self.stdout.write(
-                    f'{entity}: OK — synced {row.get("rows", 0)} rows, '
-                    f'removed {row.get("removed", 0)}, '
-                    f'total records {row.get("records", 0)}'
+                    f'{entity}: OK — cập nhật {upserted}, bỏ qua {skipped}, '
+                    f'xóa {row.get("removed", 0)}, '
+                    f'tổng mirror {row.get("records", 0)}'
                 )
 
         if has_error:

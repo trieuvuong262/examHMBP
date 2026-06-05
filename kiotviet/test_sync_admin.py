@@ -45,13 +45,13 @@ class KiotVietSyncAdminTests(TestCase):
     def test_save_config_creates_record(self):
         self.client.force_login(self.director)
         response = self.client.post(reverse('audit:kiotviet_sync_save'), {
-            'interval_hours': '6',
+            'interval_minutes': '360',
             'schedule_enabled': 'on',
             'entities': ['products', 'customers'],
         })
         self.assertEqual(response.status_code, 302)
         config = KvSyncConfig.objects.get(retailer='testshop')
-        self.assertEqual(config.interval_hours, 6)
+        self.assertEqual(config.interval_minutes, 360)
         self.assertTrue(config.schedule_enabled)
         self.assertEqual(config.enabled_entities, ['products', 'customers'])
 
@@ -77,7 +77,7 @@ class KiotVietSyncAdminTests(TestCase):
             status=KvSyncJob.STATUS_RUNNING,
             progress_percent=42,
             current_entity='products',
-            entities=['products'],
+            entities=['products', 'customers'],
         )
         self.client.force_login(self.director)
         response = self.client.get(reverse('audit:kiotviet_sync_status', args=[job.pk]))
@@ -85,3 +85,5 @@ class KiotVietSyncAdminTests(TestCase):
         data = response.json()
         self.assertEqual(data['progress_percent'], 42)
         self.assertEqual(data['current_entity'], 'products')
+        self.assertEqual(data['entity_index'], 1)
+        self.assertEqual(data['entity_total'], 2)

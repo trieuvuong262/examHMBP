@@ -17,7 +17,24 @@
     </div>
 
     <div class="row g-3 mb-4">
-        <div class="col-12 col-md-6">
+        {% if product.images %}
+        <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white fw-bold">Hình ảnh</div>
+                <div class="card-body">
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for img in product.images %}
+                        <a href="{{ img }}" target="_blank" rel="noopener noreferrer" class="d-inline-block">
+                            <img src="{{ img }}" alt="{{ product.name }}" class="rounded border"
+                                 style="width: 96px; height: 96px; object-fit: cover;">
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        <div class="col-12 {% if product.images %}col-md-4{% else %}col-md-6{% endif %}">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-header bg-white fw-bold">Thông tin hàng hóa</div>
                 <div class="card-body small">
@@ -36,7 +53,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-12 col-md-6">
+        <div class="col-12 {% if product.images %}col-md-4{% else %}col-md-6{% endif %}">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-header bg-white fw-bold">Khác</div>
                 <div class="card-body small">
