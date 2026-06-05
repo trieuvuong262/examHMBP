@@ -12,6 +12,7 @@ from audit.utils import (
     build_summary,
     get_client_device_info,
     is_private_ip,
+    log_from_request,
 )
 from audit.summaries import describe_post_highlights, resolve_url_description
 from django.test import RequestFactory
@@ -133,6 +134,42 @@ class AuditSummaryTests(TestCase):
         desc = resolve_url_description(request, 'user_edit')
         self.assertIn('#42', desc)
         self.assertIn('cập nhật', desc)
+
+    def test_kiotviet_lookup_description(self):
+        factory = RequestFactory()
+        request = factory.get('/kiotviet/hang-hoa/?q=ao')
+        request.resolver_match = type('M', (), {'url_name': 'product_lookup', 'kwargs': {}})()
+        desc = resolve_url_description(request, 'product_lookup')
+        self.assertIn('KiotViet', desc)
+        self.assertIn('hàng hóa', desc)
+
+    def test_equipment_dashboard_description(self):
+        factory = RequestFactory()
+        request = factory.get('/thiet-bi/it/')
+        request.resolver_match = type('M', (), {'url_name': 'dashboard_it', 'kwargs': {}})()
+        desc = resolve_url_description(request, 'dashboard_it')
+        self.assertIn('thiết bị', desc)
+        self.assertIn('IT', desc)
+
+    def test_log_from_request_builds_summary(self):
+        from django.http import HttpResponse
+        from django.urls import resolve
+
+        user = User.objects.create_user(username='hr_log_test', password='x')
+        profile = Profile.objects.get(user=user)
+        profile.full_name = 'HR Test'
+        profile.save()
+
+        factory = RequestFactory()
+        request = factory.get('/dashboard/users/')
+        request.user = user
+        request.resolver_match = resolve('/dashboard/users/')
+        log = log_from_request(request, HttpResponse(), 12)
+        self.assertIsNotNone(log)
+        self.assertTrue(log.summary)
+        self.assertIn('nhân viên', log.summary.lower())
+        self.assertEqual(log.path, '/dashboard/users/')
+        self.assertTrue(log.module_label)
 
 
 class AuditAccessTests(TestCase):

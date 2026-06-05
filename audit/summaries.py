@@ -309,6 +309,205 @@ URL_DESCRIPTIONS: dict[str, dict[str, str] | str] = {
     'log_list': 'xem danh sách nhật ký thao tác',
     'log_detail': 'xem chi tiết nhật ký #{pk}',
     'user_timeline': 'xem timeline thao tác user #{user_id}',
+
+    # HRM bổ sung
+    'permission_group_add': {
+        'GET': 'mở form thêm nhóm quyền',
+        'POST': 'tạo nhóm quyền mới',
+    },
+    'permission_group_edit': {
+        'GET': 'mở form sửa nhóm quyền #{pk}',
+        'POST': 'cập nhật nhóm quyền #{pk}',
+    },
+    'permission_group_delete': 'xóa nhóm quyền #{pk}',
+    'org_position_add': {
+        'GET': 'mở form thêm chức danh',
+        'POST': 'tạo chức danh mới',
+    },
+    'org_position_edit': {
+        'GET': 'mở form sửa chức danh #{pk}',
+        'POST': 'cập nhật chức danh #{pk}',
+    },
+    'org_position_delete': 'xóa chức danh #{pk}',
+    'user_nas_folders': {
+        'GET': 'xem quyền thư mục NAS nhân viên #{user_id}',
+        'POST': 'lưu quyền thư mục NAS nhân viên #{user_id}',
+    },
+    'update_avatar': {
+        'GET': 'mở form đổi ảnh đại diện',
+        'POST': 'cập nhật ảnh đại diện',
+    },
+
+    # Tài liệu bổ sung
+    'qa': 'mở trợ lý hỏi đáp thư viện tài liệu',
+    'qa_ask': 'đặt câu hỏi thư viện tài liệu (AI)',
+    'qa_suggest_initial': 'gợi ý câu hỏi thư viện tài liệu',
+    'admin_qa_settings': {
+        'GET': 'mở cấu hình Q&A thư viện',
+        'POST': 'lưu cấu hình Q&A thư viện',
+    },
+    'file_view': 'xem file tài liệu',
+    'file_download': 'tải file tài liệu',
+}
+
+# url_name trùng giữa app — tra theo prefix path (namespace:url_name)
+PATH_PREFIXES: tuple[tuple[str, str], ...] = (
+    ('/nhat-ky/', 'audit'),
+    ('/kiotviet/', 'kiotviet'),
+    ('/thiet-bi/', 'equipment'),
+    ('/cong-viec/', 'tasks'),
+    ('/yeu-cau/', 'service_requests'),
+    ('/gop-y/', 'feedback'),
+    ('/thu-muc-nas/', 'nas'),
+    ('/cong-cu/', 'tools'),
+    ('/tai-lieu/', 'documents'),
+    ('/reports/', 'reports'),
+    ('/announcements/', 'announcements'),
+)
+
+NAMESPACE_URL_DESCRIPTIONS: dict[str, dict[str, str] | str] = {
+    # Audit / quản trị hệ thống
+    'audit:backup_page': 'xem trang backup Portal lên NAS',
+    'audit:backup_run': 'bấm chạy backup Portal lên NAS',
+    'audit:kiotviet_sync': 'xem trang đồng bộ KiotViet',
+    'audit:kiotviet_sync_save': {
+        'POST': 'lưu cấu hình lịch đồng bộ KiotViet',
+    },
+    'audit:kiotviet_sync_run': {
+        'POST': 'chạy đồng bộ KiotViet thủ công',
+    },
+    'audit:kiotviet_sync_status': 'xem tiến độ job đồng bộ KiotViet #{job_id}',
+    'audit:nas_links': {
+        'GET': 'xem trang cập nhật link NAS',
+        'POST': 'lưu cấu hình link NAS',
+    },
+
+    # KiotViet tra cứu
+    'kiotviet:customer_lookup': 'tra cứu khách hàng KiotViet',
+    'kiotviet:customer_detail': 'xem chi tiết khách hàng KiotViet #{customer_id}',
+    'kiotviet:order_lookup': 'tra cứu đơn đặt hàng KiotViet',
+    'kiotviet:order_detail': 'xem chi tiết đơn đặt hàng KiotViet #{order_id}',
+    'kiotviet:invoice_lookup': 'tra cứu hóa đơn KiotViet',
+    'kiotviet:invoice_detail': 'xem chi tiết hóa đơn KiotViet #{invoice_id}',
+    'kiotviet:product_lookup': 'tra cứu hàng hóa KiotViet',
+    'kiotviet:product_detail': 'xem chi tiết sản phẩm KiotViet #{product_id}',
+    'kiotviet:stock_lookup': 'tra cứu tồn kho KiotViet',
+    'kiotviet:purchase_lookup': 'tra cứu phiếu nhập KiotViet',
+    'kiotviet:purchase_detail': 'xem chi tiết phiếu nhập KiotViet #{purchase_id}',
+
+    # Công việc
+    'tasks:hub': 'xem trung tâm công việc',
+    'tasks:my': 'xem công việc của tôi',
+    'tasks:detail': 'xem chi tiết công việc #{pk}',
+    'tasks:personal_hub': 'xem công việc cá nhân',
+    'tasks:assigned': 'xem công việc được giao',
+    'tasks:assign': {
+        'GET': 'mở form giao việc',
+        'POST': 'giao công việc mới',
+    },
+    'tasks:recurring': 'xem công việc lặp',
+    'tasks:recurrence_action': 'thao tác công việc lặp',
+    'tasks:reassign': 'chuyển giao công việc',
+    'tasks:project_list': 'xem danh sách dự án',
+    'tasks:project_create': {
+        'GET': 'mở form tạo dự án',
+        'POST': 'tạo dự án mới',
+    },
+    'tasks:project_detail': 'xem chi tiết dự án #{pk}',
+    'tasks:project_step': 'cập nhật bước dự án #{pk}',
+    'tasks:handoff': 'bàn giao bước dự án',
+    'tasks:project_reassign': 'chuyển giao dự án',
+    'tasks:cross_dept_list': 'xem dự án liên phòng ban',
+    'tasks:cross_dept_create': {
+        'GET': 'mở form tạo dự án liên phòng ban',
+        'POST': 'tạo dự án liên phòng ban',
+    },
+    'tasks:cross_dept_pending': 'xem dự án liên phòng ban chờ xử lý',
+    'tasks:cross_dept_detail': 'xem chi tiết dự án liên phòng ban #{pk}',
+    'tasks:cross_dept_step': 'cập nhật bước dự án liên phòng ban',
+    'tasks:cross_dept_claim': 'nhận xử lý dự án liên phòng ban',
+    'tasks:cross_dept_handoff': 'bàn giao dự án liên phòng ban',
+    'tasks:cross_dept_reassign': 'chuyển giao dự án liên phòng ban',
+
+    # Yêu cầu / đề xuất / hỗ trợ
+    'service_requests:hub': 'xem trung tâm yêu cầu dịch vụ',
+    'service_requests:my': 'xem yêu cầu của tôi',
+    'service_requests:detail': 'xem chi tiết yêu cầu #{pk}',
+    'service_requests:create': {
+        'GET': 'mở form tạo yêu cầu',
+        'POST': 'gửi yêu cầu mới',
+    },
+    'service_requests:de_xuat_my': 'xem đề xuất của tôi',
+    'service_requests:de_xuat_pending': 'xem đề xuất chờ duyệt',
+    'service_requests:de_xuat_detail': 'xem chi tiết đề xuất #{pk}',
+    'service_requests:ho_tro_hub': 'xem trung tâm hỗ trợ IT',
+    'service_requests:ho_tro_my': 'xem phiếu hỗ trợ của tôi',
+    'service_requests:ho_tro_pending': 'xem phiếu hỗ trợ chờ xử lý',
+    'service_requests:ho_tro_detail': 'xem chi tiết phiếu hỗ trợ #{pk}',
+    'service_requests:create_it_repair': {
+        'POST': 'tạo phiếu sửa chữa IT',
+    },
+    'service_requests:create_it_repair_it': {
+        'POST': 'tạo phiếu sửa chữa IT (phòng IT)',
+    },
+    'service_requests:create_it_repair_production': {
+        'POST': 'tạo phiếu sửa chữa IT (sản xuất)',
+    },
+    'service_requests:catalog_list': 'xem danh mục tài sản đề xuất',
+    'service_requests:catalog_create': {
+        'GET': 'mở form thêm danh mục tài sản',
+        'POST': 'thêm danh mục tài sản',
+    },
+    'service_requests:catalog_edit': {
+        'GET': 'mở form sửa danh mục tài sản #{pk}',
+        'POST': 'cập nhật danh mục tài sản #{pk}',
+    },
+    'service_requests:catalog_delete': 'xóa danh mục tài sản #{pk}',
+    'service_requests:pending': 'xem yêu cầu chờ xử lý',
+
+    # Góp ý
+    'feedback:hub': 'xem trung tâm góp ý',
+    'feedback:list': 'xem danh sách góp ý',
+    'feedback:detail': 'xem chi tiết góp ý #{pk}',
+    'feedback:create': {
+        'GET': 'mở form gửi góp ý',
+        'POST': 'gửi góp ý mới',
+    },
+
+    # NAS
+    'nas:browse': 'duyệt thư mục NAS',
+    'nas:share_create': {
+        'POST': 'tạo link chia sẻ NAS',
+    },
+    'nas:share_open': 'mở link chia sẻ NAS',
+    'nas:download': 'tải file từ NAS',
+    'nas:delete': 'xóa file/thư mục trên NAS',
+
+    # Công cụ
+    'tools:pdf_to_word': {
+        'GET': 'mở công cụ PDF sang Word',
+        'POST': 'chuyển PDF sang Word',
+    },
+    'tools:ocr': {
+        'GET': 'mở công cụ OCR',
+        'POST': 'nhận dạng văn bản OCR',
+    },
+    'tools:compress_image': {
+        'GET': 'mở công cụ nén ảnh',
+        'POST': 'nén ảnh',
+    },
+    'tools:remove_background': {
+        'GET': 'mở công cụ xóa nền ảnh',
+        'POST': 'xóa nền ảnh',
+    },
+    'tools:qr_generator': {
+        'GET': 'mở công cụ tạo mã QR',
+        'POST': 'tạo mã QR',
+    },
+    'tools:notes': 'xem ghi chú nhanh',
+    'tools:note_quick_add': 'thêm ghi chú nhanh',
+    'tools:notes_api': 'API ghi chú',
+    'tools:note_detail_api': 'API chi tiết ghi chú',
 }
 
 # Field ưu tiên hiển thị trong mô tả theo url_name
@@ -341,6 +540,19 @@ URL_POST_HIGHLIGHTS: dict[str, list[str]] = {
     'take_exam': ['exam_id'],
     'password_change': ['old_password'],
     'user_guide_edit': ['content', 'title'],
+    'kiotviet_sync_save': ['interval_minutes', 'entities'],
+    'kiotviet_sync_run': ['entities'],
+    'permission_group_add': ['name'],
+    'permission_group_edit': ['name'],
+    'backup_run': [],
+    'assign': ['title', 'assigned_to', 'due_date'],
+    'create': ['title', 'subject', 'description'],
+    'catalog_create': ['name', 'code'],
+    'catalog_edit': ['name', 'code'],
+    'project_create': ['title', 'name'],
+    'cross_dept_create': ['title', 'name'],
+    'device_edit': ['name', 'status', 'category'],
+    'feedback_create': ['subject', 'content'],
 }
 
 SKIP_POST_KEYS = frozenset({
@@ -465,11 +677,116 @@ def describe_query_tab(request: HttpRequest) -> str:
     return ' · '.join(parts)
 
 
+def _path_namespace(path: str) -> str:
+    for prefix, namespace in PATH_PREFIXES:
+        if path.startswith(prefix):
+            return namespace
+    return ''
+
+
+def _lookup_url_entry(
+    entry: dict[str, str] | str | None,
+    method: str,
+) -> str:
+    if isinstance(entry, dict):
+        return entry.get(method) or entry.get('GET') or entry.get('POST') or ''
+    return entry or ''
+
+
+def _describe_equipment_url(url_name: str, method: str) -> str:
+    """Sinh mô tả cho ~60 route thiết bị (IT / Sản xuất / chung)."""
+    branch = ''
+    base = url_name
+    if base.endswith('_it'):
+        branch = ' IT'
+        base = base[:-3]
+    elif base.endswith('_production'):
+        branch = ' Sản xuất'
+        base = base[:-12]
+
+    if method == 'GET':
+        verb_open = 'xem'
+        verb_do = 'mở'
+    elif method == 'POST':
+        verb_open = 'gửi form'
+        verb_do = 'thực hiện'
+    else:
+        verb_open = 'thao tác'
+        verb_do = 'thao tác'
+
+    patterns: dict[str, tuple[str, str]] = {
+        'dashboard': (verb_open, f'dashboard thiết bị{branch}'),
+        'device_list': (verb_open, f'danh sách thiết bị{branch}'),
+        'device_add': (verb_do, f'form thêm thiết bị{branch}'),
+        'it_repair_list': (verb_open, f'danh sách phiếu sửa chữa{branch}'),
+        'it_repair_detail': (verb_open, f'chi tiết phiếu sửa chữa{branch}'),
+        'import_export_hub': (verb_open, f'nhập/xuất thiết bị{branch}'),
+        'category_list': (verb_open, f'danh mục loại thiết bị{branch}'),
+        'category_add': (verb_do, f'form thêm loại thiết bị{branch}'),
+        'category_edit': (verb_do, f'form sửa loại thiết bị{branch}'),
+        'category_delete': ('xóa', f'loại thiết bị{branch}'),
+        'export_devices': ('xuất', f'danh sách thiết bị{branch} ra Excel'),
+        'download_sample': ('tải', f'file mẫu nhập thiết bị{branch}'),
+        'import_devices': ('nhập', f'thiết bị{branch} từ Excel'),
+        'delete_bulk_devices': ('xóa hàng loạt', f'thiết bị{branch}'),
+        'device_detail_manage': (verb_open, 'chi tiết thiết bị'),
+        'device_edit': (verb_do, 'form sửa thiết bị'),
+        'device_history': (verb_open, 'lịch sử thiết bị'),
+        'device_update_history': (verb_open, 'lịch sử cập nhật thiết bị'),
+        'device_qr_public': (verb_open, 'mã QR thiết bị (công khai)'),
+        'agent_guide': (verb_open, 'hướng dẫn cài agent thiết bị'),
+        'agent_install_gate': (verb_open, 'trang yêu cầu cài agent'),
+        'agent_download_installer': ('tải', 'trình cài JustPlay Agent'),
+        'request_agent_rescan': ('yêu cầu', 'quét lại thiết bị qua agent'),
+    }
+    if base in patterns:
+        v, rest = patterns[base]
+        return f'{v} {rest}'
+    if base.startswith('api_') or base.startswith('agent_'):
+        return f'{verb_do} {base.replace("_", " ")}{branch}'
+    readable = base.replace('_', ' ')
+    return f'{verb_open} {readable}{branch}'
+
+
 def resolve_url_description(request: HttpRequest, url_name: str) -> str:
     method = request.method.upper()
     path = request.path
     resolver = getattr(request, 'resolver_match', None)
     kwargs = dict(getattr(resolver, 'kwargs', None) or {})
+
+    namespace = _path_namespace(path)
+    if namespace == 'equipment' and url_name:
+        base = _describe_equipment_url(url_name, method)
+        extras = []
+        if method == 'POST':
+            post_hint = describe_post_highlights(request, url_name or '')
+            if post_hint:
+                extras.append(post_hint)
+        if kwargs:
+            id_part = ' · '.join(f'#{v}' for v in kwargs.values())
+            if id_part:
+                extras.append(id_part)
+        if extras:
+            return f'{base} ({", ".join(extras)})'
+        return base
+
+    if namespace and url_name:
+        ns_entry = NAMESPACE_URL_DESCRIPTIONS.get(f'{namespace}:{url_name}')
+        ns_base = _lookup_url_entry(ns_entry, method)
+        if ns_base:
+            ns_base = _format_template(ns_base, kwargs)
+            extras = []
+            if method == 'GET':
+                query_hint = describe_query_tab(request)
+                if query_hint:
+                    extras.append(query_hint)
+            elif method == 'POST':
+                post_hint = describe_post_highlights(request, url_name or '')
+                if post_hint:
+                    extras.append(post_hint)
+            if extras:
+                return f'{ns_base} ({extras[0]})' if len(extras) == 1 else f'{ns_base} ({", ".join(extras)})'
+            return ns_base
 
     # url_name trùng giữa app — phân biệt theo path
     if url_name == 'detail':
@@ -481,11 +798,8 @@ def resolve_url_description(request: HttpRequest, url_name: str) -> str:
             return _format_template(base, kwargs)
 
     entry = URL_DESCRIPTIONS.get(url_name or '')
-    if isinstance(entry, dict):
-        base = entry.get(method) or entry.get('GET') or entry.get('POST') or ''
-    elif isinstance(entry, str):
-        base = entry
-    else:
+    base = _lookup_url_entry(entry, method)
+    if not base:
         base = _fallback_from_path(request.path, method)
 
     if base:
@@ -587,10 +901,13 @@ def build_detailed_summary(
     if object_repr and object_repr not in detail:
         detail = f'{detail} — {object_repr}'
 
-    if not detail and module_label:
+    if not detail.strip():
+        detail = _fallback_from_path(request.path, request.method.upper())
+
+    if not detail.strip() and module_label:
         action_labels = dict(UserActivityLog.ACTION_CHOICES)
         verb = action_labels.get(action, action).lower()
-        detail = f'{verb} {module_label}'
+        detail = f'{verb} trang {module_label}'
 
     prefix_map = {
         UserActivityLog.ACTION_VIEW: 'đã',

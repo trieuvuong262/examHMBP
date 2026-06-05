@@ -313,8 +313,6 @@ def create_activity_log(
             if is_audit_exempt_user(user):
                 return None
             snap = snapshot_user(user)
-    elif user and getattr(user, 'is_authenticated', False) and is_audit_exempt_user(user):
-        return None
         path = path or request.path
         method = method or request.method
         query_string = query_string if query_string != '' else request.META.get('QUERY_STRING', '')
@@ -331,10 +329,13 @@ def create_activity_log(
             url_name = resolver.url_name or ''
         if not object_repr and request.method == 'POST' and resolver:
             post_hint = describe_post_highlights(request, url_name)
-            if post_hint and ' · ' in post_hint:
-                object_repr = post_hint.split(' · ', 1)[-1][:255]
-
+            if post_hint:
+                object_repr = (
+                    post_hint.split(' · ', 1)[-1] if ' · ' in post_hint else post_hint
+                )[:255]
         device = get_client_device_info(request)
+    elif user and getattr(user, 'is_authenticated', False) and is_audit_exempt_user(user):
+        return None
 
     merged_extra = dict(extra or {})
     if device.get('local_ip'):
