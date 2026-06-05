@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from django.conf import settings
 from django.db import models
 
 
@@ -539,4 +540,104 @@ class KvPurchaseOrderLine(models.Model):
             'price': float(self.price) if self.price is not None else None,
             'discount': float(self.discount) if self.discount is not None else None,
         }
+
+
+class KvSyncConfig(models.Model):
+    """Cấu hình đồng bộ KiotViet (một bản ghi / retailer)."""
+
+    retailer = models.CharField(max_length=64, unique=True)
+    interval_hours = models.PositiveSmallIntegerField(default=2)
+    schedule_enabled = models.BooleanField(default=True)
+    enabled_entities = models.JSONField(default=list, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='kv_sync_configs_updated',
+    )
+
+    class Meta:
+        db_table = 'kv_sync_config'
+        verbose_name = 'Cấu hình đồng bộ KiotViet'
+        verbose_name_plural = 'Cấu hình đồng bộ KiotViet'
+
+    def __str__(self) -> str:
+        return f'{self.retailer} · {self.interval_hours}h'
+
+    @classmethod
+    def get_for_retailer(cls, retailer: str) -> KvSyncConfig:
+        from .sync_service import ENTITY_ALL
+
+        obj, _ = cls.objects.get_or_create(
+            retailer=retailer,
+            defaults={'enabled_entities': list(ENTITY_ALL)},
+        )
+        if not obj.enabled_entities:
+            obj.enabled_entities = list(ENTITY_ALL)
+        return obj
+
+
+class KvSyncJob(models.Model):
+    TRIGGER_MANUAL = 'manual'
+    TRIGGER_SCHEDULED = 'scheduled'
+    TRIGGER_CHOICES = [
+        (TRIGGER_MANUAL, 'Thủ công'),
+        (TRIGGER_SCHEDULED, 'Tự động'),
+    ]
+
+    STATUS_PENDING = 'pending'
+    STATUS_RUNNING = 'running'
+    STATUS_SUCCESS = 'success'
+    STATUS_FAILED = 'failed'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Chờ'),
+        (STATUS_RUNNING, 'Đang chạy'),
+        (STATUS_SUCCESS, 'Thành công'),
+        (STATUS_FAILED, 'Thất bại'),
+    ]
+
+    trigger = models.CharField(max_length=16, choices=TRIGGER_CHOICES, default=TRIGGER_MANUAL)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+    full_sync = models.BooleanField(default=False)
+    entities = models.JSONField(default=list, blank=True)
+    progress_percent = models.PositiveSmallIntegerField(default=0)
+    current_entity = models.CharField(max_length=32, blank=True, default='')
+    rows_synced = models.BigIntegerField(default=0)
+    message = models.TextField(blank=True, default='')
+    entity_results = models.JSONField(default=list, blank=True)
+    started_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='kv_sync_jobs',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'kv_sync_job'
+        ordering = ['-created_at']
+        verbose_name = 'Job đồng bộ KiotViet'
+        verbose_name_plural = 'Job đồng bộ KiotViet'
+
+    def __str__(self) -> str:
+        return f'{self.get_trigger_display()} · {self.get_status_display()} · {self.progress_percent}%'
+
+    @property
+    def duration_display(self) -> str:
+        if not self.started_at or not self.finished_at:
+            return '—'
+        delta = self.finished_at - self.started_at
+        secs = int(delta.total_seconds())
+        if secs < 60:
+            return f'{secs}s'
+        return f'{secs // 60} phút {secs % 60}s'
+
+    @property
+    def is_active(self) -> bool:
+        return self.status in (self.STATUS_PENDING, self.STATUS_RUNNING)
 

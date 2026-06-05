@@ -37,6 +37,13 @@ class KiotVietMirrorTests(TestCase):
         self.assertIsNotNone(detail)
         self.assertEqual(detail['name'], 'Nguyen Van A')
 
+    def test_use_local_mirror_without_data_when_retailer_set(self):
+        self.assertEqual(entity_count('customers', self.retailer), 0)
+        self.assertTrue(use_local_mirror('customers', self.retailer))
+        rows, total = browse_customers(page=1, per_page=30, retailer=self.retailer)
+        self.assertEqual(total, 0)
+        self.assertEqual(rows, [])
+
     def test_upsert_product_with_inventory(self):
         upsert_product(self.retailer, {
             'id': 2001,

@@ -41,9 +41,16 @@ def entity_count(entity: str, retailer: str | None = None) -> int:
 
 
 def use_local_mirror(entity: str, retailer: str | None = None) -> bool:
+    """Portal tra cứu luôn đọc mirror kv_* (không gọi API trực tiếp)."""
     if not mirror_enabled():
         return False
-    return entity_count(entity, retailer=retailer) > 0
+    retailer = retailer or current_retailer()
+    return bool(retailer)
+
+
+def portal_mirror_ready(retailer: str | None = None) -> bool:
+    """Mirror bật + đã cấu hình retailer (dù chưa sync dữ liệu)."""
+    return use_local_mirror('customers', retailer=retailer)
 
 
 def mirror_summary(retailer: str | None = None) -> dict[str, int]:

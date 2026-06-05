@@ -3,12 +3,15 @@ from django.shortcuts import redirect, render
 
 from PortalJustPlay.list_search import get_search_query
 
-from .browse import KV_PAGE_SIZE, fetch_api_page, get_page_number, paginate_api_meta
-from .client import KiotVietAPIError, KiotVietClient
+from .browse import KV_PAGE_SIZE, get_page_number, paginate_api_meta
 from .decorators import kiotviet_access_required
 from .formatters import format_customer_row
 from . import local_lookup as local
-from .mirror import use_local_mirror
+from .sync_service import current_retailer
+
+MIRROR_EMPTY_HINT = (
+    'Chưa có dữ liệu mirror. Vào Quản Trị Hệ thống → Đồng bộ KiotViet để sync.'
+)
 
 
 @kiotviet_access_required
@@ -19,64 +22,31 @@ def customer_lookup(request):
     query = get_search_query(request)
     customers: list[dict] = []
     total = 0
-    api_error = None
     page_obj = None
     query_string = ''
     browse_mode = not query
     page = get_page_number(request)
+    retailer = current_retailer()
 
-    client = KiotVietClient()
-    base_params = {
-        'orderBy': 'name',
-        'orderDirection': 'Asc',
-        'includeTotal': 'true',
-    }
-
-    try:
-        if use_local_mirror('customers'):
-            if browse_mode:
-                rows, total = local.browse_customers(page=page, per_page=KV_PAGE_SIZE)
-            elif search_type == 'code' and len(query) <= 64:
-                detail = local.get_customer_by_code(client.retailer, query)
-                if detail:
-                    rows, total = [detail], 1
-                else:
-                    rows, total = local.browse_customers(
-                        page=page, per_page=KV_PAGE_SIZE, code=query,
-                    )
-            else:
-                rows, total = local.browse_customers(
-                    page=page,
-                    per_page=KV_PAGE_SIZE,
-                    name=query if search_type != 'phone' else '',
-                    contact_number=query if search_type == 'phone' else '',
-                )
-            customers = [format_customer_row(r) for r in rows]
-        elif browse_mode:
-            rows, total = fetch_api_page(client.list_customers, base_params, page)
-            customers = [format_customer_row(r) for r in rows]
-        elif search_type == 'code' and len(query) <= 64:
-            try:
-                detail = client.get_customer_by_code(query)
-                customers = [format_customer_row(detail)]
-                total = 1
-            except KiotVietAPIError as exc:
-                if exc.status_code != 404:
-                    raise
-                params = {**base_params, 'code': query}
-                rows, total = fetch_api_page(client.list_customers, params, page)
-                customers = [format_customer_row(r) for r in rows]
+    if browse_mode:
+        rows, total = local.browse_customers(page=page, per_page=KV_PAGE_SIZE, retailer=retailer)
+    elif search_type == 'code' and len(query) <= 64:
+        detail = local.get_customer_by_code(retailer, query)
+        if detail:
+            rows, total = [detail], 1
         else:
-            params = dict(base_params)
-            if search_type == 'phone':
-                params['contactNumber'] = query
-            else:
-                params['name'] = query
-            rows, total = fetch_api_page(client.list_customers, params, page)
-            customers = [format_customer_row(r) for r in rows]
-    except KiotVietAPIError as exc:
-        api_error = str(exc)
-        messages.error(request, api_error)
+            rows, total = local.browse_customers(
+                page=page, per_page=KV_PAGE_SIZE, code=query, retailer=retailer,
+            )
+    else:
+        rows, total = local.browse_customers(
+            page=page,
+            per_page=KV_PAGE_SIZE,
+            name=query if search_type != 'phone' else '',
+            contact_number=query if search_type == 'phone' else '',
+            retailer=retailer,
+        )
+    customers = [format_customer_row(r) for r in rows]
 
     if total and (browse_mode or query):
         page_obj, query_string = paginate_api_meta(request, total)
@@ -89,26 +59,22 @@ def customer_lookup(request):
             'search_query': query,
             'customers': customers,
             'total': total,
-            'api_error': api_error,
+            'api_error': None,
+            'mirror_empty_hint': MIRROR_EMPTY_HINT if total == 0 else '',
             'page_obj': page_obj,
             'query_string': query_string,
             'browse_mode': browse_mode,
-            'retailer': client.retailer if KiotVietClient.is_configured() else '',
+            'retailer': retailer,
         },
     )
 
 
 @kiotviet_access_required
 def customer_detail(request, customer_id: int):
-    client = KiotVietClient()
-    raw = None
-    if use_local_mirror('customers'):
-        raw = local.get_customer(client.retailer, customer_id)
-    try:
-        if raw is None:
-            raw = client.get_customer(customer_id)
-    except KiotVietAPIError as exc:
-        messages.error(request, str(exc))
+    retailer = current_retailer()
+    raw = local.get_customer(retailer, customer_id)
+    if raw is None:
+        messages.error(request, 'Không tìm thấy khách hàng trong dữ liệu đã sync.')
         return redirect('kiotviet:customer_lookup')
 
     customer = format_customer_row(raw)

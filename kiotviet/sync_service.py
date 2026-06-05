@@ -48,6 +48,18 @@ ENTITY_ALL = (
     'purchase_orders',
 )
 
+ENTITY_LABELS = {
+    'branches': 'Chi nhánh',
+    'categories': 'Nhóm hàng',
+    'products': 'Sản phẩm',
+    'customers': 'Khách hàng',
+    'orders': 'Đặt hàng',
+    'invoices': 'Hóa đơn',
+    'purchase_orders': 'Đơn nhập hàng',
+}
+
+ProgressCallback = Callable[[int, int, str], None]
+
 MODEL_BY_ENTITY = {
     'branches': KvBranch,
     'categories': KvCategory,
@@ -109,6 +121,7 @@ def _sync_paginated(
     upsert_fn: Callable[[str, dict], None],
     base_params: dict[str, Any] | None = None,
     full: bool = False,
+    on_progress: ProgressCallback | None = None,
 ) -> dict[str, Any]:
     state, _ = KvSyncState.objects.get_or_create(entity_type=entity_type, retailer=retailer)
     page_size = sync_page_size()
@@ -141,9 +154,13 @@ def _sync_paginated(
 
             api_total = int(payload.get('total') or 0)
             pages += 1
+            if on_progress:
+                on_progress(current_item, api_total, entity_type)
             if not rows:
                 break
             current_item += len(rows)
+            if on_progress:
+                on_progress(current_item, api_total, entity_type)
             if api_total and current_item >= api_total:
                 break
             if len(rows) < page_size:
@@ -496,6 +513,7 @@ def sync_entity(
     full: bool = False,
     client: KiotVietClient | None = None,
     retailer: str | None = None,
+    on_progress: ProgressCallback | None = None,
 ) -> dict[str, Any]:
     entity = entity.strip().lower()
     retailer = retailer or current_retailer()
@@ -504,68 +522,62 @@ def sync_entity(
 
     api = client or KiotVietClient()
 
+    paginated_kwargs = {'retailer': retailer, 'full': full, 'on_progress': on_progress}
     if entity == 'branches':
         return _sync_paginated(
             entity_type='branches',
-            retailer=retailer,
             list_fn=api.list_branches,
             upsert_fn=upsert_branch,
-            full=full,
+            **paginated_kwargs,
         )
     if entity == 'categories':
         params = {'hierachicalData': 'true'} if full else {}
         return _sync_paginated(
             entity_type='categories',
-            retailer=retailer,
             list_fn=api.list_categories,
             upsert_fn=upsert_category,
             base_params=params,
-            full=full,
+            **paginated_kwargs,
         )
     if entity == 'products':
         return _sync_paginated(
             entity_type='products',
-            retailer=retailer,
             list_fn=api.list_products,
             upsert_fn=upsert_product,
             base_params={'includeInventory': 'true'},
-            full=full,
+            **paginated_kwargs,
         )
     if entity == 'customers':
         return _sync_paginated(
             entity_type='customers',
-            retailer=retailer,
             list_fn=api.list_customers,
             upsert_fn=upsert_customer,
             base_params={'includeTotal': 'true'},
-            full=full,
+            **paginated_kwargs,
         )
     if entity == 'orders':
         return _sync_paginated(
             entity_type='orders',
-            retailer=retailer,
             list_fn=api.list_orders,
             upsert_fn=upsert_order,
             base_params={'orderBy': 'modifiedDate', 'orderDirection': 'Desc'},
-            full=full,
+            **paginated_kwargs,
         )
     if entity == 'invoices':
         return _sync_paginated(
             entity_type='invoices',
-            retailer=retailer,
             list_fn=api.list_invoices,
             upsert_fn=upsert_invoice,
             base_params={'orderBy': 'modifiedDate', 'orderDirection': 'Desc'},
-            full=full,
+            **paginated_kwargs,
         )
     if entity == 'purchase_orders':
         return _sync_paginated(
             entity_type='purchase_orders',
-            retailer=retailer,
             list_fn=api.list_purchase_orders,
             upsert_fn=upsert_purchase_order,
             base_params={'orderBy': 'modifiedDate', 'orderDirection': 'Desc'},
-            full=full,
+            **paginated_kwargs,
         )
     return {'entity': entity, 'error': f'Entity không hỗ trợ: {entity}'}
 

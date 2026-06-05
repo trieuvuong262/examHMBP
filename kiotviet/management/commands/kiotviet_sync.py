@@ -10,7 +10,8 @@ Usage:
 from django.core.management.base import BaseCommand
 
 from kiotviet.client import KiotVietClient
-from kiotviet.sync_service import ENTITY_ALL, sync_all, sync_entity
+from kiotviet.models import KvSyncConfig
+from kiotviet.sync_service import ENTITY_ALL, current_retailer, sync_all, sync_entity
 
 
 class Command(BaseCommand):
@@ -38,6 +39,13 @@ class Command(BaseCommand):
 
         entities = options.get('entities')
         full = bool(options.get('full'))
+
+        if not entities:
+            retailer = current_retailer()
+            if retailer:
+                config = KvSyncConfig.get_for_retailer(retailer)
+                if config.schedule_enabled:
+                    entities = list(config.enabled_entities or ENTITY_ALL)
 
         if entities:
             results = [sync_entity(e, full=full) for e in entities]

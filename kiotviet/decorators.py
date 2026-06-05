@@ -14,7 +14,7 @@ def kiotviet_access_required(view_func):
         if not kiotviet_is_live():
             messages.error(
                 request,
-                'KiotViet chưa được cấu hình trên server (.env: KIOTVIET_ENABLED=1 và Client ID/Secret/Retailer).',
+                'KiotViet mirror chưa sẵn sàng (.env: KIOTVIET_USE_LOCAL_MIRROR=1 và KIOTVIET_RETAILER).',
             )
             return redirect('home_portal')
         if not user_can_use_kiotviet(request.user):

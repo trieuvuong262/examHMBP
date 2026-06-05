@@ -1,14 +1,12 @@
-"""Tra cứu đơn đặt hàng & hóa đơn — logic dùng chung."""
+"""Tra cứu đơn đặt hàng & hóa đơn — đọc từ mirror kv_*."""
 
 from django.contrib import messages
 from django.shortcuts import redirect, render
 
 from PortalJustPlay.list_search import get_search_query
 
-from .browse import KV_PAGE_SIZE, fetch_api_page, get_page_number, paginate_api_meta
-from .client import KiotVietAPIError, KiotVietClient
+from .browse import KV_PAGE_SIZE, get_page_number, paginate_api_meta
 from . import local_lookup as local
-from .mirror import use_local_mirror
 from .formatters import (
     format_invoice_detail,
     format_invoice_row,
@@ -16,16 +14,8 @@ from .formatters import (
     format_order_row,
 )
 from .decorators import kiotviet_access_required
-
-
-def _list_params(search_type: str, query: str) -> dict:
-    params = {
-        'orderDirection': 'Desc',
-        'orderBy': 'purchaseDate',
-    }
-    if search_type == 'customer_code' and query:
-        params['customerCode'] = query
-    return params
+from .sync_service import current_retailer
+from .views import MIRROR_EMPTY_HINT
 
 
 def _transaction_lookup(
@@ -37,10 +27,10 @@ def _transaction_lookup(
     detail_url_name: str,
     empty_hint: str,
     type_options: tuple,
-    list_fn,
-    get_by_code_fn,
+    mirror_entity: str,
+    browse_fn,
+    get_code_fn,
     format_row_fn,
-    mirror_entity: str | None = None,
 ):
     search_type = (request.GET.get('type') or 'code').strip()
     allowed = {opt[0] for opt in type_options}
@@ -49,53 +39,25 @@ def _transaction_lookup(
     query = get_search_query(request)
     items: list[dict] = []
     total = 0
-    api_error = None
     page_obj = None
     query_string = ''
     browse_mode = not query
     page = get_page_number(request)
+    retailer = current_retailer()
 
-    client = KiotVietClient()
-    base_params = _list_params(search_type, query)
-
-    try:
-        if mirror_entity and use_local_mirror(mirror_entity):
-            browse_fn = local.browse_orders if mirror_entity == 'orders' else local.browse_invoices
-            get_code_fn = (
-                local.get_order_by_code if mirror_entity == 'orders' else local.get_invoice_by_code
-            )
-            if browse_mode:
-                rows, total = browse_fn(page=page, per_page=KV_PAGE_SIZE)
-            elif search_type == 'code':
-                detail = get_code_fn(client.retailer, query)
-                if detail:
-                    rows, total = [detail], 1
-                else:
-                    rows, total = browse_fn(page=page, per_page=KV_PAGE_SIZE, code=query)
-            else:
-                rows, total = browse_fn(
-                    page=page, per_page=KV_PAGE_SIZE, customer_code=query,
-                )
-            items = [format_row_fn(r) for r in rows]
-        elif browse_mode:
-            rows, total = fetch_api_page(list_fn, base_params, page)
-            items = [format_row_fn(r) for r in rows]
-        elif search_type == 'code':
-            try:
-                detail = get_by_code_fn(query)
-                items = [format_row_fn(detail)]
-                total = 1
-            except KiotVietAPIError as exc:
-                if exc.status_code != 404:
-                    raise
-                rows, total = fetch_api_page(list_fn, base_params, page)
-                items = [format_row_fn(r) for r in rows]
+    if browse_mode:
+        rows, total = browse_fn(page=page, per_page=KV_PAGE_SIZE, retailer=retailer)
+    elif search_type == 'code':
+        detail = get_code_fn(retailer, query)
+        if detail:
+            rows, total = [detail], 1
         else:
-            rows, total = fetch_api_page(list_fn, _list_params('customer_code', query), page)
-            items = [format_row_fn(r) for r in rows]
-    except KiotVietAPIError as exc:
-        api_error = str(exc)
-        messages.error(request, api_error)
+            rows, total = browse_fn(page=page, per_page=KV_PAGE_SIZE, code=query, retailer=retailer)
+    else:
+        rows, total = browse_fn(
+            page=page, per_page=KV_PAGE_SIZE, customer_code=query, retailer=retailer,
+        )
+    items = [format_row_fn(r) for r in rows]
 
     if total and (browse_mode or query):
         page_obj, query_string = paginate_api_meta(request, total)
@@ -111,7 +73,8 @@ def _transaction_lookup(
             search_query=query,
             items=items,
             total=total,
-            api_error=api_error,
+            api_error=None,
+            mirror_empty_hint=MIRROR_EMPTY_HINT if total == 0 else '',
             detail_url_name=detail_url_name,
             empty_hint=empty_hint,
             type_options=type_options,
@@ -119,13 +82,13 @@ def _transaction_lookup(
             query_string=query_string,
             browse_mode=browse_mode,
             items_count=len(items),
+            mirror_entity=mirror_entity,
         ),
     )
 
 
 @kiotviet_access_required
 def order_lookup(request):
-    client = KiotVietClient()
     return _transaction_lookup(
         request,
         title='Tra cứu đơn đặt hàng',
@@ -137,24 +100,19 @@ def order_lookup(request):
             ('code', 'Mã đơn đặt hàng'),
             ('customer_code', 'Mã khách hàng'),
         ),
-        list_fn=client.list_orders,
-        get_by_code_fn=client.get_order_by_code,
-        format_row_fn=format_order_row,
         mirror_entity='orders',
+        browse_fn=local.browse_orders,
+        get_code_fn=local.get_order_by_code,
+        format_row_fn=format_order_row,
     )
 
 
 @kiotviet_access_required
 def order_detail(request, order_id: int):
-    client = KiotVietClient()
-    raw = None
-    if use_local_mirror('orders'):
-        raw = local.get_order(client.retailer, order_id)
-    try:
-        if raw is None:
-            raw = client.get_order(order_id)
-    except KiotVietAPIError as exc:
-        messages.error(request, str(exc))
+    retailer = current_retailer()
+    raw = local.get_order(retailer, order_id)
+    if raw is None:
+        messages.error(request, 'Không tìm thấy đơn đặt hàng trong dữ liệu đã sync.')
         return redirect('kiotviet:order_lookup')
     return render(
         request,
@@ -169,7 +127,6 @@ def order_detail(request, order_id: int):
 
 @kiotviet_access_required
 def invoice_lookup(request):
-    client = KiotVietClient()
     return _transaction_lookup(
         request,
         title='Tra cứu hóa đơn',
@@ -181,24 +138,19 @@ def invoice_lookup(request):
             ('code', 'Mã hóa đơn'),
             ('customer_code', 'Mã khách hàng'),
         ),
-        list_fn=client.list_invoices,
-        get_by_code_fn=client.get_invoice_by_code,
-        format_row_fn=format_invoice_row,
         mirror_entity='invoices',
+        browse_fn=local.browse_invoices,
+        get_code_fn=local.get_invoice_by_code,
+        format_row_fn=format_invoice_row,
     )
 
 
 @kiotviet_access_required
 def invoice_detail(request, invoice_id: int):
-    client = KiotVietClient()
-    raw = None
-    if use_local_mirror('invoices'):
-        raw = local.get_invoice(client.retailer, invoice_id)
-    try:
-        if raw is None:
-            raw = client.get_invoice(invoice_id)
-    except KiotVietAPIError as exc:
-        messages.error(request, str(exc))
+    retailer = current_retailer()
+    raw = local.get_invoice(retailer, invoice_id)
+    if raw is None:
+        messages.error(request, 'Không tìm thấy hóa đơn trong dữ liệu đã sync.')
         return redirect('kiotviet:invoice_lookup')
     return render(
         request,
@@ -212,5 +164,5 @@ def invoice_detail(request, invoice_id: int):
 
 
 def _lookup_context(request, **extra) -> dict:
-    extra['retailer'] = KiotVietClient().retailer if KiotVietClient.is_configured() else ''
+    extra.setdefault('retailer', current_retailer())
     return extra

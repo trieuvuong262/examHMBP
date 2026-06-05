@@ -2,12 +2,12 @@
 
 from hrm.module_permissions import MODULE_KIOTVIET, bypass_department_modules, user_can_access_module
 
-from .client import KiotVietClient
+from .mirror import portal_mirror_ready
 
 
 def kiotviet_is_live() -> bool:
-    """API đã bật và đủ credentials trên server."""
-    return KiotVietClient.is_configured()
+    """Portal tra cứu KiotViet qua mirror DB đã sync."""
+    return portal_mirror_ready()
 
 
 def user_can_use_kiotviet(user) -> bool:

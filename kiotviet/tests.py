@@ -5,7 +5,8 @@ from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from hrm.models import Department, DepartmentMenuPermission, Profile
-from kiotviet.client import KiotVietAPIError, KiotVietClient
+from kiotviet.client import KiotVietClient
+from kiotviet.sync_service import upsert_customer
 
 
 @override_settings(
@@ -13,6 +14,7 @@ from kiotviet.client import KiotVietAPIError, KiotVietClient
     KIOTVIET_RETAILER='justsport',
     KIOTVIET_CLIENT_ID='test-id',
     KIOTVIET_CLIENT_SECRET='test-secret',
+    KIOTVIET_USE_LOCAL_MIRROR=True,
 )
 class KiotVietClientTests(TestCase):
     def test_is_configured(self):
@@ -37,12 +39,12 @@ class KiotVietClientTests(TestCase):
 
 
 @override_settings(
-    KIOTVIET_ENABLED=True,
     KIOTVIET_RETAILER='justsport',
-    KIOTVIET_CLIENT_ID='test-id',
-    KIOTVIET_CLIENT_SECRET='test-secret',
+    KIOTVIET_USE_LOCAL_MIRROR=True,
 )
 class KiotVietViewTests(TestCase):
+    retailer = 'justsport'
+
     def setUp(self):
         self.dept = Department.objects.create(name='KD KiotViet Test')
         self.user = User.objects.create_user(username='kvuser', password='pass12345')
@@ -79,46 +81,36 @@ class KiotVietViewTests(TestCase):
         response = self.http.get(reverse('kiotviet:purchase_lookup'))
         self.assertEqual(response.status_code, 200)
 
-    @patch('kiotviet.views.KiotVietClient.list_customers')
-    def test_customer_browse_shows_first_page(self, mock_list):
-        mock_list.return_value = {
-            'total': 45,
-            'data': [
-                {'id': i, 'code': f'KH{i:02d}', 'name': f'Khách {i}'}
-                for i in range(1, 31)
-            ],
-        }
+    def _seed_customers(self, count: int, start: int = 1):
+        for i in range(start, start + count):
+            upsert_customer(self.retailer, {
+                'id': i,
+                'code': f'KH{i:02d}',
+                'name': f'Khách {i}',
+                'modifiedDate': '2024-01-15T10:00:00',
+            })
+
+    def test_customer_browse_shows_first_page(self):
+        self._seed_customers(31)
         response = self.http.get(reverse('kiotviet:customer_lookup'))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'KH01')
         self.assertContains(response, 'Trang 1/')
-        mock_list.assert_called_once()
-        kwargs = mock_list.call_args.kwargs
-        self.assertEqual(kwargs['pageSize'], 30)
-        self.assertEqual(kwargs['currentItem'], 0)
 
-    @patch('kiotviet.views.KiotVietClient.list_customers')
-    def test_customer_browse_page_two(self, mock_list):
-        mock_list.return_value = {'total': 45, 'data': [{'id': 31, 'code': 'KH31', 'name': 'Khách 31'}]}
+    def test_customer_browse_page_two(self):
+        self._seed_customers(31)
         response = self.http.get(reverse('kiotviet:customer_lookup'), {'page': '2'})
         self.assertEqual(response.status_code, 200)
-        kwargs = mock_list.call_args.kwargs
-        self.assertEqual(kwargs['currentItem'], 30)
+        self.assertContains(response, 'Trang 2/2')
 
-    @patch('kiotviet.views.KiotVietClient.get_customer_by_code')
-    @patch('kiotviet.views.KiotVietClient.list_customers')
-    def test_lookup_search_by_name(self, mock_list, mock_by_code):
-        mock_list.return_value = {
-            'total': 1,
-            'data': [
-                {
-                    'id': 99,
-                    'code': 'KH99',
-                    'name': 'Nguyen Van A',
-                    'contactNumber': '0901234567',
-                },
-            ],
-        }
+    def test_lookup_search_by_name(self):
+        upsert_customer(self.retailer, {
+            'id': 99,
+            'code': 'KH99',
+            'name': 'Nguyen Van A',
+            'contactNumber': '0901234567',
+            'modifiedDate': '2024-01-15T10:00:00',
+        })
         response = self.http.get(
             reverse('kiotviet:customer_lookup'),
             {'type': 'name', 'q': 'Nguyen'},
@@ -126,24 +118,27 @@ class KiotVietViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Nguyen Van A')
         self.assertContains(response, 'KH99')
-        mock_list.assert_called_once()
-        mock_by_code.assert_not_called()
 
-    @patch('kiotviet.views.KiotVietClient.get_customer')
-    def test_customer_detail(self, mock_get):
-        mock_get.return_value = {
+    def test_customer_detail(self):
+        upsert_customer(self.retailer, {
             'id': 99,
             'code': 'KH99',
             'name': 'Nguyen Van A',
             'contactNumber': '0901234567',
             'email': 'a@example.com',
-        }
+            'modifiedDate': '2024-01-15T10:00:00',
+        })
         response = self.http.get(reverse('kiotviet:customer_detail', kwargs={'customer_id': 99}))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Nguyen Van A')
 
-    @override_settings(KIOTVIET_ENABLED=False)
-    def test_disabled_redirects_home(self):
+    @override_settings(KIOTVIET_USE_LOCAL_MIRROR=False)
+    def test_mirror_disabled_redirects_home(self):
+        response = self.http.get(reverse('kiotviet:customer_lookup'))
+        self.assertRedirects(response, reverse('home_portal'))
+
+    @override_settings(KIOTVIET_RETAILER='')
+    def test_missing_retailer_redirects_home(self):
         response = self.http.get(reverse('kiotviet:customer_lookup'))
         self.assertRedirects(response, reverse('home_portal'))
 

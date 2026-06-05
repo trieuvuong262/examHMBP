@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div class="jp-page-header-main">
+            <h2 class="jp-page-title fw-bold text-dark mb-1">
+                <i class="bi bi-arrow-repeat text-hm me-2"></i>Đồng bộ KiotViet
+            </h2>
+            <p class="text-muted small mb-0 mt-1">
+                Cấu hình lịch đồng bộ mirror <code>kv_*</code> từ KiotViet API
+                {% if retailer %}· Retailer <strong>{{ retailer }}</strong>{% endif %}
+            </p>
+        </div>
+    </div>
+
+    {% if not configured %}
+    <div class="alert alert-warning border-0 shadow-sm">
+        KiotViet chưa bật hoặc thiếu credentials. Đặt <code>KIOTVIET_ENABLED=1</code> và các biến
+        <code>KIOTVIET_RETAILER</code>, <code>KIOTVIET_CLIENT_ID</code>, <code>KIOTVIET_CLIENT_SECRET</code> trong <code>.env</code>.
+    </div>
+    {% endif %}
+
+    <div class="card border-0 shadow-sm mb-4" id="jp-kv-sync-progress-card"
+         {% if not poll_job_id %}hidden{% endif %}>
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="fw-bold text-dark">
+                    <i class="bi bi-hourglass-split text-hm me-1"></i>
+                    <span id="jp-kv-sync-status-label">Đang đồng bộ…</span>
+                </div>
+                <span class="badge bg-hm text-white" id="jp-kv-sync-percent">0%</span>
+            </div>
+            <div class="progress mb-2" style="height: 1.25rem;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-hm"
+                     id="jp-kv-sync-progress-bar"
+                     role="progressbar"
+                     style="width: 0%"
+                     aria-valuenow="0"
+                     aria-valuemin="0"
+                     aria-valuemax="100">0%</div>
+            </div>
+            <div class="small text-muted" id="jp-kv-sync-message"></div>
+        </div>
+    </div>
+
+    {% if latest_job and not poll_job_id %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body py-3 small">
+            <div class="fw-bold text-dark mb-1"><i class="bi bi-clock-history text-hm me-1"></i> Lần đồng bộ gần nhất</div>
+            <span class="{% if latest_job.status == 'success' %}text-success{% elif latest_job.status == 'failed' %}text-danger{% else %}text-primary{% endif %}">
+                {{ latest_job.get_status_display }}
+                · {{ latest_job.get_trigger_display }}
+                {% if latest_job.started_at %}· {{ latest_job.started_at|date:"d/m/Y H:i" }}{% endif %}
+                {% if latest_job.duration_display != '—' %}· {{ latest_job.duration_display }}{% endif %}
+                · {{ latest_job.progress_percent }}%
+            </span>
+            {% if latest_job.message %}
+            <div class="mt-1">{{ latest_job.message }}</div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row g-4">
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 pt-3 pb-0">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-sliders text-hm me-1"></i> Cấu hình tự động</h5>
+                </div>
+                <div class="card-body">
+                    {% if can_edit and configured %}
+                    <form method="post" action="{% url 'audit:kiotviet_sync_save' %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="interval_hours">Tần suất đồng bộ</label>
+                            <select class="form-select" name="interval_hours" id="interval_hours">
+                                {% for value, label in interval_choices %}
+                                <option value="{{ value }}" {% if config and config.interval_hours == value %}selected{% elif not config and value == 2 %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Cron gợi ý trên VPS: <code>{{ cron_hint }}</code></div>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="schedule_enabled" id="schedule_enabled"
+                                   {% if not config or config.schedule_enabled %}checked{% endif %}>
+                            <label class="form-check-label" for="schedule_enabled">Bật đồng bộ tự động (cron)</label>
+                        </div>
+                        <div class="mb-3">
+                            <div class="fw-semibold mb-2">Mục đồng bộ theo lịch</div>
+                            {% for row in entity_rows %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="entities" value="{{ row.key }}" id="cfg-{{ row.key }}"
+                                       {% if row.enabled %}checked{% endif %}>
+                                <label class="form-check-label" for="cfg-{{ row.key }}">{{ row.label }}</label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <button type="submit" class="btn btn-outline-hm fw-bold">
+                            <i class="bi bi-save me-1"></i>Lưu cấu hình
+                        </button>
+                    </form>
+                    {% elif not can_edit %}
+                    <div class="alert alert-warning border-0 mb-0">
+                        Bạn chỉ có quyền xem. Cần quyền <strong>sửa Nhật ký thao tác</strong> để lưu cấu hình.
+                    </div>
+                    {% else %}
+                    <p class="text-muted small mb-0">Cấu hình KiotViet sau khi bật API.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-lightning-charge text-hm me-1"></i> Đồng bộ thủ công</h5>
+                </div>
+                <div class="card-body">
+                    {% if can_edit and configured %}
+                    <form method="post" action="{% url 'audit:kiotviet_sync_run' %}"
+                          onsubmit="return confirm('Chạy đồng bộ KiotViet ngay? Quá trình có thể mất vài phút.');">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <div class="fw-semibold mb-2">Chọn mục cần sync</div>
+                            <div class="row">
+                                {% for row in entity_rows %}
+                                <div class="col-sm-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="entities" value="{{ row.key }}" id="run-{{ row.key }}"
+                                               {% if row.enabled %}checked{% endif %}>
+                                        <label class="form-check-label" for="run-{{ row.key }}">{{ row.label }}</label>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="full_sync" id="full_sync">
+                            <label class="form-check-label" for="full_sync">Full sync (bỏ cursor incremental)</label>
+                        </div>
+                        <button type="submit" class="btn btn-hm text-white fw-bold"
+                                {% if active_job %}disabled title="Đang đồng bộ…"{% endif %}>
+                            <i class="bi bi-arrow-repeat me-1"></i>Sync ngay
+                        </button>
+                    </form>
+                    {% elif not can_edit %}
+                    <p class="text-muted small mb-0">Không có quyền chạy sync thủ công.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 pt-3 pb-0">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-table text-hm me-1"></i> Trạng thái mirror</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Mục</th>
+                                <th class="text-end">Bản ghi</th>
+                                <th>Lần sync OK</th>
+                                <th>Lỗi gần nhất</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in entity_rows %}
+                            <tr>
+                                <td>{{ row.label }}</td>
+                                <td class="text-end">{{ row.records|intcomma }}</td>
+                                <td class="small text-muted">
+                                    {% if row.last_success_at %}{{ row.last_success_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}
+                                </td>
+                                <td class="small text-danger text-truncate" style="max-width: 12rem;" title="{{ row.last_error }}">
+                                    {{ row.last_error|default:"—" }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_head %}
+{% if poll_job_id %}
+<script>
+(function () {
+    const jobId = {{ poll_job_id }};
+    const statusUrl = "{% url 'audit:kiotviet_sync_status' job_id=0 %}".replace('/0/', '/' + jobId + '/');
+    const card = document.getElementById('jp-kv-sync-progress-card');
+    const bar = document.getElementById('jp-kv-sync-progress-bar');
+    const pctBadge = document.getElementById('jp-kv-sync-percent');
+    const statusLabel = document.getElementById('jp-kv-sync-status-label');
+    const messageEl = document.getElementById('jp-kv-sync-message');
+
+    function applyStatus(data) {
+        const pct = data.progress_percent || 0;
+        bar.style.width = pct + '%';
+        bar.setAttribute('aria-valuenow', pct);
+        bar.textContent = pct + '%';
+        pctBadge.textContent = pct + '%';
+        statusLabel.textContent = data.is_active
+            ? ('Đang đồng bộ' + (data.current_entity_label ? ': ' + data.current_entity_label : '…'))
+            : data.status_display;
+        messageEl.textContent = data.message || '';
+        if (!data.is_active) {
+            bar.classList.remove('progress-bar-animated', 'progress-bar-striped');
+            if (data.status === 'success') {
+                bar.classList.add('bg-success');
+            } else if (data.status === 'failed') {
+                bar.classList.add('bg-danger');
+            }
+        }
+    }
+
+    function poll() {
+        fetch(statusUrl, {headers: {'Accept': 'application/json'}})
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (card) card.hidden = false;
+                applyStatus(data);
+                if (data.is_active) {
+                    window.setTimeout(poll, 1500);
+                }
+            })
+            .catch(function () {
+                window.setTimeout(poll, 3000);
+            });
+    }
+
+    poll();
+})();
+</script>
+{% endif %}
+{% endblock %}

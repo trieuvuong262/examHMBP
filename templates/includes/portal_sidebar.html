@@ -440,6 +440,12 @@
                         <i class="bi bi-cloud-arrow-up"></i><span>Backup lên NAS</span>
                     </a>
                 </li>
+                <li>
+                    <a href="{% url 'audit:kiotviet_sync' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'kiotviet_sync' or request.resolver_match.url_name == 'kiotviet_sync_save' or request.resolver_match.url_name == 'kiotviet_sync_run' or request.resolver_match.url_name == 'kiotviet_sync_status' %}active{% endif %}">
+                        <i class="bi bi-arrow-repeat"></i><span>Đồng bộ KiotViet</span>
+                    </a>
+                </li>
                 {% if jp_can_edit_hrm %}
                 <li>
                     <a href="{% url 'audit:nas_links' %}"
