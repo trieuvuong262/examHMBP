@@ -205,7 +205,7 @@
                         </div>
                     </div>
 
-                    <div class="card border-0 shadow-sm jp-user-form-panel mt-3 d-none" id="subordinates_section">
+                    <div class="card border-0 shadow-sm jp-user-form-panel jp-user-form-panel--picker mt-3 d-none" id="subordinates_section">
                         <div class="jp-user-form-panel-head">
                             <i class="bi bi-people-fill"></i>
                             <span>Cấp dưới trực tiếp</span>
@@ -247,7 +247,11 @@
 
     function toggleSubordinates() {
         if (!roleSelect || !subSection) return;
-        subSection.classList.toggle('d-none', !managerRoles.includes(roleSelect.value));
+        const show = managerRoles.includes(roleSelect.value);
+        subSection.classList.toggle('d-none', !show);
+        if (show && window.JpUserPicker && typeof window.JpUserPicker.initAll === 'function') {
+            window.JpUserPicker.initAll();
+        }
     }
 
     if (roleSelect) {

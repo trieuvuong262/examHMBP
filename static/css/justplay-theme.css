@@ -2976,6 +2976,12 @@ body.jp-tool-loading-active {
     background: #fff;
 }
 
+/* User picker menu (position:absolute) — không clip dropdown */
+.jp-user-form-panel:has(.jp-user-picker),
+.jp-user-form-panel.jp-user-form-panel--picker {
+    overflow: visible;
+}
+
 .jp-user-form-panel-head {
     display: flex;
     align-items: center;
