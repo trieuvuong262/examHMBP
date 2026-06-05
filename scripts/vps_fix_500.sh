@@ -26,7 +26,7 @@ client = Client(HTTP_HOST="portal.justplay.vn")
 if user:
     client.force_login(user)
 
-for path in ["/accounts/login/", "/", "/yeu-cau/de-xuat/cua-toi/", "/thiet-bi/it/danh-sach/"]:
+for path in ["/accounts/login/", "/", "/kiotviet/hang-hoa/", "/yeu-cau/de-xuat/cua-toi/", "/thiet-bi/it/danh-sach/"]:
     try:
         r = client.get(path)
         print(f"{path} -> {r.status_code}")

@@ -87,6 +87,7 @@ def product_lookup(request):
             empty_hint='Mặc định chỉ hàng đang kinh doanh. Dùng bộ lọc hoặc từ khóa để thu hẹp danh sách.',
             product_group_mode=True,
             sidebar_filters=True,
+            catalog_form_template='kiotviet/_product_search_form.html',
             product_filters=list_filters,
             category_options=list_category_filter_options(retailer),
             unit_options=list_unit_filter_options(retailer),

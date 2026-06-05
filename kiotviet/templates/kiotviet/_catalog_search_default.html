@@ -1,0 +1,21 @@
+<div class="row g-3 align-items-end">
+    <div class="col-12 col-md-3">
+        <label class="form-label fw-bold small mb-1" for="kv-search-type">Tra theo</label>
+        <select name="type" id="kv-search-type" class="form-select">
+            {% for value, label in type_options %}
+            <option value="{{ value }}" {% if search_type == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-12 col-md-7">
+        <label class="form-label fw-bold small mb-1" for="kv-search-q">Từ khóa</label>
+        <input type="search" class="form-control" id="kv-search-q" name="q"
+               value="{{ search_query }}" placeholder="Mã, tên hoặc mã vạch..." autocomplete="off">
+    </div>
+    <div class="col-12 col-md-2">
+        <button type="submit" class="btn btn-hm w-100 fw-bold">
+            <i class="bi bi-search me-1"></i>Tìm
+        </button>
+    </div>
+</div>
+{% block catalog_filters %}{% endblock %}
