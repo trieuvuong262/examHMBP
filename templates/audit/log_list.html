@@ -12,45 +12,7 @@
                 {{ stats.total|intcomma }} bản ghi · hôm nay {{ stats.today|intcomma }}
             </p>
         </div>
-        {% if can_run_backup %}
-        <div class="jp-page-header-actions d-flex flex-wrap gap-2 align-items-center">
-            <form method="post" action="{% url 'audit:backup_run' %}" class="m-0"
-                  onsubmit="return confirm('Backup database + mã nguồn (+ media) lên NAS? Quá trình có thể mất vài phút.');">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-hm text-white fw-bold"
-                        {% if backup_running %}disabled title="Đang backup…"{% endif %}>
-                    <i class="bi bi-cloud-arrow-up me-1"></i>Backup lên NAS
-                </button>
-            </form>
-        </div>
-        {% endif %}
     </div>
-
-    {% if can_run_backup %}
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-body py-3 small">
-            <div class="fw-bold text-dark mb-1"><i class="bi bi-hdd-network text-hm me-1"></i> Backup Portal → NAS (thư mục <code>backup</code>)</div>
-            {% if backup_running %}
-            <span class="text-primary"><i class="bi bi-arrow-repeat"></i> Đang chạy backup — vui lòng tải lại trang sau vài phút.</span>
-            {% elif backup_job %}
-            <span class="{% if backup_job.status == 'success' %}text-success{% elif backup_job.status == 'failed' %}text-danger{% else %}text-muted{% endif %}">
-                Lần cuối: {{ backup_job.get_status_display }}
-                · {{ backup_job.get_trigger_display }}
-                {% if backup_job.started_at %}· {{ backup_job.started_at|date:"d/m/Y H:i" }}{% endif %}
-                {% if backup_job.duration_display != '—' %}· {{ backup_job.duration_display }}{% endif %}
-            </span>
-            {% if backup_job.remote_path %}
-            <div class="text-muted font-monospace mt-1">{{ backup_job.remote_path }}</div>
-            {% endif %}
-            {% if backup_job.message %}
-            <div class="mt-1">{{ backup_job.message }}</div>
-            {% endif %}
-            {% else %}
-            <span class="text-muted">Chưa có lần backup nào. Tự động 00:00/ngày hoặc bấm nút phía trên.</span>
-            {% endif %}
-        </div>
-    </div>
-    {% endif %}
 
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body py-3">

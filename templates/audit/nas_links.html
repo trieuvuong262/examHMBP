@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div class="jp-page-header-main">
+            <h2 class="jp-page-title fw-bold text-dark mb-1">
+                <i class="bi bi-hdd-network text-hm me-2"></i>Cập nhật link NAS
+            </h2>
+            <p class="text-muted small mb-0 mt-1">
+                Gán đường dẫn thư mục NAS riêng cho từng tài khoản portal.
+            </p>
+        </div>
+    </div>
+
+    {% if not nas_folders_available %}
+    <div class="alert alert-warning border-0 shadow-sm">
+        Chưa migrate <code>nas_storage.0003</code> trên server — chạy <code>python manage.py migrate nas_storage</code>.
+    </div>
+    {% endif %}
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body py-3">
+            <form method="get" class="row g-2 g-md-3 align-items-end">
+                <div class="col-md-6 col-lg-5">
+                    <label class="form-label small fw-bold text-muted mb-1">Tìm kiếm</label>
+                    <input type="search" name="q" value="{{ search_query }}" class="form-control"
+                           placeholder="Account, họ tên, mã NS…">
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-hm text-white fw-bold">
+                        <i class="bi bi-search me-1"></i>Lọc
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Account</th>
+                        <th>Họ và tên</th>
+                        <th>Mã NS</th>
+                        <th>Phòng ban</th>
+                        <th class="text-end">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr>
+                        <td class="font-monospace">{{ u.username }}</td>
+                        <td>{{ u.profile.full_name|default:"—" }}</td>
+                        <td>{{ u.profile.employee_code|default:"—" }}</td>
+                        <td>{{ u.profile.department.name|default:"—" }}</td>
+                        <td class="text-end">
+                            <a href="{% url 'user_nas_folders' u.id %}" class="btn btn-sm btn-outline-primary fw-bold">
+                                <i class="bi bi-hdd-network me-1"></i>Cập nhật
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">Không có tài khoản phù hợp.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if page_obj.paginator.num_pages > 1 %}
+        <div class="card-footer bg-white border-0">
+            {% include "includes/pagination.html" with page_obj=page_obj query_string=query_string %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

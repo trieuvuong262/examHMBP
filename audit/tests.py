@@ -183,6 +183,12 @@ class AuditAccessTests(TestCase):
         response = self.client.get(reverse('audit:log_list'))
         self.assertEqual(response.status_code, 200)
 
+    def test_backup_page_requires_audit_access(self):
+        self.client.force_login(self.employee)
+        self.assertEqual(self.client.get(reverse('audit:backup_page')).status_code, 302)
+        self.client.force_login(self.director)
+        self.assertEqual(self.client.get(reverse('audit:backup_page')).status_code, 200)
+
     def test_create_activity_log_via_post(self):
         self.client.force_login(self.director)
         self.client.get(reverse('home_portal'))

@@ -8,7 +8,8 @@ from django.views.decorators.http import require_POST
 
 from PortalJustPlay.list_search import apply_combined_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
-from hrm.module_permissions import MODULE_AUDIT, user_can_access_module, user_can_edit_module
+from hrm.module_permissions import MODULE_AUDIT, MODULE_HRM, user_can_access_module, user_can_edit_module
+from hrm.user_search import exclude_hidden_hrm_users, filter_users_by_search
 
 from .models import PortalBackupJob, UserActivityLog
 from .portal_backup import PortalBackupError, latest_backup_job, start_backup_async
@@ -24,6 +25,47 @@ def _audit_access_required(view_func):
             return redirect('home_portal')
         return view_func(request, *args, **kwargs)
     return wrapper
+
+
+def _backup_page_context(user):
+    backup_job = latest_backup_job()
+    backup_running = PortalBackupJob.objects.filter(
+        status__in=(PortalBackupJob.STATUS_PENDING, PortalBackupJob.STATUS_RUNNING),
+    ).exists()
+    return {
+        'can_run_backup': user_can_edit_module(user, MODULE_AUDIT),
+        'backup_job': backup_job,
+        'backup_running': backup_running,
+    }
+
+
+@_audit_access_required
+def backup_page(request):
+    return render(request, 'audit/backup.html', _backup_page_context(request.user))
+
+
+@_audit_access_required
+def nas_links_index(request):
+    if not user_can_edit_module(request.user, MODULE_HRM):
+        messages.error(request, 'Bạn không có quyền cập nhật link NAS.')
+        return redirect('home_portal')
+
+    from nas_storage.user_folders import nas_folders_feature_available
+
+    search_query = get_search_query(request)
+    users_qs = User.objects.select_related('profile', 'profile__department')
+    users_qs = exclude_hidden_hrm_users(users_qs)
+    users_qs = filter_users_by_search(users_qs, search_query)
+    users_qs = users_qs.order_by('profile__full_name', 'username')
+    page_obj, query_string = paginate_queryset(request, users_qs)
+
+    return render(request, 'audit/nas_links.html', {
+        'users': page_obj.object_list,
+        'page_obj': page_obj,
+        'query_string': query_string,
+        'search_query': search_query,
+        'nas_folders_available': nas_folders_feature_available(),
+    })
 
 
 @_audit_access_required
@@ -71,11 +113,6 @@ def log_list(request):
         'to': date_to,
     }
 
-    backup_job = latest_backup_job()
-    backup_running = PortalBackupJob.objects.filter(
-        status__in=(PortalBackupJob.STATUS_PENDING, PortalBackupJob.STATUS_RUNNING),
-    ).exists()
-
     return render(request, 'audit/log_list.html', {
         'page_obj': page_obj,
         'logs': page_obj.object_list,
@@ -83,9 +120,6 @@ def log_list(request):
         'filters': filters,
         'filter_query': filter_query,
         'stats': stats,
-        'can_run_backup': user_can_edit_module(request.user, MODULE_AUDIT),
-        'backup_job': backup_job,
-        'backup_running': backup_running,
     })
 
 
@@ -94,17 +128,17 @@ def log_list(request):
 def backup_run(request):
     if not user_can_edit_module(request.user, MODULE_AUDIT):
         messages.error(request, 'Chỉ tài khoản có quyền sửa Nhật ký mới được chạy backup.')
-        return redirect('audit:log_list')
+        return redirect('audit:backup_page')
     try:
         job = start_backup_async(trigger=PortalBackupJob.TRIGGER_MANUAL, user=request.user)
     except PortalBackupError as exc:
         messages.error(request, str(exc))
-        return redirect('audit:log_list')
+        return redirect('audit:backup_page')
     messages.success(
         request,
         f'Đã bắt đầu backup lên NAS (job #{job.pk}). Tải lại trang sau vài phút để xem kết quả.',
     )
-    return redirect('audit:log_list')
+    return redirect('audit:backup_page')
 
 
 @_audit_access_required
