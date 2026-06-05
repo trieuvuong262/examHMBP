@@ -558,9 +558,10 @@ def _sync_transaction_lines(
             'product_name': item.get('productName') or '',
             'quantity': parse_kv_float(item.get('quantity')),
             'price': parse_kv_decimal(item.get('price')),
-            'discount': parse_kv_decimal(item.get('discount')),
             'line_index': idx,
         }
+        if 'discount' in line_field_names:
+            line_data['discount'] = parse_kv_decimal(item.get('discount'))
         if 'note' in line_field_names:
             line_data['note'] = item.get('note') or ''
         line_model.objects.create(retailer=retailer, **line_data)

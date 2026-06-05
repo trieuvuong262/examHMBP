@@ -7,6 +7,8 @@ from kiotviet.models import (
     KvProduct,
     KvPurchaseOrder,
     KvPurchaseOrderLine,
+    KvReturn,
+    KvReturnLine,
     KvTransfer,
     KvTransferLine,
 )
@@ -17,6 +19,7 @@ from kiotviet.sync_service import (
     sync_entity,
     upsert_customer_group,
     upsert_purchase_order,
+    upsert_return,
     upsert_transfer,
 )
 
@@ -169,3 +172,23 @@ class ExtendedEntitySyncTests(TestCase):
         group = KvCustomerGroup.objects.get(kiotviet_id=8001)
         self.assertEqual(group.name, 'Khách sỉ')
         self.assertEqual(group.discount_ratio, 5.0)
+
+    def test_upsert_return_without_discount_on_line(self):
+        upsert_return(self.retailer, {
+            'id': 9002,
+            'code': 'TH001',
+            'returnDate': '2024-09-01T12:00:00',
+            'modifiedDate': '2024-09-01T12:00:00',
+            'returnDetails': [{
+                'productId': 201,
+                'productCode': 'SP-B',
+                'productName': 'Quan',
+                'quantity': 1,
+                'price': 200000,
+                'discount': 10000,
+                'note': 'Doi size',
+            }],
+        })
+        self.assertEqual(KvReturn.objects.get(kiotviet_id=9002).code, 'TH001')
+        line = KvReturnLine.objects.get(return_kiotviet_id=9002)
+        self.assertEqual(line.note, 'Doi size')
