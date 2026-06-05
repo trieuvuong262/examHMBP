@@ -5,7 +5,14 @@ from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from audit.models import PortalBackupJob, UserActivityLog
-from audit.utils import sanitize_mapping, infer_action, build_summary, get_client_device_info, is_private_ip
+from audit.utils import (
+    is_audit_exempt_user,
+    sanitize_mapping,
+    infer_action,
+    build_summary,
+    get_client_device_info,
+    is_private_ip,
+)
 from audit.summaries import describe_post_highlights, resolve_url_description
 from django.test import RequestFactory
 
@@ -79,6 +86,14 @@ class AuditUtilsTests(TestCase):
 
     def test_resolve_audit_module_path(self):
         self.assertEqual(resolve_module_from_request('/nhat-ky/'), MODULE_AUDIT)
+
+    def test_is_audit_exempt_admin_username_only(self):
+        admin_user = User.objects.create_user(username='admin', password='x')
+        regular = User.objects.create_user(username='regular', password='x')
+        other_super = User.objects.create_superuser(username='root', password='x', email='r@x.com')
+        self.assertTrue(is_audit_exempt_user(admin_user))
+        self.assertFalse(is_audit_exempt_user(other_super))
+        self.assertFalse(is_audit_exempt_user(regular))
 
 
 class AuditSummaryTests(TestCase):
@@ -177,6 +192,20 @@ class AuditAccessTests(TestCase):
                 action=UserActivityLog.ACTION_VIEW,
             ).exists()
         )
+
+    def test_admin_user_actions_not_logged(self):
+        admin = User.objects.create_user(username='admin', password='testpass123')
+        before = UserActivityLog.objects.count()
+        self.client.force_login(admin)
+        self.client.get(reverse('home_portal'))
+        self.assertEqual(UserActivityLog.objects.count(), before)
+
+    def test_admin_login_not_logged(self):
+        admin = User.objects.create_user(username='admin', password='testpass123')
+        before = UserActivityLog.objects.filter(action=UserActivityLog.ACTION_LOGIN).count()
+        self.client.login(username='admin', password='testpass123')
+        after = UserActivityLog.objects.filter(action=UserActivityLog.ACTION_LOGIN).count()
+        self.assertEqual(before, after)
 
 
 class PortalBackupTests(TestCase):

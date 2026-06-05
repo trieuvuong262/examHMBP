@@ -164,11 +164,21 @@ def get_client_ip(request: HttpRequest) -> str | None:
     return info.get('client_ip')
 
 
+def is_audit_exempt_user(user) -> bool:
+    """Tài khoản admin hệ thống (username ``admin``) — không ghi nhật ký thao tác."""
+    if not user:
+        return False
+    return getattr(user, 'username', '') == 'admin'
+
+
 def should_skip_audit(request: HttpRequest) -> bool:
     path = request.path
     for prefix in SKIP_PATH_PREFIXES:
         if path.startswith(prefix):
             return True
+    user = getattr(request, 'user', None)
+    if user is not None and is_audit_exempt_user(user):
+        return True
     return False
 
 
@@ -300,7 +310,11 @@ def create_activity_log(
     if request is not None:
         user = user or getattr(request, 'user', None)
         if user and getattr(user, 'is_authenticated', False):
+            if is_audit_exempt_user(user):
+                return None
             snap = snapshot_user(user)
+    elif user and getattr(user, 'is_authenticated', False) and is_audit_exempt_user(user):
+        return None
         path = path or request.path
         method = method or request.method
         query_string = query_string if query_string != '' else request.META.get('QUERY_STRING', '')

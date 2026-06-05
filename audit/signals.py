@@ -2,7 +2,7 @@ from django.contrib.auth.signals import user_logged_in, user_logged_out, user_lo
 from django.dispatch import receiver
 
 from audit.models import UserActivityLog
-from audit.utils import create_activity_log, get_client_device_info
+from audit.utils import create_activity_log, get_client_device_info, is_audit_exempt_user
 
 
 class _SignalRequestProxy:
@@ -17,6 +17,8 @@ class _SignalRequestProxy:
 
 @receiver(user_logged_in)
 def audit_user_logged_in(sender, request, user, **kwargs):
+    if is_audit_exempt_user(user):
+        return
     create_activity_log(
         request=request,
         user=user,
@@ -31,7 +33,7 @@ def audit_user_logged_in(sender, request, user, **kwargs):
 
 @receiver(user_logged_out)
 def audit_user_logged_out(sender, request, user, **kwargs):
-    if user is None:
+    if user is None or is_audit_exempt_user(user):
         return
     create_activity_log(
         request=request,
