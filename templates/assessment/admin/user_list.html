@@ -68,13 +68,6 @@
     <div class="card border-0 shadow-sm jp-hrm-list-card">
         <div class="card-header bg-white py-3 border-bottom">
             <h5 class="mb-0 fw-bold text-dark">Dữ liệu nhân sự</h5>
-            {% if not nas_folders_available %}
-            <div class="alert alert-warning small py-2 px-3 mt-2 mb-0">
-                <i class="bi bi-hdd-network me-1"></i>
-                Chưa migrate <code>nas_storage.0003</code> — nút <strong>Cập nhật link NAS</strong> vẫn mở được nhưng chưa lưu được.
-                IT chạy: <code>python manage.py migrate nas_storage</code> rồi deploy lại.
-            </div>
-            {% endif %}
             <p class="text-muted small mb-0 mt-1">
                 {% if filters_active %}
                 Đang hiển thị <strong>{{ page_obj.paginator.count }}</strong> nhân viên sau lọc
@@ -289,11 +282,6 @@
                                     <li>
                                         <a class="dropdown-item" href="{% url 'user_edit' u.id %}">
                                             <i class="bi bi-pencil-square me-2 text-warning"></i>Sửa thông tin
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item" href="{% url 'user_nas_folders' u.id %}">
-                                            <i class="bi bi-hdd-network me-2 text-hm"></i>Cập nhật link NAS
                                         </a>
                                     </li>
                                     <li>

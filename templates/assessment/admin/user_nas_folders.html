@@ -13,8 +13,7 @@
             </p>
             <nav aria-label="breadcrumb" class="mt-2">
                 <ol class="breadcrumb mb-0 small">
-                    <li class="breadcrumb-item"><a href="{% url 'user_list' %}" class="text-decoration-none text-muted">Nhân sự</a></li>
-                    <li class="breadcrumb-item"><a href="{% url 'user_edit' user_instance.id %}" class="text-decoration-none text-muted">Sửa nhân viên</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'audit:nas_links' %}" class="text-decoration-none text-muted">Quản Trị Hệ thống</a></li>
                     <li class="breadcrumb-item active fw-bold text-hm">Link NAS</li>
                 </ol>
             </nav>
@@ -35,7 +34,7 @@
                 {% include 'assessment/admin/includes/user_nas_folders_panel.html' %}
             </div>
             <div class="card-footer bg-white border-top d-flex flex-wrap gap-2 justify-content-between">
-                <a href="{% url 'user_edit' user_instance.id %}" class="btn btn-light border">Quay lại sửa nhân viên</a>
+                <a href="{% url 'audit:nas_links' %}" class="btn btn-light border">Quay lại danh sách</a>
                 <button type="submit" class="btn btn-hm fw-bold">
                     <i class="bi bi-check-circle me-1"></i>Lưu link NAS
                 </button>

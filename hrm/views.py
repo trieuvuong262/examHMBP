@@ -178,8 +178,6 @@ def user_list(request):
 
     import json
 
-    from nas_storage.user_folders import nas_folders_feature_available
-
     return render(request, 'assessment/admin/user_list.html', {
         'users': page_obj.object_list,
         'page_obj': page_obj,
@@ -200,7 +198,6 @@ def user_list(request):
         'filters_active': bool(
             search_query or department_id or division_id or job_position,
         ),
-        'nas_folders_available': nas_folders_feature_available(),
     })
 
 
@@ -376,8 +373,6 @@ def user_edit(request, user_id):
     # Lấy profile, tự động tạo nếu chưa có
     profile, created = Profile.objects.get_or_create(user=user_obj)
 
-    from nas_storage.user_folders import nas_folders_feature_available
-
     if request.method == 'POST':
         # TRUYỀN user_id VÀO ĐÂY: Để hàm clean_username trong forms.py không báo lỗi trùng chính mình
         form = CustomUserForm(request.POST, user_id=user_obj.id)
@@ -428,7 +423,6 @@ def user_edit(request, user_id):
                         'is_edit': True,
                         'user_instance': user_obj,
                         'profile': profile,
-                        'nas_folders_available': nas_folders_feature_available(),
                         **_user_form_extra_context(),
                     })
 
@@ -464,7 +458,6 @@ def user_edit(request, user_id):
         'is_edit': True,
         'user_instance': user_obj,
         'profile': profile,
-        'nas_folders_available': nas_folders_feature_available(),
         **_user_form_extra_context(),
     })
 @admin_only

@@ -205,29 +205,6 @@
                         </div>
                     </div>
 
-                    {% if is_edit %}
-                    <div class="card border-0 shadow-sm jp-user-form-panel mt-3">
-                        <div class="jp-user-form-panel-head">
-                            <i class="bi bi-hdd-network"></i>
-                            <span>Thư mục NAS</span>
-                        </div>
-                        <div class="card-body p-3 p-md-4">
-                            <p class="small text-muted mb-3">
-                                Gán đường dẫn thư mục trên NAS cho tài khoản này (thay cho map mặc định phòng ban).
-                            </p>
-                            <a href="{% url 'user_nas_folders' user_instance.id %}" class="btn btn-hm fw-bold">
-                                <i class="bi bi-hdd-network me-1"></i>Cập nhật link NAS
-                            </a>
-                            {% if not nas_folders_available %}
-                            <div class="alert alert-warning small mb-0 mt-3">
-                                Chưa có bảng cấu hình NAS trên server. IT chạy migration
-                                <code>nas_storage.0003</code> rồi deploy lại.
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% endif %}
-
                     <div class="card border-0 shadow-sm jp-user-form-panel mt-3 d-none" id="subordinates_section">
                         <div class="jp-user-form-panel-head">
                             <i class="bi bi-people-fill"></i>
