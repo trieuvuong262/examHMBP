@@ -56,7 +56,7 @@ Nhân viên khác cần bật module **KiotViet** trong **Phân quyền** → ph
 
 ## Database trung gian (mirror `kv_*`)
 
-Portal lưu bản sao dữ liệu KiotViet trên **PostgreSQL hiện có** (cùng container `db`), bảng prefix `kv_*`. Tra cứu menu đọc mirror trước; mirror trống thì fallback API.
+Portal lưu bản sao dữ liệu KiotViet trên **PostgreSQL hiện có** (cùng container `db`), bảng prefix `kv_*`. Menu tra cứu **chỉ đọc mirror** (`KIOTVIET_USE_LOCAL_MIRROR=1`); không gọi API trực tiếp từ giao diện.
 
 ### Triển khai lần đầu trên VPS
 
@@ -69,20 +69,32 @@ docker compose exec web python manage.py kiotviet_sync --full
 docker compose exec web python manage.py kiotviet_status
 ```
 
-### Đồng bộ định kỳ (cron 2 giờ/lần)
+### Đồng bộ định kỳ (cron)
 
-```cron
-0 */2 * * * cd /opt/portaljustplay && docker compose exec -T web python manage.py kiotviet_sync >> /var/log/kiotviet-sync.log 2>&1
+Cấu hình lịch và entity trong **Quản Trị Hệ thống → Đồng bộ KiotViet** (5p / 30p / 6h / 12h / 24h). Trên VPS:
+
+```bash
+sudo bash scripts/setup-kiotviet-cron.sh 1440   # ví dụ: mỗi 24h
 ```
+
+Cron chạy `kiotviet_sync` **incremental** (chỉ bản ghi mới/thay đổi). Log: `/var/log/portal-kiotviet-sync.log`.
 
 ### Biến môi trường thêm (tùy chọn)
 
 ```env
 KIOTVIET_USE_LOCAL_MIRROR=1
 KIOTVIET_SYNC_PAGE_SIZE=100
+KIOTVIET_API_TIMEOUT=90
+KIOTVIET_API_TIMEOUT_ORDERS=180
 ```
 
-Sync từng phần: `python manage.py kiotviet_sync --entity products --entity customers`
+Lệnh hữu ích:
+
+```bash
+python manage.py kiotviet_sync --entity products --entity customers
+python manage.py kiotviet_sync --entity purchase_orders
+python manage.py kiotviet_sync --refresh-images
+```
 
 Chi tiết schema: [schema-design.md](./schema-design.md).
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Callable
 
@@ -48,6 +49,20 @@ ENTITY_ALL = (
     'invoices',
     'purchase_orders',
 )
+
+@dataclass(frozen=True)
+class EntitySyncOptions:
+    base_params: dict[str, Any] = field(default_factory=dict)
+    supports_last_modified: bool = True
+    supports_remove_ids: bool = True
+
+
+ENTITY_SYNC_OPTIONS: dict[str, EntitySyncOptions] = {
+    'purchase_orders': EntitySyncOptions(
+        supports_last_modified=False,
+        supports_remove_ids=False,
+    ),
+}
 
 ENTITY_LABELS = {
     'branches': 'Chi nhánh',
@@ -107,11 +122,49 @@ def _handle_removed_ids(entity_type: str, retailer: str, removed_ids: list) -> i
     return count
 
 
-def _track_max_modified(row: dict, current: datetime | None) -> datetime | None:
+def _row_modified_at(row: dict, *, entity_type: str = '') -> datetime | None:
     md = parse_kv_datetime(row.get('modifiedDate'))
+    if md:
+        return md
+    if entity_type == 'purchase_orders':
+        return parse_kv_datetime(row.get('purchaseDate'))
+    return None
+
+
+def _track_max_modified(
+    row: dict,
+    current: datetime | None,
+    *,
+    entity_type: str = '',
+) -> datetime | None:
+    md = _row_modified_at(row, entity_type=entity_type)
     if md and (current is None or md > current):
         return md
     return current
+
+
+def _bind_upsert(upsert_fn: Callable[..., bool], *, force: bool) -> Callable[[str, dict], bool]:
+    def wrapper(retailer: str, row: dict) -> bool:
+        return upsert_fn(retailer, row, force=force)
+
+    return wrapper
+
+
+def _upsert_product_images_only(retailer: str, row: dict, *, force: bool = False) -> bool:
+    kid = parse_kv_int(row.get('id'))
+    if kid is None:
+        return False
+    image_urls = extract_product_image_urls(row)
+    if not image_urls:
+        return False
+    qs = KvProduct.objects.filter(retailer=retailer, kiotviet_id=kid, is_deleted=False)
+    existing = qs.only('image_urls').first()
+    if not existing:
+        return upsert_product(retailer, row, force=True)
+    if force or not (existing.image_urls or []):
+        qs.update(image_urls=image_urls)
+        return True
+    return False
 
 
 def _sync_paginated(
@@ -123,13 +176,17 @@ def _sync_paginated(
     base_params: dict[str, Any] | None = None,
     full: bool = False,
     on_progress: ProgressCallback | None = None,
+    sync_options: EntitySyncOptions | None = None,
 ) -> dict[str, Any]:
+    opts = sync_options or ENTITY_SYNC_OPTIONS.get(entity_type) or EntitySyncOptions()
     state, _ = KvSyncState.objects.get_or_create(entity_type=entity_type, retailer=retailer)
     page_size = sync_page_size()
-    params: dict[str, Any] = dict(base_params or {})
+    params: dict[str, Any] = dict(opts.base_params)
+    params.update(base_params or {})
     params['pageSize'] = page_size
-    params['includeRemoveIds'] = 'true'
-    if not full and state.last_modified_from:
+    if opts.supports_remove_ids:
+        params['includeRemoveIds'] = 'true'
+    if not full and opts.supports_last_modified and state.last_modified_from:
         params['lastModifiedFrom'] = _format_modified_cursor(state.last_modified_from)
 
     current_item = 0
@@ -155,7 +212,7 @@ def _sync_paginated(
                     upserted_total += 1
                 else:
                     skipped_total += 1
-                max_modified = _track_max_modified(row, max_modified)
+                max_modified = _track_max_modified(row, max_modified, entity_type=entity_type)
                 rows_total += 1
 
             api_total = int(payload.get('total') or 0)
@@ -212,12 +269,12 @@ def _sync_paginated(
         }
 
 
-def upsert_branch(retailer: str, row: dict) -> bool:
+def upsert_branch(retailer: str, row: dict, *, force: bool = False) -> bool:
     kid = parse_kv_int(row.get('id'))
     if kid is None:
         return False
     modified = parse_kv_datetime(row.get('modifiedDate'))
-    if not needs_upsert(KvBranch, retailer=retailer, kiotviet_id=kid, incoming_modified=modified):
+    if not force and not needs_upsert(KvBranch, retailer=retailer, kiotviet_id=kid, incoming_modified=modified):
         return False
     KvBranch.objects.update_or_create(
         retailer=retailer,
@@ -236,12 +293,12 @@ def upsert_branch(retailer: str, row: dict) -> bool:
     return True
 
 
-def upsert_category(retailer: str, row: dict) -> bool:
+def upsert_category(retailer: str, row: dict, *, force: bool = False) -> bool:
     kid = parse_kv_int(row.get('categoryId') or row.get('id'))
     if kid is None:
         return False
     modified = parse_kv_datetime(row.get('modifiedDate'))
-    if not needs_upsert(KvCategory, retailer=retailer, kiotviet_id=kid, incoming_modified=modified):
+    if not force and not needs_upsert(KvCategory, retailer=retailer, kiotviet_id=kid, incoming_modified=modified):
         return False
     KvCategory.objects.update_or_create(
         retailer=retailer,
@@ -319,14 +376,23 @@ def _sync_product_children(retailer: str, product_id: int, row: dict) -> None:
         )
 
 
-def upsert_product(retailer: str, row: dict) -> bool:
+def upsert_product(retailer: str, row: dict, *, force: bool = False) -> bool:
     kid = parse_kv_int(row.get('id'))
     if kid is None:
         return False
     modified = parse_kv_datetime(row.get('modifiedDate'))
-    if not needs_upsert(KvProduct, retailer=retailer, kiotviet_id=kid, incoming_modified=modified):
-        return False
     image_urls = extract_product_image_urls(row)
+    if not force:
+        existing = KvProduct.objects.filter(
+            retailer=retailer, kiotviet_id=kid, is_deleted=False,
+        ).only('kv_modified_at', 'image_urls').first()
+        if existing and not needs_upsert(
+            KvProduct, retailer=retailer, kiotviet_id=kid, incoming_modified=modified,
+        ):
+            if image_urls and not (existing.image_urls or []):
+                KvProduct.objects.filter(pk=existing.pk).update(image_urls=image_urls)
+                return True
+            return False
     KvProduct.objects.update_or_create(
         retailer=retailer,
         kiotviet_id=kid,
@@ -356,12 +422,12 @@ def upsert_product(retailer: str, row: dict) -> bool:
     return True
 
 
-def upsert_customer(retailer: str, row: dict) -> bool:
+def upsert_customer(retailer: str, row: dict, *, force: bool = False) -> bool:
     kid = parse_kv_int(row.get('id'))
     if kid is None:
         return False
     modified = parse_kv_datetime(row.get('modifiedDate'))
-    if not needs_upsert(KvCustomer, retailer=retailer, kiotviet_id=kid, incoming_modified=modified):
+    if not force and not needs_upsert(KvCustomer, retailer=retailer, kiotviet_id=kid, incoming_modified=modified):
         return False
     KvCustomer.objects.update_or_create(
         retailer=retailer,
@@ -425,12 +491,12 @@ def _sync_transaction_lines(
         )
 
 
-def upsert_order(retailer: str, row: dict) -> bool:
+def upsert_order(retailer: str, row: dict, *, force: bool = False) -> bool:
     kid = parse_kv_int(row.get('id'))
     if kid is None:
         return False
     modified = parse_kv_datetime(row.get('modifiedDate'))
-    if not needs_upsert(KvOrder, retailer=retailer, kiotviet_id=kid, incoming_modified=modified):
+    if not force and not needs_upsert(KvOrder, retailer=retailer, kiotviet_id=kid, incoming_modified=modified):
         return False
     KvOrder.objects.update_or_create(
         retailer=retailer,
@@ -468,12 +534,12 @@ def upsert_order(retailer: str, row: dict) -> bool:
     return True
 
 
-def upsert_invoice(retailer: str, row: dict) -> bool:
+def upsert_invoice(retailer: str, row: dict, *, force: bool = False) -> bool:
     kid = parse_kv_int(row.get('id'))
     if kid is None:
         return False
     modified = parse_kv_datetime(row.get('modifiedDate'))
-    if not needs_upsert(KvInvoice, retailer=retailer, kiotviet_id=kid, incoming_modified=modified):
+    if not force and not needs_upsert(KvInvoice, retailer=retailer, kiotviet_id=kid, incoming_modified=modified):
         return False
     KvInvoice.objects.update_or_create(
         retailer=retailer,
@@ -509,12 +575,12 @@ def upsert_invoice(retailer: str, row: dict) -> bool:
     return True
 
 
-def upsert_purchase_order(retailer: str, row: dict) -> bool:
+def upsert_purchase_order(retailer: str, row: dict, *, force: bool = False) -> bool:
     kid = parse_kv_int(row.get('id'))
     if kid is None:
         return False
-    modified = parse_kv_datetime(row.get('modifiedDate'))
-    if not needs_upsert(
+    modified = _row_modified_at(row, entity_type='purchase_orders')
+    if not force and not needs_upsert(
         KvPurchaseOrder,
         retailer=retailer,
         kiotviet_id=kid,
@@ -536,7 +602,7 @@ def upsert_purchase_order(retailer: str, row: dict) -> bool:
             'total': parse_kv_decimal(row.get('total')),
             'status': parse_kv_int(row.get('status')),
             'status_value': row.get('statusValue') or '',
-            'kv_modified_at': parse_kv_datetime(row.get('modifiedDate')),
+            'kv_modified_at': modified,
             'raw_json': row,
             'is_deleted': False,
         },
@@ -567,12 +633,18 @@ def sync_entity(
 
     api = client or KiotVietClient()
 
-    paginated_kwargs = {'retailer': retailer, 'full': full, 'on_progress': on_progress}
+    paginated_kwargs = {
+        'retailer': retailer,
+        'full': full,
+        'on_progress': on_progress,
+        'sync_options': ENTITY_SYNC_OPTIONS.get(entity),
+    }
+    bound = lambda fn: _bind_upsert(fn, force=full)
     if entity == 'branches':
         return _sync_paginated(
             entity_type='branches',
             list_fn=api.list_branches,
-            upsert_fn=upsert_branch,
+            upsert_fn=bound(upsert_branch),
             **paginated_kwargs,
         )
     if entity == 'categories':
@@ -580,7 +652,7 @@ def sync_entity(
         return _sync_paginated(
             entity_type='categories',
             list_fn=api.list_categories,
-            upsert_fn=upsert_category,
+            upsert_fn=bound(upsert_category),
             base_params=params,
             **paginated_kwargs,
         )
@@ -588,7 +660,7 @@ def sync_entity(
         return _sync_paginated(
             entity_type='products',
             list_fn=api.list_products,
-            upsert_fn=upsert_product,
+            upsert_fn=bound(upsert_product),
             base_params={'includeInventory': 'true'},
             **paginated_kwargs,
         )
@@ -596,7 +668,7 @@ def sync_entity(
         return _sync_paginated(
             entity_type='customers',
             list_fn=api.list_customers,
-            upsert_fn=upsert_customer,
+            upsert_fn=bound(upsert_customer),
             base_params={'includeTotal': 'true'},
             **paginated_kwargs,
         )
@@ -604,15 +676,15 @@ def sync_entity(
         return _sync_paginated(
             entity_type='orders',
             list_fn=api.list_orders,
-            upsert_fn=upsert_order,
-            base_params={'orderBy': 'modifiedDate', 'orderDirection': 'Desc'},
+            upsert_fn=bound(upsert_order),
+            base_params={'orderBy': 'purchaseDate', 'orderDirection': 'Desc'},
             **paginated_kwargs,
         )
     if entity == 'invoices':
         return _sync_paginated(
             entity_type='invoices',
             list_fn=api.list_invoices,
-            upsert_fn=upsert_invoice,
+            upsert_fn=bound(upsert_invoice),
             base_params={'orderBy': 'modifiedDate', 'orderDirection': 'Desc'},
             **paginated_kwargs,
         )
@@ -620,11 +692,31 @@ def sync_entity(
         return _sync_paginated(
             entity_type='purchase_orders',
             list_fn=api.list_purchase_orders,
-            upsert_fn=upsert_purchase_order,
-            base_params={'orderBy': 'modifiedDate', 'orderDirection': 'Desc'},
+            upsert_fn=bound(upsert_purchase_order),
             **paginated_kwargs,
         )
     return {'entity': entity, 'error': f'Entity không hỗ trợ: {entity}'}
+
+
+def refresh_product_images(
+    *,
+    client: KiotVietClient | None = None,
+    retailer: str | None = None,
+    on_progress: ProgressCallback | None = None,
+) -> dict[str, Any]:
+    """Quét toàn bộ SP từ API list và bổ sung image_urls còn thiếu."""
+    retailer = retailer or current_retailer()
+    api = client or KiotVietClient()
+    return _sync_paginated(
+        entity_type='products',
+        retailer=retailer,
+        list_fn=api.list_products,
+        upsert_fn=_bind_upsert(_upsert_product_images_only, force=False),
+        base_params={'includeInventory': 'false'},
+        full=True,
+        on_progress=on_progress,
+        sync_options=EntitySyncOptions(supports_last_modified=False, supports_remove_ids=False),
+    )
 
 
 @transaction.atomic

@@ -368,6 +368,8 @@ KIOTVIET_API_BASE_URL = os.getenv('KIOTVIET_API_BASE_URL', 'https://public.kiota
 # Mirror DB trung gian (bảng kv_* trên PostgreSQL portal)
 KIOTVIET_USE_LOCAL_MIRROR = env_bool('KIOTVIET_USE_LOCAL_MIRROR', True)
 KIOTVIET_SYNC_PAGE_SIZE = int(os.getenv('KIOTVIET_SYNC_PAGE_SIZE', '100') or '100')
+KIOTVIET_API_TIMEOUT = int(os.getenv('KIOTVIET_API_TIMEOUT', '90') or '90')
+KIOTVIET_API_TIMEOUT_ORDERS = int(os.getenv('KIOTVIET_API_TIMEOUT_ORDERS', '180') or '180')
 
 # NAS (Synology qua Tailscale + rclone mount trên VPS)
 NAS_MOUNT_ROOT = os.getenv('NAS_MOUNT_ROOT', '/mnt/nas-portal')

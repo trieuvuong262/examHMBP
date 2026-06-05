@@ -82,12 +82,19 @@ class KiotVietClient:
         _token_expires_at = now + expires_in
         return token
 
+    def _api_timeout(self, path: str) -> int:
+        path = path.lstrip('/').split('/')[0]
+        if path == 'orders':
+            return max(30, int(getattr(settings, 'KIOTVIET_API_TIMEOUT_ORDERS', 180) or 180))
+        return max(30, int(getattr(settings, 'KIOTVIET_API_TIMEOUT', 90) or 90))
+
     def _request(
         self,
         method: str,
         path: str,
         *,
         params: dict | None = None,
+        timeout: int | None = None,
     ) -> Any:
         url = f'{self.api_base}/{path.lstrip("/")}'
         headers = {
@@ -100,7 +107,7 @@ class KiotVietClient:
                 url,
                 headers=headers,
                 params=params,
-                timeout=30,
+                timeout=timeout or self._api_timeout(path),
             )
         except requests.RequestException as exc:
             raise KiotVietAPIError(f'Lỗi kết nối API KiotViet: {exc}') from exc
