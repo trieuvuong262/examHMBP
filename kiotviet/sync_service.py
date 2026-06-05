@@ -21,21 +21,33 @@ from .kv_parse import (
 )
 from .sync_helpers import extract_product_image_urls, needs_upsert
 from .models import (
+    KvBankAccount,
     KvBranch,
+    KvCashflow,
     KvCategory,
     KvCustomer,
+    KvCustomerGroup,
     KvInvoice,
     KvInvoiceLine,
+    KvLocation,
     KvOrder,
     KvOrderLine,
+    KvPricebook,
     KvProduct,
     KvProductAttribute,
     KvProductInventory,
     KvProductUnit,
     KvPurchaseOrder,
     KvPurchaseOrderLine,
+    KvReturn,
+    KvReturnLine,
+    KvSaleChannel,
+    KvSurcharge,
     KvSyncState,
     KvSyncTombstone,
+    KvTransfer,
+    KvTransferLine,
+    KvUser,
 )
 
 logger = logging.getLogger(__name__)
@@ -43,11 +55,21 @@ logger = logging.getLogger(__name__)
 ENTITY_ALL = (
     'branches',
     'categories',
+    'users',
+    'sale_channels',
+    'locations',
+    'bank_accounts',
+    'surcharges',
+    'customer_groups',
+    'pricebooks',
     'products',
     'customers',
     'orders',
     'invoices',
     'purchase_orders',
+    'transfers',
+    'returns',
+    'cashflow',
 )
 
 @dataclass(frozen=True)
@@ -62,16 +84,47 @@ ENTITY_SYNC_OPTIONS: dict[str, EntitySyncOptions] = {
         supports_last_modified=False,
         supports_remove_ids=False,
     ),
+    'transfers': EntitySyncOptions(supports_remove_ids=False),
+    'customer_groups': EntitySyncOptions(
+        supports_last_modified=False,
+        supports_remove_ids=False,
+    ),
+    'pricebooks': EntitySyncOptions(
+        supports_last_modified=False,
+        supports_remove_ids=False,
+    ),
+    'sale_channels': EntitySyncOptions(
+        supports_last_modified=False,
+        supports_remove_ids=False,
+    ),
+    'locations': EntitySyncOptions(
+        supports_last_modified=False,
+        supports_remove_ids=False,
+    ),
+    'cashflow': EntitySyncOptions(
+        supports_last_modified=False,
+        supports_remove_ids=False,
+    ),
 }
 
 ENTITY_LABELS = {
     'branches': 'Chi nhánh',
     'categories': 'Nhóm hàng',
+    'users': 'Nhân viên',
+    'sale_channels': 'Kênh bán',
+    'locations': 'Địa lý',
+    'bank_accounts': 'TK ngân hàng',
+    'surcharges': 'Phụ thu',
+    'customer_groups': 'Nhóm khách hàng',
+    'pricebooks': 'Bảng giá',
     'products': 'Sản phẩm',
     'customers': 'Khách hàng',
     'orders': 'Đặt hàng',
     'invoices': 'Hóa đơn',
     'purchase_orders': 'Đơn nhập hàng',
+    'transfers': 'Chuyển kho',
+    'returns': 'Trả hàng',
+    'cashflow': 'Sổ quỹ',
 }
 
 ProgressCallback = Callable[[int, int, str], None]
@@ -79,11 +132,21 @@ ProgressCallback = Callable[[int, int, str], None]
 MODEL_BY_ENTITY = {
     'branches': KvBranch,
     'categories': KvCategory,
+    'users': KvUser,
+    'sale_channels': KvSaleChannel,
+    'locations': KvLocation,
+    'bank_accounts': KvBankAccount,
+    'surcharges': KvSurcharge,
+    'customer_groups': KvCustomerGroup,
+    'pricebooks': KvPricebook,
     'products': KvProduct,
     'customers': KvCustomer,
     'orders': KvOrder,
     'invoices': KvInvoice,
     'purchase_orders': KvPurchaseOrder,
+    'transfers': KvTransfer,
+    'returns': KvReturn,
+    'cashflow': KvCashflow,
 }
 
 
@@ -128,6 +191,18 @@ def _row_modified_at(row: dict, *, entity_type: str = '') -> datetime | None:
         return md
     if entity_type == 'purchase_orders':
         return parse_kv_datetime(row.get('purchaseDate'))
+    if entity_type == 'transfers':
+        return (
+            parse_kv_datetime(row.get('receivedDate'))
+            or parse_kv_datetime(row.get('dispatchedDate'))
+            or parse_kv_datetime(row.get('transferredDate'))
+        )
+    if entity_type == 'cashflow':
+        return parse_kv_datetime(row.get('transDate'))
+    if entity_type == 'users':
+        return parse_kv_datetime(row.get('createdDate'))
+    if entity_type == 'customer_groups':
+        return parse_kv_datetime(row.get('createdDate'))
     return None
 
 
@@ -205,7 +280,7 @@ def _sync_paginated(
             removed_total += _handle_removed_ids(
                 entity_type,
                 retailer,
-                payload.get('removedIds') or [],
+                payload.get('removedIds') or payload.get('removeIds') or [],
             )
             for row in rows:
                 if upsert_fn(retailer, row):
@@ -618,6 +693,320 @@ def upsert_purchase_order(retailer: str, row: dict, *, force: bool = False) -> b
     return True
 
 
+def _sync_transfer_lines(retailer: str, transfer_id: int, row: dict) -> None:
+    details = row.get('transferDetails') or row.get('details') or []
+    if not details:
+        return
+    KvTransferLine.objects.filter(
+        retailer=retailer,
+        transfer_kiotviet_id=transfer_id,
+    ).delete()
+    for idx, item in enumerate(details):
+        if not isinstance(item, dict):
+            continue
+        on_hand = item.get('sendQuantity')
+        if on_hand is None:
+            on_hand = item.get('transferredQuantity')
+        recv = item.get('recieveQuantity')
+        if recv is None:
+            recv = item.get('receiveQuantity')
+        KvTransferLine.objects.create(
+            retailer=retailer,
+            transfer_kiotviet_id=transfer_id,
+            product_kiotviet_id=parse_kv_int(item.get('productId')),
+            product_code=item.get('productCode') or item.get('ProductCode') or '',
+            product_name=item.get('productName') or '',
+            quantity=parse_kv_float(on_hand),
+            receive_quantity=parse_kv_float(recv),
+            price=parse_kv_decimal(item.get('price') or item.get('sendPrice')),
+            line_index=idx,
+        )
+
+
+def upsert_user(retailer: str, row: dict, *, force: bool = False) -> bool:
+    kid = parse_kv_int(row.get('id'))
+    if kid is None:
+        return False
+    modified = _row_modified_at(row, entity_type='users')
+    if not force and not needs_upsert(KvUser, retailer=retailer, kiotviet_id=kid, incoming_modified=modified):
+        return False
+    KvUser.objects.update_or_create(
+        retailer=retailer,
+        kiotviet_id=kid,
+        defaults={
+            'username': row.get('userName') or '',
+            'given_name': row.get('givenName') or '',
+            'address': row.get('address') or '',
+            'mobile_phone': row.get('mobilePhone') or '',
+            'email': row.get('email') or '',
+            'description': row.get('description') or '',
+            'birth_date': parse_kv_date(row.get('birthDate')),
+            'kv_created_at': parse_kv_datetime(row.get('createdDate')),
+            'kv_modified_at': modified,
+            'is_deleted': False,
+        },
+    )
+    return True
+
+
+def upsert_sale_channel(retailer: str, row: dict, *, force: bool = False) -> bool:
+    kid = parse_kv_int(row.get('id'))
+    if kid is None:
+        return False
+    modified = parse_kv_datetime(row.get('modifiedDate'))
+    if not force and not needs_upsert(
+        KvSaleChannel, retailer=retailer, kiotviet_id=kid, incoming_modified=modified,
+    ):
+        return False
+    KvSaleChannel.objects.update_or_create(
+        retailer=retailer,
+        kiotviet_id=kid,
+        defaults={
+            'name': row.get('name') or '',
+            'is_active': row.get('isActive'),
+            'img': row.get('img') or '',
+            'is_not_delete': row.get('isNotDelete'),
+            'kv_modified_at': modified,
+            'is_deleted': False,
+        },
+    )
+    return True
+
+
+def upsert_location(retailer: str, row: dict, *, force: bool = False) -> bool:
+    kid = parse_kv_int(row.get('id'))
+    if kid is None:
+        return False
+    if not force and KvLocation.objects.filter(
+        retailer=retailer, kiotviet_id=kid, is_deleted=False,
+    ).exists():
+        existing = KvLocation.objects.filter(retailer=retailer, kiotviet_id=kid).first()
+        if existing and existing.name == (row.get('name') or ''):
+            return False
+    KvLocation.objects.update_or_create(
+        retailer=retailer,
+        kiotviet_id=kid,
+        defaults={
+            'name': row.get('name') or '',
+            'parent_kiotviet_id': parse_kv_int(row.get('parentId')),
+            'is_deleted': False,
+        },
+    )
+    return True
+
+
+def upsert_bank_account(retailer: str, row: dict, *, force: bool = False) -> bool:
+    kid = parse_kv_int(row.get('id'))
+    if kid is None:
+        return False
+    modified = parse_kv_datetime(row.get('modifiedDate'))
+    if not force and not needs_upsert(
+        KvBankAccount, retailer=retailer, kiotviet_id=kid, incoming_modified=modified,
+    ):
+        return False
+    KvBankAccount.objects.update_or_create(
+        retailer=retailer,
+        kiotviet_id=kid,
+        defaults={
+            'account_name': row.get('accountName') or '',
+            'account_number': row.get('account') or '',
+            'bank_name': row.get('bank') or '',
+            'kv_modified_at': modified,
+            'is_deleted': False,
+        },
+    )
+    return True
+
+
+def upsert_surcharge(retailer: str, row: dict, *, force: bool = False) -> bool:
+    kid = parse_kv_int(row.get('id'))
+    if kid is None:
+        return False
+    modified = parse_kv_datetime(row.get('modifiedDate'))
+    if not force and not needs_upsert(
+        KvSurcharge, retailer=retailer, kiotviet_id=kid, incoming_modified=modified,
+    ):
+        return False
+    KvSurcharge.objects.update_or_create(
+        retailer=retailer,
+        kiotviet_id=kid,
+        defaults={
+            'code': row.get('code') or '',
+            'name': row.get('name') or '',
+            'price': parse_kv_decimal(row.get('price')),
+            'is_active': row.get('isActive'),
+            'kv_modified_at': modified,
+            'is_deleted': False,
+        },
+    )
+    return True
+
+
+def upsert_customer_group(retailer: str, row: dict, *, force: bool = False) -> bool:
+    kid = parse_kv_int(row.get('id'))
+    if kid is None:
+        return False
+    modified = _row_modified_at(row, entity_type='customer_groups')
+    if not force and not needs_upsert(
+        KvCustomerGroup, retailer=retailer, kiotviet_id=kid, incoming_modified=modified,
+    ):
+        return False
+    KvCustomerGroup.objects.update_or_create(
+        retailer=retailer,
+        kiotviet_id=kid,
+        defaults={
+            'name': row.get('name') or '',
+            'description': row.get('description') or '',
+            'discount_ratio': parse_kv_float(row.get('discountRatio')),
+            'kv_created_at': parse_kv_datetime(row.get('createdDate')),
+            'kv_modified_at': modified,
+            'raw_json': row,
+            'is_deleted': False,
+        },
+    )
+    return True
+
+
+def upsert_pricebook(retailer: str, row: dict, *, force: bool = False) -> bool:
+    kid = parse_kv_int(row.get('id'))
+    if kid is None:
+        return False
+    modified = parse_kv_datetime(row.get('modifiedDate')) or parse_kv_datetime(row.get('startDate'))
+    if not force and not needs_upsert(
+        KvPricebook, retailer=retailer, kiotviet_id=kid, incoming_modified=modified,
+    ):
+        return False
+    KvPricebook.objects.update_or_create(
+        retailer=retailer,
+        kiotviet_id=kid,
+        defaults={
+            'name': row.get('name') or '',
+            'is_active': row.get('isActive'),
+            'is_global': row.get('isGlobal'),
+            'for_all_cus_group': row.get('forAllCusGroup'),
+            'for_all_user': row.get('forAllUser'),
+            'start_date': parse_kv_datetime(row.get('startDate')),
+            'end_date': parse_kv_datetime(row.get('endDate')),
+            'kv_modified_at': modified,
+            'raw_json': row,
+            'is_deleted': False,
+        },
+    )
+    return True
+
+
+def upsert_transfer(retailer: str, row: dict, *, force: bool = False) -> bool:
+    kid = parse_kv_int(row.get('id'))
+    if kid is None:
+        return False
+    modified = _row_modified_at(row, entity_type='transfers')
+    if not force and not needs_upsert(
+        KvTransfer, retailer=retailer, kiotviet_id=kid, incoming_modified=modified,
+    ):
+        return False
+    KvTransfer.objects.update_or_create(
+        retailer=retailer,
+        kiotviet_id=kid,
+        defaults={
+            'code': row.get('code') or '',
+            'status': parse_kv_int(row.get('status')),
+            'description': row.get('description') or row.get('noteBySource') or '',
+            'from_branch_kiotviet_id': parse_kv_int(row.get('fromBranchId')),
+            'to_branch_kiotviet_id': parse_kv_int(row.get('toBranchId')),
+            'transferred_date': (
+                parse_kv_datetime(row.get('transferredDate'))
+                or parse_kv_datetime(row.get('dispatchedDate'))
+            ),
+            'received_date': parse_kv_datetime(row.get('receivedDate')),
+            'is_active': row.get('isActive'),
+            'kv_modified_at': modified,
+            'raw_json': row,
+            'is_deleted': False,
+        },
+    )
+    _sync_transfer_lines(retailer, kid, row)
+    return True
+
+
+def upsert_return(retailer: str, row: dict, *, force: bool = False) -> bool:
+    kid = parse_kv_int(row.get('id'))
+    if kid is None:
+        return False
+    modified = parse_kv_datetime(row.get('modifiedDate'))
+    if not force and not needs_upsert(
+        KvReturn, retailer=retailer, kiotviet_id=kid, incoming_modified=modified,
+    ):
+        return False
+    KvReturn.objects.update_or_create(
+        retailer=retailer,
+        kiotviet_id=kid,
+        defaults={
+            'code': row.get('code') or '',
+            'invoice_kiotviet_id': parse_kv_int(row.get('invoiceId')),
+            'return_date': parse_kv_datetime(row.get('returnDate')),
+            'branch_kiotviet_id': parse_kv_int(row.get('branchId')),
+            'branch_name': row.get('branchName') or '',
+            'customer_kiotviet_id': parse_kv_int(row.get('customerId')),
+            'customer_code': row.get('customerCode') or '',
+            'customer_name': row.get('customerName') or '',
+            'return_total': parse_kv_decimal(row.get('returnTotal')),
+            'total_payment': parse_kv_decimal(row.get('totalPayment')),
+            'status': parse_kv_int(row.get('status')),
+            'status_value': row.get('statusValue') or '',
+            'received_by_kiotviet_id': parse_kv_int(row.get('receivedById')),
+            'sold_by_name': row.get('soldByName') or '',
+            'kv_created_at': parse_kv_datetime(row.get('createdDate')),
+            'kv_modified_at': modified,
+            'raw_json': row,
+            'is_deleted': False,
+        },
+    )
+    _sync_transaction_lines(
+        retailer=retailer,
+        parent_id=kid,
+        details_key='returnDetails',
+        line_model=KvReturnLine,
+        parent_field='return_kiotviet_id',
+        row=row,
+    )
+    return True
+
+
+def upsert_cashflow(retailer: str, row: dict, *, force: bool = False) -> bool:
+    kid = parse_kv_int(row.get('id'))
+    if kid is None:
+        return False
+    modified = _row_modified_at(row, entity_type='cashflow')
+    if not force and not needs_upsert(
+        KvCashflow, retailer=retailer, kiotviet_id=kid, incoming_modified=modified,
+    ):
+        return False
+    KvCashflow.objects.update_or_create(
+        retailer=retailer,
+        kiotviet_id=kid,
+        defaults={
+            'code': row.get('code') or '',
+            'branch_kiotviet_id': parse_kv_int(row.get('branchId')),
+            'trans_date': parse_kv_datetime(row.get('transDate')),
+            'amount': parse_kv_decimal(row.get('amount')),
+            'method': row.get('method') or '',
+            'partner_type': row.get('partnerType') or '',
+            'partner_kiotviet_id': parse_kv_int(row.get('partnerId')),
+            'partner_name': row.get('partnerName') or '',
+            'status': parse_kv_int(row.get('status')),
+            'status_value': row.get('statusValue') or '',
+            'cash_flow_group_kiotviet_id': parse_kv_int(row.get('cashFlowGroupId')),
+            'account_kiotviet_id': parse_kv_int(row.get('AccountId') or row.get('accountId')),
+            'description': row.get('Description') or row.get('description') or '',
+            'created_by_kiotviet_id': parse_kv_int(row.get('createdBy')),
+            'kv_modified_at': modified,
+            'raw_json': row,
+            'is_deleted': False,
+        },
+    )
+    return True
+
+
 def sync_entity(
     entity: str,
     *,
@@ -648,12 +1037,60 @@ def sync_entity(
             **paginated_kwargs,
         )
     if entity == 'categories':
-        params = {'hierachicalData': 'true'} if full else {}
         return _sync_paginated(
             entity_type='categories',
             list_fn=api.list_categories,
             upsert_fn=bound(upsert_category),
-            base_params=params,
+            base_params={'hierachicalData': 'true'},
+            **paginated_kwargs,
+        )
+    if entity == 'users':
+        return _sync_paginated(
+            entity_type='users',
+            list_fn=api.list_users,
+            upsert_fn=bound(upsert_user),
+            **paginated_kwargs,
+        )
+    if entity == 'sale_channels':
+        return _sync_paginated(
+            entity_type='sale_channels',
+            list_fn=api.list_sale_channels,
+            upsert_fn=bound(upsert_sale_channel),
+            **paginated_kwargs,
+        )
+    if entity == 'locations':
+        return _sync_paginated(
+            entity_type='locations',
+            list_fn=api.list_locations,
+            upsert_fn=bound(upsert_location),
+            **paginated_kwargs,
+        )
+    if entity == 'bank_accounts':
+        return _sync_paginated(
+            entity_type='bank_accounts',
+            list_fn=api.list_bank_accounts,
+            upsert_fn=bound(upsert_bank_account),
+            **paginated_kwargs,
+        )
+    if entity == 'surcharges':
+        return _sync_paginated(
+            entity_type='surcharges',
+            list_fn=api.list_surcharges,
+            upsert_fn=bound(upsert_surcharge),
+            **paginated_kwargs,
+        )
+    if entity == 'customer_groups':
+        return _sync_paginated(
+            entity_type='customer_groups',
+            list_fn=api.list_customer_groups,
+            upsert_fn=bound(upsert_customer_group),
+            **paginated_kwargs,
+        )
+    if entity == 'pricebooks':
+        return _sync_paginated(
+            entity_type='pricebooks',
+            list_fn=api.list_pricebooks,
+            upsert_fn=bound(upsert_pricebook),
             **paginated_kwargs,
         )
     if entity == 'products':
@@ -693,6 +1130,28 @@ def sync_entity(
             entity_type='purchase_orders',
             list_fn=api.list_purchase_orders,
             upsert_fn=bound(upsert_purchase_order),
+            **paginated_kwargs,
+        )
+    if entity == 'transfers':
+        return _sync_paginated(
+            entity_type='transfers',
+            list_fn=api.list_transfers,
+            upsert_fn=bound(upsert_transfer),
+            **paginated_kwargs,
+        )
+    if entity == 'returns':
+        return _sync_paginated(
+            entity_type='returns',
+            list_fn=api.list_returns,
+            upsert_fn=bound(upsert_return),
+            base_params={'orderBy': 'modifiedDate', 'orderDirection': 'Desc'},
+            **paginated_kwargs,
+        )
+    if entity == 'cashflow':
+        return _sync_paginated(
+            entity_type='cashflow',
+            list_fn=api.list_cashflow,
+            upsert_fn=bound(upsert_cashflow),
             **paginated_kwargs,
         )
     return {'entity': entity, 'error': f'Entity không hỗ trợ: {entity}'}

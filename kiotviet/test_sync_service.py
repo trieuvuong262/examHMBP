@@ -2,12 +2,22 @@ from unittest.mock import MagicMock, patch
 
 from django.test import TestCase, override_settings
 
-from kiotviet.models import KvProduct, KvPurchaseOrder, KvPurchaseOrderLine
+from kiotviet.models import (
+    KvCustomerGroup,
+    KvProduct,
+    KvPurchaseOrder,
+    KvPurchaseOrderLine,
+    KvTransfer,
+    KvTransferLine,
+)
 from kiotviet.sync_service import (
+    ENTITY_ALL,
     ENTITY_SYNC_OPTIONS,
     refresh_product_images,
     sync_entity,
+    upsert_customer_group,
     upsert_purchase_order,
+    upsert_transfer,
 )
 
 
@@ -117,3 +127,45 @@ class ProductImageRefreshTests(TestCase):
         self.assertEqual(result.get('skipped'), 1)
         product = KvProduct.objects.get(kiotviet_id=5002)
         self.assertEqual(product.image_urls, ['https://cdn.example/existing.jpg'])
+
+
+@override_settings(KIOTVIET_RETAILER='justsport')
+class ExtendedEntitySyncTests(TestCase):
+    retailer = 'justsport'
+
+    def test_entity_all_includes_extended_entities(self):
+        self.assertIn('transfers', ENTITY_ALL)
+        self.assertIn('returns', ENTITY_ALL)
+        self.assertIn('customer_groups', ENTITY_ALL)
+        self.assertIn('cashflow', ENTITY_ALL)
+
+    def test_upsert_transfer_with_lines(self):
+        upsert_transfer(self.retailer, {
+            'id': 7001,
+            'code': 'CK001',
+            'fromBranchId': 1,
+            'toBranchId': 2,
+            'status': 1,
+            'dispatchedDate': '2024-08-01T10:00:00',
+            'transferDetails': [{
+                'productId': 101,
+                'ProductCode': 'SP-A',
+                'sendQuantity': 5,
+                'price': 100000,
+            }],
+        })
+        transfer = KvTransfer.objects.get(kiotviet_id=7001)
+        self.assertEqual(transfer.code, 'CK001')
+        self.assertEqual(KvTransferLine.objects.filter(transfer_kiotviet_id=7001).count(), 1)
+
+    def test_upsert_customer_group(self):
+        upsert_customer_group(self.retailer, {
+            'id': 8001,
+            'name': 'Khách sỉ',
+            'description': 'Nhóm sỉ',
+            'discountRatio': 5,
+            'createdDate': '2024-01-01T00:00:00',
+        })
+        group = KvCustomerGroup.objects.get(kiotviet_id=8001)
+        self.assertEqual(group.name, 'Khách sỉ')
+        self.assertEqual(group.discount_ratio, 5.0)

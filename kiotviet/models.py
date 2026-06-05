@@ -544,6 +544,232 @@ class KvPurchaseOrderLine(models.Model):
         }
 
 
+class KvUser(KvRetailerSyncedModel):
+    username = models.CharField(max_length=150, blank=True, default='')
+    given_name = models.CharField(max_length=255, blank=True, default='')
+    address = models.TextField(blank=True, default='')
+    mobile_phone = models.CharField(max_length=32, blank=True, default='')
+    email = models.CharField(max_length=255, blank=True, default='')
+    description = models.TextField(blank=True, default='')
+    birth_date = models.DateField(null=True, blank=True)
+    kv_created_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'kv_user'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['retailer', 'kiotviet_id'],
+                name='kv_user_retailer_kid_uniq',
+            ),
+        ]
+
+
+class KvSaleChannel(KvRetailerSyncedModel):
+    name = models.CharField(max_length=255, blank=True, default='')
+    is_active = models.BooleanField(null=True, blank=True)
+    img = models.CharField(max_length=500, blank=True, default='')
+    is_not_delete = models.BooleanField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'kv_sale_channel'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['retailer', 'kiotviet_id'],
+                name='kv_sale_channel_retailer_kid_uniq',
+            ),
+        ]
+
+
+class KvLocation(KvRetailerSyncedModel):
+    name = models.CharField(max_length=255, blank=True, default='')
+    parent_kiotviet_id = models.BigIntegerField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'kv_location'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['retailer', 'kiotviet_id'],
+                name='kv_location_retailer_kid_uniq',
+            ),
+        ]
+
+
+class KvBankAccount(KvRetailerSyncedModel):
+    account_name = models.CharField(max_length=255, blank=True, default='')
+    account_number = models.CharField(max_length=64, blank=True, default='')
+    bank_name = models.CharField(max_length=255, blank=True, default='')
+
+    class Meta:
+        db_table = 'kv_bank_account'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['retailer', 'kiotviet_id'],
+                name='kv_bank_account_retailer_kid_uniq',
+            ),
+        ]
+
+
+class KvSurcharge(KvRetailerSyncedModel):
+    code = models.CharField(max_length=64, blank=True, default='')
+    name = models.CharField(max_length=255, blank=True, default='')
+    price = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    is_active = models.BooleanField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'kv_surcharge'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['retailer', 'kiotviet_id'],
+                name='kv_surcharge_retailer_kid_uniq',
+            ),
+        ]
+
+
+class KvCustomerGroup(KvRetailerSyncedModel):
+    name = models.CharField(max_length=255, blank=True, default='')
+    description = models.TextField(blank=True, default='')
+    discount_ratio = models.FloatField(null=True, blank=True)
+    kv_created_at = models.DateTimeField(null=True, blank=True)
+    raw_json = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = 'kv_customer_group'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['retailer', 'kiotviet_id'],
+                name='kv_customer_group_retailer_kid_uniq',
+            ),
+        ]
+
+
+class KvPricebook(KvRetailerSyncedModel):
+    name = models.CharField(max_length=255, blank=True, default='')
+    is_active = models.BooleanField(null=True, blank=True)
+    is_global = models.BooleanField(null=True, blank=True)
+    for_all_cus_group = models.BooleanField(null=True, blank=True)
+    for_all_user = models.BooleanField(null=True, blank=True)
+    start_date = models.DateTimeField(null=True, blank=True)
+    end_date = models.DateTimeField(null=True, blank=True)
+    raw_json = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = 'kv_pricebook'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['retailer', 'kiotviet_id'],
+                name='kv_pricebook_retailer_kid_uniq',
+            ),
+        ]
+
+
+class KvTransfer(KvRetailerSyncedModel):
+    code = models.CharField(max_length=64, blank=True, default='', db_index=True)
+    status = models.IntegerField(null=True, blank=True)
+    description = models.TextField(blank=True, default='')
+    from_branch_kiotviet_id = models.BigIntegerField(null=True, blank=True)
+    to_branch_kiotviet_id = models.BigIntegerField(null=True, blank=True)
+    transferred_date = models.DateTimeField(null=True, blank=True)
+    received_date = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(null=True, blank=True)
+    raw_json = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = 'kv_transfer'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['retailer', 'kiotviet_id'],
+                name='kv_transfer_retailer_kid_uniq',
+            ),
+        ]
+
+
+class KvTransferLine(models.Model):
+    retailer = models.CharField(max_length=64, db_index=True)
+    transfer_kiotviet_id = models.BigIntegerField(db_index=True)
+    product_kiotviet_id = models.BigIntegerField(null=True, blank=True)
+    product_code = models.CharField(max_length=64, blank=True, default='')
+    product_name = models.CharField(max_length=500, blank=True, default='')
+    quantity = models.FloatField(null=True, blank=True)
+    receive_quantity = models.FloatField(null=True, blank=True)
+    price = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    line_index = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = 'kv_transfer_line'
+        ordering = ['line_index', 'id']
+
+
+class KvReturn(KvRetailerSyncedModel):
+    code = models.CharField(max_length=64, blank=True, default='', db_index=True)
+    invoice_kiotviet_id = models.BigIntegerField(null=True, blank=True)
+    return_date = models.DateTimeField(null=True, blank=True, db_index=True)
+    branch_kiotviet_id = models.BigIntegerField(null=True, blank=True)
+    branch_name = models.CharField(max_length=255, blank=True, default='')
+    customer_kiotviet_id = models.BigIntegerField(null=True, blank=True)
+    customer_code = models.CharField(max_length=64, blank=True, default='')
+    customer_name = models.CharField(max_length=255, blank=True, default='')
+    return_total = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    total_payment = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    status = models.IntegerField(null=True, blank=True)
+    status_value = models.CharField(max_length=64, blank=True, default='')
+    received_by_kiotviet_id = models.BigIntegerField(null=True, blank=True)
+    sold_by_name = models.CharField(max_length=255, blank=True, default='')
+    kv_created_at = models.DateTimeField(null=True, blank=True)
+    raw_json = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = 'kv_return'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['retailer', 'kiotviet_id'],
+                name='kv_return_retailer_kid_uniq',
+            ),
+        ]
+
+
+class KvReturnLine(models.Model):
+    retailer = models.CharField(max_length=64, db_index=True)
+    return_kiotviet_id = models.BigIntegerField(db_index=True)
+    product_kiotviet_id = models.BigIntegerField(null=True, blank=True)
+    product_code = models.CharField(max_length=64, blank=True, default='')
+    product_name = models.CharField(max_length=500, blank=True, default='')
+    quantity = models.FloatField(null=True, blank=True)
+    price = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    note = models.TextField(blank=True, default='')
+    line_index = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = 'kv_return_line'
+        ordering = ['line_index', 'id']
+
+
+class KvCashflow(KvRetailerSyncedModel):
+    code = models.CharField(max_length=64, blank=True, default='', db_index=True)
+    branch_kiotviet_id = models.BigIntegerField(null=True, blank=True)
+    trans_date = models.DateTimeField(null=True, blank=True, db_index=True)
+    amount = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    method = models.CharField(max_length=32, blank=True, default='')
+    partner_type = models.CharField(max_length=32, blank=True, default='')
+    partner_kiotviet_id = models.BigIntegerField(null=True, blank=True)
+    partner_name = models.CharField(max_length=255, blank=True, default='')
+    status = models.IntegerField(null=True, blank=True)
+    status_value = models.CharField(max_length=64, blank=True, default='')
+    cash_flow_group_kiotviet_id = models.BigIntegerField(null=True, blank=True)
+    account_kiotviet_id = models.BigIntegerField(null=True, blank=True)
+    description = models.TextField(blank=True, default='')
+    created_by_kiotviet_id = models.BigIntegerField(null=True, blank=True)
+    raw_json = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = 'kv_cashflow'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['retailer', 'kiotviet_id'],
+                name='kv_cashflow_retailer_kid_uniq',
+            ),
+        ]
+
+
 class KvSyncConfig(models.Model):
     """Cấu hình đồng bộ KiotViet (một bản ghi / retailer)."""
 

@@ -184,6 +184,46 @@ class KiotVietClient:
     def get_purchase_order(self, purchase_order_id: int | str) -> dict:
         return self._request('GET', f'purchaseorders/{purchase_order_id}')
 
+    def list_transfers(self, **params: Any) -> dict:
+        clean = {k: v for k, v in params.items() if v not in (None, '')}
+        return self._request('GET', 'transfers', params=clean)
+
+    def list_returns(self, **params: Any) -> dict:
+        clean = {k: v for k, v in params.items() if v not in (None, '')}
+        return self._request('GET', 'returns', params=clean)
+
+    def list_customer_groups(self, **params: Any) -> dict:
+        clean = {k: v for k, v in params.items() if v not in (None, '')}
+        return self._request('GET', 'customers/group', params=clean)
+
+    def list_pricebooks(self, **params: Any) -> dict:
+        clean = {k: v for k, v in params.items() if v not in (None, '')}
+        return self._request('GET', 'pricebooks', params=clean)
+
+    def list_users(self, **params: Any) -> dict:
+        clean = {k: v for k, v in params.items() if v not in (None, '')}
+        return self._request('GET', 'users', params=clean)
+
+    def list_sale_channels(self, **params: Any) -> dict:
+        clean = {k: v for k, v in params.items() if v not in (None, '')}
+        return self._request('GET', 'salechannel', params=clean)
+
+    def list_cashflow(self, **params: Any) -> dict:
+        clean = {k: v for k, v in params.items() if v not in (None, '')}
+        return self._request('GET', 'cashflow', params=clean)
+
+    def list_locations(self, **params: Any) -> dict:
+        clean = {k: v for k, v in params.items() if v not in (None, '')}
+        return self._request('GET', 'locations', params=clean)
+
+    def list_bank_accounts(self, **params: Any) -> dict:
+        clean = {k: v for k, v in params.items() if v not in (None, '')}
+        return self._request('GET', 'BankAccounts', params=clean)
+
+    def list_surcharges(self, **params: Any) -> dict:
+        clean = {k: v for k, v in params.items() if v not in (None, '')}
+        return self._request('GET', 'surchages', params=clean)
+
 
 def _safe_json(response: requests.Response) -> Any:
     try:

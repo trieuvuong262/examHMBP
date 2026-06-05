@@ -5,22 +5,34 @@ from __future__ import annotations
 from django.conf import settings
 
 from .models import (
+    KvCashflow,
     KvCustomer,
+    KvCustomerGroup,
     KvInvoice,
     KvOrder,
+    KvPricebook,
     KvProduct,
     KvProductInventory,
     KvPurchaseOrder,
+    KvReturn,
     KvSyncState,
+    KvTransfer,
+    KvUser,
 )
 from .sync_service import current_retailer
 
 ENTITY_MODELS = {
     'customers': KvCustomer,
+    'customer_groups': KvCustomerGroup,
     'products': KvProduct,
     'orders': KvOrder,
     'invoices': KvInvoice,
     'purchase_orders': KvPurchaseOrder,
+    'transfers': KvTransfer,
+    'returns': KvReturn,
+    'cashflow': KvCashflow,
+    'pricebooks': KvPricebook,
+    'users': KvUser,
     'stock': KvProductInventory,
 }
 
