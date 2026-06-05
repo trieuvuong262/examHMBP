@@ -54,6 +54,38 @@ Nếu `kiotviet_is_live() = False` → thiếu biến môi trường.
 Menu chỉ hiện khi API đã cấu hình **và** user được cấp module **kiotviet** (phòng ban / nhóm quyền). **Superuser** hoặc username **`admin`** bypass; `is_staff` **không** tự mở menu.  
 Nhân viên khác cần bật module **KiotViet** trong **Phân quyền** → phòng ban.
 
+## Database trung gian (mirror `kv_*`)
+
+Portal lưu bản sao dữ liệu KiotViet trên **PostgreSQL hiện có** (cùng container `db`), bảng prefix `kv_*`. Tra cứu menu đọc mirror trước; mirror trống thì fallback API.
+
+### Triển khai lần đầu trên VPS
+
+```bash
+cd /opt/portaljustplay
+git pull
+docker compose up -d web --force-recreate
+docker compose exec web python manage.py migrate
+docker compose exec web python manage.py kiotviet_sync --full
+docker compose exec web python manage.py kiotviet_status
+```
+
+### Đồng bộ định kỳ (cron 2 giờ/lần)
+
+```cron
+0 */2 * * * cd /opt/portaljustplay && docker compose exec -T web python manage.py kiotviet_sync >> /var/log/kiotviet-sync.log 2>&1
+```
+
+### Biến môi trường thêm (tùy chọn)
+
+```env
+KIOTVIET_USE_LOCAL_MIRROR=1
+KIOTVIET_SYNC_PAGE_SIZE=100
+```
+
+Sync từng phần: `python manage.py kiotviet_sync --entity products --entity customers`
+
+Chi tiết schema: [schema-design.md](./schema-design.md).
+
 ## Bảo mật
 
 - Đã chia sẻ secret trong chat/ảnh → nên **tạo lại Mã bảo mật** trên KiotViet nếu repo hoặc kênh chat không riêng tư.

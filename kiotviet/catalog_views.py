@@ -14,6 +14,8 @@ from .browse import (
 )
 from .client import KiotVietAPIError, KiotVietClient
 from .decorators import kiotviet_access_required
+from . import local_lookup as local
+from .mirror import use_local_mirror
 from .formatters import (
     format_inventory_rows,
     format_product_detail,
@@ -62,7 +64,33 @@ def product_lookup(request):
     client = KiotVietClient()
 
     try:
-        if browse_mode:
+        if use_local_mirror('products'):
+            if browse_mode:
+                rows, total = local.browse_products(page=page, per_page=KV_PAGE_SIZE)
+                items = [format_product_row(r) for r in rows]
+            elif search_type == 'code':
+                detail = local.get_product_by_code(client.retailer, query)
+                if detail:
+                    items = [format_product_row(detail)]
+                    total = 1
+                else:
+                    rows, total = local.browse_products(
+                        page=page, per_page=KV_PAGE_SIZE, code=query,
+                    )
+                    items = [format_product_row(r) for r in rows]
+            elif search_type == 'barcode':
+                rows, total = local.browse_products(
+                    page=1, per_page=KV_PAGE_SIZE * 5, bar_code=query,
+                )
+                all_matched = [format_product_row(r) for r in rows]
+                items, page_obj, query_string = paginate_list_items(request, all_matched)
+                total = len(all_matched)
+            else:
+                rows, total = local.browse_products(
+                    page=page, per_page=KV_PAGE_SIZE, name=query,
+                )
+                items = [format_product_row(r) for r in rows]
+        elif browse_mode:
             rows, total = fetch_api_page(
                 client.list_products,
                 _product_list_params('name', ''),
@@ -149,8 +177,12 @@ def product_lookup(request):
 @kiotviet_access_required
 def product_detail(request, product_id: int):
     client = KiotVietClient()
+    raw = None
+    if use_local_mirror('products'):
+        raw = local.get_product(client.retailer, product_id)
     try:
-        raw = client.get_product(product_id, includeInventory='true')
+        if raw is None:
+            raw = client.get_product(product_id, includeInventory='true')
     except KiotVietAPIError as exc:
         messages.error(request, str(exc))
         return redirect('kiotviet:product_lookup')
@@ -178,7 +210,25 @@ def stock_lookup(request):
     client = KiotVietClient()
 
     try:
-        if browse_mode:
+        if use_local_mirror('stock'):
+            if browse_mode:
+                rows, total = local.browse_stock(page=page, per_page=KV_PAGE_SIZE)
+                for product in rows:
+                    stock_rows.extend(format_inventory_rows(product))
+            elif search_type == 'code':
+                rows, total = local.browse_stock(
+                    page=1, per_page=KV_PAGE_SIZE, product_code=query,
+                )
+                for product in rows:
+                    stock_rows.extend(format_inventory_rows(product))
+                total = len(stock_rows)
+            else:
+                rows, total = local.browse_stock(
+                    page=page, per_page=KV_PAGE_SIZE, product_name=query,
+                )
+                for product in rows:
+                    stock_rows.extend(format_inventory_rows(product))
+        elif browse_mode:
             rows, total = fetch_api_page(
                 client.list_product_on_hand,
                 {'orderBy': 'code', 'orderDirection': 'Asc'},
@@ -258,7 +308,37 @@ def purchase_lookup(request):
     list_params = {'orderDirection': 'Desc', 'orderBy': 'purchaseDate'}
 
     try:
-        if browse_mode:
+        if use_local_mirror('purchase_orders'):
+            if browse_mode:
+                rows, total = local.browse_purchase_orders(page=page, per_page=KV_PAGE_SIZE)
+                items = [format_purchase_order_row(r) for r in rows]
+            elif search_type == 'id' and query.isdigit():
+                detail = local.get_purchase_order(client.retailer, int(query))
+                if detail:
+                    items = [format_purchase_order_row(detail)]
+                    total = 1
+                else:
+                    items = []
+                    total = 0
+            elif query.isdigit():
+                detail = local.get_purchase_order(client.retailer, int(query))
+                if detail:
+                    items = [format_purchase_order_row(detail)]
+                    total = 1
+                else:
+                    rows, total = local.browse_purchase_orders(
+                        page=1, per_page=KV_PAGE_SIZE, code=query,
+                    )
+                    items = [format_purchase_order_row(r) for r in rows]
+                    total = len(items)
+            else:
+                rows, total = local.browse_purchase_orders(
+                    page=1, per_page=KV_PAGE_SIZE * 5, code=query,
+                )
+                all_matched = [format_purchase_order_row(r) for r in rows]
+                items, page_obj, query_string = paginate_list_items(request, all_matched)
+                total = len(all_matched)
+        elif browse_mode:
             rows, total = fetch_api_page(client.list_purchase_orders, list_params, page)
             items = [format_purchase_order_row(r) for r in rows]
         elif search_type == 'id' and query.isdigit():
@@ -327,8 +407,12 @@ def purchase_lookup(request):
 @kiotviet_access_required
 def purchase_detail(request, purchase_id: int):
     client = KiotVietClient()
+    raw = None
+    if use_local_mirror('purchase_orders'):
+        raw = local.get_purchase_order(client.retailer, purchase_id)
     try:
-        raw = client.get_purchase_order(purchase_id)
+        if raw is None:
+            raw = client.get_purchase_order(purchase_id)
     except KiotVietAPIError as exc:
         messages.error(request, str(exc))
         return redirect('kiotviet:purchase_lookup')

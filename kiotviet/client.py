@@ -146,6 +146,14 @@ class KiotVietClient:
     def get_invoice_by_code(self, code: str) -> dict:
         return self._request('GET', f'invoices/code/{code}')
 
+    def list_branches(self, **params: Any) -> dict:
+        clean = {k: v for k, v in params.items() if v not in (None, '')}
+        return self._request('GET', 'branches', params=clean)
+
+    def list_categories(self, **params: Any) -> dict:
+        clean = {k: v for k, v in params.items() if v not in (None, '')}
+        return self._request('GET', 'categories', params=clean)
+
     def list_products(self, **params: Any) -> dict:
         clean = {k: v for k, v in params.items() if v not in (None, '')}
         return self._request('GET', 'products', params=clean)

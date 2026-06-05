@@ -9,6 +9,7 @@ from django.core.management.base import BaseCommand
 
 from kiotviet.access import kiotviet_is_live, user_can_use_kiotviet
 from kiotviet.client import KiotVietClient
+from kiotviet.mirror import mirror_enabled, mirror_summary, sync_states
 
 
 class Command(BaseCommand):
@@ -53,6 +54,26 @@ class Command(BaseCommand):
                 )
             except User.DoesNotExist:
                 self.stdout.write(f'User {username}: không tồn tại')
+
+        use_mirror = mirror_enabled()
+        self.stdout.write(f'KIOTVIET_USE_LOCAL_MIRROR = {use_mirror}')
+        self.stdout.write('\n=== Mirror DB (kv_*) ===')
+        counts = mirror_summary()
+        for entity, count in counts.items():
+            self.stdout.write(f'  {entity}: {count} bản ghi')
+        states = sync_states()
+        if states:
+            self.stdout.write('\nSync state:')
+            for st in states:
+                cursor = st.last_modified_from.isoformat() if st.last_modified_from else '—'
+                self.stdout.write(
+                    f'  {st.entity_type}: records={st.records_total}, '
+                    f'cursor={cursor}, error={st.last_error or "—"}'
+                )
+        elif use_mirror:
+            self.stdout.write(self.style.WARNING(
+                '\nChưa sync mirror. Chạy: python manage.py kiotviet_sync --full'
+            ))
 
         self.stdout.write('\nThử lấy token...')
         try:

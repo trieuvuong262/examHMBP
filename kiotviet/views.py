@@ -3,10 +3,12 @@ from django.shortcuts import redirect, render
 
 from PortalJustPlay.list_search import get_search_query
 
-from .browse import fetch_api_page, get_page_number, paginate_api_meta
+from .browse import KV_PAGE_SIZE, fetch_api_page, get_page_number, paginate_api_meta
 from .client import KiotVietAPIError, KiotVietClient
 from .decorators import kiotviet_access_required
 from .formatters import format_customer_row
+from . import local_lookup as local
+from .mirror import use_local_mirror
 
 
 @kiotviet_access_required
@@ -31,7 +33,26 @@ def customer_lookup(request):
     }
 
     try:
-        if browse_mode:
+        if use_local_mirror('customers'):
+            if browse_mode:
+                rows, total = local.browse_customers(page=page, per_page=KV_PAGE_SIZE)
+            elif search_type == 'code' and len(query) <= 64:
+                detail = local.get_customer_by_code(client.retailer, query)
+                if detail:
+                    rows, total = [detail], 1
+                else:
+                    rows, total = local.browse_customers(
+                        page=page, per_page=KV_PAGE_SIZE, code=query,
+                    )
+            else:
+                rows, total = local.browse_customers(
+                    page=page,
+                    per_page=KV_PAGE_SIZE,
+                    name=query if search_type != 'phone' else '',
+                    contact_number=query if search_type == 'phone' else '',
+                )
+            customers = [format_customer_row(r) for r in rows]
+        elif browse_mode:
             rows, total = fetch_api_page(client.list_customers, base_params, page)
             customers = [format_customer_row(r) for r in rows]
         elif search_type == 'code' and len(query) <= 64:
@@ -80,8 +101,12 @@ def customer_lookup(request):
 @kiotviet_access_required
 def customer_detail(request, customer_id: int):
     client = KiotVietClient()
+    raw = None
+    if use_local_mirror('customers'):
+        raw = local.get_customer(client.retailer, customer_id)
     try:
-        raw = client.get_customer(customer_id)
+        if raw is None:
+            raw = client.get_customer(customer_id)
     except KiotVietAPIError as exc:
         messages.error(request, str(exc))
         return redirect('kiotviet:customer_lookup')

@@ -38,6 +38,7 @@ Tài liệu lưu nội bộ để triển khai tích hợp sau.
 | [revision-history.md](./revision-history.md) | Lịch sử phiên bản tài liệu (tóm tắt) |
 | [huong-dan-ket-noi-api.md](./huong-dan-ket-noi-api.md) | Thiết lập trên UI Retail, OTP, bật/tắt API |
 | [connection-justsport.md](./connection-justsport.md) | Metadata kết nối gian hàng JustSport (không secret) |
+| [schema-design.md](./schema-design.md) | Thiết kế bảng PostgreSQL mirror API (sơ đồ + trường) |
 | [_source-portal-ket-noi-api-raw.md](./_source-portal-ket-noi-api-raw.md) | Bản scrape thô trang portal (có menu/footer) |
 | [_source-paste-raw.txt](./_source-paste-raw.txt) | Toàn bộ nội dung paste gốc (TOC + revision + API) |
 | [api-reference-full.txt](./api-reference-full.txt) | Phần mô tả API chi tiết (từ mục 1–2 trở đi) |

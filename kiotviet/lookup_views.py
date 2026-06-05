@@ -5,8 +5,10 @@ from django.shortcuts import redirect, render
 
 from PortalJustPlay.list_search import get_search_query
 
-from .browse import fetch_api_page, get_page_number, paginate_api_meta
+from .browse import KV_PAGE_SIZE, fetch_api_page, get_page_number, paginate_api_meta
 from .client import KiotVietAPIError, KiotVietClient
+from . import local_lookup as local
+from .mirror import use_local_mirror
 from .formatters import (
     format_invoice_detail,
     format_invoice_row,
@@ -38,6 +40,7 @@ def _transaction_lookup(
     list_fn,
     get_by_code_fn,
     format_row_fn,
+    mirror_entity: str | None = None,
 ):
     search_type = (request.GET.get('type') or 'code').strip()
     allowed = {opt[0] for opt in type_options}
@@ -56,7 +59,25 @@ def _transaction_lookup(
     base_params = _list_params(search_type, query)
 
     try:
-        if browse_mode:
+        if mirror_entity and use_local_mirror(mirror_entity):
+            browse_fn = local.browse_orders if mirror_entity == 'orders' else local.browse_invoices
+            get_code_fn = (
+                local.get_order_by_code if mirror_entity == 'orders' else local.get_invoice_by_code
+            )
+            if browse_mode:
+                rows, total = browse_fn(page=page, per_page=KV_PAGE_SIZE)
+            elif search_type == 'code':
+                detail = get_code_fn(client.retailer, query)
+                if detail:
+                    rows, total = [detail], 1
+                else:
+                    rows, total = browse_fn(page=page, per_page=KV_PAGE_SIZE, code=query)
+            else:
+                rows, total = browse_fn(
+                    page=page, per_page=KV_PAGE_SIZE, customer_code=query,
+                )
+            items = [format_row_fn(r) for r in rows]
+        elif browse_mode:
             rows, total = fetch_api_page(list_fn, base_params, page)
             items = [format_row_fn(r) for r in rows]
         elif search_type == 'code':
@@ -119,14 +140,19 @@ def order_lookup(request):
         list_fn=client.list_orders,
         get_by_code_fn=client.get_order_by_code,
         format_row_fn=format_order_row,
+        mirror_entity='orders',
     )
 
 
 @kiotviet_access_required
 def order_detail(request, order_id: int):
     client = KiotVietClient()
+    raw = None
+    if use_local_mirror('orders'):
+        raw = local.get_order(client.retailer, order_id)
     try:
-        raw = client.get_order(order_id)
+        if raw is None:
+            raw = client.get_order(order_id)
     except KiotVietAPIError as exc:
         messages.error(request, str(exc))
         return redirect('kiotviet:order_lookup')
@@ -158,14 +184,19 @@ def invoice_lookup(request):
         list_fn=client.list_invoices,
         get_by_code_fn=client.get_invoice_by_code,
         format_row_fn=format_invoice_row,
+        mirror_entity='invoices',
     )
 
 
 @kiotviet_access_required
 def invoice_detail(request, invoice_id: int):
     client = KiotVietClient()
+    raw = None
+    if use_local_mirror('invoices'):
+        raw = local.get_invoice(client.retailer, invoice_id)
     try:
-        raw = client.get_invoice(invoice_id)
+        if raw is None:
+            raw = client.get_invoice(invoice_id)
     except KiotVietAPIError as exc:
         messages.error(request, str(exc))
         return redirect('kiotviet:invoice_lookup')
