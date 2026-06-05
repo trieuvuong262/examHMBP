@@ -49,7 +49,21 @@
                 <div class="card-body small">
                     <dl class="row mb-0">
                         <dt class="col-sm-5">Nhóm hàng</dt>
-                        <dd class="col-sm-7">{{ product.category_name }}</dd>
+                        <dd class="col-sm-7">
+                            {% if product.category_path_parts %}
+                            <div class="d-flex flex-wrap gap-1 mb-1">
+                                {% for part in product.category_path_parts %}
+                                <span class="badge bg-light text-dark border">{{ part }}</span>
+                                {% endfor %}
+                            </div>
+                            <div class="text-muted">{{ product.category_path }}</div>
+                            {% else %}
+                            {{ product.category_path|default:product.category_name }}
+                            {% endif %}
+                            {% if product.category_kiotviet_id %}
+                            <div class="text-muted mt-1">Mã nhóm: {{ product.category_kiotviet_id }}</div>
+                            {% endif %}
+                        </dd>
                         <dt class="col-sm-5">Đơn vị</dt>
                         <dd class="col-sm-7">{{ product.unit }}</dd>
                         <dt class="col-sm-5">Loại hàng</dt>

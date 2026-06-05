@@ -98,7 +98,13 @@
                             {{ item.name }}
                             {% endif %}
                         </td>
-                        <td data-label="Nhóm" class="d-none d-md-table-cell">{{ item.category_name }}</td>
+                        <td data-label="Nhóm" class="d-none d-md-table-cell small">
+                            {% if product_group_mode and item.category_path %}
+                            <span title="{{ item.category_path }}">{{ item.category_path }}</span>
+                            {% else %}
+                            {{ item.category_name }}
+                            {% endif %}
+                        </td>
                         <td data-label="ĐVT" class="d-none d-lg-table-cell">{{ item.unit }}</td>
                         {% if product_group_mode %}
                         <td data-label="Tồn kho" class="text-end fw-semibold">

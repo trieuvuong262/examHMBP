@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 
 from django.db.models import Q, Sum
 
+from .category_paths import CategoryPathResolver
 from .models import KvProduct, KvProductAttribute, KvProductInventory
 from .sync_service import current_retailer
 
@@ -75,9 +76,12 @@ class ProductGroup:
     key: str
     name: str
     category_name: str
+    category_path: str
     unit: str
     variant_count: int
     representative_id: int
+    category_path_parts: list[str] = field(default_factory=list)
+    category_kiotviet_id: int | None = None
     image_urls: list[str] = field(default_factory=list)
     variant_ids: list[int] = field(default_factory=list)
     codes: list[str] = field(default_factory=list)
@@ -86,6 +90,36 @@ class ProductGroup:
     max_price: float | None = None
     allows_sale_values: list = field(default_factory=list)
     is_active_values: list = field(default_factory=list)
+
+
+def _resolve_group_category(
+    variants: list[KvProduct],
+    resolver: CategoryPathResolver,
+) -> dict:
+    cat_ids = {p.category_kiotviet_id for p in variants if p.category_kiotviet_id}
+    if len(cat_ids) == 1:
+        rep = variants[0]
+        return resolver.resolve(
+            rep.category_kiotviet_id,
+            fallback_name=rep.category_name or '',
+        )
+    if len(cat_ids) > 1:
+        paths: list[str] = []
+        for product in variants:
+            info = resolver.resolve(
+                product.category_kiotviet_id,
+                fallback_name=product.category_name or '',
+            )
+            if info['category_path'] not in paths:
+                paths.append(info['category_path'])
+        return {
+            'category_id': None,
+            'category_name': 'Khác nhau',
+            'category_path': ' · '.join(paths),
+            'category_path_parts': [],
+        }
+    rep = variants[0]
+    return resolver.resolve(None, fallback_name=rep.category_name or '')
 
 
 def _build_groups_from_products(
@@ -99,11 +133,13 @@ def _build_groups_from_products(
 
     all_ids = [p.kiotviet_id for p in products]
     stock_by_id = _stock_totals(retailer, all_ids)
+    category_resolver = CategoryPathResolver(retailer)
 
     groups: list[ProductGroup] = []
     for key, variants in buckets.items():
         variants.sort(key=lambda p: (p.code or '', p.kiotviet_id))
         rep = variants[0]
+        category = _resolve_group_category(variants, category_resolver)
         prices = [
             float(p.base_price)
             for p in variants
@@ -118,7 +154,10 @@ def _build_groups_from_products(
         groups.append(ProductGroup(
             key=key,
             name=display_group_name(rep.name, rep.full_name),
-            category_name=rep.category_name or '',
+            category_name=category['category_name'],
+            category_path=category['category_path'],
+            category_path_parts=category['category_path_parts'],
+            category_kiotviet_id=category['category_id'],
             unit=rep.unit or '',
             variant_count=len(variants),
             representative_id=rep.kiotviet_id,
@@ -244,9 +283,13 @@ def get_product_group(retailer: str, product_id: int) -> dict | None:
     prices = [
         float(p.base_price) for p in variants if p.base_price is not None
     ]
+    category = _resolve_group_category(variants, CategoryPathResolver(retailer))
     return {
         'name': display_group_name(anchor.name, anchor.full_name),
-        'category_name': anchor.category_name or '',
+        'category_name': category['category_name'],
+        'category_path': category['category_path'],
+        'category_path_parts': category['category_path_parts'],
+        'category_kiotviet_id': category['category_id'],
         'unit': anchor.unit or '',
         'variant_count': len(variants),
         'representative_id': variants[0].kiotviet_id,
