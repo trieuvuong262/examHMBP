@@ -226,6 +226,9 @@ def get_product_group(retailer: str, product_id: int) -> dict | None:
         pdata['attributes'] = attrs
         pdata['size_label'] = _size_label(attrs)
         pdata['stock_total'] = stock_by_id.get(product.kiotviet_id, 0.0)
+        pdata['hasVariants'] = product.has_variants
+        pdata['productType'] = product.product_type
+        pdata['description'] = product.description
         variant_rows.append(pdata)
 
     images: list[str] = []

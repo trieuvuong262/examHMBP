@@ -30,6 +30,43 @@ def _dash(value) -> str:
     return str(value)
 
 
+def _product_type_label(value) -> str:
+    labels = {
+        1: 'Hàng combo',
+        2: 'Hàng thường',
+        3: 'Dịch vụ',
+    }
+    if value is None:
+        return '—'
+    return labels.get(int(value), str(value))
+
+
+def _bool_status(value) -> dict:
+    if value is True:
+        return {'label': 'Có', 'badge_class': 'bg-success'}
+    if value is False:
+        return {'label': 'Không', 'badge_class': 'bg-secondary'}
+    return {'label': '—', 'badge_class': 'bg-light text-dark border'}
+
+
+def _aggregate_bool(values: list) -> bool | str | None:
+    cleaned = [v for v in values if v is not None]
+    if not cleaned:
+        return None
+    if all(cleaned):
+        return True
+    if not any(cleaned):
+        return False
+    return 'mixed'
+
+
+def _aggregate_status(values: list) -> dict:
+    agg = _aggregate_bool(values)
+    if agg == 'mixed':
+        return {'label': 'Khác nhau', 'badge_class': 'bg-warning text-dark'}
+    return _bool_status(agg)
+
+
 def format_order_row(row: dict) -> dict:
     return {
         'id': row.get('id'),
@@ -160,8 +197,28 @@ def format_product_group_row(group) -> dict:
 
 
 def format_product_group_detail(raw: dict) -> dict:
+    raw_variants = raw.get('variants') or []
     variants = []
-    for v in raw.get('variants') or []:
+    allows_sale_values = []
+    active_values = []
+    variant_values = []
+    product_types = []
+    modified_dates = []
+    descriptions = []
+    for v in raw_variants:
+        allows_sale = v.get('allowsSale')
+        is_active = v.get('isActive')
+        has_variants = v.get('hasVariants')
+        product_type = v.get('productType')
+        allows_sale_values.append(allows_sale)
+        active_values.append(is_active)
+        variant_values.append(has_variants)
+        if product_type is not None:
+            product_types.append(int(product_type))
+        if v.get('modifiedDate'):
+            modified_dates.append(v.get('modifiedDate'))
+        if (v.get('description') or '').strip():
+            descriptions.append((v.get('description') or '').strip())
         variants.append({
             'id': v.get('id'),
             'code': _dash(v.get('code')),
@@ -171,8 +228,20 @@ def format_product_group_detail(raw: dict) -> dict:
             'stock_total': v.get('stock_total'),
             'inventories': format_inventory_rows(v),
             'attributes': v.get('attributes') or [],
+            'allows_sale_status': _bool_status(allows_sale),
+            'is_active_status': _bool_status(is_active),
+            'product_type_label': _product_type_label(product_type),
+            'modified_date': v.get('modifiedDate'),
+            'description': _dash(v.get('description')),
         })
     images = raw.get('images') or []
+    unique_types = sorted(set(product_types))
+    if len(unique_types) == 1:
+        product_type_label = _product_type_label(unique_types[0])
+    elif unique_types:
+        product_type_label = 'Khác nhau'
+    else:
+        product_type_label = '—'
     return {
         'name': _dash(raw.get('name')),
         'category_name': _dash(raw.get('category_name')),
@@ -185,6 +254,12 @@ def format_product_group_detail(raw: dict) -> dict:
         'image_url': images[0] if images else '',
         'variants': variants,
         'is_group': raw.get('variant_count', 1) > 1,
+        'allows_sale_status': _aggregate_status(allows_sale_values),
+        'is_active_status': _aggregate_status(active_values),
+        'has_variants_status': _aggregate_status(variant_values),
+        'product_type_label': product_type_label,
+        'modified_date': max(modified_dates) if modified_dates else None,
+        'description': descriptions[0] if descriptions else '—',
     }
 
 

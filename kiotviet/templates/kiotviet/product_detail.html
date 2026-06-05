@@ -38,23 +38,54 @@
             </div>
         </div>
         {% endif %}
-        <div class="col-12 {% if product.images %}col-md-8{% else %}col-md-12{% endif %}">
+        <div class="col-12 {% if product.images %}col-md-4{% else %}col-md-6{% endif %}">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-header bg-white fw-bold">Thông tin chung</div>
                 <div class="card-body small">
                     <dl class="row mb-0">
-                        <dt class="col-sm-4 col-md-3">Nhóm hàng</dt>
-                        <dd class="col-sm-8 col-md-9">{{ product.category_name }}</dd>
-                        <dt class="col-sm-4 col-md-3">Đơn vị</dt>
-                        <dd class="col-sm-8 col-md-9">{{ product.unit }}</dd>
-                        <dt class="col-sm-4 col-md-3">Giá bán</dt>
-                        <dd class="col-sm-8 col-md-9">
+                        <dt class="col-sm-5">Nhóm hàng</dt>
+                        <dd class="col-sm-7">{{ product.category_name }}</dd>
+                        <dt class="col-sm-5">Đơn vị</dt>
+                        <dd class="col-sm-7">{{ product.unit }}</dd>
+                        <dt class="col-sm-5">Loại hàng</dt>
+                        <dd class="col-sm-7">{{ product.product_type_label }}</dd>
+                        <dt class="col-sm-5">Giá bán</dt>
+                        <dd class="col-sm-7">
                             {% if product.min_price is not None and product.max_price is not None and product.min_price != product.max_price %}
                             {{ product.min_price|floatformat:0|intcomma }} – {{ product.max_price|floatformat:0|intcomma }}
                             {% elif product.min_price is not None %}{{ product.min_price|floatformat:0|intcomma }}{% else %}—{% endif %}
                         </dd>
-                        <dt class="col-sm-4 col-md-3">Tồn kho tổng</dt>
-                        <dd class="col-sm-8 col-md-9 fw-semibold">{{ product.total_on_hand|floatformat:0|intcomma }}</dd>
+                        <dt class="col-sm-5">Tồn kho tổng</dt>
+                        <dd class="col-sm-7 fw-semibold">{{ product.total_on_hand|floatformat:0|intcomma }}</dd>
+                        <dt class="col-sm-5">Mô tả</dt>
+                        <dd class="col-sm-7">{{ product.description }}</dd>
+                        <dt class="col-sm-5">Cập nhật</dt>
+                        <dd class="col-sm-7">{{ product.modified_date|default:"—" }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 {% if product.images %}col-md-4{% else %}col-md-6{% endif %}">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white fw-bold">Trạng thái</div>
+                <div class="card-body small">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-6">Cho phép bán</dt>
+                        <dd class="col-sm-6">
+                            <span class="badge {{ product.allows_sale_status.badge_class }}">{{ product.allows_sale_status.label }}</span>
+                        </dd>
+                        <dt class="col-sm-6">Đang kinh doanh</dt>
+                        <dd class="col-sm-6">
+                            <span class="badge {{ product.is_active_status.badge_class }}">{{ product.is_active_status.label }}</span>
+                        </dd>
+                        <dt class="col-sm-6">Có thuộc tính</dt>
+                        <dd class="col-sm-6">
+                            <span class="badge {{ product.has_variants_status.badge_class }}">{{ product.has_variants_status.label }}</span>
+                        </dd>
+                        {% if product.is_group %}
+                        <dt class="col-sm-6">Số mã size</dt>
+                        <dd class="col-sm-6">{{ product.variant_count }}</dd>
+                        {% endif %}
                     </dl>
                 </div>
             </div>
@@ -75,6 +106,8 @@
                         <th class="d-none d-md-table-cell">Mã vạch</th>
                         <th class="text-end">Giá</th>
                         <th class="text-end">Tồn</th>
+                        <th>Cho phép bán</th>
+                        <th>Đang KD</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -87,6 +120,12 @@
                             {% if v.base_price is not None %}{{ v.base_price|floatformat:0|intcomma }}{% else %}—{% endif %}
                         </td>
                         <td data-label="Tồn" class="text-end fw-semibold">{{ v.stock_total|floatformat:0|intcomma }}</td>
+                        <td data-label="Cho phép bán">
+                            <span class="badge {{ v.allows_sale_status.badge_class }}">{{ v.allows_sale_status.label }}</span>
+                        </td>
+                        <td data-label="Đang KD">
+                            <span class="badge {{ v.is_active_status.badge_class }}">{{ v.is_active_status.label }}</span>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
