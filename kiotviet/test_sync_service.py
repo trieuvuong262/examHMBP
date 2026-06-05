@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 from django.test import TestCase, override_settings
 
-from kiotviet.models import KvProduct, KvPurchaseOrder, KvSyncState
+from kiotviet.models import KvProduct, KvPurchaseOrder, KvPurchaseOrderLine
 from kiotviet.sync_service import (
     ENTITY_SYNC_OPTIONS,
     refresh_product_images,
@@ -22,10 +22,18 @@ class PurchaseOrderSyncTests(TestCase):
             'purchaseDate': '2024-06-15T08:30:00',
             'status': 1,
             'statusValue': 'Hoàn thành',
+            'purchaseOrderDetails': [{
+                'productId': 101,
+                'productCode': 'SP-X',
+                'productName': 'Hang A',
+                'quantity': 2,
+                'price': 100000,
+            }],
         })
         po = KvPurchaseOrder.objects.get(kiotviet_id=9001)
         self.assertIsNotNone(po.kv_modified_at)
         self.assertEqual(po.purchase_date.year, 2024)
+        self.assertEqual(KvPurchaseOrderLine.objects.filter(purchase_order_kiotviet_id=9001).count(), 1)
 
     @patch('kiotviet.sync_service.KiotVietClient')
     def test_sync_purchase_orders_omits_modified_api_params(self, mock_client_cls):

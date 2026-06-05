@@ -472,23 +472,23 @@ def _sync_transaction_lines(
     if not details:
         return
     line_model.objects.filter(retailer=retailer, **{parent_field: parent_id}).delete()
+    line_field_names = {f.name for f in line_model._meta.get_fields()}
     for idx, item in enumerate(details):
         if not isinstance(item, dict):
             continue
-        line_model.objects.create(
-            retailer=retailer,
-            **{
-                parent_field: parent_id,
-                'product_kiotviet_id': parse_kv_int(item.get('productId')),
-                'product_code': item.get('productCode') or item.get('ProductCode') or '',
-                'product_name': item.get('productName') or '',
-                'quantity': parse_kv_float(item.get('quantity')),
-                'price': parse_kv_decimal(item.get('price')),
-                'discount': parse_kv_decimal(item.get('discount')),
-                'note': item.get('note') or '',
-                'line_index': idx,
-            },
-        )
+        line_data: dict[str, Any] = {
+            parent_field: parent_id,
+            'product_kiotviet_id': parse_kv_int(item.get('productId')),
+            'product_code': item.get('productCode') or item.get('ProductCode') or '',
+            'product_name': item.get('productName') or '',
+            'quantity': parse_kv_float(item.get('quantity')),
+            'price': parse_kv_decimal(item.get('price')),
+            'discount': parse_kv_decimal(item.get('discount')),
+            'line_index': idx,
+        }
+        if 'note' in line_field_names:
+            line_data['note'] = item.get('note') or ''
+        line_model.objects.create(retailer=retailer, **line_data)
 
 
 def upsert_order(retailer: str, row: dict, *, force: bool = False) -> bool:
