@@ -10,47 +10,59 @@
             </h2>
             <p class="text-muted mb-0">
                 Dữ liệu mirror đã sync{% if retailer %} · gian hàng <strong>{{ retailer }}</strong>{% endif %}
-                {% if browse_mode %} · hiển thị <strong>30</strong> mục/trang{% endif %}
+                {% if browse_mode %} · hiển thị <strong>30</strong> mục/trang{% elif has_active_filters %} · <strong>đang lọc</strong>{% endif %}
             </p>
         </div>
     </div>
 
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body p-3 p-md-4">
-            <form method="get" class="row g-3 align-items-end">
-                <div class="col-12 col-md-3">
-                    <label class="form-label fw-bold small mb-1" for="kv-search-type">Tra theo</label>
-                    <select name="type" id="kv-search-type" class="form-select">
-                        {% for value, label in type_options %}
-                        <option value="{{ value }}" {% if search_type == value %}selected{% endif %}>{{ label }}</option>
-                        {% endfor %}
-                    </select>
+            <form method="get">
+                <div class="row g-3 align-items-end">
+                    <div class="col-12 col-md-3">
+                        <label class="form-label fw-bold small mb-1" for="kv-search-type">Tra theo</label>
+                        <select name="type" id="kv-search-type" class="form-select">
+                            {% for value, label in type_options %}
+                            <option value="{{ value }}" {% if search_type == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-7">
+                        <label class="form-label fw-bold small mb-1" for="kv-search-q">Từ khóa</label>
+                        <input type="search" class="form-control" id="kv-search-q" name="q"
+                               value="{{ search_query }}" placeholder="Mã, tên hoặc mã vạch..." autocomplete="off">
+                    </div>
+                    <div class="col-12 col-md-2">
+                        <button type="submit" class="btn btn-hm w-100 fw-bold">
+                            <i class="bi bi-search me-1"></i>Tìm
+                        </button>
+                    </div>
                 </div>
-                <div class="col-12 col-md-7">
-                    <label class="form-label fw-bold small mb-1" for="kv-search-q">Từ khóa</label>
-                    <input type="search" class="form-control" id="kv-search-q" name="q"
-                           value="{{ search_query }}" placeholder="Để trống = xem danh sách mới nhất..." autocomplete="off">
-                </div>
-                <div class="col-12 col-md-2">
-                    <button type="submit" class="btn btn-hm w-100 fw-bold">
-                        <i class="bi bi-search me-1"></i>Tìm
-                    </button>
-                </div>
+                {% block catalog_filters %}{% endblock %}
             </form>
         </div>
     </div>
 
     {% include 'kiotviet/_list_meta.html' with items_count=items|length %}
 
-    {% if search_query and not items and not api_error %}
+    {% if not items and not api_error %}
+    {% if search_query or has_active_filters %}
     <div class="alert alert-light border shadow-sm mb-0">
-        <i class="bi bi-info-circle me-1"></i>Không có sản phẩm phù hợp với «{{ search_query }}».
+        <i class="bi bi-info-circle me-1"></i>
+        {% if search_query and has_active_filters %}
+        Không có hàng hoá phù hợp từ khóa «{{ search_query }}» và bộ lọc đang chọn.
+        {% elif search_query %}
+        Không có sản phẩm phù hợp với «{{ search_query }}».
+        {% else %}
+        Không có hàng hoá phù hợp với bộ lọc đang chọn.
+        {% endif %}
     </div>
-    {% elif not items and not api_error and browse_mode %}
+    {% elif browse_mode %}
     <div class="alert alert-light border shadow-sm mb-0">
         <i class="bi bi-info-circle me-1"></i>
         {% if mirror_empty_hint %}{{ mirror_empty_hint }}{% else %}Chưa có dữ liệu trong mirror.{% endif %}
     </div>
+    {% endif %}
     {% elif items %}
     <div class="card border-0 shadow-sm">
         <div class="table-responsive">

@@ -183,10 +183,25 @@ def browse_product_groups(
     name: str = '',
     code: str = '',
     bar_code: str = '',
+    filters=None,
 ) -> tuple[list[ProductGroup], int]:
     """Trả về danh sách nhóm SP (đã gộp size) và tổng số nhóm."""
+    from .product_filters import (
+        ProductListFilters,
+        apply_product_queryset_filters,
+        filter_product_groups,
+    )
+
     retailer = retailer or current_retailer()
+    filters = filters or ProductListFilters()
     qs = KvProduct.objects.filter(retailer=retailer, is_deleted=False)
+    qs = apply_product_queryset_filters(qs, retailer=retailer, filters=filters)
+
+    def _paginate(groups: list[ProductGroup]) -> tuple[list[ProductGroup], int]:
+        groups = filter_product_groups(groups, filters)
+        total = len(groups)
+        offset = (max(page, 1) - 1) * per_page
+        return groups[offset: offset + per_page], total
 
     if code:
         term = code.strip()
@@ -197,10 +212,7 @@ def browse_product_groups(
                 p for p in qs
                 if group_key(p.name, p.full_name) == gk
             ]
-            groups = _build_groups_from_products(products, retailer=retailer)
-            total = len(groups)
-            offset = (max(page, 1) - 1) * per_page
-            return groups[offset: offset + per_page], total
+            return _paginate(_build_groups_from_products(products, retailer=retailer))
         qs = qs.filter(code__icontains=term)
     elif bar_code:
         term = bar_code.strip()
@@ -211,20 +223,14 @@ def browse_product_groups(
                 p for p in qs
                 if group_key(p.name, p.full_name) == gk
             ]
-            groups = _build_groups_from_products(products, retailer=retailer)
-            total = len(groups)
-            offset = (max(page, 1) - 1) * per_page
-            return groups[offset: offset + per_page], total
+            return _paginate(_build_groups_from_products(products, retailer=retailer))
         qs = qs.filter(bar_code__icontains=term)
     elif name:
         term = name.strip()
         qs = qs.filter(Q(name__icontains=term) | Q(full_name__icontains=term))
 
     products = list(qs.order_by('name', 'code', 'kiotviet_id'))
-    groups = _build_groups_from_products(products, retailer=retailer)
-    total = len(groups)
-    offset = (max(page, 1) - 1) * per_page
-    return groups[offset: offset + per_page], total
+    return _paginate(_build_groups_from_products(products, retailer=retailer))
 
 
 def get_product_group(retailer: str, product_id: int) -> dict | None:

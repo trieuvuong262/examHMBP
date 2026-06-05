@@ -1,0 +1,44 @@
+<hr class="my-3 text-muted">
+<div class="row g-3 align-items-end">
+    <div class="col-12 col-lg-5">
+        <label class="form-label fw-bold small mb-1" for="kv-filter-category">Nhóm hàng</label>
+        <select name="category" id="kv-filter-category" class="form-select">
+            {% for option in category_options %}
+            <option value="{{ option.id }}" {% if product_filters.category_id|stringformat:"s" == option.id %}selected{% endif %}>
+                {{ option.label }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2">
+        <label class="form-label fw-bold small mb-1" for="kv-filter-allows-sale">Cho phép bán</label>
+        <select name="allows_sale" id="kv-filter-allows-sale" class="form-select">
+            <option value="" {% if not product_filters.allows_sale %}selected{% endif %}>Tất cả</option>
+            <option value="yes" {% if product_filters.allows_sale == 'yes' %}selected{% endif %}>Có</option>
+            <option value="no" {% if product_filters.allows_sale == 'no' %}selected{% endif %}>Không</option>
+        </select>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2">
+        <label class="form-label fw-bold small mb-1" for="kv-filter-is-active">Đang kinh doanh</label>
+        <select name="is_active" id="kv-filter-is-active" class="form-select">
+            <option value="" {% if not product_filters.is_active %}selected{% endif %}>Tất cả</option>
+            <option value="yes" {% if product_filters.is_active == 'yes' %}selected{% endif %}>Có</option>
+            <option value="no" {% if product_filters.is_active == 'no' %}selected{% endif %}>Không</option>
+        </select>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2">
+        <label class="form-label fw-bold small mb-1" for="kv-filter-stock">Tồn kho</label>
+        <select name="stock" id="kv-filter-stock" class="form-select">
+            <option value="" {% if not product_filters.stock %}selected{% endif %}>Tất cả</option>
+            <option value="yes" {% if product_filters.stock == 'yes' %}selected{% endif %}>Còn hàng</option>
+            <option value="no" {% if product_filters.stock == 'no' %}selected{% endif %}>Hết hàng</option>
+        </select>
+    </div>
+    <div class="col-6 col-md-4 col-lg-1 d-grid">
+        {% if has_active_filters %}
+        <a href="{% url 'kiotviet:product_lookup' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-x-lg"></i>
+        </a>
+        {% endif %}
+    </div>
+</div>

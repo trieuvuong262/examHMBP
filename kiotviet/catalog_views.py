@@ -15,6 +15,7 @@ from .formatters import (
     format_purchase_order_detail,
     format_purchase_order_row,
 )
+from .product_filters import list_category_filter_options, parse_product_filters
 from .product_groups import browse_product_groups, get_product_group
 from .lookup_views import _lookup_context
 from .sync_service import current_retailer
@@ -27,38 +28,40 @@ def product_lookup(request):
     if search_type not in ('code', 'name', 'barcode'):
         search_type = 'code'
     query = get_search_query(request)
+    list_filters = parse_product_filters(request)
     items: list[dict] = []
     total = 0
     page_obj = None
     query_string = ''
-    browse_mode = not query
+    has_active_filters = list_filters.is_active_filter()
+    browse_mode = not query and not has_active_filters
     page = get_page_number(request)
     retailer = current_retailer()
+    browse_kwargs = {
+        'page': page,
+        'per_page': KV_PAGE_SIZE,
+        'retailer': retailer,
+        'filters': list_filters,
+    }
 
-    if browse_mode:
+    if search_type == 'barcode' and query:
         groups, total = browse_product_groups(
-            page=page, per_page=KV_PAGE_SIZE, retailer=retailer,
-        )
-        items = [format_product_group_row(g) for g in groups]
-    elif search_type == 'code':
-        groups, total = browse_product_groups(
-            page=page, per_page=KV_PAGE_SIZE, code=query, retailer=retailer,
-        )
-        items = [format_product_group_row(g) for g in groups]
-    elif search_type == 'barcode':
-        groups, total = browse_product_groups(
-            page=1, per_page=KV_PAGE_SIZE * 50, bar_code=query, retailer=retailer,
+            page=1, per_page=KV_PAGE_SIZE * 50, bar_code=query, **browse_kwargs,
         )
         all_matched = [format_product_group_row(g) for g in groups]
         items, page_obj, query_string = paginate_list_items(request, all_matched)
         total = len(all_matched)
     else:
-        groups, total = browse_product_groups(
-            page=page, per_page=KV_PAGE_SIZE, name=query, retailer=retailer,
-        )
+        search_kwargs = {}
+        if query:
+            if search_type == 'code':
+                search_kwargs['code'] = query
+            else:
+                search_kwargs['name'] = query
+        groups, total = browse_product_groups(**browse_kwargs, **search_kwargs)
         items = [format_product_group_row(g) for g in groups]
 
-    if total and page_obj is None and (browse_mode or query):
+    if total and page_obj is None and (browse_mode or query or has_active_filters):
         page_obj, query_string = paginate_api_meta(request, total)
 
     return render(
@@ -77,6 +80,9 @@ def product_lookup(request):
             detail_url_name='kiotviet:product_detail',
             empty_hint='Nhập mã, tên hoặc mã vạch để lọc. Không nhập từ khóa: xem danh sách hàng hoá (đã gộp size).',
             product_group_mode=True,
+            product_filters=list_filters,
+            category_options=list_category_filter_options(retailer),
+            has_active_filters=has_active_filters,
             type_options=(
                 ('code', 'Mã hàng hóa'),
                 ('name', 'Tên hàng hóa'),
