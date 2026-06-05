@@ -7538,6 +7538,12 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     border-bottom: 1px solid rgba(0, 0, 0, 0.04);
 }
 
+.jp-user-picker-option[hidden],
+.jp-user-picker-option.jp-user-picker-option--hidden,
+.jp-assignee-picker-option[hidden] {
+    display: none !important;
+}
+
 .jp-user-picker-option:hover,
 .jp-assignee-picker-option:hover {
     background: rgba(220, 38, 38, 0.04);

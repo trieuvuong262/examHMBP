@@ -7,6 +7,15 @@
         return document.querySelector('.jp-user-picker[data-field-name="' + fieldName + '"]');
     }
 
+    function isOptionVisible(opt) {
+        return !opt.hidden && !opt.classList.contains('jp-user-picker-option--hidden');
+    }
+
+    function setOptionVisible(opt, visible) {
+        opt.hidden = !visible;
+        opt.classList.toggle('jp-user-picker-option--hidden', !visible);
+    }
+
     function initPicker(root) {
         const mode = root.dataset.mode || 'multiple';
         const toggle = root.querySelector('.jp-user-picker-toggle');
@@ -15,17 +24,23 @@
         const label = root.querySelector('.jp-user-picker-label');
         const chips = root.querySelector('.jp-user-picker-chips');
         const placeholder = label.textContent.trim();
-        const options = Array.from(root.querySelectorAll('.jp-user-picker-option'));
-        const inputs = options.map(function (opt) { return opt.querySelector('input'); });
+
+        function getOptions() {
+            return Array.from(root.querySelectorAll('.jp-user-picker-option'));
+        }
+
+        let options = getOptions();
 
         function visibleInputs() {
-            return options
-                .filter(function (opt) { return !opt.hidden; })
+            return getOptions()
+                .filter(isOptionVisible)
                 .map(function (opt) { return opt.querySelector('input'); });
         }
 
         function selectedInputs() {
-            return inputs.filter(function (input) { return input && input.checked; });
+            return getOptions()
+                .map(function (opt) { return opt.querySelector('input'); })
+                .filter(function (input) { return input && input.checked; });
         }
 
         function updateLabel() {
@@ -66,7 +81,8 @@
         const footerEl = root.querySelector('.jp-user-picker-footer');
 
         function syncListMeta() {
-            const visible = options.filter(function (opt) { return !opt.hidden; });
+            options = getOptions();
+            const visible = options.filter(isOptionVisible);
             if (filterEmptyEl) {
                 filterEmptyEl.hidden = visible.length > 0 || options.length === 0;
             }
@@ -82,15 +98,20 @@
             }
         }
 
+        function matchesSearch(haystack, query) {
+            const tokens = normalizeText(query).split(/\s+/).filter(Boolean);
+            if (!tokens.length) return true;
+            return tokens.every(function (token) {
+                return haystack.indexOf(token) !== -1;
+            });
+        }
+
         function filterOptions(query) {
-            const q = normalizeText(query.trim());
+            options = getOptions();
+            const q = (query || '').trim();
             options.forEach(function (opt) {
-                if (!q) {
-                    opt.hidden = false;
-                    return;
-                }
                 const hay = normalizeText(opt.getAttribute('data-search') || '');
-                opt.hidden = hay.indexOf(q) === -1;
+                setOptionVisible(opt, matchesSearch(hay, q));
             });
             syncListMeta();
         }
@@ -110,38 +131,61 @@
             toggle.setAttribute('aria-expanded', 'false');
         }
 
-        toggle.addEventListener('click', function () {
-            if (menu.hidden) openMenu();
-            else closeMenu();
-        });
-
-        document.addEventListener('click', function (e) {
-            if (!root.contains(e.target)) closeMenu();
-        });
-
-        if (search) {
-            search.addEventListener('input', function () {
-                filterOptions(search.value);
+        if (toggle.dataset.jpPickerToggleBound !== '1') {
+            toggle.dataset.jpPickerToggleBound = '1';
+            toggle.addEventListener('click', function () {
+                if (menu.hidden) openMenu();
+                else closeMenu();
             });
         }
 
-        inputs.forEach(function (input) {
-            if (!input) return;
-            input.addEventListener('change', function () {
-                if (mode === 'single' && input.checked) closeMenu();
-                updateLabel();
+        if (root.dataset.jpPickerDocBound !== '1') {
+            root.dataset.jpPickerDocBound = '1';
+            document.addEventListener('click', function (e) {
+                if (!root.contains(e.target)) closeMenu();
             });
-        });
+        }
+
+        function bindOptionInputs() {
+            getOptions().forEach(function (opt) {
+                const input = opt.querySelector('input');
+                if (!input || input.dataset.jpPickerBound) return;
+                input.dataset.jpPickerBound = '1';
+                input.addEventListener('change', function () {
+                    if (mode === 'single' && input.checked) closeMenu();
+                    updateLabel();
+                });
+            });
+        }
+
+        if (search) {
+            if (search.dataset.jpPickerSearchBound !== '1') {
+                search.dataset.jpPickerSearchBound = '1';
+                search.addEventListener('input', function () {
+                    filterOptions(search.value);
+                });
+                search.addEventListener('keydown', function (e) {
+                    e.stopPropagation();
+                });
+                search.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                });
+            }
+        }
+
+        bindOptionInputs();
 
         const btnAll = root.querySelector('.jp-user-picker-all');
         const btnNone = root.querySelector('.jp-user-picker-none');
-        if (btnAll) {
+        if (btnAll && btnAll.dataset.jpPickerBtnBound !== '1') {
+            btnAll.dataset.jpPickerBtnBound = '1';
             btnAll.addEventListener('click', function () {
                 visibleInputs().forEach(function (input) { input.checked = true; });
                 updateLabel();
             });
         }
-        if (btnNone) {
+        if (btnNone && btnNone.dataset.jpPickerBtnBound !== '1') {
+            btnNone.dataset.jpPickerBtnBound = '1';
             btnNone.addEventListener('click', function () {
                 visibleInputs().forEach(function (input) { input.checked = false; });
                 updateLabel();
@@ -149,8 +193,21 @@
         }
 
         root._jpUserPickerRefresh = updateLabel;
+        root._jpUserPickerFilter = filterOptions;
+        root._jpUserPickerRebind = bindOptionInputs;
         updateLabel();
         syncListMeta();
+    }
+
+    function initPickerFresh(root) {
+        delete root.dataset.jpPickerReady;
+        root.querySelectorAll('input[data-jp-picker-bound]').forEach(function (input) {
+            delete input.dataset.jpPickerBound;
+        });
+        const search = root.querySelector('.jp-user-picker-search');
+        if (search) delete search.dataset.jpPickerSearchBound;
+        initPicker(root);
+        root.dataset.jpPickerReady = '1';
     }
 
     function refresh(fieldName) {
@@ -233,13 +290,23 @@
         selectByFilter: selectByFilter,
         selectByDataAttr: selectByDataAttr,
         clear: clear,
-        initAll: function () {
+        initAll: function (force) {
             document.querySelectorAll('.jp-user-picker').forEach(function (root) {
-                if (!root.dataset.jpPickerReady) {
-                    root.dataset.jpPickerReady = '1';
-                    initPicker(root);
+                if (force || !root.dataset.jpPickerReady) {
+                    if (force) {
+                        initPickerFresh(root);
+                    } else {
+                        root.dataset.jpPickerReady = '1';
+                        initPicker(root);
+                    }
                 }
             });
+        },
+        filter: function (fieldName, query) {
+            const root = getRoot(fieldName);
+            if (root && typeof root._jpUserPickerFilter === 'function') {
+                root._jpUserPickerFilter(query);
+            }
         },
     };
 

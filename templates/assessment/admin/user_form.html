@@ -284,7 +284,7 @@
         const show = managerRoles.includes(roleSelect.value);
         subSection.classList.toggle('d-none', !show);
         if (show && window.JpUserPicker && typeof window.JpUserPicker.initAll === 'function') {
-            window.JpUserPicker.initAll();
+            window.JpUserPicker.initAll(true);
         }
         updateSubordinateQuickActions();
     }
