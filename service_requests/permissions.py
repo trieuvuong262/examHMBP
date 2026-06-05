@@ -1,7 +1,12 @@
 from django.contrib.auth.models import User
 
-from hrm.module_permissions import MODULE_DE_XUAT, MODULE_HO_TRO, user_can_access_module
-from hrm.permissions import ROLE_DIRECTOR, get_profile, is_director
+from hrm.module_permissions import (
+    MODULE_DE_XUAT,
+    MODULE_HO_TRO,
+    user_can_access_module,
+    user_can_edit_module,
+)
+from hrm.permissions import ROLE_DIRECTOR, get_profile, is_director, is_division_head, user_role
 
 from .access import module_for_request, user_can_access_any_request_module
 from .models import RequestTypeStepTemplate, ServiceRequest, ServiceRequestStep
@@ -69,6 +74,14 @@ def can_view_request(user, request_obj: ServiceRequest) -> bool:
         return True
     if request_obj.steps.filter(assignee_id=user.id).exists():
         return True
+    if is_director(user):
+        if request_obj.steps.filter(
+            step_code__in=(
+                ServiceRequestStep.STEP_DIRECTOR,
+                ServiceRequestStep.STEP_DIVISION_HEAD,
+            ),
+        ).exists():
+            return True
     profile = get_profile(user)
     if not profile or not profile.department_id:
         return False
@@ -76,7 +89,13 @@ def can_view_request(user, request_obj: ServiceRequest) -> bool:
         return True
     if is_director(user):
         return request_obj.steps.filter(
-            step_code=ServiceRequestStep.STEP_DIRECTOR,
+            target_department__isnull=False,
+            step_code__in=(
+                ServiceRequestStep.STEP_PROCUREMENT_QUOTE,
+                ServiceRequestStep.STEP_ACCOUNTANT,
+                ServiceRequestStep.STEP_ADVANCE,
+                ServiceRequestStep.STEP_PURCHASE,
+            ),
         ).exists()
     return False
 
@@ -88,9 +107,13 @@ def can_handle_step(user, step: ServiceRequestStep) -> bool:
         return False
     if step.status not in ServiceRequestStep.OPEN_HANDLER_STATUSES:
         return False
+    if step.step_code == ServiceRequestStep.STEP_DIVISION_HEAD and is_division_head(user):
+        return True
     if step.assignee_id:
         return step.assignee_id == user.id
     if step.assignee_rule == RequestTypeStepTemplate.RULE_DEPARTMENT_QUEUE:
+        if is_director(user):
+            return bool(step.target_department_id)
         profile = get_profile(user)
         return bool(
             profile
@@ -106,6 +129,8 @@ def can_handle_step(user, step: ServiceRequestStep) -> bool:
 def can_claim_step(user, step: ServiceRequestStep) -> bool:
     if not can_handle_step(user, step):
         return False
+    if step.step_code == ServiceRequestStep.STEP_DIVISION_HEAD and is_director(user):
+        return not step.assignee_id
     if step.assignee_id:
         return False
     return step.assignee_rule in {
@@ -140,27 +165,58 @@ def pending_steps_for_user(user):
             assignee_rule=RequestTypeStepTemplate.RULE_DEPARTMENT_QUEUE,
             target_department_id=dept_id,
         )
-    if profile and profile.role == ROLE_DIRECTOR:
+    if is_director(user):
+        filters |= Q(step_code=ServiceRequestStep.STEP_DIVISION_HEAD)
         filters |= Q(
             assignee__isnull=True,
-            assignee_rule=RequestTypeStepTemplate.RULE_DIRECTOR,
+            assignee_rule=RequestTypeStepTemplate.RULE_DEPARTMENT_QUEUE,
+        )
+        filters |= Q(
             step_code=ServiceRequestStep.STEP_DIRECTOR,
+        ) & (Q(assignee=user) | Q(assignee__isnull=True))
+    elif user_role(user) == ROLE_DIVISION_HEAD:
+        filters |= Q(
+            step_code=ServiceRequestStep.STEP_DIVISION_HEAD,
+            assignee=user,
         )
     return qs.filter(filters).order_by('-request__created_at', 'step_order')
 
 
-def get_procurement_staff_candidates():
-    """Nhân viên Thu mua có quyền module Đề xuất mới."""
-    dept = get_procurement_department()
-    if not dept:
+def _procurement_staff_from_queryset(qs):
+    pks = [
+        user.pk for user in qs
+        if user_can_access_module(user, MODULE_DE_XUAT)
+    ]
+    if not pks:
         return User.objects.none()
-    qs = User.objects.filter(
-        profile__department=dept,
+    return User.objects.filter(pk__in=pks).select_related('profile').order_by(
+        'profile__full_name', 'username',
+    )
+
+
+def get_procurement_staff_candidates():
+    """Nhân viên Thu mua — phòng Thu mua/HCNS có quyền Đề xuất; fallback: quyền sửa module."""
+    base_qs = User.objects.filter(
         profile__is_employed=True,
         is_active=True,
-    ).select_related('profile').order_by('profile__full_name', 'username')
-    return qs.filter(
-        pk__in=[user.pk for user in qs if user_can_access_module(user, MODULE_DE_XUAT)],
+    ).select_related('profile')
+
+    dept = get_procurement_department()
+    if dept:
+        candidates = _procurement_staff_from_queryset(
+            base_qs.filter(profile__department=dept),
+        )
+        if candidates.exists():
+            return candidates
+
+    edit_pks = [
+        user.pk for user in base_qs
+        if user_can_edit_module(user, MODULE_DE_XUAT)
+    ]
+    if not edit_pks:
+        return User.objects.none()
+    return User.objects.filter(pk__in=edit_pks).select_related('profile').order_by(
+        'profile__full_name', 'username',
     )
 
 

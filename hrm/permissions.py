@@ -59,7 +59,10 @@ def is_team_leader(user) -> bool:
 
 
 def is_division_head(user) -> bool:
-    return user_role(user) == ROLE_DIVISION_HEAD
+    """Trưởng bộ phận — Giám đốc có quyền tương đương (ẩn) trên mọi phòng ban."""
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    return user_role(user) in {ROLE_DIVISION_HEAD, ROLE_DIRECTOR} or user.is_superuser
 
 
 def is_director(user) -> bool:
@@ -303,11 +306,13 @@ def can_create_any_project(user) -> bool:
 
 
 def is_cross_dept_dept_head_viewer(user, project) -> bool:
-    """Trưởng bộ phận xem read-only dự án liên phòng ban có phòng mình."""
+    """Trưởng bộ phận xem dự án liên phòng ban — Giám đốc xem tất cả."""
     if not project.is_cross_department:
         return False
+    if is_director(user):
+        return True
     profile = get_profile(user)
-    if not profile or profile.role != ROLE_DIVISION_HEAD:
+    if not profile or user_role(user) != ROLE_DIVISION_HEAD:
         return False
     if not profile.department_id:
         return False
@@ -329,6 +334,8 @@ def can_claim_cross_dept_step(user, task) -> bool:
         return False
     if task.status != WorkTask.STATUS_PENDING_CLAIM:
         return False
+    if is_director(user):
+        return True
     if not can_receive_assigned_tasks(user):
         return False
     profile = get_profile(user)

@@ -150,6 +150,33 @@ class ServiceRequestWorkflowTests(TestCase):
         self.assertNotIn(ServiceRequestStep.STEP_TEAM_LEADER, codes)
         self.assertEqual(codes[0], ServiceRequestStep.STEP_DIVISION_HEAD)
 
+    def test_director_hidden_division_head_when_no_tbp_in_chain(self):
+        """Giám đốc = trưởng BP ẩn — gán duyệt khi NV không có TBP trực tiếp."""
+        req = self._create_request(requester=self.employee_hr)
+        dh = req.steps.get(step_code=ServiceRequestStep.STEP_DIVISION_HEAD)
+        self.assertEqual(dh.assignee, self.director)
+
+    def test_director_pending_and_handle_division_head(self):
+        from service_requests.permissions import can_handle_step, pending_steps_for_user
+
+        req = self._create_request(requester=self.employee_hr)
+        dh = req.steps.get(step_code=ServiceRequestStep.STEP_DIVISION_HEAD)
+        self.assertTrue(can_handle_step(self.director, dh))
+        self.assertTrue(pending_steps_for_user(self.director).filter(pk=dh.pk).exists())
+
+    def test_director_handles_division_head_when_tbp_already_assigned(self):
+        from hrm.permissions import is_division_head
+        from service_requests.permissions import can_handle_step, pending_steps_for_user
+
+        self.assertTrue(is_division_head(self.director))
+        req = self._create_request()
+        approve_step(req.steps.get(step_code=ServiceRequestStep.STEP_TEAM_LEADER), actor=self.team_leader)
+        dh = req.steps.get(step_code=ServiceRequestStep.STEP_DIVISION_HEAD)
+        dh.assignee = self.div_head
+        dh.save(update_fields=['assignee'])
+        self.assertTrue(can_handle_step(self.director, dh))
+        self.assertTrue(pending_steps_for_user(self.director).filter(pk=dh.pk).exists())
+
     # --- Yêu cầu: Trưởng BP gửi → bỏ qua duyệt BP, vẫn qua Thu mua ---
 
     def test_division_head_proposer_skips_approvals_goes_to_procurement(self):

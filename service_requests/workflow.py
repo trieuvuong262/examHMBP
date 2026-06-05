@@ -45,12 +45,16 @@ def find_team_leader(user):
 def find_division_head_manager(user):
     if not user or not user.is_authenticated:
         return None
-    return User.objects.filter(
+    division_head = User.objects.filter(
         profile__subordinates=user,
         is_active=True,
         profile__is_employed=True,
         profile__role=ROLE_DIVISION_HEAD,
     ).order_by('profile__full_name', 'username').first()
+    if division_head:
+        return division_head
+    # Giám đốc = trưởng bộ phận ẩn toàn công ty khi không có TBP trực tiếp.
+    return find_director_user()
 
 
 def find_director_user():
@@ -83,7 +87,13 @@ def get_department_by_patterns(*patterns):
 
 
 def get_procurement_department():
-    return get_department_by_patterns('thu mua', 'mua hàng', 'mua hang')
+    dept = get_department_by_patterns(
+        'thu mua', 'mua hàng', 'mua hang', 'mua sắm', 'cung ứng',
+    )
+    if dept:
+        return dept
+    # Chưa có phòng Thu mua riêng — HCNS thường đảm nhiệm mua sắm (JustPlay).
+    return get_department_by_patterns('hành chính nhân sự', 'hcns')
 
 
 def get_accounting_department():
@@ -94,13 +104,13 @@ def _needs_team_leader_step(requester):
     profile = get_profile(requester)
     if not profile or not profile.department_id:
         return False
-    if is_team_leader(requester) or is_division_head(requester) or is_director(requester):
+    if is_team_leader(requester) or is_division_head(requester):
         return False
     return department_has_team_leaders(profile.department)
 
 
 def _needs_division_head_step(requester):
-    return not is_division_head(requester) and not is_director(requester)
+    return not is_division_head(requester)
 
 
 def _initial_step_status(depends_on_step, *, skipped=False):
