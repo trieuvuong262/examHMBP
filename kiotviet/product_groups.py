@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 
 from django.db.models import Q, Sum
 
-from .category_paths import CategoryPathResolver
+from .category_paths import CategoryPathResolver, category_info_from_product
 from .models import KvProduct, KvProductAttribute, KvProductInventory
 from .sync_service import current_retailer
 
@@ -98,18 +98,11 @@ def _resolve_group_category(
 ) -> dict:
     cat_ids = {p.category_kiotviet_id for p in variants if p.category_kiotviet_id}
     if len(cat_ids) == 1:
-        rep = variants[0]
-        return resolver.resolve(
-            rep.category_kiotviet_id,
-            fallback_name=rep.category_name or '',
-        )
+        return category_info_from_product(variants[0], resolver)
     if len(cat_ids) > 1:
         paths: list[str] = []
         for product in variants:
-            info = resolver.resolve(
-                product.category_kiotviet_id,
-                fallback_name=product.category_name or '',
-            )
+            info = category_info_from_product(product, resolver)
             if info['category_path'] not in paths:
                 paths.append(info['category_path'])
         return {
@@ -119,7 +112,7 @@ def _resolve_group_category(
             'category_path_parts': [],
         }
     rep = variants[0]
-    return resolver.resolve(None, fallback_name=rep.category_name or '')
+    return category_info_from_product(rep, resolver)
 
 
 def _build_groups_from_products(
@@ -171,7 +164,6 @@ def _build_groups_from_products(
             is_active_values=[p.is_active for p in variants],
         ))
 
-    groups.sort(key=lambda g: g.name.casefold())
     return groups
 
 

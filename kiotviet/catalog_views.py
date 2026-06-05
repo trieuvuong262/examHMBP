@@ -15,7 +15,13 @@ from .formatters import (
     format_purchase_order_detail,
     format_purchase_order_row,
 )
-from .product_filters import list_category_filter_options, parse_product_filters
+from .product_filters import (
+    PRODUCT_TYPE_OPTIONS,
+    SORT_OPTIONS,
+    list_category_filter_options,
+    list_unit_filter_options,
+    parse_product_filters,
+)
 from .product_groups import browse_product_groups, get_product_group
 from .lookup_views import _lookup_context
 from .sync_service import current_retailer
@@ -33,7 +39,7 @@ def product_lookup(request):
     total = 0
     page_obj = None
     query_string = ''
-    has_active_filters = list_filters.is_active_filter()
+    has_active_filters = list_filters.is_non_default_filter()
     browse_mode = not query and not has_active_filters
     page = get_page_number(request)
     retailer = current_retailer()
@@ -78,11 +84,15 @@ def product_lookup(request):
             api_error=None,
             mirror_empty_hint=MIRROR_EMPTY_HINT if total == 0 else '',
             detail_url_name='kiotviet:product_detail',
-            empty_hint='Nhập mã, tên hoặc mã vạch để lọc. Không nhập từ khóa: xem danh sách hàng hoá (đã gộp size).',
+            empty_hint='Mặc định chỉ hàng đang kinh doanh. Dùng bộ lọc hoặc từ khóa để thu hẹp danh sách.',
             product_group_mode=True,
             product_filters=list_filters,
             category_options=list_category_filter_options(retailer),
+            unit_options=list_unit_filter_options(retailer),
+            product_type_options=PRODUCT_TYPE_OPTIONS,
+            sort_options=SORT_OPTIONS,
             has_active_filters=has_active_filters,
+            default_active_only=True,
             type_options=(
                 ('code', 'Mã hàng hóa'),
                 ('name', 'Tên hàng hóa'),

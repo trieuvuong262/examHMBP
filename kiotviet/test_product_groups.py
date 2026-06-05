@@ -4,6 +4,7 @@ from django.test import TestCase, override_settings
 
 from kiotviet.models import KvProduct, KvProductAttribute, KvProductInventory
 from kiotviet.formatters import format_product_group_detail, format_product_group_row
+from kiotviet.product_filters import ProductListFilters
 from kiotviet.product_groups import browse_product_groups, get_product_group
 from kiotviet.sync_service import upsert_product
 
@@ -24,6 +25,7 @@ class ProductGroupTests(TestCase):
             'id': kid,
             'code': code,
             'name': self.style_name,
+            'isActive': True,
             'basePrice': 350000,
             'modifiedDate': '2024-03-01T08:00:00',
             'attributes': [{
@@ -116,7 +118,10 @@ class ProductGroupTests(TestCase):
             'modifiedDate': '2024-03-01T08:00:00',
             'inventories': [{'branchId': 1, 'branchName': 'CN1', 'onHand': 1}],
         })
-        groups, _ = browse_product_groups(page=1, per_page=30, retailer=self.retailer)
+        groups, _ = browse_product_groups(
+            page=1, per_page=30, retailer=self.retailer,
+            filters=ProductListFilters(is_active='no'),
+        )
         row = format_product_group_row(groups[0])
         self.assertEqual(row['allows_sale_status']['label'], 'Có')
         self.assertEqual(row['is_active_status']['label'], 'Không')
@@ -126,6 +131,7 @@ class ProductGroupTests(TestCase):
             'id': 9001,
             'code': 'BONG01',
             'name': 'Bóng đá size 5',
+            'isActive': True,
             'basePrice': 120000,
             'modifiedDate': '2024-03-01T08:00:00',
             'inventories': [{'branchId': 1, 'branchName': 'CN1', 'onHand': 7}],

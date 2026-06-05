@@ -1,11 +1,11 @@
 """Tests bộ lọc danh sách hàng hoá."""
 
-from django.test import TestCase, override_settings
+from django.test import RequestFactory, TestCase, override_settings
 
 from kiotviet.product_filters import (
+    DEFAULT_IS_ACTIVE,
     ProductListFilters,
     category_descendant_ids,
-    filter_product_groups,
     parse_product_filters,
 )
 from kiotviet.product_groups import browse_product_groups
@@ -43,6 +43,8 @@ class ProductFilterTests(TestCase):
             'categoryName': 'Áo đấu',
             'allowsSale': True,
             'isActive': True,
+            'productType': 2,
+            'unit': 'Cái',
             'basePrice': 100000,
             'modifiedDate': '2024-03-01T08:00:00',
             'inventories': [{'branchId': 1, 'branchName': 'CN1', 'onHand': 5}],
@@ -55,6 +57,8 @@ class ProductFilterTests(TestCase):
             'categoryName': 'Quần áo',
             'allowsSale': False,
             'isActive': False,
+            'productType': 2,
+            'unit': 'Bộ',
             'basePrice': 200000,
             'modifiedDate': '2024-03-01T08:00:00',
             'inventories': [{'branchId': 1, 'branchName': 'CN1', 'onHand': 0}],
@@ -64,15 +68,20 @@ class ProductFilterTests(TestCase):
         ids = category_descendant_ids(self.retailer, 100)
         self.assertEqual(ids, {100, 110})
 
+    def test_default_only_active_products(self):
+        groups, total = browse_product_groups(page=1, per_page=30, retailer=self.retailer)
+        self.assertEqual(total, 1)
+        self.assertEqual(groups[0].codes, ['SP001'])
+
     def test_filter_by_parent_category(self):
-        filters = ProductListFilters(category_id=100)
+        filters = ProductListFilters(category_id=100, is_active='')
         groups, total = browse_product_groups(
             page=1, per_page=30, retailer=self.retailer, filters=filters,
         )
         self.assertEqual(total, 2)
 
-    def test_filter_stock_and_allows_sale(self):
-        filters = ProductListFilters(stock='yes', allows_sale='yes')
+    def test_filter_stock_on_active_products(self):
+        filters = ProductListFilters(stock='yes')
         groups, total = browse_product_groups(
             page=1, per_page=30, retailer=self.retailer, filters=filters,
         )
@@ -87,16 +96,30 @@ class ProductFilterTests(TestCase):
         self.assertEqual(total, 1)
         self.assertEqual(groups[0].codes, ['SP002'])
 
-    def test_parse_product_filters_from_request(self):
-        from django.test import RequestFactory
+    def test_category_path_saved_on_upsert(self):
+        from kiotviet.models import KvProduct
+        product = KvProduct.objects.get(kiotviet_id=1)
+        self.assertIn('Quần áo', product.category_path)
+        self.assertIn('Áo đấu', product.category_path)
 
+    def test_parse_product_filters_default_active(self):
+        factory = RequestFactory()
+        request = factory.get('/kiotviet/hang-hoa/')
+        parsed = parse_product_filters(request)
+        self.assertEqual(parsed.is_active, DEFAULT_IS_ACTIVE)
+        self.assertFalse(parsed.is_non_default_filter())
+
+    def test_parse_product_filters_from_request(self):
         factory = RequestFactory()
         request = factory.get(
-            '/kiotviet/hang-hoa/?category=110&allows_sale=yes&is_active=no&stock=yes',
+            '/kiotviet/hang-hoa/?category=110&is_active=all&stock=yes&product_type=2&unit=Cái&sort=stock_desc&category_q=ao',
         )
         parsed = parse_product_filters(request)
         self.assertEqual(parsed.category_id, 110)
-        self.assertEqual(parsed.allows_sale, 'yes')
-        self.assertEqual(parsed.is_active, 'no')
+        self.assertEqual(parsed.is_active, '')
         self.assertEqual(parsed.stock, 'yes')
-        self.assertTrue(parsed.is_active_filter())
+        self.assertEqual(parsed.product_type, '2')
+        self.assertEqual(parsed.unit, 'Cái')
+        self.assertEqual(parsed.sort, 'stock_desc')
+        self.assertEqual(parsed.category_q, 'ao')
+        self.assertTrue(parsed.is_non_default_filter())

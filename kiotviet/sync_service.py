@@ -494,6 +494,8 @@ def upsert_product(retailer: str, row: dict, *, force: bool = False) -> bool:
         },
     )
     _sync_product_children(retailer, kid, row)
+    from .category_paths import refresh_product_category_path
+    refresh_product_category_path(retailer, kid)
     return True
 
 
@@ -1038,13 +1040,17 @@ def sync_entity(
             **paginated_kwargs,
         )
     if entity == 'categories':
-        return _sync_paginated(
+        result = _sync_paginated(
             entity_type='categories',
             list_fn=api.list_categories,
             upsert_fn=bound(upsert_category),
             base_params={'hierachicalData': 'true'},
             **paginated_kwargs,
         )
+        if not result.get('error'):
+            from .category_paths import refresh_all_product_category_paths
+            result['category_paths_refreshed'] = refresh_all_product_category_paths(retailer)
+        return result
     if entity == 'users':
         return _sync_paginated(
             entity_type='users',

@@ -110,6 +110,7 @@ class KvProduct(KvRetailerSyncedModel):
     description = models.TextField(blank=True, default='')
     category_kiotviet_id = models.BigIntegerField(null=True, blank=True)
     category_name = models.CharField(max_length=255, blank=True, default='')
+    category_path = models.CharField(max_length=500, blank=True, default='')
     unit = models.CharField(max_length=32, blank=True, default='')
     base_price = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
     weight = models.FloatField(null=True, blank=True)

@@ -55,13 +55,19 @@ class CategoryPathTests(TestCase):
             'name': 'AC Milan home 25-26',
             'categoryId': 111,
             'categoryName': 'Serie A',
+            'isActive': True,
             'basePrice': 350000,
             'modifiedDate': '2024-03-01T08:00:00',
             'inventories': [{'branchId': 1, 'branchName': 'CN1', 'onHand': 3}],
         })
-        groups, total = browse_product_groups(page=1, per_page=30, retailer=self.retailer)
+        from kiotviet.product_filters import ProductListFilters
+        filters = ProductListFilters(is_active='')
+        groups, total = browse_product_groups(
+            page=1, per_page=30, retailer=self.retailer, filters=filters,
+        )
         self.assertEqual(total, 1)
         row = format_product_group_row(groups[0])
+        self.assertEqual(row['category_path_parts'], ['Quần áo', 'Áo đấu', 'Serie A'])
         self.assertIn('Quần áo', row['category_path'])
         self.assertIn('Serie A', row['category_path'])
         self.assertEqual(groups[0].category_kiotviet_id, 111)

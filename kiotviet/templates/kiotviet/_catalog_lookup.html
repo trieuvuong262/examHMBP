@@ -10,7 +10,9 @@
             </h2>
             <p class="text-muted mb-0">
                 Dữ liệu mirror đã sync{% if retailer %} · gian hàng <strong>{{ retailer }}</strong>{% endif %}
-                {% if browse_mode %} · hiển thị <strong>30</strong> mục/trang{% elif has_active_filters %} · <strong>đang lọc</strong>{% endif %}
+                {% if browse_mode %}
+                · hiển thị <strong>30</strong> mục/trang{% if default_active_only %} · <strong>đang kinh doanh</strong>{% endif %}
+                {% elif has_active_filters %} · <strong>đang lọc</strong>{% elif default_active_only %} · <strong>đang kinh doanh</strong>{% endif %}
             </p>
         </div>
     </div>
@@ -72,12 +74,10 @@
                         <th class="d-none d-md-table-cell" style="width:3.5rem;"></th>
                         <th>Mã hàng</th>
                         <th>Tên</th>
-                        <th class="d-none d-md-table-cell">Nhóm</th>
+                        <th class="d-none d-md-table-cell" style="min-width:12rem;">Nhóm hàng</th>
                         <th class="d-none d-lg-table-cell">ĐVT</th>
                         {% if product_group_mode %}
                         <th class="text-end">Tồn kho</th>
-                        <th class="d-none d-lg-table-cell">Cho phép bán</th>
-                        <th class="d-none d-lg-table-cell">Đang KD</th>
                         {% endif %}
                         <th class="text-end">Giá bán</th>
                         <th></th>
@@ -110,9 +110,15 @@
                             {{ item.name }}
                             {% endif %}
                         </td>
-                        <td data-label="Nhóm" class="d-none d-md-table-cell small">
-                            {% if product_group_mode and item.category_path %}
-                            <span title="{{ item.category_path }}">{{ item.category_path }}</span>
+                        <td data-label="Nhóm hàng" class="d-none d-md-table-cell small">
+                            {% if product_group_mode and item.category_path_parts %}
+                            <div class="d-flex flex-column gap-1 align-items-start">
+                                {% for part in item.category_path_parts %}
+                                <span class="badge bg-light text-dark border fw-normal">{{ part }}</span>
+                                {% endfor %}
+                            </div>
+                            {% elif product_group_mode and item.category_path %}
+                            <span>{{ item.category_path }}</span>
                             {% else %}
                             {{ item.category_name }}
                             {% endif %}
@@ -121,12 +127,6 @@
                         {% if product_group_mode %}
                         <td data-label="Tồn kho" class="text-end fw-semibold">
                             {% if item.total_on_hand is not None %}{{ item.total_on_hand|floatformat:0|intcomma }}{% else %}—{% endif %}
-                        </td>
-                        <td data-label="Cho phép bán" class="d-none d-lg-table-cell">
-                            <span class="badge {{ item.allows_sale_status.badge_class }}">{{ item.allows_sale_status.label }}</span>
-                        </td>
-                        <td data-label="Đang KD" class="d-none d-lg-table-cell">
-                            <span class="badge {{ item.is_active_status.badge_class }}">{{ item.is_active_status.label }}</span>
                         </td>
                         {% endif %}
                         <td data-label="Giá" class="text-end">
