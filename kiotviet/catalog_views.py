@@ -1,4 +1,4 @@
-"""Tra cứu hàng hóa, tồn kho, phiếu nhập — đọc từ mirror kv_*."""
+"""Hàng hóa, tồn kho, phiếu nhập — đọc từ mirror kv_*."""
 
 from django.contrib import messages
 from django.shortcuts import redirect, render
@@ -10,11 +10,12 @@ from .decorators import kiotviet_access_required
 from . import local_lookup as local
 from .formatters import (
     format_inventory_rows,
-    format_product_detail,
-    format_product_row,
+    format_product_group_detail,
+    format_product_group_row,
     format_purchase_order_detail,
     format_purchase_order_row,
 )
+from .product_groups import browse_product_groups, get_product_group
 from .lookup_views import _lookup_context
 from .sync_service import current_retailer
 from .views import MIRROR_EMPTY_HINT
@@ -35,30 +36,27 @@ def product_lookup(request):
     retailer = current_retailer()
 
     if browse_mode:
-        rows, total = local.browse_products(page=page, per_page=KV_PAGE_SIZE, retailer=retailer)
-        items = [format_product_row(r) for r in rows]
-    elif search_type == 'code':
-        detail = local.get_product_by_code(retailer, query)
-        if detail:
-            items = [format_product_row(detail)]
-            total = 1
-        else:
-            rows, total = local.browse_products(
-                page=page, per_page=KV_PAGE_SIZE, code=query, retailer=retailer,
-            )
-            items = [format_product_row(r) for r in rows]
-    elif search_type == 'barcode':
-        rows, total = local.browse_products(
-            page=1, per_page=KV_PAGE_SIZE * 5, bar_code=query, retailer=retailer,
+        groups, total = browse_product_groups(
+            page=page, per_page=KV_PAGE_SIZE, retailer=retailer,
         )
-        all_matched = [format_product_row(r) for r in rows]
+        items = [format_product_group_row(g) for g in groups]
+    elif search_type == 'code':
+        groups, total = browse_product_groups(
+            page=page, per_page=KV_PAGE_SIZE, code=query, retailer=retailer,
+        )
+        items = [format_product_group_row(g) for g in groups]
+    elif search_type == 'barcode':
+        groups, total = browse_product_groups(
+            page=1, per_page=KV_PAGE_SIZE * 50, bar_code=query, retailer=retailer,
+        )
+        all_matched = [format_product_group_row(g) for g in groups]
         items, page_obj, query_string = paginate_list_items(request, all_matched)
         total = len(all_matched)
     else:
-        rows, total = local.browse_products(
+        groups, total = browse_product_groups(
             page=page, per_page=KV_PAGE_SIZE, name=query, retailer=retailer,
         )
-        items = [format_product_row(r) for r in rows]
+        items = [format_product_group_row(g) for g in groups]
 
     if total and page_obj is None and (browse_mode or query):
         page_obj, query_string = paginate_api_meta(request, total)
@@ -68,7 +66,7 @@ def product_lookup(request):
         'kiotviet/product_lookup.html',
         _lookup_context(
             request,
-            title='Tra cứu hàng hóa',
+            title='Hàng hoá',
             icon='bi-box-seam',
             search_type=search_type,
             search_query=query,
@@ -77,7 +75,8 @@ def product_lookup(request):
             api_error=None,
             mirror_empty_hint=MIRROR_EMPTY_HINT if total == 0 else '',
             detail_url_name='kiotviet:product_detail',
-            empty_hint='Nhập mã, tên hoặc mã vạch để lọc. Không nhập từ khóa: xem 30 hàng đầu.',
+            empty_hint='Nhập mã, tên hoặc mã vạch để lọc. Không nhập từ khóa: xem danh sách hàng hoá (đã gộp size).',
+            product_group_mode=True,
             type_options=(
                 ('code', 'Mã hàng hóa'),
                 ('name', 'Tên hàng hóa'),
@@ -94,14 +93,14 @@ def product_lookup(request):
 @kiotviet_access_required
 def product_detail(request, product_id: int):
     retailer = current_retailer()
-    raw = local.get_product(retailer, product_id)
+    raw = get_product_group(retailer, product_id)
     if raw is None:
         messages.error(request, 'Không tìm thấy hàng hóa trong dữ liệu đã sync.')
         return redirect('kiotviet:product_lookup')
     return render(
         request,
         'kiotviet/product_detail.html',
-        {'product': format_product_detail(raw)},
+        {'product': format_product_group_detail(raw)},
     )
 
 

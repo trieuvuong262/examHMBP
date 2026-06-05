@@ -141,7 +141,7 @@ class AuditSummaryTests(TestCase):
         request.resolver_match = type('M', (), {'url_name': 'product_lookup', 'kwargs': {}})()
         desc = resolve_url_description(request, 'product_lookup')
         self.assertIn('KiotViet', desc)
-        self.assertIn('hàng hóa', desc)
+        self.assertIn('hàng hoá', desc)
 
     def test_equipment_dashboard_description(self):
         factory = RequestFactory()

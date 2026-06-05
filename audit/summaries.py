@@ -389,7 +389,7 @@ NAMESPACE_URL_DESCRIPTIONS: dict[str, dict[str, str] | str] = {
     'kiotviet:order_detail': 'xem chi tiết đơn đặt hàng KiotViet #{order_id}',
     'kiotviet:invoice_lookup': 'tra cứu hóa đơn KiotViet',
     'kiotviet:invoice_detail': 'xem chi tiết hóa đơn KiotViet #{invoice_id}',
-    'kiotviet:product_lookup': 'tra cứu hàng hóa KiotViet',
+    'kiotviet:product_lookup': 'hàng hoá KiotViet',
     'kiotviet:product_detail': 'xem chi tiết sản phẩm KiotViet #{product_id}',
     'kiotviet:stock_lookup': 'tra cứu tồn kho KiotViet',
     'kiotviet:purchase_lookup': 'tra cứu phiếu nhập KiotViet',

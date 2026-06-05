@@ -62,6 +62,9 @@
                         <th>Tên</th>
                         <th class="d-none d-md-table-cell">Nhóm</th>
                         <th class="d-none d-lg-table-cell">ĐVT</th>
+                        {% if product_group_mode %}
+                        <th class="text-end">Tồn kho</th>
+                        {% endif %}
                         <th class="text-end">Giá bán</th>
                         <th></th>
                     </tr>
@@ -81,8 +84,15 @@
                         <td data-label="Tên">{{ item.name }}</td>
                         <td data-label="Nhóm" class="d-none d-md-table-cell">{{ item.category_name }}</td>
                         <td data-label="ĐVT" class="d-none d-lg-table-cell">{{ item.unit }}</td>
+                        {% if product_group_mode %}
+                        <td data-label="Tồn kho" class="text-end fw-semibold">
+                            {% if item.total_on_hand is not None %}{{ item.total_on_hand|floatformat:0|intcomma }}{% else %}—{% endif %}
+                        </td>
+                        {% endif %}
                         <td data-label="Giá" class="text-end">
-                            {% if item.base_price is not None %}{{ item.base_price|floatformat:0|intcomma }}{% else %}—{% endif %}
+                            {% if item.min_price is not None and item.max_price is not None and item.min_price != item.max_price %}
+                            {{ item.min_price|floatformat:0|intcomma }} – {{ item.max_price|floatformat:0|intcomma }}
+                            {% elif item.base_price is not None %}{{ item.base_price|floatformat:0|intcomma }}{% else %}—{% endif %}
                         </td>
                         <td class="text-end">
                             {% if item.id %}

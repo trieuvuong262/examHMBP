@@ -5,14 +5,18 @@
 <div class="container jp-page py-3 py-md-4 mb-5">
     <div class="jp-page-header mb-3 mb-md-4">
         <a href="{% url 'kiotviet:product_lookup' %}" class="btn btn-sm btn-outline-secondary mb-2">
-            <i class="bi bi-arrow-left me-1"></i>Quay lại tra cứu
+            <i class="bi bi-arrow-left me-1"></i>Quay lại danh sách
         </a>
         <h2 class="fw-bold text-hm mb-1 jp-page-title">
             <i class="bi bi-box-seam me-2"></i>{{ product.name }}
         </h2>
         <p class="text-muted mb-0">
-            Mã <code>{{ product.code }}</code>
-            {% if product.bar_code != '—' %} · Mã vạch {{ product.bar_code }}{% endif %}
+            {% if product.is_group %}
+            {{ product.variant_count }} mã size · Tồn kho tổng <strong>{{ product.total_on_hand|floatformat:0|intcomma }}</strong>
+            {% else %}
+            Mã <code>{{ product.variants.0.code }}</code>
+            · Tồn <strong>{{ product.total_on_hand|floatformat:0|intcomma }}</strong>
+            {% endif %}
         </p>
     </div>
 
@@ -34,36 +38,23 @@
             </div>
         </div>
         {% endif %}
-        <div class="col-12 {% if product.images %}col-md-4{% else %}col-md-6{% endif %}">
+        <div class="col-12 {% if product.images %}col-md-8{% else %}col-md-12{% endif %}">
             <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white fw-bold">Thông tin hàng hóa</div>
+                <div class="card-header bg-white fw-bold">Thông tin chung</div>
                 <div class="card-body small">
                     <dl class="row mb-0">
-                        <dt class="col-5">Tên đầy đủ</dt>
-                        <dd class="col-7">{{ product.full_name }}</dd>
-                        <dt class="col-5">Nhóm hàng</dt>
-                        <dd class="col-7">{{ product.category_name }}</dd>
-                        <dt class="col-5">Đơn vị</dt>
-                        <dd class="col-7">{{ product.unit }}</dd>
-                        <dt class="col-5">Giá bán</dt>
-                        <dd class="col-7">{% if product.base_price is not None %}{{ product.base_price|floatformat:0|intcomma }}{% else %}—{% endif %}</dd>
-                        <dt class="col-5">Mô tả</dt>
-                        <dd class="col-7">{{ product.description }}</dd>
-                    </dl>
-                </div>
-            </div>
-        </div>
-        <div class="col-12 {% if product.images %}col-md-4{% else %}col-md-6{% endif %}">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white fw-bold">Khác</div>
-                <div class="card-body small">
-                    <dl class="row mb-0">
-                        <dt class="col-5">Cho phép bán</dt>
-                        <dd class="col-7">{% if product.allows_sale %}Có{% else %}Không{% endif %}</dd>
-                        <dt class="col-5">Đang kinh doanh</dt>
-                        <dd class="col-7">{% if product.is_active %}Có{% elif product.is_active is False %}Không{% else %}—{% endif %}</dd>
-                        <dt class="col-5">Cập nhật</dt>
-                        <dd class="col-7">{{ product.modified_date|default:"—" }}</dd>
+                        <dt class="col-sm-4 col-md-3">Nhóm hàng</dt>
+                        <dd class="col-sm-8 col-md-9">{{ product.category_name }}</dd>
+                        <dt class="col-sm-4 col-md-3">Đơn vị</dt>
+                        <dd class="col-sm-8 col-md-9">{{ product.unit }}</dd>
+                        <dt class="col-sm-4 col-md-3">Giá bán</dt>
+                        <dd class="col-sm-8 col-md-9">
+                            {% if product.min_price is not None and product.max_price is not None and product.min_price != product.max_price %}
+                            {{ product.min_price|floatformat:0|intcomma }} – {{ product.max_price|floatformat:0|intcomma }}
+                            {% elif product.min_price is not None %}{{ product.min_price|floatformat:0|intcomma }}{% else %}—{% endif %}
+                        </dd>
+                        <dt class="col-sm-4 col-md-3">Tồn kho tổng</dt>
+                        <dd class="col-sm-8 col-md-9 fw-semibold">{{ product.total_on_hand|floatformat:0|intcomma }}</dd>
                     </dl>
                 </div>
             </div>
@@ -71,7 +62,66 @@
     </div>
 
     <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white fw-bold">Tồn kho theo chi nhánh</div>
+        <div class="card-header bg-white fw-bold">
+            {% if product.is_group %}Chi tiết theo size / mã{% else %}Tồn kho theo chi nhánh{% endif %}
+        </div>
+        {% if product.is_group %}
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0 jp-table-mobile-stack">
+                <thead class="table-light">
+                    <tr>
+                        <th>Mã hàng</th>
+                        <th>Size</th>
+                        <th class="d-none d-md-table-cell">Mã vạch</th>
+                        <th class="text-end">Giá</th>
+                        <th class="text-end">Tồn</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for v in product.variants %}
+                    <tr>
+                        <td data-label="Mã"><code>{{ v.code }}</code></td>
+                        <td data-label="Size">{{ v.size_label }}</td>
+                        <td data-label="Mã vạch" class="d-none d-md-table-cell">{{ v.bar_code }}</td>
+                        <td data-label="Giá" class="text-end">
+                            {% if v.base_price is not None %}{{ v.base_price|floatformat:0|intcomma }}{% else %}—{% endif %}
+                        </td>
+                        <td data-label="Tồn" class="text-end fw-semibold">{{ v.stock_total|floatformat:0|intcomma }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% for v in product.variants %}
+        {% if v.inventories %}
+        <div class="border-top">
+            <div class="px-3 py-2 bg-light small fw-semibold">
+                Tồn chi nhánh · <code>{{ v.code }}</code>{% if v.size_label != '—' %} · {{ v.size_label }}{% endif %}
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Chi nhánh</th>
+                            <th class="text-end">Tồn</th>
+                            <th class="text-end">Đặt</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for inv in v.inventories %}
+                        <tr>
+                            <td>{{ inv.branch_name }}</td>
+                            <td class="text-end">{% if inv.on_hand is not None %}{{ inv.on_hand|floatformat:2 }}{% else %}—{% endif %}</td>
+                            <td class="text-end">{% if inv.reserved is not None %}{{ inv.reserved|floatformat:2 }}{% else %}—{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+        {% else %}
         <div class="table-responsive">
             <table class="table table-sm align-middle mb-0">
                 <thead class="table-light">
@@ -83,7 +133,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for inv in product.inventories %}
+                    {% for inv in product.variants.0.inventories %}
                     <tr>
                         <td>{{ inv.branch_name }}</td>
                         <td class="text-end">{% if inv.on_hand is not None %}{{ inv.on_hand|floatformat:2 }}{% else %}—{% endif %}</td>
@@ -96,6 +146,7 @@
                 </tbody>
             </table>
         </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

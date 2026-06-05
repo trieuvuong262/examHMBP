@@ -131,6 +131,63 @@ def format_product_row(row: dict) -> dict:
     }
 
 
+def format_product_group_row(group) -> dict:
+    """Nhóm SP (nhiều size / mã)."""
+    image_url = (group.image_urls or [None])[0] or ''
+    if group.variant_count > 1:
+        code_label = f'{group.variant_count} mã'
+        if group.codes:
+            code_label = f'{group.codes[0]} … (+{group.variant_count - 1})'
+    else:
+        code_label = _dash(group.codes[0] if group.codes else '')
+    price = group.min_price
+    if group.min_price is not None and group.max_price is not None and group.min_price != group.max_price:
+        price = group.min_price  # template can show range
+    return {
+        'id': group.representative_id,
+        'code': code_label,
+        'name': _dash(group.name),
+        'category_name': _dash(group.category_name),
+        'unit': _dash(group.unit),
+        'base_price': price,
+        'min_price': group.min_price,
+        'max_price': group.max_price,
+        'image_url': image_url,
+        'variant_count': group.variant_count,
+        'total_on_hand': group.total_on_hand,
+        'is_group': group.variant_count > 1,
+    }
+
+
+def format_product_group_detail(raw: dict) -> dict:
+    variants = []
+    for v in raw.get('variants') or []:
+        variants.append({
+            'id': v.get('id'),
+            'code': _dash(v.get('code')),
+            'size_label': _dash(v.get('size_label')) if v.get('size_label') else '—',
+            'base_price': v.get('basePrice'),
+            'bar_code': _dash(v.get('barCode')),
+            'stock_total': v.get('stock_total'),
+            'inventories': format_inventory_rows(v),
+            'attributes': v.get('attributes') or [],
+        })
+    images = raw.get('images') or []
+    return {
+        'name': _dash(raw.get('name')),
+        'category_name': _dash(raw.get('category_name')),
+        'unit': _dash(raw.get('unit')),
+        'variant_count': raw.get('variant_count', 1),
+        'total_on_hand': raw.get('total_on_hand'),
+        'min_price': raw.get('min_price'),
+        'max_price': raw.get('max_price'),
+        'images': images,
+        'image_url': images[0] if images else '',
+        'variants': variants,
+        'is_group': raw.get('variant_count', 1) > 1,
+    }
+
+
 def format_inventory_rows(product: dict) -> list[dict]:
     """Mở rộng tồn theo chi nhánh từ product hoặc productOnHands."""
     code = _dash(product.get('code'))
