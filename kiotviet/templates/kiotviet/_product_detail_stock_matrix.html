@@ -1,7 +1,7 @@
 {% load humanize %}
 {% if product.stock_matrix.has_data %}
 <div class="table-responsive">
-    <table class="table table-sm align-middle mb-0 jp-table-mobile-stack">
+    <table class="table table-bordered table-sm align-middle mb-0 kv-stock-table jp-table-mobile-stack">
         <thead class="table-light">
             <tr>
                 <th>Chi nhánh</th>
@@ -19,17 +19,17 @@
         <tbody>
             {% for row in product.stock_matrix.rows %}
             <tr>
-                <td data-label="Chi nhánh">{{ row.branch_name }}</td>
+                <td data-label="Chi nhánh" class="fw-semibold">{{ row.branch_name }}</td>
                 {% if product.stock_matrix.show_size_columns %}
                 {% for cell in row.cells %}
-                <td data-label="Tồn" class="text-end">
+                <td data-label="Tồn" class="text-end kv-stock-num">
                     {% if cell is not None %}{{ cell|floatformat:0|intcomma }}{% else %}—{% endif %}
                 </td>
                 {% endfor %}
                 {% endif %}
-                <td data-label="Tồn" class="text-end fw-semibold">{{ row.on_hand|floatformat:0|intcomma }}</td>
+                <td data-label="Tồn" class="text-end fw-bold kv-stock-num">{{ row.on_hand|floatformat:0|intcomma }}</td>
                 {% if not product.stock_matrix.show_size_columns %}
-                <td data-label="Giá vốn" class="text-end d-none d-md-table-cell">
+                <td data-label="Giá vốn" class="text-end kv-stock-num d-none d-md-table-cell">
                     {% if row.cost is not None %}{{ row.cost|floatformat:0|intcomma }}{% else %}—{% endif %}
                 </td>
                 {% endif %}

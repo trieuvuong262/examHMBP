@@ -113,14 +113,39 @@
 
         <div class="col-lg-8">
             <div class="card border shadow-sm h-100">
-                <div class="card-header bg-light border-bottom py-2 px-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
-                    <span class="fw-bold small text-uppercase mb-0">Tồn kho</span>
-                    {% if product.is_group %}
-                    <span class="text-muted small mb-0">Bấm dòng size để xem chi nhánh</span>
-                    {% endif %}
+                <div class="card-header bg-light border-bottom py-2 px-3">
+                    <div class="fw-bold small text-uppercase mb-2">Tồn kho</div>
+                    <ul class="nav nav-tabs jp-perm-tabs flex-wrap gap-2 border-0 mb-0" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="kv-tab-by-size-btn"
+                                    data-bs-toggle="tab" data-bs-target="#kvTabBySize"
+                                    type="button" role="tab" aria-controls="kvTabBySize" aria-selected="true">
+                                Theo size
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="kv-tab-by-warehouse-btn"
+                                    data-bs-toggle="tab" data-bs-target="#kvTabByWarehouse"
+                                    type="button" role="tab" aria-controls="kvTabByWarehouse" aria-selected="false">
+                                Theo kho
+                            </button>
+                        </li>
+                    </ul>
                 </div>
                 <div class="card-body p-0">
-                    {% include 'kiotviet/_product_detail_variant_stock.html' %}
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="kvTabBySize" role="tabpanel" aria-labelledby="kv-tab-by-size-btn">
+                            {% if product.is_group %}
+                            <div class="text-muted small border-bottom px-3 py-2 bg-white">
+                                Bấm dòng size để xem tồn theo chi nhánh
+                            </div>
+                            {% endif %}
+                            {% include 'kiotviet/_product_detail_variant_stock.html' %}
+                        </div>
+                        <div class="tab-pane fade" id="kvTabByWarehouse" role="tabpanel" aria-labelledby="kv-tab-by-warehouse-btn">
+                            {% include 'kiotviet/_product_detail_stock_matrix.html' %}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
