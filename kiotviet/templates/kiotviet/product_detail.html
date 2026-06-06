@@ -112,18 +112,16 @@
         </div>
 
         <div class="col-lg-8">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white border-0 d-flex align-items-center justify-content-between flex-wrap gap-2 pt-3 px-3 pb-2">
-                    <div class="fw-bold text-hm mb-0">
-                        <i class="bi bi-boxes me-1"></i>Tồn kho
-                    </div>
+            <div class="card border shadow-sm h-100">
+                <div class="card-header bg-light border-bottom py-2 px-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+                    <span class="fw-bold small text-uppercase mb-0">Tồn kho</span>
                     {% if product.is_group %}
-                    <span class="text-muted small">
-                        <i class="bi bi-chevron-expand me-1"></i>Bấm size để xem chi nhánh
-                    </span>
+                    <span class="text-muted small mb-0">Bấm dòng size để xem chi nhánh</span>
                     {% endif %}
                 </div>
-                {% include 'kiotviet/_product_detail_variant_stock.html' %}
+                <div class="card-body p-0">
+                    {% include 'kiotviet/_product_detail_variant_stock.html' %}
+                </div>
             </div>
         </div>
     </div>

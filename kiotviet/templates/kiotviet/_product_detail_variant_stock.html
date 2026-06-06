@@ -1,249 +1,179 @@
 {% load humanize %}
-<div class="kv-stock-panel px-2 px-md-3 pb-2 pb-md-3">
-    {% for v in product.variants %}
-    <div class="kv-stock-item{% if forloop.last %} mb-0{% endif %}">
-        <div class="kv-stock-item-header kv-detail-variant-expandable"
-             data-kv-variant-id="{{ v.id }}"
-             role="button"
-             tabindex="0"
-             aria-expanded="false">
-            <div class="kv-stock-chevron" aria-hidden="true">
-                <i class="bi bi-chevron-down kv-detail-expand-icon"></i>
-            </div>
-
-            <div class="kv-stock-thumb">
-                {% if v.image_url %}
-                <button type="button"
-                        class="btn p-0 border-0 bg-transparent"
-                        data-bs-toggle="modal"
-                        data-bs-target="#kvProductImageModal"
-                        data-image-url="{{ v.image_url }}"
-                        aria-label="{{ v.code }}">
-                    <img src="{{ v.image_url }}" alt="" class="rounded border">
-                </button>
-                {% else %}
-                <span class="kv-stock-thumb-placeholder rounded border">
-                    <i class="bi bi-box-seam"></i>
-                </span>
-                {% endif %}
-            </div>
-
-            <div class="kv-stock-meta">
-                <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
-                    <span class="badge rounded-pill bg-light text-dark border px-2 py-1">
-                        Size <strong>{{ v.size_label }}</strong>
-                    </span>
-                    <code class="small text-muted">{{ v.code }}</code>
-                </div>
-                {% if v.bar_code and v.bar_code != '—' %}
-                <div class="text-muted small d-none d-md-block">
-                    <i class="bi bi-upc-scan me-1"></i>{{ v.bar_code }}
-                </div>
-                {% endif %}
-            </div>
-
-            <div class="kv-stock-price text-end">
-                <div class="kv-stock-field-label">Giá bán</div>
-                <div class="fw-semibold">
+<div class="table-responsive kv-stock-wrap">
+    <table class="table table-bordered table-sm align-middle mb-0 kv-stock-table jp-table-mobile-stack">
+        <thead class="table-light">
+            <tr>
+                <th class="kv-stock-col-toggle px-2"></th>
+                <th class="kv-stock-col-img d-none d-md-table-cell"></th>
+                <th>Size</th>
+                <th>Mã hàng</th>
+                <th class="d-none d-md-table-cell">Mã vạch</th>
+                <th class="text-end">Giá bán</th>
+                <th class="text-end">Tồn</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for v in product.variants %}
+            <tr class="kv-detail-variant-expandable"
+                data-kv-variant-id="{{ v.id }}"
+                role="button"
+                tabindex="0"
+                aria-expanded="false">
+                <td class="text-center text-muted px-2" data-label="">
+                    <i class="bi bi-chevron-right kv-detail-expand-icon" aria-hidden="true"></i>
+                </td>
+                <td class="d-none d-md-table-cell" data-label="">
+                    {% if v.image_url %}
+                    <button type="button"
+                            class="btn p-0 border-0 bg-transparent"
+                            data-bs-toggle="modal"
+                            data-bs-target="#kvProductImageModal"
+                            data-image-url="{{ v.image_url }}"
+                            aria-label="{{ v.code }}">
+                        <img src="{{ v.image_url }}" alt="" class="border kv-stock-img">
+                    </button>
+                    {% else %}
+                    <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+                <td data-label="Size" class="fw-semibold">{{ v.size_label }}</td>
+                <td data-label="Mã"><code>{{ v.code }}</code></td>
+                <td data-label="Mã vạch" class="d-none d-md-table-cell text-muted small">{{ v.bar_code }}</td>
+                <td data-label="Giá bán" class="text-end kv-stock-num">
                     {% if v.base_price is not None %}{{ v.base_price|floatformat:0|intcomma }}{% else %}—{% endif %}
-                </div>
-            </div>
-
-            <div class="kv-stock-total text-end">
-                <div class="kv-stock-field-label">Tồn</div>
-                <div class="kv-stock-total-value">{{ v.stock_total|floatformat:0|intcomma }}</div>
-            </div>
-        </div>
-
-        <div class="kv-stock-branches d-none" data-kv-branches-for="{{ v.id }}">
-            {% if v.branch_stocks %}
-            <div class="kv-stock-branch-grid">
-                {% for br in v.branch_stocks %}
-                <div class="kv-stock-branch-card">
-                    <div class="kv-stock-branch-name">
-                        <i class="bi bi-building text-hm me-1"></i>{{ br.branch_name }}
-                    </div>
-                    <div class="kv-stock-branch-qty">
-                        {% if br.on_hand is not None %}{{ br.on_hand|floatformat:0|intcomma }}{% else %}—{% endif %}
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-            {% else %}
-            <div class="text-muted small py-2 text-center">Không có dữ liệu tồn theo chi nhánh.</div>
-            {% endif %}
-        </div>
-    </div>
-    {% empty %}
-    <div class="text-muted text-center py-4 small">Không có dữ liệu tồn.</div>
-    {% endfor %}
+                </td>
+                <td data-label="Tồn" class="text-end fw-bold kv-stock-num">{{ v.stock_total|floatformat:0|intcomma }}</td>
+            </tr>
+            <tr class="kv-stock-detail-row d-none" data-kv-branches-for="{{ v.id }}">
+                <td colspan="7" class="p-0 border-0">
+                    {% if v.branch_stocks %}
+                    <table class="table table-bordered table-sm mb-0 kv-stock-subtable">
+                        <thead class="table-secondary">
+                            <tr>
+                                <th class="ps-3">Chi nhánh</th>
+                                <th class="text-end pe-3" style="width:7rem;">Tồn</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for br in v.branch_stocks %}
+                            <tr>
+                                <td class="ps-3" data-label="Chi nhánh">{{ br.branch_name }}</td>
+                                <td class="text-end pe-3 fw-semibold kv-stock-num" data-label="Tồn">
+                                    {% if br.on_hand is not None %}{{ br.on_hand|floatformat:0|intcomma }}{% else %}—{% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="text-muted small py-2 ps-3 border-top">Không có dữ liệu tồn theo chi nhánh.</div>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" class="text-muted text-center py-3 small">Không có dữ liệu tồn.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
 
 <style>
-    .kv-stock-panel {
-        display: flex;
-        flex-direction: column;
-        gap: 0.65rem;
+    .kv-stock-table {
+        border-collapse: collapse;
+        font-size: 0.875rem;
     }
-    .kv-stock-item {
-        background: var(--bs-body-bg);
-        border: 1px solid rgba(0, 0, 0, 0.08);
-        border-radius: 0.85rem;
-        overflow: hidden;
-        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    .kv-stock-table > :not(caption) > * > * {
+        border-color: var(--bs-border-color);
+        padding: 0.5rem 0.65rem;
+        vertical-align: middle;
     }
-    .kv-stock-item:hover {
-        border-color: rgba(220, 38, 38, 0.2);
+    .kv-stock-table thead th {
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        white-space: nowrap;
     }
-    .kv-stock-item.kv-expanded {
-        border-color: rgba(220, 38, 38, 0.35);
-        box-shadow: 0 0.25rem 0.75rem rgba(220, 38, 38, 0.08);
+    .kv-stock-col-toggle {
+        width: 2rem;
     }
-    .kv-stock-item-header {
-        cursor: pointer;
-        display: grid;
-        grid-template-columns: auto auto 1fr auto auto;
-        gap: 0.65rem 0.75rem;
-        align-items: center;
-        padding: 0.75rem 0.85rem;
-        transition: background-color 0.15s ease;
+    .kv-stock-col-img {
+        width: 3rem;
     }
-    .kv-stock-item-header:hover {
-        background: rgba(220, 38, 38, 0.03);
-    }
-    .kv-stock-item.kv-expanded .kv-stock-item-header {
-        background: rgba(220, 38, 38, 0.04);
-        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-    }
-    .kv-stock-chevron {
-        align-items: center;
-        background: var(--bs-light);
-        border: 1px solid rgba(0, 0, 0, 0.08);
-        border-radius: 50%;
-        color: var(--bs-secondary-color);
-        display: flex;
-        height: 1.75rem;
-        justify-content: center;
-        width: 1.75rem;
-    }
-    .kv-stock-item.kv-expanded .kv-stock-chevron {
-        background: var(--hm-primary, #dc2626);
-        border-color: var(--hm-primary, #dc2626);
-        color: #fff;
-    }
-    .kv-stock-thumb img,
-    .kv-stock-thumb-placeholder {
-        height: 44px;
+    .kv-stock-img {
+        height: 36px;
         object-fit: cover;
-        width: 44px;
+        width: 36px;
     }
-    .kv-stock-thumb-placeholder {
-        align-items: center;
-        background: var(--bs-light);
-        color: var(--bs-secondary-color);
-        display: inline-flex;
-        justify-content: center;
+    .kv-stock-num {
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
     }
-    .kv-stock-meta {
-        min-width: 0;
+    .kv-detail-variant-expandable {
+        cursor: pointer;
     }
-    .kv-stock-field-label {
-        color: var(--bs-secondary-color);
-        font-size: 0.68rem;
-        letter-spacing: 0.03em;
+    .kv-detail-variant-expandable:hover {
+        background-color: #f1f5f9;
+    }
+    .kv-detail-variant-expandable.kv-expanded {
+        background-color: #f8fafc;
+        box-shadow: inset 3px 0 0 var(--hm-primary, #dc2626);
+    }
+    .kv-detail-variant-expandable.kv-expanded td {
+        border-bottom: none;
+    }
+    .kv-stock-detail-row > td {
+        background-color: #f1f5f9;
+    }
+    .kv-stock-subtable {
+        border: 0;
+        margin: 0;
+    }
+    .kv-stock-subtable thead th {
+        border-top: 0;
+        font-size: 0.7rem;
+        font-weight: 700;
+        padding: 0.35rem 0.65rem;
         text-transform: uppercase;
     }
-    .kv-stock-total-value {
-        color: var(--hm-primary, #dc2626);
-        font-size: 1.25rem;
-        font-weight: 800;
-        line-height: 1.1;
-    }
-    .kv-stock-branches {
-        background: linear-gradient(180deg, rgba(248, 249, 250, 0.9) 0%, rgba(248, 249, 250, 0.4) 100%);
-        padding: 0.75rem 0.85rem 0.85rem;
-    }
-    .kv-stock-branch-grid {
-        display: grid;
-        gap: 0.5rem;
-        grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
-    }
-    .kv-stock-branch-card {
-        align-items: center;
+    .kv-stock-subtable tbody td {
         background: #fff;
-        border: 1px solid rgba(0, 0, 0, 0.07);
-        border-radius: 0.65rem;
-        display: flex;
-        justify-content: space-between;
-        gap: 0.5rem;
-        padding: 0.55rem 0.7rem;
+        font-size: 0.8125rem;
+        padding: 0.4rem 0.65rem;
     }
-    .kv-stock-branch-name {
-        color: var(--bs-secondary-color);
-        font-size: 0.8rem;
-        line-height: 1.25;
-        min-width: 0;
+    .kv-stock-subtable > :not(caption) > * > * {
+        border-color: #cbd5e1;
     }
-    .kv-stock-branch-qty {
-        color: var(--bs-body-color);
-        flex-shrink: 0;
-        font-size: 1rem;
-        font-weight: 700;
+    html[data-theme="dark"] .kv-detail-variant-expandable:hover {
+        background-color: rgba(255, 255, 255, 0.04);
     }
-    @media (max-width: 767.98px) {
-        .kv-stock-item-header {
-            grid-template-columns: auto 1fr auto;
-            grid-template-rows: auto auto;
-        }
-        .kv-stock-chevron { grid-row: 1 / span 2; }
-        .kv-stock-thumb { display: none; }
-        .kv-stock-meta { grid-column: 2; }
-        .kv-stock-price {
-            display: none;
-        }
-        .kv-stock-total {
-            grid-column: 3;
-            grid-row: 1 / span 2;
-        }
-        .kv-stock-branch-grid {
-            grid-template-columns: 1fr;
-        }
+    html[data-theme="dark"] .kv-detail-variant-expandable.kv-expanded {
+        background-color: rgba(255, 255, 255, 0.03);
     }
-    html[data-theme="dark"] .kv-stock-item {
-        border-color: rgba(255, 255, 255, 0.1);
+    html[data-theme="dark"] .kv-stock-detail-row > td {
+        background-color: rgba(255, 255, 255, 0.04);
     }
-    html[data-theme="dark"] .kv-stock-item-header:hover,
-    html[data-theme="dark"] .kv-stock-item.kv-expanded .kv-stock-item-header {
-        background: rgba(255, 255, 255, 0.04);
-    }
-    html[data-theme="dark"] .kv-stock-branches {
-        background: rgba(255, 255, 255, 0.03);
-    }
-    html[data-theme="dark"] .kv-stock-branch-card {
-        background: rgba(255, 255, 255, 0.04);
-        border-color: rgba(255, 255, 255, 0.08);
-    }
-    html[data-theme="dark"] .kv-stock-chevron {
-        background: rgba(255, 255, 255, 0.06);
-        border-color: rgba(255, 255, 255, 0.1);
+    html[data-theme="dark"] .kv-stock-subtable tbody td {
+        background: rgba(255, 255, 255, 0.02);
     }
 </style>
 <script>
 (function () {
-    function toggleVariant(header) {
-        const item = header.closest('.kv-stock-item');
-        const variantId = header.dataset.kvVariantId;
-        if (!item || !variantId) return;
-        const expanded = !item.classList.contains('kv-expanded');
-        item.classList.toggle('kv-expanded', expanded);
-        header.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-        const icon = header.querySelector('.kv-detail-expand-icon');
+    function toggleVariant(row) {
+        const variantId = row.dataset.kvVariantId;
+        if (!variantId) return;
+        const expanded = !row.classList.contains('kv-expanded');
+        row.classList.toggle('kv-expanded', expanded);
+        row.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        const icon = row.querySelector('.kv-detail-expand-icon');
         if (icon) {
-            icon.classList.toggle('bi-chevron-down', !expanded);
-            icon.classList.toggle('bi-chevron-up', expanded);
+            icon.classList.toggle('bi-chevron-right', !expanded);
+            icon.classList.toggle('bi-chevron-down', expanded);
         }
-        document.querySelectorAll('[data-kv-branches-for="' + variantId + '"]').forEach(function (panel) {
-            panel.classList.toggle('d-none', !expanded);
+        document.querySelectorAll('[data-kv-branches-for="' + variantId + '"]').forEach(function (detailRow) {
+            detailRow.classList.toggle('d-none', !expanded);
         });
     }
 
@@ -251,15 +181,15 @@
         return Boolean(target.closest('a, button, input, select, textarea, label'));
     }
 
-    document.querySelectorAll('.kv-detail-variant-expandable').forEach(function (header) {
-        header.addEventListener('click', function (event) {
+    document.querySelectorAll('.kv-detail-variant-expandable').forEach(function (row) {
+        row.addEventListener('click', function (event) {
             if (shouldIgnoreClick(event.target)) return;
-            toggleVariant(header);
+            toggleVariant(row);
         });
-        header.addEventListener('keydown', function (event) {
+        row.addEventListener('keydown', function (event) {
             if (event.key !== 'Enter' && event.key !== ' ') return;
             event.preventDefault();
-            toggleVariant(header);
+            toggleVariant(row);
         });
     });
 })();
