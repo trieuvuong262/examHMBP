@@ -1,1 +1,22 @@
 {% extends 'kiotviet/_catalog_lookup.html' %}
+
+{% block extra_head %}
+{% include 'kiotviet/_collapse_sidebar.html' %}
+<style>
+    .kv-filter-sidebar-card { max-width: 100%; }
+    .kv-product-filter-compact .form-label { font-size: 0.75rem; }
+    .kv-filter-more > summary { cursor: pointer; list-style: none; }
+    .kv-filter-more > summary::-webkit-details-marker { display: none; }
+    .kv-filter-more > summary::before {
+        content: '\F285';
+        font-family: bootstrap-icons;
+        display: inline-block;
+        margin-right: 0.35rem;
+        transition: transform 0.15s ease;
+    }
+    .kv-filter-more[open] > summary::before { transform: rotate(90deg); }
+    @media (min-width: 1200px) {
+        .kv-filter-sidebar-card { max-width: 220px; }
+    }
+</style>
+{% endblock %}

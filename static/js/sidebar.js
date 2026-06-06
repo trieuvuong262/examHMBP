@@ -79,9 +79,20 @@
         });
     }
 
+    function bindNavCollapseLinks() {
+        document.querySelectorAll('[data-jp-collapse-sidebar]').forEach(function (link) {
+            link.addEventListener('click', function () {
+                if (window.innerWidth >= 992) {
+                    setCollapsed(true);
+                }
+            });
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         bindCollapseToggle();
         bindFlyouts();
+        bindNavCollapseLinks();
         applyLinkTitles();
         setCollapsed(isCollapsed());
     });

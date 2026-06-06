@@ -344,7 +344,8 @@
                 </li>
                 <li>
                     <a href="{% url 'kiotviet:product_lookup' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'product_lookup' or request.resolver_match.url_name == 'product_detail' %}active{% endif %}">
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'product_lookup' or request.resolver_match.url_name == 'product_detail' %}active{% endif %}"
+                       data-jp-collapse-sidebar>
                         <i class="bi bi-box-seam"></i><span>Hàng hoá</span>
                     </a>
                 </li>

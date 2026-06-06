@@ -104,6 +104,8 @@ def product_lookup(request):
             query_string=query_string,
             browse_mode=browse_mode,
             items_count=len(items),
+            filter_col_class='col-12 col-xl-2 col-lg-3',
+            results_col_class='col-12 col-xl-10 col-lg-9',
         ),
     )
 
