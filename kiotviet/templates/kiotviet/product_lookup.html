@@ -3,10 +3,60 @@
 {% block extra_head %}
 {% include 'kiotviet/_collapse_sidebar.html' %}
 <style>
-    .kv-product-filter-compact .form-label { font-size: 0.8rem; }
+    .kv-product-filter-compact {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+    }
+    .kv-filter-row {
+        align-items: center;
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 0.4rem;
+        min-width: 0;
+    }
+    .kv-filter-label {
+        flex: 0 0 4.75rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        line-height: 1.2;
+        margin: 0;
+        white-space: nowrap;
+    }
+    .kv-filter-label-inline {
+        flex: 0 0 auto;
+        min-width: 2.25rem;
+        text-align: right;
+    }
+    .kv-filter-control {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+    .kv-filter-row .form-control,
+    .kv-filter-row .form-select {
+        padding-bottom: 0.2rem;
+        padding-top: 0.2rem;
+    }
+    .kv-filter-row .form-select {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .kv-filter-actions {
+        display: flex;
+        gap: 0.4rem;
+        margin-top: 0.25rem;
+    }
     @media (min-width: 992px) {
-        .kv-filter-sidebar-card .form-select,
-        .kv-filter-sidebar-card .form-control {
+        .kv-filter-sidebar-card .card-body {
+            padding: 0.65rem 0.75rem !important;
+        }
+        .kv-filter-sidebar-card .card-header {
+            padding-bottom: 0.35rem !important;
+            padding-top: 0.35rem !important;
+        }
+        .kv-filter-row .form-control,
+        .kv-filter-row .form-select {
             font-size: 0.8125rem;
         }
     }
