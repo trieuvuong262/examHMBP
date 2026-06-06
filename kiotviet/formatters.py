@@ -1,6 +1,37 @@
 """Chuẩn hóa dữ liệu KiotViet cho template."""
 
+import re
+
+import bleach
 from django.conf import settings
+from django.utils.html import escape
+from django.utils.safestring import mark_safe
+
+_DESCRIPTION_ALLOWED_TAGS = [
+    'p', 'br', 'strong', 'b', 'em', 'i', 'ul', 'ol', 'li', 'span', 'div',
+]
+_DESCRIPTION_ALLOWED_ATTRIBUTES = {
+    '*': ['class'],
+}
+
+
+def _looks_like_html(text: str) -> bool:
+    return bool(re.search(r'</?[a-z][\w-]*\b', text, re.IGNORECASE))
+
+
+def format_description_html(raw: str | None) -> str:
+    """Mô tả SP từ KiotViet — HTML an toàn hoặc xuống dòng cho text thuần."""
+    text = (raw or '').strip()
+    if not text:
+        return ''
+    if _looks_like_html(text):
+        return bleach.clean(
+            text,
+            tags=_DESCRIPTION_ALLOWED_TAGS,
+            attributes=_DESCRIPTION_ALLOWED_ATTRIBUTES,
+            strip=True,
+        )
+    return mark_safe(escape(text).replace('\n', '<br>'))
 
 
 def _detail_stock_branch_allowlist() -> tuple[str, ...]:
@@ -178,6 +209,10 @@ def _first_product_image(row: dict) -> str:
     return ''
 
 
+def _first_variant_image(variant: dict) -> str:
+    return _first_product_image(variant)
+
+
 def format_product_row(row: dict) -> dict:
     return {
         'id': row.get('id'),
@@ -303,6 +338,7 @@ def format_product_group_detail(raw: dict) -> dict:
     product_types = []
     modified_dates = []
     descriptions = []
+    total_reserved = 0.0
     for v in raw_variants:
         allows_sale = v.get('allowsSale')
         is_active = v.get('isActive')
@@ -317,6 +353,9 @@ def format_product_group_detail(raw: dict) -> dict:
             modified_dates.append(v.get('modifiedDate'))
         if (v.get('description') or '').strip():
             descriptions.append((v.get('description') or '').strip())
+        inventories = format_inventory_rows(v)
+        for inv in inventories:
+            total_reserved += float(inv.get('reserved') or 0)
         variants.append({
             'id': v.get('id'),
             'code': _dash(v.get('code')),
@@ -324,7 +363,8 @@ def format_product_group_detail(raw: dict) -> dict:
             'base_price': v.get('basePrice'),
             'bar_code': _dash(v.get('barCode')),
             'stock_total': v.get('stock_total'),
-            'inventories': format_inventory_rows(v),
+            'image_url': _first_variant_image(v),
+            'inventories': inventories,
             'attributes': v.get('attributes') or [],
             'allows_sale_status': _bool_status(allows_sale),
             'is_active_status': _bool_status(is_active),
@@ -349,6 +389,7 @@ def format_product_group_detail(raw: dict) -> dict:
         'unit': _dash(raw.get('unit')),
         'variant_count': raw.get('variant_count', 1),
         'total_on_hand': raw.get('total_on_hand'),
+        'total_reserved': total_reserved,
         'min_price': raw.get('min_price'),
         'max_price': raw.get('max_price'),
         'images': images,
@@ -360,7 +401,7 @@ def format_product_group_detail(raw: dict) -> dict:
         'has_variants_status': _aggregate_status(variant_values),
         'product_type_label': product_type_label,
         'modified_date': max(modified_dates) if modified_dates else None,
-        'description': descriptions[0] if descriptions else '—',
+        'description_html': format_description_html(descriptions[0] if descriptions else ''),
         'stock_matrix': _build_branch_stock_matrix(variants),
     }
 

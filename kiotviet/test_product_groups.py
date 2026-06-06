@@ -113,6 +113,21 @@ class ProductGroupTests(TestCase):
         self.assertEqual(groups[0].variant_count, 2)
         self.assertEqual(groups[0].total_on_hand, 3.0)
 
+    def test_unified_search_matches_code_or_name(self):
+        self._upsert_size(7624, 'SP007624', 'S', 1)
+        self._upsert_size(7625, 'SP007625', 'M', 2)
+
+        by_code, _ = browse_product_groups(
+            page=1, per_page=30, search='SP007625', retailer=self.retailer,
+        )
+        self.assertEqual(by_code[0].variant_count, 2)
+
+        by_name, total = browse_product_groups(
+            page=1, per_page=30, search='AC Milan', retailer=self.retailer,
+        )
+        self.assertEqual(total, 1)
+        self.assertEqual(by_name[0].variant_count, 2)
+
     def test_detail_shows_variants(self):
         self._upsert_size(7624, 'SP007624', 'S', 4)
         self._upsert_size(7625, 'SP007625', 'M', 6)
@@ -141,6 +156,7 @@ class ProductGroupTests(TestCase):
             'inventories': [{'branchId': 1, 'branchName': 'Chi nhánh trung tâm', 'onHand': 1}],
         })
         formatted = format_product_group_detail(get_product_group(self.retailer, 7624))
+        self.assertIn('description_html', formatted)
         self.assertEqual(formatted['allows_sale_status']['label'], 'Có')
         self.assertEqual(formatted['is_active_status']['label'], 'Có')
         self.assertEqual(formatted['product_type_label'], 'Hàng thường')

@@ -236,6 +236,7 @@ def browse_product_groups(
     page: int,
     per_page: int,
     retailer: str | None = None,
+    search: str = '',
     name: str = '',
     code: str = '',
     bar_code: str = '',
@@ -259,7 +260,25 @@ def browse_product_groups(
         offset = (max(page, 1) - 1) * per_page
         return groups[offset: offset + per_page], total
 
-    if code:
+    if search:
+        term = search.strip()
+        matched = qs.filter(
+            Q(code__iexact=term) | Q(bar_code__iexact=term),
+        ).first()
+        if matched:
+            gk = group_key(matched.name, matched.full_name)
+            products = [
+                p for p in qs
+                if group_key(p.name, p.full_name) == gk
+            ]
+            return _paginate(_build_groups_from_products(products, retailer=retailer))
+        qs = qs.filter(
+            Q(code__icontains=term)
+            | Q(name__icontains=term)
+            | Q(full_name__icontains=term)
+            | Q(bar_code__icontains=term),
+        )
+    elif code:
         term = code.strip()
         matched = qs.filter(code__iexact=term).first()
         if matched:

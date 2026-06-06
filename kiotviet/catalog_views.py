@@ -30,9 +30,6 @@ from .views import MIRROR_EMPTY_HINT
 
 @kiotviet_access_required
 def product_lookup(request):
-    search_type = (request.GET.get('type') or 'code').strip()
-    if search_type not in ('code', 'name', 'barcode'):
-        search_type = 'code'
     query = get_search_query(request)
     list_filters = parse_product_filters(request)
     items: list[dict] = []
@@ -49,25 +46,12 @@ def product_lookup(request):
         'retailer': retailer,
         'filters': list_filters,
     }
+    if query:
+        browse_kwargs['search'] = query
+    groups, total = browse_product_groups(**browse_kwargs)
+    items = [format_product_group_row(g) for g in groups]
 
-    if search_type == 'barcode' and query:
-        groups, total = browse_product_groups(
-            page=1, per_page=KV_PAGE_SIZE * 50, bar_code=query, **browse_kwargs,
-        )
-        all_matched = [format_product_group_row(g) for g in groups]
-        items, page_obj, query_string = paginate_list_items(request, all_matched)
-        total = len(all_matched)
-    else:
-        search_kwargs = {}
-        if query:
-            if search_type == 'code':
-                search_kwargs['code'] = query
-            else:
-                search_kwargs['name'] = query
-        groups, total = browse_product_groups(**browse_kwargs, **search_kwargs)
-        items = [format_product_group_row(g) for g in groups]
-
-    if total and page_obj is None and (browse_mode or query or has_active_filters):
+    if total and (browse_mode or query or has_active_filters):
         page_obj, query_string = paginate_api_meta(request, total)
 
     return render(
@@ -77,7 +61,6 @@ def product_lookup(request):
             request,
             title='Hàng hoá',
             icon='bi-box-seam',
-            search_type=search_type,
             search_query=query,
             items=items,
             total=total,
@@ -95,11 +78,6 @@ def product_lookup(request):
             sort_options=SORT_OPTIONS,
             has_active_filters=has_active_filters,
             default_active_only=True,
-            type_options=(
-                ('code', 'Mã hàng hóa'),
-                ('name', 'Tên hàng hóa'),
-                ('barcode', 'Mã vạch'),
-            ),
             page_obj=page_obj,
             query_string=query_string,
             browse_mode=browse_mode,
