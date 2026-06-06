@@ -48,30 +48,6 @@
         object-fit: cover;
         width: 56px;
     }
-    .kv-detail-tabs {
-        border-bottom: 1px solid var(--bs-border-color);
-        gap: 0.25rem;
-    }
-    .kv-detail-tabs .nav-link {
-        border: 1px solid transparent;
-        border-radius: 0.5rem 0.5rem 0 0;
-        color: var(--bs-secondary-color);
-        font-weight: 600;
-        margin-bottom: -1px;
-    }
-    .kv-detail-tabs .nav-link:hover {
-        background: var(--hm-primary-soft, #fef2f2) !important;
-        border-color: rgba(220, 38, 38, 0.25) !important;
-        color: var(--hm-primary) !important;
-    }
-    .kv-detail-tabs .nav-link.active,
-    .kv-detail-tabs .nav-link.active:hover {
-        background: var(--hm-primary) !important;
-        border-color: var(--hm-primary) !important;
-        box-shadow: none !important;
-        color: #fff !important;
-        font-weight: 700;
-    }
     .kv-variant-thumb {
         height: 40px;
         object-fit: cover;
@@ -100,7 +76,7 @@
         </p>
     </div>
 
-    <div class="row g-3 mb-3">
+    <div class="row g-3 mb-3 align-items-stretch">
         <div class="col-lg-4">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body p-3">
@@ -141,6 +117,107 @@
         </div>
 
         <div class="col-lg-8">
+            {% if product.is_group %}
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 pb-0 pt-3 px-3">
+                    <ul class="nav nav-tabs jp-perm-tabs flex-wrap gap-2 border-0" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="kv-tab-variants-btn"
+                                    data-bs-toggle="tab" data-bs-target="#kvTabVariants"
+                                    type="button" role="tab" aria-controls="kvTabVariants" aria-selected="true">
+                                Theo size / mã
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="kv-tab-stock-btn"
+                                    data-bs-toggle="tab" data-bs-target="#kvTabStock"
+                                    type="button" role="tab" aria-controls="kvTabStock" aria-selected="false">
+                                Tồn chi nhánh
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="kvTabVariants" role="tabpanel" aria-labelledby="kv-tab-variants-btn">
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0 jp-table-mobile-stack">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="d-none d-md-table-cell" style="width:3.5rem;"></th>
+                                        <th>Mã hàng</th>
+                                        <th>Size</th>
+                                        <th class="d-none d-md-table-cell">Mã vạch</th>
+                                        <th class="text-end">Giá</th>
+                                        <th class="text-end">Tồn</th>
+                                        <th class="d-none d-lg-table-cell">Cho phép bán</th>
+                                        <th class="d-none d-lg-table-cell">Đang KD</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for v in product.variants %}
+                                    <tr>
+                                        <td class="d-none d-md-table-cell" data-label="">
+                                            {% if v.image_url %}
+                                            <button type="button"
+                                                    class="btn p-0 border-0 bg-transparent"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#kvProductImageModal"
+                                                    data-image-url="{{ v.image_url }}"
+                                                    aria-label="{{ v.code }}">
+                                                <img src="{{ v.image_url }}" alt="" class="rounded border kv-variant-thumb">
+                                            </button>
+                                            {% else %}
+                                            <span class="text-muted small">—</span>
+                                            {% endif %}
+                                        </td>
+                                        <td data-label="Mã"><code>{{ v.code }}</code></td>
+                                        <td data-label="Size">{{ v.size_label }}</td>
+                                        <td data-label="Mã vạch" class="d-none d-md-table-cell">{{ v.bar_code }}</td>
+                                        <td data-label="Giá" class="text-end">
+                                            {% if v.base_price is not None %}{{ v.base_price|floatformat:0|intcomma }}{% else %}—{% endif %}
+                                        </td>
+                                        <td data-label="Tồn" class="text-end fw-semibold">{{ v.stock_total|floatformat:0|intcomma }}</td>
+                                        <td data-label="Cho phép bán" class="d-none d-lg-table-cell">
+                                            <span class="badge {{ v.allows_sale_status.badge_class }}">{{ v.allows_sale_status.label }}</span>
+                                        </td>
+                                        <td data-label="Đang KD" class="d-none d-lg-table-cell">
+                                            <span class="badge {{ v.is_active_status.badge_class }}">{{ v.is_active_status.label }}</span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="kvTabStock" role="tabpanel" aria-labelledby="kv-tab-stock-btn">
+                        {% include 'kiotviet/_product_detail_stock_matrix.html' %}
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white fw-bold border-0 pb-0 pt-3">Tồn kho theo chi nhánh</div>
+                {% include 'kiotviet/_product_detail_stock_matrix.html' %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row g-3 align-items-stretch">
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white fw-bold border-0 pb-0 pt-3">Mô tả</div>
+                <div class="card-body kv-product-description pt-2">
+                    {% if product.description_html %}
+                    {{ product.description_html|safe }}
+                    {% else %}
+                    <p class="text-muted small mb-0">Chưa có mô tả.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
                     <div class="row g-2 g-md-3 mb-3">
@@ -222,99 +299,6 @@
             </div>
         </div>
     </div>
-
-    {% if product.description_html %}
-    <div class="card border-0 shadow-sm mb-3">
-        <div class="card-header bg-white fw-bold border-0 pb-0 pt-3">Mô tả</div>
-        <div class="card-body kv-product-description pt-2">
-            {{ product.description_html|safe }}
-        </div>
-    </div>
-    {% endif %}
-
-    {% if product.is_group %}
-    <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white border-0 pb-0 pt-3 px-3">
-            <ul class="nav nav-tabs kv-detail-tabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="kv-tab-variants-btn"
-                            data-bs-toggle="tab" data-bs-target="#kvTabVariants"
-                            type="button" role="tab" aria-controls="kvTabVariants" aria-selected="true">
-                        Theo size / mã
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="kv-tab-stock-btn"
-                            data-bs-toggle="tab" data-bs-target="#kvTabStock"
-                            type="button" role="tab" aria-controls="kvTabStock" aria-selected="false">
-                        Tồn chi nhánh
-                    </button>
-                </li>
-            </ul>
-        </div>
-        <div class="tab-content">
-            <div class="tab-pane fade show active" id="kvTabVariants" role="tabpanel" aria-labelledby="kv-tab-variants-btn">
-                <div class="table-responsive">
-                    <table class="table table-sm align-middle mb-0 jp-table-mobile-stack">
-                        <thead class="table-light">
-                            <tr>
-                                <th class="d-none d-md-table-cell" style="width:3.5rem;"></th>
-                                <th>Mã hàng</th>
-                                <th>Size</th>
-                                <th class="d-none d-md-table-cell">Mã vạch</th>
-                                <th class="text-end">Giá</th>
-                                <th class="text-end">Tồn</th>
-                                <th class="d-none d-lg-table-cell">Cho phép bán</th>
-                                <th class="d-none d-lg-table-cell">Đang KD</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for v in product.variants %}
-                            <tr>
-                                <td class="d-none d-md-table-cell" data-label="">
-                                    {% if v.image_url %}
-                                    <button type="button"
-                                            class="btn p-0 border-0 bg-transparent"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#kvProductImageModal"
-                                            data-image-url="{{ v.image_url }}"
-                                            aria-label="{{ v.code }}">
-                                        <img src="{{ v.image_url }}" alt="" class="rounded border kv-variant-thumb">
-                                    </button>
-                                    {% else %}
-                                    <span class="text-muted small">—</span>
-                                    {% endif %}
-                                </td>
-                                <td data-label="Mã"><code>{{ v.code }}</code></td>
-                                <td data-label="Size">{{ v.size_label }}</td>
-                                <td data-label="Mã vạch" class="d-none d-md-table-cell">{{ v.bar_code }}</td>
-                                <td data-label="Giá" class="text-end">
-                                    {% if v.base_price is not None %}{{ v.base_price|floatformat:0|intcomma }}{% else %}—{% endif %}
-                                </td>
-                                <td data-label="Tồn" class="text-end fw-semibold">{{ v.stock_total|floatformat:0|intcomma }}</td>
-                                <td data-label="Cho phép bán" class="d-none d-lg-table-cell">
-                                    <span class="badge {{ v.allows_sale_status.badge_class }}">{{ v.allows_sale_status.label }}</span>
-                                </td>
-                                <td data-label="Đang KD" class="d-none d-lg-table-cell">
-                                    <span class="badge {{ v.is_active_status.badge_class }}">{{ v.is_active_status.label }}</span>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="tab-pane fade" id="kvTabStock" role="tabpanel" aria-labelledby="kv-tab-stock-btn">
-                {% include 'kiotviet/_product_detail_stock_matrix.html' %}
-            </div>
-        </div>
-    </div>
-    {% else %}
-    <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white fw-bold">Tồn kho theo chi nhánh</div>
-        {% include 'kiotviet/_product_detail_stock_matrix.html' %}
-    </div>
-    {% endif %}
 </div>
 
 {% if product.images or product.is_group %}
