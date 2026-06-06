@@ -1,0 +1,125 @@
+{% load humanize %}
+<div class="table-responsive">
+    <table class="table table-sm align-middle mb-0 jp-table-mobile-stack" id="kvDetailVariantStockTable">
+        <thead class="table-light">
+            <tr>
+                <th style="width:2.25rem;" class="px-1"></th>
+                <th class="d-none d-md-table-cell" style="width:3.5rem;"></th>
+                <th>Mã hàng</th>
+                <th>Size</th>
+                <th class="d-none d-md-table-cell">Mã vạch</th>
+                <th class="text-end">Giá</th>
+                <th class="text-end">Tồn</th>
+                <th class="d-none d-lg-table-cell">Đang KD</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for v in product.variants %}
+            <tr class="kv-detail-variant-expandable"
+                data-kv-variant-id="{{ v.id }}"
+                role="button"
+                tabindex="0"
+                aria-expanded="false">
+                <td class="px-1 text-center text-muted" data-label="">
+                    <i class="bi bi-chevron-down kv-detail-expand-icon small" aria-hidden="true"></i>
+                </td>
+                <td class="d-none d-md-table-cell" data-label="">
+                    {% if v.image_url %}
+                    <button type="button"
+                            class="btn p-0 border-0 bg-transparent"
+                            data-bs-toggle="modal"
+                            data-bs-target="#kvProductImageModal"
+                            data-image-url="{{ v.image_url }}"
+                            aria-label="{{ v.code }}">
+                        <img src="{{ v.image_url }}" alt="" class="rounded border kv-variant-thumb">
+                    </button>
+                    {% else %}
+                    <span class="text-muted small">—</span>
+                    {% endif %}
+                </td>
+                <td data-label="Mã"><code>{{ v.code }}</code></td>
+                <td data-label="Size">{{ v.size_label }}</td>
+                <td data-label="Mã vạch" class="d-none d-md-table-cell">{{ v.bar_code }}</td>
+                <td data-label="Giá" class="text-end">
+                    {% if v.base_price is not None %}{{ v.base_price|floatformat:0|intcomma }}{% else %}—{% endif %}
+                </td>
+                <td data-label="Tồn" class="text-end fw-semibold">{{ v.stock_total|floatformat:0|intcomma }}</td>
+                <td data-label="Đang KD" class="d-none d-lg-table-cell">
+                    <span class="badge {{ v.is_active_status.badge_class }}">{{ v.is_active_status.label }}</span>
+                </td>
+            </tr>
+            <tr class="kv-detail-branch-row d-none" data-kv-branches-for="{{ v.id }}">
+                <td colspan="8" class="p-0 border-0">
+                    {% if v.branch_stocks %}
+                    <table class="table table-sm mb-0 kv-detail-branch-table">
+                        <thead>
+                            <tr class="small text-muted">
+                                <th class="ps-4">Chi nhánh</th>
+                                <th class="text-end pe-3">Tồn</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for br in v.branch_stocks %}
+                            <tr>
+                                <td class="ps-4" data-label="Chi nhánh">{{ br.branch_name }}</td>
+                                <td class="text-end pe-3 fw-semibold" data-label="Tồn">
+                                    {% if br.on_hand is not None %}{{ br.on_hand|floatformat:0|intcomma }}{% else %}—{% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="text-muted small py-2 ps-4">Không có dữ liệu tồn theo chi nhánh.</div>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<style>
+    .kv-detail-variant-expandable { cursor: pointer; }
+    .kv-detail-variant-expandable.kv-expanded { background-color: rgba(220, 38, 38, 0.04); }
+    .kv-detail-branch-row > td { background-color: #f8f9fa; }
+    .kv-detail-branch-table td,
+    .kv-detail-branch-table th { border-top: none; font-size: 0.875rem; }
+    .kv-detail-branch-row td { box-shadow: inset 3px 0 0 #dc2626; }
+    html[data-theme="dark"] .kv-detail-variant-expandable.kv-expanded { background-color: rgba(255, 255, 255, 0.03); }
+    html[data-theme="dark"] .kv-detail-branch-row > td { background-color: rgba(255, 255, 255, 0.04); }
+</style>
+<script>
+(function () {
+    function toggleVariant(row) {
+        const variantId = row.dataset.kvVariantId;
+        if (!variantId) return;
+        const expanded = !row.classList.contains('kv-expanded');
+        row.classList.toggle('kv-expanded', expanded);
+        row.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        const icon = row.querySelector('.kv-detail-expand-icon');
+        if (icon) {
+            icon.classList.toggle('bi-chevron-down', !expanded);
+            icon.classList.toggle('bi-chevron-up', expanded);
+        }
+        document.querySelectorAll('[data-kv-branches-for="' + variantId + '"]').forEach(function (branchRow) {
+            branchRow.classList.toggle('d-none', !expanded);
+        });
+    }
+
+    function shouldIgnoreClick(target) {
+        return Boolean(target.closest('a, button, input, select, textarea, label'));
+    }
+
+    document.querySelectorAll('.kv-detail-variant-expandable').forEach(function (row) {
+        row.addEventListener('click', function (event) {
+            if (shouldIgnoreClick(event.target)) return;
+            toggleVariant(row);
+        });
+        row.addEventListener('keydown', function (event) {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            toggleVariant(row);
+        });
+    });
+})();
+</script>

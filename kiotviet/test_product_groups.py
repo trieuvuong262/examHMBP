@@ -191,6 +191,24 @@ class ProductGroupTests(TestCase):
         self.assertEqual(names, ['Chi nhánh trung tâm', 'Xưởng sản xuất', 'Đơn sản xuất'])
         self.assertEqual(sum(row['on_hand'] for row in matrix['rows']), 17.0)
 
+    def test_variant_branch_stocks_filters_configured_branches(self):
+        upsert_product(self.retailer, {
+            'id': 7624,
+            'code': 'SP007624',
+            'name': self.style_name,
+            'isActive': True,
+            'basePrice': 350000,
+            'modifiedDate': '2024-03-01T08:00:00',
+            'inventories': [
+                {'branchId': 1, 'branchName': 'Chi nhánh trung tâm', 'onHand': 10},
+                {'branchId': 2, 'branchName': 'Kho bán hàng', 'onHand': 99},
+                {'branchId': 3, 'branchName': 'Xưởng sản xuất', 'onHand': 5},
+            ],
+        })
+        stocks = format_product_group_detail(get_product_group(self.retailer, 7624))['variants'][0]['branch_stocks']
+        self.assertEqual([row['branch_name'] for row in stocks], ['Chi nhánh trung tâm', 'Xưởng sản xuất'])
+        self.assertEqual(stocks[0]['on_hand'], 10)
+
     def test_list_row_includes_statuses(self):
         upsert_product(self.retailer, {
             'id': 7624,

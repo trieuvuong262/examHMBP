@@ -58,6 +58,22 @@ def _detail_stock_branch_sort_key(branch_name: str, allowed: tuple[str, ...]) ->
     return len(allowed)
 
 
+def _variant_branch_stocks(inventories: list[dict]) -> list[dict]:
+    allowed = _detail_stock_branch_allowlist()
+    rows = []
+    for inv in inventories:
+        branch_name = inv.get('branch_name') or '—'
+        if not _branch_allowed_for_detail_stock(branch_name, allowed):
+            continue
+        rows.append({
+            'branch_name': branch_name,
+            'on_hand': inv.get('on_hand'),
+            'cost': inv.get('cost'),
+        })
+    rows.sort(key=lambda row: _detail_stock_branch_sort_key(row['branch_name'], allowed))
+    return rows
+
+
 def format_customer_row(row: dict) -> dict:
     gender = row.get('gender')
     if gender is True:
@@ -365,6 +381,7 @@ def format_product_group_detail(raw: dict) -> dict:
             'stock_total': v.get('stock_total'),
             'image_url': _first_variant_image(v),
             'inventories': inventories,
+            'branch_stocks': _variant_branch_stocks(inventories),
             'attributes': v.get('attributes') or [],
             'allows_sale_status': _bool_status(allows_sale),
             'is_active_status': _bool_status(is_active),
