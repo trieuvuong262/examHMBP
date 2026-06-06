@@ -92,6 +92,7 @@ class ProductGroupVariant:
     on_hand: float = 0.0
     reserved: float = 0.0
     base_price: float | None = None
+    image_url: str = ''
 
 
 @dataclass
@@ -128,6 +129,10 @@ def _build_group_variants(
         product_id = product.kiotviet_id
         inventory = inventory_by_id.get(product_id, {})
         size_label = _size_label(attrs_map.get(product_id, []))
+        image_url = next(
+            (url for url in (product.image_urls or []) if url),
+            '',
+        )
         rows.append(ProductGroupVariant(
             id=product_id,
             code=(product.code or '').strip(),
@@ -135,6 +140,7 @@ def _build_group_variants(
             on_hand=inventory.get('on_hand', 0.0),
             reserved=inventory.get('reserved', 0.0),
             base_price=float(product.base_price) if product.base_price is not None else None,
+            image_url=image_url,
         ))
     return rows
 

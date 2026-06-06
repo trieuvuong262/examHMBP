@@ -66,7 +66,9 @@
                         {% endif %}
                     </td>
                     <td data-label="Mã">
-                        {% if item.id and detail_url_name %}
+                        {% if item.is_group %}
+                        <code class="kv-group-expand-label text-hm">{{ item.code }}</code>
+                        {% elif item.id and detail_url_name %}
                         <a href="{% url detail_url_name item.id %}" class="text-decoration-none">
                             <code>{{ item.code }}</code>
                         </a>
@@ -75,11 +77,11 @@
                         {% endif %}
                     </td>
                     <td data-label="Tên">
-                        {% if item.id and detail_url_name %}
-                        <a href="{% url detail_url_name item.id %}" class="text-decoration-none fw-semibold text-hm">{{ item.name }}</a>
                         {% if item.is_group %}
+                        <span class="kv-group-expand-label fw-semibold text-hm">{{ item.name }}</span>
                         <span class="badge bg-light text-muted border ms-1">{{ item.variant_count }} size</span>
-                        {% endif %}
+                        {% elif item.id and detail_url_name %}
+                        <a href="{% url detail_url_name item.id %}" class="text-decoration-none fw-semibold text-hm">{{ item.name }}</a>
                         {% else %}
                         {{ item.name }}
                         {% endif %}
@@ -121,18 +123,25 @@
                 {% for variant in item.variants %}
                 <tr class="kv-product-variant-row d-none" data-kv-variants-for="{{ item.id }}">
                     <td class="px-1"></td>
-                    <td class="d-none d-md-table-cell"></td>
-                    <td data-label="Mã" class="ps-md-4">
-                        {% if variant.id and detail_url_name %}
-                        <a href="{% url detail_url_name variant.id %}" class="text-decoration-none">
-                            <code>{{ variant.code }}</code>
-                        </a>
+                    <td class="d-none d-md-table-cell">
+                        {% if variant.image_url %}
+                        <img src="{{ variant.image_url }}" alt="" class="rounded border"
+                             style="width:40px;height:40px;object-fit:cover;">
                         {% else %}
-                        <code>{{ variant.code }}</code>
+                        <span class="text-muted small">—</span>
                         {% endif %}
                     </td>
+                    <td data-label="Mã" class="ps-md-4">
+                        <code>{{ variant.code }}</code>
+                    </td>
                     <td data-label="Size">
-                        <span class="badge bg-light text-dark border">Size {{ variant.size_label }}</span>
+                        <div class="d-flex align-items-center gap-2">
+                            {% if variant.image_url %}
+                            <img src="{{ variant.image_url }}" alt="" class="rounded border d-md-none flex-shrink-0"
+                                 style="width:36px;height:36px;object-fit:cover;">
+                            {% endif %}
+                            <span class="badge bg-light text-dark border">Size {{ variant.size_label }}</span>
+                        </div>
                     </td>
                     <td class="d-none d-md-table-cell text-muted small">—</td>
                     <td class="d-none d-lg-table-cell text-muted small">{{ item.unit }}</td>
@@ -145,11 +154,7 @@
                     <td data-label="Giá" class="text-end">
                         {% if variant.base_price is not None %}{{ variant.base_price|floatformat:0|intcomma }}{% else %}—{% endif %}
                     </td>
-                    <td class="text-end">
-                        {% if variant.id and detail_url_name %}
-                        <a href="{% url detail_url_name variant.id %}" class="btn btn-sm btn-link text-decoration-none px-0">Chi tiết</a>
-                        {% endif %}
-                    </td>
+                    <td class="text-end"></td>
                 </tr>
                 {% endfor %}
                 {% endif %}
@@ -162,6 +167,8 @@
 <style>
     .kv-product-group-expandable { cursor: pointer; }
     .kv-product-group-expandable.kv-expanded { background-color: rgba(220, 38, 38, 0.04); }
+    .kv-group-expand-label { cursor: pointer; }
+    .kv-group-expand-label:hover { text-decoration: underline; }
     .kv-product-variant-row td {
         background-color: #f8f9fa;
         font-size: 0.875rem;
@@ -192,7 +199,7 @@
     }
 
     function shouldIgnoreClick(target) {
-        return Boolean(target.closest('a, button, input, select, textarea, label'));
+        return Boolean(target.closest('a.btn, button, input, select, textarea, label'));
     }
 
     document.querySelectorAll('.kv-product-group-expandable').forEach(function (row) {
@@ -200,8 +207,15 @@
             if (shouldIgnoreClick(event.target)) return;
             toggleGroup(row);
         });
+        row.querySelectorAll('.kv-group-expand-label').forEach(function (label) {
+            label.addEventListener('click', function (event) {
+                event.stopPropagation();
+                toggleGroup(row);
+            });
+        });
         row.addEventListener('keydown', function (event) {
             if (event.key !== 'Enter' && event.key !== ' ') return;
+            if (event.target.closest('a.btn')) return;
             event.preventDefault();
             toggleGroup(row);
         });

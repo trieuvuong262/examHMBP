@@ -230,6 +230,7 @@ def format_product_group_row(group) -> dict:
                 'on_hand': variant.on_hand,
                 'reserved': variant.reserved,
                 'base_price': variant.base_price,
+                'image_url': variant.image_url or '',
             }
             for variant in (group.variants or [])
         ],

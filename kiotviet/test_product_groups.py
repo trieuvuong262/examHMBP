@@ -100,6 +100,7 @@ class ProductGroupTests(TestCase):
         self.assertEqual(row['variants'][0]['on_hand'], 10.0)
         self.assertEqual(row['variants'][0]['reserved'], 3.0)
         self.assertEqual(row['variants'][1]['base_price'], 350000.0)
+        self.assertIn('image_url', row['variants'][0])
 
     def test_lookup_by_code_returns_whole_group(self):
         self._upsert_size(7624, 'SP007624', 'S', 1)
