@@ -171,7 +171,6 @@
                         {% endfor %}
                         {% endif %}
                         <th class="text-end">Tồn</th>
-                        <th class="text-end">Đặt</th>
                         {% if not product.stock_matrix.show_size_columns %}
                         <th class="text-end d-none d-md-table-cell">Giá vốn</th>
                         {% endif %}
@@ -189,7 +188,6 @@
                         {% endfor %}
                         {% endif %}
                         <td data-label="Tồn" class="text-end fw-semibold">{{ row.on_hand|floatformat:0|intcomma }}</td>
-                        <td data-label="Đặt" class="text-end">{{ row.reserved|floatformat:0|intcomma }}</td>
                         {% if not product.stock_matrix.show_size_columns %}
                         <td data-label="Giá vốn" class="text-end d-none d-md-table-cell">
                             {% if row.cost is not None %}{{ row.cost|floatformat:0|intcomma }}{% else %}—{% endif %}

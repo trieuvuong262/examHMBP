@@ -53,7 +53,7 @@ def _product_attrs_map(retailer: str, product_ids: list[int]) -> dict[int, list[
     return dict(result)
 
 
-def _stock_totals(retailer: str, product_ids: list[int]) -> dict[int, float]:
+def _inventory_totals(retailer: str, product_ids: list[int]) -> dict[int, dict[str, float]]:
     if not product_ids:
         return {}
     rows = (
@@ -63,12 +63,35 @@ def _stock_totals(retailer: str, product_ids: list[int]) -> dict[int, float]:
             is_deleted=False,
         )
         .values('product_kiotviet_id')
-        .annotate(total=Sum('on_hand'))
+        .annotate(
+            on_hand_total=Sum('on_hand'),
+            reserved_total=Sum('reserved'),
+        )
     )
     return {
-        int(row['product_kiotviet_id']): float(row['total'] or 0)
+        int(row['product_kiotviet_id']): {
+            'on_hand': float(row['on_hand_total'] or 0),
+            'reserved': float(row['reserved_total'] or 0),
+        }
         for row in rows
     }
+
+
+def _stock_totals(retailer: str, product_ids: list[int]) -> dict[int, float]:
+    return {
+        product_id: values['on_hand']
+        for product_id, values in _inventory_totals(retailer, product_ids).items()
+    }
+
+
+@dataclass
+class ProductGroupVariant:
+    id: int
+    code: str
+    size_label: str
+    on_hand: float = 0.0
+    reserved: float = 0.0
+    base_price: float | None = None
 
 
 @dataclass
@@ -85,11 +108,35 @@ class ProductGroup:
     image_urls: list[str] = field(default_factory=list)
     variant_ids: list[int] = field(default_factory=list)
     codes: list[str] = field(default_factory=list)
+    variants: list[ProductGroupVariant] = field(default_factory=list)
     total_on_hand: float = 0.0
+    total_reserved: float = 0.0
     min_price: float | None = None
     max_price: float | None = None
     allows_sale_values: list = field(default_factory=list)
     is_active_values: list = field(default_factory=list)
+
+
+def _build_group_variants(
+    variants: list[KvProduct],
+    *,
+    attrs_map: dict[int, list[dict]],
+    inventory_by_id: dict[int, dict[str, float]],
+) -> list[ProductGroupVariant]:
+    rows: list[ProductGroupVariant] = []
+    for product in variants:
+        product_id = product.kiotviet_id
+        inventory = inventory_by_id.get(product_id, {})
+        size_label = _size_label(attrs_map.get(product_id, []))
+        rows.append(ProductGroupVariant(
+            id=product_id,
+            code=(product.code or '').strip(),
+            size_label=size_label or '—',
+            on_hand=inventory.get('on_hand', 0.0),
+            reserved=inventory.get('reserved', 0.0),
+            base_price=float(product.base_price) if product.base_price is not None else None,
+        ))
+    return rows
 
 
 def _resolve_group_category(
@@ -125,7 +172,8 @@ def _build_groups_from_products(
         buckets[group_key(product.name, product.full_name)].append(product)
 
     all_ids = [p.kiotviet_id for p in products]
-    stock_by_id = _stock_totals(retailer, all_ids)
+    inventory_by_id = _inventory_totals(retailer, all_ids)
+    attrs_map = _product_attrs_map(retailer, all_ids)
     category_resolver = CategoryPathResolver(retailer)
 
     groups: list[ProductGroup] = []
@@ -157,7 +205,17 @@ def _build_groups_from_products(
             image_urls=images,
             variant_ids=variant_ids,
             codes=[p.code for p in variants if p.code],
-            total_on_hand=sum(stock_by_id.get(vid, 0.0) for vid in variant_ids),
+            variants=_build_group_variants(
+                variants,
+                attrs_map=attrs_map,
+                inventory_by_id=inventory_by_id,
+            ),
+            total_on_hand=sum(
+                inventory_by_id.get(vid, {}).get('on_hand', 0.0) for vid in variant_ids
+            ),
+            total_reserved=sum(
+                inventory_by_id.get(vid, {}).get('reserved', 0.0) for vid in variant_ids
+            ),
             min_price=min(prices) if prices else None,
             max_price=max(prices) if prices else None,
             allows_sale_values=[p.allows_sale for p in variants],

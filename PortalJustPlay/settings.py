@@ -377,6 +377,11 @@ KIOTVIET_USE_LOCAL_MIRROR = env_bool('KIOTVIET_USE_LOCAL_MIRROR', True)
 KIOTVIET_SYNC_PAGE_SIZE = int(os.getenv('KIOTVIET_SYNC_PAGE_SIZE', '100') or '100')
 KIOTVIET_API_TIMEOUT = int(os.getenv('KIOTVIET_API_TIMEOUT', '90') or '90')
 KIOTVIET_API_TIMEOUT_ORDERS = int(os.getenv('KIOTVIET_API_TIMEOUT_ORDERS', '180') or '180')
+# Chi nhánh hiển thị trong bảng tồn kho chi tiết hàng hóa (phân tách bằng dấu phẩy)
+KIOTVIET_DETAIL_STOCK_BRANCHES = os.getenv(
+    'KIOTVIET_DETAIL_STOCK_BRANCHES',
+    'Chi nhánh trung tâm,Xưởng sản xuất,Đơn sản xuất',
+).strip()
 
 # NAS (Synology qua Tailscale + rclone mount trên VPS)
 NAS_MOUNT_ROOT = os.getenv('NAS_MOUNT_ROOT', '/mnt/nas-portal')

@@ -1,5 +1,31 @@
 """Chuẩn hóa dữ liệu KiotViet cho template."""
 
+from django.conf import settings
+
+
+def _detail_stock_branch_allowlist() -> tuple[str, ...]:
+    raw = (getattr(settings, 'KIOTVIET_DETAIL_STOCK_BRANCHES', '') or '').strip()
+    if not raw:
+        return (
+            'Chi nhánh trung tâm',
+            'Xưởng sản xuất',
+            'Đơn sản xuất',
+        )
+    return tuple(part.strip() for part in raw.split(',') if part.strip())
+
+
+def _branch_allowed_for_detail_stock(branch_name: str, allowed: tuple[str, ...]) -> bool:
+    normalized = (branch_name or '').strip().casefold()
+    return any(normalized == name.strip().casefold() for name in allowed)
+
+
+def _detail_stock_branch_sort_key(branch_name: str, allowed: tuple[str, ...]) -> int:
+    normalized = (branch_name or '').strip().casefold()
+    for index, name in enumerate(allowed):
+        if normalized == name.strip().casefold():
+            return index
+    return len(allowed)
+
 
 def format_customer_row(row: dict) -> dict:
     gender = row.get('gender')
@@ -195,6 +221,18 @@ def format_product_group_row(group) -> dict:
         'image_url': image_url,
         'variant_count': group.variant_count,
         'total_on_hand': group.total_on_hand,
+        'total_reserved': group.total_reserved,
+        'variants': [
+            {
+                'id': variant.id,
+                'code': _dash(variant.code) if variant.code else '—',
+                'size_label': variant.size_label,
+                'on_hand': variant.on_hand,
+                'reserved': variant.reserved,
+                'base_price': variant.base_price,
+            }
+            for variant in (group.variants or [])
+        ],
         'is_group': group.variant_count > 1,
         'allows_sale_status': _aggregate_status(group.allows_sale_values),
         'is_active_status': _aggregate_status(group.is_active_values),
@@ -203,6 +241,7 @@ def format_product_group_row(group) -> dict:
 
 def _build_branch_stock_matrix(variants: list[dict]) -> dict:
     """Gộp tồn theo chi nhánh; nhóm nhiều size thì thêm cột theo size."""
+    allowed_branches = _detail_stock_branch_allowlist()
     show_size_columns = len(variants) > 1
     columns = []
     if show_size_columns:
@@ -217,6 +256,8 @@ def _build_branch_stock_matrix(variants: list[dict]) -> dict:
         code = variant.get('code') or '—'
         for inv in variant.get('inventories') or []:
             branch_name = inv.get('branch_name') or '—'
+            if not _branch_allowed_for_detail_stock(branch_name, allowed_branches):
+                continue
             bucket = branch_map.setdefault(branch_name, {
                 'cells': {},
                 'on_hand': 0.0,
@@ -232,13 +273,15 @@ def _build_branch_stock_matrix(variants: list[dict]) -> dict:
                 bucket['cost'] = inv.get('cost')
 
     rows = []
-    for branch_name in sorted(branch_map.keys(), key=lambda value: value.casefold()):
+    for branch_name in sorted(
+        branch_map.keys(),
+        key=lambda value: _detail_stock_branch_sort_key(value, allowed_branches),
+    ):
         bucket = branch_map[branch_name]
         rows.append({
             'branch_name': branch_name,
             'cells': [bucket['cells'].get(col['code']) for col in columns],
             'on_hand': bucket['on_hand'],
-            'reserved': bucket['reserved'],
             'cost': bucket.get('cost'),
         })
 

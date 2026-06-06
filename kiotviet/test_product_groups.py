@@ -34,9 +34,31 @@ class ProductGroupTests(TestCase):
             }],
             'inventories': [{
                 'branchId': 1,
-                'branchName': 'Chi nhánh 1',
+                'branchName': 'Chi nhánh trung tâm',
                 'onHand': on_hand,
                 'reserved': 0,
+            }],
+        })
+
+    def _upsert_size_with_reserved(
+        self, kid: int, code: str, size: str, on_hand: float, reserved: float = 0,
+    ) -> None:
+        upsert_product(self.retailer, {
+            'id': kid,
+            'code': code,
+            'name': self.style_name,
+            'isActive': True,
+            'basePrice': 350000,
+            'modifiedDate': '2024-03-01T08:00:00',
+            'attributes': [{
+                'attributeName': 'Size',
+                'attributeValue': size,
+            }],
+            'inventories': [{
+                'branchId': 1,
+                'branchName': 'Chi nhánh trung tâm',
+                'onHand': on_hand,
+                'reserved': reserved,
             }],
         })
 
@@ -53,6 +75,31 @@ class ProductGroupTests(TestCase):
         self.assertEqual(group.variant_count, 3)
         self.assertEqual(group.total_on_hand, 10.0)
         self.assertEqual(set(group.codes), {'SP007624', 'SP007625', 'SP007626'})
+
+    def test_list_row_includes_total_reserved(self):
+        self._upsert_size_with_reserved(7624, 'SP007624', 'S', 10, reserved=3)
+        self._upsert_size_with_reserved(7625, 'SP007625', 'M', 5, reserved=2)
+
+        groups, _ = browse_product_groups(page=1, per_page=30, retailer=self.retailer)
+        row = format_product_group_row(groups[0])
+        self.assertEqual(groups[0].total_reserved, 5.0)
+        self.assertEqual(row['total_reserved'], 5.0)
+
+    def test_list_row_includes_variants_for_expand(self):
+        self._upsert_size_with_reserved(7624, 'SP007624', 'S', 10, reserved=3)
+        self._upsert_size_with_reserved(7625, 'SP007625', 'M', 5, reserved=2)
+
+        groups, _ = browse_product_groups(page=1, per_page=30, retailer=self.retailer)
+        group = groups[0]
+        row = format_product_group_row(group)
+
+        self.assertEqual(len(group.variants), 2)
+        self.assertEqual(len(row['variants']), 2)
+        self.assertTrue(row['is_group'])
+        self.assertEqual(row['variants'][0]['size_label'], 'S')
+        self.assertEqual(row['variants'][0]['on_hand'], 10.0)
+        self.assertEqual(row['variants'][0]['reserved'], 3.0)
+        self.assertEqual(row['variants'][1]['base_price'], 350000.0)
 
     def test_lookup_by_code_returns_whole_group(self):
         self._upsert_size(7624, 'SP007624', 'S', 1)
@@ -90,7 +137,7 @@ class ProductGroupTests(TestCase):
             'basePrice': 350000,
             'modifiedDate': '2024-03-01T08:00:00',
             'attributes': [{'attributeName': 'Size', 'attributeValue': 'S'}],
-            'inventories': [{'branchId': 1, 'branchName': 'CN1', 'onHand': 1}],
+            'inventories': [{'branchId': 1, 'branchName': 'Chi nhánh trung tâm', 'onHand': 1}],
         })
         formatted = format_product_group_detail(get_product_group(self.retailer, 7624))
         self.assertEqual(formatted['allows_sale_status']['label'], 'Có')
@@ -107,6 +154,26 @@ class ProductGroupTests(TestCase):
         self.assertEqual(len(matrix['columns']), 2)
         self.assertEqual(matrix['rows'][0]['on_hand'], 7.0)
 
+    def test_stock_matrix_only_shows_configured_branches(self):
+        upsert_product(self.retailer, {
+            'id': 7624,
+            'code': 'SP007624',
+            'name': self.style_name,
+            'isActive': True,
+            'basePrice': 350000,
+            'modifiedDate': '2024-03-01T08:00:00',
+            'inventories': [
+                {'branchId': 1, 'branchName': 'Chi nhánh trung tâm', 'onHand': 10},
+                {'branchId': 2, 'branchName': 'Kho bán hàng', 'onHand': 99},
+                {'branchId': 3, 'branchName': 'Xưởng sản xuất', 'onHand': 5},
+                {'branchId': 4, 'branchName': 'Đơn sản xuất', 'onHand': 2},
+            ],
+        })
+        matrix = format_product_group_detail(get_product_group(self.retailer, 7624))['stock_matrix']
+        names = [row['branch_name'] for row in matrix['rows']]
+        self.assertEqual(names, ['Chi nhánh trung tâm', 'Xưởng sản xuất', 'Đơn sản xuất'])
+        self.assertEqual(sum(row['on_hand'] for row in matrix['rows']), 17.0)
+
     def test_list_row_includes_statuses(self):
         upsert_product(self.retailer, {
             'id': 7624,
@@ -116,7 +183,7 @@ class ProductGroupTests(TestCase):
             'isActive': False,
             'basePrice': 350000,
             'modifiedDate': '2024-03-01T08:00:00',
-            'inventories': [{'branchId': 1, 'branchName': 'CN1', 'onHand': 1}],
+            'inventories': [{'branchId': 1, 'branchName': 'Chi nhánh trung tâm', 'onHand': 1}],
         })
         groups, _ = browse_product_groups(
             page=1, per_page=30, retailer=self.retailer,
@@ -134,7 +201,7 @@ class ProductGroupTests(TestCase):
             'isActive': True,
             'basePrice': 120000,
             'modifiedDate': '2024-03-01T08:00:00',
-            'inventories': [{'branchId': 1, 'branchName': 'CN1', 'onHand': 7}],
+            'inventories': [{'branchId': 1, 'branchName': 'Chi nhánh trung tâm', 'onHand': 7}],
         })
         groups, total = browse_product_groups(page=1, per_page=30, retailer=self.retailer)
         self.assertEqual(total, 1)
