@@ -48,12 +48,29 @@
         object-fit: cover;
         width: 56px;
     }
+    .kv-detail-tabs {
+        border-bottom: 1px solid var(--bs-border-color);
+        gap: 0.25rem;
+    }
     .kv-detail-tabs .nav-link {
+        border: 1px solid transparent;
+        border-radius: 0.5rem 0.5rem 0 0;
         color: var(--bs-secondary-color);
         font-weight: 600;
+        margin-bottom: -1px;
     }
-    .kv-detail-tabs .nav-link.active {
-        color: var(--bs-body-color);
+    .kv-detail-tabs .nav-link:hover {
+        background: var(--hm-primary-soft, #fef2f2) !important;
+        border-color: rgba(220, 38, 38, 0.25) !important;
+        color: var(--hm-primary) !important;
+    }
+    .kv-detail-tabs .nav-link.active,
+    .kv-detail-tabs .nav-link.active:hover {
+        background: var(--hm-primary) !important;
+        border-color: var(--hm-primary) !important;
+        box-shadow: none !important;
+        color: #fff !important;
+        font-weight: 700;
     }
     .kv-variant-thumb {
         height: 40px;
@@ -218,7 +235,7 @@
     {% if product.is_group %}
     <div class="card border-0 shadow-sm">
         <div class="card-header bg-white border-0 pb-0 pt-3 px-3">
-            <ul class="nav nav-tabs kv-detail-tabs border-0" role="tablist">
+            <ul class="nav nav-tabs kv-detail-tabs" role="tablist">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active" id="kv-tab-variants-btn"
                             data-bs-toggle="tab" data-bs-target="#kvTabVariants"
