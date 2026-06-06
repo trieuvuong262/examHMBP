@@ -41,6 +41,7 @@ from .permissions import (
     can_view_request,
     get_goods_receiver_candidates,
     get_procurement_staff_candidates,
+    get_step_waiting_message,
     pending_steps_for_user,
 )
 from .workflow import (
@@ -495,6 +496,9 @@ def request_detail(request, pk, flow_tab=None):
     current_step = service_request.current_step
     can_handle_current = bool(current_step and can_handle_step(request.user, current_step))
     can_claim_current = bool(current_step and can_claim_step(request.user, current_step))
+    current_step_waiting_message = ''
+    if current_step and service_request.is_open and not can_handle_current and not can_claim_current:
+        current_step_waiting_message = get_step_waiting_message(current_step)
     show_pricing = (
         service_request.is_procurement
         and can_view_pricing(request.user, service_request)
@@ -673,6 +677,7 @@ def request_detail(request, pk, flow_tab=None):
         'logs': service_request.logs.all(),
         'request_attachments': service_request.attachments.filter(stage=ServiceRequestAttachment.STAGE_REQUEST),
         'current_step': current_step,
+        'current_step_waiting_message': current_step_waiting_message,
         'can_handle_current': can_handle_current,
         'can_claim_current': can_claim_current,
         'can_cancel': can_cancel,

@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from django.contrib.auth.models import User
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from assessment.portal_widgets import get_portal_dashboard
@@ -26,6 +26,7 @@ from service_requests.workflow import (
 )
 
 
+@override_settings(PROCUREMENT_STAFF_USERNAMES='tm_test')
 class ServiceRequestWorkflowTests(TestCase):
     def setUp(self):
         self.dept_hr = Department.objects.create(name='HCNS', sort_order=0)
@@ -201,6 +202,19 @@ class ServiceRequestWorkflowTests(TestCase):
         quote = req.steps.get(step_code=ServiceRequestStep.STEP_PROCUREMENT_QUOTE)
         self.assertEqual(quote.assignee, self.buyer)
         self.assertEqual(quote.status, ServiceRequestStep.STATUS_IN_PROGRESS)
+
+    def test_only_assigned_procurement_sees_quote_in_pending(self):
+        from service_requests.permissions import pending_steps_for_user
+
+        req = self._create_request()
+        approve_step(req.steps.get(step_code=ServiceRequestStep.STEP_TEAM_LEADER), actor=self.team_leader)
+        self._approve_division_head(req)
+        quote = req.steps.get(step_code=ServiceRequestStep.STEP_PROCUREMENT_QUOTE)
+
+        self.assertTrue(pending_steps_for_user(self.buyer).filter(pk=quote.pk).exists())
+        self.assertFalse(pending_steps_for_user(self.accountant).filter(pk=quote.pk).exists())
+        self.assertFalse(pending_steps_for_user(self.director).filter(pk=quote.pk).exists())
+        self.assertFalse(pending_steps_for_user(self.employee_hr).filter(pk=quote.pk).exists())
     # --- Yêu cầu: <2M → không cần KT/GĐ ---
 
     def test_low_amount_skips_accountant_after_quote(self):

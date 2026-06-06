@@ -35,7 +35,8 @@
                                 data-image-url="{{ img }}"
                                 aria-label="{{ product.name }}">
                             <img src="{{ img }}" alt="{{ product.name }}" class="rounded border"
-                                 style="width: 96px; height: 96px; object-fit: cover; cursor: zoom-in;">
+                                 data-image-url="{{ img }}"
+                                 style="width: 96px; height: 96px; object-fit: cover; cursor: zoom-in; pointer-events: none;">
                         </button>
                         {% endfor %}
                     </div>

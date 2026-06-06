@@ -260,6 +260,16 @@
                         </div>
                         <button type="submit" class="btn btn-success w-100 mt-3">Hoàn thành</button>
                     </form>
+                    {% elif current_step_waiting_message %}
+                    <div class="alert alert-info border-0 small mb-0">
+                        <i class="bi bi-hourglass-split me-1"></i>{{ current_step_waiting_message }}
+                        {% if current_step.step_code == 'procurement_quote' %}
+                        <div class="mt-2 text-muted">
+                            Bước tiếp theo: Thu mua nhập báo giá NCC cho từng dòng hàng.
+                            Kế toán chỉ tham gia sau khi báo giá xong (nếu tổng ≥ 2 triệu VNĐ).
+                        </div>
+                        {% endif %}
+                    </div>
                     {% endif %}
                 </div>
             </div>

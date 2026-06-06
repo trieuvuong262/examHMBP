@@ -1,31 +1,118 @@
-<div class="modal fade" id="kvProductImageModal" tabindex="-1" aria-labelledby="kvProductImageModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content border-0 shadow-lg bg-dark">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title text-white small" id="kvProductImageModalLabel">{{ product_name|default:"Hình ảnh sản phẩm" }}</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
+<div class="modal fade" id="kvProductImageModal" tabindex="-1"
+     aria-labelledby="kvProductImageModalLabel" aria-hidden="true"
+     data-bs-backdrop="true" data-bs-keyboard="true">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down modal-lg">
+        <div class="modal-content border-0 shadow-lg bg-dark text-white">
+            <div class="modal-header border-secondary border-opacity-25 py-2 py-md-3">
+                <h5 class="modal-title small text-truncate pe-2" id="kvProductImageModalLabel">
+                    {{ product_name|default:"Hình ảnh sản phẩm" }}
+                </h5>
+                <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3 kv-product-image-close"
+                        data-bs-dismiss="modal" aria-label="Đóng">
+                    <i class="bi bi-x-lg me-1"></i>Đóng
+                </button>
             </div>
-            <div class="modal-body p-2 p-md-3 text-center">
-                <img id="kvProductImageModalImg" src="" alt="" class="img-fluid rounded" style="max-height: 75vh; object-fit: contain;">
+            <div class="modal-body p-2 p-md-3 d-flex align-items-center justify-content-center position-relative"
+                 style="min-height: 50vh;">
+                <button type="button"
+                        class="btn btn-dark btn-sm position-absolute top-0 end-0 m-2 rounded-circle kv-product-image-close d-sm-none"
+                        style="width: 2.5rem; height: 2.5rem; z-index: 2;"
+                        data-bs-dismiss="modal" aria-label="Đóng">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+                <img id="kvProductImageModalImg" src="" alt=""
+                     class="img-fluid rounded user-select-none"
+                     style="max-height: 75vh; max-width: 100%; object-fit: contain;">
+            </div>
+            <div class="modal-footer border-secondary border-opacity-25 justify-content-center py-2 d-sm-none">
+                <button type="button" class="btn btn-light fw-semibold w-100 kv-product-image-close"
+                        data-bs-dismiss="modal">
+                    <i class="bi bi-arrow-left me-1"></i>Quay lại
+                </button>
             </div>
         </div>
     </div>
 </div>
 <script>
 (function () {
-    const modal = document.getElementById('kvProductImageModal');
-    if (!modal) return;
-    modal.addEventListener('show.bs.modal', function (event) {
-        const trigger = event.relatedTarget;
-        const url = trigger && trigger.dataset ? trigger.dataset.imageUrl : '';
-        const img = document.getElementById('kvProductImageModalImg');
-        if (!img || !url) return;
-        img.src = url;
-        img.alt = trigger.getAttribute('aria-label') || 'Hình ảnh sản phẩm';
-    });
-    modal.addEventListener('hidden.bs.modal', function () {
-        const img = document.getElementById('kvProductImageModalImg');
-        if (img) img.src = '';
-    });
+    function resolveImageTrigger(trigger) {
+        if (!trigger) return null;
+        if (trigger.dataset && trigger.dataset.imageUrl) return trigger;
+        return trigger.closest ? trigger.closest('[data-image-url]') : null;
+    }
+
+    function resolveImageUrl(trigger) {
+        const btn = resolveImageTrigger(trigger);
+        if (btn && btn.dataset && btn.dataset.imageUrl) {
+            return btn.dataset.imageUrl;
+        }
+        if (trigger && trigger.tagName === 'IMG' && trigger.src) {
+            return trigger.src;
+        }
+        return '';
+    }
+
+    function initKvProductImageModal() {
+        const modalEl = document.getElementById('kvProductImageModal');
+        if (!modalEl || typeof bootstrap === 'undefined' || modalEl.dataset.kvImageModalReady === '1') {
+            return;
+        }
+        modalEl.dataset.kvImageModalReady = '1';
+
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        const imgEl = document.getElementById('kvProductImageModalImg');
+        let historyActive = false;
+        let closingFromPopstate = false;
+
+        modalEl.addEventListener('show.bs.modal', function (event) {
+            const trigger = resolveImageTrigger(event.relatedTarget);
+            const url = resolveImageUrl(event.relatedTarget);
+            if (!imgEl || !url) return;
+            imgEl.classList.remove('d-none');
+            imgEl.src = url;
+            imgEl.alt = (trigger && trigger.getAttribute('aria-label')) || 'Hình ảnh sản phẩm';
+        });
+
+        modalEl.addEventListener('shown.bs.modal', function () {
+            if (!historyActive) {
+                historyActive = true;
+                history.pushState({ kvProductImageModal: true }, document.title, location.href);
+            }
+        });
+
+        window.addEventListener('popstate', function () {
+            if (!historyActive) return;
+            historyActive = false;
+            closingFromPopstate = true;
+            modal.hide();
+        });
+
+        modalEl.addEventListener('hidden.bs.modal', function () {
+            if (imgEl) {
+                imgEl.removeAttribute('src');
+                imgEl.alt = '';
+            }
+            if (closingFromPopstate) {
+                closingFromPopstate = false;
+                return;
+            }
+            if (historyActive) {
+                historyActive = false;
+                history.back();
+            }
+        });
+
+        modalEl.addEventListener('click', function (event) {
+            if (event.target === modalEl) {
+                modal.hide();
+            }
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initKvProductImageModal);
+    } else {
+        initKvProductImageModal();
+    }
 })();
 </script>

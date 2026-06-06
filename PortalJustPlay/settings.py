@@ -140,6 +140,13 @@ EQUIPMENT_ULTRAVIEWER_FIXED_PASSWORD = os.getenv(
 EQUIPMENT_ULTRAVIEWER_SETUP_URL = os.getenv("EQUIPMENT_ULTRAVIEWER_SETUP_URL", "").strip()
 EQUIPMENT_NOTIFY_EMAILS = os.getenv("EQUIPMENT_NOTIFY_EMAILS", "")
 
+# Nhân viên Thu mua (dropdown «Nhân viên Thu mua xử lý») — username cách nhau bởi dấu phẩy.
+# Để trống = tự lấy theo phòng HCNS / quyền sửa Đề xuất (logic cũ).
+PROCUREMENT_STAFF_USERNAMES = os.getenv(
+    "PROCUREMENT_STAFF_USERNAMES",
+    "vananh,thiray,Dkimchi,thuyquynh",
+).strip()
+
 # Email — local dùng console; production cấu hình SMTP trong .env
 EMAIL_BACKEND = os.getenv(
     "EMAIL_BACKEND",

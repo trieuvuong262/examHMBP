@@ -37,6 +37,7 @@
                         <th>Yêu cầu</th>
                         <th>Người gửi</th>
                         <th>Bước</th>
+                        <th>Người xử lý</th>
                         <th>Trạng thái</th>
                         <th></th>
                     </tr>
@@ -47,14 +48,25 @@
                         <td><strong>{{ step.request.title }}</strong></td>
                         <td>{{ step.request.requester.profile.full_name|default:step.request.requester.username }}</td>
                         <td>#{{ step.step_order }} · {{ step.name }}</td>
+                        <td class="small">
+                            {% if step.assignee %}
+                            {{ step.assignee.profile.full_name|default:step.assignee.username }}
+                            {% elif step.target_department %}
+                            {{ step.target_department.name }} (chưa gán)
+                            {% else %}—{% endif %}
+                        </td>
                         <td><span class="badge {{ step.status_badge_class }}">{{ step.get_status_display }}</span></td>
                         <td class="text-end">
-                            <a href="{% url 'service_requests:detail' step.request.pk %}" class="btn btn-sm btn-outline-hm">Xử lý</a>
+                            {% if flow_tab == 'ho_tro' %}
+                            <a href="{% url 'service_requests:ho_tro_detail' step.request.pk %}" class="btn btn-sm btn-outline-hm">Xử lý</a>
+                            {% else %}
+                            <a href="{% url 'service_requests:de_xuat_detail' step.request.pk %}" class="btn btn-sm btn-outline-hm">Xử lý</a>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="text-center text-muted py-5">Không có yêu cầu chờ xử lý.</td>
+                        <td colspan="6" class="text-center text-muted py-5">Không có yêu cầu chờ xử lý.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

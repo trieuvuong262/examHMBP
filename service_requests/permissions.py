@@ -1,4 +1,6 @@
+from django.conf import settings
 from django.contrib.auth.models import User
+from django.db.models import Q
 
 from hrm.module_permissions import (
     MODULE_DE_XUAT,
@@ -6,12 +8,62 @@ from hrm.module_permissions import (
     user_can_access_module,
     user_can_edit_module,
 )
-from hrm.permissions import ROLE_DIRECTOR, get_profile, is_director, is_division_head, user_role
+from hrm.permissions import (
+    ROLE_DIRECTOR,
+    ROLE_DIVISION_HEAD,
+    get_profile,
+    is_director,
+    is_division_head,
+    user_role,
+)
 
 from .access import module_for_request, user_can_access_any_request_module
 from .models import RequestTypeStepTemplate, ServiceRequest, ServiceRequestStep
 from .workflow import get_accounting_department, get_procurement_department
 from .workflow_it import get_it_department
+
+_PROCUREMENT_QUEUE_STEP_CODES = frozenset({
+    ServiceRequestStep.STEP_PROCUREMENT_QUOTE,
+    ServiceRequestStep.STEP_PURCHASE,
+    ServiceRequestStep.STEP_ADVANCE,
+})
+
+
+def is_procurement_staff(user) -> bool:
+    """Nhân viên Thu mua được phép xử lý hàng đợi mua sắm."""
+    if not user or not user.is_authenticated:
+        return False
+    return get_procurement_staff_candidates().filter(pk=user.pk).exists()
+
+
+def _is_procurement_queue_step(step: ServiceRequestStep) -> bool:
+    procurement_dept = get_procurement_department()
+    if not procurement_dept or not step.target_department_id:
+        return False
+    return (
+        step.step_code in _PROCUREMENT_QUEUE_STEP_CODES
+        and step.target_department_id == procurement_dept.id
+        and step.assignee_rule == RequestTypeStepTemplate.RULE_DEPARTMENT_QUEUE
+    )
+
+
+def get_step_waiting_message(step: ServiceRequestStep | None) -> str:
+    """Thông báo cho người xem nhưng không phải người xử lý bước hiện tại."""
+    if not step:
+        return ''
+    if step.assignee_id:
+        profile = getattr(step.assignee, 'profile', None)
+        name = profile.full_name if profile and profile.full_name else step.assignee.username
+        return f'Đang chờ {name} xử lý bước này.'
+    if step.step_code == ServiceRequestStep.STEP_PROCUREMENT_QUOTE:
+        return 'Đang chờ nhân viên Thu mua báo giá nhà cung cấp (NCC).'
+    if step.step_code == ServiceRequestStep.STEP_ACCOUNTANT:
+        return 'Đang chờ Kế toán duyệt chi phí.'
+    if step.step_code == ServiceRequestStep.STEP_DIRECTOR:
+        return 'Đang chờ Giám đốc duyệt chi phí.'
+    if step.target_department_id:
+        return f'Đang chờ phòng {step.target_department.name} tiếp nhận.'
+    return 'Đang chờ người xử lý tiếp theo.'
 
 
 def get_it_staff_candidates():
@@ -112,6 +164,8 @@ def can_handle_step(user, step: ServiceRequestStep) -> bool:
     if step.assignee_id:
         return step.assignee_id == user.id
     if step.assignee_rule == RequestTypeStepTemplate.RULE_DEPARTMENT_QUEUE:
+        if _is_procurement_queue_step(step):
+            return is_procurement_staff(user)
         if is_director(user):
             return bool(step.target_department_id)
         profile = get_profile(user)
@@ -157,20 +211,30 @@ def pending_steps_for_user(user):
         'target_department', 'assignee', 'assignee__profile',
     )
 
-    from django.db.models import Q
+    procurement_dept = get_procurement_department()
+    procurement_dept_id = procurement_dept.id if procurement_dept else None
+    not_procurement_queue = ~Q(step_code__in=_PROCUREMENT_QUEUE_STEP_CODES)
+
     filters = Q(assignee=user)
     if dept_id:
         filters |= Q(
             assignee__isnull=True,
             assignee_rule=RequestTypeStepTemplate.RULE_DEPARTMENT_QUEUE,
             target_department_id=dept_id,
+        ) & not_procurement_queue
+    if procurement_dept_id and is_procurement_staff(user):
+        filters |= Q(
+            assignee__isnull=True,
+            assignee_rule=RequestTypeStepTemplate.RULE_DEPARTMENT_QUEUE,
+            target_department_id=procurement_dept_id,
+            step_code__in=_PROCUREMENT_QUEUE_STEP_CODES,
         )
     if is_director(user):
         filters |= Q(step_code=ServiceRequestStep.STEP_DIVISION_HEAD)
         filters |= Q(
             assignee__isnull=True,
             assignee_rule=RequestTypeStepTemplate.RULE_DEPARTMENT_QUEUE,
-        )
+        ) & not_procurement_queue
         filters |= Q(
             step_code=ServiceRequestStep.STEP_DIRECTOR,
         ) & (Q(assignee=user) | Q(assignee__isnull=True))
@@ -194,12 +258,28 @@ def _procurement_staff_from_queryset(qs):
     )
 
 
+def _procurement_staff_username_whitelist() -> list[str]:
+    raw = (getattr(settings, 'PROCUREMENT_STAFF_USERNAMES', '') or '').strip()
+    if not raw:
+        return []
+    return [part.strip().lower() for part in raw.split(',') if part.strip()]
+
+
 def get_procurement_staff_candidates():
-    """Nhân viên Thu mua — phòng Thu mua/HCNS có quyền Đề xuất; fallback: quyền sửa module."""
+    """Nhân viên Thu mua — whitelist settings hoặc phòng HCNS / quyền sửa Đề xuất."""
     base_qs = User.objects.filter(
         profile__is_employed=True,
         is_active=True,
     ).select_related('profile')
+
+    whitelist = _procurement_staff_username_whitelist()
+    if whitelist:
+        name_filter = Q()
+        for username in whitelist:
+            name_filter |= Q(username__iexact=username)
+        candidates = _procurement_staff_from_queryset(base_qs.filter(name_filter))
+        if candidates.exists():
+            return candidates
 
     dept = get_procurement_department()
     if dept:
