@@ -61,6 +61,10 @@ echo "=== SSH SINCE HARDEN (password success) ==="
 journalctl -u ssh --since '2026-06-08 09:14:00' 2>/dev/null | grep -ci 'Accepted password' || echo 0
 
 echo ""
+echo "=== UFW SSH WHITELIST ==="
+ufw status 2>/dev/null | grep -E '22|Status' || echo "ufw n/a"
+
+echo ""
 echo "=== FAIL2BAN ==="
 fail2ban-client status sshd 2>/dev/null || echo "fail2ban n/a"
 

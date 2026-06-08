@@ -1,0 +1,8 @@
+# Danh sách IP được phép SSH (port 22) — mỗi dòng một IP public (IPv4/IPv6).
+# Sao chép thành vps-ssh-whitelist.conf (file này có thể commit hoặc chỉ để trên VPS).
+#
+# IP WAN công ty (đăng nhập portal / làm việc tại văn phòng)
+14.161.25.119
+#
+# IP nhà / IP IT (điền WAN public — tra https://ifconfig.me khi ở nhà)
+# 1.2.3.4
