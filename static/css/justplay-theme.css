@@ -5489,6 +5489,33 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     }
 }
 
+/* Tab bảo mật đăng nhập — override .nav-link navbar (chữ trắng trên nền sáng) */
+.jp-login-security-tabs .nav-link {
+    color: #475569 !important;
+    background: #fff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: var(--jp-btn-radius) !important;
+    padding: 0.5rem 1.25rem !important;
+    min-height: auto;
+    margin: 0 0.25rem 0 0;
+    box-shadow: none !important;
+    font-size: 0.875rem;
+}
+
+.jp-login-security-tabs .nav-link:hover {
+    color: var(--hm-primary) !important;
+    background: var(--hm-primary-soft) !important;
+    border-color: rgba(220, 38, 38, 0.25) !important;
+}
+
+.jp-login-security-tabs .nav-link.active,
+.jp-login-security-tabs .nav-link.active:hover {
+    background: var(--hm-primary) !important;
+    border-color: var(--hm-primary) !important;
+    color: #fff !important;
+    font-weight: 700;
+}
+
 /* Tab phân quyền — override .nav-link navbar (chữ trắng trên nền sáng) */
 .jp-perm-tabs .nav-link {
     color: #475569 !important;
@@ -6784,6 +6811,19 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
 
 /* --- Nav / tabs --- */
 [data-theme="dark"] .nav-pills-hm,
+[data-theme="dark"] .jp-login-security-tabs .nav-link:not(.active) {
+    background: var(--jp-surface-bg) !important;
+    color: var(--jp-text-secondary) !important;
+    border-color: var(--jp-surface-border) !important;
+}
+
+[data-theme="dark"] .jp-login-security-tabs .nav-link.active,
+[data-theme="dark"] .jp-login-security-tabs .nav-link.active:hover {
+    background: var(--hm-primary) !important;
+    border-color: var(--hm-primary) !important;
+    color: #fff !important;
+}
+
 [data-theme="dark"] .jp-org-tabs .nav-link:not(.active),
 [data-theme="dark"] .jp-perm-tabs .nav-link:not(.active) {
     background: var(--jp-surface-bg) !important;

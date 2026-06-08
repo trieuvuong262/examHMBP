@@ -14,7 +14,7 @@
         </div>
     </div>
 
-    <ul class="nav nav-tabs mb-4">
+    <ul class="nav nav-tabs jp-login-security-tabs mb-4">
         <li class="nav-item">
             <a class="nav-link fw-bold {% if tab == 'accounts' %}active{% endif %}"
                href="{% url 'audit:login_security' %}?tab=accounts">
@@ -125,7 +125,7 @@
                             {% if can_unlock %}
                             <form method="post" action="{% url 'audit:unlock_ip_login' row.pk %}" class="d-inline">
                                 {% csrf_token %}
-                                <button type="submit" class="btn btn-sm btn-outline-warning fw-bold">
+                                <button type="submit" class="btn btn-sm btn-outline-hm fw-bold">
                                     <i class="bi bi-unlock me-1"></i>Bỏ chặn
                                 </button>
                             </form>
@@ -215,7 +215,7 @@
                             <div class="d-flex flex-wrap gap-1">
                                 {% for ip in blacklist_suggestions %}
                                 <button type="button"
-                                        class="btn btn-sm btn-outline-secondary font-monospace jp-blacklist-suggest"
+                                        class="btn btn-sm btn-outline-dark font-monospace jp-blacklist-suggest"
                                         data-ip="{{ ip }}">
                                     + {{ ip }}
                                 </button>
