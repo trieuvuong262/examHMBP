@@ -649,6 +649,30 @@ class UserSearchTests(TestCase):
         self.assertContains(response, 'sort=name&amp;dir=desc')
         self.assertContains(response, 'is-active is-asc')
 
+    def test_display_title_filter(self):
+        from hrm.templatetags.hrm_extras import display_title
+
+        self.assertEqual(display_title('TRẦN NHÂN ĐỨC'), 'Trần Nhân Đức')
+        self.assertEqual(display_title('SẢN XUẤT'), 'Sản Xuất')
+        self.assertEqual(display_title('admin'), 'admin')
+        self.assertEqual(display_title('IT / CNTT'), 'It / Cntt')
+
+    def test_user_list_displays_title_case_for_name_and_org(self):
+        dept = Department.objects.create(name='PHÒNG TEST UPPER', sort_order=99)
+        division = Division.objects.create(name='CẮT, TRẢI VẢI', department=dept, sort_order=1)
+        Profile.objects.filter(user=self.target).update(
+            full_name='PHẠM THỊ NGUYỄN',
+            department=dept,
+            division=division,
+        )
+
+        response = self.client.get(reverse('user_list'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Phạm Thị Nguyễn')
+        self.assertNotContains(response, 'PHẠM THỊ NGUYỄN')
+        self.assertContains(response, 'Phòng Test Upper')
+        self.assertContains(response, 'Cắt, Trải Vải')
+
     def test_hr_edit_can_update_other_user_avatar(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
 

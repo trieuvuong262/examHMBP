@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load hrm_extras %}
 
 {% block content %}
 
@@ -205,7 +206,7 @@
                     <col{% if col.col_class %} class="{{ col.col_class }}"{% endif %}>
                     {% endfor %}
                 </colgroup>
-                <thead class="bg-light text-uppercase jp-hrm-list-thead">
+                <thead class="bg-light jp-hrm-list-thead">
                     <tr class="small">
                         {% for col in table_columns %}
                         <th class="{{ col.th_class }}">
@@ -237,15 +238,17 @@
                                 <div class="me-2 d-none d-md-flex flex-shrink-0 jp-hrm-list-avatar">
                                     {% include 'includes/profile_avatar.html' with profile=u.profile user=u img_class='jp-hrm-avatar jp-hrm-avatar-img rounded-circle' fallback_class='jp-hrm-avatar rounded-circle' zoomable=True %}
                                 </div>
-                                <span class="text-dark jp-hrm-name-text jp-text-clamp-2" title="{{ u.profile.full_name|default:u.first_name|default:u.username }}">{{ u.profile.full_name|default:u.first_name|default:u.username }}</span>
+                                {% with display_name=u.profile.full_name|default:u.first_name|default:u.username %}
+                                <span class="text-dark jp-hrm-name-text jp-text-clamp-2" title="{{ display_name|display_title }}">{{ display_name|display_title }}</span>
+                                {% endwith %}
                             </div>
                         </td>
                         <td data-label="Account" class="jp-hrm-col-account"><code class="text-primary fw-bold px-2 py-1 bg-light user-select-all jp-hrm-cell-truncate">{{ u.username }}</code></td>
-                        <td data-label="Phòng ban" class="jp-hrm-col-org"{% if u.profile.department %} title="{{ u.profile.department.name }}"{% endif %}>
-                            <span class="jp-hrm-cell-truncate">{{ u.profile.department.name|default:"—" }}</span>
+                        <td data-label="Phòng ban" class="jp-hrm-col-org"{% if u.profile.department %} title="{{ u.profile.department.name|display_title }}"{% endif %}>
+                            <span class="jp-hrm-cell-truncate">{{ u.profile.department.name|default:"—"|display_title }}</span>
                         </td>
-                        <td data-label="Bộ phận" class="jp-hrm-col-org"{% if u.profile.division %} title="{{ u.profile.division.name }}"{% endif %}>
-                            <span class="jp-hrm-cell-truncate">{{ u.profile.division.name|default:"—" }}</span>
+                        <td data-label="Bộ phận" class="jp-hrm-col-org"{% if u.profile.division %} title="{{ u.profile.division.name|display_title }}"{% endif %}>
+                            <span class="jp-hrm-cell-truncate">{{ u.profile.division.name|default:"—"|display_title }}</span>
                         </td>
                         <td data-label="Vị trí" class="jp-hrm-col-org"{% if u.profile.job_position %} title="{{ u.profile.job_position }}"{% endif %}>
                             <span class="jp-hrm-cell-truncate">{{ u.profile.job_position|default:"—" }}</span>
