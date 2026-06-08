@@ -95,19 +95,35 @@ USER_LIST_SORT_COLUMNS = {
 }
 
 USER_LIST_TABLE_COLUMNS = (
-    {'key': 'code', 'label': 'Mã NS', 'th_class': 'ps-4 py-3 text-muted text-uppercase', 'col_class': 'jp-hrm-col-code', 'sortable': True},
-    {'key': 'name', 'label': 'Họ và tên', 'th_class': 'text-muted jp-hrm-th-proper', 'col_class': 'jp-hrm-col-name', 'sortable': True},
-    {'key': 'account', 'label': 'Account', 'th_class': 'text-muted text-uppercase', 'col_class': 'jp-hrm-col-account', 'sortable': True},
-    {'key': 'department', 'label': 'Phòng ban', 'th_class': 'text-muted jp-hrm-th-proper', 'col_class': 'jp-hrm-col-org', 'sortable': True},
-    {'key': 'division', 'label': 'Bộ phận', 'th_class': 'text-muted jp-hrm-th-proper', 'col_class': 'jp-hrm-col-org', 'sortable': True},
-    {'key': 'position', 'label': 'Vị trí', 'th_class': 'text-muted text-uppercase', 'col_class': 'jp-hrm-col-org', 'sortable': True},
-    {'key': 'job_title', 'label': 'Chức vụ', 'th_class': 'text-muted text-uppercase', 'col_class': 'jp-hrm-col-job-title', 'sortable': True},
-    {'key': 'join_date', 'label': 'Ngày vào', 'th_class': 'text-muted text-uppercase jp-hrm-col-date', 'col_class': 'jp-hrm-col-date', 'sortable': True},
-    {'key': 'birth_date', 'label': 'Ngày sinh', 'th_class': 'text-muted text-uppercase jp-hrm-col-date', 'col_class': 'jp-hrm-col-date', 'sortable': True},
-    {'key': 'gender', 'label': 'Giới tính', 'th_class': 'text-muted text-uppercase text-center', 'col_class': 'jp-hrm-col-gender', 'sortable': True},
-    {'key': 'role', 'label': 'Vai trò HT', 'th_class': 'text-muted text-uppercase text-center', 'col_class': 'jp-hrm-col-role', 'sortable': True},
-    {'key': None, 'label': 'Thao tác', 'th_class': 'text-end pe-4 text-muted text-uppercase jp-hrm-col-actions-h', 'col_class': 'jp-hrm-col-actions', 'sortable': False},
+    {'key': 'code', 'label': 'Mã NS', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-code', 'sortable': True},
+    {'key': 'name', 'label': 'Họ và tên', 'th_tone': 'proper', 'th_align': 'start', 'col_class': 'jp-hrm-col-name', 'sortable': True},
+    {'key': 'account', 'label': 'Account', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-account', 'sortable': True},
+    {'key': 'department', 'label': 'Phòng ban', 'th_tone': 'proper', 'th_align': 'start', 'col_class': 'jp-hrm-col-org', 'sortable': True},
+    {'key': 'division', 'label': 'Bộ phận', 'th_tone': 'proper', 'th_align': 'start', 'col_class': 'jp-hrm-col-org', 'sortable': True},
+    {'key': 'position', 'label': 'Vị trí', 'th_tone': 'proper', 'th_align': 'start', 'col_class': 'jp-hrm-col-org', 'sortable': True},
+    {'key': 'job_title', 'label': 'Chức vụ', 'th_tone': 'proper', 'th_align': 'start', 'col_class': 'jp-hrm-col-job-title', 'sortable': True},
+    {'key': 'join_date', 'label': 'Ngày vào', 'th_tone': 'cap', 'th_align': 'center', 'col_class': 'jp-hrm-col-date', 'sortable': True},
+    {'key': 'birth_date', 'label': 'Ngày sinh', 'th_tone': 'cap', 'th_align': 'center', 'col_class': 'jp-hrm-col-date', 'sortable': True},
+    {'key': 'gender', 'label': 'Giới tính', 'th_tone': 'cap', 'th_align': 'center', 'col_class': 'jp-hrm-col-gender', 'sortable': True},
+    {'key': 'role', 'label': 'Vai trò HT', 'th_tone': 'cap', 'th_align': 'center', 'col_class': 'jp-hrm-col-role', 'sortable': True},
+    {'key': None, 'label': 'Thao tác', 'th_tone': 'cap', 'th_align': 'end', 'col_class': 'jp-hrm-col-actions', 'sortable': False},
 )
+
+
+def _user_list_th_class(spec: dict) -> str:
+    parts = [
+        'jp-hrm-list-th',
+        f"jp-hrm-list-th--{spec.get('th_tone', 'cap')}",
+        f"jp-hrm-list-th--{spec.get('th_align', 'start')}",
+    ]
+    col_class = spec.get('col_class')
+    if col_class:
+        parts.append(f'{col_class}-h')
+    if col_class == 'jp-hrm-col-code':
+        parts.append('ps-md-4')
+    if col_class == 'jp-hrm-col-actions':
+        parts.append('pe-md-4')
+    return ' '.join(parts)
 
 EMPLOYMENT_STATUS_LABELS = {
     '': 'Tất cả trạng thái',
@@ -171,6 +187,7 @@ def build_user_list_table_columns(request, sort_key: str, sort_dir: str) -> list
     columns = []
     for spec in USER_LIST_TABLE_COLUMNS:
         col = dict(spec)
+        col['th_class'] = _user_list_th_class(spec)
         key = col.get('key')
         if col.get('sortable') and key:
             col['sort_href'] = user_list_sort_href(request, key, sort_key, sort_dir)

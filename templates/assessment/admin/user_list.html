@@ -206,22 +206,22 @@
                     <col{% if col.col_class %} class="{{ col.col_class }}"{% endif %}>
                     {% endfor %}
                 </colgroup>
-                <thead class="bg-light jp-hrm-list-thead">
-                    <tr class="small">
+                <thead class="jp-hrm-list-thead">
+                    <tr>
                         {% for col in table_columns %}
-                        <th class="{{ col.th_class }}">
+                        <th scope="col" class="{{ col.th_class }}">
                             {% if col.sortable %}
                             <a href="{{ col.sort_href }}"
                                class="jp-table-sort-link{% if col.sort_active %} is-active is-{{ col.sort_dir }}{% endif %}"
                                title="Sắp xếp theo {{ col.label }}">
-                                <span>{{ col.label }}</span>
+                                <span class="jp-hrm-list-th-label">{{ col.label }}</span>
                                 <span class="jp-table-sort-icons" aria-hidden="true">
                                     <i class="bi bi-caret-up-fill"></i>
                                     <i class="bi bi-caret-down-fill"></i>
                                 </span>
                             </a>
                             {% else %}
-                            {{ col.label }}
+                            <span class="jp-hrm-list-th-label">{{ col.label }}</span>
                             {% endif %}
                         </th>
                         {% endfor %}

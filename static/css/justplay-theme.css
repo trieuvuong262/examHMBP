@@ -4058,32 +4058,92 @@ body.jp-tool-loading-active {
     border-color: transparent;
 }
 
-.jp-hrm-list-thead .jp-hrm-th-proper,
-.jp-hrm-list-thead .jp-hrm-th-proper .jp-table-sort-link {
+.jp-hrm-list-thead th.jp-hrm-list-th {
+    padding: 0.7rem 0.4rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.3;
+    color: #64748b;
+    vertical-align: middle;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.jp-hrm-list-thead .jp-hrm-list-th-label {
+    min-width: 0;
+}
+
+.jp-hrm-list-thead .jp-hrm-list-th--cap .jp-hrm-list-th-label {
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 0.68rem;
+}
+
+.jp-hrm-list-thead .jp-hrm-list-th--proper .jp-hrm-list-th-label {
     text-transform: none;
     letter-spacing: normal;
+    font-size: 0.72rem;
+}
+
+.jp-hrm-list-thead .jp-hrm-list-th--center {
+    text-align: center;
+}
+
+.jp-hrm-list-thead .jp-hrm-list-th--end {
+    text-align: end;
 }
 
 .jp-hrm-list-thead .jp-table-sort-link {
     display: inline-flex;
     align-items: center;
-    gap: 0.2rem;
+    gap: 0.25rem;
+    max-width: 100%;
     color: inherit;
     text-decoration: none;
-    font-weight: 600;
-    white-space: nowrap;
+    font-weight: inherit;
+}
+
+.jp-hrm-list-thead .jp-hrm-list-th--center .jp-table-sort-link {
+    justify-content: center;
+}
+
+.jp-hrm-list-thead .jp-hrm-list-th--end .jp-table-sort-link {
+    justify-content: flex-end;
+}
+
+.jp-hrm-list-thead .jp-hrm-list-th--start .jp-table-sort-link {
+    justify-content: flex-start;
 }
 
 .jp-hrm-list-thead .jp-table-sort-link:hover {
     color: var(--hm-primary);
 }
 
+.jp-hrm-list-thead .jp-hrm-col-org-h .jp-table-sort-link,
+.jp-hrm-list-thead .jp-hrm-col-job-title-h .jp-table-sort-link {
+    align-items: flex-start;
+}
+
+.jp-hrm-list-thead .jp-hrm-col-org-h .jp-hrm-list-th-label,
+.jp-hrm-list-thead .jp-hrm-col-job-title-h .jp-hrm-list-th-label {
+    white-space: normal;
+    word-break: break-word;
+}
+
+.jp-hrm-list-thead .jp-hrm-col-date-h .jp-hrm-list-th-label,
+.jp-hrm-list-thead .jp-hrm-col-gender-h .jp-hrm-list-th-label,
+.jp-hrm-list-thead .jp-hrm-col-role-h .jp-hrm-list-th-label {
+    white-space: normal;
+}
+
 .jp-hrm-list-thead .jp-table-sort-icons {
     display: inline-flex;
     flex-direction: column;
+    flex-shrink: 0;
     line-height: 0.55;
     font-size: 0.55rem;
     opacity: 0.35;
+    margin-top: 0.1rem;
 }
 
 .jp-hrm-list-thead .jp-table-sort-link.is-active .jp-table-sort-icons {
@@ -4135,6 +4195,10 @@ body.jp-tool-loading-active {
 }
 
 .jp-hrm-page #userTable .jp-hrm-col-actions-h {
+    white-space: nowrap;
+}
+
+.jp-hrm-list-thead .jp-hrm-col-actions-h .jp-hrm-list-th-label {
     white-space: nowrap;
 }
 
