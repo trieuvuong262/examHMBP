@@ -38,10 +38,10 @@ from .forms import (
     DailyWorkReportForm,
     DailyWorkReportLineFormSet,
     OfficeDailyWorkReportForm,
-    OfficeWeeklyWorkReportForm,
-    WeeklyProductionReportForm,
+    WeeklyWorkReportForm,
 )
 from .models import DailyWorkReport, WeeklyWorkReport
+from .weekly_uploads import copy_weekly_attachments, save_weekly_uploads, weekly_report_has_content
 
 
 _CK5_IMAGE_TYPES = frozenset({'image/jpeg', 'image/png', 'image/gif', 'image/webp'})
@@ -147,16 +147,29 @@ def _parse_week_start(request):
 
 
 def _get_or_create_weekly_report(user, week_start):
-    profile = get_report_profile(user)
-    report, created = WeeklyWorkReport.objects.get_or_create(
+    report, _ = WeeklyWorkReport.objects.get_or_create(
         employee=user,
         week_start=week_start,
-        defaults={'report_profile': profile},
     )
-    if not created and report.report_profile != profile:
-        report.report_profile = profile
-        report.save(update_fields=['report_profile', 'updated_at'])
     return report
+
+
+def _weekly_attachments(report):
+    qs = report.attachments.all()
+    images = [att for att in qs if att.is_image]
+    files = [att for att in qs if not att.is_image]
+    return images, files
+
+
+def _delete_weekly_attachments(report, attachment_ids):
+    if not attachment_ids:
+        return 0
+    qs = report.attachments.filter(pk__in=attachment_ids)
+    count = qs.count()
+    for att in qs:
+        att.file.delete(save=False)
+    qs.delete()
+    return count
 
 
 def _weekly_context_common(request, week_start):
@@ -241,78 +254,57 @@ def _today_office_report(request, report_date):
     return render(request, 'reports/today_office.html', ctx)
 
 
-def _weekly_office_report(request, week_start):
+@_require_submit_access
+def weekly_report(request):
     from hrm.permissions import get_profile as load_profile
+
+    week_start = _parse_week_start(request)
     user_profile = load_profile(request.user)
     report = _get_or_create_weekly_report(request.user, week_start)
 
     if request.method == 'POST':
         action = request.POST.get('action', 'save')
-        form = OfficeWeeklyWorkReportForm(request.POST, instance=report)
-        if form.is_valid():
-            report = form.save(commit=False)
-            report.report_profile = REPORT_PROFILE_OFFICE
-            messages.success(request, _finalize_report_submission(report, action))
-            report.save()
-            return redirect(f'{reverse("reports:weekly")}?week={week_start.isoformat()}')
-    else:
-        form = OfficeWeeklyWorkReportForm(instance=report)
+        form = WeeklyWorkReportForm(request.POST, instance=report)
+        delete_ids = [int(pk) for pk in request.POST.getlist('delete_attachments') if pk.isdigit()]
+        image_uploads = request.FILES.getlist('images')
+        file_uploads = request.FILES.getlist('files')
 
+        if form.is_valid():
+            _delete_weekly_attachments(report, delete_ids)
+            remaining = report.attachments.count()
+            if action == 'submit' and not weekly_report_has_content(
+                links_text=form.cleaned_data.get('links', ''),
+                image_uploads=image_uploads,
+                file_uploads=file_uploads,
+                attachment_count=remaining,
+            ):
+                form.add_error(
+                    None,
+                    'Khi gửi báo cáo tuần, điền ít nhất một link hoặc tải lên file/ảnh.',
+                )
+            else:
+                report = form.save(commit=False)
+                messages.success(request, _finalize_report_submission(report, action))
+                report.save()
+                save_weekly_uploads(report, image_list=image_uploads, file_list=file_uploads)
+                return redirect(f'{reverse("reports:weekly")}?week={week_start.isoformat()}')
+    else:
+        form = WeeklyWorkReportForm(instance=report)
+
+    images, files = _weekly_attachments(report)
     ctx = _weekly_context_common(request, week_start)
-    ctx.update(_ckeditor_context())
     ctx.update({
         'form': form,
         'report': report,
+        'weekly_images': images,
+        'weekly_files': files,
         'employee_name': (user_profile.full_name if user_profile else '') or request.user.username,
         'department_name': user_profile.department.name if user_profile and user_profile.department_id else '',
-        'content_tab_hint': 'Tổng hợp công việc cả tuần — tab Bảng hoặc Văn bản.',
         'copy_url': reverse('reports:copy_prev_week') if ctx['has_prev_week'] else None,
         'copy_label': 'Sao chép tuần trước',
         'copy_confirm': 'Sao chép nội dung từ tuần trước?',
     })
-    return render(request, 'reports/weekly_office.html', ctx)
-
-
-def _weekly_production_report(request, week_start):
-    report = _get_or_create_weekly_report(request.user, week_start)
-    week_end_date = week_end(week_start)
-    daily_count = DailyWorkReport.objects.filter(
-        employee=request.user,
-        report_date__gte=week_start,
-        report_date__lte=week_end_date,
-        status=DailyWorkReport.STATUS_SUBMITTED,
-    ).count()
-
-    if request.method == 'POST':
-        action = request.POST.get('action', 'save')
-        form = WeeklyProductionReportForm(request.POST, instance=report)
-        if form.is_valid():
-            report = form.save(commit=False)
-            report.report_profile = REPORT_PROFILE_PRODUCTION
-            messages.success(request, _finalize_report_submission(report, action))
-            report.save()
-            return redirect(f'{reverse("reports:weekly")}?week={week_start.isoformat()}')
-    else:
-        form = WeeklyProductionReportForm(instance=report)
-
-    ctx = _weekly_context_common(request, week_start)
-    ctx.update({
-        'form': form,
-        'report': report,
-        'daily_submitted_count': daily_count,
-        'copy_url': reverse('reports:copy_prev_week') if ctx['has_prev_week'] else None,
-        'copy_label': 'Sao chép tuần trước',
-        'copy_confirm': 'Sao chép nội dung từ tuần trước?',
-    })
-    return render(request, 'reports/weekly_production.html', ctx)
-
-
-@_require_submit_access
-def weekly_report(request):
-    week_start = _parse_week_start(request)
-    if is_production_report_user(request.user):
-        return _weekly_production_report(request, week_start)
-    return _weekly_office_report(request, week_start)
+    return render(request, 'reports/weekly.html', ctx)
 
 
 @_require_submit_access
@@ -327,28 +319,17 @@ def copy_prev_week(request):
         messages.warning(request, 'Không có báo cáo tuần trước để sao chép.')
         return redirect('reports:weekly')
 
-    profile = get_report_profile(request.user)
     report, _ = WeeklyWorkReport.objects.get_or_create(
         employee=request.user,
         week_start=this_week,
-        defaults={'report_profile': profile, 'status': WeeklyWorkReport.STATUS_DRAFT},
+        defaults={'status': WeeklyWorkReport.STATUS_DRAFT},
     )
-    report.report_profile = profile
     report.status = WeeklyWorkReport.STATUS_DRAFT
     report.submitted_at = None
-    if profile == REPORT_PROFILE_OFFICE:
-        report.spreadsheet_json = source.spreadsheet_json
-        report.document_html = source.document_html
-        report.summary_note = ''
-        report.issues_note = ''
-        report.plan_next_week = ''
-    else:
-        report.spreadsheet_json = None
-        report.document_html = ''
-        report.summary_note = source.summary_note
-        report.issues_note = source.issues_note
-        report.plan_next_week = source.plan_next_week
+    report.links = source.links
     report.save()
+    _delete_weekly_attachments(report, list(report.attachments.values_list('pk', flat=True)))
+    copy_weekly_attachments(source, report)
     messages.success(request, 'Đã sao chép báo cáo tuần trước. Kiểm tra và gửi lại.')
     return redirect(f'{reverse("reports:weekly")}?week={this_week.isoformat()}')
 

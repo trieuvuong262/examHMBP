@@ -137,90 +137,34 @@ class OfficeDailyWorkReportForm(forms.ModelForm):
         return instance
 
 
-class OfficeWeeklyWorkReportForm(forms.ModelForm):
-    spreadsheet_data = forms.CharField(required=False, widget=forms.HiddenInput())
-
+class WeeklyWorkReportForm(forms.ModelForm):
     class Meta:
         model = WeeklyWorkReport
-        fields = ['week_start', 'document_html']
+        fields = ['week_start', 'links']
         widgets = {
             'week_start': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'document_html': OfficeWordEditorWidget(),
+            'links': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Mỗi dòng một link (Google Drive, OneDrive, website…)',
+            }),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['week_start'].label = 'Tuần (bắt đầu thứ 2)'
+        self.fields['links'].label = 'Link'
+        self.fields['links'].required = False
         if self.instance.week_start:
             self.initial.setdefault('week_start', self.instance.week_start)
-        initial_sheet = self.instance.spreadsheet_json if self.instance.pk else None
-        self.fields['spreadsheet_data'].initial = json.dumps(
-            normalize_spreadsheet_json(initial_sheet),
-            ensure_ascii=False,
-        )
-        self.fields['document_html'].required = False
 
     def clean_week_start(self):
         value = self.cleaned_data.get('week_start')
         return monday_of(value) if value else value
 
-    def clean_spreadsheet_data(self):
-        raw = self.cleaned_data.get('spreadsheet_data') or ''
-        try:
-            parsed = json.loads(raw) if raw else DEFAULT_SPREADSHEET
-        except json.JSONDecodeError as exc:
-            raise forms.ValidationError('Dữ liệu bảng không hợp lệ.') from exc
-        return normalize_spreadsheet_json(parsed)
-
-    def clean(self):
-        cleaned = super().clean()
-        sheet = cleaned.get('spreadsheet_data') or DEFAULT_SPREADSHEET
-        doc = cleaned.get('document_html') or ''
-        if self.data.get('action') == 'submit':
-            if not office_report_has_content(sheet, doc):
-                raise forms.ValidationError(
-                    'Khi gửi báo cáo, điền ít nhất một ô trong tab Bảng hoặc ≥ 50 ký tự trong tab Văn bản.',
-                )
-        return cleaned
-
-    def save(self, commit=True):
-        instance = super().save(commit=False)
-        instance.spreadsheet_json = self.cleaned_data.get('spreadsheet_data')
-        if commit:
-            instance.save()
-        return instance
-
-
-class WeeklyProductionReportForm(forms.ModelForm):
-    class Meta:
-        model = WeeklyWorkReport
-        fields = ['week_start', 'summary_note', 'issues_note', 'plan_next_week']
-        widgets = {
-            'week_start': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'summary_note': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Tóm tắt công việc trong tuần…'}),
-            'issues_note': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Sự cố, vướng mắc…'}),
-            'plan_next_week': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Kế hoạch tuần tới…'}),
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['week_start'].label = 'Tuần (bắt đầu thứ 2)'
-
-    def clean_week_start(self):
-        value = self.cleaned_data.get('week_start')
-        return monday_of(value) if value else value
-
-    def clean(self):
-        cleaned = super().clean()
-        if self.data.get('action') == 'submit':
-            notes = (
-                (cleaned.get('summary_note') or '').strip()
-                + (cleaned.get('issues_note') or '').strip()
-                + (cleaned.get('plan_next_week') or '').strip()
-            )
-            if len(notes) < 20:
-                raise forms.ValidationError('Khi gửi báo cáo tuần, điền ít nhất một mục tóm tắt (≥ 20 ký tự).')
-        return cleaned
+    def clean_links(self):
+        lines = [line.strip() for line in (self.cleaned_data.get('links') or '').splitlines() if line.strip()]
+        return '\n'.join(lines)
 
 
 DailyWorkReportLineFormSet = inlineformset_factory(

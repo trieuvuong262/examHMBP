@@ -114,6 +114,90 @@
     line-height: 1.45;
 }
 
+.jp-weekly-hero {
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.jp-weekly-field-card {
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.jp-weekly-field-title {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+}
+
+.jp-weekly-field-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.4rem;
+    height: 2.4rem;
+    border-radius: 10px;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.jp-weekly-field-icon.is-link {
+    background: #eff6ff;
+    color: #2563eb;
+}
+
+.jp-weekly-field-icon.is-file {
+    background: #fef2f2;
+    color: var(--hm-primary, #dc2626);
+}
+
+.jp-weekly-field-icon.is-image {
+    background: #f0fdf4;
+    color: #16a34a;
+}
+
+.jp-weekly-existing-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    padding: 0.45rem 0;
+    border-bottom: 1px solid #f1f5f9;
+    margin: 0;
+    cursor: pointer;
+}
+
+.jp-weekly-existing-item:last-child {
+    border-bottom: 0;
+}
+
+.jp-weekly-thumb {
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #e8edf3;
+    background: #f8fafc;
+}
+
+.jp-weekly-thumb img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+}
+
+.jp-weekly-thumb-delete {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.75rem;
+    background: #fff;
+    border-top: 1px solid #e8edf3;
+    cursor: pointer;
+}
+
 .jp-week-range-badge {
     display: inline-flex;
     align-items: center;

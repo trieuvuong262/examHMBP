@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260529c">
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-reports-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-clipboard-check-fill me-2"></i>Báo cáo công việc</h2>
+            <p class="text-muted mb-0 jp-hide-mobile-subtitle">
+                Báo cáo tuần {{ week_label }}
+                {% if employee_name %} · {{ employee_name }}{% endif %}
+            </p>
+        </div>
+        {% include 'reports/includes/reports_page_tools.html' %}
+    </div>
+
+    {% include 'reports/includes/reports_period_nav.html' %}
+
+    {% if report.status == 'SUBMITTED' %}
+    <div class="alert alert-success border-0 shadow-sm py-2 mb-3">
+        <i class="bi bi-check-circle-fill me-1"></i>Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }} — vẫn có thể chỉnh và gửi lại.
+    </div>
+    {% endif %}
+
+    <form method="post" id="weekly-report-form" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <div class="jp-weekly-hero card border-0 shadow-sm mb-3">
+            <div class="card-body p-3 p-md-4">
+                <div class="row g-3 align-items-end">
+                    <div class="col-12 col-md-7">
+                        <label class="form-label fw-bold small mb-1">Tuần báo cáo (thứ 2)</label>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            {{ form.week_start }}
+                            <span class="jp-week-range-badge">{{ week_label }}</span>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-5 text-md-end">
+                        <span class="jp-office-status-pill {% if report.status == 'SUBMITTED' %}is-submitted{% else %}is-draft{% endif %}">
+                            <i class="bi {% if report.status == 'SUBMITTED' %}bi-check-circle-fill{% else %}bi-pencil{% endif %}"></i>
+                            {{ report.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="jp-weekly-fields">
+            <div class="card border-0 shadow-sm mb-3 jp-weekly-field-card">
+                <div class="card-header bg-white border-bottom py-3">
+                    <div class="jp-weekly-field-title">
+                        <span class="jp-weekly-field-icon is-link"><i class="bi bi-link-45deg"></i></span>
+                        <div>
+                            <h6 class="fw-bold mb-0">Link</h6>
+                            <small class="text-muted">Google Drive, OneDrive, website…</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-3 p-md-4">
+                    {{ form.links }}
+                    {% if form.links.errors %}<div class="text-danger small mt-2">{{ form.links.errors }}</div>{% endif %}
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-3 jp-weekly-field-card">
+                <div class="card-header bg-white border-bottom py-3">
+                    <div class="jp-weekly-field-title">
+                        <span class="jp-weekly-field-icon is-file"><i class="bi bi-file-earmark-arrow-up"></i></span>
+                        <div>
+                            <h6 class="fw-bold mb-0">File</h6>
+                            <small class="text-muted">PDF, Word, Excel, ZIP… — không giới hạn kích thước</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-3 p-md-4">
+                    {% if weekly_files %}
+                    <div class="jp-weekly-existing mb-3">
+                        <div class="small fw-bold text-muted mb-2">File đã tải</div>
+                        {% for att in weekly_files %}
+                        <label class="jp-weekly-existing-item">
+                            <input type="checkbox" name="delete_attachments" value="{{ att.pk }}" class="form-check-input">
+                            <i class="bi bi-file-earmark-text text-hm"></i>
+                            <a href="{{ att.file.url }}" target="_blank" rel="noopener" class="text-decoration-none">{{ att.display_name }}</a>
+                            <span class="text-muted small">(tick để xóa)</span>
+                        </label>
+                        {% endfor %}
+                        <div class="form-text">Tick file muốn xóa khi lưu.</div>
+                    </div>
+                    {% endif %}
+                    <input type="file" name="files" class="form-control" multiple>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-3 jp-weekly-field-card">
+                <div class="card-header bg-white border-bottom py-3">
+                    <div class="jp-weekly-field-title">
+                        <span class="jp-weekly-field-icon is-image"><i class="bi bi-image"></i></span>
+                        <div>
+                            <h6 class="fw-bold mb-0">Ảnh</h6>
+                            <small class="text-muted">JPG, PNG, GIF, WebP… — không giới hạn kích thước</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-3 p-md-4">
+                    {% if weekly_images %}
+                    <div class="jp-weekly-existing mb-3">
+                        <div class="small fw-bold text-muted mb-2">Ảnh đã tải</div>
+                        <div class="row g-2">
+                            {% for att in weekly_images %}
+                            <div class="col-6 col-md-4 col-lg-3">
+                                <div class="jp-weekly-thumb">
+                                    <a href="{{ att.file.url }}" target="_blank" rel="noopener">
+                                        <img src="{{ att.file.url }}" alt="{{ att.display_name }}" loading="lazy">
+                                    </a>
+                                    <label class="jp-weekly-thumb-delete">
+                                        <input type="checkbox" name="delete_attachments" value="{{ att.pk }}" class="form-check-input">
+                                        <span>Xóa</span>
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    <input type="file" name="images" class="form-control" multiple accept="image/*">
+                </div>
+            </div>
+        </div>
+
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger border-0 shadow-sm mb-3">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="jp-office-actions">
+            <button type="submit" name="action" value="save" class="btn btn-outline-dark px-4">Lưu nháp</button>
+            <button type="submit" name="action" value="submit" class="btn btn-hm px-4 fw-bold">Gửi Báo cáo</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    const weekInput = document.getElementById('id_week_start');
+    if (!weekInput) return;
+    weekInput.addEventListener('change', function () {
+        if (!this.value) return;
+        window.location.href = '{% url "reports:weekly" %}?week=' + this.value;
+    });
+})();
+</script>
+{% endblock %}

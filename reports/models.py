@@ -1,3 +1,5 @@
+import os
+
 from django.conf import settings
 from django.db import models
 
@@ -133,17 +135,7 @@ class WeeklyWorkReport(models.Model):
         verbose_name='Nhân viên',
     )
     week_start = models.DateField(verbose_name='Tuần (thứ 2)')
-    report_profile = models.CharField(
-        max_length=20,
-        choices=REPORT_PROFILE_CHOICES,
-        default=REPORT_PROFILE_PRODUCTION,
-        verbose_name='Loại báo cáo',
-    )
-    spreadsheet_json = models.JSONField(null=True, blank=True, verbose_name='Bảng (JSON)')
-    document_html = models.TextField(blank=True, verbose_name='Văn bản (HTML)')
-    summary_note = models.TextField(blank=True, verbose_name='Tóm tắt tuần')
-    issues_note = models.TextField(blank=True, verbose_name='Sự cố / vướng mắc')
-    plan_next_week = models.TextField(blank=True, verbose_name='Kế hoạch tuần sau')
+    links = models.TextField(blank=True, verbose_name='Link (mỗi dòng một link)')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT)
     submitted_at = models.DateTimeField(null=True, blank=True)
     hod_reviewed = models.BooleanField(default=False, verbose_name='HOD đã xem')
@@ -161,5 +153,41 @@ class WeeklyWorkReport(models.Model):
         return f'{self.employee} - tuần {self.week_start}'
 
     @property
-    def is_production_report(self):
-        return self.report_profile == REPORT_PROFILE_PRODUCTION
+    def link_lines(self):
+        return [line.strip() for line in (self.links or '').splitlines() if line.strip()]
+
+
+class WeeklyWorkReportAttachment(models.Model):
+    KIND_FILE = 'FILE'
+    KIND_IMAGE = 'IMAGE'
+    KIND_CHOICES = [
+        (KIND_FILE, 'File'),
+        (KIND_IMAGE, 'Ảnh'),
+    ]
+
+    report = models.ForeignKey(
+        WeeklyWorkReport,
+        on_delete=models.CASCADE,
+        related_name='attachments',
+        verbose_name='Báo cáo tuần',
+    )
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES)
+    file = models.FileField(upload_to='reports/weekly/%Y/%m/')
+    original_name = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at', 'id']
+        verbose_name = 'Đính kèm báo cáo tuần'
+        verbose_name_plural = 'Đính kèm báo cáo tuần'
+
+    def __str__(self):
+        return self.display_name
+
+    @property
+    def display_name(self):
+        return self.original_name or os.path.basename(self.file.name)
+
+    @property
+    def is_image(self):
+        return self.kind == self.KIND_IMAGE
