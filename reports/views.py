@@ -18,7 +18,14 @@ from hrm.permissions import (
 from PortalJustPlay.list_search import apply_combined_search, apply_term_search, apply_user_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
-from .forms import DailyWorkReportForm, DailyWorkReportLineFormSet
+from reports.report_profile import (
+    REPORT_PROFILE_OFFICE,
+    REPORT_PROFILE_PRODUCTION,
+    get_report_profile,
+    is_production_report_user,
+)
+
+from .forms import DailyWorkReportForm, DailyWorkReportLineFormSet, OfficeDailyWorkReportForm
 from .models import DailyWorkReport
 
 
@@ -59,17 +66,54 @@ def report_hub(request):
     return redirect('home_portal')
 
 
-@_require_submit_access
-def today_report(request):
-    report_date = request.GET.get('date') or timezone.localdate()
+def _parse_report_date(request):
+    report_date = request.GET.get('date') or request.POST.get('report_date') or timezone.localdate()
     if isinstance(report_date, str):
         report_date = datetime.strptime(report_date, '%Y-%m-%d').date()
+    return report_date
 
-    report, _ = DailyWorkReport.objects.get_or_create(
-        employee=request.user,
+
+def _report_context_common(request, report_date):
+    yesterday = report_date - timedelta(days=1)
+    return {
+        'has_yesterday': DailyWorkReport.objects.filter(
+            employee=request.user,
+            report_date=yesterday,
+        ).exists(),
+        'yesterday': yesterday,
+        'can_view_team': can_view_team_reports(request.user),
+    }
+
+
+def _get_or_create_daily_report(user, report_date):
+    profile = get_report_profile(user)
+    defaults = {
+        'shift': DailyWorkReport.SHIFT_MORNING if profile == REPORT_PROFILE_PRODUCTION else '',
+        'report_profile': profile,
+    }
+    report, created = DailyWorkReport.objects.get_or_create(
+        employee=user,
         report_date=report_date,
-        defaults={'shift': DailyWorkReport.SHIFT_MORNING},
+        defaults=defaults,
     )
+    if not created and report.report_profile != profile:
+        report.report_profile = profile
+        report.save(update_fields=['report_profile', 'updated_at'])
+    return report
+
+
+def _finalize_report_submission(report, action):
+    if action == 'submit':
+        report.status = DailyWorkReport.STATUS_SUBMITTED
+        report.submitted_at = timezone.now()
+        return 'Đã nộp báo cáo cho cấp trên.'
+    report.status = DailyWorkReport.STATUS_DRAFT
+    report.submitted_at = None
+    return 'Đã lưu nháp báo cáo.'
+
+
+def _today_production_report(request, report_date):
+    report = _get_or_create_daily_report(request.user, report_date)
 
     if request.method == 'POST':
         action = request.POST.get('action', 'save')
@@ -77,13 +121,8 @@ def today_report(request):
         formset = DailyWorkReportLineFormSet(request.POST, instance=report)
         if form.is_valid() and formset.is_valid():
             report = form.save(commit=False)
-            if action == 'submit':
-                report.status = DailyWorkReport.STATUS_SUBMITTED
-                report.submitted_at = timezone.now()
-                messages.success(request, 'Đã nộp báo cáo cho cấp trên.')
-            else:
-                report.status = DailyWorkReport.STATUS_DRAFT
-                messages.success(request, 'Đã lưu nháp báo cáo.')
+            report.report_profile = REPORT_PROFILE_PRODUCTION
+            messages.success(request, _finalize_report_submission(report, action))
             report.save()
             formset.save()
             return redirect('reports:today')
@@ -91,20 +130,46 @@ def today_report(request):
         form = DailyWorkReportForm(instance=report)
         formset = DailyWorkReportLineFormSet(instance=report)
 
-    yesterday = report_date - timedelta(days=1)
-    has_yesterday = DailyWorkReport.objects.filter(
-        employee=request.user,
-        report_date=yesterday,
-    ).exists()
+    ctx = _report_context_common(request, report_date)
+    ctx.update({'form': form, 'formset': formset, 'report': report})
+    return render(request, 'reports/today.html', ctx)
 
-    return render(request, 'reports/today.html', {
+
+def _today_office_report(request, report_date):
+    from hrm.permissions import get_profile as load_profile
+    user_profile = load_profile(request.user)
+
+    report = _get_or_create_daily_report(request.user, report_date)
+
+    if request.method == 'POST':
+        action = request.POST.get('action', 'save')
+        form = OfficeDailyWorkReportForm(request.POST, instance=report)
+        if form.is_valid():
+            report = form.save(commit=False)
+            report.report_profile = REPORT_PROFILE_OFFICE
+            report.shift = ''
+            messages.success(request, _finalize_report_submission(report, action))
+            report.save()
+            return redirect('reports:today')
+    else:
+        form = OfficeDailyWorkReportForm(instance=report)
+
+    ctx = _report_context_common(request, report_date)
+    ctx.update({
         'form': form,
-        'formset': formset,
         'report': report,
-        'has_yesterday': has_yesterday,
-        'yesterday': yesterday,
-        'can_view_team': can_view_team_reports(request.user),
+        'employee_name': (user_profile.full_name if user_profile else '') or request.user.username,
+        'department_name': user_profile.department.name if user_profile and user_profile.department_id else '',
     })
+    return render(request, 'reports/today_office.html', ctx)
+
+
+@_require_submit_access
+def today_report(request):
+    report_date = _parse_report_date(request)
+    if is_production_report_user(request.user):
+        return _today_production_report(request, report_date)
+    return _today_office_report(request, report_date)
 
 
 @_require_submit_access
@@ -118,26 +183,40 @@ def copy_yesterday(request):
         messages.warning(request, 'Không có báo cáo hôm qua để sao chép.')
         return redirect('reports:today')
 
+    profile = get_report_profile(request.user)
     report, _ = DailyWorkReport.objects.get_or_create(
         employee=request.user,
         report_date=today,
-        defaults={'shift': source.shift, 'status': DailyWorkReport.STATUS_DRAFT},
+        defaults={
+            'shift': source.shift if profile == REPORT_PROFILE_PRODUCTION else '',
+            'report_profile': profile,
+            'status': DailyWorkReport.STATUS_DRAFT,
+        },
     )
-    report.shift = source.shift
+    report.report_profile = profile
+    report.shift = source.shift if profile == REPORT_PROFILE_PRODUCTION else ''
     report.status = DailyWorkReport.STATUS_DRAFT
     report.submitted_at = None
-    report.save()
-    report.lines.all().delete()
-    for idx, line in enumerate(source.lines.all()):
-        report.lines.create(
-            area=line.area,
-            order_code=line.order_code,
-            product_name=line.product_name,
-            quantity=line.quantity,
-            unit=line.unit,
-            note=line.note,
-            sort_order=idx,
-        )
+    if profile == REPORT_PROFILE_OFFICE:
+        report.spreadsheet_json = source.spreadsheet_json
+        report.document_html = source.document_html
+        report.save()
+        report.lines.all().delete()
+    else:
+        report.spreadsheet_json = None
+        report.document_html = ''
+        report.save()
+        report.lines.all().delete()
+        for idx, line in enumerate(source.lines.all()):
+            report.lines.create(
+                area=line.area,
+                order_code=line.order_code,
+                product_name=line.product_name,
+                quantity=line.quantity,
+                unit=line.unit,
+                note=line.note,
+                sort_order=idx,
+            )
     messages.success(request, 'Đã sao chép báo cáo hôm qua. Kiểm tra và nộp lại.')
     return redirect('reports:today')
 
@@ -240,8 +319,12 @@ def report_detail(request, pk):
         messages.success(request, 'Đã cập nhật phản hồi.')
         return redirect('reports:detail', pk=pk)
 
+    from reports.office_content import normalize_spreadsheet_json
+
+    office_sheet = normalize_spreadsheet_json(report.spreadsheet_json)
     return render(request, 'reports/detail.html', {
         'report': report,
+        'office_sheet': office_sheet,
         'can_review': can_review,
         'can_submit_report': can_submit_daily_report(request.user),
         'can_view_team': can_view_team_reports(request.user),

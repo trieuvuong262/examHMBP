@@ -57,9 +57,9 @@
                 <thead class="table-light">
                     <tr>
                         <th>Nhân viên</th>
+                        <th>Loại</th>
                         <th>Trạng thái</th>
-                        <th class="text-end">Dòng CV</th>
-                        <th class="text-end">Tổng SL</th>
+                        <th class="text-end">Tóm tắt</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -68,6 +68,17 @@
                     <tr>
                         <td>
                             <strong>{{ row.member.profile.full_name|default:row.member.username }}</strong>
+                        </td>
+                        <td>
+                            {% if row.report %}
+                                {% if row.report.is_production_report %}
+                                <span class="badge bg-primary-subtle text-primary">Sản xuất</span>
+                                {% else %}
+                                <span class="badge bg-info-subtle text-info">Excel / Word</span>
+                                {% endif %}
+                            {% else %}
+                            <span class="text-muted small">—</span>
+                            {% endif %}
                         </td>
                         <td>
                             {% if row.report %}
@@ -83,8 +94,15 @@
                             <span class="badge bg-danger-subtle text-danger">Chưa báo cáo</span>
                             {% endif %}
                         </td>
-                        <td class="text-end">{{ row.report.line_count|default:"—" }}</td>
-                        <td class="text-end">{{ row.report.total_qty|default:"—" }}</td>
+                        <td class="text-end">
+                            {% if row.report %}
+                                {% if row.report.is_production_report %}
+                                {{ row.report.line_count }} dòng · SL {{ row.report.total_qty|default:0 }}
+                                {% else %}
+                                Bảng + văn bản
+                                {% endif %}
+                            {% else %}—{% endif %}
+                        </td>
                         <td class="text-end">
                             {% if row.report %}
                             <a href="{% url 'reports:detail' row.report.pk %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>

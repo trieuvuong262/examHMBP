@@ -15,6 +15,7 @@ from hrm.permissions import (
     get_report_team_users,
 )
 from reports.models import DailyWorkReport
+from reports.report_profile import REPORT_PROFILE_OFFICE, REPORT_PROFILE_PRODUCTION
 
 
 class ReportHierarchyTests(TestCase):
@@ -101,3 +102,54 @@ class ReportHierarchyTests(TestCase):
         client.force_login(self.outsider)
         resp = client.get(reverse('reports:detail', args=[self.report.pk]))
         self.assertEqual(resp.status_code, 302)
+
+
+class ReportProfileRoutingTests(TestCase):
+    def setUp(self):
+        self.prod_dept = Department.objects.create(
+            name='Xưởng SX Test',
+            sort_order=901,
+            report_profile=REPORT_PROFILE_PRODUCTION,
+        )
+        self.office_dept = Department.objects.create(
+            name='Phòng HC Test',
+            sort_order=902,
+            report_profile=REPORT_PROFILE_OFFICE,
+        )
+        for dept in (self.prod_dept, self.office_dept):
+            DepartmentMenuPermission.objects.create(department=dept, modules=['reports'])
+        reports_perms = {'reports': {'view': True, 'edit': True}}
+        RoleModulePermission.objects.update_or_create(
+            role=ROLE_EMPLOYEE,
+            defaults={'module_permissions': reports_perms},
+        )
+        self.prod_user = self._user('sx_nv', self.prod_dept)
+        self.office_user = self._user('hcns_nv', self.office_dept)
+
+    def _user(self, username, dept):
+        user = User.objects.create_user(username=username, password='testpass123')
+        Profile.objects.filter(user=user).update(
+            department=dept,
+            role=ROLE_EMPLOYEE,
+            full_name=username,
+            is_employed=True,
+        )
+        user.refresh_from_db()
+        return user
+
+    def test_production_user_sees_production_form(self):
+        client = Client()
+        client.force_login(self.prod_user)
+        resp = client.get(reverse('reports:today'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertTemplateUsed(resp, 'reports/today.html')
+        self.assertContains(resp, 'Công đoạn')
+
+    def test_office_user_sees_office_form(self):
+        client = Client()
+        client.force_login(self.office_user)
+        resp = client.get(reverse('reports:today'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertTemplateUsed(resp, 'reports/today_office.html')
+        self.assertContains(resp, 'Bảng Excel')
+        self.assertNotContains(resp, 'Công đoạn')

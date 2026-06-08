@@ -1,5 +1,14 @@
+import json
+
+from ckeditor.widgets import CKEditorWidget
 from django import forms
 from django.forms import inlineformset_factory
+
+from reports.office_content import (
+    DEFAULT_SPREADSHEET,
+    normalize_spreadsheet_json,
+    office_report_has_content,
+)
 
 from .models import DailyWorkReport, DailyWorkReportLine
 
@@ -78,6 +87,53 @@ class BaseDailyWorkReportLineFormSet(forms.BaseInlineFormSet):
                 continue
             form.save()
         return self.instance.lines.all()
+
+
+class OfficeDailyWorkReportForm(forms.ModelForm):
+    spreadsheet_data = forms.CharField(required=False, widget=forms.HiddenInput())
+
+    class Meta:
+        model = DailyWorkReport
+        fields = ['report_date', 'document_html']
+        widgets = {
+            'report_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'document_html': CKEditorWidget(config_name='default'),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        initial_sheet = self.instance.spreadsheet_json if self.instance.pk else None
+        self.fields['spreadsheet_data'].initial = json.dumps(
+            normalize_spreadsheet_json(initial_sheet),
+            ensure_ascii=False,
+        )
+        self.fields['document_html'].required = False
+
+    def clean_spreadsheet_data(self):
+        raw = self.cleaned_data.get('spreadsheet_data') or ''
+        try:
+            parsed = json.loads(raw) if raw else DEFAULT_SPREADSHEET
+        except json.JSONDecodeError as exc:
+            raise forms.ValidationError('Dữ liệu bảng Excel không hợp lệ.') from exc
+        return normalize_spreadsheet_json(parsed)
+
+    def clean(self):
+        cleaned = super().clean()
+        sheet = cleaned.get('spreadsheet_data') or DEFAULT_SPREADSHEET
+        doc = cleaned.get('document_html') or ''
+        if self.data.get('action') == 'submit':
+            if not office_report_has_content(sheet, doc):
+                raise forms.ValidationError(
+                    'Khi nộp báo cáo, điền ít nhất một ô trong tab Excel hoặc ≥ 50 ký tự trong tab Word.',
+                )
+        return cleaned
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.spreadsheet_json = self.cleaned_data.get('spreadsheet_data')
+        if commit:
+            instance.save()
+        return instance
 
 
 DailyWorkReportLineFormSet = inlineformset_factory(

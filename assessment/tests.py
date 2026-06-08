@@ -99,3 +99,26 @@ class PortalTrainingExamWidgetTests(TestCase):
         widgets = get_portal_dashboard(self.employee)
         titles = [w['title'] for w in widgets]
         self.assertNotIn('Bài kiểm tra', titles)
+
+
+class PaginationHelperTests(TestCase):
+    def test_pagination_link_items_compact_range(self):
+        from PortalJustPlay.pagination import pagination_link_items
+
+        class _Page:
+            def __init__(self, number, num_pages):
+                self.number = number
+                self.paginator = type('P', (), {'num_pages': num_pages})()
+
+        self.assertEqual(pagination_link_items(_Page(1, 5)), [1, 2, 3, 4, 5])
+        self.assertEqual(
+            pagination_link_items(_Page(5, 10)),
+            [1, None, 3, 4, 5, 6, 7, None, 10],
+        )
+
+    def test_pagination_href(self):
+        from PortalJustPlay.pagination import pagination_href
+
+        self.assertEqual(pagination_href('q=abc', 'page', 3), '?q=abc&page=3')
+        self.assertEqual(pagination_href('', 'page', 2), '?page=2')
+        self.assertEqual(pagination_href('sort=name', 'my_page', 4), '?sort=name&my_page=4')

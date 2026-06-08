@@ -33,10 +33,10 @@
                 <thead class="table-light">
                     <tr>
                         <th>Ngày</th>
+                        <th>Loại</th>
                         <th>Ca</th>
                         <th>Trạng thái</th>
-                        <th class="text-end">Dòng</th>
-                        <th class="text-end">Tổng SL</th>
+                        <th class="text-end">Tóm tắt</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -44,7 +44,14 @@
                     {% for r in reports %}
                     <tr>
                         <td>{{ r.report_date|date:"d/m/Y" }}</td>
-                        <td>{{ r.get_shift_display }}</td>
+                        <td>
+                            {% if r.is_production_report %}
+                            <span class="badge bg-primary-subtle text-primary">Sản xuất</span>
+                            {% else %}
+                            <span class="badge bg-info-subtle text-info">Excel / Word</span>
+                            {% endif %}
+                        </td>
+                        <td>{% if r.is_production_report %}{{ r.get_shift_display }}{% else %}—{% endif %}</td>
                         <td>
                             {% if r.status == 'SUBMITTED' %}
                             <span class="badge bg-success-subtle text-success">Đã nộp</span>
@@ -52,8 +59,13 @@
                             <span class="badge bg-secondary-subtle text-secondary">Nháp</span>
                             {% endif %}
                         </td>
-                        <td class="text-end">{{ r.line_count }}</td>
-                        <td class="text-end">{{ r.total_qty|default:0 }}</td>
+                        <td class="text-end">
+                            {% if r.is_production_report %}
+                            {{ r.line_count }} dòng · SL {{ r.total_qty|default:0 }}
+                            {% else %}
+                            Bảng + văn bản
+                            {% endif %}
+                        </td>
                         <td class="text-end">
                             <a href="{% url 'reports:detail' r.pk %}" class="btn btn-sm btn-outline-hm">Xem</a>
                         </td>

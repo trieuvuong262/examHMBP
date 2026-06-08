@@ -1,15 +1,28 @@
+{% load pagination_tags %}
 {% if page_obj.paginator.num_pages > 1 %}
-<div class="d-flex justify-content-between align-items-center px-1 pt-2 mt-2 border-top jp-pagination-compact">
+{% with param=page_param|default:'page' %}
+<div class="jp-pagination-compact">
     {% if page_obj.has_previous %}
-    <a class="btn btn-sm btn-light border x-small py-0 px-2" href="?{% if query_string %}{{ query_string }}&{% endif %}{{ page_param }}={{ page_obj.previous_page_number }}" title="Trang trước">‹</a>
+    <a class="btn btn-sm btn-light border x-small py-0 px-2" href="{% pagination_page_href query_string param page_obj.previous_page_number %}" title="Trang trước" aria-label="Trang trước">‹</a>
     {% else %}
-    <span class="btn btn-sm btn-light border x-small py-0 px-2 disabled text-muted">‹</span>
+    <span class="btn btn-sm btn-light border x-small py-0 px-2 disabled text-muted" aria-hidden="true">‹</span>
     {% endif %}
-    <span class="x-small text-muted">{{ page_obj.number }}/{{ page_obj.paginator.num_pages }}</span>
+
+    <select class="form-select form-select-sm jp-pagination-compact-select"
+            aria-label="Chọn trang"
+            onchange="if (this.value) { window.location.href = this.value; }">
+        {% for p in page_obj.paginator.page_range %}
+        <option value="{% pagination_page_href query_string param p %}"{% if p == page_obj.number %} selected{% endif %}>
+            {{ p }}/{{ page_obj.paginator.num_pages }}
+        </option>
+        {% endfor %}
+    </select>
+
     {% if page_obj.has_next %}
-    <a class="btn btn-sm btn-light border x-small py-0 px-2" href="?{% if query_string %}{{ query_string }}&{% endif %}{{ page_param }}={{ page_obj.next_page_number }}" title="Trang sau">›</a>
+    <a class="btn btn-sm btn-light border x-small py-0 px-2" href="{% pagination_page_href query_string param page_obj.next_page_number %}" title="Trang sau" aria-label="Trang sau">›</a>
     {% else %}
-    <span class="btn btn-sm btn-light border x-small py-0 px-2 disabled text-muted">›</span>
+    <span class="btn btn-sm btn-light border x-small py-0 px-2 disabled text-muted" aria-hidden="true">›</span>
     {% endif %}
 </div>
+{% endwith %}
 {% endif %}

@@ -7,7 +7,7 @@
             <h2 class="fw-bold text-hm mb-1 jp-page-title">Báo cáo {{ report.report_date|date:"d/m/Y" }}</h2>
             <p class="text-muted mb-0 small">
                 {{ report.employee.profile.full_name|default:report.employee.username }}
-                · {{ report.get_shift_display }}
+                {% if report.is_production_report %} · {{ report.get_shift_display }}{% endif %}
                 · <span class="badge {% if report.status == 'SUBMITTED' %}bg-success{% else %}bg-secondary{% endif %}">{{ report.get_status_display }}</span>
             </p>
         </div>
@@ -25,6 +25,7 @@
         </div>
     </div>
 
+    {% if report.is_production_report %}
     <div class="card border-0 shadow-sm overflow-hidden mb-4">
         <div class="table-responsive">
             <table class="table table-sm align-middle mb-0">
@@ -64,6 +65,45 @@
             </table>
         </div>
     </div>
+    {% else %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white fw-bold">Bảng Excel</div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm mb-0 jp-office-sheet-readonly">
+                    <thead class="table-light">
+                        <tr>
+                            {% for col in office_sheet.columns %}
+                            <th>{{ col|default:"—" }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in office_sheet.rows %}
+                        <tr>
+                            {% for cell in row %}
+                            <td>{{ cell|default:"" }}</td>
+                            {% endfor %}
+                        </tr>
+                        {% empty %}
+                        <tr><td class="text-muted text-center py-3">Chưa có dữ liệu bảng.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white fw-bold">Văn bản Word</div>
+        <div class="card-body jp-ckeditor-content">
+            {% if report.document_html %}
+            {{ report.document_html|safe }}
+            {% else %}
+            <p class="text-muted mb-0">Chưa có nội dung văn bản.</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
 
     {% if can_review %}
     <div class="card border-0 shadow-sm">

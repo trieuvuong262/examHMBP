@@ -1,26 +1,56 @@
+{% load pagination_tags %}
 {% if page_obj.paginator.num_pages > 1 %}
+{% get_pagination_items page_obj as page_items %}
+{% with param=page_param|default:'page' %}
 <nav aria-label="Phân trang" class="jp-pagination{% if pagination_class %} {{ pagination_class }}{% endif %}">
-    <ul class="pagination justify-content-center mb-0 flex-wrap">
-        {% if page_obj.has_previous %}
-        <li class="page-item">
-            <a class="page-link" href="?{% if query_string %}{{ query_string }}&{% endif %}{{ page_param|default:'page' }}={{ page_obj.previous_page_number }}">Trước</a>
-        </li>
-        {% else %}
-        <li class="page-item disabled"><span class="page-link">Trước</span></li>
-        {% endif %}
-        <li class="page-item disabled">
-            <span class="page-link text-muted">
-                Trang {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
-                <span class="d-none d-sm-inline"> · {{ page_obj.paginator.count }} mục</span>
+    <div class="jp-pagination-bar">
+        <ul class="pagination justify-content-center mb-0 flex-wrap jp-pagination-pages">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="{% pagination_page_href query_string param page_obj.previous_page_number %}" aria-label="Trang trước">‹</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link" aria-hidden="true">‹</span></li>
+            {% endif %}
+
+            {% for item in page_items %}
+                {% if item == None %}
+                <li class="page-item disabled d-none d-sm-inline"><span class="page-link px-2">…</span></li>
+                {% elif item == page_obj.number %}
+                <li class="page-item active" aria-current="page">
+                    <span class="page-link">{{ item }}</span>
+                </li>
+                {% else %}
+                <li class="page-item">
+                    <a class="page-link" href="{% pagination_page_href query_string param item %}">{{ item }}</a>
+                </li>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="{% pagination_page_href query_string param page_obj.next_page_number %}" aria-label="Trang sau">›</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link" aria-hidden="true">›</span></li>
+            {% endif %}
+        </ul>
+
+        <div class="jp-pagination-jump">
+            <label class="jp-pagination-jump-label" for="jpPageJump-{{ param }}">Đến trang</label>
+            <select id="jpPageJump-{{ param }}"
+                    class="form-select form-select-sm jp-pagination-jump-select"
+                    aria-label="Chọn trang"
+                    onchange="if (this.value) { window.location.href = this.value; }">
+                {% for p in page_obj.paginator.page_range %}
+                <option value="{% pagination_page_href query_string param p %}"{% if p == page_obj.number %} selected{% endif %}>{{ p }}</option>
+                {% endfor %}
+            </select>
+            <span class="jp-pagination-meta text-muted small">
+                {{ page_obj.paginator.count }} mục
             </span>
-        </li>
-        {% if page_obj.has_next %}
-        <li class="page-item">
-            <a class="page-link" href="?{% if query_string %}{{ query_string }}&{% endif %}{{ page_param|default:'page' }}={{ page_obj.next_page_number }}">Sau</a>
-        </li>
-        {% else %}
-        <li class="page-item disabled"><span class="page-link">Sau</span></li>
-        {% endif %}
-    </ul>
+        </div>
+    </div>
 </nav>
+{% endwith %}
 {% endif %}

@@ -23,6 +23,12 @@
                             {{ form.name }}
                             {% if form.name.errors %}<div class="text-danger small mt-1">{{ form.name.errors }}</div>{% endif %}
                         </div>
+                        <div class="mb-4">
+                            <label class="form-label fw-bold small text-secondary">Mẫu báo cáo</label>
+                            {{ form.report_profile }}
+                            <div class="form-text">Sản xuất: bảng năng suất theo ca. Phòng ban khác: nhập Excel / Word tự do.</div>
+                            {% if form.report_profile.errors %}<div class="text-danger small mt-1">{{ form.report_profile.errors }}</div>{% endif %}
+                        </div>
                         <div class="row g-3 mb-4">
                             <div class="col-md-6">
                                 <label class="form-label fw-bold small text-secondary">Thứ tự hiển thị</label>

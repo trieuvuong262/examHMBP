@@ -3201,6 +3201,84 @@ body.jp-tool-loading-active {
     }
 }
 
+/* Phân trang — số trang + chọn trang */
+.jp-pagination-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem 1rem;
+}
+
+.jp-pagination-pages .page-link {
+    min-width: 2.25rem;
+    text-align: center;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+}
+
+.jp-pagination-pages .page-item.active .page-link {
+    background-color: var(--hm-primary, #dc2626);
+    border-color: var(--hm-primary, #dc2626);
+}
+
+.jp-pagination-jump {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.jp-pagination-jump-label {
+    font-size: 0.78rem;
+    color: #64748b;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.jp-pagination-jump-select {
+    width: auto;
+    min-width: 4.5rem;
+    max-width: 6rem;
+}
+
+.jp-pagination-meta {
+    white-space: nowrap;
+}
+
+.jp-pagination-compact {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.35rem;
+    padding: 0.35rem 0.15rem 0;
+    margin-top: 0.35rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+.jp-pagination-compact-select {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 5.5rem;
+    font-size: 0.72rem;
+    padding-top: 0.1rem;
+    padding-bottom: 0.1rem;
+    min-height: 1.65rem;
+}
+
+@media (max-width: 575.98px) {
+    .jp-pagination-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .jp-pagination-jump {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
 /* Tab Phòng ban / Bộ phận — override .nav-link navbar (chữ trắng) */
 .jp-org-tabs .nav-link {
     color: #475569 !important;
@@ -7810,6 +7888,63 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
 }
 
 [data-theme="dark"] .jp-reports-page strong {
+    color: var(--jp-text-primary);
+}
+
+.jp-reports-office-tabs {
+    border-bottom: 0;
+    gap: 0.25rem;
+}
+
+.jp-reports-office-tabs .nav-link {
+    font-weight: 600;
+    color: #6c757d;
+    border: 1px solid transparent;
+    border-bottom: 0;
+    border-radius: 0.375rem 0.375rem 0 0;
+}
+
+.jp-reports-office-tabs .nav-link.active {
+    color: var(--hm-primary, #b91c1c);
+    background: #fff;
+    border-color: #dee2e6;
+}
+
+.jp-office-sheet-wrap {
+    max-height: 420px;
+    overflow: auto;
+}
+
+.jp-office-sheet th,
+.jp-office-sheet td {
+    min-width: 120px;
+    padding: 0.25rem;
+    vertical-align: middle;
+}
+
+.jp-office-sheet th .form-control,
+.jp-office-sheet td .form-control {
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    min-width: 100px;
+}
+
+.jp-office-sheet-readonly td,
+.jp-office-sheet-readonly th {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+[data-theme="dark"] .jp-reports-office-tabs .nav-link.active {
+    background: var(--jp-surface-bg);
+    border-color: var(--jp-surface-border);
+    color: #fca5a5;
+}
+
+[data-theme="dark"] .jp-office-sheet th .form-control,
+[data-theme="dark"] .jp-office-sheet td .form-control {
+    background: transparent;
     color: var(--jp-text-primary);
 }
 

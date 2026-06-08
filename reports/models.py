@@ -1,6 +1,11 @@
 from django.conf import settings
 from django.db import models
 
+from reports.report_profile import (
+    REPORT_PROFILE_CHOICES,
+    REPORT_PROFILE_PRODUCTION,
+)
+
 
 class DailyWorkReport(models.Model):
     SHIFT_MORNING = 'MORNING'
@@ -26,7 +31,15 @@ class DailyWorkReport(models.Model):
         verbose_name='Nhân viên',
     )
     report_date = models.DateField(verbose_name='Ngày báo cáo')
-    shift = models.CharField(max_length=20, choices=SHIFT_CHOICES, default=SHIFT_MORNING)
+    shift = models.CharField(max_length=20, choices=SHIFT_CHOICES, default=SHIFT_MORNING, blank=True)
+    report_profile = models.CharField(
+        max_length=20,
+        choices=REPORT_PROFILE_CHOICES,
+        default=REPORT_PROFILE_PRODUCTION,
+        verbose_name='Loại báo cáo',
+    )
+    spreadsheet_json = models.JSONField(null=True, blank=True, verbose_name='Bảng Excel (JSON)')
+    document_html = models.TextField(blank=True, verbose_name='Văn bản Word (HTML)')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT)
     submitted_at = models.DateTimeField(null=True, blank=True)
     hod_reviewed = models.BooleanField(default=False, verbose_name='HOD đã xem')
@@ -42,6 +55,10 @@ class DailyWorkReport(models.Model):
 
     def __str__(self):
         return f'{self.employee} - {self.report_date}'
+
+    @property
+    def is_production_report(self):
+        return self.report_profile == REPORT_PROFILE_PRODUCTION
 
     @property
     def total_quantity(self):

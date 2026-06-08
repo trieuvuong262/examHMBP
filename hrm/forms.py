@@ -290,15 +290,17 @@ class CustomUserForm(forms.Form):
 class DepartmentForm(forms.ModelForm):
     class Meta:
         model = Department
-        fields = ['name', 'sort_order', 'is_active']
+        fields = ['name', 'sort_order', 'report_profile', 'is_active']
         widgets = {
             'name': forms.TextInput(attrs={**INPUT, 'placeholder': 'VD: SẢN XUẤT'}),
             'sort_order': forms.NumberInput(attrs={**INPUT, 'min': 0}),
+            'report_profile': forms.Select(attrs={**INPUT}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         labels = {
             'name': 'Tên phòng ban',
             'sort_order': 'Thứ tự hiển thị',
+            'report_profile': 'Mẫu báo cáo',
             'is_active': 'Đang sử dụng',
         }
 

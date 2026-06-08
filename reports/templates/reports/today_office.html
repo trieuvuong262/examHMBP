@@ -1,0 +1,191 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-reports-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-clipboard-check-fill me-2"></i>Báo cáo hôm nay</h2>
+            <p class="text-muted mb-0 jp-hide-mobile-subtitle">
+                {{ employee_name }}{% if department_name %} · {{ department_name }}{% endif %}
+                — nhập tự do bảng Excel hoặc văn bản Word.
+            </p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap w-100 w-md-auto">
+            {% if has_yesterday %}
+            <a href="{% url 'reports:copy_yesterday' %}" class="btn btn-outline-hm btn-sm fw-bold flex-fill flex-md-grow-0"
+               onclick="return confirm('Sao chép nội dung từ hôm qua?');">
+                <i class="bi bi-copy me-1"></i>Sao chép HQ
+            </a>
+            {% endif %}
+            <a href="{% url 'reports:my' %}" class="btn btn-outline-dark btn-sm flex-fill flex-md-grow-0">Lịch sử</a>
+            {% if can_view_team %}
+            <a href="{% url 'reports:team' %}" class="btn btn-outline-hm btn-sm flex-fill flex-md-grow-0">Báo cáo cấp dưới</a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if report.status == 'SUBMITTED' %}
+    <div class="alert alert-success border-0 shadow-sm py-2">
+        <i class="bi bi-check-circle-fill me-1"></i>Đã nộp lúc {{ report.submitted_at|date:"H:i d/m/Y" }}.
+        Bạn vẫn có thể chỉnh sửa và nộp lại.
+    </div>
+    {% endif %}
+
+    <form method="post" id="office-report-form">
+        {% csrf_token %}
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body p-3 p-md-4">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small mb-1">Ngày</label>
+                        {{ form.report_date }}
+                    </div>
+                    <div class="col-md-8 text-md-end">
+                        <span class="badge {% if report.status == 'SUBMITTED' %}bg-success{% else %}bg-secondary{% endif %} px-3 py-2">
+                            {{ report.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <ul class="nav nav-tabs jp-reports-office-tabs" id="officeReportTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="excel-tab" data-bs-toggle="tab" data-bs-target="#excel-pane" type="button" role="tab">Bảng Excel</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="word-tab" data-bs-toggle="tab" data-bs-target="#word-pane" type="button" role="tab">Văn bản Word</button>
+            </li>
+        </ul>
+
+        <div class="tab-content card border-0 shadow-sm border-top-0 rounded-top-0 mb-3">
+            <div class="tab-pane fade show active p-3 p-md-4" id="excel-pane" role="tabpanel">
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <button type="button" class="btn btn-sm btn-outline-hm" id="jpSheetAddRow"><i class="bi bi-plus-lg me-1"></i>Dòng</button>
+                    <button type="button" class="btn btn-sm btn-outline-hm" id="jpSheetAddCol"><i class="bi bi-plus-lg me-1"></i>Cột</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="jpSheetRemoveRow"><i class="bi bi-dash-lg me-1"></i>Dòng</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="jpSheetRemoveCol"><i class="bi bi-dash-lg me-1"></i>Cột</button>
+                </div>
+                <div class="table-responsive jp-office-sheet-wrap">
+                    <table class="table table-bordered table-sm mb-0 jp-office-sheet" id="jpOfficeSheet"></table>
+                </div>
+                {{ form.spreadsheet_data }}
+            </div>
+            <div class="tab-pane fade p-3 p-md-4" id="word-pane" role="tabpanel">
+                <div class="border bg-white jp-ckeditor-wrap">{{ form.document_html }}</div>
+            </div>
+        </div>
+
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger border-0 shadow-sm">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="d-flex flex-wrap gap-2 justify-content-end">
+            <button type="submit" name="action" value="save" class="btn btn-outline-dark px-4">Lưu nháp</button>
+            <button type="submit" name="action" value="submit" class="btn btn-hm px-4">Nộp cho cấp trên</button>
+        </div>
+    </form>
+</div>
+
+<script>
+(function () {
+    'use strict';
+    const hiddenInput = document.getElementById('id_spreadsheet_data');
+    const table = document.getElementById('jpOfficeSheet');
+    const form = document.getElementById('office-report-form');
+    if (!hiddenInput || !table) return;
+
+    let sheet = { columns: ['', '', ''], rows: [['', '', ''], ['', '', ''], ['', '', ''], ['', '', ''], ['', '', '']] };
+
+    function loadInitial() {
+        try {
+            const parsed = JSON.parse(hiddenInput.value || '{}');
+            if (parsed && Array.isArray(parsed.columns) && Array.isArray(parsed.rows)) {
+                sheet.columns = parsed.columns.map(String);
+                sheet.rows = parsed.rows.map(function (row) {
+                    const cells = Array.isArray(row) ? row.map(String) : [];
+                    while (cells.length < sheet.columns.length) cells.push('');
+                    return cells.slice(0, sheet.columns.length);
+                });
+            }
+        } catch (e) {}
+        if (!sheet.rows.length) {
+            sheet.rows = [sheet.columns.map(function () { return ''; })];
+        }
+    }
+
+    function syncHidden() {
+        hiddenInput.value = JSON.stringify(sheet);
+    }
+
+    function render() {
+        table.innerHTML = '';
+        const thead = document.createElement('thead');
+        const headRow = document.createElement('tr');
+        sheet.columns.forEach(function (col, colIdx) {
+            const th = document.createElement('th');
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'form-control form-control-sm';
+            input.value = col;
+            input.placeholder = 'Cột ' + (colIdx + 1);
+            input.addEventListener('input', function () {
+                sheet.columns[colIdx] = input.value;
+                syncHidden();
+            });
+            th.appendChild(input);
+            headRow.appendChild(th);
+        });
+        thead.appendChild(headRow);
+        table.appendChild(thead);
+
+        const tbody = document.createElement('tbody');
+        sheet.rows.forEach(function (row, rowIdx) {
+            const tr = document.createElement('tr');
+            sheet.columns.forEach(function (_col, colIdx) {
+                const td = document.createElement('td');
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'form-control form-control-sm';
+                input.value = row[colIdx] || '';
+                input.addEventListener('input', function () {
+                    sheet.rows[rowIdx][colIdx] = input.value;
+                    syncHidden();
+                });
+                td.appendChild(input);
+                tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        syncHidden();
+    }
+
+    document.getElementById('jpSheetAddRow')?.addEventListener('click', function () {
+        sheet.rows.push(sheet.columns.map(function () { return ''; }));
+        render();
+    });
+    document.getElementById('jpSheetRemoveRow')?.addEventListener('click', function () {
+        if (sheet.rows.length <= 1) return;
+        sheet.rows.pop();
+        render();
+    });
+    document.getElementById('jpSheetAddCol')?.addEventListener('click', function () {
+        sheet.columns.push('');
+        sheet.rows = sheet.rows.map(function (row) { row.push(''); return row; });
+        render();
+    });
+    document.getElementById('jpSheetRemoveCol')?.addEventListener('click', function () {
+        if (sheet.columns.length <= 1) return;
+        sheet.columns.pop();
+        sheet.rows = sheet.rows.map(function (row) { row.pop(); return row; });
+        render();
+    });
+
+    form?.addEventListener('submit', function () { syncHidden(); });
+
+    loadInitial();
+    render();
+})();
+</script>
+{% endblock %}

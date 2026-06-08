@@ -53,9 +53,22 @@ class UserGuide(models.Model):
 
 
 class Department(models.Model):
+    REPORT_PROFILE_PRODUCTION = 'PRODUCTION'
+    REPORT_PROFILE_OFFICE = 'OFFICE'
+    REPORT_PROFILE_CHOICES = [
+        (REPORT_PROFILE_PRODUCTION, 'Sản xuất (bảng năng suất)'),
+        (REPORT_PROFILE_OFFICE, 'Phòng ban khác (Excel / Word tự do)'),
+    ]
+
     name = models.CharField(max_length=150, unique=True, verbose_name='Tên phòng ban')
     is_active = models.BooleanField(default=True, verbose_name='Đang sử dụng')
     sort_order = models.PositiveIntegerField(default=0, verbose_name='Thứ tự hiển thị')
+    report_profile = models.CharField(
+        max_length=20,
+        choices=REPORT_PROFILE_CHOICES,
+        default=REPORT_PROFILE_OFFICE,
+        verbose_name='Mẫu báo cáo',
+    )
 
     class Meta:
         ordering = ['sort_order', 'name']
