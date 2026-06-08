@@ -3,10 +3,19 @@ from django.urls import path
 from kiotviet import sync_views as kiotviet_sync_views
 
 from . import views
+from . import views_login_security
 
 app_name = 'audit'
 
 urlpatterns = [
+    path('bao-mat-dang-nhap/', views_login_security.login_security_page, name='login_security'),
+    path(
+        'bao-mat-dang-nhap/save-config/',
+        views_login_security.save_login_security_config_view,
+        name='login_security_save_config',
+    ),
+    path('bao-mat-dang-nhap/unlock-user/<int:pk>/', views_login_security.unlock_user_login, name='unlock_user_login'),
+    path('bao-mat-dang-nhap/unlock-ip/<int:pk>/', views_login_security.unlock_ip_login, name='unlock_ip_login'),
     path('', views.log_list, name='log_list'),
     path('backup/', views.backup_page, name='backup_page'),
     path('backup/run/', views.backup_run, name='backup_run'),

@@ -1,9 +1,11 @@
 # assessment/backends.py
 from django.contrib.auth.backends import ModelBackend
 from django.contrib.auth import get_user_model
-from django.db.models import Q
+
+from audit.login_security import is_user_locked, resolve_user_by_login_identifier
 
 UserModel = get_user_model()
+
 
 class EmailOrUsernameModelBackend(ModelBackend):
     """
@@ -13,25 +15,16 @@ class EmailOrUsernameModelBackend(ModelBackend):
     def authenticate(self, request, username=None, password=None, **kwargs):
         if username is None:
             username = kwargs.get(UserModel.USERNAME_FIELD)
-            
-        try:
-            # Tìm user có username HOẶC email khớp với chữ nhập vào (không phân biệt hoa thường)
-            user = UserModel.objects.get(
-                Q(username__iexact=username) | Q(email__iexact=username)
-            )
-        except UserModel.DoesNotExist:
-            # Bảo mật: Dù không tìm thấy user, vẫn chạy giả lập hàm kiểm tra pass 
-            # để hacker không thể đo thời gian server phản hồi để đoán email có tồn tại hay không
+
+        user = resolve_user_by_login_identifier(username or '')
+        if user is None:
             UserModel().set_password(password)
             return None
-        except UserModel.MultipleObjectsReturned:
-            # Đề phòng trường hợp trùng email, lấy cái đầu tiên
-            user = UserModel.objects.filter(
-                Q(username__iexact=username) | Q(email__iexact=username)
-            ).order_by('id').first()
 
-        # Kiểm tra mật khẩu
+        if is_user_locked(user):
+            return None
+
         if user.check_password(password) and self.user_can_authenticate(user):
             return user
-            
+
         return None

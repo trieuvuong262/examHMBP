@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card border-0 shadow-lg jp-login-lockout-card overflow-hidden">
+                <div class="jp-login-lockout-header text-center text-white py-4 px-3">
+                    <div class="jp-login-lockout-icon mx-auto mb-3">
+                        <i class="bi bi-shield-lock-fill"></i>
+                    </div>
+                    <h2 class="fw-bold mb-1">JUSTPLAY PORTAL</h2>
+                    <p class="small mb-0 opacity-90">Bảo mật hệ thống</p>
+                </div>
+
+                <div class="card-body p-4 p-md-5 text-center">
+                    {% if lockout_kind == 'user' %}
+                    <h3 class="fw-bold text-dark mb-3">Tài khoản tạm khóa</h3>
+                    <p class="text-muted mb-4">
+                        Bạn đã nhập sai mật khẩu quá <strong>{{ max_attempts }}</strong> lần.
+                        Hệ thống đã tạm khóa đăng nhập để bảo vệ tài khoản.
+                    </p>
+                    {% if locked_user %}
+                    <p class="small text-muted mb-4">
+                        Tài khoản: <strong>{{ locked_user.username }}</strong>
+                    </p>
+                    {% endif %}
+                    {% else %}
+                    <h3 class="fw-bold text-dark mb-3">Truy cập tạm chặn</h3>
+                    <p class="text-muted mb-4">
+                        Địa chỉ mạng của bạn có quá nhiều lần đăng nhập thất bại (hoạt động bất thường / bot).
+                        Vui lòng liên hệ IT nếu bạn là nhân viên hợp lệ.
+                    </p>
+                    {% endif %}
+
+                    <div class="alert alert-light border jp-login-lockout-it-box text-start mb-4">
+                        <div class="d-flex gap-3">
+                            <i class="bi bi-headset text-hm fs-4 flex-shrink-0"></i>
+                            <div>
+                                <div class="fw-bold text-dark mb-1">Liên hệ IT để được hỗ trợ</div>
+                                <p class="small text-muted mb-0">{{ it_contact }}</p>
+                                <p class="small text-muted mb-0 mt-2">
+                                    Cung cấp <strong>họ tên</strong> và <strong>mã nhân viên</strong> khi liên hệ.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <a href="{% url 'login' %}" class="btn btn-outline-secondary fw-bold">
+                        <i class="bi bi-arrow-left me-1"></i> Quay lại trang đăng nhập
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+.jp-login-lockout-header {
+    background: linear-gradient(135deg, #991b1b 0%, #dc2626 55%, #b91c1c 100%);
+}
+.jp-login-lockout-icon {
+    width: 4.5rem;
+    height: 4.5rem;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+}
+.jp-login-lockout-it-box {
+    background: #fff8f8;
+}
+</style>
+{% endblock %}

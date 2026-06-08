@@ -1,8 +1,9 @@
 from django.contrib.auth.signals import user_logged_in, user_logged_out, user_login_failed
 from django.dispatch import receiver
 
+from audit.login_security import record_failed_login, record_successful_login
 from audit.models import UserActivityLog
-from audit.utils import create_activity_log, get_client_device_info, is_audit_exempt_user
+from audit.utils import create_activity_log, get_client_device_info, get_client_ip, is_audit_exempt_user
 
 
 class _SignalRequestProxy:
@@ -17,6 +18,7 @@ class _SignalRequestProxy:
 
 @receiver(user_logged_in)
 def audit_user_logged_in(sender, request, user, **kwargs):
+    record_successful_login(user)
     if is_audit_exempt_user(user):
         return
     create_activity_log(
@@ -51,6 +53,7 @@ def audit_user_login_failed(sender, credentials, request, **kwargs):
     if request is None:
         return
     username = credentials.get('username', '')
+    record_failed_login(username=username, ip=get_client_ip(request))
     create_activity_log(
         request=request,
         user=None,

@@ -4,7 +4,13 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from audit.models import PortalBackupJob, UserActivityLog
+from audit.login_security import (
+    is_ip_blocked,
+    is_user_locked,
+    record_failed_login,
+    unlock_user_account,
+)
+from audit.models import IpLoginBlock, LoginSecurityConfig, PortalBackupJob, UserActivityLog, UserLoginLock
 from audit.utils import (
     is_audit_exempt_user,
     sanitize_mapping,
@@ -320,3 +326,117 @@ class PortalBackupTests(TestCase):
         self.assertIn('remote_path', manifest)
         job = PortalBackupJob.objects.order_by('-pk').first()
         self.assertEqual(job.status, PortalBackupJob.STATUS_SUCCESS)
+
+
+@override_settings(
+    LOGIN_LOCK_MAX_ATTEMPTS=3,
+    LOGIN_IP_BLOCK_MAX_ATTEMPTS=5,
+)
+class LoginSecurityTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.dept = Department.objects.create(name='IT Sec', sort_order=1)
+        DepartmentMenuPermission.objects.create(department=self.dept, modules=['audit'])
+        RoleModulePermission.objects.update_or_create(
+            role=ROLE_DIRECTOR,
+            defaults={'module_permissions': {MODULE_AUDIT: {'view': True, 'edit': True}}},
+        )
+        RoleModulePermission.objects.update_or_create(
+            role=ROLE_EMPLOYEE,
+            defaults={'module_permissions': {MODULE_AUDIT: {'view': False, 'edit': False}}},
+        )
+        self.user = User.objects.create_user(username='lockme', password='goodpass123')
+        profile = Profile.objects.get(user=self.user)
+        profile.department = self.dept
+        profile.role = ROLE_EMPLOYEE
+        profile.full_name = 'Lock Test'
+        profile.save()
+        self.director = User.objects.create_user(username='it_admin', password='adminpass123')
+        d_profile = Profile.objects.get(user=self.director)
+        d_profile.department = self.dept
+        d_profile.role = ROLE_DIRECTOR
+        d_profile.save()
+
+    def test_lock_user_after_max_failures(self):
+        for _ in range(3):
+            record_failed_login(username='lockme', ip='192.168.1.10')
+        self.assertTrue(is_user_locked(self.user))
+        lock = UserLoginLock.objects.get(user=self.user)
+        self.assertEqual(lock.failed_attempts, 3)
+
+    def test_locked_user_cannot_login(self):
+        for _ in range(3):
+            record_failed_login(username='lockme', ip='192.168.1.10')
+        ok = self.client.login(username='lockme', password='goodpass123')
+        self.assertFalse(ok)
+
+    def test_lockout_page_after_too_many_attempts(self):
+        for _ in range(3):
+            self.client.post(reverse('login'), {'username': 'lockme', 'password': 'wrong'})
+        response = self.client.post(reverse('login'), {'username': 'lockme', 'password': 'wrong'})
+        self.assertContains(response, 'Tài khoản tạm khóa', status_code=403)
+        self.assertContains(response, 'Liên hệ IT', status_code=403)
+
+    def test_ip_block_for_unknown_usernames(self):
+        for i in range(5):
+            record_failed_login(username=f'bot{i}', ip='203.0.113.50')
+        self.assertTrue(is_ip_blocked('203.0.113.50'))
+
+    def test_admin_unlock_user(self):
+        for _ in range(3):
+            record_failed_login(username='lockme', ip='192.168.1.10')
+        lock = UserLoginLock.objects.get(user=self.user)
+        self.client.force_login(self.director)
+        response = self.client.post(reverse('audit:unlock_user_login', args=[lock.pk]))
+        self.assertEqual(response.status_code, 302)
+        lock.refresh_from_db()
+        self.assertFalse(lock.is_locked)
+        self.assertTrue(self.client.login(username='lockme', password='goodpass123'))
+
+    def test_login_security_page_requires_audit(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('audit:login_security'))
+        self.assertEqual(response.status_code, 302)
+        self.client.force_login(self.director)
+        response = self.client.get(reverse('audit:login_security'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Tài khoản bị khóa')
+
+    def test_wan_whitelist_skips_ip_spam_block(self):
+        config = LoginSecurityConfig.get_solo()
+        config.wan_whitelist_ips = ['14.161.25.119']
+        config.save(update_fields=['wan_whitelist_ips'])
+        for i in range(5):
+            record_failed_login(username=f'bot{i}', ip='14.161.25.119')
+        self.assertFalse(is_ip_blocked('14.161.25.119'))
+
+    def test_wan_whitelist_still_locks_account(self):
+        config = LoginSecurityConfig.get_solo()
+        config.wan_whitelist_ips = ['14.161.25.119']
+        config.save(update_fields=['wan_whitelist_ips'])
+        for _ in range(3):
+            record_failed_login(username='lockme', ip='14.161.25.119')
+        self.assertTrue(is_user_locked(self.user))
+
+    def test_blacklist_blocks_immediately(self):
+        config = LoginSecurityConfig.get_solo()
+        config.ip_blacklist = ['203.0.113.99']
+        config.save(update_fields=['ip_blacklist'])
+        self.assertTrue(is_ip_blocked('203.0.113.99'))
+
+    def test_login_security_config_page(self):
+        self.client.force_login(self.director)
+        response = self.client.get(reverse('audit:login_security') + '?tab=config')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'IP WAN công ty')
+        response = self.client.post(
+            reverse('audit:login_security_save_config'),
+            {
+                'wan_whitelist_ips': '14.161.25.119\n192.168.1.46',
+                'ip_blacklist': '203.0.113.50',
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        config = LoginSecurityConfig.get_solo()
+        self.assertEqual(config.wan_whitelist_ips, ['14.161.25.119', '192.168.1.46'])
+        self.assertEqual(config.ip_blacklist, ['203.0.113.50'])

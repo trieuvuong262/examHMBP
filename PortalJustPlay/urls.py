@@ -8,11 +8,13 @@ from hrm.views import MyPasswordChangeView, update_avatar
 from hrm.views_guide import user_guide, user_guide_edit
 from PortalJustPlay import ckeditor_upload
 from PortalJustPlay.pwa import portal_service_worker, site_manifest
+from audit.views_login import PortalLoginView
 
 urlpatterns = [
     path('sw.js', portal_service_worker, name='portal_service_worker'),
     path('manifest.webmanifest', site_manifest, name='site_manifest'),
     path('admin-panel/', admin.site.urls),
+    path('accounts/login/', PortalLoginView.as_view(), name='login'),
     path('accounts/', include('django.contrib.auth.urls')),
     path('huong-dan/', user_guide, name='user_guide'),
     path('huong-dan/chinh-sua/', user_guide_edit, name='user_guide_edit'),

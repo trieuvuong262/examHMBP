@@ -118,6 +118,101 @@ class UserActivityLog(models.Model):
         return ' · '.join(parts) if parts else '—'
 
 
+class UserLoginLock(models.Model):
+    """Khóa tài khoản sau quá nhiều lần nhập sai mật khẩu."""
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='login_lock',
+        verbose_name='Tài khoản',
+    )
+    username_snapshot = models.CharField(max_length=150, blank=True, db_index=True)
+    failed_attempts = models.PositiveSmallIntegerField(default=0)
+    locked_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    last_failed_at = models.DateTimeField(null=True, blank=True)
+    last_ip = models.GenericIPAddressField(null=True, blank=True)
+    unlocked_at = models.DateTimeField(null=True, blank=True)
+    unlocked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='login_locks_unlocked',
+        verbose_name='IT mở khóa',
+    )
+
+    class Meta:
+        verbose_name = 'Khóa đăng nhập tài khoản'
+        verbose_name_plural = 'Khóa đăng nhập tài khoản'
+
+    def __str__(self):
+        return f'{self.username_snapshot or self.user_id} · {self.failed_attempts} lần sai'
+
+    @property
+    def is_locked(self) -> bool:
+        return bool(self.locked_at and not self.unlocked_at)
+
+
+class LoginSecurityConfig(models.Model):
+    """Whitelist WAN công ty / blacklist IP (singleton pk=1)."""
+
+    wan_whitelist_ips = models.JSONField(default=list, blank=True)
+    ip_blacklist = models.JSONField(default=list, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='login_security_configs_updated',
+        verbose_name='Cập nhật bởi',
+    )
+
+    class Meta:
+        verbose_name = 'Cấu hình bảo mật đăng nhập'
+        verbose_name_plural = 'Cấu hình bảo mật đăng nhập'
+
+    def __str__(self):
+        return 'Cấu hình IP đăng nhập'
+
+    @classmethod
+    def get_solo(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
+class IpLoginBlock(models.Model):
+    """Chặn IP do bot spam đăng nhập (user không tồn tại / quét hàng loạt)."""
+
+    ip_address = models.GenericIPAddressField(unique=True, db_index=True)
+    failed_attempts = models.PositiveIntegerField(default=0)
+    unknown_username_count = models.PositiveIntegerField(default=0)
+    sample_usernames = models.JSONField(default=list, blank=True)
+    blocked_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    last_failed_at = models.DateTimeField(null=True, blank=True)
+    unlocked_at = models.DateTimeField(null=True, blank=True)
+    unlocked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ip_blocks_cleared',
+        verbose_name='IT bỏ chặn',
+    )
+
+    class Meta:
+        verbose_name = 'Chặn IP đăng nhập'
+        verbose_name_plural = 'Chặn IP đăng nhập'
+
+    def __str__(self):
+        return f'{self.ip_address} · {self.failed_attempts} lần'
+
+    @property
+    def is_blocked(self) -> bool:
+        return bool(self.blocked_at and not self.unlocked_at)
+
+
 class PortalBackupJob(models.Model):
     TRIGGER_MANUAL = 'manual'
     TRIGGER_SCHEDULED = 'scheduled'

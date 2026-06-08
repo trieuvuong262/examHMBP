@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div class="jp-page-header-main">
+            <h2 class="jp-page-title fw-bold text-dark mb-1">
+                <i class="bi bi-shield-lock-fill text-hm me-2"></i>Bảo mật đăng nhập
+            </h2>
+            <p class="text-muted small mb-0">
+                Khóa tài khoản sau 10 lần sai · Chặn IP spam sau 10 lần (trừ IP WAN công ty)
+            </p>
+        </div>
+    </div>
+
+    <ul class="nav nav-tabs mb-4">
+        <li class="nav-item">
+            <a class="nav-link fw-bold {% if tab == 'accounts' %}active{% endif %}"
+               href="{% url 'audit:login_security' %}?tab=accounts">
+                Tài khoản bị khóa
+                {% if stats.locked_count %}
+                <span class="badge bg-danger ms-1">{{ stats.locked_count }}</span>
+                {% endif %}
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link fw-bold {% if tab == 'bots' %}active{% endif %}"
+               href="{% url 'audit:login_security' %}?tab=bots">
+                IP bot / spam
+                {% if stats.blocked_ip_count %}
+                <span class="badge bg-warning text-dark ms-1">{{ stats.blocked_ip_count }}</span>
+                {% endif %}
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link fw-bold {% if tab == 'config' %}active{% endif %}"
+               href="{% url 'audit:login_security' %}?tab=config">
+                Cấu hình IP
+            </a>
+        </li>
+    </ul>
+
+    {% if tab == 'accounts' %}
+    <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="card-header bg-white py-3 border-bottom">
+            <h5 class="mb-0 fw-bold">Nhân viên nhập sai mật khẩu quá nhiều lần</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Tài khoản</th>
+                        <th>Họ tên</th>
+                        <th class="text-center">Lần sai</th>
+                        <th>IP cuối</th>
+                        <th>Khóa lúc</th>
+                        <th class="text-end">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in locked_users %}
+                    <tr>
+                        <td class="fw-bold">{{ row.username_snapshot|default:row.user.username }}</td>
+                        <td>{{ row.user.profile.full_name|default:"—" }}</td>
+                        <td class="text-center"><span class="badge bg-danger">{{ row.failed_attempts }}</span></td>
+                        <td class="small text-muted">{{ row.last_ip|default:"—" }}</td>
+                        <td class="small">{{ row.locked_at|date:"d/m/Y H:i" }}</td>
+                        <td class="text-end">
+                            {% if can_unlock %}
+                            <form method="post" action="{% url 'audit:unlock_user_login' row.pk %}" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-hm text-white fw-bold">
+                                    <i class="bi bi-unlock-fill me-1"></i>Mở khóa
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-5">Không có tài khoản nào đang bị khóa.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if recent_user_locks %}
+    <p class="small text-muted mt-3 mb-0">Lịch sử khóa gần đây hiển thị tối đa 20 mục trong tab này.</p>
+    {% endif %}
+
+    {% elif tab == 'bots' %}
+    <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="card-header bg-white py-3 border-bottom">
+            <h5 class="mb-0 fw-bold">IP bị chặn — bot quét / spam đăng nhập</h5>
+            <p class="small text-muted mb-0 mt-1">User không tồn tại hoặc quá nhiều lần thử từ cùng IP.</p>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>IP</th>
+                        <th class="text-center">Lần thử</th>
+                        <th class="text-center">User ảo</th>
+                        <th>User thử gần đây</th>
+                        <th>Chặn lúc</th>
+                        <th class="text-end">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in blocked_ips %}
+                    <tr>
+                        <td class="fw-bold font-monospace">{{ row.ip_address }}</td>
+                        <td class="text-center">{{ row.failed_attempts|intcomma }}</td>
+                        <td class="text-center">{{ row.unknown_username_count }}</td>
+                        <td class="small text-muted">
+                            {% if row.sample_usernames %}
+                                {{ row.sample_usernames|join:", "|truncatechars:80 }}
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="small">{{ row.blocked_at|date:"d/m/Y H:i" }}</td>
+                        <td class="text-end">
+                            {% if can_unlock %}
+                            <form method="post" action="{% url 'audit:unlock_ip_login' row.pk %}" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-warning fw-bold">
+                                    <i class="bi bi-unlock me-1"></i>Bỏ chặn
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-5">Không có IP nào đang bị chặn.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mt-4 overflow-hidden">
+        <div class="card-header bg-white py-3 border-bottom">
+            <h6 class="mb-0 fw-bold text-muted">IP có hoạt động đáng ngờ (chưa chặn / đã mở)</h6>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>IP</th>
+                        <th>Lần thử</th>
+                        <th>Trạng thái</th>
+                        <th>Lần cuối</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in recent_ip_blocks %}
+                    {% if not row.is_blocked %}
+                    <tr>
+                        <td class="font-monospace">{{ row.ip_address }}</td>
+                        <td>{{ row.failed_attempts }}</td>
+                        <td><span class="badge bg-secondary-subtle text-secondary">Theo dõi</span></td>
+                        <td class="small text-muted">{{ row.last_failed_at|date:"d/m/Y H:i"|default:"—" }}</td>
+                    </tr>
+                    {% endif %}
+                    {% empty %}
+                    <tr><td colspan="4" class="text-center text-muted py-3">—</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% else %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3 border-bottom">
+            <h5 class="mb-0 fw-bold">Whitelist / Blacklist IP đăng nhập</h5>
+            <p class="small text-muted mb-0 mt-1">
+                IP WAN công ty: không đếm spam, vẫn khóa tài khoản sau 10 lần sai mật khẩu.
+                Blacklist: chặn ngay, không cần đủ 10 lần.
+            </p>
+        </div>
+        <div class="card-body">
+            {% if can_unlock %}
+            <form method="post" action="{% url 'audit:login_security_save_config' %}">
+                {% csrf_token %}
+                <div class="row g-4">
+                    <div class="col-lg-6">
+                        <label for="wan_whitelist_ips" class="form-label fw-bold">
+                            IP WAN công ty (whitelist)
+                        </label>
+                        <textarea id="wan_whitelist_ips" name="wan_whitelist_ips" rows="6"
+                                  class="form-control font-monospace"
+                                  placeholder="14.161.25.119&#10;192.168.1.46">{{ wan_whitelist_text }}</textarea>
+                        <div class="form-text">
+                            Mỗi dòng một IP. Nhân viên đăng nhập từ các IP này không bị giới hạn spam IP.
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <label for="ip_blacklist" class="form-label fw-bold">
+                            Blacklist IP (chặn vĩnh viễn)
+                        </label>
+                        <textarea id="ip_blacklist" name="ip_blacklist" rows="6"
+                                  class="form-control font-monospace"
+                                  placeholder="203.0.113.50">{{ ip_blacklist_text }}</textarea>
+                        <div class="form-text">
+                            Mỗi dòng một IP. Ưu tiên cao hơn whitelist.
+                        </div>
+                        {% if blacklist_suggestions %}
+                        <div class="mt-2">
+                            <span class="small text-muted d-block mb-1">Gợi ý từ log spam:</span>
+                            <div class="d-flex flex-wrap gap-1">
+                                {% for ip in blacklist_suggestions %}
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-secondary font-monospace jp-blacklist-suggest"
+                                        data-ip="{{ ip }}">
+                                    + {{ ip }}
+                                </button>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="mt-4 d-flex align-items-center gap-3">
+                    <button type="submit" class="btn btn-hm text-white fw-bold">
+                        <i class="bi bi-save me-1"></i>Lưu cấu hình
+                    </button>
+                    {% if security_config.updated_at %}
+                    <span class="small text-muted">
+                        Cập nhật: {{ security_config.updated_at|date:"d/m/Y H:i" }}
+                        {% if security_config.updated_by %}· {{ security_config.updated_by.username }}{% endif %}
+                    </span>
+                    {% endif %}
+                </div>
+            </form>
+            {% else %}
+            <p class="text-muted mb-0">Bạn chỉ có quyền xem. Liên hệ IT để chỉnh cấu hình IP.</p>
+            <pre class="bg-light p-3 rounded small mt-3 mb-0">{{ wan_whitelist_text }}</pre>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+<script>
+document.querySelectorAll('.jp-blacklist-suggest').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+        var ta = document.getElementById('ip_blacklist');
+        if (!ta) return;
+        var ip = btn.getAttribute('data-ip');
+        var lines = ta.value.split(/\r?\n/).map(function (s) { return s.trim(); }).filter(Boolean);
+        if (lines.indexOf(ip) === -1) {
+            lines.push(ip);
+            ta.value = lines.join('\n');
+        }
+    });
+});
+</script>
+{% endblock %}

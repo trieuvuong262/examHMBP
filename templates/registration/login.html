@@ -12,9 +12,17 @@
                 </div>
 
                 <div class="card-body p-4 p-md-5">
-                    {% if form.errors %}
+                    {% if login_user_locked or login_ip_blocked %}
+                        <div class="alert alert-warning border-0 small py-2 px-3 mb-4 text-center">
+                            <i class="bi bi-shield-lock-fill me-1"></i>
+                            Tài khoản hoặc truy cập đã bị khóa. Liên hệ IT.
+                        </div>
+                    {% elif form.errors %}
                         <div class="alert alert-danger border-0 small py-2 px-3 mb-4 text-center">
                             <i class="bi bi-exclamation-circle-fill me-1"></i> Sai tài khoản hoặc mật khẩu!
+                            {% if login_show_warning and login_remaining_attempts %}
+                            <div class="mt-1">Còn <strong>{{ login_remaining_attempts }}</strong>/{{ login_max_attempts }} lần thử trước khi khóa.</div>
+                            {% endif %}
                         </div>
                     {% endif %}
 

@@ -430,6 +430,12 @@
             </button>
             <ul class="jp-sidebar-submenu" id="jp-sidebar-sysadmin-submenu">
                 <li>
+                    <a href="{% url 'audit:login_security' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'login_security' or request.resolver_match.url_name == 'unlock_user_login' or request.resolver_match.url_name == 'unlock_ip_login' %}active{% endif %}">
+                        <i class="bi bi-shield-lock"></i><span>Bảo mật đăng nhập</span>
+                    </a>
+                </li>
+                <li>
                     <a href="{% url 'audit:log_list' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'log_list' or request.resolver_match.url_name == 'log_detail' or request.resolver_match.url_name == 'user_timeline' %}active{% endif %}">
                         <i class="bi bi-journal-check"></i><span>Nhật Ký Thao tác</span>
