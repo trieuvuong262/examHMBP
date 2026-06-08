@@ -53,14 +53,13 @@ systemctl reload ssh
 echo "    ssh reloaded OK"
 sshd -T | grep -E 'passwordauthentication|permittrootlogin|pubkeyauthentication' || true
 
-echo "==> [3/4] Metabase: ngừng expose 0.0.0.0:3000"
+echo "==> [3/4] Metabase: gỡ hoàn toàn (container + volume + image)"
 if docker ps -a --format '{{.Names}}' | grep -q '^portaljustplay-metabase-1$'; then
-  docker update --restart=no portaljustplay-metabase-1 2>/dev/null || true
-  docker stop portaljustplay-metabase-1 2>/dev/null || true
-  echo "    Đã stop portaljustplay-metabase-1 (truy cập sau: SSH tunnel -L 3000:127.0.0.1:3000)"
-else
-  echo "    Không thấy container metabase — bỏ qua"
+  docker rm -f portaljustplay-metabase-1 2>/dev/null || true
 fi
+docker volume rm portaljustplay_metabase_data 2>/dev/null || true
+docker rmi metabase/metabase:latest 2>/dev/null || true
+echo "    Đã gỡ metabase (nếu có)"
 
 echo "==> [4/4] Kiểm tra port đang mở"
 ss -tlnp | grep -E ':22|:80|:443|:3000|:5432' || true
