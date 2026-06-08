@@ -38,7 +38,9 @@ def main() -> int:
         user_fields=user_fields,
     )
     if ok:
-        print(f"OK: {info.get('hostname')} -> portal")
+        # Bản .exe (PyInstaller) chạy nền — không in ra console khi đăng nhập Windows.
+        if not getattr(sys, 'frozen', False):
+            print(f"OK: {info.get('hostname')} -> portal")
         return 0
     print('Gui portal that bai.', file=sys.stderr)
     return 2

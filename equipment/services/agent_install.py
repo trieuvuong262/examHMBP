@@ -415,6 +415,22 @@ function Write-JpLog([string]$msg) {
 
 Write-JpLog '[5/5] PWA: bat dau'
 
+function Remove-JpAgentAutoStart {
+    try {
+        Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' `
+            -Name 'JustPlayAgent' -ErrorAction SilentlyContinue
+    } catch {}
+    schtasks /Delete /TN 'JustPlay-Agent' /F 2>$null | Out-Null
+    $startup = [Environment]::GetFolderPath('Startup')
+    foreach ($name in @('JustPlayAgent.lnk', 'JustPlay Agent.lnk')) {
+        $path = Join-Path $startup $name
+        if (Test-Path $path) { Remove-Item $path -Force -ErrorAction SilentlyContinue }
+    }
+    Write-JpLog '[5/5] PWA: go Agent tu khoi dong (neu co ban cu)'
+}
+
+Remove-JpAgentAutoStart
+
 function Get-JpPortalIconFile {
     if (-not $iconUrl -or -not $jpDir) { return $null }
     $iconFile = Join-Path $jpDir 'portal-icon.png'
