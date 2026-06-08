@@ -1,7 +1,7 @@
 # Thiết kế module Báo cáo — Sản xuất & Văn phòng (Ngày + Tuần)
 
-> Phiên bản: **1.1** · PortalJustPlay · Just Play  
-> Căn cứ: mẫu Excel **«TÍNH NĂNG SUẤT THEO NGÀY»** (phòng SX) + nhu cầu tách VP/SX
+> Phiên bản: **1.2** · PortalJustPlay · Just Play  
+> Căn cứ: mẫu Excel **«TÍNH NĂNG SUẤT THEO NGÀY»** (phòng SX) + nhu cầu tách SX / phòng ban khác
 
 ---
 
@@ -11,8 +11,9 @@
 |---|---------|------------|
 | 1 | Công thức tổng HS% | **100% theo file Excel gốc** — port đúng công thức cell (dòng + TỔNG); unit test khớp mẫu 68,38% / 37,22% / 58,54% |
 | 2 | BC tuần SX | **NV bắt buộc nộp** (không chỉ HOD xem tổng hợp) |
-| 3 | Phòng lai (vừa xưởng vừa VP) | Profile **`HYBRID`** — **cùng lưới ô như Excel**, cột free text; ĐM/giờ/HS% tính khi đủ số |
-| 4 | Một NV / ngày / ca | **Tách theo ca** — mỗi ca một báo cáo: `unique (employee, report_date, shift)` |
+| 3 | Phòng ban **không SX** (VP, KD, HCNS, IT, …) | **Chưa có mẫu cố định** → NV nhập **tự do kiểu Excel hoặc Word** (chọn tab trên cùng một màn) |
+| 4 | Một NV / ngày / ca (chỉ SX) | **Tách theo ca** — mỗi ca một báo cáo: `unique (employee, report_date, shift)` |
+| 5 | Phòng SX vs phòng khác | **Hai luồng UI hoàn toàn khác** — menu chung nhưng form tự chọn theo `report_profile` phòng ban |
 
 ---
 
@@ -21,9 +22,9 @@
 | # | Mục tiêu |
 |---|----------|
 | 1 | **Báo cáo ngày SX** khớp mẫu Excel: mã hàng, công đoạn, SL, định mức/h, giờ, **hiệu suất %** |
-| 2 | **Báo cáo ngày VP** — form riêng (phòng VP thuần); **phòng lai** dùng lưới Excel free text |
-| 3 | **Báo cáo tuần SX** — tổng hợp từ báo cáo ngày + ghi chú tuần |
-| 4 | **Báo cáo tuần VP** — tự nhập: thành tựu, kế hoạch, vướng mắc |
+| 2 | **Báo cáo ngày phòng khác** — nhập tự do **Bảng Excel** hoặc **Văn bản Word** (chưa ép mẫu cột) |
+| 3 | **Báo cáo tuần SX** — tổng hợp từ báo cáo ngày/ca + ghi chú tuần |
+| 4 | **Báo cáo tuần phòng khác** — cùng cơ chế Excel / Word tự do (không form cố định) |
 | 5 | Giữ quy trình hiện tại: **Nháp → Nộp → HOD xem / phản hồi** |
 | 6 | Tự chọn form theo **phòng ban** (cấu hình HR), không bắt NV chọn |
 
@@ -33,9 +34,10 @@
 
 |  | **Ngày** | **Tuần** |
 |--|----------|----------|
-| **Sản xuất** | Năng suất **theo ca** (Excel) | NV **nộp** BC tuần + tổng hợp từ BC ngày/ca |
-| **Văn phòng** | Danh sách công việc trong ngày | NV nộp — tổng kết tuần |
-| **Lai (HYBRID)** | Lưới ô như Excel, **free text** | Giống SX tuần — NV nộp |
+| **Sản xuất (`PRODUCTION`)** | Bảng năng suất **theo ca**, khớp Excel SX (ĐM/h, HS%) | NV **nộp** + bảng tổng hợp tự động từ BC ngày/ca |
+| **Phòng ban khác (`OFFICE`)** | Tab **Excel** (lưới ô tự do) hoặc tab **Word** (soạn thảo rich text) | Cùng hai tab — NV tự chọn kiểu nhập phù hợp tuần đó |
+
+**Mặc định:** phòng ban chưa cấu hình → `OFFICE` (nhập tự do). Chỉ phòng SX được HR gán `PRODUCTION`.
 
 **Khác module Công việc (`tasks`):**
 
@@ -118,38 +120,49 @@ Kết quả code khác mẫu → sửa code, không đổi kỳ vọng test.
 
 ---
 
-## 4. Báo cáo ngày — Văn phòng & phòng lai
+## 4. Báo cáo ngày — Phòng ban khác (không SX)
 
-### 4.0. Phòng lai (`HYBRID`)
+> **Nguyên tắc:** HR chưa ban hành mẫu Excel/Word riêng cho từng phòng → portal **không ép cột cố định**. NV tự soạn như đang làm trên file Excel hoặc Word ngoài.
 
-- **Cùng UI bảng** như SX (Mã hàng · Công đoạn · SL · ĐM/h · Giờ · HS% · Ghi chú).
-- Cột **free text** — không bắt buộc đủ bộ SX; NV điền theo việc thực tế (VP + xưởng).
-- HS% chỉ tính khi dòng có đủ `quantity`, `norm_per_hour`, `hours_spent` > 0.
-- Dòng thiếu số → bỏ qua trong TỔNG HS% (giống Excel bỏ ô trống).
-- **Vẫn tách theo ca** như SX.
+### 4.1. Màn hình «Báo cáo hôm nay» (OFFICE)
 
-### 4.1. Màn hình «Báo cáo hôm nay» (VP thuần)
+**Header (read-only):** Tên NV · Phòng ban · Ngày (chọn ngày). **Không có Ca** — một báo cáo / ngày / NV.
 
-**Header:** Tên NV, Phòng ban, Ngày (không có Ca).
+**Hai tab trên cùng một báo cáo** (lưu chung `WorkReport`, nội dung theo tab đang chọn):
 
-**Bảng dòng:**
+| Tab | Kiểu nhập | Mô tả |
+|-----|-----------|--------|
+| **Bảng Excel** | Lưới ô tự do | Giống spreadsheet: thêm/xóa dòng, thêm/xóa cột, đổi tên cột, gõ text/số vào ô |
+| **Văn bản Word** | Rich text (CKEditor) | Soạn thảo tự do: đoạn văn, danh sách, bảng nhúng, ảnh (upload CKEditor) |
 
-| Cột | Field | Bắt buộc |
-|-----|-------|----------|
-| Nội dung công việc | `task_title` | Có |
-| Mô tả / kết quả | `result_note` | Không |
-| Thời gian (h) | `hours_spent` | Có |
-| Trạng thái | `status` | Có — `DONE` / `IN_PROGRESS` / `BLOCKED` |
-| Ghi chú | `note` | Không |
+**Tab Excel — hành vi:**
 
-**Footer:**
+- Mặc định **3 cột trống** + **5 dòng** (NV tự đặt tên cột, ví dụ «Việc làm», «Kết quả», «Ghi chú»).
+- Nút: `[+ Dòng]` `[+ Cột]` `[− Dòng]` `[− Cột]` — chỉ ảnh hưởng tab Excel.
+- Ô: text tự do (không validate công thức, không HS%).
+- Có thể **dán từ Excel** (paste nhiều ô — phase 2; P1: nhập tay).
+- Lưu JSON: `{ "columns": ["...", ...], "rows": [["...", ...], ...] }`.
 
-| Chỉ tiêu | Công thức |
-|----------|-----------|
-| Tổng giờ | `Σ hours_spent` |
-| Số việc hoàn thành | Đếm `status = DONE` |
+**Tab Word — hành vi:**
 
-Không có hiệu suất %.
+- Editor CKEditor (đã có trên portal — `documents`, `hrm`).
+- Lưu HTML đã sanitize (`bleach` / `RichTextField`).
+- NV có thể chỉ dùng Word, chỉ dùng Excel, hoặc điền cả hai tab trong cùng một báo cáo.
+
+**Validation khi nộp:**
+
+- Ít nhất **một tab** có nội dung: Excel có ≥ 1 ô không trống **hoặc** Word có ≥ 50 ký tự text.
+- Không bắt buộc điền cả hai tab.
+
+**Tiện ích (giống SX):** Lưu nháp · Nộp · Lịch sử · Sửa sau nộp · Sao chép hôm qua (copy cả JSON + HTML).
+
+**Khác SX:**
+
+| | SX (`PRODUCTION`) | Phòng khác (`OFFICE`) |
+|--|-------------------|------------------------|
+| Ca làm | Có (Sáng/Chiều/Đêm) | Không |
+| Cột cố định | Mã hàng, Công đoạn, SL, ĐM/h, Giờ, HS% | Không — NV tự đặt |
+| Hiệu suất % | Có, khớp Excel gốc | Không |
 
 ---
 
@@ -190,19 +203,17 @@ Biểu đồ tuỳ chọn (phase 2): HS% theo ngày trong tuần.
 
 ---
 
-## 6. Báo cáo tuần — Văn phòng
+## 6. Báo cáo tuần — Phòng ban khác
 
-**Form tuần thuần nhập:**
+**Cùng nguyên tắc ngày:** chưa có mẫu HR → **tab Excel + tab Word**, NV tự soạn.
 
-| Field | Mô tả |
-|-------|--------|
-| `achievements` | Việc đã hoàn thành trong tuần (richtext hoặc nhiều dòng) |
-| `in_progress` | Việc đang làm dở |
-| `plan_next_week` | Kế hoạch tuần tới |
-| `blockers` | Vướng mắc cần hỗ trợ |
-| `total_hours` | Tổng giờ (tự tính từ BC ngày VP nếu có, cho phép sửa) |
+**Header:** Tên NV · Phòng ban · Tuần (chọn `week_start` = thứ 2).
 
-Có thể **gợi ý** từ tổng BC ngày VP trong tuần (danh sách việc DONE).
+**Không** tách field cố định (`achievements`, `blockers`, …). Khi HR sau này ban hành mẫu Word/Excel cho phòng X, cấu hình `DepartmentReportConfig.template_file` (phase sau) — P1/P2 vẫn để trống.
+
+**Validation khi nộp:** giống BC ngày OFFICE (ít nhất một tab có nội dung).
+
+**Tuỳ chọn (phase 2):** nút «Gợi ý từ báo cáo ngày» — chèn tóm tắt các BC ngày trong tuần (preview, NV chỉnh sửa trước khi nộp).
 
 ---
 
@@ -212,19 +223,18 @@ Có thể **gợi ý** từ tổng BC ngày VP trong tuần (danh sách việc D
 
 ```python
 class DepartmentReportConfig(models.Model):
-    PROFILE_PRODUCTION = 'PRODUCTION'   # Excel strict
-    PROFILE_OFFICE = 'OFFICE'           # Form VP (mục 4.1)
-    PROFILE_HYBRID = 'HYBRID'           # Lưới Excel free text
+    PROFILE_PRODUCTION = 'PRODUCTION'   # Bảng năng suất SX — mục 3
+    PROFILE_OFFICE = 'OFFICE'           # Excel / Word tự do — mục 4, 6
 
     department = OneToOneField(Department)
-    report_profile = CharField(choices=...)  # PRODUCTION | OFFICE | HYBRID
+    report_profile = CharField(choices=...)  # PRODUCTION | OFFICE (mặc định OFFICE)
     require_daily = BooleanField(default=True)
     require_weekly = BooleanField(default=True)
     weekly_submit_deadline_weekday = SmallIntegerField(default=0)   # 0=Mon
     weekly_submit_deadline_hour = SmallIntegerField(default=12)
 ```
 
-HR cấu hình tại **Nhân sự → Phòng ban**: «Mẫu báo cáo: Sản xuất / Văn phòng / Lai (Excel)».
+HR cấu hình tại **Nhân sự → Phòng ban**: «Mẫu báo cáo: **Sản xuất** (Excel năng suất) hoặc **Phòng ban khác** (Excel/Word tự do)». Chỉ gán **Sản xuất** cho các bộ phận May/Cắt/QC/…; còn lại để mặc định hoặc chọn **Phòng ban khác**.
 
 ### 7.2. Header thống nhất (thay `DailyWorkReport`)
 
@@ -239,19 +249,21 @@ class WorkReport(models.Model):
     report_kind = CharField(choices=...)
     report_date = DateField(null=True)      # daily
     week_start = DateField(null=True)       # weekly (Monday)
-    shift = CharField(null=True)            # PROD_DAILY / HYBRID daily — bắt buộc
+    shift = CharField(null=True)            # PROD_DAILY only — bắt buộc khi SX
     status = DRAFT | SUBMITTED
     submitted_at = DateTimeField(null=True)
     hod_reviewed = BooleanField
     hod_note = CharField(500)
 
-    # Weekly text fields (nullable by kind)
+    # Weekly SX — nhận xét tay (nullable)
     summary_note = TextField(blank=True)
     issues_note = TextField(blank=True)
     plan_next_week = TextField(blank=True)
-    achievements = TextField(blank=True)   # OFFICE_WEEKLY
-    in_progress = TextField(blank=True)
-    blockers = TextField(blank=True)
+
+    # OFFICE daily/weekly — nội dung tự do (mục 4, 6)
+    freeform_mode = CharField(blank=True)   # SPREADSHEET | DOCUMENT | BOTH (tab cuối lưu)
+    spreadsheet_json = JSONField(null=True, blank=True)
+    document_html = TextField(blank=True)   # CKEditor, sanitize khi lưu
 
     class Meta:
         constraints = [
@@ -295,20 +307,11 @@ class ProductionDailyLine(models.Model):
         return round(self.quantity / denom * 100, 2)
 ```
 
-### 7.4. Dòng báo cáo ngày VP
+### 7.4. ~~Dòng báo cáo ngày VP~~ → bỏ (v1.2)
 
-```python
-class OfficeDailyLine(models.Model):
-    report = FK(WorkReport, related_name='office_lines')
-    task_title = CharField(200)
-    result_note = TextField(blank=True)
-    hours_spent = DecimalField(max_digits=5, decimal_places=2)
-    status = CharField  # DONE | IN_PROGRESS | BLOCKED
-    note = CharField(255, blank=True)
-    sort_order = PositiveSmallIntegerField
-```
+Không dùng `OfficeDailyLine` / form cột cố định. Phòng khác lưu trực tiếp trên `WorkReport`: `spreadsheet_json` + `document_html` (mục 7.2).
 
-### 7.5. Danh mục định mức (phase 2, tuỳ chọn)
+### 7.5. Danh mục định mức (phase 2, tuỳ chọn — chỉ SX)
 
 ```python
 class ProcessNorm(models.Model):
@@ -351,12 +354,13 @@ Script `migrate_daily_reports_to_v2` chạy một lần sau deploy.
 **Hub điều hướng (`/reports/`):**
 
 ```
-NV SX      → /reports/today/?shift=MORNING   (Excel strict)
-NV HYBRID  → /reports/today/?shift=…         (Excel free text)
-NV VP      → /reports/today/                 (form VP, không shift*)
-HOD        → /reports/team/                  (tab Ngày+ca | Tuần)
+NV phòng SX        → /reports/today/?shift=MORNING     (bảng năng suất, mục 3)
+NV phòng khác      → /reports/today/                   (tab Excel | Word, mục 4)
+NV phòng khác tuần → /reports/week/                    (tab Excel | Word, mục 6)
+HOD                → /reports/team/                    (tab Ngày | Tuần — cột khác theo profile NV)
 ```
-\* VP thuần: một BC/ngày, `shift` null.
+
+`report_profile` lấy từ `DepartmentReportConfig` của phòng NV; không có cấu hình → `OFFICE`.
 
 ---
 
@@ -376,16 +380,51 @@ HOD        → /reports/team/                  (tab Ngày+ca | Tuần)
 /reports/admin/norms/              Phase 2 — danh mục định mức
 ```
 
-**Sidebar «Báo cáo»** — submenu (mobile: accordion):
+**Sidebar «Báo cáo»** — submenu giống nhau mọi phòng (mobile: accordion); **nội dung trang** phân nhánh theo profile:
 
-- Hôm nay
-- Tuần này
-- Lịch sử
-- Cấp dưới *(nếu HOD)*
+| Mục menu | NV phòng SX | NV phòng khác |
+|----------|-------------|---------------|
+| **Hôm nay** | Form năng suất + chọn **Ca** | Tab **Excel** / **Word**, không Ca |
+| **Tuần này** | Tổng hợp BC ngày + ghi chú | Tab **Excel** / **Word** |
+| **Lịch sử** | Giống nhau | Giống nhau |
+| **Cấp dưới** *(HOD)* | Cột HS%, ca, SL | Cột «Đã nộp», xem preview Excel/Word |
+
+```
+Báo cáo ▾
+├── Hôm nay
+├── Tuần này
+├── Lịch sử
+└── Cấp dưới   (chỉ HOD)
+```
+
+Tiêu đề trang đổi theo profile: *«Báo cáo hôm nay — Năng suất»* (SX) vs *«Báo cáo hôm nay»* (phòng khác).
 
 ---
 
-## 10. UI — Báo cáo ngày SX (wireframe)
+## 10. UI — Báo cáo ngày phòng khác (wireframe)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Báo cáo hôm nay                                             │
+│ Trần Thị B · Phòng KD · [Ngày ▼]                 [Lịch sử]  │
+├─────────────────────────────────────────────────────────────┤
+│  [ Bảng Excel ]  [ Văn bản Word ]                           │
+├─────────────────────────────────────────────────────────────┤
+│  │ Cột 1 ▼ │ Cột 2 ▼ │ Cột 3 ▼ │  [+ Cột]                  │
+│  │ việc A  │ xong    │         │                           │
+│  │ việc B  │ 50%     │ chờ duyệt│                          │
+│  │         │         │         │                           │
+│  [+ Dòng]  [− Dòng]                                         │
+├─────────────────────────────────────────────────────────────┤
+│ [Lưu nháp]  [Nộp cho cấp trên]     [Sao chép hôm qua]      │
+└─────────────────────────────────────────────────────────────┘
+
+Tab Word: vùng CKEditor full-width (toolbar: đậm, list, bảng, ảnh).
+```
+
+---
+
+## 11. UI — Báo cáo ngày SX (wireframe)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -408,23 +447,28 @@ HOD        → /reports/team/                  (tab Ngày+ca | Tuần)
 
 ---
 
-## 11. UI — HOD xem team
+## 12. UI — HOD xem team
 
-**Tab «Theo ngày»** (giữ logic hiện tại + thêm cột HS% cho SX):
+**Tab «Theo ngày»** — cột theo profile từng NV:
 
-| NV | Trạng thái | Tổng SL | Tổng giờ | HS% | Chi tiết |
-|----|------------|---------|----------|-----|----------|
+| Profile NV | Cột hiển thị |
+|------------|--------------|
+| `PRODUCTION` | NV · Ca · Trạng thái · Tổng SL · Tổng giờ · HS% · Chi tiết |
+| `OFFICE` | NV · Trạng thái · Kiểu (Excel/Word/Both) · Chi tiết |
 
 **Tab «Theo tuần»:**
 
-| NV | Đủ ngày? | Tổng SL tuần | HS% tuần | BC tuần | Chi tiết |
-|----|----------|--------------|----------|---------|----------|
+| Profile NV | Cột hiển thị |
+|------------|--------------|
+| `PRODUCTION` | NV · Đủ ngày/ca? · Tổng SL tuần · HS% tuần · BC tuần · Chi tiết |
+| `OFFICE` | NV · Đã nộp tuần? · Chi tiết (xem Excel/Word) |
 
-- «Đủ ngày?»: `số ngày đã nộp / số ngày làm việc kỳ vọng` (mặc định 6 ngày, cấu hình sau).
+- «Đủ ngày?» (SX): số ca/ngày đã nộp / kỳ vọng (mặc định 6 ngày × ca, cấu hình sau).
+- Chi tiết OFFICE: render preview bảng Excel hoặc HTML Word (read-only khi HOD xem).
 
 ---
 
-## 12. Widget trang chủ
+## 13. Widget trang chủ
 
 | Đối tượng | Widget |
 |-----------|--------|
@@ -435,7 +479,7 @@ HOD        → /reports/team/                  (tab Ngày+ca | Tuần)
 
 ---
 
-## 13. Tích hợp KiotViet (phase 2)
+## 14. Tích hợp KiotViet (phase 2)
 
 - Autocomplete **Mã hàng** từ `kv_product` (mirror).
 - Không FK bắt buộc — vẫn cho nhập tay.
@@ -443,34 +487,42 @@ HOD        → /reports/team/                  (tab Ngày+ca | Tuần)
 
 ---
 
-## 14. Kế hoạch triển khai
+## 15. Kế hoạch triển khai
 
 | Phase | Phạm vi | Ước lượng |
 |-------|---------|-----------|
-| **P1** | Model `WorkReport` + `ProductionDailyLine`; form SX khớp Excel; migration; đổi UI `today.html` | 1 sprint |
-| **P2** | `OfficeDailyLine` + `DepartmentReportConfig`; form VP | 0,5 sprint |
-| **P3** | BC tuần SX (tổng hợp) + form nhận xét; tab team tuần | 1 sprint |
-| **P4** | BC tuần VP; widget; submenu | 0,5 sprint |
-| **P5** | `ProcessNorm` autocomplete; export Excel; biểu đồ | 1 sprint |
+| **P1** | `WorkReport` + `ProductionDailyLine`; form **SX** khớp Excel; `DepartmentReportConfig`; routing theo profile | 1 sprint |
+| **P2** | Form **phòng khác**: tab Excel (JSON grid) + tab Word (CKEditor); BC ngày/tuần OFFICE | 1 sprint |
+| **P3** | BC tuần SX (tổng hợp) + nhận xét; tab team tuần SX | 1 sprint |
+| **P4** | Submenu sidebar; widget; HOD preview Excel/Word | 0,5 sprint |
+| **P5** | `ProcessNorm` autocomplete; export Excel SX; paste từ Excel; mẫu HR theo phòng (tuỳ chọn) | 1 sprint |
 
-**P1 — checklist kỹ thuật:**
+**P1 — checklist (phòng SX):**
 
 - [ ] Migration + data migrate `DailyWorkReport` → `WorkReport`
 - [ ] `reports/forms.py` — `ProductionDailyLineFormSet` + tính HS%
 - [ ] `reports/services/efficiency.py` — `line_efficiency`, `report_totals`
-- [ ] Templates `today_production.html` (hoặc partial)
-- [ ] Cập nhật `team.html`, `detail.html`, tests
-- [ ] Cập nhật Hướng dẫn portal (mục 8)
+- [ ] `today_production.html` + chọn ca
+- [ ] `get_report_profile(user)` → redirect OFFICE sang form tự do (stub P2)
+
+**P2 — checklist (phòng khác):**
+
+- [ ] `spreadsheet_json` + `document_html` trên `WorkReport`
+- [ ] JS grid Excel (thêm dòng/cột, đổi header)
+- [ ] CKEditor tab Word + sanitize
+- [ ] `today_freeform.html`, `week_freeform.html`
+- [ ] Validation «ít nhất một tab có nội dung»
 
 ---
 
-## 15. Trạng thái spec
+## 16. Trạng thái spec
 
-- **§0 Quyết định đã chốt** — đủ điều kiện triển khai **P1**.
-- Cần file **Excel gốc** (`.xlsx`) khi code để copy chính xác công thức ô TỔNG.
+- **§0 Quyết định đã chốt** — đủ điều kiện triển khai **P1** (SX) + **P2** (phòng khác).
+- Cần file **Excel gốc SX** (`.xlsx`) khi code P1 để copy chính xác công thức ô TỔNG.
+- Phòng khác: **không cần mẫu** trước khi code P2 — NV nhập tự do Excel/Word.
 
-**Bước tiếp theo:** triển khai P1 (BC ngày SX + HYBRID, tách ca, công thức Excel).
+**Bước tiếp theo:** P1 (BC ngày SX, tách ca, HS%) song song chuẩn bị P2 (grid + CKEditor).
 
 ---
 
-*Cập nhật: 28/05/2026 — v1.1*
+*Cập nhật: 28/05/2026 — v1.2 — tách SX / phòng khác; bỏ form VP cố định & profile HYBRID*
