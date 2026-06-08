@@ -54,6 +54,7 @@ from hrm.user_search import (
     filter_users_by_job_position,
     filter_users_by_search,
     distinct_job_positions_for_filter,
+    apply_user_list_sort,
     resolve_user_list_sort,
 )
 from PortalJustPlay.list_search import apply_term_search, apply_user_search, get_search_query
@@ -112,7 +113,7 @@ def _user_form_extra_context():
 # ==========================================
 @module_perm_required(MODULE_HRM, 'view')
 def user_list(request):
-    sort_key, sort_dir, order_fields = resolve_user_list_sort(
+    sort_key, sort_dir, _order_fields = resolve_user_list_sort(
         request.GET.get('sort'),
         request.GET.get('dir'),
     )
@@ -133,7 +134,7 @@ def user_list(request):
     users_qs = filter_users_by_division(users_qs, division_id)
     users_qs = filter_users_by_job_position(users_qs, job_position)
     users_qs = filter_users_by_employment_status(users_qs, employment_status)
-    users_qs = users_qs.order_by(*order_fields)
+    users_qs = apply_user_list_sort(users_qs, sort_key, sort_dir)
     page_obj, query_string = paginate_queryset(request, users_qs)
 
     from hrm.models import Division
@@ -602,7 +603,7 @@ def user_export_excel(request):
     employment_status = (request.GET.get('status') or '').strip().lower()
     if employment_status not in EMPLOYMENT_STATUS_LABELS:
         employment_status = ''
-    _sort_key, _sort_dir, order_fields = resolve_user_list_sort(
+    _sort_key, _sort_dir, _order_fields = resolve_user_list_sort(
         request.GET.get('sort'),
         request.GET.get('dir'),
     )
@@ -616,7 +617,7 @@ def user_export_excel(request):
     users = filter_users_by_division(users, division_id)
     users = filter_users_by_job_position(users, job_position)
     users = filter_users_by_employment_status(users, employment_status)
-    users = users.order_by(*order_fields)
+    users = apply_user_list_sort(users, _sort_key, _sort_dir)
     rows = [user_to_excel_row(u) for u in users]
     df = pd.DataFrame(rows, columns=EXCEL_ALL_HEADERS)
 

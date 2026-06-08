@@ -3,7 +3,10 @@
 from urllib.parse import urlencode
 
 from django.contrib.auth.models import User
-from django.db.models import Q
+from django.db.models import F, IntegerField, Q
+from django.db.models.expressions import RawSQL
+
+from hrm.models import Profile
 
 from PortalJustPlay.list_search import apply_user_search
 from hrm.permissions import (
@@ -152,6 +155,46 @@ def resolve_user_list_sort(sort_key: str | None, sort_dir: str | None) -> tuple[
     field = USER_LIST_SORT_COLUMNS[key]
     prefix = '-' if direction == 'desc' else ''
     return key, direction, [f'{prefix}{field}', 'username']
+
+
+def _employee_code_sort_sql() -> str:
+    user_table = User._meta.db_table
+    profile_table = Profile._meta.db_table
+    return f"""
+        (SELECT CASE
+            WHEN p.employee_code IS NULL OR BTRIM(p.employee_code) = '' THEN NULL
+            ELSE NULLIF(REGEXP_REPLACE(p.employee_code, '[^0-9]', '', 'g'), '')::INTEGER
+        END
+        FROM {profile_table} p
+        WHERE p.user_id = {user_table}.id)
+    """
+
+
+def apply_user_list_sort(queryset, sort_key: str, sort_dir: str):
+    """Sắp xếp queryset danh sách NV; mã NS sort theo phần số (001 < 11 < 55 < 101)."""
+    if sort_key == 'code':
+        queryset = queryset.annotate(
+            _code_sort_num=RawSQL(
+                _employee_code_sort_sql(),
+                [],
+                output_field=IntegerField(),
+            ),
+        )
+        code_text_order = 'profile__employee_code' if sort_dir == 'asc' else '-profile__employee_code'
+        if sort_dir == 'asc':
+            return queryset.order_by(
+                F('_code_sort_num').asc(nulls_last=True),
+                code_text_order,
+                'username',
+            )
+        return queryset.order_by(
+            F('_code_sort_num').desc(nulls_first=True),
+            code_text_order,
+            'username',
+        )
+
+    _, _, order_fields = resolve_user_list_sort(sort_key, sort_dir)
+    return queryset.order_by(*order_fields)
 
 
 def user_list_query_params(request, **overrides) -> dict[str, str]:

@@ -67,18 +67,19 @@
                 </div>
                 <div class="jp-user-form-identity-main">
                     <div class="fw-bold text-dark jp-text-clamp-2">{{ profile.full_name|default:user_instance.username }}</div>
-                    <div class="small text-muted">
-                        {% if profile.employee_code %}<code class="text-dark">{{ profile.employee_code }}</code> · {% endif %}
+                    <div class="small text-muted jp-user-form-identity-meta">
+                        {% if profile.employee_code %}<code class="text-dark">{{ profile.employee_code }}</code>{% endif %}
                         <span class="text-primary">{{ user_instance.username }}</span>
                     </div>
                 </div>
-                <div class="jp-user-form-identity-upload">
-                    <label class="jp-form-label mb-1" for="id_avatar">Avatar</label>
-                    <input type="file" name="avatar" id="id_avatar" class="form-control form-control-sm" accept="image/*">
-                    <div class="form-text">JPG, PNG, WebP — tối đa 5 MB</div>
-                </div>
-                <div class="jp-user-form-identity-status">
-                    {% include 'assessment/admin/includes/user_form_field.html' with field=form.is_employed hint='Đang làm = tham gia hệ thống; Nghỉ làm = tạm ngưng tài khoản' %}
+                <div class="jp-user-form-identity-aside">
+                    <div class="jp-user-form-identity-status">
+                        {% include 'assessment/admin/includes/user_form_field.html' with field=form.is_employed label='Trạng thái' %}
+                    </div>
+                    <div class="jp-user-form-identity-upload">
+                        <label class="jp-form-label mb-1" for="id_avatar">Avatar</label>
+                        <input type="file" name="avatar" id="id_avatar" class="form-control form-control-sm" accept="image/*">
+                    </div>
                 </div>
             </div>
         </div>
@@ -94,7 +95,7 @@
                     <div class="card-body p-3 p-md-4">
                         <div class="row g-3">
                             <div class="col-12">
-                                {% include 'assessment/admin/includes/user_form_field.html' with field=form.full_name required=True hint='Nhập họ tên — Account bên phải tự gợi ý (hoặc bấm «Gợi ý account»)' %}
+                                {% include 'assessment/admin/includes/user_form_field.html' with field=form.full_name required=True %}
                             </div>
                             <div class="col-sm-6 col-md-4">
                                 {% include 'assessment/admin/includes/user_form_field.html' with field=form.employee_code %}
@@ -110,7 +111,7 @@
                             </div>
                             {% if not is_edit %}
                             <div class="col-sm-6 col-md-4">
-                                {% include 'assessment/admin/includes/user_form_field.html' with field=form.is_employed hint='Mặc định: Đang làm' %}
+                                {% include 'assessment/admin/includes/user_form_field.html' with field=form.is_employed label='Trạng thái' %}
                             </div>
                             {% endif %}
                         </div>
@@ -123,11 +124,6 @@
                         <span>Tổ chức & công việc</span>
                     </div>
                     <div class="card-body p-3 p-md-4">
-                        <p class="small text-muted mb-3">
-                            Thứ tự sơ đồ: <strong>Giám đốc điều hành</strong> (vai trò Giám đốc)
-                            → <strong>Phòng ban</strong> → <strong>Bộ phận</strong> → <strong>Vị trí</strong> (nhập tự do).
-                            <a href="{{ org_structure_url }}">Cơ cấu tổ chức</a>
-                        </p>
                         <div class="row g-3">
                             <div class="col-sm-6">
                                 {% include 'assessment/admin/includes/user_form_field.html' with field=form.department link_url=org_structure_url link_label='Sơ đồ' %}
@@ -153,7 +149,7 @@
                             <i class="bi bi-shield-lock-fill"></i>
                             <span>Tài khoản portal</span>
                         </div>
-                        <div class="card-body p-3 p-md-4">
+                        <div class="card-body p-3 p-md-4 d-flex flex-column gap-3">
                             <div class="jp-form-field{% if form.username.errors %} is-invalid{% endif %}">
                                 <label class="jp-form-label jp-form-label-row" for="{{ form.username.id_for_label }}">
                                     <span>{{ form.username.label }} <span class="text-danger">*</span></span>
@@ -162,14 +158,13 @@
                                     </button>
                                 </label>
                                 {{ form.username }}
-                                <div class="form-text">Tên đăng nhập — không dấu, không khoảng trắng</div>
                                 {% for error in form.username.errors %}
                                 <div class="invalid-feedback d-block">{{ error }}</div>
                                 {% endfor %}
                             </div>
 
                             {% if not is_edit %}
-                            <div class="jp-form-field{% if form.password.errors %} is-invalid{% endif %} mb-3">
+                            <div class="jp-form-field{% if form.password.errors %} is-invalid{% endif %}">
                                 <label class="jp-form-label" for="{{ form.password.id_for_label }}">
                                     Mật khẩu <span class="text-danger">*</span>
                                 </label>
@@ -192,13 +187,13 @@
                                 {% endfor %}
                             </div>
                             {% else %}
-                            <div class="alert alert-light border small mb-3 py-2">
+                            <div class="alert alert-light border small py-2 mb-0">
                                 <i class="bi bi-info-circle text-hm me-1"></i>
                                 Reset mật khẩu trên <a href="{% url 'user_list' %}" class="jp-form-link">danh sách nhân sự</a>.
                             </div>
                             {% endif %}
 
-                            {% include 'assessment/admin/includes/user_form_field.html' with field=form.email hint='Tuỳ chọn' %}
+                            {% include 'assessment/admin/includes/user_form_field.html' with field=form.email %}
                         </div>
                     </div>
 
@@ -207,7 +202,7 @@
                             <i class="bi bi-key-fill"></i>
                             <span>Phân quyền hệ thống</span>
                         </div>
-                        <div class="card-body p-3 p-md-4">
+                        <div class="card-body p-3 p-md-4 d-flex flex-column gap-3">
                             {% include 'assessment/admin/includes/user_form_field.html' with field=form.role label='Vai trò HT' required=True %}
                             {% include 'assessment/admin/includes/user_form_field.html' with field=form.permission_group %}
                         </div>

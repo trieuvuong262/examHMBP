@@ -639,6 +639,35 @@ class UserSearchTests(TestCase):
         self.assertContains(inactive, 'Trần Văn B')
         self.assertNotContains(inactive, 'Nguyễn Văn An')
 
+    def test_user_list_sort_by_code_uses_numeric_order(self):
+        from hrm.user_search import apply_user_list_sort, exclude_hidden_hrm_users
+
+        samples = (
+            ('code_101', '101'),
+            ('code_001', '001'),
+            ('code_11', '11'),
+            ('code_055', '055'),
+        )
+        for username, code in samples:
+            user = User.objects.create_user(username=username, password='testpass123')
+            Profile.objects.filter(user=user).update(
+                employee_code=code,
+                full_name=f'NV {code}',
+                is_employed=True,
+            )
+
+        qs = apply_user_list_sort(
+            exclude_hidden_hrm_users(User.objects.select_related('profile')),
+            'code',
+            'asc',
+        )
+        codes = [
+            u.profile.employee_code
+            for u in qs
+            if u.profile.employee_code in {'001', '11', '055', '101'}
+        ]
+        self.assertEqual(codes[:4], ['001', '11', '055', '101'])
+
     def test_user_list_sortable_column_headers(self):
         response = self.client.get(reverse('user_list'))
         self.assertEqual(response.status_code, 200)

@@ -2937,12 +2937,13 @@ body.jp-tool-loading-active {
 }
 
 .jp-user-form-identity {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) minmax(200px, 280px);
     align-items: center;
-    gap: 0.75rem 1rem;
-    padding: 0.75rem 1rem;
-    background: #f8fafc;
+    gap: 1rem 1.25rem;
+    padding: 1rem 1.25rem;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    border-bottom: 1px solid #e2e8f0;
 }
 
 .jp-user-form-identity-avatar .jp-hrm-avatar.rounded-circle,
@@ -2954,19 +2955,34 @@ body.jp-tool-loading-active {
 }
 
 .jp-user-form-identity-main {
-    flex: 1 1 160px;
+    min-width: 0;
+}
+
+.jp-user-form-identity-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.5rem;
+    margin-top: 0.15rem;
+}
+
+.jp-user-form-identity-meta code {
+    font-size: 0.78rem;
+}
+
+.jp-user-form-identity-aside {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
     min-width: 0;
 }
 
 .jp-user-form-identity-upload {
-    flex: 1 1 220px;
-    max-width: 320px;
     min-width: 0;
 }
 
 .jp-user-form-identity-status {
-    flex: 0 1 200px;
-    min-width: 160px;
+    min-width: 0;
 }
 
 .jp-user-form-section-title {
@@ -3156,10 +3172,32 @@ body.jp-tool-loading-active {
     }
 }
 
-@media (max-width: 575.98px) {
+@media (max-width: 767.98px) {
+    .jp-user-form-identity {
+        grid-template-columns: auto 1fr;
+        grid-template-areas:
+            "avatar main"
+            "aside aside";
+    }
+
+    .jp-user-form-identity-avatar {
+        grid-area: avatar;
+    }
+
+    .jp-user-form-identity-main {
+        grid-area: main;
+    }
+
+    .jp-user-form-identity-aside {
+        grid-area: aside;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: flex-end;
+    }
+
+    .jp-user-form-identity-status,
     .jp-user-form-identity-upload {
-        flex-basis: 100%;
-        max-width: none;
+        flex: 1 1 180px;
     }
 }
 
