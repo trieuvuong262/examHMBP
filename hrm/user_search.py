@@ -78,6 +78,27 @@ def filter_users_by_job_position(queryset, job_position: str | None):
     return queryset.filter(profile__job_position__iexact=raw)
 
 
+def job_positions_cascade_for_filter() -> dict[str, list[str]]:
+    """Map scope → vị trí (dropdown lọc NV — cập nhật client khi đổi phòng/bộ phận)."""
+    from hrm.models import Department
+    from hrm.org_structure import divisions_for_user_list_filter
+
+    result: dict[str, list[str]] = {
+        '': distinct_job_positions_for_filter(),
+        'none': distinct_job_positions_for_filter(department_id='none'),
+    }
+    for dept in Department.objects.filter(is_active=True).order_by('sort_order', 'name'):
+        dept_key = str(dept.pk)
+        result[dept_key] = distinct_job_positions_for_filter(department_id=dept_key)
+        for div in divisions_for_user_list_filter(dept.pk):
+            scope = f'{dept_key}:{div.pk}'
+            result[scope] = distinct_job_positions_for_filter(
+                department_id=dept_key,
+                division_id=str(div.pk),
+            )
+    return result
+
+
 def distinct_job_positions_for_filter(
     *,
     department_id: str = '',

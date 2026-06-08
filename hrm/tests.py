@@ -972,6 +972,33 @@ class OrgStructureTreemapTests(TestCase):
         self.assertContains(response, 'jpDivisionsByDept')
         self.assertContains(response, str(self.dept.pk))
 
+    def test_user_list_filter_divisions_strict_by_department(self):
+        from hrm.org_structure import divisions_for_user_list_filter
+
+        div_a = Division.objects.create(name='UL-DIV-A', department=self.dept, is_active=True)
+        div_b = Division.objects.create(name='UL-DIV-B', department=self.dept_b, is_active=True)
+        ids = set(divisions_for_user_list_filter(self.dept.pk).values_list('pk', flat=True))
+        self.assertIn(div_a.pk, ids)
+        self.assertNotIn(div_b.pk, ids)
+
+    def test_user_list_page_filter_assets(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('user_list'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'jpUserListDivisionsMap')
+        self.assertContains(response, 'jpUserListPositionsCascade')
+        self.assertContains(response, 'Lọc tự động')
+
+        filtered = self.client.get(reverse('user_list') + f'?department={self.dept.pk}')
+        self.assertEqual(filtered.status_code, 200)
+        html = filtered.content.decode()
+        div_select_start = html.index('id="userDivisionFilter"')
+        div_select_end = html.index('</select>', div_select_start)
+        division_select = html[div_select_start:div_select_end]
+        self.assertIn('ORG-DIV-1', division_select)
+        self.assertIn('ORG-DIV-2', division_select)
+        self.assertNotIn('ORG-DIV-ORPHAN', division_select)
+
     def test_org_position_edit_moves_employees_to_other_division(self):
         from hrm.models import DivisionPosition
         from hrm.org_structure import build_org_tree, build_org_treemap

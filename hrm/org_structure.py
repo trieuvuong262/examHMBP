@@ -511,3 +511,32 @@ def divisions_allowed_by_department_map() -> dict[str, list[int]]:
             divisions_for_department(dept_id).values_list('pk', flat=True),
         )
     return out
+
+
+def divisions_for_user_list_filter(department_id: int | None):
+    """Bộ phận trên danh sách nhân sự — chỉ thuộc phòng ban đã chọn (lọc chặt)."""
+    qs = Division.objects.select_related('department').order_by('sort_order', 'name')
+    if not department_id:
+        return qs
+    return qs.filter(department_id=department_id)
+
+
+def divisions_catalog_for_filter() -> list[dict]:
+    return [
+        {'id': row.pk, 'name': row.name}
+        for row in Division.objects.order_by('sort_order', 'name')
+    ]
+
+
+def divisions_filter_map_for_user_list() -> dict[str, list[int]]:
+    """Map phòng ban → id bộ phận (lọc danh sách NV — khớp divisions_for_user_list_filter)."""
+    all_ids = [row['id'] for row in divisions_catalog_for_filter()]
+    out: dict[str, list[int]] = {
+        '': all_ids,
+        'none': [],
+    }
+    for dept_id in Department.objects.values_list('pk', flat=True):
+        out[str(dept_id)] = list(
+            divisions_for_user_list_filter(dept_id).values_list('pk', flat=True),
+        )
+    return out

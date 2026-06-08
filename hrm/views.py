@@ -143,7 +143,12 @@ def user_list(request):
     page_obj, query_string = paginate_queryset(request, users_qs)
 
     from hrm.models import Division
-    from hrm.org_structure import divisions_allowed_by_department_map, divisions_for_department
+    from hrm.org_structure import (
+        divisions_catalog_for_filter,
+        divisions_filter_map_for_user_list,
+        divisions_for_user_list_filter,
+    )
+    from hrm.user_search import job_positions_cascade_for_filter
 
     departments = Department.objects.filter(is_active=True).order_by('sort_order', 'name')
     current_department_label = ''
@@ -154,8 +159,12 @@ def user_list(request):
         if dept:
             current_department_label = dept.name
 
-    dept_pk = int(department_id) if department_id.isdigit() else None
-    divisions = divisions_for_department(dept_pk)
+    if department_id == 'none':
+        from hrm.models import Division as DivisionModel
+        divisions = DivisionModel.objects.none()
+    else:
+        dept_pk = int(department_id) if department_id.isdigit() else None
+        divisions = divisions_for_user_list_filter(dept_pk)
     current_division_label = ''
     if division_id == 'none':
         current_division_label = 'Chưa gán bộ phận'
@@ -194,7 +203,9 @@ def user_list(request):
         'current_division_label': current_division_label,
         'current_position': job_position,
         'current_position_label': current_position_label,
-        'divisions_allowed_by_dept': json.dumps(divisions_allowed_by_department_map()),
+        'divisions_filter_map': json.dumps(divisions_filter_map_for_user_list()),
+        'divisions_catalog': json.dumps(divisions_catalog_for_filter()),
+        'positions_cascade': json.dumps(job_positions_cascade_for_filter()),
         'filters_active': bool(
             search_query or department_id or division_id or job_position,
         ),

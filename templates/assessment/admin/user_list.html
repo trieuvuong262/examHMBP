@@ -143,16 +143,15 @@
                         </select>
                     </div>
                     <div class="col-xl-1 col-lg-2 col-md-4 col-sm-6">
-                        <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-hm flex-grow-1">
-                                <i class="bi bi-funnel me-1"></i>Lọc
-                            </button>
-                            {% if filters_active %}
-                            <a href="{% url 'user_list' %}" class="btn btn-outline-secondary" title="Xóa bộ lọc">
-                                <i class="bi bi-x-lg"></i>
-                            </a>
-                            {% endif %}
-                        </div>
+                        {% if filters_active %}
+                        <label class="form-label small text-muted mb-1 d-none d-md-block">&nbsp;</label>
+                        <a href="{% url 'user_list' %}" class="btn btn-outline-secondary w-100" title="Xóa bộ lọc">
+                            <i class="bi bi-x-lg"></i><span class="d-inline d-md-none ms-1">Xóa lọc</span>
+                        </a>
+                        {% else %}
+                        <label class="form-label small text-muted mb-1 d-none d-md-block">&nbsp;</label>
+                        <span class="form-text small text-muted d-block pt-2"><i class="bi bi-lightning-charge me-1"></i>Lọc tự động</span>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -185,9 +184,9 @@
             </form>
         </div>
 
-        {% if divisions_allowed_by_dept %}
-        <script type="application/json" id="jpUserListDivisionsByDept">{{ divisions_allowed_by_dept|safe }}</script>
-        {% endif %}
+        <script type="application/json" id="jpUserListDivisionsCatalog">{{ divisions_catalog|safe }}</script>
+        <script type="application/json" id="jpUserListDivisionsMap">{{ divisions_filter_map|safe }}</script>
+        <script type="application/json" id="jpUserListPositionsCascade">{{ positions_cascade|safe }}</script>
 
         <div class="jp-table-wrap">
             <table class="table table-hover align-middle mb-0 jp-table jp-table-stack" id="userTable">
@@ -545,58 +544,152 @@ function autoCopySync(text) {
         }, 2000);
     }
 
-    const userFilterForm = document.getElementById('userListFilterForm');
-    function submitUserFilters() {
-        if (userFilterForm) userFilterForm.submit();
-    }
-    const userSort = document.getElementById('userSort');
-    if (userSort) {
-        userSort.addEventListener('change', submitUserFilters);
-    }
-    const deptFilter = document.getElementById('userDepartmentFilter');
-    if (deptFilter) {
-        deptFilter.addEventListener('change', submitUserFilters);
-    }
+    (function initUserListSmartFilters() {
+        const form = document.getElementById('userListFilterForm');
+        const deptEl = document.getElementById('userDepartmentFilter');
+        const divEl = document.getElementById('userDivisionFilter');
+        const posEl = document.getElementById('userPositionFilter');
+        const sortEl = document.getElementById('userSort');
+        const searchEl = document.getElementById('userSearch');
+        if (!form) return;
 
-    const deptFilter = document.getElementById('userDepartmentFilter');
-    const divFilter = document.getElementById('userDivisionFilter');
-    const divMapEl = document.getElementById('jpUserListDivisionsByDept');
-    if (deptFilter && divFilter && divMapEl) {
-        let divAllowedByDept = {};
-        try {
-            divAllowedByDept = JSON.parse(divMapEl.textContent || '{}');
-        } catch (e) {
-            divAllowedByDept = {};
-        }
-
-        function filterUserListDivisionOptions() {
-            const deptId = deptFilter.value || '';
-            const allowedList = divAllowedByDept[deptId] || divAllowedByDept[''] || [];
-            const allowed = new Set(allowedList.map(String));
-            let selectedHidden = false;
-            Array.from(divFilter.options).forEach(function (opt) {
-                if (!opt.value) {
-                    opt.hidden = false;
-                    return;
-                }
-                if (opt.value === 'none') {
-                    opt.hidden = false;
-                    return;
-                }
-                const show = !deptId || allowed.has(String(opt.value));
-                opt.hidden = !show;
-                if (opt.selected && !show) {
-                    selectedHidden = true;
-                }
-            });
-            if (selectedHidden) {
-                divFilter.value = '';
+        function parseJson(id) {
+            const el = document.getElementById(id);
+            if (!el) return null;
+            try {
+                return JSON.parse(el.textContent || 'null');
+            } catch (e) {
+                return null;
             }
         }
 
-        deptFilter.addEventListener('change', filterUserListDivisionOptions);
-        filterUserListDivisionOptions();
-    }
+        const divisionsCatalog = parseJson('jpUserListDivisionsCatalog') || [];
+        const divisionsMap = parseJson('jpUserListDivisionsMap') || {};
+        const positionsCascade = parseJson('jpUserListPositionsCascade') || {};
+
+        const divisionLabels = {};
+        divisionsCatalog.forEach(function (row) {
+            divisionLabels[String(row.id)] = row.name;
+        });
+
+        let submitTimer = null;
+        function submitFilters(delay) {
+            if (submitTimer) window.clearTimeout(submitTimer);
+            submitTimer = window.setTimeout(function () {
+                form.submit();
+            }, typeof delay === 'number' ? delay : 0);
+        }
+
+        function allowedDivisionIds(deptId) {
+            const key = deptId || '';
+            return (divisionsMap[key] || divisionsMap[''] || []).map(String);
+        }
+
+        function rebuildDivisionOptions(resetValue) {
+            if (!divEl) return;
+            const deptId = deptEl ? (deptEl.value || '') : '';
+            const current = resetValue ? '' : divEl.value;
+            const allowed = new Set(allowedDivisionIds(deptId));
+            divEl.innerHTML = '';
+            [
+                { value: '', label: 'Tất cả bộ phận' },
+                { value: 'none', label: 'Chưa gán bộ phận' },
+            ].forEach(function (item) {
+                const opt = document.createElement('option');
+                opt.value = item.value;
+                opt.textContent = item.label;
+                divEl.appendChild(opt);
+            });
+            allowed.forEach(function (id) {
+                const opt = document.createElement('option');
+                opt.value = id;
+                opt.textContent = divisionLabels[id] || ('Bộ phận #' + id);
+                divEl.appendChild(opt);
+            });
+            if (current && Array.from(divEl.options).some(function (o) { return o.value === current; })) {
+                divEl.value = current;
+            }
+        }
+
+        function positionScopeKey() {
+            const deptId = deptEl ? (deptEl.value || '') : '';
+            const divId = divEl ? (divEl.value || '') : '';
+            if (deptId === 'none') {
+                return 'none';
+            }
+            if (deptId && divId && divId !== 'none') {
+                return deptId + ':' + divId;
+            }
+            if (deptId) {
+                return deptId;
+            }
+            return '';
+        }
+
+        function rebuildPositionOptions(resetValue) {
+            if (!posEl) return;
+            const scope = positionScopeKey();
+            const current = resetValue ? '' : posEl.value;
+            const positions = positionsCascade[scope] || positionsCascade[''] || [];
+            posEl.innerHTML = '';
+            [
+                { value: '', label: 'Tất cả vị trí' },
+                { value: 'none', label: 'Chưa có vị trí' },
+            ].forEach(function (item) {
+                const opt = document.createElement('option');
+                opt.value = item.value;
+                opt.textContent = item.label;
+                posEl.appendChild(opt);
+            });
+            positions.forEach(function (name) {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                posEl.appendChild(opt);
+            });
+            if (current && Array.from(posEl.options).some(function (o) { return o.value === current; })) {
+                posEl.value = current;
+            }
+        }
+
+        if (deptEl) {
+            deptEl.addEventListener('change', function () {
+                rebuildDivisionOptions(true);
+                rebuildPositionOptions(true);
+                submitFilters(0);
+            });
+        }
+        if (divEl) {
+            divEl.addEventListener('change', function () {
+                rebuildPositionOptions(true);
+                submitFilters(0);
+            });
+        }
+        if (posEl) {
+            posEl.addEventListener('change', function () {
+                submitFilters(0);
+            });
+        }
+        if (sortEl) {
+            sortEl.addEventListener('change', function () {
+                submitFilters(0);
+            });
+        }
+        if (searchEl) {
+            searchEl.addEventListener('input', function () {
+                submitFilters(450);
+            });
+            searchEl.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    submitFilters(0);
+                }
+            });
+        }
+
+        rebuildDivisionOptions(false);
+        rebuildPositionOptions(false);
+    })();
 
     // LOADING KHI IMPORT
     const importForm = document.getElementById('importExcelForm');
