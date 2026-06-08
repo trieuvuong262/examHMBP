@@ -12,8 +12,8 @@ from django.views.decorators.http import require_GET
 from django.db import transaction
 from django.db.models import Count, Prefetch
 # Import từ các app khác sang
-from hrm.module_permissions import ALL_MODULE_KEYS, MODULE_CHOICES, MODULE_LABELS
-from assessment.decorators import admin_only
+from hrm.module_permissions import ALL_MODULE_KEYS, MODULE_CHOICES, MODULE_HRM, MODULE_LABELS
+from assessment.decorators import admin_only, module_perm_required
 from assessment.forms import UserForm # Tạm thời Form vẫn để ở nhà cũ, mốt mình dời sau
 from django.utils.text import slugify
 from hrm.models import (
@@ -120,7 +120,7 @@ USER_LIST_SORTS = {
 }
 
 
-@admin_only
+@module_perm_required(MODULE_HRM, 'view')
 def user_list(request):
     sort_key = request.GET.get('sort', 'newest')
     if sort_key not in USER_LIST_SORTS:
@@ -201,7 +201,7 @@ def user_list(request):
     })
 
 
-@admin_only
+@module_perm_required(MODULE_HRM, 'create')
 def user_add(request):
     if request.method == 'POST':
         form = CustomUserForm(request.POST)
@@ -257,7 +257,7 @@ def user_add(request):
     })
 
 
-@admin_only
+@module_perm_required(MODULE_HRM, 'create')
 @require_GET
 def user_suggest_username(request):
     """Gợi ý account từ họ tên (form thêm NV)."""
@@ -299,7 +299,7 @@ def _save_profile_avatar(profile, upload, request):
     return True
 
 
-@admin_only
+@module_perm_required(MODULE_HRM, 'update')
 def user_nas_folders(request, user_id):
     """Cấu hình thư mục NAS riêng cho từng tài khoản."""
     from nas_storage.user_folders import (
@@ -367,7 +367,7 @@ def user_nas_folders(request, user_id):
     )
 
 
-@admin_only
+@module_perm_required(MODULE_HRM, 'update')
 def user_edit(request, user_id):
     user_obj = get_object_or_404(User, id=user_id)
     # Lấy profile, tự động tạo nếu chưa có
@@ -460,7 +460,7 @@ def user_edit(request, user_id):
         'profile': profile,
         **_user_form_extra_context(),
     })
-@admin_only
+@module_perm_required(MODULE_HRM, 'delete')
 def user_delete(request, user_id):
     user = get_object_or_404(User, id=user_id)
     if user.is_superuser:
@@ -480,7 +480,7 @@ def user_delete(request, user_id):
         messages.success(request, "Đã xóa nhân viên khỏi hệ thống.")
     return redirect('user_list')
 
-@admin_only
+@module_perm_required(MODULE_HRM, 'create')
 def user_import_excel(request):
     if request.method == 'POST' and request.FILES.get('excel_file'):
         file = request.FILES['excel_file']
@@ -582,13 +582,8 @@ def user_import_excel(request):
         return redirect('org_structure')
     return redirect('user_list')
 
-@admin_only
+@module_perm_required(MODULE_HRM, 'export')
 def user_export_excel(request):
-    from hrm.module_permissions import MODULE_HRM, user_can_export_module
-    if not user_can_export_module(request.user, MODULE_HRM):
-        messages.error(request, 'Bạn không có quyền xuất Excel danh sách nhân viên.')
-        return redirect('user_list')
-
     search_query = get_search_query(request)
     department_id = (request.GET.get('department') or '').strip()
     division_id = (request.GET.get('division') or '').strip()
@@ -636,7 +631,7 @@ def _ensure_division_position_from_profile(profile_defaults: dict) -> None:
     )
 
 
-@admin_only
+@module_perm_required(MODULE_HRM, 'create')
 def user_download_template(request):
     from hrm.excel_template import build_import_template_xlsx
 
@@ -1201,7 +1196,7 @@ def org_position_delete(request, pk):
     })
 
 
-@admin_only
+@module_perm_required(MODULE_HRM, 'update')
 def user_toggle_employed(request, user_id):
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
@@ -1224,7 +1219,7 @@ def user_toggle_employed(request, user_id):
     })
 
 
-@admin_only # Giữ nguyên các khai báo quyền của ní
+@module_perm_required(MODULE_HRM, 'update')
 def user_password_reset(request, user_id):
     if request.method == 'POST':
         user = User.objects.get(id=user_id)

@@ -20,8 +20,11 @@ from hrm.module_permissions import (
     bypass_department_modules,
     get_user_enabled_modules,
     user_can_access_module,
+    user_can_create_module,
+    user_can_delete_module,
     user_can_edit_module,
     user_can_export_module,
+    user_can_update_module,
 )
 from hrm.permissions import (
     can_assign_tasks,
@@ -143,6 +146,9 @@ def portal_permissions(request):
         'jp_can_edit_training': user_can_edit_module(user, MODULE_TRAINING),
         'jp_can_edit_assessment': user_can_edit_module(user, MODULE_ASSESSMENT),
         'jp_can_edit_hrm': user_can_edit_module(user, MODULE_HRM),
+        'jp_can_create_hrm': user_can_create_module(user, MODULE_HRM),
+        'jp_can_update_hrm': user_can_update_module(user, MODULE_HRM),
+        'jp_can_delete_hrm': user_can_delete_module(user, MODULE_HRM),
         'jp_can_edit_kpi': user_can_edit_module(user, MODULE_KPI),
         'jp_can_edit_reports': user_can_edit_module(user, MODULE_REPORTS),
         'jp_can_edit_guide': user_can_edit_module(user, MODULE_GUIDE),

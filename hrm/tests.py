@@ -205,7 +205,7 @@ class PermissionGroupTests(TestCase):
             'view': True,
             'create': True,
             'update': True,
-            'delete': True,
+            'delete': False,
             'export': True,
         }
         self.group_hcns = PermissionGroup.objects.create(
@@ -236,11 +236,85 @@ class PermissionGroupTests(TestCase):
         self.assertTrue(user_can_edit_module(self.hcns_user, MODULE_HRM))
         self.assertTrue(user_can_export_module(self.hcns_user, MODULE_HRM))
 
+    def test_hcns_staff_granular_hrm_permissions(self):
+        from hrm.module_permissions import (
+            user_can_create_module,
+            user_can_delete_module,
+            user_can_update_module,
+        )
+
+        hcns_perms = normalize_group_permissions(permissions_from_legacy_role(ROLE_EMPLOYEE))
+        hcns_perms['hrm'] = {
+            'view': True,
+            'create': True,
+            'update': True,
+            'delete': False,
+            'export': True,
+        }
+        self.group_hcns.module_permissions = hcns_perms
+        self.group_hcns.save(update_fields=['module_permissions'])
+        self.hcns_user.refresh_from_db()
+
+        self.assertTrue(user_can_create_module(self.hcns_user, MODULE_HRM))
+        self.assertTrue(user_can_update_module(self.hcns_user, MODULE_HRM))
+        self.assertFalse(user_can_delete_module(self.hcns_user, MODULE_HRM))
+
     def test_permission_group_urls_resolve(self):
         self.assertEqual(
             resolve_module_from_request('/dashboard/permissions/groups/1/edit/'),
             MODULE_PERMISSIONS,
         )
+
+
+class HrmGranularPermissionViewTests(TestCase):
+    def setUp(self):
+        self.dept_hr = Department.objects.create(name='HCNS Granular', sort_order=1)
+        DepartmentMenuPermission.objects.create(
+            department=self.dept_hr,
+            modules=['hrm'],
+        )
+        employee_legacy = permissions_from_legacy_role(ROLE_EMPLOYEE)
+        hcns_perms = normalize_group_permissions(employee_legacy)
+        hcns_perms['hrm'] = {
+            'view': True,
+            'create': True,
+            'update': True,
+            'delete': False,
+            'export': True,
+        }
+        self.group = PermissionGroup.objects.create(
+            slug='test-hcns-granular',
+            name='Test HCNS granular',
+            module_permissions=hcns_perms,
+        )
+        self.hr_user = User.objects.create_user(username='hcns_granular', password='testpass123')
+        Profile.objects.filter(user=self.hr_user).update(
+            department=self.dept_hr,
+            role=ROLE_EMPLOYEE,
+            permission_group=self.group,
+        )
+        self.target = User.objects.create_user(username='victim_user', password='testpass123')
+        Profile.objects.filter(user=self.target).update(
+            department=self.dept_hr,
+            role=ROLE_EMPLOYEE,
+            full_name='Victim User',
+        )
+        self.client = Client(HTTP_HOST='testserver')
+        self.client.force_login(self.hr_user)
+
+    def test_hcns_can_list_add_edit_but_not_delete(self):
+        self.assertEqual(self.client.get(reverse('user_list')).status_code, 200)
+        self.assertEqual(self.client.get(reverse('user_add')).status_code, 200)
+        self.assertEqual(self.client.get(reverse('user_edit', args=[self.target.id])).status_code, 200)
+        response = self.client.get(reverse('user_delete', args=[self.target.id]))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('home_portal'))
+        self.assertTrue(User.objects.filter(username='victim_user').exists())
+
+    def test_hcns_user_list_hides_delete_action(self):
+        response = self.client.get(reverse('user_list'))
+        self.assertNotContains(response, reverse('user_delete', args=[self.target.id]))
+        self.assertContains(response, reverse('user_edit', args=[self.target.id]))
 
 
 class DepartmentPermissionTemplateTests(TestCase):
@@ -256,7 +330,9 @@ class DepartmentPermissionTemplateTests(TestCase):
         hcns = next(t for t in DEPARTMENT_PERMISSION_TEMPLATES if t['code'] == 'hcns')
         hrm = hcns['employee']['hrm']
         self.assertTrue(hrm['view'])
+        self.assertTrue(hrm['create'])
         self.assertTrue(hrm['update'])
+        self.assertFalse(hrm['delete'])
 
 
 class PermissionMiddlewareTests(TestCase):
