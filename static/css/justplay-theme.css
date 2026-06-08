@@ -4103,9 +4103,9 @@ body.jp-tool-loading-active {
     }
 
     .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-code { width: 5.5%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-name { width: 18%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-name { width: 13.5%; }
     .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-account { width: 8%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-org { width: 8.5%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-org { width: 10%; }
     .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-job-title { width: 7%; }
     .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-date { width: 5.5%; }
     .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-gender { width: 3.5%; }
