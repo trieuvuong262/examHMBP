@@ -2824,13 +2824,19 @@ body.jp-tool-loading-active {
         padding-top: 0.35rem;
     }
 
+    .jp-hrm-page .jp-table-stack tbody td.jp-td-actions .jp-hrm-actions-cluster {
+        width: auto;
+        max-width: 100%;
+    }
+
     .jp-hrm-page .jp-table-stack tbody td.jp-td-actions .jp-hrm-action-menu {
-        width: 100%;
+        width: auto;
+        flex-shrink: 0;
     }
 
     .jp-hrm-page .jp-table-stack tbody td.jp-td-actions .jp-hrm-action-menu .dropdown-toggle {
-        width: 100%;
-        min-height: var(--jp-touch);
+        width: auto;
+        min-height: 2.25rem;
     }
 
     .jp-hrm-page .jp-table-stack tbody td.jp-td-actions .jp-hrm-actions {
@@ -4058,28 +4064,66 @@ body.jp-tool-loading-active {
     white-space: nowrap;
 }
 
+.jp-hrm-page #userTable td.jp-td-actions {
+    width: 1%;
+    min-width: 9.5rem;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.jp-hrm-actions-cluster {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    gap: 0;
+    max-width: 100%;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.375rem;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+    overflow: hidden;
+}
+
 .jp-hrm-employed-inline {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
     flex-shrink: 0;
+    padding: 0.2rem 0.45rem 0.2rem 0.55rem;
+    border-right: 1px solid #e2e8f0;
 }
 
 .jp-hrm-employed-inline .employed-label {
     margin: 0;
     white-space: nowrap;
     line-height: 1.2;
+    font-size: 0.75rem;
+    font-weight: 600;
 }
 
-.jp-hrm-page #userTable .jp-hrm-action-buttons {
-    flex-wrap: nowrap;
-    justify-content: flex-end;
+.jp-hrm-employed-switch.form-check {
+    padding: 0;
+    margin: 0;
+    min-height: 0;
+    display: inline-flex;
+    align-items: center;
 }
 
 .jp-hrm-employed-switch .form-check-input {
-    width: 2.5rem;
-    height: 1.35rem;
+    width: 2.25rem;
+    height: 1.2rem;
+    margin: 0;
+    float: none;
     cursor: pointer;
+}
+
+.jp-hrm-actions-cluster .jp-hrm-action-menu .dropdown-toggle {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    min-width: 2.25rem;
+    min-height: 2.25rem;
 }
 
 .jp-hrm-employed-switch .form-check-input:checked {

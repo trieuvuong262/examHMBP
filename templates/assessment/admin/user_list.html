@@ -249,9 +249,12 @@
                         </td>
 
                         <td class="text-md-end pe-md-4 jp-td-actions" data-label="Thao tác">
-                            <div class="d-inline-flex align-items-center gap-2 jp-hrm-action-buttons">
+                            <div class="jp-hrm-actions-cluster">
                             {% if not u.is_superuser %}
                             <div class="jp-hrm-employed-inline">
+                                <span class="employed-label {% if u.profile.is_employed %}text-success{% else %}text-muted{% endif %}">
+                                    {% if u.profile.is_employed %}Đang làm{% else %}Đã nghỉ{% endif %}
+                                </span>
                                 <div class="form-check form-switch jp-hrm-employed-switch mb-0">
                                     <input type="checkbox"
                                            class="form-check-input employed-toggle"
@@ -261,14 +264,11 @@
                                            {% if u.profile.is_employed %}checked{% endif %}
                                            title="{% if u.profile.is_employed %}Đang làm việc{% else %}Đã nghỉ{% endif %}">
                                 </div>
-                                <span class="employed-label small {% if u.profile.is_employed %}text-success{% else %}text-muted{% endif %}">
-                                    {% if u.profile.is_employed %}Đang làm{% else %}Đã nghỉ{% endif %}
-                                </span>
                             </div>
                             {% endif %}
                             <div class="dropdown jp-hrm-action-menu">
                                 <button type="button"
-                                        class="btn btn-sm btn-white border shadow-sm dropdown-toggle"
+                                        class="btn btn-sm btn-white dropdown-toggle"
                                         data-bs-toggle="dropdown"
                                         data-bs-popper-config='{"strategy":"fixed"}'
                                         aria-expanded="false"
