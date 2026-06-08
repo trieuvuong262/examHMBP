@@ -2,20 +2,12 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260529b">
+<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260529d">
 {% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-reports-page py-3 py-md-4 mb-5">
-    <div class="jp-page-header mb-3 mb-md-4">
-        <div>
-            <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-calendar-day me-2"></i>Báo cáo ngày</h2>
-            <p class="text-muted mb-0 jp-hide-mobile-subtitle">
-                {{ employee_name }}{% if department_name %} · {{ department_name }}{% endif %}
-            </p>
-        </div>
-        {% include 'reports/includes/reports_page_tools.html' %}
-    </div>
+    {% include 'reports/includes/reports_intro_header.html' with intro_icon='bi-calendar-day' intro_title='Báo cáo ngày' %}
 
     {% if report.status == 'SUBMITTED' %}
     <div class="alert alert-success border-0 shadow-sm py-2 mb-3">

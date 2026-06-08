@@ -160,6 +160,7 @@ class ReportProfileRoutingTests(TestCase):
         client.force_login(self.office_user)
         resp = client.get(reverse('reports:today'))
         self.assertContains(resp, 'Báo cáo ngày')
+        self.assertContains(resp, 'jp-reports-intro')
         self.assertNotContains(resp, 'jp-reports-period-nav')
 
     def test_weekly_report_same_simple_form_for_all_users(self):
@@ -170,6 +171,7 @@ class ReportProfileRoutingTests(TestCase):
             self.assertEqual(resp.status_code, 200)
             self.assertTemplateUsed(resp, 'reports/weekly.html')
             self.assertContains(resp, 'Báo cáo tuần')
+            self.assertContains(resp, 'jp-reports-meta-chip is-period')
             self.assertNotContains(resp, 'jp-reports-period-nav')
             self.assertContains(resp, 'Link')
             self.assertContains(resp, 'name="files"')
