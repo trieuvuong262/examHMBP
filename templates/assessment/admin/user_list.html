@@ -258,8 +258,8 @@
                         </td>
                         <td data-label="Ngày vào" class="text-muted small jp-hrm-col-date">{{ u.profile.join_date|date:"d/m/Y"|default:"—" }}</td>
                         <td data-label="Ngày sinh" class="text-muted small jp-hrm-col-date">{{ u.profile.date_of_birth|date:"d/m/Y"|default:"—" }}</td>
-                        <td class="text-center" data-label="Giới tính">{{ u.profile.get_gender_display_short|default:"—" }}</td>
-                        <td class="text-center" data-label="Vai trò HT">
+                        <td class="text-center jp-hrm-col-gender" data-label="Giới tính">{{ u.profile.get_gender_display_short|default:"—" }}</td>
+                        <td class="text-center jp-hrm-col-role" data-label="Vai trò HT">
                             {% if u.profile.role == 'DIRECTOR' %}
                                 <span class="badge bg-danger-subtle text-danger px-2 px-md-3">
                                     <i class="bi bi-shield-fill-check me-1"></i>Giám đốc

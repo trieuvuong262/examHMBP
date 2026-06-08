@@ -4162,15 +4162,15 @@ body.jp-tool-loading-active {
         width: 100%;
     }
 
-    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-code { width: 5.5%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-name { width: 13.5%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-code { width: 6%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-name { width: 18%; }
     .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-account { width: 8%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-org { width: 10%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-job-title { width: 7%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-date { width: 5.5%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-gender { width: 3.5%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-role { width: 9%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-actions { width: 3.5%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-org { width: 11%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-job-title { width: 8%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-date { width: 6%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-gender { width: 4%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-role { width: 6%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-actions { width: 6%; }
 }
 
 .jp-hrm-page #userTable .jp-hrm-cell-truncate {
@@ -4200,6 +4200,39 @@ body.jp-tool-loading-active {
 
 .jp-hrm-list-thead .jp-hrm-col-actions-h .jp-hrm-list-th-label {
     white-space: nowrap;
+}
+
+.jp-hrm-page #userTable td.jp-hrm-col-gender,
+.jp-hrm-page #userTable td.jp-hrm-col-role {
+    text-align: center;
+}
+
+.jp-hrm-page #userTable td.jp-hrm-col-role .badge {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.jp-hrm-list-thead .jp-hrm-col-role-h,
+.jp-hrm-list-thead .jp-hrm-col-actions-h {
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+}
+
+.jp-hrm-page #userTable td.jp-hrm-col-role,
+.jp-hrm-page #userTable td.jp-td-actions {
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+}
+
+.jp-hrm-page #userTable td.jp-td-actions {
+    padding-right: 1rem;
+}
+
+.jp-hrm-list-thead .jp-hrm-col-actions-h {
+    padding-right: 1rem;
 }
 
 .jp-hrm-page #userTable td.jp-td-actions {
