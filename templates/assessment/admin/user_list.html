@@ -69,17 +69,6 @@
     </div>
 
     <div class="card border-0 shadow-sm jp-hrm-list-card">
-        <div class="card-header bg-white py-3 border-bottom">
-            <h5 class="mb-0 fw-bold text-dark">Dữ liệu nhân sự</h5>
-            <p class="text-muted small mb-0 mt-1">
-                {% if filters_active %}
-                Đang hiển thị <strong>{{ page_obj.paginator.count }}</strong> nhân viên sau lọc
-                {% else %}
-                Tổng <strong>{{ page_obj.paginator.count }}</strong> nhân viên
-                {% endif %}
-            </p>
-        </div>
-
         <div class="jp-hrm-list-filters border-bottom px-3 px-md-4 py-3">
             <form method="get" id="userListFilterForm" role="search">
                 <input type="hidden" name="sort" id="userListSort" value="{{ sort_col }}">
@@ -148,17 +137,14 @@
                             </select>
                         </div>
                     </div>
+                    {% if filters_active %}
                     <div class="col-xl-1 col-lg-2 col-md-4 col-sm-6">
-                        {% if filters_active %}
                         <label class="form-label small text-muted mb-1 d-none d-md-block">&nbsp;</label>
                         <a href="{% url 'user_list' %}" class="btn btn-outline-secondary w-100" title="Xóa bộ lọc">
                             <i class="bi bi-x-lg"></i><span class="d-inline d-md-none ms-1">Xóa lọc</span>
                         </a>
-                        {% else %}
-                        <label class="form-label small text-muted mb-1 d-none d-md-block">&nbsp;</label>
-                        <span class="form-text small text-muted d-block pt-2"><i class="bi bi-lightning-charge me-1"></i>Lọc tự động</span>
-                        {% endif %}
                     </div>
+                    {% endif %}
                 </div>
 
                 {% if filters_active %}

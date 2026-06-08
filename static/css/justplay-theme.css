@@ -4163,14 +4163,14 @@ body.jp-tool-loading-active {
     }
 
     .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-code { width: 6%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-name { width: 18%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-name { width: 17%; }
     .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-account { width: 8%; }
     .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-org { width: 11%; }
     .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-job-title { width: 8%; }
     .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-date { width: 6%; }
     .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-gender { width: 4%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-role { width: 6%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-actions { width: 6%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-role { width: 8%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-actions { width: 5%; }
 }
 
 .jp-hrm-page #userTable .jp-hrm-cell-truncate {

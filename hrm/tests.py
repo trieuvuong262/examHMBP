@@ -1032,7 +1032,8 @@ class OrgStructureTreemapTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'jpUserListDivisionsMap')
         self.assertContains(response, 'jpUserListPositionsCascade')
-        self.assertContains(response, 'Lọc tự động')
+        self.assertNotContains(response, 'Lọc tự động')
+        self.assertNotContains(response, 'Dữ liệu nhân sự')
 
         filtered = self.client.get(reverse('user_list') + f'?department={self.dept.pk}')
         self.assertEqual(filtered.status_code, 200)
