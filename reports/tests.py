@@ -155,12 +155,12 @@ class ReportProfileRoutingTests(TestCase):
         self.assertContains(resp, 'Văn bản')
         self.assertNotContains(resp, 'Công đoạn')
 
-    def test_daily_pages_show_period_nav(self):
+    def test_daily_page_shows_daily_title_only(self):
         client = Client()
         client.force_login(self.office_user)
         resp = client.get(reverse('reports:today'))
         self.assertContains(resp, 'Báo cáo ngày')
-        self.assertContains(resp, 'Báo cáo tuần')
+        self.assertNotContains(resp, 'jp-reports-period-nav')
 
     def test_weekly_report_same_simple_form_for_all_users(self):
         client = Client()
@@ -169,6 +169,8 @@ class ReportProfileRoutingTests(TestCase):
             resp = client.get(reverse('reports:weekly'))
             self.assertEqual(resp.status_code, 200)
             self.assertTemplateUsed(resp, 'reports/weekly.html')
+            self.assertContains(resp, 'Báo cáo tuần')
+            self.assertNotContains(resp, 'jp-reports-period-nav')
             self.assertContains(resp, 'Link')
             self.assertContains(resp, 'name="files"')
             self.assertContains(resp, 'name="images"')

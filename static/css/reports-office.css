@@ -1,75 +1,4 @@
-/* Báo cáo — menu ngày/tuần + office (Bảng / Văn bản) */
-
-.jp-reports-period-nav {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.65rem;
-    margin-bottom: 1rem;
-}
-
-.jp-reports-period-card {
-    display: flex;
-    align-items: center;
-    gap: 0.85rem;
-    padding: 0.85rem 1rem;
-    border-radius: 12px;
-    border: 1px solid #e8edf3;
-    background: #fff;
-    color: #334155;
-    text-decoration: none;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-    transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
-}
-
-.jp-reports-period-card:hover {
-    border-color: rgba(220, 38, 38, 0.28);
-    color: #1e293b;
-    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
-    transform: translateY(-1px);
-}
-
-.jp-reports-period-card.is-active {
-    border-color: rgba(220, 38, 38, 0.45);
-    background: linear-gradient(135deg, #fff5f5 0%, #fff 55%);
-    box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.12), 0 4px 16px rgba(220, 38, 38, 0.1);
-}
-
-.jp-reports-period-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 10px;
-    background: #f1f5f9;
-    color: #64748b;
-    font-size: 1.15rem;
-    flex-shrink: 0;
-}
-
-.jp-reports-period-card.is-active .jp-reports-period-icon {
-    background: var(--hm-primary, #dc2626);
-    color: #fff;
-}
-
-.jp-reports-period-text {
-    display: flex;
-    flex-direction: column;
-    gap: 0.1rem;
-    min-width: 0;
-}
-
-.jp-reports-period-text strong {
-    font-size: 0.92rem;
-    font-weight: 700;
-    line-height: 1.25;
-}
-
-.jp-reports-period-text small {
-    font-size: 0.76rem;
-    color: #94a3b8;
-    line-height: 1.35;
-}
+/* Báo cáo office — tab Bảng / Văn bản (báo cáo ngày) */
 
 .jp-reports-content-tabs {
     display: inline-flex;
@@ -210,21 +139,6 @@
 }
 
 @media (max-width: 575.98px) {
-    .jp-reports-period-nav {
-        gap: 0.5rem;
-    }
-
-    .jp-reports-period-card {
-        padding: 0.7rem 0.8rem;
-        gap: 0.65rem;
-    }
-
-    .jp-reports-period-icon {
-        width: 2.1rem;
-        height: 2.1rem;
-        font-size: 1rem;
-    }
-
     .jp-reports-content-tab {
         padding: 0.5rem 0.85rem;
         font-size: 0.82rem;
@@ -680,22 +594,6 @@
         bottom: 0.75rem;
         z-index: 20;
     }
-}
-
-[data-theme="dark"] .jp-reports-period-card {
-    background: var(--jp-surface-bg);
-    border-color: var(--jp-surface-border);
-    color: var(--jp-text-primary);
-}
-
-[data-theme="dark"] .jp-reports-period-card.is-active {
-    background: var(--jp-surface-muted);
-    border-color: rgba(252, 165, 165, 0.45);
-}
-
-[data-theme="dark"] .jp-reports-period-icon {
-    background: var(--jp-surface-muted);
-    color: var(--jp-text-muted);
 }
 
 [data-theme="dark"] .jp-reports-content-tab:not(.active) {
