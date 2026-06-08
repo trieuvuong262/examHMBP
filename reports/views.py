@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.files.storage import default_storage
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 from django.utils import timezone
 from django.contrib import messages
@@ -31,8 +32,16 @@ from reports.report_profile import (
     is_production_report_user,
 )
 
-from .forms import DailyWorkReportForm, DailyWorkReportLineFormSet, OfficeDailyWorkReportForm
-from .models import DailyWorkReport
+from reports.week_utils import monday_of, parse_week_start, week_end, week_label
+
+from .forms import (
+    DailyWorkReportForm,
+    DailyWorkReportLineFormSet,
+    OfficeDailyWorkReportForm,
+    OfficeWeeklyWorkReportForm,
+    WeeklyProductionReportForm,
+)
+from .models import DailyWorkReport, WeeklyWorkReport
 
 
 _CK5_IMAGE_TYPES = frozenset({'image/jpeg', 'image/png', 'image/gif', 'image/webp'})
@@ -87,6 +96,7 @@ def _parse_report_date(request):
 def _report_context_common(request, report_date):
     yesterday = report_date - timedelta(days=1)
     return {
+        'report_date': report_date,
         'has_yesterday': DailyWorkReport.objects.filter(
             employee=request.user,
             report_date=yesterday,
@@ -117,10 +127,52 @@ def _finalize_report_submission(report, action):
     if action == 'submit':
         report.status = DailyWorkReport.STATUS_SUBMITTED
         report.submitted_at = timezone.now()
-        return 'Đã nộp báo cáo cho cấp trên.'
+        return 'Đã gửi báo cáo.'
     report.status = DailyWorkReport.STATUS_DRAFT
     report.submitted_at = None
     return 'Đã lưu nháp báo cáo.'
+
+
+def _ckeditor_context():
+    lts_key = getattr(settings, 'CKEDITOR_LTS_LICENSE_KEY', '')
+    return {
+        'ckeditor_lts_license': lts_key,
+        'ckeditor_use_lts': bool(lts_key),
+    }
+
+
+def _parse_week_start(request):
+    raw = request.GET.get('week') or request.POST.get('week_start')
+    return parse_week_start(raw)
+
+
+def _get_or_create_weekly_report(user, week_start):
+    profile = get_report_profile(user)
+    report, created = WeeklyWorkReport.objects.get_or_create(
+        employee=user,
+        week_start=week_start,
+        defaults={'report_profile': profile},
+    )
+    if not created and report.report_profile != profile:
+        report.report_profile = profile
+        report.save(update_fields=['report_profile', 'updated_at'])
+    return report
+
+
+def _weekly_context_common(request, week_start):
+    prev_week = week_start - timedelta(days=7)
+    return {
+        'week_start': week_start,
+        'week_end': week_end(week_start),
+        'week_label': week_label(week_start),
+        'has_prev_week': WeeklyWorkReport.objects.filter(
+            employee=request.user,
+            week_start=prev_week,
+        ).exists(),
+        'prev_week': prev_week,
+        'can_view_team': can_view_team_reports(request.user),
+        'report_period': 'weekly',
+    }
 
 
 def _today_production_report(request, report_date):
@@ -142,7 +194,15 @@ def _today_production_report(request, report_date):
         formset = DailyWorkReportLineFormSet(instance=report)
 
     ctx = _report_context_common(request, report_date)
-    ctx.update({'form': form, 'formset': formset, 'report': report})
+    ctx.update({
+        'form': form,
+        'formset': formset,
+        'report': report,
+        'report_period': 'daily',
+        'copy_url': reverse('reports:copy_yesterday') if ctx['has_yesterday'] else None,
+        'copy_label': 'Sao chép HQ',
+        'copy_confirm': 'Sao chép nội dung từ hôm qua?',
+    })
     return render(request, 'reports/today.html', ctx)
 
 
@@ -166,13 +226,131 @@ def _today_office_report(request, report_date):
         form = OfficeDailyWorkReportForm(instance=report)
 
     ctx = _report_context_common(request, report_date)
+    ctx.update(_ckeditor_context())
     ctx.update({
         'form': form,
         'report': report,
         'employee_name': (user_profile.full_name if user_profile else '') or request.user.username,
         'department_name': user_profile.department.name if user_profile and user_profile.department_id else '',
+        'report_period': 'daily',
+        'content_tab_hint': 'Nhập tiêu đề cột ở hàng hồng, số liệu ở từng ô bên dưới.',
+        'copy_url': reverse('reports:copy_yesterday') if ctx['has_yesterday'] else None,
+        'copy_label': 'Sao chép HQ',
+        'copy_confirm': 'Sao chép nội dung từ hôm qua?',
     })
     return render(request, 'reports/today_office.html', ctx)
+
+
+def _weekly_office_report(request, week_start):
+    from hrm.permissions import get_profile as load_profile
+    user_profile = load_profile(request.user)
+    report = _get_or_create_weekly_report(request.user, week_start)
+
+    if request.method == 'POST':
+        action = request.POST.get('action', 'save')
+        form = OfficeWeeklyWorkReportForm(request.POST, instance=report)
+        if form.is_valid():
+            report = form.save(commit=False)
+            report.report_profile = REPORT_PROFILE_OFFICE
+            messages.success(request, _finalize_report_submission(report, action))
+            report.save()
+            return redirect(f'{reverse("reports:weekly")}?week={week_start.isoformat()}')
+    else:
+        form = OfficeWeeklyWorkReportForm(instance=report)
+
+    ctx = _weekly_context_common(request, week_start)
+    ctx.update(_ckeditor_context())
+    ctx.update({
+        'form': form,
+        'report': report,
+        'employee_name': (user_profile.full_name if user_profile else '') or request.user.username,
+        'department_name': user_profile.department.name if user_profile and user_profile.department_id else '',
+        'content_tab_hint': 'Tổng hợp công việc cả tuần — tab Bảng hoặc Văn bản.',
+        'copy_url': reverse('reports:copy_prev_week') if ctx['has_prev_week'] else None,
+        'copy_label': 'Sao chép tuần trước',
+        'copy_confirm': 'Sao chép nội dung từ tuần trước?',
+    })
+    return render(request, 'reports/weekly_office.html', ctx)
+
+
+def _weekly_production_report(request, week_start):
+    report = _get_or_create_weekly_report(request.user, week_start)
+    week_end_date = week_end(week_start)
+    daily_count = DailyWorkReport.objects.filter(
+        employee=request.user,
+        report_date__gte=week_start,
+        report_date__lte=week_end_date,
+        status=DailyWorkReport.STATUS_SUBMITTED,
+    ).count()
+
+    if request.method == 'POST':
+        action = request.POST.get('action', 'save')
+        form = WeeklyProductionReportForm(request.POST, instance=report)
+        if form.is_valid():
+            report = form.save(commit=False)
+            report.report_profile = REPORT_PROFILE_PRODUCTION
+            messages.success(request, _finalize_report_submission(report, action))
+            report.save()
+            return redirect(f'{reverse("reports:weekly")}?week={week_start.isoformat()}')
+    else:
+        form = WeeklyProductionReportForm(instance=report)
+
+    ctx = _weekly_context_common(request, week_start)
+    ctx.update({
+        'form': form,
+        'report': report,
+        'daily_submitted_count': daily_count,
+        'copy_url': reverse('reports:copy_prev_week') if ctx['has_prev_week'] else None,
+        'copy_label': 'Sao chép tuần trước',
+        'copy_confirm': 'Sao chép nội dung từ tuần trước?',
+    })
+    return render(request, 'reports/weekly_production.html', ctx)
+
+
+@_require_submit_access
+def weekly_report(request):
+    week_start = _parse_week_start(request)
+    if is_production_report_user(request.user):
+        return _weekly_production_report(request, week_start)
+    return _weekly_office_report(request, week_start)
+
+
+@_require_submit_access
+def copy_prev_week(request):
+    this_week = monday_of(timezone.localdate())
+    prev_week = this_week - timedelta(days=7)
+    source = WeeklyWorkReport.objects.filter(
+        employee=request.user,
+        week_start=prev_week,
+    ).first()
+    if not source:
+        messages.warning(request, 'Không có báo cáo tuần trước để sao chép.')
+        return redirect('reports:weekly')
+
+    profile = get_report_profile(request.user)
+    report, _ = WeeklyWorkReport.objects.get_or_create(
+        employee=request.user,
+        week_start=this_week,
+        defaults={'report_profile': profile, 'status': WeeklyWorkReport.STATUS_DRAFT},
+    )
+    report.report_profile = profile
+    report.status = WeeklyWorkReport.STATUS_DRAFT
+    report.submitted_at = None
+    if profile == REPORT_PROFILE_OFFICE:
+        report.spreadsheet_json = source.spreadsheet_json
+        report.document_html = source.document_html
+        report.summary_note = ''
+        report.issues_note = ''
+        report.plan_next_week = ''
+    else:
+        report.spreadsheet_json = None
+        report.document_html = ''
+        report.summary_note = source.summary_note
+        report.issues_note = source.issues_note
+        report.plan_next_week = source.plan_next_week
+    report.save()
+    messages.success(request, 'Đã sao chép báo cáo tuần trước. Kiểm tra và gửi lại.')
+    return redirect(f'{reverse("reports:weekly")}?week={this_week.isoformat()}')
 
 
 @_require_submit_access

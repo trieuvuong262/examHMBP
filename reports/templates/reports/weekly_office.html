@@ -33,8 +33,11 @@
         <div class="jp-office-hero card border-0 shadow-sm mb-3">
             <div class="jp-office-hero-top">
                 <div class="jp-office-hero-date">
-                    <label class="form-label fw-bold small mb-1">Ngày báo cáo</label>
-                    {{ form.report_date }}
+                    <label class="form-label fw-bold small mb-1">Tuần báo cáo</label>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        {{ form.week_start }}
+                        <span class="jp-week-range-badge">{{ week_label }}</span>
+                    </div>
                 </div>
                 <span class="jp-office-status-pill {% if report.status == 'SUBMITTED' %}is-submitted{% else %}is-draft{% endif %}">
                     <i class="bi {% if report.status == 'SUBMITTED' %}bi-check-circle-fill{% else %}bi-pencil{% endif %}"></i>
@@ -62,4 +65,14 @@
 
 {% block scripts %}
 {% include 'reports/includes/office_ckeditor_scripts.html' %}
+<script>
+(function () {
+    const weekInput = document.getElementById('id_week_start');
+    if (!weekInput) return;
+    weekInput.addEventListener('change', function () {
+        if (!this.value) return;
+        window.location.href = '{% url "reports:weekly" %}?week=' + this.value;
+    });
+})();
+</script>
 {% endblock %}

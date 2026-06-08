@@ -8,42 +8,25 @@
         return input ? input.value : '';
     }
 
-    function syncEditorToTextarea(editor, textarea) {
-        textarea.value = editor.getData();
-    }
-
-    async function initEditor(wrapper) {
-        if (!window.CKEDITOR || !CKEDITOR.DecoupledEditor) {
-            console.warn('CKEditor 5 chưa tải xong.');
-            return;
-        }
-        const textareaId = wrapper.dataset.ck5Textarea;
-        const textarea = document.getElementById(textareaId);
-        if (!textarea || wrapper.dataset.ck5Ready === '1') return;
-
-        const toolbarHost = wrapper.querySelector('.jp-ck5-toolbar-host');
-        const editableHost = wrapper.querySelector('.jp-ck5-editable-host');
-        const uploadUrl = wrapper.dataset.uploadUrl || '';
-        if (!toolbarHost || !editableHost) return;
-
+    function editorConfig(uploadUrl) {
         const config = {
             language: 'vi',
-            placeholder: 'Soạn báo cáo: tiêu đề, nội dung, bảng biểu, danh sách công việc…',
+            placeholder: 'Bắt đầu nhập nội dung báo cáo…',
             toolbar: {
                 items: [
+                    'undo', 'redo', '|',
                     'heading', '|',
                     'fontSize', 'fontFamily', '|',
-                    'bold', 'italic', 'underline', 'strikethrough', 'subscript', 'superscript', '|',
+                    'bold', 'italic', 'underline', 'strikethrough', '|',
                     'fontColor', 'fontBackgroundColor', '|',
                     'alignment', '|',
                     'numberedList', 'bulletedList', '|',
                     'outdent', 'indent', '|',
                     'link', 'blockQuote', 'insertTable', 'horizontalLine', 'specialCharacters', '|',
-                    'uploadImage', 'mediaEmbed', '|',
-                    'removeFormat', '|',
-                    'undo', 'redo',
+                    'uploadImage', '|',
+                    'removeFormat',
                 ],
-                shouldNotGroupWhenFull: false,
+                shouldNotGroupWhenFull: true,
             },
             heading: {
                 options: [
@@ -55,7 +38,18 @@
                 ],
             },
             fontSize: {
-                options: [10, 11, 12, 13, 'default', 15, 16, 18, 20, 24, 28, 32],
+                options: [9, 10, 11, 12, 13, 'default', 14, 16, 18, 20, 24, 28, 32],
+            },
+            fontFamily: {
+                options: [
+                    'default',
+                    'Times New Roman, Times, serif',
+                    'Arial, Helvetica, sans-serif',
+                    'Calibri, Carlito, sans-serif',
+                    'Georgia, serif',
+                    'Verdana, Geneva, sans-serif',
+                    'Courier New, Courier, monospace',
+                ],
             },
             table: {
                 contentToolbar: [
@@ -66,8 +60,7 @@
             image: {
                 toolbar: [
                     'imageTextAlternative', '|',
-                    'imageStyle:inline', 'imageStyle:block', 'imageStyle:side', '|',
-                    'toggleImageCaption', 'linkImage',
+                    'imageStyle:inline', 'imageStyle:block', 'imageStyle:side',
                 ],
             },
         };
@@ -79,42 +72,108 @@
                 headers: { 'X-CSRFToken': getCsrfToken() },
             };
         }
+        return config;
+    }
+
+    function setLoading(wrapper, on) {
+        const desk = wrapper.querySelector('.jp-word-desk');
+        if (!desk) return;
+        desk.classList.toggle('is-loading', on);
+    }
+
+    async function initEditor(wrapper) {
+        if (wrapper.dataset.ck5Ready === '1') {
+            return wrapper._jpCk5Editor || true;
+        }
+
+        const EditorClass = window.CKEDITOR && (CKEDITOR.DecoupledEditor || CKEDITOR.ClassicEditor);
+        if (!EditorClass) {
+            return false;
+        }
+
+        const textareaId = wrapper.dataset.ck5Textarea;
+        const textarea = document.getElementById(textareaId);
+        const toolbarHost = wrapper.querySelector('.jp-ck5-toolbar-host');
+        const editableHost = wrapper.querySelector('.jp-ck5-editable-host');
+        if (!textarea || !editableHost) return false;
+
+        setLoading(wrapper, true);
+        const uploadUrl = wrapper.dataset.uploadUrl || '';
 
         try {
-            const editor = await CKEDITOR.DecoupledEditor.create(editableHost, config);
-            toolbarHost.appendChild(editor.ui.view.toolbar.element);
+            let editor;
+            if (CKEDITOR.DecoupledEditor) {
+                editor = await CKEDITOR.DecoupledEditor.create(editableHost, editorConfig(uploadUrl));
+                if (toolbarHost) {
+                    toolbarHost.appendChild(editor.ui.view.toolbar.element);
+                }
+                wrapper.classList.add('is-decoupled');
+            } else {
+                editor = await CKEDITOR.ClassicEditor.create(editableHost, editorConfig(uploadUrl));
+                wrapper.classList.add('is-classic');
+            }
+
             editor.setData(textarea.value || '');
             wrapper.dataset.ck5Ready = '1';
+            wrapper._jpCk5Editor = editor;
 
             editor.model.document.on('change:data', function () {
-                syncEditorToTextarea(editor, textarea);
+                textarea.value = editor.getData();
             });
 
             const form = wrapper.closest('form');
             if (form) {
                 form.addEventListener('submit', function () {
-                    syncEditorToTextarea(editor, textarea);
+                    textarea.value = editor.getData();
                 });
             }
 
-            const wordTab = document.getElementById('vanban-tab');
-            if (wordTab) {
-                wordTab.addEventListener('shown.bs.tab', function () {
-                    editor.editing.view.focus();
-                });
-            }
+            setLoading(wrapper, false);
+            return editor;
         } catch (err) {
             console.error('CKEditor 5 init failed:', err);
+            setLoading(wrapper, false);
+            wrapper.classList.add('is-fallback');
             textarea.classList.remove('d-none');
-            editableHost.style.display = 'none';
-            toolbarHost.style.display = 'none';
+            if (editableHost) editableHost.style.display = 'none';
+            if (toolbarHost) toolbarHost.style.display = 'none';
+            return false;
         }
     }
 
     function boot() {
-        document.querySelectorAll('.jp-ck5-editor').forEach(function (wrapper) {
-            initEditor(wrapper);
-        });
+        const wrappers = Array.from(document.querySelectorAll('.jp-ck5-editor'));
+        if (!wrappers.length) return;
+
+        const wordTab = document.getElementById('vanban-tab');
+        const wordPane = document.getElementById('vanban-pane');
+
+        function bindUploadUrl() {
+            const el = document.querySelector('[data-ck5-upload-url]');
+            const uploadUrl = el ? el.dataset.ck5UploadUrl : '';
+            wrappers.forEach(function (w) {
+                if (uploadUrl) w.dataset.uploadUrl = uploadUrl;
+            });
+        }
+
+        async function ensureEditors() {
+            bindUploadUrl();
+            for (const wrapper of wrappers) {
+                const editor = await initEditor(wrapper);
+                if (editor && editor.editing) {
+                    setTimeout(function () {
+                        editor.editing.view.focus();
+                    }, 80);
+                }
+            }
+        }
+
+        if (wordTab) {
+            wordTab.addEventListener('shown.bs.tab', ensureEditors);
+        }
+        if (wordPane && wordPane.classList.contains('show') && wordPane.classList.contains('active')) {
+            ensureEditors();
+        }
     }
 
     if (document.readyState === 'loading') {

@@ -1,4 +1,11 @@
 {% extends 'base.html' %}
+{% load static %}
+
+{% block extra_head %}
+{% if not report.is_production_report %}
+<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260528y">
+{% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-reports-page py-3 py-md-4 mb-5">
@@ -93,15 +100,19 @@
             </div>
         </div>
     </div>
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white fw-bold">Văn bản</div>
-        <div class="card-body jp-ckeditor-content">
-            {% if report.document_html %}
-            {{ report.document_html|safe }}
-            {% else %}
-            <p class="text-muted mb-0">Chưa có nội dung văn bản.</p>
-            {% endif %}
+    <div class="card border-0 shadow-sm mb-4 overflow-hidden">
+        <div class="card-header bg-white fw-bold border-bottom">Văn bản</div>
+        {% if report.document_html %}
+        <div class="jp-word-desk-readonly">
+            <div class="jp-word-page-readonly">
+                <div class="jp-word-page-body jp-ckeditor-content">{{ report.document_html|safe }}</div>
+            </div>
         </div>
+        {% else %}
+        <div class="card-body">
+            <p class="text-muted mb-0">Chưa có nội dung văn bản.</p>
+        </div>
+        {% endif %}
     </div>
     {% endif %}
 

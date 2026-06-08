@@ -3,17 +3,14 @@ from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
 
-class CKEditor5Widget(forms.Textarea):
-    """CKEditor 5 (super-build CDN) — chỉ dùng form báo cáo office."""
+class OfficeWordEditorWidget(forms.Textarea):
+    """CKEditor 4 WordLike — ribbon đầy đủ, khởi tạo khi mở tab Văn bản."""
 
     class Media:
-        js = (
-            'https://cdn.ckeditor.com/ckeditor5/43.3.1/super-build/ckeditor.js',
-            'js/reports-office-ckeditor5.js',
-        )
+        js = ('js/reports-office-word-editor.js',)
 
     def __init__(self, attrs=None):
-        default_attrs = {'class': 'jp-ck5-source d-none'}
+        default_attrs = {'class': 'jp-word-textarea'}
         if attrs:
             default_attrs.update(attrs)
         super().__init__(default_attrs)
@@ -28,18 +25,7 @@ class CKEditor5Widget(forms.Textarea):
             value or '',
         )
         return mark_safe(format_html(
-            '<div class="jp-ck5-editor" data-ck5-field="{}" data-ck5-textarea="{}">'
-            '<div class="jp-ck5-chrome">'
-            '<div class="jp-ck5-toolbar-host" id="ck5-toolbar-{}"></div>'
-            '<div class="jp-ck5-paper">'
-            '<div class="jp-ck5-editable-host" id="ck5-editable-{}"></div>'
-            '</div>'
-            '</div>'
-            '{}'
-            '</div>',
-            name,
-            field_id,
-            field_id,
+            '<div class="jp-word-studio" data-word-textarea="{}">{}</div>',
             field_id,
             textarea,
         ))

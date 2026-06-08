@@ -1,0 +1,21 @@
+/* Fallback typography trong iframe — layout chính do JS gán */
+html {
+    background: #fff;
+}
+
+body.cke_editable {
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 14pt;
+    line-height: 1.5;
+    color: #000;
+}
+
+body.cke_editable h1 { font-size: 16pt; font-weight: bold; }
+body.cke_editable h2 { font-size: 14pt; font-weight: bold; }
+body.cke_editable h3 { font-size: 13pt; font-weight: bold; }
+body.cke_editable table { border-collapse: collapse; width: 100%; }
+body.cke_editable table td,
+body.cke_editable table th {
+    border: 1px solid #bfbfbf;
+    padding: 4px 6px;
+}

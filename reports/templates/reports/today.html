@@ -1,30 +1,25 @@
 {% extends 'base.html' %}
+{% load static %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260529b">
+{% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-reports-page py-3 py-md-4 mb-5">
     <div class="jp-page-header mb-3 mb-md-4">
         <div>
-            <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-clipboard-check-fill me-2"></i>Báo cáo hôm nay</h2>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-clipboard-check-fill me-2"></i>Báo cáo công việc</h2>
             <p class="text-muted mb-0 jp-hide-mobile-subtitle">Nhập nhanh công việc sản xuất — mỗi dòng = 1 công đoạn / đơn hàng.</p>
         </div>
-        <div class="d-flex gap-2 flex-wrap w-100 w-md-auto">
-            {% if has_yesterday %}
-            <a href="{% url 'reports:copy_yesterday' %}" class="btn btn-outline-hm btn-sm fw-bold flex-fill flex-md-grow-0"
-               onclick="return confirm('Sao chép toàn bộ dòng từ hôm qua?');">
-                <i class="bi bi-copy me-1"></i>Sao chép HQ
-            </a>
-            {% endif %}
-            <a href="{% url 'reports:my' %}" class="btn btn-outline-dark btn-sm flex-fill flex-md-grow-0">Lịch sử</a>
-            {% if can_view_team %}
-            <a href="{% url 'reports:team' %}" class="btn btn-outline-hm btn-sm flex-fill flex-md-grow-0">Báo cáo cấp dưới</a>
-            {% endif %}
-        </div>
+        {% include 'reports/includes/reports_page_tools.html' %}
     </div>
 
+    {% include 'reports/includes/reports_period_nav.html' %}
+
     {% if report.status == 'SUBMITTED' %}
-    <div class="alert alert-success border-0 shadow-sm py-2">
-        <i class="bi bi-check-circle-fill me-1"></i>Đã nộp lúc {{ report.submitted_at|date:"H:i d/m/Y" }}.
-        Bạn vẫn có thể chỉnh sửa và nộp lại.
+    <div class="alert alert-success border-0 shadow-sm py-2 mb-3">
+        <i class="bi bi-check-circle-fill me-1"></i>Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }} — vẫn có thể chỉnh và gửi lại.
     </div>
     {% endif %}
 
@@ -107,7 +102,7 @@
                 <i class="bi bi-save me-1"></i>Lưu nháp
             </button>
             <button type="submit" name="action" value="submit" class="btn btn-hm px-4 fw-bold">
-                <i class="bi bi-send-fill me-1"></i>Nộp cho cấp trên
+                <i class="bi bi-send-fill me-1"></i>Gửi Báo cáo
             </button>
         </div>
     </form>

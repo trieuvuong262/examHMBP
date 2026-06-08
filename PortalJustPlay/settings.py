@@ -320,9 +320,12 @@ CKEDITOR_UPLOAD_SLUGIFY_FILENAME = True
 CKEDITOR_ALLOW_NONIMAGE_FILES = False
 CKEDITOR_RESTRICT_BY_USER = True
 CKEDITOR_IMAGE_BACKEND = 'pillow'
+# CKEditor 4 LTS (4.25.1+) — cần license CKSource; để trống = dùng 4.22.1 bundled
+CKEDITOR_LTS_LICENSE_KEY = os.getenv('CKEDITOR_LTS_LICENSE_KEY', '').strip()
 
 CKEDITOR_CONFIGS = {
     'default': {
+        'versionCheck': False,
         'toolbar': 'WordLike',
         'toolbar_WordLike': [
             ['Maximize', 'ShowBlocks', 'Source'],

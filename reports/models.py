@@ -119,3 +119,47 @@ class DailyWorkReportLine(models.Model):
 
     def __str__(self):
         return f'{self.get_area_display()} - {self.order_code or self.product_name}'
+
+
+class WeeklyWorkReport(models.Model):
+    STATUS_DRAFT = DailyWorkReport.STATUS_DRAFT
+    STATUS_SUBMITTED = DailyWorkReport.STATUS_SUBMITTED
+    STATUS_CHOICES = DailyWorkReport.STATUS_CHOICES
+
+    employee = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='weekly_work_reports',
+        verbose_name='Nhân viên',
+    )
+    week_start = models.DateField(verbose_name='Tuần (thứ 2)')
+    report_profile = models.CharField(
+        max_length=20,
+        choices=REPORT_PROFILE_CHOICES,
+        default=REPORT_PROFILE_PRODUCTION,
+        verbose_name='Loại báo cáo',
+    )
+    spreadsheet_json = models.JSONField(null=True, blank=True, verbose_name='Bảng (JSON)')
+    document_html = models.TextField(blank=True, verbose_name='Văn bản (HTML)')
+    summary_note = models.TextField(blank=True, verbose_name='Tóm tắt tuần')
+    issues_note = models.TextField(blank=True, verbose_name='Sự cố / vướng mắc')
+    plan_next_week = models.TextField(blank=True, verbose_name='Kế hoạch tuần sau')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    hod_reviewed = models.BooleanField(default=False, verbose_name='HOD đã xem')
+    hod_note = models.CharField(max_length=500, blank=True, verbose_name='Ghi chú HOD')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-week_start', '-updated_at']
+        unique_together = ('employee', 'week_start')
+        verbose_name = 'Báo cáo công việc tuần'
+        verbose_name_plural = 'Báo cáo công việc tuần'
+
+    def __str__(self):
+        return f'{self.employee} - tuần {self.week_start}'
+
+    @property
+    def is_production_report(self):
+        return self.report_profile == REPORT_PROFILE_PRODUCTION

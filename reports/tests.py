@@ -154,3 +154,26 @@ class ReportProfileRoutingTests(TestCase):
         self.assertContains(resp, 'Bảng')
         self.assertContains(resp, 'Văn bản')
         self.assertNotContains(resp, 'Công đoạn')
+
+    def test_daily_pages_show_period_nav(self):
+        client = Client()
+        client.force_login(self.office_user)
+        resp = client.get(reverse('reports:today'))
+        self.assertContains(resp, 'Báo cáo ngày')
+        self.assertContains(resp, 'Báo cáo tuần')
+
+    def test_office_user_sees_weekly_office_form(self):
+        client = Client()
+        client.force_login(self.office_user)
+        resp = client.get(reverse('reports:weekly'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertTemplateUsed(resp, 'reports/weekly_office.html')
+        self.assertContains(resp, 'Báo cáo tuần')
+
+    def test_production_user_sees_weekly_production_form(self):
+        client = Client()
+        client.force_login(self.prod_user)
+        resp = client.get(reverse('reports:weekly'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertTemplateUsed(resp, 'reports/weekly_production.html')
+        self.assertContains(resp, 'Tóm tắt công việc trong tuần')

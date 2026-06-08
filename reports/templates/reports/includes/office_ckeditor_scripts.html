@@ -1,0 +1,12 @@
+{% load static %}
+<script>
+    window.JP_CKEDITOR_LTS_LICENSE = '{{ ckeditor_lts_license|escapejs }}';
+    window.JP_CKEDITOR_USE_LTS = {{ ckeditor_use_lts|yesno:"true,false" }};
+</script>
+{% if ckeditor_use_lts %}
+<script src="https://cdn.ckeditor.com/4.25.1-lts/standard-all/ckeditor.js"></script>
+{% else %}
+<script src="{% static 'ckeditor/ckeditor/ckeditor.js' %}"></script>
+{% endif %}
+{{ form.media }}
+<script src="{% static 'js/reports-office-sheet.js' %}?v=20260529b"></script>
