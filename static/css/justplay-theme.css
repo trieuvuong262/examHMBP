@@ -2964,6 +2964,11 @@ body.jp-tool-loading-active {
     min-width: 0;
 }
 
+.jp-user-form-identity-status {
+    flex: 0 1 200px;
+    min-width: 160px;
+}
+
 .jp-user-form-section-title {
     font-size: 0.8rem;
     font-weight: 700;
@@ -4051,6 +4056,38 @@ body.jp-tool-loading-active {
     background: rgba(255, 255, 255, 0.92) !important;
     color: var(--hm-primary) !important;
     border-color: transparent;
+}
+
+.jp-hrm-list-thead .jp-table-sort-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    color: inherit;
+    text-decoration: none;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.jp-hrm-list-thead .jp-table-sort-link:hover {
+    color: var(--hm-primary);
+}
+
+.jp-hrm-list-thead .jp-table-sort-icons {
+    display: inline-flex;
+    flex-direction: column;
+    line-height: 0.55;
+    font-size: 0.55rem;
+    opacity: 0.35;
+}
+
+.jp-hrm-list-thead .jp-table-sort-link.is-active .jp-table-sort-icons {
+    opacity: 1;
+    color: var(--hm-primary);
+}
+
+.jp-hrm-list-thead .jp-table-sort-link.is-active.is-asc .bi-caret-down-fill,
+.jp-hrm-list-thead .jp-table-sort-link.is-active.is-desc .bi-caret-up-fill {
+    opacity: 0.2;
 }
 
 .jp-hrm-page #userTable .jp-hrm-col-date {

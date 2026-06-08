@@ -628,6 +628,27 @@ class UserSearchTests(TestCase):
         self.assertContains(response2, 'Nguyễn Văn An')
         self.assertNotContains(response2, 'Trần Văn B')
 
+    def test_user_list_filter_by_employment_status(self):
+        Profile.objects.filter(user=self.other).update(is_employed=False)
+        active = self.client.get(reverse('user_list'), {'status': 'active'})
+        self.assertEqual(active.status_code, 200)
+        self.assertContains(active, 'Nguyễn Văn An')
+        self.assertNotContains(active, 'Trần Văn B')
+
+        inactive = self.client.get(reverse('user_list'), {'status': 'inactive'})
+        self.assertContains(inactive, 'Trần Văn B')
+        self.assertNotContains(inactive, 'Nguyễn Văn An')
+
+    def test_user_list_sortable_column_headers(self):
+        response = self.client.get(reverse('user_list'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="userStatusFilter"')
+        self.assertNotContains(response, 'id="userSort"')
+        self.assertContains(response, 'jp-table-sort-link')
+        self.assertContains(response, 'sort=code&amp;dir=asc')
+        self.assertContains(response, 'sort=name&amp;dir=desc')
+        self.assertContains(response, 'is-active is-asc')
+
     def test_hr_edit_can_update_other_user_avatar(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
 

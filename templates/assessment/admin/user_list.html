@@ -81,6 +81,8 @@
 
         <div class="jp-hrm-list-filters border-bottom px-3 px-md-4 py-3">
             <form method="get" id="userListFilterForm" role="search">
+                <input type="hidden" name="sort" id="userListSort" value="{{ sort_col }}">
+                <input type="hidden" name="dir" id="userListSortDir" value="{{ sort_dir }}">
                 <div class="row g-2 g-md-3 align-items-end">
                     <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
                         <label for="userDepartmentFilter" class="form-label small text-muted mb-1">Phòng ban</label>
@@ -135,12 +137,15 @@
                         </div>
                     </div>
                     <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
-                        <label for="userSort" class="form-label small text-muted mb-1">Sắp xếp</label>
-                        <select name="sort" id="userSort" class="form-select">
-                            {% for key, option in sort_options.items %}
-                            <option value="{{ key }}" {% if sort_key == key %}selected{% endif %}>{{ option.1 }}</option>
-                            {% endfor %}
-                        </select>
+                        <label for="userStatusFilter" class="form-label small text-muted mb-1">Trạng thái</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white"><i class="bi bi-person-check text-muted"></i></span>
+                            <select name="status" id="userStatusFilter" class="form-select">
+                                {% for value, label in employment_status_options.items %}
+                                <option value="{{ value }}" {% if current_status == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
                     </div>
                     <div class="col-xl-1 col-lg-2 col-md-4 col-sm-6">
                         {% if filters_active %}
@@ -173,6 +178,11 @@
                         <i class="bi bi-person-badge me-1"></i>{{ current_position_label }}
                     </span>
                     {% endif %}
+                    {% if current_status %}
+                    <span class="badge rounded-pill bg-hm-subtle text-hm border border-danger border-opacity-25 px-3 py-2">
+                        <i class="bi bi-person-check me-1"></i>{{ current_status_label }}
+                    </span>
+                    {% endif %}
                     {% if search_query %}
                     <span class="badge rounded-pill bg-light text-dark border px-3 py-2">
                         <i class="bi bi-search me-1"></i>“{{ search_query }}”
@@ -190,25 +200,30 @@
 
         <div class="jp-table-wrap">
             <table class="table table-hover align-middle mb-0 jp-table jp-table-stack" id="userTable">
-                <thead class="bg-light text-uppercase">
+                <thead class="bg-light text-uppercase jp-hrm-list-thead">
                     <tr class="small">
-                        <th class="ps-4 py-3 text-muted">Mã NS</th>
-                        <th class="text-muted">Họ và tên</th>
-                        <th class="text-muted">Account</th>
-                        <th class="text-muted">Phòng ban</th>
-                        <th class="text-muted">Bộ phận</th>
-                        <th class="text-muted">Vị trí</th>
-                        <th class="text-muted">Chức vụ</th>
-                        <th class="text-muted jp-hrm-col-date">Ngày vào</th>
-                        <th class="text-muted jp-hrm-col-date">Ngày sinh</th>
-                        <th class="text-muted text-center">Giới tính</th>
-                        <th class="text-muted text-center">Vai trò HT</th>
-                        <th class="text-end pe-4 text-muted jp-hrm-col-actions-h">Thao tác</th>
+                        {% for col in table_columns %}
+                        <th class="{{ col.th_class }}">
+                            {% if col.sortable %}
+                            <a href="{{ col.sort_href }}"
+                               class="jp-table-sort-link{% if col.sort_active %} is-active is-{{ col.sort_dir }}{% endif %}"
+                               title="Sắp xếp theo {{ col.label }}">
+                                <span>{{ col.label }}</span>
+                                <span class="jp-table-sort-icons" aria-hidden="true">
+                                    <i class="bi bi-caret-up-fill"></i>
+                                    <i class="bi bi-caret-down-fill"></i>
+                                </span>
+                            </a>
+                            {% else %}
+                            {{ col.label }}
+                            {% endif %}
+                        </th>
+                        {% endfor %}
                     </tr>
                 </thead>
                 <tbody>
                     {% for u in users %}
-                    <tr class="{% if u.profile and not u.profile.is_employed %}jp-hrm-row-inactive{% endif %}">
+                    <tr>
                         <td class="ps-md-4" data-label="Mã NS">
                             <code class="text-dark fw-bold">{{ u.profile.employee_code|default:"—" }}</code>
                         </td>
@@ -249,26 +264,9 @@
                         </td>
 
                         <td class="text-md-end pe-md-4 jp-td-actions" data-label="Thao tác">
-                            <div class="jp-hrm-actions-cluster">
-                            {% if not u.is_superuser %}
-                            <div class="jp-hrm-employed-inline">
-                                <span class="employed-label {% if u.profile.is_employed %}text-success{% else %}text-muted{% endif %}">
-                                    {% if u.profile.is_employed %}Đang làm{% else %}Đã nghỉ{% endif %}
-                                </span>
-                                <div class="form-check form-switch jp-hrm-employed-switch mb-0">
-                                    <input type="checkbox"
-                                           class="form-check-input employed-toggle"
-                                           role="switch"
-                                           id="employed-{{ u.id }}"
-                                           data-url="{% url 'user_toggle_employed' u.id %}"
-                                           {% if u.profile.is_employed %}checked{% endif %}
-                                           title="{% if u.profile.is_employed %}Đang làm việc{% else %}Đã nghỉ{% endif %}">
-                                </div>
-                            </div>
-                            {% endif %}
                             <div class="dropdown jp-hrm-action-menu">
                                 <button type="button"
-                                        class="btn btn-sm btn-white dropdown-toggle"
+                                        class="btn btn-sm btn-white border shadow-sm dropdown-toggle"
                                         data-bs-toggle="dropdown"
                                         data-bs-popper-config='{"strategy":"fixed"}'
                                         aria-expanded="false"
@@ -305,7 +303,6 @@
                                     <li><span class="dropdown-item-text small text-muted">Không có thao tác</span></li>
                                     {% endif %}
                                 </ul>
-                            </div>
                             </div>
                         </td>
                     </tr>
@@ -545,7 +542,7 @@ function autoCopySync(text) {
         const deptEl = document.getElementById('userDepartmentFilter');
         const divEl = document.getElementById('userDivisionFilter');
         const posEl = document.getElementById('userPositionFilter');
-        const sortEl = document.getElementById('userSort');
+        const statusEl = document.getElementById('userStatusFilter');
         const searchEl = document.getElementById('userSearch');
         if (!form) return;
 
@@ -666,8 +663,8 @@ function autoCopySync(text) {
                 submitFilters(0);
             });
         }
-        if (sortEl) {
-            sortEl.addEventListener('change', function () {
+        if (statusEl) {
+            statusEl.addEventListener('change', function () {
                 submitFilters(0);
             });
         }
@@ -701,41 +698,5 @@ function autoCopySync(text) {
         });
     }
 
-    // Bật/tắt trạng thái làm việc
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-    document.querySelectorAll('.employed-toggle').forEach(toggle => {
-        toggle.addEventListener('change', async function() {
-            const url = this.dataset.url;
-            const row = this.closest('tr');
-            const label = row.querySelector('.employed-label');
-            const prev = !this.checked;
-            this.disabled = true;
-
-            try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'X-CSRFToken': csrfToken },
-                });
-                const data = await response.json();
-                if (data.status === 'success') {
-                    if (label) {
-                        label.textContent = data.label;
-                        label.classList.toggle('text-success', data.is_employed);
-                        label.classList.toggle('text-muted', !data.is_employed);
-                    }
-                    row.classList.toggle('jp-hrm-row-inactive', !data.is_employed);
-                    this.title = data.is_employed ? 'Đang làm việc' : 'Đã nghỉ';
-                } else {
-                    this.checked = prev;
-                    alert(data.message || 'Không thể cập nhật trạng thái.');
-                }
-            } catch (e) {
-                this.checked = prev;
-                alert('Lỗi kết nối máy chủ.');
-            }
-
-            this.disabled = false;
-        });
-    });
 </script>
 {% endblock %}

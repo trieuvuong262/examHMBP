@@ -77,6 +77,9 @@
                     <input type="file" name="avatar" id="id_avatar" class="form-control form-control-sm" accept="image/*">
                     <div class="form-text">JPG, PNG, WebP — tối đa 5 MB</div>
                 </div>
+                <div class="jp-user-form-identity-status">
+                    {% include 'assessment/admin/includes/user_form_field.html' with field=form.is_employed hint='Đang làm = tham gia hệ thống; Nghỉ làm = tạm ngưng tài khoản' %}
+                </div>
             </div>
         </div>
         {% endif %}
@@ -105,6 +108,11 @@
                             <div class="col-sm-6 col-md-4">
                                 {% include 'assessment/admin/includes/user_form_field.html' with field=form.join_date label='Ngày vào làm' %}
                             </div>
+                            {% if not is_edit %}
+                            <div class="col-sm-6 col-md-4">
+                                {% include 'assessment/admin/includes/user_form_field.html' with field=form.is_employed hint='Mặc định: Đang làm' %}
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>

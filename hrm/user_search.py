@@ -1,5 +1,7 @@
 """Tìm kiếm danh sách nhân sự — server-side, qua mọi trang phân trang."""
 
+from urllib.parse import urlencode
+
 from django.contrib.auth.models import User
 from django.db.models import Q
 
@@ -76,6 +78,106 @@ def filter_users_by_job_position(queryset, job_position: str | None):
             Q(profile__job_position='') | Q(profile__job_position__isnull=True),
         )
     return queryset.filter(profile__job_position__iexact=raw)
+
+
+USER_LIST_SORT_COLUMNS = {
+    'code': 'profile__employee_code',
+    'name': 'profile__full_name',
+    'account': 'username',
+    'department': 'profile__department__name',
+    'division': 'profile__division__name',
+    'position': 'profile__job_position',
+    'job_title': 'profile__job_title',
+    'join_date': 'profile__join_date',
+    'birth_date': 'profile__date_of_birth',
+    'gender': 'profile__gender',
+    'role': 'profile__role',
+}
+
+USER_LIST_TABLE_COLUMNS = (
+    {'key': 'code', 'label': 'Mã NS', 'th_class': 'ps-4 py-3 text-muted', 'sortable': True},
+    {'key': 'name', 'label': 'Họ và tên', 'th_class': 'text-muted', 'sortable': True},
+    {'key': 'account', 'label': 'Account', 'th_class': 'text-muted', 'sortable': True},
+    {'key': 'department', 'label': 'Phòng ban', 'th_class': 'text-muted', 'sortable': True},
+    {'key': 'division', 'label': 'Bộ phận', 'th_class': 'text-muted', 'sortable': True},
+    {'key': 'position', 'label': 'Vị trí', 'th_class': 'text-muted', 'sortable': True},
+    {'key': 'job_title', 'label': 'Chức vụ', 'th_class': 'text-muted', 'sortable': True},
+    {'key': 'join_date', 'label': 'Ngày vào', 'th_class': 'text-muted jp-hrm-col-date', 'sortable': True},
+    {'key': 'birth_date', 'label': 'Ngày sinh', 'th_class': 'text-muted jp-hrm-col-date', 'sortable': True},
+    {'key': 'gender', 'label': 'Giới tính', 'th_class': 'text-muted text-center', 'sortable': True},
+    {'key': 'role', 'label': 'Vai trò HT', 'th_class': 'text-muted text-center', 'sortable': True},
+    {'key': None, 'label': 'Thao tác', 'th_class': 'text-end pe-4 text-muted jp-hrm-col-actions-h', 'sortable': False},
+)
+
+EMPLOYMENT_STATUS_LABELS = {
+    '': 'Tất cả trạng thái',
+    'active': 'Đang làm',
+    'inactive': 'Nghỉ làm',
+}
+
+
+def filter_users_by_employment_status(queryset, status: str | None):
+    """Lọc theo trạng thái làm việc: active / inactive."""
+    raw = (status or '').strip().lower()
+    if raw == 'active':
+        return queryset.filter(profile__is_employed=True)
+    if raw == 'inactive':
+        return queryset.filter(profile__is_employed=False)
+    return queryset
+
+
+def resolve_user_list_sort(sort_key: str | None, sort_dir: str | None) -> tuple[str, str, list[str]]:
+    key = (sort_key or 'name').strip()
+    if key not in USER_LIST_SORT_COLUMNS:
+        key = 'name'
+    direction = (sort_dir or 'asc').strip().lower()
+    if direction not in ('asc', 'desc'):
+        direction = 'asc'
+    field = USER_LIST_SORT_COLUMNS[key]
+    prefix = '-' if direction == 'desc' else ''
+    return key, direction, [f'{prefix}{field}', 'username']
+
+
+def user_list_query_params(request, **overrides) -> dict[str, str]:
+    keys = ('department', 'division', 'position', 'q', 'status', 'sort', 'dir')
+    data: dict[str, str] = {}
+    for key in keys:
+        if key in overrides:
+            val = overrides[key]
+        else:
+            val = request.GET.get(key, '')
+        if val is None:
+            continue
+        text = str(val).strip()
+        if text:
+            data[key] = text
+    return data
+
+
+def user_list_query_string(request, **overrides) -> str:
+    return urlencode(user_list_query_params(request, **overrides))
+
+
+def user_list_sort_href(request, column_key: str, current_sort: str, current_dir: str) -> str:
+    if current_sort == column_key:
+        next_dir = 'desc' if current_dir == 'asc' else 'asc'
+    else:
+        next_dir = 'asc'
+    qs = user_list_query_string(request, sort=column_key, dir=next_dir)
+    return f'?{qs}' if qs else '?'
+
+
+def build_user_list_table_columns(request, sort_key: str, sort_dir: str) -> list[dict]:
+    columns = []
+    for spec in USER_LIST_TABLE_COLUMNS:
+        col = dict(spec)
+        key = col.get('key')
+        if col.get('sortable') and key:
+            col['sort_href'] = user_list_sort_href(request, key, sort_key, sort_dir)
+            col['sort_active'] = sort_key == key
+            col['sort_dir'] = sort_dir if col['sort_active'] else ''
+        columns.append(col)
+    return columns
 
 
 def job_positions_cascade_for_filter() -> dict[str, list[str]]:

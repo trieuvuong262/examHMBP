@@ -108,6 +108,17 @@ class CustomUserForm(forms.Form):
         widget=forms.Select(attrs=SELECT),
     )
 
+    IS_EMPLOYED_CHOICES = (
+        ('1', 'Đang làm'),
+        ('0', 'Nghỉ làm'),
+    )
+    is_employed = forms.ChoiceField(
+        choices=IS_EMPLOYED_CHOICES,
+        initial='1',
+        label='Trạng thái làm việc',
+        widget=forms.Select(attrs=SELECT),
+    )
+
     role = forms.ChoiceField(
         choices=Profile.ROLE_CHOICES,
         widget=forms.Select(attrs=SELECT),
@@ -258,6 +269,9 @@ class CustomUserForm(forms.Form):
         if qs.exists():
             raise forms.ValidationError('Mã NS này đã được sử dụng!')
         return code
+
+    def clean_is_employed(self):
+        return (self.cleaned_data.get('is_employed') or '1') == '1'
 
     def clean(self):
         cleaned = super().clean()

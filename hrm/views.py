@@ -45,12 +45,16 @@ from hrm.forms import (
     RolePermissionForm,
 )
 from hrm.user_search import (
+    EMPLOYMENT_STATUS_LABELS,
+    build_user_list_table_columns,
     exclude_hidden_hrm_users,
     filter_users_by_department,
     filter_users_by_division,
+    filter_users_by_employment_status,
     filter_users_by_job_position,
     filter_users_by_search,
     distinct_job_positions_for_filter,
+    resolve_user_list_sort,
 )
 from PortalJustPlay.list_search import apply_term_search, apply_user_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
@@ -106,30 +110,19 @@ def _user_form_extra_context():
 # ==========================================
 # 1. QUẢN LÝ DANH SÁCH NHÂN VIÊN
 # ==========================================
-USER_LIST_SORTS = {
-    'newest': ('-date_joined', 'Mới thêm nhất'),
-    'name_asc': ('profile__full_name', 'Họ và tên (A→Z)'),
-    'name_desc': ('-profile__full_name', 'Họ và tên (Z→A)'),
-    'code': ('profile__employee_code', 'Mã NS'),
-    'account': ('username', 'Account'),
-    'department': ('profile__department__name', 'Phòng ban'),
-    'division': ('profile__division__name', 'Bộ phận'),
-    'join_asc': ('profile__join_date', 'Ngày vào (cũ→mới)'),
-    'join_desc': ('-profile__join_date', 'Ngày vào (mới→cũ)'),
-    'status': ('-profile__is_employed', 'Trạng thái'),
-}
-
-
 @module_perm_required(MODULE_HRM, 'view')
 def user_list(request):
-    sort_key = request.GET.get('sort', 'newest')
-    if sort_key not in USER_LIST_SORTS:
-        sort_key = 'newest'
-    order_by = USER_LIST_SORTS[sort_key][0]
+    sort_key, sort_dir, order_fields = resolve_user_list_sort(
+        request.GET.get('sort'),
+        request.GET.get('dir'),
+    )
     search_query = get_search_query(request)
     department_id = (request.GET.get('department') or '').strip()
     division_id = (request.GET.get('division') or '').strip()
     job_position = (request.GET.get('position') or '').strip()
+    employment_status = (request.GET.get('status') or '').strip().lower()
+    if employment_status not in EMPLOYMENT_STATUS_LABELS:
+        employment_status = ''
 
     users_qs = User.objects.select_related(
         'profile', 'profile__department', 'profile__division',
@@ -139,7 +132,8 @@ def user_list(request):
     users_qs = filter_users_by_department(users_qs, department_id)
     users_qs = filter_users_by_division(users_qs, division_id)
     users_qs = filter_users_by_job_position(users_qs, job_position)
-    users_qs = users_qs.order_by(order_by, 'username')
+    users_qs = filter_users_by_employment_status(users_qs, employment_status)
+    users_qs = users_qs.order_by(*order_fields)
     page_obj, query_string = paginate_queryset(request, users_qs)
 
     from hrm.models import Division
@@ -191,9 +185,13 @@ def user_list(request):
         'users': page_obj.object_list,
         'page_obj': page_obj,
         'query_string': query_string,
-        'sort_key': sort_key,
-        'sort_options': USER_LIST_SORTS,
+        'sort_col': sort_key,
+        'sort_dir': sort_dir,
+        'table_columns': build_user_list_table_columns(request, sort_key, sort_dir),
         'search_query': search_query,
+        'current_status': employment_status,
+        'current_status_label': EMPLOYMENT_STATUS_LABELS.get(employment_status, ''),
+        'employment_status_options': EMPLOYMENT_STATUS_LABELS,
         'departments': departments,
         'divisions': divisions,
         'job_positions': job_positions,
@@ -207,7 +205,7 @@ def user_list(request):
         'divisions_catalog': json.dumps(divisions_catalog_for_filter()),
         'positions_cascade': json.dumps(job_positions_cascade_for_filter()),
         'filters_active': bool(
-            search_query or department_id or division_id or job_position,
+            search_query or department_id or division_id or job_position or employment_status,
         ),
     })
 
@@ -416,6 +414,7 @@ def user_edit(request, user_id):
             profile.gender = form.cleaned_data.get('gender', '')
             profile.role = form.cleaned_data['role']
             profile.permission_group = _resolve_permission_group(form)
+            profile.is_employed = form.cleaned_data.get('is_employed', True)
 
             # QUAN TRỌNG: Lưu danh sách nhân viên cấp dưới (ManyToMany)
             # Dùng .set() để ghi đè danh sách mới từ form
@@ -457,6 +456,7 @@ def user_edit(request, user_id):
             'gender': profile.gender,
             'role': profile.role,
             'permission_group': profile.permission_group,
+            'is_employed': '1' if profile.is_employed else '0',
             'subordinates': profile.subordinates.all(),
         }
         # Truyền user_id để form biết đường loại trừ chính mình khỏi danh sách chọn cấp dưới
@@ -599,6 +599,13 @@ def user_export_excel(request):
     department_id = (request.GET.get('department') or '').strip()
     division_id = (request.GET.get('division') or '').strip()
     job_position = (request.GET.get('position') or '').strip()
+    employment_status = (request.GET.get('status') or '').strip().lower()
+    if employment_status not in EMPLOYMENT_STATUS_LABELS:
+        employment_status = ''
+    _sort_key, _sort_dir, order_fields = resolve_user_list_sort(
+        request.GET.get('sort'),
+        request.GET.get('dir'),
+    )
 
     users = User.objects.select_related(
         'profile', 'profile__department', 'profile__division',
@@ -608,7 +615,8 @@ def user_export_excel(request):
     users = filter_users_by_department(users, department_id)
     users = filter_users_by_division(users, division_id)
     users = filter_users_by_job_position(users, job_position)
-    users = users.order_by('profile__employee_code', 'username')
+    users = filter_users_by_employment_status(users, employment_status)
+    users = users.order_by(*order_fields)
     rows = [user_to_excel_row(u) for u in users]
     df = pd.DataFrame(rows, columns=EXCEL_ALL_HEADERS)
 
