@@ -95,18 +95,18 @@ USER_LIST_SORT_COLUMNS = {
 }
 
 USER_LIST_TABLE_COLUMNS = (
-    {'key': 'code', 'label': 'Mã NS', 'th_class': 'ps-4 py-3 text-muted', 'sortable': True},
-    {'key': 'name', 'label': 'Họ và tên', 'th_class': 'text-muted', 'sortable': True},
-    {'key': 'account', 'label': 'Account', 'th_class': 'text-muted', 'sortable': True},
-    {'key': 'department', 'label': 'Phòng ban', 'th_class': 'text-muted', 'sortable': True},
-    {'key': 'division', 'label': 'Bộ phận', 'th_class': 'text-muted', 'sortable': True},
-    {'key': 'position', 'label': 'Vị trí', 'th_class': 'text-muted', 'sortable': True},
-    {'key': 'job_title', 'label': 'Chức vụ', 'th_class': 'text-muted', 'sortable': True},
-    {'key': 'join_date', 'label': 'Ngày vào', 'th_class': 'text-muted jp-hrm-col-date', 'sortable': True},
-    {'key': 'birth_date', 'label': 'Ngày sinh', 'th_class': 'text-muted jp-hrm-col-date', 'sortable': True},
-    {'key': 'gender', 'label': 'Giới tính', 'th_class': 'text-muted text-center', 'sortable': True},
-    {'key': 'role', 'label': 'Vai trò HT', 'th_class': 'text-muted text-center', 'sortable': True},
-    {'key': None, 'label': 'Thao tác', 'th_class': 'text-end pe-4 text-muted jp-hrm-col-actions-h', 'sortable': False},
+    {'key': 'code', 'label': 'Mã NS', 'th_class': 'ps-4 py-3 text-muted', 'col_class': 'jp-hrm-col-code', 'sortable': True},
+    {'key': 'name', 'label': 'Họ và tên', 'th_class': 'text-muted', 'col_class': 'jp-hrm-col-name', 'sortable': True},
+    {'key': 'account', 'label': 'Account', 'th_class': 'text-muted', 'col_class': 'jp-hrm-col-account', 'sortable': True},
+    {'key': 'department', 'label': 'Phòng ban', 'th_class': 'text-muted', 'col_class': 'jp-hrm-col-org', 'sortable': True},
+    {'key': 'division', 'label': 'Bộ phận', 'th_class': 'text-muted', 'col_class': 'jp-hrm-col-org', 'sortable': True},
+    {'key': 'position', 'label': 'Vị trí', 'th_class': 'text-muted', 'col_class': 'jp-hrm-col-org', 'sortable': True},
+    {'key': 'job_title', 'label': 'Chức vụ', 'th_class': 'text-muted', 'col_class': 'jp-hrm-col-job-title', 'sortable': True},
+    {'key': 'join_date', 'label': 'Ngày vào', 'th_class': 'text-muted jp-hrm-col-date', 'col_class': 'jp-hrm-col-date', 'sortable': True},
+    {'key': 'birth_date', 'label': 'Ngày sinh', 'th_class': 'text-muted jp-hrm-col-date', 'col_class': 'jp-hrm-col-date', 'sortable': True},
+    {'key': 'gender', 'label': 'Giới tính', 'th_class': 'text-muted text-center', 'col_class': 'jp-hrm-col-gender', 'sortable': True},
+    {'key': 'role', 'label': 'Vai trò HT', 'th_class': 'text-muted text-center', 'col_class': 'jp-hrm-col-role', 'sortable': True},
+    {'key': None, 'label': 'Thao tác', 'th_class': 'text-end pe-4 text-muted jp-hrm-col-actions-h', 'col_class': 'jp-hrm-col-actions', 'sortable': False},
 )
 
 EMPLOYMENT_STATUS_LABELS = {
