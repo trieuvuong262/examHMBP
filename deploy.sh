@@ -397,7 +397,8 @@ compose ps
 
 verify_nas_rclone
 
-echo "==> 13) Cleanup old Docker images"
+echo "==> 13) Cleanup Docker build cache and unused images"
+docker builder prune -af --filter "until=72h" 2>/dev/null || docker builder prune -af 2>/dev/null || true
 docker image prune -f
 
 echo ""
