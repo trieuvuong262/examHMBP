@@ -4047,6 +4047,35 @@ body.jp-tool-loading-active {
     border-color: transparent;
 }
 
+.jp-hrm-page #userTable .jp-hrm-col-date {
+    width: 1%;
+    min-width: 5.25rem;
+    white-space: nowrap;
+}
+
+.jp-hrm-page #userTable .jp-hrm-col-actions-h {
+    width: 1%;
+    white-space: nowrap;
+}
+
+.jp-hrm-employed-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+}
+
+.jp-hrm-employed-inline .employed-label {
+    margin: 0;
+    white-space: nowrap;
+    line-height: 1.2;
+}
+
+.jp-hrm-page #userTable .jp-hrm-action-buttons {
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+}
+
 .jp-hrm-employed-switch .form-check-input {
     width: 2.5rem;
     height: 1.35rem;
@@ -4063,7 +4092,7 @@ body.jp-tool-loading-active {
     background-color: #f8fafc;
 }
 
-.jp-hrm-row-inactive .fw-bold.text-dark {
+.jp-hrm-row-inactive .jp-hrm-name-text {
     color: #64748b !important;
 }
 

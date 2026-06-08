@@ -199,12 +199,11 @@
                         <th class="text-muted">Bộ phận</th>
                         <th class="text-muted">Vị trí</th>
                         <th class="text-muted">Chức vụ</th>
-                        <th class="text-muted">Ngày vào</th>
-                        <th class="text-muted">Ngày sinh</th>
+                        <th class="text-muted jp-hrm-col-date">Ngày vào</th>
+                        <th class="text-muted jp-hrm-col-date">Ngày sinh</th>
                         <th class="text-muted text-center">Giới tính</th>
                         <th class="text-muted text-center">Vai trò HT</th>
-                        <th class="text-muted text-center">Trạng thái</th>
-                        <th class="text-end pe-4 text-muted" style="width: 4rem;">Thao tác</th>
+                        <th class="text-end pe-4 text-muted jp-hrm-col-actions-h">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -218,7 +217,7 @@
                                 <div class="me-2 d-none d-md-flex flex-shrink-0 jp-hrm-list-avatar">
                                     {% include 'includes/profile_avatar.html' with profile=u.profile user=u img_class='jp-hrm-avatar jp-hrm-avatar-img rounded-circle' fallback_class='jp-hrm-avatar rounded-circle' zoomable=True %}
                                 </div>
-                                <span class="fw-bold text-dark jp-text-clamp-2">{{ u.profile.full_name|default:u.first_name|default:u.username }}</span>
+                                <span class="text-dark jp-hrm-name-text jp-text-clamp-2">{{ u.profile.full_name|default:u.first_name|default:u.username }}</span>
                             </div>
                         </td>
                         <td data-label="Account"><code class="text-primary fw-bold px-2 py-1 bg-light user-select-all">{{ u.username }}</code></td>
@@ -226,8 +225,8 @@
                         <td data-label="Bộ phận">{{ u.profile.division.name|default:"—" }}</td>
                         <td data-label="Vị trí">{{ u.profile.job_position|default:"—" }}</td>
                         <td data-label="Chức vụ">{{ u.profile.job_title|default:"—" }}</td>
-                        <td data-label="Ngày vào" class="text-muted small">{{ u.profile.join_date|date:"d/m/Y"|default:"—" }}</td>
-                        <td data-label="Ngày sinh" class="text-muted small">{{ u.profile.date_of_birth|date:"d/m/Y"|default:"—" }}</td>
+                        <td data-label="Ngày vào" class="text-muted small jp-hrm-col-date">{{ u.profile.join_date|date:"d/m/Y"|default:"—" }}</td>
+                        <td data-label="Ngày sinh" class="text-muted small jp-hrm-col-date">{{ u.profile.date_of_birth|date:"d/m/Y"|default:"—" }}</td>
                         <td class="text-center" data-label="Giới tính">{{ u.profile.get_gender_display_short|default:"—" }}</td>
                         <td class="text-center" data-label="Vai trò HT">
                             {% if u.profile.role == 'DIRECTOR' %}
@@ -249,27 +248,24 @@
                             {% endif %}
                         </td>
 
-                        <td class="text-center" data-label="Trạng thái">
-                            {% if u.is_superuser %}
-                            <span class="badge bg-secondary-subtle text-secondary border">—</span>
-                            {% else %}
-                            <div class="form-check form-switch d-inline-flex justify-content-center jp-hrm-employed-switch mb-0">
-                                <input type="checkbox"
-                                       class="form-check-input employed-toggle"
-                                       role="switch"
-                                       id="employed-{{ u.id }}"
-                                       data-url="{% url 'user_toggle_employed' u.id %}"
-                                       {% if u.profile.is_employed %}checked{% endif %}
-                                       title="{% if u.profile.is_employed %}Đang làm việc{% else %}Đã nghỉ{% endif %}">
-                            </div>
-                            <div class="small mt-1 employed-label {% if u.profile.is_employed %}text-success{% else %}text-muted{% endif %}">
-                                {% if u.profile.is_employed %}Đang làm{% else %}Đã nghỉ{% endif %}
+                        <td class="text-md-end pe-md-4 jp-td-actions" data-label="Thao tác">
+                            <div class="d-inline-flex align-items-center gap-2 jp-hrm-action-buttons">
+                            {% if not u.is_superuser %}
+                            <div class="jp-hrm-employed-inline">
+                                <div class="form-check form-switch jp-hrm-employed-switch mb-0">
+                                    <input type="checkbox"
+                                           class="form-check-input employed-toggle"
+                                           role="switch"
+                                           id="employed-{{ u.id }}"
+                                           data-url="{% url 'user_toggle_employed' u.id %}"
+                                           {% if u.profile.is_employed %}checked{% endif %}
+                                           title="{% if u.profile.is_employed %}Đang làm việc{% else %}Đã nghỉ{% endif %}">
+                                </div>
+                                <span class="employed-label small {% if u.profile.is_employed %}text-success{% else %}text-muted{% endif %}">
+                                    {% if u.profile.is_employed %}Đang làm{% else %}Đã nghỉ{% endif %}
+                                </span>
                             </div>
                             {% endif %}
-                        </td>
-
-                        <td class="text-md-end pe-md-4 jp-td-actions" data-label="Thao tác">
-                            <div class="d-inline-flex align-items-center gap-1 jp-hrm-action-buttons">
                             <div class="dropdown jp-hrm-action-menu">
                                 <button type="button"
                                         class="btn btn-sm btn-white border shadow-sm dropdown-toggle"
@@ -315,7 +311,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="13" class="text-center py-5 jp-td-empty">
+                        <td colspan="12" class="text-center py-5 jp-td-empty">
                             <div class="py-4">
                                 <i class="bi bi-person-exclamation display-1 text-muted opacity-25"></i>
                                 <p class="mt-3 text-muted fs-5">Chưa có nhân viên nào trong hệ thống.</p>
