@@ -1,7 +1,13 @@
+import os
+import uuid
 from datetime import datetime, timedelta
 
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.core.files.storage import default_storage
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 from django.utils import timezone
 from django.contrib import messages
 from django.db.models import Count, Sum, Q
@@ -27,6 +33,11 @@ from reports.report_profile import (
 
 from .forms import DailyWorkReportForm, DailyWorkReportLineFormSet, OfficeDailyWorkReportForm
 from .models import DailyWorkReport
+
+
+_CK5_IMAGE_TYPES = frozenset({'image/jpeg', 'image/png', 'image/gif', 'image/webp'})
+_CK5_IMAGE_EXTS = frozenset({'.jpg', '.jpeg', '.png', '.gif', '.webp'})
+_CK5_MAX_BYTES = 5 * 1024 * 1024
 
 
 def _reports_access_required(view_func):
@@ -170,6 +181,30 @@ def today_report(request):
     if is_production_report_user(request.user):
         return _today_production_report(request, report_date)
     return _today_office_report(request, report_date)
+
+
+@login_required
+@require_POST
+def ckeditor5_upload(request):
+    if not user_can_access_module(request.user, MODULE_REPORTS):
+        return JsonResponse({'error': {'message': 'Không có quyền tải ảnh.'}}, status=403)
+
+    upload = request.FILES.get('upload')
+    if not upload:
+        return JsonResponse({'error': {'message': 'Không có file.'}}, status=400)
+    if upload.content_type not in _CK5_IMAGE_TYPES:
+        return JsonResponse({'error': {'message': 'Chỉ chấp nhận ảnh JPG, PNG, GIF, WebP.'}}, status=400)
+    if upload.size > _CK5_MAX_BYTES:
+        return JsonResponse({'error': {'message': 'Ảnh tối đa 5MB.'}}, status=400)
+
+    ext = os.path.splitext(upload.name)[1].lower()
+    if ext not in _CK5_IMAGE_EXTS:
+        ext = '.jpg'
+    rel_path = default_storage.save(f'reports/ckeditor5/{uuid.uuid4().hex}{ext}', upload)
+    url = request.build_absolute_uri(default_storage.url(rel_path))
+    if not url.startswith('http') and getattr(settings, 'MEDIA_URL', None):
+        url = request.build_absolute_uri(settings.MEDIA_URL + rel_path)
+    return JsonResponse({'url': url})
 
 
 @_require_submit_access

@@ -151,5 +151,6 @@ class ReportProfileRoutingTests(TestCase):
         resp = client.get(reverse('reports:today'))
         self.assertEqual(resp.status_code, 200)
         self.assertTemplateUsed(resp, 'reports/today_office.html')
-        self.assertContains(resp, 'Bảng Excel')
+        self.assertContains(resp, 'Bảng')
+        self.assertContains(resp, 'Văn bản')
         self.assertNotContains(resp, 'Công đoạn')

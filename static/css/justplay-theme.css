@@ -7891,61 +7891,397 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     color: var(--jp-text-primary);
 }
 
+/* Báo cáo office — override .nav-link navbar (chữ trắng trên nền sáng) */
+.jp-office-report-workspace {
+    overflow: hidden;
+}
+
+.jp-office-report-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+    padding: 1rem 1.25rem;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    border-bottom: 1px solid #e2e8f0;
+}
+
 .jp-reports-office-tabs {
-    border-bottom: 0;
-    gap: 0.25rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.jp-reports-office-tabs .nav-item {
+    margin: 0;
 }
 
 .jp-reports-office-tabs .nav-link {
+    color: #475569 !important;
+    background: #fff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: var(--jp-btn-radius, 0.5rem) !important;
+    padding: 0.5rem 1.1rem !important;
     font-weight: 600;
-    color: #6c757d;
-    border: 1px solid transparent;
-    border-bottom: 0;
-    border-radius: 0.375rem 0.375rem 0 0;
+    font-size: 0.9rem;
+    box-shadow: none !important;
+    margin: 0 !important;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
-.jp-reports-office-tabs .nav-link.active {
-    color: var(--hm-primary, #b91c1c);
+.jp-reports-office-tabs .nav-link:hover {
+    color: var(--hm-primary) !important;
+    background: var(--hm-primary-soft, #fef2f2) !important;
+    border-color: rgba(220, 38, 38, 0.25) !important;
+}
+
+.jp-reports-office-tabs .nav-link.active,
+.jp-reports-office-tabs .nav-link.active:hover {
+    background: var(--hm-primary) !important;
+    border-color: var(--hm-primary) !important;
+    color: #fff !important;
+    font-weight: 700;
+}
+
+.jp-office-report-hint {
+    flex: 1 1 220px;
+    font-size: 0.8rem;
+    color: #64748b;
+    text-align: right;
+}
+
+.jp-office-report-panels {
     background: #fff;
-    border-color: #dee2e6;
 }
 
-.jp-office-sheet-wrap {
-    max-height: 420px;
+.jp-office-sheet-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    padding: 0.75rem 1.25rem;
+    background: #fafbfc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.jp-office-sheet-toolbar-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #64748b;
+    margin-right: 0.25rem;
+}
+
+.jp-office-sheet-scroller {
+    max-height: 520px;
     overflow: auto;
+    padding: 1rem 1.25rem 1.25rem;
+    background: #f8fafc;
+}
+
+.jp-office-sheet {
+    margin: 0;
+    border-collapse: collapse;
+    table-layout: fixed;
+    min-width: 100%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+    border: 2px solid #94a3b8;
 }
 
 .jp-office-sheet th,
 .jp-office-sheet td {
-    min-width: 120px;
-    padding: 0.25rem;
+    border: 1px solid #94a3b8;
+    padding: 0;
     vertical-align: middle;
+    min-width: 140px;
+    width: 140px;
 }
 
-.jp-office-sheet th .form-control,
-.jp-office-sheet td .form-control {
+.jp-office-sheet-axis {
+    background: #e2e8f0 !important;
+    color: #475569;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-align: center;
+    min-width: 48px !important;
+    width: 48px !important;
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    user-select: none;
+}
+
+.jp-sheet-corner.jp-sheet-axis {
+    left: 0;
+    z-index: 5;
+}
+
+.jp-sheet-col-letter.jp-sheet-axis {
+    top: 0;
+    z-index: 4;
+    letter-spacing: 0.04em;
+    padding: 0.35rem 0.25rem;
+}
+
+.jp-sheet-row-num.jp-sheet-axis {
+    left: 0;
+    z-index: 2;
+    padding: 0.35rem 0.25rem;
+}
+
+.jp-sheet-letters-row .jp-sheet-corner {
+    top: 0;
+    z-index: 6;
+}
+
+.jp-sheet-header-row th {
+    background: #dbeafe;
+    position: sticky;
+    top: 28px;
+    z-index: 3;
+}
+
+.jp-sheet-header-row .jp-sheet-corner {
+    top: 28px;
+    z-index: 6;
+}
+
+.jp-sheet-header-cell {
+    background: #dbeafe !important;
+}
+
+.jp-sheet-row-alt td,
+.jp-sheet-row-alt th.jp-sheet-row-num {
+    background: #f8fafc;
+}
+
+.jp-sheet-cell-input {
+    display: block;
+    width: 100%;
+    min-height: 38px;
+    padding: 0.45rem 0.55rem;
     border: 0;
+    border-radius: 0;
     background: transparent;
+    font-size: 0.875rem;
+    line-height: 1.35;
+    color: #0f172a;
     box-shadow: none;
-    min-width: 100px;
+    outline: none;
+}
+
+.jp-sheet-header-input {
+    font-weight: 700;
+    color: #1e3a5f;
+    background: #eff6ff;
+}
+
+.jp-sheet-data-cell:focus-within {
+    outline: 2px solid var(--hm-primary);
+    outline-offset: -2px;
+    background: #fffbeb;
+    z-index: 1;
+    position: relative;
+}
+
+.jp-sheet-header-cell:focus-within {
+    outline: 2px solid #2563eb;
+    outline-offset: -2px;
+    background: #bfdbfe;
+}
+
+.jp-sheet-cell-input::placeholder {
+    color: #94a3b8;
+    font-weight: 400;
+}
+
+.jp-office-vanban-intro {
+    padding: 0.75rem 1.25rem;
+    font-size: 0.82rem;
+    color: #64748b;
+    background: linear-gradient(90deg, #fef2f2 0%, #fff 100%);
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.jp-office-word-wrap {
+    padding: 1rem 1.25rem 1.25rem;
+    background: #f1f5f9;
+}
+
+/* CKEditor 5 — báo cáo văn bản */
+.jp-ck5-editor {
+    width: 100%;
+}
+
+.jp-ck5-chrome {
+    border: 1px solid #cbd5e1;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+}
+
+.jp-ck5-toolbar-host {
+    border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
+.jp-ck5-toolbar-host .ck.ck-toolbar {
+    border: 0 !important;
+    background: transparent !important;
+    flex-wrap: wrap;
+}
+
+.jp-ck5-paper {
+    background: #e2e8f0;
+    padding: 1.25rem 1rem 1.5rem;
+    min-height: 420px;
+}
+
+.jp-ck5-editable-host .ck.ck-editor__editable {
+    min-height: 380px;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem 2.25rem !important;
+    background: #fff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 2px !important;
+    box-shadow: 0 2px 12px rgba(15, 23, 42, 0.12);
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 1rem;
+    line-height: 1.65;
+    color: #0f172a;
+}
+
+.jp-ck5-editable-host .ck.ck-editor__editable:focus {
+    border-color: var(--hm-primary) !important;
+    box-shadow: 0 2px 12px rgba(15, 23, 42, 0.12), 0 0 0 3px rgba(220, 38, 38, 0.15) !important;
+}
+
+.jp-ckeditor-content {
+    font-family: 'Inter', system-ui, sans-serif;
+    line-height: 1.65;
 }
 
 .jp-office-sheet-readonly td,
 .jp-office-sheet-readonly th {
     white-space: pre-wrap;
     word-break: break-word;
+    padding: 0.5rem 0.75rem;
 }
 
-[data-theme="dark"] .jp-reports-office-tabs .nav-link.active {
-    background: var(--jp-surface-bg);
+[data-theme="dark"] .jp-office-report-toolbar {
+    background: linear-gradient(180deg, var(--jp-surface-muted) 0%, var(--jp-surface-bg) 100%);
     border-color: var(--jp-surface-border);
-    color: #fca5a5;
 }
 
-[data-theme="dark"] .jp-office-sheet th .form-control,
-[data-theme="dark"] .jp-office-sheet td .form-control {
-    background: transparent;
+[data-theme="dark"] .jp-reports-office-tabs .nav-link:not(.active) {
+    background: var(--jp-surface-bg) !important;
+    color: var(--jp-text-secondary) !important;
+    border-color: var(--jp-surface-border) !important;
+}
+
+[data-theme="dark"] .jp-reports-office-tabs .nav-link.active,
+[data-theme="dark"] .jp-reports-office-tabs .nav-link.active:hover {
+    background: var(--hm-primary) !important;
+    border-color: var(--hm-primary) !important;
+    color: #fff !important;
+}
+
+[data-theme="dark"] .jp-office-report-hint {
+    color: var(--jp-text-muted);
+}
+
+[data-theme="dark"] .jp-office-report-panels {
+    background: var(--jp-surface-bg);
+}
+
+[data-theme="dark"] .jp-office-sheet-scroller {
+    background: var(--jp-surface-muted);
+}
+
+[data-theme="dark"] .jp-office-sheet {
+    border-color: var(--jp-surface-border);
+    background: var(--jp-surface-bg);
+}
+
+[data-theme="dark"] .jp-office-sheet th,
+[data-theme="dark"] .jp-office-sheet td {
+    border-color: var(--jp-surface-border);
+}
+
+[data-theme="dark"] .jp-office-sheet-axis {
+    background: var(--jp-table-head-bg) !important;
+    color: var(--jp-text-secondary);
+}
+
+[data-theme="dark"] .jp-sheet-header-row th,
+[data-theme="dark"] .jp-sheet-header-cell {
+    background: rgba(37, 99, 235, 0.18) !important;
+}
+
+[data-theme="dark"] .jp-sheet-header-input {
     color: var(--jp-text-primary);
+    background: transparent;
+}
+
+[data-theme="dark"] .jp-sheet-cell-input {
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .jp-sheet-row-alt td,
+[data-theme="dark"] .jp-sheet-row-alt th.jp-sheet-row-num {
+    background: var(--jp-surface-muted);
+}
+
+[data-theme="dark"] .jp-office-sheet-toolbar {
+    background: var(--jp-surface-muted);
+    border-color: var(--jp-surface-border);
+}
+
+[data-theme="dark"] .jp-office-vanban-intro {
+    background: var(--jp-surface-muted);
+    color: var(--jp-text-muted);
+    border-color: var(--jp-surface-border);
+}
+
+[data-theme="dark"] .jp-office-word-wrap {
+    background: var(--jp-surface-muted);
+}
+
+[data-theme="dark"] .jp-ck5-chrome {
+    border-color: var(--jp-surface-border);
+    background: var(--jp-surface-bg);
+}
+
+[data-theme="dark"] .jp-ck5-toolbar-host {
+    background: var(--jp-surface-muted);
+    border-color: var(--jp-surface-border);
+}
+
+[data-theme="dark"] .jp-ck5-paper {
+    background: var(--jp-surface-muted);
+}
+
+[data-theme="dark"] .jp-ck5-editable-host .ck.ck-editor__editable {
+    background: var(--jp-surface-bg) !important;
+    border-color: var(--jp-surface-border) !important;
+    color: var(--jp-text-primary);
+}
+
+@media (max-width: 575.98px) {
+    .jp-office-report-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .jp-office-report-hint {
+        text-align: left;
+    }
 }
 
 /* --- User picker (dropdown + search + checkbox) --- */

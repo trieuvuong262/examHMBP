@@ -48,7 +48,7 @@
                             {% if r.is_production_report %}
                             <span class="badge bg-primary-subtle text-primary">Sản xuất</span>
                             {% else %}
-                            <span class="badge bg-info-subtle text-info">Excel / Word</span>
+                            <span class="badge bg-info-subtle text-info">Bảng / Văn bản</span>
                             {% endif %}
                         </td>
                         <td>{% if r.is_production_report %}{{ r.get_shift_display }}{% else %}—{% endif %}</td>

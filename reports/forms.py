@@ -1,6 +1,5 @@
 import json
 
-from ckeditor.widgets import CKEditorWidget
 from django import forms
 from django.forms import inlineformset_factory
 
@@ -11,6 +10,7 @@ from reports.office_content import (
 )
 
 from .models import DailyWorkReport, DailyWorkReportLine
+from .widgets import CKEditor5Widget
 
 
 class DailyWorkReportForm(forms.ModelForm):
@@ -97,7 +97,7 @@ class OfficeDailyWorkReportForm(forms.ModelForm):
         fields = ['report_date', 'document_html']
         widgets = {
             'report_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'document_html': CKEditorWidget(config_name='default'),
+            'document_html': CKEditor5Widget(),
         }
 
     def __init__(self, *args, **kwargs):
@@ -124,7 +124,7 @@ class OfficeDailyWorkReportForm(forms.ModelForm):
         if self.data.get('action') == 'submit':
             if not office_report_has_content(sheet, doc):
                 raise forms.ValidationError(
-                    'Khi nộp báo cáo, điền ít nhất một ô trong tab Excel hoặc ≥ 50 ký tự trong tab Word.',
+                    'Khi nộp báo cáo, điền ít nhất một ô trong tab Bảng hoặc ≥ 50 ký tự trong tab Văn bản.',
                 )
         return cleaned
 
