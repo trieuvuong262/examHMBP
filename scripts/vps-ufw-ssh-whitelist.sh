@@ -96,10 +96,13 @@ load_env_whitelist() {
 }
 
 load_ssh_client() {
-  [[ -n "${SSH_CLIENT:-}" ]] || return 0
-  local ip
-  ip="$(echo "$SSH_CLIENT" | awk '{print $1}')"
-  add_ip "$ip" "ssh-session"
+  local ip=""
+  if [[ -n "${SSH_CLIENT:-}" ]]; then
+    ip="$(echo "$SSH_CLIENT" | awk '{print $1}')"
+  elif [[ -n "${SSH_CONNECTION:-}" ]]; then
+    ip="$(echo "$SSH_CONNECTION" | awk '{print $1}')"
+  fi
+  [[ -n "$ip" ]] && add_ip "$ip" "ssh-session"
 }
 
 collect_ips() {
@@ -119,16 +122,16 @@ remove_ssh_allow_anywhere() {
   local max_pass=30 pass=0
   while (( pass < max_pass )); do
     local line num
-    line="$(ufw status numbered 2>/dev/null | grep -E '22/tcp' | grep -E 'Anywhere|ALLOW IN' | head -1 || true)"
+    line="$(ufw status numbered 2>/dev/null | grep -E '22' | grep -F 'Anywhere' | head -1 || true)"
     [[ -z "$line" ]] && break
     num="$(echo "$line" | sed -nE 's/^\[[[:space:]]*([0-9]+)\].*/\1/p')"
     [[ -z "$num" ]] && break
     if [[ "$DRY_RUN" == "1" ]]; then
       log "    [dry-run] ufw delete $num  ($line)"
-    else
-      ufw --force delete "$num" >/dev/null
-      log "    Đã xóa rule SSH mở toàn internet: #$num"
+      break
     fi
+    ufw --force delete "$num" >/dev/null
+    log "    Đã xóa rule SSH mở toàn internet: #$num"
     pass=$((pass + 1))
   done
 }
@@ -151,7 +154,7 @@ ensure_base_ufw() {
 apply_ssh_rules() {
   local ip
   for ip in "${COLLECTED[@]}"; do
-    if ufw status 2>/dev/null | grep -Fq "ALLOW" && ufw status 2>/dev/null | grep -Fq "$ip" && ufw status 2>/dev/null | grep -Fq "22"; then
+    if ufw status 2>/dev/null | grep -F "$ip" | grep -Fq "22"; then
       log "    Giữ rule SSH cho $ip"
       continue
     fi
