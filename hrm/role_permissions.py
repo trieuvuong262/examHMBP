@@ -28,6 +28,7 @@ from hrm.module_permissions import (
 )
 from hrm.permissions import (
     ROLE_CHOICES,
+    ROLE_DEPARTMENT_HEAD,
     ROLE_DIRECTOR,
     ROLE_DIVISION_HEAD,
     ROLE_EMPLOYEE,
@@ -79,11 +80,17 @@ def default_role_permissions() -> dict:
         MODULE_TRAINING: _perm(True, True),
         MODULE_ASSESSMENT: _perm(True, True),
     }
+    department_head = {
+        **division_head,
+        MODULE_RECRUITMENT: _perm(True, True),
+        MODULE_HRM: _perm(True, True),
+    }
     director = {key: _perm(True, True) for key in ALL_MODULE_KEYS}
     return {
         ROLE_EMPLOYEE: employee_modules,
         ROLE_TEAM_LEADER: team_leader,
         ROLE_DIVISION_HEAD: division_head,
+        ROLE_DEPARTMENT_HEAD: department_head,
         ROLE_DIRECTOR: director,
     }
 

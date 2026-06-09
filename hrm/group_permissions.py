@@ -52,6 +52,7 @@ DEFAULT_GROUP_SLUGS = {
     'EMPLOYEE': 'mac-dinh-nhan-vien',
     'TEAM_LEADER': 'mac-dinh-to-truong',
     'DIVISION_HEAD': 'mac-dinh-truong-bo-phan',
+    'DEPARTMENT_HEAD': 'mac-dinh-truong-phong',
     'DIRECTOR': 'mac-dinh-giam-doc',
 }
 

@@ -767,7 +767,7 @@ def org_structure(request):
         ORG_DEPARTMENT_HEAD_LABEL,
         ORG_DIVISION_HEAD_LABEL,
     )
-    from hrm.permissions import ROLE_DIRECTOR, ROLE_DIVISION_HEAD
+    from hrm.permissions import ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR, ROLE_DIVISION_HEAD
 
     urls = {
         'userList': reverse('user_list'),
@@ -778,6 +778,7 @@ def org_structure(request):
         'deptHeadAssign': (
             reverse('user_add')
             + f'?department={{dept_id}}&job_position={quote(ORG_DEPARTMENT_HEAD_LABEL)}'
+            + f'&role={ROLE_DEPARTMENT_HEAD}'
         ),
         'divHeadAssign': (
             reverse('user_add')

@@ -10,6 +10,7 @@ from hrm.models import Profile
 
 from PortalJustPlay.list_search import apply_user_search
 from hrm.permissions import (
+    ROLE_DEPARTMENT_HEAD,
     ROLE_DIRECTOR,
     ROLE_DIVISION_HEAD,
     ROLE_EMPLOYEE,
@@ -318,7 +319,7 @@ def subordinate_candidate_queryset(
     dept_id = _pk_or_none(department_id)
     div_id = _pk_or_none(division_id)
 
-    if role not in (ROLE_TEAM_LEADER, ROLE_DIVISION_HEAD, ROLE_DIRECTOR):
+    if role not in (ROLE_TEAM_LEADER, ROLE_DIVISION_HEAD, ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR):
         base = User.objects.none()
     else:
         base = exclude_hidden_hrm_users(
@@ -336,6 +337,14 @@ def subordinate_candidate_queryset(
                 base = base.filter(profile__department_id=dept_id)
         elif role == ROLE_DIVISION_HEAD:
             base = base.filter(profile__role__in=[ROLE_EMPLOYEE, ROLE_TEAM_LEADER])
+            if div_id:
+                base = base.filter(profile__division_id=div_id)
+            elif dept_id:
+                base = base.filter(profile__department_id=dept_id)
+        elif role == ROLE_DEPARTMENT_HEAD:
+            base = base.filter(
+                profile__role__in=[ROLE_EMPLOYEE, ROLE_TEAM_LEADER, ROLE_DIVISION_HEAD],
+            )
             if dept_id:
                 base = base.filter(profile__department_id=dept_id)
         # ROLE_DIRECTOR: toàn công ty (trừ giám đốc khác)
@@ -370,8 +379,14 @@ def subordinate_scope_hint(
             return 'Gợi ý: chọn nhân viên cùng phòng ban khi chưa gán bộ phận.'
         return 'Chọn phòng ban / bộ phận bên trái để thu hẹp danh sách.'
     if role == ROLE_DIVISION_HEAD:
+        if div_id:
+            return 'Gợi ý: chọn NV hoặc Tổ trưởng cùng bộ phận.'
         if dept_id:
             return 'Gợi ý: chọn NV hoặc Tổ trưởng cùng phòng ban.'
+        return 'Chọn phòng ban / bộ phận bên trái để thu hẹp danh sách.'
+    if role == ROLE_DEPARTMENT_HEAD:
+        if dept_id:
+            return 'Gợi ý: chọn NV / Tổ trưởng / Trưởng bộ phận cùng phòng ban.'
         return 'Chọn phòng ban bên trái để thu hẹp danh sách.'
     if role == ROLE_DIRECTOR:
         return 'Gợi ý: chọn nhân viên / tổ trưởng / trưởng bộ phận trong công ty.'

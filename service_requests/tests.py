@@ -6,7 +6,13 @@ from django.urls import reverse
 
 from assessment.portal_widgets import get_portal_dashboard
 from hrm.models import Department, DepartmentMenuPermission, Profile, RoleModulePermission
-from hrm.permissions import ROLE_DIRECTOR, ROLE_DIVISION_HEAD, ROLE_EMPLOYEE, ROLE_TEAM_LEADER
+from hrm.permissions import (
+    ROLE_DEPARTMENT_HEAD,
+    ROLE_DIRECTOR,
+    ROLE_DIVISION_HEAD,
+    ROLE_EMPLOYEE,
+    ROLE_TEAM_LEADER,
+)
 from service_requests.models import (
     RecurringItemCatalog,
     RequestType,
@@ -45,7 +51,13 @@ class ServiceRequestWorkflowTests(TestCase):
             'ho_tro': {'view': True, 'edit': True},
             'tasks': {'view': True, 'edit': True},
         }
-        for role in (ROLE_EMPLOYEE, ROLE_TEAM_LEADER, ROLE_DIVISION_HEAD, ROLE_DIRECTOR):
+        for role in (
+            ROLE_EMPLOYEE,
+            ROLE_TEAM_LEADER,
+            ROLE_DIVISION_HEAD,
+            ROLE_DEPARTMENT_HEAD,
+            ROLE_DIRECTOR,
+        ):
             RoleModulePermission.objects.update_or_create(
                 role=role,
                 defaults={'module_permissions': perms},
@@ -128,11 +140,24 @@ class ServiceRequestWorkflowTests(TestCase):
         )
         req.refresh_from_db()
 
+    def _approve_department_head(self, req, *, buyer=None, actor=None):
+        buyer = buyer or self.buyer
+        actor = actor or self.director
+        approve_step(
+            req.steps.get(step_code=ServiceRequestStep.STEP_DEPARTMENT_HEAD),
+            actor=actor,
+            procurement_assignee=buyer,
+            note='Đồng ý',
+        )
+        req.refresh_from_db()
+
     def _approve_through_quote(self, req, *, unit_price=Decimal('100000')):
         if req.steps.filter(step_code=ServiceRequestStep.STEP_TEAM_LEADER).exists():
             approve_step(req.steps.get(step_code=ServiceRequestStep.STEP_TEAM_LEADER), actor=self.team_leader)
         if req.steps.filter(step_code=ServiceRequestStep.STEP_DIVISION_HEAD).exists():
             self._approve_division_head(req)
+        if req.steps.filter(step_code=ServiceRequestStep.STEP_DEPARTMENT_HEAD).exists():
+            self._approve_department_head(req)
         self._submit_quote(req, unit_price=unit_price)
 
     # --- Yêu cầu: Tổ trưởng duyệt nếu phòng có Tổ trưởng & người gửi là NV ---
@@ -145,23 +170,23 @@ class ServiceRequestWorkflowTests(TestCase):
 
     # --- Yêu cầu: Bỏ qua Tổ trưởng nếu phòng không có Tổ trưởng ---
 
-    def test_dept_without_team_leader_skips_to_division_head(self):
+    def test_dept_without_team_leader_skips_to_department_head(self):
         req = self._create_request(requester=self.employee_hr)
         codes = list(req.steps.values_list('step_code', flat=True))
         self.assertNotIn(ServiceRequestStep.STEP_TEAM_LEADER, codes)
-        self.assertEqual(codes[0], ServiceRequestStep.STEP_DIVISION_HEAD)
+        self.assertEqual(codes[0], ServiceRequestStep.STEP_DEPARTMENT_HEAD)
 
-    def test_director_hidden_division_head_when_no_tbp_in_chain(self):
-        """Giám đốc = trưởng BP ẩn — gán duyệt khi NV không có TBP trực tiếp."""
+    def test_director_hidden_department_head_when_no_tbp_in_chain(self):
+        """Giám đốc duyệt thay Trưởng phòng khi phòng không có TBP / TP."""
         req = self._create_request(requester=self.employee_hr)
-        dh = req.steps.get(step_code=ServiceRequestStep.STEP_DIVISION_HEAD)
+        dh = req.steps.get(step_code=ServiceRequestStep.STEP_DEPARTMENT_HEAD)
         self.assertEqual(dh.assignee, self.director)
 
-    def test_director_pending_and_handle_division_head(self):
+    def test_director_pending_and_handle_department_head(self):
         from service_requests.permissions import can_handle_step, pending_steps_for_user
 
         req = self._create_request(requester=self.employee_hr)
-        dh = req.steps.get(step_code=ServiceRequestStep.STEP_DIVISION_HEAD)
+        dh = req.steps.get(step_code=ServiceRequestStep.STEP_DEPARTMENT_HEAD)
         self.assertTrue(can_handle_step(self.director, dh))
         self.assertTrue(pending_steps_for_user(self.director).filter(pk=dh.pk).exists())
 

@@ -11,9 +11,11 @@ from hrm.module_permissions import (
     user_can_update_module,
 )
 from hrm.permissions import (
+    ROLE_DEPARTMENT_HEAD,
     ROLE_DIRECTOR,
     ROLE_DIVISION_HEAD,
     get_profile,
+    is_department_head,
     is_director,
     is_division_head,
     user_role,
@@ -148,6 +150,7 @@ def can_view_request(user, request_obj: ServiceRequest) -> bool:
         if request_obj.steps.filter(
             step_code__in=(
                 ServiceRequestStep.STEP_DIRECTOR,
+                ServiceRequestStep.STEP_DEPARTMENT_HEAD,
                 ServiceRequestStep.STEP_DIVISION_HEAD,
             ),
         ).exists():
@@ -179,6 +182,8 @@ def can_handle_step(user, step: ServiceRequestStep) -> bool:
         return False
     if step.step_code == ServiceRequestStep.STEP_DIVISION_HEAD and is_division_head(user):
         return True
+    if step.step_code == ServiceRequestStep.STEP_DEPARTMENT_HEAD and is_department_head(user):
+        return True
     if step.assignee_id:
         return step.assignee_id == user.id
     if step.assignee_rule == RequestTypeStepTemplate.RULE_DEPARTMENT_QUEUE:
@@ -201,7 +206,10 @@ def can_handle_step(user, step: ServiceRequestStep) -> bool:
 def can_claim_step(user, step: ServiceRequestStep) -> bool:
     if not can_handle_step(user, step):
         return False
-    if step.step_code == ServiceRequestStep.STEP_DIVISION_HEAD and is_director(user):
+    if step.step_code in {
+        ServiceRequestStep.STEP_DIVISION_HEAD,
+        ServiceRequestStep.STEP_DEPARTMENT_HEAD,
+    } and is_director(user):
         return not step.assignee_id
     if step.assignee_id:
         return False
@@ -249,6 +257,7 @@ def pending_steps_for_user(user):
         )
     if is_director(user):
         filters |= Q(step_code=ServiceRequestStep.STEP_DIVISION_HEAD)
+        filters |= Q(step_code=ServiceRequestStep.STEP_DEPARTMENT_HEAD)
         filters |= Q(
             assignee__isnull=True,
             assignee_rule=RequestTypeStepTemplate.RULE_DEPARTMENT_QUEUE,
@@ -256,9 +265,14 @@ def pending_steps_for_user(user):
         filters |= Q(
             step_code=ServiceRequestStep.STEP_DIRECTOR,
         ) & (Q(assignee=user) | Q(assignee__isnull=True))
-    elif user_role(user) == ROLE_DIVISION_HEAD:
+    elif is_division_head(user):
         filters |= Q(
             step_code=ServiceRequestStep.STEP_DIVISION_HEAD,
+            assignee=user,
+        )
+    elif is_department_head(user):
+        filters |= Q(
+            step_code=ServiceRequestStep.STEP_DEPARTMENT_HEAD,
             assignee=user,
         )
     return qs.filter(filters).order_by('-request__created_at', 'step_order')

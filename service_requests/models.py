@@ -411,6 +411,7 @@ class ServiceRequestStep(models.Model):
 
     STEP_TEAM_LEADER = 'team_leader_approval'
     STEP_DIVISION_HEAD = 'division_head_approval'
+    STEP_DEPARTMENT_HEAD = 'department_head_approval'
     STEP_PROCUREMENT_QUOTE = 'procurement_quote'
     STEP_ACCOUNTANT = 'accountant_approval'
     STEP_DIRECTOR = 'director_approval'

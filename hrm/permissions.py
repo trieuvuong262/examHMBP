@@ -2,10 +2,11 @@
 Phân quyền thống nhất — JustPlay Portal.
 
 Vai trò (Profile.role):
-  EMPLOYEE      — Nhân viên
-  TEAM_LEADER   — Tổ trưởng
-  DIVISION_HEAD — Trưởng bộ phận
-  DIRECTOR      — Giám đốc (staff portal khi lưu Profile)
+  EMPLOYEE         — Nhân viên
+  TEAM_LEADER      — Tổ trưởng
+  DIVISION_HEAD    — Trưởng bộ phận
+  DEPARTMENT_HEAD  — Trưởng phòng
+  DIRECTOR         — Giám đốc (staff portal khi lưu Profile)
 
 Quản trị portal (menu Tuyển dụng, Đào tạo, Kiểm tra, Nhân sự):
   is_staff — HR / IT / Giám đốc
@@ -16,6 +17,7 @@ from django.contrib.auth.models import User
 ROLE_EMPLOYEE = 'EMPLOYEE'
 ROLE_TEAM_LEADER = 'TEAM_LEADER'
 ROLE_DIVISION_HEAD = 'DIVISION_HEAD'
+ROLE_DEPARTMENT_HEAD = 'DEPARTMENT_HEAD'
 ROLE_DIRECTOR = 'DIRECTOR'
 
 # Alias tương thích code cũ
@@ -26,11 +28,21 @@ ROLE_CHOICES = [
     (ROLE_EMPLOYEE, 'Nhân viên'),
     (ROLE_TEAM_LEADER, 'Tổ trưởng'),
     (ROLE_DIVISION_HEAD, 'Trưởng bộ phận'),
+    (ROLE_DEPARTMENT_HEAD, 'Trưởng phòng'),
     (ROLE_DIRECTOR, 'Giám đốc'),
 ]
 
-MANAGER_ROLES = {ROLE_TEAM_LEADER, ROLE_DIVISION_HEAD, ROLE_DIRECTOR}
-SUBORDINATE_MANAGER_ROLES = {ROLE_TEAM_LEADER, ROLE_DIVISION_HEAD}
+MANAGER_ROLES = {
+    ROLE_TEAM_LEADER,
+    ROLE_DIVISION_HEAD,
+    ROLE_DEPARTMENT_HEAD,
+    ROLE_DIRECTOR,
+}
+SUBORDINATE_MANAGER_ROLES = {
+    ROLE_TEAM_LEADER,
+    ROLE_DIVISION_HEAD,
+    ROLE_DEPARTMENT_HEAD,
+}
 
 
 def get_profile(user):
@@ -60,10 +72,17 @@ def is_team_leader(user) -> bool:
 
 
 def is_division_head(user) -> bool:
-    """Trưởng bộ phận — Giám đốc có quyền tương đương (ẩn) trên mọi phòng ban."""
+    """Trưởng bộ phận — Giám đốc / Trưởng phòng có quyền tương đương (ẩn)."""
     from hrm.concurrent_positions import user_is_division_head
 
     return user_is_division_head(user)
+
+
+def is_department_head(user) -> bool:
+    """Trưởng phòng — Giám đốc có quyền tương đương (ẩn) trên mọi phòng ban."""
+    from hrm.concurrent_positions import user_is_department_head
+
+    return user_is_department_head(user)
 
 
 def is_director(user) -> bool:
@@ -187,7 +206,8 @@ def get_task_assignable_users(assigner):
     """
     Nhân viên có thể được giao việc:
     - Giám đốc (chính hoặc kiêm nhiệm): toàn công ty
-    - Trưởng bộ phận tại bất kỳ slot: union NV các phòng ban đó
+    - Trưởng phòng tại bất kỳ slot: union NV các phòng ban đó
+    - Trưởng bộ phận: union NV các bộ phận slot + cấp dưới
     - Tổ trưởng: union NV các bộ phận slot + cấp dưới thủ công
     """
     from hrm.concurrent_positions import effective_department_ids, effective_roles
@@ -202,13 +222,27 @@ def get_task_assignable_users(assigner):
         return _all_company_task_users(exclude_pk=assigner.pk)
 
     eligible_ids: set[int] = set()
-    if ROLE_DIVISION_HEAD in roles:
+    if ROLE_DEPARTMENT_HEAD in roles:
         for dept_id in effective_department_ids(assigner):
             dept = Department.objects.filter(pk=dept_id).first()
             if dept:
                 eligible_ids.update(
                     _department_task_users(dept).values_list('pk', flat=True),
                 )
+
+    if ROLE_DIVISION_HEAD in roles:
+        from hrm.concurrent_positions import effective_division_ids
+
+        for div_id in effective_division_ids(assigner):
+            qs = User.objects.filter(
+                profile__division_id=div_id,
+                profile__is_employed=True,
+                is_active=True,
+            )
+            eligible_ids.update(qs.values_list('pk', flat=True))
+        eligible_ids.update(
+            get_report_team_users(assigner).values_list('pk', flat=True),
+        )
 
     if ROLE_TEAM_LEADER in roles:
         eligible_ids.update(
@@ -269,7 +303,7 @@ def can_manage_team_tasks(user) -> bool:
     Giao việc cá nhân & tạo dự án nội bộ — cần quyền sửa module Công việc.
 
     - Tổ trưởng: có cấp dưới trực tiếp (Nhân sự → Nhân viên dưới quyền)
-    - Trưởng bộ phận: thuộc phòng ban (giao cho nhân sự cùng phòng)
+    - Trưởng bộ phận / trưởng phòng: có phạm vi giao việc tương ứng
     - Giám đốc: quyền sửa module Công việc
     """
     if not _has_tasks_module_access(user):
@@ -284,6 +318,10 @@ def can_manage_team_tasks(user) -> bool:
     if ROLE_TEAM_LEADER in roles:
         return has_task_subordinates(user)
     if ROLE_DIVISION_HEAD in roles:
+        from hrm.concurrent_positions import effective_division_ids
+
+        return bool(effective_division_ids(user)) or has_task_subordinates(user)
+    if ROLE_DEPARTMENT_HEAD in roles:
         return bool(effective_department_ids(user))
     if ROLE_DIRECTOR in roles:
         return True
@@ -305,7 +343,7 @@ def can_receive_assigned_tasks(user) -> bool:
     return not is_director(user)
 
 
-CROSS_DEPT_CREATOR_ROLES = {ROLE_DIRECTOR, ROLE_DIVISION_HEAD}
+CROSS_DEPT_CREATOR_ROLES = {ROLE_DIRECTOR, ROLE_DEPARTMENT_HEAD, ROLE_DIVISION_HEAD}
 
 
 def can_create_cross_dept_project(user) -> bool:
@@ -333,7 +371,8 @@ def is_cross_dept_dept_head_viewer(user, project) -> bool:
         return True
     from hrm.concurrent_positions import effective_department_ids, effective_roles
 
-    if ROLE_DIVISION_HEAD not in effective_roles(user):
+    roles = effective_roles(user)
+    if not (roles & {ROLE_DIVISION_HEAD, ROLE_DEPARTMENT_HEAD}):
         return False
     dept_ids = effective_department_ids(user)
     if not dept_ids:

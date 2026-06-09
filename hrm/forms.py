@@ -299,6 +299,18 @@ class CustomUserForm(forms.Form):
 
 
 class ProfileConcurrentPositionForm(forms.ModelForm):
+    subordinates = forms.ModelMultipleChoiceField(
+        queryset=User.objects.none(),
+        required=False,
+        widget=forms.SelectMultiple(attrs={
+            **SELECT,
+            'size': 6,
+            'class': 'form-select jp-concurrent-subordinates',
+        }),
+        label='Cấp dưới tại slot',
+        help_text='Áp dụng khi vai trò slot là Tổ trưởng, Trưởng bộ phận hoặc Trưởng phòng.',
+    )
+
     class Meta:
         model = ProfileConcurrentPosition
         fields = [
@@ -358,6 +370,37 @@ class ProfileConcurrentPositionForm(forms.ModelForm):
         self.fields['division'].empty_label = '-- Chọn bộ phận --'
         self.fields['role'].choices = Profile.ROLE_CHOICES
 
+        prefix = f'{self.prefix}-' if self.prefix else ''
+        slot_role = (
+            (self.data.get(f'{prefix}role') if self.data else None)
+            or self.initial.get('role')
+            or getattr(self.instance, 'role', None)
+            or ''
+        ).strip()
+        div_id = _coerce_pk(self.data.get(f'{prefix}division') if self.data else None) or (
+            self.instance.division_id if self.instance.pk else None
+        )
+
+        extra_sub_ids: list[int] = []
+        if self.data:
+            extra_sub_ids = [
+                int(x) for x in self.data.getlist(f'{prefix}subordinates') if str(x).isdigit()
+            ]
+        elif self.instance.pk:
+            extra_sub_ids = list(self.instance.subordinates.values_list('pk', flat=True))
+
+        owner_id = self.instance.profile.user_id if self.instance.profile_id else None
+        self.fields['subordinates'].queryset = subordinate_candidate_queryset(
+            exclude_user_id=owner_id,
+            manager_role=slot_role,
+            department_id=dept_id,
+            division_id=div_id,
+            extra_user_ids=extra_sub_ids,
+        )
+        if self.instance.pk:
+            self.fields['subordinates'].initial = self.instance.subordinates.all()
+        self.slot_manager_role = slot_role
+
     def clean(self):
         cleaned = super().clean()
         if cleaned.get('DELETE'):
@@ -376,6 +419,16 @@ class ProfileConcurrentPositionForm(forms.ModelForm):
 
 
 class BaseProfileConcurrentPositionFormSet(forms.BaseInlineFormSet):
+    def save(self, commit=True):
+        instances = super().save(commit=commit)
+        if commit:
+            for form in self.forms:
+                if not hasattr(form, 'cleaned_data') or form.cleaned_data.get('DELETE'):
+                    continue
+                if form.instance.pk and 'subordinates' in form.cleaned_data:
+                    form.instance.subordinates.set(form.cleaned_data['subordinates'])
+        return instances
+
     def clean(self):
         super().clean()
         seen: set[tuple] = set()

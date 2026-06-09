@@ -207,6 +207,12 @@
                                     </div>
                                     {% endif %}
                                 </div>
+                                <div class="jp-concurrent-subordinates-wrap mt-3 d-none" data-slot-subordinates>
+                                    <label class="jp-form-label small mb-1">{{ cp_form.subordinates.label }}</label>
+                                    <p class="small text-muted mb-2">{{ cp_form.subordinates.help_text }}</p>
+                                    {{ cp_form.subordinates }}
+                                    {% for e in cp_form.subordinates.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                                </div>
                             </div>
                             {% endfor %}
                         </div>
@@ -336,7 +342,8 @@
     const roleSelect = document.querySelector('select[name="role"]');
     const subSection = document.getElementById('subordinates_section');
     const subFieldName = 'subordinates';
-    const managerRoles = ['TEAM_LEADER', 'DIVISION_HEAD', 'DIRECTOR'];
+    const managerRoles = ['TEAM_LEADER', 'DIVISION_HEAD', 'DEPARTMENT_HEAD', 'DIRECTOR'];
+    const concurrentManagerRoles = ['TEAM_LEADER', 'DIVISION_HEAD', 'DEPARTMENT_HEAD'];
     const scopeHints = {
         TEAM_LEADER: {
             withDiv: 'Gợi ý: chọn nhân viên cùng bộ phận (vai trò Nhân viên).',
@@ -348,12 +355,27 @@
             withDept: 'Gợi ý: chọn NV hoặc Tổ trưởng cùng phòng ban.',
             none: 'Chọn phòng ban bên trên để thu hẹp danh sách.',
         },
+        DEPARTMENT_HEAD: {
+            withDiv: 'Gợi ý: chọn NV / Tổ trưởng / Trưởng bộ phận cùng phòng ban.',
+            withDept: 'Gợi ý: chọn NV / Tổ trưởng / Trưởng bộ phận cùng phòng ban.',
+            none: 'Chọn phòng ban bên trên để thu hẹp danh sách.',
+        },
         DIRECTOR: {
             withDiv: 'Gợi ý: chọn nhân viên / tổ trưởng / trưởng bộ phận trong công ty.',
             withDept: 'Gợi ý: chọn nhân viên / tổ trưởng / trưởng bộ phận trong công ty.',
             none: 'Gợi ý: chọn nhân viên / tổ trưởng / trưởng bộ phận trong công ty.',
         },
     };
+
+    function toggleConcurrentSubordinates() {
+        document.querySelectorAll('.jp-concurrent-position-row').forEach(function (row) {
+            const roleSel = row.querySelector('select[name$="-role"]');
+            const wrap = row.querySelector('[data-slot-subordinates]');
+            if (!roleSel || !wrap) return;
+            const show = concurrentManagerRoles.includes(roleSel.value);
+            wrap.classList.toggle('d-none', !show);
+        });
+    }
 
     function toggleSubordinates() {
         if (!roleSelect || !subSection) return;
@@ -454,6 +476,11 @@
         divSelect.addEventListener('change', updateSubordinateQuickActions);
         filterDivisionOptions();
         updateSubordinateQuickActions();
+
+        toggleConcurrentSubordinates();
+        document.querySelectorAll('.jp-concurrent-position-row select[name$="-role"]').forEach(function (roleSel) {
+            roleSel.addEventListener('change', toggleConcurrentSubordinates);
+        });
 
         document.querySelectorAll('.jp-concurrent-position-row select[name$="-department"]').forEach(function (deptSel) {
             const row = deptSel.closest('.jp-concurrent-position-row');

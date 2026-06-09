@@ -40,6 +40,7 @@ from hrm.permissions import (
     is_portal_admin,
     is_team_leader,
     is_division_head,
+    is_department_head,
     role_display,
     user_role,
 )
@@ -64,6 +65,7 @@ def portal_permissions(request):
             'jp_is_gm': False,
             'jp_is_team_leader': False,
             'jp_is_division_head': False,
+            'jp_is_department_head': False,
             'jp_is_manager': False,
             'jp_can_team_reports': False,
             'jp_can_submit_reports': False,
@@ -174,6 +176,7 @@ def portal_permissions(request):
         'jp_is_gm': is_gm(user),
         'jp_is_team_leader': is_team_leader(user),
         'jp_is_division_head': is_division_head(user),
+        'jp_is_department_head': is_department_head(user),
         'jp_is_manager': is_manager(user),
         'jp_can_team_reports': can_view_team_reports(user),
         'jp_can_submit_reports': can_submit_daily_report(user),

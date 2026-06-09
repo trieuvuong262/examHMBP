@@ -255,6 +255,10 @@
                                 <span class="badge bg-danger-subtle text-danger px-2 px-md-3">
                                     <i class="bi bi-shield-fill-check me-1"></i>Giám đốc
                                 </span>
+                            {% elif u.profile.role == 'DEPARTMENT_HEAD' %}
+                                <span class="badge bg-secondary-subtle text-secondary-emphasis px-2 px-md-3">
+                                    <i class="bi bi-building-fill me-1"></i>Tr. phòng
+                                </span>
                             {% elif u.profile.role == 'DIVISION_HEAD' %}
                                 <span class="badge bg-info-subtle text-info-emphasis px-2 px-md-3">
                                     <i class="bi bi-diagram-2-fill me-1"></i>Tr. bộ phận

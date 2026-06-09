@@ -12,6 +12,7 @@ from django.db.models import Q
 
 from hrm.permissions import (
     MANAGER_ROLES,
+    ROLE_DEPARTMENT_HEAD,
     ROLE_DIRECTOR,
     ROLE_DIVISION_HEAD,
     ROLE_EMPLOYEE,
@@ -19,6 +20,8 @@ from hrm.permissions import (
     get_profile,
     user_role,
 )
+
+MANAGER_SLOT_ROLES = {ROLE_TEAM_LEADER, ROLE_DIVISION_HEAD, ROLE_DEPARTMENT_HEAD}
 from hrm.user_search import exclude_hidden_hrm_profiles, visible_employed_profiles
 
 _HEAD_POSITION_NAMES = ('Trưởng phòng', 'Trưởng Phòng', 'TRUONG PHONG')
@@ -70,11 +73,23 @@ def user_is_team_leader(user) -> bool:
     return ROLE_TEAM_LEADER in effective_roles(user)
 
 
+def user_is_department_head(user) -> bool:
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    roles = effective_roles(user)
+    return ROLE_DEPARTMENT_HEAD in roles or ROLE_DIRECTOR in roles or user.is_superuser
+
+
 def user_is_division_head(user) -> bool:
     if not getattr(user, 'is_authenticated', False):
         return False
     roles = effective_roles(user)
-    return ROLE_DIVISION_HEAD in roles or ROLE_DIRECTOR in roles or user.is_superuser
+    return (
+        ROLE_DIVISION_HEAD in roles
+        or ROLE_DEPARTMENT_HEAD in roles
+        or ROLE_DIRECTOR in roles
+        or user.is_superuser
+    )
 
 
 def user_is_manager(user) -> bool:
@@ -161,7 +176,7 @@ def _is_department_head_slot(profile, concurrent=None) -> bool:
         return False
     if job_pos in _HEAD_POSITION_NAMES:
         return True
-    return role in {ROLE_DIVISION_HEAD, ROLE_DIRECTOR}
+    return role in {ROLE_DEPARTMENT_HEAD, ROLE_DIVISION_HEAD, ROLE_DIRECTOR}
 
 
 def _is_division_head_slot(profile, concurrent=None) -> bool:
@@ -170,7 +185,7 @@ def _is_division_head_slot(profile, concurrent=None) -> bool:
     job_pos = concurrent.job_position if concurrent else profile.job_position
     if not div_id:
         return False
-    if role in {ROLE_DIVISION_HEAD, ROLE_DIRECTOR}:
+    if role in {ROLE_DIVISION_HEAD, ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR}:
         return True
     return job_pos in _DIVISION_HEAD_POSITION_NAMES
 
@@ -185,7 +200,9 @@ def heads_for_department(department_id: int):
                 is_employed=True,
                 department_id=department_id,
                 division__isnull=True,
-                job_position__in=_HEAD_POSITION_NAMES,
+            ).filter(
+                Q(job_position__in=_HEAD_POSITION_NAMES)
+                | Q(role=ROLE_DEPARTMENT_HEAD),
             ),
         ).values_list('pk', flat=True),
     )
@@ -193,8 +210,10 @@ def heads_for_department(department_id: int):
         is_active=True,
         department_id=department_id,
         division__isnull=True,
-        job_position__in=_HEAD_POSITION_NAMES,
         profile__is_employed=True,
+    ).filter(
+        Q(job_position__in=_HEAD_POSITION_NAMES)
+        | Q(role=ROLE_DEPARTMENT_HEAD),
     ).values_list('profile_id', flat=True)
     all_ids = primary_ids | set(concurrent_ids)
     return exclude_hidden_hrm_profiles(
@@ -211,7 +230,7 @@ def heads_for_division(department_id: int | None, division_id: int):
             is_employed=True,
             division_id=division_id,
         ).filter(
-            Q(role__in={ROLE_DIVISION_HEAD, ROLE_DIRECTOR})
+            Q(role__in={ROLE_DIVISION_HEAD, ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR})
             | Q(job_position__in=_DIVISION_HEAD_POSITION_NAMES),
         ),
     )
@@ -224,7 +243,7 @@ def heads_for_division(department_id: int | None, division_id: int):
         division_id=division_id,
         profile__is_employed=True,
     ).filter(
-        Q(role__in={ROLE_DIVISION_HEAD, ROLE_DIRECTOR})
+        Q(role__in={ROLE_DIVISION_HEAD, ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR})
         | Q(job_position__in=_DIVISION_HEAD_POSITION_NAMES),
     )
     if department_id:
@@ -324,7 +343,13 @@ def auto_managed_user_ids(user) -> set[int]:
         if role == ROLE_TEAM_LEADER and div_id and dept_id:
             qs = visible_employed_profiles(division_id=div_id, department_id=dept_id)
             ids.update(qs.values_list('user_id', flat=True))
+        elif role == ROLE_DIVISION_HEAD and div_id:
+            qs = visible_employed_profiles(division_id=div_id, department_id=dept_id)
+            ids.update(qs.values_list('user_id', flat=True))
         elif role == ROLE_DIVISION_HEAD and dept_id:
+            qs = visible_employed_profiles(department_id=dept_id)
+            ids.update(qs.values_list('user_id', flat=True))
+        elif role == ROLE_DEPARTMENT_HEAD and dept_id:
             qs = visible_employed_profiles(department_id=dept_id)
             ids.update(qs.values_list('user_id', flat=True))
 
@@ -332,8 +357,27 @@ def auto_managed_user_ids(user) -> set[int]:
     return ids
 
 
+def _concurrent_slot_subordinate_ids(profile) -> set[int]:
+    from hrm.models import ProfileConcurrentPosition
+
+    ids: set[int] = set()
+    active_slots = ProfileConcurrentPosition.objects.filter(
+        profile=profile,
+        is_active=True,
+        role__in=MANAGER_SLOT_ROLES,
+    ).prefetch_related('subordinates')
+    for slot in active_slots:
+        ids.update(
+            slot.subordinates.filter(
+                is_active=True,
+                profile__is_employed=True,
+            ).values_list('pk', flat=True),
+        )
+    return ids
+
+
 def get_effective_subordinate_users(viewer):
-    """Union M2M subordinates thủ công + auto scope kiêm nhiệm."""
+    """Union M2M cấp dưới (chính + từng slot kiêm) + auto scope."""
     if not getattr(viewer, 'is_authenticated', False):
         return User.objects.none()
 
@@ -347,6 +391,7 @@ def get_effective_subordinate_users(viewer):
             profile__is_employed=True,
         ).values_list('pk', flat=True),
     )
+    manual_ids |= _concurrent_slot_subordinate_ids(profile)
     auto_ids = auto_managed_user_ids(viewer)
     all_ids = manual_ids | auto_ids
     if not all_ids:
@@ -370,6 +415,10 @@ def concurrent_positions_summary(profile) -> list[dict]:
             'role': cp.role,
             'role_display': cp.get_role_display(),
             'notes': cp.notes,
+            'subordinate_count': cp.subordinates.filter(
+                is_active=True,
+                profile__is_employed=True,
+            ).count(),
         })
     return rows
 
@@ -384,6 +433,57 @@ def role_display_extended(user) -> str:
     if count:
         return f'{base} (+{count} kiêm nhiệm)'
     return base
+
+
+def department_has_division_heads_extended(department) -> bool:
+    """Có trưởng bộ phận trong phòng (primary hoặc kiêm nhiệm)."""
+    if not department:
+        return False
+    from hrm.models import Profile, ProfileConcurrentPosition
+
+    if User.objects.filter(
+        profile__department=department,
+        profile__role=ROLE_DIVISION_HEAD,
+        profile__is_employed=True,
+        is_active=True,
+    ).exists():
+        return True
+    return ProfileConcurrentPosition.objects.filter(
+        is_active=True,
+        department=department,
+        role=ROLE_DIVISION_HEAD,
+        profile__is_employed=True,
+        profile__user__is_active=True,
+    ).exists()
+
+
+def department_has_department_heads_extended(department) -> bool:
+    """Có trưởng phòng trong phòng (primary hoặc kiêm nhiệm)."""
+    if not department:
+        return False
+    from hrm.models import Profile, ProfileConcurrentPosition
+
+    if User.objects.filter(
+        profile__department=department,
+        profile__role=ROLE_DEPARTMENT_HEAD,
+        profile__is_employed=True,
+        is_active=True,
+    ).exists():
+        return True
+    if Profile.objects.filter(
+        is_employed=True,
+        department_id=department.id,
+        division__isnull=True,
+        job_position__in=_HEAD_POSITION_NAMES,
+    ).exists():
+        return True
+    return ProfileConcurrentPosition.objects.filter(
+        is_active=True,
+        department=department,
+        role=ROLE_DEPARTMENT_HEAD,
+        profile__is_employed=True,
+        profile__user__is_active=True,
+    ).exists()
 
 
 def department_has_team_leaders_extended(department) -> bool:
@@ -429,6 +529,11 @@ def find_manager_with_subordinate(user, role: str):
         mgr_profile = get_profile(manager)
         if mgr_profile and mgr_profile.subordinates.filter(pk=user.pk).exists():
             return manager
+        for cp in get_active_concurrent_positions(mgr_profile):
+            if cp.role != role:
+                continue
+            if cp.subordinates.filter(pk=user.pk).exists():
+                return manager
         if user.pk in auto_managed_user_ids(manager):
             return manager
     return None

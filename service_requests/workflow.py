@@ -8,10 +8,12 @@ from django.db.models import Max
 from django.utils import timezone
 
 from hrm.permissions import (
+    ROLE_DEPARTMENT_HEAD,
     ROLE_DIRECTOR,
     ROLE_DIVISION_HEAD,
     ROLE_TEAM_LEADER,
     get_profile,
+    is_department_head,
     is_director,
     is_division_head,
     is_team_leader,
@@ -40,10 +42,15 @@ def find_team_leader(user):
 def find_division_head_manager(user):
     from hrm.concurrent_positions import find_manager_with_subordinate
 
-    division_head = find_manager_with_subordinate(user, ROLE_DIVISION_HEAD)
-    if division_head:
-        return division_head
-    # Giám đốc = trưởng bộ phận ẩn toàn công ty khi không có TBP trực tiếp.
+    return find_manager_with_subordinate(user, ROLE_DIVISION_HEAD)
+
+
+def find_department_head_manager(user):
+    from hrm.concurrent_positions import find_manager_with_subordinate
+
+    department_head = find_manager_with_subordinate(user, ROLE_DEPARTMENT_HEAD)
+    if department_head:
+        return department_head
     return find_director_user()
 
 
@@ -85,17 +92,53 @@ def get_accounting_department():
     return get_department_by_patterns('kế toán', 'ke toan', 'tài chính kế toán')
 
 
+def department_has_department_heads(department):
+    from hrm.concurrent_positions import department_has_department_heads_extended
+
+    return department_has_department_heads_extended(department)
+
+
 def _needs_team_leader_step(requester):
     profile = get_profile(requester)
     if not profile or not profile.department_id:
         return False
-    if is_team_leader(requester) or is_division_head(requester):
+    if (
+        is_team_leader(requester)
+        or is_division_head(requester)
+        or is_department_head(requester)
+        or is_director(requester)
+    ):
         return False
     return department_has_team_leaders(profile.department)
 
 
+def department_has_division_heads(department):
+    from hrm.concurrent_positions import department_has_division_heads_extended
+
+    return department_has_division_heads_extended(department)
+
+
 def _needs_division_head_step(requester):
-    return not is_division_head(requester)
+    if is_division_head(requester) or is_department_head(requester) or is_director(requester):
+        return False
+    profile = get_profile(requester)
+    if not profile or not profile.department_id:
+        return False
+    return department_has_division_heads(profile.department)
+
+
+def _needs_department_head_step(requester):
+    if is_department_head(requester) or is_director(requester):
+        return False
+    profile = get_profile(requester)
+    if not profile or not profile.department_id:
+        return False
+    if department_has_department_heads(profile.department):
+        return True
+    # Phòng không có TBP — GĐ duyệt thay ở bước Trưởng phòng (thay hành vi cũ «GĐ = TBP ẩn»)
+    if not department_has_division_heads(profile.department):
+        return find_director_user() is not None
+    return False
 
 
 def _initial_step_status(depends_on_step, *, skipped=False):
@@ -111,9 +154,19 @@ def _initial_step_status(depends_on_step, *, skipped=False):
     return ServiceRequestStep.STATUS_BLOCKED
 
 
-def _resolve_assignee(assignee_rule, requester):
+def _resolve_assignee(assignee_rule, requester, *, step_code=None):
     if assignee_rule == RequestTypeStepTemplate.RULE_DIRECT_MANAGER:
-        return find_division_head_manager(requester) or find_team_leader(requester)
+        if step_code == ServiceRequestStep.STEP_TEAM_LEADER:
+            return find_team_leader(requester)
+        if step_code == ServiceRequestStep.STEP_DIVISION_HEAD:
+            return find_division_head_manager(requester)
+        if step_code == ServiceRequestStep.STEP_DEPARTMENT_HEAD:
+            return find_department_head_manager(requester)
+        return (
+            find_department_head_manager(requester)
+            or find_division_head_manager(requester)
+            or find_team_leader(requester)
+        )
     if assignee_rule == RequestTypeStepTemplate.RULE_DIRECTOR:
         return find_director_user()
     return None
@@ -144,7 +197,11 @@ def _create_step(
 ):
     status = _initial_step_status(depends_on, skipped=skipped)
     if status == ServiceRequestStep.STATUS_PENDING and assignee is None:
-        assignee = _resolve_assignee(assignee_rule, service_request.requester)
+        assignee = _resolve_assignee(
+            assignee_rule,
+            service_request.requester,
+            step_code=step_code,
+        )
 
     return ServiceRequestStep.objects.create(
         request=service_request,
@@ -192,6 +249,22 @@ def _build_initial_steps(service_request, requester):
             step_kind=RequestTypeStepTemplate.KIND_APPROVAL,
             assignee_rule=RequestTypeStepTemplate.RULE_DIRECT_MANAGER,
             assignee=dh,
+            depends_on=previous,
+        )
+        steps.append(step)
+        previous = step
+        order += 1
+
+    if _needs_department_head_step(requester):
+        dph = find_department_head_manager(requester)
+        step = _create_step(
+            service_request,
+            step_order=order,
+            step_code=ServiceRequestStep.STEP_DEPARTMENT_HEAD,
+            name='Trưởng phòng duyệt',
+            step_kind=RequestTypeStepTemplate.KIND_APPROVAL,
+            assignee_rule=RequestTypeStepTemplate.RULE_DIRECT_MANAGER,
+            assignee=dph,
             depends_on=previous,
         )
         steps.append(step)
@@ -419,7 +492,11 @@ def unlock_next_steps(completed_step):
             elif child.step_code == ServiceRequestStep.STEP_REQUESTER_CONFIRM:
                 child.assignee = requester
             else:
-                child.assignee = _resolve_assignee(child.assignee_rule, requester)
+                child.assignee = _resolve_assignee(
+                    child.assignee_rule,
+                    requester,
+                    step_code=child.step_code,
+                )
         elif child.assignee_rule == RequestTypeStepTemplate.RULE_DIRECTOR:
             child.assignee = find_director_user()
         child.save(update_fields=['status', 'assignee'])

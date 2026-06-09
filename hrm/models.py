@@ -466,6 +466,12 @@ class ProfileConcurrentPosition(models.Model):
     sort_order = models.PositiveIntegerField(default=0, verbose_name='Thứ tự')
     is_active = models.BooleanField(default=True, verbose_name='Đang hiệu lực')
     notes = models.CharField(max_length=255, blank=True, verbose_name='Ghi chú')
+    subordinates = models.ManyToManyField(
+        User,
+        blank=True,
+        related_name='concurrent_manager_slots',
+        verbose_name='Nhân viên cấp dưới tại slot kiêm nhiệm',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

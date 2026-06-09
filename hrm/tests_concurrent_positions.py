@@ -15,15 +15,20 @@ from hrm.concurrent_positions import (
 from hrm.models import Department, Division, Profile, ProfileConcurrentPosition
 from hrm.org_structure import _division_head_profiles, _employee_nodes
 from hrm.permissions import (
+    ROLE_DEPARTMENT_HEAD,
     ROLE_DIRECTOR,
     ROLE_DIVISION_HEAD,
     ROLE_EMPLOYEE,
     ROLE_TEAM_LEADER,
+    get_report_team_users,
     get_task_assignable_users,
+    is_department_head,
     is_division_head,
 )
 from service_requests.workflow import (
+    department_has_department_heads,
     department_has_team_leaders,
+    find_department_head_manager,
     find_division_head_manager,
     find_team_leader,
 )
@@ -171,6 +176,94 @@ class OrgStructureConcurrentTests(TestCase):
         match = [n for n in nodes if n.get('user_id') == self.head.pk]
         self.assertEqual(len(match), 1)
         self.assertTrue(match[0].get('is_concurrent'))
+
+
+class DepartmentHeadRoleTests(TestCase):
+    def setUp(self):
+        self.dept = Department.objects.create(name='Dept Head Test', sort_order=910)
+        self.div = Division.objects.create(name='Div DH', department=self.dept, sort_order=1)
+
+        self.dept_head = User.objects.create_user('dept_head', password='x')
+        _profile(
+            self.dept_head,
+            full_name='Trưởng phòng',
+            department=self.dept,
+            role=ROLE_DEPARTMENT_HEAD,
+            is_employed=True,
+        )
+
+        self.div_head = User.objects.create_user('div_head_sub', password='x')
+        _profile(
+            self.div_head,
+            full_name='TBP',
+            department=self.dept,
+            division=self.div,
+            role=ROLE_DIVISION_HEAD,
+            is_employed=True,
+        )
+        self.dept_head.profile.subordinates.add(self.div_head)
+
+        self.emp = User.objects.create_user('dept_emp', password='x')
+        _profile(
+            self.emp,
+            full_name='NV',
+            department=self.dept,
+            division=self.div,
+            role=ROLE_EMPLOYEE,
+            is_employed=True,
+        )
+
+    def test_is_department_head_primary(self):
+        self.assertTrue(is_department_head(self.dept_head))
+
+    def test_department_head_manual_subordinate_in_reports(self):
+        subs = set(get_report_team_users(self.dept_head).values_list('pk', flat=True))
+        self.assertIn(self.div_head.pk, subs)
+
+    def test_department_has_heads_helper(self):
+        self.assertTrue(department_has_department_heads(self.dept))
+
+    def test_workflow_finds_department_head(self):
+        found = find_department_head_manager(self.emp)
+        self.assertIsNotNone(found)
+        self.assertEqual(found.pk, self.dept_head.pk)
+
+
+class ConcurrentSlotSubordinatesTests(TestCase):
+    def setUp(self):
+        self.dept = Department.objects.create(name='Slot Sub Test', sort_order=911)
+        self.div = Division.objects.create(name='Slot Div', department=self.dept, sort_order=1)
+
+        self.manager = User.objects.create_user('slot_mgr', password='x')
+        _profile(
+            self.manager,
+            full_name='Manager',
+            department=Department.objects.create(name='Other Dept', sort_order=912),
+            role=ROLE_EMPLOYEE,
+            is_employed=True,
+        )
+        self.slot = ProfileConcurrentPosition.objects.create(
+            profile=self.manager.profile,
+            department=self.dept,
+            division=self.div,
+            job_position='Trưởng bộ phận',
+            role=ROLE_DIVISION_HEAD,
+        )
+
+        self.sub = User.objects.create_user('slot_sub', password='x')
+        _profile(
+            self.sub,
+            full_name='Sub Slot',
+            department=self.dept,
+            division=self.div,
+            role=ROLE_EMPLOYEE,
+            is_employed=True,
+        )
+        self.slot.subordinates.add(self.sub)
+
+    def test_concurrent_slot_subordinates_in_effective_team(self):
+        subs = set(get_report_team_users(self.manager).values_list('pk', flat=True))
+        self.assertIn(self.sub.pk, subs)
 
 
 class WorkflowConcurrentTests(TestCase):
