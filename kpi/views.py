@@ -1,8 +1,11 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from assessment.decorators import module_perm_required
-from hrm.module_permissions import MODULE_KPI, user_can_create_module, user_can_update_module
+from hrm.module_permissions import (
+    MODULE_KPI,
+    user_can_create_module,
+    user_can_update_module,
+)
 from django.db.models import Q
 from django.utils import timezone
 from django.contrib.auth.models import User
@@ -48,6 +51,17 @@ def _kpi_detail_roles(user, kpi_board):
     return is_owner, is_manager, is_gm_user, can_view
 
 
+def _kpi_perm_context(user) -> dict:
+    can_update = user_can_update_module(user, MODULE_KPI)
+    can_create = user_can_create_module(user, MODULE_KPI)
+    return {
+        'can_update': can_update,
+        'can_create': can_create,
+        'can_manage_kpi': can_manage_kpi_for_others(user),
+        'can_toggle_period': user.is_superuser or can_update,
+    }
+
+
 def _get_or_create_period(year: int, period_type: str) -> KpiPeriod:
     title = _period_title(period_type)
     period = KpiPeriod.objects.filter(year=year, period_type=period_type).order_by('id').first()
@@ -64,7 +78,7 @@ def _get_or_create_period(year: int, period_type: str) -> KpiPeriod:
 # ========================================================
 # 1. TRANG DANH SÁCH KPI (DASHBOARD CHÍNH)
 # ========================================================
-@login_required
+@module_perm_required(MODULE_KPI, 'view')
 def kpi_list_view(request):
     search_query = get_search_query(request)
     my_kpis_qs = YearlyKpi.objects.filter(employee=request.user).order_by('-year')
@@ -101,17 +115,16 @@ def kpi_list_view(request):
     my_page, my_query_string = paginate_queryset(request, my_kpis_qs, page_param='my_page')
     team_page, team_query_string = paginate_queryset(request, team_kpis_qs, page_param='team_page')
 
-    is_admin = request.user.is_superuser
-    is_manager_or_gm = can_manage_kpi_for_others(request.user)
+    perm = _kpi_perm_context(request.user)
+    can_toggle_period = perm['can_toggle_period']
 
     # 2. XỬ LÝ QUYỀN ADMIN: Đóng/Mở kỳ đánh giá
     current_year = datetime.datetime.now().year
     admin_periods = []
 
-    can_toggle_period = request.user.is_superuser or user_can_update_module(request.user, MODULE_KPI)
     if can_toggle_period:
         if request.method == 'POST' and 'toggle_period' in request.POST:
-            if not user_can_update_module(request.user, MODULE_KPI) and not request.user.is_superuser:
+            if not can_toggle_period:
                 messages.error(request, 'Bạn không có quyền đóng/mở kỳ đánh giá KPI.')
                 return redirect('kpi_list')
             p_type = request.POST.get('period_type')
@@ -136,12 +149,11 @@ def kpi_list_view(request):
         'team_page': team_page,
         'team_query_string': team_query_string,
         'search_query': search_query,
-        'is_admin': is_admin,
-        'is_manager_or_gm': is_manager_or_gm,  # <--- Bắt buộc phải có dòng này nha ní!
         'admin_periods': admin_periods,
+        **perm,
     })
     
-@login_required
+@module_perm_required(MODULE_KPI, 'view')
 def kpi_detail_view(request, kpi_id):
     # 1. Lấy bảng KPI và các chỉ tiêu liên quan
     kpi_board = get_object_or_404(YearlyKpi, id=kpi_id)
@@ -150,12 +162,22 @@ def kpi_detail_view(request, kpi_id):
     # 2. Lấy danh sách các kỳ ĐANG MỞ (Q1, Q2, Q3, Q4, H1, H2, Y)
     open_periods = KpiPeriod.objects.filter(year=kpi_board.year, is_active=True).values_list('period_type', flat=True)
     
-    is_owner, is_manager, is_gm_user, can_view = _kpi_detail_roles(request.user, kpi_board)
-    if not can_view:
-        messages.error(request, 'Bạn không có quyền xem hoặc chỉnh sửa bảng KPI này.')
+    is_owner, is_manager, is_gm_user, can_view_board = _kpi_detail_roles(request.user, kpi_board)
+    if not can_view_board:
+        messages.error(request, 'Bạn không có quyền xem bảng KPI này.')
         return redirect('kpi_list')
 
+    perm = _kpi_perm_context(request.user)
+    can_update = perm['can_update']
+    can_edit_self = is_owner and can_update
+    can_edit_manager = is_manager and can_update
+    can_edit_gm = is_gm_user and can_update
+
     if request.method == 'POST':
+        if not can_update:
+            messages.error(request, 'Bạn không có quyền sửa / chấm điểm KPI.')
+            return redirect('kpi_detail', kpi_id=kpi_id)
+
         target_period = request.POST.get('target_period') # Nhận Q1, Q2, H1, Y...
         action = request.POST.get('action', 'save') 
 
@@ -184,19 +206,19 @@ def kpi_detail_view(request, kpi_id):
             
             try:
                 # NHÂN VIÊN TỰ CHẤM
-                if is_owner and current_status == 'self_evaluating':
+                if can_edit_self and current_status == 'self_evaluating':
                     val_self = request.POST.get(f"{prefix}self")
                     if val_self is not None:
                         setattr(item, f"{target_period.lower()}_self", float(val_self) if val_self.strip() != "" else None)
                 
                 # HOD CHẤM
-                if is_manager and current_status == 'manager_evaluating':
+                if can_edit_manager and current_status == 'manager_evaluating':
                     val_mgr = request.POST.get(f"{prefix}mgr")
                     if val_mgr is not None:
                         setattr(item, f"{target_period.lower()}_mgr", float(val_mgr) if val_mgr.strip() != "" else None)
                     
                 # GM CHỐT ĐIỂM
-                if is_gm_user and current_status == 'general_evaluating':
+                if can_edit_gm and current_status == 'general_evaluating':
                     val_gm = request.POST.get(f"{prefix}gm")
                     if val_gm is not None:
                         setattr(item, f"{target_period.lower()}_gm", float(val_gm) if val_gm.strip() != "" else None)
@@ -207,15 +229,15 @@ def kpi_detail_view(request, kpi_id):
                 continue
 
         # 5. CẬP NHẬT TRẠNG THÁI LUỒNG (Chỉ cập nhật khi bấm nút Nộp/Chốt)
-        if action == 'submit_manager' and is_owner:
+        if action == 'submit_manager' and can_edit_self:
             setattr(kpi_board, status_attr, 'manager_evaluating')
             messages.success(request, f"Đã gửi đánh giá {target_period} cho Quản lý!")
             
-        elif action == 'submit_gm' and is_manager:
+        elif action == 'submit_gm' and can_edit_manager:
             setattr(kpi_board, status_attr, 'general_evaluating')
             messages.success(request, f"Đã gửi kỳ {target_period} cho Quản lý cấp cao (GM)!")
             
-        elif action == 'finish' and is_gm_user:
+        elif action == 'finish' and can_edit_gm:
             setattr(kpi_board, status_attr, 'completed')
             messages.success(request, f"Chúc mừng! Đã chốt kết quả cuối cùng cho kỳ {target_period}!")
             
@@ -227,12 +249,16 @@ def kpi_detail_view(request, kpi_id):
 
     # 6. Render ra giao diện
     return render(request, 'kpi/kpi_form.html', {
-        'kpi': kpi_board, 
-        'items': items, 
+        'kpi': kpi_board,
+        'items': items,
         'open_periods': list(open_periods),
-        'is_owner': is_owner, 
-        'is_manager': is_manager, 
-        'is_gm': is_gm_user
+        'is_owner': is_owner,
+        'is_manager': is_manager,
+        'is_gm': is_gm_user,
+        'can_update': can_update,
+        'can_edit_self': can_edit_self,
+        'can_edit_manager': can_edit_manager,
+        'can_edit_gm': can_edit_gm,
     })
 
 # ========================================================

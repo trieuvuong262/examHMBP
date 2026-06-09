@@ -100,6 +100,20 @@ class KpiGranularPermissionTests(TestCase):
             module_permissions=create_group,
         )
 
+        update_only = dict(base)
+        update_only[MODULE_KPI] = {
+            'view': True,
+            'create': False,
+            'update': True,
+            'delete': False,
+            'export': False,
+        }
+        self.group_update = PermissionGroup.objects.create(
+            slug='test-kpi-update',
+            name='KPI update only',
+            module_permissions=update_only,
+        )
+
         self.employee = User.objects.create_user(username='kpi_view_only', password='pass12345')
         Profile.objects.filter(user=self.employee).update(
             full_name='KPI View',
@@ -116,6 +130,34 @@ class KpiGranularPermissionTests(TestCase):
             permission_group=self.group_create,
         )
 
+        self.updater = User.objects.create_user(username='kpi_updater', password='pass12345')
+        Profile.objects.filter(user=self.updater).update(
+            full_name='KPI Updater',
+            department=self.dept,
+            role=ROLE_TEAM_LEADER,
+            permission_group=self.group_update,
+        )
+
+        self.board = YearlyKpi.objects.create(
+            employee=self.employee,
+            direct_manager=self.manager,
+            year=2026,
+            eval_type='QUARTER',
+            y_status='self_evaluating',
+        )
+        from kpi.models import YearlyKpiItem
+        self.item = YearlyKpiItem.objects.create(
+            yearly_kpi=self.board,
+            pillar='FINANCE',
+            personal_objective='Test objective',
+            kpi_indicator='Indicator',
+            weightage=100,
+            yearly_target=100,
+            unit='%',
+            trend='HIGHER',
+        )
+        KpiPeriod.objects.create(year=2026, period_type='Y', title='Y', is_active=True)
+
         self.client = Client(HTTP_HOST='testserver')
 
     def test_view_only_employee_cannot_open_yearly_create(self):
@@ -128,3 +170,49 @@ class KpiGranularPermissionTests(TestCase):
         self.client.force_login(self.manager)
         response = self.client.get(reverse('yearly_kpi_create'))
         self.assertEqual(response.status_code, 200)
+
+    def test_view_only_can_open_kpi_list(self):
+        self.client.force_login(self.employee)
+        response = self.client.get(reverse('kpi_list'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_view_only_can_open_own_kpi_detail(self):
+        self.client.force_login(self.employee)
+        response = self.client.get(reverse('kpi_detail', kwargs={'kpi_id': self.board.id}))
+        self.assertEqual(response.status_code, 200)
+
+    def test_view_only_cannot_post_kpi_scores(self):
+        self.client.force_login(self.employee)
+        self.client.post(reverse('kpi_detail', kwargs={'kpi_id': self.board.id}), {
+            'target_period': 'Y',
+            'action': 'save',
+            f'item_{self.item.id}_Y_self': '88',
+        })
+        self.item.refresh_from_db()
+        self.assertIsNone(self.item.y_self)
+
+    def test_update_only_can_toggle_period(self):
+        self.client.force_login(self.updater)
+        response = self.client.post(reverse('kpi_list'), {
+            'toggle_period': '1',
+            'period_type': 'Q2',
+            'is_active': 'on',
+        })
+        self.assertEqual(response.status_code, 302)
+        period = KpiPeriod.objects.get(year=2026, period_type='Q2')
+        self.assertTrue(period.is_active)
+
+    def test_view_only_cannot_toggle_period(self):
+        self.client.force_login(self.employee)
+        self.client.post(reverse('kpi_list'), {
+            'toggle_period': '1',
+            'period_type': 'Q3',
+            'is_active': 'on',
+        })
+        self.assertFalse(KpiPeriod.objects.filter(year=2026, period_type='Q3').exists())
+
+    def test_update_only_cannot_open_yearly_create(self):
+        self.client.force_login(self.updater)
+        response = self.client.get(reverse('yearly_kpi_create'))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('home_portal'))

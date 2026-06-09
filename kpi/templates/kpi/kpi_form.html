@@ -133,21 +133,21 @@
                                                     <div class="period-header bg-hm-light text-hm">ĐÁNH GIÁ CẢ NĂM</div>
                                                     <div class="period-body justify-content-center gap-4">
                                                         <div class="col-input">NV Tự Chấm 
-                                                            {% if is_owner and kpi.y_status == 'self_evaluating' and 'Y' in open_periods %}
+                                                            {% if can_edit_self and kpi.y_status == 'self_evaluating' and 'Y' in open_periods %}
                                                                 <input type="number" step="0.1" name="item_{{item.id}}_Y_self" value="{{ item.y_self|default_if_none:'' }}" class="input-score text-hm">
                                                             {% else %}
                                                                 <div class="input-readonly text-hm">{{ item.y_self|default_if_none:'-' }}</div>
                                                             {% endif %}
                                                         </div>
                                                         <div class="col-input">HOD Duyệt 
-                                                            {% if is_manager and kpi.y_status == 'manager_evaluating' and 'Y' in open_periods %}
+                                                            {% if can_edit_manager and kpi.y_status == 'manager_evaluating' and 'Y' in open_periods %}
                                                                 <input type="number" step="0.1" name="item_{{item.id}}_Y_mgr" value="{{ item.y_mgr|default_if_none:'' }}" class="input-score text-warning-emphasis">
                                                             {% else %}
                                                                 <div class="input-readonly text-warning-emphasis">{{ item.y_mgr|default_if_none:'-' }}</div>
                                                             {% endif %}
                                                         </div>
                                                         <div class="col-input">GM Chốt 
-                                                            {% if is_gm and kpi.y_status == 'general_evaluating' and 'Y' in open_periods %}
+                                                            {% if can_edit_gm and kpi.y_status == 'general_evaluating' and 'Y' in open_periods %}
                                                                 <input type="number" step="0.1" name="item_{{item.id}}_Y_gm" value="{{ item.y_gm|default_if_none:'' }}" class="input-score text-danger">
                                                             {% else %}
                                                                 <div class="input-readonly text-danger">{{ item.y_gm|default_if_none:'-' }}</div>
@@ -162,17 +162,17 @@
                                                     <div class="period-header bg-light">NỬA ĐẦU (H1) <span class="text-hm fw-normal ms-1">Tgt: {{ item.yearly_target|divide:2 }}</span></div>
                                                     <div class="period-body">
                                                         <div class="col-input">NV 
-                                                            {% if is_owner and kpi.h1_status == 'self_evaluating' and 'H1' in open_periods %}
+                                                            {% if can_edit_self and kpi.h1_status == 'self_evaluating' and 'H1' in open_periods %}
                                                                 <input type="number" step="0.1" name="item_{{item.id}}_H1_self" value="{{ item.h1_self|default_if_none:'' }}" class="input-score text-hm">
                                                             {% else %}<div class="input-readonly text-hm opacity-75">{{ item.h1_self|default_if_none:'-' }}</div>{% endif %}
                                                         </div>
                                                         <div class="col-input">HOD 
-                                                            {% if is_manager and kpi.h1_status == 'manager_evaluating' and 'H1' in open_periods %}
+                                                            {% if can_edit_manager and kpi.h1_status == 'manager_evaluating' and 'H1' in open_periods %}
                                                                 <input type="number" step="0.1" name="item_{{item.id}}_H1_mgr" value="{{ item.h1_mgr|default_if_none:'' }}" class="input-score text-warning-emphasis">
                                                             {% else %}<div class="input-readonly text-warning-emphasis opacity-75">{{ item.h1_mgr|default_if_none:'-' }}</div>{% endif %}
                                                         </div>
                                                         <div class="col-input">GM 
-                                                            {% if is_gm and kpi.h1_status == 'general_evaluating' and 'H1' in open_periods %}
+                                                            {% if can_edit_gm and kpi.h1_status == 'general_evaluating' and 'H1' in open_periods %}
                                                                 <input type="number" step="0.1" name="item_{{item.id}}_H1_gm" value="{{ item.h1_gm|default_if_none:'' }}" class="input-score text-danger">
                                                             {% else %}<div class="input-readonly text-danger opacity-75">{{ item.h1_gm|default_if_none:'-' }}</div>{% endif %}
                                                         </div>
@@ -182,17 +182,17 @@
                                                     <div class="period-header bg-light">NỬA SAU (H2) <span class="text-hm fw-normal ms-1">Tgt: {{ item.yearly_target|divide:2 }}</span></div>
                                                     <div class="period-body">
                                                         <div class="col-input">NV 
-                                                            {% if is_owner and kpi.h2_status == 'self_evaluating' and 'H2' in open_periods %}
+                                                            {% if can_edit_self and kpi.h2_status == 'self_evaluating' and 'H2' in open_periods %}
                                                                 <input type="number" step="0.1" name="item_{{item.id}}_H2_self" value="{{ item.h2_self|default_if_none:'' }}" class="input-score text-hm">
                                                             {% else %}<div class="input-readonly text-hm opacity-75">{{ item.h2_self|default_if_none:'-' }}</div>{% endif %}
                                                         </div>
                                                         <div class="col-input">HOD 
-                                                            {% if is_manager and kpi.h2_status == 'manager_evaluating' and 'H2' in open_periods %}
+                                                            {% if can_edit_manager and kpi.h2_status == 'manager_evaluating' and 'H2' in open_periods %}
                                                                 <input type="number" step="0.1" name="item_{{item.id}}_H2_mgr" value="{{ item.h2_mgr|default_if_none:'' }}" class="input-score text-warning-emphasis">
                                                             {% else %}<div class="input-readonly text-warning-emphasis opacity-75">{{ item.h2_mgr|default_if_none:'-' }}</div>{% endif %}
                                                         </div>
                                                         <div class="col-input">GM 
-                                                            {% if is_gm and kpi.h2_status == 'general_evaluating' and 'H2' in open_periods %}
+                                                            {% if can_edit_gm and kpi.h2_status == 'general_evaluating' and 'H2' in open_periods %}
                                                                 <input type="number" step="0.1" name="item_{{item.id}}_H2_gm" value="{{ item.h2_gm|default_if_none:'' }}" class="input-score text-danger">
                                                             {% else %}<div class="input-readonly text-danger opacity-75">{{ item.h2_gm|default_if_none:'-' }}</div>{% endif %}
                                                         </div>
@@ -204,33 +204,33 @@
                                                 <div class="period-block">
                                                     <div class="period-header bg-hm-light bg-opacity-25">QUÝ 1 <span class="text-hm fw-normal ms-1">Tgt: {{ item.yearly_target|divide:4 }}</span></div>
                                                     <div class="period-body">
-                                                        <div class="col-input">NV {% if is_owner and kpi.q1_status == 'self_evaluating' and 'Q1' in open_periods %}<input type="number" step="0.1" name="item_{{item.id}}_Q1_self" value="{{ item.q1_self|default_if_none:'' }}" class="input-score text-hm">{% else %}<div class="input-readonly opacity-75">{{ item.q1_self|default_if_none:'-' }}</div>{% endif %}</div>
-                                                        <div class="col-input">HOD {% if is_manager and kpi.q1_status == 'manager_evaluating' and 'Q1' in open_periods %}<input type="number" step="0.1" name="item_{{item.id}}_Q1_mgr" value="{{ item.q1_mgr|default_if_none:'' }}" class="input-score text-warning-emphasis">{% else %}<div class="input-readonly opacity-75">{{ item.q1_mgr|default_if_none:'-' }}</div>{% endif %}</div>
-                                                        <div class="col-input">GM {% if is_gm and kpi.q1_status == 'general_evaluating' and 'Q1' in open_periods %}<input type="number" step="0.1" name="item_{{item.id}}_Q1_gm" value="{{ item.q1_gm|default_if_none:'' }}" class="input-score text-danger">{% else %}<div class="input-readonly opacity-75">{{ item.q1_gm|default_if_none:'-' }}</div>{% endif %}</div>
+                                                        <div class="col-input">NV {% if can_edit_self and kpi.q1_status == 'self_evaluating' and 'Q1' in open_periods %}<input type="number" step="0.1" name="item_{{item.id}}_Q1_self" value="{{ item.q1_self|default_if_none:'' }}" class="input-score text-hm">{% else %}<div class="input-readonly opacity-75">{{ item.q1_self|default_if_none:'-' }}</div>{% endif %}</div>
+                                                        <div class="col-input">HOD {% if can_edit_manager and kpi.q1_status == 'manager_evaluating' and 'Q1' in open_periods %}<input type="number" step="0.1" name="item_{{item.id}}_Q1_mgr" value="{{ item.q1_mgr|default_if_none:'' }}" class="input-score text-warning-emphasis">{% else %}<div class="input-readonly opacity-75">{{ item.q1_mgr|default_if_none:'-' }}</div>{% endif %}</div>
+                                                        <div class="col-input">GM {% if can_edit_gm and kpi.q1_status == 'general_evaluating' and 'Q1' in open_periods %}<input type="number" step="0.1" name="item_{{item.id}}_Q1_gm" value="{{ item.q1_gm|default_if_none:'' }}" class="input-score text-danger">{% else %}<div class="input-readonly opacity-75">{{ item.q1_gm|default_if_none:'-' }}</div>{% endif %}</div>
                                                     </div>
                                                 </div>
                                                 <div class="period-block">
                                                     <div class="period-header bg-light">QUÝ 2 <span class="text-hm fw-normal ms-1">Tgt: {{ item.yearly_target|divide:4 }}</span></div>
                                                     <div class="period-body">
-                                                        <div class="col-input">NV {% if is_owner and kpi.q2_status == 'self_evaluating' and 'Q2' in open_periods %}<input type="number" step="0.1" name="item_{{item.id}}_Q2_self" value="{{ item.q2_self|default_if_none:'' }}" class="input-score text-hm">{% else %}<div class="input-readonly opacity-75">{{ item.q2_self|default_if_none:'-' }}</div>{% endif %}</div>
-                                                        <div class="col-input">HOD {% if is_manager and kpi.q2_status == 'manager_evaluating' and 'Q2' in open_periods %}<input type="number" step="0.1" name="item_{{item.id}}_Q2_mgr" value="{{ item.q2_mgr|default_if_none:'' }}" class="input-score text-warning-emphasis">{% else %}<div class="input-readonly opacity-75">{{ item.q2_mgr|default_if_none:'-' }}</div>{% endif %}</div>
-                                                        <div class="col-input">GM {% if is_gm and kpi.q2_status == 'general_evaluating' and 'Q2' in open_periods %}<input type="number" step="0.1" name="item_{{item.id}}_Q2_gm" value="{{ item.q2_gm|default_if_none:'' }}" class="input-score text-danger">{% else %}<div class="input-readonly opacity-75">{{ item.q2_gm|default_if_none:'-' }}</div>{% endif %}</div>
+                                                        <div class="col-input">NV {% if can_edit_self and kpi.q2_status == 'self_evaluating' and 'Q2' in open_periods %}<input type="number" step="0.1" name="item_{{item.id}}_Q2_self" value="{{ item.q2_self|default_if_none:'' }}" class="input-score text-hm">{% else %}<div class="input-readonly opacity-75">{{ item.q2_self|default_if_none:'-' }}</div>{% endif %}</div>
+                                                        <div class="col-input">HOD {% if can_edit_manager and kpi.q2_status == 'manager_evaluating' and 'Q2' in open_periods %}<input type="number" step="0.1" name="item_{{item.id}}_Q2_mgr" value="{{ item.q2_mgr|default_if_none:'' }}" class="input-score text-warning-emphasis">{% else %}<div class="input-readonly opacity-75">{{ item.q2_mgr|default_if_none:'-' }}</div>{% endif %}</div>
+                                                        <div class="col-input">GM {% if can_edit_gm and kpi.q2_status == 'general_evaluating' and 'Q2' in open_periods %}<input type="number" step="0.1" name="item_{{item.id}}_Q2_gm" value="{{ item.q2_gm|default_if_none:'' }}" class="input-score text-danger">{% else %}<div class="input-readonly opacity-75">{{ item.q2_gm|default_if_none:'-' }}</div>{% endif %}</div>
                                                     </div>
                                                 </div>
                                                 <div class="period-block">
                                                     <div class="period-header bg-hm-light bg-opacity-25">QUÝ 3 <span class="text-hm fw-normal ms-1">Tgt: {{ item.yearly_target|divide:4 }}</span></div>
                                                     <div class="period-body">
-                                                        <div class="col-input">NV {% if is_owner and kpi.q3_status == 'self_evaluating' and 'Q3' in open_periods %}<input type="number" step="0.1" name="item_{{item.id}}_Q3_self" value="{{ item.q3_self|default_if_none:'' }}" class="input-score text-hm">{% else %}<div class="input-readonly opacity-75">{{ item.q3_self|default_if_none:'-' }}</div>{% endif %}</div>
-                                                        <div class="col-input">HOD {% if is_manager and kpi.q3_status == 'manager_evaluating' and 'Q3' in open_periods %}<input type="number" step="0.1" name="item_{{item.id}}_Q3_mgr" value="{{ item.q3_mgr|default_if_none:'' }}" class="input-score text-warning-emphasis">{% else %}<div class="input-readonly opacity-75">{{ item.q3_mgr|default_if_none:'-' }}</div>{% endif %}</div>
-                                                        <div class="col-input">GM {% if is_gm and kpi.q3_status == 'general_evaluating' and 'Q3' in open_periods %}<input type="number" step="0.1" name="item_{{item.id}}_Q3_gm" value="{{ item.q3_gm|default_if_none:'' }}" class="input-score text-danger">{% else %}<div class="input-readonly opacity-75">{{ item.q3_gm|default_if_none:'-' }}</div>{% endif %}</div>
+                                                        <div class="col-input">NV {% if can_edit_self and kpi.q3_status == 'self_evaluating' and 'Q3' in open_periods %}<input type="number" step="0.1" name="item_{{item.id}}_Q3_self" value="{{ item.q3_self|default_if_none:'' }}" class="input-score text-hm">{% else %}<div class="input-readonly opacity-75">{{ item.q3_self|default_if_none:'-' }}</div>{% endif %}</div>
+                                                        <div class="col-input">HOD {% if can_edit_manager and kpi.q3_status == 'manager_evaluating' and 'Q3' in open_periods %}<input type="number" step="0.1" name="item_{{item.id}}_Q3_mgr" value="{{ item.q3_mgr|default_if_none:'' }}" class="input-score text-warning-emphasis">{% else %}<div class="input-readonly opacity-75">{{ item.q3_mgr|default_if_none:'-' }}</div>{% endif %}</div>
+                                                        <div class="col-input">GM {% if can_edit_gm and kpi.q3_status == 'general_evaluating' and 'Q3' in open_periods %}<input type="number" step="0.1" name="item_{{item.id}}_Q3_gm" value="{{ item.q3_gm|default_if_none:'' }}" class="input-score text-danger">{% else %}<div class="input-readonly opacity-75">{{ item.q3_gm|default_if_none:'-' }}</div>{% endif %}</div>
                                                     </div>
                                                 </div>
                                                 <div class="period-block">
                                                     <div class="period-header bg-light">QUÝ 4 <span class="text-hm fw-normal ms-1">Tgt: {{ item.yearly_target|divide:4 }}</span></div>
                                                     <div class="period-body">
-                                                        <div class="col-input">NV {% if is_owner and kpi.q4_status == 'self_evaluating' and 'Q4' in open_periods %}<input type="number" step="0.1" name="item_{{item.id}}_Q4_self" value="{{ item.q4_self|default_if_none:'' }}" class="input-score text-hm">{% else %}<div class="input-readonly opacity-75">{{ item.q4_self|default_if_none:'-' }}</div>{% endif %}</div>
-                                                        <div class="col-input">HOD {% if is_manager and kpi.q4_status == 'manager_evaluating' and 'Q4' in open_periods %}<input type="number" step="0.1" name="item_{{item.id}}_Q4_mgr" value="{{ item.q4_mgr|default_if_none:'' }}" class="input-score text-warning-emphasis">{% else %}<div class="input-readonly opacity-75">{{ item.q4_mgr|default_if_none:'-' }}</div>{% endif %}</div>
-                                                        <div class="col-input">GM {% if is_gm and kpi.q4_status == 'general_evaluating' and 'Q4' in open_periods %}<input type="number" step="0.1" name="item_{{item.id}}_Q4_gm" value="{{ item.q4_gm|default_if_none:'' }}" class="input-score text-danger">{% else %}<div class="input-readonly opacity-75">{{ item.q4_gm|default_if_none:'-' }}</div>{% endif %}</div>
+                                                        <div class="col-input">NV {% if can_edit_self and kpi.q4_status == 'self_evaluating' and 'Q4' in open_periods %}<input type="number" step="0.1" name="item_{{item.id}}_Q4_self" value="{{ item.q4_self|default_if_none:'' }}" class="input-score text-hm">{% else %}<div class="input-readonly opacity-75">{{ item.q4_self|default_if_none:'-' }}</div>{% endif %}</div>
+                                                        <div class="col-input">HOD {% if can_edit_manager and kpi.q4_status == 'manager_evaluating' and 'Q4' in open_periods %}<input type="number" step="0.1" name="item_{{item.id}}_Q4_mgr" value="{{ item.q4_mgr|default_if_none:'' }}" class="input-score text-warning-emphasis">{% else %}<div class="input-readonly opacity-75">{{ item.q4_mgr|default_if_none:'-' }}</div>{% endif %}</div>
+                                                        <div class="col-input">GM {% if can_edit_gm and kpi.q4_status == 'general_evaluating' and 'Q4' in open_periods %}<input type="number" step="0.1" name="item_{{item.id}}_Q4_gm" value="{{ item.q4_gm|default_if_none:'' }}" class="input-score text-danger">{% else %}<div class="input-readonly opacity-75">{{ item.q4_gm|default_if_none:'-' }}</div>{% endif %}</div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -263,14 +263,16 @@
                     {% endif %}
                 </select>
 
+                {% if can_update %}
                 <button type="submit" name="action" value="save" class="btn btn-outline-dark px-5 fw-bold shadow-sm">LƯU BẢN NHÁP</button>
                 
-                {% if is_owner %}
+                {% if can_edit_self %}
                     <button type="submit" name="action" value="submit_manager" class="btn btn-hm px-5 fw-bold shadow-sm">NỘP CHO QUẢN LÝ (HOD)</button>
-                {% elif is_manager %}
+                {% elif can_edit_manager %}
                     <button type="submit" name="action" value="submit_gm" class="btn btn-hm-dark px-5 fw-bold shadow-sm text-dark">NỘP CHO GIÁM ĐỐC (GM)</button>
-                {% elif is_gm %}
+                {% elif can_edit_gm %}
                     <button type="submit" name="action" value="finish" class="btn btn-danger px-5 fw-bold shadow-sm">CHỐT KẾT QUẢ</button>
+                {% endif %}
                 {% endif %}
             </div>
         </div>

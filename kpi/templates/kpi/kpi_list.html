@@ -26,7 +26,7 @@
             <h3 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-graph-up-arrow me-2"></i>Đánh giá KPI</h3>
         </div>
         <div class="d-flex flex-wrap gap-2 w-100 w-md-auto">
-        {% if is_manager_or_gm %}
+        {% if can_manage_kpi %}
             <a href="{% url 'yearly_kpi_create' %}" class="btn btn-hm shadow-sm fw-bold btn-hover-lift flex-fill flex-md-grow-0">
                 <i class="bi bi-plus-circle me-1"></i> Giao KPI
             </a>
@@ -34,7 +34,7 @@
                 <i class="bi bi-file-earmark-excel-fill me-1"></i> Import
             </a>
         {% endif %}
-        {% if is_admin %}
+        {% if can_toggle_period %}
             <button data-bs-toggle="modal" data-bs-target="#adminPeriodModal" class="btn btn-danger shadow-sm fw-bold btn-hover-lift flex-fill flex-md-grow-0">
                 <i class="bi bi-sliders me-1"></i> Kỳ ĐG
             </button>
@@ -189,7 +189,7 @@
     </div>
     {% endif %}
 </div>
-{% if is_admin %}
+{% if can_toggle_period %}
 <div class="modal fade" id="adminPeriodModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
@@ -198,7 +198,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4">
-                <p class="text-muted small mb-4">Chỉ nhân viên Admin mới có quyền bật/tắt các kỳ đánh giá dưới đây. Khi kỳ bị tắt, các ô nhập điểm tương ứng trên hệ thống sẽ bị đóng băng.</p>
+                <p class="text-muted small mb-4">Cần quyền sửa module KPI để bật/tắt các kỳ đánh giá. Khi kỳ bị tắt, các ô nhập điểm tương ứng sẽ bị đóng băng.</p>
                 
                 <div class="list-group list-group-flush">
                     {% for period in admin_periods %}
