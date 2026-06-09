@@ -6454,7 +6454,7 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
 }
 
 .jp-perm-group-name-toggle:hover {
-    background: var(--hm-primary-soft, #fef2f2);
+    background: #f1f5f9;
 }
 
 .jp-perm-group-name-toggle[aria-expanded="true"] .jp-perm-member-chevron {
@@ -6494,7 +6494,7 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
 }
 
 .jp-perm-member-toggle:hover {
-    background: var(--hm-primary-soft, #fef2f2);
+    background: #f1f5f9;
     border-radius: 999px;
 }
 
@@ -6600,7 +6600,7 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
 }
 
 .jp-perm-members-row-link:hover {
-    background: var(--hm-primary-soft, #fef2f2);
+    background: #f1f5f9;
     color: inherit;
 }
 
@@ -6806,7 +6806,7 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
 [data-theme="dark"] .jp-perm-group-name-toggle:hover,
 [data-theme="dark"] .jp-perm-member-toggle:hover,
 [data-theme="dark"] .jp-perm-members-row-link:hover {
-    background: rgba(220, 38, 38, 0.12);
+    background: rgba(255, 255, 255, 0.06);
 }
 
 [data-theme="dark"] .jp-perm-member-toggle:hover .jp-perm-member-count {
