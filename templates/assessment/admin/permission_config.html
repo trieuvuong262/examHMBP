@@ -107,7 +107,7 @@
                     </div>
                 </div>
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0 jp-perm-group-list-table">
+                    <table class="table align-middle mb-0 jp-perm-group-list-table">
                         <thead class="bg-light text-uppercase small">
                             <tr>
                                 <th class="ps-4 py-3 text-muted jp-perm-col-name">Nhóm quyền</th>
@@ -119,7 +119,7 @@
                             {% for row in group_rows %}
                             {% with group=row.group %}
                             <tr class="jp-perm-group-row">
-                                <td class="ps-4 jp-perm-col-name">
+                                <td class="jp-perm-col-name">
                                     {% if group.profile_count %}
                                     <button type="button"
                                             class="jp-perm-group-name-toggle"
@@ -138,10 +138,10 @@
                                         <i class="bi bi-chevron-down jp-perm-member-chevron" aria-hidden="true"></i>
                                     </button>
                                     {% else %}
-                                    <div class="d-flex align-items-start gap-2">
+                                    <div class="jp-perm-group-name-static">
                                         <span class="jp-perm-group-avatar"><i class="bi bi-shield-check"></i></span>
-                                        <div class="min-w-0">
-                                            <div class="fw-semibold text-dark">{{ group.name }}</div>
+                                        <div class="min-w-0 flex-grow-1">
+                                            <div class="jp-perm-group-name-text">{{ group.name }}</div>
                                             {% if group.description %}
                                             <div class="small text-muted jp-perm-group-desc">{{ group.description|truncatechars:100 }}</div>
                                             {% endif %}
@@ -149,7 +149,7 @@
                                     </div>
                                     {% endif %}
                                 </td>
-                                <td class="text-center jp-perm-col-count">
+                                <td class="jp-perm-col-count">
                                     {% if group.profile_count %}
                                     <button type="button"
                                             class="jp-perm-member-toggle"
