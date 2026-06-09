@@ -8,7 +8,9 @@ from django.contrib.auth.views import PasswordChangeView
 from django.urls import reverse_lazy, reverse
 from django.contrib.auth import logout
 from django.http import HttpResponse, JsonResponse
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_POST
+from django.db import IntegrityError
+import re
 from django.db import transaction
 from django.db.models import Count, Prefetch, Q
 # Import từ các app khác sang
@@ -42,7 +44,9 @@ from hrm.forms import (
     DivisionForm,
     PermissionGroupMetaForm,
     PermissionGroupPermissionForm,
+    ProfileConcurrentPositionForm,
     ProfileConcurrentPositionFormSet,
+    ProfileConcurrentPositionEditFormSet,
     RolePermissionForm,
 )
 from hrm.user_search import (
@@ -131,6 +135,14 @@ def _user_edit_page_context(profile):
         'subordinate_count': profile.subordinates.filter(profile__is_employed=True).count(),
         'concurrent_active_count': profile.concurrent_positions.filter(is_active=True).count(),
         'permission_group_label': permission_group.name if permission_group else None,
+    }
+
+
+def _user_edit_render_context(profile, user_obj):
+    return {
+        **_user_form_extra_context(),
+        **_user_edit_page_context(profile),
+        'concurrent_slot_save_url': reverse('user_concurrent_slot_save', args=[user_obj.id]),
     }
 
 
@@ -431,7 +443,7 @@ def user_edit(request, user_id):
     if request.method == 'POST':
         # TRUYỀN user_id VÀO ĐÂY: Để hàm clean_username trong forms.py không báo lỗi trùng chính mình
         form = CustomUserForm(request.POST, user_id=user_obj.id)
-        concurrent_formset = ProfileConcurrentPositionFormSet(
+        concurrent_formset = ProfileConcurrentPositionEditFormSet(
             request.POST,
             instance=profile,
             prefix='concurrent',
@@ -486,8 +498,7 @@ def user_edit(request, user_id):
                         'is_edit': True,
                         'user_instance': user_obj,
                         'profile': profile,
-                        **_user_form_extra_context(),
-                        **_user_edit_page_context(profile),
+                        **_user_edit_render_context(profile, user_obj),
                     })
 
             messages.success(request, f"Cập nhật {profile.full_name} thành công!")
@@ -516,7 +527,7 @@ def user_edit(request, user_id):
         # Truyền user_id để form biết đường loại trừ chính mình khỏi danh sách chọn cấp dưới
         form = CustomUserForm(initial=initial_data, user_id=user_obj.id)
         form.fields['password'].required = False
-        concurrent_formset = ProfileConcurrentPositionFormSet(
+        concurrent_formset = ProfileConcurrentPositionEditFormSet(
             instance=profile,
             prefix='concurrent',
         )
@@ -528,9 +539,83 @@ def user_edit(request, user_id):
         'is_edit': True,
         'user_instance': user_obj,
         'profile': profile,
-        **_user_form_extra_context(),
-        **_user_edit_page_context(profile),
+        **_user_edit_render_context(profile, user_obj),
     })
+@module_perm_required(MODULE_HRM, 'update')
+@require_POST
+def user_concurrent_slot_save(request, user_id):
+    user_obj = get_object_or_404(User, id=user_id)
+    profile = get_object_or_404(Profile, user=user_obj)
+
+    form_prefix = (request.POST.get('form_prefix') or '').strip()
+    if not re.match(r'^concurrent-\d+$', form_prefix):
+        return JsonResponse({'status': 'error', 'message': 'Form slot không hợp lệ.'}, status=400)
+
+    slot_id = (request.POST.get(f'{form_prefix}-id') or '').strip()
+    delete_flag = request.POST.get(f'{form_prefix}-DELETE') in ('on', 'true', '1', 'True')
+
+    instance = None
+    if slot_id.isdigit():
+        instance = get_object_or_404(
+            ProfileConcurrentPosition,
+            pk=int(slot_id),
+            profile=profile,
+        )
+
+    if delete_flag:
+        if instance and instance.pk:
+            instance.delete()
+            return JsonResponse({
+                'status': 'ok',
+                'deleted': True,
+                'concurrent_active_count': profile.concurrent_positions.filter(is_active=True).count(),
+            })
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Slot chưa lưu — xóa dòng trên màn hình.',
+        }, status=400)
+
+    form = ProfileConcurrentPositionForm(
+        request.POST,
+        instance=instance or ProfileConcurrentPosition(profile=profile),
+        prefix=form_prefix,
+    )
+    if not form.is_valid():
+        flat_errors = []
+        for field, errs in form.errors.items():
+            for err in errs:
+                label = field
+                if field in form.fields:
+                    label = form.fields[field].label or field
+                flat_errors.append(f'{label}: {err}')
+        return JsonResponse({
+            'status': 'error',
+            'message': flat_errors[0] if flat_errors else 'Kiểm tra lại dữ liệu slot.',
+            'errors': form.errors,
+        }, status=400)
+
+    slot = form.save(commit=False)
+    slot.profile = profile
+    try:
+        slot.save()
+    except IntegrityError:
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Trùng slot kiêm nhiệm đang hiệu lực (phòng/bộ phận/vị trí).',
+        }, status=400)
+
+    if 'subordinates' in form.cleaned_data:
+        slot.subordinates.set(form.cleaned_data['subordinates'])
+
+    return JsonResponse({
+        'status': 'ok',
+        'slot_id': slot.pk,
+        'is_active': slot.is_active,
+        'concurrent_active_count': profile.concurrent_positions.filter(is_active=True).count(),
+        'form_prefix': form_prefix,
+    })
+
+
 @module_perm_required(MODULE_HRM, 'delete')
 def user_delete(request, user_id):
     user = get_object_or_404(User, id=user_id)

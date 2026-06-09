@@ -400,6 +400,12 @@ class ProfileConcurrentPositionForm(forms.ModelForm):
         if self.instance.pk:
             self.fields['subordinates'].initial = self.instance.subordinates.all()
         self.slot_manager_role = slot_role
+        self.subordinate_scope_hint = subordinate_scope_hint(
+            manager_role=slot_role,
+            department_id=dept_id,
+            division_id=div_id,
+        )
+        self.subordinate_candidate_count = self.fields['subordinates'].queryset.count()
 
     def clean(self):
         cleaned = super().clean()
@@ -458,6 +464,15 @@ ProfileConcurrentPositionFormSet = inlineformset_factory(
     form=ProfileConcurrentPositionForm,
     formset=BaseProfileConcurrentPositionFormSet,
     extra=1,
+    can_delete=True,
+)
+
+ProfileConcurrentPositionEditFormSet = inlineformset_factory(
+    Profile,
+    ProfileConcurrentPosition,
+    form=ProfileConcurrentPositionForm,
+    formset=BaseProfileConcurrentPositionFormSet,
+    extra=0,
     can_delete=True,
 )
 

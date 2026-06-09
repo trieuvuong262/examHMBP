@@ -1,0 +1,95 @@
+{% load user_picker %}
+{# cp_form, slot_index, is_edit=False #}
+<div class="jp-concurrent-slot-card jp-concurrent-position-row{% if cp_form.errors %} is-invalid{% endif %}{% if not cp_form.instance.pk %} jp-concurrent-slot-card--draft{% endif %}"
+     data-concurrent-slot
+     data-form-prefix="{{ cp_form.prefix }}">
+    {% for hidden in cp_form.hidden_fields %}{{ hidden }}{% endfor %}
+    <div class="jp-concurrent-slot-head">
+        <div class="jp-concurrent-slot-title">
+            <span class="jp-concurrent-slot-index">Slot {{ slot_index }}</span>
+            {% if cp_form.instance.pk and cp_form.instance.is_active %}
+            <span class="badge bg-success-subtle text-success jp-concurrent-slot-status">Hiệu lực</span>
+            {% elif cp_form.instance.pk %}
+            <span class="badge bg-secondary-subtle text-secondary jp-concurrent-slot-status">Tắt</span>
+            {% else %}
+            <span class="badge bg-light text-muted border jp-concurrent-slot-status">Mới</span>
+            {% endif %}
+        </div>
+        <div class="jp-concurrent-slot-actions">
+            <div class="form-check form-switch mb-0">
+                {{ cp_form.is_active }}
+                <label class="form-check-label small" for="{{ cp_form.is_active.id_for_label }}">Bật</label>
+            </div>
+            {% if cp_form.DELETE %}
+            <div class="form-check mb-0">
+                {{ cp_form.DELETE }}
+                <label class="form-check-label small text-danger" for="{{ cp_form.DELETE.id_for_label }}">Xóa</label>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="row g-2 g-md-3">
+        <div class="col-md-4 col-sm-6">
+            <label class="jp-form-label small mb-1">{{ cp_form.department.label }}</label>
+            {{ cp_form.department }}
+            {% for e in cp_form.department.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="col-md-4 col-sm-6">
+            <label class="jp-form-label small mb-1">{{ cp_form.division.label }}</label>
+            {{ cp_form.division }}
+            {% for e in cp_form.division.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="col-md-4 col-sm-6">
+            <label class="jp-form-label small mb-1">{{ cp_form.role.label }}</label>
+            {{ cp_form.role }}
+        </div>
+        <div class="col-md-4 col-sm-6">
+            <label class="jp-form-label small mb-1">{{ cp_form.job_position.label }}</label>
+            {{ cp_form.job_position }}
+            {% for e in cp_form.job_position.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="col-md-4 col-sm-6">
+            <label class="jp-form-label small mb-1">{{ cp_form.job_title.label }}</label>
+            {{ cp_form.job_title }}
+        </div>
+        <div class="col-md-2 col-sm-4">
+            <label class="jp-form-label small mb-1">{{ cp_form.sort_order.label }}</label>
+            {{ cp_form.sort_order }}
+        </div>
+        <div class="col-md-6 col-sm-8">
+            <label class="jp-form-label small mb-1">{{ cp_form.notes.label }}</label>
+            {{ cp_form.notes }}
+        </div>
+    </div>
+    <div class="jp-concurrent-subordinates-wrap mt-3 d-none" data-slot-subordinates>
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+            <label class="jp-form-label small mb-0">{{ cp_form.subordinates.label }}</label>
+            <span class="badge bg-light text-muted border jp-slot-sub-count">{{ cp_form.subordinate_candidate_count }} ứng viên</span>
+        </div>
+        <p class="small text-muted mb-2">{{ cp_form.subordinates.help_text }}</p>
+        <p class="small text-hm mb-2 jp-slot-sub-hint">{{ cp_form.subordinate_scope_hint }}</p>
+        <div class="d-flex flex-wrap gap-2 mb-3 jp-slot-sub-quick">
+            <button type="button" class="btn btn-sm btn-outline-hm jp-slot-sub-pick-div" hidden>
+                <i class="bi bi-diagram-3 me-1"></i>Chọn cùng bộ phận
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-hm jp-slot-sub-pick-dept" hidden>
+                <i class="bi bi-building me-1"></i>Chọn cùng phòng ban
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary jp-slot-sub-clear">
+                <i class="bi bi-x-circle me-1"></i>Bỏ chọn
+            </button>
+        </div>
+        <div class="jp-subordinates-picker-wrap">
+            {% user_picker field=cp_form.subordinates placeholder='Tìm và chọn nhân viên cấp dưới tại slot...' show_org_meta=True picker_class='jp-user-picker--wide' %}
+        </div>
+        {% for e in cp_form.subordinates.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    </div>
+    {% if is_edit %}
+    <div class="jp-concurrent-slot-footer">
+        <button type="button" class="btn btn-sm btn-hm fw-bold jp-concurrent-slot-save">
+            <i class="bi bi-check-circle me-1"></i>Lưu slot
+        </button>
+        <span class="small jp-concurrent-slot-save-status text-muted"></span>
+    </div>
+    {% endif %}
+</div>

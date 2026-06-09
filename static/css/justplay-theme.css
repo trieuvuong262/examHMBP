@@ -3390,6 +3390,24 @@ body.jp-tool-loading-active {
     flex-wrap: wrap;
 }
 
+.jp-concurrent-slot-footer {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+    margin-top: 0.85rem;
+    padding-top: 0.75rem;
+    border-top: 1px dashed #e2e8f0;
+}
+
+.jp-concurrent-slot-save-status.text-success {
+    color: var(--bs-success, #198754) !important;
+}
+
+.jp-concurrent-slot-save-status.text-danger {
+    color: var(--bs-danger, #dc3545) !important;
+}
+
 .jp-hrm-name-link {
     color: inherit;
     text-decoration: none;

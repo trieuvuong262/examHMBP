@@ -145,10 +145,10 @@
         <nav class="jp-user-detail-nav mb-3" aria-label="Điều hướng form nhân viên">
             <a href="#section-hr" class="jp-user-detail-nav-link"><i class="bi bi-person-vcard"></i><span>Nhân sự</span></a>
             <a href="#section-org" class="jp-user-detail-nav-link"><i class="bi bi-diagram-3"></i><span>Tổ chức</span></a>
+            <a href="#section-subordinates" class="jp-user-detail-nav-link jp-user-detail-nav-sub d-none" id="navSubordinates"><i class="bi bi-people"></i><span>Cấp dưới</span></a>
             {% if concurrent_formset %}
             <a href="#section-concurrent" class="jp-user-detail-nav-link"><i class="bi bi-layers"></i><span>Kiêm nhiệm</span></a>
             {% endif %}
-            <a href="#section-subordinates" class="jp-user-detail-nav-link jp-user-detail-nav-sub d-none" id="navSubordinates"><i class="bi bi-people"></i><span>Cấp dưới</span></a>
             <a href="#section-account" class="jp-user-detail-nav-link"><i class="bi bi-shield-lock"></i><span>Tài khoản</span></a>
             <a href="#section-permissions" class="jp-user-detail-nav-link"><i class="bi bi-key"></i><span>Quyền</span></a>
         </nav>
@@ -210,102 +210,11 @@
                     </div>
                 </div>
 
-                {% if concurrent_formset %}
-                <div class="card border-0 shadow-sm jp-user-form-panel mt-3" id="section-concurrent">
-                    <div class="jp-user-form-panel-head">
-                        <i class="bi bi-layers-fill"></i>
-                        <span>Vị trí kiêm nhiệm</span>
-                        <span class="badge bg-light text-muted border ms-auto">Tùy chọn</span>
-                    </div>
-                    <div class="card-body p-3 p-md-4">
-                        <p class="small text-muted mb-3">
-                            Bổ sung vai trò tổ chức tại phòng/bộ phận khác — quyền module vẫn theo vị trí chính và nhóm quyền.
-                        </p>
-                        {{ concurrent_formset.management_form }}
-                        {% if concurrent_formset.non_form_errors %}
-                        <div class="alert alert-danger py-2 small">{{ concurrent_formset.non_form_errors }}</div>
-                        {% endif %}
-                        <div class="jp-concurrent-positions-rows d-flex flex-column gap-3" id="concurrent-positions">
-                            {% for cp_form in concurrent_formset %}
-                            <div class="jp-concurrent-slot-card jp-concurrent-position-row{% if cp_form.errors %} is-invalid{% endif %}{% if not cp_form.instance.pk %} jp-concurrent-slot-card--empty{% endif %}" data-concurrent-slot>
-                                {% for hidden in cp_form.hidden_fields %}{{ hidden }}{% endfor %}
-                                <div class="jp-concurrent-slot-head">
-                                    <div class="jp-concurrent-slot-title">
-                                        <span class="jp-concurrent-slot-index">Slot {{ forloop.counter }}</span>
-                                        {% if cp_form.instance.pk and cp_form.instance.is_active %}
-                                        <span class="badge bg-success-subtle text-success">Hiệu lực</span>
-                                        {% elif cp_form.instance.pk %}
-                                        <span class="badge bg-secondary-subtle text-secondary">Tắt</span>
-                                        {% else %}
-                                        <span class="badge bg-light text-muted border">Mới</span>
-                                        {% endif %}
-                                    </div>
-                                    <div class="jp-concurrent-slot-actions">
-                                        <div class="form-check form-switch mb-0">
-                                            {{ cp_form.is_active }}
-                                            <label class="form-check-label small" for="{{ cp_form.is_active.id_for_label }}">Bật</label>
-                                        </div>
-                                        {% if cp_form.DELETE %}
-                                        <div class="form-check mb-0">
-                                            {{ cp_form.DELETE }}
-                                            <label class="form-check-label small text-danger" for="{{ cp_form.DELETE.id_for_label }}">Xóa</label>
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                <div class="row g-2 g-md-3">
-                                    <div class="col-md-4 col-sm-6">
-                                        <label class="jp-form-label small mb-1">{{ cp_form.department.label }}</label>
-                                        {{ cp_form.department }}
-                                        {% for e in cp_form.department.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-                                    </div>
-                                    <div class="col-md-4 col-sm-6">
-                                        <label class="jp-form-label small mb-1">{{ cp_form.division.label }}</label>
-                                        {{ cp_form.division }}
-                                        {% for e in cp_form.division.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-                                    </div>
-                                    <div class="col-md-4 col-sm-6">
-                                        <label class="jp-form-label small mb-1">{{ cp_form.role.label }}</label>
-                                        {{ cp_form.role }}
-                                    </div>
-                                    <div class="col-md-4 col-sm-6">
-                                        <label class="jp-form-label small mb-1">{{ cp_form.job_position.label }}</label>
-                                        {{ cp_form.job_position }}
-                                        {% for e in cp_form.job_position.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-                                    </div>
-                                    <div class="col-md-4 col-sm-6">
-                                        <label class="jp-form-label small mb-1">{{ cp_form.job_title.label }}</label>
-                                        {{ cp_form.job_title }}
-                                    </div>
-                                    <div class="col-md-2 col-sm-4">
-                                        <label class="jp-form-label small mb-1">{{ cp_form.sort_order.label }}</label>
-                                        {{ cp_form.sort_order }}
-                                    </div>
-                                    <div class="col-md-6 col-sm-8">
-                                        <label class="jp-form-label small mb-1">{{ cp_form.notes.label }}</label>
-                                        {{ cp_form.notes }}
-                                    </div>
-                                </div>
-                                <div class="jp-concurrent-subordinates-wrap mt-3 d-none" data-slot-subordinates>
-                                    <label class="jp-form-label small mb-1">{{ cp_form.subordinates.label }}</label>
-                                    <p class="small text-muted mb-2">{{ cp_form.subordinates.help_text }}</p>
-                                    {{ cp_form.subordinates }}
-                                    {% for e in cp_form.subordinates.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                        <button type="button" class="btn btn-sm btn-outline-hm mt-3 d-none" id="jpShowConcurrentSlot">
-                            <i class="bi bi-plus-circle me-1"></i>Thêm vị trí kiêm nhiệm
-                        </button>
-                    </div>
-                </div>
-                {% endif %}
-
                 <div class="card border-0 shadow-sm jp-user-form-panel jp-user-form-panel--picker jp-subordinates-panel mt-3 d-none" id="section-subordinates">
                     <div class="jp-user-form-panel-head">
                         <i class="bi bi-people-fill"></i>
                         <span>Cấp dưới trực tiếp</span>
+                        <span class="badge bg-hm-subtle text-hm border border-danger border-opacity-25">Vai trò chính</span>
                         <span class="badge bg-light text-muted border ms-auto jp-subordinates-count">{{ form.subordinate_candidate_count }} ứng viên</span>
                     </div>
                     <div class="card-body p-3 p-md-4">
@@ -330,6 +239,39 @@
                         {% endif %}
                     </div>
                 </div>
+
+                {% if concurrent_formset %}
+                <div class="card border-0 shadow-sm jp-user-form-panel mt-3" id="section-concurrent">
+                    <div class="jp-user-form-panel-head">
+                        <i class="bi bi-layers-fill"></i>
+                        <span>Vị trí kiêm nhiệm</span>
+                        <span class="badge bg-light text-muted border ms-auto">Tùy chọn</span>
+                    </div>
+                    <div class="card-body p-3 p-md-4">
+                        <p class="small text-muted mb-3">
+                            Bổ sung vai trò tổ chức tại phòng/bộ phận khác — mỗi slot lưu riêng; quyền module vẫn theo vị trí chính.
+                        </p>
+                        {{ concurrent_formset.management_form }}
+                        {% if concurrent_formset.non_form_errors %}
+                        <div class="alert alert-danger py-2 small">{{ concurrent_formset.non_form_errors }}</div>
+                        {% endif %}
+                        <div class="jp-concurrent-positions-rows d-flex flex-column gap-3" id="concurrent-positions">
+                            {% for cp_form in concurrent_formset %}
+                            {% include 'assessment/admin/includes/concurrent_slot_card.html' with cp_form=cp_form slot_index=forloop.counter is_edit=is_edit %}
+                            {% endfor %}
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-hm mt-3" id="jpAddConcurrentSlot">
+                            <i class="bi bi-plus-circle me-1"></i>Thêm slot mới
+                        </button>
+                        {% if not is_edit %}
+                        <p class="small text-muted mt-2 mb-0">Slot kiêm nhiệm sẽ lưu cùng hồ sơ khi bấm «Lưu nhân viên».</p>
+                        {% endif %}
+                    </div>
+                </div>
+                <template id="jpConcurrentSlotTemplate">
+                    {% include 'assessment/admin/includes/concurrent_slot_card.html' with cp_form=concurrent_formset.empty_form slot_index='__index__' is_edit=is_edit %}
+                </template>
+                {% endif %}
             </div>
 
             <div class="col-lg-4">
@@ -484,13 +426,66 @@
         },
     };
 
-    function toggleConcurrentSubordinates() {
-        document.querySelectorAll('.jp-concurrent-position-row').forEach(function (row) {
-            const roleSel = row.querySelector('select[name$="-role"]');
-            const wrap = row.querySelector('[data-slot-subordinates]');
+    const slotScopeHints = {
+        TEAM_LEADER: {
+            withDiv: 'Gợi ý: chọn nhân viên cùng bộ phận (vai trò Nhân viên).',
+            withDept: 'Gợi ý: chọn nhân viên cùng phòng ban khi chưa gán bộ phận.',
+            none: 'Chọn phòng ban / bộ phận slot để thu hẹp danh sách.',
+        },
+        DIVISION_HEAD: {
+            withDiv: 'Gợi ý: chọn NV hoặc Tổ trưởng cùng bộ phận.',
+            withDept: 'Gợi ý: chọn NV hoặc Tổ trưởng cùng phòng ban.',
+            none: 'Chọn phòng ban / bộ phận slot để thu hẹp danh sách.',
+        },
+        DEPARTMENT_HEAD: {
+            withDiv: 'Gợi ý: chọn NV / Tổ trưởng / Trưởng bộ phận cùng phòng ban.',
+            withDept: 'Gợi ý: chọn NV / Tổ trưởng / Trưởng bộ phận cùng phòng ban.',
+            none: 'Chọn phòng ban slot để thu hẹp danh sách.',
+        },
+    };
+
+    function getPickerFieldName(row) {
+        const picker = row.querySelector('.jp-user-picker[data-field-name]');
+        return picker ? picker.dataset.fieldName : null;
+    }
+
+    function updateSlotSubordinateQuickActions(row) {
+        const roleSel = row.querySelector('select[name$="-role"]');
+        const deptSel = row.querySelector('select[name$="-department"]');
+        const divSel = row.querySelector('select[name$="-division"]');
+        const hintEl = row.querySelector('.jp-slot-sub-hint');
+        const btnDiv = row.querySelector('.jp-slot-sub-pick-div');
+        const btnDept = row.querySelector('.jp-slot-sub-pick-dept');
+        if (!roleSel || !concurrentManagerRoles.includes(roleSel.value)) return;
+
+        const role = roleSel.value;
+        const deptId = deptSel ? deptSel.value : '';
+        const divId = divSel ? divSel.value : '';
+        const hints = slotScopeHints[role] || {};
+
+        if (hintEl) {
+            if (divId && hints.withDiv) hintEl.textContent = hints.withDiv;
+            else if (deptId && hints.withDept) hintEl.textContent = hints.withDept;
+            else hintEl.textContent = hints.none || '';
+        }
+        if (btnDiv) btnDiv.hidden = !divId;
+        if (btnDept) btnDept.hidden = !(deptId && !divId);
+    }
+
+    function toggleConcurrentSubordinates(row) {
+        const rows = row ? [row] : document.querySelectorAll('.jp-concurrent-position-row');
+        rows.forEach(function (r) {
+            const roleSel = r.querySelector('select[name$="-role"]');
+            const wrap = r.querySelector('[data-slot-subordinates]');
             if (!roleSel || !wrap) return;
             const show = concurrentManagerRoles.includes(roleSel.value);
             wrap.classList.toggle('d-none', !show);
+            if (show) {
+                updateSlotSubordinateQuickActions(r);
+                if (window.JpUserPicker && typeof window.JpUserPicker.initAll === 'function') {
+                    window.JpUserPicker.initAll(true);
+                }
+            }
         });
     }
 
@@ -557,17 +552,83 @@
         });
     }
 
-    const deptSelect = document.querySelector('select[name="department"]');
-    const divSelect = document.querySelector('select[name="division"]');
+    let divAllowedByDept = {};
     const divMapEl = document.getElementById('jpDivisionsByDept');
-    if (deptSelect && divSelect && divMapEl) {
-        let divAllowedByDept = {};
+    if (divMapEl) {
         try {
             divAllowedByDept = JSON.parse(divMapEl.textContent || '{}');
         } catch (e) {
             divAllowedByDept = {};
         }
+    }
 
+    function bindConcurrentSlotRow(row) {
+        if (!row || row.dataset.jpSlotBound === '1') return;
+        row.dataset.jpSlotBound = '1';
+
+        const roleSel = row.querySelector('select[name$="-role"]');
+        const deptSel = row.querySelector('select[name$="-department"]');
+        const divSel = row.querySelector('select[name$="-division"]');
+        const fieldName = getPickerFieldName(row);
+
+        if (roleSel) {
+            roleSel.addEventListener('change', function () { toggleConcurrentSubordinates(row); });
+        }
+        if (deptSel && divSel) {
+            function filterConcurrentDivision() {
+                const deptId = deptSel.value || '';
+                const allowedList = divAllowedByDept[deptId] || divAllowedByDept[''] || [];
+                const allowed = new Set(allowedList.map(String));
+                let selectedHidden = false;
+                Array.from(divSel.options).forEach(function (opt) {
+                    if (!opt.value) {
+                        opt.hidden = false;
+                        return;
+                    }
+                    const show = !deptId || allowed.has(String(opt.value));
+                    opt.hidden = !show;
+                    if (opt.selected && !show) selectedHidden = true;
+                });
+                if (selectedHidden) divSel.value = '';
+                updateSlotSubordinateQuickActions(row);
+            }
+            deptSel.addEventListener('change', filterConcurrentDivision);
+            divSel.addEventListener('change', function () { updateSlotSubordinateQuickActions(row); });
+            filterConcurrentDivision();
+        }
+
+        const btnDiv = row.querySelector('.jp-slot-sub-pick-div');
+        const btnDept = row.querySelector('.jp-slot-sub-pick-dept');
+        const btnClear = row.querySelector('.jp-slot-sub-clear');
+        if (btnDiv && fieldName) {
+            btnDiv.addEventListener('click', function () {
+                if (!divSel || !divSel.value || !window.JpUserPicker) return;
+                window.JpUserPicker.selectByDataAttr(fieldName, 'data-division-id', divSel.value, true);
+            });
+        }
+        if (btnDept && fieldName) {
+            btnDept.addEventListener('click', function () {
+                if (!deptSel || !deptSel.value || !window.JpUserPicker) return;
+                window.JpUserPicker.selectByDataAttr(fieldName, 'data-department-id', deptSel.value, true);
+            });
+        }
+        if (btnClear && fieldName && window.JpUserPicker) {
+            btnClear.addEventListener('click', function () {
+                window.JpUserPicker.clear(fieldName);
+            });
+        }
+
+        const saveBtn = row.querySelector('.jp-concurrent-slot-save');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', function () { saveConcurrentSlot(row); });
+        }
+
+        toggleConcurrentSubordinates(row);
+    }
+
+    const deptSelect = document.querySelector('select[name="department"]');
+    const divSelect = document.querySelector('select[name="division"]');
+    if (deptSelect && divSelect) {
         function filterDivisionOptions() {
             const deptId = deptSelect.value || '';
             const allowedList = divAllowedByDept[deptId] || divAllowedByDept[''] || [];
@@ -596,34 +657,156 @@
         divSelect.addEventListener('change', updateSubordinateQuickActions);
         filterDivisionOptions();
         updateSubordinateQuickActions();
+    }
 
-        toggleConcurrentSubordinates();
-        document.querySelectorAll('.jp-concurrent-position-row select[name$="-role"]').forEach(function (roleSel) {
-            roleSel.addEventListener('change', toggleConcurrentSubordinates);
+    document.querySelectorAll('.jp-concurrent-position-row').forEach(bindConcurrentSlotRow);
+
+    function getConcurrentTotalInput() {
+        return document.querySelector('input[name="concurrent-TOTAL_FORMS"]');
+    }
+
+    function updateConcurrentSlotIndices() {
+        document.querySelectorAll('#concurrent-positions .jp-concurrent-position-row').forEach(function (row, idx) {
+            const label = row.querySelector('.jp-concurrent-slot-index');
+            if (label) label.textContent = 'Slot ' + (idx + 1);
         });
+    }
 
-        document.querySelectorAll('.jp-concurrent-position-row select[name$="-department"]').forEach(function (deptSel) {
-            const row = deptSel.closest('.jp-concurrent-position-row');
-            const divSel = row && row.querySelector('select[name$="-division"]');
-            if (!divSel) return;
-            function filterConcurrentDivision() {
-                const deptId = deptSel.value || '';
-                const allowedList = divAllowedByDept[deptId] || divAllowedByDept[''] || [];
-                const allowed = new Set(allowedList.map(String));
-                let selectedHidden = false;
-                Array.from(divSel.options).forEach(function (opt) {
-                    if (!opt.value) {
-                        opt.hidden = false;
-                        return;
-                    }
-                    const show = !deptId || allowed.has(String(opt.value));
-                    opt.hidden = !show;
-                    if (opt.selected && !show) selectedHidden = true;
-                });
-                if (selectedHidden) divSel.value = '';
+    function collectConcurrentSlotFormData(row) {
+        const formData = new FormData();
+        const prefix = row.dataset.formPrefix;
+        if (prefix) formData.append('form_prefix', prefix);
+        row.querySelectorAll('input, select, textarea').forEach(function (el) {
+            if (!el.name || el.disabled) return;
+            if (el.type === 'checkbox') {
+                if (el.checked) formData.append(el.name, el.value || 'on');
+            } else if (el.type === 'radio') {
+                if (el.checked) formData.append(el.name, el.value);
+            } else if (el.type !== 'file') {
+                formData.append(el.name, el.value);
             }
-            deptSel.addEventListener('change', filterConcurrentDivision);
-            filterConcurrentDivision();
+        });
+        return formData;
+    }
+
+    {% if is_edit %}
+    const concurrentSlotSaveUrl = '{{ concurrent_slot_save_url|escapejs }}';
+
+    async function saveConcurrentSlot(row) {
+        if (!concurrentSlotSaveUrl || !row) return;
+        const statusEl = row.querySelector('.jp-concurrent-slot-save-status');
+        const saveBtn = row.querySelector('.jp-concurrent-slot-save');
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const formData = collectConcurrentSlotFormData(row);
+
+        if (statusEl) {
+            statusEl.textContent = 'Đang lưu...';
+            statusEl.classList.remove('text-success', 'text-danger');
+            statusEl.classList.add('text-muted');
+        }
+        if (saveBtn) saveBtn.disabled = true;
+
+        try {
+            const response = await fetch(concurrentSlotSaveUrl, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrfToken },
+                body: formData,
+            });
+            const data = await response.json();
+
+            if (data.status === 'success' || data.status === 'ok') {
+                if (data.deleted) {
+                    row.remove();
+                    const totalInput = getConcurrentTotalInput();
+                    if (totalInput) {
+                        totalInput.value = String(document.querySelectorAll('#concurrent-positions .jp-concurrent-position-row').length);
+                    }
+                    updateConcurrentSlotIndices();
+                    const statEl = document.querySelector('.jp-user-detail-stat strong');
+                    const heroStats = document.querySelectorAll('.jp-user-detail-hero-aside .jp-user-detail-stat strong');
+                    if (heroStats[2] && data.concurrent_active_count !== undefined) {
+                        heroStats[2].textContent = String(data.concurrent_active_count);
+                    }
+                    return;
+                }
+                const idInput = row.querySelector('input[name$="-id"]');
+                if (idInput && data.slot_id) {
+                    idInput.value = String(data.slot_id);
+                    row.classList.remove('jp-concurrent-slot-card--draft');
+                }
+                const badge = row.querySelector('.jp-concurrent-slot-status');
+                if (badge) {
+                    if (data.is_active) {
+                        badge.className = 'badge bg-success-subtle text-success jp-concurrent-slot-status';
+                        badge.textContent = 'Hiệu lực';
+                    } else {
+                        badge.className = 'badge bg-secondary-subtle text-secondary jp-concurrent-slot-status';
+                        badge.textContent = 'Tắt';
+                    }
+                }
+                const heroStats = document.querySelectorAll('.jp-user-detail-hero-aside .jp-user-detail-stat strong');
+                if (heroStats[2] && data.concurrent_active_count !== undefined) {
+                    heroStats[2].textContent = String(data.concurrent_active_count);
+                }
+                if (statusEl) {
+                    statusEl.textContent = 'Đã lưu slot';
+                    statusEl.classList.remove('text-muted', 'text-danger');
+                    statusEl.classList.add('text-success');
+                }
+            } else {
+                if (statusEl) {
+                    statusEl.textContent = data.message || 'Không lưu được slot';
+                    statusEl.classList.remove('text-muted', 'text-success');
+                    statusEl.classList.add('text-danger');
+                }
+            }
+        } catch (err) {
+            if (statusEl) {
+                statusEl.textContent = 'Lỗi kết nối máy chủ';
+                statusEl.classList.add('text-danger');
+            }
+        }
+        if (saveBtn) saveBtn.disabled = false;
+    }
+    {% endif %}
+
+    const addConcurrentBtn = document.getElementById('jpAddConcurrentSlot');
+    if (addConcurrentBtn) {
+        addConcurrentBtn.addEventListener('click', function () {
+            const template = document.getElementById('jpConcurrentSlotTemplate');
+            const container = document.getElementById('concurrent-positions');
+            const totalInput = getConcurrentTotalInput();
+            if (!template || !container || !totalInput) return;
+
+            const index = parseInt(totalInput.value, 10) || 0;
+            let html = template.innerHTML.split('__prefix__').join(String(index));
+            html = html.split('__index__').join(String(index + 1));
+
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = html.trim();
+            const row = wrapper.firstElementChild;
+            if (!row) return;
+
+            row.dataset.formPrefix = 'concurrent-' + index;
+            container.appendChild(row);
+            totalInput.value = String(index + 1);
+            updateConcurrentSlotIndices();
+            bindConcurrentSlotRow(row);
+            if (window.JpUserPicker && typeof window.JpUserPicker.initAll === 'function') {
+                window.JpUserPicker.initAll(true);
+            }
+            row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        });
+    }
+
+    const userFormEl = document.getElementById('userForm');
+    if (userFormEl) {
+        userFormEl.addEventListener('submit', function () {
+            document.querySelectorAll('.jp-concurrent-slot-card--draft').forEach(function (row) {
+                row.querySelectorAll('input, select, textarea').forEach(function (el) {
+                    el.disabled = true;
+                });
+            });
         });
     }
 
@@ -651,38 +834,6 @@
             reader.readAsDataURL(file);
         });
     }
-
-    function isConcurrentRowEmpty(row) {
-        if (!row || row.querySelector('input[name$="-id"]')?.value) return false;
-        const fields = row.querySelectorAll('select, input[type="text"], input[type="number"]');
-        return Array.from(fields).every(function (el) {
-            return !(el.value || '').trim();
-        });
-    }
-
-    function initConcurrentEmptySlot() {
-        const rows = document.querySelectorAll('[data-concurrent-slot]');
-        const showBtn = document.getElementById('jpShowConcurrentSlot');
-        if (!rows.length) return;
-        const emptyRows = Array.from(rows).filter(isConcurrentRowEmpty);
-        emptyRows.forEach(function (row) {
-            row.classList.add('d-none', 'jp-concurrent-slot-card--collapsed');
-        });
-        if (showBtn && emptyRows.length) {
-            showBtn.classList.remove('d-none');
-            showBtn.addEventListener('click', function () {
-                const hidden = document.querySelector('.jp-concurrent-slot-card--collapsed.d-none');
-                if (hidden) {
-                    hidden.classList.remove('d-none');
-                    hidden.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                }
-                if (!document.querySelector('.jp-concurrent-slot-card--collapsed.d-none')) {
-                    showBtn.classList.add('d-none');
-                }
-            });
-        }
-    }
-    initConcurrentEmptySlot();
 
     document.querySelectorAll('.jp-user-detail-nav-link').forEach(function (link) {
         link.addEventListener('click', function (e) {

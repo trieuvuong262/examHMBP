@@ -23,6 +23,11 @@ urlpatterns = [
     path('dashboard/users/add/', hrm_views.user_add, name='user_add'),
     path('dashboard/users/suggest-username/', hrm_views.user_suggest_username, name='user_suggest_username'),
     path('dashboard/users/edit/<int:user_id>/', hrm_views.user_edit, name='user_edit'),
+    path(
+        'dashboard/users/edit/<int:user_id>/concurrent-slot/save/',
+        hrm_views.user_concurrent_slot_save,
+        name='user_concurrent_slot_save',
+    ),
     path('dashboard/users/<int:user_id>/nas-folders/', hrm_views.user_nas_folders, name='user_nas_folders'),
     path('dashboard/users/delete/<int:user_id>/', hrm_views.user_delete, name='user_delete'),
     path('dashboard/users/<int:user_id>/reset-password/', hrm_views.user_password_reset, name='user_password_reset'),
