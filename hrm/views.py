@@ -15,7 +15,7 @@ from django.db import transaction
 from django.db.models import Count, Prefetch, Q
 # Import từ các app khác sang
 from hrm.module_permissions import ALL_MODULE_KEYS, MODULE_CHOICES, MODULE_HRM, MODULE_LABELS, MODULE_PERMISSIONS
-from assessment.decorators import module_perm_required
+from assessment.decorators import module_perm_required, module_perm_required_methods
 from assessment.forms import UserForm # Tạm thời Form vẫn để ở nhà cũ, mốt mình dời sau
 from django.utils.text import slugify
 from hrm.models import (
@@ -139,11 +139,14 @@ def _user_edit_page_context(profile):
     }
 
 
-def _user_edit_render_context(profile, user_obj):
+def _user_edit_render_context(profile, user_obj, request):
+    from hrm.module_permissions import user_can_update_module
+
     return {
         **_user_form_extra_context(),
         **_user_edit_page_context(profile),
         'concurrent_slot_save_url': reverse('user_concurrent_slot_save', args=[user_obj.id]),
+        'can_update_user': user_can_update_module(request.user, MODULE_HRM),
     }
 
 
@@ -472,7 +475,7 @@ def user_nas_folders(request, user_id):
     )
 
 
-@module_perm_required(MODULE_HRM, 'update')
+@module_perm_required_methods(MODULE_HRM, get='view', post='update')
 def user_edit(request, user_id):
     user_obj = get_object_or_404(User, id=user_id)
     profile = _profile_for_user_edit(user_obj)
@@ -535,7 +538,8 @@ def user_edit(request, user_id):
                         'is_edit': True,
                         'user_instance': user_obj,
                         'profile': profile,
-                        **_user_edit_render_context(profile, user_obj),
+                        'force_edit_mode': True,
+                        **_user_edit_render_context(profile, user_obj, request),
                     })
 
             messages.success(request, f"Cập nhật {profile.full_name} thành công!")
@@ -569,6 +573,7 @@ def user_edit(request, user_id):
             prefix='concurrent',
         )
 
+    force_edit_mode = request.method == 'POST'
     return render(request, 'assessment/admin/user_form.html', {
         'form': form,
         'concurrent_formset': concurrent_formset,
@@ -576,7 +581,8 @@ def user_edit(request, user_id):
         'is_edit': True,
         'user_instance': user_obj,
         'profile': profile,
-        **_user_edit_render_context(profile, user_obj),
+        'force_edit_mode': force_edit_mode,
+        **_user_edit_render_context(profile, user_obj, request),
     })
 @module_perm_required(MODULE_HRM, 'update')
 @require_POST

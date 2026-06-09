@@ -380,6 +380,57 @@ class HrmGranularPermissionViewTests(TestCase):
         self.assertContains(response, reverse('user_edit', args=[self.target.id]))
 
 
+class HrmViewOnlyUserEditTests(TestCase):
+    def setUp(self):
+        self.dept = Department.objects.create(name='View Only Dept', sort_order=2)
+        DepartmentMenuPermission.objects.create(department=self.dept, modules=['hrm'])
+        perms = normalize_group_permissions(permissions_from_legacy_role(ROLE_EMPLOYEE))
+        perms['hrm'] = {
+            'view': True,
+            'create': False,
+            'update': False,
+            'delete': False,
+            'export': False,
+        }
+        self.group = PermissionGroup.objects.create(
+            slug='test-hrm-view-only',
+            name='HRM view only',
+            module_permissions=perms,
+        )
+        self.viewer = User.objects.create_user(username='hrm_viewer', password='testpass123')
+        Profile.objects.filter(user=self.viewer).update(
+            department=self.dept,
+            role=ROLE_EMPLOYEE,
+            permission_group=self.group,
+            is_employed=True,
+        )
+        self.target = User.objects.create_user(username='view_target', password='testpass123')
+        Profile.objects.filter(user=self.target).update(
+            department=self.dept,
+            role=ROLE_EMPLOYEE,
+            full_name='View Target',
+            is_employed=True,
+        )
+        self.client = Client(HTTP_HOST='testserver')
+        self.client.force_login(self.viewer)
+
+    def test_view_only_can_open_user_edit_readonly(self):
+        response = self.client.get(reverse('user_edit', args=[self.target.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'jp-user-form--view-mode')
+        self.assertContains(response, 'Chỉ xem')
+        self.assertNotContains(response, 'id="jpUserFormEditBtn"')
+
+    def test_view_only_cannot_post_user_edit(self):
+        response = self.client.post(reverse('user_edit', args=[self.target.id]), {
+            'username': 'view_target',
+            'full_name': 'Changed Name',
+            'role': ROLE_EMPLOYEE,
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('home_portal'))
+
+
 class DepartmentPermissionTemplateTests(TestCase):
     def test_each_department_has_two_groups(self):
         from hrm.department_permission_templates import DEPARTMENT_PERMISSION_TEMPLATES

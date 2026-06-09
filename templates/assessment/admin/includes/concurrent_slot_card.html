@@ -20,11 +20,10 @@
                 {{ cp_form.is_active }}
                 <label class="form-check-label small" for="{{ cp_form.is_active.id_for_label }}">Bật</label>
             </div>
-            {% if cp_form.DELETE %}
-            <div class="form-check mb-0">
-                {{ cp_form.DELETE }}
-                <label class="form-check-label small text-danger" for="{{ cp_form.DELETE.id_for_label }}">Xóa</label>
-            </div>
+            {% if is_edit %}
+            <button type="button" class="btn btn-sm btn-outline-danger jp-concurrent-slot-delete jp-user-form--edit-only" title="Xóa slot kiêm nhiệm">
+                <i class="bi bi-trash"></i><span class="d-none d-sm-inline ms-1">Xóa slot</span>
+            </button>
             {% endif %}
         </div>
     </div>
@@ -85,7 +84,7 @@
         {% for e in cp_form.subordinates.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
     </div>
     {% if is_edit %}
-    <div class="jp-concurrent-slot-footer">
+    <div class="jp-concurrent-slot-footer jp-user-form--edit-only">
         <button type="button" class="btn btn-sm btn-hm fw-bold jp-concurrent-slot-save">
             <i class="bi bi-check-circle me-1"></i>Lưu slot
         </button>

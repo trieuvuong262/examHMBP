@@ -3305,6 +3305,17 @@ body.jp-tool-loading-active {
     grid-column: 1 / -1;
 }
 
+.jp-user-detail-nav-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    position: sticky;
+    top: calc(var(--jp-header-height, 56px) + 0.35rem);
+    z-index: 20;
+}
+
 .jp-user-detail-nav {
     display: flex;
     flex-wrap: wrap;
@@ -3314,9 +3325,49 @@ body.jp-tool-loading-active {
     border: 1px solid #e2e8f0;
     border-radius: var(--jp-radius, 0.5rem);
     box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
-    position: sticky;
-    top: calc(var(--jp-header-height, 56px) + 0.35rem);
-    z-index: 20;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.jp-user-detail-nav-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+}
+
+.jp-user-form-view-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.jp-user-form-tab-panels .jp-user-tab-panel {
+    display: none;
+}
+
+.jp-user-form-tab-panels .jp-user-tab-panel.is-active {
+    display: block;
+}
+
+.jp-user-form--view-mode.jp-user-form--edit-mode .jp-user-form--view-only,
+.jp-user-form--view-mode:not(.jp-user-form--edit-mode) .jp-user-form--edit-only {
+    display: none !important;
+}
+
+.jp-user-form--view-mode:not(.jp-user-form--edit-mode) .form-control:disabled,
+.jp-user-form--view-mode:not(.jp-user-form--edit-mode) .form-select:disabled,
+.jp-user-form--view-mode:not(.jp-user-form--edit-mode) .form-check-input:disabled {
+    background-color: #f8fafc;
+    opacity: 1;
+    color: var(--jp-black-800, #1e293b);
+    -webkit-text-fill-color: currentColor;
+    cursor: default;
+}
+
+.jp-user-form--view-mode:not(.jp-user-form--edit-mode) .jp-user-picker-toggle:disabled {
+    background-color: #f8fafc;
+    opacity: 1;
 }
 
 .jp-user-detail-nav-link {
@@ -3330,6 +3381,9 @@ body.jp-tool-loading-active {
     color: var(--jp-black-600, #64748b);
     text-decoration: none;
     white-space: nowrap;
+    border: none;
+    background: transparent;
+    cursor: pointer;
 }
 
 .jp-user-detail-nav-link:hover {
@@ -9203,6 +9257,12 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
 [data-theme="dark"] .jp-user-form-page .jp-user-detail-nav {
     background: #1e293b;
     border-color: #334155;
+}
+
+[data-theme="dark"] .jp-user-form-page .jp-user-form--view-mode:not(.jp-user-form--edit-mode) .form-control:disabled,
+[data-theme="dark"] .jp-user-form-page .jp-user-form--view-mode:not(.jp-user-form--edit-mode) .form-select:disabled {
+    background-color: #0f172a;
+    color: #e2e8f0;
 }
 
 [data-theme="dark"] .jp-user-form-page .jp-user-detail-nav-link:hover {

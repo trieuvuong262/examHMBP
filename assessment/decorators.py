@@ -88,6 +88,31 @@ def module_perm_required(module_key: str, action: str = 'edit'):
     return decorator
 
 
+def module_perm_required_methods(
+    module_key: str,
+    *,
+    get: str = 'view',
+    post: str = 'update',
+):
+    """GET và POST có thể yêu cầu quyền khác nhau (vd. xem hồ sơ / sửa hồ sơ)."""
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapper(request, *args, **kwargs):
+            action = post if request.method == 'POST' else get
+            if _user_can_module_action(request.user, module_key, action):
+                return view_func(request, *args, **kwargs)
+
+            message = portal_admin_denied_message()
+            if _wants_json_response(request):
+                return JsonResponse({'status': 'error', 'message': message}, status=403)
+
+            messages.error(request, message)
+            return redirect('home_portal')
+
+        return wrapper
+    return decorator
+
+
 def _user_can_dashboard_hub(user) -> bool:
     if not user.is_authenticated:
         return False
