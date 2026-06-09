@@ -2,7 +2,7 @@
 
 {% block content %}
 <div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
-    <div class="jp-page-header mb-3 mb-md-4">
+    <div class="jp-page-header mb-3">
         <div class="jp-page-header-main">
             <h2 class="jp-page-title fw-bold text-dark mb-1">
                 <i class="bi bi-shield-lock-fill text-hm me-2"></i>Cấu hình phân quyền
@@ -13,7 +13,6 @@
                     <li class="breadcrumb-item active fw-bold text-hm">Phân quyền</li>
                 </ol>
             </nav>
-            <p class="text-muted small mb-0 mt-1">Hiển thị menu: nhãn &amp; nhóm khớp sidebar · Nhóm quyền: xem / thêm / sửa / xóa / xuất Excel</p>
         </div>
         <div class="jp-hrm-toolbar">
             <a href="{% url 'org_structure' %}?tab=department" class="btn btn-outline-dark fw-bold shadow-sm jp-hrm-tool-btn">
@@ -35,16 +34,12 @@
         <div class="tab-pane fade {% if active_tab != 'group' %}show active{% endif %}" id="tab-dept">
             <div class="card border-0 shadow-sm jp-hrm-list-card overflow-hidden">
                 <div class="card-header bg-white py-3 border-bottom jp-hrm-card-header">
-                    <div class="jp-hrm-card-header-main">
-                        <h5 class="mb-0 fw-bold text-dark">Hiển thị menu</h5>
-                        <p class="text-muted small mb-0 mt-1">
-                            {% if search_query %}
-                            Kết quả tìm “{{ search_query }}” — {{ page_obj.paginator.count }} phòng ban · Chọn module menu được phép truy cập
-                            {% else %}
-                            {{ page_obj.paginator.count }} phòng ban · Chọn module menu được phép truy cập
-                            {% endif %}
-                        </p>
-                    </div>
+                    <h5 class="mb-0 fw-bold text-dark">
+                        Hiển thị menu
+                        {% if search_query %}
+                        <span class="badge bg-light text-dark border fw-normal ms-1">{{ page_obj.paginator.count }} kết quả</span>
+                        {% endif %}
+                    </h5>
                     <div class="jp-hrm-filters">
                         <form method="get" class="jp-hrm-search input-group" role="search">
                             {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tìm tên phòng ban...' clear_url=request.path %}
@@ -102,15 +97,14 @@
         </div>
 
         <div class="tab-pane fade {% if active_tab == 'group' %}show active{% endif %}" id="tab-group">
-            <div class="card border-0 shadow-sm overflow-hidden jp-perm-group-list-card">
-                <div class="card-header bg-white py-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
-                    <div>
-                        <h5 class="mb-0 fw-bold text-dark">Nhóm quyền</h5>
-                        <p class="small text-muted mb-0 mt-1">{{ group_rows|length }} nhóm · Gán thủ công cho nhân viên tại module Nhân sự</p>
+            <div class="card border-0 shadow-sm jp-hrm-list-card overflow-hidden jp-perm-group-list-card">
+                <div class="card-header bg-white py-3 border-bottom jp-hrm-card-header">
+                    <h5 class="mb-0 fw-bold text-dark">Nhóm quyền</h5>
+                    <div class="jp-hrm-filters">
+                        <a href="{% url 'permission_group_add' %}" class="btn btn-hm text-white fw-bold btn-sm jp-hrm-tool-btn-primary">
+                            <i class="bi bi-plus-lg"></i><span class="jp-hrm-tool-label"> Thêm nhóm</span>
+                        </a>
                     </div>
-                    <a href="{% url 'permission_group_add' %}" class="btn btn-hm text-white fw-bold btn-sm">
-                        <i class="bi bi-plus-lg me-1"></i>Thêm nhóm
-                    </a>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0 jp-perm-group-list-table">

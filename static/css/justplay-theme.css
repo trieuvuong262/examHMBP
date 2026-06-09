@@ -6406,20 +6406,17 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
 
 /* Permission group list (dashboard/permissions tab) */
 .jp-perm-group-list-table .jp-perm-col-name {
-    width: 22%;
-    min-width: 200px;
+    width: auto;
+    min-width: 240px;
 }
 
 .jp-perm-group-list-table .jp-perm-col-count {
-    width: 72px;
-}
-
-.jp-perm-group-list-table .jp-perm-col-summary {
-    min-width: 320px;
+    width: 88px;
+    text-align: center;
 }
 
 .jp-perm-group-list-table .jp-perm-col-actions {
-    width: 110px;
+    width: 120px;
     white-space: nowrap;
 }
 
