@@ -10,7 +10,7 @@ from django.contrib.auth import logout
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_GET
 from django.db import transaction
-from django.db.models import Count, Prefetch
+from django.db.models import Count, Prefetch, Q
 # Import từ các app khác sang
 from hrm.module_permissions import ALL_MODULE_KEYS, MODULE_CHOICES, MODULE_HRM, MODULE_LABELS, MODULE_PERMISSIONS
 from assessment.decorators import module_perm_required
@@ -918,9 +918,16 @@ def permission_config(request):
         })
 
     from hrm.department_permission_templates import is_protected_permission_group, PROTECTED_GROUP_SLUG_PREFIX
+    from hrm.user_search import visible_employed_profiles
 
+    employed_profile_q = Q(profiles__is_employed=True)
+    member_profiles_qs = visible_employed_profiles().select_related(
+        'user', 'department',
+    ).order_by('full_name', 'user__username')
     group_qs = PermissionGroup.objects.annotate(
-        profile_count=Count('profiles'),
+        profile_count=Count('profiles', filter=employed_profile_q),
+    ).prefetch_related(
+        Prefetch('profiles', queryset=member_profiles_qs, to_attr='member_profiles'),
     ).exclude(slug__startswith=PROTECTED_GROUP_SLUG_PREFIX)
     sorted_groups = sorted(group_qs, key=lambda g: g.name.casefold())
 

@@ -124,7 +124,7 @@
                         <tbody>
                             {% for row in group_rows %}
                             {% with group=row.group %}
-                            <tr>
+                            <tr class="jp-perm-group-row">
                                 <td class="ps-4 jp-perm-col-name">
                                     <div class="d-flex align-items-start gap-2">
                                         <span class="jp-perm-group-avatar"><i class="bi bi-shield-check"></i></span>
@@ -137,7 +137,20 @@
                                     </div>
                                 </td>
                                 <td class="text-center jp-perm-col-count">
-                                    <span class="jp-perm-member-count">{{ group.profile_count }}</span>
+                                    {% if group.profile_count %}
+                                    <button type="button"
+                                            class="jp-perm-member-toggle"
+                                            data-bs-toggle="collapse"
+                                            data-bs-target="#jp-perm-members-{{ group.pk }}"
+                                            aria-expanded="false"
+                                            aria-controls="jp-perm-members-{{ group.pk }}"
+                                            title="Xem danh sách nhân viên">
+                                        <span class="jp-perm-member-count">{{ group.profile_count }}</span>
+                                        <i class="bi bi-chevron-down jp-perm-member-chevron" aria-hidden="true"></i>
+                                    </button>
+                                    {% else %}
+                                    <span class="jp-perm-member-count jp-perm-member-count-empty">0</span>
+                                    {% endif %}
                                 </td>
                                 <td class="text-end pe-4 jp-perm-col-actions">
                                     <div class="jp-perm-row-actions">
@@ -155,6 +168,35 @@
                                     </div>
                                 </td>
                             </tr>
+                            {% if group.profile_count %}
+                            <tr class="jp-perm-members-row">
+                                <td colspan="3" class="p-0 border-0">
+                                    <div class="collapse" id="jp-perm-members-{{ group.pk }}">
+                                        <div class="jp-perm-members-panel">
+                                            <div class="jp-perm-members-panel-title">
+                                                <i class="bi bi-people-fill text-hm me-1"></i>
+                                                {{ group.profile_count }} nhân viên trong nhóm «{{ group.name }}»
+                                            </div>
+                                            <ul class="jp-perm-members-list mb-0">
+                                                {% for profile in group.member_profiles %}
+                                                <li class="jp-perm-members-item">
+                                                    <a href="{% url 'user_edit' profile.user_id %}" class="jp-perm-members-link">
+                                                        {{ profile.full_name|default:profile.user.username }}
+                                                    </a>
+                                                    {% if profile.department %}
+                                                    <span class="jp-perm-members-meta">{{ profile.department.name }}</span>
+                                                    {% endif %}
+                                                    {% if profile.employee_code %}
+                                                    <span class="jp-perm-members-meta">· {{ profile.employee_code }}</span>
+                                                    {% endif %}
+                                                </li>
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endif %}
                             {% endwith %}
                             {% empty %}
                             <tr>

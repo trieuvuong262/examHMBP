@@ -6455,6 +6455,89 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     border: 1px solid #e2e8f0;
 }
 
+.jp-perm-member-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    border-radius: 999px;
+    transition: transform 0.15s ease;
+}
+
+.jp-perm-member-toggle:hover .jp-perm-member-count {
+    background: #e2e8f0;
+    border-color: #cbd5e1;
+}
+
+.jp-perm-member-toggle[aria-expanded="true"] .jp-perm-member-chevron {
+    transform: rotate(180deg);
+}
+
+.jp-perm-member-chevron {
+    font-size: 0.7rem;
+    color: #64748b;
+    transition: transform 0.15s ease;
+}
+
+.jp-perm-member-count-empty {
+    opacity: 0.55;
+}
+
+.jp-perm-members-row td {
+    background: #f8fafc;
+}
+
+.jp-perm-members-panel {
+    padding: 0.75rem 1.25rem 1rem 3.25rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.jp-perm-members-panel-title {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #64748b;
+    margin-bottom: 0.5rem;
+}
+
+.jp-perm-members-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.75rem;
+}
+
+.jp-perm-members-item {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.35rem;
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    font-size: 0.8125rem;
+}
+
+.jp-perm-members-link {
+    font-weight: 600;
+    color: var(--hm-primary, #dc2626);
+    text-decoration: none;
+}
+
+.jp-perm-members-link:hover {
+    text-decoration: underline;
+}
+
+.jp-perm-members-meta {
+    color: #64748b;
+    font-size: 0.75rem;
+}
+
 .jp-perm-list-summary {
     display: flex;
     flex-direction: column;
@@ -6582,6 +6665,24 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
 [data-theme="dark"] .jp-perm-member-count {
     background: rgba(255, 255, 255, 0.06);
     color: var(--jp-text-muted);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .jp-perm-member-toggle:hover .jp-perm-member-count {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.16);
+}
+
+[data-theme="dark"] .jp-perm-members-row td {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+[data-theme="dark"] .jp-perm-members-panel {
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .jp-perm-members-item {
+    background: rgba(255, 255, 255, 0.04);
     border-color: rgba(255, 255, 255, 0.1);
 }
 
