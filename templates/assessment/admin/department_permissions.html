@@ -19,24 +19,36 @@
                 <div class="card-body p-3 p-md-5">
                     <div class="alert alert-light border small mb-4">
                         <i class="bi bi-info-circle text-hm me-1"></i>
-                        Chọn các chức năng mà thành viên phòng ban <strong>{{ department.name }}</strong> được phép xem trên menu.
-                        Các chức năng không chọn sẽ bị ẩn và chặn truy cập trực tiếp qua link.
+                        Chọn các mục menu mà thành viên phòng ban <strong>{{ department.name }}</strong> được phép thấy trên sidebar
+                        (nhãn và nhóm giống menu thực tế). Mục không chọn sẽ bị ẩn và chặn truy cập trực tiếp qua link.
                     </div>
 
                     <form method="post" novalidate id="deptPermForm">
                         {% csrf_token %}
-                        <div class="row g-2 g-md-3 mb-4">
-                            {% for checkbox in form.modules %}
-                            <div class="col-sm-6">
-                                <div class="form-check jp-dept-perm-check p-3 border rounded bg-light h-100">
-                                    {{ checkbox.tag }}
-                                    <label class="form-check-label fw-semibold" for="{{ checkbox.id_for_label }}">
-                                        {{ checkbox.choice_label }}
-                                    </label>
+                        {% for section in form.menu_section_rows %}
+                        <div class="mb-4">
+                            <h6 class="fw-bold text-dark mb-2 pb-1 border-bottom">
+                                <i class="bi bi-layout-sidebar text-hm me-1"></i>{{ section.label }}
+                            </h6>
+                            <div class="row g-2 g-md-3">
+                                {% for row in section.rows %}
+                                <div class="col-sm-6">
+                                    <div class="form-check jp-dept-perm-check p-3 border rounded bg-light h-100">
+                                        <input type="checkbox"
+                                               class="form-check-input"
+                                               name="modules"
+                                               value="{{ row.key }}"
+                                               id="dept-mod-{{ row.key }}"
+                                               {% if row.checked %}checked{% endif %}>
+                                        <label class="form-check-label fw-semibold" for="dept-mod-{{ row.key }}">
+                                            {{ row.label }}
+                                        </label>
+                                    </div>
                                 </div>
+                                {% endfor %}
                             </div>
-                            {% endfor %}
                         </div>
+                        {% endfor %}
 
                         <div class="d-flex flex-column flex-sm-row gap-2 justify-content-between align-items-stretch align-items-sm-center">
                             <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" id="selectAllModules">

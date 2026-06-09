@@ -297,6 +297,7 @@ class PermissionGroupTests(TestCase):
     def test_module_choices_aligned_with_menu_and_group_matrix(self):
         from hrm.forms import PERM_GROUP_MODULE_ICONS, PermissionGroupPermissionForm
         from hrm.group_permissions import MODULE_LIST_META
+        from hrm.module_permissions import DEPARTMENT_MENU_SECTIONS
 
         keys = {key for key, _ in MODULE_CHOICES}
         self.assertEqual(keys, ALL_MODULE_KEYS)
@@ -306,6 +307,26 @@ class PermissionGroupTests(TestCase):
         form = PermissionGroupPermissionForm()
         matrix_keys = {row['key'] for row in form.module_rows()}
         self.assertEqual(matrix_keys, keys)
+
+        menu_keys = set()
+        for section in DEPARTMENT_MENU_SECTIONS:
+            menu_keys.update(section['modules'])
+        self.assertEqual(menu_keys, keys)
+
+    def test_department_menu_form_groups_match_sidebar_labels(self):
+        from hrm.forms import DepartmentMenuPermissionForm
+        from hrm.module_permissions import DEPARTMENT_MENU_SECTIONS, MODULE_LABELS
+
+        form = DepartmentMenuPermissionForm(initial={'modules': sorted(ALL_MODULE_KEYS)})
+        sections = form.menu_section_rows()
+        self.assertEqual(len(sections), len(DEPARTMENT_MENU_SECTIONS))
+        row_labels = [row['label'] for section in sections for row in section['rows']]
+        self.assertIn(MODULE_LABELS['documents'], row_labels)
+        self.assertIn(MODULE_LABELS['audit'], row_labels)
+        self.assertEqual(
+            {row['key'] for section in sections for row in section['rows']},
+            ALL_MODULE_KEYS,
+        )
 
 
 class HrmGranularPermissionViewTests(TestCase):

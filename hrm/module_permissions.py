@@ -41,22 +41,60 @@ MODULE_CHOICES = [
     (MODULE_HRM, 'Nhân sự'),
     (MODULE_KPI, 'Hiệu suất (KPI)'),
     (MODULE_REPORTS, 'Báo cáo'),
-    (MODULE_GUIDE, 'Hướng dẫn'),
-    (MODULE_DOCUMENTS, 'Thư viện'),
-    (MODULE_PERMISSIONS, 'Phân quyền'),
-    (MODULE_AUDIT, 'Nhật ký thao tác'),
     (MODULE_TASKS, 'Công việc'),
     (MODULE_DE_XUAT, 'Đề xuất mới'),
     (MODULE_HO_TRO, 'Hỗ trợ kỹ thuật'),
-    (MODULE_NAS_STORAGE, 'Thư mục NAS'),
     (MODULE_EQUIPMENT, 'Quản lý thiết bị'),
     (MODULE_FEEDBACK, 'Góp ý'),
     (MODULE_KIOTVIET, 'KiotViet'),
+    (MODULE_NAS_STORAGE, 'Thư mục NAS'),
+    (MODULE_DOCUMENTS, 'Tài liệu & Hỏi đáp'),
+    (MODULE_GUIDE, 'Hướng dẫn'),
+    (MODULE_PERMISSIONS, 'Phân quyền'),
+    (MODULE_AUDIT, 'Quản trị hệ thống'),
 ]
 
 ALL_MODULE_KEYS = {key for key, _ in MODULE_CHOICES}
 
 MODULE_LABELS = dict(MODULE_CHOICES)
+
+# Nhóm hiển thị form «Phân quyền menu» — khớp cấu trúc sidebar.
+DEPARTMENT_MENU_SECTIONS = [
+    {
+        'label': 'Menu chính',
+        'modules': [
+            MODULE_ANNOUNCEMENTS,
+            MODULE_RECRUITMENT,
+            MODULE_TRAINING,
+            MODULE_ASSESSMENT,
+            MODULE_HRM,
+            MODULE_KPI,
+            MODULE_REPORTS,
+            MODULE_TASKS,
+        ],
+    },
+    {
+        'label': 'Yêu cầu',
+        'modules': [MODULE_DE_XUAT, MODULE_HO_TRO],
+    },
+    {
+        'label': 'Vận hành',
+        'modules': [
+            MODULE_EQUIPMENT,
+            MODULE_FEEDBACK,
+            MODULE_KIOTVIET,
+            MODULE_NAS_STORAGE,
+        ],
+    },
+    {
+        'label': 'Thư viện',
+        'modules': [MODULE_DOCUMENTS, MODULE_GUIDE],
+    },
+    {
+        'label': 'Hệ thống',
+        'modules': [MODULE_PERMISSIONS, MODULE_AUDIT],
+    },
+]
 
 # Đường dẫn luôn cho phép (không thuộc module menu)
 EXEMPT_PATH_PREFIXES = (

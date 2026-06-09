@@ -613,6 +613,33 @@ class DepartmentMenuPermissionForm(forms.Form):
         label='Chức năng được phép truy cập',
     )
 
+    def menu_section_rows(self):
+        """Checkbox theo nhóm — nhãn khớp menu sidebar."""
+        from hrm.module_permissions import DEPARTMENT_MENU_SECTIONS, MODULE_LABELS
+
+        if self.is_bound:
+            selected = set(self.data.getlist('modules'))
+        else:
+            selected = set(self.initial.get('modules') or [])
+
+        sections = []
+        for section in DEPARTMENT_MENU_SECTIONS:
+            rows = []
+            for module_key in section['modules']:
+                if module_key not in ALL_MODULE_KEYS:
+                    continue
+                rows.append({
+                    'key': module_key,
+                    'label': MODULE_LABELS[module_key],
+                    'checked': module_key in selected,
+                })
+            if rows:
+                sections.append({
+                    'label': section['label'],
+                    'rows': rows,
+                })
+        return sections
+
 
 class RolePermissionForm(forms.Form):
     """Ma trận quyền Xem / Cập nhật theo module cho một vai trò."""

@@ -71,11 +71,17 @@
             </a>
         </li>
         {% endif %}
-        {% if jp_can_recruitment and jp_can_edit_recruitment %}
+        {% if jp_can_recruitment %}
         <li>
+            {% if jp_can_edit_recruitment %}
             <a href="{% url 'admin_dashboard' %}?tab=recruitment" class="jp-sidebar-link {% if request.GET.tab == 'recruitment' or request.resolver_match.url_name == 'admin_dashboard' and not request.GET.tab %}active{% endif %}">
                 <i class="bi bi-person-lines-fill"></i><span>Tuyển dụng</span>
             </a>
+            {% else %}
+            <a href="{% url 'kanban_board' %}" class="jp-sidebar-link {% if 'recruitment' in request.path %}active{% endif %}">
+                <i class="bi bi-person-lines-fill"></i><span>Tuyển dụng</span>
+            </a>
+            {% endif %}
         </li>
         {% endif %}
         {% if jp_can_training and jp_can_edit_training %}
@@ -104,7 +110,7 @@
             </a>
         </li>
         {% endif %}
-        {% if jp_can_hrm and jp_can_edit_hrm %}
+        {% if jp_can_hrm %}
         <li>
             <a href="{% url 'user_list' %}" class="jp-sidebar-link {% if '/dashboard/users' in request.path or '/dashboard/org' in request.path or '/dashboard/divisions' in request.path %}active{% elif '/dashboard/departments' in request.path and request.resolver_match.url_name != 'department_permissions' %}active{% endif %}">
                 <i class="bi bi-people-fill"></i><span>Nhân sự</span>
