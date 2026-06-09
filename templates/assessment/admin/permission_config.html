@@ -199,8 +199,8 @@
                                                     <a href="{% url 'user_edit' profile.user_id %}"
                                                        class="jp-perm-members-row-link"
                                                        title="Mở hồ sơ nhân viên">
-                                                        <span class="jp-perm-members-avatar" aria-hidden="true">
-                                                            {{ profile.full_name|default:profile.user.username|slice:":1"|upper }}
+                                                        <span class="jp-perm-members-avatar-wrap" aria-hidden="true">
+                                                            {% include 'includes/profile_avatar.html' with profile=profile user=profile.user img_class='jp-perm-members-avatar-img' fallback_class='jp-perm-members-avatar' %}
                                                         </span>
                                                         <div class="jp-perm-members-body">
                                                             <span class="jp-perm-members-name">

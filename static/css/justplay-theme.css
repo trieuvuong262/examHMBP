@@ -6604,11 +6604,22 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     color: inherit;
 }
 
-.jp-perm-members-avatar {
+.jp-perm-members-avatar-wrap {
     flex-shrink: 0;
     width: 2.25rem;
     height: 2.25rem;
+    line-height: 0;
+}
+
+.jp-perm-members-avatar,
+.jp-perm-members-avatar-img {
+    width: 2.25rem;
+    height: 2.25rem;
     border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.jp-perm-members-avatar {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -6617,6 +6628,13 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     color: #475569;
     font-size: 0.8125rem;
     font-weight: 700;
+    box-shadow: none;
+}
+
+.jp-perm-members-avatar-img {
+    display: block;
+    object-fit: cover;
+    border: 1px solid #e2e8f0;
 }
 
 .jp-perm-members-body {
@@ -6846,6 +6864,10 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     background: rgba(255, 255, 255, 0.06);
     border-color: rgba(255, 255, 255, 0.1);
     color: var(--jp-text-muted);
+}
+
+[data-theme="dark"] .jp-perm-members-avatar-img {
+    border-color: rgba(255, 255, 255, 0.1);
 }
 
 [data-theme="dark"] .jp-perm-list-stat {
