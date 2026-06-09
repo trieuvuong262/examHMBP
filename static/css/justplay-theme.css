@@ -6454,7 +6454,7 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
 }
 
 .jp-perm-group-name-toggle:hover {
-    background: rgba(15, 23, 42, 0.04);
+    background: var(--hm-primary-soft, #fef2f2);
 }
 
 .jp-perm-group-name-toggle[aria-expanded="true"] .jp-perm-member-chevron {
@@ -6493,9 +6493,14 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     transition: transform 0.15s ease;
 }
 
+.jp-perm-member-toggle:hover {
+    background: var(--hm-primary-soft, #fef2f2);
+    border-radius: 999px;
+}
+
 .jp-perm-member-toggle:hover .jp-perm-member-count {
-    background: #e2e8f0;
-    border-color: #cbd5e1;
+    background: transparent;
+    border-color: transparent;
 }
 
 .jp-perm-member-toggle[aria-expanded="true"] .jp-perm-member-chevron {
@@ -6595,7 +6600,7 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
 }
 
 .jp-perm-members-row-link:hover {
-    background: #fafbfc;
+    background: var(--hm-primary-soft, #fef2f2);
     color: inherit;
 }
 
@@ -6626,10 +6631,6 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     color: #1e293b;
     line-height: 1.3;
     margin-bottom: 0.1rem;
-}
-
-.jp-perm-members-row-link:hover .jp-perm-members-name {
-    color: var(--hm-primary, #dc2626);
 }
 
 .jp-perm-members-meta {
@@ -6663,12 +6664,6 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     color: #94a3b8;
     border: 1px solid transparent;
     transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
-}
-
-.jp-perm-members-row-link:hover .jp-perm-members-action {
-    color: var(--hm-primary, #dc2626);
-    background: var(--hm-primary-soft, #fef2f2);
-    border-color: rgba(220, 38, 38, 0.15);
 }
 
 @media (max-width: 575.98px) {
@@ -6808,9 +6803,15 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     border-color: rgba(255, 255, 255, 0.1);
 }
 
+[data-theme="dark"] .jp-perm-group-name-toggle:hover,
+[data-theme="dark"] .jp-perm-member-toggle:hover,
+[data-theme="dark"] .jp-perm-members-row-link:hover {
+    background: rgba(220, 38, 38, 0.12);
+}
+
 [data-theme="dark"] .jp-perm-member-toggle:hover .jp-perm-member-count {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.16);
+    background: transparent;
+    border-color: transparent;
 }
 
 [data-theme="dark"] .jp-perm-members-row td {
@@ -6837,16 +6838,8 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     border-bottom-color: rgba(255, 255, 255, 0.06);
 }
 
-[data-theme="dark"] .jp-perm-group-name-toggle:hover {
-    background: rgba(255, 255, 255, 0.04);
-}
-
 [data-theme="dark"] .jp-perm-group-name-text {
     color: var(--jp-text, #f1f5f9);
-}
-
-[data-theme="dark"] .jp-perm-members-row-link:hover {
-    background: rgba(255, 255, 255, 0.04);
 }
 
 [data-theme="dark"] .jp-perm-members-avatar {
