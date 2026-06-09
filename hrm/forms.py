@@ -1,8 +1,11 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.db.models import Q
+from django.forms import inlineformset_factory
+
 from .models import (
     Profile,
+    ProfileConcurrentPosition,
     Department,
     DepartmentPosition,
     Division,
@@ -293,6 +296,117 @@ class CustomUserForm(forms.Form):
                     'Bộ phận này không thuộc phòng ban đã chọn — chọn lại hoặc cập nhật tại Cơ cấu tổ chức.',
                 )
         return cleaned
+
+
+class ProfileConcurrentPositionForm(forms.ModelForm):
+    class Meta:
+        model = ProfileConcurrentPosition
+        fields = [
+            'department', 'division', 'job_position', 'job_title',
+            'role', 'sort_order', 'is_active', 'notes',
+        ]
+        widgets = {
+            'department': forms.Select(attrs=SELECT),
+            'division': forms.Select(attrs=SELECT),
+            'job_position': forms.TextInput(attrs={
+                **INPUT,
+                'placeholder': 'VD: Trưởng phòng, Trưởng bộ phận…',
+            }),
+            'job_title': forms.TextInput(attrs={**INPUT, 'placeholder': 'Nhãn hiển thị (tuỳ chọn)'}),
+            'role': forms.Select(attrs=SELECT),
+            'sort_order': forms.NumberInput(attrs={**INPUT, 'min': 0}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'notes': forms.TextInput(attrs={**INPUT, 'placeholder': 'Ghi chú (tuỳ chọn)'}),
+        }
+        labels = {
+            'department': 'Phòng ban',
+            'division': 'Bộ phận',
+            'job_position': 'Vị trí',
+            'job_title': 'Chức vụ',
+            'role': 'Vai trò tại slot',
+            'sort_order': 'Thứ tự',
+            'is_active': 'Hiệu lực',
+            'notes': 'Ghi chú',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        dept_qs = Department.objects.filter(is_active=True).order_by('sort_order', 'name')
+        if self.instance.pk and self.instance.department_id:
+            dept_qs = Department.objects.filter(
+                Q(is_active=True) | Q(pk=self.instance.department_id),
+            ).order_by('sort_order', 'name')
+        self.fields['department'].queryset = dept_qs
+        self.fields['department'].empty_label = '-- Chọn phòng ban --'
+
+        dept_id = None
+        if self.data:
+            prefix = self.prefix + '-' if self.prefix else ''
+            raw = self.data.get(f'{prefix}department')
+            dept_id = _coerce_pk(raw)
+        if dept_id is None and self.instance.department_id:
+            dept_id = self.instance.department_id
+
+        div_qs = divisions_for_department(dept_id)
+        if self.instance.pk and self.instance.division_id:
+            div_qs = Division.objects.filter(
+                Q(pk__in=div_qs.values('pk')) | Q(pk=self.instance.division_id),
+            ).distinct()
+        self.fields['division'].queryset = div_qs.select_related('department').order_by(
+            'sort_order', 'name',
+        )
+        self.fields['division'].empty_label = '-- Chọn bộ phận --'
+        self.fields['role'].choices = Profile.ROLE_CHOICES
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get('DELETE'):
+            return cleaned
+        dept = cleaned.get('department')
+        div = cleaned.get('division')
+        if div and dept and div.department_id != dept.pk:
+            self.add_error('division', 'Bộ phận phải thuộc phòng ban đã chọn.')
+        elif div and not dept:
+            cleaned['department'] = div.department
+        job_position = (cleaned.get('job_position') or '').strip()
+        if cleaned.get('is_active', True) and not job_position and not cleaned.get('job_title'):
+            self.add_error('job_position', 'Nhập vị trí hoặc chức vụ cho slot kiêm nhiệm.')
+        cleaned['job_position'] = job_position
+        return cleaned
+
+
+class BaseProfileConcurrentPositionFormSet(forms.BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        seen: set[tuple] = set()
+        for form in self.forms:
+            if not hasattr(form, 'cleaned_data'):
+                continue
+            if form.cleaned_data.get('DELETE'):
+                continue
+            if not form.cleaned_data.get('is_active', True):
+                continue
+            dept = form.cleaned_data.get('department')
+            div = form.cleaned_data.get('division')
+            pos = (form.cleaned_data.get('job_position') or '').strip()
+            key = (
+                dept.pk if dept else None,
+                div.pk if div else None,
+                pos,
+            )
+            if key in seen:
+                raise forms.ValidationError('Trùng slot kiêm nhiệm đang hiệu lực trong form.')
+            seen.add(key)
+
+
+ProfileConcurrentPositionFormSet = inlineformset_factory(
+    Profile,
+    ProfileConcurrentPosition,
+    form=ProfileConcurrentPositionForm,
+    formset=BaseProfileConcurrentPositionFormSet,
+    extra=1,
+    can_delete=True,
+)
 
 
 class DepartmentForm(forms.ModelForm):

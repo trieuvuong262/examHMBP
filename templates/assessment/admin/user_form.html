@@ -140,6 +140,79 @@
                         </div>
                     </div>
                 </div>
+
+                {% if concurrent_formset %}
+                <div class="card border-0 shadow-sm jp-user-form-panel mt-3" id="concurrent-positions">
+                    <div class="jp-user-form-panel-head">
+                        <i class="bi bi-layers-fill"></i>
+                        <span>Vị trí kiêm nhiệm</span>
+                        <span class="badge bg-light text-muted border ms-auto">Tùy chọn</span>
+                    </div>
+                    <div class="card-body p-3 p-md-4">
+                        <p class="small text-muted mb-3">
+                            Bổ sung vai trò tổ chức tại phòng/bộ phận khác — quyền module vẫn theo vị trí chính và nhóm quyền.
+                        </p>
+                        {{ concurrent_formset.management_form }}
+                        {% if concurrent_formset.non_form_errors %}
+                        <div class="alert alert-danger py-2 small">{{ concurrent_formset.non_form_errors }}</div>
+                        {% endif %}
+                        <div class="jp-concurrent-positions-rows d-flex flex-column gap-3">
+                            {% for cp_form in concurrent_formset %}
+                            <div class="jp-concurrent-position-row border rounded p-3 bg-light-subtle{% if cp_form.errors %} border-danger{% endif %}">
+                                {% for hidden in cp_form.hidden_fields %}{{ hidden }}{% endfor %}
+                                <div class="row g-2 g-md-3 align-items-end">
+                                    <div class="col-md-3 col-sm-6">
+                                        <label class="jp-form-label small mb-1">{{ cp_form.department.label }}</label>
+                                        {{ cp_form.department }}
+                                        {% for e in cp_form.department.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                                    </div>
+                                    <div class="col-md-3 col-sm-6">
+                                        <label class="jp-form-label small mb-1">{{ cp_form.division.label }}</label>
+                                        {{ cp_form.division }}
+                                        {% for e in cp_form.division.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                                    </div>
+                                    <div class="col-md-2 col-sm-6">
+                                        <label class="jp-form-label small mb-1">{{ cp_form.job_position.label }}</label>
+                                        {{ cp_form.job_position }}
+                                        {% for e in cp_form.job_position.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                                    </div>
+                                    <div class="col-md-2 col-sm-6">
+                                        <label class="jp-form-label small mb-1">{{ cp_form.job_title.label }}</label>
+                                        {{ cp_form.job_title }}
+                                    </div>
+                                    <div class="col-md-2 col-sm-6">
+                                        <label class="jp-form-label small mb-1">{{ cp_form.role.label }}</label>
+                                        {{ cp_form.role }}
+                                    </div>
+                                    <div class="col-md-1 col-4">
+                                        <label class="jp-form-label small mb-1">{{ cp_form.sort_order.label }}</label>
+                                        {{ cp_form.sort_order }}
+                                    </div>
+                                    <div class="col-md-1 col-4">
+                                        <div class="form-check mt-md-4">
+                                            {{ cp_form.is_active }}
+                                            <label class="form-check-label small" for="{{ cp_form.is_active.id_for_label }}">Bật</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2 col-8">
+                                        <label class="jp-form-label small mb-1">{{ cp_form.notes.label }}</label>
+                                        {{ cp_form.notes }}
+                                    </div>
+                                    {% if cp_form.DELETE %}
+                                    <div class="col-md-1 col-4">
+                                        <div class="form-check mt-md-4">
+                                            {{ cp_form.DELETE }}
+                                            <label class="form-check-label small text-danger" for="{{ cp_form.DELETE.id_for_label }}">Xóa</label>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
             </div>
 
             <div class="col-lg-4">
@@ -381,6 +454,30 @@
         divSelect.addEventListener('change', updateSubordinateQuickActions);
         filterDivisionOptions();
         updateSubordinateQuickActions();
+
+        document.querySelectorAll('.jp-concurrent-position-row select[name$="-department"]').forEach(function (deptSel) {
+            const row = deptSel.closest('.jp-concurrent-position-row');
+            const divSel = row && row.querySelector('select[name$="-division"]');
+            if (!divSel) return;
+            function filterConcurrentDivision() {
+                const deptId = deptSel.value || '';
+                const allowedList = divAllowedByDept[deptId] || divAllowedByDept[''] || [];
+                const allowed = new Set(allowedList.map(String));
+                let selectedHidden = false;
+                Array.from(divSel.options).forEach(function (opt) {
+                    if (!opt.value) {
+                        opt.hidden = false;
+                        return;
+                    }
+                    const show = !deptId || allowed.has(String(opt.value));
+                    opt.hidden = !show;
+                    if (opt.selected && !show) selectedHidden = true;
+                });
+                if (selectedHidden) divSel.value = '';
+            }
+            deptSel.addEventListener('change', filterConcurrentDivision);
+            filterConcurrentDivision();
+        });
     }
 
     const errBox = document.getElementById('userFormErrors');

@@ -18,6 +18,7 @@ from assessment.forms import UserForm # Tạm thời Form vẫn để ở nhà c
 from django.utils.text import slugify
 from hrm.models import (
     Profile,
+    ProfileConcurrentPosition,
     Department,
     Division,
     DivisionPosition,
@@ -41,6 +42,7 @@ from hrm.forms import (
     DivisionForm,
     PermissionGroupMetaForm,
     PermissionGroupPermissionForm,
+    ProfileConcurrentPositionFormSet,
     RolePermissionForm,
 )
 from hrm.user_search import (
@@ -126,6 +128,13 @@ def user_list(request):
 
     users_qs = User.objects.select_related(
         'profile', 'profile__department', 'profile__division',
+    ).prefetch_related(
+        Prefetch(
+            'profile__concurrent_positions',
+            queryset=ProfileConcurrentPosition.objects.filter(
+                is_active=True,
+            ).select_related('department', 'division'),
+        ),
     )
     users_qs = exclude_hidden_hrm_users(users_qs)
     users_qs = filter_users_by_search(users_qs, search_query)
@@ -212,9 +221,15 @@ def user_list(request):
 
 @module_perm_required(MODULE_HRM, 'create')
 def user_add(request):
+    draft_profile = Profile()
     if request.method == 'POST':
         form = CustomUserForm(request.POST)
-        if form.is_valid():
+        concurrent_formset = ProfileConcurrentPositionFormSet(
+            request.POST,
+            instance=draft_profile,
+            prefix='concurrent',
+        )
+        if form.is_valid() and concurrent_formset.is_valid():
             u = form.cleaned_data['username']
             p = form.cleaned_data['password']
             e = form.cleaned_data['email']
@@ -232,6 +247,8 @@ def user_add(request):
             )
             profile.subordinates.set(form.cleaned_data['subordinates'])
             profile.save()
+            concurrent_formset.instance = profile
+            concurrent_formset.save()
             messages.success(
                 request,
                 f'Thành công: Đã thêm {f}. Tài khoản: {u} | Mật khẩu: {p}',
@@ -257,9 +274,14 @@ def user_add(request):
         if role in valid_roles:
             initial['role'] = role
         form = CustomUserForm(initial=initial)
+        concurrent_formset = ProfileConcurrentPositionFormSet(
+            instance=draft_profile,
+            prefix='concurrent',
+        )
 
     return render(request, 'assessment/admin/user_form.html', {
         'form': form,
+        'concurrent_formset': concurrent_formset,
         'title': 'Thêm nhân viên mới',
         'is_edit': False,
         **_user_form_extra_context(),
@@ -385,11 +407,16 @@ def user_edit(request, user_id):
     if request.method == 'POST':
         # TRUYỀN user_id VÀO ĐÂY: Để hàm clean_username trong forms.py không báo lỗi trùng chính mình
         form = CustomUserForm(request.POST, user_id=user_obj.id)
+        concurrent_formset = ProfileConcurrentPositionFormSet(
+            request.POST,
+            instance=profile,
+            prefix='concurrent',
+        )
 
         # Đang sửa nên không bắt buộc nhập mật khẩu
         form.fields['password'].required = False
 
-        if form.is_valid():
+        if form.is_valid() and concurrent_formset.is_valid():
             # 1. Cập nhật bảng User mặc định của Django
             user_obj.username = form.cleaned_data['username']
             user_obj.email = form.cleaned_data['email']
@@ -422,6 +449,7 @@ def user_edit(request, user_id):
             
             # Hàm save() của profile sẽ tự xử lý quyền nếu role là Giám đốc
             profile.save()
+            concurrent_formset.save()
 
             avatar_upload = request.FILES.get('avatar')
             if avatar_upload:
@@ -429,6 +457,7 @@ def user_edit(request, user_id):
                 if avatar_result is False:
                     return render(request, 'assessment/admin/user_form.html', {
                         'form': form,
+                        'concurrent_formset': concurrent_formset,
                         'title': 'Chỉnh sửa nhân sự',
                         'is_edit': True,
                         'user_instance': user_obj,
@@ -462,9 +491,14 @@ def user_edit(request, user_id):
         # Truyền user_id để form biết đường loại trừ chính mình khỏi danh sách chọn cấp dưới
         form = CustomUserForm(initial=initial_data, user_id=user_obj.id)
         form.fields['password'].required = False
+        concurrent_formset = ProfileConcurrentPositionFormSet(
+            instance=profile,
+            prefix='concurrent',
+        )
 
     return render(request, 'assessment/admin/user_form.html', {
         'form': form,
+        'concurrent_formset': concurrent_formset,
         'title': 'Chỉnh sửa nhân sự',
         'is_edit': True,
         'user_instance': user_obj,

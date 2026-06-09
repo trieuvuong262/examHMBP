@@ -45,6 +45,15 @@ from hrm.permissions import (
 )
 
 
+def _jp_concurrent_positions(user):
+    from hrm.concurrent_positions import concurrent_positions_summary, get_profile
+
+    profile = get_profile(user)
+    if not profile:
+        return []
+    return concurrent_positions_summary(profile)
+
+
 def portal_permissions(request):
     user = request.user
     if not user.is_authenticated:
@@ -60,6 +69,7 @@ def portal_permissions(request):
             'jp_can_submit_reports': False,
             'jp_user_role': '',
             'jp_role_display': '',
+            'jp_concurrent_positions': [],
             'jp_enabled_modules': set(),
             'jp_can_announcements': False,
             'jp_can_recruitment': False,
@@ -169,6 +179,7 @@ def portal_permissions(request):
         'jp_can_submit_reports': can_submit_daily_report(user),
         'jp_user_role': user_role(user),
         'jp_role_display': role_display(user),
+        'jp_concurrent_positions': _jp_concurrent_positions(user),
         'jp_enabled_modules': enabled,
         'jp_can_announcements': user_can_access_module(user, MODULE_ANNOUNCEMENTS),
         'jp_can_recruitment': user_can_access_module(user, MODULE_RECRUITMENT),

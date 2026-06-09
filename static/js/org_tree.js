@@ -541,6 +541,15 @@
                     codeEl.textContent = code;
                     body.appendChild(codeEl);
                 }
+                if (emp.is_concurrent) {
+                    const concEl = document.createElement('div');
+                    concEl.className = 'small text-hm';
+                    const primary = (emp.primary_dept || '').trim();
+                    concEl.textContent = primary
+                        ? `Kiêm nhiệm · chính: ${primary}`
+                        : 'Kiêm nhiệm';
+                    body.appendChild(concEl);
+                }
                 li.appendChild(body);
 
                 if (editUrl) {
@@ -582,6 +591,8 @@
 .jp-org-tree-node--employee .jp-org-tree-pill-rect { fill: #f8fafc; stroke: #e2e8f0; }
 .jp-org-tree-node--employee .jp-org-tree-pill-label { font-size: 11px; font-weight: 600; fill: #334155; }
 .jp-org-tree-node--employee .jp-org-tree-pill-sub { font-size: 9px; fill: #64748b; }
+.jp-org-tree-pill-concurrent-bg { fill: #eff6ff; stroke: #93c5fd; stroke-width: 1; }
+.jp-org-tree-pill-concurrent-txt { font-family: Inter, system-ui, sans-serif; font-size: 8px; font-weight: 800; fill: #1d4ed8; }
 .jp-org-tree-expand-icon { font-family: Inter, system-ui, sans-serif; font-size: 11px; font-weight: 700; fill: #64748b; }
 .jp-org-tree-action-bg { fill: #fff; stroke: #cbd5e1; stroke-width: 1.2; }
 .jp-org-tree-action-icon { font-family: Inter, system-ui, sans-serif; font-size: 11px; font-weight: 700; fill: #b91c1c; }
@@ -1025,7 +1036,8 @@
             const pillStroke = level === 'root' ? 2 : isExpandable && expanded ? 2 : 1.5;
             const chevW = isExpandable ? 18 : 0;
             const actW = actionStripWidth(actions);
-            const badgeW = level !== 'employee' ? 30 : 0;
+            const concurrentBadgeW = level === 'employee' && d.data.is_concurrent ? 34 : 0;
+            const badgeW = level !== 'employee' ? 30 : concurrentBadgeW;
             const innerPillW = pillW + actW;
             const pillX = chevW;
             const labelX = chevW + 12;
@@ -1123,6 +1135,22 @@
                     .attr('y', 5)
                     .attr('text-anchor', 'middle')
                     .text(String(d.data.count ?? 0));
+            } else if (d.data.is_concurrent) {
+                const badgeH = 18;
+                pill.append('rect')
+                    .attr('class', 'jp-org-tree-pill-concurrent-bg')
+                    .attr('x', badgeX)
+                    .attr('y', -badgeH / 2)
+                    .attr('width', badgeW)
+                    .attr('height', badgeH)
+                    .attr('rx', 4)
+                    .attr('ry', 4);
+                pill.append('text')
+                    .attr('class', 'jp-org-tree-pill-concurrent-txt')
+                    .attr('x', badgeX + badgeW / 2)
+                    .attr('y', 4)
+                    .attr('text-anchor', 'middle')
+                    .text('Kiêm');
             }
 
             if (actions.length) {
@@ -1177,8 +1205,15 @@
                 ? `${d.data.name}${d.data.subtitle ? ` (${d.data.subtitle})` : ''}`
                 : `${d.data.name} — ${d.data.count ?? 0} NV`;
             if (level === 'employee') {
+                let tip = hint;
+                if (d.data.is_concurrent) {
+                    tip += ' — kiêm nhiệm';
+                    if (d.data.primary_dept) {
+                        tip += ` (vị trí chính: ${d.data.primary_dept})`;
+                    }
+                }
                 pill.append('title').text(
-                    `${hint} — bấm xem avatar, double-click sửa hồ sơ`,
+                    `${tip} — bấm xem avatar, double-click sửa hồ sơ`,
                 );
             } else if (isExpandable) {
                 const total = Number(d.data.employee_total ?? 0);

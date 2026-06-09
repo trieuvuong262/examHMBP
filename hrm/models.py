@@ -425,6 +425,81 @@ class Profile(models.Model):
                 user_obj.save(update_fields=['is_active'])
 
 
+class ProfileConcurrentPosition(models.Model):
+    """Vị trí kiêm nhiệm — bổ sung ngoài vị trí chính trên Profile."""
+
+    profile = models.ForeignKey(
+        Profile,
+        on_delete=models.CASCADE,
+        related_name='concurrent_positions',
+        verbose_name='Nhân viên',
+    )
+    department = models.ForeignKey(
+        Department,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='concurrent_position_slots',
+        verbose_name='Phòng ban',
+    )
+    division = models.ForeignKey(
+        Division,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='concurrent_position_slots',
+        verbose_name='Bộ phận',
+    )
+    job_position = models.CharField(
+        max_length=100,
+        verbose_name='Vị trí',
+        blank=True,
+        default='',
+    )
+    job_title = models.CharField(max_length=100, verbose_name='Chức vụ', blank=True)
+    role = models.CharField(
+        max_length=20,
+        choices=ROLE_CHOICES,
+        default=ROLE_EMPLOYEE,
+        verbose_name='Vai trò tại vị trí kiêm nhiệm',
+    )
+    sort_order = models.PositiveIntegerField(default=0, verbose_name='Thứ tự')
+    is_active = models.BooleanField(default=True, verbose_name='Đang hiệu lực')
+    notes = models.CharField(max_length=255, blank=True, verbose_name='Ghi chú')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['sort_order', 'id']
+        verbose_name = 'Vị trí kiêm nhiệm'
+        verbose_name_plural = 'Vị trí kiêm nhiệm'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['profile', 'department', 'division', 'job_position'],
+                condition=models.Q(is_active=True),
+                name='hrm_concurrent_slot_active_uniq',
+            ),
+        ]
+
+    def __str__(self):
+        label = self.job_title or self.job_position or self.get_role_display()
+        return f'{self.profile} — {label} (kiêm nhiệm)'
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.division_id and self.department_id:
+            if self.division.department_id != self.department_id:
+                raise ValidationError({'division': 'Bộ phận phải thuộc phòng ban đã chọn.'})
+        elif self.division_id and not self.department_id:
+            self.department_id = self.division.department_id
+
+    def save(self, *args, **kwargs):
+        if self.division_id and not self.department_id:
+            self.department_id = self.division.department_id
+        super().save(*args, **kwargs)
+
+
 # =========================================================
 # SIGNAL: TỰ ĐỘNG TẠO PROFILE KHI TẠO USER
 # =========================================================

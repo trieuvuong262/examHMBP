@@ -227,6 +227,11 @@
                                 {% with display_name=u.profile.full_name|default:u.first_name|default:u.username %}
                                 <span class="text-dark jp-hrm-name-text jp-text-clamp-2" title="{{ display_name|display_title }}">{{ display_name|display_title }}</span>
                                 {% endwith %}
+                                {% with cp_slots=u.profile.concurrent_positions.all %}
+                                {% if cp_slots %}
+                                <span class="small text-muted d-block" title="{% for cp in cp_slots %}{{ cp.job_title|default:cp.job_position|default:cp.get_role_display }}{% if cp.department %} · {{ cp.department.name }}{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}">+{{ cp_slots|length }} kiêm nhiệm</span>
+                                {% endif %}
+                                {% endwith %}
                             </div>
                         </td>
                         <td data-label="Account" class="jp-hrm-col-account"><code class="text-primary fw-bold px-2 py-1 bg-light user-select-all jp-hrm-cell-truncate">{{ u.username }}</code></td>

@@ -9,6 +9,12 @@ from django.db.models import Count, Prefetch, Q
 _HEAD_POSITION_NAMES = ('Trưởng phòng', 'Trưởng Phòng', 'TRUONG PHONG')
 _DIVISION_HEAD_POSITION_NAMES = ('Trưởng bộ phận', 'Trưởng Bộ Phận', 'TRUONG BO PHAN')
 
+from hrm.concurrent_positions import (
+    concurrent_position_user_ids_at_slot,
+    heads_for_department,
+    heads_for_division,
+    profiles_at_org_position,
+)
 from hrm.models import Department, Division, DivisionPosition, Profile
 from hrm.permissions import ROLE_DIRECTOR, ROLE_DIVISION_HEAD
 from hrm.user_search import exclude_hidden_hrm_profiles, hidden_hrm_username_q
@@ -156,30 +162,13 @@ def build_org_treemap() -> OrgTreemapContext:
 
 
 def _department_head_profiles(department_id: int):
-    """NV trưởng phòng: thuộc PB, không gán bộ phận, vị trí Trưởng phòng."""
-    return exclude_hidden_hrm_profiles(
-        Profile.objects.filter(
-            is_employed=True,
-            department_id=department_id,
-            division__isnull=True,
-            job_position__in=_HEAD_POSITION_NAMES,
-        ),
-    ).select_related('user').order_by('employee_code', 'full_name')
+    """NV trưởng phòng — vị trí chính hoặc kiêm nhiệm."""
+    return heads_for_department(department_id)
 
 
 def _division_head_profiles(department_id: int | None, division_id: int):
-    """NV trưởng bộ phận — gắn bộ phận, vai trò Trưởng bộ phận hoặc vị trí tương ứng."""
-    qs = exclude_hidden_hrm_profiles(
-        Profile.objects.filter(
-            is_employed=True,
-            division_id=division_id,
-        ).filter(
-            Q(role=ROLE_DIVISION_HEAD) | Q(job_position__in=_DIVISION_HEAD_POSITION_NAMES),
-        ),
-    )
-    if department_id:
-        qs = qs.filter(department_id=department_id)
-    return qs.select_related('user').order_by('employee_code', 'full_name')
+    """NV trưởng bộ phận — vị trí chính hoặc kiêm nhiệm."""
+    return heads_for_division(department_id, division_id)
 
 
 def _division_head_line(
@@ -262,13 +251,35 @@ def _department_head_line(department_id: int) -> tuple[str, int | None, bool]:
 
 
 def _staff_counts_by_position(department_id: int | None, division_id: int) -> dict[str, int]:
-    qs = exclude_hidden_hrm_profiles(
+    """Đếm NV theo node vị trí — gồm primary + kiêm nhiệm (mỗi user một lần/node)."""
+    primary_qs = exclude_hidden_hrm_profiles(
         Profile.objects.filter(is_employed=True, division_id=division_id).exclude(job_position=''),
     )
     if department_id:
-        qs = qs.filter(department_id=department_id)
-    rows = qs.values('job_position').annotate(count=Count('id'))
-    return {row['job_position']: row['count'] for row in rows}
+        primary_qs = primary_qs.filter(department_id=department_id)
+    counts: dict[str, set[int]] = {}
+    for row in primary_qs.values('job_position', 'user_id'):
+        pos = (row['job_position'] or '').strip()
+        if not pos:
+            continue
+        counts.setdefault(pos, set()).add(row['user_id'])
+
+    from hrm.models import ProfileConcurrentPosition
+
+    concurrent_qs = ProfileConcurrentPosition.objects.filter(
+        is_active=True,
+        division_id=division_id,
+        profile__is_employed=True,
+    ).exclude(job_position='')
+    if department_id:
+        concurrent_qs = concurrent_qs.filter(department_id=department_id)
+    for row in concurrent_qs.values('job_position', 'profile__user_id'):
+        pos = (row['job_position'] or '').strip()
+        if not pos:
+            continue
+        counts.setdefault(pos, set()).add(row['profile__user_id'])
+
+    return {pos: len(user_ids) for pos, user_ids in counts.items()}
 
 
 def _profile_avatar_url(profile: Profile) -> str:
@@ -282,17 +293,19 @@ def _employee_nodes(
     division_id: int,
     position_name: str,
 ) -> list[dict]:
-    qs = exclude_hidden_hrm_profiles(
-        Profile.objects.filter(
-            is_employed=True,
-            division_id=division_id,
-            job_position__iexact=position_name,
-        ),
-    ).select_related('user').order_by('employee_code', 'full_name')
-    if department_id:
-        qs = qs.filter(department_id=department_id)
-    return [
-        {
+    qs = profiles_at_org_position(department_id, division_id, position_name)
+    concurrent_user_ids = concurrent_position_user_ids_at_slot(
+        department_id, division_id, position_name,
+    )
+    nodes: list[dict] = []
+    for p in qs[:MAX_EMPLOYEES_PER_POSITION]:
+        primary_at_slot = (
+            p.division_id == division_id
+            and (p.job_position or '').strip().lower() == (position_name or '').strip().lower()
+            and (department_id is None or p.department_id == department_id)
+        )
+        is_concurrent = p.user_id in concurrent_user_ids and not primary_at_slot
+        node = {
             'name': (p.full_name or p.user.first_name or p.user.username or '').strip(),
             'subtitle': (p.employee_code or '').strip(),
             'count': 0,
@@ -306,8 +319,12 @@ def _employee_nodes(
             'position_name': position_name,
             'children': [],
         }
-        for p in qs[:MAX_EMPLOYEES_PER_POSITION]
-    ]
+        if is_concurrent:
+            node['is_concurrent'] = True
+            if p.department_id:
+                node['primary_dept'] = p.department.name
+        nodes.append(node)
+    return nodes
 
 
 def _position_node(

@@ -59,12 +59,22 @@ class ReportHierarchyTests(TestCase):
         user.refresh_from_db()
         return user
 
-    def test_team_users_only_direct_subordinates(self):
-        team = list(get_report_team_users(self.leader).values_list('username', flat=True))
+    def test_team_users_include_manual_and_auto_scope(self):
+        team = list(
+            get_report_team_users(self.leader).values_list('username', flat=True),
+        )
         self.assertEqual(team, ['nv1'])
 
-        div_team = list(get_report_team_users(self.div_head).values_list('username', flat=True))
-        self.assertEqual(div_team, ['leader1'])
+        div_team = set(get_report_team_users(self.div_head).values_list('username', flat=True))
+        self.assertIn('leader1', div_team)
+        self.assertIn('nv1', div_team)
+        self.assertIn('nv2', div_team)
+
+        director_team = set(
+            get_report_team_users(self.director).values_list('username', flat=True),
+        )
+        self.assertIn('divhead1', director_team)
+        self.assertIn('nv1', director_team)
 
         self.assertFalse(get_report_team_users(self.employee).exists())
 
@@ -95,7 +105,7 @@ class ReportHierarchyTests(TestCase):
 
         client.force_login(self.div_head)
         resp = client.get(reverse('reports:detail', args=[self.report.pk]))
-        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.status_code, 200)
 
     def test_outsider_cannot_view_report(self):
         client = Client()

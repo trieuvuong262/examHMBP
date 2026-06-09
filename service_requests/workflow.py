@@ -32,25 +32,15 @@ AMOUNT_DIRECTOR_MIN = Decimal('10000000')
 
 
 def find_team_leader(user):
-    if not user or not user.is_authenticated:
-        return None
-    return User.objects.filter(
-        profile__subordinates=user,
-        is_active=True,
-        profile__is_employed=True,
-        profile__role=ROLE_TEAM_LEADER,
-    ).order_by('profile__full_name', 'username').first()
+    from hrm.concurrent_positions import find_manager_with_subordinate
+
+    return find_manager_with_subordinate(user, ROLE_TEAM_LEADER)
 
 
 def find_division_head_manager(user):
-    if not user or not user.is_authenticated:
-        return None
-    division_head = User.objects.filter(
-        profile__subordinates=user,
-        is_active=True,
-        profile__is_employed=True,
-        profile__role=ROLE_DIVISION_HEAD,
-    ).order_by('profile__full_name', 'username').first()
+    from hrm.concurrent_positions import find_manager_with_subordinate
+
+    division_head = find_manager_with_subordinate(user, ROLE_DIVISION_HEAD)
     if division_head:
         return division_head
     # Giám đốc = trưởng bộ phận ẩn toàn công ty khi không có TBP trực tiếp.
@@ -66,14 +56,9 @@ def find_director_user():
 
 
 def department_has_team_leaders(department):
-    if not department:
-        return False
-    return User.objects.filter(
-        profile__department=department,
-        profile__role=ROLE_TEAM_LEADER,
-        profile__is_employed=True,
-        is_active=True,
-    ).exists()
+    from hrm.concurrent_positions import department_has_team_leaders_extended
+
+    return department_has_team_leaders_extended(department)
 
 
 def get_department_by_patterns(*patterns):

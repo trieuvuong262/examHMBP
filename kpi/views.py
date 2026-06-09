@@ -9,6 +9,7 @@ from hrm.module_permissions import (
 from django.db.models import Q
 from django.utils import timezone
 from django.contrib.auth.models import User
+from hrm.concurrent_positions import effective_roles, user_is_director
 from hrm.permissions import (
     ROLE_DIRECTOR,
     ROLE_EMPLOYEE,
@@ -16,6 +17,7 @@ from hrm.permissions import (
     SUBORDINATE_MANAGER_ROLES,
     can_manage_kpi_for_others,
     get_profile,
+    get_report_team_users,
     is_gm,
     user_role,
 )
@@ -33,11 +35,10 @@ def _period_title(period_type: str) -> str:
 
 def _kpi_detail_roles(user, kpi_board):
     """Phân quyền xem/sửa một bảng KPI — chặn IDOR."""
-    viewer_profile = get_profile(user)
     is_owner = user == kpi_board.employee
     is_manager = user == kpi_board.direct_manager
-    if viewer_profile and viewer_profile.role in SUBORDINATE_MANAGER_ROLES:
-        is_manager = is_manager or viewer_profile.subordinates.filter(
+    if effective_roles(user) & SUBORDINATE_MANAGER_ROLES:
+        is_manager = is_manager or get_report_team_users(user).filter(
             pk=kpi_board.employee_id,
         ).exists()
     is_gm_user = is_gm(user) or user == kpi_board.general_manager
@@ -46,7 +47,7 @@ def _kpi_detail_roles(user, kpi_board):
         or is_manager
         or is_gm_user
         or user.is_superuser
-        or user_role(user) == ROLE_DIRECTOR
+        or ROLE_DIRECTOR in effective_roles(user)
     )
     return is_owner, is_manager, is_gm_user, can_view
 
@@ -86,11 +87,16 @@ def kpi_list_view(request):
         'employee__profile',
     ).order_by('-year')
     
-    role = user_role(request.user)
-
-    # Nếu là GM hoặc Admin thì thấy toàn bộ
-    if role == ROLE_DIRECTOR or request.user.is_superuser:
+    # Giám đốc (chính hoặc kiêm nhiệm) / superuser: thấy toàn bộ
+    if user_is_director(request.user) or request.user.is_superuser:
         team_kpis_qs = YearlyKpi.objects.exclude(employee=request.user).select_related(
+            'employee__profile',
+        ).order_by('-year')
+    elif effective_roles(request.user) & SUBORDINATE_MANAGER_ROLES:
+        subordinate_ids = get_report_team_users(request.user).values_list('pk', flat=True)
+        team_kpis_qs = YearlyKpi.objects.filter(
+            Q(direct_manager=request.user) | Q(employee_id__in=subordinate_ids),
+        ).exclude(employee=request.user).select_related(
             'employee__profile',
         ).order_by('-year')
 
@@ -271,14 +277,17 @@ def yearly_kpi_create(request):
         messages.error(request, "Tài khoản chưa có hồ sơ nhân sự. Vui lòng liên hệ HR/IT.")
         return redirect('kpi_list')
 
-    if profile.role == ROLE_EMPLOYEE and not request.user.is_superuser:
+    manager_roles = effective_roles(request.user) & SUBORDINATE_MANAGER_ROLES
+    if not manager_roles and profile.role == ROLE_EMPLOYEE and not request.user.is_superuser:
         messages.error(request, "Quyền truy cập bị từ chối! Chỉ Quản lý mới được thiết lập KPI năm.")
         return redirect('kpi_list')
 
-    if profile.role == ROLE_TEAM_LEADER:
-        target_employees = profile.subordinates.all()
-    else:
+    if user_is_director(request.user) or request.user.is_superuser:
         target_employees = User.objects.filter(is_active=True).exclude(id=request.user.id)
+    elif manager_roles:
+        target_employees = get_report_team_users(request.user)
+    else:
+        target_employees = User.objects.none()
 
     hod_list = User.objects.filter(profile__role__in=SUBORDINATE_MANAGER_ROLES, is_active=True)
     gm_list = User.objects.filter(Q(profile__role=ROLE_DIRECTOR) | Q(is_superuser=True), is_active=True)
@@ -288,7 +297,11 @@ def yearly_kpi_create(request):
         year = request.POST.get('year', timezone.now().year)
         eval_type = request.POST.get('eval_type', 'QUARTER')
 
-        direct_manager_id = request.user.id if profile.role == ROLE_TEAM_LEADER else request.POST.get('direct_manager_id')
+        direct_manager_id = (
+            request.user.id
+            if ROLE_TEAM_LEADER in effective_roles(request.user)
+            else request.POST.get('direct_manager_id')
+        )
         general_manager_id = request.POST.get('general_manager_id')
 
         # Dùng update_or_create để nếu HOD lỡ tạo trùng năm thì ghi đè luôn, không bị sập web
@@ -335,7 +348,7 @@ def yearly_kpi_create(request):
         'target_employees': target_employees,
         'hod_list': hod_list, 
         'gm_list': gm_list, 
-        'is_hod': profile.role == ROLE_TEAM_LEADER,
+        'is_hod': ROLE_TEAM_LEADER in effective_roles(request.user),
     })
 
 
@@ -345,7 +358,11 @@ def kpi_import_excel(request):
     if not profile:
         messages.error(request, "Tài khoản chưa có hồ sơ nhân sự. Vui lòng liên hệ HR/IT.")
         return redirect('kpi_list')
-    if profile.role == ROLE_EMPLOYEE and not request.user.is_superuser:
+    if (
+        profile.role == ROLE_EMPLOYEE
+        and not (effective_roles(request.user) & SUBORDINATE_MANAGER_ROLES)
+        and not request.user.is_superuser
+    ):
         messages.error(request, "Bạn không có quyền này!")
         return redirect('kpi_list')
 
@@ -355,7 +372,7 @@ def kpi_import_excel(request):
         general_manager_id = request.POST.get('general_manager_id')
         eval_type = request.POST.get('eval_type', 'QUARTER')
 
-        if profile.role == ROLE_TEAM_LEADER:
+        if ROLE_TEAM_LEADER in effective_roles(request.user):
             direct_manager_id = request.user.id
 
         if not excel_file or not excel_file.name.endswith('.xlsx'):

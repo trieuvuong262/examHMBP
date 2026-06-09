@@ -48,27 +48,28 @@ def user_role(user) -> str:
 
 
 def role_display(user) -> str:
-    profile = get_profile(user)
-    if not profile:
-        return 'Nhân viên'
-    return profile.get_role_display()
+    from hrm.concurrent_positions import role_display_extended
+
+    return role_display_extended(user)
 
 
 def is_team_leader(user) -> bool:
-    return user_role(user) == ROLE_TEAM_LEADER
+    from hrm.concurrent_positions import user_has_role
+
+    return user_has_role(user, ROLE_TEAM_LEADER)
 
 
 def is_division_head(user) -> bool:
     """Trưởng bộ phận — Giám đốc có quyền tương đương (ẩn) trên mọi phòng ban."""
-    if not getattr(user, 'is_authenticated', False):
-        return False
-    return user_role(user) in {ROLE_DIVISION_HEAD, ROLE_DIRECTOR} or user.is_superuser
+    from hrm.concurrent_positions import user_is_division_head
+
+    return user_is_division_head(user)
 
 
 def is_director(user) -> bool:
-    if not getattr(user, 'is_authenticated', False):
-        return False
-    return user_role(user) == ROLE_DIRECTOR or user.is_superuser
+    from hrm.concurrent_positions import user_is_director
+
+    return user_is_director(user)
 
 
 def is_hod(user) -> bool:
@@ -83,7 +84,9 @@ def is_gm(user) -> bool:
 
 def is_manager(user) -> bool:
     """Tổ trưởng, trưởng bộ phận hoặc giám đốc — quyền quản lý team."""
-    return user_role(user) in MANAGER_ROLES or is_director(user)
+    from hrm.concurrent_positions import user_is_manager
+
+    return user_is_manager(user)
 
 
 def is_portal_admin(user) -> bool:
@@ -100,18 +103,10 @@ def _has_reports_module_access(user) -> bool:
 
 
 def get_report_team_users(viewer):
-    """Nhân viên cấp dưới trực tiếp — cấu hình tại Nhân sự → Sửa NV → Nhân viên dưới quyền."""
-    if not getattr(viewer, 'is_authenticated', False):
-        return User.objects.none()
+    """Nhân viên cấp dưới — M2M thủ công + phạm vi auto theo vị trí kiêm nhiệm."""
+    from hrm.concurrent_positions import get_effective_subordinate_users
 
-    profile = get_profile(viewer)
-    if not profile:
-        return User.objects.none()
-
-    return profile.subordinates.filter(
-        is_active=True,
-        profile__is_employed=True,
-    ).select_related('profile').order_by('profile__full_name', 'username')
+    return get_effective_subordinate_users(viewer)
 
 
 def format_team_user_label(user) -> str:
@@ -191,24 +186,40 @@ def _has_tasks_module_access(user) -> bool:
 def get_task_assignable_users(assigner):
     """
     Nhân viên có thể được giao việc:
-    - Giám đốc: toàn bộ nhân viên đang làm việc (trừ giám đốc khác)
-    - Trưởng bộ phận: toàn bộ nhân viên cùng phòng ban
-    - Tổ trưởng: nhân viên cấp dưới trực tiếp (cấu hình Nhân sự)
+    - Giám đốc (chính hoặc kiêm nhiệm): toàn công ty
+    - Trưởng bộ phận tại bất kỳ slot: union NV các phòng ban đó
+    - Tổ trưởng: union NV các bộ phận slot + cấp dưới thủ công
     """
+    from hrm.concurrent_positions import effective_department_ids, effective_roles
+    from hrm.models import Department
+
     profile = get_profile(assigner)
     if not profile:
         return User.objects.none()
 
-    if profile.role == ROLE_DIRECTOR:
+    roles = effective_roles(assigner)
+    if ROLE_DIRECTOR in roles or assigner.is_superuser:
         return _all_company_task_users(exclude_pk=assigner.pk)
 
-    if profile.role == ROLE_DIVISION_HEAD and profile.department_id:
-        return _department_task_users(profile.department).exclude(pk=assigner.pk)
+    eligible_ids: set[int] = set()
+    if ROLE_DIVISION_HEAD in roles:
+        for dept_id in effective_department_ids(assigner):
+            dept = Department.objects.filter(pk=dept_id).first()
+            if dept:
+                eligible_ids.update(
+                    _department_task_users(dept).values_list('pk', flat=True),
+                )
 
-    return _filter_task_recipient_users(
-        get_report_team_users(assigner),
-        exclude_pk=assigner.pk,
-    )
+    if ROLE_TEAM_LEADER in roles:
+        eligible_ids.update(
+            get_report_team_users(assigner).values_list('pk', flat=True),
+        )
+
+    if not eligible_ids:
+        return User.objects.none()
+
+    qs = User.objects.filter(pk__in=eligible_ids).select_related('profile')
+    return _filter_task_recipient_users(qs, exclude_pk=assigner.pk)
 
 
 def _filter_task_recipient_users(qs, *, exclude_pk=None):
@@ -267,13 +278,14 @@ def can_manage_team_tasks(user) -> bool:
     if not user_can_create_module(user, MODULE_TASKS):
         return False
 
-    role = user_role(user)
-    profile = get_profile(user)
-    if role == ROLE_TEAM_LEADER:
+    from hrm.concurrent_positions import effective_department_ids, effective_roles
+
+    roles = effective_roles(user)
+    if ROLE_TEAM_LEADER in roles:
         return has_task_subordinates(user)
-    if role == ROLE_DIVISION_HEAD:
-        return bool(profile and profile.department_id)
-    if role == ROLE_DIRECTOR:
+    if ROLE_DIVISION_HEAD in roles:
+        return bool(effective_department_ids(user))
+    if ROLE_DIRECTOR in roles:
         return True
     return False
 
@@ -303,7 +315,9 @@ def can_create_cross_dept_project(user) -> bool:
     from hrm.module_permissions import MODULE_TASKS, user_can_create_module
     if not user_can_create_module(user, MODULE_TASKS):
         return False
-    return user_role(user) in CROSS_DEPT_CREATOR_ROLES
+    from hrm.concurrent_positions import effective_roles
+
+    return bool(effective_roles(user) & CROSS_DEPT_CREATOR_ROLES)
 
 
 def can_create_any_project(user) -> bool:
@@ -317,12 +331,14 @@ def is_cross_dept_dept_head_viewer(user, project) -> bool:
         return False
     if is_director(user):
         return True
-    profile = get_profile(user)
-    if not profile or user_role(user) != ROLE_DIVISION_HEAD:
+    from hrm.concurrent_positions import effective_department_ids, effective_roles
+
+    if ROLE_DIVISION_HEAD not in effective_roles(user):
         return False
-    if not profile.department_id:
+    dept_ids = effective_department_ids(user)
+    if not dept_ids:
         return False
-    return project.departments.filter(pk=profile.department_id).exists()
+    return project.departments.filter(pk__in=dept_ids).exists()
 
 
 def is_cross_dept_read_only_viewer(user, project) -> bool:
@@ -344,10 +360,12 @@ def can_claim_cross_dept_step(user, task) -> bool:
         return True
     if not can_receive_assigned_tasks(user):
         return False
-    profile = get_profile(user)
-    if not profile or not profile.department_id:
+    from hrm.concurrent_positions import effective_department_ids
+
+    dept_ids = effective_department_ids(user)
+    if not dept_ids:
         return False
-    return task.target_department_id == profile.department_id
+    return task.target_department_id in dept_ids
 
 
 def can_view_project(user, project) -> bool:
