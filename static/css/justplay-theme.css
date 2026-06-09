@@ -3201,6 +3201,238 @@ body.jp-tool-loading-active {
     }
 }
 
+/* HRM — Chi tiết nhân viên (edit) */
+.jp-user-detail-hero-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem 1.5rem;
+    padding: 1.1rem 1.25rem;
+    background: linear-gradient(135deg, #fff 0%, #f8fafc 55%, #fef2f2 100%);
+}
+
+.jp-user-detail-hero-main {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    min-width: 0;
+}
+
+.jp-user-detail-avatar-wrap {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.jp-user-detail-avatar .jp-hrm-avatar.rounded-circle,
+.jp-user-detail-avatar .jp-hrm-avatar-img.rounded-circle {
+    width: 84px;
+    height: 84px;
+    font-size: 1.75rem;
+}
+
+.jp-user-detail-avatar-btn {
+    position: absolute;
+    right: -4px;
+    bottom: -4px;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--hm-primary, #dc2626);
+    color: #fff;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.15);
+    cursor: pointer;
+    margin: 0;
+}
+
+.jp-user-detail-avatar-btn:hover {
+    background: var(--hm-primary-dark, #b91c1c);
+    color: #fff;
+}
+
+.jp-user-detail-hero-text {
+    min-width: 0;
+    flex: 1;
+}
+
+.jp-user-detail-chip {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--jp-black-700, #334155);
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    padding: 0.2rem 0.65rem;
+}
+
+.jp-user-detail-hero-aside {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(72px, 1fr));
+    gap: 0.65rem 1rem;
+    align-content: start;
+    min-width: 220px;
+}
+
+.jp-user-detail-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding: 0.45rem 0.55rem;
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    text-align: center;
+}
+
+.jp-user-detail-stat-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--jp-black-600, #64748b);
+}
+
+.jp-user-detail-stat strong {
+    font-size: 0.95rem;
+    color: var(--jp-black-800, #1e293b);
+}
+
+.jp-user-detail-status-field {
+    grid-column: 1 / -1;
+}
+
+.jp-user-detail-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    padding: 0.35rem;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: var(--jp-radius, 0.5rem);
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+    position: sticky;
+    top: calc(var(--jp-header-height, 56px) + 0.35rem);
+    z-index: 20;
+}
+
+.jp-user-detail-nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--jp-black-600, #64748b);
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.jp-user-detail-nav-link:hover {
+    color: var(--hm-primary, #dc2626);
+    background: #fef2f2;
+}
+
+.jp-user-detail-nav-link.is-active {
+    color: #fff;
+    background: var(--hm-primary, #dc2626);
+}
+
+.jp-user-detail-nav-link.is-active i {
+    color: inherit;
+}
+
+.jp-concurrent-slot-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 0.65rem;
+    padding: 0.85rem 1rem;
+    background: #f8fafc;
+}
+
+.jp-concurrent-slot-card.is-invalid {
+    border-color: var(--bs-danger, #dc3545);
+    background: #fff5f5;
+}
+
+.jp-concurrent-slot-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.65rem;
+    border-bottom: 1px dashed #e2e8f0;
+}
+
+.jp-concurrent-slot-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.jp-concurrent-slot-index {
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--jp-black-600, #64748b);
+}
+
+.jp-concurrent-slot-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.jp-hrm-name-link {
+    color: inherit;
+    text-decoration: none;
+}
+
+.jp-hrm-name-link:hover {
+    color: var(--hm-primary, #dc2626);
+    text-decoration: underline;
+}
+
+@media (max-width: 991.98px) {
+    .jp-user-detail-hero-body {
+        grid-template-columns: 1fr;
+    }
+
+    .jp-user-detail-hero-aside {
+        min-width: 0;
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 575.98px) {
+    .jp-user-detail-hero-main {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .jp-user-detail-org-chips,
+    .jp-user-detail-badges,
+    .jp-user-form-identity-meta {
+        justify-content: center;
+    }
+
+    .jp-user-detail-nav-link span {
+        display: none;
+    }
+
+    .jp-user-detail-nav-link {
+        padding: 0.45rem 0.55rem;
+    }
+}
+
 /* Phân trang — số trang + chọn trang */
 .jp-pagination-bar {
     display: flex;
@@ -8937,6 +9169,31 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     background: var(--jp-surface-bg) !important;
     border-color: var(--jp-surface-border);
     color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .jp-user-form-page .jp-user-detail-hero-body {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 55%, #2a1515 100%);
+}
+
+[data-theme="dark"] .jp-user-form-page .jp-user-detail-chip,
+[data-theme="dark"] .jp-user-form-page .jp-user-detail-stat {
+    background: rgba(15, 23, 42, 0.65);
+    border-color: #334155;
+    color: #e2e8f0;
+}
+
+[data-theme="dark"] .jp-user-form-page .jp-user-detail-nav {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+[data-theme="dark"] .jp-user-form-page .jp-user-detail-nav-link:hover {
+    background: rgba(220, 38, 38, 0.15);
+}
+
+[data-theme="dark"] .jp-user-form-page .jp-concurrent-slot-card {
+    background: #0f172a;
+    border-color: #334155;
 }
 
 [data-theme="dark"] .jp-user-form-page .jp-user-form-identity {

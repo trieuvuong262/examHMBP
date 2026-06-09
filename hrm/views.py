@@ -109,6 +109,31 @@ def _user_form_extra_context():
     }
 
 
+def _profile_for_user_edit(user_obj):
+    profile, created = Profile.objects.get_or_create(user=user_obj)
+    if created:
+        return profile
+    return (
+        Profile.objects.select_related('department', 'division', 'permission_group', 'user')
+        .prefetch_related(
+            'subordinates',
+            'concurrent_positions__department',
+            'concurrent_positions__division',
+            'concurrent_positions__subordinates',
+        )
+        .get(pk=profile.pk)
+    )
+
+
+def _user_edit_page_context(profile):
+    permission_group = profile.permission_group
+    return {
+        'subordinate_count': profile.subordinates.filter(profile__is_employed=True).count(),
+        'concurrent_active_count': profile.concurrent_positions.filter(is_active=True).count(),
+        'permission_group_label': permission_group.name if permission_group else None,
+    }
+
+
 # ==========================================
 # 1. QUẢN LÝ DANH SÁCH NHÂN VIÊN
 # ==========================================
@@ -401,8 +426,7 @@ def user_nas_folders(request, user_id):
 @module_perm_required(MODULE_HRM, 'update')
 def user_edit(request, user_id):
     user_obj = get_object_or_404(User, id=user_id)
-    # Lấy profile, tự động tạo nếu chưa có
-    profile, created = Profile.objects.get_or_create(user=user_obj)
+    profile = _profile_for_user_edit(user_obj)
 
     if request.method == 'POST':
         # TRUYỀN user_id VÀO ĐÂY: Để hàm clean_username trong forms.py không báo lỗi trùng chính mình
@@ -458,15 +482,16 @@ def user_edit(request, user_id):
                     return render(request, 'assessment/admin/user_form.html', {
                         'form': form,
                         'concurrent_formset': concurrent_formset,
-                        'title': 'Chỉnh sửa nhân sự',
+                        'title': profile.full_name or user_obj.username,
                         'is_edit': True,
                         'user_instance': user_obj,
                         'profile': profile,
                         **_user_form_extra_context(),
+                        **_user_edit_page_context(profile),
                     })
 
             messages.success(request, f"Cập nhật {profile.full_name} thành công!")
-            return redirect('user_list')
+            return redirect('user_edit', user_id=user_obj.id)
         else:
             messages.error(request, "Vui lòng kiểm tra lại dữ liệu nhập vào.")
     else:
@@ -499,11 +524,12 @@ def user_edit(request, user_id):
     return render(request, 'assessment/admin/user_form.html', {
         'form': form,
         'concurrent_formset': concurrent_formset,
-        'title': 'Chỉnh sửa nhân sự',
+        'title': profile.full_name or user_obj.username,
         'is_edit': True,
         'user_instance': user_obj,
         'profile': profile,
         **_user_form_extra_context(),
+        **_user_edit_page_context(profile),
     })
 @module_perm_required(MODULE_HRM, 'delete')
 def user_delete(request, user_id):

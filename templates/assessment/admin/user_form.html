@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load user_picker %}
+{% load user_picker hrm_extras %}
 {% url 'org_structure' as org_structure_url %}
 
 {% block content %}
@@ -21,8 +21,15 @@
                     </a>
                     <div>
                         <h2 class="jp-page-title fw-bold text-dark mb-0">
+                            {% if is_edit %}
+                            <i class="bi bi-person-vcard-fill text-hm me-2"></i>{{ title|display_title }}
+                            {% else %}
                             <i class="bi bi-person-plus-fill text-hm me-2"></i>{{ title }}
+                            {% endif %}
                         </h2>
+                        {% if is_edit %}
+                        <p class="small text-muted mb-0 mt-1">Chi tiết &amp; chỉnh sửa hồ sơ nhân viên</p>
+                        {% endif %}
                     </div>
                 </div>
                 <nav aria-label="breadcrumb" class="d-none d-md-block mt-2">
@@ -37,8 +44,16 @@
                 <a href="{% url 'user_list' %}" class="btn btn-light border fw-bold jp-hrm-tool-btn d-none d-md-inline-flex">
                     <i class="bi bi-arrow-left"></i><span class="jp-hrm-tool-label"> Danh sách</span>
                 </a>
+                {% if is_edit %}
+                <button type="button"
+                        class="btn btn-outline-hm fw-bold jp-hrm-tool-btn d-none d-md-inline-flex reset-pwd-btn"
+                        data-url="{% url 'user_password_reset' user_instance.id %}"
+                        data-username="{{ user_instance.username }}">
+                    <i class="bi bi-key-fill"></i><span class="jp-hrm-tool-label"> Reset MK</span>
+                </button>
+                {% endif %}
                 <button type="submit" class="btn btn-hm shadow-sm fw-bold jp-hrm-tool-btn jp-hrm-tool-btn-primary">
-                    <i class="bi bi-check-circle-fill"></i><span class="jp-hrm-tool-label"> Lưu nhân viên</span>
+                    <i class="bi bi-check-circle-fill"></i><span class="jp-hrm-tool-label">{% if is_edit %} Lưu thay đổi{% else %} Lưu nhân viên{% endif %}</span>
                 </button>
             </div>
         </div>
@@ -60,34 +75,88 @@
         {% endif %}
 
         {% if is_edit and profile %}
-        <div class="card border-0 shadow-sm jp-user-form-card mb-3">
-            <div class="jp-user-form-identity">
-                <div class="jp-user-form-identity-avatar">
-                    {% include 'includes/profile_avatar.html' with profile=profile user=user_instance img_class='jp-hrm-avatar jp-hrm-avatar-img rounded-circle' fallback_class='jp-hrm-avatar rounded-circle' zoomable=True %}
-                </div>
-                <div class="jp-user-form-identity-main">
-                    <div class="fw-bold text-dark jp-text-clamp-2">{{ profile.full_name|default:user_instance.username }}</div>
-                    <div class="small text-muted jp-user-form-identity-meta">
-                        {% if profile.employee_code %}<code class="text-dark">{{ profile.employee_code }}</code>{% endif %}
-                        <span class="text-primary">{{ user_instance.username }}</span>
+        <div class="card border-0 shadow-sm jp-user-form-card jp-user-detail-hero mb-3">
+            <div class="jp-user-detail-hero-body">
+                <div class="jp-user-detail-hero-main">
+                    <div class="jp-user-detail-avatar-wrap">
+                        <div class="jp-user-detail-avatar" id="jpUserDetailAvatar">
+                            {% include 'includes/profile_avatar.html' with profile=profile user=user_instance img_class='jp-hrm-avatar jp-hrm-avatar-img rounded-circle' fallback_class='jp-hrm-avatar rounded-circle' zoomable=True %}
+                        </div>
+                        <label class="jp-user-detail-avatar-btn" for="id_avatar" title="Đổi avatar">
+                            <i class="bi bi-camera-fill"></i>
+                        </label>
+                        <input type="file" name="avatar" id="id_avatar" class="visually-hidden" accept="image/*">
+                    </div>
+                    <div class="jp-user-detail-hero-text">
+                        <div class="jp-user-detail-badges d-flex flex-wrap align-items-center gap-2 mb-2">
+                            {% include 'assessment/admin/includes/user_role_badge.html' with profile=profile %}
+                            {% if profile.is_employed %}
+                            <span class="badge bg-success-subtle text-success px-2 py-1"><i class="bi bi-check-circle-fill me-1"></i>Đang làm</span>
+                            {% else %}
+                            <span class="badge bg-secondary-subtle text-secondary px-2 py-1"><i class="bi bi-pause-circle-fill me-1"></i>Nghỉ việc</span>
+                            {% endif %}
+                            {% if permission_group_label %}
+                            <span class="badge bg-light text-dark border px-2 py-1" title="Nhóm quyền">
+                                <i class="bi bi-key me-1"></i>{{ permission_group_label }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        <div class="small text-muted jp-user-form-identity-meta mb-2">
+                            {% if profile.employee_code %}<code class="text-dark">{{ profile.employee_code }}</code>{% endif %}
+                            <span class="text-primary user-select-all">{{ user_instance.username }}</span>
+                            {% if user_instance.email %}<span class="text-muted">· {{ user_instance.email }}</span>{% endif %}
+                        </div>
+                        <div class="jp-user-detail-org-chips d-flex flex-wrap gap-2">
+                            {% if profile.department %}
+                            <span class="jp-user-detail-chip"><i class="bi bi-building me-1"></i>{{ profile.department.name|display_title }}</span>
+                            {% endif %}
+                            {% if profile.division %}
+                            <span class="jp-user-detail-chip"><i class="bi bi-diagram-2 me-1"></i>{{ profile.division.name|display_title }}</span>
+                            {% endif %}
+                            {% if profile.job_position %}
+                            <span class="jp-user-detail-chip"><i class="bi bi-person-badge me-1"></i>{{ profile.job_position }}</span>
+                            {% endif %}
+                            {% if profile.job_title and profile.job_title != profile.job_position %}
+                            <span class="jp-user-detail-chip text-muted">{{ profile.job_title }}</span>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
-                <div class="jp-user-form-identity-aside">
-                    <div class="jp-user-form-identity-status">
+                <div class="jp-user-detail-hero-aside">
+                    <div class="jp-user-detail-stat">
+                        <span class="jp-user-detail-stat-label">Ngày vào</span>
+                        <strong>{{ profile.join_date|date:"d/m/Y"|default:"—" }}</strong>
+                    </div>
+                    <div class="jp-user-detail-stat">
+                        <span class="jp-user-detail-stat-label">Cấp dưới</span>
+                        <strong>{{ subordinate_count }}</strong>
+                    </div>
+                    <div class="jp-user-detail-stat">
+                        <span class="jp-user-detail-stat-label">Kiêm nhiệm</span>
+                        <strong>{{ concurrent_active_count }}</strong>
+                    </div>
+                    <div class="jp-user-detail-status-field">
                         {% include 'assessment/admin/includes/user_form_field.html' with field=form.is_employed label='Trạng thái' %}
-                    </div>
-                    <div class="jp-user-form-identity-upload">
-                        <label class="jp-form-label mb-1" for="id_avatar">Avatar</label>
-                        <input type="file" name="avatar" id="id_avatar" class="form-control form-control-sm" accept="image/*">
                     </div>
                 </div>
             </div>
         </div>
+
+        <nav class="jp-user-detail-nav mb-3" aria-label="Điều hướng form nhân viên">
+            <a href="#section-hr" class="jp-user-detail-nav-link"><i class="bi bi-person-vcard"></i><span>Nhân sự</span></a>
+            <a href="#section-org" class="jp-user-detail-nav-link"><i class="bi bi-diagram-3"></i><span>Tổ chức</span></a>
+            {% if concurrent_formset %}
+            <a href="#section-concurrent" class="jp-user-detail-nav-link"><i class="bi bi-layers"></i><span>Kiêm nhiệm</span></a>
+            {% endif %}
+            <a href="#section-subordinates" class="jp-user-detail-nav-link jp-user-detail-nav-sub d-none" id="navSubordinates"><i class="bi bi-people"></i><span>Cấp dưới</span></a>
+            <a href="#section-account" class="jp-user-detail-nav-link"><i class="bi bi-shield-lock"></i><span>Tài khoản</span></a>
+            <a href="#section-permissions" class="jp-user-detail-nav-link"><i class="bi bi-key"></i><span>Quyền</span></a>
+        </nav>
         {% endif %}
 
         <div class="row g-3 jp-user-form-layout">
             <div class="col-lg-8">
-                <div class="card border-0 shadow-sm jp-user-form-panel h-100">
+                <div class="card border-0 shadow-sm jp-user-form-panel h-100" id="section-hr">
                     <div class="jp-user-form-panel-head">
                         <i class="bi bi-person-vcard-fill"></i>
                         <span>Thông tin nhân sự</span>
@@ -118,7 +187,7 @@
                     </div>
                 </div>
 
-                <div class="card border-0 shadow-sm jp-user-form-panel mt-3">
+                <div class="card border-0 shadow-sm jp-user-form-panel mt-3" id="section-org">
                     <div class="jp-user-form-panel-head">
                         <i class="bi bi-diagram-3-fill"></i>
                         <span>Tổ chức & công việc</span>
@@ -142,7 +211,7 @@
                 </div>
 
                 {% if concurrent_formset %}
-                <div class="card border-0 shadow-sm jp-user-form-panel mt-3" id="concurrent-positions">
+                <div class="card border-0 shadow-sm jp-user-form-panel mt-3" id="section-concurrent">
                     <div class="jp-user-form-panel-head">
                         <i class="bi bi-layers-fill"></i>
                         <span>Vị trí kiêm nhiệm</span>
@@ -156,56 +225,66 @@
                         {% if concurrent_formset.non_form_errors %}
                         <div class="alert alert-danger py-2 small">{{ concurrent_formset.non_form_errors }}</div>
                         {% endif %}
-                        <div class="jp-concurrent-positions-rows d-flex flex-column gap-3">
+                        <div class="jp-concurrent-positions-rows d-flex flex-column gap-3" id="concurrent-positions">
                             {% for cp_form in concurrent_formset %}
-                            <div class="jp-concurrent-position-row border rounded p-3 bg-light-subtle{% if cp_form.errors %} border-danger{% endif %}">
+                            <div class="jp-concurrent-slot-card jp-concurrent-position-row{% if cp_form.errors %} is-invalid{% endif %}{% if not cp_form.instance.pk %} jp-concurrent-slot-card--empty{% endif %}" data-concurrent-slot>
                                 {% for hidden in cp_form.hidden_fields %}{{ hidden }}{% endfor %}
-                                <div class="row g-2 g-md-3 align-items-end">
-                                    <div class="col-md-3 col-sm-6">
+                                <div class="jp-concurrent-slot-head">
+                                    <div class="jp-concurrent-slot-title">
+                                        <span class="jp-concurrent-slot-index">Slot {{ forloop.counter }}</span>
+                                        {% if cp_form.instance.pk and cp_form.instance.is_active %}
+                                        <span class="badge bg-success-subtle text-success">Hiệu lực</span>
+                                        {% elif cp_form.instance.pk %}
+                                        <span class="badge bg-secondary-subtle text-secondary">Tắt</span>
+                                        {% else %}
+                                        <span class="badge bg-light text-muted border">Mới</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="jp-concurrent-slot-actions">
+                                        <div class="form-check form-switch mb-0">
+                                            {{ cp_form.is_active }}
+                                            <label class="form-check-label small" for="{{ cp_form.is_active.id_for_label }}">Bật</label>
+                                        </div>
+                                        {% if cp_form.DELETE %}
+                                        <div class="form-check mb-0">
+                                            {{ cp_form.DELETE }}
+                                            <label class="form-check-label small text-danger" for="{{ cp_form.DELETE.id_for_label }}">Xóa</label>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="row g-2 g-md-3">
+                                    <div class="col-md-4 col-sm-6">
                                         <label class="jp-form-label small mb-1">{{ cp_form.department.label }}</label>
                                         {{ cp_form.department }}
                                         {% for e in cp_form.department.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
                                     </div>
-                                    <div class="col-md-3 col-sm-6">
+                                    <div class="col-md-4 col-sm-6">
                                         <label class="jp-form-label small mb-1">{{ cp_form.division.label }}</label>
                                         {{ cp_form.division }}
                                         {% for e in cp_form.division.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
                                     </div>
-                                    <div class="col-md-2 col-sm-6">
+                                    <div class="col-md-4 col-sm-6">
+                                        <label class="jp-form-label small mb-1">{{ cp_form.role.label }}</label>
+                                        {{ cp_form.role }}
+                                    </div>
+                                    <div class="col-md-4 col-sm-6">
                                         <label class="jp-form-label small mb-1">{{ cp_form.job_position.label }}</label>
                                         {{ cp_form.job_position }}
                                         {% for e in cp_form.job_position.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
                                     </div>
-                                    <div class="col-md-2 col-sm-6">
+                                    <div class="col-md-4 col-sm-6">
                                         <label class="jp-form-label small mb-1">{{ cp_form.job_title.label }}</label>
                                         {{ cp_form.job_title }}
                                     </div>
-                                    <div class="col-md-2 col-sm-6">
-                                        <label class="jp-form-label small mb-1">{{ cp_form.role.label }}</label>
-                                        {{ cp_form.role }}
-                                    </div>
-                                    <div class="col-md-1 col-4">
+                                    <div class="col-md-2 col-sm-4">
                                         <label class="jp-form-label small mb-1">{{ cp_form.sort_order.label }}</label>
                                         {{ cp_form.sort_order }}
                                     </div>
-                                    <div class="col-md-1 col-4">
-                                        <div class="form-check mt-md-4">
-                                            {{ cp_form.is_active }}
-                                            <label class="form-check-label small" for="{{ cp_form.is_active.id_for_label }}">Bật</label>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-2 col-8">
+                                    <div class="col-md-6 col-sm-8">
                                         <label class="jp-form-label small mb-1">{{ cp_form.notes.label }}</label>
                                         {{ cp_form.notes }}
                                     </div>
-                                    {% if cp_form.DELETE %}
-                                    <div class="col-md-1 col-4">
-                                        <div class="form-check mt-md-4">
-                                            {{ cp_form.DELETE }}
-                                            <label class="form-check-label small text-danger" for="{{ cp_form.DELETE.id_for_label }}">Xóa</label>
-                                        </div>
-                                    </div>
-                                    {% endif %}
                                 </div>
                                 <div class="jp-concurrent-subordinates-wrap mt-3 d-none" data-slot-subordinates>
                                     <label class="jp-form-label small mb-1">{{ cp_form.subordinates.label }}</label>
@@ -216,14 +295,46 @@
                             </div>
                             {% endfor %}
                         </div>
+                        <button type="button" class="btn btn-sm btn-outline-hm mt-3 d-none" id="jpShowConcurrentSlot">
+                            <i class="bi bi-plus-circle me-1"></i>Thêm vị trí kiêm nhiệm
+                        </button>
                     </div>
                 </div>
                 {% endif %}
+
+                <div class="card border-0 shadow-sm jp-user-form-panel jp-user-form-panel--picker jp-subordinates-panel mt-3 d-none" id="section-subordinates">
+                    <div class="jp-user-form-panel-head">
+                        <i class="bi bi-people-fill"></i>
+                        <span>Cấp dưới trực tiếp</span>
+                        <span class="badge bg-light text-muted border ms-auto jp-subordinates-count">{{ form.subordinate_candidate_count }} ứng viên</span>
+                    </div>
+                    <div class="card-body p-3 p-md-4">
+                        <p class="small text-muted mb-2 mb-md-3">{{ form.subordinates.help_text }}</p>
+                        <p class="small text-hm mb-2" id="subordinates_scope_hint">{{ form.subordinate_scope_hint }}</p>
+                        <div class="d-flex flex-wrap gap-2 mb-3 jp-subordinates-quick-actions">
+                            <button type="button" class="btn btn-sm btn-outline-hm" id="jpSubPickDivision" hidden>
+                                <i class="bi bi-diagram-3 me-1"></i>Chọn cùng bộ phận
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-hm" id="jpSubPickDepartment" hidden>
+                                <i class="bi bi-building me-1"></i>Chọn cùng phòng ban
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="jpSubClear">
+                                <i class="bi bi-x-circle me-1"></i>Bỏ chọn
+                            </button>
+                        </div>
+                        <div class="jp-subordinates-picker-wrap">
+                            {% user_picker field=form.subordinates placeholder='Tìm và chọn nhân viên cấp dưới...' show_org_meta=True picker_class='jp-user-picker--wide' %}
+                        </div>
+                        {% if form.subordinates.errors %}
+                        <div class="text-danger small mt-2">{{ form.subordinates.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
 
             <div class="col-lg-4">
                 <div class="jp-user-form-sidebar">
-                    <div class="card border-0 shadow-sm jp-user-form-panel">
+                    <div class="card border-0 shadow-sm jp-user-form-panel" id="section-account">
                         <div class="jp-user-form-panel-head jp-user-form-panel-head-account">
                             <i class="bi bi-shield-lock-fill"></i>
                             <span>Tài khoản portal</span>
@@ -266,9 +377,14 @@
                                 {% endfor %}
                             </div>
                             {% else %}
-                            <div class="alert alert-light border small py-2 mb-0">
-                                <i class="bi bi-info-circle text-hm me-1"></i>
-                                Reset mật khẩu trên <a href="{% url 'user_list' %}" class="jp-form-link">danh sách nhân sự</a>.
+                            <div class="d-grid gap-2">
+                                <button type="button"
+                                        class="btn btn-outline-hm btn-sm fw-bold reset-pwd-btn"
+                                        data-url="{% url 'user_password_reset' user_instance.id %}"
+                                        data-username="{{ user_instance.username }}">
+                                    <i class="bi bi-key-fill me-1"></i>Reset mật khẩu
+                                </button>
+                                <div class="small text-muted">Mật khẩu mới sẽ được tạo tự động và sao chép vào clipboard.</div>
                             </div>
                             {% endif %}
 
@@ -276,7 +392,7 @@
                         </div>
                     </div>
 
-                    <div class="card border-0 shadow-sm jp-user-form-panel mt-3">
+                    <div class="card border-0 shadow-sm jp-user-form-panel mt-3" id="section-permissions">
                         <div class="jp-user-form-panel-head">
                             <i class="bi bi-key-fill"></i>
                             <span>Phân quyền hệ thống</span>
@@ -291,45 +407,45 @@
             </div>
         </div>
 
-        <div class="card border-0 shadow-sm jp-user-form-panel jp-user-form-panel--picker jp-subordinates-panel mt-3 d-none" id="subordinates_section">
-            <div class="jp-user-form-panel-head">
-                <i class="bi bi-people-fill"></i>
-                <span>Cấp dưới trực tiếp</span>
-                <span class="badge bg-light text-muted border ms-auto jp-subordinates-count">{{ form.subordinate_candidate_count }} ứng viên</span>
-            </div>
-            <div class="card-body p-3 p-md-4">
-                <p class="small text-muted mb-2 mb-md-3">{{ form.subordinates.help_text }}</p>
-                <p class="small text-hm mb-2" id="subordinates_scope_hint">{{ form.subordinate_scope_hint }}</p>
-                <div class="d-flex flex-wrap gap-2 mb-3 jp-subordinates-quick-actions">
-                    <button type="button" class="btn btn-sm btn-outline-hm" id="jpSubPickDivision" hidden>
-                        <i class="bi bi-diagram-3 me-1"></i>Chọn cùng bộ phận
-                    </button>
-                    <button type="button" class="btn btn-sm btn-outline-hm" id="jpSubPickDepartment" hidden>
-                        <i class="bi bi-building me-1"></i>Chọn cùng phòng ban
-                    </button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary" id="jpSubClear">
-                        <i class="bi bi-x-circle me-1"></i>Bỏ chọn
-                    </button>
-                </div>
-                <div class="jp-subordinates-picker-wrap">
-                    {% user_picker field=form.subordinates placeholder='Tìm và chọn nhân viên cấp dưới...' show_org_meta=True picker_class='jp-user-picker--wide' %}
-                </div>
-                {% if form.subordinates.errors %}
-                <div class="text-danger small mt-2">{{ form.subordinates.errors }}</div>
-                {% endif %}
-            </div>
-        </div>
-
         <div class="jp-user-form-actions d-md-none mt-3">
             <div class="d-flex gap-2">
                 <a href="{% url 'user_list' %}" class="btn btn-light border fw-bold flex-fill">Hủy</a>
                 <button type="submit" class="btn btn-hm fw-bold flex-fill">
-                    <i class="bi bi-check-circle-fill me-1"></i>Lưu nhân viên
+                    <i class="bi bi-check-circle-fill me-1"></i>{% if is_edit %}Lưu thay đổi{% else %}Lưu nhân viên{% endif %}
                 </button>
             </div>
         </div>
     </form>
 </div>
+
+{% if is_edit %}
+<div class="modal fade" id="passwordResultModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-hm text-white p-4 border-0 rounded-top-4">
+                <h5 class="modal-title fw-bold"><i class="bi bi-shield-check me-2"></i>Thông tin tài khoản</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3 text-center">
+                    <p class="text-secondary small mb-1">Nhân viên: <strong id="modalDisplayName" class="text-dark fs-5">...</strong></p>
+                </div>
+                <div class="p-3 bg-light border mb-3 text-center">
+                    <p class="small text-muted mb-1 text-uppercase fw-bold"><i class="bi bi-person-badge me-1"></i>Tài khoản đăng nhập</p>
+                    <h5 class="fw-bold text-hm mb-0 user-select-all" id="modalUsernameText">...</h5>
+                </div>
+                <div class="p-4 bg-hm-subtle border border-hm border-2 border-opacity-50 mb-4 shadow-sm text-center">
+                    <p class="small text-hm mb-1 text-uppercase fw-bold"><i class="bi bi-key-fill me-1"></i>Mật khẩu mới</p>
+                    <h2 class="fw-bold text-dark mb-0 user-select-all" id="modalPasswordText" style="letter-spacing: 3px; font-family: monospace;">...</h2>
+                </div>
+                <button type="button" class="btn btn-hm fw-bold px-5 py-3 shadow w-100 fs-5 text-white" onclick="copyAccountInfo(this)">
+                    <i class="bi bi-clipboard-plus fs-4 me-2 align-middle"></i>Sao chép thông tin
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 {% if divisions_allowed_by_dept %}
 <script type="application/json" id="jpDivisionsByDept">{{ divisions_allowed_by_dept|safe }}</script>
@@ -340,7 +456,8 @@
     'use strict';
 
     const roleSelect = document.querySelector('select[name="role"]');
-    const subSection = document.getElementById('subordinates_section');
+    const subSection = document.getElementById('section-subordinates');
+    const navSubordinates = document.getElementById('navSubordinates');
     const subFieldName = 'subordinates';
     const managerRoles = ['TEAM_LEADER', 'DIVISION_HEAD', 'DEPARTMENT_HEAD', 'DIRECTOR'];
     const concurrentManagerRoles = ['TEAM_LEADER', 'DIVISION_HEAD', 'DEPARTMENT_HEAD'];
@@ -381,6 +498,9 @@
         if (!roleSelect || !subSection) return;
         const show = managerRoles.includes(roleSelect.value);
         subSection.classList.toggle('d-none', !show);
+        if (navSubordinates) {
+            navSubordinates.classList.toggle('d-none', !show);
+        }
         if (show && window.JpUserPicker && typeof window.JpUserPicker.initAll === 'function') {
             window.JpUserPicker.initAll(true);
         }
@@ -509,6 +629,143 @@
 
     const errBox = document.getElementById('userFormErrors');
     if (errBox) errBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    const avatarInput = document.getElementById('id_avatar');
+    if (avatarInput) {
+        avatarInput.addEventListener('change', function () {
+            const file = avatarInput.files && avatarInput.files[0];
+            if (!file || !file.type.startsWith('image/')) return;
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const host = document.getElementById('jpUserDetailAvatar');
+                if (!host) return;
+                let img = host.querySelector('img.jp-hrm-avatar-img');
+                if (!img) {
+                    host.innerHTML = '';
+                    img = document.createElement('img');
+                    img.className = 'jp-hrm-avatar jp-hrm-avatar-img rounded-circle';
+                    host.appendChild(img);
+                }
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function isConcurrentRowEmpty(row) {
+        if (!row || row.querySelector('input[name$="-id"]')?.value) return false;
+        const fields = row.querySelectorAll('select, input[type="text"], input[type="number"]');
+        return Array.from(fields).every(function (el) {
+            return !(el.value || '').trim();
+        });
+    }
+
+    function initConcurrentEmptySlot() {
+        const rows = document.querySelectorAll('[data-concurrent-slot]');
+        const showBtn = document.getElementById('jpShowConcurrentSlot');
+        if (!rows.length) return;
+        const emptyRows = Array.from(rows).filter(isConcurrentRowEmpty);
+        emptyRows.forEach(function (row) {
+            row.classList.add('d-none', 'jp-concurrent-slot-card--collapsed');
+        });
+        if (showBtn && emptyRows.length) {
+            showBtn.classList.remove('d-none');
+            showBtn.addEventListener('click', function () {
+                const hidden = document.querySelector('.jp-concurrent-slot-card--collapsed.d-none');
+                if (hidden) {
+                    hidden.classList.remove('d-none');
+                    hidden.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+                if (!document.querySelector('.jp-concurrent-slot-card--collapsed.d-none')) {
+                    showBtn.classList.add('d-none');
+                }
+            });
+        }
+    }
+    initConcurrentEmptySlot();
+
+    document.querySelectorAll('.jp-user-detail-nav-link').forEach(function (link) {
+        link.addEventListener('click', function (e) {
+            const href = link.getAttribute('href');
+            if (!href || href.charAt(0) !== '#') return;
+            const target = document.querySelector(href);
+            if (!target) return;
+            e.preventDefault();
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            document.querySelectorAll('.jp-user-detail-nav-link').forEach(function (l) {
+                l.classList.remove('is-active');
+            });
+            link.classList.add('is-active');
+        });
+    });
+
+    {% if is_edit %}
+    function autoCopySync(text) {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try { document.execCommand('copy'); } catch (e) {}
+        document.body.removeChild(textArea);
+    }
+
+    window.copyAccountInfo = function (btn) {
+        const user = document.getElementById('modalUsernameText').innerText.trim();
+        const pass = document.getElementById('modalPasswordText').innerText.trim();
+        const textToCopy = 'Tài khoản: ' + user + '\r\nMật khẩu: ' + pass;
+        const done = function () {
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-check-all me-2"></i>Đã sao chép';
+            btn.classList.replace('btn-hm', 'btn-success');
+            setTimeout(function () {
+                btn.innerHTML = originalHTML;
+                btn.classList.replace('btn-success', 'btn-hm');
+            }, 2000);
+        };
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(textToCopy).then(done).catch(function () { autoCopySync(textToCopy); done(); });
+        } else {
+            autoCopySync(textToCopy);
+            done();
+        }
+    };
+
+    document.querySelectorAll('.reset-pwd-btn').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+            const url = btn.getAttribute('data-url');
+            const username = btn.getAttribute('data-username');
+            if (!confirm('Bạn có chắc muốn làm mới mật khẩu cho ' + username + '?')) return;
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            btn.disabled = true;
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/json' },
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    autoCopySync('Tài khoản: ' + data.username + '\r\nMật khẩu: ' + data.password);
+                    document.getElementById('modalDisplayName').innerText = data.full_name || 'Nhân viên';
+                    document.getElementById('modalUsernameText').innerText = data.username;
+                    document.getElementById('modalPasswordText').innerText = data.password;
+                    const pwdModal = new bootstrap.Modal(document.getElementById('passwordResultModal'));
+                    pwdModal.show();
+                } else {
+                    alert('Lỗi khi reset mật khẩu.');
+                }
+            } catch (err) {
+                alert('Lỗi kết nối máy chủ.');
+            }
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        });
+    });
+    {% endif %}
 
     const pwdInput = document.querySelector('input[name="password"]');
     const togglePwd = document.getElementById('jpTogglePwd');

@@ -225,7 +225,11 @@
                                     {% include 'includes/profile_avatar.html' with profile=u.profile user=u img_class='jp-hrm-avatar jp-hrm-avatar-img rounded-circle' fallback_class='jp-hrm-avatar rounded-circle' zoomable=True %}
                                 </div>
                                 {% with display_name=u.profile.full_name|default:u.first_name|default:u.username %}
+                                {% if jp_can_update_hrm %}
+                                <a href="{% url 'user_edit' u.id %}" class="jp-hrm-name-link jp-hrm-name-text jp-text-clamp-2" title="{{ display_name|display_title }}">{{ display_name|display_title }}</a>
+                                {% else %}
                                 <span class="text-dark jp-hrm-name-text jp-text-clamp-2" title="{{ display_name|display_title }}">{{ display_name|display_title }}</span>
+                                {% endif %}
                                 {% endwith %}
                                 {% with cp_slots=u.profile.concurrent_positions.all %}
                                 {% if cp_slots %}

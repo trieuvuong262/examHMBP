@@ -1,0 +1,22 @@
+{# profile — hiển thị badge vai trò HT #}
+{% if profile.role == 'DIRECTOR' %}
+<span class="badge bg-danger-subtle text-danger px-2 py-1">
+    <i class="bi bi-shield-fill-check me-1"></i>Giám đốc
+</span>
+{% elif profile.role == 'DEPARTMENT_HEAD' %}
+<span class="badge bg-secondary-subtle text-secondary-emphasis px-2 py-1">
+    <i class="bi bi-building-fill me-1"></i>Trưởng phòng
+</span>
+{% elif profile.role == 'DIVISION_HEAD' %}
+<span class="badge bg-info-subtle text-info-emphasis px-2 py-1">
+    <i class="bi bi-diagram-2-fill me-1"></i>Trưởng bộ phận
+</span>
+{% elif profile.role == 'TEAM_LEADER' %}
+<span class="badge bg-warning-subtle text-warning-emphasis px-2 py-1">
+    <i class="bi bi-person-badge-fill me-1"></i>Tổ trưởng
+</span>
+{% else %}
+<span class="badge bg-primary-subtle text-hm px-2 py-1">
+    <i class="bi bi-person-fill me-1"></i>Nhân viên
+</span>
+{% endif %}
