@@ -25,7 +25,6 @@ from hrm.models import (
     PermissionGroup,
     RoleModulePermission,
 )
-from hrm.group_permissions import group_list_summary
 from hrm.role_permissions import ROLE_LABELS, default_role_permissions
 from hrm.permissions import ROLE_CHOICES
 from hrm.choices import (
@@ -927,10 +926,8 @@ def permission_config(request):
 
     group_rows = []
     for group in sorted_groups:
-        list_summary = group_list_summary(group.get_permissions())
         group_rows.append({
             'group': group,
-            'summary': list_summary,
             'is_deletable': not is_protected_permission_group(group.slug),
         })
 

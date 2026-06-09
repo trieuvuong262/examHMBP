@@ -118,13 +118,12 @@
                             <tr>
                                 <th class="ps-4 py-3 text-muted jp-perm-col-name">Nhóm quyền</th>
                                 <th class="text-muted text-center jp-perm-col-count">NV</th>
-                                <th class="text-muted jp-perm-col-summary">Tóm tắt quyền</th>
                                 <th class="text-end pe-4 text-muted jp-perm-col-actions">Thao tác</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for row in group_rows %}
-                            {% with group=row.group summary=row.summary %}
+                            {% with group=row.group %}
                             <tr>
                                 <td class="ps-4 jp-perm-col-name">
                                     <div class="d-flex align-items-start gap-2">
@@ -139,42 +138,6 @@
                                 </td>
                                 <td class="text-center jp-perm-col-count">
                                     <span class="jp-perm-member-count">{{ group.profile_count }}</span>
-                                </td>
-                                <td class="jp-perm-col-summary">
-                                    {% if summary.active_count %}
-                                    <div class="jp-perm-list-summary">
-                                        <div class="jp-perm-list-stats">
-                                            <span class="jp-perm-list-stat" title="Module có quyền xem">
-                                                <i class="bi bi-eye"></i>{{ summary.active_count }}/{{ summary.total_count }} module
-                                            </span>
-                                            {% if summary.view_count %}
-                                            <span class="jp-perm-list-stat jp-perm-list-stat-view" title="Chỉ xem">
-                                                <i class="bi bi-eye-fill"></i>{{ summary.view_count }} xem
-                                            </span>
-                                            {% endif %}
-                                            {% if summary.partial_count %}
-                                            <span class="jp-perm-list-stat jp-perm-list-stat-partial" title="Một phần quyền thao tác">
-                                                <i class="bi bi-pencil-square"></i>{{ summary.partial_count }} thao tác
-                                            </span>
-                                            {% endif %}
-                                            {% if summary.full_count %}
-                                            <span class="jp-perm-list-stat jp-perm-list-stat-full" title="Đủ 5 quyền">
-                                                <i class="bi bi-check-all"></i>{{ summary.full_count }} đủ
-                                            </span>
-                                            {% endif %}
-                                        </div>
-                                        <div class="jp-perm-mod-grid">
-                                            {% for mod in summary.modules %}
-                                            <span class="jp-perm-mod-chip jp-perm-mod-{{ mod.tier }}" title="{{ mod.label }}: {{ mod.level_text }}">
-                                                <i class="bi {{ mod.icon }}"></i>
-                                                <span>{{ mod.short }}</span>
-                                            </span>
-                                            {% endfor %}
-                                        </div>
-                                    </div>
-                                    {% else %}
-                                    <span class="jp-perm-list-empty"><i class="bi bi-slash-circle me-1"></i>Không truy cập module nào</span>
-                                    {% endif %}
                                 </td>
                                 <td class="text-end pe-4 jp-perm-col-actions">
                                     <div class="jp-perm-row-actions">
@@ -195,7 +158,7 @@
                             {% endwith %}
                             {% empty %}
                             <tr>
-                                <td colspan="4" class="text-center py-5 text-muted">Chưa có nhóm quyền.</td>
+                                <td colspan="3" class="text-center py-5 text-muted">Chưa có nhóm quyền.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
