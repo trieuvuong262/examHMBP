@@ -120,6 +120,24 @@
                             {% with group=row.group %}
                             <tr class="jp-perm-group-row">
                                 <td class="ps-4 jp-perm-col-name">
+                                    {% if group.profile_count %}
+                                    <button type="button"
+                                            class="jp-perm-group-name-toggle"
+                                            data-bs-toggle="collapse"
+                                            data-bs-target="#jp-perm-members-{{ group.pk }}"
+                                            aria-expanded="false"
+                                            aria-controls="jp-perm-members-{{ group.pk }}"
+                                            title="Xem danh sách nhân viên">
+                                        <span class="jp-perm-group-avatar"><i class="bi bi-shield-check"></i></span>
+                                        <div class="min-w-0 flex-grow-1">
+                                            <div class="jp-perm-group-name-text">{{ group.name }}</div>
+                                            {% if group.description %}
+                                            <div class="small text-muted jp-perm-group-desc">{{ group.description|truncatechars:100 }}</div>
+                                            {% endif %}
+                                        </div>
+                                        <i class="bi bi-chevron-down jp-perm-member-chevron" aria-hidden="true"></i>
+                                    </button>
+                                    {% else %}
                                     <div class="d-flex align-items-start gap-2">
                                         <span class="jp-perm-group-avatar"><i class="bi bi-shield-check"></i></span>
                                         <div class="min-w-0">
@@ -129,6 +147,7 @@
                                             {% endif %}
                                         </div>
                                     </div>
+                                    {% endif %}
                                 </td>
                                 <td class="text-center jp-perm-col-count">
                                     {% if group.profile_count %}
@@ -177,27 +196,28 @@
                                             <ul class="jp-perm-members-list mb-0">
                                                 {% for profile in group.member_profiles %}
                                                 <li class="jp-perm-members-item">
-                                                    <span class="jp-perm-members-avatar" aria-hidden="true">
-                                                        {{ profile.full_name|default:profile.user.username|slice:":1"|upper }}
-                                                    </span>
-                                                    <div class="jp-perm-members-body">
-                                                        <a href="{% url 'user_edit' profile.user_id %}" class="jp-perm-members-name">
-                                                            {{ profile.full_name|default:profile.user.username }}
-                                                        </a>
-                                                        <div class="jp-perm-members-meta">
-                                                            {% if profile.department %}
-                                                            <span class="jp-perm-members-dept">{{ profile.department.name }}</span>
-                                                            {% endif %}
-                                                            {% if profile.employee_code %}
-                                                            <span class="jp-perm-members-code">{% if profile.department %}· {% endif %}{{ profile.employee_code }}</span>
-                                                            {% endif %}
-                                                        </div>
-                                                    </div>
                                                     <a href="{% url 'user_edit' profile.user_id %}"
-                                                       class="jp-perm-members-action"
-                                                       title="Chỉnh sửa nhân viên"
-                                                       aria-label="Chỉnh sửa {{ profile.full_name|default:profile.user.username }}">
-                                                        <i class="bi bi-box-arrow-up-right"></i>
+                                                       class="jp-perm-members-row-link"
+                                                       title="Mở hồ sơ nhân viên">
+                                                        <span class="jp-perm-members-avatar" aria-hidden="true">
+                                                            {{ profile.full_name|default:profile.user.username|slice:":1"|upper }}
+                                                        </span>
+                                                        <div class="jp-perm-members-body">
+                                                            <span class="jp-perm-members-name">
+                                                                {{ profile.full_name|default:profile.user.username }}
+                                                            </span>
+                                                            <div class="jp-perm-members-meta">
+                                                                {% if profile.department %}
+                                                                <span class="jp-perm-members-dept">{{ profile.department.name }}</span>
+                                                                {% endif %}
+                                                                {% if profile.employee_code %}
+                                                                <span class="jp-perm-members-code">{% if profile.department %}· {% endif %}{{ profile.employee_code }}</span>
+                                                                {% endif %}
+                                                            </div>
+                                                        </div>
+                                                        <span class="jp-perm-members-action" aria-hidden="true">
+                                                            <i class="bi bi-box-arrow-up-right"></i>
+                                                        </span>
                                                     </a>
                                                 </li>
                                                 {% endfor %}
@@ -221,15 +241,30 @@
     </div>
 </div>
 
-{% if active_tab == 'group' %}
 <script>
 (function () {
+    {% if active_tab == 'group' %}
     var tabBtn = document.getElementById('tab-btn-group');
     var tabPane = document.getElementById('tab-group');
     if (tabBtn && tabPane && typeof bootstrap !== 'undefined') {
         bootstrap.Tab.getOrCreateInstance(tabBtn).show();
     }
+    {% endif %}
+
+    document.querySelectorAll('.jp-perm-members-row .collapse').forEach(function (panel) {
+        panel.addEventListener('show.bs.collapse', function () {
+            syncPermMemberToggles(panel.id, true);
+        });
+        panel.addEventListener('hide.bs.collapse', function () {
+            syncPermMemberToggles(panel.id, false);
+        });
+    });
+
+    function syncPermMemberToggles(panelId, expanded) {
+        document.querySelectorAll('[data-bs-target="#' + panelId + '"]').forEach(function (btn) {
+            btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        });
+    }
 })();
 </script>
-{% endif %}
 {% endblock %}
