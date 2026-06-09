@@ -167,22 +167,38 @@
                                 <td colspan="3" class="p-0 border-0">
                                     <div class="collapse" id="jp-perm-members-{{ group.pk }}">
                                         <div class="jp-perm-members-panel">
-                                            <div class="jp-perm-members-panel-title">
-                                                <i class="bi bi-people-fill text-hm me-1"></i>
-                                                {{ group.profile_count }} nhân viên trong nhóm «{{ group.name }}»
+                                            <div class="jp-perm-members-panel-head">
+                                                <span class="jp-perm-members-head-icon"><i class="bi bi-people-fill"></i></span>
+                                                <div class="jp-perm-members-head-text">
+                                                    <span class="jp-perm-members-head-count">{{ group.profile_count }} nhân viên</span>
+                                                    <span class="jp-perm-members-head-group">trong nhóm «{{ group.name }}»</span>
+                                                </div>
                                             </div>
                                             <ul class="jp-perm-members-list mb-0">
                                                 {% for profile in group.member_profiles %}
                                                 <li class="jp-perm-members-item">
-                                                    <a href="{% url 'user_edit' profile.user_id %}" class="jp-perm-members-link">
-                                                        {{ profile.full_name|default:profile.user.username }}
+                                                    <span class="jp-perm-members-avatar" aria-hidden="true">
+                                                        {{ profile.full_name|default:profile.user.username|slice:":1"|upper }}
+                                                    </span>
+                                                    <div class="jp-perm-members-body">
+                                                        <a href="{% url 'user_edit' profile.user_id %}" class="jp-perm-members-name">
+                                                            {{ profile.full_name|default:profile.user.username }}
+                                                        </a>
+                                                        <div class="jp-perm-members-meta">
+                                                            {% if profile.department %}
+                                                            <span class="jp-perm-members-dept">{{ profile.department.name }}</span>
+                                                            {% endif %}
+                                                            {% if profile.employee_code %}
+                                                            <span class="jp-perm-members-code">{% if profile.department %}· {% endif %}{{ profile.employee_code }}</span>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                    <a href="{% url 'user_edit' profile.user_id %}"
+                                                       class="jp-perm-members-action"
+                                                       title="Chỉnh sửa nhân viên"
+                                                       aria-label="Chỉnh sửa {{ profile.full_name|default:profile.user.username }}">
+                                                        <i class="bi bi-box-arrow-up-right"></i>
                                                     </a>
-                                                    {% if profile.department %}
-                                                    <span class="jp-perm-members-meta">{{ profile.department.name }}</span>
-                                                    {% endif %}
-                                                    {% if profile.employee_code %}
-                                                    <span class="jp-perm-members-meta">· {{ profile.employee_code }}</span>
-                                                    {% endif %}
                                                 </li>
                                                 {% endfor %}
                                             </ul>
