@@ -135,6 +135,9 @@ def can_submit_daily_report(user) -> bool:
     """Nộp báo cáo cá nhân — Giám đốc chỉ xem, không nộp."""
     if not _has_reports_module_access(user):
         return False
+    from hrm.module_permissions import MODULE_REPORTS, user_can_create_module
+    if not user_can_create_module(user, MODULE_REPORTS):
+        return False
     return not is_director(user)
 
 
@@ -150,21 +153,24 @@ def can_review_user_report(viewer, report) -> bool:
     """Duyệt / phản hồi báo cáo cấp dưới trực tiếp."""
     if report.employee_id == viewer.id:
         return False
-    return get_report_team_users(viewer).filter(pk=report.employee_id).exists()
+    if not get_report_team_users(viewer).filter(pk=report.employee_id).exists():
+        return False
+    from hrm.module_permissions import MODULE_REPORTS, user_can_update_module
+    return user_can_update_module(viewer, MODULE_REPORTS)
 
 
 def can_edit_user_guide(user) -> bool:
     """Chỉnh sửa trang hướng dẫn."""
     if not getattr(user, 'is_authenticated', False):
         return False
-    from hrm.module_permissions import MODULE_GUIDE, user_can_edit_module
-    return user_can_edit_module(user, MODULE_GUIDE)
+    from hrm.module_permissions import MODULE_GUIDE, user_can_update_module
+    return user_can_update_module(user, MODULE_GUIDE)
 
 
 def can_manage_kpi_for_others(user) -> bool:
     """Giao KPI mới / import Excel."""
-    from hrm.module_permissions import MODULE_KPI, user_can_edit_module
-    return user_can_edit_module(user, MODULE_KPI)
+    from hrm.module_permissions import MODULE_KPI, user_can_create_module
+    return user_can_create_module(user, MODULE_KPI)
 
 
 def portal_admin_denied_message() -> str:
@@ -257,8 +263,8 @@ def can_manage_team_tasks(user) -> bool:
     """
     if not _has_tasks_module_access(user):
         return False
-    from hrm.module_permissions import MODULE_TASKS, user_can_edit_module
-    if not user_can_edit_module(user, MODULE_TASKS):
+    from hrm.module_permissions import MODULE_TASKS, user_can_create_module
+    if not user_can_create_module(user, MODULE_TASKS):
         return False
 
     role = user_role(user)
@@ -294,8 +300,8 @@ def can_create_cross_dept_project(user) -> bool:
     """Chỉ Giám đốc hoặc Trưởng bộ phận — cần quyền sửa module Công việc."""
     if not _has_tasks_module_access(user):
         return False
-    from hrm.module_permissions import MODULE_TASKS, user_can_edit_module
-    if not user_can_edit_module(user, MODULE_TASKS):
+    from hrm.module_permissions import MODULE_TASKS, user_can_create_module
+    if not user_can_create_module(user, MODULE_TASKS):
         return False
     return user_role(user) in CROSS_DEPT_CREATOR_ROLES
 
@@ -383,3 +389,35 @@ def can_manage_assigned_task(user, task) -> bool:
     if task.project_id and can_manage_project(user, task.project):
         return True
     return task.assigner_id == user.id
+
+
+def can_review_assigned_task(user, task) -> bool:
+    """Duyệt hoàn thành / yêu cầu sửa — cần quyền sửa module Công việc."""
+    if not can_manage_assigned_task(user, task):
+        return False
+    from hrm.module_permissions import MODULE_TASKS, user_can_update_module
+    return user_can_update_module(user, MODULE_TASKS)
+
+
+def can_cancel_assigned_task(user, task) -> bool:
+    """Hủy công việc — cần quyền xóa module Công việc."""
+    if not can_manage_assigned_task(user, task):
+        return False
+    from hrm.module_permissions import MODULE_TASKS, user_can_delete_module
+    return user_can_delete_module(user, MODULE_TASKS)
+
+
+def can_manage_project_steps(user, project) -> bool:
+    """Thêm bước, giao lại — cần quyền thêm module Công việc."""
+    if not can_manage_project(user, project):
+        return False
+    from hrm.module_permissions import MODULE_TASKS, user_can_create_module
+    return user_can_create_module(user, MODULE_TASKS)
+
+
+def can_administer_project(user, project) -> bool:
+    """Duyệt handoff, đóng dự án — cần quyền sửa module Công việc."""
+    if not can_manage_project(user, project):
+        return False
+    from hrm.module_permissions import MODULE_TASKS, user_can_update_module
+    return user_can_update_module(user, MODULE_TASKS)

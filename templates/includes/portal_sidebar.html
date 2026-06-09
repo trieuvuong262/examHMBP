@@ -321,7 +321,7 @@
                         <i class="bi bi-plus-circle"></i><span>Gửi góp ý</span>
                     </a>
                 </li>
-                {% if jp_can_edit_feedback %}
+                {% if jp_can_update_feedback or jp_can_edit_feedback %}
                 <li>
                     <a href="{% url 'feedback:list' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'list' or request.resolver_match.url_name == 'detail' %}active{% endif %}">

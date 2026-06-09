@@ -5,10 +5,14 @@ from django.db.models import Max, Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
+from assessment.decorators import module_perm_required
+from hrm.module_permissions import MODULE_TASKS
 from hrm.permissions import (
+    can_administer_project,
     can_claim_cross_dept_step,
     can_create_cross_dept_project,
     can_manage_project,
+    can_manage_project_steps,
     is_cross_dept_read_only_viewer,
 )
 from PortalJustPlay.list_search import apply_combined_search, get_search_query
@@ -65,7 +69,7 @@ def cross_dept_list(request):
     })
 
 
-@_tasks_access_required
+@module_perm_required(MODULE_TASKS, 'create')
 def cross_dept_create(request):
     if not can_create_cross_dept_project(request.user):
         messages.error(request, 'Chỉ Giám đốc hoặc Trưởng bộ phận mới tạo được dự án liên phòng ban.')
@@ -114,10 +118,12 @@ def cross_dept_detail(request, pk):
         return redirect('tasks:cross_dept_list')
 
     is_owner = can_manage_project(request.user, project)
+    can_add_step = can_manage_project_steps(request.user, project)
+    can_administer = can_administer_project(request.user, project)
     is_read_only = is_cross_dept_read_only_viewer(request.user, project)
     can_comment = not is_read_only
     comment_form = ProjectCommentForm() if can_comment else None
-    step_form = CrossDeptStepForm(project=project) if is_owner else None
+    step_form = CrossDeptStepForm(project=project) if can_add_step else None
     pending_handoffs = []
 
     if is_owner:
@@ -148,7 +154,7 @@ def cross_dept_detail(request, pk):
                     messages.success(request, 'Đã gửi comment.')
                 return redirect('tasks:cross_dept_detail', pk=pk)
 
-        if action == 'add_step' and is_owner:
+        if action == 'add_step' and can_add_step:
             step_form = CrossDeptStepForm(request.POST, project=project)
             if step_form.is_valid():
                 depends_on = step_form.cleaned_data.get('depends_on')
@@ -182,7 +188,7 @@ def cross_dept_detail(request, pk):
                 messages.success(request, f'Đã thêm bước «{step.title}».')
                 return redirect('tasks:cross_dept_detail', pk=pk)
 
-        if action == 'approve_handoff' and is_owner:
+        if action == 'approve_handoff' and can_administer:
             handoff_id = request.POST.get('handoff_id')
             handoff = get_object_or_404(
                 WorkTaskHandoff,
@@ -239,7 +245,7 @@ def cross_dept_detail(request, pk):
             )
             return redirect('tasks:cross_dept_detail', pk=pk)
 
-        if action == 'reject_handoff' and is_owner:
+        if action == 'reject_handoff' and can_administer:
             handoff_id = request.POST.get('handoff_id')
             handoff = get_object_or_404(
                 WorkTaskHandoff,
@@ -255,7 +261,7 @@ def cross_dept_detail(request, pk):
             messages.info(request, 'Đã từ chối yêu cầu chuyển giao.')
             return redirect('tasks:cross_dept_detail', pk=pk)
 
-        if action == 'complete_project' and is_owner:
+        if action == 'complete_project' and can_administer:
             open_steps = project.steps.exclude(
                 status__in={
                     WorkTask.STATUS_COMPLETED,
@@ -303,6 +309,8 @@ def cross_dept_detail(request, pk):
         'members': members,
         'mention_members': build_mention_member_list(project),
         'is_owner': is_owner,
+        'can_add_step': can_add_step,
+        'can_administer': can_administer,
         'is_read_only': is_read_only,
         'can_comment': can_comment,
         'can_create': can_create_cross_dept_project(request.user),

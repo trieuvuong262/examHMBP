@@ -1,5 +1,7 @@
 from decimal import Decimal, InvalidOperation
 
+from functools import wraps
+
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
@@ -7,6 +9,8 @@ from django.urls import reverse
 
 from django.db.models import Q
 
+from assessment.decorators import module_perm_required
+from hrm.module_permissions import MODULE_DE_XUAT, MODULE_HO_TRO, user_can_access_module
 from .access import user_can_access_flow
 from .flow import (
     FLOW_DE_XUAT,
@@ -34,7 +38,9 @@ from .models import (
     ServiceRequestStep,
 )
 from .permissions import (
+    can_cancel_own_request,
     can_claim_step,
+    can_handle_request_workflow,
     can_handle_step,
     can_manage_recurring_catalog,
     can_view_pricing,
@@ -92,6 +98,7 @@ def _detail_url(service_request):
 def _flow_access_required(view_func=None, *, flow_tab=None):
     def decorator(fn):
         @login_required
+        @wraps(fn)
         def wrapper(request, *args, **kwargs):
             ft = normalize_flow_tab(
                 kwargs.get('flow_tab') or flow_tab or request.resolver_match.kwargs.get('flow_tab'),
@@ -110,7 +117,8 @@ def _flow_access_required(view_func=None, *, flow_tab=None):
 
 
 def _catalog_required(view_func):
-    @_flow_access_required(flow_tab=FLOW_DE_XUAT)
+    @module_perm_required(MODULE_DE_XUAT, 'update')
+    @wraps(view_func)
     def wrapper(request, *args, **kwargs):
         if not can_manage_recurring_catalog(request.user):
             messages.error(request, 'Chỉ Thu mua mới quản lý danh mục định kỳ.')
@@ -191,7 +199,6 @@ def _line_items_from_formset(formset, recurring_item=None):
 
 @login_required
 def request_hub(request):
-    from hrm.module_permissions import MODULE_DE_XUAT, MODULE_HO_TRO, user_can_access_module
     if user_can_access_module(request.user, MODULE_DE_XUAT):
         return redirect('service_requests:de_xuat_my')
     if user_can_access_module(request.user, MODULE_HO_TRO):
@@ -265,7 +272,7 @@ def pending_requests(request, flow_tab=None):
     return render(request, 'service_requests/pending_list.html', ctx)
 
 
-@_flow_access_required(flow_tab=FLOW_DE_XUAT)
+@module_perm_required(MODULE_DE_XUAT, 'create')
 def create_request(request):
     request_type = get_active_request_type()
     if not request_type:
@@ -345,7 +352,7 @@ def _resolve_it_repair_tab_scope(request, *, equipment_scope=None, linked_equipm
     return normalize_repair_equipment_scope('it')
 
 
-@_flow_access_required(flow_tab=FLOW_HO_TRO)
+@module_perm_required(MODULE_HO_TRO, 'create')
 def create_it_repair(request, equipment_scope=None):
     from equipment.scope import (
         SCOPE_IT,
@@ -525,13 +532,19 @@ def request_detail(request, pk, flow_tab=None):
         )
         return redirect('home_portal')
 
+    can_workflow = can_handle_request_workflow(request.user, service_request)
+
     if request.method == 'POST':
         action = request.POST.get('action')
         try:
-            if action == 'cancel' and service_request.requester_id == request.user.id:
+            if action == 'cancel' and can_cancel_own_request(request.user, service_request):
                 cancel_request(service_request, actor=request.user)
                 messages.info(request, 'Đã hủy yêu cầu.')
                 return redirect(_list_url_for_request(service_request))
+
+            if not can_workflow:
+                messages.error(request, 'Bạn không có quyền xử lý yêu cầu này.')
+                return redirect(_detail_url(service_request))
 
             if not current_step:
                 messages.error(request, 'Yêu cầu không còn bước đang xử lý.')
@@ -655,7 +668,7 @@ def request_detail(request, pk, flow_tab=None):
         status=ServiceRequestStep.STATUS_SKIPPED,
     ).order_by('step_order').first()
     can_cancel = (
-        service_request.requester_id == request.user.id
+        can_cancel_own_request(request.user, service_request)
         and service_request.status == ServiceRequest.STATUS_IN_PROGRESS
         and first_active
         and first_active.status == ServiceRequestStep.STATUS_PENDING

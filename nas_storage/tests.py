@@ -334,3 +334,95 @@ class NasShareTests(TestCase):
         )
         response = self.client.get(reverse('nas_storage:share_open', args=[share.token]))
         self.assertEqual(response.status_code, 302)
+
+
+class NasGranularPermissionTests(TestCase):
+    def setUp(self):
+        from hrm.models import DepartmentMenuPermission, PermissionGroup
+        from hrm.module_permissions import MODULE_NAS_STORAGE
+        from hrm.group_permissions import normalize_group_permissions, permissions_from_legacy_role
+        from hrm.permissions import ROLE_EMPLOYEE
+
+        self.dept, _ = Department.objects.get_or_create(
+            name='IT',
+            defaults={'sort_order': 10},
+        )
+        DepartmentMenuPermission.objects.get_or_create(
+            department=self.dept,
+            defaults={'modules': ['nas_storage']},
+        )
+
+        base = normalize_group_permissions(permissions_from_legacy_role(ROLE_EMPLOYEE))
+        view_only = dict(base)
+        view_only[MODULE_NAS_STORAGE] = {
+            'view': True,
+            'create': False,
+            'update': False,
+            'delete': False,
+            'export': False,
+        }
+        self.group_view = PermissionGroup.objects.create(
+            slug='test-nas-view',
+            name='NAS view only',
+            module_permissions=view_only,
+        )
+
+        create_group = dict(base)
+        create_group[MODULE_NAS_STORAGE] = {
+            'view': True,
+            'create': True,
+            'update': False,
+            'delete': False,
+            'export': False,
+        }
+        self.group_create = PermissionGroup.objects.create(
+            slug='test-nas-create',
+            name='NAS create share',
+            module_permissions=create_group,
+        )
+
+        self.view_user = User.objects.create_user(username='nas_view_only', password='test')
+        Profile.objects.filter(user=self.view_user).update(
+            full_name='NAS View',
+            department=self.dept,
+            role=ROLE_EMPLOYEE,
+            permission_group=self.group_view,
+        )
+
+        self.create_user = User.objects.create_user(username='nas_create_user', password='test')
+        Profile.objects.filter(user=self.create_user).update(
+            full_name='NAS Create',
+            department=self.dept,
+            role=ROLE_EMPLOYEE,
+            permission_group=self.group_create,
+        )
+
+    @override_settings(NAS_MOUNT_ROOT='/tmp/nas-granular-test')
+    def test_view_only_cannot_create_share(self):
+        import os
+
+        os.makedirs('/tmp/nas-granular-test/IT/nas_view_only', exist_ok=True)
+        open('/tmp/nas-granular-test/IT/nas_view_only/doc.pdf', 'wb').write(b'data')
+        self.client.login(username='nas_view_only', password='test')
+        response = self.client.post(
+            reverse('nas_storage:share_create'),
+            {'path': 'IT/nas_view_only/doc.pdf'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(NasShareLink.objects.count(), 0)
+
+    @override_settings(NAS_MOUNT_ROOT='/tmp/nas-granular-create-test')
+    def test_create_user_can_create_share(self):
+        import os
+
+        os.makedirs('/tmp/nas-granular-create-test/IT/nas_create_user', exist_ok=True)
+        open('/tmp/nas-granular-create-test/IT/nas_create_user/doc.pdf', 'wb').write(b'data')
+        self.client.login(username='nas_create_user', password='test')
+        response = self.client.post(
+            reverse('nas_storage:share_create'),
+            {'path': 'IT/nas_create_user/doc.pdf'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(NasShareLink.objects.count(), 1)

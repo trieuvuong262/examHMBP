@@ -57,3 +57,74 @@ class KpiDetailAccessTests(TestCase):
         url = reverse('kpi_detail', kwargs={'kpi_id': self.board.id})
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
+
+
+class KpiGranularPermissionTests(TestCase):
+    def setUp(self):
+        from hrm.models import PermissionGroup
+        from hrm.module_permissions import MODULE_KPI
+        from hrm.group_permissions import normalize_group_permissions, permissions_from_legacy_role
+
+        self.dept = Department.objects.create(name='KPI Granular Dept', sort_order=2)
+        DepartmentMenuPermission.objects.create(
+            department=self.dept,
+            modules=['kpi'],
+        )
+
+        base = normalize_group_permissions(permissions_from_legacy_role(ROLE_EMPLOYEE))
+        view_only = dict(base)
+        view_only[MODULE_KPI] = {
+            'view': True,
+            'create': False,
+            'update': False,
+            'delete': False,
+            'export': False,
+        }
+        self.group_view = PermissionGroup.objects.create(
+            slug='test-kpi-view',
+            name='KPI view only',
+            module_permissions=view_only,
+        )
+
+        create_group = dict(base)
+        create_group[MODULE_KPI] = {
+            'view': True,
+            'create': True,
+            'update': True,
+            'delete': False,
+            'export': False,
+        }
+        self.group_create = PermissionGroup.objects.create(
+            slug='test-kpi-create',
+            name='KPI create',
+            module_permissions=create_group,
+        )
+
+        self.employee = User.objects.create_user(username='kpi_view_only', password='pass12345')
+        Profile.objects.filter(user=self.employee).update(
+            full_name='KPI View',
+            department=self.dept,
+            role=ROLE_EMPLOYEE,
+            permission_group=self.group_view,
+        )
+
+        self.manager = User.objects.create_user(username='kpi_create_mgr', password='pass12345')
+        Profile.objects.filter(user=self.manager).update(
+            full_name='KPI Manager',
+            department=self.dept,
+            role=ROLE_TEAM_LEADER,
+            permission_group=self.group_create,
+        )
+
+        self.client = Client(HTTP_HOST='testserver')
+
+    def test_view_only_employee_cannot_open_yearly_create(self):
+        self.client.force_login(self.employee)
+        response = self.client.get(reverse('yearly_kpi_create'))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('home_portal'))
+
+    def test_manager_with_create_perm_can_open_yearly_create(self):
+        self.client.force_login(self.manager)
+        response = self.client.get(reverse('yearly_kpi_create'))
+        self.assertEqual(response.status_code, 200)

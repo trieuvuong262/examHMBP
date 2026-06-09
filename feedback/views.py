@@ -1,8 +1,8 @@
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 
-from hrm.module_permissions import MODULE_FEEDBACK, user_can_access_module, user_can_edit_module
+from assessment.decorators import module_perm_required
+from hrm.module_permissions import MODULE_FEEDBACK, user_can_update_module
 from PortalJustPlay.list_search import apply_term_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
@@ -10,30 +10,8 @@ from .forms import FeedbackCreateForm
 from .models import Feedback
 
 
-def _access_required(view_func):
-    @login_required
-    def wrapper(request, *args, **kwargs):
-        if not user_can_access_module(request.user, MODULE_FEEDBACK):
-            messages.error(request, 'Bạn không có quyền truy cập module Góp ý.')
-            return redirect('home_portal')
-        return view_func(request, *args, **kwargs)
-
-    return wrapper
-
-
-def _manage_required(view_func):
-    @_access_required
-    def wrapper(request, *args, **kwargs):
-        if not user_can_edit_module(request.user, MODULE_FEEDBACK):
-            messages.error(request, 'Bạn không có quyền xem danh sách góp ý.')
-            return redirect('feedback:create')
-        return view_func(request, *args, **kwargs)
-
-    return wrapper
-
-
 def unviewed_feedback_count_for_manager(user):
-    if not user_can_edit_module(user, MODULE_FEEDBACK):
+    if not user_can_update_module(user, MODULE_FEEDBACK):
         return 0
     return Feedback.objects.filter(viewed_at__isnull=True).count()
 
@@ -42,14 +20,14 @@ def feedback_count_for_manager(user):
     return unviewed_feedback_count_for_manager(user)
 
 
-@_access_required
+@module_perm_required(MODULE_FEEDBACK, 'view')
 def feedback_hub(request):
-    if user_can_edit_module(request.user, MODULE_FEEDBACK):
+    if user_can_update_module(request.user, MODULE_FEEDBACK):
         return redirect('feedback:list')
     return redirect('feedback:create')
 
 
-@_access_required
+@module_perm_required(MODULE_FEEDBACK, 'view')
 def create(request):
     if request.method == 'POST':
         form = FeedbackCreateForm(request.POST)
@@ -64,7 +42,7 @@ def create(request):
     return render(request, 'feedback/form.html', {'form': form})
 
 
-@_manage_required
+@module_perm_required(MODULE_FEEDBACK, 'update')
 def feedback_list(request):
     search_query = get_search_query(request)
     qs = Feedback.objects.select_related('submitter', 'viewed_by')
@@ -80,7 +58,7 @@ def feedback_list(request):
     })
 
 
-@_manage_required
+@module_perm_required(MODULE_FEEDBACK, 'update')
 def detail(request, pk):
     feedback = get_object_or_404(
         Feedback.objects.select_related('submitter', 'viewed_by'),

@@ -12,6 +12,7 @@ from hrm.models import (
 )
 from hrm.module_permissions import (
     ALL_MODULE_KEYS,
+    MODULE_CHOICES,
     MODULE_HRM,
     MODULE_KPI,
     MODULE_PERMISSIONS,
@@ -264,6 +265,34 @@ class PermissionGroupTests(TestCase):
             resolve_module_from_request('/dashboard/permissions/groups/1/edit/'),
             MODULE_PERMISSIONS,
         )
+
+    def test_permission_form_clears_export_for_modules_without_excel(self):
+        from hrm.forms import PermissionGroupPermissionForm
+        from hrm.group_permissions import MODULE_SUPPORTS_EXPORT
+
+        data = {f'export_{key}': 'on' for key, _ in MODULE_CHOICES}
+        data.update({f'view_{key}': 'on' for key, _ in MODULE_CHOICES})
+        form = PermissionGroupPermissionForm(data)
+        self.assertTrue(form.is_valid())
+        perms = form.cleaned_permissions()
+        for key, _ in MODULE_CHOICES:
+            if key in MODULE_SUPPORTS_EXPORT:
+                self.assertTrue(perms[key]['export'], key)
+            else:
+                self.assertFalse(perms[key]['export'], key)
+
+    def test_permission_form_clears_create_update_delete_for_audit(self):
+        from hrm.forms import PermissionGroupPermissionForm
+
+        data = {f'{action}_audit': 'on' for action in ('view', 'create', 'update', 'delete', 'export')}
+        form = PermissionGroupPermissionForm(data)
+        self.assertTrue(form.is_valid())
+        perms = form.cleaned_permissions()['audit']
+        self.assertTrue(perms['view'])
+        self.assertTrue(perms['export'])
+        self.assertFalse(perms['create'])
+        self.assertFalse(perms['update'])
+        self.assertFalse(perms['delete'])
 
 
 class HrmGranularPermissionViewTests(TestCase):

@@ -7,9 +7,11 @@
             <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-gear-fill me-2"></i>Quản lý thông báo</h2>
             <p class="text-muted mb-0 jp-hide-mobile-subtitle">Tạo và theo dõi mức độ đọc thông báo nội bộ.</p>
         </div>
+        {% if can_create %}
         <a href="{% url 'announcements:admin_create' %}" class="btn btn-hm fw-bold flex-fill flex-md-grow-0">
             <i class="bi bi-plus-circle-fill me-1"></i> Tạo thông báo
         </a>
+        {% endif %}
     </div>
 
     <div class="card border-0 shadow-sm mb-3">
@@ -55,8 +57,12 @@
                         <td>{{ item.created_at|date:"d/m/Y H:i" }}</td>
                         <td class="text-end">
                             <a href="{% url 'announcements:detail' item.pk %}" class="btn btn-sm btn-outline-secondary">Xem</a>
+                            {% if can_update %}
                             <a href="{% url 'announcements:admin_edit' item.pk %}" class="btn btn-sm btn-outline-hm">Sửa</a>
+                            {% endif %}
+                            {% if can_delete %}
                             <a href="{% url 'announcements:admin_delete' item.pk %}" class="btn btn-sm btn-outline-danger">Xóa</a>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}

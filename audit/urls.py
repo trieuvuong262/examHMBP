@@ -17,6 +17,7 @@ urlpatterns = [
     path('bao-mat-dang-nhap/unlock-user/<int:pk>/', views_login_security.unlock_user_login, name='unlock_user_login'),
     path('bao-mat-dang-nhap/unlock-ip/<int:pk>/', views_login_security.unlock_ip_login, name='unlock_ip_login'),
     path('', views.log_list, name='log_list'),
+    path('xuat-excel/', views.log_export_excel, name='log_export_excel'),
     path('backup/', views.backup_page, name='backup_page'),
     path('backup/run/', views.backup_run, name='backup_run'),
     path('kiotviet-sync/', kiotviet_sync_views.kiotviet_sync_page, name='kiotviet_sync'),

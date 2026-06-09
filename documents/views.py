@@ -9,8 +9,15 @@ from django.views.decorators.http import require_GET, require_POST
 
 from PortalJustPlay.list_search import apply_combined_search, apply_term_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
-from assessment.decorators import admin_only
-from hrm.module_permissions import MODULE_DOCUMENTS, user_can_access_module, user_can_edit_module
+from assessment.decorators import module_perm_required
+from hrm.module_permissions import (
+    MODULE_DOCUMENTS,
+    user_can_access_module,
+    user_can_create_module,
+    user_can_delete_module,
+    user_can_edit_module,
+    user_can_update_module,
+)
 
 from .forms import DocumentCategoryForm, DocumentForm, LibraryQAConfigForm
 from .models import Document, DocumentCategory, LibraryQAConfig
@@ -26,6 +33,15 @@ from .qa_service import QAAssistantError, ask_portal_assistant, generate_followu
 
 QA_RATE_LIMIT = 40
 QA_RATE_WINDOW = 3600
+
+
+def _documents_perm_context(user):
+    return {
+        'is_admin': user_can_edit_module(user, MODULE_DOCUMENTS),
+        'can_create': user_can_create_module(user, MODULE_DOCUMENTS),
+        'can_update': user_can_update_module(user, MODULE_DOCUMENTS),
+        'can_delete': user_can_delete_module(user, MODULE_DOCUMENTS),
+    }
 
 
 def _documents_access_required(view_func):
@@ -137,12 +153,12 @@ def browse(request, category_slug=None, doc_slug=None):
         'categories': categories,
         'selected_category': selected_category,
         'selected_document': selected_document,
-        'is_admin': user_can_edit_module(request.user, MODULE_DOCUMENTS),
+        **_documents_perm_context(request.user),
     }
     return render(request, 'documents/browse.html', context)
 
 
-@admin_only
+@module_perm_required(MODULE_DOCUMENTS, 'edit')
 def admin_hub(request):
     categories = DocumentCategory.objects.prefetch_related('documents').order_by(
         'sort_order', 'name'
@@ -156,7 +172,7 @@ def admin_hub(request):
     })
 
 
-@admin_only
+@module_perm_required(MODULE_DOCUMENTS, 'update')
 def admin_qa_settings(request):
     config = LibraryQAConfig.load()
     if request.method == 'POST':
@@ -215,7 +231,7 @@ def admin_qa_settings(request):
     })
 
 
-@admin_only
+@module_perm_required(MODULE_DOCUMENTS, 'edit')
 def admin_category_list(request):
     search_query = get_search_query(request)
     categories_qs = DocumentCategory.objects.all().order_by('sort_order', 'name')
@@ -228,10 +244,11 @@ def admin_category_list(request):
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
+        **_documents_perm_context(request.user),
     })
 
 
-@admin_only
+@module_perm_required(MODULE_DOCUMENTS, 'create')
 def admin_category_create(request):
     if request.method == 'POST':
         form = DocumentCategoryForm(request.POST)
@@ -247,7 +264,7 @@ def admin_category_create(request):
     })
 
 
-@admin_only
+@module_perm_required(MODULE_DOCUMENTS, 'update')
 def admin_category_edit(request, pk):
     category = get_object_or_404(DocumentCategory, pk=pk)
     if request.method == 'POST':
@@ -265,7 +282,7 @@ def admin_category_edit(request, pk):
     })
 
 
-@admin_only
+@module_perm_required(MODULE_DOCUMENTS, 'delete')
 def admin_category_delete(request, pk):
     category = get_object_or_404(DocumentCategory, pk=pk)
     if request.method == 'POST':
@@ -278,7 +295,7 @@ def admin_category_delete(request, pk):
     })
 
 
-@admin_only
+@module_perm_required(MODULE_DOCUMENTS, 'edit')
 def admin_document_list(request):
     search_query = get_search_query(request)
     documents_qs = Document.objects.select_related('category').order_by(
@@ -296,10 +313,11 @@ def admin_document_list(request):
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
+        **_documents_perm_context(request.user),
     })
 
 
-@admin_only
+@module_perm_required(MODULE_DOCUMENTS, 'create')
 def admin_document_create(request):
     initial = {}
     cat_id = request.GET.get('category')
@@ -325,7 +343,7 @@ def admin_document_create(request):
     })
 
 
-@admin_only
+@module_perm_required(MODULE_DOCUMENTS, 'update')
 def admin_document_edit(request, pk):
     document = get_object_or_404(Document, pk=pk)
     if request.method == 'POST':
@@ -347,7 +365,7 @@ def admin_document_edit(request, pk):
     })
 
 
-@admin_only
+@module_perm_required(MODULE_DOCUMENTS, 'delete')
 def admin_document_delete(request, pk):
     document = get_object_or_404(Document, pk=pk)
     if request.method == 'POST':
@@ -363,8 +381,8 @@ def admin_document_delete(request, pk):
 @_documents_access_required
 def qa_chat(request):
     return render(request, 'documents/qa.html', {
-        'is_admin': user_can_edit_module(request.user, MODULE_DOCUMENTS),
         'qa_enabled': is_qa_enabled(),
+        **_documents_perm_context(request.user),
         'qa_history': get_user_qa_history_for_display(request.user),
     })
 

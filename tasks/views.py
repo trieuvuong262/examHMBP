@@ -1,19 +1,27 @@
 import uuid
 
-from django.contrib.auth.decorators import login_required
+from functools import wraps
+
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from hrm.module_permissions import MODULE_TASKS, user_can_access_module
+from assessment.decorators import module_perm_required
+from hrm.module_permissions import (
+    MODULE_TASKS,
+    user_can_delete_module,
+    user_can_update_module,
+)
 from hrm.permissions import (
     can_assign_tasks,
+    can_cancel_assigned_task,
     can_claim_cross_dept_step,
     can_create_internal_project,
     can_manage_assigned_task,
     can_receive_assigned_tasks,
+    can_review_assigned_task,
     can_view_task,
     get_task_assignable_users,
     is_cross_dept_read_only_viewer,
@@ -39,20 +47,18 @@ from .utils import log_task_action
 
 
 def _tasks_access_required(view_func):
-    @login_required
-    def wrapper(request, *args, **kwargs):
-        if not user_can_access_module(request.user, MODULE_TASKS):
-            messages.error(request, 'Bạn không có quyền truy cập module Công việc.')
-            return redirect('home_portal')
-        return view_func(request, *args, **kwargs)
-    return wrapper
+    return module_perm_required(MODULE_TASKS, 'view')(view_func)
 
 
 def _assign_access_required(view_func):
-    @_tasks_access_required
+    @module_perm_required(MODULE_TASKS, 'create')
+    @wraps(view_func)
     def wrapper(request, *args, **kwargs):
         if not can_assign_tasks(request.user):
-            messages.error(request, 'Bạn chưa có quyền giao việc. Cần quyền cập nhật module Công việc và vai trò quản lý phù hợp.')
+            messages.error(
+                request,
+                'Bạn chưa có quyền giao việc. Cần quyền thêm module Công việc và vai trò quản lý phù hợp.',
+            )
             return redirect('tasks:my')
         return view_func(request, *args, **kwargs)
     return wrapper
@@ -357,7 +363,7 @@ def assign_task(request):
     })
 
 
-@_assign_access_required
+@_tasks_access_required
 def recurring_tasks(request):
     search_query = get_search_query(request)
     qs = WorkTaskRecurrence.objects.filter(assigner=request.user).select_related(
@@ -378,28 +384,37 @@ def recurring_tasks(request):
         'search_query': search_query,
         'can_assign': True,
         'can_receive': can_receive_assigned_tasks(request.user),
+        'can_update_tasks': user_can_update_module(request.user, MODULE_TASKS),
+        'can_delete_tasks': user_can_delete_module(request.user, MODULE_TASKS),
         'active_count': qs.filter(is_active=True).count(),
     })
 
 
-@_assign_access_required
+@_tasks_access_required
 def recurrence_action(request, pk):
     recurrence = get_object_or_404(WorkTaskRecurrence, pk=pk, assigner=request.user)
     if request.method != 'POST':
         return redirect('tasks:recurring')
 
     action = request.POST.get('action')
-    if action == 'pause':
-        recurrence.is_active = False
-        recurrence.save(update_fields=['is_active', 'updated_at'])
-        messages.info(request, 'Đã tạm dừng công việc lặp.')
-    elif action == 'resume':
-        recurrence.is_active = True
-        if recurrence.next_run_date < timezone.localdate():
-            recurrence.next_run_date = timezone.localdate()
-        recurrence.save(update_fields=['is_active', 'next_run_date', 'updated_at'])
-        messages.success(request, 'Đã tiếp tục công việc lặp.')
+    if action in ('pause', 'resume'):
+        if not user_can_update_module(request.user, MODULE_TASKS):
+            messages.error(request, 'Bạn không có quyền sửa công việc lặp.')
+            return redirect('tasks:recurring')
+        if action == 'pause':
+            recurrence.is_active = False
+            recurrence.save(update_fields=['is_active', 'updated_at'])
+            messages.info(request, 'Đã tạm dừng công việc lặp.')
+        else:
+            recurrence.is_active = True
+            if recurrence.next_run_date < timezone.localdate():
+                recurrence.next_run_date = timezone.localdate()
+            recurrence.save(update_fields=['is_active', 'next_run_date', 'updated_at'])
+            messages.success(request, 'Đã tiếp tục công việc lặp.')
     elif action == 'cancel':
+        if not user_can_delete_module(request.user, MODULE_TASKS):
+            messages.error(request, 'Bạn không có quyền dừng hẳn công việc lặp.')
+            return redirect('tasks:recurring')
         recurrence.is_active = False
         recurrence.end_date = timezone.localdate()
         recurrence.save(update_fields=['is_active', 'end_date', 'updated_at'])
@@ -435,6 +450,8 @@ def task_detail(request, pk):
         and can_receive_assigned_tasks(request.user)
     )
     is_assigner = can_manage_assigned_task(request.user, task)
+    can_review = can_review_assigned_task(request.user, task)
+    can_cancel_task = can_cancel_assigned_task(request.user, task)
 
     progress_form = WorkTaskProgressForm(
         initial={'progress_percent': task.progress_percent, 'result_note': task.result_note},
@@ -520,7 +537,7 @@ def task_detail(request, pk):
                     messages.success(request, 'Đã nộp chờ cấp trên duyệt.')
                 return _redirect_task_detail(task)
 
-        if action == 'approve' and is_assigner and task.status == WorkTask.STATUS_PENDING_REVIEW:
+        if action == 'approve' and can_review and task.status == WorkTask.STATUS_PENDING_REVIEW:
             review_form = WorkTaskReviewForm(request.POST)
             if review_form.is_valid():
                 task.status = WorkTask.STATUS_COMPLETED
@@ -541,7 +558,7 @@ def task_detail(request, pk):
                 messages.success(request, 'Đã duyệt hoàn thành công việc.')
                 return _redirect_task_detail(task)
 
-        if action == 'revision' and is_assigner and task.status == WorkTask.STATUS_PENDING_REVIEW:
+        if action == 'revision' and can_review and task.status == WorkTask.STATUS_PENDING_REVIEW:
             review_form = WorkTaskReviewForm(request.POST)
             if review_form.is_valid() and review_form.cleaned_data['review_note'].strip():
                 task.status = WorkTask.STATUS_REVISION
@@ -552,7 +569,7 @@ def task_detail(request, pk):
                 return _redirect_task_detail(task)
             messages.error(request, 'Vui lòng nhập ghi chú khi yêu cầu sửa.')
 
-        if action == 'cancel' and is_assigner and task.status not in {
+        if action == 'cancel' and can_cancel_task and task.status not in {
             WorkTask.STATUS_COMPLETED, WorkTask.STATUS_CANCELLED, WorkTask.STATUS_REASSIGNED,
         }:
             task.status = WorkTask.STATUS_CANCELLED
@@ -600,6 +617,8 @@ def task_detail(request, pk):
         'can_upload_work': is_assignee and task.status in ASSIGNEE_UPLOAD_STATUSES,
         'is_assignee': is_assignee,
         'is_assigner': is_assigner,
+        'can_review': can_review,
+        'can_cancel_task': can_cancel_task,
         'can_assign': can_assign_tasks(request.user),
         'can_create': can_create_internal_project(request.user),
         'can_receive': can_receive_assigned_tasks(request.user),

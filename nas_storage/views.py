@@ -12,6 +12,7 @@ from django.views.decorators.http import require_GET, require_POST
 from hrm.module_permissions import (
     MODULE_NAS_STORAGE,
     user_can_access_module,
+    user_can_create_module,
     user_can_delete_module,
 )
 from nas_storage.nas_paths import (
@@ -212,6 +213,9 @@ def open_share(request, token):
 @_access_required
 @require_POST
 def create_share(request):
+    if not user_can_create_module(request.user, MODULE_NAS_STORAGE):
+        return JsonResponse({'error': 'Bạn không có quyền tạo link chia sẻ.'}, status=403)
+
     rel_path = normalize_rel_path(request.POST.get('path', ''))
     if not rel_path:
         return JsonResponse({'error': 'missing path'}, status=400)

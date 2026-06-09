@@ -15,7 +15,15 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods
 
 from hrm.models import Department
-from hrm.module_permissions import MODULE_EQUIPMENT, user_can_access_module, user_can_edit_module
+from hrm.module_permissions import (
+    MODULE_EQUIPMENT,
+    user_can_access_module,
+    user_can_create_module,
+    user_can_delete_module,
+    user_can_edit_module,
+    user_can_export_module,
+    user_can_update_module,
+)
 from PortalJustPlay.list_search import apply_term_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
@@ -58,14 +66,31 @@ def _access_required(view_func):
     return wrapper
 
 
-def _edit_required(view_func):
-    @_access_required
-    def wrapper(request, *args, **kwargs):
-        if not user_can_edit_module(request.user, MODULE_EQUIPMENT):
-            messages.error(request, 'Bạn không có quyền chỉnh sửa thiết bị.')
-            return redirect('equipment:dashboard_it')
-        return view_func(request, *args, **kwargs)
-    return wrapper
+def _perm_required(action: str, *, redirect_name: str = 'equipment:dashboard_it'):
+    checker = {
+        'create': user_can_create_module,
+        'update': user_can_update_module,
+        'delete': user_can_delete_module,
+        'export': user_can_export_module,
+        'edit': user_can_edit_module,
+    }.get(action, user_can_edit_module)
+
+    def decorator(view_func):
+        @_access_required
+        def wrapper(request, *args, **kwargs):
+            if not checker(request.user, MODULE_EQUIPMENT):
+                messages.error(request, 'Bạn không có quyền thực hiện thao tác này trên module thiết bị.')
+                return redirect(redirect_name)
+            return view_func(request, *args, **kwargs)
+        return wrapper
+    return decorator
+
+
+_create_required = _perm_required('create')
+_update_required = _perm_required('update')
+_delete_required = _perm_required('delete')
+_export_required = _perm_required('export')
+_edit_required = _perm_required('edit')
 
 
 def _redirect_it_repair_list(equipment_scope=None):
@@ -77,7 +102,7 @@ def _subnav_context(request=None, equipment_scope=None, device=None):
     if request and request.user.is_authenticated:
         from equipment.services.it_repair_queue import pending_it_repair_steps_for_user
         ctx['can_edit_equipment'] = user_can_edit_module(request.user, MODULE_EQUIPMENT)
-        ctx['can_export_equipment'] = user_can_access_module(request.user, MODULE_EQUIPMENT)
+        ctx['can_export_equipment'] = user_can_export_module(request.user, MODULE_EQUIPMENT)
     else:
         ctx['can_edit_equipment'] = False
         ctx['can_export_equipment'] = False
@@ -409,12 +434,12 @@ def device_list(request, equipment_scope=SCOPE_IT):
         'status_choices': Device.STATUS_CHOICES,
         'can_edit': user_can_edit_module(request.user, MODULE_EQUIPMENT),
         'can_edit_equipment': user_can_edit_module(request.user, MODULE_EQUIPMENT),
-        'can_export': user_can_access_module(request.user, MODULE_EQUIPMENT),
+        'can_export': user_can_export_module(request.user, MODULE_EQUIPMENT),
         **_subnav_context(request, equipment_scope),
     })
 
 
-@_edit_required
+@_create_required
 def device_add(request, equipment_scope=SCOPE_IT):
     from equipment.services.managed_department import default_managed_department_for_scope
 
@@ -440,7 +465,7 @@ def device_add(request, equipment_scope=SCOPE_IT):
     })
 
 
-@_edit_required
+@_update_required
 @require_http_methods(['GET', 'POST'])
 def device_edit(request, device_id):
     if request.method == 'GET':
@@ -556,12 +581,12 @@ def device_detail_manage(request, device_id):
     )
     from equipment.services.shared_pc import get_registered_users
 
-    can_edit = user_can_edit_module(request.user, MODULE_EQUIPMENT)
+    can_edit = user_can_update_module(request.user, MODULE_EQUIPMENT)
     form = None
 
     if request.method == 'POST':
         if not can_edit:
-            messages.error(request, 'Bạn không có quyền chỉnh sửa thiết bị.')
+            messages.error(request, 'Bạn không có quyền sửa thiết bị.')
             return redirect('equipment:device_detail_manage', device_id=device.id)
         form = DeviceForm(request.POST, instance=device, equipment_scope=merge_scope_context(request, device=device).get('equipment_scope'))
         if form.is_valid():
@@ -641,8 +666,11 @@ def _import_export_context(request, equipment_scope=SCOPE_IT):
         selected_category = default_category
     cmap = category_map()
 
+    user = request.user
     return {
-        'can_edit': user_can_edit_module(request.user, MODULE_EQUIPMENT),
+        'can_edit': user_can_edit_module(user, MODULE_EQUIPMENT),
+        'can_create': user_can_create_module(user, MODULE_EQUIPMENT),
+        'can_export': user_can_export_module(user, MODULE_EQUIPMENT),
         'category_groups': categories_by_group_for_scope(equipment_scope),
         'selected_category': selected_category,
         'selected_category_label': cmap.get(selected_category, selected_category),
@@ -651,13 +679,13 @@ def _import_export_context(request, equipment_scope=SCOPE_IT):
     }
 
 
-@_edit_required
+@_access_required
 def import_export_hub(request, equipment_scope=SCOPE_IT):
     """Trang nhập Excel theo loại thiết bị."""
     return render(request, 'equipment/import_export.html', _import_export_context(request, equipment_scope))
 
 
-@_access_required
+@_export_required
 def export_devices(request, equipment_scope=SCOPE_IT):
     if request.method == 'POST':
         params = request.POST
@@ -685,7 +713,7 @@ def export_devices(request, equipment_scope=SCOPE_IT):
     return response
 
 
-@_edit_required
+@_create_required
 def download_sample(request, equipment_scope=SCOPE_IT):
     default_category = 'PC' if equipment_scope == SCOPE_IT else 'SEW_LOCKSTITCH'
     category = (request.GET.get('category') or default_category).strip()
@@ -701,7 +729,7 @@ def download_sample(request, equipment_scope=SCOPE_IT):
     return response
 
 
-@_edit_required
+@_create_required
 @require_http_methods(['GET', 'POST'])
 def import_devices(request, equipment_scope=SCOPE_IT):
     default_category = 'PC' if equipment_scope == SCOPE_IT else 'SEW_LOCKSTITCH'
@@ -747,7 +775,7 @@ def _redirect_category_list(equipment_scope=None):
     return redirect(scope_urls(equipment_scope or SCOPE_IT)['category_list'])
 
 
-@_edit_required
+@_access_required
 def category_list(request, equipment_scope=SCOPE_IT):
     from equipment.models import DeviceCategory
     from equipment.services.scope_ui import is_it_scope
@@ -768,7 +796,7 @@ def category_list(request, equipment_scope=SCOPE_IT):
     })
 
 
-@_edit_required
+@_create_required
 @require_http_methods(['GET', 'POST'])
 def category_add(request, equipment_scope=SCOPE_IT):
     from equipment.forms import DeviceCategoryForm
@@ -788,7 +816,7 @@ def category_add(request, equipment_scope=SCOPE_IT):
     })
 
 
-@_edit_required
+@_update_required
 @require_http_methods(['GET', 'POST'])
 def category_edit(request, pk, equipment_scope=SCOPE_IT):
     from equipment.forms import DeviceCategoryForm
@@ -811,7 +839,7 @@ def category_edit(request, pk, equipment_scope=SCOPE_IT):
     })
 
 
-@_edit_required
+@_delete_required
 @require_http_methods(['POST'])
 def category_delete(request, pk, equipment_scope=SCOPE_IT):
     from equipment.models import Device, DeviceCategory
@@ -827,7 +855,7 @@ def category_delete(request, pk, equipment_scope=SCOPE_IT):
     return _redirect_category_list(equipment_scope)
 
 
-@_edit_required
+@_delete_required
 @require_http_methods(['POST'])
 def delete_bulk_devices(request, equipment_scope=SCOPE_IT):
     device_ids = request.POST.getlist('device_ids')
@@ -952,7 +980,7 @@ def api_agent_poll(request):
     })
 
 
-@_edit_required
+@_update_required
 @require_http_methods(['POST'])
 def request_agent_rescan(request):
     """Portal: yêu cầu mọi agent báo cáo lại (trong ~1–2 phút)."""
@@ -1238,7 +1266,7 @@ def agent_config_ping(request):
     })
 
 
-@_edit_required
+@_access_required
 def agent_guide(request):
     portal_url = getattr(settings, 'PORTAL_PUBLIC_BASE_URL', '').rstrip('/')
     return render(request, 'equipment/agent_guide.html', {

@@ -13,7 +13,8 @@ from django.utils import timezone
 from django.contrib import messages
 from django.db.models import Count, Sum, Q
 
-from hrm.module_permissions import MODULE_REPORTS, user_can_access_module
+from assessment.decorators import module_perm_required
+from hrm.module_permissions import MODULE_REPORTS
 from hrm.permissions import (
     can_review_user_report,
     can_submit_daily_report,
@@ -50,17 +51,11 @@ _CK5_MAX_BYTES = 5 * 1024 * 1024
 
 
 def _reports_access_required(view_func):
-    @login_required
-    def wrapper(request, *args, **kwargs):
-        if not user_can_access_module(request.user, MODULE_REPORTS):
-            messages.error(request, 'Bạn không có quyền truy cập module Báo cáo.')
-            return redirect('home_portal')
-        return view_func(request, *args, **kwargs)
-    return wrapper
+    return module_perm_required(MODULE_REPORTS, 'view')(view_func)
 
 
 def _require_submit_access(view_func):
-    @_reports_access_required
+    @module_perm_required(MODULE_REPORTS, 'create')
     def wrapper(request, *args, **kwargs):
         if not can_submit_daily_report(request.user):
             messages.info(request, 'Vai trò Giám đốc chỉ xem báo cáo cấp dưới, không nộp báo cáo cá nhân.')
@@ -342,11 +337,9 @@ def today_report(request):
     return _today_office_report(request, report_date)
 
 
-@login_required
+@module_perm_required(MODULE_REPORTS, 'create')
 @require_POST
 def ckeditor5_upload(request):
-    if not user_can_access_module(request.user, MODULE_REPORTS):
-        return JsonResponse({'error': {'message': 'Không có quyền tải ảnh.'}}, status=403)
 
     upload = request.FILES.get('upload')
     if not upload:

@@ -1,11 +1,11 @@
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
-from django.utils.html import strip_tags
 
+from assessment.decorators import module_perm_required
 from hrm.forms_guide import UserGuideForm
 from hrm.models import UserGuide
+from hrm.module_permissions import MODULE_GUIDE
 from hrm.permissions import can_edit_user_guide
 
 
@@ -20,7 +20,7 @@ def _default_body_html(request):
     return render_to_string('guide/_default_body.html', request=request)
 
 
-@login_required
+@module_perm_required(MODULE_GUIDE, 'view')
 def user_guide(request):
     guide = UserGuide.load()
     can_edit = can_edit_user_guide(request.user)
@@ -36,12 +36,8 @@ def user_guide(request):
     })
 
 
-@login_required
+@module_perm_required(MODULE_GUIDE, 'update')
 def user_guide_edit(request):
-    if not can_edit_user_guide(request.user):
-        messages.error(request, 'Bạn không có quyền chỉnh sửa hướng dẫn.')
-        return redirect('user_guide')
-
     guide = UserGuide.load()
 
     if request.method == 'POST':

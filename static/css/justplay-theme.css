@@ -6277,6 +6277,22 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     vertical-align: middle;
 }
 
+.jp-perm-export-na {
+    background: #f8fafc;
+}
+
+.jp-perm-na {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 1.25rem;
+    color: #cbd5e1;
+    font-weight: 700;
+    font-size: 0.85rem;
+    user-select: none;
+}
+
 .jp-perm-switch {
     position: relative;
     display: inline-flex;

@@ -1,23 +1,39 @@
-from django.contrib.auth.decorators import login_required
 from assessment.models import ExamSubmission
-from django.shortcuts import render, get_object_or_404, redirect
-from django.http import JsonResponse
-from django.utils import timezone
-from .models import Course, Chapter, Lesson, Enrollment, LessonProgress, CourseCategory # Thêm CourseCategory vào đây
-from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
-from .forms import CourseForm
-import json
 from django.contrib.auth.models import User
-from django.db.models import Count
-from .forms import ChapterForm, LessonForm
-from django.views.decorators.http import require_POST
-from assessment.decorators import admin_only
 from django.core.paginator import Paginator
+from django.db.models import Count
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.views.decorators.http import require_POST
+import json
+
+from assessment.decorators import module_perm_required
+from hrm.module_permissions import (
+    MODULE_TRAINING,
+    user_can_create_module,
+    user_can_delete_module,
+    user_can_edit_module,
+    user_can_update_module,
+)
 from PortalJustPlay.list_search import apply_term_search, get_search_query
 from PortalJustPlay.pagination import LIST_PAGE_SIZE, paginate_queryset
 
-@login_required
+from .forms import ChapterForm, CourseForm, LessonForm
+from .models import Chapter, Course, CourseCategory, Enrollment, Lesson, LessonProgress
+
+
+def _training_perm_context(user):
+    return {
+        'can_create': user_can_create_module(user, MODULE_TRAINING),
+        'can_update': user_can_update_module(user, MODULE_TRAINING),
+        'can_delete': user_can_delete_module(user, MODULE_TRAINING),
+        'is_admin': user_can_edit_module(user, MODULE_TRAINING),
+    }
+
+
+@module_perm_required(MODULE_TRAINING, 'view')
 def my_courses(request):
     user = request.user
     search_query = get_search_query(request)
@@ -80,7 +96,7 @@ def my_courses(request):
         'title': 'Không gian học tập của tôi'
     })
 
-@login_required
+@module_perm_required(MODULE_TRAINING, 'view')
 def learning_space(request, course_id, lesson_id=None):
     course = get_object_or_404(Course, id=course_id, is_active=True)
     enrollment, _ = Enrollment.objects.get_or_create(user=request.user, course=course)
@@ -121,7 +137,7 @@ def learning_space(request, course_id, lesson_id=None):
         'title': f'Học tập: {course.title}'
     })
 
-@login_required
+@module_perm_required(MODULE_TRAINING, 'view')
 def mark_lesson_complete(request, lesson_id):
     """API dùng AJAX để đánh dấu bài học hoàn tất"""
     if request.method == 'POST':
@@ -147,7 +163,7 @@ def mark_lesson_complete(request, lesson_id):
         })
     return JsonResponse({'status': 'error'}, status=400)
 
-@admin_only
+@module_perm_required(MODULE_TRAINING, 'create')
 def course_create(request):
     user_positions = {}
     users = User.objects.select_related('profile').all()
@@ -173,7 +189,7 @@ def course_create(request):
         'user_positions_json': json.dumps(user_positions)
     })
     
-@admin_only
+@module_perm_required(MODULE_TRAINING, 'edit')
 def course_list(request):
     search_query = get_search_query(request)
     category_id = request.GET.get('category', '').strip()
@@ -206,9 +222,12 @@ def course_list(request):
         'categories': categories,
         'category_id': category_id,
         'status_filter': status,
-        'title': 'Quản lý danh sách khóa học'
+        'title': 'Quản lý danh sách khóa học',
+        **_training_perm_context(request.user),
     })
-@admin_only
+
+
+@module_perm_required(MODULE_TRAINING, 'update')
 def course_edit(request, course_id):
     course = get_object_or_404(Course, id=course_id)
     user_positions = {}
@@ -235,7 +254,7 @@ def course_edit(request, course_id):
         'user_positions_json': json.dumps(user_positions)
     })
     
-@admin_only
+@module_perm_required(MODULE_TRAINING, 'edit')
 def course_builder(request, course_id):
     course = get_object_or_404(Course, id=course_id)
     
@@ -244,10 +263,11 @@ def course_builder(request, course_id):
     return render(request, 'training/admin/course_builder.html', {
         'course': course,
         'chapters': chapters,
+        **_training_perm_context(request.user),
     })
-    
 
-@admin_only
+
+@module_perm_required(MODULE_TRAINING, 'create')
 def chapter_create(request, course_id):
     course = get_object_or_404(Course, id=course_id)
     if request.method == 'POST':
@@ -259,7 +279,7 @@ def chapter_create(request, course_id):
             return redirect('course_builder', course_id=course.id)
     return redirect('course_builder', course_id=course.id)
 
-@admin_only
+@module_perm_required(MODULE_TRAINING, 'create')
 def lesson_create(request, chapter_id):
     chapter = get_object_or_404(Chapter, id=chapter_id)
     if request.method == 'POST':
@@ -284,7 +304,7 @@ def lesson_create(request, chapter_id):
 
 
 
-@admin_only
+@module_perm_required(MODULE_TRAINING, 'delete')
 @require_POST
 def lesson_delete(request, lesson_id):
     lesson = get_object_or_404(Lesson, id=lesson_id)
@@ -294,7 +314,7 @@ def lesson_delete(request, lesson_id):
     messages.success(request, f'Đã xóa bài học: {lesson_title}')
     return redirect('course_builder', course_id=course_id)
 
-@admin_only
+@module_perm_required(MODULE_TRAINING, 'update')
 @require_POST
 def update_lesson_order(request):
     try:
@@ -309,7 +329,7 @@ def update_lesson_order(request):
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
     
 
-@admin_only
+@module_perm_required(MODULE_TRAINING, 'update')
 def lesson_edit(request, lesson_id):
     lesson = get_object_or_404(Lesson, id=lesson_id)
     course_id = lesson.chapter.course.id 
@@ -331,13 +351,13 @@ def lesson_edit(request, lesson_id):
     })
 
 
-@admin_only
+@module_perm_required(MODULE_TRAINING, 'edit')
 def api_get_categories(request):
     """API lấy danh sách danh mục (Dùng cho Modal AJAX)"""
     categories = CourseCategory.objects.all().order_by('-id').values('id', 'name')
     return JsonResponse({'categories': list(categories)})
 
-@admin_only
+@module_perm_required(MODULE_TRAINING, 'create')
 @require_POST
 def api_add_category(request):
     """API thêm danh mục mới"""
@@ -347,7 +367,7 @@ def api_add_category(request):
         return JsonResponse({'status': 'success', 'id': cat.id, 'name': cat.name})
     return JsonResponse({'status': 'error', 'message': 'Tên không được để trống'}, status=400)
 
-@admin_only
+@module_perm_required(MODULE_TRAINING, 'update')
 @require_POST
 def api_edit_category(request, pk):
     """API sửa tên danh mục"""
@@ -359,7 +379,7 @@ def api_edit_category(request, pk):
         return JsonResponse({'status': 'success'})
     return JsonResponse({'status': 'error', 'message': 'Tên không được để trống'}, status=400)
 
-@admin_only
+@module_perm_required(MODULE_TRAINING, 'delete')
 @require_POST
 def api_delete_category(request, pk):
     """API xóa danh mục"""

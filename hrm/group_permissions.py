@@ -23,6 +23,31 @@ PERM_ACTION_LABELS = {
     PERM_EXPORT: 'Xuất Excel',
 }
 
+# Module có chức năng tải/xuất file Excel thực tế — các module khác ẩn cột Excel trong ma trận phân quyền.
+MODULE_SUPPORTS_EXPORT = frozenset({
+    'hrm',          # Xuất danh sách nhân viên
+    'recruitment',  # Xuất lịch PV, giấy phép
+    'equipment',    # Xuất danh sách thiết bị
+    'audit',        # Xuất nhật ký thao tác
+})
+
+# Module chỉ dùng quyền Xem + Xuất Excel (ẩn Thêm/Sửa/Xóa trong ma trận phân quyền).
+MODULE_VIEW_EXPORT_ONLY = frozenset({
+    'audit',
+})
+
+
+def module_supports_export(module_key: str) -> bool:
+    return module_key in MODULE_SUPPORTS_EXPORT
+
+
+def module_permission_action_enabled(module_key: str, action: str) -> bool:
+    if module_key in MODULE_VIEW_EXPORT_ONLY:
+        return action in (PERM_VIEW, PERM_EXPORT)
+    if action == PERM_EXPORT:
+        return module_supports_export(module_key)
+    return True
+
 DEFAULT_GROUP_SLUGS = {
     'EMPLOYEE': 'mac-dinh-nhan-vien',
     'TEAM_LEADER': 'mac-dinh-to-truong',
@@ -35,33 +60,47 @@ def empty_module_perm() -> dict:
     return {action: False for action in PERM_ACTIONS}
 
 
-def legacy_entry_to_five_flags(entry) -> dict:
+def legacy_entry_to_five_flags(entry, *, module_key: str | None = None) -> dict:
     """Chuyển {view, edit} cũ → 5 quyền."""
     if not isinstance(entry, dict):
         return empty_module_perm()
 
     granular_keys = (PERM_CREATE, PERM_UPDATE, PERM_DELETE, PERM_EXPORT)
     if any(action in entry for action in granular_keys):
-        return normalize_module_perm(entry)
+        return normalize_module_perm(entry, module_key=module_key)
 
     view = bool(entry.get('view', False))
     edit = bool(entry.get('edit', False))
     if edit:
         view = True
+    if module_key in MODULE_VIEW_EXPORT_ONLY:
+        return {
+            PERM_VIEW: view,
+            PERM_CREATE: False,
+            PERM_UPDATE: False,
+            PERM_DELETE: False,
+            PERM_EXPORT: edit,
+        }
     return {
         PERM_VIEW: view,
         PERM_CREATE: edit,
         PERM_UPDATE: edit,
         PERM_DELETE: edit,
-        PERM_EXPORT: edit,
+        PERM_EXPORT: edit if module_supports_export(module_key or '') else False,
     }
 
 
-def normalize_module_perm(raw: dict | None) -> dict:
+def normalize_module_perm(raw: dict | None, *, module_key: str | None = None) -> dict:
     source = raw or {}
     result = empty_module_perm()
     for action in PERM_ACTIONS:
         result[action] = bool(source.get(action, False))
+    if module_key and not module_supports_export(module_key):
+        result[PERM_EXPORT] = False
+    if module_key in MODULE_VIEW_EXPORT_ONLY:
+        result[PERM_CREATE] = False
+        result[PERM_UPDATE] = False
+        result[PERM_DELETE] = False
     if any(result[a] for a in (PERM_CREATE, PERM_UPDATE, PERM_DELETE, PERM_EXPORT)):
         result[PERM_VIEW] = True
     return result
@@ -79,7 +118,10 @@ def normalize_group_permissions(raw: dict | None) -> dict:
             entry = {'view': entry, 'edit': entry}
         elif entry is None:
             entry = {}
-        result[module_key] = legacy_entry_to_five_flags(entry)
+        result[module_key] = normalize_module_perm(
+            legacy_entry_to_five_flags(entry, module_key=module_key),
+            module_key=module_key,
+        )
     return result
 
 
@@ -88,7 +130,10 @@ def permissions_from_legacy_role(role: str) -> dict:
 
     legacy = get_role_permissions(role)
     return {
-        module_key: legacy_entry_to_five_flags(entry)
+        module_key: normalize_module_perm(
+            legacy_entry_to_five_flags(entry, module_key=module_key),
+            module_key=module_key,
+        )
         for module_key, entry in legacy.items()
     }
 

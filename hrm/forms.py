@@ -26,7 +26,15 @@ from hrm.choices import GENDER_FORM_CHOICES
 from hrm.permissions import ROLE_EMPLOYEE
 from hrm.module_permissions import ALL_MODULE_KEYS, MODULE_CHOICES, MODULE_LABELS
 from hrm.role_permissions import normalize_module_permissions
-from hrm.group_permissions import PERM_ACTIONS, PERM_ACTION_LABELS, normalize_group_permissions
+from hrm.group_permissions import (
+    MODULE_VIEW_EXPORT_ONLY,
+    PERM_ACTIONS,
+    PERM_ACTION_LABELS,
+    PERM_EXPORT,
+    module_permission_action_enabled,
+    module_supports_export,
+    normalize_group_permissions,
+)
 from hrm.user_search import (
     subordinate_candidate_queryset,
     subordinate_scope_hint,
@@ -684,6 +692,7 @@ PERM_GROUP_MODULE_ICONS = {
     'nas_storage': 'bi-hdd-network',
     'equipment': 'bi-pc-display',
     'feedback': 'bi-chat-square-text',
+    'kiotviet': 'bi-shop',
 }
 
 
@@ -696,13 +705,18 @@ class PermissionGroupPermissionForm(forms.Form):
         normalized = normalize_group_permissions(initial_perms)
         for module_key, label in MODULE_CHOICES:
             mod = normalized.get(module_key, {})
+            supports_export = module_supports_export(module_key)
             for action in PERM_ACTIONS:
                 field_name = f'{action}_{module_key}'
+                action_enabled = module_permission_action_enabled(module_key, action)
+                widget_attrs = {'class': 'jp-perm-switch-input'}
+                if not action_enabled:
+                    widget_attrs['disabled'] = True
                 self.fields[field_name] = forms.BooleanField(
                     required=False,
-                    initial=mod.get(action, False),
+                    initial=mod.get(action, False) if action_enabled else False,
                     label=f'{PERM_ACTION_LABELS[action]} — {label}',
-                    widget=forms.CheckboxInput(attrs={'class': 'jp-perm-switch-input'}),
+                    widget=forms.CheckboxInput(attrs=widget_attrs),
                 )
 
     def module_rows(self):
@@ -712,6 +726,8 @@ class PermissionGroupPermissionForm(forms.Form):
                 'key': module_key,
                 'label': label,
                 'icon': PERM_GROUP_MODULE_ICONS.get(module_key, 'bi-grid'),
+                'supports_export': module_supports_export(module_key),
+                'view_export_only': module_key in MODULE_VIEW_EXPORT_ONLY,
                 'fields': {
                     action: self[f'{action}_{module_key}']
                     for action in PERM_ACTIONS
@@ -723,9 +739,15 @@ class PermissionGroupPermissionForm(forms.Form):
         result = {}
         for module_key, _label in MODULE_CHOICES:
             entry = {
-                action: self.cleaned_data.get(f'{action}_{module_key}', False)
+                action: (
+                    self.cleaned_data.get(f'{action}_{module_key}', False)
+                    if module_permission_action_enabled(module_key, action)
+                    else False
+                )
                 for action in PERM_ACTIONS
             }
+            if not module_supports_export(module_key):
+                entry[PERM_EXPORT] = False
             if any(entry[a] for a in ('create', 'update', 'delete', 'export')):
                 entry['view'] = True
             result[module_key] = entry

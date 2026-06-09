@@ -1,6 +1,8 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from assessment.decorators import module_perm_required
+from hrm.module_permissions import MODULE_KPI, user_can_create_module, user_can_update_module
 from django.db.models import Q
 from django.utils import timezone
 from django.contrib.auth.models import User
@@ -106,17 +108,21 @@ def kpi_list_view(request):
     current_year = datetime.datetime.now().year
     admin_periods = []
 
-    if is_admin:
+    can_toggle_period = request.user.is_superuser or user_can_update_module(request.user, MODULE_KPI)
+    if can_toggle_period:
         if request.method == 'POST' and 'toggle_period' in request.POST:
+            if not user_can_update_module(request.user, MODULE_KPI) and not request.user.is_superuser:
+                messages.error(request, 'Bạn không có quyền đóng/mở kỳ đánh giá KPI.')
+                return redirect('kpi_list')
             p_type = request.POST.get('period_type')
-            is_active = request.POST.get('is_active') == 'on' 
-            
+            is_active = request.POST.get('is_active') == 'on'
+
             period = _get_or_create_period(current_year, p_type)
             period.is_active = is_active
             period.save()
             messages.success(request, f"Đã {'MỞ' if is_active else 'ĐÓNG'} kỳ đánh giá {p_type}!")
             return redirect('kpi_list')
-        
+
         standard_types = ['Q1', 'Q2', 'Q3', 'Q4', 'H1', 'H2', 'Y']
         for pt in standard_types:
             admin_periods.append(_get_or_create_period(current_year, pt))
@@ -232,14 +238,13 @@ def kpi_detail_view(request, kpi_id):
 # ========================================================
 # 3. GIAO MỤC TIÊU NĂM (YEARLY SETUP)
 # ========================================================
-@login_required
+@module_perm_required(MODULE_KPI, 'create')
 def yearly_kpi_create(request):
     profile = get_profile(request.user)
     if not profile:
         messages.error(request, "Tài khoản chưa có hồ sơ nhân sự. Vui lòng liên hệ HR/IT.")
         return redirect('kpi_list')
-    
-    # 1. CHẶN ĐỨNG NHÂN VIÊN (Quy trình Top-Down)
+
     if profile.role == ROLE_EMPLOYEE and not request.user.is_superuser:
         messages.error(request, "Quyền truy cập bị từ chối! Chỉ Quản lý mới được thiết lập KPI năm.")
         return redirect('kpi_list')
@@ -308,7 +313,7 @@ def yearly_kpi_create(request):
     })
 
 
-@login_required
+@module_perm_required(MODULE_KPI, 'create')
 def kpi_import_excel(request):
     profile = get_profile(request.user)
     if not profile:
@@ -376,7 +381,7 @@ def kpi_import_excel(request):
         'hod_list': hod_list,
         'gm_list': gm_list
     })
-@login_required
+@module_perm_required(MODULE_KPI, 'create')
 def download_kpi_sample_excel(request):
     wb = openpyxl.Workbook()
     ws = wb.active

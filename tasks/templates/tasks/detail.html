@@ -229,7 +229,7 @@
             </div>
             {% endif %}
 
-            {% if is_assigner and task.status == 'pending_review' and not task.skip_completion_review %}
+            {% if can_review and task.status == 'pending_review' and not task.skip_completion_review %}
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white fw-bold">Duyệt công việc</div>
                 <div class="card-body">
@@ -251,7 +251,7 @@
             </div>
             {% endif %}
 
-            {% if is_assigner and task.status != 'completed' and task.status != 'cancelled' and task.status != 'reassigned' %}
+            {% if can_cancel_task and task.status != 'completed' and task.status != 'cancelled' and task.status != 'reassigned' %}
             <form method="post" onsubmit="return confirm('Hủy công việc này?');">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="cancel">

@@ -1230,3 +1230,99 @@ class DeviceUpdateLogTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'Lịch sử cập nhật')
         self.assertContains(resp, 'Tạo thiết bị')
+
+
+class EquipmentGranularPermissionTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth.models import User
+        from django.test import Client
+        from django.urls import reverse
+
+        from hrm.models import Department, DepartmentMenuPermission, PermissionGroup, Profile
+        from hrm.module_permissions import MODULE_EQUIPMENT
+        from hrm.permissions import ROLE_EMPLOYEE
+        from hrm.group_permissions import normalize_group_permissions, permissions_from_legacy_role
+
+        self.dept = Department.objects.create(name='Equipment Perm Dept', sort_order=1)
+        DepartmentMenuPermission.objects.create(
+            department=self.dept,
+            modules=['equipment'],
+        )
+
+        base = normalize_group_permissions(permissions_from_legacy_role(ROLE_EMPLOYEE))
+        view_only = dict(base)
+        view_only[MODULE_EQUIPMENT] = {
+            'view': True,
+            'create': False,
+            'update': False,
+            'delete': False,
+            'export': False,
+        }
+        self.group_view = PermissionGroup.objects.create(
+            slug='test-equipment-view',
+            name='Equipment view only',
+            module_permissions=view_only,
+        )
+
+        export_group = dict(base)
+        export_group[MODULE_EQUIPMENT] = {
+            'view': True,
+            'create': False,
+            'update': False,
+            'delete': False,
+            'export': True,
+        }
+        self.group_export = PermissionGroup.objects.create(
+            slug='test-equipment-export',
+            name='Equipment export',
+            module_permissions=export_group,
+        )
+
+        self.view_user = User.objects.create_user(username='eq_view', password='testpass123')
+        Profile.objects.filter(user=self.view_user).update(
+            department=self.dept,
+            role=ROLE_EMPLOYEE,
+            permission_group=self.group_view,
+        )
+
+        self.export_user = User.objects.create_user(username='eq_export', password='testpass123')
+        Profile.objects.filter(user=self.export_user).update(
+            department=self.dept,
+            role=ROLE_EMPLOYEE,
+            permission_group=self.group_export,
+        )
+
+        from equipment.models import Device
+
+        Device.objects.create(
+            name='Export Test PC',
+            category='PC',
+            status=Device.STATUS_ACTIVE,
+        )
+
+        self.client = Client(HTTP_HOST='testserver')
+        self.reverse = reverse
+
+    def test_view_only_can_open_device_list(self):
+        self.client.force_login(self.view_user)
+        response = self.client.get(self.reverse('equipment:device_list_it'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_view_only_cannot_export_devices(self):
+        self.client.force_login(self.view_user)
+        response = self.client.get(self.reverse('equipment:export_devices_it'))
+        self.assertEqual(response.status_code, 302)
+
+    def test_export_user_can_export_devices(self):
+        self.client.force_login(self.export_user)
+        response = self.client.get(self.reverse('equipment:export_devices_it'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response['Content-Type'],
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+
+    def test_view_only_cannot_add_device(self):
+        self.client.force_login(self.view_user)
+        response = self.client.get(self.reverse('equipment:device_add_it'))
+        self.assertEqual(response.status_code, 302)

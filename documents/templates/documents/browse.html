@@ -52,7 +52,7 @@
                     <div class="jp-doc-tree-empty-state text-center py-4 px-3">
                         <i class="bi bi-inbox display-6 text-muted opacity-50"></i>
                         <p class="text-muted small mb-0 mt-2">Chưa có nhóm tài liệu nào.</p>
-                        {% if is_admin %}
+                        {% if is_admin or can_create %}
                         <a href="{% url 'documents:admin_hub' %}" class="btn btn-sm btn-hm mt-3">Thiết lập ngay</a>
                         {% endif %}
                     </div>

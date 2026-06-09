@@ -12,8 +12,8 @@ from django.views.decorators.http import require_GET
 from django.db import transaction
 from django.db.models import Count, Prefetch
 # Import từ các app khác sang
-from hrm.module_permissions import ALL_MODULE_KEYS, MODULE_CHOICES, MODULE_HRM, MODULE_LABELS
-from assessment.decorators import admin_only, module_perm_required
+from hrm.module_permissions import ALL_MODULE_KEYS, MODULE_CHOICES, MODULE_HRM, MODULE_LABELS, MODULE_PERMISSIONS
+from assessment.decorators import module_perm_required
 from assessment.forms import UserForm # Tạm thời Form vẫn để ở nhà cũ, mốt mình dời sau
 from django.utils.text import slugify
 from hrm.models import (
@@ -678,7 +678,7 @@ def _org_redirect_for_division(division):
     return _org_redirect(tab='divisions')
 
 
-@admin_only
+@module_perm_required(MODULE_HRM, 'view')
 def org_structure(request):
     from django.db.utils import OperationalError, ProgrammingError
 
@@ -806,12 +806,12 @@ def org_structure(request):
     })
 
 
-@admin_only
+@module_perm_required(MODULE_HRM, 'view')
 def department_list(request):
     return _org_redirect()
 
 
-@admin_only
+@module_perm_required(MODULE_HRM, 'create')
 def department_add(request):
     if request.method == 'POST':
         form = DepartmentForm(request.POST)
@@ -833,7 +833,7 @@ def department_add(request):
     })
 
 
-@admin_only
+@module_perm_required(MODULE_HRM, 'update')
 def department_edit(request, pk):
     department = get_object_or_404(Department, pk=pk)
     if request.method == 'POST':
@@ -852,7 +852,7 @@ def department_edit(request, pk):
     })
 
 
-@admin_only
+@module_perm_required(MODULE_HRM, 'delete')
 def department_delete(request, pk):
     department = get_object_or_404(Department, pk=pk)
     if request.method == 'POST':
@@ -871,7 +871,7 @@ def department_delete(request, pk):
     })
 
 
-@admin_only
+@module_perm_required(MODULE_PERMISSIONS, 'update')
 def department_permissions(request, pk):
     department = get_object_or_404(Department, pk=pk)
     perm, _ = DepartmentMenuPermission.objects.get_or_create(
@@ -901,7 +901,7 @@ def department_permissions(request, pk):
     })
 
 
-@admin_only
+@module_perm_required(MODULE_PERMISSIONS, 'view')
 def permission_config(request):
     search_query = get_search_query(request)
     departments_qs = Department.objects.annotate(
@@ -979,7 +979,7 @@ def _permission_group_form_context(meta_form, perm_form, title, *, group=None, i
     }
 
 
-@admin_only
+@module_perm_required(MODULE_PERMISSIONS, 'create')
 def permission_group_add(request):
     if request.method == 'POST':
         meta_form = PermissionGroupMetaForm(request.POST)
@@ -1001,7 +1001,7 @@ def permission_group_add(request):
     ))
 
 
-@admin_only
+@module_perm_required(MODULE_PERMISSIONS, 'update')
 def permission_group_edit(request, pk):
     group = get_object_or_404(PermissionGroup, pk=pk)
 
@@ -1026,7 +1026,7 @@ def permission_group_edit(request, pk):
     ))
 
 
-@admin_only
+@module_perm_required(MODULE_PERMISSIONS, 'delete')
 def permission_group_delete(request, pk):
     from hrm.department_permission_templates import is_protected_permission_group
 
@@ -1046,7 +1046,7 @@ def permission_group_delete(request, pk):
     return redirect(_permission_config_url('group'))
 
 
-@admin_only
+@module_perm_required(MODULE_PERMISSIONS, 'update')
 def role_permission_edit(request, role):
     valid_roles = {r for r, _ in ROLE_CHOICES}
     if role not in valid_roles:
@@ -1076,7 +1076,7 @@ def role_permission_edit(request, role):
     })
 
 
-@admin_only
+@module_perm_required(MODULE_HRM, 'create')
 def division_add(request):
     if request.method == 'POST':
         form = DivisionForm(request.POST)
@@ -1096,7 +1096,7 @@ def division_add(request):
     })
 
 
-@admin_only
+@module_perm_required(MODULE_HRM, 'update')
 def division_edit(request, pk):
     division = get_object_or_404(Division, pk=pk)
     if request.method == 'POST':
@@ -1115,7 +1115,7 @@ def division_edit(request, pk):
     })
 
 
-@admin_only
+@module_perm_required(MODULE_HRM, 'delete')
 def division_delete(request, pk):
     division = get_object_or_404(Division, pk=pk)
     if request.method == 'POST':
@@ -1135,7 +1135,7 @@ def division_delete(request, pk):
     })
 
 
-@admin_only
+@module_perm_required(MODULE_HRM, 'create')
 def org_position_add(request):
     from hrm.forms import DivisionPositionForm
 
@@ -1162,7 +1162,7 @@ def org_position_add(request):
     })
 
 
-@admin_only
+@module_perm_required(MODULE_HRM, 'update')
 def org_position_edit(request, pk):
     from hrm.forms import DivisionPositionForm
     from hrm.models import DivisionPosition
@@ -1188,7 +1188,7 @@ def org_position_edit(request, pk):
     })
 
 
-@admin_only
+@module_perm_required(MODULE_HRM, 'delete')
 def org_position_delete(request, pk):
     from hrm.models import DivisionPosition
 

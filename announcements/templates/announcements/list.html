@@ -7,14 +7,18 @@
             <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-megaphone-fill me-2"></i>Thông Báo</h2>
             <p class="text-muted mb-0 jp-hide-mobile-subtitle">Cập nhật chính sách, quy định và thông tin nội bộ từ Ban quản lý.</p>
         </div>
-        {% if is_admin %}
+        {% if is_admin or can_create %}
         <div class="d-flex gap-2 flex-wrap w-100 w-md-auto">
+            {% if is_admin %}
             <a href="{% url 'announcements:admin_list' %}" class="btn btn-outline-hm fw-bold flex-fill flex-md-grow-0">
                 <i class="bi bi-gear-fill me-1"></i> Quản lý
             </a>
+            {% endif %}
+            {% if can_create %}
             <a href="{% url 'announcements:admin_create' %}" class="btn btn-hm fw-bold flex-fill flex-md-grow-0">
                 <i class="bi bi-plus-circle-fill me-1"></i> Tạo mới
             </a>
+            {% endif %}
         </div>
         {% endif %}
     </div>

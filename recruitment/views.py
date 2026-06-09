@@ -14,7 +14,8 @@ import unicodedata
 from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password
 from assessment.models import Exam
-from assessment.decorators import admin_only
+from assessment.decorators import module_perm_required
+from hrm.module_permissions import MODULE_RECRUITMENT
 import unicodedata
 import secrets
 import string
@@ -29,7 +30,7 @@ from .models import Interview
 import openpyxl
 from django.http import HttpResponse
 from django.utils import timezone
-@admin_only
+@module_perm_required(MODULE_RECRUITMENT, 'view')
 @ensure_csrf_cookie
 def kanban_board(request):
     candidates = Candidate.objects.select_related('job_posting').filter(job_posting__is_active=True)
@@ -63,7 +64,7 @@ def kanban_board(request):
     }
     return render(request, 'recruitment/admin/kanban_board.html', context)
 
-@admin_only
+@module_perm_required(MODULE_RECRUITMENT, 'update')
 @require_POST
 def update_candidate_status(request):
     try:
@@ -79,7 +80,7 @@ def update_candidate_status(request):
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
     
-@admin_only
+@module_perm_required(MODULE_RECRUITMENT, 'create')
 @require_POST
 def add_candidate(request):
     full_name = (request.POST.get('full_name') or '').strip()
@@ -134,7 +135,7 @@ def add_candidate(request):
 
     return redirect('kanban_board')
 
-@admin_only
+@module_perm_required(MODULE_RECRUITMENT, 'view')
 def job_posting_list(request):
     search_query = get_search_query(request)
     jobs_qs = JobPosting.objects.all().order_by('-created_at')
@@ -151,7 +152,7 @@ def job_posting_list(request):
         'search_query': search_query,
     })
 
-@admin_only
+@module_perm_required(MODULE_RECRUITMENT, 'create')
 def job_posting_create(request):
     if request.method == 'POST':
         form = JobPostingForm(request.POST)
@@ -163,7 +164,7 @@ def job_posting_create(request):
         form = JobPostingForm()
     return render(request, 'recruitment/admin/job_posting_form.html', {'form': form, 'title': 'Đăng tin Tuyển dụng mới'})
 
-@admin_only
+@module_perm_required(MODULE_RECRUITMENT, 'update')
 def job_posting_edit(request, pk):
     job = get_object_or_404(JobPosting, pk=pk)
     if request.method == 'POST':
@@ -176,7 +177,7 @@ def job_posting_edit(request, pk):
         form = JobPostingForm(instance=job)
     return render(request, 'recruitment/admin/job_posting_form.html', {'form': form, 'title': 'Chỉnh sửa Vị trí Tuyển dụng', 'job': job})
 
-@admin_only
+@module_perm_required(MODULE_RECRUITMENT, 'delete')
 @require_POST
 def job_posting_delete(request, pk):
     job = get_object_or_404(JobPosting, pk=pk)
@@ -216,7 +217,7 @@ def generate_employee_username(full_name):
     return f"{prefix}{next_seq:03d}-bp"
 
 
-@admin_only
+@module_perm_required(MODULE_RECRUITMENT, 'update')
 @require_POST
 def convert_to_employee(request, candidate_id):
     candidate = get_object_or_404(Candidate, id=candidate_id)
@@ -285,7 +286,7 @@ def convert_to_employee(request, candidate_id):
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
     
-@admin_only
+@module_perm_required(MODULE_RECRUITMENT, 'view')
 def candidate_detail_ajax(request, pk):
     candidate = get_object_or_404(Candidate, pk=pk)
     data = {
@@ -300,7 +301,7 @@ def candidate_detail_ajax(request, pk):
     }
     return JsonResponse(data)
 
-@admin_only
+@module_perm_required(MODULE_RECRUITMENT, 'update')
 @require_POST
 def update_hr_note(request):
     candidate_id = request.POST.get('candidate_id')
@@ -317,7 +318,7 @@ def update_hr_note(request):
     return redirect('kanban_board')
 
 
-@admin_only
+@module_perm_required(MODULE_RECRUITMENT, 'update')
 @require_POST
 def set_interview_schedule(request):
     candidate_id = request.POST.get('candidate_id')
@@ -335,7 +336,7 @@ def set_interview_schedule(request):
     messages.success(request, f'Đã lưu lịch phỏng vấn cho ứng viên {candidate.full_name}!')
     return redirect('kanban_board')
 
-@admin_only
+@module_perm_required(MODULE_RECRUITMENT, 'view')
 def get_all_interviews(request):
     # 1. Bắt lấy ID của vị trí đang được lọc trên trình duyệt
     job_id = request.GET.get('job_id')
@@ -358,7 +359,7 @@ def get_all_interviews(request):
             'status': inv.candidate.get_status_display()
         })
     return JsonResponse({'interviews': data})
-@admin_only
+@module_perm_required(MODULE_RECRUITMENT, 'view')
 def get_candidate_interview(request, pk):
     candidate = get_object_or_404(Candidate, pk=pk)
     
@@ -377,7 +378,7 @@ def get_candidate_interview(request, pk):
         
     return JsonResponse(data)
 
-@admin_only
+@module_perm_required(MODULE_RECRUITMENT, 'update')
 @require_POST
 def update_practice_license(request):
     candidate_id = request.POST.get('candidate_id')
@@ -394,7 +395,7 @@ def update_practice_license(request):
     messages.success(request, f'Đã cập nhật thông tin Hành nghề cho {candidate.full_name}')
     return redirect('kanban_board')
 
-@admin_only
+@module_perm_required(MODULE_RECRUITMENT, 'view')
 def get_candidate_license(request, pk):
     candidate = get_object_or_404(Candidate, pk=pk)
     data = {
@@ -407,7 +408,7 @@ def get_candidate_license(request, pk):
     }
     return JsonResponse(data)
 
-@admin_only
+@module_perm_required(MODULE_RECRUITMENT, 'view')
 def get_all_licenses(request):
     # 1. Bắt lấy ID của vị trí đang được lọc trên trình duyệt
     job_id = request.GET.get('job_id')
@@ -432,7 +433,7 @@ def get_all_licenses(request):
         })
     return JsonResponse({'licenses': data})
 
-@admin_only
+@module_perm_required(MODULE_RECRUITMENT, 'export')
 def export_interviews_excel(request):
     job_id = request.GET.get('job_id')
     interviews = Interview.objects.select_related('candidate__job_posting')
@@ -468,7 +469,7 @@ def export_interviews_excel(request):
     return response
 
 
-@admin_only
+@module_perm_required(MODULE_RECRUITMENT, 'export')
 def export_licenses_excel(request):
     job_id = request.GET.get('job_id')
     candidates = Candidate.objects.filter(status='hired').select_related('job_posting')

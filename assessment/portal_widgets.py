@@ -334,7 +334,9 @@ def _equipment_it_widgets(user):
 
 
 def _feedback_widgets(user):
-    if not user_can_edit_module(user, MODULE_FEEDBACK):
+    from hrm.module_permissions import user_can_update_module
+
+    if not user_can_update_module(user, MODULE_FEEDBACK):
         return []
 
     from feedback.models import Feedback

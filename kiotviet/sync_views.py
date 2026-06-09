@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
-from hrm.module_permissions import MODULE_AUDIT, user_can_access_module, user_can_edit_module
+from assessment.decorators import module_perm_required
+from hrm.module_permissions import MODULE_AUDIT, user_can_export_module
 
 from .client import KiotVietClient
 from .mirror import mirror_summary, sync_states
@@ -17,16 +17,6 @@ from .models import KvSyncConfig, KvSyncJob
 from .sync_helpers import SYNC_INTERVAL_CHOICES, cron_hint_for_minutes, normalize_interval_minutes
 from .sync_runner import KvSyncRunnerError, active_sync_job, latest_sync_job, start_sync_async
 from .sync_service import ENTITY_ALL, ENTITY_LABELS, current_retailer
-
-
-def _audit_access_required(view_func):
-    @login_required
-    def wrapper(request, *args, **kwargs):
-        if not user_can_access_module(request.user, MODULE_AUDIT):
-            messages.error(request, 'Bạn không có quyền truy cập Quản Trị Hệ thống.')
-            return redirect('home_portal')
-        return view_func(request, *args, **kwargs)
-    return wrapper
 
 
 def _parse_entities(post) -> list[str]:
@@ -59,7 +49,7 @@ def _sync_page_context(user) -> dict:
     interval_minutes = config.interval_minutes if config else 30
 
     return {
-        'can_edit': user_can_edit_module(user, MODULE_AUDIT),
+        'can_export': user_can_export_module(user, MODULE_AUDIT),
         'configured': configured,
         'retailer': retailer,
         'config': config,
@@ -73,7 +63,7 @@ def _sync_page_context(user) -> dict:
     }
 
 
-@_audit_access_required
+@module_perm_required(MODULE_AUDIT, 'view')
 def kiotviet_sync_page(request):
     ctx = _sync_page_context(request.user)
     poll_job_id = request.GET.get('job', '').strip()
@@ -84,13 +74,9 @@ def kiotviet_sync_page(request):
     return render(request, 'audit/kiotviet_sync.html', ctx)
 
 
-@_audit_access_required
+@module_perm_required(MODULE_AUDIT, 'export')
 @require_POST
 def kiotviet_sync_save(request):
-    if not user_can_edit_module(request.user, MODULE_AUDIT):
-        messages.error(request, 'Bạn không có quyền lưu cấu hình đồng bộ.')
-        return redirect('audit:kiotviet_sync')
-
     retailer = current_retailer()
     if not retailer:
         messages.error(request, 'KIOTVIET_RETAILER chưa cấu hình trong .env.')
@@ -112,13 +98,9 @@ def kiotviet_sync_save(request):
     return redirect('audit:kiotviet_sync')
 
 
-@_audit_access_required
+@module_perm_required(MODULE_AUDIT, 'export')
 @require_POST
 def kiotviet_sync_run(request):
-    if not user_can_edit_module(request.user, MODULE_AUDIT):
-        messages.error(request, 'Bạn không có quyền chạy đồng bộ thủ công.')
-        return redirect('audit:kiotviet_sync')
-
     if not KiotVietClient.is_configured():
         messages.error(request, 'KiotViet chưa cấu hình. Kiểm tra biến môi trường KIOTVIET_*.')
         return redirect('audit:kiotviet_sync')
@@ -148,7 +130,7 @@ def kiotviet_sync_run(request):
     return redirect(reverse('audit:kiotviet_sync') + f'?job={job.pk}')
 
 
-@_audit_access_required
+@module_perm_required(MODULE_AUDIT, 'view')
 @require_GET
 def kiotviet_sync_status(request, job_id: int):
     try:

@@ -5,9 +5,13 @@ from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
+from assessment.decorators import module_perm_required
+from hrm.module_permissions import MODULE_TASKS
 from hrm.permissions import (
+    can_administer_project,
     can_create_internal_project,
     can_manage_project,
+    can_manage_project_steps,
     can_receive_assigned_tasks,
     can_view_project,
 )
@@ -67,7 +71,7 @@ def project_list(request):
     })
 
 
-@_tasks_access_required
+@module_perm_required(MODULE_TASKS, 'create')
 def project_create(request):
     if not can_create_internal_project(request.user):
         messages.error(request, 'Chỉ Tổ trưởng, Trưởng bộ phận hoặc Giám đốc (có quyền sửa Công việc) mới tạo được dự án nội bộ.')
@@ -102,8 +106,10 @@ def project_detail(request, pk):
         return redirect('tasks:project_list')
 
     is_owner = can_manage_project(request.user, project)
+    can_add_step = can_manage_project_steps(request.user, project)
+    can_administer = can_administer_project(request.user, project)
     comment_form = ProjectCommentForm()
-    step_form = ProjectStepForm(project=project) if is_owner else None
+    step_form = ProjectStepForm(project=project) if can_add_step else None
     pending_handoffs = []
 
     if is_owner:
@@ -134,7 +140,7 @@ def project_detail(request, pk):
                     messages.success(request, 'Đã gửi comment.')
                 return redirect('tasks:project_detail', pk=pk)
 
-        if action == 'add_step' and is_owner:
+        if action == 'add_step' and can_add_step:
             step_form = ProjectStepForm(request.POST, project=project)
             if step_form.is_valid():
                 from django.db.models import Max
@@ -163,7 +169,7 @@ def project_detail(request, pk):
                 messages.success(request, f'Đã thêm bước «{step.title}».')
                 return redirect('tasks:project_detail', pk=pk)
 
-        if action == 'approve_handoff' and is_owner:
+        if action == 'approve_handoff' and can_administer:
             handoff_id = request.POST.get('handoff_id')
             handoff = get_object_or_404(
                 WorkTaskHandoff,
@@ -214,7 +220,7 @@ def project_detail(request, pk):
             messages.success(request, f'Đã duyệt chuyển giao cho {handoff.to_user.profile.full_name or handoff.to_user.username}.')
             return redirect('tasks:project_detail', pk=pk)
 
-        if action == 'reject_handoff' and is_owner:
+        if action == 'reject_handoff' and can_administer:
             handoff_id = request.POST.get('handoff_id')
             handoff = get_object_or_404(
                 WorkTaskHandoff,
@@ -230,7 +236,7 @@ def project_detail(request, pk):
             messages.info(request, 'Đã từ chối yêu cầu chuyển giao.')
             return redirect('tasks:project_detail', pk=pk)
 
-        if action == 'complete_project' and is_owner:
+        if action == 'complete_project' and can_administer:
             open_steps = project.steps.exclude(
                 status__in={
                     WorkTask.STATUS_COMPLETED,
@@ -272,6 +278,8 @@ def project_detail(request, pk):
         'members': members,
         'mention_members': build_mention_member_list(project),
         'is_owner': is_owner,
+        'can_add_step': can_add_step,
+        'can_administer': can_administer,
         'can_create': can_create_internal_project(request.user),
         'pending_handoffs': pending_handoffs,
     })
@@ -288,8 +296,8 @@ def reassign_project_step(request, pk):
     )
     project = old_task.project
     step_route = _task_detail_route(old_task)
-    if not can_manage_project(request.user, project):
-        messages.error(request, 'Chỉ chủ dự án mới giao lại bước cho người khác.')
+    if not can_manage_project_steps(request.user, project):
+        messages.error(request, 'Chỉ chủ dự án có quyền thêm mới mới giao lại bước cho người khác.')
         return redirect(step_route, pk=pk)
 
     if old_task.status != WorkTask.STATUS_REJECTED:

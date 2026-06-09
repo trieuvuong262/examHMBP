@@ -105,9 +105,11 @@
             <h3 class="fw-bold text-dark mb-1"><i class="bi bi-diagram-3-fill text-hm me-2"></i>Quản lý Nội dung</h3>
             <p class="text-muted mb-0 small">Khóa học: <span class="fw-bold text-hm">{{ course.title }}</span></p>
         </div>
+        {% if can_create %}
         <button type="button" class="btn btn-hm shadow-sm px-4" data-bs-toggle="modal" data-bs-target="#addChapterModal">
             <i class="bi bi-folder-plus me-1"></i> Thêm Chương mới
         </button>
+        {% endif %}
     </div>
 
     <div class="accordion course-accordion" id="courseAccordion">
@@ -126,12 +128,14 @@
             <div id="collapse-{{ chapter.id }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
                  data-bs-parent="#courseAccordion">
                 <div class="accordion-body p-0 border-top bg-white">
+                    {% if can_create %}
                     <div class="bg-light p-2 text-end border-bottom px-3">
                         <button class="btn btn-sm btn-success fw-bold px-3" data-bs-toggle="modal"
                                 data-bs-target="#addLessonModal" data-chapter-id="{{ chapter.id }}">
                             <i class="bi bi-plus-circle me-1"></i> Thêm bài học
                         </button>
                     </div>
+                    {% endif %}
 
                     <ul class="list-group list-group-flush sortable-lessons" id="chapter-list-{{ chapter.id }}">
                         {% for lesson in chapter.lessons.all %}
@@ -156,10 +160,14 @@
                                     </div>
                                 </div>
                             </div>
+                            {% if can_update or can_delete %}
                             <div class="btn-group shadow-sm overflow-hidden">
+                                {% if can_update %}
                                 <a href="{% url 'lesson_edit' lesson.id %}" class="btn btn-sm btn-white border px-3 btn-action" title="Sửa bài học">
                                     <i class="bi bi-pencil-square text-warning"></i>
                                 </a>
+                                {% endif %}
+                                {% if can_delete %}
                                 <form action="{% url 'lesson_delete' lesson.id %}" method="POST" class="d-inline">
                                     {% csrf_token %}
                                     <button type="submit" class="btn btn-sm btn-white border-start-0 px-3 btn-action" 
@@ -167,7 +175,9 @@
                                         <i class="bi bi-trash3 text-danger"></i>
                                     </button>
                                 </form>
+                                {% endif %}
                             </div>
+                            {% endif %}
                         </li>
                         {% empty %}
                         <li class="list-group-item text-center py-5 text-muted bg-white italic">

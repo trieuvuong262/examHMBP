@@ -64,6 +64,7 @@
                             <a href="{% url 'tasks:detail' latest.pk %}" class="btn btn-sm btn-outline-hm">Lần gần nhất</a>
                             {% endif %}
                             {% endwith %}
+                            {% if can_update_tasks|default:jp_can_update_tasks %}
                             {% if item.is_active %}
                             <form method="post" action="{% url 'tasks:recurrence_action' item.pk %}" class="d-inline">
                                 {% csrf_token %}
@@ -77,11 +78,14 @@
                                 <button type="submit" class="btn btn-sm btn-outline-hm">Tiếp tục</button>
                             </form>
                             {% endif %}
+                            {% endif %}
+                            {% if can_delete_tasks|default:jp_can_delete_tasks %}
                             <form method="post" action="{% url 'tasks:recurrence_action' item.pk %}" class="d-inline" onsubmit="return confirm('Dừng hẳn chu kỳ này?');">
                                 {% csrf_token %}
                                 <input type="hidden" name="action" value="cancel">
                                 <button type="submit" class="btn btn-sm btn-outline-danger">Dừng hẳn</button>
                             </form>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}

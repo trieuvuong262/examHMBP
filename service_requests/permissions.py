@@ -6,7 +6,9 @@ from hrm.module_permissions import (
     MODULE_DE_XUAT,
     MODULE_HO_TRO,
     user_can_access_module,
-    user_can_edit_module,
+    user_can_create_module,
+    user_can_delete_module,
+    user_can_update_module,
 )
 from hrm.permissions import (
     ROLE_DIRECTOR,
@@ -112,9 +114,25 @@ def can_view_pricing(user, request_obj: ServiceRequest) -> bool:
 
 def can_manage_recurring_catalog(user) -> bool:
     """Thu mua quản lý danh mục hàng định kỳ."""
-    if not user_can_access_module(user, MODULE_DE_XUAT):
+    if not user_can_update_module(user, MODULE_DE_XUAT):
         return False
     return _user_in_department(user, get_procurement_department())
+
+
+def can_create_request(user, flow_tab) -> bool:
+    from .access import module_for_flow
+    module = module_for_flow(flow_tab)
+    return user_can_create_module(user, module)
+
+
+def can_handle_request_workflow(user, request_obj: ServiceRequest) -> bool:
+    return user_can_update_module(user, module_for_request(request_obj))
+
+
+def can_cancel_own_request(user, request_obj: ServiceRequest) -> bool:
+    if request_obj.requester_id != user.id:
+        return False
+    return user_can_delete_module(user, module_for_request(request_obj))
 
 
 def can_view_request(user, request_obj: ServiceRequest) -> bool:
@@ -291,7 +309,7 @@ def get_procurement_staff_candidates():
 
     edit_pks = [
         user.pk for user in base_qs
-        if user_can_edit_module(user, MODULE_DE_XUAT)
+        if user_can_update_module(user, MODULE_DE_XUAT)
     ]
     if not edit_pks:
         return User.objects.none()

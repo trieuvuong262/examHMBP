@@ -1,4 +1,4 @@
-{% if is_admin %}
+{% if can_update %}
 <nav class="jp-library-subnav mb-3 mb-md-4">
     <div class="jp-tab-pills d-flex flex-wrap gap-2 justify-content-end">
         <a href="{% url 'documents:admin_qa_settings' %}"

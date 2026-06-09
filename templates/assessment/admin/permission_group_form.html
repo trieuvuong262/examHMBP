@@ -113,7 +113,7 @@
                         </thead>
                         <tbody>
                             {% for row in perm_form.module_rows %}
-                            <tr data-module="{{ row.key }}" class="jp-perm-matrix-row">
+                            <tr data-module="{{ row.key }}" class="jp-perm-matrix-row" data-supports-export="{% if row.supports_export %}1{% else %}0{% endif %}">
                                 <td class="jp-perm-sticky-col ps-3">
                                     <div class="jp-perm-module-cell">
                                         <span class="jp-perm-module-icon"><i class="bi {{ row.icon }}"></i></span>
@@ -128,11 +128,17 @@
                                     </div>
                                 </td>
                                 {% for action, field in row.fields.items %}
-                                <td class="text-center jp-perm-action-cell jp-perm-col-{{ action }}">
+                                <td class="text-center jp-perm-action-cell jp-perm-col-{{ action }}{% if action == 'export' and not row.supports_export %} jp-perm-export-na{% endif %}{% if row.view_export_only and action != 'view' and action != 'export' %} jp-perm-export-na{% endif %}">
+                                    {% if action == 'export' and not row.supports_export %}
+                                    <span class="jp-perm-na" title="Module này không có xuất Excel">—</span>
+                                    {% elif row.view_export_only and action != 'view' and action != 'export' %}
+                                    <span class="jp-perm-na" title="Module này chỉ có quyền Xem và Xuất Excel">—</span>
+                                    {% else %}
                                     <label class="jp-perm-switch mb-0">
                                         {{ field }}
                                         <span class="jp-perm-switch-ui"></span>
                                     </label>
+                                    {% endif %}
                                 </td>
                                 {% endfor %}
                             </tr>
@@ -177,7 +183,9 @@
             var input = box(moduleKey, a);
             return input && input.checked;
         });
+        var supportsExport = row.getAttribute('data-supports-export') === '1';
         var full = actions.every(function (a) {
+            if (a === 'export' && !supportsExport) return true;
             var input = box(moduleKey, a);
             return input && input.checked;
         });
@@ -196,7 +204,12 @@
         }
         if (preset === 'full') {
             var full = {};
-            actions.forEach(function (a) { full[a] = true; });
+            var row = form.querySelector('tr[data-module="' + moduleKey + '"]');
+            var supportsExport = row && row.getAttribute('data-supports-export') === '1';
+            actions.forEach(function (a) {
+                if (a === 'export' && !supportsExport) return;
+                full[a] = true;
+            });
             setModulePerm(moduleKey, full);
         }
     }
@@ -218,7 +231,10 @@
         form.querySelectorAll('tbody tr[data-module]').forEach(function (row) {
             var moduleKey = row.getAttribute('data-module');
             var hasView = box(moduleKey, 'view') && box(moduleKey, 'view').checked;
+            var row = form.querySelector('tr[data-module="' + moduleKey + '"]');
+            var supportsExport = row && row.getAttribute('data-supports-export') === '1';
             var isFull = actions.every(function (a) {
+                if (a === 'export' && !supportsExport) return true;
                 var input = box(moduleKey, a);
                 return input && input.checked;
             });

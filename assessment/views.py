@@ -13,7 +13,14 @@ import pandas as pd
 from django.contrib.auth.models import User
 from django.http import HttpResponse
 import io
-from assessment.decorators import admin_only
+from assessment.decorators import dashboard_hub_required, module_perm_required
+from hrm.module_permissions import (
+    MODULE_ASSESSMENT,
+    user_can_create_module,
+    user_can_delete_module,
+    user_can_edit_module,
+    user_can_update_module,
+)
 from django.contrib.auth.views import PasswordChangeView
 from django.urls import reverse_lazy
 from django.contrib import messages
@@ -62,7 +69,16 @@ def home_portal(request):
         'dashboard_widgets': get_portal_dashboard(request.user),
     })
 
-@login_required
+def _assessment_perm_context(user):
+    return {
+        'can_create': user_can_create_module(user, MODULE_ASSESSMENT),
+        'can_update': user_can_update_module(user, MODULE_ASSESSMENT),
+        'can_delete': user_can_delete_module(user, MODULE_ASSESSMENT),
+        'is_admin': user_can_edit_module(user, MODULE_ASSESSMENT),
+    }
+
+
+@module_perm_required(MODULE_ASSESSMENT, 'view')
 def exam_list(request):
     now = timezone.now()
     
@@ -121,7 +137,7 @@ def exam_list(request):
         'completed_exam_ids': completed_exam_ids,
         'submission_results': submission_results 
     })
-@login_required
+@module_perm_required(MODULE_ASSESSMENT, 'view')
 def take_exam(request, exam_id):
     exam = get_object_or_404(Exam, id=exam_id)
     now = timezone.now()
@@ -246,7 +262,7 @@ def take_exam(request, exam_id):
     return render(request, 'assessment/take_exam.html', context)
 
 
-@admin_only
+@dashboard_hub_required
 def admin_dashboard(request):
     now = timezone.now()
     
@@ -302,7 +318,7 @@ def admin_dashboard(request):
 import json
 from django.contrib.auth.models import User
 
-@admin_only
+@module_perm_required(MODULE_ASSESSMENT, 'create')
 def exam_create(request):
     user_positions = {}
     users = User.objects.select_related('profile').all()
@@ -332,7 +348,7 @@ def exam_create(request):
     return render(request, 'assessment/admin/exam_form.html', context)
 
 
-@admin_only
+@module_perm_required(MODULE_ASSESSMENT, 'update')
 def exam_edit(request, pk):
     exam = get_object_or_404(Exam, pk=pk)
     questions_in_exam = exam.questions.all().order_by('-created_at')
@@ -354,13 +370,16 @@ def exam_edit(request, pk):
         form = ExamForm(instance=exam)
         
     return render(request, 'assessment/admin/exam_form.html', {
-        'form': form, 
-        'exam': exam, 
+        'form': form,
+        'exam': exam,
         'questions': questions_in_exam,
         'question_bank': question_bank,
-        'title': 'Chỉnh sửa kỳ thi'
+        'title': 'Chỉnh sửa kỳ thi',
+        **_assessment_perm_context(request.user),
     })
-@admin_only
+
+
+@module_perm_required(MODULE_ASSESSMENT, 'delete')
 def exam_delete(request, pk):
     exam = get_object_or_404(Exam, pk=pk)
     if request.method == 'POST':
@@ -369,7 +388,7 @@ def exam_delete(request, pk):
     return render(request, 'assessment/admin/exam_confirm_delete.html', {'exam': exam})
 
 
-@admin_only
+@module_perm_required(MODULE_ASSESSMENT, 'edit')
 def admin_results(request):
     exam_id = request.GET.get('exam')
     search_query = get_search_query(request)
@@ -403,7 +422,7 @@ def admin_results(request):
         'total_count': page_obj.paginator.count,
     })
 
-@admin_only
+@module_perm_required(MODULE_ASSESSMENT, 'update')
 def grade_submission(request, submission_id):
     submission = get_object_or_404(ExamSubmission, id=submission_id)
     
@@ -453,7 +472,7 @@ def grade_submission(request, submission_id):
         'submission': submission,
         'answers': answers
     })
-@admin_only
+@module_perm_required(MODULE_ASSESSMENT, 'update')
 def question_edit(request, exam_id, question_id=None):
     """View dùng chung cho cả THÊM và SỬA câu hỏi, hỗ trợ Inline Formset để sửa đáp án"""
     exam = get_object_or_404(Exam, id=exam_id)
@@ -488,11 +507,12 @@ def question_edit(request, exam_id, question_id=None):
         'is_edit': bool(question_id)
     })
 
-@admin_only
+@module_perm_required(MODULE_ASSESSMENT, 'create')
 def question_add(request, exam_id):
     return question_edit(request, exam_id)
 
-@admin_only
+
+@module_perm_required(MODULE_ASSESSMENT, 'update')
 def question_remove(request, exam_id, question_id):
     if request.method == 'POST':
         exam = get_object_or_404(Exam, id=exam_id)
@@ -501,12 +521,12 @@ def question_remove(request, exam_id, question_id):
         messages.info(request, "Đã gỡ câu hỏi khỏi đề thi.")
     return redirect('exam_edit', pk=exam_id)
 
-@admin_only
+@module_perm_required(MODULE_ASSESSMENT, 'edit')
 def competency_manage(request):
     competencies = Competency.objects.all()
     return render(request, 'assessment/admin/competency_list_partial.html', {'competencies': competencies})
 
-@admin_only
+@module_perm_required(MODULE_ASSESSMENT, 'create')
 def competency_add_ajax(request):
     """Thêm nhanh năng lực qua AJAX"""
     if request.method == 'POST':
@@ -516,7 +536,7 @@ def competency_add_ajax(request):
             return JsonResponse({'status': 'success', 'id': comp.id, 'name': comp.name})
     return JsonResponse({'status': 'error'}, status=400)
 
-@admin_only
+@module_perm_required(MODULE_ASSESSMENT, 'delete')
 def competency_delete_ajax(request, pk):
     """Xóa năng lực qua AJAX"""
     if request.method == 'POST':

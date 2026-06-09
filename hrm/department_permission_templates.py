@@ -206,7 +206,7 @@ DEPARTMENT_PERMISSION_TEMPLATES = [
             {
                 M['guide']: FULL,
                 M['permissions']: FULL,
-                M['audit']: FULL,
+                M['audit']: _f(view=True, export=True),
             },
         ),
     },

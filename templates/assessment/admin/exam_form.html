@@ -187,12 +187,16 @@
                 <div class="card-header-hm d-flex justify-content-between align-items-center">
                     <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-journal-text me-2 text-hm"></i>DANH SÁCH CÂU HỎI TRONG ĐỀ</h6>
                     <div class="d-flex gap-2">
+                        {% if can_update %}
                         <button type="button" class="btn btn-sm btn-outline-hm fw-bold px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#bankModal">
                             <i class="bi bi-database-add me-1"></i> Ngân hàng câu hỏi
                         </button>
+                        {% endif %}
+                        {% if can_create %}
                         <a href="{% url 'question_add' exam.id %}" class="btn btn-sm btn-hm fw-bold px-3 shadow-sm">
                             <i class="bi bi-plus-lg me-1"></i> Tạo câu mới
                         </a>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="card-body p-0">
@@ -216,6 +220,7 @@
                                     <td><span class="badge bg-white border text-muted x-small">{{ q.get_q_type_display }}</span></td>
                                     <td class="text-center"><strong class="text-hm">{{ q.points }}</strong></td>
                                     <td class="text-end pe-4">
+                                        {% if can_update %}
                                         <div class="btn-group shadow-sm overflow-hidden border">
                                             <a href="{% url 'question_edit_detail' exam.id q.id %}" class="btn btn-sm btn-white"><i class="bi bi-pencil-square text-warning"></i></a>
                                             <form action="{% url 'question_remove' exam.id q.id %}" method="POST" class="d-inline">
@@ -225,6 +230,7 @@
                                                 </button>
                                             </form>
                                         </div>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% empty %}

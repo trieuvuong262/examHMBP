@@ -1,14 +1,16 @@
 from functools import wraps
 
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect
 
-from .access import kiotviet_is_live, user_can_use_kiotviet
+from assessment.decorators import module_perm_required
+from hrm.module_permissions import MODULE_KIOTVIET
+
+from .access import kiotviet_is_live
 
 
 def kiotviet_access_required(view_func):
-    @login_required
+    @module_perm_required(MODULE_KIOTVIET, 'view')
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
         if not kiotviet_is_live():
@@ -16,9 +18,6 @@ def kiotviet_access_required(view_func):
                 request,
                 'KiotViet mirror chưa sẵn sàng (.env: KIOTVIET_USE_LOCAL_MIRROR=1 và KIOTVIET_RETAILER).',
             )
-            return redirect('home_portal')
-        if not user_can_use_kiotviet(request.user):
-            messages.error(request, 'Bạn không có quyền truy cập module KiotViet.')
             return redirect('home_portal')
         return view_func(request, *args, **kwargs)
 

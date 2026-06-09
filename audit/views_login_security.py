@@ -1,9 +1,9 @@
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
+from assessment.decorators import module_perm_required
 from audit.login_security import (
     blacklist_suggestions,
     format_ip_list,
@@ -13,20 +13,10 @@ from audit.login_security import (
     unlock_user_account,
 )
 from audit.models import IpLoginBlock, UserLoginLock
-from hrm.module_permissions import MODULE_AUDIT, user_can_access_module, user_can_edit_module
+from hrm.module_permissions import MODULE_AUDIT, user_can_export_module
 
 
-def _login_security_access(view_func):
-    @login_required
-    def wrapper(request, *args, **kwargs):
-        if not user_can_access_module(request.user, MODULE_AUDIT):
-            messages.error(request, 'Bạn không có quyền truy cập Quản Trị Hệ thống.')
-            return redirect('home_portal')
-        return view_func(request, *args, **kwargs)
-    return wrapper
-
-
-@_login_security_access
+@module_perm_required(MODULE_AUDIT, 'view')
 def login_security_page(request):
     tab = request.GET.get('tab', 'accounts')
     if tab not in ('accounts', 'bots', 'config'):
@@ -56,7 +46,7 @@ def login_security_page(request):
         'blocked_ips': blocked_ips,
         'recent_user_locks': recent_user_locks,
         'recent_ip_blocks': recent_ip_blocks,
-        'can_unlock': user_can_edit_module(request.user, MODULE_AUDIT),
+        'can_unlock': user_can_export_module(request.user, MODULE_AUDIT),
         'security_config': security_config,
         'wan_whitelist_text': format_ip_list(security_config.wan_whitelist_ips),
         'ip_blacklist_text': format_ip_list(security_config.ip_blacklist),
@@ -68,13 +58,9 @@ def login_security_page(request):
     })
 
 
+@module_perm_required(MODULE_AUDIT, 'export')
 @require_POST
-@_login_security_access
 def save_login_security_config_view(request):
-    if not user_can_edit_module(request.user, MODULE_AUDIT):
-        messages.error(request, 'Bạn không có quyền cập nhật cấu hình IP.')
-        return redirect(reverse('audit:login_security') + '?tab=config')
-
     _, invalid_wan, invalid_blacklist = save_login_security_config(
         wan_whitelist_text=request.POST.get('wan_whitelist_ips', ''),
         ip_blacklist_text=request.POST.get('ip_blacklist', ''),
@@ -96,13 +82,9 @@ def save_login_security_config_view(request):
     return redirect(reverse('audit:login_security') + '?tab=config')
 
 
+@module_perm_required(MODULE_AUDIT, 'export')
 @require_POST
-@_login_security_access
 def unlock_user_login(request, pk):
-    if not user_can_edit_module(request.user, MODULE_AUDIT):
-        messages.error(request, 'Bạn không có quyền mở khóa tài khoản.')
-        return redirect('audit:login_security')
-
     lock = get_object_or_404(UserLoginLock.objects.select_related('user'), pk=pk)
     if not lock.is_locked:
         messages.info(request, 'Tài khoản này không còn bị khóa.')
@@ -116,13 +98,9 @@ def unlock_user_login(request, pk):
     return redirect('audit:login_security')
 
 
+@module_perm_required(MODULE_AUDIT, 'export')
 @require_POST
-@_login_security_access
 def unlock_ip_login(request, pk):
-    if not user_can_edit_module(request.user, MODULE_AUDIT):
-        messages.error(request, 'Bạn không có quyền bỏ chặn IP.')
-        return redirect(reverse('audit:login_security') + '?tab=bots')
-
     block = get_object_or_404(IpLoginBlock, pk=pk)
     if not block.is_blocked:
         messages.info(request, 'IP này không còn bị chặn.')

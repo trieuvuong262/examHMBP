@@ -1,13 +1,18 @@
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect, render
 
 from PortalJustPlay.list_search import apply_combined_search, apply_term_search, apply_user_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
-from assessment.decorators import admin_only
+from assessment.decorators import module_perm_required
 
-from hrm.module_permissions import MODULE_ANNOUNCEMENTS, user_can_edit_module
+from hrm.module_permissions import (
+    MODULE_ANNOUNCEMENTS,
+    user_can_create_module,
+    user_can_delete_module,
+    user_can_edit_module,
+    user_can_update_module,
+)
 
 from .forms import AnnouncementForm
 from .models import Announcement, AnnouncementRead
@@ -17,7 +22,16 @@ def _active_announcements():
     return Announcement.objects.filter(is_active=True)
 
 
-@login_required
+def _announcement_perm_context(user):
+    return {
+        'is_admin': user_can_edit_module(user, MODULE_ANNOUNCEMENTS),
+        'can_create': user_can_create_module(user, MODULE_ANNOUNCEMENTS),
+        'can_update': user_can_update_module(user, MODULE_ANNOUNCEMENTS),
+        'can_delete': user_can_delete_module(user, MODULE_ANNOUNCEMENTS),
+    }
+
+
+@module_perm_required(MODULE_ANNOUNCEMENTS, 'view')
 def announcement_list(request):
     search_query = get_search_query(request)
     announcements_qs = _active_announcements().order_by('-is_pinned', '-created_at')
@@ -42,13 +56,13 @@ def announcement_list(request):
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
-        'is_admin': user_can_edit_module(request.user, MODULE_ANNOUNCEMENTS),
         'unread_count': sum(1 for x in items if not x['is_read']),
+        **_announcement_perm_context(request.user),
     }
     return render(request, 'announcements/list.html', context)
 
 
-@login_required
+@module_perm_required(MODULE_ANNOUNCEMENTS, 'view')
 def announcement_detail(request, pk):
     announcement = get_object_or_404(Announcement, pk=pk, is_active=True)
     is_read = AnnouncementRead.objects.filter(
@@ -67,12 +81,12 @@ def announcement_detail(request, pk):
     context = {
         'announcement': announcement,
         'is_read': is_read,
-        'is_admin': user_can_edit_module(request.user, MODULE_ANNOUNCEMENTS),
+        **_announcement_perm_context(request.user),
     }
     return render(request, 'announcements/detail.html', context)
 
 
-@admin_only
+@module_perm_required(MODULE_ANNOUNCEMENTS, 'edit')
 def admin_list(request):
     search_query = get_search_query(request)
     announcements_qs = Announcement.objects.annotate(
@@ -89,10 +103,11 @@ def admin_list(request):
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
+        **_announcement_perm_context(request.user),
     })
 
 
-@admin_only
+@module_perm_required(MODULE_ANNOUNCEMENTS, 'create')
 def admin_create(request):
     if request.method == 'POST':
         form = AnnouncementForm(request.POST, request.FILES)
@@ -111,7 +126,7 @@ def admin_create(request):
     })
 
 
-@admin_only
+@module_perm_required(MODULE_ANNOUNCEMENTS, 'update')
 def admin_edit(request, pk):
     announcement = get_object_or_404(Announcement, pk=pk)
 
@@ -131,7 +146,7 @@ def admin_edit(request, pk):
     })
 
 
-@admin_only
+@module_perm_required(MODULE_ANNOUNCEMENTS, 'delete')
 def admin_delete(request, pk):
     announcement = get_object_or_404(Announcement, pk=pk)
 
