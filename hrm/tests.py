@@ -294,6 +294,19 @@ class PermissionGroupTests(TestCase):
         self.assertFalse(perms['update'])
         self.assertFalse(perms['delete'])
 
+    def test_module_choices_aligned_with_menu_and_group_matrix(self):
+        from hrm.forms import PERM_GROUP_MODULE_ICONS, PermissionGroupPermissionForm
+        from hrm.group_permissions import MODULE_LIST_META
+
+        keys = {key for key, _ in MODULE_CHOICES}
+        self.assertEqual(keys, ALL_MODULE_KEYS)
+        self.assertEqual(set(MODULE_LIST_META), keys)
+        self.assertEqual(set(PERM_GROUP_MODULE_ICONS), keys)
+
+        form = PermissionGroupPermissionForm()
+        matrix_keys = {row['key'] for row in form.module_rows()}
+        self.assertEqual(matrix_keys, keys)
+
 
 class HrmGranularPermissionViewTests(TestCase):
     def setUp(self):
