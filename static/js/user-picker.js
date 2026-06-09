@@ -283,6 +283,76 @@
         refresh(fieldName);
     }
 
+    function escapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function rebuildOptions(fieldName, users, options) {
+        const root = getRoot(fieldName);
+        if (!root) return;
+        const opts = options || {};
+        const mode = root.dataset.mode || 'multiple';
+        const htmlName = root.dataset.fieldName || fieldName;
+        const showOrgMeta = opts.showOrgMeta !== false;
+        const selected = new Set((opts.selectedIds || []).map(String));
+
+        root.querySelectorAll('.jp-user-picker-option input:checked').forEach(function (input) {
+            selected.add(String(input.value));
+        });
+
+        const list = root.querySelector('.jp-user-picker-list');
+        if (!list) return;
+
+        let html = '';
+        (users || []).forEach(function (user) {
+            const userId = String(user.id);
+            const checked = selected.has(userId) ? ' checked' : '';
+            const metaAttrs = showOrgMeta
+                ? ' data-department-id="' + escapeHtml(user.department_id) + '"'
+                    + ' data-division-id="' + escapeHtml(user.division_id) + '"'
+                : '';
+            const orgLine = showOrgMeta && user.department_name
+                ? '<span class="d-block">'
+                    + (user.division_name ? escapeHtml(user.division_name) + ' · ' : '')
+                    + escapeHtml(user.department_name)
+                    + '</span>'
+                : '';
+            const positionPart = user.job_position
+                ? ' · ' + escapeHtml(user.job_position)
+                : '';
+            const inputType = mode === 'single' ? 'radio' : 'checkbox';
+
+            html += '<label class="jp-user-picker-option d-flex align-items-start gap-2"'
+                + ' data-user-id="' + escapeHtml(userId) + '"'
+                + ' data-role="' + escapeHtml(user.role) + '"'
+                + ' data-position="' + escapeHtml(user.job_position) + '"'
+                + metaAttrs
+                + ' data-search="' + escapeHtml(user.search) + '">'
+                + '<input type="' + inputType + '"'
+                + ' class="form-check-input mt-1 flex-shrink-0"'
+                + ' name="' + escapeHtml(htmlName) + '"'
+                + ' value="' + escapeHtml(userId) + '"' + checked + '>'
+                + '<span class="flex-grow-1 min-w-0">'
+                + '<strong class="jp-text-clamp-1">' + escapeHtml(user.full_name) + '</strong>'
+                + '<span class="d-block small text-muted jp-text-clamp-2">'
+                + escapeHtml(user.employee_code || '—') + ' · ' + escapeHtml(user.username)
+                + positionPart
+                + orgLine
+                + '</span></span></label>';
+        });
+
+        if (!users || !users.length) {
+            html += '<p class="text-muted small mb-0 p-3 jp-user-picker-empty">Không có nhân viên nào để chọn.</p>';
+        }
+        html += '<p class="text-muted small mb-0 p-3 jp-user-picker-filter-empty" hidden>Không có kết quả phù hợp.</p>';
+        list.innerHTML = html;
+        initPickerFresh(root);
+    }
+
     window.JpUserPicker = {
         getRoot: getRoot,
         refresh: refresh,
@@ -290,6 +360,7 @@
         selectByFilter: selectByFilter,
         selectByDataAttr: selectByDataAttr,
         clear: clear,
+        rebuildOptions: rebuildOptions,
         initAll: function (force) {
             document.querySelectorAll('.jp-user-picker').forEach(function (root) {
                 if (force || !root.dataset.jpPickerReady) {

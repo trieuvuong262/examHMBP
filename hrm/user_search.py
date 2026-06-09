@@ -362,6 +362,48 @@ def subordinate_candidate_queryset(
     return exclude_hidden_hrm_users(qs).order_by('profile__full_name', 'username')
 
 
+def subordinate_candidates_json(qs):
+    """Serialize queryset ứng viên cấp dưới cho user_picker AJAX."""
+    rows = []
+    for user in qs:
+        profile = getattr(user, 'profile', None)
+        full_name = profile.full_name if profile and profile.full_name else user.username
+        employee_code = profile.employee_code if profile and profile.employee_code else ''
+        username = user.username
+        job_position = profile.job_position if profile else ''
+        role = profile.role if profile else ''
+        role_display = profile.get_role_display() if profile else ''
+        department_id = profile.department_id if profile else None
+        division_id = profile.division_id if profile else None
+        department_name = profile.department.name if profile and profile.department_id else ''
+        division_name = profile.division.name if profile and profile.division_id else ''
+        search_parts = [
+            full_name,
+            employee_code,
+            username,
+            job_position,
+            role_display,
+            department_name,
+            division_name,
+        ]
+        rows.append({
+            'id': user.pk,
+            'full_name': full_name,
+            'employee_code': employee_code,
+            'username': username,
+            'job_position': job_position,
+            'role': role,
+            'role_display': role_display,
+            'department_id': department_id or '',
+            'division_id': division_id or '',
+            'department_name': department_name,
+            'division_name': division_name,
+            'label': user_display_label(user),
+            'search': ' '.join(part for part in search_parts if part).lower(),
+        })
+    return rows
+
+
 def subordinate_scope_hint(
     *,
     manager_role: str | None = None,

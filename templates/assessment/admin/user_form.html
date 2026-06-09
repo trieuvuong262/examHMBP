@@ -403,6 +403,12 @@
     const subFieldName = 'subordinates';
     const managerRoles = ['TEAM_LEADER', 'DIVISION_HEAD', 'DEPARTMENT_HEAD', 'DIRECTOR'];
     const concurrentManagerRoles = ['TEAM_LEADER', 'DIVISION_HEAD', 'DEPARTMENT_HEAD'];
+    const subordinateCandidatesUrl = '{{ subordinate_candidates_url|escapejs }}';
+    {% if is_edit and user_instance %}
+    const editUserId = '{{ user_instance.id }}';
+    {% else %}
+    const editUserId = '';
+    {% endif %}
     const scopeHints = {
         TEAM_LEADER: {
             withDiv: 'Gợi ý: chọn nhân viên cùng bộ phận (vai trò Nhân viên).',
@@ -449,6 +455,100 @@
         return picker ? picker.dataset.fieldName : null;
     }
 
+    function getSelectedPickerIds(fieldName) {
+        if (!fieldName || !window.JpUserPicker) return [];
+        const root = window.JpUserPicker.getRoot(fieldName);
+        if (!root) return [];
+        return Array.from(root.querySelectorAll('.jp-user-picker-option input:checked'))
+            .map(function (input) { return input.value; });
+    }
+
+    async function fetchSubordinateCandidates(params) {
+        if (!subordinateCandidatesUrl) {
+            return { count: 0, users: [], scope_hint: '' };
+        }
+        const response = await fetch(subordinateCandidatesUrl + '?' + params.toString());
+        if (!response.ok) {
+            throw new Error('fetch failed');
+        }
+        return response.json();
+    }
+
+    function buildSubordinateCandidateParams(role, deptId, divId, fieldName) {
+        const params = new URLSearchParams();
+        params.set('role', role || '');
+        if (deptId) params.set('department', deptId);
+        if (divId) params.set('division', divId);
+        if (editUserId) params.set('exclude_user_id', editUserId);
+        getSelectedPickerIds(fieldName).forEach(function (id) {
+            params.append('extra', id);
+        });
+        return params;
+    }
+
+    async function refreshPrimarySubordinatePicker() {
+        if (!roleSelect || !managerRoles.includes(roleSelect.value)) return;
+        if (!window.JpUserPicker || typeof window.JpUserPicker.rebuildOptions !== 'function') return;
+
+        const deptSelect = document.querySelector('select[name="department"]');
+        const divSelect = document.querySelector('select[name="division"]');
+        const countBadge = document.querySelector('.jp-subordinates-count');
+        const hintEl = document.getElementById('subordinates_scope_hint');
+
+        try {
+            const data = await fetchSubordinateCandidates(
+                buildSubordinateCandidateParams(
+                    roleSelect.value,
+                    deptSelect ? deptSelect.value : '',
+                    divSelect ? divSelect.value : '',
+                    subFieldName,
+                ),
+            );
+            if (countBadge) countBadge.textContent = data.count + ' ứng viên';
+            if (hintEl && data.scope_hint) hintEl.textContent = data.scope_hint;
+            window.JpUserPicker.rebuildOptions(subFieldName, data.users, {
+                showOrgMeta: true,
+                selectedIds: getSelectedPickerIds(subFieldName),
+            });
+            updateSubordinateQuickActions();
+        } catch (err) {
+            /* giữ danh sách server-render khi lỗi mạng */
+        }
+    }
+
+    async function refreshSlotSubordinatePicker(row) {
+        if (!row) return;
+        const roleSel = row.querySelector('select[name$="-role"]');
+        const deptSel = row.querySelector('select[name$="-department"]');
+        const divSel = row.querySelector('select[name$="-division"]');
+        const fieldName = getPickerFieldName(row);
+        if (!roleSel || !fieldName || !concurrentManagerRoles.includes(roleSel.value)) return;
+        if (!window.JpUserPicker || typeof window.JpUserPicker.rebuildOptions !== 'function') return;
+
+        const countBadge = row.querySelector('.jp-slot-sub-count');
+        const hintEl = row.querySelector('.jp-slot-sub-hint');
+
+        try {
+            const data = await fetchSubordinateCandidates(
+                buildSubordinateCandidateParams(
+                    roleSel.value,
+                    deptSel ? deptSel.value : '',
+                    divSel ? divSel.value : '',
+                    fieldName,
+                ),
+            );
+            if (countBadge) countBadge.textContent = data.count + ' ứng viên';
+            if (hintEl && data.scope_hint) hintEl.textContent = data.scope_hint;
+            window.JpUserPicker.rebuildOptions(fieldName, data.users, {
+                showOrgMeta: true,
+                selectedIds: getSelectedPickerIds(fieldName),
+            });
+            updateSlotSubordinateQuickActions(row);
+        } catch (err) {
+            /* giữ danh sách server-render khi lỗi mạng */
+        }
+    }
+
     function updateSlotSubordinateQuickActions(row) {
         const roleSel = row.querySelector('select[name$="-role"]');
         const deptSel = row.querySelector('select[name$="-department"]');
@@ -482,9 +582,7 @@
             wrap.classList.toggle('d-none', !show);
             if (show) {
                 updateSlotSubordinateQuickActions(r);
-                if (window.JpUserPicker && typeof window.JpUserPicker.initAll === 'function') {
-                    window.JpUserPicker.initAll(true);
-                }
+                refreshSlotSubordinatePicker(r);
             }
         });
     }
@@ -496,8 +594,8 @@
         if (navSubordinates) {
             navSubordinates.classList.toggle('d-none', !show);
         }
-        if (show && window.JpUserPicker && typeof window.JpUserPicker.initAll === 'function') {
-            window.JpUserPicker.initAll(true);
+        if (show) {
+            refreshPrimarySubordinatePicker();
         }
         updateSubordinateQuickActions();
     }
@@ -525,7 +623,10 @@
     }
 
     if (roleSelect) {
-        roleSelect.addEventListener('change', toggleSubordinates);
+        roleSelect.addEventListener('change', function () {
+            toggleSubordinates();
+            refreshPrimarySubordinatePicker();
+        });
         toggleSubordinates();
     }
 
@@ -572,7 +673,10 @@
         const fieldName = getPickerFieldName(row);
 
         if (roleSel) {
-            roleSel.addEventListener('change', function () { toggleConcurrentSubordinates(row); });
+            roleSel.addEventListener('change', function () {
+                toggleConcurrentSubordinates(row);
+                refreshSlotSubordinatePicker(row);
+            });
         }
         if (deptSel && divSel) {
             function filterConcurrentDivision() {
@@ -591,9 +695,13 @@
                 });
                 if (selectedHidden) divSel.value = '';
                 updateSlotSubordinateQuickActions(row);
+                refreshSlotSubordinatePicker(row);
             }
             deptSel.addEventListener('change', filterConcurrentDivision);
-            divSel.addEventListener('change', function () { updateSlotSubordinateQuickActions(row); });
+            divSel.addEventListener('change', function () {
+                updateSlotSubordinateQuickActions(row);
+                refreshSlotSubordinatePicker(row);
+            });
             filterConcurrentDivision();
         }
 
@@ -653,8 +761,12 @@
         deptSelect.addEventListener('change', function () {
             filterDivisionOptions();
             updateSubordinateQuickActions();
+            refreshPrimarySubordinatePicker();
         });
-        divSelect.addEventListener('change', updateSubordinateQuickActions);
+        divSelect.addEventListener('change', function () {
+            updateSubordinateQuickActions();
+            refreshPrimarySubordinatePicker();
+        });
         filterDivisionOptions();
         updateSubordinateQuickActions();
     }

@@ -110,6 +110,7 @@ def _user_form_extra_context():
 
     return {
         'divisions_allowed_by_dept': json.dumps(divisions_allowed_by_department_map()),
+        'subordinate_candidates_url': reverse('user_subordinate_candidates'),
     }
 
 
@@ -333,6 +334,42 @@ def user_suggest_username(request):
     if not full_name:
         return JsonResponse({'username': ''})
     return JsonResponse({'username': generate_hm_username(full_name)})
+
+
+@module_perm_required(MODULE_HRM, 'view')
+@require_GET
+def user_subordinate_candidates(request):
+    """Danh sách NV có thể gán cấp dưới — cập nhật user_picker khi đổi phòng/vai trò."""
+    from hrm.user_search import (
+        subordinate_candidate_queryset,
+        subordinate_candidates_json,
+        subordinate_scope_hint,
+    )
+
+    exclude_raw = (request.GET.get('exclude_user_id') or '').strip()
+    exclude_user_id = int(exclude_raw) if exclude_raw.isdigit() else None
+    manager_role = (request.GET.get('role') or '').strip()
+    department_id = (request.GET.get('department') or '').strip() or None
+    division_id = (request.GET.get('division') or '').strip() or None
+    extra_user_ids = [int(x) for x in request.GET.getlist('extra') if str(x).isdigit()]
+
+    qs = subordinate_candidate_queryset(
+        exclude_user_id=exclude_user_id,
+        manager_role=manager_role,
+        department_id=department_id,
+        division_id=division_id,
+        extra_user_ids=extra_user_ids,
+    )
+    users = subordinate_candidates_json(qs)
+    return JsonResponse({
+        'count': len(users),
+        'scope_hint': subordinate_scope_hint(
+            manager_role=manager_role,
+            department_id=department_id,
+            division_id=division_id,
+        ),
+        'users': users,
+    })
 
 
 AVATAR_MAX_SIZE = 5 * 1024 * 1024
