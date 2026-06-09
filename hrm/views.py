@@ -270,6 +270,7 @@ def user_add(request):
             instance=draft_profile,
             prefix='concurrent',
         )
+        avatar_upload = request.FILES.get('avatar')
         if form.is_valid() and concurrent_formset.is_valid():
             u = form.cleaned_data['username']
             p = form.cleaned_data['password']
@@ -288,6 +289,8 @@ def user_add(request):
             )
             profile.subordinates.set(form.cleaned_data['subordinates'])
             profile.save()
+            if avatar_upload and _save_profile_avatar(profile, avatar_upload, request) is False:
+                messages.warning(request, 'Đã thêm nhân viên nhưng không lưu được avatar — kiểm tra lại file ảnh.')
             concurrent_formset.instance = profile
             concurrent_formset.save()
             messages.success(
@@ -325,6 +328,9 @@ def user_add(request):
         'concurrent_formset': concurrent_formset,
         'title': 'Thêm nhân viên mới',
         'is_edit': False,
+        'profile': draft_profile,
+        'subordinate_count': 0,
+        'concurrent_active_count': 0,
         **_user_form_extra_context(),
     })
 
@@ -796,7 +802,10 @@ def user_export_excel(request):
     )
 
     users = User.objects.select_related(
-        'profile', 'profile__department', 'profile__division',
+        'profile',
+        'profile__department',
+        'profile__division',
+        'profile__permission_group',
     )
     users = exclude_hidden_hrm_users(users)
     users = filter_users_by_search(users, search_query)

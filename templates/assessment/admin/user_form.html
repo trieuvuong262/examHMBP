@@ -77,7 +77,7 @@
         {% endif %}
 
         {% if is_edit and profile %}
-        <div class="card border-0 shadow-sm jp-user-form-card jp-user-detail-hero mb-3">
+        <div class="card border-0 shadow-sm jp-user-form-card jp-user-detail-hero mb-3 jp-user-form-hero">
             <div class="jp-user-detail-hero-body">
                 <div class="jp-user-detail-hero-main">
                     <div class="jp-user-detail-avatar-wrap">
@@ -143,6 +143,37 @@
                 </div>
             </div>
         </div>
+        {% elif not is_edit %}
+        <div class="card border-0 shadow-sm jp-user-form-card jp-user-detail-hero mb-3 jp-user-form-hero jp-user-form-add-hero">
+            <div class="jp-user-detail-hero-body">
+                <div class="jp-user-detail-hero-main">
+                    <div class="jp-user-detail-avatar-wrap">
+                        <div class="jp-user-detail-avatar" id="jpUserDetailAvatar">
+                            <span class="jp-hrm-avatar rounded-circle" id="jpAddAvatarFallback" aria-hidden="true">?</span>
+                        </div>
+                        <label class="jp-user-detail-avatar-btn" for="id_avatar" title="Chọn avatar">
+                            <i class="bi bi-camera-fill"></i>
+                        </label>
+                        <input type="file" name="avatar" id="id_avatar" class="visually-hidden" accept="image/*">
+                    </div>
+                    <div class="jp-user-detail-hero-text">
+                        <p class="small text-muted mb-2">Điền họ tên, tổ chức và vai trò — avatar có thể đổi sau khi lưu.</p>
+                        <div class="jp-user-detail-badges d-flex flex-wrap align-items-center gap-2 mb-2" id="jpAddRoleBadgeWrap" hidden>
+                            <span class="badge bg-hm-subtle text-hm border border-danger border-opacity-25 px-2 py-1" id="jpAddRoleBadge"></span>
+                        </div>
+                        <div class="small text-muted jp-user-form-identity-meta" id="jpAddIdentityPreview">
+                            <span class="text-muted">Account sẽ hiện sau khi nhập họ tên</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="jp-user-detail-hero-aside">
+                    <div class="jp-user-detail-status-field">
+                        {% include 'assessment/admin/includes/user_form_field.html' with field=form.is_employed label='Trạng thái' %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
 
         <div class="jp-user-detail-nav-bar mb-3">
             <nav class="jp-user-detail-nav" aria-label="Tab thông tin nhân viên" role="tablist">
@@ -168,10 +199,9 @@
                 </button>
             </nav>
         </div>
-        {% endif %}
 
-        <div class="jp-user-tab-panels{% if is_edit %} jp-user-form-tab-panels{% else %} row g-3 jp-user-form-layout{% endif %}">
-            <div class="jp-user-tab-panel is-active{% if not is_edit %} col-lg-8{% endif %}" data-tab-panel="hr" id="section-hr" role="tabpanel"{% if is_edit %} aria-labelledby="tab-hr"{% endif %}>
+        <div class="jp-user-tab-panels jp-user-form-tab-panels">
+            <div class="jp-user-tab-panel is-active" data-tab-panel="hr" id="section-hr" role="tabpanel" aria-labelledby="tab-hr">
                 <div class="card border-0 shadow-sm jp-user-form-panel h-100">
                     <div class="jp-user-form-panel-head">
                         <i class="bi bi-person-vcard-fill"></i>
@@ -194,18 +224,13 @@
                             <div class="col-sm-6 col-md-4">
                                 {% include 'assessment/admin/includes/user_form_field.html' with field=form.join_date label='Ngày vào làm' %}
                             </div>
-                            {% if not is_edit %}
-                            <div class="col-sm-6 col-md-4">
-                                {% include 'assessment/admin/includes/user_form_field.html' with field=form.is_employed label='Trạng thái' %}
-                            </div>
-                            {% endif %}
                         </div>
                     </div>
                 </div>
                 {% include 'assessment/admin/includes/user_tab_panel_footer.html' %}
             </div>
 
-            <div class="jp-user-tab-panel{% if not is_edit %} col-lg-8{% endif %}" data-tab-panel="org" id="section-org" role="tabpanel"{% if is_edit %} aria-labelledby="tab-org" hidden{% endif %}>
+            <div class="jp-user-tab-panel" data-tab-panel="org" id="section-org" role="tabpanel" aria-labelledby="tab-org" hidden>
                 <div class="card border-0 shadow-sm jp-user-form-panel">
                     <div class="jp-user-form-panel-head">
                         <i class="bi bi-diagram-3-fill"></i>
@@ -231,8 +256,8 @@
                 {% include 'assessment/admin/includes/user_tab_panel_footer.html' %}
             </div>
 
-            <div class="jp-user-tab-panel{% if not is_edit %} col-lg-4{% endif %}" data-tab-panel="permissions" id="section-permissions" role="tabpanel"{% if is_edit %} aria-labelledby="tab-permissions" hidden{% endif %}>
-                <div class="card border-0 shadow-sm jp-user-form-panel{% if not is_edit %} mt-3{% endif %}">
+            <div class="jp-user-tab-panel" data-tab-panel="permissions" id="section-permissions" role="tabpanel" aria-labelledby="tab-permissions" hidden>
+                <div class="card border-0 shadow-sm jp-user-form-panel">
                     <div class="jp-user-form-panel-head">
                         <i class="bi bi-key-fill"></i>
                         <span>Phân quyền hệ thống</span>
@@ -246,7 +271,7 @@
                 {% include 'assessment/admin/includes/user_tab_panel_footer.html' %}
             </div>
 
-            <div class="jp-user-tab-panel jp-subordinates-panel{% if not is_edit %} col-lg-8 d-none{% endif %}" data-tab-panel="subordinates" id="section-subordinates" role="tabpanel"{% if is_edit %} aria-labelledby="navSubordinates" hidden{% endif %}>
+            <div class="jp-user-tab-panel jp-subordinates-panel" data-tab-panel="subordinates" id="section-subordinates" role="tabpanel" aria-labelledby="navSubordinates" hidden>
                 <div class="card border-0 shadow-sm jp-user-form-panel jp-user-form-panel--picker">
                     <div class="jp-user-form-panel-head">
                         <i class="bi bi-people-fill"></i>
@@ -280,7 +305,7 @@
             </div>
 
             {% if concurrent_formset %}
-            <div class="jp-user-tab-panel{% if not is_edit %} col-lg-8{% endif %}" data-tab-panel="concurrent" id="section-concurrent" role="tabpanel"{% if is_edit %} aria-labelledby="tab-concurrent" hidden{% endif %}>
+            <div class="jp-user-tab-panel" data-tab-panel="concurrent" id="section-concurrent" role="tabpanel" aria-labelledby="tab-concurrent" hidden>
                 <div class="card border-0 shadow-sm jp-user-form-panel">
                     <div class="jp-user-form-panel-head">
                         <i class="bi bi-layers-fill"></i>
@@ -315,8 +340,8 @@
             </template>
             {% endif %}
 
-            <div class="jp-user-tab-panel{% if not is_edit %} col-lg-4{% endif %}" data-tab-panel="account" id="section-account" role="tabpanel"{% if is_edit %} aria-labelledby="tab-account" hidden{% endif %}>
-                <div class="card border-0 shadow-sm jp-user-form-panel{% if not is_edit %} jp-user-form-sidebar-panel{% endif %}">
+            <div class="jp-user-tab-panel" data-tab-panel="account" id="section-account" role="tabpanel" aria-labelledby="tab-account" hidden>
+                <div class="card border-0 shadow-sm jp-user-form-panel">
                     <div class="jp-user-form-panel-head jp-user-form-panel-head-account">
                         <i class="bi bi-shield-lock-fill"></i>
                         <span>Tài khoản portal</span>
@@ -1250,6 +1275,7 @@
             usernameInput.value = username;
             usernameInput.classList.add('is-valid');
             usernameInput.classList.remove('is-invalid');
+            updateAddHeroPreview();
         }
 
         function fetchSuggestion(force) {
@@ -1304,6 +1330,54 @@
             }, ms);
         });
     }
+
+    function updateAddHeroPreview() {
+        const fallback = document.getElementById('jpAddAvatarFallback');
+        const identityEl = document.getElementById('jpAddIdentityPreview');
+        const name = fullNameInput ? fullNameInput.value.trim() : '';
+        const account = usernameInput ? usernameInput.value.trim() : '';
+        const avatarHost = document.getElementById('jpUserDetailAvatar');
+        if (fallback && avatarHost && !avatarHost.querySelector('img.jp-hrm-avatar-img')) {
+            fallback.textContent = name ? name.charAt(0).toUpperCase() : '?';
+        }
+        if (identityEl) {
+            if (account) {
+                identityEl.innerHTML = '<span class="text-primary user-select-all">' + account + '</span>' +
+                    (name ? ' · <span class="text-dark">' + name + '</span>' : '');
+            } else if (name) {
+                identityEl.innerHTML = '<span class="text-dark">' + name + '</span>';
+            } else {
+                identityEl.textContent = 'Account sẽ hiện sau khi nhập họ tên';
+            }
+        }
+    }
+
+    function updateAddRoleBadge() {
+        const wrap = document.getElementById('jpAddRoleBadgeWrap');
+        const badge = document.getElementById('jpAddRoleBadge');
+        if (!roleSelect || !wrap || !badge) return;
+        const opt = roleSelect.options[roleSelect.selectedIndex];
+        if (roleSelect.value && opt) {
+            badge.textContent = opt.textContent.trim();
+            wrap.hidden = false;
+        } else {
+            wrap.hidden = true;
+        }
+    }
+
+    if (fullNameInput) {
+        fullNameInput.addEventListener('input', updateAddHeroPreview);
+        fullNameInput.addEventListener('change', updateAddHeroPreview);
+    }
+    if (usernameInput) {
+        usernameInput.addEventListener('input', updateAddHeroPreview);
+        usernameInput.addEventListener('change', updateAddHeroPreview);
+    }
+    if (roleSelect) {
+        roleSelect.addEventListener('change', updateAddRoleBadge);
+        updateAddRoleBadge();
+    }
+    updateAddHeroPreview();
     {% endif %}
 })();
 </script>

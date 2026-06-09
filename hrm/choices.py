@@ -114,6 +114,7 @@ def parse_excel_date(value):
 EXCEL_HR_HEADERS = [
     'Mã NS', 'Họ và tên', 'Account', 'Phòng ban', 'Bộ phận',
     'Vị trí', 'Chức vụ', 'Ngày vào', 'Ngày sinh', 'Giới tính',
+    'Vai trò HT', 'Nhóm quyền', 'Trạng thái',
 ]
 EXCEL_IMPORT_OPTIONAL_HEADERS = ['password', 'email']
 EXCEL_ALL_HEADERS = EXCEL_HR_HEADERS + EXCEL_IMPORT_OPTIONAL_HEADERS
@@ -162,6 +163,18 @@ EXCEL_COLUMN_MAP = {
     'gender': 'gender',
     'email': 'email',
     'password': 'password',
+    'vai_tro_ht': 'role',
+    'vai tro ht': 'role',
+    'vai trò ht': 'role',
+    'role': 'role',
+    'nhom_quyen': 'permission_group',
+    'nhom quyen': 'permission_group',
+    'nhóm quyền': 'permission_group',
+    'permission_group': 'permission_group',
+    'trang_thai': 'is_employed',
+    'trang thai': 'is_employed',
+    'trạng thái': 'is_employed',
+    'is_employed': 'is_employed',
 }
 
 
@@ -174,6 +187,64 @@ def gender_excel_label(code):
         return ''
     labels = {'M': 'Nam', 'F': 'Nữ'}
     return labels.get(code, '')
+
+
+def employment_excel_label(is_employed):
+    if is_employed is None:
+        return ''
+    return 'Đang làm' if is_employed else 'Nghỉ việc'
+
+
+def role_excel_label(code):
+    if not code:
+        return ''
+    from hrm.permissions import ROLE_CHOICES
+    return dict(ROLE_CHOICES).get(code, code)
+
+
+def resolve_role(value):
+    """Mã vai trò (EMPLOYEE) hoặc nhãn tiếng Việt (Nhân viên)."""
+    if value is None or str(value).strip() == '':
+        return None
+    from hrm.permissions import ROLE_CHOICES
+    raw = str(value).strip()
+    upper = raw.upper().replace(' ', '_').replace('-', '_')
+    valid_codes = {code for code, _ in ROLE_CHOICES}
+    if upper in valid_codes:
+        return upper
+    labels = {label.lower(): code for code, label in ROLE_CHOICES}
+    return labels.get(raw.lower())
+
+
+def resolve_permission_group(name_or_slug):
+    """Tìm nhóm quyền theo tên hoặc slug."""
+    if not name_or_slug or not str(name_or_slug).strip():
+        return None
+    from hrm.models import PermissionGroup
+    text = str(name_or_slug).strip()
+    group = PermissionGroup.objects.filter(name__iexact=text).first()
+    if group:
+        return group
+    return PermissionGroup.objects.filter(slug__iexact=text).first()
+
+
+def parse_employment_status(value, default=True):
+    if value is None or value == '':
+        return default
+    if isinstance(value, bool):
+        return value
+    raw = str(value).strip().lower()
+    active = {
+        '1', 'true', 'yes', 'y', 'đang làm', 'dang lam', 'danglam', 'active', 'lam', 'đang lam',
+    }
+    inactive = {
+        '0', 'false', 'no', 'n', 'nghỉ việc', 'nghi viec', 'nghiviec', 'inactive', 'nghỉ', 'nghi',
+    }
+    if raw in active:
+        return True
+    if raw in inactive:
+        return False
+    return default
 
 
 def resolve_department(name):
@@ -230,6 +301,13 @@ def user_to_excel_row(user):
         'Ngày vào': format_excel_date(profile.join_date if profile else None),
         'Ngày sinh': format_excel_date(profile.date_of_birth if profile else None),
         'Giới tính': gender_excel_label(profile.gender if profile else ''),
+        'Vai trò HT': role_excel_label(profile.role if profile else ''),
+        'Nhóm quyền': (
+            profile.permission_group.name
+            if profile and profile.permission_group_id
+            else ''
+        ),
+        'Trạng thái': employment_excel_label(profile.is_employed if profile else True),
         'password': '',
         'email': user.email or '',
     }
@@ -237,7 +315,14 @@ def user_to_excel_row(user):
 
 def profile_defaults_from_import(data):
     """Dict field profile từ dữ liệu đã parse Excel."""
+    from hrm.group_permissions import default_group_for_role
+    from hrm.permissions import ROLE_EMPLOYEE
+
     dept = resolve_department(data.get('department', ''))
+    role = resolve_role(data.get('role', '')) or ROLE_EMPLOYEE
+    permission_group = resolve_permission_group(data.get('permission_group', ''))
+    if not permission_group:
+        permission_group = default_group_for_role(role)
     return {
         'employee_code': data.get('employee_code') or None,
         'full_name': data.get('full_name', ''),
@@ -248,6 +333,9 @@ def profile_defaults_from_import(data):
         'join_date': data.get('join_date'),
         'date_of_birth': data.get('date_of_birth'),
         'gender': data.get('gender', ''),
+        'role': role,
+        'permission_group': permission_group,
+        'is_employed': parse_employment_status(data.get('is_employed'), default=True),
     }
 
 
@@ -265,6 +353,8 @@ def row_to_profile_data(row):
             data[field] = normalize_gender(val)
         elif field == 'job_position':
             data[field] = str(val).strip() if val is not None and str(val).strip() else ''
+        elif field == 'is_employed':
+            data[field] = val
         else:
             data[field] = str(val).strip() if val is not None and str(val).strip() else ''
     return data

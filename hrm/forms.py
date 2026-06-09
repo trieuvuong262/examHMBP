@@ -369,6 +369,8 @@ class ProfileConcurrentPositionForm(forms.ModelForm):
         )
         self.fields['division'].empty_label = '-- Chọn bộ phận --'
         self.fields['role'].choices = Profile.ROLE_CHOICES
+        if not self.instance.pk and not self.data:
+            self.fields['is_active'].initial = False
 
         prefix = f'{self.prefix}-' if self.prefix else ''
         slot_role = (
@@ -407,6 +409,28 @@ class ProfileConcurrentPositionForm(forms.ModelForm):
         )
         self.subordinate_candidate_count = self.fields['subordinates'].queryset.count()
 
+    def has_changed(self):
+        if self.instance.pk:
+            return super().has_changed()
+        prefix = f'{self.prefix}-' if self.prefix else ''
+        if not self.data:
+            return super().has_changed()
+        tracked = (
+            f'{prefix}department',
+            f'{prefix}division',
+            f'{prefix}job_position',
+            f'{prefix}job_title',
+            f'{prefix}role',
+            f'{prefix}notes',
+            f'{prefix}is_active',
+            f'{prefix}sort_order',
+        )
+        if not any(key in self.data for key in tracked):
+            return False
+        if any(self.data.getlist(f'{prefix}subordinates')):
+            return True
+        return super().has_changed()
+
     def clean(self):
         cleaned = super().clean()
         if cleaned.get('DELETE'):
@@ -418,13 +442,25 @@ class ProfileConcurrentPositionForm(forms.ModelForm):
         elif div and not dept:
             cleaned['department'] = div.department
         job_position = (cleaned.get('job_position') or '').strip()
-        if cleaned.get('is_active', True) and not job_position and not cleaned.get('job_title'):
+        job_title = (cleaned.get('job_title') or '').strip()
+        has_org = bool(dept or div)
+        if (
+            cleaned.get('is_active', True)
+            and (has_org or job_position or job_title)
+            and not job_position
+            and not job_title
+        ):
             self.add_error('job_position', 'Nhập vị trí hoặc chức vụ cho slot kiêm nhiệm.')
         cleaned['job_position'] = job_position
         return cleaned
 
 
 class BaseProfileConcurrentPositionFormSet(forms.BaseInlineFormSet):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for form in self.extra_forms:
+            form.empty_permitted = True
+
     def save(self, commit=True):
         instances = super().save(commit=commit)
         if commit:

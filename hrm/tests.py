@@ -643,6 +643,13 @@ class UserAddFormTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'name="password"')
 
+    def test_user_add_get_has_avatar_and_tabs(self):
+        response = self.client.get(reverse('user_add'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="id_avatar"')
+        self.assertContains(response, 'data-tab="permissions"')
+        self.assertContains(response, 'jp-user-form-tab-panels')
+
     def test_user_add_post_success_without_email(self):
         response = self.client.post(reverse('user_add'), {
             'username': 'newstaff01',
@@ -650,6 +657,11 @@ class UserAddFormTests(TestCase):
             'email': '',
             'full_name': 'Nguyễn Văn Mới',
             'role': ROLE_EMPLOYEE,
+            'is_employed': '1',
+            'concurrent-TOTAL_FORMS': '1',
+            'concurrent-INITIAL_FORMS': '0',
+            'concurrent-MIN_NUM_FORMS': '0',
+            'concurrent-MAX_NUM_FORMS': '1000',
         })
         self.assertEqual(response.status_code, 302)
         self.assertTrue(User.objects.filter(username='newstaff01').exists())
@@ -1382,3 +1394,64 @@ class OrgStructureTreemapTests(TestCase):
         self.assertTrue(dform_manual.is_valid())
         manual = dform_manual.save()
         self.assertEqual(manual.sort_order, 99)
+
+
+class ExcelHrFieldsTests(TestCase):
+    def test_export_row_includes_role_permission_and_status(self):
+        from hrm.choices import EXCEL_ALL_HEADERS, user_to_excel_row
+
+        dept = Department.objects.create(name='EXCEL-DEPT', sort_order=1)
+        group = PermissionGroup.objects.create(name='EXCEL-GROUP', slug='excel-group')
+        user = User.objects.create_user(username='excel_exp', password='x', first_name='Excel User')
+        Profile.objects.filter(user=user).update(
+            full_name='Excel User',
+            department=dept,
+            role=ROLE_TEAM_LEADER,
+            permission_group=group,
+            is_employed=False,
+        )
+        user = User.objects.select_related('profile', 'profile__permission_group').get(pk=user.pk)
+        row = user_to_excel_row(user)
+        for header in EXCEL_ALL_HEADERS:
+            self.assertIn(header, row)
+        self.assertEqual(row['Vai trò HT'], 'Tổ trưởng')
+        self.assertEqual(row['Nhóm quyền'], 'EXCEL-GROUP')
+        self.assertEqual(row['Trạng thái'], 'Nghỉ việc')
+
+    def test_import_defaults_include_role_permission_and_status(self):
+        from hrm.choices import profile_defaults_from_import
+
+        dept = Department.objects.create(name='EXCEL-IMP-DEPT', sort_order=1)
+        group = PermissionGroup.objects.create(name='EXCEL-IMP-GROUP', slug='excel-imp-group')
+        defaults = profile_defaults_from_import({
+            'full_name': 'Import Test',
+            'department': dept.name,
+            'role': 'Giám đốc',
+            'permission_group': 'EXCEL-IMP-GROUP',
+            'is_employed': 'Nghỉ việc',
+        })
+        self.assertEqual(defaults['role'], ROLE_DIRECTOR)
+        self.assertEqual(defaults['permission_group'], group)
+        self.assertFalse(defaults['is_employed'])
+
+    def test_import_template_has_new_columns(self):
+        from io import BytesIO
+
+        from openpyxl import load_workbook
+
+        RoleModulePermission.objects.update_or_create(
+            role=ROLE_DIRECTOR,
+            defaults={'module_permissions': {MODULE_HRM: {'view': True, 'edit': True}}},
+        )
+        admin = User.objects.create_user(username='excel_tpl', password='x', is_staff=True)
+        Profile.objects.filter(user=admin).update(role=ROLE_DIRECTOR, is_employed=True)
+        client = Client(HTTP_HOST='testserver')
+        client.force_login(admin)
+
+        response = client.get(reverse('user_download_template'))
+        self.assertEqual(response.status_code, 200)
+        wb = load_workbook(BytesIO(response.content))
+        headers = [cell.value for cell in wb['Nhap_lieu'][1]]
+        self.assertIn('Vai trò HT', headers)
+        self.assertIn('Nhóm quyền', headers)
+        self.assertIn('Trạng thái', headers)
