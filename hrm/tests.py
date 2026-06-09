@@ -419,7 +419,7 @@ class HrmViewOnlyUserEditTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'jp-user-form--view-mode')
         self.assertContains(response, 'Chỉ xem')
-        self.assertNotContains(response, 'id="jpUserFormEditBtn"')
+        self.assertNotContains(response, 'class="btn btn-sm btn-outline-hm fw-bold jp-user-tab-edit-btn"')
 
     def test_view_only_cannot_post_user_edit(self):
         response = self.client.post(reverse('user_edit', args=[self.target.id]), {

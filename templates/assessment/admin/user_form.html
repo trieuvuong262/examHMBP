@@ -52,9 +52,11 @@
                     <i class="bi bi-key-fill"></i><span class="jp-hrm-tool-label"> Reset MK</span>
                 </button>
                 {% endif %}
-                <button type="submit" class="btn btn-hm shadow-sm fw-bold jp-hrm-tool-btn jp-hrm-tool-btn-primary{% if is_edit %} jp-user-form--edit-only{% endif %}">
-                    <i class="bi bi-check-circle-fill"></i><span class="jp-hrm-tool-label">{% if is_edit %} Lưu thay đổi{% else %} Lưu nhân viên{% endif %}</span>
+                {% if not is_edit %}
+                <button type="submit" class="btn btn-hm shadow-sm fw-bold jp-hrm-tool-btn jp-hrm-tool-btn-primary">
+                    <i class="bi bi-check-circle-fill"></i><span class="jp-hrm-tool-label"> Lưu nhân viên</span>
                 </button>
+                {% endif %}
             </div>
         </div>
 
@@ -165,21 +167,6 @@
                     <i class="bi bi-key"></i><span>Quyền</span>
                 </button>
             </nav>
-            {% if can_update_user %}
-            <div class="jp-user-detail-nav-actions">
-                <button type="button" class="btn btn-sm btn-outline-hm fw-bold jp-user-form--view-only" id="jpUserFormEditBtn" title="Bật chế độ chỉnh sửa">
-                    <i class="bi bi-pencil me-1"></i>Sửa
-                </button>
-                <button type="button" class="btn btn-sm btn-light border fw-bold jp-user-form--edit-only" id="jpUserFormCancelEditBtn">
-                    <i class="bi bi-x-lg me-1"></i>Hủy
-                </button>
-                <button type="submit" class="btn btn-sm btn-hm fw-bold jp-user-form--edit-only">
-                    <i class="bi bi-check-circle me-1"></i>Lưu
-                </button>
-            </div>
-            {% else %}
-            <span class="badge bg-light text-muted border jp-user-form-view-badge"><i class="bi bi-eye me-1"></i>Chỉ xem</span>
-            {% endif %}
         </div>
         {% endif %}
 
@@ -215,6 +202,7 @@
                         </div>
                     </div>
                 </div>
+                {% include 'assessment/admin/includes/user_tab_panel_footer.html' %}
             </div>
 
             <div class="jp-user-tab-panel{% if not is_edit %} col-lg-8{% endif %}" data-tab-panel="org" id="section-org" role="tabpanel"{% if is_edit %} aria-labelledby="tab-org" hidden{% endif %}>
@@ -240,6 +228,7 @@
                         </div>
                     </div>
                 </div>
+                {% include 'assessment/admin/includes/user_tab_panel_footer.html' %}
             </div>
 
             <div class="jp-user-tab-panel jp-subordinates-panel{% if not is_edit %} col-lg-8 d-none{% endif %}" data-tab-panel="subordinates" id="section-subordinates" role="tabpanel"{% if is_edit %} aria-labelledby="navSubordinates" hidden{% endif %}>
@@ -272,6 +261,7 @@
                         {% endif %}
                     </div>
                 </div>
+                {% include 'assessment/admin/includes/user_tab_panel_footer.html' %}
             </div>
 
             {% if concurrent_formset %}
@@ -303,6 +293,7 @@
                         {% endif %}
                     </div>
                 </div>
+                {% include 'assessment/admin/includes/user_tab_panel_footer.html' %}
             </div>
             <template id="jpConcurrentSlotTemplate">
                 {% include 'assessment/admin/includes/concurrent_slot_card.html' with cp_form=concurrent_formset.empty_form slot_index='__index__' is_edit=is_edit %}
@@ -367,6 +358,7 @@
                         {% include 'assessment/admin/includes/user_form_field.html' with field=form.email %}
                     </div>
                 </div>
+                {% include 'assessment/admin/includes/user_tab_panel_footer.html' %}
             </div>
 
             <div class="jp-user-tab-panel{% if not is_edit %} col-lg-4{% endif %}" data-tab-panel="permissions" id="section-permissions" role="tabpanel"{% if is_edit %} aria-labelledby="tab-permissions" hidden{% endif %}>
@@ -380,22 +372,20 @@
                         {% include 'assessment/admin/includes/user_form_field.html' with field=form.permission_group %}
                     </div>
                 </div>
+                {% include 'assessment/admin/includes/user_tab_panel_footer.html' %}
             </div>
         </div>
 
+        {% if not is_edit %}
         <div class="jp-user-form-actions d-md-none mt-3">
             <div class="d-flex gap-2">
                 <a href="{% url 'user_list' %}" class="btn btn-light border fw-bold flex-fill">Hủy</a>
-                <button type="submit" class="btn btn-hm fw-bold flex-fill{% if is_edit %} jp-user-form--edit-only{% endif %}">
-                    <i class="bi bi-check-circle-fill me-1"></i>{% if is_edit %}Lưu thay đổi{% else %}Lưu nhân viên{% endif %}
+                <button type="submit" class="btn btn-hm fw-bold flex-fill">
+                    <i class="bi bi-check-circle-fill me-1"></i>Lưu nhân viên
                 </button>
-                {% if is_edit and can_update_user %}
-                <button type="button" class="btn btn-outline-hm fw-bold flex-fill jp-user-form--view-only" id="jpUserFormEditBtnMobile">
-                    <i class="bi bi-pencil me-1"></i>Sửa
-                </button>
-                {% endif %}
             </div>
         </div>
+        {% endif %}
     </form>
 </div>
 
@@ -650,8 +640,8 @@
         userFormEl.querySelectorAll('input, select, textarea, button').forEach(function (el) {
             if (el.type === 'hidden' || el.name === 'csrfmiddlewaretoken') return;
             if (el.classList.contains('jp-user-detail-nav-link')) return;
-            if (el.id === 'jpUserFormEditBtn' || el.id === 'jpUserFormEditBtnMobile') return;
-            if (el.closest('.jp-user-detail-nav-actions')) return;
+            if (el.classList.contains('jp-user-tab-edit-btn') || el.classList.contains('jp-user-tab-cancel-btn')) return;
+            if (el.closest('.jp-user-tab-panel-footer')) return;
             if (el.classList.contains('jp-user-picker-toggle')) {
                 el.disabled = disabled;
                 return;
@@ -679,19 +669,17 @@
         }
     }
 
-    const editBtn = document.getElementById('jpUserFormEditBtn');
-    const editBtnMobile = document.getElementById('jpUserFormEditBtnMobile');
-    const cancelEditBtn = document.getElementById('jpUserFormCancelEditBtn');
     function onEditClick() { setFormEditMode(true); }
-    if (editBtn) editBtn.addEventListener('click', onEditClick);
-    if (editBtnMobile) editBtnMobile.addEventListener('click', onEditClick);
-    if (cancelEditBtn) {
-        cancelEditBtn.addEventListener('click', function () {
+    document.querySelectorAll('.jp-user-tab-edit-btn').forEach(function (btn) {
+        btn.addEventListener('click', onEditClick);
+    });
+    document.querySelectorAll('.jp-user-tab-cancel-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
             if (window.confirm('Hủy thay đổi chưa lưu?')) {
                 window.location.reload();
             }
         });
-    }
+    });
 
     document.querySelectorAll('.jp-user-detail-nav-link[data-tab]').forEach(function (link) {
         link.addEventListener('click', function () {

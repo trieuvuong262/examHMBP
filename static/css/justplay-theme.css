@@ -3329,12 +3329,22 @@ body.jp-tool-loading-active {
     min-width: 0;
 }
 
-.jp-user-detail-nav-actions {
+.jp-user-tab-panel-footer {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.35rem;
-    flex-shrink: 0;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.85rem;
+    padding-top: 0.85rem;
+    border-top: 1px dashed #e2e8f0;
+}
+
+.jp-user-tab-panel-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .jp-user-form-view-badge {
