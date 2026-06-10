@@ -19,32 +19,31 @@
     flex: 0 0 auto;
 }
 .jp-npl-material-catalog-page .jp-npl-mat-topbar-search {
-    flex: 1 1 12rem;
-    min-width: 10rem;
-    max-width: 22rem;
+    flex: 1 1 16rem;
+    min-width: 12rem;
+    max-width: 34rem;
     margin-left: auto;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-search-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 0.35rem;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-topbar-search .jp-npl-filter-multi {
+    flex: 0 1 10rem;
+    min-width: 7.5rem;
+    max-width: 12rem;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-topbar-search .jp-npl-mat-search-input {
+    flex: 1 1 8rem;
+    min-width: 6rem;
 }
 .jp-npl-material-catalog-page .jp-npl-mat-topbar-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 0.35rem;
     align-items: center;
-}
-.jp-npl-material-catalog-page .jp-npl-mat-filters {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem 0.75rem;
-    margin-bottom: 1rem;
-    padding: 0.65rem 0.85rem;
-    background: var(--bs-body-bg);
-    border: 1px solid var(--bs-border-color);
-    border-radius: 0.5rem;
-}
-.jp-npl-material-catalog-page .jp-npl-mat-filters .jp-npl-filter-multi {
-    flex: 1 1 10rem;
-    min-width: 8rem;
-    max-width: 18rem;
 }
 .jp-npl-material-catalog-page .jp-npl-mat-table-toolbar {
     display: flex;
@@ -95,6 +94,10 @@
         margin-left: 0;
         order: 3;
     }
+    .jp-npl-material-catalog-page .jp-npl-mat-topbar-search .jp-npl-filter-multi {
+        flex: 1 1 100%;
+        max-width: none;
+    }
 }
 </style>
 {% endblock %}
@@ -104,11 +107,24 @@
     <div class="jp-npl-mat-topbar">
         <h2 class="jp-npl-mat-topbar-title"><i class="bi bi-tags me-2"></i>Danh mục nguyên phụ liệu</h2>
         <form method="get" class="jp-npl-mat-topbar-search" id="npl-mat-search-form">
-            <div class="input-group input-group-sm">
-                <span class="input-group-text bg-transparent"><i class="bi bi-search text-muted"></i></span>
-                <input type="search" class="form-control" id="npl-q" name="q"
-                       value="{{ search_query }}" placeholder="Mã, tên, màu..." autocomplete="off" aria-label="Tìm">
-                <button type="submit" class="btn btn-hm fw-bold">Tìm</button>
+            <div class="jp-npl-mat-search-row">
+                <div class="jp-npl-filter-multi">
+                    <select name="category" id="npl-cat" class="form-select form-select-sm jp-npl-multi-select" multiple
+                            data-placeholder="Nhóm" aria-label="Nhóm">
+                        {% for cat in categories %}
+                        <option value="{{ cat.id }}" {% if cat.id in selected_categories %}selected{% endif %}>{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="input-group input-group-sm jp-npl-mat-search-input">
+                    <span class="input-group-text bg-transparent"><i class="bi bi-search text-muted"></i></span>
+                    <input type="search" class="form-control" id="npl-q" name="q"
+                           value="{{ search_query }}" placeholder="Mã, tên, màu..." autocomplete="off" aria-label="Tìm">
+                    <button type="submit" class="btn btn-hm fw-bold">Tìm</button>
+                </div>
+                {% if has_filters %}
+                <a href="{% url 'kho_npl:material_list' %}" class="btn btn-outline-secondary btn-sm fw-bold align-self-center" title="Xóa lọc">×</a>
+                {% endif %}
             </div>
         </form>
         <div class="jp-npl-mat-topbar-actions">
@@ -129,26 +145,6 @@
             <a href="{% url 'kho_npl:material_stock' %}" class="btn btn-outline-hm btn-sm fw-bold">Tồn kho</a>
         </div>
     </div>
-
-    <form method="get" class="jp-npl-mat-filters" id="npl-filter-form">
-        {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
-        <div class="jp-npl-filter-multi">
-            <select name="category" id="npl-cat" class="form-select form-select-sm jp-npl-multi-select" multiple
-                    data-placeholder="Tất cả nhóm" aria-label="Nhóm">
-                {% for cat in categories %}
-                <option value="{{ cat.id }}" {% if cat.id in selected_categories %}selected{% endif %}>{{ cat.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="form-check form-switch mb-0">
-            <input class="form-check-input" type="checkbox" name="inactive" value="1" id="npl-inactive" {% if show_inactive %}checked{% endif %}>
-            <label class="form-check-label small" for="npl-inactive">Ngừng dùng</label>
-        </div>
-        <button type="submit" class="btn btn-outline-hm btn-sm fw-bold">Lọc</button>
-        {% if has_filters %}
-        <a href="{% url 'kho_npl:material_list' %}" class="btn btn-link btn-sm text-decoration-none">Xóa lọc</a>
-        {% endif %}
-    </form>
 
     <div class="card border-0 shadow-sm overflow-hidden">
         <div class="jp-npl-mat-table-toolbar">

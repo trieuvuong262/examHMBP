@@ -73,7 +73,7 @@ def _material_catalog_qs(request):
 
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def material_list(request):
-    qs, search_query, category_ids, show_inactive = _material_catalog_qs(request)
+    qs, search_query, category_ids, _show_inactive = _material_catalog_qs(request)
     page_obj, query_string = paginate_queryset(request, qs.order_by('code'), per_page=25)
     categories = MaterialCategory.objects.filter(is_active=True)
     return render(request, 'kho_npl/material_list.html', {
@@ -84,10 +84,9 @@ def material_list(request):
         'search_query': search_query,
         'categories': categories,
         'selected_categories': category_ids,
-        'show_inactive': show_inactive,
         'list_columns': MATERIAL_LIST_COLUMNS,
         'row_count': page_obj.paginator.count,
-        'has_filters': bool(search_query or category_ids or show_inactive),
+        'has_filters': bool(search_query or category_ids),
     })
 
 
