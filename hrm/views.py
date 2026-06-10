@@ -1,3 +1,4 @@
+import copy
 import io
 import pandas as pd
 from django.shortcuts import render, redirect, get_object_or_404
@@ -1186,6 +1187,17 @@ def _unique_group_slug(base: str) -> str:
     return f'{slug}-{n}'
 
 
+def _unique_group_name(base: str) -> str:
+    root = (base or 'Nhóm quyền').strip()
+    candidate = f'{root} (bản sao)'
+    if not PermissionGroup.objects.filter(name=candidate).exists():
+        return candidate
+    n = 2
+    while PermissionGroup.objects.filter(name=f'{root} (bản sao {n})').exists():
+        n += 1
+    return f'{root} (bản sao {n})'
+
+
 def _permission_group_form_context(meta_form, perm_form, title, *, group=None, is_edit=False):
     from hrm.department_permission_templates import is_protected_permission_group
 
@@ -1255,6 +1267,25 @@ def permission_group_edit(request, pk):
     return render(request, 'assessment/admin/permission_group_form.html', _permission_group_form_context(
         meta_form, perm_form, f'Chỉnh sửa — {group.name}', group=group, is_edit=True,
     ))
+
+
+@module_perm_required(MODULE_PERMISSIONS, 'create')
+@require_POST
+def permission_group_clone(request, pk):
+    source = get_object_or_404(PermissionGroup, pk=pk)
+    new_name = _unique_group_name(source.name)
+    new_group = PermissionGroup.objects.create(
+        name=new_name,
+        slug=_unique_group_slug(new_name),
+        description=source.description,
+        is_system=False,
+        module_permissions=copy.deepcopy(source.module_permissions or {}),
+    )
+    messages.success(
+        request,
+        f'Đã nhân bản «{source.name}» thành «{new_group.name}». Chỉnh sửa và lưu nếu cần.',
+    )
+    return redirect('permission_group_edit', pk=new_group.pk)
 
 
 @module_perm_required(MODULE_PERMISSIONS, 'delete')

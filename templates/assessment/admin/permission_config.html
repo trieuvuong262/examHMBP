@@ -170,6 +170,12 @@
                                         <a href="{% url 'permission_group_edit' group.pk %}" class="btn btn-sm btn-outline-hm fw-bold" title="Chỉnh sửa">
                                             <i class="bi bi-sliders"></i>
                                         </a>
+                                        <form method="post" action="{% url 'permission_group_clone' group.pk %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary fw-bold" title="Nhân bản nhóm quyền">
+                                                <i class="bi bi-copy"></i>
+                                            </button>
+                                        </form>
                                         {% if row.is_deletable %}
                                         <form method="post" action="{% url 'permission_group_delete' group.pk %}" class="d-inline" onsubmit="return confirm('Xóa nhóm quyền này?');">
                                             {% csrf_token %}

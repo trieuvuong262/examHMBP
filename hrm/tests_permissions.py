@@ -68,6 +68,27 @@ class PermissionsModuleGranularTests(TestCase):
         response = self.client.get(reverse('permission_group_add'))
         self.assertEqual(response.status_code, 200)
 
+    def test_editor_can_clone_permission_group(self):
+        self.client.force_login(self.editor_user)
+        before = PermissionGroup.objects.count()
+        response = self.client.post(reverse('permission_group_clone', args=[self.group_view.pk]))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(PermissionGroup.objects.count(), before + 1)
+        clone = PermissionGroup.objects.get(pk=int(response.url.rstrip('/').split('/')[-2]))
+        self.assertIn('bản sao', clone.name.lower())
+        self.assertTrue(clone.name.startswith(self.group_view.name))
+        self.assertEqual(clone.module_permissions, self.group_view.module_permissions)
+        self.assertFalse(clone.is_system)
+        self.assertEqual(response.url, reverse('permission_group_edit', args=[clone.pk]))
+
+    def test_view_only_cannot_clone_permission_group(self):
+        self.client.force_login(self.view_user)
+        before = PermissionGroup.objects.count()
+        response = self.client.post(reverse('permission_group_clone', args=[self.group_view.pk]))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('home_portal'))
+        self.assertEqual(PermissionGroup.objects.count(), before)
+
 
 class GuideGranularPermissionTests(TestCase):
     def setUp(self):

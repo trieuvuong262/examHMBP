@@ -49,6 +49,7 @@ urlpatterns = [
     path('dashboard/permissions/', hrm_views.permission_config, name='permission_config'),
     path('dashboard/permissions/groups/add/', hrm_views.permission_group_add, name='permission_group_add'),
     path('dashboard/permissions/groups/<int:pk>/edit/', hrm_views.permission_group_edit, name='permission_group_edit'),
+    path('dashboard/permissions/groups/<int:pk>/clone/', hrm_views.permission_group_clone, name='permission_group_clone'),
     path('dashboard/permissions/groups/<int:pk>/delete/', hrm_views.permission_group_delete, name='permission_group_delete'),
     path('dashboard/permissions/roles/<str:role>/', hrm_views.role_permission_edit, name='role_permission_edit'),
     path('dashboard/departments/delete/<int:pk>/', hrm_views.department_delete, name='department_delete'),

@@ -24,6 +24,14 @@
             <a href="{{ perm_config_back_url }}" class="btn btn-light border fw-bold jp-hrm-tool-btn d-none d-md-inline-flex">
                 <i class="bi bi-arrow-left"></i><span class="jp-hrm-tool-label"> Quay lại</span>
             </a>
+            {% if is_edit %}
+            <form method="post" action="{% url 'permission_group_clone' group.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-secondary fw-bold jp-hrm-tool-btn" title="Nhân bản nhóm quyền">
+                    <i class="bi bi-copy"></i><span class="jp-hrm-tool-label"> Nhân bản</span>
+                </button>
+            </form>
+            {% endif %}
             {% if is_edit and is_group_deletable %}
             <form method="post" action="{% url 'permission_group_delete' group.pk %}" class="d-inline" onsubmit="return confirm('Xóa nhóm quyền này?');">
                 {% csrf_token %}
