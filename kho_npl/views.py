@@ -13,7 +13,13 @@ from kho_npl.models import Material, MaterialCategory, WarehouseLocation
 from kho_npl.services.stock import material_stock_rows, overview_stats, stock_rows_for_status
 from kho_npl.services.stock_card import build_material_stock_card, diagnose_stock_mismatch
 from kho_npl.filter_utils import append_filter_params, parse_int_ids
-from kho_npl.view_utils import nav_context, perm_context
+from kho_npl.list_columns import (
+    OVERVIEW_ALERT_COLUMNS,
+    STOCK_ALERT_COLUMNS,
+    STOCK_CARD_CATALOG_COLUMNS,
+    STOCK_CARD_LEDGER_COLUMNS,
+)
+from kho_npl.view_utils import list_table_context, nav_context, perm_context
 from kho_npl.views_material import _material_catalog_qs
 from kho_npl.views_settings import settings_hub_items
 
@@ -53,6 +59,7 @@ def overview(request):
         'stats': stats,
         'alert_preview': alert_preview,
         'alert_preview_total': len(stats['alert_rows']),
+        **list_table_context(OVERVIEW_ALERT_COLUMNS, 'npl-overview-alerts', row_count=len(stats['alert_rows'])),
     })
 
 
@@ -129,6 +136,10 @@ def stock_cards(request):
         'catalog_query_string': catalog_query_string,
         'catalog_select_base': request.path,
         'catalog_filter_qs': catalog_filter_qs,
+        'catalog_list_columns': STOCK_CARD_CATALOG_COLUMNS,
+        'catalog_table_id': 'npl-stock-card-catalog',
+        'ledger_list_columns': STOCK_CARD_LEDGER_COLUMNS,
+        'ledger_table_id': 'npl-stock-card-ledger',
     })
 
 
@@ -162,6 +173,7 @@ def stock_alerts(request):
         'page_title': page_title,
         'page_icon': page_icon,
         'total_count': len(rows),
+        **list_table_context(STOCK_ALERT_COLUMNS, 'npl-stock-alerts-table', row_count=len(rows)),
     })
 
 

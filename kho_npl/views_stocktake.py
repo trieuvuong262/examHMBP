@@ -20,7 +20,8 @@ from kho_npl.services.stocktakes import (
     stocktake_can_count,
     stocktake_is_editable,
 )
-from kho_npl.view_utils import nav_context, perm_context
+from kho_npl.list_columns import STOCKTAKE_COUNT_COLUMNS, STOCKTAKE_LINE_COLUMNS, STOCKTAKE_LIST_COLUMNS
+from kho_npl.view_utils import list_table_context, nav_context, perm_context
 
 
 @module_perm_required(MODULE_KHO_NPL, 'view')
@@ -36,6 +37,7 @@ def stocktake_list(request):
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
+        **list_table_context(STOCKTAKE_LIST_COLUMNS, 'npl-stocktake-table', page_obj=page_obj),
     })
 
 
@@ -58,6 +60,7 @@ def stocktake_detail(request, pk):
         'variance_lines': variance_lines,
         'can_count': stocktake_can_count(stocktake),
         'is_editable': stocktake_is_editable(stocktake),
+        **list_table_context(STOCKTAKE_LINE_COLUMNS, 'npl-stocktake-lines', row_count=stocktake.lines.count()),
     })
 
 
@@ -121,6 +124,11 @@ def stocktake_count(request, pk):
         **perm_context(request.user, 'stocktakes'),
         'stocktake': stocktake,
         'formset': formset,
+        **list_table_context(
+            STOCKTAKE_COUNT_COLUMNS,
+            'npl-stocktake-count',
+            row_count=stocktake.lines.count(),
+        ),
     })
 
 

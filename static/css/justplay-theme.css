@@ -6223,6 +6223,191 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     font-weight: 700;
 }
 
+/* --- Kho NPL — danh sách thống nhất --- */
+.jp-npl-list-page {
+    --npl-th-bg: #f8fafc;
+    --npl-th-border: #e2e8f0;
+}
+
+.jp-npl-list-topbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+}
+
+.jp-npl-list-topbar-title {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: var(--hm-primary);
+    margin: 0;
+    flex: 0 1 auto;
+    min-width: 0;
+    white-space: nowrap;
+}
+
+.jp-npl-list-topbar-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.5rem;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.jp-npl-list-topbar-search {
+    flex: 0 1 240px;
+    min-width: min(100%, 200px);
+    max-width: 280px;
+    margin: 0 0 0 auto;
+}
+
+.jp-npl-list-topbar-search .input-group {
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.jp-npl-list-topbar-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.5rem 0.75rem;
+    width: 100%;
+    padding: 0.65rem 0.85rem;
+    background: #fafbfc;
+    border: 1px solid #e8edf2;
+    border-radius: var(--jp-radius);
+    margin-bottom: 0.75rem;
+}
+
+.jp-npl-list-table-card {
+    overflow: hidden;
+}
+
+.jp-npl-table-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding: 0.5rem 0.85rem;
+    background: #fff;
+    border-bottom: 1px solid var(--npl-th-border);
+}
+
+.jp-npl-table-count {
+    margin-right: auto;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #64748b;
+    background: #f1f5f9;
+    border-radius: 999px;
+    padding: 0.2rem 0.55rem;
+}
+
+.jp-npl-data-table {
+    table-layout: fixed;
+    width: 100%;
+    margin-bottom: 0;
+    font-size: 0.875rem;
+}
+
+.jp-npl-data-table thead th {
+    position: relative;
+    background: var(--npl-th-bg);
+    border-right: 1px solid var(--npl-th-border);
+    border-bottom: 1px solid var(--npl-th-border);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    padding: 0.5rem 0.65rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+    user-select: none;
+}
+
+.jp-npl-data-table thead th:last-child {
+    border-right: none;
+}
+
+.jp-npl-data-table tbody td {
+    border-right: 1px solid #f1f5f9;
+    padding: 0.45rem 0.65rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+}
+
+.jp-npl-data-table tbody td:last-child {
+    border-right: none;
+}
+
+.jp-npl-data-table tbody tr:hover {
+    background: rgba(220, 38, 38, 0.03);
+}
+
+.jp-npl-col-resizer {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+    z-index: 2;
+}
+
+.jp-npl-col-resizer:hover {
+    background: rgba(220, 38, 38, 0.15);
+}
+
+body.jp-npl-col-resizing {
+    cursor: col-resize !important;
+    user-select: none !important;
+}
+
+.jp-npl-col-picker-menu {
+    min-width: 11rem;
+    max-height: 14rem;
+    overflow-y: auto;
+}
+
+.jp-npl-col-picker-menu .form-check-label {
+    cursor: pointer;
+    user-select: none;
+}
+
+.jp-npl-cell-clip {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.jp-npl-cell-mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.jp-npl-empty-row td {
+    text-align: center;
+    color: #94a3b8;
+    padding: 2rem 0.5rem !important;
+}
+
+[data-theme="dark"] .jp-npl-list-topbar-filters,
+[data-theme="dark"] .jp-npl-table-toolbar,
+[data-theme="dark"] .jp-npl-data-table thead th {
+    background: var(--jp-surface-2);
+    border-color: var(--jp-border);
+}
+
+[data-theme="dark"] .jp-npl-data-table tbody td {
+    border-color: var(--jp-border);
+}
+
 /* --- Kho NPL — toolbar danh sách / chuyển kho --- */
 .jp-npl-list-toolbar,
 .jp-npl-transfer-toolbar {
@@ -6496,6 +6681,251 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
 .jp-npl-status--draft { background: #f1f5f9; color: #475569; }
 .jp-npl-status--transit { background: #fef3c7; color: #b45309; }
 .jp-npl-status--received { background: #d1fae5; color: #047857; }
+
+/* --- Danh mục nguyên phụ liệu --- */
+.jp-npl-material-catalog-page .letter-spacing-sm {
+    letter-spacing: 0.04em;
+}
+
+.jp-npl-catalog-stat {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.9rem 1rem;
+    border-radius: var(--jp-radius);
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    height: 100%;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.jp-npl-catalog-stat.is-highlight {
+    border-color: rgba(220, 38, 38, 0.28);
+    box-shadow: 0 4px 16px rgba(220, 38, 38, 0.08);
+}
+
+.jp-npl-catalog-stat-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    flex-shrink: 0;
+}
+
+.jp-npl-catalog-stat-icon--total { background: #fef2f2; color: var(--hm-primary); }
+.jp-npl-catalog-stat-icon--active { background: #ecfdf5; color: #059669; }
+.jp-npl-catalog-stat-icon--inactive { background: #f1f5f9; color: #64748b; }
+
+.jp-npl-catalog-stat-value {
+    font-size: 1.35rem;
+    font-weight: 800;
+    line-height: 1.1;
+    color: #0f172a;
+}
+
+.jp-npl-catalog-stat-label {
+    font-size: 0.78rem;
+    color: #64748b;
+}
+
+.jp-npl-catalog-filter-card {
+    background: linear-gradient(180deg, #fff 0%, #fafbfc 100%);
+}
+
+.jp-npl-catalog-switch .form-check-input:checked {
+    background-color: var(--hm-primary);
+    border-color: var(--hm-primary);
+}
+
+.jp-npl-catalog-count-badge {
+    background: #f1f5f9;
+    color: #334155;
+    font-weight: 700;
+    font-size: 0.75rem;
+}
+
+.jp-npl-catalog-table thead th {
+    background: #f8fafc;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    font-weight: 700;
+    border-bottom-width: 1px;
+    white-space: nowrap;
+    padding-top: 0.65rem;
+    padding-bottom: 0.65rem;
+}
+
+.jp-npl-catalog-table .jp-npl-catalog-row {
+    transition: background-color 0.12s ease;
+}
+
+.jp-npl-catalog-table .jp-npl-catalog-row:hover {
+    background: rgba(220, 38, 38, 0.03);
+}
+
+.jp-npl-catalog-table .jp-npl-catalog-row.is-inactive {
+    opacity: 0.72;
+}
+
+.jp-npl-mat-code {
+    display: inline-block;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--hm-primary);
+    background: #fef2f2;
+    border: 1px solid rgba(220, 38, 38, 0.12);
+    border-radius: 6px;
+    padding: 0.2rem 0.5rem;
+    text-decoration: none;
+    transition: background 0.12s, border-color 0.12s;
+}
+
+.jp-npl-mat-code:hover {
+    background: #fee2e2;
+    border-color: rgba(220, 38, 38, 0.25);
+    color: var(--hm-primary-dark);
+}
+
+.jp-npl-mat-name {
+    display: block;
+    font-weight: 600;
+    color: #1e293b;
+    max-width: 280px;
+    line-height: 1.35;
+}
+
+.jp-npl-mat-meta {
+    font-size: 0.875rem;
+    color: #475569;
+    display: block;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.jp-npl-cat-badge {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #475569;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    padding: 0.2rem 0.55rem;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.jp-npl-unit-pill {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #64748b;
+    background: #fff;
+    border: 1px dashed #cbd5e1;
+    border-radius: 4px;
+    padding: 0.15rem 0.4rem;
+}
+
+.jp-npl-mat-qty {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #334155;
+    white-space: nowrap;
+}
+
+.jp-npl-mat-status {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.72rem;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 0.28rem 0.55rem;
+}
+
+.jp-npl-mat-status--active {
+    background: #d1fae5;
+    color: #047857;
+}
+
+.jp-npl-mat-status--inactive {
+    background: #e2e8f0;
+    color: #64748b;
+}
+
+.jp-npl-row-actions {
+    display: inline-flex;
+    gap: 0.15rem;
+    opacity: 0.55;
+    transition: opacity 0.12s;
+}
+
+.jp-npl-catalog-row:hover .jp-npl-row-actions {
+    opacity: 1;
+}
+
+.jp-npl-row-actions .btn {
+    color: #64748b;
+    line-height: 1;
+}
+
+.jp-npl-row-actions .btn:hover {
+    color: var(--hm-primary);
+    background: #fef2f2 !important;
+}
+
+.jp-npl-col-picker-menu {
+    min-width: 12rem;
+    max-height: 16rem;
+    overflow-y: auto;
+}
+
+.jp-npl-col-picker-menu .form-check-label {
+    cursor: pointer;
+    user-select: none;
+}
+
+.jp-npl-catalog-empty {
+    background: linear-gradient(180deg, #fafbfc 0%, #fff 100%);
+}
+
+[data-theme="dark"] .jp-npl-catalog-stat,
+[data-theme="dark"] .jp-npl-catalog-filter-card,
+[data-theme="dark"] .jp-npl-catalog-table-card .card-header {
+    background: var(--jp-surface);
+    border-color: var(--jp-border);
+}
+
+[data-theme="dark"] .jp-npl-catalog-stat-value,
+[data-theme="dark"] .jp-npl-mat-name {
+    color: var(--jp-text);
+}
+
+[data-theme="dark"] .jp-npl-mat-code {
+    background: rgba(220, 38, 38, 0.12);
+    border-color: rgba(220, 38, 38, 0.22);
+}
+
+[data-theme="dark"] .jp-npl-catalog-table thead th {
+    background: var(--jp-surface-2);
+    color: var(--jp-text-muted);
+}
+
+[data-theme="dark"] .jp-npl-catalog-table .jp-npl-catalog-row:hover {
+    background: rgba(220, 38, 38, 0.08);
+}
 
 .jp-npl-transfer-flow {
     display: flex;

@@ -32,19 +32,4 @@
         </div>
         {% endif %}
     </div>
-    {% if show_transfer_search %}
-    <form method="get" class="jp-npl-transfer-search-form">
-        <input type="hidden" name="tab" value="{{ tab }}">
-        {% if tab == 'danh-sach' and list_status %}
-        <input type="hidden" name="status" value="{{ list_status }}">
-        {% endif %}
-        <div class="input-group input-group-sm">
-            <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
-            <input type="search" class="form-control" id="pc-q" name="q"
-                   value="{{ search_query }}" placeholder="Tìm phiếu, kho..." autocomplete="off"
-                   aria-label="Tìm phiếu">
-            <button type="submit" class="btn btn-hm fw-bold">Tìm</button>
-        </div>
-    </form>
-    {% endif %}
 </div>

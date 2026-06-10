@@ -104,7 +104,7 @@ class StockTransferWorkflowTests(TestCase):
     def test_transfer_hub_default_tab_is_danh_sach(self):
         response = self.client.get(reverse('kho_npl:transfer_hub'))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'jp-npl-transfer-search-form')
+        self.assertContains(response, 'jp-npl-list-topbar-search')
         self.assertContains(response, 'jp-npl-transfer-status-filters')
 
     def test_transfer_hub_tabs_render(self):
@@ -125,7 +125,7 @@ class StockTransferWorkflowTests(TestCase):
 
         nhan = self.client.get(reverse('kho_npl:transfer_hub') + '?tab=nhan')
         self.assertEqual(nhan.status_code, 200)
-        self.assertContains(nhan, 'Xác nhận nhận')
+        self.assertContains(nhan, '/nhan/')
 
         received = self._draft_transfer()
         send_stock_transfer(received, self.user)
@@ -134,7 +134,7 @@ class StockTransferWorkflowTests(TestCase):
         danh_sach = self.client.get(reverse('kho_npl:transfer_hub') + '?tab=danh-sach')
         self.assertEqual(danh_sach.status_code, 200)
         self.assertContains(danh_sach, 'jp-npl-transfer-status-filters')
-        self.assertContains(danh_sach, 'Xem chi tiết')
+        self.assertContains(danh_sach, 'title="Chi tiết"')
         self.assertContains(danh_sach, 'Chưa nhận')
 
         filtered = self.client.get(

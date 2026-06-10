@@ -1,42 +1,56 @@
 {% extends 'base.html' %}
 
-{% block content %}
-<div class="container jp-page py-3 py-md-4 mb-5">
-    <div class="jp-page-header mb-3 mb-md-4">
-        <h2 class="fw-bold text-hm mb-0 jp-page-title"><i class="bi bi-clipboard-check me-2"></i>Kiểm kê kho</h2>
-    </div>
+{% block extra_head %}{% include 'kho_npl/includes/list_table_assets.html' %}{% endblock %}
 
-    <div class="jp-npl-list-toolbar mb-3 mb-md-4">
-        <div class="jp-npl-list-toolbar-start">
+{% block content %}
+<div class="container jp-page jp-npl-list-page py-3 py-md-4 mb-5">
+    <div class="jp-npl-list-topbar mb-3">
+        <h2 class="jp-npl-list-topbar-title"><i class="bi bi-clipboard-check me-2"></i>Kiểm kê kho</h2>
+        <div class="jp-npl-list-topbar-actions">
             {% if can_create %}
             <a href="{% url 'kho_npl:stocktake_create' %}" class="btn btn-hm btn-sm fw-bold">
                 <i class="bi bi-plus-lg me-1"></i>Tạo kỳ kiểm kê
             </a>
             {% endif %}
         </div>
-        {% include 'kho_npl/includes/list_search_form.html' with search_placeholder='Mã kỳ, tên kỳ...' %}
+        {% include 'kho_npl/includes/list_topbar_search.html' with search_query=search_query search_placeholder='Mã kỳ, tên kỳ...' %}
     </div>
 
-    <div class="card border-0 shadow-sm">
+    <div class="card border-0 shadow-sm jp-npl-list-table-card">
+        {% include 'kho_npl/includes/list_table_toolbar.html' with list_columns=list_columns table_id=table_id row_count=row_count %}
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead class="table-light"><tr><th>Mã kỳ</th><th>Tên</th><th>Ngày</th><th>Trạng thái</th><th>Người tạo</th></tr></thead>
+            <table id="{{ table_id }}" class="table jp-npl-data-table">
+                <thead><tr>
+                    {% for col in list_columns %}
+                    <th class="npl-col" data-col="{{ col.key }}"{% if col.required %} data-required="1"{% endif %}{% if not col.default %} data-default="0"{% endif %}>{{ col.label }}</th>
+                    {% endfor %}
+                    <th class="npl-col text-end" data-col="actions" data-required="1"></th>
+                </tr></thead>
                 <tbody>
                     {% for st in page_obj %}
                     <tr>
-                        <td class="fw-semibold"><a href="{% url 'kho_npl:stocktake_detail' st.pk %}">{{ st.number }}</a></td>
-                        <td>{{ st.name }}</td>
-                        <td>{{ st.stocktake_date|date:'d/m/Y' }}</td>
-                        <td>{{ st.get_status_display }}</td>
-                        <td>{% if st.created_by %}{{ st.created_by.get_full_name|default:st.created_by.username }}{% else %}—{% endif %}</td>
+                        <td class="npl-col jp-npl-cell-mono" data-col="number">
+                            <a href="{% url 'kho_npl:stocktake_detail' st.pk %}" class="text-decoration-none">{{ st.number }}</a>
+                        </td>
+                        <td class="npl-col jp-npl-cell-clip" data-col="name">{{ st.name }}</td>
+                        <td class="npl-col jp-npl-cell-mono" data-col="date">{{ st.stocktake_date|date:'d/m/Y' }}</td>
+                        <td class="npl-col" data-col="status">{{ st.get_status_display }}</td>
+                        <td class="npl-col jp-npl-cell-clip" data-col="creator">{% if st.created_by %}{{ st.created_by.get_full_name|default:st.created_by.username }}{% else %}—{% endif %}</td>
+                        <td class="npl-col text-end" data-col="actions">—</td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="5" class="text-center text-muted py-4">Chưa có kỳ kiểm kê.</td></tr>
+                    <tr class="jp-npl-empty-row"><td colspan="{{ list_columns|length|add:1 }}">—</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+        {% if page_obj.paginator.num_pages > 1 %}
+        <div class="card-footer bg-white border-top-0 pt-0">
+            {% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string %}
+        </div>
+        {% endif %}
     </div>
-    {% if page_obj.paginator.num_pages > 1 %}{% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string %}{% endif %}
 </div>
 {% endblock %}
+
+{% block scripts %}{% include 'kho_npl/includes/list_table_scripts.html' %}{% endblock %}

@@ -43,8 +43,8 @@ class MaterialImportExportTests(TestCase):
         response = self.client.get(reverse('kho_npl:material_list'))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'npl-col-toggle')
-        self.assertContains(response, 'bi-check2-square')
-        self.assertContains(response, 'Xuất file')
+        self.assertContains(response, 'bi-layout-three-columns')
+        self.assertContains(response, 'Xuất Excel')
         self.assertContains(response, 'Import')
 
     def test_export_returns_xlsx(self):

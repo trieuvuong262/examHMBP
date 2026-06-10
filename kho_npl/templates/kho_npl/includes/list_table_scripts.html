@@ -1,0 +1,129 @@
+{% include 'kho_npl/includes/filter_multi_select_script.html' %}
+<script>
+(function () {
+    function storageKey(tableId, suffix) {
+        return 'kho_npl_' + suffix + '_' + tableId;
+    }
+
+    function loadJson(key, fallback) {
+        try {
+            const raw = localStorage.getItem(key);
+            if (!raw) return fallback;
+            return JSON.parse(raw);
+        } catch (e) {
+            return fallback;
+        }
+    }
+
+    function saveJson(key, value) {
+        localStorage.setItem(key, JSON.stringify(value));
+    }
+
+    function defaultVisibleCols(table) {
+        const keys = [];
+        table.querySelectorAll('thead th.npl-col[data-col]').forEach(function (th) {
+            const key = th.getAttribute('data-col');
+            if (key && th.dataset.default !== '0') keys.push(key);
+        });
+        return keys;
+    }
+
+    function requiredCols(table) {
+        const keys = [];
+        table.querySelectorAll('thead th.npl-col[data-col]').forEach(function (th) {
+            const key = th.getAttribute('data-col');
+            if (key && th.dataset.required === '1') keys.push(key);
+        });
+        return keys;
+    }
+
+    function applyVisible(table, visible) {
+        table.querySelectorAll('.npl-col').forEach(function (el) {
+            const key = el.getAttribute('data-col');
+            if (!key) return;
+            if (el.dataset.required === '1' || key === 'actions') {
+                el.classList.remove('d-none');
+                return;
+            }
+            el.classList.toggle('d-none', !visible.has(key));
+        });
+    }
+
+    function syncPickers(tableId, visible) {
+        document.querySelectorAll('.npl-col-toggle[data-table="' + tableId + '"]').forEach(function (cb) {
+            const key = cb.getAttribute('data-col');
+            cb.checked = visible.has(key);
+        });
+    }
+
+    function initColumnPicker(table) {
+        const tableId = table.id;
+        if (!tableId) return;
+        const required = new Set(requiredCols(table));
+        let visible = new Set(loadJson(storageKey(tableId, 'cols'), defaultVisibleCols(table)));
+        required.forEach(function (k) { visible.add(k); });
+        applyVisible(table, visible);
+        syncPickers(tableId, visible);
+
+        document.querySelectorAll('.npl-col-toggle[data-table="' + tableId + '"]').forEach(function (cb) {
+            cb.addEventListener('change', function () {
+                const key = cb.getAttribute('data-col');
+                if (cb.checked) {
+                    visible.add(key);
+                } else if (!required.has(key)) {
+                    visible.delete(key);
+                }
+                saveJson(storageKey(tableId, 'cols'), [...visible]);
+                applyVisible(table, visible);
+                syncPickers(tableId, visible);
+            });
+        });
+    }
+
+    function initResize(table) {
+        const tableId = table.id;
+        if (!tableId) return;
+        const ths = table.querySelectorAll('thead th');
+        const saved = loadJson(storageKey(tableId, 'widths'), {});
+        ths.forEach(function (th, index) {
+            const colKey = th.getAttribute('data-col') || ('c' + index);
+            if (saved[colKey]) th.style.width = saved[colKey] + 'px';
+            if (th.querySelector('.jp-npl-col-resizer')) return;
+            const grip = document.createElement('span');
+            grip.className = 'jp-npl-col-resizer';
+            grip.setAttribute('aria-hidden', 'true');
+            th.appendChild(grip);
+            let startX = 0;
+            let startW = 0;
+            function onMove(e) {
+                const w = Math.max(48, startW + (e.pageX - startX));
+                th.style.width = w + 'px';
+                saved[colKey] = w;
+            }
+            function onUp() {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+                document.body.classList.remove('jp-npl-col-resizing');
+                saveJson(storageKey(tableId, 'widths'), saved);
+            }
+            grip.addEventListener('mousedown', function (e) {
+                e.preventDefault();
+                startX = e.pageX;
+                startW = th.offsetWidth;
+                document.body.classList.add('jp-npl-col-resizing');
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+            });
+        });
+    }
+
+    function initTable(table) {
+        if (!table || table.dataset.nplReady) return;
+        table.dataset.nplReady = '1';
+        initColumnPicker(table);
+        initResize(table);
+    }
+
+    document.querySelectorAll('table.jp-npl-data-table').forEach(initTable);
+})();
+</script>

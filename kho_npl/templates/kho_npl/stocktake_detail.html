@@ -1,6 +1,8 @@
 {% extends 'base.html' %}
 {% load npl_extras %}
 
+{% block extra_head %}{% include 'kho_npl/includes/list_table_assets.html' %}{% endblock %}
+
 {% block content %}
 <div class="container jp-page py-3 py-md-4 mb-5">
     <div class="jp-page-header mb-3 d-flex flex-wrap justify-content-between gap-2">
@@ -12,7 +14,7 @@
             {% if can_count and can_update %}
             {% if stocktake.status == 'draft' %}
             <form method="post" action="{% url 'kho_npl:stocktake_start' stocktake.pk %}">{% csrf_token %}
-                <button type="submit" class="btn btn-hm btn-sm"><i class="bi bi-play me-1"></i>Bắt đầu kiểm (tải tồn)</button>
+                <button type="submit" class="btn btn-hm btn-sm"><i class="bi bi-play me-1"></i>Bắt đầu kiểm</button>
             </form>
             {% else %}
             <a href="{% url 'kho_npl:stocktake_count' stocktake.pk %}" class="btn btn-hm btn-sm"><i class="bi bi-pencil me-1"></i>Nhập tồn thực tế</a>
@@ -22,22 +24,28 @@
         </div>
     </div>
     {% if variance_lines %}
-    <div class="alert alert-warning border mb-3"><strong>{{ variance_lines|length }}</strong> dòng có chênh lệch sau kiểm.</div>
+    <div class="alert alert-warning border mb-3"><strong>{{ variance_lines|length }}</strong> dòng có chênh lệch.</div>
     {% endif %}
-    <div class="card border-0 shadow-sm">
+    <div class="card border-0 shadow-sm jp-npl-list-table-card">
+        {% include 'kho_npl/includes/list_table_toolbar.html' with list_columns=list_columns table_id=table_id row_count=stocktake.lines.count %}
         <div class="table-responsive">
-            <table class="table table-sm mb-0">
-                <thead class="table-light"><tr><th>NPL</th><th>Vị trí</th><th class="text-end">HT</th><th class="text-end">TT</th><th class="text-end">Chênh</th></tr></thead>
+            <table id="{{ table_id }}" class="table jp-npl-data-table">
+                <thead><tr>
+                    {% for col in list_columns %}
+                    <th class="npl-col{% if col.key == 'system_qty' or col.key == 'actual_qty' or col.key == 'variance' %} text-end{% endif %}" data-col="{{ col.key }}"{% if col.required %} data-required="1"{% endif %}{% if not col.default %} data-default="0"{% endif %}>{{ col.label }}</th>
+                    {% endfor %}
+                </tr></thead>
                 <tbody>
                     {% for line in stocktake.lines.all %}
                     <tr>
-                        <td>{{ line.material.code }}</td><td>{{ line.location.code }}</td>
-                        <td class="text-end">{{ line.system_qty|npl_qty_with_unit:line.material.unit }}</td>
-                        <td class="text-end">{% if line.actual_qty is not None %}{{ line.actual_qty|npl_qty_with_unit:line.material.unit }}{% else %}—{% endif %}</td>
-                        <td class="text-end">{% if line.variance is not None %}{{ line.variance|npl_qty_with_unit:line.material.unit }}{% else %}—{% endif %}</td>
+                        <td class="npl-col jp-npl-cell-mono" data-col="material_code">{{ line.material.code }}</td>
+                        <td class="npl-col jp-npl-cell-mono" data-col="location">{{ line.location.code }}</td>
+                        <td class="npl-col text-end jp-npl-cell-mono" data-col="system_qty">{{ line.system_qty|npl_qty_with_unit:line.material.unit }}</td>
+                        <td class="npl-col text-end jp-npl-cell-mono" data-col="actual_qty">{% if line.actual_qty is not None %}{{ line.actual_qty|npl_qty_with_unit:line.material.unit }}{% else %}—{% endif %}</td>
+                        <td class="npl-col text-end jp-npl-cell-mono" data-col="variance">{% if line.variance is not None %}{{ line.variance|npl_qty_with_unit:line.material.unit }}{% else %}—{% endif %}</td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="5" class="text-center text-muted py-3">Chưa có dòng — bấm «Bắt đầu kiểm» để tải tồn.</td></tr>
+                    <tr class="jp-npl-empty-row"><td colspan="{{ list_columns|length }}">—</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -45,3 +53,5 @@
     </div>
 </div>
 {% endblock %}
+
+{% block scripts %}{% include 'kho_npl/includes/list_table_scripts.html' %}{% endblock %}

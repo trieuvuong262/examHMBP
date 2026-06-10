@@ -19,7 +19,8 @@ from kho_npl.services.issues import (
     issue_is_editable,
     post_stock_issue,
 )
-from kho_npl.view_utils import nav_context, perm_context
+from kho_npl.list_columns import ISSUE_LINE_COLUMNS, ISSUE_LIST_COLUMNS
+from kho_npl.view_utils import list_table_context, nav_context, perm_context
 
 
 def _save_issue_form(request, issue, *, is_create: bool):
@@ -58,6 +59,7 @@ def issue_list(request):
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
+        **list_table_context(ISSUE_LIST_COLUMNS, 'npl-issue-table', page_obj=page_obj),
     })
 
 
@@ -73,6 +75,7 @@ def issue_detail(request, pk):
         **perm_context(request.user, 'issues'),
         'issue': issue,
         'is_editable': issue_is_editable(issue),
+        **list_table_context(ISSUE_LINE_COLUMNS, 'npl-issue-lines', row_count=issue.lines.count()),
     })
 
 

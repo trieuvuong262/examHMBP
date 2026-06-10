@@ -11,7 +11,7 @@ from PortalJustPlay.pagination import paginate_queryset
 
 from kho_npl.choices import STOCK_STATUS_LOW, STOCK_STATUS_OK, STOCK_STATUS_OUT
 from kho_npl.forms import MaterialForm
-from kho_npl.material_list_columns import MATERIAL_LIST_COLUMNS
+from kho_npl.list_columns import MATERIAL_BALANCE_COLUMNS, MATERIAL_LIST_COLUMNS, MATERIAL_STOCK_COLUMNS
 from kho_npl.models import Material, MaterialCategory, WarehouseLocation
 from kho_npl.services.material_import_export import (
     MaterialImportError,
@@ -85,7 +85,10 @@ def material_list(request):
         'categories': categories,
         'selected_categories': category_ids,
         'show_inactive': show_inactive,
+        'has_filters': bool(search_query or category_ids or show_inactive),
         'list_columns': MATERIAL_LIST_COLUMNS,
+        'table_id': 'npl-material-table',
+        'row_count': page_obj.paginator.count,
     })
 
 
@@ -117,6 +120,10 @@ def material_stock_list(request):
         'selected_status': status,
         'show_inactive': show_inactive,
         'total_rows': len(rows),
+        'list_columns': MATERIAL_STOCK_COLUMNS,
+        'table_id': 'npl-material-stock-table',
+        'row_count': len(rows),
+        'has_filters': bool(search_query or category_ids or location_ids or status),
     })
 
 
@@ -134,6 +141,8 @@ def material_detail(request, pk):
         'material': material,
         'balances': balances,
         'total_qty': total_qty,
+        'list_columns': MATERIAL_BALANCE_COLUMNS,
+        'table_id': 'npl-material-balance-table',
     })
 
 

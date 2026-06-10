@@ -17,6 +17,7 @@ from kho_npl.services.reports import (
     report_stock_current_rows,
     report_stocktake_history_rows,
 )
+from kho_npl.list_columns import report_column_defs
 from kho_npl.view_utils import nav_context, perm_context, report_context
 
 
@@ -42,6 +43,16 @@ def _report_meta(slug: str):
     return REPORT_DEFINITIONS[slug]
 
 
+def _report_table_context(rows, slug: str):
+    column_labels = list(rows[0].keys()) if rows else []
+    return {
+        'rows': rows,
+        'columns': column_labels,
+        'report_column_defs': report_column_defs(column_labels),
+        'table_id': f'npl-report-{slug}',
+    }
+
+
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def report_hub(request):
     return render(request, 'kho_npl/report_hub.html', {
@@ -60,9 +71,8 @@ def report_stock(request):
         **perm_context(request.user, 'reports'),
         'report': meta,
         'report_slug': 'ton-kho',
-        'rows': rows,
-        'columns': list(rows[0].keys()) if rows else [],
         'filters': {},
+        **_report_table_context(rows, 'ton-kho'),
     })
 
 
@@ -81,9 +91,8 @@ def report_alerts(request):
         **perm_context(request.user, 'reports'),
         'report': meta,
         'report_slug': 'can-bao',
-        'rows': rows,
-        'columns': list(rows[0].keys()) if rows else [],
         'filters': {},
+        **_report_table_context(rows, 'can-bao'),
     })
 
 
@@ -103,11 +112,10 @@ def report_movement(request):
         **perm_context(request.user, 'reports'),
         'report': meta,
         'report_slug': 'bien-dong',
-        'rows': rows,
-        'columns': list(rows[0].keys()) if rows else [],
         'filters': filters,
         'show_date_filter': True,
         'show_material_filter': True,
+        **_report_table_context(rows, 'bien-dong'),
     })
 
 
@@ -130,11 +138,10 @@ def report_issue_lsx(request):
         **perm_context(request.user, 'reports'),
         'report': meta,
         'report_slug': 'xuat-lsx',
-        'rows': rows,
-        'columns': list(rows[0].keys()) if rows else [],
         'filters': filters,
         'show_date_filter': True,
         'show_lsx_filter': True,
+        **_report_table_context(rows, 'xuat-lsx'),
     })
 
 
@@ -156,9 +163,8 @@ def report_stocktake_history(request):
         **perm_context(request.user, 'reports'),
         'report': meta,
         'report_slug': 'kiem-ke',
-        'rows': rows,
-        'columns': list(rows[0].keys()) if rows else [],
         'filters': {},
+        **_report_table_context(rows, 'kiem-ke'),
     })
 
 
@@ -178,11 +184,10 @@ def report_ledger(request):
         **perm_context(request.user, 'reports'),
         'report': meta,
         'report_slug': 'so-kho',
-        'rows': rows,
-        'columns': list(rows[0].keys()) if rows else [],
         'filters': filters,
         'show_date_filter': True,
         'show_material_filter': True,
+        **_report_table_context(rows, 'so-kho'),
     })
 
 
