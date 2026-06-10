@@ -55,6 +55,15 @@ class KhoNplPageSmokeTests(TestCase):
         self.assertContains(response, reverse('kho_npl:stock_alerts') + '?status=low')
         self.assertContains(response, reverse('kho_npl:stock_alerts') + '?status=out')
 
+    def test_overview_has_catalog_grid_layout(self):
+        response = self.client.get(reverse('kho_npl:overview'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'npl-overview-table')
+        self.assertContains(response, 'jp-mat-col-resizer')
+        self.assertContains(response, 'jp-mat-th-sort')
+        self.assertContains(response, 'Nhập Excel')
+        self.assertContains(response, reverse('kho_npl:overview_export'))
+
     def test_material_pages(self):
         for name in ('kho_npl:material_list', 'kho_npl:material_stock', 'kho_npl:material_create'):
             self._assert_ok(name)

@@ -16,6 +16,7 @@ app_name = 'kho_npl'
 urlpatterns = [
     path('', views.hub_redirect, name='hub'),
     path('tong-quan/', views.overview, name='overview'),
+    path('tong-quan/xuat-excel/', views.overview_export, name='overview_export'),
     path('the-kho/', views.stock_cards, name='stock_cards'),
     path('canh-bao/', views.stock_alerts, name='stock_alerts'),
     path('danh-muc/', views_material.material_list, name='material_list'),
