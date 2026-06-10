@@ -44,6 +44,10 @@
         document.querySelectorAll('#{{ table_id }} .npl-col').forEach(function (el) {
             const key = el.getAttribute('data-col');
             if (!key) return;
+            if (key === 'actions') {
+                el.classList.remove('d-none');
+                return;
+            }
             if (REQUIRED.has(key)) { el.classList.remove('d-none'); return; }
             el.classList.toggle('d-none', !visible.has(key));
         });
@@ -90,7 +94,7 @@
     table.querySelectorAll('thead th.jp-mat-th .jp-mat-col-resizer').forEach(function (grip) {
         var th = grip.closest('th');
         var colKey = th && th.getAttribute('data-col');
-        if (!colKey) return;
+        if (!colKey || colKey === 'actions') return;
         var startX = 0, startW = 0;
         function onMove(e) {
             var w = Math.max(48, startW + (e.pageX - startX));

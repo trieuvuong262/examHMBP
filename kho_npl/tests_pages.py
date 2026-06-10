@@ -137,6 +137,8 @@ class KhoNplPageSmokeTests(TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, 'npl-transfer-table')
                 self.assertContains(response, 'jp-mat-col-resizer')
+                self.assertContains(response, 'data-col="actions"')
+                self.assertContains(response, "key === 'actions'")
 
     def test_transfer_pages(self):
         self._assert_ok('kho_npl:transfer_hub')
