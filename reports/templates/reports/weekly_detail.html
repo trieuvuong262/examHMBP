@@ -2,76 +2,156 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260529d">
+<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260530a">
 {% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-reports-page py-3 py-md-4 mb-5">
-    <div class="jp-page-header mb-3 mb-md-4">
-        <div>
-            <h2 class="fw-bold text-hm mb-1 jp-page-title">Báo cáo tuần {{ week_label }}</h2>
-            <p class="text-muted mb-0 small">
-                {{ report.employee.profile.full_name|default:report.employee.username }}
-                · <span class="badge {% if report.status == 'SUBMITTED' %}bg-success{% else %}bg-secondary{% endif %}">{{ report.get_status_display }}</span>
-            </p>
-        </div>
-        <div class="d-flex gap-2 flex-wrap w-100 w-md-auto">
-            {% if report.employee_id == request.user.id and can_submit_report %}
-            <a href="{% url 'reports:weekly' %}?week={{ report.week_start|date:'Y-m-d' }}" class="btn btn-outline-hm btn-sm">Sửa</a>
-            {% endif %}
-            {% if can_view_team %}
-            <a href="{% url 'reports:team_weekly' %}?week={{ report.week_start|date:'Y-m-d' }}" class="btn btn-outline-dark btn-sm">← Cấp dưới</a>
-            {% endif %}
+    {% include 'reports/includes/reports_intro_header.html' with intro_icon='bi-calendar-week' intro_title='Chi tiết báo cáo tuần' %}
+
+    <div class="jp-weekly-hero card border-0 shadow-sm mb-3">
+        <div class="card-body p-3 p-md-4">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <span class="jp-office-status-pill {% if report.status == 'SUBMITTED' %}is-submitted{% else %}is-draft{% endif %}">
+                        <i class="bi {% if report.status == 'SUBMITTED' %}bi-check-circle-fill{% else %}bi-pencil{% endif %}"></i>
+                        {{ report.get_status_display }}
+                    </span>
+                    {% if report.submitted_at %}
+                    <span class="text-muted small">Gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }}</span>
+                    {% elif report.draft_saved_at %}
+                    <span class="text-muted small">Lưu nháp {{ report.draft_saved_at|date:"H:i d/m/Y" }}</span>
+                    {% endif %}
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    {% if report.employee_id == request.user.id and can_submit_report %}
+                    <a href="{% url 'reports:weekly' %}?week={{ report.week_start|date:'Y-m-d' }}" class="btn btn-outline-hm btn-sm">Sửa báo cáo</a>
+                    {% endif %}
+                    {% if can_view_team %}
+                    <a href="{% url 'reports:team_weekly' %}?week={{ report.week_start|date:'Y-m-d' }}" class="btn btn-outline-dark btn-sm">← Cấp dưới</a>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
 
-    {% if report.links %}
-    <div class="card border-0 shadow-sm mb-3">
-        <div class="card-header bg-white fw-bold">Link</div>
-        <div class="card-body">
-            <ul class="mb-0">
-                {% for line in report.link_lines %}
-                <li><a href="{{ line }}" target="_blank" rel="noopener">{{ line }}</a></li>
-                {% endfor %}
-            </ul>
+    {% if link_previews %}
+    <div class="card border-0 shadow-sm mb-3 jp-weekly-field-card">
+        <div class="card-header bg-white border-bottom py-3">
+            <div class="jp-weekly-field-title">
+                <span class="jp-weekly-field-icon is-link"><i class="bi bi-link-45deg"></i></span>
+                <div>
+                    <h6 class="fw-bold mb-0">Link</h6>
+                    <small class="text-muted">{{ link_previews|length }} liên kết</small>
+                </div>
+            </div>
         </div>
-    </div>
-    {% endif %}
-
-    {% if weekly_files %}
-    <div class="card border-0 shadow-sm mb-3">
-        <div class="card-header bg-white fw-bold">File đính kèm</div>
-        <div class="card-body">
-            <ul class="mb-0">
-                {% for att in weekly_files %}
-                <li><a href="{{ att.file.url }}" target="_blank" rel="noopener">{{ att.display_name }}</a></li>
-                {% endfor %}
-            </ul>
-        </div>
-    </div>
-    {% endif %}
-
-    {% if weekly_images %}
-    <div class="card border-0 shadow-sm mb-3">
-        <div class="card-header bg-white fw-bold">Ảnh</div>
-        <div class="card-body d-flex flex-wrap gap-2">
-            {% for att in weekly_images %}
-            <a href="{{ att.file.url }}" target="_blank" rel="noopener">
-                <img src="{{ att.file.url }}" alt="{{ att.display_name }}" class="rounded border" style="max-height:120px;">
-            </a>
+        <div class="card-body p-3 p-md-4">
+            {% for item in link_previews %}
+            <div class="jp-weekly-preview-block mb-4{% if not forloop.last %} pb-4 border-bottom{% endif %}">
+                <a href="{{ item.url }}" target="_blank" rel="noopener" class="jp-weekly-link-card text-decoration-none">
+                    <span class="jp-weekly-link-card-icon"><i class="bi bi-box-arrow-up-right"></i></span>
+                    <span class="jp-weekly-link-card-body">
+                        <span class="jp-weekly-link-card-domain">{{ item.domain }}</span>
+                        <span class="jp-weekly-link-card-url">{{ item.url }}</span>
+                    </span>
+                </a>
+                {% if item.embed_url %}
+                <div class="jp-weekly-embed-wrap mt-3">
+                    <iframe src="{{ item.embed_url }}" title="Xem trước link" loading="lazy" allowfullscreen></iframe>
+                </div>
+                {% endif %}
+            </div>
             {% endfor %}
         </div>
     </div>
     {% endif %}
 
-    {% if not report.links and not weekly_files and not weekly_images %}
-    <div class="alert alert-light border">Chưa có nội dung báo cáo tuần.</div>
+    {% if file_previews %}
+    <div class="card border-0 shadow-sm mb-3 jp-weekly-field-card">
+        <div class="card-header bg-white border-bottom py-3">
+            <div class="jp-weekly-field-title">
+                <span class="jp-weekly-field-icon is-file"><i class="bi bi-file-earmark-arrow-up"></i></span>
+                <div>
+                    <h6 class="fw-bold mb-0">File đính kèm</h6>
+                    <small class="text-muted">{{ file_previews|length }} file</small>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-3 p-md-4">
+            {% for item in file_previews %}
+            <div class="jp-weekly-preview-block mb-4{% if not forloop.last %} pb-4 border-bottom{% endif %}">
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                    <div class="jp-weekly-file-chip">
+                        <i class="bi {% if item.type == 'pdf' %}bi-file-earmark-pdf text-hm{% else %}bi-file-earmark text-secondary{% endif %}"></i>
+                        <span class="fw-semibold">{{ item.name }}</span>
+                    </div>
+                    <a href="{{ item.url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-hm">
+                        <i class="bi bi-download me-1"></i>Tải / mở tab mới
+                    </a>
+                </div>
+                {% if item.type == 'pdf' %}
+                <div class="jp-weekly-embed-wrap is-pdf">
+                    <iframe src="{{ item.url }}" title="{{ item.name }}" loading="lazy"></iframe>
+                </div>
+                {% else %}
+                <div class="jp-weekly-file-fallback">
+                    <span class="badge text-bg-light border">{{ item.ext }}</span>
+                    <span class="text-muted small">Không xem trước trực tiếp — bấm tải để mở file.</span>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if image_previews %}
+    <div class="card border-0 shadow-sm mb-3 jp-weekly-field-card">
+        <div class="card-header bg-white border-bottom py-3">
+            <div class="jp-weekly-field-title">
+                <span class="jp-weekly-field-icon is-image"><i class="bi bi-image"></i></span>
+                <div>
+                    <h6 class="fw-bold mb-0">Ảnh</h6>
+                    <small class="text-muted">{{ image_previews|length }} ảnh · bấm để phóng to</small>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-3 p-md-4">
+            <div class="row g-3">
+                {% for item in image_previews %}
+                <div class="col-6 col-md-4 col-lg-3">
+                    <button type="button" class="jp-weekly-thumb jp-weekly-thumb-btn border-0 p-0 w-100 text-start"
+                            data-jp-lightbox="{{ item.url }}" data-jp-lightbox-name="{{ item.name }}"
+                            aria-label="Xem ảnh {{ item.name }}">
+                        <img src="{{ item.url }}" alt="{{ item.name }}" loading="lazy">
+                        <span class="jp-weekly-thumb-caption">{{ item.name }}</span>
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if not link_previews and not file_previews and not image_previews %}
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body text-center text-muted py-5">
+            <i class="bi bi-inbox display-6 d-block mb-2 opacity-50"></i>
+            Chưa có nội dung báo cáo tuần.
+        </div>
+    </div>
     {% endif %}
 
     {% if can_review %}
-    <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white fw-bold">Phản hồi quản lý</div>
-        <div class="card-body">
+    <div class="card border-0 shadow-sm jp-weekly-field-card">
+        <div class="card-header bg-white border-bottom py-3">
+            <div class="jp-weekly-field-title">
+                <span class="jp-weekly-field-icon is-file"><i class="bi bi-chat-left-text"></i></span>
+                <div><h6 class="fw-bold mb-0">Phản hồi quản lý</h6></div>
+            </div>
+        </div>
+        <div class="card-body p-3 p-md-4">
             <form method="post">
                 {% csrf_token %}
                 <div class="form-check mb-3">
@@ -89,10 +169,47 @@
     {% elif report.hod_note %}
     <div class="card border-0 shadow-sm">
         <div class="card-body">
-            <div class="text-muted small">Ghi chú quản lý</div>
+            <div class="text-muted small mb-1">Ghi chú quản lý</div>
             <div>{{ report.hod_note }}</div>
         </div>
     </div>
     {% endif %}
 </div>
+
+<div class="modal fade" id="jpWeeklyLightbox" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content border-0 bg-dark">
+            <div class="modal-header border-secondary border-opacity-25 py-2">
+                <div class="modal-title text-white small text-truncate" id="jpWeeklyLightboxTitle"></div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body p-2 text-center">
+                <img src="" alt="" id="jpWeeklyLightboxImg" class="jp-weekly-lightbox-img">
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    const modalEl = document.getElementById('jpWeeklyLightbox');
+    const imgEl = document.getElementById('jpWeeklyLightboxImg');
+    const titleEl = document.getElementById('jpWeeklyLightboxTitle');
+    if (!modalEl || !imgEl || !window.bootstrap) return;
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    document.querySelectorAll('[data-jp-lightbox]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            imgEl.src = btn.getAttribute('data-jp-lightbox');
+            imgEl.alt = btn.getAttribute('data-jp-lightbox-name') || '';
+            titleEl.textContent = btn.getAttribute('data-jp-lightbox-name') || '';
+            modal.show();
+        });
+    });
+    modalEl.addEventListener('hidden.bs.modal', function () {
+        imgEl.removeAttribute('src');
+    });
+})();
+</script>
 {% endblock %}

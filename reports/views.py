@@ -52,6 +52,7 @@ from .team_utils import (
     meaningful_weekly_reports_qs,
     weekly_report_visible_to_team,
 )
+from .weekly_preview import file_attachment_preview, link_preview_rows
 from .weekly_uploads import copy_weekly_attachments, save_weekly_uploads, weekly_report_has_content
 
 
@@ -668,12 +669,21 @@ def weekly_report_detail(request, pk):
         return redirect('reports:weekly_detail', pk=pk)
 
     images, files = _weekly_attachments(report)
+    profile = report.employee.profile
     return render(request, 'reports/weekly_detail.html', {
         'report': report,
         'weekly_images': images,
         'weekly_files': files,
+        'link_previews': link_preview_rows(report.links),
+        'file_previews': [file_attachment_preview(f) for f in files],
+        'image_previews': [file_attachment_preview(i) for i in images],
         'week_label': week_label(report.week_start),
+        'employee_name': profile.full_name if profile else report.employee.username,
+        'department_name': profile.department.name if profile and profile.department_id else '',
         'can_review': can_review,
         'can_submit_report': can_submit_daily_report(request.user),
         'can_view_team': can_view_team_reports(request.user),
+        'report_period': 'weekly',
+        'report_date': report.week_start,
+        'week_start': report.week_start,
     })

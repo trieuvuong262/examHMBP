@@ -119,4 +119,6 @@ class ReportTeamDraftTests(TestCase):
             WeeklyWorkReport.objects.get(employee=self.member, week_start=week).pk,
         ]))
         self.assertEqual(resp2.status_code, 200)
+        self.assertContains(resp2, 'jp-weekly-link-card')
         self.assertContains(resp2, 'example.com')
+        self.assertContains(resp2, 'Chi tiết báo cáo tuần')
