@@ -114,18 +114,18 @@
                                     <i class="bi bi-eye me-1"></i>Xem
                                 </a>
                                 {% else %}
-                                <a href="{% url 'kho_npl:transfer_detail' transfer.pk %}" class="btn btn-outline-secondary btn-sm" title="Chi tiết"><i class="bi bi-eye"></i></a>
+                                <a href="{% url 'kho_npl:transfer_detail' transfer.pk %}" class="btn btn-outline-secondary btn-sm jp-npl-transfer-act-btn" title="Chi tiết"><i class="bi bi-eye"></i></a>
                                 {% if tab == 'chuyen' %}
                                     {% if can_update %}
-                                    <a href="{% url 'kho_npl:transfer_edit' transfer.pk %}" class="btn btn-outline-hm btn-sm" title="Sửa"><i class="bi bi-pencil"></i></a>
+                                    <a href="{% url 'kho_npl:transfer_edit' transfer.pk %}" class="btn btn-outline-hm btn-sm jp-npl-transfer-act-btn" title="Sửa"><i class="bi bi-pencil"></i></a>
                                     {% endif %}
                                     {% if can_delete %}
-                                    <a href="{% url 'kho_npl:transfer_cancel' transfer.pk %}" class="btn btn-outline-danger btn-sm" title="Xóa phiếu"><i class="bi bi-trash"></i></a>
+                                    <a href="{% url 'kho_npl:transfer_cancel' transfer.pk %}" class="btn btn-outline-danger btn-sm jp-npl-transfer-act-btn" title="Xóa phiếu"><i class="bi bi-trash"></i></a>
                                     {% endif %}
                                     {% if can_update %}
                                     <form method="post" action="{% url 'kho_npl:transfer_send' transfer.pk %}" class="d-inline">
                                         {% csrf_token %}
-                                        <button type="submit" class="btn btn-hm btn-sm fw-bold"
+                                        <button type="submit" class="btn btn-hm btn-sm jp-npl-transfer-act-btn"
                                                 onclick="return confirm('Chuyển phiếu {{ transfer.number }}? Hàng sẽ trừ tồn tại {{ transfer.from_location.code }}.');"
                                                 title="Chuyển"><i class="bi bi-truck"></i></button>
                                     </form>
@@ -133,8 +133,9 @@
                                 {% elif tab == 'nhan' and can_update %}
                                 <form method="post" action="{% url 'kho_npl:transfer_receive' transfer.pk %}" class="d-inline">
                                     {% csrf_token %}
-                                    <button type="submit" class="btn btn-success btn-sm fw-bold"
-                                            onclick="return confirm('Xác nhận nhận phiếu {{ transfer.number }} vào kho {{ transfer.to_location.code }}?');">
+                                    <button type="submit" class="btn btn-success btn-sm jp-npl-transfer-act-btn"
+                                            onclick="return confirm('Xác nhận nhận phiếu {{ transfer.number }} vào kho {{ transfer.to_location.code }}?');"
+                                            title="Nhận vào kho">
                                         <i class="bi bi-box-arrow-in-down"></i>
                                     </button>
                                 </form>
