@@ -78,6 +78,15 @@ class KhoNplPageSmokeTests(TestCase):
         self.assertNotContains(response, 'Cảnh báo thiếu')
         self.assertContains(response, reverse('kho_npl:material_stock_export'))
 
+    def test_stock_cards_catalog_grid_layout(self):
+        response = self.client.get(reverse('kho_npl:stock_cards'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'npl-stock-card-catalog-table')
+        self.assertContains(response, 'jp-mat-col-resizer')
+        self.assertContains(response, 'jp-mat-th-sort')
+        self.assertContains(response, 'jp-npl-catalog-row')
+        self.assertContains(response, reverse('kho_npl:stock_cards_export'))
+
     def test_material_export_template(self):
         for name in ('kho_npl:material_export', 'kho_npl:material_import_template'):
             url = reverse(name)

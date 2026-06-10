@@ -15,17 +15,21 @@ from kho_npl.choices import (
     STOCK_STATUS_OK,
     STOCK_STATUS_OUT,
 )
-from kho_npl.filter_utils import parse_int_ids
+from kho_npl.filter_utils import append_filter_params, parse_int_ids
 from kho_npl.models import Material, MaterialCategory, WarehouseLocation
 from kho_npl.overview_list_columns import (
     OVERVIEW_LIST_COLUMNS,
     OVERVIEW_LIST_SORT_FIELDS,
     OVERVIEW_LIST_TOTAL_COL_WEIGHT,
 )
+from kho_npl.stock_card_catalog_columns import (
+    STOCK_CARD_CATALOG_COLUMNS,
+    STOCK_CARD_CATALOG_SORT_FIELDS,
+    STOCK_CARD_CATALOG_TOTAL_COL_WEIGHT,
+)
 from kho_npl.services.excel_export import dataframe_to_xlsx_response
 from kho_npl.services.stock import material_stock_rows, overview_stats, stock_rows_for_status
 from kho_npl.services.stock_card import build_material_stock_card, diagnose_stock_mismatch
-from kho_npl.filter_utils import append_filter_params, parse_int_ids
 from kho_npl.view_utils import nav_context, perm_context
 from kho_npl.views_material import _material_catalog_qs
 from kho_npl.views_settings import settings_hub_items
@@ -161,19 +165,67 @@ def _parse_optional_date(value: str) -> date | None:
         return None
 
 
+def _stock_card_catalog_sort(request):
+    sort_key = (request.GET.get('sort') or 'code').strip()
+    sort_dir = (request.GET.get('dir') or 'asc').strip().lower()
+    if sort_key not in STOCK_CARD_CATALOG_SORT_FIELDS:
+        sort_key = 'code'
+    if sort_dir not in ('asc', 'desc'):
+        sort_dir = 'asc'
+    orm_field = STOCK_CARD_CATALOG_SORT_FIELDS[sort_key]
+    order = orm_field if sort_dir == 'asc' else f'-{orm_field}'
+    return sort_key, sort_dir, order
+
+
+def _stock_card_catalog_qs(request, location_ids):
+    catalog_qs, search_query, category_ids, _ = _material_catalog_qs(request)
+    stock_sum = Sum('balances__quantity')
+    if location_ids:
+        stock_sum = Sum('balances__quantity', filter=Q(balances__location_id__in=location_ids))
+    sort_key, sort_dir, order = _stock_card_catalog_sort(request)
+    catalog_qs = catalog_qs.annotate(stock_total=stock_sum).order_by(order)
+    return catalog_qs, search_query, category_ids, sort_key, sort_dir
+
+
+def _stock_card_catalog_filter_qs(
+    *,
+    date_from,
+    date_to,
+    location_ids,
+    category_ids,
+    search_query,
+    sort_key,
+    sort_dir,
+    show_diagnosis=False,
+):
+    filter_params = []
+    if date_from:
+        filter_params.append(f'date_from={date_from.isoformat()}')
+    if date_to:
+        filter_params.append(f'date_to={date_to.isoformat()}')
+    append_filter_params(filter_params, locations=location_ids, categories=category_ids)
+    if search_query:
+        filter_params.append(f'q={search_query}')
+    if sort_key and sort_key != 'code':
+        filter_params.append(f'sort={sort_key}')
+    if sort_dir and sort_dir != 'asc':
+        filter_params.append(f'dir={sort_dir}')
+    if show_diagnosis:
+        filter_params.append('diagnose=1')
+    return '&'.join(filter_params)
+
+
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def stock_cards(request):
-    search_query = get_search_query(request)
     location_ids = parse_int_ids(request, 'location')
     material_id = request.GET.get('material', '').strip()
     date_from = _parse_optional_date(request.GET.get('date_from'))
     date_to = _parse_optional_date(request.GET.get('date_to'))
+    show_diagnosis = request.GET.get('diagnose') == '1'
 
-    catalog_qs, _, category_ids, _ = _material_catalog_qs(request)
-    stock_sum = Sum('balances__quantity')
-    if location_ids:
-        stock_sum = Sum('balances__quantity', filter=Q(balances__location_id__in=location_ids))
-    catalog_qs = catalog_qs.annotate(stock_total=stock_sum).order_by('code')
+    catalog_qs, search_query, category_ids, sort_key, sort_dir = _stock_card_catalog_qs(
+        request, location_ids,
+    )
     catalog_page, catalog_query_string = paginate_queryset(
         request, catalog_qs, per_page=20, page_param='cat_page',
     )
@@ -181,7 +233,6 @@ def stock_cards(request):
     selected_material = None
     card = None
     mismatch_diagnosis = None
-    show_diagnosis = request.GET.get('diagnose') == '1'
     if material_id.isdigit():
         selected_material = get_object_or_404(
             Material.objects.select_related('category', 'unit'),
@@ -196,15 +247,19 @@ def stock_cards(request):
         if card and not card['is_consistent']:
             mismatch_diagnosis = diagnose_stock_mismatch(selected_material)
 
-    filter_params = []
-    if date_from:
-        filter_params.append(f'date_from={date_from.isoformat()}')
-    if date_to:
-        filter_params.append(f'date_to={date_to.isoformat()}')
-    append_filter_params(filter_params, locations=location_ids, categories=category_ids)
-    if search_query:
-        filter_params.append(f'q={search_query}')
-    catalog_filter_qs = '&'.join(filter_params)
+    catalog_filter_qs = _stock_card_catalog_filter_qs(
+        date_from=date_from,
+        date_to=date_to,
+        location_ids=location_ids,
+        category_ids=category_ids,
+        search_query=search_query,
+        sort_key=sort_key,
+        sort_dir=sort_dir,
+        show_diagnosis=show_diagnosis,
+    )
+    has_filters = bool(
+        search_query or category_ids or location_ids or date_from or date_to,
+    )
 
     return render(request, 'kho_npl/stock_cards.html', {
         **nav_context('stock_cards', user=request.user),
@@ -224,7 +279,30 @@ def stock_cards(request):
         'catalog_query_string': catalog_query_string,
         'catalog_select_base': request.path,
         'catalog_filter_qs': catalog_filter_qs,
+        'list_columns': STOCK_CARD_CATALOG_COLUMNS,
+        'total_col_weight': STOCK_CARD_CATALOG_TOTAL_COL_WEIGHT,
+        'sort_key': sort_key,
+        'sort_dir': sort_dir,
+        'has_filters': has_filters,
     })
+
+
+@module_perm_required(MODULE_KHO_NPL, 'export')
+def stock_cards_export(request):
+    location_ids = parse_int_ids(request, 'location')
+    catalog_qs, _, _, _, _ = _stock_card_catalog_qs(request, location_ids)
+    data = []
+    for material in catalog_qs:
+        data.append({
+            'Mã NPL': material.code,
+            'Tên NPL': material.name,
+            'Nhóm': material.category.name,
+            'Quy cách': material.specification or '',
+            'Tồn': float(material.stock_total or 0),
+            'ĐVT': material.unit.name,
+        })
+    df = pd.DataFrame(data)
+    return dataframe_to_xlsx_response(df, 'The_kho_danh_muc', 'The_kho')
 
 
 @module_perm_required(MODULE_KHO_NPL, 'view')
