@@ -19,8 +19,8 @@
             </a>
             <form method="post" action="{% url 'kho_npl:transfer_send' transfer.pk %}" class="d-inline">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-hm btn-sm fw-bold" onclick="return confirm('Gửi chuyển và trừ tồn tại kho gửi?');">
-                    <i class="bi bi-truck me-1"></i>Gửi chuyển
+                <button type="submit" class="btn btn-hm btn-sm fw-bold" onclick="return confirm('Chuyển phiếu và trừ tồn tại kho gửi?');">
+                    <i class="bi bi-truck me-1"></i>Chuyển
                 </button>
             </form>
             {% endif %}
@@ -47,18 +47,18 @@
 
     <div class="jp-npl-transfer-flow mb-4" aria-label="Tiến trình phiếu">
         <div class="jp-npl-transfer-flow-step {% if transfer.status == 'draft' %}is-current{% elif transfer.status != 'cancelled' %}is-done{% endif %}">
-            <span class="jp-npl-transfer-flow-dot"><i class="bi bi-pencil"></i></span>
-            <span class="jp-npl-transfer-flow-label">Nháp</span>
+            <span class="jp-npl-transfer-flow-dot"><i class="bi bi-plus-circle"></i></span>
+            <span class="jp-npl-transfer-flow-label">Nhập phiếu</span>
         </div>
         <div class="jp-npl-transfer-flow-line {% if transfer.status == 'in_transit' or transfer.status == 'received' %}is-done{% endif %}"></div>
         <div class="jp-npl-transfer-flow-step {% if transfer.status == 'in_transit' %}is-current{% elif transfer.status == 'received' %}is-done{% endif %}">
             <span class="jp-npl-transfer-flow-dot"><i class="bi bi-truck"></i></span>
-            <span class="jp-npl-transfer-flow-label">Đang chuyển</span>
+            <span class="jp-npl-transfer-flow-label">Chuyển đi</span>
         </div>
         <div class="jp-npl-transfer-flow-line {% if transfer.status == 'received' %}is-done{% endif %}"></div>
         <div class="jp-npl-transfer-flow-step {% if transfer.status == 'received' %}is-current is-done{% endif %}">
             <span class="jp-npl-transfer-flow-dot"><i class="bi bi-check-lg"></i></span>
-            <span class="jp-npl-transfer-flow-label">Đã nhập</span>
+            <span class="jp-npl-transfer-flow-label">Nhận kho</span>
         </div>
     </div>
 

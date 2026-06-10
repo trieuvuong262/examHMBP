@@ -1,0 +1,24 @@
+<script>
+(function () {
+    const body = document.getElementById('lines-body');
+    const tmpl = document.getElementById('empty-row-template');
+    const totalForms = document.getElementById('id_lines-TOTAL_FORMS');
+    if (!body || !tmpl || !totalForms) return;
+
+    document.getElementById('add-row')?.addEventListener('click', function () {
+        const idx = parseInt(totalForms.value, 10);
+        const html = tmpl.innerHTML.replace(/__prefix__/g, idx);
+        body.insertAdjacentHTML('beforeend', html);
+        totalForms.value = idx + 1;
+    });
+
+    body.addEventListener('click', function (e) {
+        const btn = e.target.closest('.remove-row');
+        if (!btn) return;
+        const row = btn.closest('.line-row');
+        const del = row.querySelector('input[type=checkbox][name$="-DELETE"]');
+        if (del) { del.checked = true; row.classList.add('d-none'); }
+        else { row.remove(); }
+    });
+})();
+</script>

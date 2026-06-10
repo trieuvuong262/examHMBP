@@ -102,21 +102,48 @@ class StockTransferWorkflowTests(TestCase):
         self.assertEqual(ledger.qty_delta, Decimal('-5'))
 
     def test_transfer_hub_tabs_render(self):
-        received = self._draft_transfer()
-        send_stock_transfer(received, self.user)
-        receive_stock_transfer(received, self.user)
-
         self._draft_transfer()
 
         in_transit = self._draft_transfer()
         send_stock_transfer(in_transit, self.user)
 
-        for tab in ('nhap', 'chuyen', 'nhan'):
-            url = reverse('kho_npl:transfer_hub') + f'?tab={tab}'
-            with self.subTest(tab=tab):
-                response = self.client.get(url)
-                self.assertEqual(response.status_code, 200)
-                self.assertContains(response, 'jp-npl-transfer-tabs')
+        nhap = self.client.get(reverse('kho_npl:transfer_hub') + '?tab=nhap')
+        self.assertEqual(nhap.status_code, 200)
+        self.assertContains(nhap, 'Tạo phiếu chuyển kho')
+        self.assertContains(nhap, 'Lưu phiếu')
+
+        chuyen = self.client.get(reverse('kho_npl:transfer_hub') + '?tab=chuyen')
+        self.assertEqual(chuyen.status_code, 200)
+        self.assertContains(chuyen, 'Phiếu đã nhập — chờ chuyển')
+        self.assertContains(chuyen, 'Chuyển')
+
+        nhan = self.client.get(reverse('kho_npl:transfer_hub') + '?tab=nhan')
+        self.assertEqual(nhan.status_code, 200)
+        self.assertContains(nhan, 'Phiếu đã chuyển — chờ nhận')
+        self.assertContains(nhan, 'Xác nhận nhận')
+
+    def test_transfer_create_redirects_to_chuyen_tab(self):
+        url = reverse('kho_npl:transfer_create')
+        get_resp = self.client.get(url)
+        self.assertEqual(get_resp.status_code, 302)
+        self.assertIn('tab=nhap', get_resp.url)
+
+        response = self.client.post(url, {
+            'transfer_date': timezone.localdate().isoformat(),
+            'from_location': self.from_loc.pk,
+            'to_location': self.to_loc.pk,
+            'notes': '',
+            'lines-TOTAL_FORMS': '1',
+            'lines-INITIAL_FORMS': '0',
+            'lines-MIN_NUM_FORMS': '0',
+            'lines-MAX_NUM_FORMS': '1000',
+            'lines-0-material': self.material.pk,
+            'lines-0-quantity': '3',
+            'lines-0-notes': '',
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('tab=chuyen', response.url)
+        self.assertEqual(StockTransfer.objects.filter(status=TRANSFER_STATUS_DRAFT).count(), 1)
 
     def test_overview_has_no_module_tab_pills(self):
         response = self.client.get(reverse('kho_npl:overview'))
