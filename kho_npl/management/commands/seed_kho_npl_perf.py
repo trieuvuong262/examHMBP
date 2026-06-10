@@ -36,6 +36,7 @@ from kho_npl.models import (
     StockReceiptLine,
     Stocktake,
     StocktakeLine,
+    StockTransfer,
     Supplier,
     Unit,
     WarehouseLocation,
@@ -47,6 +48,8 @@ from kho_npl.services.stocktakes import close_stocktake, start_stocktake_countin
 
 PERF_TAG = 'PERF'
 MATERIAL_PREFIX = 'PERF-'
+SEED_TRANSFER_NOTE = 'SEED:stock-transfer-test'
+SEED_OPENING_NOTE = 'SEED:stock-opening-for-transfer-test'
 
 EXTRA_LOCATIONS = [
     ('KE-A1', 'Kệ A1 — Vải chính'),
@@ -281,13 +284,12 @@ class Command(BaseCommand):
         return list(WarehouseLocation.objects.filter(is_active=True))
 
     def _ensure_suppliers(self) -> list[Supplier]:
-        suppliers = list(Supplier.objects.filter(is_active=True))
-        existing = {s.code for s in suppliers}
+        existing = set(Supplier.objects.values_list('code', flat=True))
         for code, name, phone in SUPPLIERS:
-            if code not in existing:
-                suppliers.append(Supplier.objects.create(
-                    code=code, name=name, phone=phone, is_active=True,
-                ))
+            if code in existing:
+                continue
+            Supplier.objects.create(code=code, name=name, phone=phone, is_active=True)
+            existing.add(code)
         return list(Supplier.objects.filter(is_active=True))
 
     def _create_materials(self, rng, count, categories, units, suppliers) -> list[Material]:
@@ -576,6 +578,29 @@ class Command(BaseCommand):
     @transaction.atomic
     def _clear_perf_data(self):
         self.stdout.write(self.style.WARNING('==> Clearing PERF kho NPL data...'))
+
+        transfer_ids = list(
+            StockTransfer.objects.filter(notes=SEED_TRANSFER_NOTE).values_list('pk', flat=True),
+        )
+        if transfer_ids:
+            StockLedger.objects.filter(
+                ref_type=StockLedger.REF_TRANSFER,
+                ref_id__in=transfer_ids,
+            ).delete()
+            deleted, _ = StockTransfer.objects.filter(pk__in=transfer_ids).delete()
+            self.stdout.write(f'  Deleted {deleted} seed transfer(s).')
+
+        opening_ids = list(
+            StockReceipt.objects.filter(notes=SEED_OPENING_NOTE).values_list('pk', flat=True),
+        )
+        if opening_ids:
+            StockLedger.objects.filter(
+                ref_type=StockLedger.REF_RECEIPT,
+                ref_id__in=opening_ids,
+            ).delete()
+            StockReceiptLine.objects.filter(receipt_id__in=opening_ids).delete()
+            deleted, _ = StockReceipt.objects.filter(pk__in=opening_ids).delete()
+            self.stdout.write(f'  Deleted {deleted} seed opening receipt(s).')
 
         perf_materials = Material.objects.filter(code__startswith=MATERIAL_PREFIX)
         perf_ids = list(perf_materials.values_list('pk', flat=True))
