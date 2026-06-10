@@ -19,6 +19,12 @@ from kho_npl.services.receipts import (
     post_stock_receipt,
     receipt_is_editable,
 )
+from kho_npl.doc_list_columns import (
+    RECEIPT_LIST_COLUMNS,
+    RECEIPT_LIST_SORT_FIELDS,
+    RECEIPT_LIST_TOTAL_COL_WEIGHT,
+)
+from kho_npl.doc_list_utils import DOC_STATUS_FILTER_CHOICES, doc_list_sort, doc_status_filter
 from kho_npl.view_utils import nav_context, perm_context
 
 
@@ -43,13 +49,18 @@ def _save_receipt_form(request, receipt, *, is_create: bool):
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def receipt_list(request):
     search_query = get_search_query(request)
+    status = doc_status_filter(request, choices=DOC_STATUS_FILTER_CHOICES)
+    sort_key, sort_dir, order = doc_list_sort(request, RECEIPT_LIST_SORT_FIELDS, default_key='receipt_date')
     qs = StockReceipt.objects.select_related('supplier', 'received_by', 'created_by')
+    if status:
+        qs = qs.filter(status=status)
     if search_query:
         qs = qs.filter(
             Q(number__icontains=search_query)
             | Q(po_number__icontains=search_query)
             | Q(supplier__name__icontains=search_query)
         )
+    qs = qs.order_by(order, '-pk')
     page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'kho_npl/receipt_list.html', {
         **nav_context('receipts', user=request.user),
@@ -57,6 +68,13 @@ def receipt_list(request):
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
+        'selected_status': status,
+        'status_choices': DOC_STATUS_FILTER_CHOICES,
+        'has_filters': bool(search_query or status),
+        'list_columns': RECEIPT_LIST_COLUMNS,
+        'total_col_weight': RECEIPT_LIST_TOTAL_COL_WEIGHT,
+        'sort_key': sort_key,
+        'sort_dir': sort_dir,
     })
 
 

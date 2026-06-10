@@ -40,8 +40,8 @@
                         <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}" class="text-decoration-none text-muted">Dashboard</a></li>
                         <li class="breadcrumb-item"><a href="{% if user_list_url %}{{ user_list_url }}{% else %}{% url 'user_list' %}{% endif %}" class="text-decoration-none text-muted">Nhân sự</a></li>
                         <li class="breadcrumb-item active fw-bold text-hm">{{ title }}</li>
-                    </ol>
-                </nav>
+                </ol>
+            </nav>
             </div>
             <div class="jp-hrm-toolbar jp-user-form-header-actions">
                 <a href="{% if user_list_url %}{{ user_list_url }}{% else %}{% url 'user_list' %}{% endif %}" class="btn btn-light border fw-bold jp-hrm-tool-btn d-none d-md-inline-flex">
@@ -172,11 +172,11 @@
                 <div class="jp-user-detail-hero-aside">
                     <div class="jp-user-detail-status-field">
                         {% include 'assessment/admin/includes/user_form_field.html' with field=form.is_employed label='Trạng thái' %}
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endif %}
+                                    </div>
+                                </div>
+                                    </div>
+                                </div>
+                                {% endif %}
 
         <div class="jp-user-detail-nav-bar mb-3">
             <nav class="jp-user-detail-nav" aria-label="Tab thông tin nhân viên" role="tablist">
@@ -228,8 +228,8 @@
                                 {% include 'assessment/admin/includes/user_form_field.html' with field=form.join_date label='Ngày vào làm' %}
                             </div>
                         </div>
-                    </div>
-                </div>
+                                    </div>
+                                </div>
                 {% include 'assessment/admin/includes/user_tab_panel_footer.html' %}
             </div>
 
@@ -257,7 +257,7 @@
                     </div>
                 </div>
                 {% include 'assessment/admin/includes/user_tab_panel_footer.html' %}
-            </div>
+                        </div>
 
             <div class="jp-user-tab-panel" data-tab-panel="permissions" id="section-permissions" role="tabpanel" aria-labelledby="tab-permissions" hidden>
                 <div class="card border-0 shadow-sm jp-user-form-panel">
@@ -272,8 +272,8 @@
                     </div>
                 </div>
                 {% include 'assessment/admin/includes/user_tab_panel_footer.html' %}
-            </div>
-
+                                </div>
+                                
             <div class="jp-user-tab-panel jp-subordinates-panel" data-tab-panel="subordinates" id="section-subordinates" role="tabpanel" aria-labelledby="navSubordinates" hidden>
                 <div class="card border-0 shadow-sm jp-user-form-panel jp-user-form-panel--picker">
                     <div class="jp-user-form-panel-head">
@@ -302,10 +302,10 @@
                         {% if form.subordinates.errors %}
                         <div class="text-danger small mt-2">{{ form.subordinates.errors }}</div>
                         {% endif %}
-                    </div>
+                                    </div>
                 </div>
                 {% include 'assessment/admin/includes/user_tab_panel_footer.html' %}
-            </div>
+                                </div>
 
             {% if concurrent_formset %}
             <div class="jp-user-tab-panel" data-tab-panel="concurrent" id="section-concurrent" role="tabpanel" aria-labelledby="tab-concurrent" hidden>
@@ -336,8 +336,8 @@
                         {% else %}
                         <p class="small text-muted mt-2 mb-0">Slot kiêm nhiệm sẽ lưu cùng hồ sơ khi bấm «Lưu nhân viên».</p>
                         {% endif %}
-                    </div>
-                </div>
+                                    </div>
+                                </div>
                 {% include 'assessment/admin/includes/user_tab_panel_footer.html' %}
             </div>
             <template id="jpConcurrentSlotTemplate">
@@ -363,7 +363,7 @@
                             {% for error in form.username.errors %}
                             <div class="invalid-feedback d-block">{{ error }}</div>
                             {% endfor %}
-                        </div>
+                                    </div>
 
                         {% if not is_edit %}
                         <div class="jp-form-field{% if form.password.errors %} is-invalid{% endif %}">
@@ -375,7 +375,7 @@
                                 <button type="button" class="btn btn-outline-secondary" id="jpTogglePwd" title="Hiện/ẩn mật khẩu" aria-label="Hiện mật khẩu">
                                     <i class="bi bi-eye"></i>
                                 </button>
-                            </div>
+                                </div>
                             <div class="d-flex flex-wrap gap-2 mt-2">
                                 <button type="button" class="btn btn-sm btn-outline-hm" id="jpRegenPwd">
                                     <i class="bi bi-arrow-clockwise me-1"></i>Tạo mật khẩu mới
@@ -417,7 +417,7 @@
             </div>
         </div>
         {% endif %}
-    </form>
+                    </form>
 </div>
 
 {% if is_edit %}
@@ -718,7 +718,7 @@
         });
     });
 
-    function toggleSubordinates() {
+        function toggleSubordinates() {
         if (!roleSelect) return;
         const show = managerRoles.includes(roleSelect.value);
         if (navSubordinates) {

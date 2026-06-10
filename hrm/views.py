@@ -341,9 +341,9 @@ def user_add(request):
             instance=draft_profile,
             prefix='concurrent',
         )
-
+    
     return render(request, 'assessment/admin/user_form.html', {
-        'form': form,
+        'form': form, 
         'concurrent_formset': concurrent_formset,
         'title': 'Thêm nhân viên mới',
         'is_edit': False,
@@ -508,9 +508,9 @@ def user_edit(request, user_id):
     if request.method == 'POST':
         # TRUYỀN user_id VÀO ĐÂY: Để hàm clean_username trong forms.py không báo lỗi trùng chính mình
         form = CustomUserForm(request.POST, user_id=user_obj.id)
-
+        
         # Đang sửa nên không bắt buộc nhập mật khẩu
-        form.fields['password'].required = False
+        form.fields['password'].required = False 
 
         # Slot kiêm nhiệm khi sửa NV: lưu từng slot qua AJAX — không ghi qua POST «Lưu nhân viên»
         # (tránh tạo bản ghi trùng khi TOTAL_FORMS / id slot lệch sau thêm dòng trên UI).
@@ -540,7 +540,7 @@ def user_edit(request, user_id):
             profile.role = form.cleaned_data['role']
             profile.permission_group = _resolve_permission_group(form)
             profile.is_employed = form.cleaned_data.get('is_employed', True)
-
+            
             # QUAN TRỌNG: Lưu danh sách nhân viên cấp dưới (ManyToMany)
             # Dùng .set() để ghi đè danh sách mới từ form
             profile.subordinates.set(form.cleaned_data['subordinates'])
@@ -604,7 +604,7 @@ def user_edit(request, user_id):
 
     force_edit_mode = request.method == 'POST'
     return render(request, 'assessment/admin/user_form.html', {
-        'form': form,
+        'form': form, 
         'concurrent_formset': concurrent_formset,
         'title': profile.full_name or user_obj.username,
         'is_edit': True,
@@ -723,18 +723,18 @@ def user_import_excel(request):
             df = pd.read_excel(file)
             df.columns = [str(c).strip().lower() for c in df.columns]
             df = df.fillna('')
-
+            
             success_count = 0
             updated_count = 0
             skipped_count = 0
-
+            
             with transaction.atomic():
                 for _, row in df.iterrows():
                     data = row_to_profile_data(row)
                     full_name = data.get('full_name', '').strip()
                     if not full_name:
                         skipped_count += 1
-                        continue
+                        continue 
 
                     username = data.get('username', '').strip()
                     employee_code = data.get('employee_code', '').strip() or None
@@ -804,15 +804,15 @@ def user_import_excel(request):
                         },
                     )
                     success_count += 1
-
+            
             messages.success(
                 request,
                 f'Import xong: thêm mới {success_count}, cập nhật {updated_count}, bỏ qua {skipped_count} dòng.',
             )
-
+            
         except Exception as e:
             messages.error(request, f'Lỗi hệ thống khi xử lý file: {str(e)}')
-
+            
     if request.POST.get('return_to') == 'org':
         return redirect('org_structure')
     return redirect('user_list')
@@ -846,11 +846,11 @@ def user_export_excel(request):
     users = apply_user_list_sort(users, _sort_key, _sort_dir)
     rows = [user_to_excel_row(u) for u in users]
     df = pd.DataFrame(rows, columns=EXCEL_ALL_HEADERS)
-
+    
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='Nhan_Vien')
-
+    
     response = HttpResponse(
         output.getvalue(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

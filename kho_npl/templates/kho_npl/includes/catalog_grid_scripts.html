@@ -1,0 +1,115 @@
+<script>
+(function () {
+    function centerColMenu() {
+        var colPicker = document.querySelector('.jp-npl-mat-col-picker');
+        if (!colPicker) return;
+        var menu = colPicker.querySelector('.jp-npl-mat-col-menu');
+        var btn = document.getElementById('{{ col_btn_id }}');
+        if (!menu || !btn || !menu.classList.contains('show')) return;
+        var rect = btn.getBoundingClientRect();
+        var menuWidth = menu.offsetWidth || 224;
+        var left = rect.left + (rect.width / 2) - (menuWidth / 2);
+        left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
+        menu.style.position = 'fixed';
+        menu.style.top = (rect.bottom + 6) + 'px';
+        menu.style.left = left + 'px';
+        menu.style.right = 'auto';
+        menu.style.transform = 'none';
+        menu.style.margin = '0';
+    }
+    var colPicker = document.querySelector('.jp-npl-mat-col-picker');
+    if (colPicker) {
+        colPicker.addEventListener('shown.bs.dropdown', centerColMenu);
+        window.addEventListener('resize', centerColMenu);
+        window.addEventListener('scroll', centerColMenu, true);
+    }
+})();
+(function () {
+    const STORAGE_KEY = '{{ storage_key }}';
+    const DEFAULT_COLS = [{% for col in list_columns %}{% if col.default %}'{{ col.key }}',{% endif %}{% endfor %}];
+    const REQUIRED = new Set([{% for col in list_columns %}{% if col.required %}'{{ col.key }}',{% endif %}{% endfor %}]);
+    function loadVisible() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) return new Set(DEFAULT_COLS);
+            const parsed = JSON.parse(raw);
+            if (!Array.isArray(parsed)) return new Set(DEFAULT_COLS);
+            const set = new Set(parsed);
+            REQUIRED.forEach(function (k) { set.add(k); });
+            return set;
+        } catch (e) { return new Set(DEFAULT_COLS); }
+    }
+    function saveVisible(set) { localStorage.setItem(STORAGE_KEY, JSON.stringify([...set])); }
+    function applyColumns(visible) {
+        document.querySelectorAll('#{{ table_id }} .npl-col').forEach(function (el) {
+            const key = el.getAttribute('data-col');
+            if (!key) return;
+            if (REQUIRED.has(key)) { el.classList.remove('d-none'); return; }
+            el.classList.toggle('d-none', !visible.has(key));
+        });
+    }
+    const visible = loadVisible();
+    document.querySelectorAll('.{{ col_toggle_class }}').forEach(function (cb) {
+        cb.checked = visible.has(cb.getAttribute('data-col'));
+        cb.addEventListener('change', function () {
+            const key = cb.getAttribute('data-col');
+            if (cb.checked) visible.add(key);
+            else if (!REQUIRED.has(key)) visible.delete(key);
+            saveVisible(visible);
+            applyColumns(visible);
+            document.querySelectorAll('.{{ col_toggle_class }}').forEach(function (c) {
+                c.checked = visible.has(c.getAttribute('data-col'));
+            });
+        });
+    });
+    applyColumns(visible);
+})();
+(function () {
+    var table = document.getElementById('{{ table_id }}');
+    if (!table) return;
+    function setColWidth(colKey, widthPx) {
+        table.querySelectorAll('[data-col="' + colKey + '"]').forEach(function (el) {
+            el.style.width = widthPx + 'px';
+            el.style.minWidth = widthPx + 'px';
+            el.style.maxWidth = widthPx + 'px';
+        });
+    }
+    table.querySelectorAll('.jp-mat-th-sort').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            var sort = btn.getAttribute('data-sort');
+            var params = new URLSearchParams(window.location.search);
+            var curSort = params.get('sort') || '{{ default_sort_key }}';
+            var curDir = params.get('dir') || 'desc';
+            if (curSort === sort) params.set('dir', curDir === 'asc' ? 'desc' : 'asc');
+            else { params.set('sort', sort); params.set('dir', 'asc'); }
+            params.delete('page');
+            window.location.search = params.toString();
+        });
+    });
+    table.querySelectorAll('thead th.jp-mat-th .jp-mat-col-resizer').forEach(function (grip) {
+        var th = grip.closest('th');
+        var colKey = th && th.getAttribute('data-col');
+        if (!colKey) return;
+        var startX = 0, startW = 0;
+        function onMove(e) {
+            var w = Math.max(48, startW + (e.pageX - startX));
+            setColWidth(colKey, w);
+        }
+        function onUp() {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            document.body.classList.remove('jp-mat-col-resizing');
+        }
+        grip.addEventListener('mousedown', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            startX = e.pageX;
+            startW = th.offsetWidth;
+            document.body.classList.add('jp-mat-col-resizing');
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        });
+    });
+})();
+</script>

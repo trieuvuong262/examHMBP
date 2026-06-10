@@ -1,5 +1,5 @@
 /**
- * Loading tức thì cho 4 màn lưới Kho NPL (menu, lọc, phân trang, sắp xếp).
+ * Loading tức thì cho màn lưới Kho NPL (menu, lọc, phân trang, sắp xếp).
  */
 (function (global) {
     'use strict';
@@ -12,6 +12,11 @@
         '/kho-npl/danh-muc/': 'Đang tải danh mục…',
         '/kho-npl/ton-kho-npl/': 'Đang tải tồn kho…',
         '/kho-npl/the-kho/': 'Đang tải thẻ kho…',
+        '/kho-npl/phieu-nhap/': 'Đang tải phiếu nhập…',
+        '/kho-npl/phieu-xuat/': 'Đang tải phiếu xuất…',
+        '/kho-npl/chuyen-kho/': 'Đang tải phiếu chuyển…',
+        '/kho-npl/phieu-huy/': 'Đang tải phiếu hủy…',
+        '/kho-npl/kiem-ke/': 'Đang tải phiếu kiểm kê…',
     };
 
     let shownAt = 0;
@@ -116,7 +121,7 @@
         if (target.closest('.jp-npl-import-modal')) return true;
         if (target.closest('.modal')) return true;
         if (target.closest('.jp-mat-col-resizer')) return true;
-        if (target.closest('input[type="checkbox"].npl-ov-col-toggle, input[type="checkbox"].npl-mat-col-toggle, input[type="checkbox"].npl-stk-col-toggle, input[type="checkbox"].npl-sc-col-toggle')) {
+        if (target.closest('input[type="checkbox"][class*="-col-toggle"]')) {
             return true;
         }
         return false;

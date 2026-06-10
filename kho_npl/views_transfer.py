@@ -38,6 +38,14 @@ from kho_npl.services.transfers import (
     transfer_can_send,
     transfer_is_editable,
 )
+from kho_npl.doc_list_columns import (
+    TRANSFER_LIST_COLUMNS,
+    TRANSFER_LIST_COLUMNS_WITH_STATUS,
+    TRANSFER_LIST_SORT_FIELDS,
+    TRANSFER_LIST_TOTAL_COL_WEIGHT,
+    TRANSFER_LIST_TOTAL_COL_WEIGHT_WITH_STATUS,
+)
+from kho_npl.doc_list_utils import doc_list_sort
 from kho_npl.view_utils import nav_context, perm_context
 
 VALID_TABS = {TRANSFER_TAB_NHAP, TRANSFER_TAB_CHUYEN, TRANSFER_TAB_NHAN, TRANSFER_TAB_DANH_SACH}
@@ -123,16 +131,33 @@ def _hub_list_context(request, tab: str):
             | Q(to_location__code__icontains=search_query)
             | Q(notes__icontains=search_query)
         )
-    qs = qs.order_by('-transfer_date', '-pk')
+    sort_key, sort_dir, order = doc_list_sort(request, TRANSFER_LIST_SORT_FIELDS, default_key='transfer_date')
+    qs = qs.order_by(order, '-pk')
     page_obj, query_string = paginate_queryset(request, qs)
+    list_status = _resolve_list_status(request) if tab == TRANSFER_TAB_DANH_SACH else ''
+    list_columns = (
+        TRANSFER_LIST_COLUMNS_WITH_STATUS if tab == TRANSFER_TAB_DANH_SACH
+        else TRANSFER_LIST_COLUMNS
+    )
+    total_col_weight = (
+        TRANSFER_LIST_TOTAL_COL_WEIGHT_WITH_STATUS if tab == TRANSFER_TAB_DANH_SACH
+        else TRANSFER_LIST_TOTAL_COL_WEIGHT
+    )
     ctx = {
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
+        'list_columns': list_columns,
+        'total_col_weight': total_col_weight,
+        'sort_key': sort_key,
+        'sort_dir': sort_dir,
+        'has_filters': bool(search_query or list_status),
     }
     if tab == TRANSFER_TAB_DANH_SACH:
-        ctx['list_status'] = _resolve_list_status(request)
+        ctx['list_status'] = list_status
         ctx['list_status_filters'] = TRANSFER_LIST_STATUS_FILTERS
+        ctx['status_choices'] = TRANSFER_LIST_STATUS_FILTERS
+        ctx['selected_status'] = list_status
     return ctx
 
 

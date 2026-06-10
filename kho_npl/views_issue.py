@@ -19,6 +19,12 @@ from kho_npl.services.issues import (
     issue_is_editable,
     post_stock_issue,
 )
+from kho_npl.doc_list_columns import (
+    ISSUE_LIST_COLUMNS,
+    ISSUE_LIST_SORT_FIELDS,
+    ISSUE_LIST_TOTAL_COL_WEIGHT,
+)
+from kho_npl.doc_list_utils import DOC_STATUS_FILTER_CHOICES, doc_list_sort, doc_status_filter
 from kho_npl.view_utils import nav_context, perm_context
 
 
@@ -43,7 +49,11 @@ def _save_issue_form(request, issue, *, is_create: bool):
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def issue_list(request):
     search_query = get_search_query(request)
+    status = doc_status_filter(request, choices=DOC_STATUS_FILTER_CHOICES)
+    sort_key, sort_dir, order = doc_list_sort(request, ISSUE_LIST_SORT_FIELDS, default_key='issue_date')
     qs = StockIssue.objects.select_related('issued_by', 'created_by')
+    if status:
+        qs = qs.filter(status=status)
     if search_query:
         qs = qs.filter(
             Q(number__icontains=search_query)
@@ -51,6 +61,7 @@ def issue_list(request):
             | Q(product_code__icontains=search_query)
             | Q(recipient_name__icontains=search_query)
         )
+    qs = qs.order_by(order, '-pk')
     page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'kho_npl/issue_list.html', {
         **nav_context('issues', user=request.user),
@@ -58,6 +69,13 @@ def issue_list(request):
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
+        'selected_status': status,
+        'status_choices': DOC_STATUS_FILTER_CHOICES,
+        'has_filters': bool(search_query or status),
+        'list_columns': ISSUE_LIST_COLUMNS,
+        'total_col_weight': ISSUE_LIST_TOTAL_COL_WEIGHT,
+        'sort_key': sort_key,
+        'sort_dir': sort_dir,
     })
 
 

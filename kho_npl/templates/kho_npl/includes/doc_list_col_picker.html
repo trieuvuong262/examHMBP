@@ -1,0 +1,21 @@
+<div class="dropdown jp-npl-mat-col-picker">
+    <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" id="{{ col_btn_id }}"
+            data-bs-toggle="dropdown" data-bs-auto-close="outside"
+            aria-expanded="false" title="Chọn cột hiển thị">
+        <i class="bi bi-layout-three-columns me-1"></i>Cột
+    </button>
+    <div class="dropdown-menu shadow-sm jp-npl-mat-col-menu" data-bs-popper="static">
+        <div class="jp-npl-mat-col-head">Hiển thị cột</div>
+        <div class="jp-npl-mat-col-list">
+            {% for col in list_columns %}
+            <label class="jp-npl-mat-col-item{% if col.required %} is-required{% endif %}" for="{{ col_prefix }}-{{ col.key }}">
+                <input class="{{ col_toggle_class }}" type="checkbox"
+                       id="{{ col_prefix }}-{{ col.key }}" data-col="{{ col.key }}"
+                       {% if col.default %}checked{% endif %}
+                       {% if col.required %}disabled checked{% endif %}>
+                <span>{{ col.label }}</span>
+            </label>
+            {% endfor %}
+        </div>
+    </div>
+</div>

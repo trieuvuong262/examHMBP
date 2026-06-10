@@ -114,6 +114,30 @@ class KhoNplPageSmokeTests(TestCase):
         ):
             self._assert_ok(name)
 
+    def test_doc_lists_catalog_grid_layout(self):
+        pages = (
+            ('kho_npl:receipt_list', 'npl-receipt-table'),
+            ('kho_npl:issue_list', 'npl-issue-table'),
+            ('kho_npl:disposal_list', 'npl-disposal-table'),
+            ('kho_npl:stocktake_list', 'npl-stocktake-table'),
+        )
+        for url_name, table_id in pages:
+            with self.subTest(url=url_name):
+                response = self.client.get(reverse(url_name))
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, table_id)
+                self.assertContains(response, 'jp-mat-col-resizer')
+                self.assertContains(response, 'jp-mat-th-sort')
+
+    def test_transfer_hub_catalog_grid_layout(self):
+        for tab in ('danh-sach', 'chuyen', 'nhan'):
+            url = reverse('kho_npl:transfer_hub') + f'?tab={tab}'
+            with self.subTest(tab=tab):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, 'npl-transfer-table')
+                self.assertContains(response, 'jp-mat-col-resizer')
+
     def test_transfer_pages(self):
         self._assert_ok('kho_npl:transfer_hub')
         create_resp = self.client.get(reverse('kho_npl:transfer_create'))

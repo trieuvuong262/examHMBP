@@ -439,7 +439,8 @@
                 {% if jp_can_kho_npl_receipts %}
                 <li>
                     <a href="{% url 'kho_npl:receipt_list' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'receipt_list' %}active{% endif %}">
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'receipt_list' %}active{% endif %}"
+                       data-jp-npl-catalog-nav data-loading-message="Đang tải phiếu nhập…">
                         <i class="bi bi-box-arrow-in-down"></i><span>Phiếu nhập</span>
                     </a>
                 </li>
@@ -448,7 +449,8 @@
                 {% if jp_can_kho_npl_issues %}
                 <li>
                     <a href="{% url 'kho_npl:issue_list' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'issue_list' %}active{% endif %}">
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'issue_list' %}active{% endif %}"
+                       data-jp-npl-catalog-nav data-loading-message="Đang tải phiếu xuất…">
                         <i class="bi bi-box-arrow-up"></i><span>Phiếu xuất</span>
                     </a>
                 </li>
@@ -457,7 +459,8 @@
                 {% if jp_can_kho_npl_transfers %}
                 <li>
                     <a href="{% url 'kho_npl:transfer_hub' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'transfer_hub' or request.resolver_match.url_name == 'transfer_create' or request.resolver_match.url_name == 'transfer_detail' or request.resolver_match.url_name == 'transfer_edit' %}active{% endif %}">
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'transfer_hub' or request.resolver_match.url_name == 'transfer_create' or request.resolver_match.url_name == 'transfer_detail' or request.resolver_match.url_name == 'transfer_edit' %}active{% endif %}"
+                       data-jp-npl-catalog-nav data-loading-message="Đang tải phiếu chuyển…">
                         <i class="bi bi-arrow-left-right"></i><span>Phiếu chuyển</span>
                     </a>
                 </li>
@@ -466,7 +469,8 @@
                 {% if jp_can_kho_npl_disposals %}
                 <li>
                     <a href="{% url 'kho_npl:disposal_list' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'disposal_list' or request.resolver_match.url_name == 'disposal_create' or request.resolver_match.url_name == 'disposal_detail' or request.resolver_match.url_name == 'disposal_edit' %}active{% endif %}">
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'disposal_list' or request.resolver_match.url_name == 'disposal_create' or request.resolver_match.url_name == 'disposal_detail' or request.resolver_match.url_name == 'disposal_edit' %}active{% endif %}"
+                       data-jp-npl-catalog-nav data-loading-message="Đang tải phiếu hủy…">
                         <i class="bi bi-trash3"></i><span>Phiếu hủy</span>
                     </a>
                 </li>
@@ -484,7 +488,8 @@
                 {% if jp_can_kho_npl_stocktakes %}
                 <li>
                     <a href="{% url 'kho_npl:stocktake_list' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'stocktake_list' %}active{% endif %}">
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'stocktake_list' %}active{% endif %}"
+                       data-jp-npl-catalog-nav data-loading-message="Đang tải phiếu kiểm kê…">
                         <i class="bi bi-clipboard-check"></i><span>Phiếu kiểm kê</span>
                     </a>
                 </li>

@@ -20,15 +20,26 @@ from kho_npl.services.stocktakes import (
     stocktake_can_count,
     stocktake_is_editable,
 )
+from kho_npl.doc_list_columns import (
+    STOCKTAKE_LIST_COLUMNS,
+    STOCKTAKE_LIST_SORT_FIELDS,
+    STOCKTAKE_LIST_TOTAL_COL_WEIGHT,
+)
+from kho_npl.doc_list_utils import STOCKTAKE_STATUS_FILTER_CHOICES, doc_list_sort, doc_status_filter
 from kho_npl.view_utils import nav_context, perm_context
 
 
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def stocktake_list(request):
     search_query = get_search_query(request)
+    status = doc_status_filter(request, choices=STOCKTAKE_STATUS_FILTER_CHOICES)
+    sort_key, sort_dir, order = doc_list_sort(request, STOCKTAKE_LIST_SORT_FIELDS, default_key='stocktake_date')
     qs = Stocktake.objects.select_related('created_by')
+    if status:
+        qs = qs.filter(status=status)
     if search_query:
         qs = qs.filter(Q(number__icontains=search_query) | Q(name__icontains=search_query))
+    qs = qs.order_by(order, '-pk')
     page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'kho_npl/stocktake_list.html', {
         **nav_context('stocktakes', user=request.user),
@@ -36,6 +47,13 @@ def stocktake_list(request):
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
+        'selected_status': status,
+        'status_choices': STOCKTAKE_STATUS_FILTER_CHOICES,
+        'has_filters': bool(search_query or status),
+        'list_columns': STOCKTAKE_LIST_COLUMNS,
+        'total_col_weight': STOCKTAKE_LIST_TOTAL_COL_WEIGHT,
+        'sort_key': sort_key,
+        'sort_dir': sort_dir,
     })
 
 

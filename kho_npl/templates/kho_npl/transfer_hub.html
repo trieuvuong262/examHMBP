@@ -1,15 +1,41 @@
 {% extends 'base.html' %}
 
 {% block extra_head %}
-{% if tab == 'nhap' %}{% include 'kho_npl/includes/transfer_form_head.html' %}{% endif %}
+{% if tab == 'nhap' %}{% include 'kho_npl/includes/transfer_form_head.html' %}{% else %}{% include 'kho_npl/includes/catalog_grid_styles.html' %}{% endif %}
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-npl-transfer-page py-3 py-md-4 mb-5">
-    <div class="jp-page-header mb-3 mb-md-4">
-        <h2 class="fw-bold text-hm mb-1 jp-page-title">
-            <i class="bi bi-arrow-left-right me-2"></i>Phiếu chuyển
-        </h2>
+<div class="container jp-page jp-npl-material-catalog-page jp-npl-transfer-page py-3 py-md-4 mb-5" data-loading-message="Đang tải phiếu chuyển…">
+    <div class="jp-npl-mat-topbar">
+        <h2 class="jp-npl-mat-topbar-title"><i class="bi bi-arrow-left-right me-2"></i>Phiếu chuyển</h2>
+        {% if show_transfer_search %}
+        <form method="get" class="jp-npl-mat-topbar-search" id="npl-tr-search-form">
+            <div class="jp-npl-mat-search-row">
+                <input type="hidden" name="tab" value="{{ tab }}">
+                <div class="input-group input-group-sm jp-npl-mat-filter-field jp-npl-mat-search-input">
+                    <span class="input-group-text bg-transparent"><i class="bi bi-search text-muted"></i></span>
+                    <input type="search" class="form-control" id="pc-q" name="q"
+                           value="{{ search_query }}" placeholder="Tìm phiếu, kho..." autocomplete="off" aria-label="Tìm">
+                </div>
+                {% if tab == 'danh-sach' %}
+                <select name="status" class="form-select form-select-sm jp-npl-mat-status-select" aria-label="Trạng thái">
+                    {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                {% endif %}
+                <button type="submit" class="btn btn-hm btn-sm fw-bold">Tìm</button>
+                {% if has_filters %}
+                <a href="{% url 'kho_npl:transfer_hub' %}?tab={{ tab }}" class="btn btn-outline-secondary btn-sm fw-bold px-2" title="Xóa lọc">×</a>
+                {% endif %}
+            </div>
+        </form>
+        <div class="jp-npl-mat-topbar-actions">
+            {% if tab != 'nhap' %}
+            {% include 'kho_npl/includes/doc_list_col_picker.html' with col_btn_id='npl-tr-col-btn' col_prefix='npl-tr-col' col_toggle_class='npl-tr-col-toggle' %}
+            {% endif %}
+        </div>
+        {% endif %}
     </div>
 
     {% include 'kho_npl/includes/transfer_tabs.html' %}
@@ -50,65 +76,58 @@
 
     {% else %}
 
-    <div class="card border-0 shadow-sm jp-npl-transfer-table-card">
-        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-end align-items-center">
-            <span class="badge rounded-pill text-bg-light border">{{ page_obj.paginator.count }} phiếu</span>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0 jp-npl-transfer-table">
-                <thead>
+    <div class="card border-0 shadow-sm">
+        <div class="jp-npl-mat-grid-wrap">
+            <table class="table table-hover align-middle mb-0 jp-npl-mat-grid" id="npl-transfer-table">
+                <thead class="table-light">
                     <tr>
-                        <th>Số phiếu</th>
-                        <th>Ngày</th>
-                        <th>Kho gửi</th>
-                        <th class="text-center"><i class="bi bi-arrow-right text-muted"></i></th>
-                        <th>Kho nhận</th>
-                        {% if tab == 'danh-sach' %}<th>Trạng thái</th>{% endif %}
-                        <th>Người tạo</th>
-                        <th class="text-end">Thao tác</th>
+                        {% for col in list_columns %}
+                        <th class="npl-col jp-mat-th" data-col="{{ col.key }}" style="width:{% widthratio col.weight total_col_weight 100 %}%">
+                            <button type="button" class="jp-mat-th-sort{% if sort_key == col.key %} is-active{% endif %}"
+                                    data-sort="{{ col.key }}" title="Sắp xếp theo {{ col.label }}">
+                                {{ col.label }}
+                                {% if sort_key == col.key %}
+                                <i class="bi bi-caret-{% if sort_dir == 'asc' %}up{% else %}down{% endif %}-fill jp-mat-sort-icon"></i>
+                                {% endif %}
+                            </button>
+                            <span class="jp-mat-col-resizer" aria-hidden="true"></span>
+                        </th>
+                        {% endfor %}
+                        <th class="npl-col jp-mat-th text-end" data-col="actions" style="width:8rem;">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for transfer in page_obj %}
                     <tr>
-                        <td class="fw-semibold">{{ transfer.number }}</td>
-                        <td class="text-nowrap">{{ transfer.transfer_date|date:'d/m/Y' }}</td>
-                        <td><span class="badge jp-npl-loc-badge">{{ transfer.from_location.code }}</span></td>
-                        <td class="text-center text-muted"><i class="bi bi-arrow-right-short fs-5"></i></td>
-                        <td><span class="badge jp-npl-loc-badge jp-npl-loc-badge--dest">{{ transfer.to_location.code }}</span></td>
+                        <td class="npl-col jp-mat-code" data-col="number">{{ transfer.number }}</td>
+                        <td class="npl-col" data-col="transfer_date">{{ transfer.transfer_date|date:'d/m/Y' }}</td>
+                        <td class="npl-col" data-col="from_location"><span class="badge jp-npl-loc-badge">{{ transfer.from_location.code }}</span></td>
+                        <td class="npl-col" data-col="to_location"><span class="badge jp-npl-loc-badge jp-npl-loc-badge--dest">{{ transfer.to_location.code }}</span></td>
                         {% if tab == 'danh-sach' %}
-                        <td>{% include 'kho_npl/includes/transfer_status_badge.html' %}</td>
+                        <td class="npl-col" data-col="status">{% include 'kho_npl/includes/transfer_status_badge.html' %}</td>
                         {% endif %}
-                        <td class="small">{% if transfer.created_by %}{{ transfer.created_by.get_full_name|default:transfer.created_by.username }}{% else %}—{% endif %}</td>
-                        <td class="text-end">
+                        <td class="npl-col" data-col="created_by">{% if transfer.created_by %}{{ transfer.created_by.get_full_name|default:transfer.created_by.username }}{% else %}—{% endif %}</td>
+                        <td class="text-end npl-col" data-col="actions">
                             <div class="d-inline-flex flex-wrap gap-1 justify-content-end jp-npl-transfer-row-actions">
                                 {% if tab == 'danh-sach' %}
                                 <a href="{% url 'kho_npl:transfer_detail' transfer.pk %}" class="btn btn-outline-hm btn-sm fw-bold">
-                                    <i class="bi bi-eye me-1"></i>Xem chi tiết
+                                    <i class="bi bi-eye me-1"></i>Xem
                                 </a>
                                 {% else %}
-                                <a href="{% url 'kho_npl:transfer_detail' transfer.pk %}" class="btn btn-outline-secondary btn-sm" title="Chi tiết">
-                                    <i class="bi bi-eye"></i>
-                                </a>
+                                <a href="{% url 'kho_npl:transfer_detail' transfer.pk %}" class="btn btn-outline-secondary btn-sm" title="Chi tiết"><i class="bi bi-eye"></i></a>
                                 {% if tab == 'chuyen' %}
                                     {% if can_update %}
-                                    <a href="{% url 'kho_npl:transfer_edit' transfer.pk %}" class="btn btn-outline-hm btn-sm" title="Sửa">
-                                        <i class="bi bi-pencil"></i>
-                                    </a>
+                                    <a href="{% url 'kho_npl:transfer_edit' transfer.pk %}" class="btn btn-outline-hm btn-sm" title="Sửa"><i class="bi bi-pencil"></i></a>
                                     {% endif %}
                                     {% if can_delete %}
-                                    <a href="{% url 'kho_npl:transfer_cancel' transfer.pk %}" class="btn btn-outline-danger btn-sm" title="Xóa phiếu">
-                                        <i class="bi bi-trash"></i>
-                                    </a>
+                                    <a href="{% url 'kho_npl:transfer_cancel' transfer.pk %}" class="btn btn-outline-danger btn-sm" title="Xóa phiếu"><i class="bi bi-trash"></i></a>
                                     {% endif %}
                                     {% if can_update %}
                                     <form method="post" action="{% url 'kho_npl:transfer_send' transfer.pk %}" class="d-inline">
                                         {% csrf_token %}
                                         <button type="submit" class="btn btn-hm btn-sm fw-bold"
                                                 onclick="return confirm('Chuyển phiếu {{ transfer.number }}? Hàng sẽ trừ tồn tại {{ transfer.from_location.code }}.');"
-                                                title="Chuyển">
-                                            <i class="bi bi-truck me-1"></i>Chuyển
-                                        </button>
+                                                title="Chuyển"><i class="bi bi-truck"></i></button>
                                     </form>
                                     {% endif %}
                                 {% elif tab == 'nhan' and can_update %}
@@ -116,7 +135,7 @@
                                     {% csrf_token %}
                                     <button type="submit" class="btn btn-success btn-sm fw-bold"
                                             onclick="return confirm('Xác nhận nhận phiếu {{ transfer.number }} vào kho {{ transfer.to_location.code }}?');">
-                                        <i class="bi bi-box-arrow-in-down me-1"></i>Xác nhận nhận
+                                        <i class="bi bi-box-arrow-in-down"></i>
                                     </button>
                                 </form>
                                 {% endif %}
@@ -126,17 +145,14 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="{% if tab == 'danh-sach' %}8{% else %}7{% endif %}" class="text-center py-5">
+                        <td colspan="{{ list_columns|length|add:1 }}" class="text-center py-5">
                             <div class="jp-npl-transfer-empty">
                                 <i class="bi bi-inbox display-6 text-muted d-block mb-2"></i>
                                 <p class="text-muted mb-0">
-                                    {% if tab == 'danh-sach' %}
-                                    Không có phiếu phù hợp bộ lọc.
-                                    {% elif tab == 'chuyen' %}
-                                    Chưa có phiếu chờ chuyển.
-                                    {% else %}
-                                    Không có phiếu đang chờ nhận kho.
-                                    {% endif %}
+                                    {% if has_filters %}Không có phiếu phù hợp bộ lọc.
+                                    {% elif tab == 'danh-sach' %}Không có phiếu phù hợp bộ lọc.
+                                    {% elif tab == 'chuyen' %}Chưa có phiếu chờ chuyển.
+                                    {% else %}Không có phiếu đang chờ nhận kho.{% endif %}
                                 </p>
                                 {% if tab == 'chuyen' and can_create %}
                                 <a href="{% url 'kho_npl:transfer_hub' %}?tab=nhap" class="btn btn-hm btn-sm mt-3">Nhập phiếu mới</a>
@@ -148,12 +164,17 @@
                 </tbody>
             </table>
         </div>
-        {% if page_obj.paginator.num_pages > 1 %}
-        <div class="card-footer bg-white border-top py-3">
-            {% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string %}
-        </div>
-        {% endif %}
     </div>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="mt-3">{% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string %}</div>
+    {% endif %}
     {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+{% if tab != 'nhap' %}
+{% include 'kho_npl/includes/catalog_grid_scripts.html' with table_id='npl-transfer-table' storage_key='kho_npl_transfer_visible_cols' col_btn_id='npl-tr-col-btn' col_toggle_class='npl-tr-col-toggle' default_sort_key='transfer_date' %}
+{% endif %}
 {% endblock %}

@@ -19,6 +19,12 @@ from kho_npl.services.disposals import (
     post_stock_disposal,
 )
 from kho_npl.services.doc_numbers import next_disposal_number
+from kho_npl.doc_list_columns import (
+    DISPOSAL_LIST_COLUMNS,
+    DISPOSAL_LIST_SORT_FIELDS,
+    DISPOSAL_LIST_TOTAL_COL_WEIGHT,
+)
+from kho_npl.doc_list_utils import DOC_STATUS_FILTER_CHOICES, doc_list_sort, doc_status_filter
 from kho_npl.view_utils import nav_context, perm_context
 
 
@@ -43,13 +49,18 @@ def _save_disposal_form(request, disposal, *, is_create: bool):
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def disposal_list(request):
     search_query = get_search_query(request)
+    status = doc_status_filter(request, choices=DOC_STATUS_FILTER_CHOICES)
+    sort_key, sort_dir, order = doc_list_sort(request, DISPOSAL_LIST_SORT_FIELDS, default_key='disposal_date')
     qs = StockDisposal.objects.select_related('from_location', 'created_by', 'posted_by')
+    if status:
+        qs = qs.filter(status=status)
     if search_query:
         qs = qs.filter(
             Q(number__icontains=search_query)
             | Q(from_location__code__icontains=search_query)
             | Q(notes__icontains=search_query)
         )
+    qs = qs.order_by(order, '-pk')
     page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'kho_npl/disposal_list.html', {
         **nav_context('disposals', user=request.user),
@@ -57,6 +68,13 @@ def disposal_list(request):
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
+        'selected_status': status,
+        'status_choices': DOC_STATUS_FILTER_CHOICES,
+        'has_filters': bool(search_query or status),
+        'list_columns': DISPOSAL_LIST_COLUMNS,
+        'total_col_weight': DISPOSAL_LIST_TOTAL_COL_WEIGHT,
+        'sort_key': sort_key,
+        'sort_dir': sort_dir,
         'scrap_warehouse_code': WAREHOUSE_SCRAP_CODE,
     })
 

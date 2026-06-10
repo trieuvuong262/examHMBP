@@ -1,50 +1,23 @@
-<div class="jp-npl-transfer-toolbar mb-3 mb-md-4">
-    <div class="jp-npl-transfer-toolbar-start">
-        <nav class="jp-npl-transfer-tabs" aria-label="Phiếu chuyển">
-            <ul class="nav nav-pills flex-wrap gap-2 mb-0">
-                {% for key, label in tab_choices %}
-                <li class="nav-item">
-                    <a href="{% url 'kho_npl:transfer_hub' %}?tab={{ key }}"
-                       class="nav-link d-inline-flex align-items-center gap-2 {% if tab == key %}active{% endif %}">
-                        {% if key == 'nhap' %}
-                        <i class="bi bi-plus-circle" aria-hidden="true"></i>
-                        {% elif key == 'chuyen' %}
-                        <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
-                        {% elif key == 'nhan' %}
-                        <i class="bi bi-inbox" aria-hidden="true"></i>
-                        {% else %}
-                        <i class="bi bi-list-ul" aria-hidden="true"></i>
-                        {% endif %}
-                        <span>{{ label }}</span>
-                    </a>
-                </li>
-                {% endfor %}
-            </ul>
-        </nav>
-        {% if tab == 'danh-sach' and list_status_filters %}
-        <div class="jp-npl-transfer-status-filters">
-            {% for value, label in list_status_filters %}
-            <a href="{% url 'kho_npl:transfer_hub' %}?tab=danh-sach{% if value %}&amp;status={{ value }}{% endif %}{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}"
-               class="btn btn-sm fw-bold {% if list_status == value %}btn-hm{% else %}btn-outline-secondary{% endif %}">
-                {{ label }}
-            </a>
+<div class="jp-npl-transfer-tabs-wrap">
+    <nav class="jp-npl-transfer-tabs" aria-label="Phiếu chuyển">
+        <ul class="nav nav-pills flex-wrap gap-2 mb-0">
+            {% for key, label in tab_choices %}
+            <li class="nav-item">
+                <a href="{% url 'kho_npl:transfer_hub' %}?tab={{ key }}"
+                   class="nav-link d-inline-flex align-items-center gap-2 {% if tab == key %}active{% endif %}">
+                    {% if key == 'nhap' %}
+                    <i class="bi bi-plus-circle" aria-hidden="true"></i>
+                    {% elif key == 'chuyen' %}
+                    <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
+                    {% elif key == 'nhan' %}
+                    <i class="bi bi-inbox" aria-hidden="true"></i>
+                    {% else %}
+                    <i class="bi bi-list-ul" aria-hidden="true"></i>
+                    {% endif %}
+                    <span>{{ label }}</span>
+                </a>
+            </li>
             {% endfor %}
-        </div>
-        {% endif %}
-    </div>
-    {% if show_transfer_search %}
-    <form method="get" class="jp-npl-transfer-search-form">
-        <input type="hidden" name="tab" value="{{ tab }}">
-        {% if tab == 'danh-sach' and list_status %}
-        <input type="hidden" name="status" value="{{ list_status }}">
-        {% endif %}
-        <div class="input-group input-group-sm">
-            <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
-            <input type="search" class="form-control" id="pc-q" name="q"
-                   value="{{ search_query }}" placeholder="Tìm phiếu, kho..." autocomplete="off"
-                   aria-label="Tìm phiếu">
-            <button type="submit" class="btn btn-hm fw-bold">Tìm</button>
-        </div>
-    </form>
-    {% endif %}
+        </ul>
+    </nav>
 </div>

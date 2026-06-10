@@ -1,0 +1,117 @@
+<style>
+.jp-npl-material-catalog-page { --jp-npl-mat-ctl-h: 34px; }
+.jp-npl-material-catalog-page .jp-npl-mat-topbar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem; margin-bottom: 1rem;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-topbar-title {
+    font-size: 1.35rem; font-weight: 700; color: var(--hm-red, #dc2626); margin: 0; flex: 0 0 auto;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-topbar-search {
+    flex: 1 1 24rem; min-width: 14rem; max-width: 52rem; margin-left: auto;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-search-row {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; width: 100%;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-filter-field {
+    flex: 1 1 0; min-width: 6.5rem; height: var(--jp-npl-mat-ctl-h);
+}
+.jp-npl-material-catalog-page .jp-npl-mat-search-input {
+    height: var(--jp-npl-mat-ctl-h); flex-wrap: nowrap; min-width: 8rem;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-search-input .form-control,
+.jp-npl-material-catalog-page .jp-npl-mat-search-input .input-group-text {
+    height: 100%; min-height: 0; padding-top: 0.25rem; padding-bottom: 0.25rem;
+    font-size: 0.875rem; line-height: 1.25;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-status-select {
+    flex: 0 0 7.75rem; width: 7.75rem; height: var(--jp-npl-mat-ctl-h);
+    min-height: var(--jp-npl-mat-ctl-h); padding-top: 0.25rem; padding-bottom: 0.25rem;
+    font-size: 0.875rem; line-height: 1.25;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-search-row .btn-hm,
+.jp-npl-material-catalog-page .jp-npl-mat-search-row .btn-outline-secondary {
+    height: var(--jp-npl-mat-ctl-h); min-height: var(--jp-npl-mat-ctl-h);
+    flex: 0 0 auto; display: inline-flex; align-items: center;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-topbar-actions {
+    display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; position: relative;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-col-picker { position: relative; }
+.jp-npl-material-catalog-page .jp-npl-mat-col-picker .jp-npl-mat-col-menu {
+    width: 14rem; min-width: 14rem; max-width: 14rem;
+    padding: 0; overflow: hidden; border: 1px solid var(--bs-border-color);
+}
+.jp-npl-material-catalog-page .jp-npl-mat-col-head {
+    padding: 0.5rem 0.75rem; font-size: 0.75rem; font-weight: 600;
+    color: var(--bs-secondary-color); border-bottom: 1px solid var(--bs-border-color);
+}
+.jp-npl-material-catalog-page .jp-npl-mat-col-list {
+    max-height: 15rem; overflow-y: auto; overflow-x: hidden; padding: 0.25rem 0;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-col-item {
+    display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.75rem;
+    margin: 0; cursor: pointer; user-select: none; font-size: 0.8125rem;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-col-item:hover { background: rgba(15, 23, 42, 0.04); }
+.jp-npl-material-catalog-page .jp-npl-mat-col-item input[type="checkbox"] {
+    flex: 0 0 1rem; width: 1rem; height: 1rem; margin: 0; cursor: pointer;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-col-item span {
+    flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-col-item.is-required span { color: var(--bs-secondary-color); }
+.jp-npl-material-catalog-page .jp-npl-mat-grid-wrap { overflow: auto; }
+.jp-npl-material-catalog-page .jp-npl-mat-grid {
+    table-layout: fixed; width: 100%; margin-bottom: 0;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-grid thead th.jp-mat-th {
+    position: relative; font-size: 0.78rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.02em; white-space: nowrap;
+    border-bottom-width: 1px; padding-right: 0.65rem; overflow: hidden; vertical-align: middle;
+}
+.jp-npl-material-catalog-page .jp-mat-th-sort {
+    border: 0; background: transparent; padding: 0; margin: 0; font: inherit;
+    font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; color: inherit;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 0.2rem;
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.jp-npl-material-catalog-page .jp-mat-th-sort:hover,
+.jp-npl-material-catalog-page .jp-mat-th-sort.is-active { color: var(--hm-red, #dc2626); }
+.jp-npl-material-catalog-page .jp-mat-sort-icon { font-size: 0.65rem; flex-shrink: 0; }
+.jp-npl-material-catalog-page .jp-mat-col-resizer {
+    position: absolute; top: 0; right: 0; width: 6px; height: 100%;
+    cursor: col-resize; user-select: none; z-index: 2;
+}
+.jp-npl-material-catalog-page .jp-mat-col-resizer:hover,
+body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
+    background: rgba(220, 38, 38, 0.35);
+}
+.jp-npl-material-catalog-page .jp-npl-mat-grid td.npl-col {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-grid .jp-mat-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.9em;
+}
+.jp-npl-material-catalog-page .jp-mat-edit-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 1.65rem; height: 1.65rem; border-radius: 0.35rem;
+    color: var(--bs-secondary-color); border: 1px solid var(--bs-border-color);
+    background: var(--bs-body-bg); text-decoration: none; font-size: 0.8rem;
+}
+.jp-npl-material-catalog-page .jp-mat-edit-btn:hover {
+    color: var(--hm-red, #dc2626); border-color: rgba(220, 38, 38, 0.45);
+    background: rgba(220, 38, 38, 0.06);
+}
+.jp-npl-material-catalog-page .jp-npl-transfer-tabs-wrap { margin-bottom: 1rem; }
+.jp-npl-material-catalog-page .jp-npl-transfer-tabs .nav-link {
+    font-size: 0.875rem; font-weight: 600;
+}
+@media (max-width: 767.98px) {
+    .jp-npl-material-catalog-page .jp-npl-mat-topbar-search {
+        flex: 1 1 100%; max-width: none; margin-left: 0; order: 3;
+    }
+    .jp-npl-material-catalog-page .jp-npl-mat-filter-field,
+    .jp-npl-material-catalog-page .jp-npl-mat-status-select { flex: 1 1 100%; width: auto; }
+}
+</style>
