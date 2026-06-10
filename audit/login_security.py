@@ -163,6 +163,44 @@ def is_ip_blocked(ip: str | None) -> bool:
     return bool(block and block.is_blocked)
 
 
+def block_ip_for_form_spam(
+    ip: str | None,
+    *,
+    sample_fields: list[str] | None = None,
+    reason: str = 'form-spam',
+) -> bool:
+    """Chặn ngay IP bot quét / exploit (form rác, JSP, shell, ZAP…)."""
+    if not ip or is_ip_whitelisted(ip):
+        return False
+    if is_ip_blacklisted(ip):
+        return True
+
+    row, _ = IpLoginBlock.objects.get_or_create(ip_address=ip)
+    if row.is_blocked:
+        return True
+
+    now = timezone.now()
+    row.blocked_at = now
+    row.unlocked_at = None
+    row.unlocked_by = None
+    row.last_failed_at = now
+    if sample_fields or reason:
+        marker = reason or 'form-spam'
+        if sample_fields:
+            marker = f'{marker}:' + ','.join(str(x)[:40] for x in sample_fields[:8])
+        row.sample_usernames = _append_username_sample(row.sample_usernames or [], marker)
+    row.save(
+        update_fields=[
+            'blocked_at',
+            'unlocked_at',
+            'unlocked_by',
+            'last_failed_at',
+            'sample_usernames',
+        ],
+    )
+    return True
+
+
 def remaining_user_attempts(user) -> int:
     lock = get_user_lock(user)
     if not lock or lock.is_locked:

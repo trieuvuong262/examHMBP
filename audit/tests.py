@@ -440,3 +440,182 @@ class LoginSecurityTests(TestCase):
         config = LoginSecurityConfig.get_solo()
         self.assertEqual(config.wan_whitelist_ips, ['14.161.25.119', '192.168.1.46'])
         self.assertEqual(config.ip_blacklist, ['203.0.113.50'])
+
+
+class FormSpamDetectionTests(TestCase):
+    def _anon_post(self, path, data, ip='198.51.100.77'):
+        return self.client.post(path, data, REMOTE_ADDR=ip)
+
+    def _anon_get(self, path, ip='198.51.100.78'):
+        return self.client.get(path, REMOTE_ADDR=ip)
+
+    def test_detect_vps_style_spam_fields(self):
+        from audit.spam_detection import detect_security_scan
+
+        class Req:
+            method = 'POST'
+            path = '/'
+            POST = {'0': 'x', '1': 'y', '2': 'z'}
+            GET = {}
+            headers = {}
+            META = {}
+            user = None
+
+        is_threat, reason, details = detect_security_scan(Req())
+        self.assertTrue(is_threat)
+        self.assertEqual(reason, 'garbage_form_fields')
+        self.assertEqual(details, ['0', '1', '2'])
+
+    def test_detect_zap_login_payload(self):
+        from audit.spam_detection import detect_security_scan
+
+        class Req:
+            method = 'POST'
+            path = '/accounts/login/'
+            POST = {
+                'username': 'ZAP',
+                'password': 'zj{{=2828*6547}}zj',
+            }
+            GET = {}
+            headers = {}
+            META = {}
+            user = None
+
+        is_threat, reason, _ = detect_security_scan(Req())
+        self.assertTrue(is_threat)
+        self.assertEqual(reason, 'login_abuse')
+
+    def test_detect_proto_pollution_login(self):
+        from audit.spam_detection import detect_security_scan
+
+        payload = '{"then": "$1:__proto__:then", "status": "resolved_model"}'
+        class Req:
+            method = 'POST'
+            path = '/accounts/login/'
+            POST = {'0': payload, '1': '$@0'}
+            GET = {}
+            headers = {}
+            META = {}
+            user = None
+
+        is_threat, reason, _ = detect_security_scan(Req())
+        self.assertTrue(is_threat)
+        self.assertIn(reason, {'login_abuse', 'malicious_payload', 'garbage_form_fields'})
+
+    def test_detect_exploit_paths(self):
+        from audit.spam_detection import detect_security_scan
+        from types import SimpleNamespace
+
+        for path in ('/ServerInfo.jsp', '/invoker/JMXInvokerServlet', '/wp-admin/setup.php'):
+            req = SimpleNamespace(
+                method='GET',
+                path=path,
+                POST={},
+                GET={},
+                headers={},
+                META={},
+                user=None,
+            )
+            is_threat, reason, _ = detect_security_scan(req)
+            self.assertTrue(is_threat, path)
+            self.assertEqual(reason, 'exploit_path')
+
+    def test_detect_php_shell_query(self):
+        from audit.spam_detection import detect_security_scan
+
+        class Req:
+            method = 'GET'
+            path = '/'
+            POST = {}
+            GET = {'x': '<?php shell_exec(base64_decode("KHdnZXQ")'}
+            headers = {}
+            META = {'QUERY_STRING': 'x=%3C%3Fphp+shell_exec'}
+            user = None
+
+        is_threat, reason, _ = detect_security_scan(Req())
+        self.assertTrue(is_threat)
+        self.assertEqual(reason, 'malicious_payload')
+
+    def test_legit_login_post_not_spam(self):
+        from audit.spam_detection import detect_security_scan
+
+        class Req:
+            method = 'POST'
+            path = '/accounts/login/'
+            POST = {
+                'csrfmiddlewaretoken': 'abc',
+                'username': 'demo',
+                'password': 'secret',
+            }
+            GET = {}
+            headers = {}
+            META = {}
+            user = None
+
+        self.assertFalse(detect_security_scan(Req())[0])
+
+    @override_settings(
+        LOGIN_LOCK_MAX_ATTEMPTS=3,
+        LOGIN_IP_BLOCK_MAX_ATTEMPTS=5,
+    )
+    def test_middleware_blocks_spam_post_immediately(self):
+        from audit.login_security import is_ip_blocked
+
+        response = self._anon_post('/', {'0': 'a', '1': 'b', '2': 'c'}, ip='34.31.88.250')
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(is_ip_blocked('34.31.88.250'))
+
+    @override_settings(
+        LOGIN_LOCK_MAX_ATTEMPTS=3,
+        LOGIN_IP_BLOCK_MAX_ATTEMPTS=5,
+    )
+    def test_middleware_blocks_zap_login(self):
+        from audit.login_security import is_ip_blocked
+
+        response = self._anon_post(
+            '/accounts/login/',
+            {'username': 'ZAP', 'password': 'zj{{=2828*6547}}zj'},
+            ip='203.0.113.91',
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(is_ip_blocked('203.0.113.91'))
+
+    @override_settings(
+        LOGIN_LOCK_MAX_ATTEMPTS=3,
+        LOGIN_IP_BLOCK_MAX_ATTEMPTS=5,
+    )
+    def test_middleware_blocks_exploit_path_scan(self):
+        from audit.login_security import is_ip_blocked
+
+        response = self._anon_get('/ServerInfo.jsp', ip='203.0.113.92')
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(is_ip_blocked('203.0.113.92'))
+
+    @override_settings(
+        LOGIN_LOCK_MAX_ATTEMPTS=3,
+        LOGIN_IP_BLOCK_MAX_ATTEMPTS=5,
+    )
+    def test_middleware_blocks_proto_pollution_post(self):
+        from audit.login_security import is_ip_blocked
+
+        response = self._anon_post(
+            '/accounts/login/',
+            {
+                '0': '{"then": "$1:__proto__:then", "status": "resolved_model"}',
+                '1': '$@0',
+            },
+            ip='203.0.113.93',
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(is_ip_blocked('203.0.113.93'))
+
+    @override_settings(
+        LOGIN_LOCK_MAX_ATTEMPTS=3,
+        LOGIN_IP_BLOCK_MAX_ATTEMPTS=5,
+    )
+    def test_blocked_spam_ip_cannot_access_portal(self):
+        from audit.login_security import block_ip_for_form_spam
+
+        block_ip_for_form_spam('45.198.224.22', sample_fields=['0', '1'])
+        response = self.client.get('/', REMOTE_ADDR='45.198.224.22')
+        self.assertEqual(response.status_code, 403)
