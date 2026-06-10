@@ -338,6 +338,70 @@
             </ul>
         </li>
         {% endif %}
+        {% if jp_can_kho_npl %}
+        <li class="jp-sidebar-group{% if 'kho-npl' in request.path %} is-open{% endif %}">
+            <button type="button"
+                    class="jp-sidebar-group-toggle"
+                    data-jp-sidebar-group-toggle
+                    aria-expanded="{% if 'kho-npl' in request.path %}true{% else %}false{% endif %}"
+                    aria-controls="jp-sidebar-kho-npl-submenu">
+                <span class="jp-sidebar-group-toggle-main">
+                    <i class="bi bi-boxes"></i><span>Tồn kho NPL</span>
+                </span>
+                <i class="bi bi-chevron-down jp-sidebar-group-chevron" aria-hidden="true"></i>
+            </button>
+            <ul class="jp-sidebar-submenu" id="jp-sidebar-kho-npl-submenu">
+                <li>
+                    <a href="{% url 'kho_npl:overview' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'overview' %}active{% endif %}">
+                        <i class="bi bi-speedometer2"></i><span>Tổng quan tồn kho</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'kho_npl:material_list' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'material_list' %}active{% endif %}">
+                        <i class="bi bi-tags"></i><span>Danh mục nguyên phụ liệu</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'kho_npl:receipt_list' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'receipt_list' %}active{% endif %}">
+                        <i class="bi bi-box-arrow-in-down"></i><span>Phiếu nhập kho</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'kho_npl:issue_list' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'issue_list' %}active{% endif %}">
+                        <i class="bi bi-box-arrow-up"></i><span>Phiếu xuất kho</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'kho_npl:adjustment_list' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'adjustment_list' %}active{% endif %}">
+                        <i class="bi bi-sliders"></i><span>Điều chỉnh tồn kho</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'kho_npl:stocktake_list' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'stocktake_list' %}active{% endif %}">
+                        <i class="bi bi-clipboard-check"></i><span>Kiểm kê kho</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'kho_npl:report_hub' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'report_hub' %}active{% endif %}">
+                        <i class="bi bi-file-earmark-bar-graph"></i><span>Báo cáo</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'kho_npl:settings_hub' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'settings_hub' %}active{% endif %}">
+                        <i class="bi bi-gear"></i><span>Thiết lập</span>
+                    </a>
+                </li>
+            </ul>
+        </li>
+        {% endif %}
         {% if jp_can_kiotviet %}
         <li class="jp-sidebar-group{% if 'kiotviet' in request.path %} is-open{% endif %}">
             <button type="button"

@@ -194,6 +194,7 @@ INSTALLED_APPS = [
     'equipment.apps.EquipmentConfig',
     'feedback.apps.FeedbackConfig',
     'kiotviet.apps.KiotvietConfig',
+    'kho_npl.apps.KhoNplConfig',
     'nas_storage.apps.NasStorageConfig',
     'tools.apps.ToolsConfig',
     'django_cleanup.apps.CleanupConfig', # 👉 Thêm dòng này vào cuối

@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    {% include 'kho_npl/includes/subnav.html' %}
+    {% include 'kho_npl/includes/page_header.html' with page_title='Thiết lập' page_subtitle='Danh mục nền: nhóm NPL, đơn vị tính, vị trí kho, nhà cung cấp.' %}
+
+    <div class="row g-3">
+        {% for item in settings_items %}
+        <div class="col-12 col-md-6">
+            <a href="{% url 'kho_npl:settings_list' section=item.key %}" class="text-decoration-none">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body d-flex align-items-center justify-content-between gap-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <i class="bi {{ item.icon }} fs-4 text-hm"></i>
+                            <div>
+                                <h6 class="fw-bold mb-0 text-dark">{{ item.title }}</h6>
+                                <span class="text-muted small">{{ item.count }} mục đang dùng</span>
+                            </div>
+                        </div>
+                        <i class="bi bi-chevron-right text-muted"></i>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if not can_edit %}
+    <div class="alert alert-light border mt-4 mb-0">
+        <i class="bi bi-info-circle me-1"></i>Bạn đang xem thiết lập ở quyền chỉ đọc.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

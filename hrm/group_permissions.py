@@ -29,6 +29,7 @@ MODULE_SUPPORTS_EXPORT = frozenset({
     'recruitment',  # Xuất lịch PV, giấy phép
     'equipment',    # Xuất danh sách thiết bị
     'audit',        # Xuất nhật ký thao tác
+    'kho_npl',      # Báo cáo tồn kho / sổ kho
 })
 
 # Module chỉ dùng quyền Xem + Xuất Excel (ẩn Thêm/Sửa/Xóa trong ma trận phân quyền).
@@ -190,6 +191,7 @@ MODULE_LIST_META = {
     'equipment': {'icon': 'bi-pc-display', 'short': 'TB'},
     'feedback': {'icon': 'bi-chat-square-text', 'short': 'GY'},
     'kiotviet': {'icon': 'bi-shop', 'short': 'KV'},
+    'kho_npl': {'icon': 'bi-boxes', 'short': 'NPL'},
 }
 
 

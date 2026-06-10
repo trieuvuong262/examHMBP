@@ -36,6 +36,7 @@ urlpatterns = [
     path('thu-muc-nas/', include('nas_storage.urls')),
     path('nhat-ky/', include('audit.urls')),
     path('kiotviet/', include('kiotviet.urls')),
+    path('kho-npl/', include('kho_npl.urls')),
     path('ckeditor/upload/', ckeditor_upload.upload, name='ckeditor_upload'),
     path('ckeditor/browse/', ckeditor_upload.browse, name='ckeditor_browse'),
 ]

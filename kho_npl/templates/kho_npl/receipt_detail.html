@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    {% include 'kho_npl/includes/subnav.html' %}
+
+    <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">
+                <i class="bi bi-box-arrow-in-down me-2"></i>{{ receipt.number }}
+            </h2>
+            <p class="text-muted mb-0">
+                {{ receipt.get_status_display }}
+                · {{ receipt.receipt_date|date:'d/m/Y' }}
+                {% if receipt.posted_at %}· Ghi sổ {{ receipt.posted_at|date:'d/m/Y H:i' }}{% endif %}
+            </p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            {% if is_editable and can_update %}
+            <a href="{% url 'kho_npl:receipt_edit' receipt.pk %}" class="btn btn-hm btn-sm">
+                <i class="bi bi-pencil me-1"></i>Sửa
+            </a>
+            <form method="post" action="{% url 'kho_npl:receipt_post' receipt.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Ghi sổ phiếu và cập nhật tồn kho?');">
+                    <i class="bi bi-check2-circle me-1"></i>Ghi sổ
+                </button>
+            </form>
+            {% endif %}
+            {% if is_editable and can_delete %}
+            <a href="{% url 'kho_npl:receipt_cancel' receipt.pk %}" class="btn btn-outline-danger btn-sm">
+                <i class="bi bi-x-circle me-1"></i>Hủy phiếu
+            </a>
+            {% endif %}
+            <a href="{% url 'kho_npl:receipt_list' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Danh sách
+            </a>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3 text-muted">NCC</dt><dd class="col-sm-9">{{ receipt.supplier.name|default:'—' }}</dd>
+                <dt class="col-sm-3 text-muted">PO</dt><dd class="col-sm-9">{{ receipt.po_number|default:'—' }}</dd>
+                <dt class="col-sm-3 text-muted">Người nhập</dt>
+                <dd class="col-sm-9">{% if receipt.received_by %}{{ receipt.received_by.get_full_name|default:receipt.received_by.username }}{% else %}—{% endif %}</dd>
+                <dt class="col-sm-3 text-muted">Người kiểm</dt>
+                <dd class="col-sm-9">{% if receipt.checked_by %}{{ receipt.checked_by.get_full_name|default:receipt.checked_by.username }}{% else %}—{% endif %}</dd>
+                <dt class="col-sm-3 text-muted">Người tạo</dt>
+                <dd class="col-sm-9">{% if receipt.created_by %}{{ receipt.created_by.get_full_name|default:receipt.created_by.username }}{% else %}—{% endif %}</dd>
+                {% if receipt.notes %}
+                <dt class="col-sm-3 text-muted">Ghi chú</dt><dd class="col-sm-9">{{ receipt.notes|linebreaksbr }}</dd>
+                {% endif %}
+            </dl>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom py-3">
+            <h5 class="mb-0 fw-bold">Chi tiết nhập</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Mã NPL</th>
+                        <th>Tên</th>
+                        <th class="text-end">SL đặt</th>
+                        <th class="text-end">SL nhập</th>
+                        <th>Vị trí</th>
+                        <th>Ghi chú</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for line in receipt.lines.all %}
+                    <tr>
+                        <td class="fw-semibold">{{ line.material.code }}</td>
+                        <td>{{ line.material.name }}</td>
+                        <td class="text-end">{{ line.ordered_qty|floatformat:3 }}</td>
+                        <td class="text-end">{{ line.received_qty|floatformat:3 }}</td>
+                        <td>{{ line.location.code }}</td>
+                        <td>{{ line.notes|default:'—' }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">Chưa có dòng chi tiết.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

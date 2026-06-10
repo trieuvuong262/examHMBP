@@ -32,6 +32,7 @@ MODULE_NAS_STORAGE = 'nas_storage'
 MODULE_EQUIPMENT = 'equipment'
 MODULE_FEEDBACK = 'feedback'
 MODULE_KIOTVIET = 'kiotviet'
+MODULE_KHO_NPL = 'kho_npl'
 
 MODULE_CHOICES = [
     (MODULE_ANNOUNCEMENTS, 'Thông báo'),
@@ -47,6 +48,7 @@ MODULE_CHOICES = [
     (MODULE_EQUIPMENT, 'Quản lý thiết bị'),
     (MODULE_FEEDBACK, 'Góp ý'),
     (MODULE_KIOTVIET, 'KiotViet'),
+    (MODULE_KHO_NPL, 'Tồn kho NPL'),
     (MODULE_NAS_STORAGE, 'Thư mục NAS'),
     (MODULE_DOCUMENTS, 'Tài liệu & Hỏi đáp'),
     (MODULE_GUIDE, 'Hướng dẫn'),
@@ -83,6 +85,7 @@ DEPARTMENT_MENU_SECTIONS = [
             MODULE_EQUIPMENT,
             MODULE_FEEDBACK,
             MODULE_KIOTVIET,
+            MODULE_KHO_NPL,
             MODULE_NAS_STORAGE,
         ],
     },
@@ -132,6 +135,7 @@ PATH_MODULE_RULES = [
     ('/thiet-bi/', MODULE_EQUIPMENT),
     ('/gop-y/', MODULE_FEEDBACK),
     ('/kiotviet/', MODULE_KIOTVIET),
+    ('/kho-npl/', MODULE_KHO_NPL),
 ]
 
 EQUIPMENT_PUBLIC_PREFIXES = (

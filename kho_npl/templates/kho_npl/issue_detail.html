@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    {% include 'kho_npl/includes/subnav.html' %}
+
+    <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">
+                <i class="bi bi-box-arrow-up me-2"></i>{{ issue.number }}
+            </h2>
+            <p class="text-muted mb-0">
+                {{ issue.get_status_display }} · {{ issue.get_issue_type_display }}
+                · {{ issue.issue_date|date:'d/m/Y' }}
+                {% if issue.posted_at %}· Ghi sổ {{ issue.posted_at|date:'d/m/Y H:i' }}{% endif %}
+            </p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            {% if is_editable and can_update %}
+            <a href="{% url 'kho_npl:issue_edit' issue.pk %}" class="btn btn-hm btn-sm"><i class="bi bi-pencil me-1"></i>Sửa</a>
+            <form method="post" action="{% url 'kho_npl:issue_post' issue.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Ghi sổ phiếu và trừ tồn kho?');">
+                    <i class="bi bi-check2-circle me-1"></i>Ghi sổ
+                </button>
+            </form>
+            {% endif %}
+            {% if is_editable and can_delete %}
+            <a href="{% url 'kho_npl:issue_cancel' issue.pk %}" class="btn btn-outline-danger btn-sm"><i class="bi bi-x-circle me-1"></i>Hủy phiếu</a>
+            {% endif %}
+            <a href="{% url 'kho_npl:issue_list' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Danh sách</a>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3 text-muted">LSX</dt><dd class="col-sm-9">{{ issue.production_order|default:'—' }}</dd>
+                <dt class="col-sm-3 text-muted">Mã SP</dt><dd class="col-sm-9">{{ issue.product_code|default:'—' }}</dd>
+                <dt class="col-sm-3 text-muted">Bộ phận nhận</dt><dd class="col-sm-9">{{ issue.recipient_department|default:'—' }}</dd>
+                <dt class="col-sm-3 text-muted">Người nhận</dt><dd class="col-sm-9">{{ issue.recipient_name|default:'—' }}</dd>
+                <dt class="col-sm-3 text-muted">Người xuất</dt>
+                <dd class="col-sm-9">{% if issue.issued_by %}{{ issue.issued_by.get_full_name|default:issue.issued_by.username }}{% else %}—{% endif %}</dd>
+                <dt class="col-sm-3 text-muted">Người tạo</dt>
+                <dd class="col-sm-9">{% if issue.created_by %}{{ issue.created_by.get_full_name|default:issue.created_by.username }}{% else %}—{% endif %}</dd>
+                {% if issue.notes %}
+                <dt class="col-sm-3 text-muted">Ghi chú</dt><dd class="col-sm-9">{{ issue.notes|linebreaksbr }}</dd>
+                {% endif %}
+            </dl>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom py-3"><h5 class="mb-0 fw-bold">Chi tiết xuất</h5></div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Mã NPL</th>
+                        <th>Tên</th>
+                        <th class="text-end">Số lượng</th>
+                        <th>Vị trí</th>
+                        <th>Ghi chú</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for line in issue.lines.all %}
+                    <tr>
+                        <td class="fw-semibold">{{ line.material.code }}</td>
+                        <td>{{ line.material.name }}</td>
+                        <td class="text-end">{{ line.quantity|floatformat:3 }}</td>
+                        <td>{{ line.location.code }}</td>
+                        <td>{{ line.notes|default:'—' }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-center text-muted py-4">Chưa có dòng chi tiết.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

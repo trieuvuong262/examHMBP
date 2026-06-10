@@ -1003,6 +1003,7 @@ PERM_GROUP_MODULE_ICONS = {
     'equipment': 'bi-pc-display',
     'feedback': 'bi-chat-square-text',
     'kiotviet': 'bi-shop',
+    'kho_npl': 'bi-boxes',
 }
 
 

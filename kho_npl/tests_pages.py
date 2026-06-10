@@ -1,0 +1,88 @@
+from django.contrib.auth.models import User
+from django.test import TestCase
+from django.urls import reverse
+
+from hrm.models import PermissionGroup, Profile
+from hrm.module_permissions import MODULE_KHO_NPL
+from hrm.permissions import ROLE_EMPLOYEE
+
+
+class KhoNplPageSmokeTests(TestCase):
+    """GET mọi trang chính — đảm bảo render 200, không lỗi template."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='npl_smoke', password='test')
+        Profile.objects.filter(user=self.user).update(role=ROLE_EMPLOYEE, is_employed=True)
+        self.group = PermissionGroup.objects.create(
+            name='NPL Smoke',
+            module_permissions={
+                MODULE_KHO_NPL: {
+                    'view': True,
+                    'create': True,
+                    'update': True,
+                    'delete': True,
+                    'export': True,
+                },
+            },
+        )
+        profile = self.user.profile
+        profile.permission_group = self.group
+        profile.save(update_fields=['permission_group'])
+        self.client.force_login(self.user)
+
+    def _assert_ok(self, url_name, **kwargs):
+        url = reverse(url_name, kwargs=kwargs)
+        with self.subTest(url=url):
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200, msg=f'{url_name} returned {response.status_code}')
+
+    def test_hub_and_overview(self):
+        self._assert_ok('kho_npl:overview')
+
+    def test_material_pages(self):
+        for name in ('kho_npl:material_list', 'kho_npl:material_create'):
+            self._assert_ok(name)
+
+    def test_receipt_issue_pages(self):
+        for name in (
+            'kho_npl:receipt_list', 'kho_npl:receipt_create',
+            'kho_npl:issue_list', 'kho_npl:issue_create',
+        ):
+            self._assert_ok(name)
+
+    def test_adjustment_stocktake_pages(self):
+        for name in (
+            'kho_npl:adjustment_list', 'kho_npl:adjustment_create',
+            'kho_npl:stocktake_list', 'kho_npl:stocktake_create',
+        ):
+            self._assert_ok(name)
+
+    def test_report_pages(self):
+        for name in (
+            'kho_npl:report_hub',
+            'kho_npl:report_stock', 'kho_npl:report_alerts',
+            'kho_npl:report_movement', 'kho_npl:report_issue_lsx',
+            'kho_npl:report_stocktake_history', 'kho_npl:report_ledger',
+        ):
+            self._assert_ok(name)
+
+    def test_report_exports(self):
+        for name in (
+            'kho_npl:report_stock_export', 'kho_npl:report_alerts_export',
+            'kho_npl:report_movement_export', 'kho_npl:report_issue_lsx_export',
+            'kho_npl:report_stocktake_history_export', 'kho_npl:report_ledger_export',
+        ):
+            url = reverse(name)
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 200)
+                self.assertIn(
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    response.get('Content-Type', ''),
+                )
+
+    def test_settings_pages(self):
+        self._assert_ok('kho_npl:settings_hub')
+        for section in ('nhom', 'dvt', 'vi-tri', 'ncc'):
+            self._assert_ok('kho_npl:settings_list', section=section)
+            self._assert_ok('kho_npl:settings_create', section=section)

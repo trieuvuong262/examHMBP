@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    {% include 'kho_npl/includes/subnav.html' %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+            <h2 class="fw-bold text-hm h5 mb-3">Ngừng dùng mục này?</h2>
+            <p class="mb-4"><strong>{{ obj }}</strong> trong «{{ section.title }}» sẽ không hiện khi thêm NPL/phiếu mới.</p>
+            <form method="post" class="d-flex gap-2">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger fw-bold">Xác nhận</button>
+                <a href="{% url 'kho_npl:settings_list' section=section.key %}" class="btn btn-outline-secondary">Huỷ</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

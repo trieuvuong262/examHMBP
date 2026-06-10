@@ -1,0 +1,77 @@
+"""Trạng thái và lựa chọn nghiệp vụ kho NPL."""
+
+STOCK_STATUS_OK = 'ok'
+STOCK_STATUS_LOW = 'low'
+STOCK_STATUS_OUT = 'out'
+
+STOCK_STATUS_LABELS = {
+    STOCK_STATUS_OK: 'Đủ',
+    STOCK_STATUS_LOW: 'Sắp thiếu',
+    STOCK_STATUS_OUT: 'Hết hàng',
+}
+
+STOCK_STATUS_BADGE = {
+    STOCK_STATUS_OK: 'success',
+    STOCK_STATUS_LOW: 'warning',
+    STOCK_STATUS_OUT: 'danger',
+}
+
+DOC_STATUS_DRAFT = 'draft'
+DOC_STATUS_POSTED = 'posted'
+DOC_STATUS_CANCELLED = 'cancelled'
+
+DOC_STATUS_LABELS = {
+    DOC_STATUS_DRAFT: 'Nháp',
+    DOC_STATUS_POSTED: 'Đã ghi sổ',
+    DOC_STATUS_CANCELLED: 'Đã hủy',
+}
+
+ISSUE_TYPE_PRODUCTION = 'production'
+ISSUE_TYPE_SAMPLE = 'sample'
+ISSUE_TYPE_WASTE = 'waste'
+ISSUE_TYPE_RETURN = 'return_supplier'
+ISSUE_TYPE_SCRAP = 'scrap'
+ISSUE_TYPE_TRANSFER = 'transfer'
+
+ISSUE_TYPE_CHOICES = [
+    (ISSUE_TYPE_PRODUCTION, 'Xuất cho sản xuất'),
+    (ISSUE_TYPE_SAMPLE, 'Xuất làm mẫu'),
+    (ISSUE_TYPE_WASTE, 'Xuất bù hao hụt'),
+    (ISSUE_TYPE_RETURN, 'Xuất trả nhà cung cấp'),
+    (ISSUE_TYPE_SCRAP, 'Xuất hủy / hư hỏng'),
+    (ISSUE_TYPE_TRANSFER, 'Xuất điều chuyển kho'),
+]
+
+ADJUST_STATUS_PENDING = 'pending'
+ADJUST_STATUS_APPROVED = 'approved'
+ADJUST_STATUS_REJECTED = 'rejected'
+
+ADJUST_STATUS_LABELS = {
+    ADJUST_STATUS_PENDING: 'Chờ duyệt',
+    ADJUST_STATUS_APPROVED: 'Đã duyệt',
+    ADJUST_STATUS_REJECTED: 'Từ chối',
+}
+
+STOCKTAKE_STATUS_DRAFT = 'draft'
+STOCKTAKE_STATUS_COUNTING = 'counting'
+STOCKTAKE_STATUS_REVIEW = 'review'
+STOCKTAKE_STATUS_CLOSED = 'closed'
+
+STOCKTAKE_STATUS_LABELS = {
+    STOCKTAKE_STATUS_DRAFT: 'Nháp',
+    STOCKTAKE_STATUS_COUNTING: 'Đang kiểm',
+    STOCKTAKE_STATUS_REVIEW: 'Chờ duyệt',
+    STOCKTAKE_STATUS_CLOSED: 'Đã chốt',
+}
+
+DEFAULT_MATERIAL_CATEGORIES = [
+    ('vai-chinh', 'Vải chính', 1),
+    ('vai-phoi', 'Vải phối', 2),
+    ('bo-co-tay', 'Bo cổ / bo tay', 3),
+    ('day-khoa', 'Dây kéo / dây rút / nút / khoen', 4),
+    ('tem-nhan', 'Tem nhãn / tag / size', 5),
+    ('bao-bi', 'Bao bì / túi / thùng', 6),
+    ('decal', 'Decal / vật tư in ép', 7),
+    ('chi-may', 'Chỉ may', 8),
+    ('khac', 'Phụ liệu khác', 9),
+]

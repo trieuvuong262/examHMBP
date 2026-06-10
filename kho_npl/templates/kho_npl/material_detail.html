@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    {% include 'kho_npl/includes/subnav.html' %}
+
+    <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">
+                <i class="bi bi-tag me-2"></i>{{ material.code }}
+            </h2>
+            <p class="text-muted mb-0">{{ material.name }}{% if material.color %} · {{ material.color }}{% endif %}</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            {% if can_update %}
+            <a href="{% url 'kho_npl:material_edit' material.pk %}" class="btn btn-hm btn-sm">
+                <i class="bi bi-pencil me-1"></i>Sửa
+            </a>
+            {% endif %}
+            {% if can_delete and material.is_active %}
+            <a href="{% url 'kho_npl:material_deactivate' material.pk %}" class="btn btn-outline-danger btn-sm">
+                <i class="bi bi-slash-circle me-1"></i>Ngừng dùng
+            </a>
+            {% endif %}
+            <a href="{% url 'kho_npl:material_list' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Danh sách
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4 text-muted">Nhóm</dt><dd class="col-sm-8">{{ material.category.name }}</dd>
+                        <dt class="col-sm-4 text-muted">ĐVT</dt><dd class="col-sm-8">{{ material.unit.name }}</dd>
+                        <dt class="col-sm-4 text-muted">Quy cách</dt><dd class="col-sm-8">{{ material.specification|default:'—' }}</dd>
+                        <dt class="col-sm-4 text-muted">NCC chính</dt><dd class="col-sm-8">{{ material.supplier.name|default:'—' }}</dd>
+                        <dt class="col-sm-4 text-muted">Tồn tối thiểu</dt><dd class="col-sm-8">{{ material.min_stock|floatformat:3 }}</dd>
+                        <dt class="col-sm-4 text-muted">Trạng thái</dt>
+                        <dd class="col-sm-8">
+                            {% if material.is_active %}<span class="badge text-bg-success">Đang dùng</span>{% else %}<span class="badge text-bg-secondary">Ngừng dùng</span>{% endif %}
+                        </dd>
+                        {% if material.notes %}
+                        <dt class="col-sm-4 text-muted">Ghi chú</dt><dd class="col-sm-8">{{ material.notes|linebreaksbr }}</dd>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="text-muted small mb-1">Tồn hiện tại</div>
+                    <div class="display-6 fw-bold text-hm">{{ total_qty|floatformat:3 }}</div>
+                    <div class="text-muted small">{{ material.unit.name }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom py-3">
+            <h5 class="mb-0 fw-bold">Tồn theo vị trí</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Vị trí</th>
+                        <th class="text-end">Số lượng</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bal in balances %}
+                    <tr>
+                        <td>{{ bal.location.code }} — {{ bal.location.name }}</td>
+                        <td class="text-end">{{ bal.quantity|floatformat:3 }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="2" class="text-center text-muted py-4">Chưa có tồn tại vị trí nào.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

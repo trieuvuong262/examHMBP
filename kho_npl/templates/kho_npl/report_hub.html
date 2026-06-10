@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    {% include 'kho_npl/includes/subnav.html' %}
+    {% include 'kho_npl/includes/page_header.html' with page_title='Báo cáo' page_subtitle='Xem trước trên web và xuất Excel (cần quyền Xuất Excel).' %}
+    <div class="row g-3">
+        {% for item in report_items %}
+        <div class="col-12 col-md-6 col-lg-4">
+            <a href="{% url item.view_name %}" class="text-decoration-none">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-start gap-3">
+                            <i class="bi {{ item.icon }} fs-4 text-hm"></i>
+                            <div>
+                                <h6 class="fw-bold text-dark mb-1">{{ item.title }}</h6>
+                                <p class="text-muted small mb-0">{{ item.desc }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
