@@ -122,6 +122,22 @@ class StockTransferWorkflowTests(TestCase):
         self.assertContains(nhan, 'Phiếu đã chuyển — chờ nhận')
         self.assertContains(nhan, 'Xác nhận nhận')
 
+        received = self._draft_transfer()
+        send_stock_transfer(received, self.user)
+        receive_stock_transfer(received, self.user)
+
+        danh_sach = self.client.get(reverse('kho_npl:transfer_hub') + '?tab=danh-sach')
+        self.assertEqual(danh_sach.status_code, 200)
+        self.assertContains(danh_sach, 'Danh sách phiếu chuyển kho')
+        self.assertContains(danh_sach, 'Xem chi tiết')
+        self.assertNotContains(danh_sach, 'jp-npl-transfer-stats')
+
+        filtered = self.client.get(
+            reverse('kho_npl:transfer_hub') + '?tab=danh-sach&status=received',
+        )
+        self.assertEqual(filtered.status_code, 200)
+        self.assertContains(filtered, 'Đã nhận')
+
     def test_transfer_create_redirects_to_chuyen_tab(self):
         url = reverse('kho_npl:transfer_create')
         get_resp = self.client.get(url)

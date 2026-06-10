@@ -1,0 +1,11 @@
+{% if transfer.status == 'draft' %}
+<span class="badge jp-npl-status jp-npl-status--draft">Đã nhập</span>
+{% elif transfer.status == 'in_transit' %}
+<span class="badge jp-npl-status jp-npl-status--transit">Chưa nhận</span>
+{% elif transfer.status == 'received' %}
+<span class="badge jp-npl-status jp-npl-status--received">Đã nhận</span>
+{% elif transfer.status == 'cancelled' %}
+<span class="badge text-bg-secondary">Đã hủy</span>
+{% else %}
+<span class="badge text-bg-secondary">{{ transfer.get_status_display }}</span>
+{% endif %}

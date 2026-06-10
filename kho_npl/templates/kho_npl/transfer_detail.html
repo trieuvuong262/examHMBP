@@ -98,15 +98,7 @@
             <dl class="row mb-0 small jp-npl-transfer-meta">
                 <dt class="col-sm-3 text-muted">Trạng thái</dt>
                 <dd class="col-sm-9">
-                    {% if transfer.status == 'draft' %}
-                    <span class="badge jp-npl-status jp-npl-status--draft">Nháp</span>
-                    {% elif transfer.status == 'in_transit' %}
-                    <span class="badge jp-npl-status jp-npl-status--transit">Đang chuyển</span>
-                    {% elif transfer.status == 'received' %}
-                    <span class="badge jp-npl-status jp-npl-status--received">Đã nhập</span>
-                    {% else %}
-                    <span class="badge text-bg-secondary">{{ transfer.get_status_display }}</span>
-                    {% endif %}
+                    {% include 'kho_npl/includes/transfer_status_badge.html' %}
                 </dd>
                 {% if transfer.sent_at %}
                 <dt class="col-sm-3 text-muted">Gửi lúc</dt>

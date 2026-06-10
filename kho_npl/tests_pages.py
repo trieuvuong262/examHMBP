@@ -74,9 +74,11 @@ class KhoNplPageSmokeTests(TestCase):
             self._assert_ok(name)
 
     def test_transfer_pages(self):
-        for name in ('kho_npl:transfer_hub', 'kho_npl:transfer_create'):
-            self._assert_ok(name)
-        for tab in ('nhap', 'chuyen', 'nhan'):
+        self._assert_ok('kho_npl:transfer_hub')
+        create_resp = self.client.get(reverse('kho_npl:transfer_create'))
+        self.assertEqual(create_resp.status_code, 302)
+        self.assertIn('tab=nhap', create_resp.url)
+        for tab in ('nhap', 'chuyen', 'nhan', 'danh-sach'):
             url = reverse('kho_npl:transfer_hub') + f'?tab={tab}'
             with self.subTest(tab=tab):
                 response = self.client.get(url)

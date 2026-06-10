@@ -8,15 +8,12 @@
                 <i class="bi bi-plus-circle" aria-hidden="true"></i>
                 {% elif key == 'chuyen' %}
                 <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
-                {% else %}
+                {% elif key == 'nhan' %}
                 <i class="bi bi-inbox" aria-hidden="true"></i>
+                {% else %}
+                <i class="bi bi-list-ul" aria-hidden="true"></i>
                 {% endif %}
                 <span>{{ label }}</span>
-                {% if tab_counts and key != 'nhap' %}
-                <span class="jp-npl-transfer-tab-count">
-                    {% if key == 'chuyen' %}{{ tab_counts.chuyen }}{% else %}{{ tab_counts.nhan }}{% endif %}
-                </span>
-                {% endif %}
             </a>
         </li>
         {% endfor %}

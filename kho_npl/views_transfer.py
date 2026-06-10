@@ -10,11 +10,15 @@ from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
 from kho_npl.choices import (
+    TRANSFER_LIST_FILTER_ALL,
+    TRANSFER_LIST_STATUS_FILTERS,
+    TRANSFER_STATUS_CANCELLED,
     TRANSFER_STATUS_DRAFT,
     TRANSFER_STATUS_IN_TRANSIT,
     TRANSFER_STATUS_RECEIVED,
     TRANSFER_TAB_CHOICES,
     TRANSFER_TAB_CHUYEN,
+    TRANSFER_TAB_DANH_SACH,
     TRANSFER_TAB_NHAN,
     TRANSFER_TAB_NHAP,
 )
@@ -32,7 +36,9 @@ from kho_npl.services.transfers import (
 )
 from kho_npl.view_utils import nav_context, perm_context
 
-VALID_TABS = {TRANSFER_TAB_NHAP, TRANSFER_TAB_CHUYEN, TRANSFER_TAB_NHAN}
+VALID_TABS = {TRANSFER_TAB_NHAP, TRANSFER_TAB_CHUYEN, TRANSFER_TAB_NHAN, TRANSFER_TAB_DANH_SACH}
+
+VALID_LIST_STATUS_FILTERS = {choice[0] for choice in TRANSFER_LIST_STATUS_FILTERS}
 
 # Nhập = tạo phiếu | Chuyển = nháp chờ gửi | Nhận = đang chuyển chờ xác nhận
 TAB_STATUS_MAP = {
@@ -46,21 +52,22 @@ def _resolve_tab(request) -> str:
     return tab if tab in VALID_TABS else TRANSFER_TAB_NHAP
 
 
-def _transfer_list_url(tab: str) -> str:
-    return reverse('kho_npl:transfer_hub') + f'?tab={tab}'
+def _resolve_list_status(request) -> str:
+    status = (request.GET.get('status') or TRANSFER_LIST_FILTER_ALL).strip().lower()
+    return status if status in VALID_LIST_STATUS_FILTERS else TRANSFER_LIST_FILTER_ALL
 
 
-def _tab_counts() -> dict:
-    return {
-        TRANSFER_TAB_CHUYEN: StockTransfer.objects.filter(status=TRANSFER_STATUS_DRAFT).count(),
-        TRANSFER_TAB_NHAN: StockTransfer.objects.filter(status=TRANSFER_STATUS_IN_TRANSIT).count(),
-    }
+def _transfer_list_url(tab: str, *, status: str = TRANSFER_LIST_FILTER_ALL) -> str:
+    url = reverse('kho_npl:transfer_hub') + f'?tab={tab}'
+    if tab == TRANSFER_TAB_DANH_SACH and status:
+        url += f'&status={status}'
+    return url
 
 
 def _tab_for_transfer(transfer: StockTransfer) -> str:
-    if transfer.status == TRANSFER_STATUS_IN_TRANSIT:
-        return TRANSFER_TAB_NHAN
     if transfer.status == TRANSFER_STATUS_RECEIVED:
+        return TRANSFER_TAB_DANH_SACH
+    if transfer.status == TRANSFER_STATUS_IN_TRANSIT:
         return TRANSFER_TAB_NHAN
     return TRANSFER_TAB_CHUYEN
 
@@ -87,7 +94,15 @@ def _hub_list_context(request, tab: str):
     search_query = get_search_query(request)
     qs = StockTransfer.objects.select_related(
         'from_location', 'to_location', 'created_by', 'sent_by', 'received_by',
-    ).filter(status__in=TAB_STATUS_MAP[tab])
+    )
+    if tab == TRANSFER_TAB_DANH_SACH:
+        list_status = _resolve_list_status(request)
+        if list_status:
+            qs = qs.filter(status=list_status)
+        else:
+            qs = qs.exclude(status=TRANSFER_STATUS_CANCELLED)
+    else:
+        qs = qs.filter(status__in=TAB_STATUS_MAP[tab])
     if search_query:
         qs = qs.filter(
             Q(number__icontains=search_query)
@@ -95,12 +110,17 @@ def _hub_list_context(request, tab: str):
             | Q(to_location__code__icontains=search_query)
             | Q(notes__icontains=search_query)
         )
+    qs = qs.order_by('-transfer_date', '-pk')
     page_obj, query_string = paginate_queryset(request, qs)
-    return {
+    ctx = {
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
     }
+    if tab == TRANSFER_TAB_DANH_SACH:
+        ctx['list_status'] = _resolve_list_status(request)
+        ctx['list_status_filters'] = TRANSFER_LIST_STATUS_FILTERS
+    return ctx
 
 
 @module_perm_required(MODULE_KHO_NPL, 'view')
@@ -111,7 +131,6 @@ def transfer_hub(request):
         **perm_context(request.user, 'transfers'),
         'tab': tab,
         'tab_choices': TRANSFER_TAB_CHOICES,
-        'tab_counts': _tab_counts(),
         'list_url': _transfer_list_url(tab),
     }
 
@@ -141,17 +160,17 @@ def transfer_detail(request, pk):
         pk=pk,
     )
     tab = _tab_for_transfer(transfer)
+    list_status = transfer.status if tab == TRANSFER_TAB_DANH_SACH else TRANSFER_LIST_FILTER_ALL
     return render(request, 'kho_npl/transfer_detail.html', {
         **nav_context('transfers', user=request.user),
         **perm_context(request.user, 'transfers'),
         'transfer': transfer,
         'tab': tab,
         'tab_choices': TRANSFER_TAB_CHOICES,
-        'tab_counts': _tab_counts(),
         'is_editable': transfer_is_editable(transfer),
         'can_send': transfer_can_send(transfer),
         'can_receive': transfer_can_receive(transfer),
-        'list_url': _transfer_list_url(tab),
+        'list_url': _transfer_list_url(tab, status=list_status),
     })
 
 
