@@ -52,8 +52,8 @@ def disposal_list(request):
         )
     page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'kho_npl/disposal_list.html', {
-        **nav_context('disposals'),
-        **perm_context(request.user),
+        **nav_context('disposals', user=request.user),
+        **perm_context(request.user, 'disposals'),
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
@@ -69,8 +69,8 @@ def disposal_detail(request, pk):
         pk=pk,
     )
     return render(request, 'kho_npl/disposal_detail.html', {
-        **nav_context('disposals'),
-        **perm_context(request.user),
+        **nav_context('disposals', user=request.user),
+        **perm_context(request.user, 'disposals'),
         'disposal': disposal,
         'is_editable': disposal_is_editable(disposal),
         'scrap_warehouse_code': WAREHOUSE_SCRAP_CODE,
@@ -101,8 +101,8 @@ def disposal_create(request):
         form = StockDisposalForm(instance=disposal)
         formset = StockDisposalLineFormSet(instance=disposal, prefix='lines')
     return render(request, 'kho_npl/disposal_form.html', {
-        **nav_context('disposals'),
-        **perm_context(request.user),
+        **nav_context('disposals', user=request.user),
+        **perm_context(request.user, 'disposals'),
         'form': form,
         'formset': formset,
         'is_edit': False,
@@ -136,8 +136,8 @@ def disposal_edit(request, pk):
         form = StockDisposalForm(instance=disposal)
         formset = StockDisposalLineFormSet(instance=disposal, prefix='lines')
     return render(request, 'kho_npl/disposal_form.html', {
-        **nav_context('disposals'),
-        **perm_context(request.user),
+        **nav_context('disposals', user=request.user),
+        **perm_context(request.user, 'disposals'),
         'form': form,
         'formset': formset,
         'is_edit': True,
@@ -171,7 +171,7 @@ def disposal_cancel(request, pk):
             messages.error(request, str(exc))
             return redirect('kho_npl:disposal_detail', pk=pk)
     return render(request, 'kho_npl/disposal_confirm_cancel.html', {
-        **nav_context('disposals'),
-        **perm_context(request.user),
+        **nav_context('disposals', user=request.user),
+        **perm_context(request.user, 'disposals'),
         'disposal': disposal,
     })

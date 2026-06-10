@@ -2,6 +2,11 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.db.models import Q
 
+from hrm.menu_permissions import (
+    user_can_create_menu,
+    user_can_delete_menu,
+    user_can_update_menu,
+)
 from hrm.module_permissions import (
     MODULE_DE_XUAT,
     MODULE_HO_TRO,
@@ -116,7 +121,7 @@ def can_view_pricing(user, request_obj: ServiceRequest) -> bool:
 
 def can_manage_recurring_catalog(user) -> bool:
     """Thu mua quản lý danh mục hàng định kỳ."""
-    if not user_can_update_module(user, MODULE_DE_XUAT):
+    if not user_can_update_menu(user, MODULE_DE_XUAT, 'catalog'):
         return False
     return _user_in_department(user, get_procurement_department())
 
@@ -124,17 +129,17 @@ def can_manage_recurring_catalog(user) -> bool:
 def can_create_request(user, flow_tab) -> bool:
     from .access import module_for_flow
     module = module_for_flow(flow_tab)
-    return user_can_create_module(user, module)
+    return user_can_create_menu(user, module, 'create')
 
 
 def can_handle_request_workflow(user, request_obj: ServiceRequest) -> bool:
-    return user_can_update_module(user, module_for_request(request_obj))
+    return user_can_update_menu(user, module_for_request(request_obj), 'pending')
 
 
 def can_cancel_own_request(user, request_obj: ServiceRequest) -> bool:
     if request_obj.requester_id != user.id:
         return False
-    return user_can_delete_module(user, module_for_request(request_obj))
+    return user_can_delete_menu(user, module_for_request(request_obj), 'my')
 
 
 def can_view_request(user, request_obj: ServiceRequest) -> bool:

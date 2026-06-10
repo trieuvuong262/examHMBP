@@ -47,8 +47,8 @@ def overview(request):
     stats = overview_stats()
     alert_preview = stats['alert_rows'][:8]
     return render(request, 'kho_npl/overview.html', {
-        **nav_context('overview'),
-        **perm_context(request.user),
+        **nav_context('overview', user=request.user),
+        **perm_context(request.user, 'overview'),
         'stats': stats,
         'alert_preview': alert_preview,
         'alert_preview_total': len(stats['alert_rows']),
@@ -109,8 +109,8 @@ def stock_cards(request):
     catalog_filter_qs = '&'.join(filter_params)
 
     return render(request, 'kho_npl/stock_cards.html', {
-        **nav_context('stock_cards'),
-        **perm_context(request.user),
+        **nav_context('stock_cards', user=request.user),
+        **perm_context(request.user, 'stock_cards'),
         'search_query': search_query,
         'locations': WarehouseLocation.objects.filter(is_active=True),
         'categories': MaterialCategory.objects.filter(is_active=True),
@@ -147,8 +147,8 @@ def stock_alerts(request):
         page_icon = 'bi-exclamation-triangle'
 
     return render(request, 'kho_npl/stock_alerts.html', {
-        **nav_context('overview'),
-        **perm_context(request.user),
+        **nav_context('overview', user=request.user),
+        **perm_context(request.user, 'overview'),
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
@@ -163,8 +163,8 @@ def stock_alerts(request):
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def settings_hub(request):
     return render(request, 'kho_npl/settings_hub.html', {
-        **nav_context('settings'),
-        **perm_context(request.user),
+        **nav_context('settings', user=request.user),
+        **perm_context(request.user, 'settings'),
         'settings_items': settings_hub_items(),
     })
 

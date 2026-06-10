@@ -53,8 +53,8 @@ def issue_list(request):
         )
     page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'kho_npl/issue_list.html', {
-        **nav_context('issues'),
-        **perm_context(request.user),
+        **nav_context('issues', user=request.user),
+        **perm_context(request.user, 'issues'),
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
@@ -69,8 +69,8 @@ def issue_detail(request, pk):
         pk=pk,
     )
     return render(request, 'kho_npl/issue_detail.html', {
-        **nav_context('issues'),
-        **perm_context(request.user),
+        **nav_context('issues', user=request.user),
+        **perm_context(request.user, 'issues'),
         'issue': issue,
         'is_editable': issue_is_editable(issue),
     })
@@ -97,8 +97,8 @@ def issue_create(request):
         form = StockIssueForm(instance=issue)
         formset = StockIssueLineFormSet(instance=issue, prefix='lines')
     return render(request, 'kho_npl/issue_form.html', {
-        **nav_context('issues'),
-        **perm_context(request.user),
+        **nav_context('issues', user=request.user),
+        **perm_context(request.user, 'issues'),
         'form': form,
         'formset': formset,
         'is_edit': False,
@@ -130,8 +130,8 @@ def issue_edit(request, pk):
         form = StockIssueForm(instance=issue)
         formset = StockIssueLineFormSet(instance=issue, prefix='lines')
     return render(request, 'kho_npl/issue_form.html', {
-        **nav_context('issues'),
-        **perm_context(request.user),
+        **nav_context('issues', user=request.user),
+        **perm_context(request.user, 'issues'),
         'form': form,
         'formset': formset,
         'is_edit': True,
@@ -164,7 +164,7 @@ def issue_cancel(request, pk):
             messages.error(request, str(exc))
             return redirect('kho_npl:issue_detail', pk=pk)
     return render(request, 'kho_npl/issue_confirm_cancel.html', {
-        **nav_context('issues'),
-        **perm_context(request.user),
+        **nav_context('issues', user=request.user),
+        **perm_context(request.user, 'issues'),
         'issue': issue,
     })

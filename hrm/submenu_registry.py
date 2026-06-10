@@ -92,6 +92,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/reports/my', MODULE_REPORTS, 'daily'),
     ('/reports/copy-yesterday', MODULE_REPORTS, 'daily'),
     ('/reports/copy-prev-week', MODULE_REPORTS, 'weekly'),
+    ('/reports/ckeditor5-upload', MODULE_REPORTS, 'daily'),
     # Công việc
     ('/cong-viec/lien-phong-ban', MODULE_TASKS, 'cross_dept'),
     ('/cong-viec/du-an', MODULE_TASKS, 'project'),
@@ -101,7 +102,6 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/yeu-cau/de-xuat/tao', MODULE_DE_XUAT, 'create'),
     ('/yeu-cau/de-xuat/cho-xu-ly', MODULE_DE_XUAT, 'pending'),
     ('/yeu-cau/de-xuat/cua-toi', MODULE_DE_XUAT, 'my'),
-    ('/yeu-cau/de-xuat/', MODULE_DE_XUAT, 'my'),
     ('/yeu-cau/danh-muc-dinh-ky', MODULE_DE_XUAT, 'catalog'),
     ('/yeu-cau/tao', MODULE_DE_XUAT, 'create'),
     ('/yeu-cau/cho-xu-ly', MODULE_DE_XUAT, 'pending'),
@@ -110,7 +110,6 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/yeu-cau/ho-tro/tao', MODULE_HO_TRO, 'create'),
     ('/yeu-cau/ho-tro/cho-xu-ly', MODULE_HO_TRO, 'pending'),
     ('/yeu-cau/ho-tro/cua-toi', MODULE_HO_TRO, 'my'),
-    ('/yeu-cau/ho-tro/', MODULE_HO_TRO, 'my'),
     ('/yeu-cau/sua-it', MODULE_HO_TRO, 'create'),
     # Thiết bị
     ('/thiet-bi/san-xuat', MODULE_EQUIPMENT, 'production'),
@@ -118,7 +117,6 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     # Góp ý
     ('/gop-y/danh-sach', MODULE_FEEDBACK, 'list'),
     ('/gop-y/tao', MODULE_FEEDBACK, 'create'),
-    ('/gop-y/', MODULE_FEEDBACK, 'create'),
     # Kho NPL
     ('/kho-npl/thiet-lap', MODULE_KHO_NPL, 'settings'),
     ('/kho-npl/bao-cao', MODULE_KHO_NPL, 'reports'),

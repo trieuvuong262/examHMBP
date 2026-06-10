@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 
 from assessment.decorators import module_perm_required
+from hrm.menu_permissions import user_can_access_menu, user_can_update_menu
 from hrm.module_permissions import MODULE_FEEDBACK, user_can_update_module
 from PortalJustPlay.list_search import apply_term_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
@@ -11,7 +12,7 @@ from .models import Feedback
 
 
 def unviewed_feedback_count_for_manager(user):
-    if not user_can_update_module(user, MODULE_FEEDBACK):
+    if not user_can_update_menu(user, MODULE_FEEDBACK, 'list'):
         return 0
     return Feedback.objects.filter(viewed_at__isnull=True).count()
 
@@ -22,12 +23,12 @@ def feedback_count_for_manager(user):
 
 @module_perm_required(MODULE_FEEDBACK, 'view')
 def feedback_hub(request):
-    if user_can_update_module(request.user, MODULE_FEEDBACK):
+    if user_can_access_menu(request.user, MODULE_FEEDBACK, 'list'):
         return redirect('feedback:list')
     return redirect('feedback:create')
 
 
-@module_perm_required(MODULE_FEEDBACK, 'view')
+@module_perm_required(MODULE_FEEDBACK, 'create')
 def create(request):
     if request.method == 'POST':
         form = FeedbackCreateForm(request.POST)
@@ -42,7 +43,7 @@ def create(request):
     return render(request, 'feedback/form.html', {'form': form})
 
 
-@module_perm_required(MODULE_FEEDBACK, 'update')
+@module_perm_required(MODULE_FEEDBACK, 'view')
 def feedback_list(request):
     search_query = get_search_query(request)
     qs = Feedback.objects.select_related('submitter', 'viewed_by')
@@ -58,7 +59,7 @@ def feedback_list(request):
     })
 
 
-@module_perm_required(MODULE_FEEDBACK, 'update')
+@module_perm_required(MODULE_FEEDBACK, 'view')
 def detail(request, pk):
     feedback = get_object_or_404(
         Feedback.objects.select_related('submitter', 'viewed_by'),

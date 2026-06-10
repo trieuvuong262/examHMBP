@@ -13,6 +13,7 @@ from django.views.decorators.http import require_POST
 from PortalJustPlay.list_search import apply_combined_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 from assessment.decorators import module_perm_required
+from hrm.menu_permissions import user_can_export_menu, user_can_update_menu
 from hrm.module_permissions import (
     MODULE_AUDIT,
     MODULE_HRM,
@@ -59,7 +60,7 @@ def _backup_page_context(user):
         status__in=(PortalBackupJob.STATUS_PENDING, PortalBackupJob.STATUS_RUNNING),
     ).exists()
     return {
-        'can_run_backup': user_can_export_module(user, MODULE_AUDIT),
+        'can_run_backup': user_can_export_menu(user, MODULE_AUDIT, 'backup'),
         'backup_job': backup_job,
         'backup_running': backup_running,
     }
@@ -72,7 +73,7 @@ def backup_page(request):
 
 @module_perm_required(MODULE_AUDIT, 'view')
 def nas_links_index(request):
-    if not user_can_update_module(request.user, MODULE_HRM):
+    if not user_can_update_menu(request.user, MODULE_AUDIT, 'nas_links'):
         messages.error(request, 'Bạn không có quyền cập nhật link NAS.')
         return redirect('home_portal')
 
@@ -120,7 +121,7 @@ def log_list(request):
         'filters': filters,
         'filter_query': filter_query,
         'stats': stats,
-        'can_export': user_can_export_module(request.user, MODULE_AUDIT),
+        'can_export': user_can_export_menu(request.user, MODULE_AUDIT, 'logs'),
     })
 
 

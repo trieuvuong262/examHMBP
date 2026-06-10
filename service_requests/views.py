@@ -11,7 +11,7 @@ from django.db.models import Q
 
 from assessment.decorators import module_perm_required
 from hrm.module_permissions import MODULE_DE_XUAT, MODULE_HO_TRO, user_can_access_module
-from .access import user_can_access_flow
+from .access import user_can_access_flow, user_can_access_flow_list
 from .flow import (
     FLOW_DE_XUAT,
     FLOW_HO_TRO,
@@ -95,7 +95,7 @@ def _detail_url(service_request):
     return reverse('service_requests:de_xuat_detail', kwargs={'pk': service_request.pk})
 
 
-def _flow_access_required(view_func=None, *, flow_tab=None):
+def _flow_access_required(view_func=None, *, flow_tab=None, list_kind='my'):
     def decorator(fn):
         @login_required
         @wraps(fn)
@@ -103,7 +103,7 @@ def _flow_access_required(view_func=None, *, flow_tab=None):
             ft = normalize_flow_tab(
                 kwargs.get('flow_tab') or flow_tab or request.resolver_match.kwargs.get('flow_tab'),
             )
-            if not user_can_access_flow(request.user, ft):
+            if not user_can_access_flow_list(request.user, ft, list_kind=list_kind):
                 messages.error(
                     request,
                     f'Bạn không có quyền truy cập module {FLOW_LABELS.get(ft, ft)}.',
@@ -242,7 +242,7 @@ def my_requests(request, flow_tab=None):
     return render(request, 'service_requests/my_list.html', ctx)
 
 
-@_flow_access_required
+@_flow_access_required(list_kind='pending')
 def pending_requests(request, flow_tab=None):
     search_query = get_search_query(request)
     flow_tab = normalize_flow_tab(flow_tab or request.GET.get('loai'))

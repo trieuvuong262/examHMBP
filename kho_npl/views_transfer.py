@@ -84,8 +84,8 @@ def transfer_hub(request):
         )
     page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'kho_npl/transfer_hub.html', {
-        **nav_context('transfers'),
-        **perm_context(request.user),
+        **nav_context('transfers', user=request.user),
+        **perm_context(request.user, 'transfers'),
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
@@ -110,8 +110,8 @@ def transfer_detail(request, pk):
     else:
         tab = TRANSFER_TAB_CHUYEN
     return render(request, 'kho_npl/transfer_detail.html', {
-        **nav_context('transfers'),
-        **perm_context(request.user),
+        **nav_context('transfers', user=request.user),
+        **perm_context(request.user, 'transfers'),
         'transfer': transfer,
         'tab': tab,
         'tab_choices': TRANSFER_TAB_CHOICES,
@@ -143,8 +143,8 @@ def transfer_create(request):
         form = StockTransferForm(instance=transfer)
         formset = StockTransferLineFormSet(instance=transfer, prefix='lines')
     return render(request, 'kho_npl/transfer_form.html', {
-        **nav_context('transfers'),
-        **perm_context(request.user),
+        **nav_context('transfers', user=request.user),
+        **perm_context(request.user, 'transfers'),
         'form': form,
         'formset': formset,
         'is_edit': False,
@@ -177,8 +177,8 @@ def transfer_edit(request, pk):
         form = StockTransferForm(instance=transfer)
         formset = StockTransferLineFormSet(instance=transfer, prefix='lines')
     return render(request, 'kho_npl/transfer_form.html', {
-        **nav_context('transfers'),
-        **perm_context(request.user),
+        **nav_context('transfers', user=request.user),
+        **perm_context(request.user, 'transfers'),
         'form': form,
         'formset': formset,
         'is_edit': True,
@@ -220,8 +220,8 @@ def transfer_cancel(request, pk):
             messages.error(request, str(exc))
         return redirect(_transfer_list_url(TRANSFER_TAB_CHUYEN))
     return render(request, 'kho_npl/transfer_confirm_cancel.html', {
-        **nav_context('transfers'),
-        **perm_context(request.user),
+        **nav_context('transfers', user=request.user),
+        **perm_context(request.user, 'transfers'),
         'transfer': transfer,
         'list_url': _transfer_list_url(TRANSFER_TAB_CHUYEN),
     })

@@ -47,8 +47,8 @@ def material_list(request):
     page_obj, query_string = paginate_queryset(request, qs.order_by('code'), per_page=25)
     categories = MaterialCategory.objects.filter(is_active=True)
     return render(request, 'kho_npl/material_list.html', {
-        **nav_context('materials'),
-        **perm_context(request.user),
+        **nav_context('materials', user=request.user),
+        **perm_context(request.user, 'materials'),
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
@@ -75,8 +75,8 @@ def material_stock_list(request):
 
     page_obj, query_string = paginate_queryset(request, rows, per_page=30)
     return render(request, 'kho_npl/material_stock.html', {
-        **nav_context('material_stock'),
-        **perm_context(request.user),
+        **nav_context('material_stock', user=request.user),
+        **perm_context(request.user, 'material_stock'),
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
@@ -99,8 +99,8 @@ def material_detail(request, pk):
     balances = material.balances.select_related('location').order_by('-quantity')
     total_qty = material_total_qty(material)
     return render(request, 'kho_npl/material_detail.html', {
-        **nav_context('materials'),
-        **perm_context(request.user),
+        **nav_context('materials', user=request.user),
+        **perm_context(request.user, 'materials'),
         'material': material,
         'balances': balances,
         'total_qty': total_qty,
@@ -115,8 +115,8 @@ def material_create(request):
         messages.success(request, f'Đã thêm nguyên phụ liệu {material.code}.')
         return redirect('kho_npl:material_detail', pk=material.pk)
     return render(request, 'kho_npl/material_form.html', {
-        **nav_context('materials'),
-        **perm_context(request.user),
+        **nav_context('materials', user=request.user),
+        **perm_context(request.user, 'materials'),
         'form': form,
         'is_edit': False,
         'cancel_url': reverse('kho_npl:material_list'),
@@ -132,8 +132,8 @@ def material_edit(request, pk):
         messages.success(request, f'Đã cập nhật {material.code}.')
         return redirect('kho_npl:material_detail', pk=material.pk)
     return render(request, 'kho_npl/material_form.html', {
-        **nav_context('materials'),
-        **perm_context(request.user),
+        **nav_context('materials', user=request.user),
+        **perm_context(request.user, 'materials'),
         'form': form,
         'is_edit': True,
         'material': material,
@@ -184,7 +184,7 @@ def material_deactivate(request, pk):
         messages.success(request, f'Đã ngừng sử dụng {material.code}.')
         return redirect('kho_npl:material_list')
     return render(request, 'kho_npl/material_confirm_deactivate.html', {
-        **nav_context('materials'),
-        **perm_context(request.user),
+        **nav_context('materials', user=request.user),
+        **perm_context(request.user, 'materials'),
         'material': material,
     })

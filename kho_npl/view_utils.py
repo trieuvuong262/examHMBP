@@ -1,11 +1,5 @@
-from hrm.module_permissions import (
-    MODULE_KHO_NPL,
-    user_can_create_module,
-    user_can_delete_module,
-    user_can_edit_module,
-    user_can_export_module,
-    user_can_update_module,
-)
+from hrm.menu_permissions import menu_perm_context
+from hrm.module_permissions import MODULE_KHO_NPL
 
 from kho_npl.reports_registry import report_hub_items
 
@@ -24,21 +18,25 @@ NAV_ITEMS = [
     {'key': 'settings', 'url_name': 'kho_npl:settings_hub', 'label': 'Thiết lập', 'icon': 'bi-gear'},
 ]
 
-def nav_context(active_key: str):
+
+def nav_context(active_key: str, user=None):
+    from hrm.menu_permissions import user_can_access_menu
+
+    items = NAV_ITEMS
+    if user is not None and getattr(user, 'is_authenticated', False):
+        items = [
+            item for item in NAV_ITEMS
+            if user_can_access_menu(user, MODULE_KHO_NPL, item['key'])
+        ]
     return {
-        'nav_items': NAV_ITEMS,
+        'nav_items': items,
         'active_nav': active_key,
     }
 
 
-def perm_context(user):
-    return {
-        'can_edit': user_can_edit_module(user, MODULE_KHO_NPL),
-        'can_create': user_can_create_module(user, MODULE_KHO_NPL),
-        'can_update': user_can_update_module(user, MODULE_KHO_NPL),
-        'can_delete': user_can_delete_module(user, MODULE_KHO_NPL),
-        'can_export': user_can_export_module(user, MODULE_KHO_NPL),
-    }
+def perm_context(user, menu_key: str) -> dict:
+    """Quyền UI theo menu con — khớp decorator và sidebar."""
+    return menu_perm_context(user, MODULE_KHO_NPL, menu_key)
 
 
 def report_context():

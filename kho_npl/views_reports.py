@@ -45,8 +45,8 @@ def _report_meta(slug: str):
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def report_hub(request):
     return render(request, 'kho_npl/report_hub.html', {
-        **nav_context('reports'),
-        **perm_context(request.user),
+        **nav_context('reports', user=request.user),
+        **perm_context(request.user, 'reports'),
         **report_context(),
     })
 
@@ -56,8 +56,8 @@ def report_stock(request):
     rows = report_stock_current_rows()
     meta = _report_meta('ton-kho')
     return render(request, 'kho_npl/report_table.html', {
-        **nav_context('reports'),
-        **perm_context(request.user),
+        **nav_context('reports', user=request.user),
+        **perm_context(request.user, 'reports'),
         'report': meta,
         'report_slug': 'ton-kho',
         'rows': rows,
@@ -77,8 +77,8 @@ def report_alerts(request):
     rows = report_alert_rows()
     meta = _report_meta('can-bao')
     return render(request, 'kho_npl/report_table.html', {
-        **nav_context('reports'),
-        **perm_context(request.user),
+        **nav_context('reports', user=request.user),
+        **perm_context(request.user, 'reports'),
         'report': meta,
         'report_slug': 'can-bao',
         'rows': rows,
@@ -99,8 +99,8 @@ def report_movement(request):
     rows = report_movement_rows(filters['date_from'], filters['date_to'], filters['material_code'])
     meta = _report_meta('bien-dong')
     return render(request, 'kho_npl/report_table.html', {
-        **nav_context('reports'),
-        **perm_context(request.user),
+        **nav_context('reports', user=request.user),
+        **perm_context(request.user, 'reports'),
         'report': meta,
         'report_slug': 'bien-dong',
         'rows': rows,
@@ -126,8 +126,8 @@ def report_issue_lsx(request):
     rows = report_issue_by_lsx_rows(filters['date_from'], filters['date_to'], filters['lsx'])
     meta = _report_meta('xuat-lsx')
     return render(request, 'kho_npl/report_table.html', {
-        **nav_context('reports'),
-        **perm_context(request.user),
+        **nav_context('reports', user=request.user),
+        **perm_context(request.user, 'reports'),
         'report': meta,
         'report_slug': 'xuat-lsx',
         'rows': rows,
@@ -152,8 +152,8 @@ def report_stocktake_history(request):
     rows = report_stocktake_history_rows()
     meta = _report_meta('kiem-ke')
     return render(request, 'kho_npl/report_table.html', {
-        **nav_context('reports'),
-        **perm_context(request.user),
+        **nav_context('reports', user=request.user),
+        **perm_context(request.user, 'reports'),
         'report': meta,
         'report_slug': 'kiem-ke',
         'rows': rows,
@@ -174,8 +174,8 @@ def report_ledger(request):
     rows = report_ledger_detail_rows(filters['date_from'], filters['date_to'], filters['material_code'])
     meta = _report_meta('so-kho')
     return render(request, 'kho_npl/report_table.html', {
-        **nav_context('reports'),
-        **perm_context(request.user),
+        **nav_context('reports', user=request.user),
+        **perm_context(request.user, 'reports'),
         'report': meta,
         'report_slug': 'so-kho',
         'rows': rows,

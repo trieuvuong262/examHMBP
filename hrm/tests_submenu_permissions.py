@@ -2,16 +2,18 @@ from django.contrib.auth.models import User
 from django.http import HttpResponse
 from django.test import RequestFactory, TestCase
 
+from hrm.forms import PermissionGroupPermissionForm
 from hrm.group_permissions import get_user_module_perm, normalize_group_permissions
-from hrm.permissions import get_profile
 from hrm.menu_permissions import (
     get_effective_menu_perm,
+    menu_perm_context,
     resolve_menu_from_request,
     user_can_access_menu,
+    user_can_create_menu,
 )
 from hrm.middleware import DepartmentModuleAccessMiddleware
 from hrm.models import PermissionGroup, Profile
-from hrm.submenu_registry import perm_field_name
+from hrm.submenu_registry import get_module_submenus, perm_field_name
 
 
 class SubmenuPermissionTests(TestCase):
@@ -69,16 +71,25 @@ class SubmenuPermissionTests(TestCase):
         self.assertTrue(perm['view'])
         self.assertTrue(perm['create'])
 
-    def test_menu_access_checks(self):
-        profile = get_profile(self.user)
-        self.assertEqual(profile.permission_group_id, self.group.pk)
-        kho_perm = get_user_module_perm(self.user, 'kho_npl')
-        self.assertIn('menus', kho_perm)
-        self.assertFalse(kho_perm['menus']['receipts']['view'])
+    def test_configured_group_denies_unknown_submenu(self):
+        perm = get_effective_menu_perm(self.user, 'kho_npl', 'settings')
+        self.assertFalse(perm['view'])
+        self.assertFalse(perm['create'])
 
+    def test_menu_access_checks(self):
         self.assertTrue(user_can_access_menu(self.user, 'kho_npl', 'overview'))
         self.assertTrue(user_can_access_menu(self.user, 'kho_npl', 'materials'))
         self.assertFalse(user_can_access_menu(self.user, 'kho_npl', 'receipts'))
+        self.assertFalse(user_can_create_menu(self.user, 'kho_npl', 'receipts'))
+        self.assertTrue(user_can_create_menu(self.user, 'kho_npl', 'materials'))
+
+    def test_menu_perm_context_matches_menu(self):
+        ctx = menu_perm_context(self.user, 'kho_npl', 'materials')
+        self.assertTrue(ctx['can_create'])
+        self.assertTrue(ctx['can_export'])
+        ctx2 = menu_perm_context(self.user, 'kho_npl', 'receipts')
+        self.assertFalse(ctx2['can_create'])
+        self.assertFalse(ctx2['can_view'])
 
     def test_resolve_menu_from_request(self):
         module, menu = resolve_menu_from_request('/kho-npl/phieu-nhap/')
@@ -87,6 +98,17 @@ class SubmenuPermissionTests(TestCase):
 
         module, menu = resolve_menu_from_request('/kho-npl/danh-muc/them/')
         self.assertEqual(menu, 'materials')
+
+        module, menu = resolve_menu_from_request('/gop-y/danh-sach/')
+        self.assertEqual(module, 'feedback')
+        self.assertEqual(menu, 'list')
+
+        module, menu = resolve_menu_from_request('/gop-y/42/')
+        self.assertEqual(menu, 'list')
+
+        module, menu = resolve_menu_from_request('/yeu-cau/de-xuat/99/')
+        self.assertEqual(module, 'de_xuat')
+        self.assertIsNone(menu)
 
     def test_middleware_blocks_denied_submenu(self):
         from django.contrib.messages.storage.fallback import FallbackStorage
@@ -101,5 +123,47 @@ class SubmenuPermissionTests(TestCase):
         response = middleware(request)
         self.assertEqual(response.status_code, 302)
 
+    def test_middleware_allows_request_detail_without_my_menu(self):
+        from django.contrib.messages.storage.fallback import FallbackStorage
+
+        group = PermissionGroup.objects.create(
+            name='Pending only',
+            slug='pending-only-dx',
+            module_permissions={
+                'de_xuat': {
+                    'view': True,
+                    'menus': {
+                        'pending': {'view': True, 'create': False, 'update': True, 'delete': False, 'export': False},
+                    },
+                },
+            },
+        )
+        self._assign_group(group)
+
+        factory = RequestFactory()
+        request = factory.get('/yeu-cau/de-xuat/99/')
+        request.user = self.user
+        request.session = {}
+        request._messages = FallbackStorage(request)
+
+        middleware = DepartmentModuleAccessMiddleware(lambda req: HttpResponse('ok'))
+        response = middleware(request)
+        self.assertEqual(response.status_code, 200)
+
     def test_form_field_names_for_submenus(self):
         self.assertEqual(perm_field_name('view', 'kho_npl', 'materials'), 'view_kho_npl__materials')
+
+    def test_form_round_trip_submenu_permissions(self):
+        data = {}
+        for sm in get_module_submenus('kho_npl'):
+            for action in ('view', 'create', 'update', 'delete', 'export'):
+                if sm['key'] == 'materials' and action in ('view', 'create', 'export'):
+                    data[perm_field_name(action, 'kho_npl', sm['key'])] = 'on'
+                elif sm['key'] == 'overview' and action == 'view':
+                    data[perm_field_name(action, 'kho_npl', sm['key'])] = 'on'
+        form = PermissionGroupPermissionForm(data)
+        self.assertTrue(form.is_valid(), form.errors)
+        perms = form.cleaned_permissions()['kho_npl']
+        self.assertTrue(perms['menus']['materials']['create'])
+        self.assertFalse(perms['menus']['receipts']['view'])
+        self.assertFalse(perms['menus']['receipts']['create'])

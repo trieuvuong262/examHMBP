@@ -13,7 +13,8 @@ from audit.login_security import (
     unlock_user_account,
 )
 from audit.models import IpLoginBlock, UserLoginLock
-from hrm.module_permissions import MODULE_AUDIT, user_can_export_module
+from hrm.menu_permissions import user_can_export_menu
+from hrm.module_permissions import MODULE_AUDIT
 
 
 @module_perm_required(MODULE_AUDIT, 'view')
@@ -46,7 +47,7 @@ def login_security_page(request):
         'blocked_ips': blocked_ips,
         'recent_user_locks': recent_user_locks,
         'recent_ip_blocks': recent_ip_blocks,
-        'can_unlock': user_can_export_module(request.user, MODULE_AUDIT),
+        'can_unlock': user_can_export_menu(request.user, MODULE_AUDIT, 'login_security'),
         'security_config': security_config,
         'wan_whitelist_text': format_ip_list(security_config.wan_whitelist_ips),
         'ip_blacklist_text': format_ip_list(security_config.ip_blacklist),

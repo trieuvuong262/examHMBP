@@ -2,6 +2,8 @@
 Phân quyền menu con — kiểm tra quyền theo từng submenu trong nhóm quyền.
 """
 
+import re
+
 from hrm.group_permissions import (
     PERM_ACTIONS,
     PERM_CREATE,
@@ -26,6 +28,18 @@ from hrm.submenu_registry import (
     module_has_submenus,
 )
 
+# URL chi tiết / workflow — chỉ kiểm tra module; view tự kiểm tra quyền chi tiết.
+_MENU_DEFER_PATH_PATTERNS = (
+    re.compile(r'^/yeu-cau/de-xuat/\d+/?'),
+    re.compile(r'^/yeu-cau/ho-tro/\d+/?'),
+)
+
+_MENU_REGEX_RULES: list[tuple[re.Pattern, str, str]] = [
+    (re.compile(r'^/gop-y/\d+/?$'), 'feedback', 'list'),
+    (re.compile(r'^/reports/weekly/\d+/?'), 'reports', 'weekly'),
+    (re.compile(r'^/reports/\d+/?$'), 'reports', 'daily'),
+]
+
 _MENU_ACTION_CHECKS = {
     PERM_VIEW: lambda perm: module_perm_allows_view(perm),
     PERM_CREATE: lambda perm: bool(perm.get(PERM_CREATE)),
@@ -42,13 +56,29 @@ def module_has_configured_menus(perm: dict) -> bool:
 
 
 def get_effective_menu_perm(user, module_key: str, menu_key: str) -> dict:
-    """Quyền hiệu lực của một menu con — kế thừa module nếu chưa cấu hình menus."""
+    """Quyền hiệu lực của một menu con — kế thừa module nếu nhóm chưa cấu hình menus."""
     mod_perm = get_user_module_perm(user, module_key)
     menus = mod_perm.get('menus')
-    if not isinstance(menus, dict) or menu_key not in menus:
-        return {action: bool(mod_perm.get(action)) for action in PERM_ACTIONS}
-    menu_perm = menus[menu_key]
-    return {action: bool(menu_perm.get(action)) for action in PERM_ACTIONS}
+    if module_has_configured_menus(mod_perm):
+        if not isinstance(menus, dict) or menu_key not in menus:
+            return empty_module_perm()
+        menu_perm = menus[menu_key]
+        return {action: bool(menu_perm.get(action)) for action in PERM_ACTIONS}
+    return {action: bool(mod_perm.get(action)) for action in PERM_ACTIONS}
+
+
+def menu_perm_context(user, module_key: str, menu_key: str) -> dict:
+    """Context template: can_create / can_update / … theo menu con."""
+    perm = get_effective_menu_perm(user, module_key, menu_key)
+    return {
+        'menu_key': menu_key,
+        'can_create': bool(perm.get(PERM_CREATE)),
+        'can_update': bool(perm.get(PERM_UPDATE)),
+        'can_delete': bool(perm.get(PERM_DELETE)),
+        'can_export': bool(perm.get(PERM_EXPORT)),
+        'can_edit': module_perm_allows_edit(perm),
+        'can_view': module_perm_allows_view(perm),
+    }
 
 
 def user_can_menu_action(user, module_key: str, menu_key: str, action: str) -> bool:
@@ -101,18 +131,33 @@ def user_can_access_any_menu(user, module_key: str) -> bool:
     return any(module_perm_allows_view(menus.get(m['key'], empty_module_perm())) for m in get_module_submenus(module_key))
 
 
+def _path_defers_menu_check(path: str) -> bool:
+    normalized = path if path.endswith('/') else f'{path}/'
+    return any(pattern.match(normalized) or pattern.match(path) for pattern in _MENU_DEFER_PATH_PATTERNS)
+
+
 def resolve_menu_from_request(path: str, tab: str | None = None) -> tuple[str | None, str | None]:
-    """Trả về (module_key, menu_key) từ URL. menu_key None nếu không xác định được menu con."""
+    """Trả về (module_key, menu_key) từ URL. menu_key None = chỉ kiểm tra module."""
     from hrm.module_permissions import resolve_module_from_request
 
     module_key = resolve_module_from_request(path, tab)
     if not module_key or not module_has_submenus(module_key):
         return module_key, None
 
+    if _path_defers_menu_check(path):
+        return module_key, None
+
+    normalized = path if path.endswith('/') else f'{path}/'
+    for pattern, rule_module, menu_key in _MENU_REGEX_RULES:
+        if rule_module != module_key:
+            continue
+        if pattern.match(normalized) or pattern.match(path):
+            return module_key, menu_key
+
     for prefix, rule_module, menu_key in MENU_PATH_RULES:
         if rule_module != module_key:
             continue
-        if path.startswith(prefix):
+        if path.startswith(prefix) or normalized.startswith(prefix):
             return module_key, menu_key
 
     return module_key, None

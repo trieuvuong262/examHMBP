@@ -685,7 +685,7 @@
                 </li>
                 {% endif %}
                 {% jp_can_menu 'audit' 'nas_links' as jp_can_audit_nas_links %}
-                {% if jp_can_audit_nas_links and jp_can_edit_hrm %}
+                {% if jp_can_audit_nas_links %}
                 <li>
                     <a href="{% url 'audit:nas_links' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'nas_links' or request.resolver_match.url_name == 'user_nas_folders' %}active{% endif %}">

@@ -31,8 +31,8 @@ def stocktake_list(request):
         qs = qs.filter(Q(number__icontains=search_query) | Q(name__icontains=search_query))
     page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'kho_npl/stocktake_list.html', {
-        **nav_context('stocktakes'),
-        **perm_context(request.user),
+        **nav_context('stocktakes', user=request.user),
+        **perm_context(request.user, 'stocktakes'),
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
@@ -52,8 +52,8 @@ def stocktake_detail(request, pk):
         if line.actual_qty is not None and line.actual_qty != line.system_qty
     ]
     return render(request, 'kho_npl/stocktake_detail.html', {
-        **nav_context('stocktakes'),
-        **perm_context(request.user),
+        **nav_context('stocktakes', user=request.user),
+        **perm_context(request.user, 'stocktakes'),
         'stocktake': stocktake,
         'variance_lines': variance_lines,
         'can_count': stocktake_can_count(stocktake),
@@ -73,8 +73,8 @@ def stocktake_create(request):
         messages.success(request, f'Đã tạo kỳ kiểm kê {stocktake.number}.')
         return redirect('kho_npl:stocktake_detail', pk=stocktake.pk)
     return render(request, 'kho_npl/stocktake_form.html', {
-        **nav_context('stocktakes'),
-        **perm_context(request.user),
+        **nav_context('stocktakes', user=request.user),
+        **perm_context(request.user, 'stocktakes'),
         'form': form,
         'cancel_url': reverse('kho_npl:stocktake_list'),
     })
@@ -117,8 +117,8 @@ def stocktake_count(request, pk):
     else:
         formset = StocktakeLineFormSet(instance=stocktake, prefix='lines')
     return render(request, 'kho_npl/stocktake_count.html', {
-        **nav_context('stocktakes'),
-        **perm_context(request.user),
+        **nav_context('stocktakes', user=request.user),
+        **perm_context(request.user, 'stocktakes'),
         'stocktake': stocktake,
         'formset': formset,
     })

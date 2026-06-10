@@ -52,8 +52,8 @@ def receipt_list(request):
         )
     page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'kho_npl/receipt_list.html', {
-        **nav_context('receipts'),
-        **perm_context(request.user),
+        **nav_context('receipts', user=request.user),
+        **perm_context(request.user, 'receipts'),
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
@@ -69,8 +69,8 @@ def receipt_detail(request, pk):
         pk=pk,
     )
     return render(request, 'kho_npl/receipt_detail.html', {
-        **nav_context('receipts'),
-        **perm_context(request.user),
+        **nav_context('receipts', user=request.user),
+        **perm_context(request.user, 'receipts'),
         'receipt': receipt,
         'is_editable': receipt_is_editable(receipt),
     })
@@ -97,8 +97,8 @@ def receipt_create(request):
         form = StockReceiptForm(instance=receipt)
         formset = StockReceiptLineFormSet(instance=receipt, prefix='lines')
     return render(request, 'kho_npl/receipt_form.html', {
-        **nav_context('receipts'),
-        **perm_context(request.user),
+        **nav_context('receipts', user=request.user),
+        **perm_context(request.user, 'receipts'),
         'form': form,
         'formset': formset,
         'is_edit': False,
@@ -130,8 +130,8 @@ def receipt_edit(request, pk):
         form = StockReceiptForm(instance=receipt)
         formset = StockReceiptLineFormSet(instance=receipt, prefix='lines')
     return render(request, 'kho_npl/receipt_form.html', {
-        **nav_context('receipts'),
-        **perm_context(request.user),
+        **nav_context('receipts', user=request.user),
+        **perm_context(request.user, 'receipts'),
         'form': form,
         'formset': formset,
         'is_edit': True,
@@ -164,7 +164,7 @@ def receipt_cancel(request, pk):
             messages.error(request, str(exc))
             return redirect('kho_npl:receipt_detail', pk=pk)
     return render(request, 'kho_npl/receipt_confirm_cancel.html', {
-        **nav_context('receipts'),
-        **perm_context(request.user),
+        **nav_context('receipts', user=request.user),
+        **perm_context(request.user, 'receipts'),
         'receipt': receipt,
     })

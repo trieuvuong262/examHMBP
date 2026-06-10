@@ -15,6 +15,13 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods
 
 from hrm.models import Department
+from hrm.menu_permissions import (
+    user_can_create_menu,
+    user_can_delete_menu,
+    user_can_edit_menu,
+    user_can_export_menu,
+    user_can_update_menu,
+)
 from hrm.module_permissions import (
     MODULE_EQUIPMENT,
     user_can_access_module,
@@ -66,19 +73,41 @@ def _access_required(view_func):
     return wrapper
 
 
-def _perm_required(action: str, *, redirect_name: str = 'equipment:dashboard_it'):
-    checker = {
+def _equipment_menu_key(request) -> str | None:
+    path = request.path
+    if '/thiet-bi/san-xuat' in path:
+        return 'production'
+    if '/thiet-bi/it' in path:
+        return 'it'
+    return None
+
+
+def _equipment_action_allowed(user, request, action: str) -> bool:
+    menu_key = _equipment_menu_key(request)
+    if menu_key:
+        checker = {
+            'create': user_can_create_menu,
+            'update': user_can_update_menu,
+            'delete': user_can_delete_menu,
+            'export': user_can_export_menu,
+            'edit': user_can_edit_menu,
+        }.get(action, user_can_edit_menu)
+        return checker(user, MODULE_EQUIPMENT, menu_key)
+    module_checker = {
         'create': user_can_create_module,
         'update': user_can_update_module,
         'delete': user_can_delete_module,
         'export': user_can_export_module,
         'edit': user_can_edit_module,
     }.get(action, user_can_edit_module)
+    return module_checker(user, MODULE_EQUIPMENT)
 
+
+def _perm_required(action: str, *, redirect_name: str = 'equipment:dashboard_it'):
     def decorator(view_func):
         @_access_required
         def wrapper(request, *args, **kwargs):
-            if not checker(request.user, MODULE_EQUIPMENT):
+            if not _equipment_action_allowed(request.user, request, action):
                 messages.error(request, 'Bạn không có quyền thực hiện thao tác này trên module thiết bị.')
                 return redirect(redirect_name)
             return view_func(request, *args, **kwargs)

@@ -33,8 +33,8 @@ def adjustment_list(request):
         )
     page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'kho_npl/adjustment_list.html', {
-        **nav_context('adjustments'),
-        **perm_context(request.user),
+        **nav_context('adjustments', user=request.user),
+        **perm_context(request.user, 'adjustments'),
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
@@ -50,8 +50,8 @@ def adjustment_detail(request, pk):
         pk=pk,
     )
     return render(request, 'kho_npl/adjustment_detail.html', {
-        **nav_context('adjustments'),
-        **perm_context(request.user),
+        **nav_context('adjustments', user=request.user),
+        **perm_context(request.user, 'adjustments'),
         'adjustment': adjustment,
         'is_editable': adjustment_is_editable(adjustment),
     })
@@ -69,8 +69,8 @@ def adjustment_create(request):
         messages.success(request, f'Đã tạo phiếu điều chỉnh {adjustment.number} — chờ duyệt.')
         return redirect('kho_npl:adjustment_detail', pk=adjustment.pk)
     return render(request, 'kho_npl/adjustment_form.html', {
-        **nav_context('adjustments'),
-        **perm_context(request.user),
+        **nav_context('adjustments', user=request.user),
+        **perm_context(request.user, 'adjustments'),
         'form': form,
         'is_edit': False,
         'cancel_url': reverse('kho_npl:adjustment_list'),

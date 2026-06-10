@@ -37,8 +37,8 @@ def settings_list(request, section):
     qs = qs.order_by(*config['order_by'])
     page_obj, query_string = paginate_queryset(request, qs, per_page=30)
     return render(request, 'kho_npl/settings_list.html', {
-        **nav_context('settings'),
-        **perm_context(request.user),
+        **nav_context('settings', user=request.user),
+        **perm_context(request.user, 'settings'),
         'section': config,
         'page_obj': page_obj,
         'query_string': query_string,
@@ -58,8 +58,8 @@ def settings_create(request, section):
         messages.success(request, f'Đã thêm {obj}.')
         return redirect('kho_npl:settings_list', section=section)
     return render(request, 'kho_npl/settings_form.html', {
-        **nav_context('settings'),
-        **perm_context(request.user),
+        **nav_context('settings', user=request.user),
+        **perm_context(request.user, 'settings'),
         'section': config,
         'form': form,
         'is_edit': False,
@@ -78,8 +78,8 @@ def settings_edit(request, section, pk):
         messages.success(request, f'Đã cập nhật {obj}.')
         return redirect('kho_npl:settings_list', section=section)
     return render(request, 'kho_npl/settings_form.html', {
-        **nav_context('settings'),
-        **perm_context(request.user),
+        **nav_context('settings', user=request.user),
+        **perm_context(request.user, 'settings'),
         'section': config,
         'form': form,
         'is_edit': True,
@@ -98,8 +98,8 @@ def settings_deactivate(request, section, pk):
         messages.success(request, f'Đã ngừng dùng {obj}.')
         return redirect('kho_npl:settings_list', section=section)
     return render(request, 'kho_npl/settings_confirm_deactivate.html', {
-        **nav_context('settings'),
-        **perm_context(request.user),
+        **nav_context('settings', user=request.user),
+        **perm_context(request.user, 'settings'),
         'section': config,
         'obj': obj,
     })
