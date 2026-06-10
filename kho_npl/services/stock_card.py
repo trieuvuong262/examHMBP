@@ -105,6 +105,7 @@ def build_material_stock_card(
     system_stock = stock_balance_total(material, location_id)
     ledger_total = ledger_delta_total(material, location_id)
 
+    variance = system_stock - ledger_total
     return {
         'rows': rows,
         'opening_balance': opening,
@@ -113,8 +114,68 @@ def build_material_stock_card(
         'totals_out': totals_out,
         'system_stock': system_stock,
         'ledger_total': ledger_total,
+        'variance': variance,
         'is_consistent': ledger_matches_stock(material, location_id),
         'period_entry_count': len(period_entries),
+    }
+
+
+def diagnose_stock_mismatch(material: Material) -> dict:
+    """So sánh tồn StockBalance vs tổng biến động sổ kho theo từng vị trí."""
+    from kho_npl.models import WarehouseLocation
+
+    total_balance = stock_balance_total(material, None)
+    total_ledger = ledger_delta_total(material, None)
+    location_rows = []
+
+    ledger_loc_ids = set(
+        StockLedger.objects.filter(material=material).values_list('location_id', flat=True).distinct(),
+    )
+    balance_loc_ids = set(
+        StockBalance.objects.filter(material=material).exclude(quantity=0).values_list('location_id', flat=True),
+    )
+    loc_ids = ledger_loc_ids | balance_loc_ids
+
+    locations = WarehouseLocation.objects.filter(id__in=loc_ids).order_by('code')
+    for loc in locations:
+        bal = StockBalance.objects.filter(material=material, location=loc).first()
+        balance_qty = bal.quantity if bal else Decimal('0')
+        ledger_sum = ledger_delta_total(material, loc.id)
+        last_entry = (
+            StockLedger.objects.filter(material=material, location=loc)
+            .order_by('-created_at', '-id')
+            .first()
+        )
+        last_balance = last_entry.balance_after if last_entry else Decimal('0')
+        txn_count = StockLedger.objects.filter(material=material, location=loc).count()
+        variance_ledger = balance_qty - ledger_sum
+        variance_last = balance_qty - last_balance if last_entry else balance_qty
+        is_ok = variance_ledger == 0 and (not last_entry or variance_last == 0)
+        if balance_qty == 0 and ledger_sum == 0 and txn_count == 0:
+            continue
+        location_rows.append({
+            'location_id': loc.id,
+            'location_code': loc.code,
+            'location_name': loc.name,
+            'balance_qty': balance_qty,
+            'ledger_sum': ledger_sum,
+            'last_balance': last_balance,
+            'txn_count': txn_count,
+            'variance_ledger': variance_ledger,
+            'variance_last': variance_last,
+            'is_ok': is_ok,
+        })
+
+    location_rows.sort(key=lambda r: (0 if r['is_ok'] else 1, -abs(r['variance_ledger'])))
+
+    problem_rows = [r for r in location_rows if not r['is_ok']]
+    return {
+        'total_balance': total_balance,
+        'total_ledger': total_ledger,
+        'total_variance': total_balance - total_ledger,
+        'location_rows': location_rows,
+        'problem_rows': problem_rows,
+        'problem_count': len(problem_rows),
     }
 
 

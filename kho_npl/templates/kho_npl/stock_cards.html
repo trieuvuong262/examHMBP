@@ -74,11 +74,95 @@
                 </div>
             </div>
             {% if not card.is_consistent %}
-            <div class="alert alert-warning border-0 py-2 px-3 mt-3 mb-0 small">
-                <i class="bi bi-exclamation-triangle me-1"></i>
-                Tồn kho ({{ card.system_stock|floatformat:3 }}) chưa khớp tổng sổ kho ({{ card.ledger_total|floatformat:3 }}).
-                Kiểm tra phiếu nhập/xuất hoặc số dư đầu kỳ.
+            <div class="alert alert-warning border-0 py-2 px-3 mt-3 mb-0 small d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <div>
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    Tồn kho ({{ card.system_stock|floatformat:3 }}) chưa khớp tổng sổ kho ({{ card.ledger_total|floatformat:3 }}).
+                    Lệch <strong>{% if card.variance > 0 %}+{% endif %}{{ card.variance|floatformat:3 }}</strong>.
+                    Kiểm tra phiếu nhập/xuất hoặc số dư đầu kỳ.
+                </div>
+                {% if mismatch_diagnosis %}
+                <button type="button" class="btn btn-sm btn-warning fw-bold text-dark"
+                        data-bs-toggle="collapse" data-bs-target="#stock-mismatch-diagnose"
+                        aria-expanded="{% if show_diagnosis %}true{% else %}false{% endif %}">
+                    <i class="bi bi-search me-1"></i>Kiểm tra lệch
+                    {% if mismatch_diagnosis.problem_count %}
+                    <span class="badge text-bg-dark ms-1">{{ mismatch_diagnosis.problem_count }}</span>
+                    {% endif %}
+                </button>
+                {% endif %}
             </div>
+            {% if mismatch_diagnosis %}
+            <div class="collapse {% if show_diagnosis %}show{% endif %}" id="stock-mismatch-diagnose">
+                <div class="border-top px-3 py-3 bg-light">
+                    <p class="small text-muted mb-2 mb-md-3">
+                        So sánh <strong>Tồn kho</strong> (bảng tồn) với <strong>Tổng sổ</strong> (cộng biến động)
+                        và <strong>Tồn sổ cuối</strong> (dòng ledger mới nhất) theo từng vị trí.
+                    </p>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered bg-white mb-2 jp-npl-diagnose-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Vị trí</th>
+                                    <th class="text-end">Tồn kho</th>
+                                    <th class="text-end">Tổng sổ</th>
+                                    <th class="text-end">Tồn sổ cuối</th>
+                                    <th class="text-end">Lệch (kho − sổ)</th>
+                                    <th class="text-end">Lệch (kho − cuối)</th>
+                                    <th class="text-center">GD</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in mismatch_diagnosis.location_rows %}
+                                <tr class="{% if not row.is_ok %}table-warning{% endif %}">
+                                    <td>
+                                        <span class="fw-semibold">{{ row.location_code }}</span>
+                                        <span class="text-muted small d-block">{{ row.location_name }}</span>
+                                    </td>
+                                    <td class="text-end">{{ row.balance_qty|floatformat:3 }}</td>
+                                    <td class="text-end">{{ row.ledger_sum|floatformat:3 }}</td>
+                                    <td class="text-end">{{ row.last_balance|floatformat:3 }}</td>
+                                    <td class="text-end fw-semibold {% if row.variance_ledger != 0 %}text-danger{% endif %}">
+                                        {% if row.variance_ledger > 0 %}+{% endif %}{{ row.variance_ledger|floatformat:3 }}
+                                    </td>
+                                    <td class="text-end {% if row.variance_last != 0 %}text-danger{% endif %}">
+                                        {% if row.variance_last > 0 %}+{% endif %}{{ row.variance_last|floatformat:3 }}
+                                    </td>
+                                    <td class="text-center">{{ row.txn_count }}</td>
+                                    <td class="text-end text-nowrap">
+                                        <a href="?material={{ selected_material.pk }}&location={{ row.location_id }}{% if date_from %}&date_from={{ date_from|date:'Y-m-d' }}{% endif %}{% if date_to %}&date_to={{ date_to|date:'Y-m-d' }}{% endif %}&diagnose=1"
+                                           class="btn btn-outline-secondary btn-sm py-0 px-2" title="Xem thẻ kho tại vị trí này">
+                                            Thẻ
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="8" class="text-center text-muted py-3">Không có dữ liệu tồn/sổ theo vị trí.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="table-light fw-bold">
+                                <tr>
+                                    <td>Tổng mọi vị trí</td>
+                                    <td class="text-end">{{ mismatch_diagnosis.total_balance|floatformat:3 }}</td>
+                                    <td class="text-end">{{ mismatch_diagnosis.total_ledger|floatformat:3 }}</td>
+                                    <td></td>
+                                    <td class="text-end text-danger">
+                                        {% if mismatch_diagnosis.total_variance > 0 %}+{% endif %}{{ mismatch_diagnosis.total_variance|floatformat:3 }}
+                                    </td>
+                                    <td colspan="3"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    <p class="small text-muted mb-0">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Vị trí có lệch thường do tồn được cập nhật thủ công/seed, thiếu ghi sổ, hoặc phiếu chưa post đầy đủ.
+                        Bấm <strong>Thẻ</strong> để xem chi tiết biến động tại kệ đó.
+                    </p>
+                </div>
+            </div>
+            {% endif %}
             {% endif %}
         </div>
         <div class="table-responsive">

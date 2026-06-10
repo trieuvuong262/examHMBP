@@ -11,7 +11,7 @@ from PortalJustPlay.pagination import paginate_queryset
 from kho_npl.choices import STOCK_STATUS_LOW, STOCK_STATUS_OK, STOCK_STATUS_OUT
 from kho_npl.models import Material, MaterialCategory, WarehouseLocation
 from kho_npl.services.stock import material_stock_rows, overview_stats, stock_rows_for_status
-from kho_npl.services.stock_card import build_material_stock_card
+from kho_npl.services.stock_card import build_material_stock_card, diagnose_stock_mismatch
 from kho_npl.view_utils import nav_context, perm_context
 from kho_npl.views_material import _material_catalog_qs
 from kho_npl.views_settings import settings_hub_items
@@ -83,6 +83,8 @@ def stock_cards(request):
 
     selected_material = None
     card = None
+    mismatch_diagnosis = None
+    show_diagnosis = request.GET.get('diagnose') == '1'
     if material_id.isdigit():
         selected_material = get_object_or_404(
             Material.objects.select_related('category', 'unit'),
@@ -94,6 +96,8 @@ def stock_cards(request):
             date_from=date_from,
             date_to=date_to,
         )
+        if card and not card['is_consistent']:
+            mismatch_diagnosis = diagnose_stock_mismatch(selected_material)
 
     filter_params = []
     if date_from:
@@ -118,6 +122,8 @@ def stock_cards(request):
         'selected_category': category_id or cat_id,
         'selected_material': selected_material,
         'card': card,
+        'mismatch_diagnosis': mismatch_diagnosis,
+        'show_diagnosis': show_diagnosis,
         'date_from': date_from,
         'date_to': date_to,
         'catalog_page': catalog_page,

@@ -21,7 +21,12 @@ from kho_npl.models import (
 from kho_npl.services.issues import post_stock_issue
 from kho_npl.services.receipts import post_stock_receipt
 from kho_npl.services.stock import material_total_qty
-from kho_npl.services.stock_card import build_material_stock_card, ledger_matches_stock
+from kho_npl.models import StockBalance
+from kho_npl.services.stock_card import (
+    build_material_stock_card,
+    diagnose_stock_mismatch,
+    ledger_matches_stock,
+)
 
 
 class StockCardTests(TestCase):
@@ -99,6 +104,28 @@ class StockCardTests(TestCase):
         self.assertEqual(txn_rows[1]['balance_after'], Decimal('95'))
         self.assertEqual(txn_rows[2]['qty_in'], Decimal('3'))
         self.assertEqual(txn_rows[2]['balance_after'], Decimal('98'))
+
+    def test_diagnose_finds_location_mismatch(self):
+        self._post_receipt(Decimal('10'))
+        StockBalance.objects.filter(material=self.material, location=self.location).update(
+            quantity=Decimal('999'),
+        )
+        diag = diagnose_stock_mismatch(self.material)
+        self.assertEqual(diag['problem_count'], 1)
+        self.assertEqual(diag['problem_rows'][0]['location_code'], self.location.code)
+        self.assertEqual(diag['problem_rows'][0]['variance_ledger'], Decimal('989'))
+
+    def test_stock_card_page_shows_diagnose_button_when_mismatch(self):
+        self._post_receipt(Decimal('10'))
+        StockBalance.objects.filter(material=self.material, location=self.location).update(
+            quantity=Decimal('999'),
+        )
+        url = reverse('kho_npl:stock_cards') + f'?material={self.material.pk}&diagnose=1'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Kiểm tra lệch')
+        self.assertContains(response, 'jp-npl-diagnose-table')
+        self.assertContains(response, self.location.code)
 
     def test_stock_card_page_loads(self):
         self._post_receipt(Decimal('10'))
