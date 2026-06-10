@@ -1,5 +1,5 @@
-<div id="jpNplCatalogLoading" class="jp-tool-loading d-none"
-     aria-hidden="true"
+<div id="jpNplCatalogLoading" class="jp-tool-loading"
+     aria-hidden="false"
      role="alertdialog" aria-labelledby="jpNplCatalogLoadingMsg" aria-modal="true"
      data-default-message="{{ loading_message|default:'Đang tải dữ liệu…' }}">
     <div class="jp-tool-loading-panel">
@@ -7,3 +7,18 @@
         <p id="jpNplCatalogLoadingMsg" class="jp-tool-loading-msg mb-0">{{ loading_message|default:'Đang tải dữ liệu…' }}</p>
     </div>
 </div>
+<script>
+(function () {
+    var el = document.getElementById('jpNplCatalogLoading');
+    if (!el) return;
+    document.documentElement.classList.add('jp-npl-catalog-pending-load');
+    if (document.body) {
+        document.body.classList.add('jp-npl-catalog-loading-active');
+    } else {
+        document.addEventListener('DOMContentLoaded', function () {
+            document.body.classList.add('jp-npl-catalog-loading-active');
+        });
+    }
+    window.__jpNplCatalogLoadingStart = Date.now();
+})();
+</script>

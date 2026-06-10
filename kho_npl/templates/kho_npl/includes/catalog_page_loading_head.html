@@ -4,19 +4,6 @@
         var msg = sessionStorage.getItem('jp_npl_catalog_loading');
         if (!msg) return;
         document.documentElement.classList.add('jp-npl-catalog-pending-load');
-        document.addEventListener('DOMContentLoaded', function () {
-            if (document.getElementById('jpNplCatalogLoading')) return;
-            var el = document.createElement('div');
-            el.id = 'jpNplCatalogLoadingEarly';
-            el.className = 'jp-tool-loading';
-            el.setAttribute('aria-hidden', 'false');
-            el.innerHTML =
-                '<div class="jp-tool-loading-panel">' +
-                '<div class="jp-tool-loading-spinner" aria-hidden="true"></div>' +
-                '<p class="jp-tool-loading-msg mb-0"></p></div>';
-            el.querySelector('.jp-tool-loading-msg').textContent = msg;
-            document.body.appendChild(el);
-        });
     } catch (e) {}
 })();
 </script>
@@ -27,5 +14,8 @@ html.jp-npl-catalog-pending-load body {
 }
 html.jp-npl-catalog-pending-load .jp-npl-material-catalog-page {
     visibility: hidden;
+}
+#jpNplCatalogLoading.jp-tool-loading {
+    z-index: 2000;
 }
 </style>

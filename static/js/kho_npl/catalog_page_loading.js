@@ -1,12 +1,11 @@
 /**
  * Overlay loading cho các màn lưới Kho NPL (tổng quan, danh mục, tồn kho, thẻ kho).
- * Chỉ hiện khi người dùng lọc/điều hướng — không chớp khi mở trang bình thường.
  */
 (function (global) {
     'use strict';
 
     const STORAGE_KEY = 'jp_npl_catalog_loading';
-    const MIN_VISIBLE_MS = 320;
+    const MIN_VISIBLE_MS = 450;
 
     let shownAt = 0;
     let hideTimer = null;
@@ -53,7 +52,7 @@
         el.setAttribute('aria-hidden', 'false');
         document.body.classList.add('jp-npl-catalog-loading-active');
         document.documentElement.classList.add('jp-npl-catalog-pending-load');
-        shownAt = Date.now();
+        shownAt = window.__jpNplCatalogLoadingStart || Date.now();
         isVisible = true;
     }
 
@@ -155,16 +154,21 @@
 
     function onReady() {
         wirePage();
-        if (!root()) return;
+        const el = root();
+        if (!el) return;
 
         const pending = pendingMessage();
         if (pending) {
-            show(pending);
-            if (document.readyState === 'complete') {
-                finishAfterPaint();
-            } else {
-                window.addEventListener('load', finishAfterPaint, { once: true });
-            }
+            setMessage(pending);
+        }
+        if (!isVisible) {
+            show(pending || defaultMessage());
+        }
+
+        if (document.readyState === 'complete') {
+            finishAfterPaint();
+        } else {
+            window.addEventListener('load', finishAfterPaint, { once: true });
         }
     }
 
