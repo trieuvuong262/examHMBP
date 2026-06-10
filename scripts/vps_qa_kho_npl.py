@@ -413,10 +413,10 @@ try:
             fail('Overview vẫn còn jp-tab-pills — phải điều hướng qua sidebar')
         r_xfer = client.get(reverse('kho_npl:transfer_hub') + '?tab=chuyen')
         xfer_content = r_xfer.content.decode('utf-8', errors='replace')
-        if 'jp-npl-transfer-tabs' in xfer_content and 'phiếu chuyển' in xfer_content:
-            ok('phiếu chuyển: 3 tab Nhập/Chuyển/Nhận')
+        if 'jp-npl-transfer-tabs' in xfer_content and 'Phiếu chuyển' in xfer_content:
+            ok('Phiếu chuyển: 3 tab Nhập/Chuyển/Nhận')
         else:
-            fail('phiếu chuyển thiếu tab workflow')
+            fail('Phiếu chuyển thiếu tab workflow')
 except Exception as e:
     fail('Portal integration', str(e))
 
