@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load humanize npl_extras %}
+{% load npl_extras %}
 
 {% block extra_head %}
 {% include 'kho_npl/includes/filter_multi_select_head.html' %}
@@ -27,17 +27,32 @@
 .jp-npl-material-catalog-page .jp-npl-mat-search-row {
     display: flex;
     flex-wrap: wrap;
-    align-items: stretch;
-    gap: 0.35rem;
+    align-items: center;
+    gap: 0.4rem;
 }
 .jp-npl-material-catalog-page .jp-npl-mat-topbar-search .jp-npl-filter-multi {
-    flex: 0 1 10rem;
-    min-width: 7.5rem;
-    max-width: 12rem;
+    flex: 0 0 9.25rem;
+    width: 9.25rem;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-topbar-search .jp-npl-filter-multi .ts-wrapper.form-select-sm {
+    min-height: 31px;
+    height: 31px;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-topbar-search .jp-npl-filter-multi .ts-control {
+    min-height: 29px;
+    height: 29px;
+    padding-top: 0.2rem;
+    padding-bottom: 0.2rem;
+    font-size: 0.875rem;
 }
 .jp-npl-material-catalog-page .jp-npl-mat-topbar-search .jp-npl-mat-search-input {
-    flex: 1 1 8rem;
-    min-width: 6rem;
+    flex: 1 1 10rem;
+    min-width: 8rem;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-topbar-search .jp-npl-mat-search-input .form-control,
+.jp-npl-material-catalog-page .jp-npl-mat-topbar-search .jp-npl-mat-search-input .input-group-text,
+.jp-npl-material-catalog-page .jp-npl-mat-topbar-search .jp-npl-mat-search-input .btn {
+    height: 31px;
 }
 .jp-npl-material-catalog-page .jp-npl-mat-topbar-actions {
     display: flex;
@@ -45,29 +60,46 @@
     gap: 0.35rem;
     align-items: center;
 }
-.jp-npl-material-catalog-page .jp-npl-mat-table-toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    padding: 0.65rem 1rem;
-    border-bottom: 1px solid var(--bs-border-color);
-    background: var(--bs-body-bg);
-}
-.jp-npl-material-catalog-page .jp-npl-mat-table-count {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--bs-secondary-color);
-}
 .jp-npl-material-catalog-page .jp-npl-mat-col-picker .dropdown-menu {
-    min-width: 11rem;
-    max-height: 15rem;
+    width: 13rem;
+    min-width: 13rem;
+    max-width: 13rem;
+    max-height: 16rem;
     overflow-y: auto;
+    padding: 0.35rem 0;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-col-picker .dropdown-menu .border-bottom {
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-col-picker .form-check {
+    margin-bottom: 0;
+    padding-top: 0.2rem;
+    padding-bottom: 0.2rem;
 }
 .jp-npl-material-catalog-page .jp-npl-mat-col-picker .form-check-label {
     cursor: pointer;
     user-select: none;
+    white-space: nowrap;
+}
+.jp-npl-material-catalog-page .jp-mat-edit-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.65rem;
+    height: 1.65rem;
+    border-radius: 0.35rem;
+    color: var(--bs-secondary-color);
+    border: 1px solid var(--bs-border-color);
+    background: var(--bs-body-bg);
+    text-decoration: none;
+    font-size: 0.8rem;
+    transition: color .15s ease, border-color .15s ease, background .15s ease;
+}
+.jp-npl-material-catalog-page .jp-mat-edit-btn:hover {
+    color: var(--hm-red, #dc2626);
+    border-color: rgba(220, 38, 38, 0.45);
+    background: rgba(220, 38, 38, 0.06);
 }
 .jp-npl-material-catalog-page #npl-material-table thead th {
     font-size: 0.78rem;
@@ -123,7 +155,7 @@
                     <button type="submit" class="btn btn-hm fw-bold">Tìm</button>
                 </div>
                 {% if has_filters %}
-                <a href="{% url 'kho_npl:material_list' %}" class="btn btn-outline-secondary btn-sm fw-bold align-self-center" title="Xóa lọc">×</a>
+                <a href="{% url 'kho_npl:material_list' %}" class="btn btn-outline-secondary btn-sm fw-bold px-2" style="height:31px;line-height:1;" title="Xóa lọc">×</a>
                 {% endif %}
             </div>
         </form>
@@ -142,23 +174,16 @@
                 <i class="bi bi-plus-lg me-1"></i>Thêm NPL
             </a>
             {% endif %}
-            <a href="{% url 'kho_npl:material_stock' %}" class="btn btn-outline-hm btn-sm fw-bold">Tồn kho</a>
-        </div>
-    </div>
-
-    <div class="card border-0 shadow-sm overflow-hidden">
-        <div class="jp-npl-mat-table-toolbar">
-            <span class="jp-npl-mat-table-count">{{ row_count|intcomma }} NPL</span>
             <div class="dropdown jp-npl-mat-col-picker">
                 <button type="button" class="btn btn-outline-secondary btn-sm fw-bold"
-                        data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
-                        title="Chọn cột hiển thị">
+                        data-bs-toggle="dropdown" data-bs-auto-close="outside" data-bs-display="static"
+                        aria-expanded="false" title="Chọn cột hiển thị">
                     <i class="bi bi-layout-three-columns me-1"></i>Cột
                 </button>
-                <div class="dropdown-menu dropdown-menu-end shadow-sm p-2">
-                    <div class="small fw-semibold text-muted px-2 pb-2 mb-1 border-bottom">Hiển thị cột</div>
+                <div class="dropdown-menu dropdown-menu-end shadow-sm">
+                    <div class="small fw-semibold text-muted px-3 py-2 border-bottom">Hiển thị cột</div>
                     {% for col in list_columns %}
-                    <div class="form-check px-2 py-1">
+                    <div class="form-check px-3">
                         <input class="form-check-input npl-col-toggle" type="checkbox"
                                id="npl-col-{{ col.key }}" data-col="{{ col.key }}"
                                {% if col.default %}checked{% endif %}
@@ -169,6 +194,9 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0" id="npl-material-table">
                 <thead class="table-light">
@@ -207,7 +235,7 @@
                         </td>
                         <td class="text-end text-nowrap npl-col" data-col="actions">
                             {% if can_update %}
-                            <a href="{% url 'kho_npl:material_edit' material.pk %}" class="btn btn-outline-secondary btn-sm py-0 px-1" title="Sửa"><i class="bi bi-pencil"></i></a>
+                            <a href="{% url 'kho_npl:material_edit' material.pk %}" class="jp-mat-edit-btn" title="Sửa"><i class="bi bi-pencil"></i></a>
                             {% endif %}
                         </td>
                     </tr>

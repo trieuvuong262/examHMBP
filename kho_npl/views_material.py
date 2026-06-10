@@ -85,7 +85,6 @@ def material_list(request):
         'categories': categories,
         'selected_categories': category_ids,
         'list_columns': MATERIAL_LIST_COLUMNS,
-        'row_count': page_obj.paginator.count,
         'has_filters': bool(search_query or category_ids),
     })
 
