@@ -331,7 +331,8 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
                 <thead class="table-light">
                     <tr>
                         {% for col in list_columns %}
-                        <th class="npl-col jp-mat-th{% if col.key == 'min_stock' %} text-end{% endif %}" data-col="{{ col.key }}">
+                        <th class="npl-col jp-mat-th{% if col.key == 'min_stock' %} text-end{% endif %}"
+                            data-col="{{ col.key }}" style="width:{% widthratio col.weight total_col_weight 100 %}%">
                             <button type="button" class="jp-mat-th-sort{% if sort_key == col.key %} is-active{% endif %}"
                                     data-sort="{{ col.key }}" title="Sắp xếp theo {{ col.label }}">
                                 {{ col.label }}

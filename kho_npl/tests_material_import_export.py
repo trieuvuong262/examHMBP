@@ -51,6 +51,20 @@ class MaterialImportExportTests(TestCase):
         self.assertContains(response, 'jp-mat-th-sort')
         self.assertContains(response, 'jp-mat-col-resizer')
 
+    def test_material_list_defaults_all_status_sort_by_code(self):
+        Material.objects.create(
+            code='BBB-01', name='Beta', category=self.category, unit=self.unit, is_active=False,
+        )
+        Material.objects.create(
+            code='AAA-01', name='Alpha', category=self.category, unit=self.unit,
+        )
+        response = self.client.get(reverse('kho_npl:material_list'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'value="all" selected')
+        self.assertContains(response, 'data-sort="code"')
+        content = response.content.decode()
+        self.assertLess(content.index('AAA-01'), content.index('BBB-01'))
+
     def test_material_list_sort_by_name_desc(self):
         Material.objects.create(code='ZZZ-01', name='Zulu', category=self.category, unit=self.unit)
         Material.objects.create(code='AAA-01', name='Alpha', category=self.category, unit=self.unit)

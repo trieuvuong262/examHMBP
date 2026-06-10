@@ -11,7 +11,11 @@ from PortalJustPlay.pagination import paginate_queryset
 
 from kho_npl.choices import STOCK_STATUS_LOW, STOCK_STATUS_OK, STOCK_STATUS_OUT
 from kho_npl.forms import MaterialForm
-from kho_npl.material_list_columns import MATERIAL_LIST_COLUMNS, MATERIAL_LIST_SORT_FIELDS
+from kho_npl.material_list_columns import (
+    MATERIAL_LIST_COLUMNS,
+    MATERIAL_LIST_SORT_FIELDS,
+    MATERIAL_LIST_TOTAL_COL_WEIGHT,
+)
 from kho_npl.models import Material, MaterialCategory, WarehouseLocation
 from kho_npl.services.material_import_export import (
     MaterialImportError,
@@ -72,16 +76,16 @@ def _material_catalog_qs(request):
 
 
 MATERIAL_LIST_STATUS_CHOICES = (
+    ('all', 'Tất cả'),
     ('active', 'Đang dùng'),
     ('inactive', 'Ngừng dùng'),
-    ('all', 'Tất cả'),
 )
 
 
 def _material_list_status(request) -> str:
-    status = (request.GET.get('status') or 'active').strip().lower()
+    status = (request.GET.get('status') or 'all').strip().lower()
     if status not in {key for key, _ in MATERIAL_LIST_STATUS_CHOICES}:
-        return 'active'
+        return 'all'
     return status
 
 
@@ -130,9 +134,10 @@ def material_list(request):
         'selected_status': status,
         'status_choices': MATERIAL_LIST_STATUS_CHOICES,
         'list_columns': MATERIAL_LIST_COLUMNS,
+        'total_col_weight': MATERIAL_LIST_TOTAL_COL_WEIGHT,
         'sort_key': sort_key,
         'sort_dir': sort_dir,
-        'has_filters': bool(search_query or category_ids or status != 'active'),
+        'has_filters': bool(search_query or category_ids or status != 'all'),
     })
 
 
