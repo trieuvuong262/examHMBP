@@ -4,6 +4,7 @@
      data-concurrent-slot
      data-form-prefix="{{ cp_form.prefix }}">
     {% for hidden in cp_form.hidden_fields %}{{ hidden }}{% endfor %}
+    {% if cp_form.DELETE %}<div class="d-none">{{ cp_form.DELETE }}</div>{% endif %}
     <div class="jp-concurrent-slot-head">
         <div class="jp-concurrent-slot-title">
             <span class="jp-concurrent-slot-index">Slot {{ slot_index }}</span>

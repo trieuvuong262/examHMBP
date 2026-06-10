@@ -872,28 +872,83 @@
         toggleConcurrentSubordinates(row);
     }
 
-    function deleteConcurrentSlot(row) {
-        if (!row || !window.confirm('Xóa slot kiêm nhiệm này?')) return;
-        const idInput = row.querySelector('input[name$="-id"]');
-        const deleteInput = row.querySelector('input[name$="-DELETE"]');
-        const slotId = idInput ? String(idInput.value || '').trim() : '';
-
-        if (slotId && deleteInput) {
-            deleteInput.checked = true;
-            saveConcurrentSlot(row);
-            return;
-        }
-
-        row.remove();
+    function syncConcurrentRowCount() {
         const totalInput = getConcurrentTotalInput();
         if (totalInput) {
             totalInput.value = String(document.querySelectorAll('#concurrent-positions .jp-concurrent-position-row').length);
         }
         updateConcurrentSlotIndices();
+    }
+
+    function updateConcurrentHeroCount(count) {
         const heroStats = document.querySelectorAll('.jp-user-detail-hero-aside .jp-user-detail-stat strong');
-        if (heroStats[2]) {
-            heroStats[2].textContent = String(countActiveConcurrentSlots());
+        if (heroStats[2] && count !== undefined) {
+            heroStats[2].textContent = String(count);
         }
+    }
+
+    async function deleteConcurrentSlot(row) {
+        if (!row || !window.confirm('Xóa slot kiêm nhiệm này?')) return;
+        const idInput = row.querySelector('input[name$="-id"]');
+        const slotId = idInput ? String(idInput.value || '').trim() : '';
+
+        if (!slotId) {
+            row.remove();
+            syncConcurrentRowCount();
+            updateConcurrentHeroCount(countActiveConcurrentSlots());
+            return;
+        }
+
+        {% if is_edit %}
+        if (!concurrentSlotSaveUrl) return;
+        const prefix = row.dataset.formPrefix || '';
+        if (!prefix) return;
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const formData = new FormData();
+        formData.append('form_prefix', prefix);
+        formData.append('slot_action', 'delete');
+        formData.append('slot_id', slotId);
+        formData.append(prefix + '-id', slotId);
+
+        const statusEl = row.querySelector('.jp-concurrent-slot-save-status');
+        const deleteBtn = row.querySelector('.jp-concurrent-slot-delete');
+        if (statusEl) {
+            statusEl.textContent = 'Đang xóa...';
+            statusEl.classList.remove('text-success', 'text-danger');
+            statusEl.classList.add('text-muted');
+        }
+        if (deleteBtn) deleteBtn.disabled = true;
+
+        try {
+            const response = await fetch(concurrentSlotSaveUrl, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrfToken },
+                body: formData,
+            });
+            const data = await response.json();
+            if (data.status === 'ok' && data.deleted) {
+                row.remove();
+                syncConcurrentRowCount();
+                updateConcurrentHeroCount(data.concurrent_active_count);
+                return;
+            }
+            if (statusEl) {
+                statusEl.textContent = data.message || 'Không xóa được slot';
+                statusEl.classList.remove('text-muted', 'text-success');
+                statusEl.classList.add('text-danger');
+            }
+        } catch (err) {
+            if (statusEl) {
+                statusEl.textContent = 'Lỗi kết nối máy chủ';
+                statusEl.classList.add('text-danger');
+            }
+        }
+        if (deleteBtn) deleteBtn.disabled = false;
+        {% else %}
+        row.remove();
+        syncConcurrentRowCount();
+        updateConcurrentHeroCount(countActiveConcurrentSlots());
+        {% endif %}
     }
 
     function countActiveConcurrentSlots() {

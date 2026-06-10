@@ -622,8 +622,15 @@ def user_concurrent_slot_save(request, user_id):
     if not re.match(r'^concurrent-\d+$', form_prefix):
         return JsonResponse({'status': 'error', 'message': 'Form slot không hợp lệ.'}, status=400)
 
-    slot_id = (request.POST.get(f'{form_prefix}-id') or '').strip()
-    delete_flag = request.POST.get(f'{form_prefix}-DELETE') in ('on', 'true', '1', 'True')
+    slot_id = (
+        request.POST.get('slot_id')
+        or request.POST.get(f'{form_prefix}-id')
+        or ''
+    ).strip()
+    delete_flag = (
+        (request.POST.get('slot_action') or '').strip().lower() == 'delete'
+        or request.POST.get(f'{form_prefix}-DELETE') in ('on', 'true', '1', 'True')
+    )
 
     instance = None
     if slot_id.isdigit():
