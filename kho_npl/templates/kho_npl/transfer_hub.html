@@ -9,21 +9,17 @@
     <div class="jp-npl-mat-topbar">
         <h2 class="jp-npl-mat-topbar-title"><i class="bi bi-arrow-left-right me-2"></i>Phiếu chuyển</h2>
         {% if show_transfer_search %}
-        <form method="get" class="jp-npl-mat-topbar-search" id="npl-tr-search-form">
+        <form method="get" class="jp-npl-mat-topbar-search jp-npl-transfer-search-form" id="jp-npl-transfer-search-form">
             <div class="jp-npl-mat-search-row">
                 <input type="hidden" name="tab" value="{{ tab }}">
+                {% if tab == 'danh-sach' and list_status %}
+                <input type="hidden" name="status" value="{{ list_status }}">
+                {% endif %}
                 <div class="input-group input-group-sm jp-npl-mat-filter-field jp-npl-mat-search-input">
                     <span class="input-group-text bg-transparent"><i class="bi bi-search text-muted"></i></span>
                     <input type="search" class="form-control" id="pc-q" name="q"
                            value="{{ search_query }}" placeholder="Tìm phiếu, kho..." autocomplete="off" aria-label="Tìm">
                 </div>
-                {% if tab == 'danh-sach' %}
-                <select name="status" class="form-select form-select-sm jp-npl-mat-status-select" aria-label="Trạng thái">
-                    {% for value, label in status_choices %}
-                    <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-                {% endif %}
                 <button type="submit" class="btn btn-hm btn-sm fw-bold">Tìm</button>
                 {% if has_filters %}
                 <a href="{% url 'kho_npl:transfer_hub' %}?tab={{ tab }}" class="btn btn-outline-secondary btn-sm fw-bold px-2" title="Xóa lọc">×</a>
@@ -93,7 +89,7 @@
                             <span class="jp-mat-col-resizer" aria-hidden="true"></span>
                         </th>
                         {% endfor %}
-                        <th class="npl-col jp-mat-th text-end" data-col="actions" style="width:{% if tab == 'chuyen' %}11rem{% else %}8rem{% endif %};">Thao tác</th>
+                        <th class="npl-col jp-mat-th text-end" data-col="actions" style="width:{% if tab == 'chuyen' %}14rem{% elif tab == 'nhan' %}9rem{% else %}9rem{% endif %};">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -111,7 +107,7 @@
                             <div class="d-inline-flex flex-nowrap gap-1 justify-content-end jp-npl-transfer-row-actions">
                                 {% if tab == 'danh-sach' %}
                                 <a href="{% url 'kho_npl:transfer_detail' transfer.pk %}" class="btn btn-outline-hm btn-sm fw-bold">
-                                    <i class="bi bi-eye me-1"></i>Xem
+                                    <i class="bi bi-eye me-1"></i>Xem chi tiết
                                 </a>
                                 {% else %}
                                 <a href="{% url 'kho_npl:transfer_detail' transfer.pk %}" class="btn btn-outline-secondary btn-sm jp-npl-transfer-act-btn" title="Chi tiết"><i class="bi bi-eye"></i></a>

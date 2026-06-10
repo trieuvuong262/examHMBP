@@ -24,8 +24,10 @@ for tab in ('chuyen', 'nhan', 'danh-sach'):
             errors.append(f'{tab}: missing {needle}')
     if f'data-transfer-tab="{tab}"' not in html:
         errors.append(f'{tab}: missing data-transfer-tab')
-    if tab == 'chuyen' and '11rem' not in html:
-        errors.append('chuyen: missing 11rem actions width')
+    if tab == 'chuyen' and '14rem' not in html:
+        errors.append('chuyen: missing 14rem actions width')
+    if tab == 'danh-sach' and 'jp-npl-transfer-status-filters' not in html:
+        errors.append('danh-sach: missing status filter pills')
     print(f'OK tab={tab} status={resp.status_code} len={len(html)}')
 
 if errors:
