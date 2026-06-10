@@ -5,7 +5,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-npl-material-catalog-page jp-npl-transfer-page py-3 py-md-4 mb-5" data-loading-message="Đang tải phiếu chuyển…">
+<div class="container jp-page jp-npl-material-catalog-page jp-npl-transfer-page py-3 py-md-4 mb-5" data-transfer-tab="{{ tab }}" data-loading-message="Đang tải phiếu chuyển…">
     <div class="jp-npl-mat-topbar">
         <h2 class="jp-npl-mat-topbar-title"><i class="bi bi-arrow-left-right me-2"></i>Phiếu chuyển</h2>
         {% if show_transfer_search %}
@@ -93,7 +93,7 @@
                             <span class="jp-mat-col-resizer" aria-hidden="true"></span>
                         </th>
                         {% endfor %}
-                        <th class="npl-col jp-mat-th text-end" data-col="actions" style="width:8rem;">Thao tác</th>
+                        <th class="npl-col jp-mat-th text-end" data-col="actions" style="width:{% if tab == 'chuyen' %}11rem{% else %}8rem{% endif %};">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -108,7 +108,7 @@
                         {% endif %}
                         <td class="npl-col" data-col="created_by">{% if transfer.created_by %}{{ transfer.created_by.get_full_name|default:transfer.created_by.username }}{% else %}—{% endif %}</td>
                         <td class="text-end npl-col" data-col="actions">
-                            <div class="d-inline-flex flex-wrap gap-1 justify-content-end jp-npl-transfer-row-actions">
+                            <div class="d-inline-flex flex-nowrap gap-1 justify-content-end jp-npl-transfer-row-actions">
                                 {% if tab == 'danh-sach' %}
                                 <a href="{% url 'kho_npl:transfer_detail' transfer.pk %}" class="btn btn-outline-hm btn-sm fw-bold">
                                     <i class="bi bi-eye me-1"></i>Xem
