@@ -1,0 +1,21 @@
+---
+description: UI kho NPL — menu con không dùng tab nội bộ
+globs: kho_npl/**/*
+alwaysApply: false
+---
+
+# Tồn kho NPL — quy ước giao diện
+
+## Menu con: không chia tab bên trong
+
+Các mục con của module `kho_npl` (Tổng quan, Thẻ kho, Danh mục, Phiếu nhập/xuất, Điều chỉnh, Kiểm kê, Báo cáo, Thiết lập) **không** thêm thanh tab / pill phụ bên trong trang.
+
+- **Được:** một `subnav` cấp module (`kho_npl/includes/subnav.html`) — chuyển giữa các menu con chính.
+- **Được:** hub dạng thẻ (Báo cáo, Thiết lập), breadcrumb, nút quay lại, form lọc.
+- **Không:** `nav-tabs`, `jp-tab-pills`, pill chuyển tab trong cùng một menu con (vd. tab Nhóm/ĐVT/Vị trí/NCC trên một trang; tab Nháp/Đã ghi sổ; tab báo cáo con).
+
+Khi cần nhiều màn trong một menu con → **trang hub + trang danh sách riêng** (pattern hiện tại của Báo cáo / Thiết lập), hoặc query `?status=` / filter form, không gom bằng tab.
+
+## Tổng quan tồn kho
+
+Thẻ thống kê **Sắp thiếu** / **Hết hàng** phải link tới `kho_npl:stock_alerts` với `?status=low` / `?status=out` — không nhúng tab lọc trạng thái trên trang tổng quan.

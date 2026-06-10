@@ -131,6 +131,8 @@ if qa_user:
     client.force_login(qa_user)
     page_urls = [
         'kho_npl:overview',
+        'kho_npl:stock_cards',
+        'kho_npl:stock_alerts',
         'kho_npl:material_list', 'kho_npl:material_create',
         'kho_npl:receipt_list', 'kho_npl:receipt_create',
         'kho_npl:issue_list', 'kho_npl:issue_create',
@@ -399,6 +401,7 @@ try:
         content = r.content.decode('utf-8', errors='replace')
         checks = [
             ('Tổng quan tồn kho', 'Tiêu đề trang'),
+            ('Thẻ kho', 'Subnav thẻ kho'),
             ('Danh mục nguyên phụ liệu', 'Subnav danh mục'),
             ('Phiếu nhập kho', 'Subnav phiếu nhập'),
             ('jp-tab-pills', 'Subnav UI pills'),

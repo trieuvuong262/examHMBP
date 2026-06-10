@@ -11,6 +11,7 @@ from kho_npl.reports_registry import report_hub_items
 
 NAV_ITEMS = [
     {'key': 'overview', 'url_name': 'kho_npl:overview', 'label': 'Tổng quan tồn kho', 'icon': 'bi-speedometer2'},
+    {'key': 'stock_cards', 'url_name': 'kho_npl:stock_cards', 'label': 'Thẻ kho', 'icon': 'bi-grid-3x3-gap'},
     {'key': 'materials', 'url_name': 'kho_npl:material_list', 'label': 'Danh mục nguyên phụ liệu', 'icon': 'bi-tags'},
     {'key': 'receipts', 'url_name': 'kho_npl:receipt_list', 'label': 'Phiếu nhập kho', 'icon': 'bi-box-arrow-in-down'},
     {'key': 'issues', 'url_name': 'kho_npl:issue_list', 'label': 'Phiếu xuất kho', 'icon': 'bi-box-arrow-up'},

@@ -358,6 +358,12 @@
                     </a>
                 </li>
                 <li>
+                    <a href="{% url 'kho_npl:stock_cards' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'stock_cards' %}active{% endif %}">
+                        <i class="bi bi-grid-3x3-gap"></i><span>Thẻ kho</span>
+                    </a>
+                </li>
+                <li>
                     <a href="{% url 'kho_npl:material_list' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'material_list' %}active{% endif %}">
                         <i class="bi bi-tags"></i><span>Danh mục nguyên phụ liệu</span>

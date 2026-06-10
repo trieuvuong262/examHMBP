@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    {% include 'kho_npl/includes/subnav.html' %}
+    {% include 'kho_npl/includes/page_header.html' with page_title='Thẻ kho' page_subtitle='Tồn hiện tại theo từng NPL và vị trí kệ — màn hình thủ kho xem hàng ngày.' %}
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-3 p-md-4">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-12 col-md-3">
+                    <label class="form-label fw-bold small mb-1" for="sc-loc">Vị trí kho</label>
+                    <select name="location" id="sc-loc" class="form-select">
+                        <option value="">Tất cả vị trí</option>
+                        {% for loc in locations %}
+                        <option value="{{ loc.id }}" {% if selected_location == loc.id|stringformat:'s' %}selected{% endif %}>
+                            {{ loc.code }} — {{ loc.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-md-3">
+                    <label class="form-label fw-bold small mb-1" for="sc-cat">Nhóm NPL</label>
+                    <select name="category" id="sc-cat" class="form-select">
+                        <option value="">Tất cả nhóm</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.id }}" {% if selected_category == cat.id|stringformat:'s' %}selected{% endif %}>{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-md-2">
+                    <label class="form-label fw-bold small mb-1" for="sc-status">Trạng thái</label>
+                    <select name="status" id="sc-status" class="form-select">
+                        <option value="">Tất cả</option>
+                        <option value="ok" {% if selected_status == 'ok' %}selected{% endif %}>Đủ hàng</option>
+                        <option value="low" {% if selected_status == 'low' %}selected{% endif %}>Sắp thiếu</option>
+                        <option value="out" {% if selected_status == 'out' %}selected{% endif %}>Hết hàng</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-3">
+                    <label class="form-label fw-bold small mb-1" for="sc-q">Từ khóa</label>
+                    <input type="search" class="form-control" id="sc-q" name="q"
+                           value="{{ search_query }}" placeholder="Mã, tên, màu, kệ..." autocomplete="off">
+                </div>
+                <div class="col-12 col-md-1">
+                    <button type="submit" class="btn btn-hm w-100 fw-bold" title="Tìm">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <h5 class="mb-0 fw-bold">{{ total_rows|intcomma }} dòng tồn</h5>
+            <a href="{% url 'kho_npl:report_stock' %}" class="btn btn-outline-hm btn-sm">Báo cáo tồn kho</a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Mã NPL</th>
+                        <th>Tên NPL</th>
+                        <th>Màu</th>
+                        <th>ĐVT</th>
+                        <th class="text-end">Tồn tại kệ</th>
+                        <th class="text-end">Tồn tổng</th>
+                        <th class="text-end">Tối thiểu</th>
+                        <th>Vị trí</th>
+                        <th>Trạng thái</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in page_obj %}
+                    <tr>
+                        <td class="fw-semibold">
+                            <a href="{% url 'kho_npl:material_detail' row.material.pk %}" class="text-decoration-none">
+                                {{ row.material.code }}
+                            </a>
+                        </td>
+                        <td>{{ row.material.name }}</td>
+                        <td>{{ row.material.color|default:'—' }}</td>
+                        <td>{{ row.material.unit.name }}</td>
+                        <td class="text-end fw-semibold">{{ row.quantity|floatformat:3 }}</td>
+                        <td class="text-end text-muted">{{ row.total_qty|floatformat:3 }}</td>
+                        <td class="text-end">{{ row.material.min_stock|floatformat:3 }}</td>
+                        <td>
+                            <span class="badge text-bg-light border">{{ row.location.code }}</span>
+                            <span class="text-muted small d-block">{{ row.location.name }}</span>
+                        </td>
+                        <td>
+                            <span class="badge text-bg-{{ row.status_badge }}">{{ row.status_label }}</span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">
+                            Chưa có tồn theo vị trí. Nhập kho qua «Phiếu nhập kho» để cập nhật thẻ kho.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+    {% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string %}
+    {% endif %}
+</div>
+{% endblock %}

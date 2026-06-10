@@ -38,6 +38,22 @@ class KhoNplPageSmokeTests(TestCase):
 
     def test_hub_and_overview(self):
         self._assert_ok('kho_npl:overview')
+        self._assert_ok('kho_npl:stock_cards')
+
+    def test_stock_alerts_pages(self):
+        for url in (
+            reverse('kho_npl:stock_alerts'),
+            reverse('kho_npl:stock_alerts') + '?status=low',
+            reverse('kho_npl:stock_alerts') + '?status=out',
+        ):
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 200)
+
+    def test_overview_links_to_stock_alerts(self):
+        response = self.client.get(reverse('kho_npl:overview'))
+        self.assertContains(response, reverse('kho_npl:stock_alerts') + '?status=low')
+        self.assertContains(response, reverse('kho_npl:stock_alerts') + '?status=out')
 
     def test_material_pages(self):
         for name in ('kho_npl:material_list', 'kho_npl:material_create'):
