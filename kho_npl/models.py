@@ -7,12 +7,16 @@ from django.db import models
 from kho_npl.choices import (
     ADJUST_STATUS_LABELS,
     ADJUST_STATUS_PENDING,
+    DISPOSAL_REASON_CHOICES,
+    DISPOSAL_REASON_DAMAGED,
     DOC_STATUS_DRAFT,
     DOC_STATUS_LABELS,
     ISSUE_TYPE_CHOICES,
     ISSUE_TYPE_PRODUCTION,
     STOCKTAKE_STATUS_DRAFT,
     STOCKTAKE_STATUS_LABELS,
+    TRANSFER_STATUS_DRAFT,
+    TRANSFER_STATUS_LABELS,
 )
 
 
@@ -326,6 +330,165 @@ class StockIssueLine(models.Model):
         verbose_name_plural = 'Chi tiết phiếu xuất'
 
 
+class StockDisposal(models.Model):
+    number = models.CharField(max_length=30, unique=True, verbose_name='Mã phiếu hủy')
+    disposal_date = models.DateField(verbose_name='Ngày hủy')
+    from_location = models.ForeignKey(
+        WarehouseLocation,
+        on_delete=models.PROTECT,
+        related_name='disposals_out',
+        verbose_name='Kho nguồn',
+    )
+    reason = models.CharField(
+        max_length=30,
+        choices=DISPOSAL_REASON_CHOICES,
+        default=DISPOSAL_REASON_DAMAGED,
+        verbose_name='Lý do hủy',
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='npl_disposals_created',
+        verbose_name='Người tạo',
+    )
+    posted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='npl_disposals_posted',
+        verbose_name='Người ghi sổ',
+    )
+    notes = models.TextField(blank=True, verbose_name='Ghi chú')
+    status = models.CharField(
+        max_length=20,
+        choices=[(k, v) for k, v in DOC_STATUS_LABELS.items()],
+        default=DOC_STATUS_DRAFT,
+        verbose_name='Trạng thái',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    posted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-disposal_date', '-id']
+        verbose_name = 'Phiếu hủy'
+        verbose_name_plural = 'Phiếu hủy'
+
+    def __str__(self):
+        return self.number
+
+
+class StockDisposalLine(models.Model):
+    disposal = models.ForeignKey(
+        StockDisposal,
+        on_delete=models.CASCADE,
+        related_name='lines',
+        verbose_name='Phiếu hủy',
+    )
+    material = models.ForeignKey(
+        Material,
+        on_delete=models.PROTECT,
+        related_name='disposal_lines',
+        verbose_name='Nguyên phụ liệu',
+    )
+    quantity = models.DecimalField(
+        max_digits=14,
+        decimal_places=3,
+        validators=[MinValueValidator(Decimal('0.001'))],
+        verbose_name='Số lượng',
+    )
+    notes = models.CharField(max_length=255, blank=True, verbose_name='Ghi chú')
+
+    class Meta:
+        verbose_name = 'Chi tiết phiếu hủy'
+        verbose_name_plural = 'Chi tiết phiếu hủy'
+
+
+class StockTransfer(models.Model):
+    number = models.CharField(max_length=30, unique=True, verbose_name='Mã phiếu chuyển')
+    transfer_date = models.DateField(verbose_name='Ngày chuyển')
+    from_location = models.ForeignKey(
+        WarehouseLocation,
+        on_delete=models.PROTECT,
+        related_name='transfers_out',
+        verbose_name='Kho gửi',
+    )
+    to_location = models.ForeignKey(
+        WarehouseLocation,
+        on_delete=models.PROTECT,
+        related_name='transfers_in',
+        verbose_name='Kho nhận',
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='npl_transfers_created',
+        verbose_name='Người tạo',
+    )
+    sent_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='npl_transfers_sent',
+        verbose_name='Người gửi',
+    )
+    received_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='npl_transfers_received',
+        verbose_name='Người nhận',
+    )
+    notes = models.TextField(blank=True, verbose_name='Ghi chú')
+    status = models.CharField(
+        max_length=20,
+        choices=[(k, v) for k, v in TRANSFER_STATUS_LABELS.items()],
+        default=TRANSFER_STATUS_DRAFT,
+        verbose_name='Trạng thái',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    received_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-transfer_date', '-id']
+        verbose_name = 'Phiếu chuyển kho'
+        verbose_name_plural = 'Phiếu chuyển kho'
+
+    def __str__(self):
+        return self.number
+
+
+class StockTransferLine(models.Model):
+    transfer = models.ForeignKey(
+        StockTransfer,
+        on_delete=models.CASCADE,
+        related_name='lines',
+        verbose_name='Phiếu chuyển',
+    )
+    material = models.ForeignKey(
+        Material,
+        on_delete=models.PROTECT,
+        related_name='transfer_lines',
+        verbose_name='Nguyên phụ liệu',
+    )
+    quantity = models.DecimalField(
+        max_digits=14,
+        decimal_places=3,
+        validators=[MinValueValidator(Decimal('0.001'))],
+        verbose_name='Số lượng',
+    )
+    notes = models.CharField(max_length=255, blank=True, verbose_name='Ghi chú')
+
+    class Meta:
+        verbose_name = 'Chi tiết phiếu chuyển'
+        verbose_name_plural = 'Chi tiết phiếu chuyển'
+
+
 class StockAdjustment(models.Model):
     number = models.CharField(max_length=30, unique=True, verbose_name='Mã phiếu điều chỉnh')
     adjust_date = models.DateField(verbose_name='Ngày điều chỉnh')
@@ -456,6 +619,8 @@ class StockLedger(models.Model):
     REF_ISSUE = 'issue'
     REF_ADJUSTMENT = 'adjustment'
     REF_STOCKTAKE = 'stocktake'
+    REF_TRANSFER = 'transfer'
+    REF_DISPOSAL = 'disposal'
 
     material = models.ForeignKey(
         Material,

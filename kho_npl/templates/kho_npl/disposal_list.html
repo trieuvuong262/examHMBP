@@ -5,13 +5,13 @@
     <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title">
-                <i class="bi bi-box-arrow-in-down me-2"></i>Phiếu nhập kho
+                <i class="bi bi-trash3 me-2"></i>Phiếu hủy
             </h2>
-            <p class="text-muted mb-0">Nháp → Ghi sổ → cập nhật tồn kho.</p>
+            <p class="text-muted mb-0">Chuyển hàng hỏng từ kho nguồn sang kho <strong>{{ scrap_warehouse_code }}</strong> (Kho hủy).</p>
         </div>
         {% if can_create %}
-        <a href="{% url 'kho_npl:receipt_create' %}" class="btn btn-hm btn-sm fw-bold">
-            <i class="bi bi-plus-lg me-1"></i>Tạo phiếu nhập
+        <a href="{% url 'kho_npl:disposal_create' %}" class="btn btn-hm btn-sm fw-bold">
+            <i class="bi bi-plus-lg me-1"></i>Tạo phiếu hủy
         </a>
         {% endif %}
     </div>
@@ -20,9 +20,9 @@
         <div class="card-body p-3 p-md-4">
             <form method="get" class="row g-3 align-items-end">
                 <div class="col-12 col-md-10">
-                    <label class="form-label fw-bold small mb-1" for="pn-q">Tìm phiếu</label>
-                    <input type="search" class="form-control" id="pn-q" name="q"
-                           value="{{ search_query }}" placeholder="Số phiếu, PO, nhà cung cấp..." autocomplete="off">
+                    <label class="form-label fw-bold small mb-1" for="ph-q">Tìm phiếu</label>
+                    <input type="search" class="form-control" id="ph-q" name="q"
+                           value="{{ search_query }}" placeholder="Số phiếu, kho nguồn, ghi chú..." autocomplete="off">
                 </div>
                 <div class="col-12 col-md-2">
                     <button type="submit" class="btn btn-hm w-100 fw-bold"><i class="bi bi-search me-1"></i>Tìm</button>
@@ -37,36 +37,36 @@
                 <thead class="table-light">
                     <tr>
                         <th>Số phiếu</th>
-                        <th>Ngày nhập</th>
-                        <th>NCC</th>
-                        <th>PO</th>
+                        <th>Ngày hủy</th>
+                        <th>Kho nguồn</th>
+                        <th>Lý do</th>
                         <th>Trạng thái</th>
                         <th>Người tạo</th>
                         <th></th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for receipt in page_obj %}
+                    {% for disposal in page_obj %}
                     <tr>
                         <td class="fw-semibold">
-                            <a href="{% url 'kho_npl:receipt_detail' receipt.pk %}" class="text-decoration-none">{{ receipt.number }}</a>
+                            <a href="{% url 'kho_npl:disposal_detail' disposal.pk %}" class="text-decoration-none">{{ disposal.number }}</a>
                         </td>
-                        <td>{{ receipt.receipt_date|date:'d/m/Y' }}</td>
-                        <td>{{ receipt.supplier.name|default:'—' }}</td>
-                        <td>{{ receipt.po_number|default:'—' }}</td>
-                        <td>{{ receipt.get_status_display }}</td>
-                        <td>{% if receipt.created_by %}{{ receipt.created_by.get_full_name|default:receipt.created_by.username }}{% else %}—{% endif %}</td>
-                        <td class="text-end text-nowrap">
-                            {% if can_update and receipt.status == 'draft' %}
-                            <a href="{% url 'kho_npl:receipt_edit' receipt.pk %}" class="btn btn-link btn-sm p-0" title="Sửa"><i class="bi bi-pencil"></i></a>
+                        <td>{{ disposal.disposal_date|date:'d/m/Y' }}</td>
+                        <td>{{ disposal.from_location.code }}</td>
+                        <td>{{ disposal.get_reason_display }}</td>
+                        <td>{{ disposal.get_status_display }}</td>
+                        <td>{% if disposal.created_by %}{{ disposal.created_by.get_full_name|default:disposal.created_by.username }}{% else %}—{% endif %}</td>
+                        <td class="text-end">
+                            {% if can_update and disposal.status == 'draft' %}
+                            <a href="{% url 'kho_npl:disposal_edit' disposal.pk %}" class="btn btn-link btn-sm p-0" title="Sửa"><i class="bi bi-pencil"></i></a>
                             {% endif %}
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
                         <td colspan="7" class="text-center text-muted py-4">
-                            Chưa có phiếu nhập kho.
-                            {% if can_create %}<a href="{% url 'kho_npl:receipt_create' %}">Tạo phiếu đầu tiên</a>{% endif %}
+                            Chưa có phiếu hủy.
+                            {% if can_create %}<a href="{% url 'kho_npl:disposal_create' %}">Tạo phiếu đầu tiên</a>{% endif %}
                         </td>
                     </tr>
                     {% endfor %}

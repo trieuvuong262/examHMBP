@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">
+                <i class="bi bi-arrow-left-right me-2"></i>{{ transfer.number }}
+            </h2>
+            <p class="text-muted mb-0">
+                {{ transfer.get_status_display }} · {{ transfer.transfer_date|date:'d/m/Y' }}
+                {% if transfer.sent_at %}· Gửi {{ transfer.sent_at|date:'d/m/Y H:i' }}{% endif %}
+                {% if transfer.received_at %}· Nhận {{ transfer.received_at|date:'d/m/Y H:i' }}{% endif %}
+            </p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            {% if is_editable and can_update %}
+            <a href="{% url 'kho_npl:transfer_edit' transfer.pk %}" class="btn btn-hm btn-sm"><i class="bi bi-pencil me-1"></i>Sửa</a>
+            <form method="post" action="{% url 'kho_npl:transfer_send' transfer.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Gửi chuyển và trừ tồn tại kho gửi?');">
+                    <i class="bi bi-truck me-1"></i>Gửi chuyển
+                </button>
+            </form>
+            {% endif %}
+            {% if can_receive and can_update %}
+            <form method="post" action="{% url 'kho_npl:transfer_receive' transfer.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Nhận hàng vào kho {{ transfer.to_location.code }}?');">
+                    <i class="bi bi-box-arrow-in-down me-1"></i>Nhận vào kho
+                </button>
+            </form>
+            {% endif %}
+            {% if is_editable and can_delete %}
+            <a href="{% url 'kho_npl:transfer_cancel' transfer.pk %}" class="btn btn-outline-danger btn-sm"><i class="bi bi-x-circle me-1"></i>Hủy phiếu</a>
+            {% endif %}
+            <a href="{{ list_url }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Danh sách</a>
+        </div>
+    </div>
+
+    {% include 'kho_npl/includes/transfer_tabs.html' %}
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3 text-muted">Kho gửi</dt>
+                <dd class="col-sm-9">{{ transfer.from_location.code }} — {{ transfer.from_location.name }}</dd>
+                <dt class="col-sm-3 text-muted">Kho nhận</dt>
+                <dd class="col-sm-9">{{ transfer.to_location.code }} — {{ transfer.to_location.name }}</dd>
+                <dt class="col-sm-3 text-muted">Người tạo</dt>
+                <dd class="col-sm-9">{% if transfer.created_by %}{{ transfer.created_by.get_full_name|default:transfer.created_by.username }}{% else %}—{% endif %}</dd>
+                {% if transfer.sent_by %}
+                <dt class="col-sm-3 text-muted">Người gửi</dt>
+                <dd class="col-sm-9">{{ transfer.sent_by.get_full_name|default:transfer.sent_by.username }}</dd>
+                {% endif %}
+                {% if transfer.received_by %}
+                <dt class="col-sm-3 text-muted">Người nhận</dt>
+                <dd class="col-sm-9">{{ transfer.received_by.get_full_name|default:transfer.received_by.username }}</dd>
+                {% endif %}
+                {% if transfer.notes %}
+                <dt class="col-sm-3 text-muted">Ghi chú</dt>
+                <dd class="col-sm-9">{{ transfer.notes|linebreaksbr }}</dd>
+                {% endif %}
+            </dl>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom py-3"><h5 class="mb-0 fw-bold">Chi tiết chuyển</h5></div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Mã NPL</th>
+                        <th>Tên</th>
+                        <th class="text-end">Số lượng</th>
+                        <th>ĐVT</th>
+                        <th>Ghi chú</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for line in transfer.lines.all %}
+                    <tr>
+                        <td class="fw-semibold">{{ line.material.code }}</td>
+                        <td>{{ line.material.name }}</td>
+                        <td class="text-end">{{ line.quantity|floatformat:3 }}</td>
+                        <td>{{ line.material.unit.code }}</td>
+                        <td>{{ line.notes|default:'—' }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-center text-muted py-4">Chưa có dòng chi tiết.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

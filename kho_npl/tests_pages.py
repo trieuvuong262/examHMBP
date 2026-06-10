@@ -56,7 +56,7 @@ class KhoNplPageSmokeTests(TestCase):
         self.assertContains(response, reverse('kho_npl:stock_alerts') + '?status=out')
 
     def test_material_pages(self):
-        for name in ('kho_npl:material_list', 'kho_npl:material_create'):
+        for name in ('kho_npl:material_list', 'kho_npl:material_stock', 'kho_npl:material_create'):
             self._assert_ok(name)
 
     def test_receipt_issue_pages(self):
@@ -64,6 +64,19 @@ class KhoNplPageSmokeTests(TestCase):
             'kho_npl:receipt_list', 'kho_npl:receipt_create',
             'kho_npl:issue_list', 'kho_npl:issue_create',
         ):
+            self._assert_ok(name)
+
+    def test_transfer_pages(self):
+        for name in ('kho_npl:transfer_hub', 'kho_npl:transfer_create'):
+            self._assert_ok(name)
+        for tab in ('nhap', 'chuyen', 'nhan'):
+            url = reverse('kho_npl:transfer_hub') + f'?tab={tab}'
+            with self.subTest(tab=tab):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 200)
+
+    def test_disposal_pages(self):
+        for name in ('kho_npl:disposal_list', 'kho_npl:disposal_create'):
             self._assert_ok(name)
 
     def test_adjustment_stocktake_pages(self):

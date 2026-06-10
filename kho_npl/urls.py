@@ -8,6 +8,8 @@ from . import views_receipt
 from . import views_reports
 from . import views_settings
 from . import views_stocktake
+from . import views_disposal
+from . import views_transfer
 
 app_name = 'kho_npl'
 
@@ -17,6 +19,7 @@ urlpatterns = [
     path('the-kho/', views.stock_cards, name='stock_cards'),
     path('canh-bao/', views.stock_alerts, name='stock_alerts'),
     path('danh-muc/', views_material.material_list, name='material_list'),
+    path('ton-kho-npl/', views_material.material_stock_list, name='material_stock'),
     path('danh-muc/them/', views_material.material_create, name='material_create'),
     path('danh-muc/<int:pk>/', views_material.material_detail, name='material_detail'),
     path('danh-muc/<int:pk>/sua/', views_material.material_edit, name='material_edit'),
@@ -33,6 +36,19 @@ urlpatterns = [
     path('phieu-xuat/<int:pk>/sua/', views_issue.issue_edit, name='issue_edit'),
     path('phieu-xuat/<int:pk>/ghi-so/', views_issue.issue_post, name='issue_post'),
     path('phieu-xuat/<int:pk>/huy/', views_issue.issue_cancel, name='issue_cancel'),
+    path('chuyen-kho/', views_transfer.transfer_hub, name='transfer_hub'),
+    path('chuyen-kho/them/', views_transfer.transfer_create, name='transfer_create'),
+    path('chuyen-kho/<int:pk>/', views_transfer.transfer_detail, name='transfer_detail'),
+    path('chuyen-kho/<int:pk>/sua/', views_transfer.transfer_edit, name='transfer_edit'),
+    path('chuyen-kho/<int:pk>/gui/', views_transfer.transfer_send, name='transfer_send'),
+    path('chuyen-kho/<int:pk>/nhan/', views_transfer.transfer_receive, name='transfer_receive'),
+    path('chuyen-kho/<int:pk>/huy/', views_transfer.transfer_cancel, name='transfer_cancel'),
+    path('phieu-huy/', views_disposal.disposal_list, name='disposal_list'),
+    path('phieu-huy/them/', views_disposal.disposal_create, name='disposal_create'),
+    path('phieu-huy/<int:pk>/', views_disposal.disposal_detail, name='disposal_detail'),
+    path('phieu-huy/<int:pk>/sua/', views_disposal.disposal_edit, name='disposal_edit'),
+    path('phieu-huy/<int:pk>/ghi-so/', views_disposal.disposal_post, name='disposal_post'),
+    path('phieu-huy/<int:pk>/huy/', views_disposal.disposal_cancel, name='disposal_cancel'),
     path('dieu-chinh/', views_adjustment.adjustment_list, name='adjustment_list'),
     path('dieu-chinh/them/', views_adjustment.adjustment_create, name='adjustment_create'),
     path('dieu-chinh/<int:pk>/', views_adjustment.adjustment_detail, name='adjustment_detail'),

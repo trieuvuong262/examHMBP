@@ -1,0 +1,12 @@
+<nav class="jp-npl-transfer-tabs mb-3 mb-md-4" aria-label="Chuyển kho">
+    <ul class="nav nav-pills flex-wrap gap-2">
+        {% for key, label in tab_choices %}
+        <li class="nav-item">
+            <a href="{% url 'kho_npl:transfer_hub' %}?tab={{ key }}"
+               class="nav-link {% if tab == key %}active btn-hm text-white{% else %}btn-outline-secondary{% endif %} px-3 py-2">
+                {{ label }}
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+</nav>

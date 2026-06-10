@@ -8,14 +8,14 @@ from hrm.module_permissions import MODULE_KHO_NPL
 from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
+from kho_npl.choices import STOCK_STATUS_LOW, STOCK_STATUS_OK, STOCK_STATUS_OUT
 from kho_npl.forms import MaterialForm
-from kho_npl.models import Material, MaterialCategory
+from kho_npl.models import Material, MaterialCategory, WarehouseLocation
 from kho_npl.services.stock import material_stock_rows, material_total_qty
 from kho_npl.view_utils import nav_context, perm_context
 
 
-@module_perm_required(MODULE_KHO_NPL, 'view')
-def material_list(request):
+def _material_catalog_qs(request):
     search_query = get_search_query(request)
     category_id = request.GET.get('category', '').strip()
     show_inactive = request.GET.get('inactive') == '1'
@@ -31,8 +31,13 @@ def material_list(request):
             | Q(color__icontains=search_query)
             | Q(specification__icontains=search_query)
         )
-    rows = material_stock_rows(qs)
-    page_obj, query_string = paginate_queryset(request, rows, per_page=25)
+    return qs, search_query, category_id, show_inactive
+
+
+@module_perm_required(MODULE_KHO_NPL, 'view')
+def material_list(request):
+    qs, search_query, category_id, show_inactive = _material_catalog_qs(request)
+    page_obj, query_string = paginate_queryset(request, qs.order_by('code'), per_page=25)
     categories = MaterialCategory.objects.filter(is_active=True)
     return render(request, 'kho_npl/material_list.html', {
         **nav_context('materials'),
@@ -43,6 +48,37 @@ def material_list(request):
         'categories': categories,
         'selected_category': category_id,
         'show_inactive': show_inactive,
+    })
+
+
+@module_perm_required(MODULE_KHO_NPL, 'view')
+def material_stock_list(request):
+    qs, search_query, category_id, show_inactive = _material_catalog_qs(request)
+    location_id = request.GET.get('location', '').strip()
+    status = (request.GET.get('status') or '').strip().lower()
+    if status not in (STOCK_STATUS_OK, STOCK_STATUS_LOW, STOCK_STATUS_OUT):
+        status = ''
+    if location_id.isdigit():
+        qs = qs.filter(balances__location_id=int(location_id)).distinct()
+
+    rows = material_stock_rows(qs)
+    if status:
+        rows = [r for r in rows if r['status'] == status]
+
+    page_obj, query_string = paginate_queryset(request, rows, per_page=30)
+    return render(request, 'kho_npl/material_stock.html', {
+        **nav_context('material_stock'),
+        **perm_context(request.user),
+        'page_obj': page_obj,
+        'query_string': query_string,
+        'search_query': search_query,
+        'categories': MaterialCategory.objects.filter(is_active=True),
+        'locations': WarehouseLocation.objects.filter(is_active=True),
+        'selected_category': category_id,
+        'selected_location': location_id,
+        'selected_status': status,
+        'show_inactive': show_inactive,
+        'total_rows': len(rows),
     })
 
 

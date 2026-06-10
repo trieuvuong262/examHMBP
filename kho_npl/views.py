@@ -1,4 +1,7 @@
-from django.shortcuts import redirect, render
+from datetime import date
+
+from django.db.models import Sum
+from django.shortcuts import get_object_or_404, redirect, render
 
 from assessment.decorators import module_perm_required
 from hrm.module_permissions import MODULE_KHO_NPL
@@ -6,14 +9,11 @@ from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
 from kho_npl.choices import STOCK_STATUS_LOW, STOCK_STATUS_OK, STOCK_STATUS_OUT
-from kho_npl.models import MaterialCategory, WarehouseLocation
-from kho_npl.services.stock import (
-    balance_stock_rows,
-    material_stock_rows,
-    overview_stats,
-    stock_rows_for_status,
-)
+from kho_npl.models import Material, MaterialCategory, WarehouseLocation
+from kho_npl.services.stock import material_stock_rows, overview_stats, stock_rows_for_status
+from kho_npl.services.stock_card import build_material_stock_card
 from kho_npl.view_utils import nav_context, perm_context
+from kho_npl.views_material import _material_catalog_qs
 from kho_npl.views_settings import settings_hub_items
 
 STOCK_ALERT_STATUS_CHOICES = {
@@ -57,34 +57,75 @@ def overview(request):
     })
 
 
+def _parse_optional_date(value: str) -> date | None:
+    value = (value or '').strip()
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
+
+
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def stock_cards(request):
     search_query = get_search_query(request)
     location_id = request.GET.get('location', '').strip()
     category_id = request.GET.get('category', '').strip()
-    status = (request.GET.get('status') or '').strip().lower()
-    if status not in (STOCK_STATUS_OK, STOCK_STATUS_LOW, STOCK_STATUS_OUT):
-        status = ''
+    material_id = request.GET.get('material', '').strip()
+    date_from = _parse_optional_date(request.GET.get('date_from'))
+    date_to = _parse_optional_date(request.GET.get('date_to'))
+    loc_pk = int(location_id) if location_id.isdigit() else None
 
-    rows = balance_stock_rows(
-        location_id=int(location_id) if location_id.isdigit() else None,
-        category_id=int(category_id) if category_id.isdigit() else None,
-        status_filter=status or None,
-        search_query=search_query,
+    catalog_qs, _, cat_id, _ = _material_catalog_qs(request)
+    catalog_qs = catalog_qs.annotate(stock_total=Sum('balances__quantity')).order_by('code')
+    catalog_page, catalog_query_string = paginate_queryset(
+        request, catalog_qs, per_page=20, page_param='cat_page',
     )
-    page_obj, query_string = paginate_queryset(request, rows, per_page=30)
+
+    selected_material = None
+    card = None
+    if material_id.isdigit():
+        selected_material = get_object_or_404(
+            Material.objects.select_related('category', 'unit'),
+            pk=int(material_id),
+        )
+        card = build_material_stock_card(
+            selected_material,
+            location_id=loc_pk,
+            date_from=date_from,
+            date_to=date_to,
+        )
+
+    filter_params = []
+    if date_from:
+        filter_params.append(f'date_from={date_from.isoformat()}')
+    if date_to:
+        filter_params.append(f'date_to={date_to.isoformat()}')
+    if location_id:
+        filter_params.append(f'location={location_id}')
+    if category_id or cat_id:
+        filter_params.append(f'category={category_id or cat_id}')
+    if search_query:
+        filter_params.append(f'q={search_query}')
+    catalog_filter_qs = '&'.join(filter_params)
+
     return render(request, 'kho_npl/stock_cards.html', {
         **nav_context('stock_cards'),
         **perm_context(request.user),
-        'page_obj': page_obj,
-        'query_string': query_string,
         'search_query': search_query,
         'locations': WarehouseLocation.objects.filter(is_active=True),
         'categories': MaterialCategory.objects.filter(is_active=True),
         'selected_location': location_id,
-        'selected_category': category_id,
-        'selected_status': status,
-        'total_rows': len(rows),
+        'selected_category': category_id or cat_id,
+        'selected_material': selected_material,
+        'card': card,
+        'date_from': date_from,
+        'date_to': date_to,
+        'catalog_page': catalog_page,
+        'catalog_query_string': catalog_query_string,
+        'catalog_select_base': request.path,
+        'catalog_filter_qs': catalog_filter_qs,
     })
 
 

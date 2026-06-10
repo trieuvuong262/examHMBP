@@ -1,10 +1,1 @@
-<nav class="jp-tasks-subnav mb-3 mb-md-4" aria-label="Menu tồn kho NPL">
-    <div class="jp-tab-pills d-flex flex-wrap gap-2">
-        {% for item in nav_items %}
-        <a href="{% url item.url_name %}"
-           class="btn btn-sm {% if active_nav == item.key %}btn-hm{% else %}btn-outline-secondary{% endif %}">
-            <i class="bi {{ item.icon }} me-1"></i>{{ item.label }}
-        </a>
-        {% endfor %}
-    </div>
-</nav>
+{# Điều hướng module qua sidebar — không hiển thị tab pills đầu trang. #}

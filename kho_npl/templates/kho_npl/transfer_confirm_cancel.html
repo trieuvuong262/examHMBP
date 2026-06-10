@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <h2 class="fw-bold text-hm mb-1 jp-page-title">
+            <i class="bi bi-x-circle me-2"></i>Hủy phiếu chuyển
+        </h2>
+        <p class="text-muted mb-0">Xác nhận hủy phiếu <strong>{{ transfer.number }}</strong> (nháp).</p>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+            <p class="mb-4">Phiếu chưa gửi chuyển — hủy sẽ không ảnh hưởng tồn kho.</p>
+            <form method="post" class="d-flex flex-wrap gap-2">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger fw-bold">Xác nhận hủy</button>
+                <a href="{% url 'kho_npl:transfer_detail' transfer.pk %}" class="btn btn-outline-secondary">Quay lại</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

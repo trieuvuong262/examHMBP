@@ -133,7 +133,7 @@ if qa_user:
         'kho_npl:overview',
         'kho_npl:stock_cards',
         'kho_npl:stock_alerts',
-        'kho_npl:material_list', 'kho_npl:material_create',
+        'kho_npl:material_list', 'kho_npl:material_stock', 'kho_npl:material_create',
         'kho_npl:receipt_list', 'kho_npl:receipt_create',
         'kho_npl:issue_list', 'kho_npl:issue_create',
         'kho_npl:adjustment_list', 'kho_npl:adjustment_create',
@@ -401,16 +401,22 @@ try:
         content = r.content.decode('utf-8', errors='replace')
         checks = [
             ('Tổng quan tồn kho', 'Tiêu đề trang'),
-            ('Thẻ kho', 'Subnav thẻ kho'),
-            ('Danh mục nguyên phụ liệu', 'Subnav danh mục'),
-            ('Phiếu nhập kho', 'Subnav phiếu nhập'),
-            ('jp-tab-pills', 'Subnav UI pills'),
         ]
         for needle, label in checks:
             if needle in content:
                 ok(f'Overview HTML: {label}')
             else:
                 fail(f'Overview HTML thiếu: {label}')
+        if 'jp-tab-pills' not in content:
+            ok('Overview: không có tab pills đầu trang')
+        else:
+            fail('Overview vẫn còn jp-tab-pills — phải điều hướng qua sidebar')
+        r_xfer = client.get(reverse('kho_npl:transfer_hub') + '?tab=chuyen')
+        xfer_content = r_xfer.content.decode('utf-8', errors='replace')
+        if 'jp-npl-transfer-tabs' in xfer_content and 'Chuyển kho' in xfer_content:
+            ok('Chuyển kho: 3 tab Nhập/Chuyển/Nhận')
+        else:
+            fail('Chuyển kho thiếu tab workflow')
 except Exception as e:
     fail('Portal integration', str(e))
 

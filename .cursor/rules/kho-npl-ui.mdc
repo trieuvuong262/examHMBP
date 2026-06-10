@@ -6,16 +6,24 @@ alwaysApply: false
 
 # Tồn kho NPL — quy ước giao diện
 
-## Menu con: không chia tab bên trong
+## Điều hướng module
 
-Các mục con của module `kho_npl` (Tổng quan, Thẻ kho, Danh mục, Phiếu nhập/xuất, Điều chỉnh, Kiểm kê, Báo cáo, Thiết lập) **không** thêm thanh tab / pill phụ bên trong trang.
+Chuyển giữa các menu con (Tổng quan, Danh mục, Tồn kho, Thẻ kho, Phiếu nhập/xuất, **Chuyển kho**, Điều chỉnh, Kiểm kê, Báo cáo, Thiết lập) **chỉ qua sidebar** — không dùng `jp-tab-pills` / thanh pill đầu trang (`subnav.html` để trống).
 
-- **Được:** một `subnav` cấp module (`kho_npl/includes/subnav.html`) — chuyển giữa các menu con chính.
+## Menu con: không chia tab bên trong (ngoại lệ Chuyển kho)
+
+Các mục con **không** thêm thanh tab / pill phụ bên trong trang.
+
+- **Danh mục nguyên phụ liệu** = master data (không hiển thị tồn thực tế).
+- **Tồn kho nguyên phụ liệu** = tồn tổng theo NPL + trạng thái đủ/thiếu/hết.
+- **Thẻ kho** = master-detail: danh mục NPL phía dưới, chọn NPL → sổ biến động từ `StockLedger` (dòng +nhập / -xuất, tồn lũy kế). Tồn hệ thống phải khớp tổng sổ kho.
+- **Chuyển kho** (ngoại lệ): trang hub có **3 tab** Nhập / Chuyển / Nhận (`jp-npl-transfer-tabs`, query `?tab=nhap|chuyen|nhan`) — workflow phiếu chuyển, không thay sidebar.
+
 - **Được:** hub dạng thẻ (Báo cáo, Thiết lập), breadcrumb, nút quay lại, form lọc.
-- **Không:** `nav-tabs`, `jp-tab-pills`, pill chuyển tab trong cùng một menu con (vd. tab Nhóm/ĐVT/Vị trí/NCC trên một trang; tab Nháp/Đã ghi sổ; tab báo cáo con).
+- **Không:** `nav-tabs`, `jp-tab-pills`, pill chuyển tab trong cùng một menu con (vd. tab Nhóm/ĐVT/Vị trí/NCC; tab Nháp/Đã ghi sổ).
 
-Khi cần nhiều màn trong một menu con → **trang hub + trang danh sách riêng** (pattern hiện tại của Báo cáo / Thiết lập), hoặc query `?status=` / filter form, không gom bằng tab.
+Khi cần nhiều màn trong một menu con → **trang hub + trang danh sách riêng** (pattern Báo cáo / Thiết lập), hoặc query `?status=` / filter form.
 
 ## Tổng quan tồn kho
 
-Thẻ thống kê **Sắp thiếu** / **Hết hàng** phải link tới `kho_npl:stock_alerts` với `?status=low` / `?status=out` — không nhúng tab lọc trạng thái trên trang tổng quan.
+Thẻ thống kê **Sắp thiếu** / **Hết hàng** phải link tới `kho_npl:stock_alerts` với `?status=low` / `?status=out`.

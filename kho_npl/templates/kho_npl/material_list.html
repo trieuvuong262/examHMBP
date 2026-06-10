@@ -1,21 +1,22 @@
 {% extends 'base.html' %}
-{% load humanize %}
 
 {% block content %}
 <div class="container jp-page py-3 py-md-4 mb-5">
-    {% include 'kho_npl/includes/subnav.html' %}
     <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title">
                 <i class="bi bi-tags me-2"></i>Danh mục nguyên phụ liệu
             </h2>
-            <p class="text-muted mb-0">Master data NPL — mã, nhóm, quy cách, tồn tối thiểu.</p>
+            <p class="text-muted mb-0">Master data NPL — mã, nhóm, màu, quy cách, đơn vị, NCC, tồn tối thiểu.</p>
         </div>
-        {% if can_create %}
-        <a href="{% url 'kho_npl:material_create' %}" class="btn btn-hm btn-sm fw-bold">
-            <i class="bi bi-plus-lg me-1"></i>Thêm NPL
-        </a>
-        {% endif %}
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{% url 'kho_npl:material_stock' %}" class="btn btn-outline-hm btn-sm">Xem tồn kho</a>
+            {% if can_create %}
+            <a href="{% url 'kho_npl:material_create' %}" class="btn btn-hm btn-sm fw-bold">
+                <i class="bi bi-plus-lg me-1"></i>Thêm NPL
+            </a>
+            {% endif %}
+        </div>
     </div>
 
     <div class="card border-0 shadow-sm mb-4">
@@ -58,42 +59,44 @@
                         <th>Mã</th>
                         <th>Tên NPL</th>
                         <th>Nhóm</th>
+                        <th>Màu</th>
                         <th>Quy cách</th>
                         <th>ĐVT</th>
-                        <th class="text-end">Tồn</th>
+                        <th>NCC</th>
                         <th class="text-end">Tối thiểu</th>
                         <th>Trạng thái</th>
                         <th></th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for row in page_obj %}
-                    <tr class="{% if not row.material.is_active %}table-secondary{% endif %}">
+                    {% for material in page_obj %}
+                    <tr class="{% if not material.is_active %}table-secondary{% endif %}">
                         <td class="fw-semibold">
-                            <a href="{% url 'kho_npl:material_detail' row.material.pk %}" class="text-decoration-none">{{ row.material.code }}</a>
+                            <a href="{% url 'kho_npl:material_detail' material.pk %}" class="text-decoration-none">{{ material.code }}</a>
                         </td>
-                        <td>{{ row.material.name }}{% if row.material.color %} <span class="text-muted small">· {{ row.material.color }}</span>{% endif %}</td>
-                        <td>{{ row.material.category.name }}</td>
-                        <td>{{ row.material.specification|default:'—' }}</td>
-                        <td>{{ row.material.unit.name }}</td>
-                        <td class="text-end">{{ row.total_qty|floatformat:3 }}</td>
-                        <td class="text-end">{{ row.material.min_stock|floatformat:3 }}</td>
+                        <td>{{ material.name }}</td>
+                        <td>{{ material.category.name }}</td>
+                        <td>{{ material.color|default:'—' }}</td>
+                        <td>{{ material.specification|default:'—' }}</td>
+                        <td>{{ material.unit.name }}</td>
+                        <td>{{ material.supplier.name|default:'—' }}</td>
+                        <td class="text-end">{{ material.min_stock|floatformat:3 }}</td>
                         <td>
-                            {% if not row.material.is_active %}
-                            <span class="badge text-bg-secondary">Ngừng dùng</span>
+                            {% if material.is_active %}
+                            <span class="badge text-bg-success">Đang dùng</span>
                             {% else %}
-                            <span class="badge text-bg-{{ row.status_badge }}">{{ row.status_label }}</span>
+                            <span class="badge text-bg-secondary">Ngừng dùng</span>
                             {% endif %}
                         </td>
                         <td class="text-end text-nowrap">
                             {% if can_update %}
-                            <a href="{% url 'kho_npl:material_edit' row.material.pk %}" class="btn btn-link btn-sm p-0" title="Sửa"><i class="bi bi-pencil"></i></a>
+                            <a href="{% url 'kho_npl:material_edit' material.pk %}" class="btn btn-link btn-sm p-0" title="Sửa"><i class="bi bi-pencil"></i></a>
                             {% endif %}
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="9" class="text-center text-muted py-4">
+                        <td colspan="10" class="text-center text-muted py-4">
                             Chưa có nguyên phụ liệu.
                             {% if can_create %}<a href="{% url 'kho_npl:material_create' %}">Thêm NPL đầu tiên</a>{% endif %}
                         </td>

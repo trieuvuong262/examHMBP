@@ -2,9 +2,11 @@ from django.utils import timezone
 
 from kho_npl.models import (
     StockAdjustment,
+    StockDisposal,
     StockIssue,
     StockReceipt,
     Stocktake,
+    StockTransfer,
 )
 
 
@@ -40,3 +42,11 @@ def next_adjustment_number() -> str:
 
 def next_stocktake_number() -> str:
     return _next_doc_number('KK', Stocktake)
+
+
+def next_transfer_number() -> str:
+    return _next_doc_number('PC', StockTransfer)
+
+
+def next_disposal_number() -> str:
+    return _next_doc_number('PH', StockDisposal)

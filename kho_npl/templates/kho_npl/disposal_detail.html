@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">
+                <i class="bi bi-trash3 me-2"></i>{{ disposal.number }}
+            </h2>
+            <p class="text-muted mb-0">
+                {{ disposal.get_status_display }} · {{ disposal.get_reason_display }}
+                · {{ disposal.disposal_date|date:'d/m/Y' }}
+                {% if disposal.posted_at %}· Ghi sổ {{ disposal.posted_at|date:'d/m/Y H:i' }}{% endif %}
+            </p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            {% if is_editable and can_update %}
+            <a href="{% url 'kho_npl:disposal_edit' disposal.pk %}" class="btn btn-hm btn-sm"><i class="bi bi-pencil me-1"></i>Sửa</a>
+            <form method="post" action="{% url 'kho_npl:disposal_post' disposal.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success btn-sm"
+                        onclick="return confirm('Ghi sổ và chuyển hàng sang kho {{ scrap_warehouse_code }}?');">
+                    <i class="bi bi-check2-circle me-1"></i>Ghi sổ
+                </button>
+            </form>
+            {% endif %}
+            {% if is_editable and can_delete %}
+            <a href="{% url 'kho_npl:disposal_cancel' disposal.pk %}" class="btn btn-outline-danger btn-sm"><i class="bi bi-x-circle me-1"></i>Hủy phiếu</a>
+            {% endif %}
+            <a href="{% url 'kho_npl:disposal_list' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Danh sách</a>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3 text-muted">Kho nguồn</dt>
+                <dd class="col-sm-9">{{ disposal.from_location.code }} — {{ disposal.from_location.name }}</dd>
+                <dt class="col-sm-3 text-muted">Kho đích</dt>
+                <dd class="col-sm-9">{{ scrap_warehouse_code }} — Kho hủy</dd>
+                <dt class="col-sm-3 text-muted">Người tạo</dt>
+                <dd class="col-sm-9">{% if disposal.created_by %}{{ disposal.created_by.get_full_name|default:disposal.created_by.username }}{% else %}—{% endif %}</dd>
+                {% if disposal.posted_by %}
+                <dt class="col-sm-3 text-muted">Người ghi sổ</dt>
+                <dd class="col-sm-9">{{ disposal.posted_by.get_full_name|default:disposal.posted_by.username }}</dd>
+                {% endif %}
+                {% if disposal.notes %}
+                <dt class="col-sm-3 text-muted">Ghi chú</dt>
+                <dd class="col-sm-9">{{ disposal.notes|linebreaksbr }}</dd>
+                {% endif %}
+            </dl>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom py-3"><h5 class="mb-0 fw-bold">Chi tiết hàng hủy</h5></div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Mã NPL</th>
+                        <th>Tên</th>
+                        <th class="text-end">Số lượng</th>
+                        <th>ĐVT</th>
+                        <th>Ghi chú</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for line in disposal.lines.all %}
+                    <tr>
+                        <td class="fw-semibold">{{ line.material.code }}</td>
+                        <td>{{ line.material.name }}</td>
+                        <td class="text-end">{{ line.quantity|floatformat:3 }}</td>
+                        <td>{{ line.material.unit.code }}</td>
+                        <td>{{ line.notes|default:'—' }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-center text-muted py-4">Chưa có dòng chi tiết.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

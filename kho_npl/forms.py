@@ -10,16 +10,21 @@ from kho_npl.models import (
     Material,
     MaterialCategory,
     StockAdjustment,
+    StockDisposal,
+    StockDisposalLine,
     StockIssue,
     StockIssueLine,
     StockReceipt,
     StockReceiptLine,
     Stocktake,
     StocktakeLine,
+    StockTransfer,
+    StockTransferLine,
     Supplier,
     Unit,
     WarehouseLocation,
 )
+from kho_npl.services.scrap_warehouse import source_locations_qs
 from kho_npl.services.adjustments import balance_qty
 
 User = get_user_model()
@@ -342,6 +347,152 @@ StocktakeLineFormSet = inlineformset_factory(
     formset=BaseStocktakeLineFormSet,
     extra=0,
     can_delete=False,
+)
+
+
+class StockTransferForm(forms.ModelForm):
+    class Meta:
+        model = StockTransfer
+        fields = ['transfer_date', 'from_location', 'to_location', 'notes']
+        widgets = {
+            'transfer_date': forms.DateInput(attrs={**FORM_CONTROL, 'type': 'date'}),
+            'from_location': forms.Select(attrs=FORM_SELECT),
+            'to_location': forms.Select(attrs=FORM_SELECT),
+            'notes': forms.Textarea(attrs=FORM_TEXTAREA),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        locations = WarehouseLocation.objects.filter(is_active=True)
+        self.fields['from_location'].queryset = locations
+        self.fields['to_location'].queryset = locations
+        if not self.instance.pk:
+            self.initial.setdefault('transfer_date', timezone.localdate())
+            default = locations.filter(code='MAIN').first()
+            if default:
+                self.initial.setdefault('from_location', default.pk)
+
+    def clean(self):
+        cleaned = super().clean()
+        from_loc = cleaned.get('from_location')
+        to_loc = cleaned.get('to_location')
+        if from_loc and to_loc and from_loc.pk == to_loc.pk:
+            raise ValidationError('Kho gửi và kho nhận phải khác nhau.')
+        return cleaned
+
+
+class StockTransferLineForm(forms.ModelForm):
+    class Meta:
+        model = StockTransferLine
+        fields = ['material', 'quantity', 'notes']
+        widgets = {
+            'material': forms.Select(attrs=FORM_SELECT),
+            'quantity': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0.001'}),
+            'notes': forms.TextInput(attrs=FORM_CONTROL),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['material'].queryset = Material.objects.filter(is_active=True).select_related('unit')
+        self.fields['notes'].required = False
+
+
+class BaseStockTransferLineFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        active_lines = []
+        for form in self.forms:
+            if not form.cleaned_data or form.cleaned_data.get('DELETE'):
+                continue
+            material = form.cleaned_data.get('material')
+            if not material:
+                continue
+            active_lines.append(form.cleaned_data)
+        if not active_lines:
+            raise ValidationError('Phiếu chuyển cần ít nhất một dòng nguyên phụ liệu.')
+        for line in active_lines:
+            qty = line.get('quantity')
+            if qty is None or qty <= 0:
+                raise ValidationError('Số lượng chuyển phải lớn hơn 0 cho mỗi dòng NPL.')
+
+
+StockTransferLineFormSet = inlineformset_factory(
+    StockTransfer,
+    StockTransferLine,
+    form=StockTransferLineForm,
+    formset=BaseStockTransferLineFormSet,
+    extra=2,
+    can_delete=True,
+)
+
+
+class StockDisposalForm(forms.ModelForm):
+    class Meta:
+        model = StockDisposal
+        fields = ['disposal_date', 'from_location', 'reason', 'notes']
+        widgets = {
+            'disposal_date': forms.DateInput(attrs={**FORM_CONTROL, 'type': 'date'}),
+            'from_location': forms.Select(attrs=FORM_SELECT),
+            'reason': forms.Select(attrs=FORM_SELECT),
+            'notes': forms.Textarea(attrs=FORM_TEXTAREA),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['from_location'].queryset = source_locations_qs()
+        if not self.instance.pk:
+            self.initial.setdefault('disposal_date', timezone.localdate())
+            default = source_locations_qs().filter(code='MAIN').first()
+            if default:
+                self.initial.setdefault('from_location', default.pk)
+
+
+class StockDisposalLineForm(forms.ModelForm):
+    class Meta:
+        model = StockDisposalLine
+        fields = ['material', 'quantity', 'notes']
+        widgets = {
+            'material': forms.Select(attrs=FORM_SELECT),
+            'quantity': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0.001'}),
+            'notes': forms.TextInput(attrs=FORM_CONTROL),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['material'].queryset = Material.objects.filter(is_active=True).select_related('unit')
+        self.fields['notes'].required = False
+
+
+class BaseStockDisposalLineFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        active_lines = []
+        for form in self.forms:
+            if not form.cleaned_data or form.cleaned_data.get('DELETE'):
+                continue
+            material = form.cleaned_data.get('material')
+            if not material:
+                continue
+            active_lines.append(form.cleaned_data)
+        if not active_lines:
+            raise ValidationError('Phiếu hủy cần ít nhất một dòng nguyên phụ liệu.')
+        for line in active_lines:
+            qty = line.get('quantity')
+            if qty is None or qty <= 0:
+                raise ValidationError('Số lượng hủy phải lớn hơn 0 cho mỗi dòng NPL.')
+
+
+StockDisposalLineFormSet = inlineformset_factory(
+    StockDisposal,
+    StockDisposalLine,
+    form=StockDisposalLineForm,
+    formset=BaseStockDisposalLineFormSet,
+    extra=2,
+    can_delete=True,
 )
 
 
