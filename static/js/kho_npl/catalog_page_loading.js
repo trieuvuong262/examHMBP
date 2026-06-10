@@ -1,14 +1,16 @@
 /**
  * Overlay loading cho các màn lưới Kho NPL (tổng quan, danh mục, tồn kho, thẻ kho).
+ * Chỉ hiện khi người dùng lọc/điều hướng — không chớp khi mở trang bình thường.
  */
 (function (global) {
     'use strict';
 
     const STORAGE_KEY = 'jp_npl_catalog_loading';
-    const MIN_VISIBLE_MS = 280;
+    const MIN_VISIBLE_MS = 320;
 
     let shownAt = 0;
     let hideTimer = null;
+    let isVisible = false;
 
     function root() {
         return document.getElementById('jpNplCatalogLoading');
@@ -28,6 +30,15 @@
         if (el && message) el.textContent = message;
     }
 
+    function clearPending() {
+        try {
+            sessionStorage.removeItem(STORAGE_KEY);
+        } catch (e) {}
+        document.documentElement.classList.remove('jp-npl-catalog-pending-load');
+        const early = document.getElementById('jpNplCatalogLoadingEarly');
+        if (early) early.remove();
+    }
+
     function show(message) {
         const el = root();
         if (!el) return;
@@ -35,22 +46,30 @@
             clearTimeout(hideTimer);
             hideTimer = null;
         }
+        const early = document.getElementById('jpNplCatalogLoadingEarly');
+        if (early) early.remove();
         setMessage(message || defaultMessage());
         el.classList.remove('d-none');
         el.setAttribute('aria-hidden', 'false');
         document.body.classList.add('jp-npl-catalog-loading-active');
+        document.documentElement.classList.add('jp-npl-catalog-pending-load');
         shownAt = Date.now();
+        isVisible = true;
     }
 
     function hide(force) {
         const el = root();
-        if (!el) return;
+        if (!el || !isVisible) {
+            clearPending();
+            return;
+        }
         const wait = force ? 0 : Math.max(0, MIN_VISIBLE_MS - (Date.now() - shownAt));
         const run = function () {
             el.classList.add('d-none');
             el.setAttribute('aria-hidden', 'true');
             document.body.classList.remove('jp-npl-catalog-loading-active');
-            try { sessionStorage.removeItem(STORAGE_KEY); } catch (e) {}
+            isVisible = false;
+            clearPending();
         };
         if (wait > 0) {
             hideTimer = setTimeout(run, wait);
@@ -60,10 +79,11 @@
     }
 
     function markNavigating(message) {
+        const msg = message || defaultMessage();
         try {
-            sessionStorage.setItem(STORAGE_KEY, message || defaultMessage());
+            sessionStorage.setItem(STORAGE_KEY, msg);
         } catch (e) {}
-        show(message);
+        show(msg);
     }
 
     function shouldIgnoreClick(target) {
@@ -117,20 +137,35 @@
         });
     }
 
-    function initFromStorage() {
+    function pendingMessage() {
         try {
-            const pending = sessionStorage.getItem(STORAGE_KEY);
-            if (pending) show(pending);
-        } catch (e) {}
+            return sessionStorage.getItem(STORAGE_KEY);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function finishAfterPaint() {
+        requestAnimationFrame(function () {
+            requestAnimationFrame(function () {
+                hide(false);
+            });
+        });
     }
 
     function onReady() {
         wirePage();
         if (!root()) return;
-        if (root().classList.contains('d-none')) {
-            initFromStorage();
+
+        const pending = pendingMessage();
+        if (pending) {
+            show(pending);
+            if (document.readyState === 'complete') {
+                finishAfterPaint();
+            } else {
+                window.addEventListener('load', finishAfterPaint, { once: true });
+            }
         }
-        hide(false);
     }
 
     const api = { show, hide, markNavigating };
