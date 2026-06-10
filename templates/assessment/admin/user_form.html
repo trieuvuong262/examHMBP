@@ -331,7 +331,9 @@
                         <button type="button" class="btn btn-sm btn-outline-hm mt-3 jp-user-form--edit-only" id="jpAddConcurrentSlot">
                             <i class="bi bi-plus-circle me-1"></i>Thêm slot mới
                         </button>
-                        {% if not is_edit %}
+                        {% if is_edit %}
+                        <p class="small text-muted mt-2 mb-0">Mỗi slot lưu bằng nút «Lưu slot» — «Lưu nhân viên» chỉ cập nhật hồ sơ chính, không ghi thêm slot.</p>
+                        {% else %}
                         <p class="small text-muted mt-2 mb-0">Slot kiêm nhiệm sẽ lưu cùng hồ sơ khi bấm «Lưu nhân viên».</p>
                         {% endif %}
                     </div>
@@ -1082,14 +1084,35 @@
         });
     }
 
+    function disableConcurrentFieldsForSubmit() {
+        document.querySelectorAll(
+            '#concurrent-positions input, #concurrent-positions select, #concurrent-positions textarea, ' +
+            'input[name="concurrent-TOTAL_FORMS"], input[name="concurrent-INITIAL_FORMS"], ' +
+            'input[name="concurrent-MIN_NUM_FORMS"], input[name="concurrent-MAX_NUM_FORMS"]'
+        ).forEach(function (el) {
+            el.disabled = true;
+        });
+    }
+
+    function syncConcurrentFormsetBeforeSubmit() {
+        const container = document.getElementById('concurrent-positions');
+        const totalInput = getConcurrentTotalInput();
+        if (!container || !totalInput) return;
+        document.querySelectorAll('.jp-concurrent-slot-card--draft').forEach(function (row) {
+            row.remove();
+        });
+        totalInput.value = String(container.querySelectorAll('.jp-concurrent-position-row').length);
+        updateConcurrentSlotIndices();
+    }
+
     if (userFormEl) {
         userFormEl.addEventListener('submit', function () {
             setFormFieldsDisabled(false);
-            document.querySelectorAll('.jp-concurrent-slot-card--draft').forEach(function (row) {
-                row.querySelectorAll('input, select, textarea').forEach(function (el) {
-                    el.disabled = true;
-                });
-            });
+            {% if is_edit %}
+            disableConcurrentFieldsForSubmit();
+            {% else %}
+            syncConcurrentFormsetBeforeSubmit();
+            {% endif %}
         });
     }
 

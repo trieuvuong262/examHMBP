@@ -507,16 +507,13 @@ def user_edit(request, user_id):
     if request.method == 'POST':
         # TRUYỀN user_id VÀO ĐÂY: Để hàm clean_username trong forms.py không báo lỗi trùng chính mình
         form = CustomUserForm(request.POST, user_id=user_obj.id)
-        concurrent_formset = ProfileConcurrentPositionEditFormSet(
-            request.POST,
-            instance=profile,
-            prefix='concurrent',
-        )
 
         # Đang sửa nên không bắt buộc nhập mật khẩu
         form.fields['password'].required = False
 
-        if form.is_valid() and concurrent_formset.is_valid():
+        # Slot kiêm nhiệm khi sửa NV: lưu từng slot qua AJAX — không ghi qua POST «Lưu nhân viên»
+        # (tránh tạo bản ghi trùng khi TOTAL_FORMS / id slot lệch sau thêm dòng trên UI).
+        if form.is_valid():
             # 1. Cập nhật bảng User mặc định của Django
             user_obj.username = form.cleaned_data['username']
             user_obj.email = form.cleaned_data['email']
@@ -549,12 +546,15 @@ def user_edit(request, user_id):
             
             # Hàm save() của profile sẽ tự xử lý quyền nếu role là Giám đốc
             profile.save()
-            concurrent_formset.save()
 
             avatar_upload = request.FILES.get('avatar')
             if avatar_upload:
                 avatar_result = _save_profile_avatar(profile, avatar_upload, request)
                 if avatar_result is False:
+                    concurrent_formset = ProfileConcurrentPositionEditFormSet(
+                        instance=profile,
+                        prefix='concurrent',
+                    )
                     return render(request, 'assessment/admin/user_form.html', {
                         'form': form,
                         'concurrent_formset': concurrent_formset,
@@ -570,6 +570,10 @@ def user_edit(request, user_id):
             return redirect_user_list_preserve_filters(request, from_post=True)
         else:
             messages.error(request, "Vui lòng kiểm tra lại dữ liệu nhập vào.")
+        concurrent_formset = ProfileConcurrentPositionEditFormSet(
+            instance=profile,
+            prefix='concurrent',
+        )
     else:
         # Đổ dữ liệu hiện tại vào Form để sếp thấy mà sửa
         initial_data = {
