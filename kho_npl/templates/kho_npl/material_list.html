@@ -606,20 +606,11 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
 (function () {
     var table = document.getElementById('npl-material-table');
     if (!table) return;
-    var WIDTH_KEY = 'kho_npl_material_col_widths';
-
-    function loadWidths() {
-        try {
-            var raw = localStorage.getItem(WIDTH_KEY);
-            return raw ? JSON.parse(raw) : {};
-        } catch (e) {
-            return {};
-        }
-    }
-
-    function saveWidths(map) {
-        localStorage.setItem(WIDTH_KEY, JSON.stringify(map));
-    }
+    /* Kích thước cột chỉ giữ trong phiên trang — F5 hoặc chuyển trang sẽ về mặc định */
+    var widths = {};
+    try {
+        localStorage.removeItem('kho_npl_material_col_widths');
+    } catch (e) { /* ignore */ }
 
     function setColWidth(colKey, widthPx) {
         table.querySelectorAll('[data-col="' + colKey + '"]').forEach(function (el) {
@@ -628,11 +619,6 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
             el.style.maxWidth = widthPx + 'px';
         });
     }
-
-    var widths = loadWidths();
-    Object.keys(widths).forEach(function (key) {
-        if (widths[key] >= 48) setColWidth(key, widths[key]);
-    });
 
     table.querySelectorAll('.jp-mat-th-sort').forEach(function (btn) {
         btn.addEventListener('click', function () {
@@ -669,7 +655,6 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
             document.removeEventListener('mousemove', onMove);
             document.removeEventListener('mouseup', onUp);
             document.body.classList.remove('jp-mat-col-resizing');
-            saveWidths(widths);
         }
 
         grip.addEventListener('mousedown', function (e) {
