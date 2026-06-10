@@ -1,9 +1,12 @@
 """Kiểm thử vị trí kiêm nhiệm — quyền tổ chức và sơ đồ."""
 
+import json
+
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.http import QueryDict
-from django.test import TestCase
+from django.test import Client, TestCase
+from django.urls import reverse
 
 from hrm.concurrent_positions import (
     auto_managed_user_ids,
@@ -14,7 +17,8 @@ from hrm.concurrent_positions import (
     heads_for_division,
 )
 from hrm.forms import ProfileConcurrentPositionEditFormSet, ProfileConcurrentPositionForm
-from hrm.models import Department, Division, Profile, ProfileConcurrentPosition
+from hrm.models import Department, Division, Profile, ProfileConcurrentPosition, RoleModulePermission
+from hrm.module_permissions import MODULE_HRM
 from hrm.org_structure import _division_head_profiles, _employee_nodes
 from hrm.permissions import (
     ROLE_DEPARTMENT_HEAD,
@@ -148,6 +152,179 @@ class ProfileConcurrentPositionModelTests(TestCase):
         )
         self.assertEqual(len(formset.forms), 1)
         self.assertEqual(formset.forms[0].instance.department_id, self.dept_a.pk)
+
+
+def _slot_post(prefix, dept, *, division=None, job_position='Trưởng phòng', role=ROLE_DEPARTMENT_HEAD,
+               is_active=True, slot_id='', extra=None):
+    data = {
+        'form_prefix': prefix,
+        f'{prefix}-department': str(dept.pk),
+        f'{prefix}-division': str(division.pk) if division else '',
+        f'{prefix}-job_position': job_position,
+        f'{prefix}-job_title': '',
+        f'{prefix}-role': role,
+        f'{prefix}-sort_order': '0',
+        f'{prefix}-notes': '',
+    }
+    if slot_id:
+        data['slot_id'] = str(slot_id)
+        data[f'{prefix}-id'] = str(slot_id)
+    if is_active:
+        data[f'{prefix}-is_active'] = 'on'
+    if extra:
+        data.update(extra)
+    return data
+
+
+class ConcurrentSlotApiTests(TestCase):
+    def setUp(self):
+        RoleModulePermission.objects.update_or_create(
+            role=ROLE_DIRECTOR,
+            defaults={'module_permissions': {MODULE_HRM: {'view': True, 'edit': True}}},
+        )
+        self.dept_a = Department.objects.create(name='CP Dept A', sort_order=1)
+        self.dept_b = Department.objects.create(name='CP Dept B', sort_order=2)
+        self.admin = User.objects.create_user('cp_admin', password='x', is_staff=True)
+        _profile(self.admin, full_name='CP Admin', role=ROLE_DIRECTOR, is_employed=True)
+        self.target = User.objects.create_user('cp_target', password='x')
+        _profile(self.target, full_name='CP Target', department=self.dept_a, is_employed=True)
+        self.client = Client(HTTP_HOST='testserver')
+        self.client.force_login(self.admin)
+        self.save_url = reverse('user_concurrent_slot_save', args=[self.target.id])
+
+    def test_ajax_create_slot(self):
+        response = self.client.post(self.save_url, _slot_post('concurrent-0', self.dept_b))
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertEqual(data['status'], 'ok')
+        self.assertTrue(data['slot_id'])
+        self.assertEqual(data['concurrent_active_count'], 1)
+        slot = ProfileConcurrentPosition.objects.get(pk=data['slot_id'])
+        self.assertTrue(slot.is_active)
+        self.assertEqual(slot.department_id, self.dept_b.pk)
+
+    def test_ajax_create_second_slot_no_duplicate_on_profile_save(self):
+        r1 = self.client.post(self.save_url, _slot_post('concurrent-0', self.dept_a))
+        r2 = self.client.post(self.save_url, _slot_post('concurrent-1', self.dept_b))
+        id1 = json.loads(r1.content)['slot_id']
+        id2 = json.loads(r2.content)['slot_id']
+        self.assertEqual(
+            ProfileConcurrentPosition.objects.filter(profile=self.target.profile, is_active=True).count(),
+            2,
+        )
+        response = self.client.post(reverse('user_edit', args=[self.target.id]), {
+            'username': 'cp_target',
+            'email': '',
+            'full_name': 'CP Target',
+            'role': ROLE_EMPLOYEE,
+            'is_employed': '1',
+            'concurrent-TOTAL_FORMS': '3',
+            'concurrent-INITIAL_FORMS': '1',
+            'concurrent-MIN_NUM_FORMS': '0',
+            'concurrent-MAX_NUM_FORMS': '1000',
+            f'concurrent-0-id': str(id1),
+            'concurrent-0-department': str(self.dept_a.pk),
+            'concurrent-0-division': '',
+            'concurrent-0-job_position': 'Trưởng phòng',
+            'concurrent-0-job_title': '',
+            'concurrent-0-role': ROLE_DEPARTMENT_HEAD,
+            'concurrent-0-sort_order': '0',
+            'concurrent-0-is_active': 'on',
+            'concurrent-0-notes': '',
+            'concurrent-1-department': str(self.dept_b.pk),
+            'concurrent-1-division': '',
+            'concurrent-1-job_position': 'Trưởng phòng',
+            'concurrent-1-job_title': '',
+            'concurrent-1-role': ROLE_DEPARTMENT_HEAD,
+            'concurrent-1-sort_order': '0',
+            'concurrent-1-is_active': 'on',
+            'concurrent-1-notes': '',
+            'concurrent-2-department': str(self.dept_b.pk),
+            'concurrent-2-division': '',
+            'concurrent-2-job_position': 'Trùng slot ảo',
+            'concurrent-2-role': ROLE_DEPARTMENT_HEAD,
+            'concurrent-2-is_active': 'on',
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            ProfileConcurrentPosition.objects.filter(profile=self.target.profile, is_active=True).count(),
+            2,
+        )
+        self.assertTrue(ProfileConcurrentPosition.objects.filter(pk=id1, is_active=True).exists())
+        self.assertTrue(ProfileConcurrentPosition.objects.filter(pk=id2, is_active=True).exists())
+
+    def test_ajax_delete_slot(self):
+        create = self.client.post(self.save_url, _slot_post('concurrent-0', self.dept_b))
+        slot_id = json.loads(create.content)['slot_id']
+        response = self.client.post(self.save_url, {
+            'form_prefix': 'concurrent-0',
+            'slot_action': 'delete',
+            'slot_id': str(slot_id),
+            f'concurrent-0-id': str(slot_id),
+        })
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertEqual(data['status'], 'ok')
+        self.assertTrue(data['deleted'])
+        self.assertEqual(data['concurrent_active_count'], 0)
+        self.assertFalse(ProfileConcurrentPosition.objects.filter(pk=slot_id).exists())
+
+    def test_ajax_delete_requires_saved_slot(self):
+        response = self.client.post(self.save_url, {
+            'form_prefix': 'concurrent-0',
+            'slot_action': 'delete',
+        })
+        self.assertEqual(response.status_code, 400)
+
+    def test_ajax_reject_duplicate_active_slot(self):
+        self.client.post(self.save_url, _slot_post('concurrent-0', self.dept_a, job_position='Trưởng phòng'))
+        response = self.client.post(
+            self.save_url,
+            _slot_post('concurrent-1', self.dept_a, job_position='Trưởng phòng'),
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            ProfileConcurrentPosition.objects.filter(
+                profile=self.target.profile,
+                department=self.dept_a,
+                is_active=True,
+            ).count(),
+            1,
+        )
+
+    def test_ajax_update_existing_slot(self):
+        create = self.client.post(self.save_url, _slot_post('concurrent-0', self.dept_a))
+        slot_id = json.loads(create.content)['slot_id']
+        response = self.client.post(
+            self.save_url,
+            _slot_post(
+                'concurrent-0',
+                self.dept_a,
+                slot_id=slot_id,
+                extra={f'concurrent-0-job_title': 'TP Cập nhật'},
+            ),
+        )
+        self.assertEqual(response.status_code, 200)
+        slot = ProfileConcurrentPosition.objects.get(pk=slot_id)
+        self.assertEqual(slot.job_title, 'TP Cập nhật')
+        self.assertEqual(
+            ProfileConcurrentPosition.objects.filter(profile=self.target.profile).count(),
+            1,
+        )
+
+    def test_edit_form_renders_delete_field(self):
+        self.client.post(self.save_url, _slot_post('concurrent-0', self.dept_b))
+        response = self.client.get(reverse('user_edit', args=[self.target.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'concurrent-0-DELETE')
+        self.assertContains(response, 'jp-concurrent-slot-delete')
+        self.assertContains(response, 'disableConcurrentFieldsForSubmit')
+
+    def test_user_list_shows_active_concurrent_count(self):
+        self.client.post(self.save_url, _slot_post('concurrent-0', self.dept_b))
+        self.client.post(self.save_url, _slot_post('concurrent-1', self.dept_a))
+        response = self.client.get(reverse('user_list'))
+        self.assertContains(response, '+2 kiêm nhiệm')
 
 
 class EffectiveOrgContextTests(TestCase):

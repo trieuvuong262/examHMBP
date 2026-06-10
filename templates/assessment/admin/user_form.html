@@ -1012,6 +1012,10 @@
         });
     }
 
+    {% if is_edit %}
+    const concurrentSlotSaveUrl = '{{ concurrent_slot_save_url|escapejs }}';
+    {% endif %}
+
     function collectConcurrentSlotFormData(row) {
         const formData = new FormData();
         const prefix = row.dataset.formPrefix;
@@ -1026,11 +1030,14 @@
                 formData.append(el.name, el.value);
             }
         });
+        const activeInput = row.querySelector('input[name$="-is_active"]');
+        if (activeInput && activeInput.name && activeInput.checked && !formData.has(activeInput.name)) {
+            formData.append(activeInput.name, activeInput.value || 'on');
+        }
         return formData;
     }
 
     {% if is_edit %}
-    const concurrentSlotSaveUrl = '{{ concurrent_slot_save_url|escapejs }}';
 
     async function saveConcurrentSlot(row) {
         if (!concurrentSlotSaveUrl || !row) return;
@@ -1139,6 +1146,7 @@
         });
     }
 
+    {% if is_edit %}
     function disableConcurrentFieldsForSubmit() {
         document.querySelectorAll(
             '#concurrent-positions input, #concurrent-positions select, #concurrent-positions textarea, ' +
@@ -1148,6 +1156,7 @@
             el.disabled = true;
         });
     }
+    {% endif %}
 
     function syncConcurrentFormsetBeforeSubmit() {
         const container = document.getElementById('concurrent-positions');

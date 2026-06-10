@@ -452,6 +452,20 @@ class ProfileConcurrentPositionForm(forms.ModelForm):
         ):
             self.add_error('job_position', 'Nhập vị trí hoặc chức vụ cho slot kiêm nhiệm.')
         cleaned['job_position'] = job_position
+        if cleaned.get('is_active', True) and self.instance.profile_id:
+            dup_qs = ProfileConcurrentPosition.objects.filter(
+                profile_id=self.instance.profile_id,
+                is_active=True,
+                department=dept,
+                division=div,
+                job_position=job_position,
+            )
+            if self.instance.pk:
+                dup_qs = dup_qs.exclude(pk=self.instance.pk)
+            if dup_qs.exists():
+                raise forms.ValidationError(
+                    'Trùng slot kiêm nhiệm đang hiệu lực (phòng/bộ phận/vị trí).',
+                )
         return cleaned
 
     def _resolve_concurrent_slot_instance(self, instance):
