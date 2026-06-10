@@ -1,0 +1,11 @@
+<form method="get" class="jp-npl-list-search-form">
+    {% if search_hidden_tab %}<input type="hidden" name="tab" value="{{ search_hidden_tab }}">{% endif %}
+    {% if search_hidden_status %}<input type="hidden" name="status" value="{{ search_hidden_status }}">{% endif %}
+    <div class="input-group input-group-sm">
+        <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+        <input type="search" class="form-control" {% if search_input_id %}id="{{ search_input_id }}"{% endif %}
+               name="q" value="{{ search_query }}" placeholder="{{ search_placeholder|default:'Tìm kiếm...' }}"
+               autocomplete="off" aria-label="Tìm kiếm">
+        <button type="submit" class="btn btn-hm fw-bold">Tìm</button>
+    </div>
+</form>

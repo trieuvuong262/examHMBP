@@ -2,17 +2,21 @@
 
 {% block content %}
 <div class="container jp-page py-3 py-md-4 mb-5">
-    <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
-        <div>
-            <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-clipboard-check me-2"></i>Kiểm kê kho</h2>
+    <div class="jp-page-header mb-3 mb-md-4">
+        <h2 class="fw-bold text-hm mb-0 jp-page-title"><i class="bi bi-clipboard-check me-2"></i>Kiểm kê kho</h2>
+    </div>
+
+    <div class="jp-npl-list-toolbar mb-3 mb-md-4">
+        <div class="jp-npl-list-toolbar-start">
+            {% if can_create %}
+            <a href="{% url 'kho_npl:stocktake_create' %}" class="btn btn-hm btn-sm fw-bold">
+                <i class="bi bi-plus-lg me-1"></i>Tạo kỳ kiểm kê
+            </a>
+            {% endif %}
         </div>
-        {% if can_create %}
-        <a href="{% url 'kho_npl:stocktake_create' %}" class="btn btn-hm btn-sm fw-bold"><i class="bi bi-plus-lg me-1"></i>Tạo kỳ kiểm kê</a>
-        {% endif %}
+        {% include 'kho_npl/includes/list_search_form.html' with search_placeholder='Mã kỳ, tên kỳ...' %}
     </div>
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-body p-3"><form method="get" class="row g-2"><div class="col-md-10"><input type="search" class="form-control" name="q" value="{{ search_query }}" placeholder="Mã kỳ, tên kỳ..."></div><div class="col-md-2"><button class="btn btn-hm w-100">Tìm</button></div></form></div>
-    </div>
+
     <div class="card border-0 shadow-sm">
         <div class="table-responsive">
             <table class="table table-hover mb-0">
