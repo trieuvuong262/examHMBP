@@ -65,7 +65,7 @@ class Command(BaseCommand):
         if not materials:
             raise CommandError('Chưa có nguyên phụ liệu — chạy migrate/seed kho NPL trước.')
 
-        self._ensure_stock(materials, locations[: min(5, len(locations))])
+        self._ensure_stock(materials, locations)
 
         n_draft = count // 3
         n_transit = count // 3
@@ -80,14 +80,19 @@ class Command(BaseCommand):
         errors = 0
         for target_status, qty in plan:
             for _ in range(qty):
-                try:
-                    self._create_transfer(user, materials, locations, target_status)
-                    created += 1
-                    if created % 10 == 0:
-                        self.stdout.write(f'  … {created}/{count}')
-                except (TransferWorkflowError, CommandError) as exc:
-                    errors += 1
-                    self.stderr.write(self.style.ERROR(str(exc)))
+                ok = False
+                for _attempt in range(8):
+                    try:
+                        self._create_transfer(user, materials, locations, target_status)
+                        created += 1
+                        ok = True
+                        if created % 10 == 0:
+                            self.stdout.write(f'  … {created}/{count}')
+                        break
+                    except (TransferWorkflowError, CommandError) as exc:
+                        if _attempt == 7:
+                            errors += 1
+                            self.stderr.write(self.style.ERROR(str(exc)))
 
         self.stdout.write(self.style.SUCCESS(
             f'Hoàn tất: {created} phiếu chuyển test'
@@ -95,17 +100,40 @@ class Command(BaseCommand):
         ))
 
     def _ensure_stock(self, materials, locations):
+        qty = Decimal('500000')
         for loc in locations:
             for mat in materials:
-                StockBalance.objects.update_or_create(
+                balance, created = StockBalance.objects.get_or_create(
                     material=mat,
                     location=loc,
-                    defaults={'quantity': Decimal('99999')},
+                    defaults={'quantity': qty},
                 )
+                if not created and balance.quantity < qty:
+                    balance.quantity = qty
+                    balance.save(update_fields=['quantity', 'updated_at'])
+
+    def _pick_line(self, from_loc, materials, min_qty: Decimal):
+        stocked = list(
+            StockBalance.objects.filter(
+                location=from_loc,
+                material__in=materials,
+                quantity__gte=min_qty,
+            ).select_related('material')[:40],
+        )
+        if not stocked:
+            raise CommandError(f'Không có tồn đủ tại {from_loc.code}.')
+        pick = random.choice(stocked)
+        max_qty = min(pick.quantity, Decimal('50'))
+        qty = Decimal(str(random.randint(1, int(max_qty))))
+        if qty < min_qty:
+            qty = min_qty
+        return pick.material, qty
 
     @transaction.atomic
     def _create_transfer(self, user, materials, locations, target_status: str):
         from_loc, to_loc = random.sample(locations, 2)
+        min_qty = Decimal('1')
+        mat, qty = self._pick_line(from_loc, materials, min_qty)
         transfer_date = timezone.localdate() - timedelta(days=random.randint(0, 60))
         transfer = StockTransfer.objects.create(
             number=next_transfer_number(),
@@ -116,14 +144,7 @@ class Command(BaseCommand):
             notes=SEED_NOTE,
             status=TRANSFER_STATUS_DRAFT,
         )
-        mat = random.choice(materials)
-        qty = Decimal(str(random.randint(1, 50)))
-        StockTransferLine.objects.create(
-            transfer=transfer,
-            material=mat,
-            quantity=qty,
-            notes='Dòng test',
-        )
+        StockTransferLine.objects.create(transfer=transfer, material=mat, quantity=qty, notes='Dòng test')
 
         if target_status == TRANSFER_STATUS_DRAFT:
             return transfer
