@@ -11,7 +11,7 @@ from PortalJustPlay.pagination import paginate_queryset
 
 from kho_npl.choices import STOCK_STATUS_LOW, STOCK_STATUS_OK, STOCK_STATUS_OUT
 from kho_npl.forms import MaterialForm
-from kho_npl.material_list_columns import MATERIAL_LIST_COLUMNS
+from kho_npl.material_list_columns import MATERIAL_LIST_COLUMNS, MATERIAL_LIST_SORT_FIELDS
 from kho_npl.models import Material, MaterialCategory, WarehouseLocation
 from kho_npl.services.material_import_export import (
     MaterialImportError,
@@ -85,6 +85,18 @@ def _material_list_status(request) -> str:
     return status
 
 
+def _material_list_sort(request):
+    sort_key = (request.GET.get('sort') or 'code').strip()
+    sort_dir = (request.GET.get('dir') or 'asc').strip().lower()
+    if sort_key not in MATERIAL_LIST_SORT_FIELDS:
+        sort_key = 'code'
+    if sort_dir not in ('asc', 'desc'):
+        sort_dir = 'asc'
+    orm_field = MATERIAL_LIST_SORT_FIELDS[sort_key]
+    order = orm_field if sort_dir == 'asc' else f'-{orm_field}'
+    return sort_key, sort_dir, order
+
+
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def material_list(request):
     search_query = get_search_query(request)
@@ -104,7 +116,8 @@ def material_list(request):
             | Q(color__icontains=search_query)
             | Q(specification__icontains=search_query),
         )
-    page_obj, query_string = paginate_queryset(request, qs.order_by('code'), per_page=25)
+    sort_key, sort_dir, order_by = _material_list_sort(request)
+    page_obj, query_string = paginate_queryset(request, qs.order_by(order_by, 'code'), per_page=25)
     categories = MaterialCategory.objects.filter(is_active=True)
     return render(request, 'kho_npl/material_list.html', {
         **nav_context('materials', user=request.user),
@@ -117,6 +130,8 @@ def material_list(request):
         'selected_status': status,
         'status_choices': MATERIAL_LIST_STATUS_CHOICES,
         'list_columns': MATERIAL_LIST_COLUMNS,
+        'sort_key': sort_key,
+        'sort_dir': sort_dir,
         'has_filters': bool(search_query or category_ids or status != 'active'),
     })
 

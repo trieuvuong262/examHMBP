@@ -46,6 +46,19 @@ class MaterialImportExportTests(TestCase):
         self.assertContains(response, 'bi-layout-three-columns')
         self.assertContains(response, 'Xuất Excel')
         self.assertContains(response, 'Import')
+        self.assertContains(response, 'jp-mat-th-sort')
+        self.assertContains(response, 'jp-mat-col-resizer')
+
+    def test_material_list_sort_by_name_desc(self):
+        Material.objects.create(code='ZZZ-01', name='Zulu', category=self.category, unit=self.unit)
+        Material.objects.create(code='AAA-01', name='Alpha', category=self.category, unit=self.unit)
+        url = reverse('kho_npl:material_list') + '?sort=name&dir=desc'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertLess(
+            response.content.decode().index('ZZZ-01'),
+            response.content.decode().index('AAA-01'),
+        )
 
     def test_export_returns_xlsx(self):
         Material.objects.create(

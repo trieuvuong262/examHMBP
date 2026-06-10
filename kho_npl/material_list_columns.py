@@ -15,3 +15,15 @@ MATERIAL_LIST_COLUMNS = [
 MATERIAL_LIST_COLUMN_KEYS = {c['key'] for c in MATERIAL_LIST_COLUMNS}
 MATERIAL_LIST_DEFAULT_VISIBLE = {c['key'] for c in MATERIAL_LIST_COLUMNS if c['default']}
 MATERIAL_LIST_REQUIRED_KEYS = {c['key'] for c in MATERIAL_LIST_COLUMNS if c.get('required')}
+
+MATERIAL_LIST_SORT_FIELDS = {
+    'code': 'code',
+    'name': 'name',
+    'category': 'category__name',
+    'color': 'color',
+    'specification': 'specification',
+    'unit': 'unit__name',
+    'supplier': 'supplier__name',
+    'min_stock': 'min_stock',
+    'status': 'is_active',
+}
