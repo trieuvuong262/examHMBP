@@ -134,7 +134,8 @@ class StockTransferWorkflowTests(TestCase):
         danh_sach = self.client.get(reverse('kho_npl:transfer_hub') + '?tab=danh-sach')
         self.assertEqual(danh_sach.status_code, 200)
         self.assertContains(danh_sach, 'jp-npl-transfer-status-filters')
-        self.assertContains(danh_sach, 'Xem chi tiết')
+        self.assertContains(danh_sach, 'jp-npl-catalog-row')
+        self.assertContains(danh_sach, 'data-href')
         self.assertContains(danh_sach, 'Chưa nhận')
 
         filtered = self.client.get(

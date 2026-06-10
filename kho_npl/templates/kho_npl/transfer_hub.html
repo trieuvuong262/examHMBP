@@ -89,12 +89,14 @@
                             <span class="jp-mat-col-resizer" aria-hidden="true"></span>
                         </th>
                         {% endfor %}
-                        <th class="npl-col jp-mat-th text-end" data-col="actions" style="width:{% if tab == 'chuyen' %}14rem{% elif tab == 'nhan' %}9rem{% else %}9rem{% endif %};">Thao tác</th>
+                        {% if tab != 'danh-sach' %}
+                        <th class="npl-col jp-mat-th text-end" data-col="actions" style="width:{% if tab == 'chuyen' %}11rem{% else %}5rem{% endif %};">Thao tác</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
                     {% for transfer in page_obj %}
-                    <tr>
+                    <tr class="jp-npl-catalog-row" data-href="{% url 'kho_npl:transfer_detail' transfer.pk %}">
                         <td class="npl-col jp-mat-code" data-col="number">{{ transfer.number }}</td>
                         <td class="npl-col" data-col="transfer_date">{{ transfer.transfer_date|date:'d/m/Y' }}</td>
                         <td class="npl-col" data-col="from_location"><span class="badge jp-npl-loc-badge">{{ transfer.from_location.code }}</span></td>
@@ -103,14 +105,9 @@
                         <td class="npl-col" data-col="status">{% include 'kho_npl/includes/transfer_status_badge.html' %}</td>
                         {% endif %}
                         <td class="npl-col" data-col="created_by">{% if transfer.created_by %}{{ transfer.created_by.get_full_name|default:transfer.created_by.username }}{% else %}—{% endif %}</td>
+                        {% if tab != 'danh-sach' %}
                         <td class="text-end npl-col" data-col="actions">
                             <div class="d-inline-flex flex-nowrap gap-1 justify-content-end jp-npl-transfer-row-actions">
-                                {% if tab == 'danh-sach' %}
-                                <a href="{% url 'kho_npl:transfer_detail' transfer.pk %}" class="btn btn-outline-hm btn-sm fw-bold">
-                                    <i class="bi bi-eye me-1"></i>Xem chi tiết
-                                </a>
-                                {% else %}
-                                <a href="{% url 'kho_npl:transfer_detail' transfer.pk %}" class="btn btn-outline-secondary btn-sm jp-npl-transfer-act-btn" title="Chi tiết"><i class="bi bi-eye"></i></a>
                                 {% if tab == 'chuyen' %}
                                     {% if can_update %}
                                     <a href="{% url 'kho_npl:transfer_edit' transfer.pk %}" class="btn btn-outline-hm btn-sm jp-npl-transfer-act-btn" title="Sửa"><i class="bi bi-pencil"></i></a>
@@ -121,7 +118,7 @@
                                     {% if can_update %}
                                     <form method="post" action="{% url 'kho_npl:transfer_send' transfer.pk %}" class="d-inline">
                                         {% csrf_token %}
-                                        <button type="submit" class="btn btn-hm btn-sm jp-npl-transfer-act-btn"
+                                        <button type="submit" class="btn btn-hm btn-sm jp-npl-transfer-flow-btn"
                                                 onclick="return confirm('Chuyển phiếu {{ transfer.number }}? Hàng sẽ trừ tồn tại {{ transfer.from_location.code }}.');"
                                                 title="Chuyển"><i class="bi bi-truck"></i></button>
                                     </form>
@@ -129,20 +126,20 @@
                                 {% elif tab == 'nhan' and can_update %}
                                 <form method="post" action="{% url 'kho_npl:transfer_receive' transfer.pk %}" class="d-inline">
                                     {% csrf_token %}
-                                    <button type="submit" class="btn btn-success btn-sm jp-npl-transfer-act-btn"
+                                    <button type="submit" class="btn btn-success btn-sm jp-npl-transfer-flow-btn"
                                             onclick="return confirm('Xác nhận nhận phiếu {{ transfer.number }} vào kho {{ transfer.to_location.code }}?');"
                                             title="Nhận vào kho">
                                         <i class="bi bi-box-arrow-in-down"></i>
                                     </button>
                                 </form>
                                 {% endif %}
-                                {% endif %}
                             </div>
                         </td>
+                        {% endif %}
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="{{ list_columns|length|add:1 }}" class="text-center py-5">
+                        <td colspan="{% if tab == 'danh-sach' %}{{ list_columns|length }}{% else %}{{ list_columns|length|add:1 }}{% endif %}" class="text-center py-5">
                             <div class="jp-npl-transfer-empty">
                                 <i class="bi bi-inbox display-6 text-muted d-block mb-2"></i>
                                 <p class="text-muted mb-0">
@@ -173,5 +170,15 @@
 {% block scripts %}
 {% if tab != 'nhap' %}
 {% include 'kho_npl/includes/catalog_grid_scripts.html' with table_id='npl-transfer-table' storage_key='kho_npl_transfer_visible_cols' col_btn_id='npl-tr-col-btn' col_toggle_class='npl-tr-col-toggle' default_sort_key='transfer_date' %}
+<script>
+(function () {
+    document.querySelectorAll('#npl-transfer-table .jp-npl-catalog-row[data-href]').forEach(function (row) {
+        row.addEventListener('click', function (e) {
+            if (e.target.closest('.jp-npl-transfer-row-actions, a, button, form, input')) return;
+            window.location.href = row.getAttribute('data-href');
+        });
+    });
+})();
+</script>
 {% endif %}
 {% endblock %}

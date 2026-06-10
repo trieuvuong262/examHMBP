@@ -137,8 +137,12 @@ class KhoNplPageSmokeTests(TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, 'npl-transfer-table')
                 self.assertContains(response, 'jp-mat-col-resizer')
-                self.assertContains(response, 'data-col="actions"')
+                self.assertContains(response, 'jp-npl-catalog-row')
                 self.assertContains(response, "key === 'actions'")
+                if tab != 'danh-sach':
+                    self.assertContains(response, 'data-col="actions"')
+                if tab in ('chuyen', 'nhan'):
+                    self.assertContains(response, 'jp-npl-transfer-flow-btn')
 
     def test_transfer_pages(self):
         self._assert_ok('kho_npl:transfer_hub')

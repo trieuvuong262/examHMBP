@@ -19,13 +19,17 @@ for tab in ('chuyen', 'nhan', 'danh-sach'):
     if resp.status_code != 200:
         errors.append(f'{tab}: HTTP {resp.status_code}')
         continue
-    for needle in ('flex-nowrap', 'data-col="actions"', "key === 'actions'", 'jp-npl-transfer-row-actions', 'jp-npl-transfer-act-btn'):
+    for needle in ('jp-npl-catalog-row', 'data-href', "key === 'actions'"):
         if needle not in html:
             errors.append(f'{tab}: missing {needle}')
     if f'data-transfer-tab="{tab}"' not in html:
         errors.append(f'{tab}: missing data-transfer-tab')
-    if tab == 'chuyen' and '14rem' not in html:
-        errors.append('chuyen: missing 14rem actions width')
+    if tab == 'chuyen':
+        for needle in ('flex-nowrap', 'data-col="actions"', 'jp-npl-transfer-flow-btn', '11rem'):
+            if needle not in html:
+                errors.append(f'chuyen: missing {needle}')
+    if tab == 'nhan' and 'jp-npl-transfer-flow-btn' not in html:
+        errors.append('nhan: missing jp-npl-transfer-flow-btn')
     if tab == 'danh-sach' and 'jp-npl-transfer-status-filters' not in html:
         errors.append('danh-sach: missing status filter pills')
     print(f'OK tab={tab} status={resp.status_code} len={len(html)}')
