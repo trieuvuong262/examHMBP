@@ -71,9 +71,39 @@ def _material_catalog_qs(request):
     return qs, search_query, category_ids, show_inactive
 
 
+MATERIAL_LIST_STATUS_CHOICES = (
+    ('active', 'Đang dùng'),
+    ('inactive', 'Ngừng dùng'),
+    ('all', 'Tất cả'),
+)
+
+
+def _material_list_status(request) -> str:
+    status = (request.GET.get('status') or 'active').strip().lower()
+    if status not in {key for key, _ in MATERIAL_LIST_STATUS_CHOICES}:
+        return 'active'
+    return status
+
+
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def material_list(request):
-    qs, search_query, category_ids, _show_inactive = _material_catalog_qs(request)
+    search_query = get_search_query(request)
+    category_ids = parse_int_ids(request, 'category')
+    status = _material_list_status(request)
+    qs = Material.objects.select_related('category', 'unit', 'supplier')
+    if status == 'active':
+        qs = qs.filter(is_active=True)
+    elif status == 'inactive':
+        qs = qs.filter(is_active=False)
+    if category_ids:
+        qs = qs.filter(category_id__in=category_ids)
+    if search_query:
+        qs = qs.filter(
+            Q(code__icontains=search_query)
+            | Q(name__icontains=search_query)
+            | Q(color__icontains=search_query)
+            | Q(specification__icontains=search_query),
+        )
     page_obj, query_string = paginate_queryset(request, qs.order_by('code'), per_page=25)
     categories = MaterialCategory.objects.filter(is_active=True)
     return render(request, 'kho_npl/material_list.html', {
@@ -84,8 +114,10 @@ def material_list(request):
         'search_query': search_query,
         'categories': categories,
         'selected_categories': category_ids,
+        'selected_status': status,
+        'status_choices': MATERIAL_LIST_STATUS_CHOICES,
         'list_columns': MATERIAL_LIST_COLUMNS,
-        'has_filters': bool(search_query or category_ids),
+        'has_filters': bool(search_query or category_ids or status != 'active'),
     })
 
 

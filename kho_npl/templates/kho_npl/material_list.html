@@ -19,9 +19,9 @@
     flex: 0 0 auto;
 }
 .jp-npl-material-catalog-page .jp-npl-mat-topbar-search {
-    flex: 1 1 16rem;
-    min-width: 12rem;
-    max-width: 34rem;
+    flex: 1 1 20rem;
+    min-width: 14rem;
+    max-width: 44rem;
     margin-left: auto;
 }
 .jp-npl-material-catalog-page .jp-npl-mat-search-row {
@@ -29,14 +29,16 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 0.4rem;
+    width: 100%;
 }
-.jp-npl-material-catalog-page .jp-npl-mat-topbar-search .jp-npl-filter-multi {
-    flex: 0 0 9.25rem;
-    width: 9.25rem;
+.jp-npl-material-catalog-page .jp-npl-mat-filter-field {
+    flex: 1 1 0;
+    min-width: 7rem;
 }
 .jp-npl-material-catalog-page .jp-npl-mat-topbar-search .jp-npl-filter-multi .ts-wrapper.form-select-sm {
     min-height: 31px;
     height: 31px;
+    width: 100%;
 }
 .jp-npl-material-catalog-page .jp-npl-mat-topbar-search .jp-npl-filter-multi .ts-control {
     min-height: 29px;
@@ -45,22 +47,31 @@
     padding-bottom: 0.2rem;
     font-size: 0.875rem;
 }
-.jp-npl-material-catalog-page .jp-npl-mat-topbar-search .jp-npl-mat-search-input {
-    flex: 1 1 10rem;
-    min-width: 8rem;
-}
 .jp-npl-material-catalog-page .jp-npl-mat-topbar-search .jp-npl-mat-search-input .form-control,
-.jp-npl-material-catalog-page .jp-npl-mat-topbar-search .jp-npl-mat-search-input .input-group-text,
-.jp-npl-material-catalog-page .jp-npl-mat-topbar-search .jp-npl-mat-search-input .btn {
+.jp-npl-material-catalog-page .jp-npl-mat-topbar-search .jp-npl-mat-search-input .input-group-text {
     height: 31px;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-status-select {
+    flex: 0 0 7.75rem;
+    width: 7.75rem;
+    height: 31px;
+    font-size: 0.875rem;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-search-row .btn-hm {
+    height: 31px;
+    flex: 0 0 auto;
 }
 .jp-npl-material-catalog-page .jp-npl-mat-topbar-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 0.35rem;
     align-items: center;
+    position: relative;
 }
-.jp-npl-material-catalog-page .jp-npl-mat-col-picker .dropdown-menu {
+.jp-npl-material-catalog-page .jp-npl-mat-col-picker {
+    position: relative;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-col-picker .jp-npl-mat-col-menu {
     width: 13rem;
     min-width: 13rem;
     max-width: 13rem;
@@ -126,9 +137,12 @@
         margin-left: 0;
         order: 3;
     }
-    .jp-npl-material-catalog-page .jp-npl-mat-topbar-search .jp-npl-filter-multi {
+    .jp-npl-material-catalog-page .jp-npl-mat-filter-field {
         flex: 1 1 100%;
-        max-width: none;
+    }
+    .jp-npl-material-catalog-page .jp-npl-mat-status-select {
+        flex: 1 1 100%;
+        width: auto;
     }
 }
 </style>
@@ -140,7 +154,7 @@
         <h2 class="jp-npl-mat-topbar-title"><i class="bi bi-tags me-2"></i>Danh mục nguyên phụ liệu</h2>
         <form method="get" class="jp-npl-mat-topbar-search" id="npl-mat-search-form">
             <div class="jp-npl-mat-search-row">
-                <div class="jp-npl-filter-multi">
+                <div class="jp-npl-mat-filter-field jp-npl-filter-multi">
                     <select name="category" id="npl-cat" class="form-select form-select-sm jp-npl-multi-select" multiple
                             data-placeholder="Nhóm" aria-label="Nhóm">
                         {% for cat in categories %}
@@ -148,12 +162,17 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="input-group input-group-sm jp-npl-mat-search-input">
+                <div class="input-group input-group-sm jp-npl-mat-filter-field jp-npl-mat-search-input">
                     <span class="input-group-text bg-transparent"><i class="bi bi-search text-muted"></i></span>
                     <input type="search" class="form-control" id="npl-q" name="q"
                            value="{{ search_query }}" placeholder="Mã, tên, màu..." autocomplete="off" aria-label="Tìm">
-                    <button type="submit" class="btn btn-hm fw-bold">Tìm</button>
                 </div>
+                <select name="status" id="npl-status" class="form-select form-select-sm jp-npl-mat-status-select" aria-label="Trạng thái">
+                    {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-hm btn-sm fw-bold">Tìm</button>
                 {% if has_filters %}
                 <a href="{% url 'kho_npl:material_list' %}" class="btn btn-outline-secondary btn-sm fw-bold px-2" style="height:31px;line-height:1;" title="Xóa lọc">×</a>
                 {% endif %}
@@ -176,11 +195,12 @@
             {% endif %}
             <div class="dropdown jp-npl-mat-col-picker">
                 <button type="button" class="btn btn-outline-secondary btn-sm fw-bold"
-                        data-bs-toggle="dropdown" data-bs-auto-close="outside" data-bs-display="static"
+                        data-bs-toggle="dropdown" data-bs-auto-close="outside"
+                        data-bs-offset="0,6" data-bs-placement="bottom-end"
                         aria-expanded="false" title="Chọn cột hiển thị">
                     <i class="bi bi-layout-three-columns me-1"></i>Cột
                 </button>
-                <div class="dropdown-menu dropdown-menu-end shadow-sm">
+                <div class="dropdown-menu dropdown-menu-end shadow-sm jp-npl-mat-col-menu">
                     <div class="small fw-semibold text-muted px-3 py-2 border-bottom">Hiển thị cột</div>
                     {% for col in list_columns %}
                     <div class="form-check px-3">
@@ -292,6 +312,22 @@
 {% block scripts %}
 {% include 'kho_npl/includes/filter_multi_select_script.html' %}
 <script>
+(function () {
+    var colPicker = document.querySelector('.jp-npl-mat-col-picker');
+    if (colPicker) {
+        colPicker.addEventListener('shown.bs.dropdown', function () {
+            var menu = colPicker.querySelector('.jp-npl-mat-col-menu');
+            var btn = colPicker.querySelector('[data-bs-toggle="dropdown"]');
+            if (!menu || !btn) return;
+            var rect = btn.getBoundingClientRect();
+            menu.style.position = 'fixed';
+            menu.style.top = (rect.bottom + 4) + 'px';
+            menu.style.left = 'auto';
+            menu.style.right = (window.innerWidth - rect.right) + 'px';
+            menu.style.transform = 'none';
+        });
+    }
+})();
 (function () {
     const STORAGE_KEY = 'kho_npl_material_visible_cols';
     const DEFAULT_COLS = [{% for col in list_columns %}{% if col.default %}'{{ col.key }}',{% endif %}{% endfor %}];
