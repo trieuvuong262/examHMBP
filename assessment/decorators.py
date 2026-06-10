@@ -60,9 +60,17 @@ def _user_can_admin_request(request) -> bool:
     return user_can_edit_module(user, MODULE_PERMISSIONS)
 
 
-def _user_can_module_action(user, module_key: str, action: str) -> bool:
+def _user_can_module_action(user, module_key: str, action: str, request=None) -> bool:
     if not user.is_authenticated:
         return False
+    if request is not None:
+        from hrm.menu_permissions import resolve_menu_from_request, user_can_menu_action
+        resolved_module, menu_key = resolve_menu_from_request(
+            request.path,
+            request.GET.get('tab'),
+        )
+        if menu_key and resolved_module == module_key:
+            return user_can_menu_action(user, module_key, menu_key, action)
     checker = _MODULE_ACTION_CHECKS.get(action, user_can_edit_module)
     return bool(checker(user, module_key))
 
@@ -74,7 +82,7 @@ def module_perm_required(module_key: str, action: str = 'edit'):
     def decorator(view_func):
         @wraps(view_func)
         def wrapper(request, *args, **kwargs):
-            if _user_can_module_action(request.user, module_key, action):
+            if _user_can_module_action(request.user, module_key, action, request):
                 return view_func(request, *args, **kwargs)
 
             message = portal_admin_denied_message()
@@ -99,7 +107,7 @@ def module_perm_required_methods(
         @wraps(view_func)
         def wrapper(request, *args, **kwargs):
             action = post if request.method == 'POST' else get
-            if _user_can_module_action(request.user, module_key, action):
+            if _user_can_module_action(request.user, module_key, action, request):
                 return view_func(request, *args, **kwargs)
 
             message = portal_admin_denied_message()

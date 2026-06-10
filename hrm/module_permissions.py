@@ -197,13 +197,17 @@ def get_user_enabled_modules(user) -> set:
 
 
 def user_can_access_module(user, module_key: str) -> bool:
-    """Phòng ban + vai trò — quyền xem module."""
+    """Phòng ban + nhóm quyền — quyền xem module (hoặc bất kỳ menu con nào)."""
     if module_key not in ALL_MODULE_KEYS:
         return True
     if bypass_department_modules(user):
         return True
     if module_key not in get_user_enabled_modules(user):
         return False
+    from hrm.menu_permissions import user_can_access_any_menu
+    from hrm.submenu_registry import module_has_submenus
+    if module_has_submenus(module_key):
+        return user_can_access_any_menu(user, module_key)
     from hrm.role_permissions import role_allows_view
     return role_allows_view(user, module_key)
 

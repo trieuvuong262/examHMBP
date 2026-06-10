@@ -72,8 +72,8 @@
             <div class="card-header bg-white border-bottom py-3 px-3 px-md-4">
                 <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
                     <div>
-                        <h5 class="mb-0 fw-bold text-dark">Ma trận quyền theo module</h5>
-                        <p class="small text-muted mb-0 mt-1">Chọn nhanh từng dòng · Bật/tắt cả cột</p>
+                        <h5 class="mb-0 fw-bold text-dark">Ma trận quyền theo module &amp; menu con</h5>
+                        <p class="small text-muted mb-0 mt-1">Phân quyền chi tiết từng menu con · Chọn nhanh từng dòng · Bật/tắt cả cột</p>
                     </div>
                     <div class="d-flex flex-wrap align-items-center gap-2">
                         <div class="jp-perm-legend-inline d-none d-lg-flex">
@@ -121,11 +121,12 @@
                         </thead>
                         <tbody>
                             {% for row in perm_form.module_rows %}
-                            <tr data-module="{{ row.key }}" class="jp-perm-matrix-row" data-supports-export="{% if row.supports_export %}1{% else %}0{% endif %}">
+                            <tr data-module="{{ row.key }}" class="jp-perm-matrix-row jp-perm-module-row" data-supports-export="{% if row.supports_export %}1{% else %}0{% endif %}" data-has-submenus="{% if row.has_submenus %}1{% else %}0{% endif %}">
                                 <td class="jp-perm-sticky-col ps-3">
                                     <div class="jp-perm-module-cell">
                                         <span class="jp-perm-module-icon"><i class="bi {{ row.icon }}"></i></span>
                                         <span class="jp-perm-module-name">{{ row.label }}</span>
+                                        {% if row.has_submenus %}<span class="jp-perm-module-badge">Module</span>{% endif %}
                                     </div>
                                 </td>
                                 <td class="text-center jp-perm-quick-col">
@@ -150,6 +151,38 @@
                                 </td>
                                 {% endfor %}
                             </tr>
+                            {% for submenu in row.submenus %}
+                            <tr data-module="{{ row.key }}" data-menu="{{ submenu.key }}" class="jp-perm-matrix-row jp-perm-submenu-row" data-supports-export="{% if row.supports_export %}1{% else %}0{% endif %}">
+                                <td class="jp-perm-sticky-col ps-3">
+                                    <div class="jp-perm-module-cell jp-perm-submenu-cell">
+                                        <span class="jp-perm-submenu-indent" aria-hidden="true"></span>
+                                        <span class="jp-perm-module-icon jp-perm-submenu-icon"><i class="bi {{ submenu.icon }}"></i></span>
+                                        <span class="jp-perm-module-name">{{ submenu.label }}</span>
+                                    </div>
+                                </td>
+                                <td class="text-center jp-perm-quick-col">
+                                    <div class="jp-perm-row-quick" role="group" aria-label="Chọn nhanh {{ submenu.label }}">
+                                        <button type="button" class="jp-perm-quick-btn" data-row-preset="none" data-menu-row="1" title="Không truy cập"><span class="jp-perm-quick-label">Tắt</span></button>
+                                        <button type="button" class="jp-perm-quick-btn" data-row-preset="view" data-menu-row="1" title="Chỉ xem"><span class="jp-perm-quick-label">Xem</span></button>
+                                        <button type="button" class="jp-perm-quick-btn jp-perm-quick-btn-full" data-row-preset="full" data-menu-row="1" title="Đủ 5 quyền"><span class="jp-perm-quick-label">Đủ</span></button>
+                                    </div>
+                                </td>
+                                {% for action, field in submenu.fields.items %}
+                                <td class="text-center jp-perm-action-cell jp-perm-col-{{ action }}{% if action == 'export' and not row.supports_export %} jp-perm-export-na{% endif %}{% if row.view_export_only and action != 'view' and action != 'export' %} jp-perm-export-na{% endif %}">
+                                    {% if action == 'export' and not row.supports_export %}
+                                    <span class="jp-perm-na" title="Menu này không có xuất Excel">—</span>
+                                    {% elif row.view_export_only and action != 'view' and action != 'export' %}
+                                    <span class="jp-perm-na" title="Menu này chỉ có quyền Xem và Xuất Excel">—</span>
+                                    {% else %}
+                                    <label class="jp-perm-switch mb-0">
+                                        {{ field }}
+                                        <span class="jp-perm-switch-ui"></span>
+                                    </label>
+                                    {% endif %}
+                                </td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
                             {% endfor %}
                         </tbody>
                     </table>
@@ -171,55 +204,103 @@
 
     var actions = ['view', 'create', 'update', 'delete', 'export'];
     var editActions = ['create', 'update', 'delete', 'export'];
+    var MENU_SEP = '__';
 
-    function box(moduleKey, action) {
-        return form.querySelector('input[name="' + action + '_' + moduleKey + '"]');
+    function fieldName(action, moduleKey, menuKey) {
+        return menuKey ? action + '_' + moduleKey + MENU_SEP + menuKey : action + '_' + moduleKey;
     }
 
-    function setModulePerm(moduleKey, perm) {
+    function box(moduleKey, action, menuKey) {
+        return form.querySelector('input[name="' + fieldName(action, moduleKey, menuKey) + '"]');
+    }
+
+    function moduleRow(moduleKey) {
+        return form.querySelector('tr.jp-perm-module-row[data-module="' + moduleKey + '"]');
+    }
+
+    function submenuRows(moduleKey) {
+        return form.querySelectorAll('tr.jp-perm-submenu-row[data-module="' + moduleKey + '"]');
+    }
+
+    function hasSubmenus(moduleKey) {
+        var row = moduleRow(moduleKey);
+        return row && row.getAttribute('data-has-submenus') === '1';
+    }
+
+    function setRowPerm(moduleKey, menuKey, perm) {
         actions.forEach(function (action) {
-            var input = box(moduleKey, action);
+            var input = box(moduleKey, action, menuKey);
             if (input) input.checked = !!(perm && perm[action]);
         });
-        updateRowState(moduleKey);
+        updateRowState(moduleKey, menuKey);
     }
 
-    function updateRowState(moduleKey) {
-        var row = form.querySelector('tr[data-module="' + moduleKey + '"]');
+    function syncModuleFromSubmenus(moduleKey) {
+        if (!hasSubmenus(moduleKey)) return;
+        actions.forEach(function (action) {
+            var moduleInput = box(moduleKey, action);
+            if (!moduleInput) return;
+            var submenuInputs = Array.prototype.map.call(submenuRows(moduleKey), function (row) {
+                return box(moduleKey, action, row.getAttribute('data-menu'));
+            }).filter(Boolean);
+            var allChecked = submenuInputs.length && submenuInputs.every(function (i) { return i.checked; });
+            var anyChecked = submenuInputs.some(function (i) { return i.checked; });
+            moduleInput.checked = allChecked;
+            moduleInput.indeterminate = !allChecked && anyChecked;
+        });
+        updateRowState(moduleKey, null);
+    }
+
+    function applyModuleToSubmenus(moduleKey, perm) {
+        submenuRows(moduleKey).forEach(function (row) {
+            setRowPerm(moduleKey, row.getAttribute('data-menu'), perm);
+        });
+        syncModuleFromSubmenus(moduleKey);
+    }
+
+    function updateRowState(moduleKey, menuKey) {
+        var selector = menuKey
+            ? 'tr.jp-perm-submenu-row[data-module="' + moduleKey + '"][data-menu="' + menuKey + '"]'
+            : 'tr.jp-perm-module-row[data-module="' + moduleKey + '"]';
+        var row = form.querySelector(selector);
         if (!row) return;
+        var supportsExport = row.getAttribute('data-supports-export') === '1';
         var any = actions.some(function (a) {
-            var input = box(moduleKey, a);
+            var input = box(moduleKey, a, menuKey || null);
             return input && input.checked;
         });
-        var supportsExport = row.getAttribute('data-supports-export') === '1';
         var full = actions.every(function (a) {
             if (a === 'export' && !supportsExport) return true;
-            var input = box(moduleKey, a);
+            var input = box(moduleKey, a, menuKey || null);
             return input && input.checked;
         });
         row.classList.toggle('jp-perm-row-active', any);
         row.classList.toggle('jp-perm-row-full', full);
     }
 
-    function rowPreset(moduleKey, preset) {
-        if (preset === 'none') {
-            setModulePerm(moduleKey, {});
-            return;
-        }
-        if (preset === 'view') {
-            setModulePerm(moduleKey, { view: true });
-            return;
-        }
+    function rowPreset(moduleKey, menuKey, preset) {
+        var perm = {};
+        if (preset === 'view') perm = { view: true };
         if (preset === 'full') {
-            var full = {};
-            var row = form.querySelector('tr[data-module="' + moduleKey + '"]');
+            var row = menuKey
+                ? form.querySelector('tr.jp-perm-submenu-row[data-module="' + moduleKey + '"][data-menu="' + menuKey + '"]')
+                : moduleRow(moduleKey);
             var supportsExport = row && row.getAttribute('data-supports-export') === '1';
             actions.forEach(function (a) {
                 if (a === 'export' && !supportsExport) return;
-                full[a] = true;
+                perm[a] = true;
             });
-            setModulePerm(moduleKey, full);
         }
+        if (menuKey) {
+            setRowPerm(moduleKey, menuKey, perm);
+            syncModuleFromSubmenus(moduleKey);
+            return;
+        }
+        if (hasSubmenus(moduleKey)) {
+            applyModuleToSubmenus(moduleKey, perm);
+            return;
+        }
+        setRowPerm(moduleKey, null, perm);
     }
 
     function syncColumnToggles() {
@@ -236,11 +317,10 @@
     function updateSummary() {
         var viewCount = 0;
         var fullCount = 0;
-        form.querySelectorAll('tbody tr[data-module]').forEach(function (row) {
+        form.querySelectorAll('tbody tr.jp-perm-module-row').forEach(function (row) {
             var moduleKey = row.getAttribute('data-module');
-            var hasView = box(moduleKey, 'view') && box(moduleKey, 'view').checked;
-            var row = form.querySelector('tr[data-module="' + moduleKey + '"]');
-            var supportsExport = row && row.getAttribute('data-supports-export') === '1';
+            var hasView = box(moduleKey, 'view') && (box(moduleKey, 'view').checked || box(moduleKey, 'view').indeterminate);
+            var supportsExport = row.getAttribute('data-supports-export') === '1';
             var isFull = actions.every(function (a) {
                 if (a === 'export' && !supportsExport) return true;
                 var input = box(moduleKey, a);
@@ -255,23 +335,34 @@
         if (fullEl) fullEl.textContent = fullCount;
     }
 
-    form.querySelectorAll('tbody tr[data-module]').forEach(function (row) {
+    function bindRow(row) {
         var moduleKey = row.getAttribute('data-module');
-        var viewBox = box(moduleKey, 'view');
-        if (!viewBox) return;
+        var menuKey = row.getAttribute('data-menu') || null;
+        var viewBox = box(moduleKey, 'view', menuKey);
 
         actions.forEach(function (action) {
-            var input = box(moduleKey, action);
+            var input = box(moduleKey, action, menuKey);
             if (!input) return;
             input.addEventListener('change', function () {
                 if (action !== 'view' && input.checked && viewBox) viewBox.checked = true;
                 if (action === 'view' && !input.checked) {
                     editActions.forEach(function (a) {
-                        var other = box(moduleKey, a);
+                        var other = box(moduleKey, a, menuKey);
                         if (other) other.checked = false;
                     });
                 }
-                updateRowState(moduleKey);
+                if (!menuKey && hasSubmenus(moduleKey)) {
+                    applyModuleToSubmenus(moduleKey, {
+                        view: box(moduleKey, 'view').checked,
+                        create: box(moduleKey, 'create').checked,
+                        update: box(moduleKey, 'update').checked,
+                        delete: box(moduleKey, 'delete').checked,
+                        export: box(moduleKey, 'export') && box(moduleKey, 'export').checked,
+                    });
+                } else if (menuKey) {
+                    syncModuleFromSubmenus(moduleKey);
+                }
+                updateRowState(moduleKey, menuKey);
                 syncColumnToggles();
             });
         });
@@ -280,13 +371,15 @@
             btn.addEventListener('click', function () {
                 row.querySelectorAll('.jp-perm-quick-btn').forEach(function (b) { b.classList.remove('active'); });
                 btn.classList.add('active');
-                rowPreset(moduleKey, btn.getAttribute('data-row-preset'));
+                rowPreset(moduleKey, menuKey, btn.getAttribute('data-row-preset'));
                 syncColumnToggles();
             });
         });
 
-        updateRowState(moduleKey);
-    });
+        updateRowState(moduleKey, menuKey);
+    }
+
+    form.querySelectorAll('tbody tr.jp-perm-matrix-row').forEach(bindRow);
 
     form.querySelectorAll('.jp-perm-col-toggle-input[data-col-action]').forEach(function (colBox) {
         colBox.addEventListener('change', function () {
@@ -294,21 +387,12 @@
             var checked = colBox.checked;
             form.querySelectorAll('tbody input[name^="' + action + '_"]').forEach(function (input) {
                 input.checked = checked;
-                if (checked && action !== 'view') {
-                    var moduleKey = input.name.slice(action.length + 1);
-                    var viewInput = box(moduleKey, 'view');
-                    if (viewInput) viewInput.checked = true;
-                }
             });
-            if (!checked && action === 'view') {
-                editActions.forEach(function (a) {
-                    form.querySelectorAll('tbody input[name^="' + a + '_"]').forEach(function (input) {
-                        input.checked = false;
-                    });
-                });
-            }
-            form.querySelectorAll('tbody tr[data-module]').forEach(function (row) {
-                updateRowState(row.getAttribute('data-module'));
+            form.querySelectorAll('tbody tr.jp-perm-module-row').forEach(function (row) {
+                syncModuleFromSubmenus(row.getAttribute('data-module'));
+            });
+            form.querySelectorAll('tbody tr.jp-perm-matrix-row').forEach(function (row) {
+                updateRowState(row.getAttribute('data-module'), row.getAttribute('data-menu') || null);
             });
             syncColumnToggles();
         });
@@ -319,9 +403,10 @@
         clearBtn.addEventListener('click', function () {
             form.querySelectorAll('tbody input[type="checkbox"]').forEach(function (input) {
                 input.checked = false;
+                input.indeterminate = false;
             });
-            form.querySelectorAll('tbody tr[data-module]').forEach(function (row) {
-                updateRowState(row.getAttribute('data-module'));
+            form.querySelectorAll('tbody tr.jp-perm-matrix-row').forEach(function (row) {
+                updateRowState(row.getAttribute('data-module'), row.getAttribute('data-menu') || null);
             });
             form.querySelectorAll('.jp-perm-quick-btn').forEach(function (el) {
                 el.classList.remove('active');
@@ -330,6 +415,9 @@
         });
     }
 
+    form.querySelectorAll('tbody tr.jp-perm-module-row[data-has-submenus="1"]').forEach(function (row) {
+        syncModuleFromSubmenus(row.getAttribute('data-module'));
+    });
     syncColumnToggles();
 })();
 </script>

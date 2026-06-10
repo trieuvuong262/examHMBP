@@ -34,10 +34,13 @@ from hrm.group_permissions import (
     PERM_ACTIONS,
     PERM_ACTION_LABELS,
     PERM_EXPORT,
+    aggregate_module_from_menus,
     module_permission_action_enabled,
     module_supports_export,
     normalize_group_permissions,
+    normalize_module_entry,
 )
+from hrm.submenu_registry import get_module_submenus, perm_field_name
 from hrm.user_search import (
     subordinate_candidate_queryset,
     subordinate_scope_hint,
@@ -1008,7 +1011,7 @@ PERM_GROUP_MODULE_ICONS = {
 
 
 class PermissionGroupPermissionForm(forms.Form):
-    """Ma trận 5 quyền / module cho một nhóm."""
+    """Ma trận 5 quyền / module và menu con cho một nhóm."""
 
     def __init__(self, *args, **kwargs):
         initial_perms = kwargs.pop('initial_permissions', None)
@@ -1016,51 +1019,117 @@ class PermissionGroupPermissionForm(forms.Form):
         normalized = normalize_group_permissions(initial_perms)
         for module_key, label in MODULE_CHOICES:
             mod = normalized.get(module_key, {})
-            supports_export = module_supports_export(module_key)
+            submenus = get_module_submenus(module_key)
             for action in PERM_ACTIONS:
-                field_name = f'{action}_{module_key}'
                 action_enabled = module_permission_action_enabled(module_key, action)
                 widget_attrs = {'class': 'jp-perm-switch-input'}
                 if not action_enabled:
                     widget_attrs['disabled'] = True
+                field_name = perm_field_name(action, module_key)
                 self.fields[field_name] = forms.BooleanField(
                     required=False,
                     initial=mod.get(action, False) if action_enabled else False,
                     label=f'{PERM_ACTION_LABELS[action]} — {label}',
                     widget=forms.CheckboxInput(attrs=widget_attrs),
                 )
+                for sm in submenus:
+                    menu_perm = (mod.get('menus') or {}).get(sm['key'], mod)
+                    menu_field = perm_field_name(action, module_key, sm['key'])
+                    self.fields[menu_field] = forms.BooleanField(
+                        required=False,
+                        initial=menu_perm.get(action, False) if action_enabled else False,
+                        label=f'{PERM_ACTION_LABELS[action]} — {sm["label"]}',
+                        widget=forms.CheckboxInput(attrs=dict(widget_attrs)),
+                    )
 
     def module_rows(self):
         rows = []
         for module_key, label in MODULE_CHOICES:
+            submenus = get_module_submenus(module_key)
+            submenu_rows = []
+            for sm in submenus:
+                submenu_rows.append({
+                    'key': sm['key'],
+                    'label': sm['label'],
+                    'icon': sm.get('icon', 'bi-dot'),
+                    'fields': {
+                        action: self[perm_field_name(action, module_key, sm['key'])]
+                        for action in PERM_ACTIONS
+                    },
+                })
             rows.append({
                 'key': module_key,
                 'label': label,
                 'icon': PERM_GROUP_MODULE_ICONS.get(module_key, 'bi-grid'),
                 'supports_export': module_supports_export(module_key),
                 'view_export_only': module_key in MODULE_VIEW_EXPORT_ONLY,
+                'has_submenus': bool(submenus),
+                'submenus': submenu_rows,
                 'fields': {
-                    action: self[f'{action}_{module_key}']
+                    action: self[perm_field_name(action, module_key)]
                     for action in PERM_ACTIONS
                 },
             })
         return rows
 
+    def _menu_entry_from_form(self, module_key: str, menu_key: str) -> dict:
+        entry = {}
+        for action in PERM_ACTIONS:
+            entry[action] = (
+                self.cleaned_data.get(perm_field_name(action, module_key, menu_key), False)
+                if module_permission_action_enabled(module_key, action)
+                else False
+            )
+        if not module_supports_export(module_key):
+            entry[PERM_EXPORT] = False
+        if any(entry[a] for a in ('create', 'update', 'delete', 'export')):
+            entry['view'] = True
+        return entry
+
     def cleaned_permissions(self) -> dict:
         result = {}
         for module_key, _label in MODULE_CHOICES:
-            entry = {
-                action: (
-                    self.cleaned_data.get(f'{action}_{module_key}', False)
-                    if module_permission_action_enabled(module_key, action)
-                    else False
-                )
-                for action in PERM_ACTIONS
-            }
-            if not module_supports_export(module_key):
-                entry[PERM_EXPORT] = False
-            if any(entry[a] for a in ('create', 'update', 'delete', 'export')):
-                entry['view'] = True
+            submenus = get_module_submenus(module_key)
+            if submenus:
+                menus = {
+                    sm['key']: self._menu_entry_from_form(module_key, sm['key'])
+                    for sm in submenus
+                }
+                module_entry = {
+                    action: (
+                        self.cleaned_data.get(perm_field_name(action, module_key), False)
+                        if module_permission_action_enabled(module_key, action)
+                        else False
+                    )
+                    for action in PERM_ACTIONS
+                }
+                if not module_supports_export(module_key):
+                    module_entry[PERM_EXPORT] = False
+                if any(module_entry[a] for a in ('create', 'update', 'delete', 'export')):
+                    module_entry['view'] = True
+                if not any(
+                    any(menu_entry.get(a) for a in PERM_ACTIONS)
+                    for menu_entry in menus.values()
+                ) and any(module_entry.get(a) for a in PERM_ACTIONS):
+                    menus = {sm['key']: dict(module_entry) for sm in submenus}
+                entry = aggregate_module_from_menus(menus, module_key=module_key)
+                entry['menus'] = menus
+            else:
+                entry = {
+                    action: (
+                        self.cleaned_data.get(perm_field_name(action, module_key), False)
+                        if module_permission_action_enabled(module_key, action)
+                        else False
+                    )
+                    for action in PERM_ACTIONS
+                }
+                if not module_supports_export(module_key):
+                    entry[PERM_EXPORT] = False
+                if any(entry[a] for a in ('create', 'update', 'delete', 'export')):
+                    entry['view'] = True
             result[module_key] = entry
-        return normalize_group_permissions(result)
+        return {
+            module_key: normalize_module_entry(entry, module_key=module_key)
+            for module_key, entry in result.items()
+        }
 

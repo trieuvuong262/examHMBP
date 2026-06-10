@@ -1,4 +1,4 @@
-{% load static %}
+{% load static menu_perms %}
 <nav class="jp-sidebar-nav" aria-label="Menu chính">
     <div class="jp-sidebar-brand d-none d-lg-flex">
         <a href="{% url 'home_portal' %}" class="jp-sidebar-brand-link">
@@ -137,18 +137,24 @@
                 <i class="bi bi-chevron-down jp-sidebar-group-chevron" aria-hidden="true"></i>
             </button>
             <ul class="jp-sidebar-submenu" id="jp-sidebar-reports-submenu">
+                {% jp_can_menu 'reports' 'daily' as jp_can_reports_daily %}
+                {% if jp_can_reports_daily %}
                 <li>
                     <a href="{% if jp_can_submit_reports %}{% url 'reports:today' %}{% else %}{% url 'reports:team' %}{% endif %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'today' or request.resolver_match.url_name == 'team' %}active{% endif %}">
                         <i class="bi bi-calendar-day"></i><span>Báo cáo ngày</span>
                     </a>
                 </li>
+                {% endif %}
+                {% jp_can_menu 'reports' 'weekly' as jp_can_reports_weekly %}
+                {% if jp_can_reports_weekly %}
                 <li>
                     <a href="{% if jp_can_submit_reports %}{% url 'reports:weekly' %}{% else %}{% url 'reports:team_weekly' %}{% endif %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'weekly' or request.resolver_match.url_name == 'team_weekly' %}active{% endif %}">
                         <i class="bi bi-calendar-week"></i><span>Báo cáo tuần</span>
                     </a>
                 </li>
+                {% endif %}
             </ul>
         </li>
         {% endif %}
@@ -165,24 +171,33 @@
                 <i class="bi bi-chevron-down jp-sidebar-group-chevron" aria-hidden="true"></i>
             </button>
             <ul class="jp-sidebar-submenu" id="jp-sidebar-tasks-submenu">
+                {% jp_can_menu 'tasks' 'personal' as jp_can_tasks_personal %}
+                {% if jp_can_tasks_personal %}
                 <li>
                     <a href="{% url 'tasks:personal_hub' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if '/cong-viec/ca-nhan' in request.path %}active{% endif %}">
                         <i class="bi bi-person-check"></i><span>Giao việc cá nhân</span>
                     </a>
                 </li>
+                {% endif %}
+                {% jp_can_menu 'tasks' 'project' as jp_can_tasks_project %}
+                {% if jp_can_tasks_project %}
                 <li>
                     <a href="{% url 'tasks:project_list' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if '/cong-viec/du-an' in request.path %}active{% endif %}">
                         <i class="bi bi-kanban"></i><span>Dự án nội bộ</span>
                     </a>
                 </li>
+                {% endif %}
+                {% jp_can_menu 'tasks' 'cross_dept' as jp_can_tasks_cross_dept %}
+                {% if jp_can_tasks_cross_dept %}
                 <li>
                     <a href="{% url 'tasks:cross_dept_list' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if '/cong-viec/lien-phong-ban' in request.path %}active{% endif %}">
                         <i class="bi bi-diagram-3"></i><span>Dự án liên phòng ban</span>
                     </a>
                 </li>
+                {% endif %}
             </ul>
         </li>
         {% endif %}
@@ -212,12 +227,17 @@
                         <i class="bi bi-chevron-down jp-sidebar-nested-chevron" aria-hidden="true"></i>
                     </button>
                     <ul class="jp-sidebar-nested-submenu" id="jp-sidebar-de-xuat-submenu">
+                        {% jp_can_menu 'de_xuat' 'my' as jp_can_de_xuat_my %}
+                        {% if jp_can_de_xuat_my %}
                         <li>
                             <a href="{% url 'service_requests:de_xuat_my' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'de_xuat_my' %}active{% endif %}">
                                 <i class="bi bi-person-lines-fill"></i><span>Yêu cầu của tôi</span>
                             </a>
                         </li>
+                        {% endif %}
+                        {% jp_can_menu 'de_xuat' 'pending' as jp_can_de_xuat_pending %}
+                        {% if jp_can_de_xuat_pending %}
                         <li>
                             <a href="{% url 'service_requests:de_xuat_pending' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'de_xuat_pending' %}active{% endif %}">
@@ -225,13 +245,18 @@
                                 {% if jp_de_xuat_pending_count %}<span class="badge bg-danger ms-1">{{ jp_de_xuat_pending_count }}</span>{% endif %}
                             </a>
                         </li>
+                        {% endif %}
+                        {% jp_can_menu 'de_xuat' 'create' as jp_can_de_xuat_create %}
+                        {% if jp_can_de_xuat_create %}
                         <li>
                             <a href="{% url 'service_requests:create' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'create' %}active{% endif %}">
                                 <i class="bi bi-plus-circle"></i><span>Gửi đề xuất</span>
                             </a>
                         </li>
-                        {% if jp_can_manage_catalog %}
+                        {% endif %}
+                        {% jp_can_menu 'de_xuat' 'catalog' as jp_can_de_xuat_catalog %}
+                        {% if jp_can_de_xuat_catalog and jp_can_manage_catalog %}
                         <li>
                             <a href="{% url 'service_requests:catalog_list' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name and 'catalog' in request.resolver_match.url_name %}active{% endif %}">
@@ -255,12 +280,17 @@
                         <i class="bi bi-chevron-down jp-sidebar-nested-chevron" aria-hidden="true"></i>
                     </button>
                     <ul class="jp-sidebar-nested-submenu" id="jp-sidebar-ho-tro-submenu">
+                        {% jp_can_menu 'ho_tro' 'my' as jp_can_ho_tro_my %}
+                        {% if jp_can_ho_tro_my %}
                         <li>
                             <a href="{% url 'service_requests:ho_tro_my' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'ho_tro_my' %}active{% endif %}">
                                 <i class="bi bi-person-lines-fill"></i><span>Yêu cầu của tôi</span>
                             </a>
                         </li>
+                        {% endif %}
+                        {% jp_can_menu 'ho_tro' 'pending' as jp_can_ho_tro_pending %}
+                        {% if jp_can_ho_tro_pending %}
                         <li>
                             <a href="{% url 'service_requests:ho_tro_pending' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'ho_tro_pending' %}active{% endif %}">
@@ -268,12 +298,16 @@
                                 {% if jp_ho_tro_pending_count %}<span class="badge bg-danger ms-1">{{ jp_ho_tro_pending_count }}</span>{% endif %}
                             </a>
                         </li>
+                        {% endif %}
+                        {% jp_can_menu 'ho_tro' 'create' as jp_can_ho_tro_create %}
+                        {% if jp_can_ho_tro_create %}
                         <li>
                             <a href="{% url 'service_requests:create_it_repair' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'create_it_repair' or request.resolver_match.url_name == 'create_it_repair_it' or request.resolver_match.url_name == 'create_it_repair_production' %}active{% endif %}">
                                 <i class="bi bi-plus-circle"></i><span>Gửi yêu cầu hỗ trợ</span>
                             </a>
                         </li>
+                        {% endif %}
                     </ul>
                 </li>
                 {% endif %}
@@ -293,18 +327,24 @@
                 <i class="bi bi-chevron-down jp-sidebar-group-chevron" aria-hidden="true"></i>
             </button>
             <ul class="jp-sidebar-submenu" id="jp-sidebar-equipment-submenu">
+                {% jp_can_menu 'equipment' 'it' as jp_can_equipment_it %}
+                {% if jp_can_equipment_it %}
                 <li>
                     <a href="{% url 'equipment:dashboard_it' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if '/thiet-bi/it' in request.path %}active{% endif %}">
                         <i class="bi bi-pc-display-horizontal"></i><span>Quản lý thiết bị IT</span>
                     </a>
                 </li>
+                {% endif %}
+                {% jp_can_menu 'equipment' 'production' as jp_can_equipment_production %}
+                {% if jp_can_equipment_production %}
                 <li>
                     <a href="{% url 'equipment:dashboard_production' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if '/thiet-bi/san-xuat' in request.path %}active{% endif %}">
                         <i class="bi bi-gear-wide-connected"></i><span>Quản lý thiết bị sản xuất</span>
                     </a>
                 </li>
+                {% endif %}
             </ul>
         </li>
         {% endif %}
@@ -321,13 +361,17 @@
                 <i class="bi bi-chevron-down jp-sidebar-group-chevron" aria-hidden="true"></i>
             </button>
             <ul class="jp-sidebar-submenu" id="jp-sidebar-feedback-submenu">
+                {% jp_can_menu 'feedback' 'create' as jp_can_feedback_create %}
+                {% if jp_can_feedback_create %}
                 <li>
                     <a href="{% url 'feedback:create' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'create' %}active{% endif %}">
                         <i class="bi bi-plus-circle"></i><span>Gửi góp ý</span>
                     </a>
                 </li>
-                {% if jp_can_update_feedback or jp_can_edit_feedback %}
+                {% endif %}
+                {% jp_can_menu 'feedback' 'list' as jp_can_feedback_list %}
+                {% if jp_can_feedback_list %}
                 <li>
                     <a href="{% url 'feedback:list' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'list' or request.resolver_match.url_name == 'detail' %}active{% endif %}">
@@ -351,78 +395,114 @@
                 <i class="bi bi-chevron-down jp-sidebar-group-chevron" aria-hidden="true"></i>
             </button>
             <ul class="jp-sidebar-submenu" id="jp-sidebar-kho-npl-submenu">
+                {% jp_can_menu 'kho_npl' 'overview' as jp_can_kho_npl_overview %}
+                {% if jp_can_kho_npl_overview %}
                 <li>
                     <a href="{% url 'kho_npl:overview' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'overview' %}active{% endif %}">
                         <i class="bi bi-speedometer2"></i><span>Tổng quan tồn kho</span>
                     </a>
                 </li>
+                {% endif %}
+                {% jp_can_menu 'kho_npl' 'materials' as jp_can_kho_npl_materials %}
+                {% if jp_can_kho_npl_materials %}
                 <li>
                     <a href="{% url 'kho_npl:material_list' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'material_list' %}active{% endif %}">
                         <i class="bi bi-tags"></i><span>Danh mục nguyên phụ liệu</span>
                     </a>
                 </li>
+                {% endif %}
+                {% jp_can_menu 'kho_npl' 'material_stock' as jp_can_kho_npl_material_stock %}
+                {% if jp_can_kho_npl_material_stock %}
                 <li>
                     <a href="{% url 'kho_npl:material_stock' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'material_stock' %}active{% endif %}">
                         <i class="bi bi-boxes"></i><span>Tồn kho nguyên phụ liệu</span>
                     </a>
                 </li>
+                {% endif %}
+                {% jp_can_menu 'kho_npl' 'stock_cards' as jp_can_kho_npl_stock_cards %}
+                {% if jp_can_kho_npl_stock_cards %}
                 <li>
                     <a href="{% url 'kho_npl:stock_cards' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'stock_cards' %}active{% endif %}">
                         <i class="bi bi-grid-3x3-gap"></i><span>Thẻ kho</span>
                     </a>
                 </li>
+                {% endif %}
+                {% jp_can_menu 'kho_npl' 'receipts' as jp_can_kho_npl_receipts %}
+                {% if jp_can_kho_npl_receipts %}
                 <li>
                     <a href="{% url 'kho_npl:receipt_list' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'receipt_list' %}active{% endif %}">
                         <i class="bi bi-box-arrow-in-down"></i><span>Phiếu nhập kho</span>
                     </a>
                 </li>
+                {% endif %}
+                {% jp_can_menu 'kho_npl' 'issues' as jp_can_kho_npl_issues %}
+                {% if jp_can_kho_npl_issues %}
                 <li>
                     <a href="{% url 'kho_npl:issue_list' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'issue_list' %}active{% endif %}">
                         <i class="bi bi-box-arrow-up"></i><span>Phiếu xuất kho</span>
                     </a>
                 </li>
+                {% endif %}
+                {% jp_can_menu 'kho_npl' 'transfers' as jp_can_kho_npl_transfers %}
+                {% if jp_can_kho_npl_transfers %}
                 <li>
                     <a href="{% url 'kho_npl:transfer_hub' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'transfer_hub' or request.resolver_match.url_name == 'transfer_create' or request.resolver_match.url_name == 'transfer_detail' or request.resolver_match.url_name == 'transfer_edit' %}active{% endif %}">
                         <i class="bi bi-arrow-left-right"></i><span>Chuyển kho</span>
                     </a>
                 </li>
+                {% endif %}
+                {% jp_can_menu 'kho_npl' 'disposals' as jp_can_kho_npl_disposals %}
+                {% if jp_can_kho_npl_disposals %}
                 <li>
                     <a href="{% url 'kho_npl:disposal_list' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'disposal_list' or request.resolver_match.url_name == 'disposal_create' or request.resolver_match.url_name == 'disposal_detail' or request.resolver_match.url_name == 'disposal_edit' %}active{% endif %}">
                         <i class="bi bi-trash3"></i><span>Phiếu hủy</span>
                     </a>
                 </li>
+                {% endif %}
+                {% jp_can_menu 'kho_npl' 'adjustments' as jp_can_kho_npl_adjustments %}
+                {% if jp_can_kho_npl_adjustments %}
                 <li>
                     <a href="{% url 'kho_npl:adjustment_list' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'adjustment_list' %}active{% endif %}">
                         <i class="bi bi-sliders"></i><span>Điều chỉnh tồn kho</span>
                     </a>
                 </li>
+                {% endif %}
+                {% jp_can_menu 'kho_npl' 'stocktakes' as jp_can_kho_npl_stocktakes %}
+                {% if jp_can_kho_npl_stocktakes %}
                 <li>
                     <a href="{% url 'kho_npl:stocktake_list' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'stocktake_list' %}active{% endif %}">
                         <i class="bi bi-clipboard-check"></i><span>Kiểm kê kho</span>
                     </a>
                 </li>
+                {% endif %}
+                {% jp_can_menu 'kho_npl' 'reports' as jp_can_kho_npl_reports %}
+                {% if jp_can_kho_npl_reports %}
                 <li>
                     <a href="{% url 'kho_npl:report_hub' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'report_hub' %}active{% endif %}">
                         <i class="bi bi-file-earmark-bar-graph"></i><span>Báo cáo</span>
                     </a>
                 </li>
+                {% endif %}
+                {% jp_can_menu 'kho_npl' 'settings' as jp_can_kho_npl_settings %}
+                {% if jp_can_kho_npl_settings %}
                 <li>
                     <a href="{% url 'kho_npl:settings_hub' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'settings_hub' %}active{% endif %}">
                         <i class="bi bi-gear"></i><span>Thiết lập</span>
                     </a>
                 </li>
+                {% endif %}
             </ul>
         </li>
         {% endif %}
@@ -439,24 +519,35 @@
                 <i class="bi bi-chevron-down jp-sidebar-group-chevron" aria-hidden="true"></i>
             </button>
             <ul class="jp-sidebar-submenu" id="jp-sidebar-kiotviet-submenu">
+                {% jp_can_menu 'kiotviet' 'customers' as jp_can_kiotviet_customers %}
+                {% if jp_can_kiotviet_customers %}
                 <li>
                     <a href="{% url 'kiotviet:customer_lookup' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'customer_lookup' or request.resolver_match.url_name == 'customer_detail' %}active{% endif %}">
                         <i class="bi bi-person-vcard"></i><span>Tra cứu khách hàng</span>
                     </a>
                 </li>
+                {% endif %}
+                {% jp_can_menu 'kiotviet' 'orders' as jp_can_kiotviet_orders %}
+                {% if jp_can_kiotviet_orders %}
                 <li>
                     <a href="{% url 'kiotviet:order_lookup' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'order_lookup' or request.resolver_match.url_name == 'order_detail' %}active{% endif %}">
                         <i class="bi bi-cart-check"></i><span>Đơn đặt hàng</span>
                     </a>
                 </li>
+                {% endif %}
+                {% jp_can_menu 'kiotviet' 'invoices' as jp_can_kiotviet_invoices %}
+                {% if jp_can_kiotviet_invoices %}
                 <li>
                     <a href="{% url 'kiotviet:invoice_lookup' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'invoice_lookup' or request.resolver_match.url_name == 'invoice_detail' %}active{% endif %}">
                         <i class="bi bi-receipt"></i><span>Hóa đơn</span>
                     </a>
                 </li>
+                {% endif %}
+                {% jp_can_menu 'kiotviet' 'products' as jp_can_kiotviet_products %}
+                {% if jp_can_kiotviet_products %}
                 <li>
                     <a href="{% url 'kiotviet:product_lookup' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'product_lookup' or request.resolver_match.url_name == 'product_detail' %}active{% endif %}"
@@ -464,18 +555,25 @@
                         <i class="bi bi-box-seam"></i><span>Hàng hoá</span>
                     </a>
                 </li>
+                {% endif %}
+                {% jp_can_menu 'kiotviet' 'stock' as jp_can_kiotviet_stock %}
+                {% if jp_can_kiotviet_stock %}
                 <li>
                     <a href="{% url 'kiotviet:stock_lookup' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'stock_lookup' %}active{% endif %}">
                         <i class="bi bi-boxes"></i><span>Tồn kho</span>
                     </a>
                 </li>
+                {% endif %}
+                {% jp_can_menu 'kiotviet' 'purchases' as jp_can_kiotviet_purchases %}
+                {% if jp_can_kiotviet_purchases %}
                 <li>
                     <a href="{% url 'kiotviet:purchase_lookup' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'purchase_lookup' or request.resolver_match.url_name == 'purchase_detail' %}active{% endif %}">
                         <i class="bi bi-box-arrow-in-down"></i><span>Phiếu nhập</span>
                     </a>
                 </li>
+                {% endif %}
             </ul>
         </li>
         {% endif %}
@@ -500,18 +598,24 @@
             </button>
             <ul class="jp-sidebar-submenu" id="jp-sidebar-library-submenu">
                 {% if jp_can_documents %}
+                {% jp_can_menu 'documents' 'browse' as jp_can_documents_browse %}
+                {% if jp_can_documents_browse %}
                 <li>
                     <a href="{% url 'documents:browse' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'browse' or request.resolver_match.url_name == 'browse_category' or request.resolver_match.url_name == 'browse_document' %}active{% endif %}">
                         <i class="bi bi-folder2-open"></i><span>Tài liệu</span>
                     </a>
                 </li>
+                {% endif %}
+                {% jp_can_menu 'documents' 'qa' as jp_can_documents_qa %}
+                {% if jp_can_documents_qa %}
                 <li>
                     <a href="{% url 'documents:qa' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'qa' %}active{% endif %}">
                         <i class="bi bi-chat-dots-fill"></i><span>Hỏi đáp</span>
                     </a>
                 </li>
+                {% endif %}
                 {% endif %}
                 {% if jp_can_guide %}
                 <li>
@@ -544,31 +648,44 @@
                 <i class="bi bi-chevron-down jp-sidebar-group-chevron" aria-hidden="true"></i>
             </button>
             <ul class="jp-sidebar-submenu" id="jp-sidebar-sysadmin-submenu">
+                {% jp_can_menu 'audit' 'login_security' as jp_can_audit_login_security %}
+                {% if jp_can_audit_login_security %}
                 <li>
                     <a href="{% url 'audit:login_security' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'login_security' or request.resolver_match.url_name == 'unlock_user_login' or request.resolver_match.url_name == 'unlock_ip_login' %}active{% endif %}">
                         <i class="bi bi-shield-lock"></i><span>Bảo mật đăng nhập</span>
                     </a>
                 </li>
+                {% endif %}
+                {% jp_can_menu 'audit' 'logs' as jp_can_audit_logs %}
+                {% if jp_can_audit_logs %}
                 <li>
                     <a href="{% url 'audit:log_list' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'log_list' or request.resolver_match.url_name == 'log_detail' or request.resolver_match.url_name == 'user_timeline' %}active{% endif %}">
                         <i class="bi bi-journal-check"></i><span>Nhật Ký Thao tác</span>
                     </a>
                 </li>
+                {% endif %}
+                {% jp_can_menu 'audit' 'backup' as jp_can_audit_backup %}
+                {% if jp_can_audit_backup %}
                 <li>
                     <a href="{% url 'audit:backup_page' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'backup_page' %}active{% endif %}">
                         <i class="bi bi-cloud-arrow-up"></i><span>Backup lên NAS</span>
                     </a>
                 </li>
+                {% endif %}
+                {% jp_can_menu 'audit' 'kiotviet_sync' as jp_can_audit_kiotviet_sync %}
+                {% if jp_can_audit_kiotviet_sync %}
                 <li>
                     <a href="{% url 'audit:kiotviet_sync' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'kiotviet_sync' or request.resolver_match.url_name == 'kiotviet_sync_save' or request.resolver_match.url_name == 'kiotviet_sync_run' or request.resolver_match.url_name == 'kiotviet_sync_status' %}active{% endif %}">
                         <i class="bi bi-arrow-repeat"></i><span>Đồng bộ KiotViet</span>
                     </a>
                 </li>
-                {% if jp_can_edit_hrm %}
+                {% endif %}
+                {% jp_can_menu 'audit' 'nas_links' as jp_can_audit_nas_links %}
+                {% if jp_can_audit_nas_links and jp_can_edit_hrm %}
                 <li>
                     <a href="{% url 'audit:nas_links' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'nas_links' or request.resolver_match.url_name == 'user_nas_folders' %}active{% endif %}">

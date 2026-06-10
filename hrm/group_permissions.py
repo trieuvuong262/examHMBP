@@ -108,6 +108,48 @@ def normalize_module_perm(raw: dict | None, *, module_key: str | None = None) ->
     return result
 
 
+def aggregate_module_from_menus(menus: dict, *, module_key: str) -> dict:
+    """Gộp quyền module từ các menu con (OR từng hành động)."""
+    result = empty_module_perm()
+    for action in PERM_ACTIONS:
+        result[action] = any(bool((menus.get(mk) or {}).get(action)) for mk in menus)
+    return normalize_module_perm(result, module_key=module_key)
+
+
+def normalize_module_entry(raw, *, module_key: str) -> dict:
+    """Chuẩn hoá một module — gồm menus con nếu có."""
+    from hrm.submenu_registry import get_module_submenus
+
+    if isinstance(raw, bool):
+        entry = {'view': raw, 'edit': raw}
+    elif raw is None:
+        entry = {}
+    else:
+        entry = raw if isinstance(raw, dict) else {}
+
+    five = normalize_module_perm(
+        legacy_entry_to_five_flags(entry, module_key=module_key),
+        module_key=module_key,
+    )
+
+    submenus = get_module_submenus(module_key)
+    menus_raw = entry.get('menus') if isinstance(entry, dict) else None
+    if submenus and isinstance(menus_raw, dict) and menus_raw:
+        menus = {}
+        for sm in submenus:
+            mk = sm['key']
+            mraw = menus_raw.get(mk, {})
+            menus[mk] = normalize_module_perm(
+                legacy_entry_to_five_flags(mraw, module_key=module_key),
+                module_key=module_key,
+            )
+        five['menus'] = menus
+        aggregated = aggregate_module_from_menus(menus, module_key=module_key)
+        for action in PERM_ACTIONS:
+            five[action] = aggregated.get(action, False)
+    return five
+
+
 def normalize_group_permissions(raw: dict | None) -> dict:
     from hrm.role_permissions import default_role_permissions
 
@@ -116,14 +158,7 @@ def normalize_group_permissions(raw: dict | None) -> dict:
     result = {}
     for module_key in ALL_MODULE_KEYS:
         entry = source.get(module_key, base.get(module_key))
-        if isinstance(entry, bool):
-            entry = {'view': entry, 'edit': entry}
-        elif entry is None:
-            entry = {}
-        result[module_key] = normalize_module_perm(
-            legacy_entry_to_five_flags(entry, module_key=module_key),
-            module_key=module_key,
-        )
+        result[module_key] = normalize_module_entry(entry, module_key=module_key)
     return result
 
 

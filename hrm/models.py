@@ -159,7 +159,7 @@ class PermissionGroup(models.Model):
         default=dict,
         blank=True,
         verbose_name='Quyền theo module',
-        help_text='JSON: {module: {view, create, update, delete, export}}',
+        help_text='JSON: {module: {view, create, update, delete, export, menus?: {menu_key: {...}}}}',
     )
     updated_at = models.DateTimeField(auto_now=True)
 
