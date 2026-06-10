@@ -59,6 +59,13 @@ class KhoNplPageSmokeTests(TestCase):
         for name in ('kho_npl:material_list', 'kho_npl:material_stock', 'kho_npl:material_create'):
             self._assert_ok(name)
 
+    def test_material_export_template(self):
+        for name in ('kho_npl:material_export', 'kho_npl:material_import_template'):
+            url = reverse(name)
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 200)
+
     def test_receipt_issue_pages(self):
         for name in (
             'kho_npl:receipt_list', 'kho_npl:receipt_create',

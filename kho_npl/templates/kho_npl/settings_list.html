@@ -8,9 +8,6 @@
             <h2 class="fw-bold text-hm mb-1 jp-page-title">
                 <i class="bi {{ section.icon }} me-2"></i>{{ section.title }}
             </h2>
-            <p class="text-muted mb-0 small">
-                <a href="{% url 'kho_npl:settings_hub' %}" class="text-muted">Thiết lập</a> / {{ section.title }}
-            </p>
         </div>
         <div class="d-flex gap-2">
             {% if can_create %}

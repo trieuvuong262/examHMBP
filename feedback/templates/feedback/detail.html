@@ -5,10 +5,6 @@
     <div class="jp-page-header mb-3 mb-md-4">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-chat-square-text-fill me-2"></i>{{ feedback.title }}</h2>
-            <p class="text-muted mb-0 jp-hide-mobile-subtitle">
-                {{ feedback.submitter_display }}
-                · {{ feedback.created_at|date:"d/m/Y H:i" }}
-            </p>
         </div>
         <a href="{% url 'feedback:list' %}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i>Quay lại

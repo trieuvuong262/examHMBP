@@ -10,7 +10,14 @@ from PortalJustPlay.pagination import paginate_queryset
 
 from kho_npl.choices import STOCK_STATUS_LOW, STOCK_STATUS_OK, STOCK_STATUS_OUT
 from kho_npl.forms import MaterialForm
+from kho_npl.material_list_columns import MATERIAL_LIST_COLUMNS
 from kho_npl.models import Material, MaterialCategory, WarehouseLocation
+from kho_npl.services.material_import_export import (
+    MaterialImportError,
+    export_materials_xlsx,
+    import_materials_from_excel,
+    sample_template_xlsx,
+)
 from kho_npl.services.stock import material_stock_rows, material_total_qty
 from kho_npl.view_utils import nav_context, perm_context
 
@@ -48,6 +55,7 @@ def material_list(request):
         'categories': categories,
         'selected_category': category_id,
         'show_inactive': show_inactive,
+        'list_columns': MATERIAL_LIST_COLUMNS,
     })
 
 
@@ -131,6 +139,40 @@ def material_edit(request, pk):
         'material': material,
         'cancel_url': reverse('kho_npl:material_detail', args=[material.pk]),
     })
+
+
+@module_perm_required(MODULE_KHO_NPL, 'export')
+def material_export(request):
+    qs, _, _, _ = _material_catalog_qs(request)
+    return export_materials_xlsx(qs)
+
+
+@module_perm_required(MODULE_KHO_NPL, 'view')
+def material_import_template(request):
+    return sample_template_xlsx()
+
+
+@module_perm_required_methods(MODULE_KHO_NPL, post='create')
+def material_import(request):
+    if request.method != 'POST':
+        return redirect('kho_npl:material_list')
+    file_obj = request.FILES.get('excel_file')
+    if not file_obj:
+        messages.error(request, 'Chọn file Excel để import.')
+        return redirect('kho_npl:material_list')
+    try:
+        result = import_materials_from_excel(file_obj)
+    except MaterialImportError as exc:
+        messages.error(request, str(exc))
+        return redirect('kho_npl:material_list')
+
+    msg = f'Import xong: thêm {result["created"]}, cập nhật {result["updated"]}, bỏ qua {result["skipped"]}.'
+    if result['errors']:
+        msg += f' Có {result["error_count"]} lỗi (hiển thị tối đa 20 dòng đầu).'
+        for err in result['errors']:
+            messages.warning(request, err)
+    messages.success(request, msg)
+    return redirect('kho_npl:material_list')
 
 
 @module_perm_required_methods(MODULE_KHO_NPL, get='delete', post='delete')

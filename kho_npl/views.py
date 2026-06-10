@@ -19,13 +19,11 @@ from kho_npl.views_settings import settings_hub_items
 STOCK_ALERT_STATUS_CHOICES = {
     STOCK_STATUS_LOW: {
         'title': 'NPL sắp thiếu',
-        'subtitle': 'Tồn còn nhưng đã xuống dưới hoặc bằng mức tối thiểu.',
         'icon': 'bi-exclamation-triangle',
         'badge': 'warning',
     },
     STOCK_STATUS_OUT: {
         'title': 'NPL hết hàng',
-        'subtitle': 'Tồn bằng 0 — cần nhập hoặc điều chỉnh kịp thời.',
         'icon': 'bi-x-octagon',
         'badge': 'danger',
     },
@@ -143,11 +141,9 @@ def stock_alerts(request):
     if status:
         meta = STOCK_ALERT_STATUS_CHOICES[status]
         page_title = meta['title']
-        page_subtitle = meta['subtitle']
         page_icon = meta['icon']
     else:
         page_title = 'Cảnh báo tồn kho'
-        page_subtitle = 'NPL sắp thiếu và hết hàng.'
         page_icon = 'bi-exclamation-triangle'
 
     return render(request, 'kho_npl/stock_alerts.html', {
@@ -159,7 +155,6 @@ def stock_alerts(request):
         'selected_status': status,
         'status_choices': STOCK_ALERT_STATUS_CHOICES,
         'page_title': page_title,
-        'page_subtitle': page_subtitle,
         'page_icon': page_icon,
         'total_count': len(rows),
     })

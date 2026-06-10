@@ -7,7 +7,6 @@
             <h2 class="fw-bold text-hm mb-1 jp-page-title">
                 <i class="bi bi-trash3 me-2"></i>Phiếu hủy
             </h2>
-            <p class="text-muted mb-0">Chuyển hàng hỏng từ kho nguồn sang kho <strong>{{ scrap_warehouse_code }}</strong> (Kho hủy).</p>
         </div>
         {% if can_create %}
         <a href="{% url 'kho_npl:disposal_create' %}" class="btn btn-hm btn-sm fw-bold">

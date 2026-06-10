@@ -8,12 +8,6 @@
             <h2 class="fw-bold text-hm mb-1 jp-page-title">
                 <i class="bi {{ icon }} me-2"></i>{{ title }}
             </h2>
-            <p class="text-muted mb-0">
-                Dữ liệu mirror đã sync{% if retailer %} · gian hàng <strong>{{ retailer }}</strong>{% endif %}
-                {% if browse_mode %}
-                · hiển thị <strong>30</strong> mục/trang{% if default_active_only %} · <strong>đang kinh doanh</strong>{% endif %}
-                {% elif has_active_filters %} · <strong>đang lọc</strong>{% elif default_active_only %} · <strong>đang kinh doanh</strong>{% endif %}
-            </p>
         </div>
     </div>
 

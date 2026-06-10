@@ -6,7 +6,6 @@
     <div class="jp-page-header mb-3 d-flex flex-wrap justify-content-between gap-2">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi {{ report.icon }} me-2"></i>{{ report.title }}</h2>
-            <p class="text-muted small mb-0"><a href="{% url 'kho_npl:report_hub' %}">Báo cáo</a> / {{ report.title }}</p>
         </div>
         {% if can_export %}
         <a href="{% url report.export_name %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn btn-success btn-sm fw-bold">

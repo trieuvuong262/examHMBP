@@ -8,7 +8,6 @@
                 <i class="bi bi-{% if is_edit %}pencil{% else %}plus-circle{% endif %} me-2"></i>
                 {% if is_edit %}Sửa phiếu hủy {{ disposal.number }}{% else %}Tạo phiếu hủy{% endif %}
             </h2>
-            <p class="text-muted mb-0 small">Ghi sổ sẽ trừ tồn kho nguồn và cộng vào kho <strong>{{ scrap_warehouse_code }}</strong>.</p>
         </div>
         <a href="{{ cancel_url }}" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-arrow-left me-1"></i>Quay lại
