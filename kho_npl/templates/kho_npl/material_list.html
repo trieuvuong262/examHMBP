@@ -4,6 +4,9 @@
 {% block extra_head %}
 {% include 'kho_npl/includes/filter_multi_select_head.html' %}
 <style>
+.jp-npl-material-catalog-page {
+    --jp-npl-mat-ctl-h: 34px;
+}
 .jp-npl-material-catalog-page .jp-npl-mat-topbar {
     display: flex;
     flex-wrap: wrap;
@@ -34,32 +37,55 @@
 .jp-npl-material-catalog-page .jp-npl-mat-filter-field {
     flex: 1 1 0;
     min-width: 7rem;
+    height: var(--jp-npl-mat-ctl-h);
 }
+.jp-npl-material-catalog-page .jp-npl-mat-topbar-search .jp-npl-filter-multi .ts-wrapper,
+.jp-npl-material-catalog-page .jp-npl-mat-topbar-search .jp-npl-filter-multi .ts-wrapper.form-select,
 .jp-npl-material-catalog-page .jp-npl-mat-topbar-search .jp-npl-filter-multi .ts-wrapper.form-select-sm {
-    min-height: 31px;
-    height: 31px;
+    min-height: var(--jp-npl-mat-ctl-h) !important;
+    height: var(--jp-npl-mat-ctl-h) !important;
     width: 100%;
 }
-.jp-npl-material-catalog-page .jp-npl-mat-topbar-search .jp-npl-filter-multi .ts-control {
-    min-height: 29px;
-    height: 29px;
-    padding-top: 0.2rem;
-    padding-bottom: 0.2rem;
+.jp-npl-material-catalog-page .jp-npl-mat-topbar-search .jp-npl-filter-multi .ts-control,
+.jp-npl-material-catalog-page .jp-npl-mat-topbar-search .jp-npl-filter-multi .ts-wrapper.form-select-sm .ts-control {
+    min-height: calc(var(--jp-npl-mat-ctl-h) - 2px) !important;
+    height: calc(var(--jp-npl-mat-ctl-h) - 2px) !important;
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.25rem !important;
     font-size: 0.875rem;
+    line-height: 1.25;
+    box-sizing: border-box;
 }
-.jp-npl-material-catalog-page .jp-npl-mat-topbar-search .jp-npl-mat-search-input .form-control,
-.jp-npl-material-catalog-page .jp-npl-mat-topbar-search .jp-npl-mat-search-input .input-group-text {
-    height: 31px;
+.jp-npl-material-catalog-page .jp-npl-mat-search-input {
+    height: var(--jp-npl-mat-ctl-h);
+    flex-wrap: nowrap;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-search-input .form-control,
+.jp-npl-material-catalog-page .jp-npl-mat-search-input .input-group-text {
+    height: 100%;
+    min-height: 0;
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+    font-size: 0.875rem;
+    line-height: 1.25;
 }
 .jp-npl-material-catalog-page .jp-npl-mat-status-select {
     flex: 0 0 7.75rem;
     width: 7.75rem;
-    height: 31px;
+    height: var(--jp-npl-mat-ctl-h);
+    min-height: var(--jp-npl-mat-ctl-h);
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
     font-size: 0.875rem;
+    line-height: 1.25;
 }
-.jp-npl-material-catalog-page .jp-npl-mat-search-row .btn-hm {
-    height: 31px;
+.jp-npl-material-catalog-page .jp-npl-mat-search-row .btn-hm,
+.jp-npl-material-catalog-page .jp-npl-mat-search-row .btn-outline-secondary {
+    height: var(--jp-npl-mat-ctl-h);
+    min-height: var(--jp-npl-mat-ctl-h);
     flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
 }
 .jp-npl-material-catalog-page .jp-npl-mat-topbar-actions {
     display: flex;
@@ -174,7 +200,7 @@
                 </select>
                 <button type="submit" class="btn btn-hm btn-sm fw-bold">Tìm</button>
                 {% if has_filters %}
-                <a href="{% url 'kho_npl:material_list' %}" class="btn btn-outline-secondary btn-sm fw-bold px-2" style="height:31px;line-height:1;" title="Xóa lọc">×</a>
+                <a href="{% url 'kho_npl:material_list' %}" class="btn btn-outline-secondary btn-sm fw-bold px-2" title="Xóa lọc">×</a>
                 {% endif %}
             </div>
         </form>
@@ -194,13 +220,12 @@
             </a>
             {% endif %}
             <div class="dropdown jp-npl-mat-col-picker">
-                <button type="button" class="btn btn-outline-secondary btn-sm fw-bold"
+                <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" id="npl-mat-col-btn"
                         data-bs-toggle="dropdown" data-bs-auto-close="outside"
-                        data-bs-offset="0,6" data-bs-placement="bottom-end"
                         aria-expanded="false" title="Chọn cột hiển thị">
                     <i class="bi bi-layout-three-columns me-1"></i>Cột
                 </button>
-                <div class="dropdown-menu dropdown-menu-end shadow-sm jp-npl-mat-col-menu">
+                <div class="dropdown-menu shadow-sm jp-npl-mat-col-menu" data-bs-popper="static">
                     <div class="small fw-semibold text-muted px-3 py-2 border-bottom">Hiển thị cột</div>
                     {% for col in list_columns %}
                     <div class="form-check px-3">
@@ -313,19 +338,28 @@
 {% include 'kho_npl/includes/filter_multi_select_script.html' %}
 <script>
 (function () {
+    function centerColMenu() {
+        var colPicker = document.querySelector('.jp-npl-mat-col-picker');
+        if (!colPicker) return;
+        var menu = colPicker.querySelector('.jp-npl-mat-col-menu');
+        var btn = document.getElementById('npl-mat-col-btn');
+        if (!menu || !btn || !menu.classList.contains('show')) return;
+        var rect = btn.getBoundingClientRect();
+        var menuWidth = menu.offsetWidth || 208;
+        var left = rect.left + (rect.width / 2) - (menuWidth / 2);
+        left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
+        menu.style.position = 'fixed';
+        menu.style.top = (rect.bottom + 6) + 'px';
+        menu.style.left = left + 'px';
+        menu.style.right = 'auto';
+        menu.style.transform = 'none';
+        menu.style.margin = '0';
+    }
     var colPicker = document.querySelector('.jp-npl-mat-col-picker');
     if (colPicker) {
-        colPicker.addEventListener('shown.bs.dropdown', function () {
-            var menu = colPicker.querySelector('.jp-npl-mat-col-menu');
-            var btn = colPicker.querySelector('[data-bs-toggle="dropdown"]');
-            if (!menu || !btn) return;
-            var rect = btn.getBoundingClientRect();
-            menu.style.position = 'fixed';
-            menu.style.top = (rect.bottom + 4) + 'px';
-            menu.style.left = 'auto';
-            menu.style.right = (window.innerWidth - rect.right) + 'px';
-            menu.style.transform = 'none';
-        });
+        colPicker.addEventListener('shown.bs.dropdown', centerColMenu);
+        window.addEventListener('resize', centerColMenu);
+        window.addEventListener('scroll', centerColMenu, true);
     }
 })();
 (function () {
