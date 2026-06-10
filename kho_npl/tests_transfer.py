@@ -166,6 +166,28 @@ class StockTransferWorkflowTests(TestCase):
         self.assertIn('tab=chuyen', response.url)
         self.assertEqual(StockTransfer.objects.filter(status=TRANSFER_STATUS_DRAFT).count(), 1)
 
+    def test_edit_transfer_rejects_warehouse_change_when_lines_exist(self):
+        transfer = self._draft_transfer()
+        url = reverse('kho_npl:transfer_edit', args=[transfer.pk])
+        other_loc = WarehouseLocation.objects.create(code='ALT', name='Kho khác', is_active=True)
+        response = self.client.post(url, {
+            'transfer_date': timezone.localdate().isoformat(),
+            'from_location': other_loc.pk,
+            'to_location': self.to_loc.pk,
+            'notes': '',
+            'lines-TOTAL_FORMS': '1',
+            'lines-INITIAL_FORMS': '1',
+            'lines-MIN_NUM_FORMS': '0',
+            'lines-MAX_NUM_FORMS': '1000',
+            'lines-0-id': transfer.lines.first().pk,
+            'lines-0-material': self.material.pk,
+            'lines-0-quantity': '10',
+            'lines-0-notes': '',
+        })
+        self.assertEqual(response.status_code, 302)
+        transfer.refresh_from_db()
+        self.assertEqual(transfer.from_location_id, self.from_loc.pk)
+
     def test_material_search_api(self):
         url = reverse('kho_npl:material_search') + '?q=XF'
         response = self.client.get(url)

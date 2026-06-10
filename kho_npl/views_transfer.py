@@ -22,7 +22,11 @@ from kho_npl.choices import (
     TRANSFER_TAB_NHAN,
     TRANSFER_TAB_NHAP,
 )
-from kho_npl.forms import StockTransferForm, StockTransferLineFormSet
+from kho_npl.forms import (
+    StockTransferForm,
+    StockTransferLineFormSet,
+    transfer_post_has_active_lines,
+)
 from kho_npl.models import StockTransfer
 from kho_npl.services.doc_numbers import next_transfer_number
 from kho_npl.services.transfers import (
@@ -72,8 +76,17 @@ def _tab_for_transfer(transfer: StockTransfer) -> str:
     return TRANSFER_TAB_CHUYEN
 
 
+def _warehouse_locked(transfer) -> bool:
+    return bool(transfer.pk and transfer.lines.exists())
+
+
 def _save_transfer_form(request, transfer, *, is_create: bool):
-    form = StockTransferForm(request.POST, instance=transfer)
+    wh_locked = _warehouse_locked(transfer)
+    form = StockTransferForm(
+        request.POST,
+        instance=transfer,
+        warehouse_locked=wh_locked,
+    )
     formset = StockTransferLineFormSet(request.POST, instance=transfer, prefix='lines')
     if not (form.is_valid() and formset.is_valid()):
         return form, formset, None
@@ -148,6 +161,7 @@ def transfer_hub(request):
             'form': form,
             'formset': formset,
             'form_action_url': reverse('kho_npl:transfer_create'),
+            'warehouse_locked': False,
         })
         return render(request, 'kho_npl/transfer_hub.html', ctx)
 
@@ -204,6 +218,7 @@ def transfer_create(request):
         'transfer': transfer,
         'cancel_url': _transfer_list_url(TRANSFER_TAB_NHAP),
         'form_action_url': reverse('kho_npl:transfer_create'),
+        'warehouse_locked': _warehouse_locked(transfer),
     })
 
 
@@ -219,7 +234,8 @@ def transfer_edit(request, pk):
             messages.success(request, f'Đã cập nhật phiếu {doc.number}.')
             return redirect('kho_npl:transfer_detail', pk=doc.pk)
     if request.method != 'POST':
-        form = StockTransferForm(instance=transfer)
+        wh_locked = transfer.lines.exists()
+        form = StockTransferForm(instance=transfer, warehouse_locked=wh_locked)
         formset = StockTransferLineFormSet(instance=transfer, prefix='lines')
     return render(request, 'kho_npl/transfer_form.html', {
         **nav_context('transfers', user=request.user),
@@ -230,6 +246,7 @@ def transfer_edit(request, pk):
         'transfer': transfer,
         'cancel_url': reverse('kho_npl:transfer_detail', args=[pk]),
         'form_action_url': reverse('kho_npl:transfer_edit', args=[pk]),
+        'warehouse_locked': transfer.lines.exists(),
     })
 
 

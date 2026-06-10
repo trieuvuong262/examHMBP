@@ -6,6 +6,75 @@
     const form = document.getElementById('transfer-form');
     const searchUrl = form?.dataset.materialSearchUrl || '';
     const materialInstances = new WeakMap();
+    const fromSelect = document.getElementById('id_from_location');
+    const toSelect = document.getElementById('id_to_location');
+    const lockFromInput = document.getElementById('wh-lock-from');
+    const lockToInput = document.getElementById('wh-lock-to');
+    const lockHint = document.getElementById('wh-lock-hint');
+
+    function rowHasActiveLine(row) {
+        if (!row || row.classList.contains('d-none')) return false;
+        const del = row.querySelector('input[type=checkbox][name$="-DELETE"]');
+        if (del && del.checked) return false;
+        const material = row.querySelector('select.jp-npl-material-select');
+        if (material && material.value) return true;
+        const qty = row.querySelector('input[name$="-quantity"]');
+        if (qty && qty.value && parseFloat(qty.value) > 0) return true;
+        return false;
+    }
+
+    function hasActiveLines() {
+        if (!body) return false;
+        return Array.from(body.querySelectorAll('.line-row')).some(rowHasActiveLine);
+    }
+
+    function ensureWarehouseBackup(name, value) {
+        if (!form) return;
+        let el = form.querySelector('input[type="hidden"][data-wh-backup="' + name + '"]');
+        if (!el) {
+            el = document.createElement('input');
+            el.type = 'hidden';
+            el.name = name;
+            el.dataset.whBackup = name;
+            form.appendChild(el);
+        }
+        el.value = value;
+    }
+
+    function clearWarehouseBackups() {
+        form?.querySelectorAll('input[type="hidden"][data-wh-backup]').forEach(function (el) {
+            el.remove();
+        });
+    }
+
+    function syncWarehouseLock() {
+        const locked = hasActiveLines() || form?.dataset.warehouseLocked === '1';
+        if (fromSelect && toSelect) {
+            if (locked) {
+                ensureWarehouseBackup('from_location', fromSelect.value);
+                ensureWarehouseBackup('to_location', toSelect.value);
+            } else {
+                clearWarehouseBackups();
+            }
+        }
+        [fromSelect, toSelect].forEach(function (el) {
+            if (!el) return;
+            el.disabled = locked;
+            el.classList.toggle('jp-wh-locked', locked);
+        });
+        if (lockFromInput && lockToInput && fromSelect && toSelect) {
+            if (locked) {
+                lockFromInput.value = fromSelect.value;
+                lockToInput.value = toSelect.value;
+            } else {
+                lockFromInput.value = '';
+                lockToInput.value = '';
+            }
+        }
+        if (lockHint) {
+            lockHint.classList.toggle('d-none', !locked);
+        }
+    }
 
     function renderMaterialOption(data, escape) {
         const code = escape(data.code || (data.text || '').split(' — ')[0] || '');
@@ -63,6 +132,9 @@
                     return '<div class="px-2 py-2 text-muted small">Đang tìm...</div>';
                 },
             },
+            onChange: function () {
+                syncWarehouseLock();
+            },
             onInitialize: function () {
                 const wrapper = this.wrapper;
                 if (wrapper) {
@@ -80,6 +152,13 @@
     if (!body || !tmpl || !totalForms) return;
 
     initAllMaterialSelects(body);
+    syncWarehouseLock();
+
+    body.addEventListener('input', function (e) {
+        if (e.target.matches('input[name$="-quantity"]')) {
+            syncWarehouseLock();
+        }
+    });
 
     document.getElementById('add-row')?.addEventListener('click', function () {
         const idx = parseInt(totalForms.value, 10);
@@ -106,6 +185,11 @@
         const del = row.querySelector('input[type=checkbox][name$="-DELETE"]');
         if (del) { del.checked = true; row.classList.add('d-none'); }
         else { row.remove(); }
+        syncWarehouseLock();
+    });
+
+    form?.addEventListener('submit', function () {
+        syncWarehouseLock();
     });
 })();
 </script>

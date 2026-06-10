@@ -366,11 +366,20 @@ class StockTransferForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        self.warehouse_locked = kwargs.pop('warehouse_locked', False)
         super().__init__(*args, **kwargs)
         self.fields['notes'].required = False
         locations = WarehouseLocation.objects.filter(is_active=True)
         self.fields['from_location'].queryset = locations
         self.fields['to_location'].queryset = locations
+        if self.warehouse_locked and self.instance.pk:
+            for name in ('from_location', 'to_location'):
+                field = self.fields[name]
+                field.disabled = True
+                css = field.widget.attrs.get('class', '')
+                field.widget.attrs['class'] = f'{css} jp-wh-locked'.strip()
+            self.initial.setdefault('from_location', self.instance.from_location_id)
+            self.initial.setdefault('to_location', self.instance.to_location_id)
         if not self.instance.pk:
             self.initial.setdefault('transfer_date', timezone.localdate())
             default = locations.filter(code='MAIN').first()
@@ -379,10 +388,24 @@ class StockTransferForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
+        if self.warehouse_locked and self.instance.pk:
+            cleaned['from_location'] = self.instance.from_location
+            cleaned['to_location'] = self.instance.to_location
         from_loc = cleaned.get('from_location')
         to_loc = cleaned.get('to_location')
         if from_loc and to_loc and from_loc.pk == to_loc.pk:
             raise ValidationError('Kho gửi và kho nhận phải khác nhau.')
+        if self.instance.pk and self.instance.lines.exists():
+            if from_loc and from_loc.pk != self.instance.from_location_id:
+                self.add_error(
+                    'from_location',
+                    'Đã có dòng hàng — không thể đổi kho gửi. Xóa hết dòng NPL trước.',
+                )
+            if to_loc and to_loc.pk != self.instance.to_location_id:
+                self.add_error(
+                    'to_location',
+                    'Đã có dòng hàng — không thể đổi kho nhận. Xóa hết dòng NPL trước.',
+                )
         return cleaned
 
 
@@ -424,6 +447,21 @@ class StockTransferLineForm(forms.ModelForm):
         super().full_clean()
 
 
+def transfer_post_has_active_lines(data, prefix: str = 'lines') -> bool:
+    if not data:
+        return False
+    try:
+        total = int(data.get(f'{prefix}-TOTAL_FORMS', 0) or 0)
+    except (TypeError, ValueError):
+        return False
+    for idx in range(total):
+        if data.get(f'{prefix}-{idx}-DELETE'):
+            continue
+        if data.get(f'{prefix}-{idx}-material'):
+            return True
+    return False
+
+
 class BaseStockTransferLineFormSet(BaseInlineFormSet):
     def clean(self):
         super().clean()
@@ -443,6 +481,19 @@ class BaseStockTransferLineFormSet(BaseInlineFormSet):
             qty = line.get('quantity')
             if qty is None or qty <= 0:
                 raise ValidationError('Số lượng chuyển phải lớn hơn 0 cho mỗi dòng NPL.')
+        if self.data and active_lines:
+            lock_from = (self.data.get('wh_lock_from') or '').strip()
+            lock_to = (self.data.get('wh_lock_to') or '').strip()
+            post_from = (self.data.get('from_location') or '').strip()
+            post_to = (self.data.get('to_location') or '').strip()
+            if lock_from and post_from and lock_from != post_from:
+                raise ValidationError(
+                    'Không thể đổi kho gửi sau khi đã nhập dòng hàng. Xóa hết dòng NPL để đổi kho.',
+                )
+            if lock_to and post_to and lock_to != post_to:
+                raise ValidationError(
+                    'Không thể đổi kho nhận sau khi đã nhập dòng hàng. Xóa hết dòng NPL để đổi kho.',
+                )
 
 
 StockTransferLineFormSet = inlineformset_factory(
