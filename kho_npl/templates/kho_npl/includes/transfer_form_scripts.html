@@ -7,24 +7,42 @@
     const searchUrl = form?.dataset.materialSearchUrl || '';
     const materialInstances = new WeakMap();
 
+    function renderMaterialOption(data, escape) {
+        const code = escape(data.code || (data.text || '').split(' — ')[0] || '');
+        const name = escape(data.name || '');
+        const unit = escape(data.unit || '');
+        const title = escape(data.text || '');
+        if (name) {
+            return '<div class="jp-npl-material-option" title="' + title + '">'
+                + '<span class="jp-npl-material-option-code">' + code + '</span>'
+                + '<span class="jp-npl-material-option-name">' + name + '</span>'
+                + (unit ? '<span class="jp-npl-material-option-unit">' + unit + '</span>' : '')
+                + '</div>';
+        }
+        return '<div class="jp-npl-material-option"><span class="jp-npl-material-option-code">' + escape(data.text || '') + '</span></div>';
+    }
+
     function initMaterialSelect(select) {
         if (!select || materialInstances.has(select) || typeof TomSelect === 'undefined') return;
         const ts = new TomSelect(select, {
             maxOptions: 40,
+            maxItems: 1,
             valueField: 'id',
             labelField: 'text',
-            searchField: ['text'],
+            searchField: ['text', 'code', 'name'],
             placeholder: select.dataset.placeholder || 'Gõ mã hoặc tên NPL...',
-            loadThrottle: 280,
-            shouldLoad: function (query) {
-                return query.length >= 1;
+            dropdownParent: 'body',
+            openOnFocus: true,
+            loadThrottle: 220,
+            shouldLoad: function () {
+                return true;
             },
             load: function (query, callback) {
                 if (!searchUrl) {
                     callback();
                     return;
                 }
-                fetch(searchUrl + '?q=' + encodeURIComponent(query), {
+                fetch(searchUrl + '?q=' + encodeURIComponent(query || ''), {
                     headers: { 'Accept': 'application/json' },
                 })
                     .then(function (r) { return r.json(); })
@@ -32,9 +50,24 @@
                     .catch(function () { callback(); });
             },
             render: {
-                no_results: function () {
-                    return '<div class="px-2 py-2 text-muted small">Không tìm thấy NPL</div>';
+                option: renderMaterialOption,
+                item: function (data, escape) {
+                    const code = escape(data.code || (data.text || '').split(' — ')[0] || data.text || '');
+                    const unit = data.unit ? ' <span class="jp-npl-material-item-unit">(' + escape(data.unit) + ')</span>' : '';
+                    return '<div class="jp-npl-material-item"><span class="jp-npl-material-item-code">' + code + '</span>' + unit + '</div>';
                 },
+                no_results: function () {
+                    return '<div class="px-2 py-2 text-muted small">Không tìm thấy NPL — thử mã hoặc tên khác</div>';
+                },
+                loading: function () {
+                    return '<div class="px-2 py-2 text-muted small">Đang tìm...</div>';
+                },
+            },
+            onInitialize: function () {
+                const wrapper = this.wrapper;
+                if (wrapper) {
+                    wrapper.classList.add('jp-npl-material-ts');
+                }
             },
         });
         materialInstances.set(select, ts);

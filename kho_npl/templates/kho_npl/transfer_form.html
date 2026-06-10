@@ -34,11 +34,11 @@
 
 <template id="empty-row-template">
     {% with line_form=formset.empty_form %}
-    <tr class="line-row">
-        {% for hidden in line_form.hidden_fields %}{{ hidden }}{% endfor %}
-        <td>{{ line_form.material }}</td>
-        <td>{{ line_form.quantity }}</td>
-        <td>{{ line_form.notes }}</td>
+        <tr class="line-row">
+            {% for hidden in line_form.hidden_fields %}{{ hidden }}{% endfor %}
+            <td class="jp-npl-material-cell"><div class="jp-npl-material-field">{{ line_form.material }}</div></td>
+            <td class="jp-npl-qty-cell">{{ line_form.quantity }}</td>
+            <td class="jp-npl-line-notes-cell">{{ line_form.notes }}</td>
         <td class="text-center">
             <div class="d-none">{{ line_form.DELETE }}</div>
             <button type="button" class="btn btn-link btn-sm text-danger p-0 remove-row"><i class="bi bi-x-lg"></i></button>

@@ -358,11 +358,16 @@ class StockTransferForm(forms.ModelForm):
             'transfer_date': forms.DateInput(attrs={**FORM_CONTROL, 'type': 'date'}),
             'from_location': forms.Select(attrs=FORM_SELECT),
             'to_location': forms.Select(attrs=FORM_SELECT),
-            'notes': forms.Textarea(attrs=FORM_TEXTAREA),
+            'notes': forms.TextInput(attrs={
+                **FORM_CONTROL,
+                'placeholder': 'Ghi chú (tuỳ chọn)',
+                'maxlength': '255',
+            }),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['notes'].required = False
         locations = WarehouseLocation.objects.filter(is_active=True)
         self.fields['from_location'].queryset = locations
         self.fields['to_location'].queryset = locations

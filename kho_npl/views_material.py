@@ -24,7 +24,7 @@ from kho_npl.view_utils import nav_context, perm_context
 
 
 def _material_search_label(material: Material) -> str:
-    return f'{material.code} — {material.name}'
+    return f'{material.code} — {material.name} ({material.unit.code})'
 
 
 @module_perm_required(MODULE_KHO_NPL, 'view')
@@ -39,7 +39,13 @@ def material_search(request):
             | Q(specification__icontains=q),
         )
     rows = [
-        {'id': m.pk, 'text': _material_search_label(m)}
+        {
+            'id': m.pk,
+            'text': _material_search_label(m),
+            'code': m.code,
+            'name': m.name,
+            'unit': m.unit.code,
+        }
         for m in qs.order_by('code')[:40]
     ]
     return JsonResponse({'results': rows})

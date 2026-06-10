@@ -171,7 +171,7 @@ class StockTransferWorkflowTests(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertTrue(any(r['text'].startswith('XF-01') for r in data['results']))
+        self.assertTrue(any(r['code'] == 'XF-01' for r in data['results']))
 
     def test_overview_has_no_module_tab_pills(self):
         response = self.client.get(reverse('kho_npl:overview'))
