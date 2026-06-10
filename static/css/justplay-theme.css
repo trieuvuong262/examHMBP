@@ -4549,12 +4549,16 @@ body.jp-tool-loading-active {
     color: var(--hm-primary);
 }
 
-.jp-hrm-list-thead .jp-hrm-col-org-h .jp-table-sort-link,
+.jp-hrm-list-thead .jp-hrm-col-dept-h .jp-table-sort-link,
+.jp-hrm-list-thead .jp-hrm-col-division-h .jp-table-sort-link,
+.jp-hrm-list-thead .jp-hrm-col-position-h .jp-table-sort-link,
 .jp-hrm-list-thead .jp-hrm-col-job-title-h .jp-table-sort-link {
     align-items: flex-start;
 }
 
-.jp-hrm-list-thead .jp-hrm-col-org-h .jp-hrm-list-th-label,
+.jp-hrm-list-thead .jp-hrm-col-dept-h .jp-hrm-list-th-label,
+.jp-hrm-list-thead .jp-hrm-col-division-h .jp-hrm-list-th-label,
+.jp-hrm-list-thead .jp-hrm-col-position-h .jp-hrm-list-th-label,
 .jp-hrm-list-thead .jp-hrm-col-job-title-h .jp-hrm-list-th-label {
     white-space: normal;
     word-break: break-word;
@@ -4596,11 +4600,13 @@ body.jp-tool-loading-active {
     .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-code { width: 6%; }
     .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-name { width: 17%; }
     .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-account { width: 8%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-org { width: 11%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-dept { width: 11%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-division { width: 8%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-position { width: 11%; }
     .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-job-title { width: 8%; }
     .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-date { width: 6%; }
     .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-gender { width: 4%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-perm-group { width: 10%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-perm-group { width: 13%; }
     .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-role { width: 8%; }
     .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-actions { width: 5%; }
 }
