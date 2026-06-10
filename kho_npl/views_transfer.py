@@ -83,6 +83,10 @@ def transfer_hub(request):
             | Q(notes__icontains=search_query)
         )
     page_obj, query_string = paginate_queryset(request, qs)
+    tab_counts = {
+        key: StockTransfer.objects.filter(status__in=statuses).count()
+        for key, statuses in TAB_STATUS_MAP.items()
+    }
     return render(request, 'kho_npl/transfer_hub.html', {
         **nav_context('transfers', user=request.user),
         **perm_context(request.user, 'transfers'),
@@ -91,6 +95,7 @@ def transfer_hub(request):
         'search_query': search_query,
         'tab': tab,
         'tab_choices': TRANSFER_TAB_CHOICES,
+        'tab_counts': tab_counts,
         'list_url': _transfer_list_url(tab),
     })
 
@@ -109,12 +114,17 @@ def transfer_detail(request, pk):
         tab = TRANSFER_TAB_NHAN
     else:
         tab = TRANSFER_TAB_CHUYEN
+    tab_counts = {
+        key: StockTransfer.objects.filter(status__in=statuses).count()
+        for key, statuses in TAB_STATUS_MAP.items()
+    }
     return render(request, 'kho_npl/transfer_detail.html', {
         **nav_context('transfers', user=request.user),
         **perm_context(request.user, 'transfers'),
         'transfer': transfer,
         'tab': tab,
         'tab_choices': TRANSFER_TAB_CHOICES,
+        'tab_counts': tab_counts,
         'is_editable': transfer_is_editable(transfer),
         'can_send': transfer_can_send(transfer),
         'can_receive': transfer_can_receive(transfer),

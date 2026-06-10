@@ -3,8 +3,20 @@
         {% for key, label in tab_choices %}
         <li class="nav-item">
             <a href="{% url 'kho_npl:transfer_hub' %}?tab={{ key }}"
-               class="nav-link {% if tab == key %}active btn-hm text-white{% else %}btn-outline-secondary{% endif %} px-3 py-2">
-                {{ label }}
+               class="nav-link d-inline-flex align-items-center gap-2 {% if tab == key %}active{% endif %}">
+                {% if key == 'nhap' %}
+                <i class="bi bi-box-arrow-in-down" aria-hidden="true"></i>
+                {% elif key == 'chuyen' %}
+                <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
+                {% else %}
+                <i class="bi bi-inbox" aria-hidden="true"></i>
+                {% endif %}
+                <span>{{ label }}</span>
+                {% if tab_counts %}
+                <span class="jp-npl-transfer-tab-count">
+                    {% if key == 'nhap' %}{{ tab_counts.nhap }}{% elif key == 'chuyen' %}{{ tab_counts.chuyen }}{% else %}{{ tab_counts.nhan }}{% endif %}
+                </span>
+                {% endif %}
             </a>
         </li>
         {% endfor %}
