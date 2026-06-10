@@ -86,6 +86,8 @@ def material_list(request):
         'selected_categories': category_ids,
         'show_inactive': show_inactive,
         'list_columns': MATERIAL_LIST_COLUMNS,
+        'row_count': page_obj.paginator.count,
+        'has_filters': bool(search_query or category_ids or show_inactive),
     })
 
 
