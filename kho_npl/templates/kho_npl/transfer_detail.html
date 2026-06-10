@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load npl_extras %}
 
 {% block content %}
 <div class="container jp-page jp-npl-transfer-page py-3 py-md-4 mb-5">
@@ -136,7 +137,7 @@
                     <tr>
                         <td class="fw-semibold">{{ line.material.code }}</td>
                         <td>{{ line.material.name }}</td>
-                        <td class="text-end fw-semibold">{{ line.quantity|floatformat:3 }}</td>
+                        <td class="text-end fw-semibold">{{ line.quantity|npl_qty_with_unit:line.material.unit }}</td>
                         <td>{{ line.material.unit.code }}</td>
                         <td class="text-muted small">{{ line.notes|default:'—' }}</td>
                     </tr>

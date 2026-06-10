@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load npl_extras %}
 
 {% block content %}
 <div class="container jp-page py-3 py-md-4 mb-5">
@@ -31,9 +32,9 @@
                     {% for line in stocktake.lines.all %}
                     <tr>
                         <td>{{ line.material.code }}</td><td>{{ line.location.code }}</td>
-                        <td class="text-end">{{ line.system_qty|floatformat:3 }}</td>
-                        <td class="text-end">{% if line.actual_qty is not None %}{{ line.actual_qty|floatformat:3 }}{% else %}—{% endif %}</td>
-                        <td class="text-end">{% if line.variance is not None %}{{ line.variance|floatformat:3 }}{% else %}—{% endif %}</td>
+                        <td class="text-end">{{ line.system_qty|npl_qty_with_unit:line.material.unit }}</td>
+                        <td class="text-end">{% if line.actual_qty is not None %}{{ line.actual_qty|npl_qty_with_unit:line.material.unit }}{% else %}—{% endif %}</td>
+                        <td class="text-end">{% if line.variance is not None %}{{ line.variance|npl_qty_with_unit:line.material.unit }}{% else %}—{% endif %}</td>
                     </tr>
                     {% empty %}
                     <tr><td colspan="5" class="text-center text-muted py-3">Chưa có dòng — bấm «Bắt đầu kiểm» để tải tồn.</td></tr>

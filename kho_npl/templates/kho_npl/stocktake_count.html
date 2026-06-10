@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load npl_extras %}
 
 {% block content %}
 <div class="container jp-page py-3 py-md-4 mb-5">
@@ -15,7 +16,7 @@
                             {% for hidden in line_form.hidden_fields %}{{ hidden }}{% endfor %}
                             <td>{{ line_form.instance.material.code }}<div class="small text-muted">{{ line_form.instance.material.name }}</div></td>
                             <td>{{ line_form.instance.location.code }}</td>
-                            <td class="text-end">{{ line_form.instance.system_qty|floatformat:3 }}</td>
+                            <td class="text-end">{{ line_form.instance.system_qty|npl_qty_with_unit:line_form.instance.material.unit }}</td>
                             <td>{{ line_form.actual_qty }}</td>
                             <td>{{ line_form.notes }}</td>
                         </tr>

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load npl_extras %}
 
 {% block content %}
 <div class="container jp-page py-3 py-md-4 mb-5">
@@ -33,9 +34,9 @@
                         <td>{{ adj.adjust_date|date:'d/m/Y' }}</td>
                         <td>{{ adj.material.code }}</td>
                         <td>{{ adj.location.code }}</td>
-                        <td class="text-end">{{ adj.system_qty|floatformat:3 }}</td>
-                        <td class="text-end">{{ adj.actual_qty|floatformat:3 }}</td>
-                        <td class="text-end">{{ adj.variance|floatformat:3 }}</td>
+                        <td class="text-end">{{ adj.system_qty|npl_qty_with_unit:adj.material.unit }}</td>
+                        <td class="text-end">{{ adj.actual_qty|npl_qty_with_unit:adj.material.unit }}</td>
+                        <td class="text-end">{{ adj.variance|npl_qty_with_unit:adj.material.unit }}</td>
                         <td>{{ adj.get_status_display }}</td>
                     </tr>
                     {% empty %}

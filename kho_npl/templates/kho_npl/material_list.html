@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load npl_extras %}
 
 {% block extra_head %}
 <style>
@@ -121,7 +122,7 @@
                         <td class="npl-col" data-col="specification">{{ material.specification|default:'—' }}</td>
                         <td class="npl-col" data-col="unit">{{ material.unit.name }}</td>
                         <td class="npl-col" data-col="supplier">{{ material.supplier.name|default:'—' }}</td>
-                        <td class="text-end npl-col" data-col="min_stock">{{ material.min_stock|floatformat:3 }}</td>
+                        <td class="text-end npl-col" data-col="min_stock">{{ material.min_stock|npl_qty_with_unit:material.unit }}</td>
                         <td class="npl-col" data-col="status">
                             {% if material.is_active %}
                             <span class="badge text-bg-success">Đang dùng</span>

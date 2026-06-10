@@ -95,6 +95,8 @@ class StockCardTests(TestCase):
         self.assertTrue(card['is_consistent'])
         self.assertEqual(material_total_qty(self.material), Decimal('98'))
         self.assertEqual(card['closing_balance'], Decimal('98'))
+        self.assertEqual(card['scope_label'], 'Tổng mọi kệ')
+        self.assertFalse(card['scope_is_location'])
 
         txn_rows = [r for r in card['rows'] if r['kind'] == 'txn']
         self.assertEqual(len(txn_rows), 3)
@@ -126,6 +128,13 @@ class StockCardTests(TestCase):
         self.assertContains(response, 'Kiểm tra lệch')
         self.assertContains(response, 'jp-npl-diagnose-table')
         self.assertContains(response, self.location.code)
+
+    def test_stock_card_location_scope(self):
+        self._post_receipt(Decimal('10'))
+        card = build_material_stock_card(self.material, location_id=self.location.id)
+        self.assertTrue(card['scope_is_location'])
+        self.assertEqual(card['scope_label'], self.location.code)
+        self.assertEqual(card['closing_balance'], Decimal('10'))
 
     def test_stock_card_page_loads(self):
         self._post_receipt(Decimal('10'))

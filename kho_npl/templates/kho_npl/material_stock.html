@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load humanize %}
+{% load humanize npl_extras %}
 
 {% block content %}
 <div class="container jp-page py-3 py-md-4 mb-5">
@@ -84,8 +84,8 @@
                         <td>{{ row.material.name }}</td>
                         <td>{{ row.material.color|default:'—' }}</td>
                         <td>{{ row.material.unit.name }}</td>
-                        <td class="text-end fw-semibold">{{ row.total_qty|floatformat:3 }}</td>
-                        <td class="text-end">{{ row.material.min_stock|floatformat:3 }}</td>
+                        <td class="text-end fw-semibold">{{ row.total_qty|npl_qty_with_unit:row.material.unit }}</td>
+                        <td class="text-end">{{ row.material.min_stock|npl_qty_with_unit:row.material.unit }}</td>
                         <td>{{ row.primary_location|default:'—' }}</td>
                         <td>
                             <span class="badge text-bg-{{ row.status_badge }}">{{ row.status_label }}</span>

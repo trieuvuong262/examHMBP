@@ -8,7 +8,7 @@ from decimal import Decimal
 from django.db.models import Sum
 from django.utils import timezone
 
-from kho_npl.models import Material, StockBalance, StockLedger
+from kho_npl.models import Material, StockBalance, StockLedger, WarehouseLocation
 from kho_npl.services.stock import material_total_qty
 
 REF_LABELS = {
@@ -86,26 +86,26 @@ def build_material_stock_card(
             'ref_url': '',
         })
 
-    if location_id:
-        for entry in period_entries:
-            balance_before = entry.balance_after - entry.qty_delta
-            rows.append(_txn_row(entry, balance_before, entry.balance_after))
-        closing = period_entries[-1].balance_after if period_entries else opening
-    else:
-        running = opening
-        for entry in period_entries:
-            balance_before = running
-            running += entry.qty_delta
-            rows.append(_txn_row(entry, balance_before, running))
-        closing = running
+    for entry in period_entries:
+        balance_before = entry.balance_after - entry.qty_delta
+        rows.append(_txn_row(entry, balance_before, entry.balance_after))
 
     totals_in = sum((r['qty_in'] for r in rows if r['kind'] == 'txn'), Decimal('0'))
     totals_out = sum((r['qty_out'] for r in rows if r['kind'] == 'txn'), Decimal('0'))
 
     system_stock = stock_balance_total(material, location_id)
     ledger_total = ledger_delta_total(material, location_id)
-
     variance = system_stock - ledger_total
+
+    if location_id:
+        closing = period_entries[-1].balance_after if period_entries else opening
+        scope_label = (
+            WarehouseLocation.objects.filter(pk=location_id).values_list('code', flat=True).first() or 'Vị trí'
+        )
+    else:
+        closing = ledger_total
+        scope_label = 'Tổng mọi kệ'
+
     return {
         'rows': rows,
         'opening_balance': opening,
@@ -117,6 +117,9 @@ def build_material_stock_card(
         'variance': variance,
         'is_consistent': ledger_matches_stock(material, location_id),
         'period_entry_count': len(period_entries),
+        'scope_label': scope_label,
+        'scope_is_location': bool(location_id),
+        'unit': material.unit,
     }
 
 

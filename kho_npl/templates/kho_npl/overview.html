@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load humanize %}
+{% load humanize npl_extras %}
 
 {% block extra_head %}
 <style>
@@ -90,8 +90,8 @@
                         </td>
                         <td>{{ row.material.name }}</td>
                         <td>{{ row.material.category.name }}</td>
-                        <td class="text-end">{{ row.total_qty|floatformat:3 }}</td>
-                        <td class="text-end">{{ row.material.min_stock|floatformat:3 }}</td>
+                        <td class="text-end">{{ row.total_qty|npl_qty_with_unit:row.material.unit }}</td>
+                        <td class="text-end">{{ row.material.min_stock|npl_qty_with_unit:row.material.unit }}</td>
                         <td>
                             <span class="badge text-bg-{{ row.status_badge }}">{{ row.status_label }}</span>
                         </td>

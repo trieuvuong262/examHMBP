@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load humanize %}
+{% load humanize npl_extras %}
 
 {% block extra_head %}
 <style>
@@ -66,20 +66,38 @@
                     <div class="text-muted small">
                         {{ selected_material.category.name }} · {{ selected_material.unit.name }}
                         {% if selected_material.color %} · {{ selected_material.color }}{% endif %}
+                        · Phạm vi: <strong>{{ card.scope_label }}</strong>
                     </div>
                 </div>
                 <div class="text-end">
-                    <div class="small text-muted">Tồn hệ thống</div>
-                    <div class="fs-5 fw-bold text-hm">{{ card.system_stock|floatformat:3 }}</div>
+                    <div class="small text-muted">
+                        {% if card.scope_is_location %}Tồn tại {{ card.scope_label }}{% else %}Tồn tổng mọi kệ{% endif %}
+                    </div>
+                    <div class="fs-5 fw-bold text-hm">{{ card.system_stock|npl_qty_with_unit:selected_material.unit }}</div>
+                    {% if not card.scope_is_location %}
+                    <div class="small text-muted">Tổng sổ: {{ card.ledger_total|npl_qty_with_unit:selected_material.unit }}</div>
+                    {% endif %}
                 </div>
             </div>
             {% if not card.is_consistent %}
             <div class="alert alert-warning border-0 py-2 px-3 mt-3 mb-0 small d-flex flex-wrap align-items-center justify-content-between gap-2">
                 <div>
                     <i class="bi bi-exclamation-triangle me-1"></i>
-                    Tồn kho ({{ card.system_stock|floatformat:3 }}) chưa khớp tổng sổ kho ({{ card.ledger_total|floatformat:3 }}).
-                    Lệch <strong>{% if card.variance > 0 %}+{% endif %}{{ card.variance|floatformat:3 }}</strong>.
-                    Kiểm tra phiếu nhập/xuất hoặc số dư đầu kỳ.
+                    {% if card.scope_is_location %}
+                    Tồn tại <strong>{{ card.scope_label }}</strong>
+                    ({{ card.system_stock|npl_qty_with_unit:selected_material.unit }})
+                    chưa khớp tổng sổ tại kệ này
+                    ({{ card.ledger_total|npl_qty_with_unit:selected_material.unit }}).
+                    {% else %}
+                    Tồn tổng mọi kệ
+                    ({{ card.system_stock|npl_qty_with_unit:selected_material.unit }})
+                    chưa khớp tổng biến động sổ
+                    ({{ card.ledger_total|npl_qty_with_unit:selected_material.unit }}).
+                    {% endif %}
+                    Lệch <strong>{% if card.variance > 0 %}+{% endif %}{{ card.variance|npl_qty_with_unit:selected_material.unit }}</strong>.
+                    {% if not card.scope_is_location %}
+                    Cột「Tồn sau」trong bảng là tồn theo từng kệ, không phải tổng toàn kho.
+                    {% endif %}
                 </div>
                 {% if mismatch_diagnosis %}
                 <button type="button" class="btn btn-sm btn-warning fw-bold text-dark"
@@ -120,14 +138,14 @@
                                         <span class="fw-semibold">{{ row.location_code }}</span>
                                         <span class="text-muted small d-block">{{ row.location_name }}</span>
                                     </td>
-                                    <td class="text-end">{{ row.balance_qty|floatformat:3 }}</td>
-                                    <td class="text-end">{{ row.ledger_sum|floatformat:3 }}</td>
-                                    <td class="text-end">{{ row.last_balance|floatformat:3 }}</td>
+                                    <td class="text-end">{{ row.balance_qty|npl_qty_with_unit:selected_material.unit }}</td>
+                                    <td class="text-end">{{ row.ledger_sum|npl_qty_with_unit:selected_material.unit }}</td>
+                                    <td class="text-end">{{ row.last_balance|npl_qty_with_unit:selected_material.unit }}</td>
                                     <td class="text-end fw-semibold {% if row.variance_ledger != 0 %}text-danger{% endif %}">
-                                        {% if row.variance_ledger > 0 %}+{% endif %}{{ row.variance_ledger|floatformat:3 }}
+                                        {% if row.variance_ledger > 0 %}+{% endif %}{{ row.variance_ledger|npl_qty_with_unit:selected_material.unit }}
                                     </td>
                                     <td class="text-end {% if row.variance_last != 0 %}text-danger{% endif %}">
-                                        {% if row.variance_last > 0 %}+{% endif %}{{ row.variance_last|floatformat:3 }}
+                                        {% if row.variance_last > 0 %}+{% endif %}{{ row.variance_last|npl_qty_with_unit:selected_material.unit }}
                                     </td>
                                     <td class="text-center">{{ row.txn_count }}</td>
                                     <td class="text-end text-nowrap">
@@ -144,11 +162,11 @@
                             <tfoot class="table-light fw-bold">
                                 <tr>
                                     <td>Tổng mọi vị trí</td>
-                                    <td class="text-end">{{ mismatch_diagnosis.total_balance|floatformat:3 }}</td>
-                                    <td class="text-end">{{ mismatch_diagnosis.total_ledger|floatformat:3 }}</td>
+                                    <td class="text-end">{{ mismatch_diagnosis.total_balance|npl_qty_with_unit:selected_material.unit }}</td>
+                                    <td class="text-end">{{ mismatch_diagnosis.total_ledger|npl_qty_with_unit:selected_material.unit }}</td>
                                     <td></td>
                                     <td class="text-end text-danger">
-                                        {% if mismatch_diagnosis.total_variance > 0 %}+{% endif %}{{ mismatch_diagnosis.total_variance|floatformat:3 }}
+                                        {% if mismatch_diagnosis.total_variance > 0 %}+{% endif %}{{ mismatch_diagnosis.total_variance|npl_qty_with_unit:selected_material.unit }}
                                     </td>
                                     <td colspan="3"></td>
                                 </tr>
@@ -178,7 +196,7 @@
                         <th class="text-end">SL nhập</th>
                         <th class="text-end">SL xuất</th>
                         <th class="text-end">Biến động</th>
-                        <th class="text-end">Tồn sau</th>
+                        <th class="text-end">Tồn sau (kệ)</th>
                         <th>Ghi chú</th>
                     </tr>
                 </thead>
@@ -196,13 +214,13 @@
                         </td>
                         <td>{{ row.ref_type_label|default:'—' }}</td>
                         <td>{{ row.location_code|default:'—' }}</td>
-                        <td class="text-end">{{ row.balance_before|floatformat:3 }}</td>
-                        <td class="text-end qty-in">{% if row.qty_in %}+{{ row.qty_in|floatformat:3 }}{% else %}—{% endif %}</td>
-                        <td class="text-end qty-out">{% if row.qty_out %}-{{ row.qty_out|floatformat:3 }}{% else %}—{% endif %}</td>
+                        <td class="text-end">{{ row.balance_before|npl_qty_with_unit:selected_material.unit }}</td>
+                        <td class="text-end qty-in">{% if row.qty_in %}+{{ row.qty_in|npl_qty }}{% else %}—{% endif %}</td>
+                        <td class="text-end qty-out">{% if row.qty_out %}-{{ row.qty_out|npl_qty }}{% else %}—{% endif %}</td>
                         <td class="text-end fw-semibold">
-                            {% if row.qty_delta > 0 %}+{% endif %}{{ row.qty_delta|floatformat:3 }}
+                            {% if row.qty_delta > 0 %}+{% endif %}{{ row.qty_delta|npl_qty }}
                         </td>
-                        <td class="text-end fw-bold">{{ row.balance_after|floatformat:3 }}</td>
+                        <td class="text-end fw-bold">{{ row.balance_after|npl_qty_with_unit:selected_material.unit }}</td>
                         <td class="small text-muted">{{ row.notes|default:'' }}</td>
                     </tr>
                     {% empty %}
@@ -216,12 +234,14 @@
                 {% if card.rows %}
                 <tfoot class="table-light">
                     <tr class="fw-bold">
-                        <td colspan="5" class="text-end">Cộng kỳ / Tồn cuối</td>
-                        <td class="text-end">{{ card.opening_balance|floatformat:3 }}</td>
-                        <td class="text-end qty-in">+{{ card.totals_in|floatformat:3 }}</td>
-                        <td class="text-end qty-out">-{{ card.totals_out|floatformat:3 }}</td>
+                        <td colspan="5" class="text-end">
+                            {% if card.scope_is_location %}Cộng kỳ / Tồn cuối tại {{ card.scope_label }}{% else %}Cộng kỳ / Tổng biến động sổ{% endif %}
+                        </td>
+                        <td class="text-end">{{ card.opening_balance|npl_qty_with_unit:selected_material.unit }}</td>
+                        <td class="text-end qty-in">+{{ card.totals_in|npl_qty }}</td>
+                        <td class="text-end qty-out">-{{ card.totals_out|npl_qty }}</td>
                         <td></td>
-                        <td class="text-end text-hm">{{ card.closing_balance|floatformat:3 }}</td>
+                        <td class="text-end text-hm">{{ card.closing_balance|npl_qty_with_unit:selected_material.unit }}</td>
                         <td></td>
                     </tr>
                 </tfoot>
@@ -287,7 +307,7 @@
                         <td>{{ material.name }}</td>
                         <td>{{ material.category.name }}</td>
                         <td>{{ material.specification|default:'—' }}</td>
-                        <td class="text-end">{{ material.stock_total|floatformat:3 }}</td>
+                        <td class="text-end">{{ material.stock_total|npl_qty_with_unit:material.unit }}</td>
                     </tr>
                     {% empty %}
                     <tr>
