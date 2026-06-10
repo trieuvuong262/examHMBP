@@ -48,8 +48,8 @@ TAB_STATUS_MAP = {
 
 
 def _resolve_tab(request) -> str:
-    tab = (request.GET.get('tab') or TRANSFER_TAB_NHAP).strip().lower()
-    return tab if tab in VALID_TABS else TRANSFER_TAB_NHAP
+    tab = (request.GET.get('tab') or TRANSFER_TAB_DANH_SACH).strip().lower()
+    return tab if tab in VALID_TABS else TRANSFER_TAB_DANH_SACH
 
 
 def _resolve_list_status(request) -> str:
@@ -135,6 +135,7 @@ def transfer_hub(request):
         'list_status_filters': TRANSFER_LIST_STATUS_FILTERS,
         'list_status': _resolve_list_status(request) if tab == TRANSFER_TAB_DANH_SACH else '',
         'search_query': get_search_query(request) if tab != TRANSFER_TAB_NHAP else '',
+        'show_transfer_search': tab != TRANSFER_TAB_NHAP,
     }
 
     if tab == TRANSFER_TAB_NHAP:

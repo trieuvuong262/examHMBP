@@ -101,6 +101,12 @@ class StockTransferWorkflowTests(TestCase):
         self.assertIsNotNone(ledger)
         self.assertEqual(ledger.qty_delta, Decimal('-5'))
 
+    def test_transfer_hub_default_tab_is_danh_sach(self):
+        response = self.client.get(reverse('kho_npl:transfer_hub'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'jp-npl-transfer-search-form')
+        self.assertContains(response, 'jp-npl-transfer-status-filters')
+
     def test_transfer_hub_tabs_render(self):
         self._draft_transfer()
 

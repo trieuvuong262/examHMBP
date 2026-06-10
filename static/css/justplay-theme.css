@@ -6229,7 +6229,26 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 0.75rem 1rem;
+    gap: 0.65rem 1rem;
+}
+
+.jp-npl-transfer-toolbar-start {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.jp-npl-transfer-search-form {
+    flex: 0 1 280px;
+    min-width: min(100%, 220px);
+    margin: 0;
+}
+
+.jp-npl-transfer-search-form .input-group {
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
 }
 
 .jp-npl-transfer-status-filters {
