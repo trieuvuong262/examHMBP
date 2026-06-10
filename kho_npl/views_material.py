@@ -235,7 +235,10 @@ def material_import(request):
         return redirect('kho_npl:material_list')
     file_obj = request.FILES.get('excel_file')
     if not file_obj:
-        messages.error(request, 'Chọn file Excel để import.')
+        messages.error(request, 'Chọn file Excel trước khi nhập.')
+        return redirect('kho_npl:material_list')
+    if not file_obj.name.lower().endswith(('.xlsx', '.xls')):
+        messages.error(request, 'Chỉ chấp nhận file Excel (.xlsx hoặc .xls).')
         return redirect('kho_npl:material_list')
     try:
         result = import_materials_from_excel(file_obj)
@@ -243,12 +246,22 @@ def material_import(request):
         messages.error(request, str(exc))
         return redirect('kho_npl:material_list')
 
-    msg = f'Import xong: thêm {result["created"]}, cập nhật {result["updated"]}, bỏ qua {result["skipped"]}.'
-    if result['errors']:
-        msg += f' Có {result["error_count"]} lỗi (hiển thị tối đa 20 dòng đầu).'
-        for err in result['errors']:
-            messages.warning(request, err)
-    messages.success(request, msg)
+    if result['created'] or result['updated']:
+        messages.success(
+            request,
+            f'Nhập xong: {result["created"]} mới, {result["updated"]} cập nhật.',
+        )
+    elif result['skipped'] and not result['errors']:
+        messages.warning(request, 'Không có dòng hợp lệ nào được nhập.')
+    if result['skipped'] and (result['created'] or result['updated'] or result['errors']):
+        messages.info(request, f'Bỏ qua {result["skipped"]} dòng.')
+    for err in result['errors']:
+        messages.warning(request, err)
+    if result['error_count'] > len(result['errors']):
+        messages.warning(
+            request,
+            f'Còn {result["error_count"] - len(result["errors"])} lỗi khác (chỉ hiển thị 20 dòng đầu).',
+        )
     return redirect('kho_npl:material_list')
 
 

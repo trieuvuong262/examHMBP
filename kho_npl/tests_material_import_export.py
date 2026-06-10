@@ -45,7 +45,9 @@ class MaterialImportExportTests(TestCase):
         self.assertContains(response, 'npl-col-toggle')
         self.assertContains(response, 'bi-layout-three-columns')
         self.assertContains(response, 'Xuất Excel')
-        self.assertContains(response, 'Import')
+        self.assertContains(response, 'Nhập Excel')
+        self.assertContains(response, '>Thêm<')
+        self.assertContains(response, 'npl-import-drop')
         self.assertContains(response, 'jp-mat-th-sort')
         self.assertContains(response, 'jp-mat-col-resizer')
 

@@ -295,10 +295,10 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
             {% endif %}
             {% if can_create %}
             <button type="button" class="btn btn-outline-hm btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#nplImportModal">
-                <i class="bi bi-upload me-1"></i>Import
+                <i class="bi bi-upload me-1"></i>Nhập Excel
             </button>
             <a href="{% url 'kho_npl:material_create' %}" class="btn btn-hm btn-sm fw-bold">
-                <i class="bi bi-plus-lg me-1"></i>Thêm NPL
+                <i class="bi bi-plus-lg me-1"></i>Thêm
             </a>
             {% endif %}
             <div class="dropdown jp-npl-mat-col-picker">
@@ -376,7 +376,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
                         <td colspan="10" class="text-center text-muted py-4">
                             {% if has_filters %}Không có kết quả.{% else %}Chưa có nguyên phụ liệu.{% endif %}
                             {% if can_create and not has_filters %}
-                            <a href="{% url 'kho_npl:material_create' %}" class="ms-1">Thêm NPL</a>
+                            <a href="{% url 'kho_npl:material_create' %}" class="ms-1">Thêm</a>
                             {% endif %}
                         </td>
                     </tr>
@@ -394,26 +394,120 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
 </div>
 
 {% if can_create %}
+<style>
+.jp-npl-import-steps {
+    display: flex;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+.jp-npl-import-step {
+    flex: 1 1 auto;
+    font-size: 0.75rem;
+    color: var(--bs-secondary-color);
+    padding: 0.35rem 0.5rem;
+    border: 1px dashed var(--bs-border-color);
+    border-radius: 0.35rem;
+    text-align: center;
+    white-space: nowrap;
+}
+.jp-npl-import-step.is-active {
+    color: var(--hm-red, #dc2626);
+    border-color: rgba(220, 38, 38, 0.45);
+    background: rgba(220, 38, 38, 0.05);
+    font-weight: 600;
+}
+.jp-npl-import-drop {
+    border: 2px dashed var(--bs-border-color);
+    border-radius: 0.5rem;
+    padding: 1.25rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .15s ease, background .15s ease;
+}
+.jp-npl-import-drop.is-dragover,
+.jp-npl-import-drop:hover {
+    border-color: rgba(220, 38, 38, 0.5);
+    background: rgba(220, 38, 38, 0.04);
+}
+.jp-npl-import-drop.has-file {
+    border-style: solid;
+    border-color: rgba(25, 135, 84, 0.45);
+    background: rgba(25, 135, 84, 0.05);
+}
+.jp-npl-import-file-meta {
+    font-size: 0.8125rem;
+    word-break: break-all;
+}
+.jp-npl-import-cols {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+.jp-npl-import-col-badge {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.45rem;
+    border-radius: 0.25rem;
+    background: var(--bs-light);
+    border: 1px solid var(--bs-border-color);
+}
+.jp-npl-import-col-badge.is-required {
+    border-color: rgba(220, 38, 38, 0.35);
+    color: var(--hm-red, #dc2626);
+}
+</style>
 <div class="modal fade" id="nplImportModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <form action="{% url 'kho_npl:material_import' %}" method="post" enctype="multipart/form-data" class="modal-content border-0 shadow">
+        <form action="{% url 'kho_npl:material_import' %}" method="post" enctype="multipart/form-data"
+              class="modal-content border-0 shadow" id="npl-import-form">
             {% csrf_token %}
             <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-bold"><i class="bi bi-upload me-2 text-hm"></i>Import danh mục NPL</h5>
+                <h5 class="modal-title fw-bold"><i class="bi bi-file-earmark-arrow-up me-2 text-hm"></i>Nhập từ Excel</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
             </div>
             <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label fw-bold small" for="npl-excel-file">File Excel (.xlsx)</label>
-                    <input type="file" class="form-control" id="npl-excel-file" name="excel_file" accept=".xlsx,.xls" required>
+                <div class="jp-npl-import-steps">
+                    <span class="jp-npl-import-step">1. Tải mẫu</span>
+                    <span class="jp-npl-import-step">2. Điền dữ liệu</span>
+                    <span class="jp-npl-import-step is-active">3. Chọn file</span>
                 </div>
-                <a href="{% url 'kho_npl:material_import_template' %}" class="small text-decoration-none">
-                    <i class="bi bi-download me-1"></i>Tải file mẫu
-                </a>
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <a href="{% url 'kho_npl:material_import_template' %}" class="btn btn-outline-hm btn-sm fw-bold">
+                        <i class="bi bi-download me-1"></i>Tải file mẫu
+                    </a>
+                    <a href="{% url 'kho_npl:material_export' %}" class="btn btn-outline-secondary btn-sm fw-bold">
+                        <i class="bi bi-box-arrow-up-right me-1"></i>Xuất danh mục hiện tại
+                    </a>
+                </div>
+                <div class="mb-2">
+                    <div class="small fw-semibold text-muted mb-1">Cột bắt buộc</div>
+                    <div class="jp-npl-import-cols">
+                        <span class="jp-npl-import-col-badge is-required">Mã NPL</span>
+                        <span class="jp-npl-import-col-badge is-required">Tên NPL</span>
+                        <span class="jp-npl-import-col-badge is-required">Mã nhóm</span>
+                        <span class="jp-npl-import-col-badge is-required">Mã ĐVT</span>
+                        <span class="jp-npl-import-col-badge">Màu</span>
+                        <span class="jp-npl-import-col-badge">Quy cách</span>
+                        <span class="jp-npl-import-col-badge">Mã NCC</span>
+                        <span class="jp-npl-import-col-badge">Tồn tối thiểu</span>
+                    </div>
+                </div>
+                <label class="jp-npl-import-drop d-block mb-0" id="npl-import-drop" for="npl-excel-file">
+                    <input type="file" class="d-none" id="npl-excel-file" name="excel_file" accept=".xlsx,.xls" required>
+                    <i class="bi bi-cloud-arrow-up fs-3 text-hm d-block mb-2"></i>
+                    <div class="fw-semibold" id="npl-import-drop-title">Kéo thả file hoặc bấm để chọn</div>
+                    <div class="small text-muted" id="npl-import-drop-hint">.xlsx, .xls — trùng mã sẽ cập nhật</div>
+                    <div class="jp-npl-import-file-meta fw-semibold text-success mt-2 d-none" id="npl-import-file-meta"></div>
+                </label>
             </div>
             <div class="modal-footer border-0 pt-0">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Huỷ</button>
-                <button type="submit" class="btn btn-hm fw-bold">Import</button>
+                <button type="submit" class="btn btn-hm fw-bold" id="npl-import-submit" disabled>
+                    <span class="jp-npl-import-submit-label"><i class="bi bi-upload me-1"></i>Nhập dữ liệu</span>
+                    <span class="jp-npl-import-submit-loading d-none">
+                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Đang xử lý...
+                    </span>
+                </button>
             </div>
         </form>
     </div>
@@ -588,6 +682,91 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
             document.addEventListener('mouseup', onUp);
         });
     });
+})();
+(function () {
+    var form = document.getElementById('npl-import-form');
+    var drop = document.getElementById('npl-import-drop');
+    var input = document.getElementById('npl-excel-file');
+    var submit = document.getElementById('npl-import-submit');
+    var meta = document.getElementById('npl-import-file-meta');
+    var modal = document.getElementById('nplImportModal');
+    if (!form || !drop || !input || !submit) return;
+
+    var MAX_MB = 10;
+
+    function formatSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function isExcel(name) {
+        var lower = (name || '').toLowerCase();
+        return lower.endsWith('.xlsx') || lower.endsWith('.xls');
+    }
+
+    function setFile(file) {
+        if (!file) {
+            input.value = '';
+            drop.classList.remove('has-file');
+            meta.classList.add('d-none');
+            meta.textContent = '';
+            submit.disabled = true;
+            return;
+        }
+        if (!isExcel(file.name)) {
+            alert('Chỉ chấp nhận file Excel (.xlsx hoặc .xls).');
+            setFile(null);
+            return;
+        }
+        if (file.size > MAX_MB * 1024 * 1024) {
+            alert('File quá lớn. Tối đa ' + MAX_MB + ' MB.');
+            setFile(null);
+            return;
+        }
+        var dt = new DataTransfer();
+        dt.items.add(file);
+        input.files = dt.files;
+        drop.classList.add('has-file');
+        meta.classList.remove('d-none');
+        meta.textContent = file.name + ' (' + formatSize(file.size) + ')';
+        submit.disabled = false;
+    }
+
+    input.addEventListener('change', function () {
+        setFile(input.files && input.files[0] ? input.files[0] : null);
+    });
+
+    ['dragenter', 'dragover'].forEach(function (ev) {
+        drop.addEventListener(ev, function (e) {
+            e.preventDefault();
+            drop.classList.add('is-dragover');
+        });
+    });
+    ['dragleave', 'drop'].forEach(function (ev) {
+        drop.addEventListener(ev, function (e) {
+            e.preventDefault();
+            drop.classList.remove('is-dragover');
+        });
+    });
+    drop.addEventListener('drop', function (e) {
+        var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        if (file) setFile(file);
+    });
+
+    form.addEventListener('submit', function () {
+        submit.disabled = true;
+        submit.querySelector('.jp-npl-import-submit-label').classList.add('d-none');
+        submit.querySelector('.jp-npl-import-submit-loading').classList.remove('d-none');
+    });
+
+    if (modal) {
+        modal.addEventListener('hidden.bs.modal', function () {
+            setFile(null);
+            submit.querySelector('.jp-npl-import-submit-label').classList.remove('d-none');
+            submit.querySelector('.jp-npl-import-submit-loading').classList.add('d-none');
+        });
+    }
 })();
 </script>
 {% endblock %}
