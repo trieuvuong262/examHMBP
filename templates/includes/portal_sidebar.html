@@ -399,7 +399,8 @@
                 {% if jp_can_kho_npl_overview %}
                 <li>
                     <a href="{% url 'kho_npl:overview' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'overview' %}active{% endif %}">
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'overview' %}active{% endif %}"
+                       data-jp-npl-catalog-nav data-loading-message="Đang tải tổng quan…">
                         <i class="bi bi-speedometer2"></i><span>Tổng quan</span>
                     </a>
                 </li>
@@ -408,7 +409,8 @@
                 {% if jp_can_kho_npl_materials %}
                 <li>
                     <a href="{% url 'kho_npl:material_list' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'material_list' %}active{% endif %}">
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'material_list' %}active{% endif %}"
+                       data-jp-npl-catalog-nav data-loading-message="Đang tải danh mục…">
                         <i class="bi bi-tags"></i><span>Danh mục</span>
                     </a>
                 </li>
@@ -417,7 +419,8 @@
                 {% if jp_can_kho_npl_material_stock %}
                 <li>
                     <a href="{% url 'kho_npl:material_stock' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'material_stock' %}active{% endif %}">
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'material_stock' %}active{% endif %}"
+                       data-jp-npl-catalog-nav data-loading-message="Đang tải tồn kho…">
                         <i class="bi bi-boxes"></i><span>Tồn kho</span>
                     </a>
                 </li>
@@ -426,7 +429,8 @@
                 {% if jp_can_kho_npl_stock_cards %}
                 <li>
                     <a href="{% url 'kho_npl:stock_cards' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'stock_cards' %}active{% endif %}">
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'stock_cards' %}active{% endif %}"
+                       data-jp-npl-catalog-nav data-loading-message="Đang tải thẻ kho…">
                         <i class="bi bi-grid-3x3-gap"></i><span>Thẻ kho</span>
                     </a>
                 </li>

@@ -97,6 +97,7 @@
             {% block content %}{% endblock %}
 
 {% if user.is_authenticated %}
+{% include 'kho_npl/includes/catalog_page_loading_global.html' %}
         </main>
 
         <footer class="jp-site-footer jp-app-footer">
@@ -144,6 +145,7 @@
 {% endif %}
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% if user.is_authenticated %}<script src="{% static 'js/kho_npl/catalog_page_loading.js' %}?v=20260528d"></script>{% endif %}
 <script src="{% static 'js/theme.js' %}"></script>
 {% if user.is_authenticated %}<script src="{% static 'js/avatar.js' %}"></script>{% endif %}
 <script src="{% static 'js/sidebar.js' %}"></script>

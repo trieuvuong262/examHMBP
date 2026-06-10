@@ -1,15 +1,28 @@
 /**
- * Overlay loading cho các màn lưới Kho NPL (tổng quan, danh mục, tồn kho, thẻ kho).
+ * Loading tức thì cho 4 màn lưới Kho NPL (menu, lọc, phân trang, sắp xếp).
  */
 (function (global) {
     'use strict';
 
     const STORAGE_KEY = 'jp_npl_catalog_loading';
-    const MIN_VISIBLE_MS = 450;
+    const MIN_VISIBLE_MS = 300;
+
+    const ROUTE_MESSAGES = {
+        '/kho-npl/tong-quan/': 'Đang tải tổng quan…',
+        '/kho-npl/danh-muc/': 'Đang tải danh mục…',
+        '/kho-npl/ton-kho-npl/': 'Đang tải tồn kho…',
+        '/kho-npl/the-kho/': 'Đang tải thẻ kho…',
+    };
 
     let shownAt = 0;
     let hideTimer = null;
     let isVisible = false;
+    let globalBound = false;
+
+    function normalizePath(pathname) {
+        if (!pathname) return '/';
+        return pathname.endsWith('/') ? pathname : pathname + '/';
+    }
 
     function root() {
         return document.getElementById('jpNplCatalogLoading');
@@ -19,7 +32,9 @@
         return document.getElementById('jpNplCatalogLoadingMsg');
     }
 
-    function defaultMessage() {
+    function pageMessage() {
+        const page = document.querySelector('.jp-npl-material-catalog-page[data-loading-message]');
+        if (page) return page.getAttribute('data-loading-message');
         const el = root();
         return (el && el.getAttribute('data-default-message')) || 'Đang tải dữ liệu…';
     }
@@ -34,8 +49,6 @@
             sessionStorage.removeItem(STORAGE_KEY);
         } catch (e) {}
         document.documentElement.classList.remove('jp-npl-catalog-pending-load');
-        const early = document.getElementById('jpNplCatalogLoadingEarly');
-        if (early) early.remove();
     }
 
     function show(message) {
@@ -45,14 +58,13 @@
             clearTimeout(hideTimer);
             hideTimer = null;
         }
-        const early = document.getElementById('jpNplCatalogLoadingEarly');
-        if (early) early.remove();
-        setMessage(message || defaultMessage());
+        const msg = message || pageMessage();
+        setMessage(msg);
         el.classList.remove('d-none');
         el.setAttribute('aria-hidden', 'false');
         document.body.classList.add('jp-npl-catalog-loading-active');
         document.documentElement.classList.add('jp-npl-catalog-pending-load');
-        shownAt = window.__jpNplCatalogLoadingStart || Date.now();
+        shownAt = Date.now();
         isVisible = true;
     }
 
@@ -78,14 +90,27 @@
     }
 
     function markNavigating(message) {
-        const msg = message || defaultMessage();
+        const msg = message || pageMessage();
         try {
             sessionStorage.setItem(STORAGE_KEY, msg);
         } catch (e) {}
         show(msg);
     }
 
-    function shouldIgnoreClick(target) {
+    function messageForLink(link, url) {
+        if (link.hasAttribute('data-jp-npl-catalog-nav')) {
+            return link.getAttribute('data-loading-message') || pageMessage();
+        }
+        return ROUTE_MESSAGES[normalizePath(url.pathname)] || null;
+    }
+
+    function isCatalogListUrl(url) {
+        const path = normalizePath(url.pathname);
+        if (ROUTE_MESSAGES[path]) return true;
+        return false;
+    }
+
+    function shouldIgnoreNav(target) {
         if (!target) return true;
         if (target.closest('.jp-npl-mat-col-picker')) return true;
         if (target.closest('.jp-npl-import-modal')) return true;
@@ -97,33 +122,22 @@
         return false;
     }
 
-    function wirePage() {
-        const page = document.querySelector('.jp-npl-material-catalog-page');
-        if (!page || page.dataset.jpCatalogLoadingBound === '1') return;
-        page.dataset.jpCatalogLoadingBound = '1';
+    function wireGlobalNav() {
+        if (globalBound) return;
+        globalBound = true;
 
-        page.addEventListener('submit', function (e) {
-            const form = e.target;
-            if (!form || form.tagName !== 'FORM') return;
-            if (shouldIgnoreClick(form)) return;
-            if (form.closest('.modal')) return;
-            if (form.id === 'jp-npl-import-form') return;
-            const msg = form.getAttribute('data-loading-message') || defaultMessage();
-            markNavigating(msg);
-        });
-
-        page.addEventListener('click', function (e) {
-            if (shouldIgnoreClick(e.target)) return;
+        document.addEventListener('click', function (e) {
+            if (shouldIgnoreNav(e.target)) return;
 
             const sortBtn = e.target.closest('.jp-mat-th-sort');
             if (sortBtn) {
-                markNavigating(defaultMessage());
+                markNavigating(pageMessage());
                 return;
             }
 
             const catalogRow = e.target.closest('.jp-npl-catalog-row[data-href]');
             if (catalogRow) {
-                markNavigating(defaultMessage());
+                markNavigating(pageMessage());
                 return;
             }
 
@@ -132,8 +146,30 @@
             const href = (link.getAttribute('href') || '').trim();
             if (!href || href === '#' || href.startsWith('#') || href.startsWith('javascript:')) return;
             if (link.target === '_blank' || link.hasAttribute('download')) return;
-            markNavigating(defaultMessage());
-        });
+
+            let url;
+            try {
+                url = new URL(link.href, window.location.origin);
+            } catch (err) {
+                return;
+            }
+            if (url.origin !== window.location.origin) return;
+
+            const msg = messageForLink(link, url);
+            if (!msg) return;
+            markNavigating(msg);
+        }, true);
+
+        document.addEventListener('submit', function (e) {
+            const form = e.target;
+            if (!form || form.tagName !== 'FORM') return;
+            if (shouldIgnoreNav(form)) return;
+            if (form.closest('.modal')) return;
+            if (form.id === 'jp-npl-import-form') return;
+            if (!form.closest('.jp-npl-material-catalog-page')) return;
+            const msg = form.getAttribute('data-loading-message') || pageMessage();
+            markNavigating(msg);
+        }, true);
     }
 
     function pendingMessage() {
@@ -146,24 +182,16 @@
 
     function finishAfterPaint() {
         requestAnimationFrame(function () {
-            requestAnimationFrame(function () {
-                hide(false);
-            });
+            hide(false);
         });
     }
 
-    function onReady() {
-        wirePage();
-        const el = root();
-        if (!el) return;
+    function onCatalogPageReady() {
+        const page = document.querySelector('.jp-npl-material-catalog-page');
+        if (!page) return;
 
         const pending = pendingMessage();
-        if (pending) {
-            setMessage(pending);
-        }
-        if (!isVisible) {
-            show(pending || defaultMessage());
-        }
+        show(pending || pageMessage());
 
         if (document.readyState === 'complete') {
             finishAfterPaint();
@@ -172,14 +200,25 @@
         }
     }
 
+    function bootCatalogPage() {
+        const pending = pendingMessage();
+        if (pending) show(pending);
+
+        if (document.querySelector('.jp-npl-material-catalog-page')) {
+            onCatalogPageReady();
+        }
+    }
+
     const api = { show, hide, markNavigating };
 
     global.JpNplCatalogLoading = api;
 
+    wireGlobalNav();
+
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', onReady);
+        document.addEventListener('DOMContentLoaded', bootCatalogPage);
     } else {
-        onReady();
+        bootCatalogPage();
     }
 
     window.addEventListener('pageshow', function (e) {

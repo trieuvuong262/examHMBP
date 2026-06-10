@@ -3,7 +3,6 @@
 
 {% block extra_head %}
 {% include 'kho_npl/includes/filter_multi_select_head.html' %}
-{% include 'kho_npl/includes/catalog_page_loading_head.html' %}
 <style>
 .jp-npl-material-catalog-page.jp-npl-stock-card-page { --jp-npl-mat-ctl-h: 34px; }
 .jp-npl-stock-card-page .jp-npl-catalog-row.is-selected td {
@@ -145,8 +144,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
 {% endblock %}
 
 {% block content %}
-{% include 'kho_npl/includes/catalog_page_loading.html' with loading_message='Đang tải thẻ kho…' %}
-<div class="container jp-page jp-npl-material-catalog-page jp-npl-stock-card-page py-3 py-md-4 mb-5">
+<div class="container jp-page jp-npl-material-catalog-page jp-npl-stock-card-page py-3 py-md-4 mb-5" data-loading-message="Đang tải thẻ kho…">
     <div class="jp-npl-mat-topbar">
         <h2 class="jp-npl-mat-topbar-title"><i class="bi bi-grid-3x3-gap me-2"></i>Thẻ kho</h2>
         <form method="get" class="jp-npl-mat-topbar-search" id="jp-stock-card-filters">
@@ -522,7 +520,6 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
 
 {% block scripts %}
 {% include 'kho_npl/includes/filter_multi_select_script.html' %}
-{% include 'kho_npl/includes/catalog_page_loading_script.html' %}
 <script>
 (function () {
     document.querySelectorAll('.jp-npl-catalog-row[data-href]').forEach(function (row) {
