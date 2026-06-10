@@ -400,7 +400,7 @@ try:
         r = client.get(reverse('kho_npl:overview'))
         content = r.content.decode('utf-8', errors='replace')
         checks = [
-            ('Tổng quan tồn kho', 'Tiêu đề trang'),
+            ('Tổng quan', 'Tiêu đề trang'),
         ]
         for needle, label in checks:
             if needle in content:
@@ -413,10 +413,10 @@ try:
             fail('Overview vẫn còn jp-tab-pills — phải điều hướng qua sidebar')
         r_xfer = client.get(reverse('kho_npl:transfer_hub') + '?tab=chuyen')
         xfer_content = r_xfer.content.decode('utf-8', errors='replace')
-        if 'jp-npl-transfer-tabs' in xfer_content and 'Chuyển kho' in xfer_content:
-            ok('Chuyển kho: 3 tab Nhập/Chuyển/Nhận')
+        if 'jp-npl-transfer-tabs' in xfer_content and 'phiếu chuyển' in xfer_content:
+            ok('phiếu chuyển: 3 tab Nhập/Chuyển/Nhận')
         else:
-            fail('Chuyển kho thiếu tab workflow')
+            fail('phiếu chuyển thiếu tab workflow')
 except Exception as e:
     fail('Portal integration', str(e))
 

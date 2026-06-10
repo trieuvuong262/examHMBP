@@ -37,7 +37,7 @@ class KhoNplPermissionTests(TestCase):
         self.client.force_login(self.user)
         response = self.client.get(reverse('kho_npl:overview'))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Tổng quan tồn kho')
+        self.assertContains(response, 'Tổng quan')
 
     def test_denied_without_view_permission(self):
         self.group.module_permissions = {

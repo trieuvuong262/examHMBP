@@ -48,7 +48,7 @@ MODULE_CHOICES = [
     (MODULE_EQUIPMENT, 'Quản lý thiết bị'),
     (MODULE_FEEDBACK, 'Góp ý'),
     (MODULE_KIOTVIET, 'KiotViet'),
-    (MODULE_KHO_NPL, 'Tồn kho NPL'),
+    (MODULE_KHO_NPL, 'Kho Nguyên Phụ Liệu'),
     (MODULE_NAS_STORAGE, 'Thư mục NAS'),
     (MODULE_DOCUMENTS, 'Tài liệu & Hỏi đáp'),
     (MODULE_GUIDE, 'Hướng dẫn'),

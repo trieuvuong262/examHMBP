@@ -390,7 +390,7 @@
                     aria-expanded="{% if 'kho-npl' in request.path %}true{% else %}false{% endif %}"
                     aria-controls="jp-sidebar-kho-npl-submenu">
                 <span class="jp-sidebar-group-toggle-main">
-                    <i class="bi bi-boxes"></i><span>Tồn kho NPL</span>
+                    <i class="bi bi-boxes"></i><span>Kho Nguyên Phụ Liệu</span>
                 </span>
                 <i class="bi bi-chevron-down jp-sidebar-group-chevron" aria-hidden="true"></i>
             </button>
@@ -400,7 +400,7 @@
                 <li>
                     <a href="{% url 'kho_npl:overview' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'overview' %}active{% endif %}">
-                        <i class="bi bi-speedometer2"></i><span>Tổng quan tồn kho</span>
+                        <i class="bi bi-speedometer2"></i><span>Tổng quan</span>
                     </a>
                 </li>
                 {% endif %}
@@ -409,7 +409,7 @@
                 <li>
                     <a href="{% url 'kho_npl:material_list' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'material_list' %}active{% endif %}">
-                        <i class="bi bi-tags"></i><span>Danh mục nguyên phụ liệu</span>
+                        <i class="bi bi-tags"></i><span>Danh mục</span>
                     </a>
                 </li>
                 {% endif %}
@@ -418,7 +418,7 @@
                 <li>
                     <a href="{% url 'kho_npl:material_stock' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'material_stock' %}active{% endif %}">
-                        <i class="bi bi-boxes"></i><span>Tồn kho nguyên phụ liệu</span>
+                        <i class="bi bi-boxes"></i><span>tồn kho</span>
                     </a>
                 </li>
                 {% endif %}
@@ -436,7 +436,7 @@
                 <li>
                     <a href="{% url 'kho_npl:receipt_list' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'receipt_list' %}active{% endif %}">
-                        <i class="bi bi-box-arrow-in-down"></i><span>Phiếu nhập kho</span>
+                        <i class="bi bi-box-arrow-in-down"></i><span>phiếu nhập</span>
                     </a>
                 </li>
                 {% endif %}
@@ -445,7 +445,7 @@
                 <li>
                     <a href="{% url 'kho_npl:issue_list' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'issue_list' %}active{% endif %}">
-                        <i class="bi bi-box-arrow-up"></i><span>Phiếu xuất kho</span>
+                        <i class="bi bi-box-arrow-up"></i><span>phiếu xuất</span>
                     </a>
                 </li>
                 {% endif %}
@@ -454,7 +454,7 @@
                 <li>
                     <a href="{% url 'kho_npl:transfer_hub' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'transfer_hub' or request.resolver_match.url_name == 'transfer_create' or request.resolver_match.url_name == 'transfer_detail' or request.resolver_match.url_name == 'transfer_edit' %}active{% endif %}">
-                        <i class="bi bi-arrow-left-right"></i><span>Chuyển kho</span>
+                        <i class="bi bi-arrow-left-right"></i><span>phiếu chuyển</span>
                     </a>
                 </li>
                 {% endif %}
@@ -472,7 +472,7 @@
                 <li>
                     <a href="{% url 'kho_npl:adjustment_list' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'adjustment_list' %}active{% endif %}">
-                        <i class="bi bi-sliders"></i><span>Điều chỉnh tồn kho</span>
+                        <i class="bi bi-sliders"></i><span>phiếu điều chỉnh</span>
                     </a>
                 </li>
                 {% endif %}
@@ -481,7 +481,7 @@
                 <li>
                     <a href="{% url 'kho_npl:stocktake_list' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'stocktake_list' %}active{% endif %}">
-                        <i class="bi bi-clipboard-check"></i><span>Kiểm kê kho</span>
+                        <i class="bi bi-clipboard-check"></i><span>phiếu kiểm kê</span>
                     </a>
                 </li>
                 {% endif %}
