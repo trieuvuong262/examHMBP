@@ -370,7 +370,7 @@ class ProfileConcurrentPositionForm(forms.ModelForm):
         self.fields['division'].empty_label = '-- Chọn bộ phận --'
         self.fields['role'].choices = Profile.ROLE_CHOICES
         if not self.instance.pk and not self.data:
-            self.fields['is_active'].initial = False
+            self.fields['is_active'].initial = True
 
         prefix = f'{self.prefix}-' if self.prefix else ''
         slot_role = (
@@ -454,6 +454,48 @@ class ProfileConcurrentPositionForm(forms.ModelForm):
         cleaned['job_position'] = job_position
         return cleaned
 
+    def _resolve_concurrent_slot_instance(self, instance):
+        """Gộp vào bản inactive trùng khóa; xóa bản inactive thừa."""
+        if not instance.profile_id:
+            return instance
+        job_position = (instance.job_position or '').strip()
+        base_filter = {
+            'profile_id': instance.profile_id,
+            'department_id': instance.department_id,
+            'division_id': instance.division_id,
+            'job_position': job_position,
+        }
+        if instance.is_active:
+            if not instance.pk:
+                reusable = ProfileConcurrentPosition.objects.filter(
+                    **base_filter,
+                    is_active=False,
+                ).order_by('id').first()
+                if reusable:
+                    for field in self.Meta.fields:
+                        setattr(reusable, field, getattr(instance, field))
+                    reusable.is_active = True
+                    instance = reusable
+            if instance.pk:
+                ProfileConcurrentPosition.objects.filter(
+                    **base_filter,
+                    is_active=False,
+                ).exclude(pk=instance.pk).delete()
+        elif instance.pk:
+            ProfileConcurrentPosition.objects.filter(
+                **base_filter,
+                is_active=False,
+            ).exclude(pk=instance.pk).delete()
+        return instance
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance = self._resolve_concurrent_slot_instance(instance)
+        if commit:
+            instance.save()
+            self.instance = instance
+        return instance
+
 
 class BaseProfileConcurrentPositionFormSet(forms.BaseInlineFormSet):
     def __init__(self, *args, **kwargs):
@@ -503,11 +545,20 @@ ProfileConcurrentPositionFormSet = inlineformset_factory(
     can_delete=True,
 )
 
+class ActiveProfileConcurrentPositionEditFormSet(BaseProfileConcurrentPositionFormSet):
+    """Chỉ hiển thị slot đang hiệu lực — slot tắt không làm phình form."""
+
+    def get_queryset(self):
+        if not getattr(self.instance, 'pk', None):
+            return ProfileConcurrentPosition.objects.none()
+        return super().get_queryset().filter(is_active=True).order_by('sort_order', 'id')
+
+
 ProfileConcurrentPositionEditFormSet = inlineformset_factory(
     Profile,
     ProfileConcurrentPosition,
     form=ProfileConcurrentPositionForm,
-    formset=BaseProfileConcurrentPositionFormSet,
+    formset=ActiveProfileConcurrentPositionEditFormSet,
     extra=0,
     can_delete=True,
 )

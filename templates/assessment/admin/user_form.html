@@ -890,10 +890,19 @@
         updateConcurrentSlotIndices();
         const heroStats = document.querySelectorAll('.jp-user-detail-hero-aside .jp-user-detail-stat strong');
         if (heroStats[2]) {
-            heroStats[2].textContent = String(
-                document.querySelectorAll('#concurrent-positions .jp-concurrent-slot-card:not(.jp-concurrent-slot-card--draft)').length,
-            );
+            heroStats[2].textContent = String(countActiveConcurrentSlots());
         }
+    }
+
+    function countActiveConcurrentSlots() {
+        let count = 0;
+        document.querySelectorAll('#concurrent-positions .jp-concurrent-position-row').forEach(function (row) {
+            const activeInput = row.querySelector('input[name$="-is_active"]');
+            if (activeInput && activeInput.checked) {
+                count += 1;
+            }
+        });
+        return count;
     }
 
     const deptSelect = document.querySelector('select[name="department"]');

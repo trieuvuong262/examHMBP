@@ -2,6 +2,7 @@
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.http import QueryDict
 from django.test import TestCase
 
 from hrm.concurrent_positions import (
@@ -12,6 +13,7 @@ from hrm.concurrent_positions import (
     get_effective_subordinate_users,
     heads_for_division,
 )
+from hrm.forms import ProfileConcurrentPositionEditFormSet, ProfileConcurrentPositionForm
 from hrm.models import Department, Division, Profile, ProfileConcurrentPosition
 from hrm.org_structure import _division_head_profiles, _employee_nodes
 from hrm.permissions import (
@@ -86,6 +88,66 @@ class ProfileConcurrentPositionModelTests(TestCase):
         )
         with self.assertRaises(Exception):
             dup.save()
+
+    def test_new_slot_defaults_active(self):
+        form = ProfileConcurrentPositionForm()
+        self.assertTrue(form.fields['is_active'].initial)
+
+    def test_reuse_inactive_slot_on_save(self):
+        inactive = ProfileConcurrentPosition.objects.create(
+            profile=self.user.profile,
+            department=self.dept_a,
+            division=None,
+            job_position='Trưởng phòng',
+            role=ROLE_DEPARTMENT_HEAD,
+            is_active=False,
+        )
+        post_data = QueryDict(mutable=True)
+        post_data.update({
+            'concurrent-0-department': str(self.dept_a.pk),
+            'concurrent-0-division': '',
+            'concurrent-0-job_position': 'Trưởng phòng',
+            'concurrent-0-job_title': 'TP R&D',
+            'concurrent-0-role': ROLE_DEPARTMENT_HEAD,
+            'concurrent-0-sort_order': '0',
+            'concurrent-0-is_active': 'on',
+            'concurrent-0-notes': '',
+        })
+        form = ProfileConcurrentPositionForm(
+            data=post_data,
+            instance=ProfileConcurrentPosition(profile=self.user.profile),
+            prefix='concurrent-0',
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        slot = form.save()
+        self.assertEqual(slot.pk, inactive.pk)
+        self.assertTrue(slot.is_active)
+        self.assertEqual(
+            ProfileConcurrentPosition.objects.filter(profile=self.user.profile).count(),
+            1,
+        )
+
+    def test_edit_formset_hides_inactive_slots(self):
+        ProfileConcurrentPosition.objects.create(
+            profile=self.user.profile,
+            department=self.dept_a,
+            job_position='Trưởng phòng',
+            role=ROLE_DEPARTMENT_HEAD,
+            is_active=True,
+        )
+        ProfileConcurrentPosition.objects.create(
+            profile=self.user.profile,
+            department=self.dept_b,
+            job_position='Trưởng phòng',
+            role=ROLE_DEPARTMENT_HEAD,
+            is_active=False,
+        )
+        formset = ProfileConcurrentPositionEditFormSet(
+            instance=self.user.profile,
+            prefix='concurrent',
+        )
+        self.assertEqual(len(formset.forms), 1)
+        self.assertEqual(formset.forms[0].instance.department_id, self.dept_a.pk)
 
 
 class EffectiveOrgContextTests(TestCase):
