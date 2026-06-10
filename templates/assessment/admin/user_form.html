@@ -6,6 +6,9 @@
 <div class="container-fluid jp-page jp-hrm-page jp-user-form-page py-2 py-md-3 px-2 px-md-4 mb-4">
     <form method="post" id="userForm" enctype="multipart/form-data" novalidate{% if not is_edit %} autocomplete="off"{% endif %}{% if is_edit %} class="jp-user-form--view-mode{% if force_edit_mode %} jp-user-form--edit-mode{% endif %}"{% endif %}>
         {% csrf_token %}
+        {% if is_edit and list_return_query %}
+        <input type="hidden" name="list_return_query" value="{{ list_return_query }}">
+        {% endif %}
         {% if not is_edit %}
         <div class="jp-autofill-trap" aria-hidden="true" tabindex="-1">
             <input type="text" name="jp_autofill_trap_user" value="" tabindex="-1" autocomplete="username">
@@ -16,7 +19,7 @@
         <div class="jp-page-header jp-user-form-header mb-3">
             <div class="jp-page-header-main">
                 <div class="d-flex align-items-center gap-2 mb-1">
-                    <a href="{% url 'user_list' %}" class="btn btn-light border jp-hrm-back-btn d-md-none" aria-label="Quay lại">
+                    <a href="{% if user_list_url %}{{ user_list_url }}{% else %}{% url 'user_list' %}{% endif %}" class="btn btn-light border jp-hrm-back-btn d-md-none" aria-label="Quay lại">
                         <i class="bi bi-arrow-left"></i>
                     </a>
                     <div>
@@ -35,13 +38,13 @@
                 <nav aria-label="breadcrumb" class="d-none d-md-block mt-2">
                     <ol class="breadcrumb mb-0 small">
                         <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}" class="text-decoration-none text-muted">Dashboard</a></li>
-                        <li class="breadcrumb-item"><a href="{% url 'user_list' %}" class="text-decoration-none text-muted">Nhân sự</a></li>
+                        <li class="breadcrumb-item"><a href="{% if user_list_url %}{{ user_list_url }}{% else %}{% url 'user_list' %}{% endif %}" class="text-decoration-none text-muted">Nhân sự</a></li>
                         <li class="breadcrumb-item active fw-bold text-hm">{{ title }}</li>
                     </ol>
                 </nav>
             </div>
             <div class="jp-hrm-toolbar jp-user-form-header-actions">
-                <a href="{% url 'user_list' %}" class="btn btn-light border fw-bold jp-hrm-tool-btn d-none d-md-inline-flex">
+                <a href="{% if user_list_url %}{{ user_list_url }}{% else %}{% url 'user_list' %}{% endif %}" class="btn btn-light border fw-bold jp-hrm-tool-btn d-none d-md-inline-flex">
                     <i class="bi bi-arrow-left"></i><span class="jp-hrm-tool-label"> Danh sách</span>
                 </a>
                 {% if is_edit %}

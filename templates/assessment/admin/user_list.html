@@ -226,7 +226,7 @@
                                 </div>
                                 {% with display_name=u.profile.full_name|default:u.first_name|default:u.username %}
                                 {% if jp_can_update_hrm %}
-                                <a href="{% url 'user_edit' u.id %}" class="jp-hrm-name-link jp-hrm-name-text jp-text-clamp-2" title="{{ display_name|display_title }}">{{ display_name|display_title }}</a>
+                                <a href="{% url 'user_edit' u.id %}{% if nav_query_string %}?{{ nav_query_string }}{% endif %}" class="jp-hrm-name-link jp-hrm-name-text jp-text-clamp-2" title="{{ display_name|display_title }}">{{ display_name|display_title }}</a>
                                 {% else %}
                                 <span class="text-dark jp-hrm-name-text jp-text-clamp-2" title="{{ display_name|display_title }}">{{ display_name|display_title }}</span>
                                 {% endif %}
@@ -251,9 +251,15 @@
                         <td data-label="Chức vụ" class="jp-hrm-col-job-title"{% if u.profile.job_title %} title="{{ u.profile.job_title }}"{% endif %}>
                             <span class="jp-hrm-cell-truncate">{{ u.profile.job_title|default:"—" }}</span>
                         </td>
-                        <td data-label="Ngày vào" class="text-muted small jp-hrm-col-date">{{ u.profile.join_date|date:"d/m/Y"|default:"—" }}</td>
                         <td data-label="Ngày sinh" class="text-muted small jp-hrm-col-date">{{ u.profile.date_of_birth|date:"d/m/Y"|default:"—" }}</td>
                         <td class="text-center jp-hrm-col-gender" data-label="Giới tính">{{ u.profile.get_gender_display_short|default:"—" }}</td>
+                        <td data-label="Nhóm quyền" class="jp-hrm-col-perm-group"{% if u.profile.permission_group %} title="{{ u.profile.permission_group.name }}"{% endif %}>
+                            {% if u.profile.permission_group %}
+                            <span class="badge bg-light text-dark border small jp-hrm-cell-truncate">{{ u.profile.permission_group.name }}</span>
+                            {% else %}
+                            <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
                         <td class="text-center jp-hrm-col-role" data-label="Vai trò HT">
                             {% if u.profile.role == 'DIRECTOR' %}
                                 <span class="badge bg-danger-subtle text-danger px-2 px-md-3">
@@ -291,7 +297,7 @@
                                 <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                                     {% if jp_can_update_hrm %}
                                     <li>
-                                        <a class="dropdown-item" href="{% url 'user_edit' u.id %}">
+                                        <a class="dropdown-item" href="{% url 'user_edit' u.id %}{% if nav_query_string %}?{{ nav_query_string }}{% endif %}">
                                             <i class="bi bi-pencil-square me-2 text-warning"></i>Sửa thông tin
                                         </a>
                                     </li>

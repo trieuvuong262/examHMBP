@@ -4562,6 +4562,7 @@ body.jp-tool-loading-active {
 
 .jp-hrm-list-thead .jp-hrm-col-date-h .jp-hrm-list-th-label,
 .jp-hrm-list-thead .jp-hrm-col-gender-h .jp-hrm-list-th-label,
+.jp-hrm-list-thead .jp-hrm-col-perm-group-h .jp-hrm-list-th-label,
 .jp-hrm-list-thead .jp-hrm-col-role-h .jp-hrm-list-th-label {
     white-space: normal;
 }
@@ -4599,6 +4600,7 @@ body.jp-tool-loading-active {
     .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-job-title { width: 8%; }
     .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-date { width: 6%; }
     .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-gender { width: 4%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-perm-group { width: 10%; }
     .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-role { width: 8%; }
     .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-actions { width: 5%; }
 }

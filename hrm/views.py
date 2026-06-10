@@ -60,7 +60,10 @@ from hrm.user_search import (
     filter_users_by_search,
     distinct_job_positions_for_filter,
     apply_user_list_sort,
+    redirect_user_list_preserve_filters,
     resolve_user_list_sort,
+    user_list_nav_query_string,
+    user_list_url,
 )
 from PortalJustPlay.list_search import apply_term_search, apply_user_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
@@ -139,14 +142,25 @@ def _user_edit_page_context(profile):
     }
 
 
-def _user_edit_render_context(profile, user_obj, request):
+def _user_edit_render_context(profile, user_obj, request, *, list_return_query: str = ''):
     from hrm.module_permissions import user_can_update_module
+
+    if not list_return_query and request.method == 'POST':
+        list_return_query = (request.POST.get('list_return_query') or '').strip()
+    if not list_return_query:
+        list_return_query = user_list_nav_query_string(request)
 
     return {
         **_user_form_extra_context(),
         **_user_edit_page_context(profile),
         'concurrent_slot_save_url': reverse('user_concurrent_slot_save', args=[user_obj.id]),
         'can_update_user': user_can_update_module(request.user, MODULE_HRM),
+        'list_return_query': list_return_query,
+        'user_list_url': (
+            f"{reverse('user_list')}?{list_return_query}"
+            if list_return_query
+            else user_list_url(request)
+        ),
     }
 
 
@@ -168,7 +182,10 @@ def user_list(request):
         employment_status = ''
 
     users_qs = User.objects.select_related(
-        'profile', 'profile__department', 'profile__division',
+        'profile',
+        'profile__department',
+        'profile__division',
+        'profile__permission_group',
     ).prefetch_related(
         Prefetch(
             'profile__concurrent_positions',
@@ -235,6 +252,7 @@ def user_list(request):
         'users': page_obj.object_list,
         'page_obj': page_obj,
         'query_string': query_string,
+        'nav_query_string': user_list_nav_query_string(request, page_obj.number),
         'sort_col': sort_key,
         'sort_dir': sort_dir,
         'table_columns': build_user_list_table_columns(request, sort_key, sort_dir),
@@ -549,7 +567,7 @@ def user_edit(request, user_id):
                     })
 
             messages.success(request, f"Cập nhật {profile.full_name} thành công!")
-            return redirect('user_edit', user_id=user_obj.id)
+            return redirect_user_list_preserve_filters(request, from_post=True)
         else:
             messages.error(request, "Vui lòng kiểm tra lại dữ liệu nhập vào.")
     else:

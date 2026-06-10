@@ -92,9 +92,9 @@ USER_LIST_SORT_COLUMNS = {
     'division': 'profile__division__name',
     'position': 'profile__job_position',
     'job_title': 'profile__job_title',
-    'join_date': 'profile__join_date',
     'birth_date': 'profile__date_of_birth',
     'gender': 'profile__gender',
+    'permission_group': 'profile__permission_group__name',
     'role': 'profile__role',
 }
 
@@ -106,9 +106,9 @@ USER_LIST_TABLE_COLUMNS = (
     {'key': 'division', 'label': 'Bộ phận', 'th_tone': 'proper', 'th_align': 'start', 'col_class': 'jp-hrm-col-org', 'sortable': True},
     {'key': 'position', 'label': 'Vị trí', 'th_tone': 'proper', 'th_align': 'start', 'col_class': 'jp-hrm-col-org', 'sortable': True},
     {'key': 'job_title', 'label': 'Chức vụ', 'th_tone': 'proper', 'th_align': 'start', 'col_class': 'jp-hrm-col-job-title', 'sortable': True},
-    {'key': 'join_date', 'label': 'Ngày vào', 'th_tone': 'cap', 'th_align': 'center', 'col_class': 'jp-hrm-col-date', 'sortable': True},
     {'key': 'birth_date', 'label': 'Ngày sinh', 'th_tone': 'cap', 'th_align': 'center', 'col_class': 'jp-hrm-col-date', 'sortable': True},
     {'key': 'gender', 'label': 'Giới tính', 'th_tone': 'cap', 'th_align': 'center', 'col_class': 'jp-hrm-col-gender', 'sortable': True},
+    {'key': 'permission_group', 'label': 'Nhóm quyền', 'th_tone': 'proper', 'th_align': 'start', 'col_class': 'jp-hrm-col-perm-group', 'sortable': True},
     {'key': 'role', 'label': 'Vai trò HT', 'th_tone': 'cap', 'th_align': 'center', 'col_class': 'jp-hrm-col-role', 'sortable': True},
     {'key': None, 'label': 'Thao tác', 'th_tone': 'cap', 'th_align': 'end', 'col_class': 'jp-hrm-col-actions', 'sortable': False},
 )
@@ -199,7 +199,7 @@ def apply_user_list_sort(queryset, sort_key: str, sort_dir: str):
 
 
 def user_list_query_params(request, **overrides) -> dict[str, str]:
-    keys = ('department', 'division', 'position', 'q', 'status', 'sort', 'dir')
+    keys = ('department', 'division', 'position', 'q', 'status', 'sort', 'dir', 'page')
     data: dict[str, str] = {}
     for key in keys:
         if key in overrides:
@@ -216,6 +216,39 @@ def user_list_query_params(request, **overrides) -> dict[str, str]:
 
 def user_list_query_string(request, **overrides) -> str:
     return urlencode(user_list_query_params(request, **overrides))
+
+
+def user_list_nav_query_string(request, page_number: int | None = None) -> str:
+    """Query giữ bộ lọc + trang — dùng khi mở/sau form sửa NV."""
+    params = user_list_query_params(request)
+    if page_number is not None and page_number > 1:
+        params['page'] = str(page_number)
+    else:
+        page_raw = (request.GET.get('page') or '').strip()
+        if page_raw.isdigit() and int(page_raw) > 1:
+            params['page'] = page_raw
+    return urlencode(params)
+
+
+def user_list_url(request, page_number: int | None = None) -> str:
+    from django.urls import reverse
+
+    qs = user_list_nav_query_string(request, page_number=page_number)
+    base = reverse('user_list')
+    return f'{base}?{qs}' if qs else base
+
+
+def redirect_user_list_preserve_filters(request, *, from_post: bool = False):
+    """Redirect danh sách NV — giữ nguyên bộ lọc (và trang) từ GET hoặc hidden POST."""
+    from django.shortcuts import redirect
+    from django.urls import reverse
+
+    if from_post:
+        qs = (request.POST.get('list_return_query') or '').strip()
+    else:
+        qs = user_list_nav_query_string(request)
+    url = reverse('user_list')
+    return redirect(f'{url}?{qs}' if qs else url)
 
 
 def user_list_sort_href(request, column_key: str, current_sort: str, current_dir: str) -> str:

@@ -803,6 +803,31 @@ class UserSearchTests(TestCase):
         self.assertContains(response, 'sort=code&amp;dir=asc')
         self.assertContains(response, 'sort=name&amp;dir=desc')
         self.assertContains(response, 'is-active is-asc')
+        self.assertContains(response, 'Nhóm quyền')
+        self.assertNotContains(response, 'data-label="Ngày vào"')
+
+    def test_user_edit_redirect_preserves_list_filters(self):
+        dept = Department.objects.get(name='Phòng May')
+        edit_url = reverse('user_edit', args=[self.target.id]) + f'?department={dept.pk}&status=active&q=NV'
+        self.client.get(edit_url)
+        response = self.client.post(edit_url, {
+            'list_return_query': f'department={dept.pk}&status=active&q=NV',
+            'username': 'annt',
+            'email': 'annt@justplay.vn',
+            'full_name': 'Nguyễn Văn An',
+            'employee_code': 'NV12345',
+            'role': ROLE_EMPLOYEE,
+            'is_employed': '1',
+            'concurrent-TOTAL_FORMS': '0',
+            'concurrent-INITIAL_FORMS': '0',
+            'concurrent-MIN_NUM_FORMS': '0',
+            'concurrent-MAX_NUM_FORMS': '1000',
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('user_list'), response.url)
+        self.assertIn(f'department={dept.pk}', response.url)
+        self.assertIn('status=active', response.url)
+        self.assertIn('q=NV', response.url)
 
     def test_display_title_filter(self):
         from hrm.templatetags.hrm_extras import display_title
@@ -842,7 +867,12 @@ class UserSearchTests(TestCase):
             'full_name': 'Nguyễn Văn An',
             'employee_code': 'NV12345',
             'role': ROLE_EMPLOYEE,
+            'is_employed': '1',
             'avatar': image,
+            'concurrent-TOTAL_FORMS': '0',
+            'concurrent-INITIAL_FORMS': '0',
+            'concurrent-MIN_NUM_FORMS': '0',
+            'concurrent-MAX_NUM_FORMS': '1000',
         })
         self.assertEqual(response.status_code, 302)
         self.target.profile.refresh_from_db()
