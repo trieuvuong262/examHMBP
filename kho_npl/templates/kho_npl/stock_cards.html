@@ -3,6 +3,7 @@
 
 {% block extra_head %}
 {% include 'kho_npl/includes/filter_multi_select_head.html' %}
+{% include 'kho_npl/includes/catalog_page_loading_head.html' %}
 <style>
 .jp-npl-material-catalog-page.jp-npl-stock-card-page { --jp-npl-mat-ctl-h: 34px; }
 .jp-npl-stock-card-page .jp-npl-catalog-row.is-selected td {
@@ -38,11 +39,16 @@
 }
 .jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-mat-topbar-search .jp-npl-filter-multi .ts-wrapper,
 .jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-mat-topbar-search .jp-npl-filter-multi .ts-wrapper.form-select,
-.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-mat-topbar-search .jp-npl-filter-multi .ts-wrapper.form-select-sm {
+.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-mat-topbar-search .jp-npl-filter-multi .ts-wrapper.form-select-sm,
+.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-sc-catalog-filter .jp-npl-filter-multi .ts-wrapper,
+.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-sc-catalog-filter .jp-npl-filter-multi .ts-wrapper.form-select,
+.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-sc-catalog-filter .jp-npl-filter-multi .ts-wrapper.form-select-sm {
     min-height: var(--jp-npl-mat-ctl-h) !important; height: var(--jp-npl-mat-ctl-h) !important; width: 100%;
 }
 .jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-mat-topbar-search .jp-npl-filter-multi .ts-control,
-.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-mat-topbar-search .jp-npl-filter-multi .ts-wrapper.form-select-sm .ts-control {
+.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-mat-topbar-search .jp-npl-filter-multi .ts-wrapper.form-select-sm .ts-control,
+.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-sc-catalog-filter .jp-npl-filter-multi .ts-control,
+.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-sc-catalog-filter .jp-npl-filter-multi .ts-wrapper.form-select-sm .ts-control {
     min-height: calc(var(--jp-npl-mat-ctl-h) - 2px) !important;
     height: calc(var(--jp-npl-mat-ctl-h) - 2px) !important;
     padding-top: 0.25rem !important; padding-bottom: 0.25rem !important;
@@ -121,6 +127,13 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-size: 0.9em;
 }
+.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-sc-catalog-filter {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-sc-catalog-filter .jp-npl-mat-search-row {
+    max-width: 52rem;
+}
 @media (max-width: 767.98px) {
     .jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-mat-topbar-search {
         flex: 1 1 100%; max-width: none; margin-left: 0; order: 3;
@@ -132,6 +145,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
 {% endblock %}
 
 {% block content %}
+{% include 'kho_npl/includes/catalog_page_loading.html' with loading_message='Đang tải thẻ kho…' %}
 <div class="container jp-page jp-npl-material-catalog-page jp-npl-stock-card-page py-3 py-md-4 mb-5">
     <div class="jp-npl-mat-topbar">
         <h2 class="jp-npl-mat-topbar-title"><i class="bi bi-grid-3x3-gap me-2"></i>Thẻ kho</h2>
@@ -142,6 +156,18 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
                 {% endif %}
                 {% if show_diagnosis %}
                 <input type="hidden" name="diagnose" value="1">
+                {% endif %}
+                {% for cat_id in selected_categories %}
+                <input type="hidden" name="category" value="{{ cat_id }}">
+                {% endfor %}
+                {% if search_query %}
+                <input type="hidden" name="q" value="{{ search_query }}">
+                {% endif %}
+                {% if sort_key and sort_key != 'code' %}
+                <input type="hidden" name="sort" value="{{ sort_key }}">
+                {% endif %}
+                {% if sort_dir and sort_dir != 'asc' %}
+                <input type="hidden" name="dir" value="{{ sort_dir }}">
                 {% endif %}
                 <input type="date" class="form-control form-control-sm jp-npl-mat-filter-date" id="sc-from"
                        name="date_from" value="{{ date_from|date:'Y-m-d' }}" aria-label="Từ ngày" title="Từ ngày">
@@ -157,23 +183,12 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
                         {% endfor %}
                     </select>
                 </div>
-                <div class="jp-npl-mat-filter-field jp-npl-filter-multi">
-                    <select name="category" id="sc-cat" class="form-select form-select-sm jp-npl-multi-select" multiple
-                            data-placeholder="Nhóm" aria-label="Nhóm">
-                        {% for cat in categories %}
-                        <option value="{{ cat.id }}" {% if cat.id in selected_categories %}selected{% endif %}>{{ cat.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="input-group input-group-sm jp-npl-mat-filter-field jp-npl-mat-search-input">
-                    <span class="input-group-text bg-transparent"><i class="bi bi-search text-muted"></i></span>
-                    <input type="search" class="form-control" id="sc-q" name="q"
-                           value="{{ search_query }}" placeholder="Mã, tên, màu..." autocomplete="off" aria-label="Tìm NPL">
-                </div>
-                <button type="submit" class="btn btn-hm btn-sm fw-bold">Tìm</button>
-                {% if has_filters %}
-                <a href="{% url 'kho_npl:stock_cards' %}{% if selected_material %}?material={{ selected_material.pk }}{% endif %}"
-                   class="btn btn-outline-secondary btn-sm fw-bold px-2" title="Xóa lọc">×</a>
+                <button type="submit" class="btn btn-hm btn-sm fw-bold">
+                    <i class="bi bi-funnel me-1"></i>Xem thẻ kho
+                </button>
+                {% if has_card_filters %}
+                <a href="{% url 'kho_npl:stock_cards' %}{% if catalog_only_filter_qs or selected_material %}?{% if selected_material %}material={{ selected_material.pk }}{% if catalog_only_filter_qs %}&{% endif %}{% endif %}{{ catalog_only_filter_qs }}{% endif %}"
+                   class="btn btn-outline-secondary btn-sm fw-bold px-2" title="Xóa lọc thẻ kho">×</a>
                 {% endif %}
             </div>
         </form>
@@ -413,6 +428,49 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
     {% endif %}
 
     <div class="card border-0 shadow-sm">
+        <form method="get" class="jp-npl-sc-catalog-filter" id="jp-stock-card-catalog-filters">
+            <div class="jp-npl-mat-search-row">
+                {% if selected_material %}
+                <input type="hidden" name="material" value="{{ selected_material.pk }}">
+                {% endif %}
+                {% if show_diagnosis %}
+                <input type="hidden" name="diagnose" value="1">
+                {% endif %}
+                {% if date_from %}
+                <input type="hidden" name="date_from" value="{{ date_from|date:'Y-m-d' }}">
+                {% endif %}
+                {% if date_to %}
+                <input type="hidden" name="date_to" value="{{ date_to|date:'Y-m-d' }}">
+                {% endif %}
+                {% for loc_id in selected_locations %}
+                <input type="hidden" name="location" value="{{ loc_id }}">
+                {% endfor %}
+                {% if sort_key and sort_key != 'code' %}
+                <input type="hidden" name="sort" value="{{ sort_key }}">
+                {% endif %}
+                {% if sort_dir and sort_dir != 'asc' %}
+                <input type="hidden" name="dir" value="{{ sort_dir }}">
+                {% endif %}
+                <div class="jp-npl-mat-filter-field jp-npl-filter-multi">
+                    <select name="category" id="sc-cat" class="form-select form-select-sm jp-npl-multi-select" multiple
+                            data-placeholder="Nhóm" aria-label="Nhóm">
+                        {% for cat in categories %}
+                        <option value="{{ cat.id }}" {% if cat.id in selected_categories %}selected{% endif %}>{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="input-group input-group-sm jp-npl-mat-filter-field jp-npl-mat-search-input">
+                    <span class="input-group-text bg-transparent"><i class="bi bi-search text-muted"></i></span>
+                    <input type="search" class="form-control" id="sc-q" name="q"
+                           value="{{ search_query }}" placeholder="Mã, tên, màu..." autocomplete="off" aria-label="Tìm NPL">
+                </div>
+                <button type="submit" class="btn btn-hm btn-sm fw-bold">Tìm</button>
+                {% if has_catalog_filters %}
+                <a href="{% url 'kho_npl:stock_cards' %}{% if card_filter_qs %}?{% if selected_material %}material={{ selected_material.pk }}&{% endif %}{{ card_filter_qs }}{% elif selected_material %}?material={{ selected_material.pk }}{% endif %}"
+                   class="btn btn-outline-secondary btn-sm fw-bold px-2" title="Xóa lọc danh mục">×</a>
+                {% endif %}
+            </div>
+        </form>
         <div class="jp-npl-mat-grid-wrap">
             <table class="table table-hover align-middle mb-0 jp-npl-mat-grid" id="npl-stock-card-catalog-table">
                 <thead class="table-light">
@@ -445,7 +503,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
                     {% empty %}
                     <tr>
                         <td colspan="{{ list_columns|length }}" class="text-center text-muted py-4">
-                            {% if has_filters %}Không tìm thấy NPL.{% else %}Không có dữ liệu.{% endif %}
+                            {% if has_catalog_filters %}Không tìm thấy NPL.{% else %}Không có dữ liệu.{% endif %}
                         </td>
                     </tr>
                     {% endfor %}
@@ -464,6 +522,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
 
 {% block scripts %}
 {% include 'kho_npl/includes/filter_multi_select_script.html' %}
+{% include 'kho_npl/includes/catalog_page_loading_script.html' %}
 <script>
 (function () {
     document.querySelectorAll('.jp-npl-catalog-row[data-href]').forEach(function (row) {

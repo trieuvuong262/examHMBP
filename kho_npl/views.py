@@ -187,6 +187,54 @@ def _stock_card_catalog_qs(request, location_ids):
     return catalog_qs, search_query, category_ids, sort_key, sort_dir
 
 
+def _stock_card_sort_filter_params(sort_key, sort_dir):
+    params = []
+    if sort_key and sort_key != 'code':
+        params.append(f'sort={sort_key}')
+    if sort_dir and sort_dir != 'asc':
+        params.append(f'dir={sort_dir}')
+    return params
+
+
+def _stock_card_card_filter_qs(
+    *,
+    date_from,
+    date_to,
+    location_ids,
+    sort_key,
+    sort_dir,
+    show_diagnosis=False,
+):
+    filter_params = []
+    if date_from:
+        filter_params.append(f'date_from={date_from.isoformat()}')
+    if date_to:
+        filter_params.append(f'date_to={date_to.isoformat()}')
+    append_filter_params(filter_params, locations=location_ids)
+    filter_params.extend(_stock_card_sort_filter_params(sort_key, sort_dir))
+    if show_diagnosis:
+        filter_params.append('diagnose=1')
+    return '&'.join(filter_params)
+
+
+def _stock_card_catalog_only_filter_qs(
+    *,
+    category_ids,
+    search_query,
+    sort_key,
+    sort_dir,
+    show_diagnosis=False,
+):
+    filter_params = []
+    append_filter_params(filter_params, categories=category_ids)
+    if search_query:
+        filter_params.append(f'q={search_query}')
+    filter_params.extend(_stock_card_sort_filter_params(sort_key, sort_dir))
+    if show_diagnosis:
+        filter_params.append('diagnose=1')
+    return '&'.join(filter_params)
+
+
 def _stock_card_catalog_filter_qs(
     *,
     date_from,
@@ -206,10 +254,7 @@ def _stock_card_catalog_filter_qs(
     append_filter_params(filter_params, locations=location_ids, categories=category_ids)
     if search_query:
         filter_params.append(f'q={search_query}')
-    if sort_key and sort_key != 'code':
-        filter_params.append(f'sort={sort_key}')
-    if sort_dir and sort_dir != 'asc':
-        filter_params.append(f'dir={sort_dir}')
+    filter_params.extend(_stock_card_sort_filter_params(sort_key, sort_dir))
     if show_diagnosis:
         filter_params.append('diagnose=1')
     return '&'.join(filter_params)
@@ -247,6 +292,21 @@ def stock_cards(request):
         if card and not card['is_consistent']:
             mismatch_diagnosis = diagnose_stock_mismatch(selected_material)
 
+    card_filter_qs = _stock_card_card_filter_qs(
+        date_from=date_from,
+        date_to=date_to,
+        location_ids=location_ids,
+        sort_key=sort_key,
+        sort_dir=sort_dir,
+        show_diagnosis=show_diagnosis,
+    )
+    catalog_only_filter_qs = _stock_card_catalog_only_filter_qs(
+        category_ids=category_ids,
+        search_query=search_query,
+        sort_key=sort_key,
+        sort_dir=sort_dir,
+        show_diagnosis=show_diagnosis,
+    )
     catalog_filter_qs = _stock_card_catalog_filter_qs(
         date_from=date_from,
         date_to=date_to,
@@ -257,9 +317,9 @@ def stock_cards(request):
         sort_dir=sort_dir,
         show_diagnosis=show_diagnosis,
     )
-    has_filters = bool(
-        search_query or category_ids or location_ids or date_from or date_to,
-    )
+    has_card_filters = bool(date_from or date_to or location_ids)
+    has_catalog_filters = bool(search_query or category_ids)
+    has_filters = has_card_filters or has_catalog_filters
 
     return render(request, 'kho_npl/stock_cards.html', {
         **nav_context('stock_cards', user=request.user),
@@ -279,11 +339,15 @@ def stock_cards(request):
         'catalog_query_string': catalog_query_string,
         'catalog_select_base': request.path,
         'catalog_filter_qs': catalog_filter_qs,
+        'card_filter_qs': card_filter_qs,
+        'catalog_only_filter_qs': catalog_only_filter_qs,
         'list_columns': STOCK_CARD_CATALOG_COLUMNS,
         'total_col_weight': STOCK_CARD_CATALOG_TOTAL_COL_WEIGHT,
         'sort_key': sort_key,
         'sort_dir': sort_dir,
         'has_filters': has_filters,
+        'has_card_filters': has_card_filters,
+        'has_catalog_filters': has_catalog_filters,
     })
 
 

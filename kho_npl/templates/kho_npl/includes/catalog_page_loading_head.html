@@ -1,0 +1,18 @@
+<script>
+(function () {
+    try {
+        if (sessionStorage.getItem('jp_npl_catalog_loading')) {
+            document.documentElement.classList.add('jp-npl-catalog-pending-load');
+        }
+    } catch (e) {}
+})();
+</script>
+<style>
+body.jp-npl-catalog-loading-active,
+html.jp-npl-catalog-pending-load body {
+    overflow: hidden;
+}
+html.jp-npl-catalog-pending-load .jp-npl-material-catalog-page {
+    visibility: hidden;
+}
+</style>

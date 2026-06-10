@@ -63,6 +63,8 @@ class KhoNplPageSmokeTests(TestCase):
         self.assertContains(response, 'jp-mat-th-sort')
         self.assertContains(response, 'Nhập Excel')
         self.assertContains(response, reverse('kho_npl:overview_export'))
+        self.assertContains(response, 'jpNplCatalogLoading')
+        self.assertContains(response, 'Đang tải tổng quan')
 
     def test_material_pages(self):
         for name in ('kho_npl:material_list', 'kho_npl:material_stock', 'kho_npl:material_create'):
@@ -77,6 +79,8 @@ class KhoNplPageSmokeTests(TestCase):
         self.assertNotContains(response, 'Thẻ kho (theo kệ)')
         self.assertNotContains(response, 'Cảnh báo thiếu')
         self.assertContains(response, reverse('kho_npl:material_stock_export'))
+        self.assertContains(response, 'jpNplCatalogLoading')
+        self.assertContains(response, 'Đang tải tồn kho')
 
     def test_stock_cards_catalog_grid_layout(self):
         response = self.client.get(reverse('kho_npl:stock_cards'))
@@ -86,6 +90,15 @@ class KhoNplPageSmokeTests(TestCase):
         self.assertContains(response, 'jp-mat-th-sort')
         self.assertContains(response, 'jp-npl-catalog-row')
         self.assertContains(response, reverse('kho_npl:stock_cards_export'))
+        self.assertContains(response, 'jpNplCatalogLoading')
+        self.assertContains(response, 'Đang tải thẻ kho')
+
+    def test_material_list_has_catalog_loading(self):
+        response = self.client.get(reverse('kho_npl:material_list'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'jpNplCatalogLoading')
+        self.assertContains(response, 'Đang tải danh mục')
+        self.assertContains(response, 'catalog_page_loading.js')
 
     def test_material_export_template(self):
         for name in ('kho_npl:material_export', 'kho_npl:material_import_template'):

@@ -1,0 +1,9 @@
+<div id="jpNplCatalogLoading" class="jp-tool-loading{% if loading_visible|default:True %}{% else %} d-none{% endif %}"
+     aria-hidden="{% if loading_visible|default:True %}false{% else %}true{% endif %}"
+     role="alertdialog" aria-labelledby="jpNplCatalogLoadingMsg" aria-modal="true"
+     data-default-message="{{ loading_message|default:'Đang tải dữ liệu…' }}">
+    <div class="jp-tool-loading-panel">
+        <div class="jp-tool-loading-spinner" aria-hidden="true"></div>
+        <p id="jpNplCatalogLoadingMsg" class="jp-tool-loading-msg mb-0">{{ loading_message|default:'Đang tải dữ liệu…' }}</p>
+    </div>
+</div>
