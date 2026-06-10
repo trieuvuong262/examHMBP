@@ -1,8 +1,6 @@
 {% extends 'base.html' %}
 {% load npl_extras %}
 
-{% block extra_head %}{% include 'kho_npl/includes/list_table_assets.html' %}{% endblock %}
-
 {% block content %}
 <div class="container jp-page jp-npl-transfer-page py-3 py-md-4 mb-5">
     <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-3">
@@ -119,25 +117,32 @@
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm jp-npl-list-table-card">
-        {% include 'kho_npl/includes/list_table_toolbar.html' with list_columns=list_columns table_id=table_id row_count=transfer.lines.count %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom py-3">
+            <h5 class="mb-0 fw-bold">Chi tiết chuyển <span class="text-muted fw-normal small">({{ transfer.lines.count }} dòng)</span></h5>
+        </div>
         <div class="table-responsive">
-            <table id="{{ table_id }}" class="table jp-npl-data-table">
-                <thead><tr>
-                    {% for col in list_columns %}
-                    <th class="npl-col{% if col.key == 'quantity' %} text-end{% endif %}" data-col="{{ col.key }}"{% if col.required %} data-required="1"{% endif %}{% if not col.default %} data-default="0"{% endif %}>{{ col.label }}</th>
-                    {% endfor %}
-                </tr></thead>
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Mã NPL</th>
+                        <th>Tên nguyên phụ liệu</th>
+                        <th class="text-end">Số lượng</th>
+                        <th>ĐVT</th>
+                        <th>Ghi chú</th>
+                    </tr>
+                </thead>
                 <tbody>
                     {% for line in transfer.lines.all %}
                     <tr>
-                        <td class="npl-col jp-npl-cell-mono" data-col="material_code">{{ line.material.code }}</td>
-                        <td class="npl-col jp-npl-cell-clip" data-col="material_name">{{ line.material.name }}</td>
-                        <td class="npl-col text-end jp-npl-cell-mono" data-col="quantity">{{ line.quantity|npl_qty_with_unit:line.material.unit }}</td>
-                        <td class="npl-col jp-npl-cell-clip" data-col="notes">{{ line.notes|default:'—' }}</td>
+                        <td class="fw-semibold">{{ line.material.code }}</td>
+                        <td>{{ line.material.name }}</td>
+                        <td class="text-end fw-semibold">{{ line.quantity|npl_qty_with_unit:line.material.unit }}</td>
+                        <td>{{ line.material.unit.code }}</td>
+                        <td class="text-muted small">{{ line.notes|default:'—' }}</td>
                     </tr>
                     {% empty %}
-                    <tr class="jp-npl-empty-row"><td colspan="{{ list_columns|length }}">—</td></tr>
+                    <tr><td colspan="5" class="text-center text-muted py-4">Chưa có dòng chi tiết.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -145,5 +150,3 @@
     </div>
 </div>
 {% endblock %}
-
-{% block scripts %}{% include 'kho_npl/includes/list_table_scripts.html' %}{% endblock %}

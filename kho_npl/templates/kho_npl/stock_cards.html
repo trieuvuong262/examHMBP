@@ -2,7 +2,7 @@
 {% load humanize npl_extras %}
 
 {% block extra_head %}
-{% include 'kho_npl/includes/list_table_assets.html' %}
+{% include 'kho_npl/includes/filter_multi_select_head.html' %}
 <style>
 .jp-npl-stock-card-page .jp-npl-catalog-row.is-selected td {
     background: rgba(220, 38, 38, 0.06);
@@ -19,9 +19,7 @@
 
 {% block content %}
 <div class="container jp-page jp-npl-stock-card-page py-3 py-md-4 mb-5">
-    <div class="jp-npl-list-topbar mb-3">
-        <h2 class="jp-npl-list-topbar-title"><i class="bi bi-grid-3x3-gap me-2"></i>Thẻ kho</h2>
-    </div>
+    {% include 'kho_npl/includes/page_header.html' with page_title='Thẻ kho' %}
 
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-body p-3 p-md-4">
@@ -47,6 +45,7 @@
                         </option>
                         {% endfor %}
                     </select>
+                    <div class="form-text">Chọn nhiều kệ; để trống = tất cả.</div>
                 </div>
                 <div class="col-12 col-md-3">
                     <button type="submit" class="btn btn-hm w-100 fw-bold">
@@ -98,6 +97,9 @@
                     ({{ card.ledger_total|npl_qty_with_unit:selected_material.unit }}).
                     {% endif %}
                     Lệch <strong>{% if card.variance > 0 %}+{% endif %}{{ card.variance|npl_qty_with_unit:selected_material.unit }}</strong>.
+                    {% if not card.scope_is_location %}
+                    Cột「Tồn sau」là tồn theo từng kệ; khi chọn nhiều kệ, tổng tồn/sổ ở header là cộng các kệ đã lọc.
+                    {% endif %}
                 </div>
                 {% if mismatch_diagnosis %}
                 <button type="button" class="btn btn-sm btn-warning fw-bold text-dark"
@@ -113,6 +115,10 @@
             {% if mismatch_diagnosis %}
             <div class="collapse {% if show_diagnosis %}show{% endif %}" id="stock-mismatch-diagnose">
                 <div class="border-top px-3 py-3 bg-light">
+                    <p class="small text-muted mb-2 mb-md-3">
+                        So sánh <strong>Tồn kho</strong> (bảng tồn) với <strong>Tổng sổ</strong> (cộng biến động)
+                        và <strong>Tồn sổ cuối</strong> (dòng ledger mới nhất) theo từng vị trí.
+                    </p>
                     <div class="table-responsive">
                         <table class="table table-sm table-bordered bg-white mb-2 jp-npl-diagnose-table">
                             <thead class="table-light">
@@ -169,40 +175,62 @@
                             </tfoot>
                         </table>
                     </div>
+                    <p class="small text-muted mb-0">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Vị trí có lệch thường do tồn được cập nhật thủ công/seed, thiếu ghi sổ, hoặc phiếu chưa post đầy đủ.
+                        Bấm <strong>Thẻ</strong> để xem chi tiết biến động tại kệ đó.
+                    </p>
                 </div>
             </div>
             {% endif %}
             {% endif %}
         </div>
-        {% include 'kho_npl/includes/list_table_toolbar.html' with list_columns=ledger_list_columns table_id=ledger_table_id row_count=card.rows|length %}
         <div class="table-responsive">
-            <table id="{{ ledger_table_id }}" class="table jp-npl-data-table jp-npl-ledger-table">
-                <thead><tr>
-                    {% for col in ledger_list_columns %}
-                    <th class="npl-col{% if col.key == 'balance_before' or col.key == 'qty_in' or col.key == 'qty_out' or col.key == 'qty_delta' or col.key == 'balance_after' %} text-end{% endif %}" data-col="{{ col.key }}"{% if col.required %} data-required="1"{% endif %}{% if not col.default %} data-default="0"{% endif %}>{{ col.label }}</th>
-                    {% endfor %}
-                </tr></thead>
+            <table class="table table-sm table-hover align-middle mb-0 jp-npl-ledger-table">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Ngày</th>
+                        <th>Phiếu</th>
+                        <th>Loại</th>
+                        <th>Vị trí</th>
+                        <th class="text-end">Tồn đầu</th>
+                        <th class="text-end">SL nhập</th>
+                        <th class="text-end">SL xuất</th>
+                        <th class="text-end">Biến động</th>
+                        <th class="text-end">Tồn sau (kệ)</th>
+                        <th>Ghi chú</th>
+                    </tr>
+                </thead>
                 <tbody>
                     {% for row in card.rows %}
                     <tr class="{% if row.kind == 'opening' %}table-light fw-semibold{% endif %}">
-                        <td class="npl-col jp-npl-cell-mono" data-col="idx">{{ forloop.counter }}</td>
-                        <td class="npl-col jp-npl-cell-mono" data-col="date">{% if row.txn_date %}{{ row.txn_date|date:'d/m/Y' }}{% else %}—{% endif %}</td>
-                        <td class="npl-col jp-npl-cell-mono" data-col="ref">
+                        <td>{{ forloop.counter }}</td>
+                        <td>{% if row.txn_date %}{{ row.txn_date|date:'d/m/Y' }}{% else %}—{% endif %}</td>
+                        <td>
                             {% if row.ref_url and row.ref_number %}
-                            <a href="{{ row.ref_url }}" class="text-decoration-none">{{ row.ref_number }}</a>
-                            {% else %}{{ row.ref_number|default:'—' }}{% endif %}
+                            <a href="{{ row.ref_url }}" class="text-decoration-none fw-semibold">{{ row.ref_number }}</a>
+                            {% else %}
+                            {{ row.ref_number|default:'—' }}
+                            {% endif %}
                         </td>
-                        <td class="npl-col jp-npl-cell-clip" data-col="type">{{ row.ref_type_label|default:'—' }}</td>
-                        <td class="npl-col jp-npl-cell-mono" data-col="location">{{ row.location_code|default:'—' }}</td>
-                        <td class="npl-col text-end jp-npl-cell-mono" data-col="balance_before">{{ row.balance_before|npl_qty_with_unit:selected_material.unit }}</td>
-                        <td class="npl-col text-end jp-npl-cell-mono qty-in" data-col="qty_in">{% if row.qty_in %}+{{ row.qty_in|npl_qty }}{% else %}—{% endif %}</td>
-                        <td class="npl-col text-end jp-npl-cell-mono qty-out" data-col="qty_out">{% if row.qty_out %}-{{ row.qty_out|npl_qty }}{% else %}—{% endif %}</td>
-                        <td class="npl-col text-end jp-npl-cell-mono" data-col="qty_delta">{% if row.qty_delta > 0 %}+{% endif %}{{ row.qty_delta|npl_qty }}</td>
-                        <td class="npl-col text-end jp-npl-cell-mono" data-col="balance_after">{{ row.balance_after|npl_qty_with_unit:selected_material.unit }}</td>
-                        <td class="npl-col jp-npl-cell-clip" data-col="notes">{{ row.notes|default:'—' }}</td>
+                        <td>{{ row.ref_type_label|default:'—' }}</td>
+                        <td>{{ row.location_code|default:'—' }}</td>
+                        <td class="text-end">{{ row.balance_before|npl_qty_with_unit:selected_material.unit }}</td>
+                        <td class="text-end qty-in">{% if row.qty_in %}+{{ row.qty_in|npl_qty }}{% else %}—{% endif %}</td>
+                        <td class="text-end qty-out">{% if row.qty_out %}-{{ row.qty_out|npl_qty }}{% else %}—{% endif %}</td>
+                        <td class="text-end fw-semibold">
+                            {% if row.qty_delta > 0 %}+{% endif %}{{ row.qty_delta|npl_qty }}
+                        </td>
+                        <td class="text-end fw-bold">{{ row.balance_after|npl_qty_with_unit:selected_material.unit }}</td>
+                        <td class="small text-muted">{{ row.notes|default:'' }}</td>
                     </tr>
                     {% empty %}
-                    <tr class="jp-npl-empty-row"><td colspan="{{ ledger_list_columns|length }}">—</td></tr>
+                    <tr>
+                        <td colspan="11" class="text-center text-muted py-4">
+                            Chưa có biến động trên sổ kho cho NPL này{% if date_from or date_to %} trong khoảng ngày đã chọn{% endif %}.
+                        </td>
+                    </tr>
                     {% endfor %}
                 </tbody>
                 {% if card.rows %}
@@ -225,65 +253,70 @@
     </div>
     {% else %}
     <div class="card border-0 shadow-sm mb-3">
-        <div class="card-body text-center py-4">—</div>
+        <div class="card-body text-center text-muted py-5">
+            <i class="bi bi-hand-index-thumb display-6 d-block mb-2 opacity-50"></i>
+            Chọn một nguyên phụ liệu trong danh mục bên dưới để xem thẻ kho.
+        </div>
     </div>
     {% endif %}
 
-    <div class="card border-0 shadow-sm jp-npl-list-table-card">
-        <div class="jp-npl-list-topbar border-bottom px-3 py-2 mb-0">
-            <h2 class="jp-npl-list-topbar-title h6 mb-0 fw-bold"><i class="bi bi-tags me-2 text-hm"></i>Danh mục NPL</h2>
-            <form method="get" class="jp-npl-list-topbar-search">
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom py-3">
+            <h5 class="mb-0 fw-bold"><i class="bi bi-tags me-2 text-hm"></i>Danh mục nguyên phụ liệu</h5>
+        </div>
+        <div class="card-body p-3 p-md-4 border-bottom">
+            <form method="get" class="row g-2 align-items-end">
                 {% if date_from %}<input type="hidden" name="date_from" value="{{ date_from|date:'Y-m-d' }}">{% endif %}
                 {% if date_to %}<input type="hidden" name="date_to" value="{{ date_to|date:'Y-m-d' }}">{% endif %}
                 {% for loc_id in selected_locations %}
                 <input type="hidden" name="location" value="{{ loc_id }}">
                 {% endfor %}
-                <div class="input-group input-group-sm">
-                    <span class="input-group-text"><i class="bi bi-search"></i></span>
-                    <input type="search" class="form-control" id="cat-q" name="q"
-                           value="{{ search_query }}" placeholder="Mã, tên..." autocomplete="off" aria-label="Tìm">
-                    <button type="submit" class="btn btn-hm fw-bold">Tìm</button>
+                <div class="col-12 col-md-4 jp-npl-filter-multi">
+                    <label class="form-label fw-bold small mb-1" for="cat-cat">Nhóm</label>
+                    <select name="category" id="cat-cat" class="form-select form-select-sm jp-npl-multi-select" multiple
+                            data-placeholder="Tất cả nhóm">
+                        {% for cat in categories %}
+                        <option value="{{ cat.id }}" {% if cat.id in selected_categories %}selected{% endif %}>{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label fw-bold small mb-1" for="cat-q">Tìm NPL</label>
+                    <input type="search" class="form-control form-control-sm" id="cat-q" name="q"
+                           value="{{ search_query }}" placeholder="Mã, tên, màu..." autocomplete="off">
+                </div>
+                <div class="col-12 col-md-2">
+                    <button type="submit" class="btn btn-outline-hm btn-sm w-100 fw-bold">Tìm</button>
                 </div>
             </form>
         </div>
-        <div class="px-3 py-2 border-bottom">
-            <form method="get" class="d-flex flex-wrap gap-2 align-items-center">
-                {% if date_from %}<input type="hidden" name="date_from" value="{{ date_from|date:'Y-m-d' }}">{% endif %}
-                {% if date_to %}<input type="hidden" name="date_to" value="{{ date_to|date:'Y-m-d' }}">{% endif %}
-                {% for loc_id in selected_locations %}
-                <input type="hidden" name="location" value="{{ loc_id }}">
-                {% endfor %}
-                {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
-                <select name="category" id="cat-cat" class="form-select form-select-sm jp-npl-multi-select" multiple
-                        data-placeholder="Nhóm" style="min-width:160px;max-width:280px;">
-                    {% for cat in categories %}
-                    <option value="{{ cat.id }}" {% if cat.id in selected_categories %}selected{% endif %}>{{ cat.name }}</option>
-                    {% endfor %}
-                </select>
-                <button type="submit" class="btn btn-outline-hm btn-sm fw-bold">Lọc</button>
-            </form>
-        </div>
-        {% include 'kho_npl/includes/list_table_toolbar.html' with list_columns=catalog_list_columns table_id=catalog_table_id row_count=catalog_page.paginator.count %}
         <div class="table-responsive">
-            <table id="{{ catalog_table_id }}" class="table jp-npl-data-table">
-                <thead><tr>
-                    {% for col in catalog_list_columns %}
-                    <th class="npl-col{% if col.key == 'stock_total' %} text-end{% endif %}" data-col="{{ col.key }}"{% if col.required %} data-required="1"{% endif %}{% if not col.default %} data-default="0"{% endif %}>{{ col.label }}</th>
-                    {% endfor %}
-                </tr></thead>
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>STT</th>
+                        <th>Mã</th>
+                        <th>Tên NPL</th>
+                        <th>Nhóm</th>
+                        <th>Quy cách</th>
+                        <th class="text-end">Tồn</th>
+                    </tr>
+                </thead>
                 <tbody>
                     {% for material in catalog_page %}
                     <tr class="jp-npl-catalog-row {% if selected_material and selected_material.pk == material.pk %}is-selected{% endif %}"
                         data-href="{{ catalog_select_base }}?material={{ material.pk }}{% if catalog_filter_qs %}&{{ catalog_filter_qs }}{% endif %}">
-                        <td class="npl-col jp-npl-cell-mono" data-col="stt">{{ catalog_page.start_index|add:forloop.counter0 }}</td>
-                        <td class="npl-col jp-npl-cell-mono" data-col="code">{{ material.code }}</td>
-                        <td class="npl-col jp-npl-cell-clip" data-col="name">{{ material.name }}</td>
-                        <td class="npl-col jp-npl-cell-clip" data-col="category">{{ material.category.name }}</td>
-                        <td class="npl-col jp-npl-cell-clip" data-col="specification">{{ material.specification|default:'—' }}</td>
-                        <td class="npl-col text-end jp-npl-cell-mono" data-col="stock_total">{{ material.stock_total|npl_qty_with_unit:material.unit }}</td>
+                        <td>{{ catalog_page.start_index|add:forloop.counter0 }}</td>
+                        <td class="fw-semibold text-hm">{{ material.code }}</td>
+                        <td>{{ material.name }}</td>
+                        <td>{{ material.category.name }}</td>
+                        <td>{{ material.specification|default:'—' }}</td>
+                        <td class="text-end">{{ material.stock_total|npl_qty_with_unit:material.unit }}</td>
                     </tr>
                     {% empty %}
-                    <tr class="jp-npl-empty-row"><td colspan="{{ catalog_list_columns|length }}">—</td></tr>
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">Không tìm thấy NPL.</td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -298,7 +331,7 @@
 {% endblock %}
 
 {% block scripts %}
-{% include 'kho_npl/includes/list_table_scripts.html' %}
+{% include 'kho_npl/includes/filter_multi_select_script.html' %}
 <script>
 (function () {
     document.querySelectorAll('.jp-npl-catalog-row[data-href]').forEach(function (row) {

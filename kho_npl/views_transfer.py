@@ -38,8 +38,7 @@ from kho_npl.services.transfers import (
     transfer_can_send,
     transfer_is_editable,
 )
-from kho_npl.list_columns import TRANSFER_LINE_COLUMNS, TRANSFER_LIST_COLUMNS
-from kho_npl.view_utils import list_table_context, nav_context, perm_context
+from kho_npl.view_utils import nav_context, perm_context
 
 VALID_TABS = {TRANSFER_TAB_NHAP, TRANSFER_TAB_CHUYEN, TRANSFER_TAB_NHAN, TRANSFER_TAB_DANH_SACH}
 
@@ -167,7 +166,6 @@ def transfer_hub(request):
         return render(request, 'kho_npl/transfer_hub.html', ctx)
 
     ctx.update(_hub_list_context(request, tab))
-    ctx.update(list_table_context(TRANSFER_LIST_COLUMNS, 'npl-transfer-table', page_obj=ctx.get('page_obj')))
     return render(request, 'kho_npl/transfer_hub.html', ctx)
 
 
@@ -194,7 +192,6 @@ def transfer_detail(request, pk):
         'can_send': transfer_can_send(transfer),
         'can_receive': transfer_can_receive(transfer),
         'list_url': _transfer_list_url(tab, status=list_status),
-        **list_table_context(TRANSFER_LINE_COLUMNS, 'npl-transfer-lines', row_count=transfer.lines.count()),
     })
 
 

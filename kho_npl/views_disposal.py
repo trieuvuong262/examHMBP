@@ -19,8 +19,7 @@ from kho_npl.services.disposals import (
     post_stock_disposal,
 )
 from kho_npl.services.doc_numbers import next_disposal_number
-from kho_npl.list_columns import DISPOSAL_LINE_COLUMNS, DISPOSAL_LIST_COLUMNS
-from kho_npl.view_utils import list_table_context, nav_context, perm_context
+from kho_npl.view_utils import nav_context, perm_context
 
 
 def _save_disposal_form(request, disposal, *, is_create: bool):
@@ -59,7 +58,6 @@ def disposal_list(request):
         'query_string': query_string,
         'search_query': search_query,
         'scrap_warehouse_code': WAREHOUSE_SCRAP_CODE,
-        **list_table_context(DISPOSAL_LIST_COLUMNS, 'npl-disposal-table', page_obj=page_obj),
     })
 
 
@@ -76,7 +74,6 @@ def disposal_detail(request, pk):
         'disposal': disposal,
         'is_editable': disposal_is_editable(disposal),
         'scrap_warehouse_code': WAREHOUSE_SCRAP_CODE,
-        **list_table_context(DISPOSAL_LINE_COLUMNS, 'npl-disposal-lines', row_count=disposal.lines.count()),
     })
 
 

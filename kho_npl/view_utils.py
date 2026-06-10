@@ -39,15 +39,5 @@ def perm_context(user, menu_key: str) -> dict:
     return menu_perm_context(user, MODULE_KHO_NPL, menu_key)
 
 
-def list_table_context(columns, table_id, *, row_count=None, page_obj=None):
-    if row_count is None and page_obj is not None and hasattr(page_obj, 'paginator'):
-        row_count = page_obj.paginator.count
-    return {
-        'list_columns': columns,
-        'table_id': table_id,
-        'row_count': row_count if row_count is not None else 0,
-    }
-
-
 def report_context():
     return {'report_items': report_hub_items()}

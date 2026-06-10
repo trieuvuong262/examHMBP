@@ -1,8 +1,6 @@
 {% extends 'base.html' %}
 {% load npl_extras %}
 
-{% block extra_head %}{% include 'kho_npl/includes/list_table_assets.html' %}{% endblock %}
-
 {% block content %}
 <div class="container jp-page py-3 py-md-4 mb-5">
 
@@ -61,23 +59,28 @@
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm jp-npl-list-table-card">
-        {% include 'kho_npl/includes/list_table_toolbar.html' with list_columns=list_columns table_id=table_id row_count=balances.count %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom py-3">
+            <h5 class="mb-0 fw-bold">Tồn theo vị trí</h5>
+        </div>
         <div class="table-responsive">
-            <table id="{{ table_id }}" class="table jp-npl-data-table">
-                <thead><tr>
-                    {% for col in list_columns %}
-                    <th class="npl-col{% if col.key == 'quantity' %} text-end{% endif %}" data-col="{{ col.key }}"{% if col.required %} data-required="1"{% endif %}{% if not col.default %} data-default="0"{% endif %}>{{ col.label }}</th>
-                    {% endfor %}
-                </tr></thead>
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Vị trí</th>
+                        <th class="text-end">Số lượng</th>
+                    </tr>
+                </thead>
                 <tbody>
                     {% for bal in balances %}
                     <tr>
-                        <td class="npl-col jp-npl-cell-clip" data-col="location">{{ bal.location.code }} — {{ bal.location.name }}</td>
-                        <td class="npl-col text-end jp-npl-cell-mono" data-col="quantity">{{ bal.quantity|npl_qty_with_unit:material.unit }}</td>
+                        <td>{{ bal.location.code }} — {{ bal.location.name }}</td>
+                        <td class="text-end">{{ bal.quantity|npl_qty_with_unit:material.unit }}</td>
                     </tr>
                     {% empty %}
-                    <tr class="jp-npl-empty-row"><td colspan="{{ list_columns|length }}">—</td></tr>
+                    <tr>
+                        <td colspan="2" class="text-center text-muted py-4">Chưa có tồn tại vị trí nào.</td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -85,5 +88,3 @@
     </div>
 </div>
 {% endblock %}
-
-{% block scripts %}{% include 'kho_npl/includes/list_table_scripts.html' %}{% endblock %}

@@ -10,8 +10,7 @@ from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
 from kho_npl.settings_registry import SETTINGS_SECTIONS, get_settings_section
-from kho_npl.list_columns import columns_from_fields
-from kho_npl.view_utils import list_table_context, nav_context, perm_context
+from kho_npl.view_utils import nav_context, perm_context
 
 
 def _section_or_404(section: str):
@@ -37,10 +36,6 @@ def settings_list(request, section):
         qs = qs.filter(q)
     qs = qs.order_by(*config['order_by'])
     page_obj, query_string = paginate_queryset(request, qs, per_page=30)
-    picker_columns = columns_from_fields(
-        config['list_columns'],
-        required_key=config['list_columns'][0][0],
-    )
     return render(request, 'kho_npl/settings_list.html', {
         **nav_context('settings', user=request.user),
         **perm_context(request.user, 'settings'),
@@ -49,8 +44,7 @@ def settings_list(request, section):
         'query_string': query_string,
         'search_query': search_query,
         'show_inactive': show_inactive,
-        'picker_columns': picker_columns,
-        **list_table_context(picker_columns, f'npl-settings-{section}', page_obj=page_obj),
+        'list_columns': config['list_columns'],
     })
 
 

@@ -18,8 +18,7 @@ from kho_npl.services.adjustments import (
     reject_stock_adjustment,
 )
 from kho_npl.services.doc_numbers import next_adjustment_number
-from kho_npl.list_columns import ADJUSTMENT_LIST_COLUMNS
-from kho_npl.view_utils import list_table_context, nav_context, perm_context
+from kho_npl.view_utils import nav_context, perm_context
 
 
 @module_perm_required(MODULE_KHO_NPL, 'view')
@@ -39,7 +38,6 @@ def adjustment_list(request):
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
-        **list_table_context(ADJUSTMENT_LIST_COLUMNS, 'npl-adjustment-table', page_obj=page_obj),
     })
 
 

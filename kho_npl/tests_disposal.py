@@ -92,10 +92,7 @@ class StockDisposalWorkflowTests(TestCase):
         self.assertTrue(entries.filter(location=self.scrap_loc, qty_delta=Decimal('3')).exists())
 
     def test_disposal_pages_render(self):
-        list_resp = self.client.get(reverse('kho_npl:disposal_list'))
-        self.assertEqual(list_resp.status_code, 200)
-        self.assertContains(list_resp, 'npl-disposal-table')
-
-        create_resp = self.client.get(reverse('kho_npl:disposal_create'))
-        self.assertEqual(create_resp.status_code, 200)
-        self.assertContains(create_resp, WAREHOUSE_SCRAP_CODE)
+        for name in ('kho_npl:disposal_list', 'kho_npl:disposal_create'):
+            response = self.client.get(reverse(name))
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, WAREHOUSE_SCRAP_CODE)

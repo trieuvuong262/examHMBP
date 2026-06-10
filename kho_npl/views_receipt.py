@@ -19,8 +19,7 @@ from kho_npl.services.receipts import (
     post_stock_receipt,
     receipt_is_editable,
 )
-from kho_npl.list_columns import RECEIPT_LINE_COLUMNS, RECEIPT_LIST_COLUMNS
-from kho_npl.view_utils import list_table_context, nav_context, perm_context
+from kho_npl.view_utils import nav_context, perm_context
 
 
 def _save_receipt_form(request, receipt, *, is_create: bool):
@@ -58,7 +57,6 @@ def receipt_list(request):
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
-        **list_table_context(RECEIPT_LIST_COLUMNS, 'npl-receipt-table', page_obj=page_obj),
     })
 
 
@@ -75,7 +73,6 @@ def receipt_detail(request, pk):
         **perm_context(request.user, 'receipts'),
         'receipt': receipt,
         'is_editable': receipt_is_editable(receipt),
-        **list_table_context(RECEIPT_LINE_COLUMNS, 'npl-receipt-lines', row_count=receipt.lines.count()),
     })
 
 
