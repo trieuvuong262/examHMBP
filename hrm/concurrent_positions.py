@@ -376,6 +376,30 @@ def _concurrent_slot_subordinate_ids(profile) -> set[int]:
     return ids
 
 
+def get_manual_subordinate_users(viewer):
+    """Cấp dưới đã gán trong Nhân sự (vị trí chính + slot kiêm nhiệm) — không auto scope."""
+    if not getattr(viewer, 'is_authenticated', False):
+        return User.objects.none()
+
+    profile = get_profile(viewer)
+    if not profile:
+        return User.objects.none()
+
+    manual_ids = set(
+        profile.subordinates.filter(
+            is_active=True,
+            profile__is_employed=True,
+        ).values_list('pk', flat=True),
+    )
+    manual_ids |= _concurrent_slot_subordinate_ids(profile)
+    if not manual_ids:
+        return User.objects.none()
+
+    return User.objects.filter(pk__in=manual_ids).select_related('profile').order_by(
+        'profile__full_name', 'username',
+    )
+
+
 def get_effective_subordinate_users(viewer):
     """Union M2M cấp dưới (chính + từng slot kiêm) + auto scope."""
     if not getattr(viewer, 'is_authenticated', False):

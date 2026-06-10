@@ -138,14 +138,14 @@
             </button>
             <ul class="jp-sidebar-submenu" id="jp-sidebar-reports-submenu">
                 <li>
-                    <a href="{% url 'reports:today' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'today' %}active{% endif %}">
+                    <a href="{% if jp_can_submit_reports %}{% url 'reports:today' %}{% else %}{% url 'reports:team' %}{% endif %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'today' or request.resolver_match.url_name == 'team' %}active{% endif %}">
                         <i class="bi bi-calendar-day"></i><span>Báo cáo ngày</span>
                     </a>
                 </li>
                 <li>
-                    <a href="{% url 'reports:weekly' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'weekly' %}active{% endif %}">
+                    <a href="{% if jp_can_submit_reports %}{% url 'reports:weekly' %}{% else %}{% url 'reports:team_weekly' %}{% endif %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'weekly' or request.resolver_match.url_name == 'team_weekly' %}active{% endif %}">
                         <i class="bi bi-calendar-week"></i><span>Báo cáo tuần</span>
                     </a>
                 </li>

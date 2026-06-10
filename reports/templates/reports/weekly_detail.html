@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260529d">
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-reports-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">Báo cáo tuần {{ week_label }}</h2>
+            <p class="text-muted mb-0 small">
+                {{ report.employee.profile.full_name|default:report.employee.username }}
+                · <span class="badge {% if report.status == 'SUBMITTED' %}bg-success{% else %}bg-secondary{% endif %}">{{ report.get_status_display }}</span>
+            </p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap w-100 w-md-auto">
+            {% if report.employee_id == request.user.id and can_submit_report %}
+            <a href="{% url 'reports:weekly' %}?week={{ report.week_start|date:'Y-m-d' }}" class="btn btn-outline-hm btn-sm">Sửa</a>
+            {% endif %}
+            {% if can_view_team %}
+            <a href="{% url 'reports:team_weekly' %}?week={{ report.week_start|date:'Y-m-d' }}" class="btn btn-outline-dark btn-sm">← Cấp dưới</a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if report.links %}
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white fw-bold">Link</div>
+        <div class="card-body">
+            <ul class="mb-0">
+                {% for line in report.link_lines %}
+                <li><a href="{{ line }}" target="_blank" rel="noopener">{{ line }}</a></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if weekly_files %}
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white fw-bold">File đính kèm</div>
+        <div class="card-body">
+            <ul class="mb-0">
+                {% for att in weekly_files %}
+                <li><a href="{{ att.file.url }}" target="_blank" rel="noopener">{{ att.display_name }}</a></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if weekly_images %}
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white fw-bold">Ảnh</div>
+        <div class="card-body d-flex flex-wrap gap-2">
+            {% for att in weekly_images %}
+            <a href="{{ att.file.url }}" target="_blank" rel="noopener">
+                <img src="{{ att.file.url }}" alt="{{ att.display_name }}" class="rounded border" style="max-height:120px;">
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if not report.links and not weekly_files and not weekly_images %}
+    <div class="alert alert-light border">Chưa có nội dung báo cáo tuần.</div>
+    {% endif %}
+
+    {% if can_review %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white fw-bold">Phản hồi quản lý</div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" name="hod_reviewed" id="hod_reviewed" {% if report.hod_reviewed %}checked{% endif %}>
+                    <label class="form-check-label" for="hod_reviewed">Đã xem báo cáo</label>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small" for="hod_note">Ghi chú</label>
+                    <textarea class="form-control" name="hod_note" id="hod_note" rows="3">{{ report.hod_note }}</textarea>
+                </div>
+                <button type="submit" class="btn btn-hm fw-bold">Lưu phản hồi</button>
+            </form>
+        </div>
+    </div>
+    {% elif report.hod_note %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <div class="text-muted small">Ghi chú quản lý</div>
+            <div>{{ report.hod_note }}</div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

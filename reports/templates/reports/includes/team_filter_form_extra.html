@@ -1,0 +1,11 @@
+{% if dept_choices|length > 1 %}
+<div>
+    <label class="form-label fw-bold small mb-1">Phòng ban</label>
+    <select name="dept" class="form-select">
+        <option value="">Tất cả phòng ban</option>
+        {% for item in dept_choices %}
+        <option value="{{ item.key }}" {% if selected_dept == item.key %}selected{% endif %}>{{ item.label }}</option>
+        {% endfor %}
+    </select>
+</div>
+{% endif %}

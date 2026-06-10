@@ -122,10 +122,10 @@ def _has_reports_module_access(user) -> bool:
 
 
 def get_report_team_users(viewer):
-    """Nhân viên cấp dưới — M2M thủ công + phạm vi auto theo vị trí kiêm nhiệm."""
-    from hrm.concurrent_positions import get_effective_subordinate_users
+    """Nhân viên cấp dưới — chỉ M2M đã cấu hình trong Nhân sự (chính + kiêm nhiệm)."""
+    from hrm.concurrent_positions import get_manual_subordinate_users
 
-    return get_effective_subordinate_users(viewer)
+    return get_manual_subordinate_users(viewer)
 
 
 def format_team_user_label(user) -> str:
@@ -161,6 +161,23 @@ def can_view_user_report(viewer, report) -> bool:
     if report.employee_id == viewer.id:
         return can_submit_daily_report(viewer)
     return get_report_team_users(viewer).filter(pk=report.employee_id).exists()
+
+
+def can_view_user_weekly_report(viewer, report) -> bool:
+    if not getattr(viewer, 'is_authenticated', False):
+        return False
+    if report.employee_id == viewer.id:
+        return can_submit_daily_report(viewer)
+    return get_report_team_users(viewer).filter(pk=report.employee_id).exists()
+
+
+def can_review_user_weekly_report(viewer, report) -> bool:
+    if report.employee_id == viewer.id:
+        return False
+    if not get_report_team_users(viewer).filter(pk=report.employee_id).exists():
+        return False
+    from hrm.module_permissions import MODULE_REPORTS, user_can_update_module
+    return user_can_update_module(viewer, MODULE_REPORTS)
 
 
 def can_review_user_report(viewer, report) -> bool:

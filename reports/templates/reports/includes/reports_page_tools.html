@@ -7,6 +7,10 @@
     {% endif %}
     <a href="{% url 'reports:my' %}" class="btn btn-outline-dark btn-sm flex-fill flex-md-grow-0">Lịch sử</a>
     {% if can_view_team %}
-    <a href="{% url 'reports:team' %}" class="btn btn-outline-hm btn-sm flex-fill flex-md-grow-0">Báo cáo cấp dưới</a>
+    {% if report_period == 'weekly' %}
+    <a href="{% url 'reports:team_weekly' %}{% if week_start %}?week={{ week_start|date:'Y-m-d' }}{% endif %}" class="btn btn-outline-hm btn-sm flex-fill flex-md-grow-0">Báo cáo cấp dưới</a>
+    {% else %}
+    <a href="{% url 'reports:team' %}{% if report_date %}?date={{ report_date|date:'Y-m-d' }}{% endif %}" class="btn btn-outline-hm btn-sm flex-fill flex-md-grow-0">Báo cáo cấp dưới</a>
+    {% endif %}
     {% endif %}
 </div>

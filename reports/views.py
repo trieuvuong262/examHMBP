@@ -17,9 +17,11 @@ from assessment.decorators import module_perm_required
 from hrm.module_permissions import MODULE_REPORTS
 from hrm.permissions import (
     can_review_user_report,
+    can_review_user_weekly_report,
     can_submit_daily_report,
     can_view_team_reports,
     can_view_user_report,
+    can_view_user_weekly_report,
     get_report_team_users,
     is_director,
 )
@@ -42,6 +44,14 @@ from .forms import (
     WeeklyWorkReportForm,
 )
 from .models import DailyWorkReport, WeeklyWorkReport
+from .team_utils import (
+    build_report_team_department_groups,
+    daily_report_visible_to_team,
+    department_filter_choices,
+    meaningful_daily_reports_qs,
+    meaningful_weekly_reports_qs,
+    weekly_report_visible_to_team,
+)
 from .weekly_uploads import copy_weekly_attachments, save_weekly_uploads, weekly_report_has_content
 
 
@@ -54,15 +64,20 @@ def _reports_access_required(view_func):
     return module_perm_required(MODULE_REPORTS, 'view')(view_func)
 
 
+_WEEKLY_SUBMIT_VIEWS = frozenset({'weekly_report', 'copy_prev_week'})
+
+
 def _require_submit_access(view_func):
     @module_perm_required(MODULE_REPORTS, 'create')
     def wrapper(request, *args, **kwargs):
         if not can_submit_daily_report(request.user):
-            messages.info(request, 'Vai trò Giám đốc chỉ xem báo cáo cấp dưới, không nộp báo cáo cá nhân.')
             if can_view_team_reports(request.user):
+                if view_func.__name__ in _WEEKLY_SUBMIT_VIEWS:
+                    return redirect('reports:team_weekly')
                 return redirect('reports:team')
             return redirect('home_portal')
         return view_func(request, *args, **kwargs)
+    wrapper.__name__ = view_func.__name__
     return wrapper
 
 
@@ -101,30 +116,44 @@ def _report_context_common(request, report_date):
     }
 
 
-def _get_or_create_daily_report(user, report_date):
+def _daily_report_defaults(user):
     profile = get_report_profile(user)
-    defaults = {
+    return {
         'shift': DailyWorkReport.SHIFT_MORNING if profile == REPORT_PROFILE_PRODUCTION else '',
         'report_profile': profile,
+        'status': DailyWorkReport.STATUS_DRAFT,
     }
-    report, created = DailyWorkReport.objects.get_or_create(
-        employee=user,
-        report_date=report_date,
-        defaults=defaults,
-    )
-    if not created and report.report_profile != profile:
+
+
+def _load_daily_report(user, report_date):
+    """Chỉ lấy bản ghi đã lưu; không tạo mới khi mở trang."""
+    try:
+        report = DailyWorkReport.objects.get(employee=user, report_date=report_date)
+    except DailyWorkReport.DoesNotExist:
+        report = DailyWorkReport(employee=user, report_date=report_date, **_daily_report_defaults(user))
+        return report
+    profile = get_report_profile(user)
+    if report.report_profile != profile:
         report.report_profile = profile
-        report.save(update_fields=['report_profile', 'updated_at'])
+    return report
+
+
+def _ensure_daily_report_saved(report):
+    if report.pk:
+        return report
+    report.save()
     return report
 
 
 def _finalize_report_submission(report, action):
+    now = timezone.now()
     if action == 'submit':
         report.status = DailyWorkReport.STATUS_SUBMITTED
-        report.submitted_at = timezone.now()
+        report.submitted_at = now
         return 'Đã gửi báo cáo.'
     report.status = DailyWorkReport.STATUS_DRAFT
     report.submitted_at = None
+    report.draft_saved_at = now
     return 'Đã lưu nháp báo cáo.'
 
 
@@ -141,15 +170,23 @@ def _parse_week_start(request):
     return parse_week_start(raw)
 
 
-def _get_or_create_weekly_report(user, week_start):
-    report, _ = WeeklyWorkReport.objects.get_or_create(
-        employee=user,
-        week_start=week_start,
-    )
+def _load_weekly_report(user, week_start):
+    try:
+        return WeeklyWorkReport.objects.get(employee=user, week_start=week_start)
+    except WeeklyWorkReport.DoesNotExist:
+        return WeeklyWorkReport(employee=user, week_start=week_start)
+
+
+def _ensure_weekly_report_saved(report):
+    if report.pk:
+        return report
+    report.save()
     return report
 
 
 def _weekly_attachments(report):
+    if not report.pk:
+        return [], []
     qs = report.attachments.all()
     images = [att for att in qs if att.is_image]
     files = [att for att in qs if not att.is_image]
@@ -184,10 +221,11 @@ def _weekly_context_common(request, week_start):
 
 
 def _today_production_report(request, report_date):
-    report = _get_or_create_daily_report(request.user, report_date)
+    report = _load_daily_report(request.user, report_date)
 
     if request.method == 'POST':
         action = request.POST.get('action', 'save')
+        report = _ensure_daily_report_saved(report)
         form = DailyWorkReportForm(request.POST, instance=report)
         formset = DailyWorkReportLineFormSet(request.POST, instance=report)
         if form.is_valid() and formset.is_valid():
@@ -199,7 +237,7 @@ def _today_production_report(request, report_date):
             return redirect('reports:today')
     else:
         form = DailyWorkReportForm(instance=report)
-        formset = DailyWorkReportLineFormSet(instance=report)
+        formset = DailyWorkReportLineFormSet(instance=report if report.pk else None)
 
     ctx = _report_context_common(request, report_date)
     ctx.update({
@@ -218,10 +256,11 @@ def _today_office_report(request, report_date):
     from hrm.permissions import get_profile as load_profile
     user_profile = load_profile(request.user)
 
-    report = _get_or_create_daily_report(request.user, report_date)
+    report = _load_daily_report(request.user, report_date)
 
     if request.method == 'POST':
         action = request.POST.get('action', 'save')
+        report = _ensure_daily_report_saved(report)
         form = OfficeDailyWorkReportForm(request.POST, instance=report)
         if form.is_valid():
             report = form.save(commit=False)
@@ -255,10 +294,11 @@ def weekly_report(request):
 
     week_start = _parse_week_start(request)
     user_profile = load_profile(request.user)
-    report = _get_or_create_weekly_report(request.user, week_start)
+    report = _load_weekly_report(request.user, week_start)
 
     if request.method == 'POST':
         action = request.POST.get('action', 'save')
+        report = _ensure_weekly_report_saved(report)
         form = WeeklyWorkReportForm(request.POST, instance=report)
         delete_ids = [int(pk) for pk in request.POST.getlist('delete_attachments') if pk.isdigit()]
         image_uploads = request.FILES.getlist('images')
@@ -279,7 +319,8 @@ def weekly_report(request):
                 )
             else:
                 report = form.save(commit=False)
-                messages.success(request, _finalize_report_submission(report, action))
+                msg = _finalize_report_submission(report, action)
+                messages.success(request, msg)
                 report.save()
                 save_weekly_uploads(report, image_list=image_uploads, file_list=file_uploads)
                 return redirect(f'{reverse("reports:weekly")}?week={week_start.isoformat()}')
@@ -321,6 +362,7 @@ def copy_prev_week(request):
     )
     report.status = WeeklyWorkReport.STATUS_DRAFT
     report.submitted_at = None
+    report.draft_saved_at = None
     report.links = source.links
     report.save()
     _delete_weekly_attachments(report, list(report.attachments.values_list('pk', flat=True)))
@@ -384,6 +426,7 @@ def copy_yesterday(request):
     report.shift = source.shift if profile == REPORT_PROFILE_PRODUCTION else ''
     report.status = DailyWorkReport.STATUS_DRAFT
     report.submitted_at = None
+    report.draft_saved_at = None
     if profile == REPORT_PROFILE_OFFICE:
         report.spreadsheet_json = source.spreadsheet_json
         report.document_html = source.document_html
@@ -432,6 +475,34 @@ def my_reports(request):
     })
 
 
+def _team_queryset(viewer, search_query):
+    team = get_report_team_users(viewer).select_related(
+        'profile',
+        'profile__department',
+    ).order_by('profile__department__sort_order', 'profile__full_name', 'username')
+    return apply_user_search(team, search_query)
+
+
+def _build_department_group_rows(viewer, team, report_map, visible_fn, dept_filter=''):
+    all_groups = build_report_team_department_groups(viewer, team)
+    dept_choices = department_filter_choices(all_groups)
+    groups = (
+        build_report_team_department_groups(viewer, team, dept_filter=dept_filter)
+        if dept_filter else all_groups
+    )
+    department_groups = []
+    for group in groups:
+        rows = []
+        for member in group['members']:
+            report = report_map.get(member.id)
+            rows.append({
+                'member': member,
+                'report': report if visible_fn(report) else None,
+            })
+        department_groups.append({**group, 'rows': rows})
+    return department_groups, dept_choices
+
+
 @_reports_access_required
 def team_reports(request):
     if not can_view_team_reports(request.user):
@@ -448,10 +519,10 @@ def team_reports(request):
         report_date = datetime.strptime(report_date, '%Y-%m-%d').date()
 
     search_query = get_search_query(request)
-    team = get_report_team_users(request.user)
-    team = apply_user_search(team, search_query)
+    dept_filter = (request.GET.get('dept') or '').strip()
+    team = _team_queryset(request.user, search_query)
     all_team_ids = list(team.values_list('id', flat=True))
-    all_reports = DailyWorkReport.objects.filter(
+    all_reports = meaningful_daily_reports_qs().filter(
         employee_id__in=all_team_ids,
         report_date=report_date,
     )
@@ -459,32 +530,88 @@ def team_reports(request):
     submitted = all_reports.filter(status=DailyWorkReport.STATUS_SUBMITTED).count()
     missing = team_count - submitted
 
-    team_page, query_string = paginate_queryset(request, team)
-    page_team_ids = list(team_page.object_list.values_list('id', flat=True))
-    reports = DailyWorkReport.objects.filter(
-        employee_id__in=page_team_ids,
+    reports = meaningful_daily_reports_qs().filter(
+        employee_id__in=all_team_ids,
         report_date=report_date,
     ).select_related('employee', 'employee__profile').annotate(
         line_count=Count('lines'),
         total_qty=Sum('lines__quantity'),
     )
     report_map = {r.employee_id: r for r in reports}
-
-    rows = []
-    for member in team_page.object_list:
-        rows.append({'member': member, 'report': report_map.get(member.id)})
+    department_groups, dept_choices = _build_department_group_rows(
+        request.user,
+        team,
+        report_map,
+        daily_report_visible_to_team,
+        dept_filter=dept_filter,
+    )
 
     return render(request, 'reports/team.html', {
-        'rows': rows,
-        'page_obj': team_page,
-        'query_string': query_string,
+        'department_groups': department_groups,
+        'dept_choices': dept_choices,
+        'selected_dept': dept_filter,
         'search_query': search_query,
         'report_date': report_date,
         'submitted_count': submitted,
         'missing_count': missing,
         'team_count': team_count,
         'can_submit_report': can_submit_daily_report(request.user),
+        'report_period': 'daily',
     })
+
+
+@_reports_access_required
+def team_weekly_reports(request):
+    if not can_view_team_reports(request.user):
+        messages.error(
+            request,
+            'Chưa có nhân viên cấp dưới trực tiếp. HR cần cấu hình tại Nhân sự → Sửa nhân viên → Nhân viên dưới quyền.',
+        )
+        if can_submit_daily_report(request.user):
+            return redirect('reports:weekly')
+        return redirect('home_portal')
+
+    week_start = _parse_week_start(request)
+    search_query = get_search_query(request)
+    dept_filter = (request.GET.get('dept') or '').strip()
+    team = _team_queryset(request.user, search_query)
+    all_team_ids = list(team.values_list('id', flat=True))
+    all_reports = meaningful_weekly_reports_qs().filter(
+        employee_id__in=all_team_ids,
+        week_start=week_start,
+    )
+    team_count = team.count()
+    submitted = all_reports.filter(status=WeeklyWorkReport.STATUS_SUBMITTED).count()
+    missing = team_count - submitted
+
+    reports = meaningful_weekly_reports_qs().filter(
+        employee_id__in=all_team_ids,
+        week_start=week_start,
+    ).select_related('employee', 'employee__profile').annotate(
+        attachment_count=Count('attachments'),
+    )
+    report_map = {r.employee_id: r for r in reports}
+    department_groups, dept_choices = _build_department_group_rows(
+        request.user,
+        team,
+        report_map,
+        weekly_report_visible_to_team,
+        dept_filter=dept_filter,
+    )
+
+    ctx = _weekly_context_common(request, week_start)
+    ctx.update({
+        'department_groups': department_groups,
+        'dept_choices': dept_choices,
+        'selected_dept': dept_filter,
+        'search_query': search_query,
+        'submitted_count': submitted,
+        'missing_count': missing,
+        'team_count': team_count,
+        'can_submit_report': can_submit_daily_report(request.user),
+        'report_period': 'weekly',
+    })
+    return render(request, 'reports/team_weekly.html', ctx)
 
 
 @_reports_access_required
@@ -512,6 +639,40 @@ def report_detail(request, pk):
     return render(request, 'reports/detail.html', {
         'report': report,
         'office_sheet': office_sheet,
+        'can_review': can_review,
+        'can_submit_report': can_submit_daily_report(request.user),
+        'can_view_team': can_view_team_reports(request.user),
+    })
+
+
+@_reports_access_required
+def weekly_report_detail(request, pk):
+    report = get_object_or_404(
+        WeeklyWorkReport.objects.select_related('employee', 'employee__profile').prefetch_related('attachments'),
+        pk=pk,
+    )
+    if not can_view_user_weekly_report(request.user, report):
+        messages.error(request, 'Bạn không có quyền xem báo cáo tuần này.')
+        return redirect('reports:hub')
+    if not weekly_report_visible_to_team(report) and report.employee_id != request.user.id:
+        messages.info(request, 'Nhân viên chưa lưu nháp hoặc gửi báo cáo tuần.')
+        return redirect(f'{reverse("reports:team_weekly")}?week={report.week_start.isoformat()}')
+
+    can_review = can_review_user_weekly_report(request.user, report)
+
+    if request.method == 'POST' and can_review:
+        report.hod_reviewed = request.POST.get('hod_reviewed') == 'on'
+        report.hod_note = request.POST.get('hod_note', '').strip()
+        report.save()
+        messages.success(request, 'Đã cập nhật phản hồi.')
+        return redirect('reports:weekly_detail', pk=pk)
+
+    images, files = _weekly_attachments(report)
+    return render(request, 'reports/weekly_detail.html', {
+        'report': report,
+        'weekly_images': images,
+        'weekly_files': files,
+        'week_label': week_label(report.week_start),
         'can_review': can_review,
         'can_submit_report': can_submit_daily_report(request.user),
         'can_view_team': can_view_team_reports(request.user),

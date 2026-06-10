@@ -12,5 +12,7 @@ urlpatterns = [
     path('copy-yesterday/', views.copy_yesterday, name='copy_yesterday'),
     path('my/', views.my_reports, name='my'),
     path('team/', views.team_reports, name='team'),
+    path('team/weekly/', views.team_weekly_reports, name='team_weekly'),
+    path('weekly/<int:pk>/', views.weekly_report_detail, name='weekly_detail'),
     path('<int:pk>/', views.report_detail, name='detail'),
 ]
