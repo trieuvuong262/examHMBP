@@ -1,0 +1,16 @@
+<script>
+(function () {
+    if (typeof TomSelect === 'undefined') return;
+    document.querySelectorAll('select.jp-npl-multi-select[data-placeholder]').forEach(function (el) {
+        if (el.tomselect) return;
+        new TomSelect(el, {
+            plugins: ['remove_button'],
+            placeholder: el.getAttribute('data-placeholder') || 'Chọn...',
+            maxItems: null,
+            hideSelected: false,
+            closeAfterSelect: false,
+            dropdownParent: 'body',
+        });
+    });
+})();
+</script>

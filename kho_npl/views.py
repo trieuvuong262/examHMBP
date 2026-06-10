@@ -1,6 +1,6 @@
 from datetime import date
 
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 
 from assessment.decorators import module_perm_required
@@ -12,6 +12,7 @@ from kho_npl.choices import STOCK_STATUS_LOW, STOCK_STATUS_OK, STOCK_STATUS_OUT
 from kho_npl.models import Material, MaterialCategory, WarehouseLocation
 from kho_npl.services.stock import material_stock_rows, overview_stats, stock_rows_for_status
 from kho_npl.services.stock_card import build_material_stock_card, diagnose_stock_mismatch
+from kho_npl.filter_utils import append_filter_params, parse_int_ids
 from kho_npl.view_utils import nav_context, perm_context
 from kho_npl.views_material import _material_catalog_qs
 from kho_npl.views_settings import settings_hub_items
@@ -68,15 +69,16 @@ def _parse_optional_date(value: str) -> date | None:
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def stock_cards(request):
     search_query = get_search_query(request)
-    location_id = request.GET.get('location', '').strip()
-    category_id = request.GET.get('category', '').strip()
+    location_ids = parse_int_ids(request, 'location')
     material_id = request.GET.get('material', '').strip()
     date_from = _parse_optional_date(request.GET.get('date_from'))
     date_to = _parse_optional_date(request.GET.get('date_to'))
-    loc_pk = int(location_id) if location_id.isdigit() else None
 
-    catalog_qs, _, cat_id, _ = _material_catalog_qs(request)
-    catalog_qs = catalog_qs.annotate(stock_total=Sum('balances__quantity')).order_by('code')
+    catalog_qs, _, category_ids, _ = _material_catalog_qs(request)
+    stock_sum = Sum('balances__quantity')
+    if location_ids:
+        stock_sum = Sum('balances__quantity', filter=Q(balances__location_id__in=location_ids))
+    catalog_qs = catalog_qs.annotate(stock_total=stock_sum).order_by('code')
     catalog_page, catalog_query_string = paginate_queryset(
         request, catalog_qs, per_page=20, page_param='cat_page',
     )
@@ -90,12 +92,12 @@ def stock_cards(request):
             Material.objects.select_related('category', 'unit'),
             pk=int(material_id),
         )
-        card = build_material_stock_card(
-            selected_material,
-            location_id=loc_pk,
-            date_from=date_from,
-            date_to=date_to,
-        )
+        card_kwargs = {'date_from': date_from, 'date_to': date_to}
+        if len(location_ids) == 1:
+            card_kwargs['location_id'] = location_ids[0]
+        elif location_ids:
+            card_kwargs['location_ids'] = location_ids
+        card = build_material_stock_card(selected_material, **card_kwargs)
         if card and not card['is_consistent']:
             mismatch_diagnosis = diagnose_stock_mismatch(selected_material)
 
@@ -104,10 +106,7 @@ def stock_cards(request):
         filter_params.append(f'date_from={date_from.isoformat()}')
     if date_to:
         filter_params.append(f'date_to={date_to.isoformat()}')
-    if location_id:
-        filter_params.append(f'location={location_id}')
-    if category_id or cat_id:
-        filter_params.append(f'category={category_id or cat_id}')
+    append_filter_params(filter_params, locations=location_ids, categories=category_ids)
     if search_query:
         filter_params.append(f'q={search_query}')
     catalog_filter_qs = '&'.join(filter_params)
@@ -118,8 +117,8 @@ def stock_cards(request):
         'search_query': search_query,
         'locations': WarehouseLocation.objects.filter(is_active=True),
         'categories': MaterialCategory.objects.filter(is_active=True),
-        'selected_location': location_id,
-        'selected_category': category_id or cat_id,
+        'selected_locations': location_ids,
+        'selected_categories': category_ids,
         'selected_material': selected_material,
         'card': card,
         'mismatch_diagnosis': mismatch_diagnosis,

@@ -21,41 +21,99 @@ REF_LABELS = {
 }
 
 
-def _ledger_qs(material: Material, location_id: int | None = None):
-    qs = StockLedger.objects.filter(material=material).select_related('location', 'created_by')
+def _apply_location_filter(qs, location_id: int | None = None, location_ids: list[int] | None = None):
+    if location_ids:
+        return qs.filter(location_id__in=location_ids)
     if location_id:
-        qs = qs.filter(location_id=location_id)
+        return qs.filter(location_id=location_id)
+    return qs
+
+
+def _ledger_qs(
+    material: Material,
+    location_id: int | None = None,
+    location_ids: list[int] | None = None,
+):
+    qs = StockLedger.objects.filter(material=material).select_related('location', 'created_by')
+    qs = _apply_location_filter(qs, location_id, location_ids)
     return qs.order_by('created_at', 'id')
 
 
-def ledger_delta_total(material: Material, location_id: int | None = None) -> Decimal:
-    qs = StockLedger.objects.filter(material=material)
-    if location_id:
-        qs = qs.filter(location_id=location_id)
+def ledger_delta_total(
+    material: Material,
+    location_id: int | None = None,
+    location_ids: list[int] | None = None,
+) -> Decimal:
+    qs = _apply_location_filter(
+        StockLedger.objects.filter(material=material),
+        location_id,
+        location_ids,
+    )
     total = qs.aggregate(total=Sum('qty_delta'))['total']
     return total or Decimal('0')
 
 
-def stock_balance_total(material: Material, location_id: int | None = None) -> Decimal:
+def stock_balance_total(
+    material: Material,
+    location_id: int | None = None,
+    location_ids: list[int] | None = None,
+) -> Decimal:
+    if location_ids:
+        total = StockBalance.objects.filter(
+            material=material,
+            location_id__in=location_ids,
+        ).aggregate(total=Sum('quantity'))['total']
+        return total or Decimal('0')
     if location_id:
         bal = StockBalance.objects.filter(material=material, location_id=location_id).first()
         return bal.quantity if bal else Decimal('0')
     return material_total_qty(material)
 
 
-def ledger_matches_stock(material: Material, location_id: int | None = None) -> bool:
-    return ledger_delta_total(material, location_id) == stock_balance_total(material, location_id)
+def ledger_matches_stock(
+    material: Material,
+    location_id: int | None = None,
+    location_ids: list[int] | None = None,
+) -> bool:
+    return ledger_delta_total(material, location_id, location_ids) == stock_balance_total(
+        material, location_id, location_ids,
+    )
+
+
+def _scope_label(location_ids: list[int] | None, location_id: int | None) -> tuple[str, bool]:
+    if location_ids:
+        codes = list(
+            WarehouseLocation.objects.filter(pk__in=location_ids)
+            .order_by('code')
+            .values_list('code', flat=True),
+        )
+        if len(codes) == 1:
+            return codes[0], True
+        if len(codes) <= 3:
+            return ', '.join(codes), True
+        return f'{len(codes)} kệ đã chọn', True
+    if location_id:
+        code = (
+            WarehouseLocation.objects.filter(pk=location_id)
+            .values_list('code', flat=True)
+            .first()
+        ) or 'Vị trí'
+        return code, True
+    return 'Tổng mọi kệ', False
 
 
 def build_material_stock_card(
     material: Material,
     *,
     location_id: int | None = None,
+    location_ids: list[int] | None = None,
     date_from: date | None = None,
     date_to: date | None = None,
 ) -> dict:
     """Dòng thẻ kho: tồn đầu kỳ + từng biến động (+nhập / -xuất) và tồn lũy kế."""
-    all_entries = list(_ledger_qs(material, location_id))
+    if location_ids and location_id:
+        location_id = None
+    all_entries = list(_ledger_qs(material, location_id, location_ids))
 
     opening = Decimal('0')
     period_entries = []
@@ -93,18 +151,17 @@ def build_material_stock_card(
     totals_in = sum((r['qty_in'] for r in rows if r['kind'] == 'txn'), Decimal('0'))
     totals_out = sum((r['qty_out'] for r in rows if r['kind'] == 'txn'), Decimal('0'))
 
-    system_stock = stock_balance_total(material, location_id)
-    ledger_total = ledger_delta_total(material, location_id)
+    system_stock = stock_balance_total(material, location_id, location_ids)
+    ledger_total = ledger_delta_total(material, location_id, location_ids)
     variance = system_stock - ledger_total
+    scope_label, scope_is_location = _scope_label(location_ids, location_id)
 
-    if location_id:
+    if location_id and not location_ids:
         closing = period_entries[-1].balance_after if period_entries else opening
-        scope_label = (
-            WarehouseLocation.objects.filter(pk=location_id).values_list('code', flat=True).first() or 'Vị trí'
-        )
+    elif location_ids and len(location_ids) == 1:
+        closing = period_entries[-1].balance_after if period_entries else opening
     else:
         closing = ledger_total
-        scope_label = 'Tổng mọi kệ'
 
     return {
         'rows': rows,
@@ -115,10 +172,10 @@ def build_material_stock_card(
         'system_stock': system_stock,
         'ledger_total': ledger_total,
         'variance': variance,
-        'is_consistent': ledger_matches_stock(material, location_id),
+        'is_consistent': ledger_matches_stock(material, location_id, location_ids),
         'period_entry_count': len(period_entries),
         'scope_label': scope_label,
-        'scope_is_location': bool(location_id),
+        'scope_is_location': scope_is_location,
         'unit': material.unit,
     }
 

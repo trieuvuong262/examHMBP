@@ -2,6 +2,7 @@
 {% load humanize npl_extras %}
 
 {% block extra_head %}
+{% include 'kho_npl/includes/filter_multi_select_head.html' %}
 <style>
 .jp-npl-stock-card-page .jp-npl-catalog-row.is-selected td {
     background: rgba(220, 38, 38, 0.06);
@@ -34,16 +35,17 @@
                     <label class="form-label fw-bold small mb-1" for="sc-to">Đến ngày</label>
                     <input type="date" class="form-control" id="sc-to" name="date_to" value="{{ date_to|date:'Y-m-d' }}">
                 </div>
-                <div class="col-12 col-md-3">
+                <div class="col-12 col-md-3 jp-npl-filter-multi">
                     <label class="form-label fw-bold small mb-1" for="sc-loc">Vị trí kho</label>
-                    <select name="location" id="sc-loc" class="form-select">
-                        <option value="">Tồn tổng (mọi kệ)</option>
+                    <select name="location" id="sc-loc" class="form-select jp-npl-multi-select" multiple
+                            data-placeholder="Tồn tổng (mọi kệ)">
                         {% for loc in locations %}
-                        <option value="{{ loc.id }}" {% if selected_location == loc.id|stringformat:'s' %}selected{% endif %}>
+                        <option value="{{ loc.id }}" {% if loc.id in selected_locations %}selected{% endif %}>
                             {{ loc.code }} — {{ loc.name }}
                         </option>
                         {% endfor %}
                     </select>
+                    <div class="form-text">Chọn nhiều kệ; để trống = tất cả.</div>
                 </div>
                 <div class="col-12 col-md-3">
                     <button type="submit" class="btn btn-hm w-100 fw-bold">
@@ -86,7 +88,7 @@
                     {% if card.scope_is_location %}
                     Tồn tại <strong>{{ card.scope_label }}</strong>
                     ({{ card.system_stock|npl_qty_with_unit:selected_material.unit }})
-                    chưa khớp tổng sổ tại kệ này
+                    chưa khớp tổng sổ tại kệ đã chọn
                     ({{ card.ledger_total|npl_qty_with_unit:selected_material.unit }}).
                     {% else %}
                     Tồn tổng mọi kệ
@@ -96,7 +98,7 @@
                     {% endif %}
                     Lệch <strong>{% if card.variance > 0 %}+{% endif %}{{ card.variance|npl_qty_with_unit:selected_material.unit }}</strong>.
                     {% if not card.scope_is_location %}
-                    Cột「Tồn sau」trong bảng là tồn theo từng kệ, không phải tổng toàn kho.
+                    Cột「Tồn sau」là tồn theo từng kệ; khi chọn nhiều kệ, tổng tồn/sổ ở header là cộng các kệ đã lọc.
                     {% endif %}
                 </div>
                 {% if mismatch_diagnosis %}
@@ -266,13 +268,15 @@
             <form method="get" class="row g-2 align-items-end">
                 {% if date_from %}<input type="hidden" name="date_from" value="{{ date_from|date:'Y-m-d' }}">{% endif %}
                 {% if date_to %}<input type="hidden" name="date_to" value="{{ date_to|date:'Y-m-d' }}">{% endif %}
-                {% if selected_location %}<input type="hidden" name="location" value="{{ selected_location }}">{% endif %}
-                <div class="col-12 col-md-4">
+                {% for loc_id in selected_locations %}
+                <input type="hidden" name="location" value="{{ loc_id }}">
+                {% endfor %}
+                <div class="col-12 col-md-4 jp-npl-filter-multi">
                     <label class="form-label fw-bold small mb-1" for="cat-cat">Nhóm</label>
-                    <select name="category" id="cat-cat" class="form-select form-select-sm">
-                        <option value="">Tất cả nhóm</option>
+                    <select name="category" id="cat-cat" class="form-select form-select-sm jp-npl-multi-select" multiple
+                            data-placeholder="Tất cả nhóm">
                         {% for cat in categories %}
-                        <option value="{{ cat.id }}" {% if selected_category == cat.id|stringformat:'s' %}selected{% endif %}>{{ cat.name }}</option>
+                        <option value="{{ cat.id }}" {% if cat.id in selected_categories %}selected{% endif %}>{{ cat.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -327,6 +331,7 @@
 {% endblock %}
 
 {% block scripts %}
+{% include 'kho_npl/includes/filter_multi_select_script.html' %}
 <script>
 (function () {
     document.querySelectorAll('.jp-npl-catalog-row[data-href]').forEach(function (row) {

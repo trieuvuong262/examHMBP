@@ -69,7 +69,7 @@
                     <select name="category" id="npl-cat" class="form-select">
                         <option value="">Tất cả nhóm</option>
                         {% for cat in categories %}
-                        <option value="{{ cat.id }}" {% if selected_category == cat.id|stringformat:'s' %}selected{% endif %}>{{ cat.name }}</option>
+                        <option value="{{ cat.id }}" {% if cat.id in selected_categories %}selected{% endif %}>{{ cat.name }}</option>
                         {% endfor %}
                     </select>
                 </div>

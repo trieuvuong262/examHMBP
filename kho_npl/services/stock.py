@@ -27,16 +27,19 @@ def stock_status_for_qty(quantity: Decimal, min_stock: Decimal) -> str:
     return STOCK_STATUS_OK
 
 
-def material_stock_rows(queryset=None):
+def material_stock_rows(queryset=None, location_ids: list[int] | None = None):
     """Tổng hợp tồn theo NPL — dùng cho tổng quan và danh sách tồn."""
     qs = queryset or Material.objects.filter(is_active=True).select_related(
         'category', 'unit', 'supplier',
     ).prefetch_related('balances__location')
+    loc_set = set(location_ids or [])
     rows = []
     for material in qs:
-        total = material_total_qty(material)
-        primary_location = ''
         balances = list(material.balances.all())
+        if loc_set:
+            balances = [b for b in balances if b.location_id in loc_set]
+        total = sum((b.quantity for b in balances), Decimal('0'))
+        primary_location = ''
         if balances:
             top = max(balances, key=lambda b: b.quantity)
             if top.quantity > 0:

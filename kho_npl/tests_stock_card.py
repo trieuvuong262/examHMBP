@@ -136,6 +136,32 @@ class StockCardTests(TestCase):
         self.assertEqual(card['scope_label'], self.location.code)
         self.assertEqual(card['closing_balance'], Decimal('10'))
 
+    def test_stock_card_multi_location_scope(self):
+        loc_b = WarehouseLocation.objects.create(code='SC-B2', name='Kệ B2 test', is_active=True)
+        self._post_receipt(Decimal('10'))
+        receipt = StockReceipt.objects.create(
+            number='PN-SC-MULTI',
+            receipt_date=timezone.localdate(),
+            created_by=self.user,
+        )
+        StockReceiptLine.objects.create(
+            receipt=receipt,
+            material=self.material,
+            location=loc_b,
+            ordered_qty=Decimal('7'),
+            received_qty=Decimal('7'),
+        )
+        post_stock_receipt(receipt, self.user)
+
+        card = build_material_stock_card(
+            self.material,
+            location_ids=[self.location.id, loc_b.id],
+        )
+        self.assertTrue(card['scope_is_location'])
+        self.assertEqual(card['system_stock'], Decimal('17'))
+        self.assertEqual(card['ledger_total'], Decimal('17'))
+        self.assertTrue(card['is_consistent'])
+
     def test_stock_card_page_loads(self):
         self._post_receipt(Decimal('10'))
         url = reverse('kho_npl:stock_cards') + f'?material={self.material.pk}'

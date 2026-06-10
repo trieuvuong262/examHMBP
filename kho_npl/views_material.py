@@ -20,6 +20,7 @@ from kho_npl.services.material_import_export import (
     sample_template_xlsx,
 )
 from kho_npl.services.stock import material_stock_rows, material_total_qty
+from kho_npl.filter_utils import append_filter_params, parse_int_ids
 from kho_npl.view_utils import nav_context, perm_context
 
 
@@ -53,13 +54,13 @@ def material_search(request):
 
 def _material_catalog_qs(request):
     search_query = get_search_query(request)
-    category_id = request.GET.get('category', '').strip()
+    category_ids = parse_int_ids(request, 'category')
     show_inactive = request.GET.get('inactive') == '1'
     qs = Material.objects.select_related('category', 'unit', 'supplier')
     if not show_inactive:
         qs = qs.filter(is_active=True)
-    if category_id.isdigit():
-        qs = qs.filter(category_id=int(category_id))
+    if category_ids:
+        qs = qs.filter(category_id__in=category_ids)
     if search_query:
         qs = qs.filter(
             Q(code__icontains=search_query)
@@ -67,12 +68,12 @@ def _material_catalog_qs(request):
             | Q(color__icontains=search_query)
             | Q(specification__icontains=search_query)
         )
-    return qs, search_query, category_id, show_inactive
+    return qs, search_query, category_ids, show_inactive
 
 
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def material_list(request):
-    qs, search_query, category_id, show_inactive = _material_catalog_qs(request)
+    qs, search_query, category_ids, show_inactive = _material_catalog_qs(request)
     page_obj, query_string = paginate_queryset(request, qs.order_by('code'), per_page=25)
     categories = MaterialCategory.objects.filter(is_active=True)
     return render(request, 'kho_npl/material_list.html', {
@@ -82,7 +83,7 @@ def material_list(request):
         'query_string': query_string,
         'search_query': search_query,
         'categories': categories,
-        'selected_category': category_id,
+        'selected_categories': category_ids,
         'show_inactive': show_inactive,
         'list_columns': MATERIAL_LIST_COLUMNS,
     })
@@ -90,15 +91,15 @@ def material_list(request):
 
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def material_stock_list(request):
-    qs, search_query, category_id, show_inactive = _material_catalog_qs(request)
-    location_id = request.GET.get('location', '').strip()
+    qs, search_query, category_ids, show_inactive = _material_catalog_qs(request)
+    location_ids = parse_int_ids(request, 'location')
     status = (request.GET.get('status') or '').strip().lower()
     if status not in (STOCK_STATUS_OK, STOCK_STATUS_LOW, STOCK_STATUS_OUT):
         status = ''
-    if location_id.isdigit():
-        qs = qs.filter(balances__location_id=int(location_id)).distinct()
+    if location_ids:
+        qs = qs.filter(balances__location_id__in=location_ids).distinct()
 
-    rows = material_stock_rows(qs)
+    rows = material_stock_rows(qs, location_ids=location_ids or None)
     if status:
         rows = [r for r in rows if r['status'] == status]
 
@@ -111,8 +112,8 @@ def material_stock_list(request):
         'search_query': search_query,
         'categories': MaterialCategory.objects.filter(is_active=True),
         'locations': WarehouseLocation.objects.filter(is_active=True),
-        'selected_category': category_id,
-        'selected_location': location_id,
+        'selected_categories': category_ids,
+        'selected_locations': location_ids,
         'selected_status': status,
         'show_inactive': show_inactive,
         'total_rows': len(rows),
