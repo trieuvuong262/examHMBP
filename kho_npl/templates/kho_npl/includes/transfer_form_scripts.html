@@ -3,19 +3,73 @@
     const body = document.getElementById('lines-body');
     const tmpl = document.getElementById('empty-row-template');
     const totalForms = document.getElementById('id_lines-TOTAL_FORMS');
+    const form = document.getElementById('transfer-form');
+    const searchUrl = form?.dataset.materialSearchUrl || '';
+    const materialInstances = new WeakMap();
+
+    function initMaterialSelect(select) {
+        if (!select || materialInstances.has(select) || typeof TomSelect === 'undefined') return;
+        const ts = new TomSelect(select, {
+            maxOptions: 40,
+            valueField: 'id',
+            labelField: 'text',
+            searchField: ['text'],
+            placeholder: select.dataset.placeholder || 'Gõ mã hoặc tên NPL...',
+            loadThrottle: 280,
+            shouldLoad: function (query) {
+                return query.length >= 1;
+            },
+            load: function (query, callback) {
+                if (!searchUrl) {
+                    callback();
+                    return;
+                }
+                fetch(searchUrl + '?q=' + encodeURIComponent(query), {
+                    headers: { 'Accept': 'application/json' },
+                })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) { callback(data.results || []); })
+                    .catch(function () { callback(); });
+            },
+            render: {
+                no_results: function () {
+                    return '<div class="px-2 py-2 text-muted small">Không tìm thấy NPL</div>';
+                },
+            },
+        });
+        materialInstances.set(select, ts);
+    }
+
+    function initAllMaterialSelects(root) {
+        (root || document).querySelectorAll('select.jp-npl-material-select').forEach(initMaterialSelect);
+    }
+
     if (!body || !tmpl || !totalForms) return;
+
+    initAllMaterialSelects(body);
 
     document.getElementById('add-row')?.addEventListener('click', function () {
         const idx = parseInt(totalForms.value, 10);
         const html = tmpl.innerHTML.replace(/__prefix__/g, idx);
         body.insertAdjacentHTML('beforeend', html);
         totalForms.value = idx + 1;
+        const rows = body.querySelectorAll('.line-row');
+        const lastRow = rows[rows.length - 1];
+        if (lastRow) {
+            initMaterialSelect(lastRow.querySelector('select.jp-npl-material-select'));
+        }
     });
 
     body.addEventListener('click', function (e) {
         const btn = e.target.closest('.remove-row');
         if (!btn) return;
         const row = btn.closest('.line-row');
+        const select = row?.querySelector('select.jp-npl-material-select');
+        const ts = select ? materialInstances.get(select) : null;
+        if (ts) {
+            ts.destroy();
+            materialInstances.delete(select);
+        }
         const del = row.querySelector('input[type=checkbox][name$="-DELETE"]');
         if (del) { del.checked = true; row.classList.add('d-none'); }
         else { row.remove(); }

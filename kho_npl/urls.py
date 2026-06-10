@@ -27,6 +27,7 @@ urlpatterns = [
     path('danh-muc/<int:pk>/', views_material.material_detail, name='material_detail'),
     path('danh-muc/<int:pk>/sua/', views_material.material_edit, name='material_edit'),
     path('danh-muc/<int:pk>/ngung/', views_material.material_deactivate, name='material_deactivate'),
+    path('api/tim-npl/', views_material.material_search, name='material_search'),
     path('phieu-nhap/', views_receipt.receipt_list, name='receipt_list'),
     path('phieu-nhap/them/', views_receipt.receipt_create, name='receipt_create'),
     path('phieu-nhap/<int:pk>/', views_receipt.receipt_detail, name='receipt_detail'),

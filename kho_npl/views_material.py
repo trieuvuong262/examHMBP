@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.db.models import Q
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
@@ -20,6 +21,28 @@ from kho_npl.services.material_import_export import (
 )
 from kho_npl.services.stock import material_stock_rows, material_total_qty
 from kho_npl.view_utils import nav_context, perm_context
+
+
+def _material_search_label(material: Material) -> str:
+    return f'{material.code} — {material.name}'
+
+
+@module_perm_required(MODULE_KHO_NPL, 'view')
+def material_search(request):
+    q = (request.GET.get('q') or '').strip()
+    qs = Material.objects.filter(is_active=True).select_related('unit')
+    if q:
+        qs = qs.filter(
+            Q(code__icontains=q)
+            | Q(name__icontains=q)
+            | Q(color__icontains=q)
+            | Q(specification__icontains=q),
+        )
+    rows = [
+        {'id': m.pk, 'text': _material_search_label(m)}
+        for m in qs.order_by('code')[:40]
+    ]
+    return JsonResponse({'results': rows})
 
 
 def _material_catalog_qs(request):

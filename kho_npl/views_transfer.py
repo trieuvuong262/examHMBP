@@ -132,6 +132,9 @@ def transfer_hub(request):
         'tab': tab,
         'tab_choices': TRANSFER_TAB_CHOICES,
         'list_url': _transfer_list_url(tab),
+        'list_status_filters': TRANSFER_LIST_STATUS_FILTERS,
+        'list_status': _resolve_list_status(request) if tab == TRANSFER_TAB_DANH_SACH else '',
+        'search_query': get_search_query(request) if tab != TRANSFER_TAB_NHAP else '',
     }
 
     if tab == TRANSFER_TAB_NHAP:
@@ -167,6 +170,9 @@ def transfer_detail(request, pk):
         'transfer': transfer,
         'tab': tab,
         'tab_choices': TRANSFER_TAB_CHOICES,
+        'list_status_filters': TRANSFER_LIST_STATUS_FILTERS,
+        'list_status': transfer.status if tab == TRANSFER_TAB_DANH_SACH else '',
+        'search_query': '',
         'is_editable': transfer_is_editable(transfer),
         'can_send': transfer_can_send(transfer),
         'can_receive': transfer_can_receive(transfer),

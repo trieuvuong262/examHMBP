@@ -109,17 +109,16 @@ class StockTransferWorkflowTests(TestCase):
 
         nhap = self.client.get(reverse('kho_npl:transfer_hub') + '?tab=nhap')
         self.assertEqual(nhap.status_code, 200)
-        self.assertContains(nhap, 'Tạo phiếu chuyển kho')
         self.assertContains(nhap, 'Lưu phiếu')
+        self.assertContains(nhap, 'jp-npl-material-select')
+        self.assertContains(nhap, 'tim-npl')
 
         chuyen = self.client.get(reverse('kho_npl:transfer_hub') + '?tab=chuyen')
         self.assertEqual(chuyen.status_code, 200)
-        self.assertContains(chuyen, 'Phiếu đã nhập — chờ chuyển')
         self.assertContains(chuyen, 'Chuyển')
 
         nhan = self.client.get(reverse('kho_npl:transfer_hub') + '?tab=nhan')
         self.assertEqual(nhan.status_code, 200)
-        self.assertContains(nhan, 'Phiếu đã chuyển — chờ nhận')
         self.assertContains(nhan, 'Xác nhận nhận')
 
         received = self._draft_transfer()
@@ -128,9 +127,9 @@ class StockTransferWorkflowTests(TestCase):
 
         danh_sach = self.client.get(reverse('kho_npl:transfer_hub') + '?tab=danh-sach')
         self.assertEqual(danh_sach.status_code, 200)
-        self.assertContains(danh_sach, 'Danh sách phiếu chuyển kho')
+        self.assertContains(danh_sach, 'jp-npl-transfer-status-filters')
         self.assertContains(danh_sach, 'Xem chi tiết')
-        self.assertNotContains(danh_sach, 'jp-npl-transfer-stats')
+        self.assertContains(danh_sach, 'Chưa nhận')
 
         filtered = self.client.get(
             reverse('kho_npl:transfer_hub') + '?tab=danh-sach&status=received',
@@ -160,6 +159,13 @@ class StockTransferWorkflowTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn('tab=chuyen', response.url)
         self.assertEqual(StockTransfer.objects.filter(status=TRANSFER_STATUS_DRAFT).count(), 1)
+
+    def test_material_search_api(self):
+        url = reverse('kho_npl:material_search') + '?q=XF'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(any(r['text'].startswith('XF-01') for r in data['results']))
 
     def test_overview_has_no_module_tab_pills(self):
         response = self.client.get(reverse('kho_npl:overview'))

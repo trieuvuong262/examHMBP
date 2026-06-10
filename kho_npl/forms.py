@@ -386,15 +386,37 @@ class StockTransferLineForm(forms.ModelForm):
         model = StockTransferLine
         fields = ['material', 'quantity', 'notes']
         widgets = {
-            'material': forms.Select(attrs=FORM_SELECT),
+            'material': forms.Select(attrs={
+                **FORM_SELECT,
+                'class': 'form-select jp-npl-material-select',
+                'data-placeholder': 'Gõ mã hoặc tên NPL...',
+            }),
             'quantity': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0.001'}),
             'notes': forms.TextInput(attrs=FORM_CONTROL),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['material'].queryset = Material.objects.filter(is_active=True).select_related('unit')
+        material_id = None
+        if self.instance.pk and self.instance.material_id:
+            material_id = self.instance.material_id
+        elif self.initial.get('material'):
+            material_id = self.initial['material']
+        if material_id:
+            self.fields['material'].queryset = (
+                Material.objects.filter(pk=material_id).select_related('unit')
+            )
+        else:
+            self.fields['material'].queryset = Material.objects.none()
+        self.fields['material'].empty_label = 'Gõ mã hoặc tên để tìm...'
         self.fields['notes'].required = False
+
+    def full_clean(self):
+        if self.data:
+            self.fields['material'].queryset = (
+                Material.objects.filter(is_active=True).select_related('unit')
+            )
+        super().full_clean()
 
 
 class BaseStockTransferLineFormSet(BaseInlineFormSet):

@@ -6224,6 +6224,30 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
 }
 
 /* --- Kho NPL — Chuyển kho (override .nav-link navbar: trắng chữ trắng) --- */
+.jp-npl-transfer-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+}
+
+.jp-npl-transfer-status-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    align-items: center;
+}
+
+.jp-npl-transfer-page .ts-wrapper.jp-npl-material-select,
+.jp-npl-transfer-page .ts-wrapper.single {
+    min-width: 200px;
+}
+
+.jp-npl-transfer-page .ts-control input {
+    min-width: 6rem;
+}
+
 .jp-npl-transfer-tabs .nav-link {
     color: #475569 !important;
     background: #fff !important;
