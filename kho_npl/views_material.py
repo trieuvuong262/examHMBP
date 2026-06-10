@@ -1,3 +1,4 @@
+import pandas as pd
 from django.contrib import messages
 from django.db.models import Q
 from django.http import JsonResponse
@@ -9,7 +10,12 @@ from hrm.module_permissions import MODULE_KHO_NPL
 from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
-from kho_npl.choices import STOCK_STATUS_LOW, STOCK_STATUS_OK, STOCK_STATUS_OUT
+from kho_npl.choices import (
+    STOCK_STATUS_LABELS,
+    STOCK_STATUS_LOW,
+    STOCK_STATUS_OK,
+    STOCK_STATUS_OUT,
+)
 from kho_npl.forms import MaterialForm
 from kho_npl.material_list_columns import (
     MATERIAL_LIST_COLUMNS,
@@ -17,6 +23,7 @@ from kho_npl.material_list_columns import (
     MATERIAL_LIST_TOTAL_COL_WEIGHT,
 )
 from kho_npl.models import Material, MaterialCategory, WarehouseLocation
+from kho_npl.services.excel_export import dataframe_to_xlsx_response
 from kho_npl.services.material_import_export import (
     MaterialImportError,
     export_materials_xlsx,
@@ -24,6 +31,11 @@ from kho_npl.services.material_import_export import (
     sample_template_xlsx,
 )
 from kho_npl.services.stock import material_stock_rows, material_total_qty
+from kho_npl.stock_list_columns import (
+    STOCK_LIST_COLUMNS,
+    STOCK_LIST_SORT_FIELDS,
+    STOCK_LIST_TOTAL_COL_WEIGHT,
+)
 from kho_npl.filter_utils import append_filter_params, parse_int_ids
 from kho_npl.view_utils import nav_context, perm_context
 
@@ -141,8 +153,25 @@ def material_list(request):
     })
 
 
-@module_perm_required(MODULE_KHO_NPL, 'view')
-def material_stock_list(request):
+MATERIAL_STOCK_STATUS_CHOICES = (
+    ('', 'Tất cả'),
+    (STOCK_STATUS_OK, 'Đủ hàng'),
+    (STOCK_STATUS_LOW, 'Sắp thiếu'),
+    (STOCK_STATUS_OUT, 'Hết hàng'),
+)
+
+
+def _stock_list_sort(request):
+    sort_key = (request.GET.get('sort') or 'code').strip()
+    sort_dir = (request.GET.get('dir') or 'asc').strip().lower()
+    if sort_key not in STOCK_LIST_SORT_FIELDS:
+        sort_key = 'code'
+    if sort_dir not in ('asc', 'desc'):
+        sort_dir = 'asc'
+    return sort_key, sort_dir
+
+
+def _stock_filtered_rows(request):
     qs, search_query, category_ids, show_inactive = _material_catalog_qs(request)
     location_ids = parse_int_ids(request, 'location')
     status = (request.GET.get('status') or '').strip().lower()
@@ -155,7 +184,17 @@ def material_stock_list(request):
     if status:
         rows = [r for r in rows if r['status'] == status]
 
-    page_obj, query_string = paginate_queryset(request, rows, per_page=30)
+    sort_key, sort_dir = _stock_list_sort(request)
+    rows.sort(key=STOCK_LIST_SORT_FIELDS[sort_key], reverse=(sort_dir == 'desc'))
+    return rows, search_query, category_ids, location_ids, status, show_inactive, sort_key, sort_dir
+
+
+@module_perm_required(MODULE_KHO_NPL, 'view')
+def material_stock_list(request):
+    rows, search_query, category_ids, location_ids, status, show_inactive, sort_key, sort_dir = (
+        _stock_filtered_rows(request)
+    )
+    page_obj, query_string = paginate_queryset(request, rows, per_page=25)
     return render(request, 'kho_npl/material_stock.html', {
         **nav_context('material_stock', user=request.user),
         **perm_context(request.user, 'material_stock'),
@@ -167,9 +206,35 @@ def material_stock_list(request):
         'selected_categories': category_ids,
         'selected_locations': location_ids,
         'selected_status': status,
+        'status_choices': MATERIAL_STOCK_STATUS_CHOICES,
         'show_inactive': show_inactive,
-        'total_rows': len(rows),
+        'list_columns': STOCK_LIST_COLUMNS,
+        'total_col_weight': STOCK_LIST_TOTAL_COL_WEIGHT,
+        'sort_key': sort_key,
+        'sort_dir': sort_dir,
+        'has_filters': bool(search_query or category_ids or location_ids or status),
     })
+
+
+@module_perm_required(MODULE_KHO_NPL, 'export')
+def material_stock_export(request):
+    rows, _, _, _, _, _, _, _ = _stock_filtered_rows(request)
+    data = []
+    for row in rows:
+        mat = row['material']
+        data.append({
+            'Mã NPL': mat.code,
+            'Tên NPL': mat.name,
+            'Nhóm': mat.category.name,
+            'Màu': mat.color or '',
+            'ĐVT': mat.unit.name,
+            'Tồn hiện tại': float(row['total_qty']),
+            'Tối thiểu': float(mat.min_stock),
+            'Vị trí chính': row['primary_location'],
+            'Trạng thái': STOCK_STATUS_LABELS[row['status']],
+        })
+    df = pd.DataFrame(data)
+    return dataframe_to_xlsx_response(df, 'Ton_kho_npl', 'Ton_kho')
 
 
 @module_perm_required(MODULE_KHO_NPL, 'view')

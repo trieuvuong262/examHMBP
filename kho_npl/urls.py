@@ -24,6 +24,7 @@ urlpatterns = [
     path('danh-muc/mau-excel/', views_material.material_import_template, name='material_import_template'),
     path('danh-muc/nhap-excel/', views_material.material_import, name='material_import'),
     path('ton-kho-npl/', views_material.material_stock_list, name='material_stock'),
+    path('ton-kho-npl/xuat-excel/', views_material.material_stock_export, name='material_stock_export'),
     path('danh-muc/them/', views_material.material_create, name='material_create'),
     path('danh-muc/<int:pk>/', views_material.material_detail, name='material_detail'),
     path('danh-muc/<int:pk>/sua/', views_material.material_edit, name='material_edit'),
