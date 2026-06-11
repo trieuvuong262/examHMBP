@@ -69,30 +69,6 @@
         </div>
 
         <div class="card border-0 shadow-sm jp-perm-group-card jp-perm-matrix-card">
-            <div class="card-header bg-white border-bottom py-3 px-3 px-md-4">
-                <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
-                    <div>
-                        <h5 class="mb-0 fw-bold text-dark">Ma trận quyền theo module &amp; menu con</h5>
-                        <p class="small text-muted mb-0 mt-1">Phân quyền chi tiết từng menu con · Chọn nhanh từng dòng · Bật/tắt cả cột</p>
-                    </div>
-                    <div class="d-flex flex-wrap align-items-center gap-2">
-                        <div class="jp-perm-legend-inline d-none d-lg-flex">
-                            {% for action in perm_action_meta %}
-                            <span class="jp-perm-legend-chip jp-perm-legend-{{ action.tone }}" title="{{ action.label }}">
-                                <i class="bi {{ action.icon }}"></i> {{ action.label }}
-                            </span>
-                            {% endfor %}
-                        </div>
-                        <div class="jp-perm-summary-pills" id="permSummaryPills" aria-live="polite">
-                            <span class="jp-perm-summary-pill"><i class="bi bi-eye"></i> <span data-count="view">0</span> xem</span>
-                            <span class="jp-perm-summary-pill" data-summary="full"><i class="bi bi-check-all"></i> <span data-count="full">0</span> đủ</span>
-                        </div>
-                        <button type="button" class="btn btn-outline-secondary btn-sm fw-bold text-nowrap" id="permClearAll">
-                            <i class="bi bi-x-circle me-1"></i>Bỏ chọn tất cả
-                        </button>
-                    </div>
-                </div>
-            </div>
             <div class="card-body p-0">
                 <div class="jp-perm-matrix-wrap">
                     <table class="table mb-0 jp-perm-matrix-table">
