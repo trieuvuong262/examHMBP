@@ -2,18 +2,20 @@
 
 {% block extra_head %}
 {% include 'kho_npl/includes/catalog_grid_styles.html' %}
+{% include 'kho_npl/includes/stocktake_list_styles.html' %}
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-npl-material-catalog-page py-3 py-md-4 mb-5" data-loading-message="Đang tải phiếu kiểm kê…">
+<div class="container jp-page jp-npl-material-catalog-page jp-npl-stocktake-page py-3 py-md-4 mb-5" data-loading-message="Đang tải phiếu kiểm kê…">
     <div class="jp-npl-mat-topbar">
-        <h2 class="jp-npl-mat-topbar-title"><i class="bi bi-clipboard-check me-2"></i>Phiếu kiểm kê</h2>
+        <h2 class="jp-npl-mat-topbar-title"><i class="bi bi-clipboard-check me-2"></i>Kiểm kê theo kho</h2>
         <form method="get" class="jp-npl-mat-topbar-search" id="npl-stk-search-form">
+            {% if selected_warehouse_id %}<input type="hidden" name="wh" value="{{ selected_warehouse_id }}">{% endif %}
             <div class="jp-npl-mat-search-row">
                 <div class="input-group input-group-sm jp-npl-mat-filter-field jp-npl-mat-search-input">
                     <span class="input-group-text bg-transparent"><i class="bi bi-search text-muted"></i></span>
                     <input type="search" class="form-control" name="q"
-                           value="{{ search_query }}" placeholder="Mã kỳ, tên kỳ..." autocomplete="off" aria-label="Tìm">
+                           value="{{ search_query }}" placeholder="Mã kỳ, tên kỳ, mã kho..." autocomplete="off" aria-label="Tìm">
                 </div>
                 <select name="status" class="form-select form-select-sm jp-npl-mat-status-select" aria-label="Trạng thái">
                     {% for value, label in status_choices %}
@@ -21,19 +23,131 @@
                     {% endfor %}
                 </select>
                 <button type="submit" class="btn btn-hm btn-sm fw-bold">Tìm</button>
-                {% if has_filters %}
+                {% if has_filters or selected_warehouse_id %}
                 <a href="{% url 'kho_npl:stocktake_list' %}" class="btn btn-outline-secondary btn-sm fw-bold px-2" title="Xóa lọc">×</a>
                 {% endif %}
             </div>
         </form>
         <div class="jp-npl-mat-topbar-actions">
             {% if can_create %}
-            <a href="{% url 'kho_npl:stocktake_create' %}" class="btn btn-hm btn-sm fw-bold">
-                <i class="bi bi-plus-lg me-1"></i>Thêm
+            <a href="{% url 'kho_npl:stocktake_create' %}{% if selected_warehouse_id %}?wh={{ selected_warehouse_id }}{% endif %}" class="btn btn-hm btn-sm fw-bold">
+                <i class="bi bi-plus-lg me-1"></i>{% if selected_location %}Kỳ mới — {{ selected_location.code }}{% else %}Thêm kỳ{% endif %}
             </a>
             {% endif %}
+            {% if list_mode == 'warehouse' %}
             {% include 'kho_npl/includes/doc_list_col_picker.html' with col_btn_id='npl-stkt-col-btn' col_prefix='npl-stkt-col' col_toggle_class='npl-stkt-col-toggle' %}
+            {% endif %}
         </div>
+    </div>
+
+    <div class="jp-npl-stk-wh-toolbar">
+        <div class="jp-npl-stk-wh-pills" role="tablist" aria-label="Chọn kho kiểm kê">
+            {% for tab in warehouse_tabs %}
+            <a href="{% url 'kho_npl:stocktake_list' %}?{% if tab.id %}wh={{ tab.id }}{% endif %}{% if selected_status %}{% if tab.id %}&{% endif %}status={{ selected_status }}{% endif %}{% if search_query %}{% if tab.id or selected_status %}&{% endif %}q={{ search_query|urlencode }}{% endif %}"
+               class="jp-npl-stk-wh-pill{% if tab.active %} is-active{% endif %}"
+               {% if tab.active %}aria-current="page"{% endif %}>
+                {% if tab.id %}
+                <span class="jp-npl-stk-wh-pill-code">{{ tab.code }}</span>
+                <span class="d-none d-sm-inline">{{ tab.label }}</span>
+                {% else %}
+                <i class="bi bi-grid-3x3-gap" aria-hidden="true"></i>
+                <span>{{ tab.label }}</span>
+                {% endif %}
+                <span class="jp-npl-stk-wh-pill-count">{{ tab.count }}</span>
+                {% if tab.counting %}
+                <span class="jp-npl-stk-wh-pill-live">{{ tab.counting }} đang kiểm</span>
+                {% endif %}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% if list_mode == 'overview' %}
+    <p class="jp-npl-stk-overview-hint mb-0">
+        Mỗi kho một khối riêng — bấm mã kho để xem đầy đủ các kỳ tại kho đó. Không gộp chung một bảng dài.
+    </p>
+
+    {% if warehouse_groups %}
+    {% for group in warehouse_groups %}
+    <div class="jp-npl-stk-wh-card">
+        <div class="jp-npl-stk-wh-card-head">
+            <div class="jp-npl-stk-wh-card-title">
+                <span class="jp-npl-stk-wh-card-code">{{ group.location.code }}</span>
+                {% if group.location.name %}<span class="jp-npl-stk-wh-card-name">{{ group.location.name }}</span>{% endif %}
+            </div>
+            <div class="jp-npl-stk-wh-card-stats">
+                <span class="jp-npl-stk-wh-stat">{{ group.total }} kỳ</span>
+                {% if group.counting %}<span class="jp-npl-stk-wh-stat is-live">{{ group.counting }} đang kiểm</span>{% endif %}
+                {% if group.draft %}<span class="jp-npl-stk-wh-stat">{{ group.draft }} nháp</span>{% endif %}
+                {% if group.closed %}<span class="jp-npl-stk-wh-stat">{{ group.closed }} đã chốt</span>{% endif %}
+            </div>
+            <div class="jp-npl-stk-wh-card-actions">
+                {% if can_create %}
+                <a href="{% url 'kho_npl:stocktake_create' %}?wh={{ group.location.pk }}" class="btn btn-outline-hm btn-sm fw-bold">
+                    <i class="bi bi-plus-lg me-1"></i>Kỳ mới
+                </a>
+                {% endif %}
+                <a href="{% url 'kho_npl:stocktake_list' %}?wh={{ group.location.pk }}{% if selected_status %}&amp;status={{ selected_status }}{% endif %}{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}"
+                   class="btn btn-hm btn-sm fw-bold"
+                   data-loading-message="Đang tải kỳ kiểm kê {{ group.location.code }}…">
+                    Xem tất cả{% if group.has_more %} ({{ group.total }}){% endif %}
+                </a>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0 jp-npl-stk-mini-table">
+                <thead class="table-light">
+                    <tr>
+                        <th>Mã kỳ</th>
+                        <th>Tên kỳ</th>
+                        <th>Ngày</th>
+                        <th>Trạng thái</th>
+                        <th>Người tạo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for st in group.stocktakes %}
+                    <tr>
+                        <td class="fw-semibold">
+                            <a href="{% url 'kho_npl:stocktake_detail' st.pk %}" class="text-decoration-none"
+                               data-loading-message="Đang tải chi tiết kiểm kê…">{{ st.number }}</a>
+                        </td>
+                        <td title="{{ st.name }}">{{ st.name|truncatechars:40 }}</td>
+                        <td>{{ st.stocktake_date|date:'d/m/Y' }}</td>
+                        <td>{{ st.get_status_display }}</td>
+                        <td class="text-muted small">{% if st.created_by %}{{ st.created_by.get_full_name|default:st.created_by.username }}{% else %}—{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if group.has_more %}
+        <div class="px-3 py-2 border-top bg-light small text-muted">
+            Hiển thị {{ group.stocktakes|length }}/{{ group.total }} kỳ gần nhất —
+            <a href="{% url 'kho_npl:stocktake_list' %}?wh={{ group.location.pk }}" class="fw-semibold">xem đủ tại {{ group.location.code }}</a>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-body text-center text-muted py-5">
+            {% if has_filters %}Không có kỳ kiểm kê phù hợp bộ lọc.{% else %}Chưa có kỳ kiểm kê — chọn kho và tạo kỳ mới.{% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="jp-npl-stk-wh-focus-banner">
+        <div>
+            <div class="small text-muted mb-1">Đang xem kho</div>
+            <div class="jp-npl-stk-wh-focus-code">{{ selected_location.code }}</div>
+            {% if selected_location.name %}<div class="small text-muted">{{ selected_location.name }}</div>{% endif %}
+        </div>
+        <a href="{% url 'kho_npl:stocktake_list' %}{% if selected_status %}?status={{ selected_status }}{% endif %}{% if search_query %}{% if selected_status %}&amp;{% else %}?{% endif %}q={{ search_query|urlencode }}{% endif %}"
+           class="btn btn-outline-secondary btn-sm fw-bold">
+            <i class="bi bi-grid-3x3-gap me-1"></i>Về tổng quan kho
+        </a>
     </div>
 
     <div class="card border-0 shadow-sm">
@@ -63,7 +177,6 @@
                                data-loading-message="Đang tải chi tiết kiểm kê…">{{ st.number }}</a>
                         </td>
                         <td class="npl-col" data-col="name" title="{{ st.name }}">{{ st.name }}</td>
-                        <td class="npl-col jp-mat-code" data-col="location">{{ st.location.code }}</td>
                         <td class="npl-col" data-col="stocktake_date">{{ st.stocktake_date|date:'d/m/Y' }}</td>
                         <td class="npl-col" data-col="status">{{ st.get_status_display }}</td>
                         <td class="npl-col" data-col="created_by">{% if st.created_by %}{{ st.created_by.get_full_name|default:st.created_by.username }}{% else %}—{% endif %}</td>
@@ -71,7 +184,7 @@
                     {% empty %}
                     <tr>
                         <td colspan="{{ list_columns|length }}" class="text-center text-muted py-4">
-                            {% if has_filters %}Không có kết quả.{% else %}Chưa có kỳ kiểm kê.{% endif %}
+                            {% if has_filters %}Không có kết quả tại kho {{ selected_location.code }}.{% else %}Chưa có kỳ tại kho {{ selected_location.code }}.{% endif %}
                         </td>
                     </tr>
                     {% endfor %}
@@ -83,9 +196,12 @@
     {% if page_obj.paginator.num_pages > 1 %}
     <div class="mt-3">{% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string %}</div>
     {% endif %}
+    {% endif %}
 </div>
 {% endblock %}
 
 {% block scripts %}
+{% if list_mode == 'warehouse' %}
 {% include 'kho_npl/includes/catalog_grid_scripts.html' with table_id='npl-stocktake-table' storage_key='kho_npl_stocktake_visible_cols' col_btn_id='npl-stkt-col-btn' col_toggle_class='npl-stkt-col-toggle' default_sort_key='stocktake_date' %}
+{% endif %}
 {% endblock %}
