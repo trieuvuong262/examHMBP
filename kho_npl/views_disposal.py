@@ -29,7 +29,7 @@ from kho_npl.view_utils import nav_context, perm_context
 
 
 def _save_disposal_form(request, disposal, *, is_create: bool):
-    form = StockDisposalForm(request.POST, instance=disposal)
+    form = StockDisposalForm(request.POST, request.FILES, instance=disposal)
     formset = StockDisposalLineFormSet(request.POST, instance=disposal, prefix='lines')
     if not (form.is_valid() and formset.is_valid()):
         return form, formset, None

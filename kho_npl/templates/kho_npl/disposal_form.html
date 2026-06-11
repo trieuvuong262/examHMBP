@@ -14,7 +14,7 @@
         </a>
     </div>
 
-    <form method="post" id="disposal-form" novalidate>
+    <form method="post" id="disposal-form" enctype="multipart/form-data" novalidate>
         {% csrf_token %}
         {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
 
@@ -41,6 +41,7 @@
                         <label class="form-label fw-bold small">Ghi chú</label>
                         {{ form.notes }}
                     </div>
+                    {% include 'kho_npl/includes/doc_attachment_field.html' with field=form.attachment %}
                 </div>
             </div>
         </div>

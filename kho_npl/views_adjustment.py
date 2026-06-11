@@ -59,7 +59,7 @@ def adjustment_detail(request, pk):
 
 @module_perm_required_methods(MODULE_KHO_NPL, get='create', post='create')
 def adjustment_create(request):
-    form = StockAdjustmentForm(request.POST or None)
+    form = StockAdjustmentForm(request.POST or None, request.FILES or None)
     if request.method == 'POST' and form.is_valid():
         adjustment = form.save(commit=False)
         adjustment.number = next_adjustment_number()

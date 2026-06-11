@@ -52,6 +52,7 @@
                 {% if receipt.notes %}
                 <dt class="col-sm-3 text-muted">Ghi chú</dt><dd class="col-sm-9">{{ receipt.notes|linebreaksbr }}</dd>
                 {% endif %}
+                {% include 'kho_npl/includes/doc_attachment_display.html' with attachment=receipt.attachment %}
             </dl>
         </div>
     </div>

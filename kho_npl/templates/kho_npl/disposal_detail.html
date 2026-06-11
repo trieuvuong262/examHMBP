@@ -49,6 +49,7 @@
                 <dt class="col-sm-3 text-muted">Ghi chú</dt>
                 <dd class="col-sm-9">{{ disposal.notes|linebreaksbr }}</dd>
                 {% endif %}
+                {% include 'kho_npl/includes/doc_attachment_display.html' with attachment=disposal.attachment %}
             </dl>
         </div>
     </div>

@@ -24,6 +24,7 @@ from kho_npl.models import (
     Unit,
     WarehouseLocation,
 )
+from kho_npl.doc_attachment import DOC_ATTACHMENT_ACCEPT, validate_doc_attachment
 from kho_npl.services.scrap_warehouse import source_locations_qs
 from kho_npl.services.adjustments import balance_qty
 
@@ -32,6 +33,10 @@ User = get_user_model()
 FORM_CONTROL = {'class': 'form-control'}
 FORM_SELECT = {'class': 'form-select'}
 FORM_TEXTAREA = {'class': 'form-control', 'rows': 3}
+FORM_ATTACHMENT = forms.ClearableFileInput(attrs={
+    'class': 'form-control',
+    'accept': DOC_ATTACHMENT_ACCEPT,
+})
 
 
 def _employed_users_qs():
@@ -103,6 +108,7 @@ class StockReceiptForm(forms.ModelForm):
             'received_by',
             'checked_by',
             'notes',
+            'attachment',
         ]
         widgets = {
             'receipt_date': forms.DateInput(attrs={**FORM_CONTROL, 'type': 'date'}),
@@ -111,6 +117,7 @@ class StockReceiptForm(forms.ModelForm):
             'received_by': forms.Select(attrs=FORM_SELECT),
             'checked_by': forms.Select(attrs=FORM_SELECT),
             'notes': forms.Textarea(attrs=FORM_TEXTAREA),
+            'attachment': FORM_ATTACHMENT,
         }
 
     def __init__(self, *args, **kwargs):
@@ -121,8 +128,12 @@ class StockReceiptForm(forms.ModelForm):
         self.fields['checked_by'].queryset = _employed_users_qs()
         self.fields['received_by'].required = False
         self.fields['checked_by'].required = False
+        self.fields['attachment'].required = False
         if not self.instance.pk:
             self.initial.setdefault('receipt_date', timezone.localdate())
+
+    def clean_attachment(self):
+        return validate_doc_attachment(self.cleaned_data.get('attachment'))
 
 
 class StockReceiptLineForm(forms.ModelForm):
@@ -191,6 +202,7 @@ class StockIssueForm(forms.ModelForm):
             'recipient_name',
             'issued_by',
             'notes',
+            'attachment',
         ]
         widgets = {
             'issue_date': forms.DateInput(attrs={**FORM_CONTROL, 'type': 'date'}),
@@ -201,6 +213,7 @@ class StockIssueForm(forms.ModelForm):
             'recipient_name': forms.TextInput(attrs=FORM_CONTROL),
             'issued_by': forms.Select(attrs=FORM_SELECT),
             'notes': forms.Textarea(attrs=FORM_TEXTAREA),
+            'attachment': FORM_ATTACHMENT,
         }
 
     def __init__(self, *args, **kwargs):
@@ -211,8 +224,12 @@ class StockIssueForm(forms.ModelForm):
         self.fields['product_code'].required = False
         self.fields['recipient_department'].required = False
         self.fields['recipient_name'].required = False
+        self.fields['attachment'].required = False
         if not self.instance.pk:
             self.initial.setdefault('issue_date', timezone.localdate())
+
+    def clean_attachment(self):
+        return validate_doc_attachment(self.cleaned_data.get('attachment'))
 
 
 class StockIssueLineForm(forms.ModelForm):
@@ -270,21 +287,26 @@ StockIssueLineFormSet = inlineformset_factory(
 class StockAdjustmentForm(forms.ModelForm):
     class Meta:
         model = StockAdjustment
-        fields = ['adjust_date', 'material', 'location', 'actual_qty', 'reason']
+        fields = ['adjust_date', 'material', 'location', 'actual_qty', 'reason', 'attachment']
         widgets = {
             'adjust_date': forms.DateInput(attrs={**FORM_CONTROL, 'type': 'date'}),
             'material': forms.Select(attrs=FORM_SELECT),
             'location': forms.Select(attrs=FORM_SELECT),
             'actual_qty': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0'}),
             'reason': forms.Textarea(attrs=FORM_TEXTAREA),
+            'attachment': FORM_ATTACHMENT,
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['material'].queryset = Material.objects.filter(is_active=True)
         self.fields['location'].queryset = WarehouseLocation.objects.filter(is_active=True)
+        self.fields['attachment'].required = False
         if not self.instance.pk:
             self.initial.setdefault('adjust_date', timezone.localdate())
+
+    def clean_attachment(self):
+        return validate_doc_attachment(self.cleaned_data.get('attachment'))
 
     def clean(self):
         cleaned = super().clean()
@@ -305,18 +327,23 @@ class StockAdjustmentForm(forms.ModelForm):
 class StocktakeForm(forms.ModelForm):
     class Meta:
         model = Stocktake
-        fields = ['name', 'stocktake_date', 'notes']
+        fields = ['name', 'stocktake_date', 'notes', 'attachment']
         widgets = {
             'name': forms.TextInput(attrs=FORM_CONTROL),
             'stocktake_date': forms.DateInput(attrs={**FORM_CONTROL, 'type': 'date'}),
             'notes': forms.Textarea(attrs=FORM_TEXTAREA),
+            'attachment': FORM_ATTACHMENT,
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['notes'].required = False
+        self.fields['attachment'].required = False
         if not self.instance.pk:
             self.initial.setdefault('stocktake_date', timezone.localdate())
+
+    def clean_attachment(self):
+        return validate_doc_attachment(self.cleaned_data.get('attachment'))
 
 
 class StocktakeLineForm(forms.ModelForm):
@@ -353,7 +380,7 @@ StocktakeLineFormSet = inlineformset_factory(
 class StockTransferForm(forms.ModelForm):
     class Meta:
         model = StockTransfer
-        fields = ['transfer_date', 'from_location', 'to_location', 'notes']
+        fields = ['transfer_date', 'from_location', 'to_location', 'notes', 'attachment']
         widgets = {
             'transfer_date': forms.DateInput(attrs={**FORM_CONTROL, 'type': 'date'}),
             'from_location': forms.Select(attrs=FORM_SELECT),
@@ -363,12 +390,14 @@ class StockTransferForm(forms.ModelForm):
                 'placeholder': 'Ghi chú (tuỳ chọn)',
                 'maxlength': '255',
             }),
+            'attachment': FORM_ATTACHMENT,
         }
 
     def __init__(self, *args, **kwargs):
         self.warehouse_locked = kwargs.pop('warehouse_locked', False)
         super().__init__(*args, **kwargs)
         self.fields['notes'].required = False
+        self.fields['attachment'].required = False
         locations = WarehouseLocation.objects.filter(is_active=True)
         self.fields['from_location'].queryset = locations
         self.fields['to_location'].queryset = locations
@@ -407,6 +436,9 @@ class StockTransferForm(forms.ModelForm):
                     'Đã có dòng hàng — không thể đổi kho nhận. Xóa hết dòng NPL trước.',
                 )
         return cleaned
+
+    def clean_attachment(self):
+        return validate_doc_attachment(self.cleaned_data.get('attachment'))
 
 
 class StockTransferLineForm(forms.ModelForm):
@@ -509,12 +541,13 @@ StockTransferLineFormSet = inlineformset_factory(
 class StockDisposalForm(forms.ModelForm):
     class Meta:
         model = StockDisposal
-        fields = ['disposal_date', 'from_location', 'reason', 'notes']
+        fields = ['disposal_date', 'from_location', 'reason', 'notes', 'attachment']
         widgets = {
             'disposal_date': forms.DateInput(attrs={**FORM_CONTROL, 'type': 'date'}),
             'from_location': forms.Select(attrs=FORM_SELECT),
             'reason': forms.Select(attrs=FORM_SELECT),
             'notes': forms.Textarea(attrs=FORM_TEXTAREA),
+            'attachment': FORM_ATTACHMENT,
         }
 
     def __init__(self, *args, **kwargs):
@@ -525,6 +558,10 @@ class StockDisposalForm(forms.ModelForm):
             default = source_locations_qs().filter(code='MAIN').first()
             if default:
                 self.initial.setdefault('from_location', default.pk)
+        self.fields['attachment'].required = False
+
+    def clean_attachment(self):
+        return validate_doc_attachment(self.cleaned_data.get('attachment'))
 
 
 class StockDisposalLineForm(forms.ModelForm):

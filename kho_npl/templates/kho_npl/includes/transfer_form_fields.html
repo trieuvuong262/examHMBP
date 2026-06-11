@@ -25,6 +25,7 @@
                 <label class="form-label fw-bold small">Ghi chú</label>
                 {{ form.notes }}
             </div>
+            {% include 'kho_npl/includes/doc_attachment_field.html' with field=form.attachment %}
             <div class="col-12">
                 <p class="small text-muted mb-0 jp-wh-lock-hint {% if not warehouse_locked %}d-none{% endif %}" id="wh-lock-hint">
                     <i class="bi bi-lock-fill me-1"></i>Đã chốt kho — xóa hết dòng NPL để đổi kho gửi/nhận.

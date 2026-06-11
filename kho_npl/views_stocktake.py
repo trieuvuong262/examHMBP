@@ -81,7 +81,7 @@ def stocktake_detail(request, pk):
 
 @module_perm_required_methods(MODULE_KHO_NPL, get='create', post='create')
 def stocktake_create(request):
-    form = StocktakeForm(request.POST or None)
+    form = StocktakeForm(request.POST or None, request.FILES or None)
     if request.method == 'POST' and form.is_valid():
         stocktake = form.save(commit=False)
         stocktake.number = next_stocktake_number()

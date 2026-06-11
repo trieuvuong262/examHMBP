@@ -29,6 +29,7 @@
                 <dt class="col-sm-3 text-muted">Tồn thực tế</dt><dd class="col-sm-9">{{ adjustment.actual_qty|npl_qty_with_unit:adjustment.material.unit }}</dd>
                 <dt class="col-sm-3 text-muted">Chênh lệch</dt><dd class="col-sm-9 fw-bold">{{ adjustment.variance|npl_qty_with_unit:adjustment.material.unit }}</dd>
                 <dt class="col-sm-3 text-muted">Lý do</dt><dd class="col-sm-9">{{ adjustment.reason|linebreaksbr }}</dd>
+                {% include 'kho_npl/includes/doc_attachment_display.html' with attachment=adjustment.attachment %}
                 <dt class="col-sm-3 text-muted">Người đề xuất</dt>
                 <dd class="col-sm-9">{% if adjustment.proposed_by %}{{ adjustment.proposed_by.get_full_name|default:adjustment.proposed_by.username }}{% else %}—{% endif %}</dd>
             </dl>

@@ -98,7 +98,7 @@ class KhoNplPageSmokeTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'jpNplCatalogLoading')
         self.assertContains(response, 'Đang tải danh mục')
-        self.assertContains(response, 'catalog_page_loading.js?v=20260528d')
+        self.assertContains(response, 'catalog_page_loading.js?v=20260611a')
 
     def test_material_export_template(self):
         for name in ('kho_npl:material_export', 'kho_npl:material_import_template'):

@@ -29,7 +29,7 @@ from kho_npl.view_utils import nav_context, perm_context
 
 
 def _save_receipt_form(request, receipt, *, is_create: bool):
-    form = StockReceiptForm(request.POST, instance=receipt)
+    form = StockReceiptForm(request.POST, request.FILES, instance=receipt)
     formset = StockReceiptLineFormSet(request.POST, instance=receipt, prefix='lines')
     if not (form.is_valid() and formset.is_valid()):
         return form, formset, None

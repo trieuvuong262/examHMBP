@@ -2,6 +2,8 @@ from decimal import Decimal, InvalidOperation
 
 from django import template
 
+from kho_npl.doc_attachment import attachment_is_image as is_image_attachment
+
 register = template.Library()
 
 
@@ -58,3 +60,8 @@ def npl_qty_with_unit(value, unit=None):
     qty = format_npl_qty(value)
     label = unit_label(unit)
     return f'{qty} {label}'.strip() if label else qty
+
+
+@register.filter
+def attachment_is_image(file_field):
+    return is_image_attachment(file_field)

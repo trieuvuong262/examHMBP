@@ -1,0 +1,15 @@
+{% load npl_extras %}
+{% if attachment %}
+<dt class="col-sm-3 text-muted">Chứng từ / ảnh</dt>
+<dd class="col-sm-9">
+    {% if attachment|attachment_is_image %}
+    <a href="{{ attachment.url }}" target="_blank" rel="noopener" class="d-inline-block">
+        <img src="{{ attachment.url }}" alt="Chứng từ" class="img-thumbnail jp-npl-doc-attachment-preview" style="max-height:12rem;">
+    </a>
+    {% else %}
+    <a href="{{ attachment.url }}" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-paperclip me-1"></i>Tải / xem chứng từ
+    </a>
+    {% endif %}
+</dd>
+{% endif %}

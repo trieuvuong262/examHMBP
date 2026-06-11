@@ -29,7 +29,7 @@ from kho_npl.view_utils import nav_context, perm_context
 
 
 def _save_issue_form(request, issue, *, is_create: bool):
-    form = StockIssueForm(request.POST, instance=issue)
+    form = StockIssueForm(request.POST, request.FILES, instance=issue)
     formset = StockIssueLineFormSet(request.POST, instance=issue, prefix='lines')
     if not (form.is_valid() and formset.is_valid()):
         return form, formset, None

@@ -24,6 +24,18 @@
     {% if variance_lines %}
     <div class="alert alert-warning border mb-3"><strong>{{ variance_lines|length }}</strong> dòng có chênh lệch sau kiểm.</div>
     {% endif %}
+    {% if stocktake.notes or stocktake.attachment %}
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+            <dl class="row mb-0 small">
+                {% if stocktake.notes %}
+                <dt class="col-sm-3 text-muted">Ghi chú</dt><dd class="col-sm-9">{{ stocktake.notes|linebreaksbr }}</dd>
+                {% endif %}
+                {% include 'kho_npl/includes/doc_attachment_display.html' with attachment=stocktake.attachment %}
+            </dl>
+        </div>
+    </div>
+    {% endif %}
     <div class="card border-0 shadow-sm">
         <div class="table-responsive">
             <table class="table table-sm mb-0">

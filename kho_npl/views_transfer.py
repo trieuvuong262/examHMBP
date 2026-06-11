@@ -92,6 +92,7 @@ def _save_transfer_form(request, transfer, *, is_create: bool):
     wh_locked = _warehouse_locked(transfer)
     form = StockTransferForm(
         request.POST,
+        request.FILES,
         instance=transfer,
         warehouse_locked=wh_locked,
     )

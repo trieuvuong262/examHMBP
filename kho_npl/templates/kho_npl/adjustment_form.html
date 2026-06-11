@@ -5,7 +5,7 @@
     <div class="jp-page-header mb-3"><h2 class="fw-bold text-hm jp-page-title"><i class="bi bi-plus-circle me-2"></i>Đề xuất điều chỉnh tồn</h2></div>
     <div class="card border-0 shadow-sm">
         <div class="card-body p-4">
-            <form method="post" novalidate>
+            <form method="post" enctype="multipart/form-data" novalidate>
                 {% csrf_token %}
                 <div class="row g-3">
                     <div class="col-md-4"><label class="form-label fw-bold small">Ngày</label>{{ form.adjust_date }}</div>
@@ -13,6 +13,7 @@
                     <div class="col-md-4"><label class="form-label fw-bold small">Vị trí</label>{{ form.location }}</div>
                     <div class="col-md-4"><label class="form-label fw-bold small">Tồn thực tế (sau điều chỉnh)</label>{{ form.actual_qty }}</div>
                     <div class="col-12"><label class="form-label fw-bold small">Lý do</label>{{ form.reason }}</div>
+                    {% include 'kho_npl/includes/doc_attachment_field.html' with field=form.attachment %}
                 </div>
                 <p class="text-muted small mt-2 mb-0">Tồn hệ thống sẽ lấy tự động khi lưu theo NPL + vị trí đã chọn.</p>
                 <div class="d-flex gap-2 mt-4 pt-2 border-top">

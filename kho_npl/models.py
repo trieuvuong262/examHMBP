@@ -193,6 +193,11 @@ class StockReceipt(models.Model):
         verbose_name='Người tạo',
     )
     notes = models.TextField(blank=True, verbose_name='Ghi chú')
+    attachment = models.FileField(
+        upload_to='npl/receipts/attachments/',
+        blank=True,
+        verbose_name='Chứng từ / ảnh',
+    )
     status = models.CharField(
         max_length=20,
         choices=[(k, v) for k, v in DOC_STATUS_LABELS.items()],
@@ -280,6 +285,11 @@ class StockIssue(models.Model):
         verbose_name='Người tạo',
     )
     notes = models.TextField(blank=True, verbose_name='Ghi chú')
+    attachment = models.FileField(
+        upload_to='npl/issues/attachments/',
+        blank=True,
+        verbose_name='Chứng từ / ảnh',
+    )
     status = models.CharField(
         max_length=20,
         choices=[(k, v) for k, v in DOC_STATUS_LABELS.items()],
@@ -361,6 +371,11 @@ class StockDisposal(models.Model):
         verbose_name='Người ghi sổ',
     )
     notes = models.TextField(blank=True, verbose_name='Ghi chú')
+    attachment = models.FileField(
+        upload_to='npl/disposals/attachments/',
+        blank=True,
+        verbose_name='Chứng từ / ảnh',
+    )
     status = models.CharField(
         max_length=20,
         choices=[(k, v) for k, v in DOC_STATUS_LABELS.items()],
@@ -444,6 +459,11 @@ class StockTransfer(models.Model):
         verbose_name='Người nhận',
     )
     notes = models.TextField(blank=True, verbose_name='Ghi chú')
+    attachment = models.FileField(
+        upload_to='npl/transfers/attachments/',
+        blank=True,
+        verbose_name='Chứng từ / ảnh',
+    )
     status = models.CharField(
         max_length=20,
         choices=[(k, v) for k, v in TRANSFER_STATUS_LABELS.items()],
@@ -507,6 +527,11 @@ class StockAdjustment(models.Model):
     system_qty = models.DecimalField(max_digits=14, decimal_places=3, verbose_name='Tồn hệ thống')
     actual_qty = models.DecimalField(max_digits=14, decimal_places=3, verbose_name='Tồn thực tế')
     reason = models.TextField(verbose_name='Lý do')
+    attachment = models.FileField(
+        upload_to='npl/adjustments/attachments/',
+        blank=True,
+        verbose_name='Chứng từ / ảnh',
+    )
     proposed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -562,6 +587,11 @@ class Stocktake(models.Model):
         verbose_name='Người tạo',
     )
     notes = models.TextField(blank=True, verbose_name='Ghi chú')
+    attachment = models.FileField(
+        upload_to='npl/stocktakes/attachments/',
+        blank=True,
+        verbose_name='Chứng từ / ảnh',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     closed_at = models.DateTimeField(null=True, blank=True)
 

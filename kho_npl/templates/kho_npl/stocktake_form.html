@@ -4,11 +4,12 @@
 <div class="container jp-page py-3 py-md-4 mb-5">
     <h2 class="fw-bold text-hm mb-3"><i class="bi bi-plus-circle me-2"></i>Tạo kỳ kiểm kê</h2>
     <div class="card border-0 shadow-sm"><div class="card-body p-4">
-        <form method="post">{% csrf_token %}
+        <form method="post" enctype="multipart/form-data">{% csrf_token %}
             <div class="row g-3">
                 <div class="col-md-8"><label class="form-label fw-bold small">Tên kỳ</label>{{ form.name }}</div>
                 <div class="col-md-4"><label class="form-label fw-bold small">Ngày kiểm</label>{{ form.stocktake_date }}</div>
                 <div class="col-12"><label class="form-label fw-bold small">Ghi chú</label>{{ form.notes }}</div>
+                {% include 'kho_npl/includes/doc_attachment_field.html' with field=form.attachment %}
             </div>
             <div class="mt-4 d-flex gap-2"><button class="btn btn-hm fw-bold">Tạo kỳ</button><a href="{{ cancel_url }}" class="btn btn-outline-secondary">Huỷ</a></div>
         </form>

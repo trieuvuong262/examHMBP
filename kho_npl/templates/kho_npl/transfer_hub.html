@@ -37,7 +37,7 @@
     {% include 'kho_npl/includes/transfer_tabs.html' %}
 
     {% if tab == 'nhap' %}
-    <form method="post" action="{{ form_action_url }}" id="transfer-form" novalidate
+    <form method="post" action="{{ form_action_url }}" id="transfer-form" enctype="multipart/form-data" novalidate
           data-material-search-url="{% url 'kho_npl:material_search' %}"
           data-warehouse-locked="{{ warehouse_locked|yesno:'1,0' }}">
         {% csrf_token %}
