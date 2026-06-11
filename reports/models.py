@@ -158,6 +158,11 @@ class WeeklyWorkReport(models.Model):
     def link_lines(self):
         return [line.strip() for line in (self.links or '').splitlines() if line.strip()]
 
+    @property
+    def week_range_label(self):
+        from reports.week_utils import week_label
+        return week_label(self.week_start)
+
 
 class WeeklyWorkReportAttachment(models.Model):
     KIND_FILE = 'FILE'

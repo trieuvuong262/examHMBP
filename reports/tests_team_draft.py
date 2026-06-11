@@ -102,6 +102,50 @@ class ReportTeamDraftTests(TestCase):
         self.assertContains(resp, 'SAN XUAT GRP')
         self.assertContains(resp, 'MARKETING GRP')
 
+    def test_saved_weekly_draft_shown_on_team_page(self):
+        week = monday_of(date.today())
+        WeeklyWorkReport.objects.create(
+            employee=self.member,
+            week_start=week,
+            status=WeeklyWorkReport.STATUS_DRAFT,
+            draft_saved_at=timezone.now(),
+            links='https://draft.example',
+        )
+        self.client.force_login(self.leader)
+        resp = self.client.get(reverse('reports:team_weekly'))
+        self.assertContains(resp, 'Nháp')
+
+    def test_unsaved_weekly_not_shown_as_draft_on_team_page(self):
+        week = monday_of(date.today())
+        WeeklyWorkReport.objects.create(
+            employee=self.member,
+            week_start=week,
+            status=WeeklyWorkReport.STATUS_DRAFT,
+        )
+        self.client.force_login(self.leader)
+        resp = self.client.get(reverse('reports:team_weekly'))
+        self.assertContains(resp, 'Chưa báo cáo')
+        self.assertNotContains(resp, 'Nháp')
+
+    def test_my_reports_lists_weekly_history(self):
+        week = monday_of(date.today())
+        WeeklyWorkReport.objects.create(
+            employee=self.member,
+            week_start=week,
+            status=WeeklyWorkReport.STATUS_SUBMITTED,
+            links='https://history.example',
+            submitted_at=timezone.now(),
+        )
+        self.client.force_login(self.member)
+        resp = self.client.get(reverse('reports:my'), {'period': 'weekly'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Theo tuần')
+        self.assertContains(resp, '1 link')
+        self.assertContains(resp, 'Đã nộp')
+        self.assertContains(resp, reverse('reports:weekly_detail', args=[
+            WeeklyWorkReport.objects.get(employee=self.member, week_start=week).pk,
+        ]))
+
     def test_team_weekly_page_loads_for_leader(self):
         week = monday_of(date.today())
         WeeklyWorkReport.objects.create(

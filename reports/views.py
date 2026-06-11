@@ -452,20 +452,45 @@ def copy_yesterday(request):
     return redirect('reports:today')
 
 
+def _my_reports_period(request):
+    period = (request.GET.get('period') or 'daily').strip().lower()
+    if period not in ('daily', 'weekly'):
+        period = 'daily'
+    return period
+
+
 @_require_submit_access
 def my_reports(request):
     search_query = get_search_query(request)
-    reports_qs = DailyWorkReport.objects.filter(
-        employee=request.user,
-    ).annotate(line_count=Count('lines'), total_qty=Sum('lines__quantity')).order_by('-report_date')
-    reports_qs = apply_combined_search(reports_qs, search_query, lambda term: (
-        Q(hod_note__icontains=term)
-        | Q(status__icontains=term)
-        | Q(shift__icontains=term)
-        | Q(lines__area__icontains=term)
-        | Q(lines__order_code__icontains=term)
-        | Q(lines__product_name__icontains=term)
-    ))
+    period = _my_reports_period(request)
+
+    if period == 'weekly':
+        reports_qs = WeeklyWorkReport.objects.filter(
+            employee=request.user,
+        ).annotate(
+            attachment_count=Count('attachments'),
+        ).order_by('-week_start')
+        reports_qs = apply_combined_search(reports_qs, search_query, lambda term: (
+            Q(hod_note__icontains=term)
+            | Q(status__icontains=term)
+            | Q(links__icontains=term)
+        ))
+    else:
+        reports_qs = DailyWorkReport.objects.filter(
+            employee=request.user,
+        ).annotate(
+            line_count=Count('lines'),
+            total_qty=Sum('lines__quantity'),
+        ).order_by('-report_date')
+        reports_qs = apply_combined_search(reports_qs, search_query, lambda term: (
+            Q(hod_note__icontains=term)
+            | Q(status__icontains=term)
+            | Q(shift__icontains=term)
+            | Q(lines__area__icontains=term)
+            | Q(lines__order_code__icontains=term)
+            | Q(lines__product_name__icontains=term)
+        ))
+
     page_obj, query_string = paginate_queryset(request, reports_qs)
     return render(request, 'reports/my_reports.html', {
         'reports': page_obj.object_list,
@@ -473,6 +498,7 @@ def my_reports(request):
         'query_string': query_string,
         'search_query': search_query,
         'can_view_team': can_view_team_reports(request.user),
+        'report_period': period,
     })
 
 
