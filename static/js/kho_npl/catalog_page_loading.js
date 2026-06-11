@@ -206,11 +206,14 @@
     }
 
     function bootCatalogPage() {
-        const pending = pendingMessage();
-        if (pending) show(pending);
-
-        if (document.querySelector('.jp-npl-material-catalog-page')) {
+        const page = document.querySelector('.jp-npl-material-catalog-page');
+        if (page) {
             onCatalogPageReady();
+            return;
+        }
+        // Rời màn lưới (vd. chi tiết phiếu) — không để overlay kẹt từ sessionStorage
+        if (pendingMessage()) {
+            hide(true);
         }
     }
 
