@@ -19,6 +19,13 @@ from hrm.permissions import (
 
 # Tài khoản quản trị hệ thống — không hiển thị trên danh sách nhân sự
 HIDDEN_HRM_LIST_USERNAMES = ('admin',)
+_PROTECTED_USERNAMES = {name.lower() for name in HIDDEN_HRM_LIST_USERNAMES}
+
+
+def is_protected_system_user(user) -> bool:
+    """Tài khoản hệ thống — không xóa / không đổi trạng thái qua UI nhân sự."""
+    username = (getattr(user, 'username', None) or '').strip().lower()
+    return username in _PROTECTED_USERNAMES
 
 
 def hidden_hrm_username_q(*, user_prefix: str = '') -> Q:

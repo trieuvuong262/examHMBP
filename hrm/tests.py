@@ -622,6 +622,46 @@ class ProfileAvatarTests(TestCase):
         self.assertContains(response, 'jpAvatarZoomModal')
 
 
+class UserDeleteTests(TestCase):
+    def setUp(self):
+        self.dept = Department.objects.create(name='HR Delete Dept', sort_order=1)
+        DepartmentMenuPermission.objects.create(department=self.dept, modules=['hrm'])
+        RoleModulePermission.objects.update_or_create(
+            role=ROLE_DIRECTOR,
+            defaults={
+                'module_permissions': {
+                    MODULE_HRM: {'view': True, 'edit': True},
+                },
+            },
+        )
+        self.admin = User.objects.create_user(username='hr_del', password='testpass123', is_staff=True)
+        Profile.objects.filter(user=self.admin).update(
+            department=self.dept,
+            role=ROLE_DIRECTOR,
+            full_name='HR Delete',
+            is_employed=True,
+        )
+        self.client = Client(HTTP_HOST='testserver')
+        self.client.force_login(self.admin)
+
+    def test_cannot_delete_system_admin_account(self):
+        system_admin = User.objects.create_user(username='admin', password='testpass123', is_superuser=True)
+        response = self.client.get(reverse('user_delete', args=[system_admin.id]))
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(User.objects.filter(username='admin').exists())
+
+    def test_can_delete_non_admin_superuser(self):
+        loadtest = User.objects.create_user(
+            username='loadtest',
+            password='testpass123',
+            is_superuser=True,
+            is_staff=True,
+        )
+        response = self.client.get(reverse('user_delete', args=[loadtest.id]))
+        self.assertRedirects(response, reverse('user_list'))
+        self.assertFalse(User.objects.filter(username='loadtest').exists())
+
+
 class UserAddFormTests(TestCase):
     def setUp(self):
         RoleModulePermission.objects.update_or_create(

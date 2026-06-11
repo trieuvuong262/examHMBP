@@ -54,6 +54,7 @@ from hrm.user_search import (
     EMPLOYMENT_STATUS_LABELS,
     build_user_list_table_columns,
     exclude_hidden_hrm_users,
+    is_protected_system_user,
     filter_users_by_department,
     filter_users_by_division,
     filter_users_by_employment_status,
@@ -698,8 +699,8 @@ def user_concurrent_slot_save(request, user_id):
 @module_perm_required(MODULE_HRM, 'delete')
 def user_delete(request, user_id):
     user = get_object_or_404(User, id=user_id)
-    if user.is_superuser:
-        messages.error(request, "Không thể xóa tài khoản Quản trị tối cao!")
+    if is_protected_system_user(user):
+        messages.error(request, "Không thể xóa tài khoản quản trị hệ thống!")
     else:
         deleted_email = user.email 
         user.delete()
@@ -1484,9 +1485,9 @@ def user_toggle_employed(request, user_id):
         return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
 
     user_obj = get_object_or_404(User, id=user_id)
-    if user_obj.is_superuser:
+    if is_protected_system_user(user_obj):
         return JsonResponse(
-            {'status': 'error', 'message': 'Không thể đổi trạng thái tài khoản quản trị.'},
+            {'status': 'error', 'message': 'Không thể đổi trạng thái tài khoản quản trị hệ thống.'},
             status=400,
         )
 
