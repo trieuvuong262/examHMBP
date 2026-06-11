@@ -28,6 +28,7 @@ from kho_npl.models import (
     Material,
     MaterialCategory,
     StockAdjustment,
+    StockAdjustmentLine,
     StockBalance,
     StockIssue,
     StockIssueLine,
@@ -500,12 +501,15 @@ class Command(BaseCommand):
             adj = StockAdjustment.objects.create(
                 number=number,
                 adjust_date=self._random_past_date(rng, 90),
+                reason=f'Điều chỉnh sau kiểm kê / sai lệch nhập ({PERF_TAG})',
+                proposed_by=user,
+            )
+            StockAdjustmentLine.objects.create(
+                adjustment=adj,
                 material=material,
                 location=location,
                 system_qty=system_qty,
                 actual_qty=actual_qty,
-                reason=f'Điều chỉnh sau kiểm kê / sai lệch nhập ({PERF_TAG})',
-                proposed_by=user,
             )
             stats['total'] += 1
             roll = rng.random()
@@ -607,7 +611,7 @@ class Command(BaseCommand):
 
         StockLedger.objects.filter(material_id__in=perf_ids).delete()
         StocktakeLine.objects.filter(material_id__in=perf_ids).delete()
-        StockAdjustment.objects.filter(material_id__in=perf_ids).delete()
+        StockAdjustment.objects.filter(lines__material_id__in=perf_ids).delete()
         StockIssueLine.objects.filter(material_id__in=perf_ids).delete()
         StockReceiptLine.objects.filter(material_id__in=perf_ids).delete()
         StockBalance.objects.filter(material_id__in=perf_ids).delete()

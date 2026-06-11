@@ -4,6 +4,7 @@ from kho_npl.models import (
     Material,
     MaterialCategory,
     StockAdjustment,
+    StockAdjustmentLine,
     StockBalance,
     StockIssue,
     StockIssueLine,
@@ -82,10 +83,16 @@ class StockBalanceAdmin(admin.ModelAdmin):
     search_fields = ('material__code', 'material__name', 'location__code')
 
 
+class StockAdjustmentLineInline(admin.TabularInline):
+    model = StockAdjustmentLine
+    extra = 0
+
+
 @admin.register(StockAdjustment)
 class StockAdjustmentAdmin(admin.ModelAdmin):
-    list_display = ('number', 'adjust_date', 'material', 'status', 'variance')
+    list_display = ('number', 'adjust_date', 'status', 'proposed_by')
     list_filter = ('status',)
+    inlines = [StockAdjustmentLineInline]
 
 
 class StocktakeLineInline(admin.TabularInline):

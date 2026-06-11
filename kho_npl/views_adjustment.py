@@ -1,5 +1,6 @@
 from django.contrib import messages
-from django.db.models import Q
+from django.db import transaction
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
@@ -9,7 +10,7 @@ from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
 from kho_npl.choices import ADJUST_STATUS_PENDING
-from kho_npl.forms import StockAdjustmentForm
+from kho_npl.forms import StockAdjustmentForm, StockAdjustmentLineFormSet
 from kho_npl.models import StockAdjustment
 from kho_npl.services.adjustments import (
     AdjustmentWorkflowError,
@@ -21,16 +22,39 @@ from kho_npl.services.doc_numbers import next_adjustment_number
 from kho_npl.view_utils import nav_context, perm_context
 
 
+def _save_adjustment_form(request, adjustment, *, is_create: bool):
+    form = StockAdjustmentForm(request.POST, request.FILES, instance=adjustment)
+    formset = StockAdjustmentLineFormSet(request.POST, instance=adjustment, prefix='lines')
+    if not (form.is_valid() and formset.is_valid()):
+        return form, formset, None
+
+    with transaction.atomic():
+        doc = form.save(commit=False)
+        if is_create:
+            doc.number = next_adjustment_number()
+            doc.proposed_by = request.user
+            doc.status = ADJUST_STATUS_PENDING
+        doc.save()
+        formset.instance = doc
+        formset.save()
+    return form, formset, doc
+
+
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def adjustment_list(request):
     search_query = get_search_query(request)
-    qs = StockAdjustment.objects.select_related('material', 'location', 'proposed_by', 'approved_by')
+    qs = (
+        StockAdjustment.objects
+        .annotate(line_count=Count('lines'))
+        .select_related('proposed_by', 'approved_by')
+        .prefetch_related('lines__material__unit', 'lines__location')
+    )
     if search_query:
         qs = qs.filter(
             Q(number__icontains=search_query)
-            | Q(material__code__icontains=search_query)
-            | Q(material__name__icontains=search_query)
-        )
+            | Q(lines__material__code__icontains=search_query)
+            | Q(lines__material__name__icontains=search_query)
+        ).distinct()
     page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'kho_npl/adjustment_list.html', {
         **nav_context('adjustments', user=request.user),
@@ -44,8 +68,8 @@ def adjustment_list(request):
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def adjustment_detail(request, pk):
     adjustment = get_object_or_404(
-        StockAdjustment.objects.select_related(
-            'material', 'location', 'proposed_by', 'approved_by',
+        StockAdjustment.objects.select_related('proposed_by', 'approved_by').prefetch_related(
+            'lines__material__unit', 'lines__location',
         ),
         pk=pk,
     )
@@ -59,19 +83,23 @@ def adjustment_detail(request, pk):
 
 @module_perm_required_methods(MODULE_KHO_NPL, get='create', post='create')
 def adjustment_create(request):
-    form = StockAdjustmentForm(request.POST or None, request.FILES or None)
-    if request.method == 'POST' and form.is_valid():
-        adjustment = form.save(commit=False)
-        adjustment.number = next_adjustment_number()
-        adjustment.proposed_by = request.user
-        adjustment.status = ADJUST_STATUS_PENDING
-        adjustment.save()
-        messages.success(request, f'Đã tạo phiếu điều chỉnh {adjustment.number} — chờ duyệt.')
-        return redirect('kho_npl:adjustment_detail', pk=adjustment.pk)
+    adjustment = StockAdjustment()
+    if request.method == 'POST':
+        form, formset, doc = _save_adjustment_form(request, adjustment, is_create=True)
+        if doc:
+            messages.success(
+                request,
+                f'Đã tạo phiếu điều chỉnh {doc.number} ({doc.lines.count()} dòng) — chờ duyệt.',
+            )
+            return redirect('kho_npl:adjustment_detail', pk=doc.pk)
+    else:
+        form = StockAdjustmentForm(instance=adjustment)
+        formset = StockAdjustmentLineFormSet(instance=adjustment, prefix='lines')
     return render(request, 'kho_npl/adjustment_form.html', {
         **nav_context('adjustments', user=request.user),
         **perm_context(request.user, 'adjustments'),
         'form': form,
+        'formset': formset,
         'is_edit': False,
         'cancel_url': reverse('kho_npl:adjustment_list'),
     })

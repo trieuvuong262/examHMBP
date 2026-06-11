@@ -25,26 +25,33 @@ def approve_stock_adjustment(adjustment: StockAdjustment, user) -> StockAdjustme
     adjustment = StockAdjustment.objects.select_for_update().get(pk=adjustment.pk)
     if adjustment.status != ADJUST_STATUS_PENDING:
         raise AdjustmentWorkflowError('Chỉ phiếu chờ duyệt mới được phê duyệt.')
-    variance = adjustment.actual_qty - adjustment.system_qty
-    balance, _ = StockBalance.objects.select_for_update().get_or_create(
-        material=adjustment.material,
-        location=adjustment.location,
-        defaults={'quantity': Decimal('0')},
+    lines = list(
+        adjustment.lines.select_related('material', 'location').order_by('id')
     )
-    balance.quantity = adjustment.actual_qty
-    balance.save(update_fields=['quantity', 'updated_at'])
-    if variance != 0:
-        StockLedger.objects.create(
-            material=adjustment.material,
-            location=adjustment.location,
-            qty_delta=variance,
-            balance_after=balance.quantity,
-            ref_type=StockLedger.REF_ADJUSTMENT,
-            ref_id=adjustment.pk,
-            ref_number=adjustment.number,
-            created_by=user,
-            notes=adjustment.reason[:255],
+    if not lines:
+        raise AdjustmentWorkflowError('Phiếu chưa có dòng điều chỉnh.')
+    for line in lines:
+        variance = line.actual_qty - line.system_qty
+        balance, _ = StockBalance.objects.select_for_update().get_or_create(
+            material=line.material,
+            location=line.location,
+            defaults={'quantity': Decimal('0')},
         )
+        balance.quantity = line.actual_qty
+        balance.save(update_fields=['quantity', 'updated_at'])
+        if variance != 0:
+            note = line.notes or adjustment.reason
+            StockLedger.objects.create(
+                material=line.material,
+                location=line.location,
+                qty_delta=variance,
+                balance_after=balance.quantity,
+                ref_type=StockLedger.REF_ADJUSTMENT,
+                ref_id=adjustment.pk,
+                ref_number=adjustment.number,
+                created_by=user,
+                notes=note[:255],
+            )
     adjustment.status = ADJUST_STATUS_APPROVED
     adjustment.approved_by = user
     adjustment.approved_at = timezone.now()

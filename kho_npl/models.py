@@ -512,20 +512,6 @@ class StockTransferLine(models.Model):
 class StockAdjustment(models.Model):
     number = models.CharField(max_length=30, unique=True, verbose_name='Mã phiếu điều chỉnh')
     adjust_date = models.DateField(verbose_name='Ngày điều chỉnh')
-    material = models.ForeignKey(
-        Material,
-        on_delete=models.PROTECT,
-        related_name='adjustments',
-        verbose_name='Nguyên phụ liệu',
-    )
-    location = models.ForeignKey(
-        WarehouseLocation,
-        on_delete=models.PROTECT,
-        related_name='adjustments',
-        verbose_name='Vị trí',
-    )
-    system_qty = models.DecimalField(max_digits=14, decimal_places=3, verbose_name='Tồn hệ thống')
-    actual_qty = models.DecimalField(max_digits=14, decimal_places=3, verbose_name='Tồn thực tế')
     reason = models.TextField(verbose_name='Lý do')
     attachment = models.FileField(
         upload_to='npl/adjustments/attachments/',
@@ -561,12 +547,49 @@ class StockAdjustment(models.Model):
         verbose_name = 'Phiếu điều chỉnh'
         verbose_name_plural = 'Phiếu điều chỉnh'
 
+    def __str__(self):
+        return self.number
+
+
+class StockAdjustmentLine(models.Model):
+    adjustment = models.ForeignKey(
+        StockAdjustment,
+        on_delete=models.CASCADE,
+        related_name='lines',
+        verbose_name='Phiếu điều chỉnh',
+    )
+    material = models.ForeignKey(
+        Material,
+        on_delete=models.PROTECT,
+        related_name='adjustment_lines',
+        verbose_name='Nguyên phụ liệu',
+    )
+    location = models.ForeignKey(
+        WarehouseLocation,
+        on_delete=models.PROTECT,
+        related_name='adjustment_lines',
+        verbose_name='Vị trí',
+    )
+    system_qty = models.DecimalField(max_digits=14, decimal_places=3, verbose_name='Tồn hệ thống')
+    actual_qty = models.DecimalField(max_digits=14, decimal_places=3, verbose_name='Tồn thực tế')
+    notes = models.CharField(max_length=255, blank=True, verbose_name='Ghi chú')
+
+    class Meta:
+        verbose_name = 'Dòng điều chỉnh'
+        verbose_name_plural = 'Dòng điều chỉnh'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['adjustment', 'material', 'location'],
+                name='uniq_adjustment_material_location',
+            ),
+        ]
+
     @property
     def variance(self):
         return self.actual_qty - self.system_qty
 
     def __str__(self):
-        return self.number
+        return f'{self.material.code} @ {self.location.code}'
 
 
 class Stocktake(models.Model):

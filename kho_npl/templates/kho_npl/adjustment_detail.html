@@ -6,12 +6,12 @@
     <div class="jp-page-header mb-3 d-flex flex-wrap justify-content-between gap-2">
         <div>
             <h2 class="fw-bold text-hm jp-page-title">{{ adjustment.number }}</h2>
-            <p class="text-muted mb-0">{{ adjustment.get_status_display }} · {{ adjustment.adjust_date|date:'d/m/Y' }}</p>
+            <p class="text-muted mb-0">{{ adjustment.get_status_display }} · {{ adjustment.adjust_date|date:'d/m/Y' }} · {{ adjustment.lines.count }} dòng</p>
         </div>
         <div class="d-flex gap-2">
             {% if is_editable and can_update %}
             <form method="post" action="{% url 'kho_npl:adjustment_approve' adjustment.pk %}">{% csrf_token %}
-                <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Duyệt và cập nhật tồn?');"><i class="bi bi-check2 me-1"></i>Duyệt</button>
+                <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Duyệt và cập nhật tồn cho {{ adjustment.lines.count }} dòng?');"><i class="bi bi-check2 me-1"></i>Duyệt</button>
             </form>
             <form method="post" action="{% url 'kho_npl:adjustment_reject' adjustment.pk %}">{% csrf_token %}
                 <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-x me-1"></i>Từ chối</button>
@@ -20,19 +20,52 @@
             <a href="{% url 'kho_npl:adjustment_list' %}" class="btn btn-outline-secondary btn-sm">Danh sách</a>
         </div>
     </div>
-    <div class="card border-0 shadow-sm">
+
+    <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
             <dl class="row mb-0">
-                <dt class="col-sm-3 text-muted">NPL</dt><dd class="col-sm-9">{{ adjustment.material.code }} — {{ adjustment.material.name }}</dd>
-                <dt class="col-sm-3 text-muted">Vị trí</dt><dd class="col-sm-9">{{ adjustment.location.code }}</dd>
-                <dt class="col-sm-3 text-muted">Tồn hệ thống</dt><dd class="col-sm-9">{{ adjustment.system_qty|npl_qty_with_unit:adjustment.material.unit }}</dd>
-                <dt class="col-sm-3 text-muted">Tồn thực tế</dt><dd class="col-sm-9">{{ adjustment.actual_qty|npl_qty_with_unit:adjustment.material.unit }}</dd>
-                <dt class="col-sm-3 text-muted">Chênh lệch</dt><dd class="col-sm-9 fw-bold">{{ adjustment.variance|npl_qty_with_unit:adjustment.material.unit }}</dd>
-                <dt class="col-sm-3 text-muted">Lý do</dt><dd class="col-sm-9">{{ adjustment.reason|linebreaksbr }}</dd>
+                <dt class="col-sm-3 text-muted">Lý do</dt>
+                <dd class="col-sm-9">{{ adjustment.reason|linebreaksbr }}</dd>
                 {% include 'kho_npl/includes/doc_attachment_display.html' with attachment=adjustment.attachment %}
                 <dt class="col-sm-3 text-muted">Người đề xuất</dt>
                 <dd class="col-sm-9">{% if adjustment.proposed_by %}{{ adjustment.proposed_by.get_full_name|default:adjustment.proposed_by.username }}{% else %}—{% endif %}</dd>
             </dl>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="card-header bg-white border-bottom py-3">
+            <h5 class="mb-0 fw-bold">Chi tiết điều chỉnh</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>NPL</th>
+                        <th>Vị trí</th>
+                        <th class="text-end">Tồn HT</th>
+                        <th class="text-end">Tồn thực tế</th>
+                        <th class="text-end">Chênh lệch</th>
+                        <th>Ghi chú</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for line in adjustment.lines.all %}
+                    <tr>
+                        <td class="fw-semibold">{{ line.material.code }} <span class="text-muted fw-normal">— {{ line.material.name }}</span></td>
+                        <td>{{ line.location.code }}</td>
+                        <td class="text-end">{{ line.system_qty|npl_qty_with_unit:line.material.unit }}</td>
+                        <td class="text-end">{{ line.actual_qty|npl_qty_with_unit:line.material.unit }}</td>
+                        <td class="text-end fw-bold {% if line.variance > 0 %}text-success{% elif line.variance < 0 %}text-danger{% endif %}">
+                            {{ line.variance|npl_qty_with_unit:line.material.unit }}
+                        </td>
+                        <td class="text-muted small">{{ line.notes|default:'—' }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-center text-muted py-4">Chưa có dòng điều chỉnh.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>

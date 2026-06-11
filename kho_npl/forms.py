@@ -10,6 +10,7 @@ from kho_npl.models import (
     Material,
     MaterialCategory,
     StockAdjustment,
+    StockAdjustmentLine,
     StockDisposal,
     StockDisposalLine,
     StockIssue,
@@ -287,26 +288,58 @@ StockIssueLineFormSet = inlineformset_factory(
 class StockAdjustmentForm(forms.ModelForm):
     class Meta:
         model = StockAdjustment
-        fields = ['adjust_date', 'material', 'location', 'actual_qty', 'reason', 'attachment']
+        fields = ['adjust_date', 'reason', 'attachment']
         widgets = {
             'adjust_date': forms.DateInput(attrs={**FORM_CONTROL, 'type': 'date'}),
-            'material': forms.Select(attrs=FORM_SELECT),
-            'location': forms.Select(attrs=FORM_SELECT),
-            'actual_qty': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0'}),
             'reason': forms.Textarea(attrs=FORM_TEXTAREA),
             'attachment': FORM_ATTACHMENT,
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['material'].queryset = Material.objects.filter(is_active=True)
-        self.fields['location'].queryset = WarehouseLocation.objects.filter(is_active=True)
         self.fields['attachment'].required = False
         if not self.instance.pk:
             self.initial.setdefault('adjust_date', timezone.localdate())
 
     def clean_attachment(self):
         return validate_doc_attachment(self.cleaned_data.get('attachment'))
+
+
+class StockAdjustmentLineForm(forms.ModelForm):
+    class Meta:
+        model = StockAdjustmentLine
+        fields = ['material', 'location', 'system_qty', 'actual_qty', 'notes']
+        widgets = {
+            'material': forms.Select(attrs=FORM_SELECT),
+            'location': forms.Select(attrs=FORM_SELECT),
+            'system_qty': forms.NumberInput(attrs={
+                **FORM_CONTROL, 'step': '0.001', 'readonly': 'readonly', 'tabindex': '-1',
+            }),
+            'actual_qty': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0'}),
+            'notes': forms.TextInput(attrs=FORM_CONTROL),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['material'].queryset = Material.objects.filter(is_active=True).select_related('unit')
+        self.fields['location'].queryset = WarehouseLocation.objects.filter(is_active=True)
+        self.fields['notes'].required = False
+        self.fields['system_qty'].required = False
+        default_location = WarehouseLocation.objects.filter(code='MAIN', is_active=True).first()
+        if default_location and not self.instance.pk:
+            self.initial.setdefault('location', default_location.pk)
+        if self.instance.pk:
+            self.initial.setdefault('system_qty', self.instance.system_qty)
+        elif self.is_bound:
+            material_id = self.data.get(self.add_prefix('material'))
+            location_id = self.data.get(self.add_prefix('location'))
+            if material_id and location_id:
+                try:
+                    material = Material.objects.get(pk=material_id)
+                    location = WarehouseLocation.objects.get(pk=location_id)
+                    self.initial['system_qty'] = balance_qty(material, location)
+                except (Material.DoesNotExist, WarehouseLocation.DoesNotExist, ValueError):
+                    pass
 
     def clean(self):
         cleaned = super().clean()
@@ -317,11 +350,51 @@ class StockAdjustmentForm(forms.ModelForm):
         return cleaned
 
     def save(self, commit=True):
-        adjustment = super().save(commit=False)
-        adjustment.system_qty = self.cleaned_data.get('system_qty', Decimal('0'))
+        line = super().save(commit=False)
+        line.system_qty = self.cleaned_data.get('system_qty', Decimal('0'))
         if commit:
-            adjustment.save()
-        return adjustment
+            line.save()
+        return line
+
+
+class BaseStockAdjustmentLineFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        active_lines = []
+        for form in self.forms:
+            if not form.cleaned_data or form.cleaned_data.get('DELETE'):
+                continue
+            material = form.cleaned_data.get('material')
+            if not material:
+                continue
+            active_lines.append(form.cleaned_data)
+        if not active_lines:
+            raise ValidationError('Phiếu điều chỉnh cần ít nhất một dòng NPL.')
+        seen = set()
+        for line in active_lines:
+            material = line['material']
+            location = line['location']
+            key = (material.pk, location.pk)
+            if key in seen:
+                raise ValidationError(
+                    f'Trùng NPL + vị trí: {material.code} tại {location.code}.'
+                )
+            seen.add(key)
+            actual_qty = line.get('actual_qty')
+            if actual_qty is None or actual_qty < 0:
+                raise ValidationError('Tồn thực tế không được âm cho mỗi dòng NPL.')
+
+
+StockAdjustmentLineFormSet = inlineformset_factory(
+    StockAdjustment,
+    StockAdjustmentLine,
+    form=StockAdjustmentLineForm,
+    formset=BaseStockAdjustmentLineFormSet,
+    extra=2,
+    can_delete=True,
+)
 
 
 class StocktakeForm(forms.ModelForm):

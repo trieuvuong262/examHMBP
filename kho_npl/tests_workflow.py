@@ -13,6 +13,7 @@ from kho_npl.models import (
     Material,
     MaterialCategory,
     StockAdjustment,
+    StockAdjustmentLine,
     StockBalance,
     Stocktake,
     StocktakeLine,
@@ -52,13 +53,16 @@ class KhoNplWorkflowTests(TestCase):
         adj = StockAdjustment.objects.create(
             number='DC-TEST-01',
             adjust_date=timezone.localdate(),
+            reason='Test điều chỉnh',
+            proposed_by=self.user,
+            status=ADJUST_STATUS_PENDING,
+        )
+        StockAdjustmentLine.objects.create(
+            adjustment=adj,
             material=self.material,
             location=self.location,
             system_qty=Decimal('50'),
             actual_qty=Decimal('45'),
-            reason='Test điều chỉnh',
-            proposed_by=self.user,
-            status=ADJUST_STATUS_PENDING,
         )
         self.client.post(reverse('kho_npl:adjustment_approve', args=[adj.pk]))
         adj.refresh_from_db()
