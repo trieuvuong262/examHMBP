@@ -97,3 +97,32 @@ class KhoNplWorkflowTests(TestCase):
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             response['Content-Type'],
         )
+
+    def test_material_search_with_location_shows_name_and_qty(self):
+        url = (
+            reverse('kho_npl:material_search')
+            + f'?q=WF&location_id={self.location.pk}'
+        )
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        row = next(r for r in response.json()['results'] if r['code'] == 'WF-01')
+        self.assertIn('WF test', row['text'])
+        self.assertIn('50', row['text'])
+
+    def test_balance_lookup_api(self):
+        url = (
+            reverse('kho_npl:balance_lookup')
+            + f'?material_id={self.material.pk}&location_id={self.location.pk}'
+        )
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['qty_decimal'], '50.000')
+        self.assertIn('WF test', data['text'])
+        self.assertIn('50', data['text'])
+
+    def test_adjustment_create_form_has_stock_lookup(self):
+        response = self.client.get(reverse('kho_npl:adjustment_create'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'jp-npl-material-select')
+        self.assertContains(response, reverse('kho_npl:balance_lookup'))

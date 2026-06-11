@@ -1,4 +1,6 @@
 import pandas as pd
+from decimal import Decimal
+
 from django.contrib import messages
 from django.db.models import Q
 from django.http import JsonResponse
@@ -22,7 +24,9 @@ from kho_npl.material_list_columns import (
     MATERIAL_LIST_SORT_FIELDS,
     MATERIAL_LIST_TOTAL_COL_WEIGHT,
 )
-from kho_npl.models import Material, MaterialCategory, WarehouseLocation
+from kho_npl.models import Material, MaterialCategory, StockBalance, WarehouseLocation
+from kho_npl.services.adjustments import balance_qty
+from kho_npl.templatetags.npl_extras import format_npl_qty, unit_label
 from kho_npl.services.excel_export import dataframe_to_xlsx_response
 from kho_npl.services.material_import_export import (
     MaterialImportError,
@@ -44,9 +48,26 @@ def _material_search_label(material: Material) -> str:
     return f'{material.code} — {material.name} ({material.unit.code})'
 
 
+def _material_stock_label(material: Material, qty: Decimal) -> str:
+    unit = unit_label(material.unit)
+    qty_text = format_npl_qty(qty)
+    if unit:
+        return f'{material.name} — {qty_text} {unit}'
+    return f'{material.name} — {qty_text}'
+
+
+def _parse_positive_int(value):
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed > 0 else None
+
+
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def material_search(request):
     q = (request.GET.get('q') or '').strip()
+    location_id = _parse_positive_int(request.GET.get('location_id'))
     qs = Material.objects.filter(is_active=True).select_related('unit')
     if q:
         qs = qs.filter(
@@ -55,17 +76,51 @@ def material_search(request):
             | Q(color__icontains=q)
             | Q(specification__icontains=q),
         )
-    rows = [
-        {
-            'id': m.pk,
-            'text': _material_search_label(m),
-            'code': m.code,
-            'name': m.name,
-            'unit': m.unit.code,
-        }
-        for m in qs.order_by('code')[:40]
-    ]
+    materials = list(qs.order_by('code')[:40])
+    balance_map = {}
+    if location_id and materials:
+        material_ids = [m.pk for m in materials]
+        for balance in StockBalance.objects.filter(
+            location_id=location_id,
+            material_id__in=material_ids,
+        ):
+            balance_map[balance.material_id] = balance.quantity
+    rows = []
+    for material in materials:
+        if location_id is not None:
+            qty = balance_map.get(material.pk, Decimal('0'))
+            text = _material_stock_label(material, qty)
+        else:
+            text = _material_search_label(material)
+        rows.append({
+            'id': material.pk,
+            'text': text,
+            'code': material.code,
+            'name': material.name,
+            'unit': material.unit.code,
+            'qty': float(balance_map.get(material.pk, Decimal('0'))) if location_id is not None else None,
+        })
     return JsonResponse({'results': rows})
+
+
+@module_perm_required(MODULE_KHO_NPL, 'view')
+def balance_lookup(request):
+    material_id = _parse_positive_int(request.GET.get('material_id'))
+    location_id = _parse_positive_int(request.GET.get('location_id'))
+    if not material_id or not location_id:
+        return JsonResponse({'error': 'Thiếu material_id hoặc location_id.'}, status=400)
+    try:
+        material = Material.objects.select_related('unit').get(pk=material_id, is_active=True)
+        location = WarehouseLocation.objects.get(pk=location_id, is_active=True)
+    except (Material.DoesNotExist, WarehouseLocation.DoesNotExist):
+        return JsonResponse({'error': 'NPL hoặc vị trí không hợp lệ.'}, status=404)
+    qty = balance_qty(material, location)
+    return JsonResponse({
+        'qty': format_npl_qty(qty),
+        'qty_decimal': str(qty),
+        'unit': unit_label(material.unit),
+        'text': _material_stock_label(material, qty),
+    })
 
 
 def _material_catalog_qs(request):

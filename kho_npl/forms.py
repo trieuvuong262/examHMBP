@@ -310,10 +310,18 @@ class StockAdjustmentLineForm(forms.ModelForm):
         model = StockAdjustmentLine
         fields = ['material', 'location', 'system_qty', 'actual_qty', 'notes']
         widgets = {
-            'material': forms.Select(attrs=FORM_SELECT),
+            'material': forms.Select(attrs={
+                **FORM_SELECT,
+                'class': 'form-select jp-npl-material-select',
+                'data-placeholder': 'Gõ tên hoặc mã NPL...',
+            }),
             'location': forms.Select(attrs=FORM_SELECT),
             'system_qty': forms.NumberInput(attrs={
-                **FORM_CONTROL, 'step': '0.001', 'readonly': 'readonly', 'tabindex': '-1',
+                **FORM_CONTROL,
+                'step': '0.001',
+                'readonly': 'readonly',
+                'tabindex': '-1',
+                'class': 'form-control jp-npl-system-qty',
             }),
             'actual_qty': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0'}),
             'notes': forms.TextInput(attrs=FORM_CONTROL),
@@ -321,7 +329,18 @@ class StockAdjustmentLineForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['material'].queryset = Material.objects.filter(is_active=True).select_related('unit')
+        material_id = None
+        if self.instance.pk and self.instance.material_id:
+            material_id = self.instance.material_id
+        elif self.initial.get('material'):
+            material_id = self.initial['material']
+        if material_id:
+            self.fields['material'].queryset = (
+                Material.objects.filter(pk=material_id).select_related('unit')
+            )
+        else:
+            self.fields['material'].queryset = Material.objects.none()
+        self.fields['material'].empty_label = 'Gõ tên hoặc mã để tìm...'
         self.fields['location'].queryset = WarehouseLocation.objects.filter(is_active=True)
         self.fields['notes'].required = False
         self.fields['system_qty'].required = False
@@ -340,6 +359,13 @@ class StockAdjustmentLineForm(forms.ModelForm):
                     self.initial['system_qty'] = balance_qty(material, location)
                 except (Material.DoesNotExist, WarehouseLocation.DoesNotExist, ValueError):
                     pass
+
+    def full_clean(self):
+        if self.data:
+            self.fields['material'].queryset = (
+                Material.objects.filter(is_active=True).select_related('unit')
+            )
+        super().full_clean()
 
     def clean(self):
         cleaned = super().clean()
