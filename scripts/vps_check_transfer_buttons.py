@@ -25,7 +25,7 @@ for tab in ('chuyen', 'nhan', 'danh-sach'):
     if f'data-transfer-tab="{tab}"' not in html:
         errors.append(f'{tab}: missing data-transfer-tab')
     if tab == 'chuyen':
-        for needle in ('flex-nowrap', 'data-col="actions"', 'jp-npl-transfer-flow-btn', '11rem'):
+        for needle in ('flex-nowrap', 'data-col="actions"', 'jp-npl-transfer-flow-btn', '12rem'):
             if needle not in html:
                 errors.append(f'chuyen: missing {needle}')
     if tab == 'nhan' and 'jp-npl-transfer-flow-btn' not in html:
