@@ -27,7 +27,11 @@ def module_for_request(service_request) -> str:
 
 
 def flow_list_menu_key(list_kind: str) -> str:
-    return {'my': 'my', 'pending': 'pending'}.get(list_kind, 'my')
+    return {
+        'my': 'my',
+        'pending': 'pending',
+        'involved': 'pending',
+    }.get(list_kind, 'my')
 
 
 def user_can_access_flow_list(user, flow_tab, *, list_kind: str = 'my') -> bool:

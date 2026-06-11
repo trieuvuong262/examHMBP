@@ -11,6 +11,7 @@ urlpatterns = [
     # Đề xuất mới (mua hàng / đề xuất)
     path('de-xuat/cua-toi/', views.my_requests, {'flow_tab': 'de_xuat'}, name='de_xuat_my'),
     path('de-xuat/cho-xu-ly/', views.pending_requests, {'flow_tab': 'de_xuat'}, name='de_xuat_pending'),
+    path('de-xuat/theo-doi/', views.involved_requests, {'flow_tab': 'de_xuat'}, name='de_xuat_involved'),
     path('de-xuat/tao/', views.create_request, name='create'),
     path('de-xuat/danh-muc-dinh-ky/', views.recurring_catalog_list, name='catalog_list'),
     path('de-xuat/danh-muc-dinh-ky/them/', views.recurring_catalog_create, name='catalog_create'),
@@ -25,6 +26,7 @@ urlpatterns = [
     ),
     path('ho-tro/cua-toi/', views.my_requests, {'flow_tab': 'ho_tro'}, name='ho_tro_my'),
     path('ho-tro/cho-xu-ly/', views.pending_requests, {'flow_tab': 'ho_tro'}, name='ho_tro_pending'),
+    path('ho-tro/theo-doi/', views.involved_requests, {'flow_tab': 'ho_tro'}, name='ho_tro_involved'),
     path('ho-tro/tao/', views.create_it_repair, name='create_it_repair'),
     path(
         'ho-tro/tao/it/',

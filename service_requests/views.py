@@ -48,6 +48,7 @@ from .permissions import (
     get_goods_receiver_candidates,
     get_procurement_staff_candidates,
     get_step_waiting_message,
+    involved_requests_for_user,
     pending_steps_for_user,
 )
 from .workflow import (
@@ -83,10 +84,23 @@ def _filter_by_flow(qs, flow_tab):
     return qs
 
 
-def _list_url_for_request(service_request):
+def _list_url_for_request(service_request, user=None):
+    if user and service_request.requester_id != user.id:
+        if service_request.is_it_repair:
+            return reverse('service_requests:ho_tro_involved')
+        return reverse('service_requests:de_xuat_involved')
     if service_request.is_it_repair:
         return reverse('service_requests:ho_tro_my')
     return reverse('service_requests:de_xuat_my')
+
+
+def _annotate_requests_with_action_flags(requests, user):
+    pending_ids = set(
+        pending_steps_for_user(user).values_list('request_id', flat=True),
+    )
+    for req in requests:
+        req.needs_my_action = req.pk in pending_ids
+    return requests
 
 
 def _detail_url(service_request):
@@ -214,7 +228,10 @@ def my_requests(request, flow_tab=None):
 
     qs = ServiceRequest.objects.filter(
         requester=request.user,
-    ).select_related('request_type').prefetch_related('steps')
+    ).select_related('request_type').prefetch_related(
+        'steps__assignee__profile',
+        'steps__target_department',
+    )
     qs = _filter_by_flow(qs, flow_tab)
     status = request.GET.get('status', '')
     if status:
@@ -270,6 +287,42 @@ def pending_requests(request, flow_tab=None):
         'search_query': search_query,
     })
     return render(request, 'service_requests/pending_list.html', ctx)
+
+
+@_flow_access_required(list_kind='involved')
+def involved_requests(request, flow_tab=None):
+    search_query = get_search_query(request)
+    flow_tab = normalize_flow_tab(flow_tab or request.GET.get('loai'))
+
+    qs = involved_requests_for_user(request.user)
+    qs = _filter_by_flow(qs, flow_tab)
+    status = request.GET.get('status', '')
+    if status:
+        qs = qs.filter(status=status)
+    qs = apply_term_search(
+        qs, search_query,
+        'title__icontains', 'description__icontains', 'request_type__name__icontains',
+        'requester__username__icontains', 'requester__profile__full_name__icontains',
+        'requester__profile__employee_code__icontains',
+        'equipment_label__icontains', 'location_text__icontains',
+    )
+    page_obj, query_string = paginate_queryset(request, qs)
+    _annotate_requests_with_action_flags(page_obj.object_list, request.user)
+    ctx = _subnav_context(request, flow_tab=flow_tab)
+    ctx.update({
+        'page_obj': page_obj,
+        'query_string': query_string,
+        'search_query': search_query,
+        'current_status': status,
+        'status_tabs': [
+            ('', 'Tất cả'),
+            (ServiceRequest.STATUS_IN_PROGRESS, 'Đang xử lý'),
+            (ServiceRequest.STATUS_COMPLETED, 'Hoàn thành'),
+            (ServiceRequest.STATUS_REJECTED, 'Từ chối'),
+            (ServiceRequest.STATUS_CANCELLED, 'Đã hủy'),
+        ],
+    })
+    return render(request, 'service_requests/involved_list.html', ctx)
 
 
 @module_perm_required(MODULE_DE_XUAT, 'create')
@@ -498,7 +551,7 @@ def request_detail(request, pk, flow_tab=None):
     )
     if not can_view_request(request.user, service_request):
         messages.error(request, 'Bạn không có quyền xem yêu cầu này.')
-        return redirect(_list_url_for_request(service_request))
+        return redirect(_list_url_for_request(service_request, request.user))
 
     current_step = service_request.current_step
     can_handle_current = bool(current_step and can_handle_step(request.user, current_step))
@@ -540,7 +593,7 @@ def request_detail(request, pk, flow_tab=None):
             if action == 'cancel' and can_cancel_own_request(request.user, service_request):
                 cancel_request(service_request, actor=request.user)
                 messages.info(request, 'Đã hủy yêu cầu.')
-                return redirect(_list_url_for_request(service_request))
+                return redirect(_list_url_for_request(service_request, request.user))
 
             if not can_workflow:
                 messages.error(request, 'Bạn không có quyền xử lý yêu cầu này.')
@@ -702,7 +755,7 @@ def request_detail(request, pk, flow_tab=None):
         'it_repair_form': it_repair_form,
         'requester_confirm_form': requester_confirm_form,
         'equipment_it_url': equipment_it_url,
-        'list_url': _list_url_for_request(service_request),
+        'list_url': _list_url_for_request(service_request, request.user),
     })
     return render(request, 'service_requests/detail.html', ctx)
 

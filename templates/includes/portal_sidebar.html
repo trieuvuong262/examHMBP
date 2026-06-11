@@ -245,6 +245,12 @@
                                 {% if jp_de_xuat_pending_count %}<span class="badge bg-danger ms-1">{{ jp_de_xuat_pending_count }}</span>{% endif %}
                             </a>
                         </li>
+                        <li>
+                            <a href="{% url 'service_requests:de_xuat_involved' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'de_xuat_involved' %}active{% endif %}">
+                                <i class="bi bi-diagram-3"></i><span>Theo dõi tiến trình</span>
+                            </a>
+                        </li>
                         {% endif %}
                         {% jp_can_menu 'de_xuat' 'create' as jp_can_de_xuat_create %}
                         {% if jp_can_de_xuat_create %}
@@ -296,6 +302,12 @@
                                class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'ho_tro_pending' %}active{% endif %}">
                                 <i class="bi bi-inbox-fill"></i><span>Chờ duyệt</span>
                                 {% if jp_ho_tro_pending_count %}<span class="badge bg-danger ms-1">{{ jp_ho_tro_pending_count }}</span>{% endif %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'service_requests:ho_tro_involved' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'ho_tro_involved' %}active{% endif %}">
+                                <i class="bi bi-diagram-3"></i><span>Theo dõi tiến trình</span>
                             </a>
                         </li>
                         {% endif %}

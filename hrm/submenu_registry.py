@@ -101,6 +101,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/yeu-cau/de-xuat/danh-muc-dinh-ky', MODULE_DE_XUAT, 'catalog'),
     ('/yeu-cau/de-xuat/tao', MODULE_DE_XUAT, 'create'),
     ('/yeu-cau/de-xuat/cho-xu-ly', MODULE_DE_XUAT, 'pending'),
+    ('/yeu-cau/de-xuat/theo-doi', MODULE_DE_XUAT, 'pending'),
     ('/yeu-cau/de-xuat/cua-toi', MODULE_DE_XUAT, 'my'),
     ('/yeu-cau/danh-muc-dinh-ky', MODULE_DE_XUAT, 'catalog'),
     ('/yeu-cau/tao', MODULE_DE_XUAT, 'create'),
@@ -109,6 +110,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     # Hỗ trợ
     ('/yeu-cau/ho-tro/tao', MODULE_HO_TRO, 'create'),
     ('/yeu-cau/ho-tro/cho-xu-ly', MODULE_HO_TRO, 'pending'),
+    ('/yeu-cau/ho-tro/theo-doi', MODULE_HO_TRO, 'pending'),
     ('/yeu-cau/ho-tro/cua-toi', MODULE_HO_TRO, 'my'),
     ('/yeu-cau/sua-it', MODULE_HO_TRO, 'create'),
     # Thiết bị

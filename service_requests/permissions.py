@@ -224,6 +224,45 @@ def can_claim_step(user, step: ServiceRequestStep) -> bool:
     }
 
 
+def involved_requests_for_user(user):
+    """Yêu cầu user tham gia (duyệt/xử lý) nhưng không phải người gửi — để theo dõi tiến trình."""
+    if not user_can_access_any_request_module(user):
+        return ServiceRequest.objects.none()
+
+    profile = get_profile(user)
+    dept_id = profile.department_id if profile else None
+
+    related = Q(steps__assignee=user) | Q(goods_receiver=user)
+    if dept_id:
+        related |= Q(steps__target_department_id=dept_id)
+    if is_director(user):
+        related |= Q(
+            steps__step_code__in=(
+                ServiceRequestStep.STEP_DIRECTOR,
+                ServiceRequestStep.STEP_DEPARTMENT_HEAD,
+                ServiceRequestStep.STEP_DIVISION_HEAD,
+            ),
+        )
+        related |= Q(
+            steps__target_department__isnull=False,
+            steps__step_code__in=(
+                ServiceRequestStep.STEP_PROCUREMENT_QUOTE,
+                ServiceRequestStep.STEP_ACCOUNTANT,
+                ServiceRequestStep.STEP_ADVANCE,
+                ServiceRequestStep.STEP_PURCHASE,
+            ),
+        )
+
+    return (
+        ServiceRequest.objects.filter(related)
+        .exclude(requester=user)
+        .distinct()
+        .select_related('request_type', 'requester', 'requester__profile')
+        .prefetch_related('steps__assignee__profile', 'steps__target_department')
+        .order_by('-updated_at', '-created_at')
+    )
+
+
 def pending_steps_for_user(user):
     """Bước chờ user xử lý (đã gán hoặc queue phòng ban)."""
     if not user_can_access_any_request_module(user):

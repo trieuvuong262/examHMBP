@@ -240,6 +240,28 @@ class ServiceRequestWorkflowTests(TestCase):
         self.assertFalse(pending_steps_for_user(self.accountant).filter(pk=quote.pk).exists())
         self.assertFalse(pending_steps_for_user(self.director).filter(pk=quote.pk).exists())
         self.assertFalse(pending_steps_for_user(self.employee_hr).filter(pk=quote.pk).exists())
+
+    def test_approver_tracks_request_after_their_step(self):
+        from service_requests.permissions import involved_requests_for_user, pending_steps_for_user
+
+        req = self._create_request()
+        approve_step(req.steps.get(step_code=ServiceRequestStep.STEP_TEAM_LEADER), actor=self.team_leader)
+        self._approve_division_head(req)
+        quote = req.steps.get(step_code=ServiceRequestStep.STEP_PROCUREMENT_QUOTE)
+
+        self.assertFalse(pending_steps_for_user(self.div_head).filter(pk=quote.pk).exists())
+        self.assertTrue(involved_requests_for_user(self.div_head).filter(pk=req.pk).exists())
+
+        self.client.force_login(self.div_head)
+        resp = self.client.get(reverse('service_requests:de_xuat_involved'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, req.title)
+        self.assertContains(resp, f'#{quote.step_order}')
+
+        detail = self.client.get(reverse('service_requests:de_xuat_detail', args=[req.pk]))
+        self.assertEqual(detail.status_code, 200)
+        self.assertContains(detail, f'Bước {quote.step_order}')
+        self.assertContains(detail, reverse('service_requests:de_xuat_involved'))
     # --- Yêu cầu: <2M → không cần KT/GĐ ---
 
     def test_low_amount_skips_accountant_after_quote(self):
