@@ -9,7 +9,6 @@ from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
 from kho_npl.choices import (
-    STOCKTAKE_STATUS_CLOSED,
     STOCKTAKE_STATUS_COUNTING,
     STOCKTAKE_STATUS_DRAFT,
     STOCKTAKE_STATUS_LABELS,
@@ -27,9 +26,10 @@ from kho_npl.services.stocktakes import (
     stocktake_is_editable,
 )
 from kho_npl.doc_list_columns import (
+    STOCKTAKE_DETAIL_LINE_COLUMNS,
+    STOCKTAKE_DETAIL_LINE_TOTAL_COL_WEIGHT,
     STOCKTAKE_LIST_COLUMNS,
     STOCKTAKE_LIST_SORT_FIELDS,
-    STOCKTAKE_LIST_TOTAL_COL_WEIGHT,
 )
 from kho_npl.doc_list_utils import STOCKTAKE_STATUS_FILTER_CHOICES, doc_list_sort, doc_status_filter
 from kho_npl.view_utils import nav_context, perm_context
@@ -45,9 +45,6 @@ def _stocktake_lines_qs(stocktake):
 
 def _stocktake_line_count(stocktake):
     return stocktake.lines.count()
-
-
-STOCKTAKE_WH_PREVIEW = 6
 
 
 def _parse_warehouse_id(request):
@@ -81,21 +78,6 @@ def _stocktake_list_columns(*, single_warehouse: bool):
     return STOCKTAKE_LIST_COLUMNS
 
 
-def _stocktake_list_query_string(*, warehouse_id, status, search_query, sort_key='', sort_dir=''):
-    parts = []
-    if warehouse_id:
-        parts.append(f'wh={warehouse_id}')
-    if status:
-        parts.append(f'status={status}')
-    if search_query:
-        parts.append(f'q={search_query}')
-    if sort_key:
-        parts.append(f'sort={sort_key}')
-    if sort_dir:
-        parts.append(f'dir={sort_dir}')
-    return '&'.join(parts)
-
-
 def _warehouse_tabs(base_qs, locations, selected_warehouse_id):
     total = base_qs.count()
     tabs = [{
@@ -126,26 +108,6 @@ def _warehouse_tabs(base_qs, locations, selected_warehouse_id):
     return tabs
 
 
-def _warehouse_groups(base_qs, locations):
-    groups = []
-    for location in locations:
-        loc_qs = base_qs.filter(location=location).order_by('-stocktake_date', '-pk')
-        total = loc_qs.count()
-        if total == 0:
-            continue
-        preview = list(loc_qs[:STOCKTAKE_WH_PREVIEW])
-        groups.append({
-            'location': location,
-            'stocktakes': preview,
-            'total': total,
-            'has_more': total > len(preview),
-            'counting': loc_qs.filter(status=STOCKTAKE_STATUS_COUNTING).count(),
-            'draft': loc_qs.filter(status=STOCKTAKE_STATUS_DRAFT).count(),
-            'closed': loc_qs.filter(status=STOCKTAKE_STATUS_CLOSED).count(),
-        })
-    return groups
-
-
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def stocktake_list(request):
     search_query = get_search_query(request)
@@ -162,26 +124,18 @@ def stocktake_list(request):
     list_columns = _stocktake_list_columns(single_warehouse=bool(warehouse_id))
     total_col_weight = sum(c['weight'] for c in list_columns)
 
+    default_sort = 'stocktake_date' if warehouse_id else 'location'
+    sort_key, sort_dir, order = doc_list_sort(
+        request, STOCKTAKE_LIST_SORT_FIELDS, default_key=default_sort,
+    )
+    qs = base_qs
     if warehouse_id:
-        sort_key, sort_dir, order = doc_list_sort(
-            request, STOCKTAKE_LIST_SORT_FIELDS, default_key='stocktake_date',
-        )
-        qs = base_qs.filter(location_id=warehouse_id).order_by(order, '-pk')
-        page_obj, query_string = paginate_queryset(request, qs)
-        selected_location = next((loc for loc in locations if loc.pk == warehouse_id), None)
-        warehouse_groups = []
-        list_mode = 'warehouse'
-    else:
-        sort_key, sort_dir = 'stocktake_date', 'desc'
-        page_obj = None
-        query_string = _stocktake_list_query_string(
-            warehouse_id=None,
-            status=status,
-            search_query=search_query,
-        )
-        selected_location = None
-        warehouse_groups = _warehouse_groups(base_qs, locations)
-        list_mode = 'overview'
+        qs = qs.filter(location_id=warehouse_id)
+    page_obj, query_string = paginate_queryset(request, qs.order_by(order, '-pk'))
+    selected_location = (
+        next((loc for loc in locations if loc.pk == warehouse_id), None)
+        if warehouse_id else None
+    )
 
     return render(request, 'kho_npl/stocktake_list.html', {
         **nav_context('stocktakes', user=request.user),
@@ -197,10 +151,8 @@ def stocktake_list(request):
         'sort_key': sort_key,
         'sort_dir': sort_dir,
         'warehouse_tabs': warehouse_tabs,
-        'warehouse_groups': warehouse_groups,
         'selected_warehouse_id': warehouse_id,
         'selected_location': selected_location,
-        'list_mode': list_mode,
         'status_labels': STOCKTAKE_STATUS_LABELS,
     })
 
@@ -226,6 +178,8 @@ def stocktake_detail(request, pk):
         'line_count': _stocktake_line_count(stocktake),
         'can_count': stocktake_can_count(stocktake),
         'is_editable': stocktake_is_editable(stocktake),
+        'line_columns': STOCKTAKE_DETAIL_LINE_COLUMNS,
+        'line_total_col_weight': STOCKTAKE_DETAIL_LINE_TOTAL_COL_WEIGHT,
     })
 
 

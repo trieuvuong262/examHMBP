@@ -72,6 +72,17 @@ STOCKTAKE_LIST_SORT_FIELDS = {
     'created_by': 'created_by__username',
 }
 
+STOCKTAKE_DETAIL_LINE_COLUMNS = [
+    {'key': 'material', 'label': 'Mã NPL', 'default': True, 'required': True, 'weight': 100},
+    {'key': 'name', 'label': 'Tên', 'default': True, 'required': False, 'weight': 180},
+    {'key': 'system_qty', 'label': 'Tồn HT', 'default': True, 'required': False, 'weight': 90},
+    {'key': 'actual_qty', 'label': 'Tồn TT', 'default': True, 'required': False, 'weight': 90},
+    {'key': 'variance', 'label': 'Chênh', 'default': True, 'required': False, 'weight': 90},
+]
+STOCKTAKE_DETAIL_LINE_TOTAL_COL_WEIGHT = sum(
+    c['weight'] for c in STOCKTAKE_DETAIL_LINE_COLUMNS
+)
+
 TRANSFER_LIST_COLUMNS = [
     {'key': 'number', 'label': 'Số phiếu', 'default': True, 'required': True, 'weight': 100},
     {'key': 'transfer_date', 'label': 'Ngày', 'default': True, 'required': False, 'weight': 100},

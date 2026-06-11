@@ -1,0 +1,33 @@
+<script>
+(function () {
+    const tbody = document.getElementById('stk-detail-body');
+    const searchInput = document.getElementById('stk-detail-search');
+    const clearBtn = document.getElementById('stk-detail-clear');
+    const metaEl = document.getElementById('stk-detail-meta');
+    if (!tbody || !searchInput) return;
+
+    const rows = Array.from(tbody.querySelectorAll('.jp-npl-stk-detail-row'));
+
+    function applyFilter() {
+        const term = (searchInput.value || '').trim().toLowerCase();
+        let visible = 0;
+        rows.forEach(function (row) {
+            const hay = (row.getAttribute('data-mat-search') || '').toLowerCase();
+            const show = !term || hay.indexOf(term) !== -1;
+            row.classList.toggle('is-hidden', !show);
+            if (show) visible += 1;
+        });
+        if (metaEl) {
+            metaEl.textContent = visible + ' / ' + rows.length + ' dòng';
+        }
+    }
+
+    searchInput.addEventListener('input', applyFilter);
+    clearBtn?.addEventListener('click', function () {
+        searchInput.value = '';
+        searchInput.focus();
+        applyFilter();
+    });
+    applyFilter();
+})();
+</script>
