@@ -1,5 +1,5 @@
 from django.contrib import messages
-from django.db.models import Count, Prefetch, Q
+from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
@@ -9,14 +9,18 @@ from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
 from kho_npl.choices import (
-    STOCKTAKE_STATUS_COUNTING,
     STOCKTAKE_STATUS_DRAFT,
     STOCKTAKE_STATUS_LABELS,
 )
+from kho_npl.filter_utils import parse_int_ids
 from kho_npl.services.scrap_warehouse import source_locations_qs
 from kho_npl.forms import StocktakeForm, StocktakeLineFormSet
 from kho_npl.models import Stocktake, StocktakeLine
 from kho_npl.services.doc_numbers import next_stocktake_number
+from kho_npl.services.stocktake_export import (
+    stocktake_detail_export_response,
+    stocktake_list_export_response,
+)
 from kho_npl.services.stocktakes import (
     StocktakeWorkflowError,
     close_stocktake,
@@ -47,15 +51,8 @@ def _stocktake_line_count(stocktake):
     return stocktake.lines.count()
 
 
-def _parse_warehouse_id(request):
-    raw = (request.GET.get('wh') or '').strip()
-    if not raw:
-        return None
-    try:
-        wh_id = int(raw)
-    except (TypeError, ValueError):
-        return None
-    return wh_id if wh_id > 0 else None
+def _parse_warehouse_ids(request, valid_ids: set[int]) -> list[int]:
+    return [pk for pk in parse_int_ids(request, 'wh') if pk in valid_ids]
 
 
 def _stocktake_filtered_qs(search_query, status):
@@ -78,63 +75,45 @@ def _stocktake_list_columns(*, single_warehouse: bool):
     return STOCKTAKE_LIST_COLUMNS
 
 
-def _warehouse_tabs(base_qs, locations, selected_warehouse_id):
-    total = base_qs.count()
-    tabs = [{
-        'id': None,
-        'code': '',
-        'label': 'Tổng quan kho',
-        'count': total,
-        'active': selected_warehouse_id is None,
-        'counting': base_qs.filter(status=STOCKTAKE_STATUS_COUNTING).count(),
-    }]
-    status_counts = {
-        row['location_id']: row
-        for row in base_qs.values('location_id').annotate(
-            total=Count('id'),
-            counting=Count('id', filter=Q(status=STOCKTAKE_STATUS_COUNTING)),
-        )
+def _stocktake_list_state(request):
+    search_query = get_search_query(request)
+    status = doc_status_filter(request, choices=STOCKTAKE_STATUS_FILTER_CHOICES)
+    locations = list(source_locations_qs().order_by('code'))
+    valid_wh_ids = {loc.pk for loc in locations}
+    warehouse_ids = _parse_warehouse_ids(request, valid_wh_ids)
+    base_qs = _stocktake_filtered_qs(search_query, status)
+    if warehouse_ids:
+        base_qs = base_qs.filter(location_id__in=warehouse_ids)
+    return {
+        'search_query': search_query,
+        'status': status,
+        'locations': locations,
+        'warehouse_ids': warehouse_ids,
+        'qs': base_qs,
     }
-    for location in locations:
-        stats = status_counts.get(location.pk, {})
-        tabs.append({
-            'id': location.pk,
-            'code': location.code,
-            'label': location.name or location.code,
-            'count': stats.get('total', 0),
-            'counting': stats.get('counting', 0),
-            'active': selected_warehouse_id == location.pk,
-        })
-    return tabs
 
 
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def stocktake_list(request):
-    search_query = get_search_query(request)
-    status = doc_status_filter(request, choices=STOCKTAKE_STATUS_FILTER_CHOICES)
-    warehouse_id = _parse_warehouse_id(request)
-    locations = list(source_locations_qs().order_by('code'))
-    valid_wh_ids = {loc.pk for loc in locations}
-    if warehouse_id and warehouse_id not in valid_wh_ids:
-        warehouse_id = None
+    state = _stocktake_list_state(request)
+    search_query = state['search_query']
+    status = state['status']
+    locations = state['locations']
+    warehouse_ids = state['warehouse_ids']
+    base_qs = state['qs']
 
-    base_qs = _stocktake_filtered_qs(search_query, status)
-    warehouse_tabs = _warehouse_tabs(base_qs, locations, warehouse_id)
-
-    list_columns = _stocktake_list_columns(single_warehouse=bool(warehouse_id))
+    single_warehouse = len(warehouse_ids) == 1
+    list_columns = _stocktake_list_columns(single_warehouse=single_warehouse)
     total_col_weight = sum(c['weight'] for c in list_columns)
 
-    default_sort = 'stocktake_date' if warehouse_id else 'location'
+    default_sort = 'stocktake_date' if single_warehouse else 'location'
     sort_key, sort_dir, order = doc_list_sort(
         request, STOCKTAKE_LIST_SORT_FIELDS, default_key=default_sort,
     )
-    qs = base_qs
-    if warehouse_id:
-        qs = qs.filter(location_id=warehouse_id)
-    page_obj, query_string = paginate_queryset(request, qs.order_by(order, '-pk'))
+    page_obj, query_string = paginate_queryset(request, base_qs.order_by(order, '-pk'))
     selected_location = (
-        next((loc for loc in locations if loc.pk == warehouse_id), None)
-        if warehouse_id else None
+        next((loc for loc in locations if loc.pk == warehouse_ids[0]), None)
+        if single_warehouse else None
     )
 
     return render(request, 'kho_npl/stocktake_list.html', {
@@ -145,16 +124,38 @@ def stocktake_list(request):
         'search_query': search_query,
         'selected_status': status,
         'status_choices': STOCKTAKE_STATUS_FILTER_CHOICES,
-        'has_filters': bool(search_query or status),
+        'has_filters': bool(search_query or status or warehouse_ids),
         'list_columns': list_columns,
         'total_col_weight': total_col_weight,
         'sort_key': sort_key,
         'sort_dir': sort_dir,
-        'warehouse_tabs': warehouse_tabs,
-        'selected_warehouse_id': warehouse_id,
+        'locations': locations,
+        'selected_warehouse_ids': warehouse_ids,
         'selected_location': selected_location,
         'status_labels': STOCKTAKE_STATUS_LABELS,
     })
+
+
+@module_perm_required(MODULE_KHO_NPL, 'export')
+def stocktake_list_export(request):
+    state = _stocktake_list_state(request)
+    sort_key, sort_dir, order = doc_list_sort(
+        request, STOCKTAKE_LIST_SORT_FIELDS,
+        default_key='stocktake_date' if len(state['warehouse_ids']) == 1 else 'location',
+    )
+    return stocktake_list_export_response(state['qs'].order_by(order, '-pk'))
+
+
+@module_perm_required(MODULE_KHO_NPL, 'export')
+def stocktake_detail_export(request, pk):
+    lines_qs = StocktakeLine.objects.select_related('material__unit').order_by('material__code')
+    stocktake = get_object_or_404(
+        Stocktake.objects.select_related('created_by', 'location').prefetch_related(
+            Prefetch('lines', queryset=lines_qs),
+        ),
+        pk=pk,
+    )
+    return stocktake_detail_export_response(stocktake)
 
 
 @module_perm_required(MODULE_KHO_NPL, 'view')
@@ -187,9 +188,10 @@ def stocktake_detail(request, pk):
 def stocktake_create(request):
     form = StocktakeForm(request.POST or None, request.FILES or None)
     if request.method != 'POST':
-        wh_id = _parse_warehouse_id(request)
-        if wh_id and source_locations_qs().filter(pk=wh_id).exists():
-            form.initial.setdefault('location', wh_id)
+        valid_wh_ids = set(source_locations_qs().values_list('pk', flat=True))
+        wh_ids = _parse_warehouse_ids(request, valid_wh_ids)
+        if wh_ids:
+            form.initial.setdefault('location', wh_ids[0])
     if request.method == 'POST' and form.is_valid():
         stocktake = form.save(commit=False)
         stocktake.number = next_stocktake_number()

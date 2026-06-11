@@ -23,6 +23,12 @@
             </p>
         </div>
         <div class="jp-npl-mat-topbar-actions jp-npl-stk-detail-actions">
+            {% if can_export %}
+            <a href="{% url 'kho_npl:stocktake_detail_export' stocktake.pk %}"
+               class="btn btn-outline-secondary btn-sm fw-bold" title="Xuất Excel">
+                <i class="bi bi-download me-1"></i>Xuất Excel
+            </a>
+            {% endif %}
             {% if can_count and can_update %}
             {% if stocktake.status == 'draft' %}
             <form method="post" action="{% url 'kho_npl:stocktake_start' stocktake.pk %}"

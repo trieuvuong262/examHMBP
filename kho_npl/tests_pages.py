@@ -166,6 +166,12 @@ class KhoNplPageSmokeTests(TestCase):
         ):
             self._assert_ok(name)
 
+    def test_stocktake_exports(self):
+        list_resp = self.client.get(reverse('kho_npl:stocktake_list_export'))
+        self.assertEqual(list_resp.status_code, 200)
+        self.assertIn('spreadsheetml', list_resp['Content-Type'])
+        self.assertContains(self.client.get(reverse('kho_npl:stocktake_list')), 'Xuất Excel')
+
     def test_report_pages(self):
         for name in (
             'kho_npl:report_hub',

@@ -1,81 +1,19 @@
 <style>
-.jp-npl-stocktake-page .jp-npl-stk-wh-toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 1rem;
-    margin-bottom: 1.25rem;
+.jp-npl-stocktake-page .jp-npl-mat-topbar-search .jp-npl-filter-multi .ts-wrapper,
+.jp-npl-stocktake-page .jp-npl-mat-topbar-search .jp-npl-filter-multi .ts-wrapper.form-select,
+.jp-npl-stocktake-page .jp-npl-mat-topbar-search .jp-npl-filter-multi .ts-wrapper.form-select-sm {
+    min-height: var(--jp-npl-mat-ctl-h, 34px);
 }
-.jp-npl-stocktake-page .jp-npl-stk-wh-pills {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+.jp-npl-stocktake-page .jp-npl-mat-topbar-search .jp-npl-filter-multi .ts-control,
+.jp-npl-stocktake-page .jp-npl-mat-topbar-search .jp-npl-filter-multi .ts-wrapper.form-select-sm .ts-control {
+    min-height: var(--jp-npl-mat-ctl-h, 34px);
 }
-.jp-npl-stocktake-page .jp-npl-stk-wh-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    padding: 0.45rem 0.85rem;
-    border-radius: 999px;
-    border: 1px solid var(--bs-border-color);
-    background: #fff;
-    color: var(--bs-body-color);
-    text-decoration: none;
-    font-size: 0.875rem;
-    font-weight: 600;
-    transition: border-color 0.15s, background 0.15s, color 0.15s;
-}
-.jp-npl-stocktake-page .jp-npl-stk-wh-pill:hover {
-    border-color: var(--hm-red, #dc2626);
-    color: var(--hm-red, #dc2626);
-}
-.jp-npl-stocktake-page .jp-npl-stk-wh-pill.is-active {
-    background: var(--hm-red, #dc2626);
-    border-color: var(--hm-red, #dc2626);
-    color: #fff;
-}
-.jp-npl-stocktake-page .jp-npl-stk-wh-pill-code {
-    font-family: var(--bs-font-monospace, monospace);
-    letter-spacing: 0.02em;
-}
-.jp-npl-stocktake-page .jp-npl-stk-wh-pill-count {
-    font-size: 0.75rem;
-    opacity: 0.85;
-}
-.jp-npl-stocktake-page .jp-npl-stk-wh-pill.is-active .jp-npl-stk-wh-pill-count {
-    opacity: 0.95;
-}
-.jp-npl-stocktake-page .jp-npl-stk-wh-pill-live {
-    font-size: 0.7rem;
-    padding: 0.1rem 0.45rem;
-    border-radius: 999px;
-    background: rgba(255, 193, 7, 0.2);
-    color: #92400e;
-}
-.jp-npl-stocktake-page .jp-npl-stk-wh-pill.is-active .jp-npl-stk-wh-pill-live {
-    background: rgba(255, 255, 255, 0.22);
-    color: #fff;
+.jp-npl-stocktake-page .jp-npl-mat-filter-loc {
+    flex: 0 1 12rem;
+    min-width: 9rem;
+    max-width: 18rem;
 }
 .jp-npl-stocktake-page #npl-stocktake-table .jp-npl-catalog-row[data-href] {
     cursor: pointer;
-}
-.jp-npl-stocktake-page .jp-npl-stk-wh-focus-banner {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    padding: 0.85rem 1rem;
-    margin-bottom: 1rem;
-    border-radius: 0.75rem;
-    border: 1px solid rgba(220, 38, 38, 0.15);
-    background: linear-gradient(90deg, rgba(220, 38, 38, 0.06), rgba(255,255,255,0.9));
-}
-.jp-npl-stocktake-page .jp-npl-stk-wh-focus-code {
-    font-size: 1.25rem;
-    font-weight: 800;
-    color: var(--hm-red, #dc2626);
-    font-family: var(--bs-font-monospace, monospace);
 }
 </style>

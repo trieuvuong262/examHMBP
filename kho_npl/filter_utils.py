@@ -28,3 +28,8 @@ def append_filter_params(params: list[str], *, locations: list[int] | None = Non
         params.append(f'location={loc_id}')
     for cat_id in categories or []:
         params.append(f'category={cat_id}')
+
+
+def append_wh_params(params: list[str], warehouse_ids: list[int] | None = None):
+    for wh_id in warehouse_ids or []:
+        params.append(f'wh={wh_id}')
