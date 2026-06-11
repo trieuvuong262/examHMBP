@@ -1,6 +1,7 @@
 .env
 .env.local
 deploy.local.env
+scripts/stress/stress.env
 __pycache__/
 *.pyc
 *.pyo
