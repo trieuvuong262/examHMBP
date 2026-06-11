@@ -102,7 +102,7 @@ class StocktakeLineInline(admin.TabularInline):
 
 @admin.register(Stocktake)
 class StocktakeAdmin(admin.ModelAdmin):
-    list_display = ('number', 'name', 'stocktake_date', 'status')
+    list_display = ('number', 'name', 'location', 'stocktake_date', 'status')
     list_filter = ('status',)
     inlines = [StocktakeLineInline]
 

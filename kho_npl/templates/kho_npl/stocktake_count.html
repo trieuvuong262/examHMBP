@@ -2,20 +2,38 @@
 {% load npl_extras %}
 
 {% block content %}
-<div class="container jp-page py-3 py-md-4 mb-5">
-    <h2 class="fw-bold text-hm mb-1">Nhập kiểm kê — {{ stocktake.number }}</h2>
-    <p class="text-muted mb-3">{{ stocktake.name }}</p>
-    <form method="post" id="count-form">{% csrf_token %}{{ formset.management_form }}
+<div class="container jp-page jp-npl-stocktake-page py-3 py-md-4 mb-5"
+     data-loading-message="Đang tải bảng kiểm kê ({{ line_count }} dòng)…">
+    <div class="jp-page-header mb-3">
+        <h2 class="fw-bold text-hm mb-1">Nhập kiểm kê — {{ stocktake.number }}</h2>
+        <p class="text-muted mb-0">
+            {{ stocktake.name }} · Kho <strong>{{ stocktake.location.code }}</strong>
+            · {{ line_count }} dòng NPL
+        </p>
+    </div>
+    <form method="post" id="count-form" data-loading-message="Đang lưu kiểm kê…">{% csrf_token %}{{ formset.management_form }}
         <div class="card border-0 shadow-sm overflow-hidden mb-3">
+            <div class="card-header bg-white border-bottom py-2">
+                <span class="fw-bold small">Kho {{ stocktake.location.code }}</span>
+            </div>
             <div class="table-responsive">
                 <table class="table table-sm align-middle mb-0">
-                    <thead class="table-light"><tr><th>NPL</th><th>Vị trí</th><th class="text-end">Tồn HT</th><th class="text-end" style="min-width:120px">Tồn TT</th><th>Ghi chú</th></tr></thead>
+                    <thead class="table-light">
+                        <tr>
+                            <th>NPL</th>
+                            <th class="text-end">Tồn HT</th>
+                            <th class="text-end" style="min-width:120px">Tồn TT</th>
+                            <th>Ghi chú</th>
+                        </tr>
+                    </thead>
                     <tbody>
                         {% for line_form in formset %}
                         <tr>
                             {% for hidden in line_form.hidden_fields %}{{ hidden }}{% endfor %}
-                            <td>{{ line_form.instance.material.code }}<div class="small text-muted">{{ line_form.instance.material.name }}</div></td>
-                            <td>{{ line_form.instance.location.code }}</td>
+                            <td>
+                                <span class="fw-semibold">{{ line_form.instance.material.code }}</span>
+                                <div class="small text-muted">{{ line_form.instance.material.name }}</div>
+                            </td>
                             <td class="text-end">{{ line_form.instance.system_qty|npl_qty_with_unit:line_form.instance.material.unit }}</td>
                             <td>{{ line_form.actual_qty }}</td>
                             <td>{{ line_form.notes }}</td>
@@ -29,7 +47,8 @@
         <div class="d-flex gap-2">
             <button type="submit" name="action" value="save" class="btn btn-outline-hm fw-bold">Lưu tạm</button>
             <button type="submit" name="action" value="close" class="btn btn-hm fw-bold" onclick="return confirm('Chốt kỳ và cập nhật tồn chênh lệch?');">Chốt kỳ</button>
-            <a href="{% url 'kho_npl:stocktake_detail' stocktake.pk %}" class="btn btn-outline-secondary">Quay lại</a>
+            <a href="{% url 'kho_npl:stocktake_detail' stocktake.pk %}" class="btn btn-outline-secondary"
+               data-loading-message="Đang tải chi tiết kiểm kê…">Quay lại</a>
         </div>
     </form>
 </div>

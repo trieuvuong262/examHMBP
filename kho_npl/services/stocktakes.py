@@ -27,26 +27,28 @@ def stocktake_can_count(stocktake: Stocktake) -> bool:
 def populate_stocktake_lines(stocktake: Stocktake) -> int:
     if stocktake.status == STOCKTAKE_STATUS_CLOSED:
         raise StocktakeWorkflowError('Kỳ đã chốt — không thể tải lại tồn.')
+    if not stocktake.location_id:
+        raise StocktakeWorkflowError('Chưa chọn kho kiểm kê.')
+    location = stocktake.location
     stocktake.lines.all().delete()
     lines = []
-    for balance in StockBalance.objects.select_related('material', 'location').all():
+    balances = StockBalance.objects.filter(location=location).select_related('material')
+    material_ids = set()
+    for balance in balances:
+        material_ids.add(balance.material_id)
         lines.append(StocktakeLine(
             stocktake=stocktake,
             material=balance.material,
-            location=balance.location,
+            location=location,
             system_qty=balance.quantity,
         ))
-    if not lines:
-        from kho_npl.models import WarehouseLocation
-        main_location = WarehouseLocation.objects.filter(code='MAIN', is_active=True).first()
-        if main_location:
-            for material in Material.objects.filter(is_active=True):
-                lines.append(StocktakeLine(
-                    stocktake=stocktake,
-                    material=material,
-                    location=main_location,
-                    system_qty=Decimal('0'),
-                ))
+    for material in Material.objects.filter(is_active=True).exclude(pk__in=material_ids).order_by('code'):
+        lines.append(StocktakeLine(
+            stocktake=stocktake,
+            material=material,
+            location=location,
+            system_qty=Decimal('0'),
+        ))
     StocktakeLine.objects.bulk_create(lines)
     return len(lines)
 

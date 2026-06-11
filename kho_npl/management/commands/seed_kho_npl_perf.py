@@ -537,10 +537,14 @@ class Command(BaseCommand):
             if Stocktake.objects.filter(number=number).exists():
                 continue
 
+            main_loc = locations[0] if locations else None
+            if not main_loc:
+                continue
             st = Stocktake.objects.create(
                 number=number,
                 name=f'Kiểm kê định kỳ {PERF_TAG} — đợt {seq}',
                 stocktake_date=self._random_past_date(rng, 120),
+                location=main_loc,
                 created_by=user,
                 notes=f'Kiểm kê test hiệu năng ({PERF_TAG})',
             )

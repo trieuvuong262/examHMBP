@@ -596,6 +596,12 @@ class Stocktake(models.Model):
     number = models.CharField(max_length=30, unique=True, verbose_name='Mã kỳ kiểm kê')
     name = models.CharField(max_length=200, verbose_name='Tên kỳ')
     stocktake_date = models.DateField(verbose_name='Ngày kiểm kê')
+    location = models.ForeignKey(
+        WarehouseLocation,
+        on_delete=models.PROTECT,
+        related_name='stocktakes',
+        verbose_name='Kho kiểm kê',
+    )
     status = models.CharField(
         max_length=20,
         choices=[(k, v) for k, v in STOCKTAKE_STATUS_LABELS.items()],

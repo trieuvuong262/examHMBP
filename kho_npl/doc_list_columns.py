@@ -56,15 +56,17 @@ DISPOSAL_LIST_SORT_FIELDS = {
 
 STOCKTAKE_LIST_COLUMNS = [
     {'key': 'number', 'label': 'Mã kỳ', 'default': True, 'required': True, 'weight': 100},
-    {'key': 'name', 'label': 'Tên', 'default': True, 'required': False, 'weight': 150},
-    {'key': 'stocktake_date', 'label': 'Ngày', 'default': True, 'required': False, 'weight': 100},
+    {'key': 'name', 'label': 'Tên', 'default': True, 'required': False, 'weight': 140},
+    {'key': 'location', 'label': 'Kho', 'default': True, 'required': False, 'weight': 90},
+    {'key': 'stocktake_date', 'label': 'Ngày', 'default': True, 'required': False, 'weight': 90},
     {'key': 'status', 'label': 'Trạng thái', 'default': True, 'required': False, 'weight': 100},
-    {'key': 'created_by', 'label': 'Người tạo', 'default': True, 'required': False, 'weight': 120},
+    {'key': 'created_by', 'label': 'Người tạo', 'default': True, 'required': False, 'weight': 110},
 ]
 STOCKTAKE_LIST_TOTAL_COL_WEIGHT = sum(c['weight'] for c in STOCKTAKE_LIST_COLUMNS)
 STOCKTAKE_LIST_SORT_FIELDS = {
     'number': 'number',
     'name': 'name',
+    'location': 'location__code',
     'stocktake_date': 'stocktake_date',
     'status': 'status',
     'created_by': 'created_by__username',

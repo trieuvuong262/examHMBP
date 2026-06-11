@@ -75,6 +75,7 @@ class KhoNplWorkflowTests(TestCase):
             number='KK-TEST-01',
             name='Kỳ test',
             stocktake_date=timezone.localdate(),
+            location=self.location,
             created_by=self.user,
             status=STOCKTAKE_STATUS_DRAFT,
         )
@@ -121,11 +122,46 @@ class KhoNplWorkflowTests(TestCase):
         self.assertIn('WF test', data['text'])
         self.assertIn('50', data['text'])
 
+    def test_stocktake_count_page_has_loading(self):
+        st = Stocktake.objects.create(
+            number='KK-UI-01',
+            name='UI test',
+            stocktake_date=timezone.localdate(),
+            location=self.location,
+            created_by=self.user,
+            status=STOCKTAKE_STATUS_DRAFT,
+        )
+        from kho_npl.services.stocktakes import start_stocktake_counting
+        start_stocktake_counting(st)
+        response = self.client.get(reverse('kho_npl:stocktake_count', args=[st.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'jp-npl-stocktake-page')
+        self.assertContains(response, 'Đang tải bảng kiểm kê')
+
     def test_adjustment_create_form_has_stock_lookup(self):
         response = self.client.get(reverse('kho_npl:adjustment_create'))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'jp-npl-material-select')
         self.assertContains(response, reverse('kho_npl:balance_lookup'))
+
+    def test_stocktake_populate_scoped_to_location(self):
+        other_loc = WarehouseLocation.objects.create(code='WH-B', name='Kho B', is_active=True)
+        StockBalance.objects.create(
+            material=self.material, location=other_loc, quantity=Decimal('99'),
+        )
+        st = Stocktake.objects.create(
+            number='KK-LOC-01',
+            name='Kiểm kê MAIN',
+            stocktake_date=timezone.localdate(),
+            location=self.location,
+            created_by=self.user,
+            status=STOCKTAKE_STATUS_DRAFT,
+        )
+        from kho_npl.services.stocktakes import populate_stocktake_lines
+        count = populate_stocktake_lines(st)
+        self.assertGreater(count, 0)
+        self.assertTrue(st.lines.filter(location=self.location).exists())
+        self.assertFalse(st.lines.filter(location=other_loc).exists())
 
     def test_issue_disposal_forms_have_stock_lookup(self):
         for url_name in ('kho_npl:issue_create', 'kho_npl:disposal_create'):

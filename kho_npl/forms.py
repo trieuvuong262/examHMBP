@@ -448,20 +448,25 @@ StockAdjustmentLineFormSet = inlineformset_factory(
 class StocktakeForm(forms.ModelForm):
     class Meta:
         model = Stocktake
-        fields = ['name', 'stocktake_date', 'notes', 'attachment']
+        fields = ['name', 'stocktake_date', 'location', 'notes', 'attachment']
         widgets = {
             'name': forms.TextInput(attrs=FORM_CONTROL),
             'stocktake_date': forms.DateInput(attrs={**FORM_CONTROL, 'type': 'date'}),
+            'location': forms.Select(attrs=FORM_SELECT),
             'notes': forms.Textarea(attrs=FORM_TEXTAREA),
             'attachment': FORM_ATTACHMENT,
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['location'].queryset = source_locations_qs()
         self.fields['notes'].required = False
         self.fields['attachment'].required = False
         if not self.instance.pk:
             self.initial.setdefault('stocktake_date', timezone.localdate())
+            default = source_locations_qs().filter(code='MAIN').first()
+            if default:
+                self.initial.setdefault('location', default.pk)
 
     def clean_attachment(self):
         return validate_doc_attachment(self.cleaned_data.get('attachment'))

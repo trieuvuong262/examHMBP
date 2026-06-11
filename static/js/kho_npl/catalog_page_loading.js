@@ -1,5 +1,5 @@
 /**
- * Loading tức thì cho màn lưới Kho NPL (menu, lọc, phân trang, sắp xếp).
+ * Loading tức thì cho màn lưới Kho NPL và màn kiểm kê (tải tồn / bảng lớn).
  */
 (function (global) {
     'use strict';
@@ -19,6 +19,11 @@
         '/kho-npl/kiem-ke/': 'Đang tải phiếu kiểm kê…',
     };
 
+    const STOCKTAKE_ROUTE_PATTERNS = [
+        [/^\/kho-npl\/kiem-ke\/\d+\/nhap-so\/$/, 'Đang tải bảng kiểm kê…'],
+        [/^\/kho-npl\/kiem-ke\/\d+\/$/, 'Đang tải chi tiết kiểm kê…'],
+    ];
+
     let shownAt = 0;
     let hideTimer = null;
     let isVisible = false;
@@ -37,11 +42,24 @@
         return document.getElementById('jpNplCatalogLoadingMsg');
     }
 
+    function loadingPageEl() {
+        return document.querySelector('.jp-npl-material-catalog-page[data-loading-message]')
+            || document.querySelector('.jp-npl-stocktake-page[data-loading-message]');
+    }
+
     function pageMessage() {
-        const page = document.querySelector('.jp-npl-material-catalog-page[data-loading-message]');
+        const page = loadingPageEl();
         if (page) return page.getAttribute('data-loading-message');
         const el = root();
         return (el && el.getAttribute('data-default-message')) || 'Đang tải dữ liệu…';
+    }
+
+    function stocktakeRouteMessage(path) {
+        for (let i = 0; i < STOCKTAKE_ROUTE_PATTERNS.length; i += 1) {
+            const pattern = STOCKTAKE_ROUTE_PATTERNS[i];
+            if (pattern[0].test(path)) return pattern[1];
+        }
+        return null;
     }
 
     function setMessage(message) {
@@ -103,16 +121,14 @@
     }
 
     function messageForLink(link, url) {
+        if (link.hasAttribute('data-loading-message')) {
+            return link.getAttribute('data-loading-message');
+        }
         if (link.hasAttribute('data-jp-npl-catalog-nav')) {
             return link.getAttribute('data-loading-message') || pageMessage();
         }
-        return ROUTE_MESSAGES[normalizePath(url.pathname)] || null;
-    }
-
-    function isCatalogListUrl(url) {
         const path = normalizePath(url.pathname);
-        if (ROUTE_MESSAGES[path]) return true;
-        return false;
+        return stocktakeRouteMessage(path) || ROUTE_MESSAGES[path] || null;
     }
 
     function shouldIgnoreNav(target) {
@@ -171,7 +187,9 @@
             if (shouldIgnoreNav(form)) return;
             if (form.closest('.modal')) return;
             if (form.id === 'jp-npl-import-form') return;
-            if (!form.closest('.jp-npl-material-catalog-page')) return;
+            const inCatalog = form.closest('.jp-npl-material-catalog-page');
+            const inStocktake = form.closest('.jp-npl-stocktake-page');
+            if (!inCatalog && !inStocktake && !form.hasAttribute('data-loading-message')) return;
             const msg = form.getAttribute('data-loading-message') || pageMessage();
             markNavigating(msg);
         }, true);
@@ -191,12 +209,14 @@
         });
     }
 
-    function onCatalogPageReady() {
-        const page = document.querySelector('.jp-npl-material-catalog-page');
+    function onLoadingPageReady() {
+        const catalogPage = document.querySelector('.jp-npl-material-catalog-page');
+        const stocktakePage = document.querySelector('.jp-npl-stocktake-page[data-loading-message]');
+        const page = catalogPage || stocktakePage;
         if (!page) return;
 
         const pending = pendingMessage();
-        show(pending || pageMessage());
+        show(pending || page.getAttribute('data-loading-message') || pageMessage());
 
         if (document.readyState === 'complete') {
             finishAfterPaint();
@@ -205,13 +225,13 @@
         }
     }
 
-    function bootCatalogPage() {
-        const page = document.querySelector('.jp-npl-material-catalog-page');
-        if (page) {
-            onCatalogPageReady();
+    function bootLoadingPages() {
+        const catalogPage = document.querySelector('.jp-npl-material-catalog-page');
+        const stocktakePage = document.querySelector('.jp-npl-stocktake-page[data-loading-message]');
+        if (catalogPage || stocktakePage) {
+            onLoadingPageReady();
             return;
         }
-        // Rời màn lưới (vd. chi tiết phiếu) — không để overlay kẹt từ sessionStorage
         if (pendingMessage()) {
             hide(true);
         }
@@ -224,9 +244,9 @@
     wireGlobalNav();
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', bootCatalogPage);
+        document.addEventListener('DOMContentLoaded', bootLoadingPages);
     } else {
-        bootCatalogPage();
+        bootLoadingPages();
     }
 
     window.addEventListener('pageshow', function (e) {
