@@ -139,6 +139,10 @@ class KhoNplWorkflowTests(TestCase):
         self.assertContains(response, 'Đang tải bảng kiểm kê')
         self.assertContains(response, 'stk-count-search')
         self.assertContains(response, 'jp-npl-stk-count-filter-btn')
+        self.assertContains(response, 'jp-npl-stk-count-actions')
+        from kho_npl.forms import StocktakeLineFormSet, STOCKTAKE_LINE_FORMSET_MAX
+        self.assertGreater(STOCKTAKE_LINE_FORMSET_MAX, 1000)
+        self.assertEqual(StocktakeLineFormSet.max_num, STOCKTAKE_LINE_FORMSET_MAX)
 
     def test_adjustment_create_form_has_stock_lookup(self):
         response = self.client.get(reverse('kho_npl:adjustment_create'))

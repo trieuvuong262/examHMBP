@@ -16,6 +16,25 @@
         </p>
     </div>
     <form method="post" id="count-form" data-loading-message="Đang lưu kiểm kê…">{% csrf_token %}{{ formset.management_form }}
+
+        <div class="jp-npl-stk-count-actions">
+            <button type="submit" name="action" value="save" class="btn btn-outline-hm fw-bold btn-sm">
+                <i class="bi bi-save me-1"></i>Lưu tạm
+            </button>
+            <button type="submit" name="action" value="close" class="btn btn-hm fw-bold btn-sm"
+                    onclick="return confirm('Chốt kỳ và cập nhật tồn chênh lệch?');">
+                <i class="bi bi-check2-circle me-1"></i>Chốt kỳ
+            </button>
+            <a href="{% url 'kho_npl:stocktake_detail' stocktake.pk %}" class="btn btn-outline-secondary btn-sm"
+               data-loading-message="Đang tải chi tiết kiểm kê…">
+                <i class="bi bi-arrow-left me-1"></i>Quay lại
+            </a>
+        </div>
+
+        {% if formset.non_form_errors %}
+        <div class="alert alert-danger mb-3">{{ formset.non_form_errors }}</div>
+        {% endif %}
+
         <div class="card border-0 shadow-sm overflow-hidden mb-3">
             <div class="jp-npl-stk-count-toolbar">
                 <div class="input-group input-group-sm jp-npl-stk-count-search">
@@ -66,13 +85,6 @@
                     </tbody>
                 </table>
             </div>
-        </div>
-        {% if formset.non_form_errors %}<div class="alert alert-danger">{{ formset.non_form_errors }}</div>{% endif %}
-        <div class="d-flex gap-2">
-            <button type="submit" name="action" value="save" class="btn btn-outline-hm fw-bold">Lưu tạm</button>
-            <button type="submit" name="action" value="close" class="btn btn-hm fw-bold" onclick="return confirm('Chốt kỳ và cập nhật tồn chênh lệch?');">Chốt kỳ</button>
-            <a href="{% url 'kho_npl:stocktake_detail' stocktake.pk %}" class="btn btn-outline-secondary"
-               data-loading-message="Đang tải chi tiết kiểm kê…">Quay lại</a>
         </div>
     </form>
 </div>

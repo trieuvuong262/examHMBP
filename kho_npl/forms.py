@@ -493,6 +493,9 @@ class BaseStocktakeLineFormSet(BaseInlineFormSet):
             return
 
 
+# Django mặc định max_num=1000 — kho lớn có thể vượt ngưỡng khi nhập kiểm kê.
+STOCKTAKE_LINE_FORMSET_MAX = 10000
+
 StocktakeLineFormSet = inlineformset_factory(
     Stocktake,
     StocktakeLine,
@@ -500,6 +503,7 @@ StocktakeLineFormSet = inlineformset_factory(
     formset=BaseStocktakeLineFormSet,
     extra=0,
     can_delete=False,
+    max_num=STOCKTAKE_LINE_FORMSET_MAX,
 )
 
 
