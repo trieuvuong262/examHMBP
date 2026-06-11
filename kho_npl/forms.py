@@ -238,7 +238,11 @@ class StockIssueLineForm(forms.ModelForm):
         model = StockIssueLine
         fields = ['material', 'quantity', 'location', 'notes']
         widgets = {
-            'material': forms.Select(attrs=FORM_SELECT),
+            'material': forms.Select(attrs={
+                **FORM_SELECT,
+                'class': 'form-select jp-npl-material-select',
+                'data-placeholder': 'Gõ tên hoặc mã NPL...',
+            }),
             'quantity': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0.001'}),
             'location': forms.Select(attrs=FORM_SELECT),
             'notes': forms.TextInput(attrs=FORM_CONTROL),
@@ -246,12 +250,30 @@ class StockIssueLineForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['material'].queryset = Material.objects.filter(is_active=True).select_related('unit')
+        material_id = None
+        if self.instance.pk and self.instance.material_id:
+            material_id = self.instance.material_id
+        elif self.initial.get('material'):
+            material_id = self.initial['material']
+        if material_id:
+            self.fields['material'].queryset = (
+                Material.objects.filter(pk=material_id).select_related('unit')
+            )
+        else:
+            self.fields['material'].queryset = Material.objects.none()
+        self.fields['material'].empty_label = 'Gõ tên hoặc mã để tìm...'
         self.fields['location'].queryset = WarehouseLocation.objects.filter(is_active=True)
         self.fields['notes'].required = False
         default_location = WarehouseLocation.objects.filter(code='MAIN', is_active=True).first()
         if default_location and not self.instance.pk:
             self.initial.setdefault('location', default_location.pk)
+
+    def full_clean(self):
+        if self.data:
+            self.fields['material'].queryset = (
+                Material.objects.filter(is_active=True).select_related('unit')
+            )
+        super().full_clean()
 
 
 class BaseStockIssueLineFormSet(BaseInlineFormSet):
@@ -668,15 +690,37 @@ class StockDisposalLineForm(forms.ModelForm):
         model = StockDisposalLine
         fields = ['material', 'quantity', 'notes']
         widgets = {
-            'material': forms.Select(attrs=FORM_SELECT),
+            'material': forms.Select(attrs={
+                **FORM_SELECT,
+                'class': 'form-select jp-npl-material-select',
+                'data-placeholder': 'Gõ tên hoặc mã NPL...',
+            }),
             'quantity': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0.001'}),
             'notes': forms.TextInput(attrs=FORM_CONTROL),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['material'].queryset = Material.objects.filter(is_active=True).select_related('unit')
+        material_id = None
+        if self.instance.pk and self.instance.material_id:
+            material_id = self.instance.material_id
+        elif self.initial.get('material'):
+            material_id = self.initial['material']
+        if material_id:
+            self.fields['material'].queryset = (
+                Material.objects.filter(pk=material_id).select_related('unit')
+            )
+        else:
+            self.fields['material'].queryset = Material.objects.none()
+        self.fields['material'].empty_label = 'Gõ tên hoặc mã để tìm...'
         self.fields['notes'].required = False
+
+    def full_clean(self):
+        if self.data:
+            self.fields['material'].queryset = (
+                Material.objects.filter(is_active=True).select_related('unit')
+            )
+        super().full_clean()
 
 
 class BaseStockDisposalLineFormSet(BaseInlineFormSet):

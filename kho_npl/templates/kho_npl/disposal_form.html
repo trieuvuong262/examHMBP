@@ -1,5 +1,9 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}
+{% include 'kho_npl/includes/transfer_form_head.html' %}
+{% endblock %}
+
 {% block content %}
 <div class="container jp-page py-3 py-md-4 mb-5">
     <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
@@ -8,13 +12,20 @@
                 <i class="bi bi-{% if is_edit %}pencil{% else %}plus-circle{% endif %} me-2"></i>
                 {% if is_edit %}Sửa phiếu hủy {{ disposal.number }}{% else %}Tạo phiếu hủy{% endif %}
             </h2>
+            <p class="text-muted small mb-0">Chọn <strong>kho nguồn</strong> trước — NPL hiển thị tên hàng kèm tồn HT tại kho đó.</p>
         </div>
         <a href="{{ cancel_url }}" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-arrow-left me-1"></i>Quay lại
         </a>
     </div>
 
-    <form method="post" id="disposal-form" enctype="multipart/form-data" novalidate>
+    <form method="post" id="disposal-form" enctype="multipart/form-data" novalidate
+          data-npl-doc-lines
+          data-material-search-url="{% url 'kho_npl:material_search' %}"
+          data-balance-url="{% url 'kho_npl:balance_lookup' %}"
+          data-location-mode="header"
+          data-location-selector="#id_from_location"
+          data-stock-target="text">
         {% csrf_token %}
         {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
 
@@ -55,8 +66,9 @@
                 <table class="table table-sm align-middle mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th style="min-width:220px">Nguyên phụ liệu</th>
-                            <th style="width:120px" class="text-end">Số lượng</th>
+                            <th style="min-width:260px">Nguyên phụ liệu</th>
+                            <th style="width:110px" class="text-end">Tồn HT</th>
+                            <th style="width:120px" class="text-end">Số lượng hủy</th>
                             <th>Ghi chú</th>
                             <th style="width:40px"></th>
                         </tr>
@@ -65,8 +77,9 @@
                         {% for line_form in formset %}
                         <tr class="line-row">
                             {% for hidden in line_form.hidden_fields %}{{ hidden }}{% endfor %}
-                            <td>{{ line_form.material }}{% if line_form.material.errors %}<div class="text-danger small">{{ line_form.material.errors }}</div>{% endif %}</td>
-                            <td>{{ line_form.quantity }}{% if line_form.quantity.errors %}<div class="text-danger small">{{ line_form.quantity.errors }}</div>{% endif %}</td>
+                            <td class="jp-npl-material-cell"><div class="jp-npl-material-field">{{ line_form.material }}{% if line_form.material.errors %}<div class="text-danger small">{{ line_form.material.errors }}</div>{% endif %}</div></td>
+                            <td class="text-end"><span class="jp-npl-stock-qty text-muted small">—</span></td>
+                            <td class="text-end">{{ line_form.quantity }}{% if line_form.quantity.errors %}<div class="text-danger small">{{ line_form.quantity.errors }}</div>{% endif %}</td>
                             <td>{{ line_form.notes }}</td>
                             <td class="text-center">
                                 {% if line_form.DELETE %}
@@ -109,8 +122,9 @@
     {% with line_form=formset.empty_form %}
     <tr class="line-row">
         {% for hidden in line_form.hidden_fields %}{{ hidden }}{% endfor %}
-        <td>{{ line_form.material }}</td>
-        <td>{{ line_form.quantity }}</td>
+        <td class="jp-npl-material-cell"><div class="jp-npl-material-field">{{ line_form.material }}</div></td>
+        <td class="text-end"><span class="jp-npl-stock-qty text-muted small">—</span></td>
+        <td class="text-end">{{ line_form.quantity }}</td>
         <td>{{ line_form.notes }}</td>
         <td class="text-center">
             <div class="d-none">{{ line_form.DELETE }}</div>
@@ -120,33 +134,5 @@
     {% endwith %}
 </template>
 
-<script>
-(function () {
-    const tbody = document.getElementById('lines-body');
-    const totalForms = document.getElementById('id_lines-TOTAL_FORMS');
-    const template = document.getElementById('empty-row-template');
-    const addBtn = document.getElementById('add-row');
-    if (!tbody || !totalForms || !template || !addBtn) return;
-
-    addBtn.addEventListener('click', function () {
-        const idx = parseInt(totalForms.value, 10);
-        const html = template.innerHTML.replace(/__prefix__/g, idx);
-        tbody.insertAdjacentHTML('beforeend', html);
-        totalForms.value = idx + 1;
-    });
-
-    tbody.addEventListener('click', function (e) {
-        const btn = e.target.closest('.remove-row');
-        if (!btn) return;
-        const row = btn.closest('tr');
-        const del = row.querySelector('input[type=checkbox][name$="-DELETE"]');
-        if (del) {
-            del.checked = true;
-            row.style.display = 'none';
-        } else {
-            row.remove();
-        }
-    });
-})();
-</script>
+{% include 'kho_npl/includes/npl_doc_line_scripts.html' %}
 {% endblock %}

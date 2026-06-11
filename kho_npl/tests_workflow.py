@@ -126,3 +126,11 @@ class KhoNplWorkflowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'jp-npl-material-select')
         self.assertContains(response, reverse('kho_npl:balance_lookup'))
+
+    def test_issue_disposal_forms_have_stock_lookup(self):
+        for url_name in ('kho_npl:issue_create', 'kho_npl:disposal_create'):
+            response = self.client.get(reverse(url_name))
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, 'jp-npl-material-select')
+            self.assertContains(response, 'data-npl-doc-lines')
+            self.assertContains(response, reverse('kho_npl:balance_lookup'))

@@ -1,35 +1,55 @@
 <script>
 (function () {
+    const form = document.querySelector('form[data-npl-doc-lines]');
     const body = document.getElementById('lines-body');
     const tmpl = document.getElementById('empty-row-template');
     const totalForms = document.getElementById('id_lines-TOTAL_FORMS');
-    const form = document.getElementById('adjustment-form');
-    const searchUrl = form?.dataset.materialSearchUrl || '';
-    const balanceUrl = form?.dataset.balanceUrl || '';
+    if (!form || !body || !tmpl || !totalForms) return;
+
+    const searchUrl = form.dataset.materialSearchUrl || '';
+    const balanceUrl = form.dataset.balanceUrl || '';
+    const locationMode = form.dataset.locationMode || 'row';
+    const locationSelector = form.dataset.locationSelector || '';
+    const stockTarget = form.dataset.stockTarget || 'text';
     const materialInstances = new WeakMap();
 
+    function headerLocationId() {
+        if (!locationSelector) return '';
+        const el = document.querySelector(locationSelector);
+        return el && el.value ? el.value : '';
+    }
+
     function rowLocationId(row) {
+        if (locationMode === 'header') {
+            return headerLocationId();
+        }
         const loc = row?.querySelector('select[name$="-location"]');
         return loc && loc.value ? loc.value : '';
     }
 
-    function rowSystemQtyInput(row) {
-        return row?.querySelector('input.jp-npl-system-qty, input[name$="-system_qty"]');
-    }
-
-    function setSystemQty(row, value) {
-        const input = rowSystemQtyInput(row);
-        if (input) {
-            input.value = value == null || value === '' ? '' : String(value);
+    function rowStockEl(row) {
+        if (stockTarget === 'field') {
+            return row?.querySelector('input.jp-npl-system-qty, input[name$="-system_qty"]');
         }
+        return row?.querySelector('.jp-npl-stock-qty');
     }
 
-    function fetchSystemQty(row) {
+    function setStockDisplay(row, value, text) {
+        const el = rowStockEl(row);
+        if (!el) return;
+        if (stockTarget === 'field') {
+            el.value = value == null || value === '' ? '' : String(value);
+            return;
+        }
+        el.textContent = text || (value == null || value === '' ? '—' : String(value));
+    }
+
+    function fetchStock(row) {
         const materialSelect = row?.querySelector('select.jp-npl-material-select');
         const materialId = materialSelect?.value;
         const locationId = rowLocationId(row);
         if (!materialId || !locationId || !balanceUrl) {
-            setSystemQty(row, '');
+            setStockDisplay(row, '', '—');
             return Promise.resolve();
         }
         return fetch(
@@ -40,10 +60,11 @@
             .then(function (r) { return r.ok ? r.json() : null; })
             .then(function (data) {
                 if (!data) {
-                    setSystemQty(row, '');
+                    setStockDisplay(row, '', '—');
                     return;
                 }
-                setSystemQty(row, data.qty_decimal || data.qty || '0');
+                const display = data.qty ? (data.qty + (data.unit ? ' ' + data.unit : '')) : (data.qty_decimal || '0');
+                setStockDisplay(row, data.qty_decimal || data.qty || '0', display);
                 const ts = materialSelect ? materialInstances.get(materialSelect) : null;
                 if (ts && data.text) {
                     ts.updateOption(materialId, {
@@ -55,7 +76,13 @@
                     });
                 }
             })
-            .catch(function () { setSystemQty(row, ''); });
+            .catch(function () { setStockDisplay(row, '', '—'); });
+    }
+
+    function locationRequiredMessage() {
+        return locationMode === 'header'
+            ? 'Chọn kho nguồn trước khi tìm NPL'
+            : 'Chọn vị trí kho trước khi tìm NPL';
     }
 
     function renderMaterialOption(data, escape) {
@@ -106,10 +133,9 @@
                     return '<div class="jp-npl-material-item"><span class="jp-npl-material-item-name">' + text + '</span></div>';
                 },
                 no_results: function () {
-                    const hasLoc = !!rowLocationId(row);
-                    const msg = hasLoc
+                    const msg = rowLocationId(row)
                         ? 'Không tìm thấy NPL — thử tên hoặc mã khác'
-                        : 'Chọn vị trí kho trước khi tìm NPL';
+                        : locationRequiredMessage();
                     return '<div class="px-2 py-2 text-muted small">' + msg + '</div>';
                 },
                 loading: function () {
@@ -117,7 +143,7 @@
                 },
             },
             onChange: function () {
-                fetchSystemQty(row);
+                fetchStock(row);
             },
             onInitialize: function () {
                 const wrapper = this.wrapper;
@@ -128,7 +154,7 @@
         });
         materialInstances.set(select, ts);
         if (select.value) {
-            fetchSystemQty(row);
+            fetchStock(row);
         }
     }
 
@@ -136,7 +162,7 @@
         (root || document).querySelectorAll('select.jp-npl-material-select').forEach(initMaterialSelect);
     }
 
-    function onLocationChange(row) {
+    function clearRowMaterial(row) {
         const materialSelect = row?.querySelector('select.jp-npl-material-select');
         const ts = materialSelect ? materialInstances.get(materialSelect) : null;
         if (ts) {
@@ -145,19 +171,35 @@
         } else if (materialSelect) {
             materialSelect.value = '';
         }
-        setSystemQty(row, '');
-        fetchSystemQty(row);
+        setStockDisplay(row, '', '—');
     }
 
-    if (!body || !tmpl || !totalForms) return;
+    function onLocationChange(row) {
+        if (row) {
+            clearRowMaterial(row);
+            return;
+        }
+        body.querySelectorAll('.line-row').forEach(function (lineRow) {
+            if (lineRow.style.display === 'none') return;
+            const del = lineRow.querySelector('input[type=checkbox][name$="-DELETE"]');
+            if (del && del.checked) return;
+            clearRowMaterial(lineRow);
+        });
+    }
 
     initAllMaterialSelects(body);
 
     body.addEventListener('change', function (e) {
-        if (e.target.matches('select[name$="-location"]')) {
+        if (locationMode === 'row' && e.target.matches('select[name$="-location"]')) {
             onLocationChange(e.target.closest('tr'));
         }
     });
+
+    if (locationMode === 'header' && locationSelector) {
+        document.querySelector(locationSelector)?.addEventListener('change', function () {
+            onLocationChange(null);
+        });
+    }
 
     document.getElementById('add-row')?.addEventListener('click', function () {
         const idx = parseInt(totalForms.value, 10);
