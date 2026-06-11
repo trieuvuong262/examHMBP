@@ -137,6 +137,8 @@ class KhoNplWorkflowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'jp-npl-stocktake-page')
         self.assertContains(response, 'Đang tải bảng kiểm kê')
+        self.assertContains(response, 'stk-count-search')
+        self.assertContains(response, 'jp-npl-stk-count-filter-btn')
 
     def test_adjustment_create_form_has_stock_lookup(self):
         response = self.client.get(reverse('kho_npl:adjustment_create'))

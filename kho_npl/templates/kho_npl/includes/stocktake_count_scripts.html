@@ -1,0 +1,98 @@
+<script>
+(function () {
+    const tbody = document.querySelector('#stk-count-body');
+    const searchInput = document.getElementById('stk-count-search');
+    const clearBtn = document.getElementById('stk-count-clear');
+    const metaEl = document.getElementById('stk-count-meta');
+    const emptyRow = document.getElementById('stk-count-empty');
+    const filterBtns = document.querySelectorAll('.jp-npl-stk-count-filter-btn');
+    if (!tbody || !searchInput) return;
+
+    let activeFilter = 'all';
+    const rows = Array.from(tbody.querySelectorAll('.jp-npl-stk-count-row'));
+
+    function rowActualInput(row) {
+        return row.querySelector('input[name$="-actual_qty"]');
+    }
+
+    function rowSystemQty(row) {
+        const raw = row.getAttribute('data-system-qty');
+        if (raw === '' || raw == null) return null;
+        const n = parseFloat(raw);
+        return Number.isFinite(n) ? n : null;
+    }
+
+    function rowActualQty(row) {
+        const input = rowActualInput(row);
+        if (!input || input.value === '') return null;
+        const n = parseFloat(input.value);
+        return Number.isFinite(n) ? n : null;
+    }
+
+    function passesFilter(row) {
+        if (activeFilter === 'empty') {
+            return rowActualQty(row) === null;
+        }
+        if (activeFilter === 'filled') {
+            return rowActualQty(row) !== null;
+        }
+        if (activeFilter === 'variance') {
+            const actual = rowActualQty(row);
+            const system = rowSystemQty(row);
+            if (actual === null || system === null) return false;
+            return actual !== system;
+        }
+        return true;
+    }
+
+    function passesSearch(row, term) {
+        if (!term) return true;
+        const hay = (row.getAttribute('data-mat-search') || '').toLowerCase();
+        return hay.indexOf(term) !== -1;
+    }
+
+    function applyFilter() {
+        const term = (searchInput.value || '').trim().toLowerCase();
+        let visible = 0;
+        rows.forEach(function (row) {
+            const show = passesSearch(row, term) && passesFilter(row);
+            row.classList.toggle('is-hidden', !show);
+            row.classList.toggle('is-match', !!term && show);
+            if (show) visible += 1;
+        });
+        if (metaEl) {
+            metaEl.textContent = visible + ' / ' + rows.length + ' dòng';
+        }
+        if (emptyRow) {
+            emptyRow.classList.toggle('is-visible', visible === 0 && rows.length > 0);
+        }
+    }
+
+    searchInput.addEventListener('input', applyFilter);
+    clearBtn?.addEventListener('click', function () {
+        searchInput.value = '';
+        searchInput.focus();
+        applyFilter();
+    });
+
+    filterBtns.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            activeFilter = btn.getAttribute('data-filter') || 'all';
+            filterBtns.forEach(function (b) {
+                const on = b === btn;
+                b.classList.toggle('btn-hm', on);
+                b.classList.toggle('btn-outline-secondary', !on);
+            });
+            applyFilter();
+        });
+    });
+
+    tbody.addEventListener('input', function (e) {
+        if (e.target.matches('input[name$="-actual_qty"]')) {
+            if (activeFilter !== 'all') applyFilter();
+        }
+    });
+
+    applyFilter();
+})();
+</script>
