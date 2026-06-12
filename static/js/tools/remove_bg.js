@@ -32,9 +32,56 @@
         loading.show(message, current);
         simTimer = setInterval(() => {
             if (current >= cap) return;
-            current += 2;
+            current += 1;
             loading.setProgress(current, message);
-        }, 420);
+        }, 700);
+    }
+
+    function sleep(ms) {
+        return new Promise((resolve) => window.setTimeout(resolve, ms));
+    }
+
+    async function postRemoveBackground(file) {
+        const formData = new FormData();
+        formData.append('image_file', file);
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken(),
+            },
+            body: formData,
+            credentials: 'same-origin',
+        });
+
+        if (!response.ok) {
+            let message = 'Không xóa được nền.';
+            let retry = false;
+            let warming = false;
+            try {
+                const payload = await response.json();
+                if (payload && payload.error) {
+                    message = payload.error;
+                }
+                retry = Boolean(payload && payload.retry);
+                warming = Boolean(payload && payload.warming);
+            } catch (err) {
+                if (response.status === 502 || response.status === 504) {
+                    message = 'Server đang tải mô hình AI lần đầu. Đang thử lại…';
+                    retry = true;
+                    warming = true;
+                }
+            }
+            const error = new Error(message);
+            error.retry = retry;
+            error.warming = warming;
+            throw error;
+        }
+
+        const blob = await response.blob();
+        if (!blob || !blob.size) {
+            throw new Error('Server không trả về ảnh kết quả.');
+        }
+        return blob;
     }
 
     if (fileInput) {
@@ -68,41 +115,30 @@
 
             runBtn.disabled = true;
             downloadBtn.disabled = true;
-            startSimProgress('Đang xóa nền trên server…', 90);
+            startSimProgress('Đang xóa nền trên server…', 92);
 
             try {
-                const formData = new FormData();
-                formData.append('image_file', file);
+                let blob = null;
+                let lastError = null;
+                const maxAttempts = 3;
 
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': csrfToken(),
-                    },
-                    body: formData,
-                    credentials: 'same-origin',
-                });
+                for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+                    try {
+                        if (attempt > 1) {
+                            startSimProgress('Đang tải mô hình AI… thử lại (' + attempt + '/' + maxAttempts + ')', 92);
+                            await sleep(attempt === 2 ? 8000 : 15000);
+                        }
+                        blob = await postRemoveBackground(file);
+                        break;
+                    } catch (err) {
+                        lastError = err;
+                        if (!err.retry || attempt === maxAttempts) {
+                            throw err;
+                        }
+                    }
+                }
 
                 stopSim();
-
-                if (!response.ok) {
-                    let message = 'Không xóa được nền.';
-                    try {
-                        const payload = await response.json();
-                        if (payload && payload.error) {
-                            message = payload.error;
-                        }
-                    } catch (err) {
-                        // ignore JSON parse errors
-                    }
-                    throw new Error(message);
-                }
-
-                const blob = await response.blob();
-                if (!blob || !blob.size) {
-                    throw new Error('Server không trả về ảnh kết quả.');
-                }
-
                 resultBlob = blob;
                 afterImg.src = URL.createObjectURL(blob);
                 afterImg.classList.remove('d-none');

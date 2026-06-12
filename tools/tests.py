@@ -205,3 +205,15 @@ class ToolsIntegrationTests(TestCase):
     def test_remove_background_api_requires_file(self):
         response = self.client.post(reverse('tools:remove_background_api'), {})
         self.assertEqual(response.status_code, 400)
+
+    @patch('tools.views.is_background_removal_ready', return_value=False)
+    @patch('tools.views.remove_image_background', side_effect=Exception('boom'))
+    def test_remove_background_api_warming_returns_retry(self, _remove, _ready):
+        buffer = BytesIO()
+        Image.new('RGB', (32, 32), color=(0, 255, 0)).save(buffer, format='JPEG')
+        uploaded = SimpleUploadedFile('x.jpg', buffer.getvalue(), content_type='image/jpeg')
+        response = self.client.post(reverse('tools:remove_background_api'), {'image_file': uploaded})
+        self.assertEqual(response.status_code, 503)
+        payload = response.json()
+        self.assertTrue(payload.get('retry'))
+        self.assertTrue(payload.get('warming'))

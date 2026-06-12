@@ -8,7 +8,14 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 
 from .catalog import PORTAL_TOOLS
 from .models import UserNote
-from .services import compress_image, convert_pdf_to_docx, generate_qr_image, remove_image_background
+from .services import (
+    BackgroundRemovalNotReady,
+    compress_image,
+    convert_pdf_to_docx,
+    generate_qr_image,
+    is_background_removal_ready,
+    remove_image_background,
+)
 
 
 def _tool_context(tool_slug: str, **extra):
@@ -133,12 +140,25 @@ def remove_background_api(request):
         return JsonResponse({'error': 'Vui lòng chọn ảnh.'}, status=400)
     try:
         png_bytes, filename = remove_image_background(uploaded)
+    except BackgroundRemovalNotReady:
+        return JsonResponse({
+            'error': 'Server đang tải mô hình AI lần đầu. Vui lòng đợi 30–60 giây rồi bấm Xóa nền lại.',
+            'retry': True,
+            'warming': True,
+        }, status=503)
     except ValidationError as exc:
         return JsonResponse({'error': str(exc)}, status=400)
     except Exception:
+        warming = not is_background_removal_ready()
         return JsonResponse({
-            'error': 'Không xóa được nền. Ảnh có thể quá lớn hoặc server đang tải mô hình — thử lại sau 1 phút.',
-        }, status=500)
+            'error': (
+                'Server đang tải mô hình AI lần đầu. Vui lòng đợi 30–60 giây rồi thử lại.'
+                if warming else
+                'Không xóa được nền. Ảnh có thể quá lớn — thử file khác hoặc thử lại.'
+            ),
+            'retry': warming,
+            'warming': warming,
+        }, status=503 if warming else 500)
 
     response = HttpResponse(png_bytes, content_type='image/png')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'

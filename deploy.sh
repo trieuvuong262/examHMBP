@@ -230,7 +230,12 @@ ensure_ssl_conf() {
     cp "${ssl_example}" "${ssl_conf}"
     echo "    Created ${ssl_conf} from ssl.conf.example"
   else
-    echo "    ${ssl_conf} OK"
+    if ! grep -q 'cong-cu/api/xoa-nen' "${ssl_conf}" 2>/dev/null; then
+      cp "${ssl_example}" "${ssl_conf}"
+      echo "    Updated ${ssl_conf} (nginx timeout cho xoa nen AI)"
+    else
+      echo "    ${ssl_conf} OK"
+    fi
   fi
 }
 
@@ -384,6 +389,17 @@ fi
 
 echo "==> 10) Collect static files (clear old assets)"
 compose exec -T web python manage.py collectstatic --noinput --clear
+
+echo "==> 10b) Warm remove-background AI model (first deploy may take ~2 min)"
+set +e
+compose exec -T web python manage.py warm_remove_bg
+warm_rc=$?
+set -e
+if [[ "${warm_rc}" -eq 0 ]]; then
+  echo "    Remove-background model OK."
+else
+  echo "    WARNING: warm_remove_bg failed — first user may need to retry once."
+fi
 
 echo "==> 11) Cleanup orphan media (files not referenced in DB/HTML)"
 if grep -qE '^CLEANUP_ORPHAN_MEDIA=(0|false|no|off)' .env 2>/dev/null; then
