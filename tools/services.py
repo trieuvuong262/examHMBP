@@ -11,6 +11,8 @@ PDF_MAX_BYTES = 10 * 1024 * 1024
 IMAGE_MAX_BYTES = 10 * 1024 * 1024
 IMAGE_TYPES = {'image/jpeg', 'image/png', 'image/webp', 'image/gif'}
 
+_bg_session = None
+
 
 def _validate_pdf(uploaded_file):
     if uploaded_file.size > PDF_MAX_BYTES:
@@ -82,6 +84,33 @@ def compress_image(uploaded_file, *, quality: int = 80, max_width: int | None = 
         rgb = img.convert('RGB') if img.mode != 'RGB' else img
         rgb.save(buffer, format='JPEG', quality=quality, optimize=True)
         return buffer.getvalue(), f'{base_name}-nen.jpg', 'image/jpeg'
+
+
+def _get_background_removal_session():
+    global _bg_session
+    if _bg_session is None:
+        from rembg import new_session
+        _bg_session = new_session('u2net')
+    return _bg_session
+
+
+def warm_background_removal():
+    """Tải sẵn mô hình AI — gọi sau deploy để tránh timeout lần đầu."""
+    _get_background_removal_session()
+
+
+def remove_image_background(uploaded_file) -> tuple[bytes, str]:
+    """Xóa nền ảnh — trả về (bytes PNG, tên file gợi ý)."""
+    from rembg import remove
+
+    _validate_image(uploaded_file)
+    uploaded_file.seek(0)
+    output_bytes = remove(uploaded_file.read(), session=_get_background_removal_session())
+    if not output_bytes:
+        raise ValidationError('Không tách được chủ thể khỏi nền ảnh.')
+
+    base_name = os.path.splitext(os.path.basename(uploaded_file.name or 'image.png'))[0]
+    return output_bytes, f'{base_name}-khong-nen.png'
 
 
 def generate_qr_image(data: str, *, box_size: int = 10, border: int = 2) -> bytes:

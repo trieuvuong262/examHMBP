@@ -8,7 +8,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 
 from .catalog import PORTAL_TOOLS
 from .models import UserNote
-from .services import compress_image, convert_pdf_to_docx, generate_qr_image
+from .services import compress_image, convert_pdf_to_docx, generate_qr_image, remove_image_background
 
 
 def _tool_context(tool_slug: str, **extra):
@@ -123,6 +123,26 @@ def ocr_tool(request):
 @require_GET
 def remove_background_tool(request):
     return render(request, 'tools/remove_background.html', _tool_context('remove-bg'))
+
+
+@login_required
+@require_POST
+def remove_background_api(request):
+    uploaded = request.FILES.get('image_file')
+    if not uploaded:
+        return JsonResponse({'error': 'Vui lòng chọn ảnh.'}, status=400)
+    try:
+        png_bytes, filename = remove_image_background(uploaded)
+    except ValidationError as exc:
+        return JsonResponse({'error': str(exc)}, status=400)
+    except Exception:
+        return JsonResponse({
+            'error': 'Không xóa được nền. Ảnh có thể quá lớn hoặc server đang tải mô hình — thử lại sau 1 phút.',
+        }, status=500)
+
+    response = HttpResponse(png_bytes, content_type='image/png')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
 
 
 @login_required

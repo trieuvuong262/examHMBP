@@ -1,5 +1,6 @@
 from io import BytesIO
 from pathlib import Path
+from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
@@ -188,3 +189,19 @@ class ToolsIntegrationTests(TestCase):
 
         rmbg_response = self.client.get(reverse('tools:remove_background'))
         self.assertContains(rmbg_response, 'remove_bg.js')
+        self.assertContains(rmbg_response, reverse('tools:remove_background_api'))
+
+    @patch('tools.views.remove_image_background')
+    def test_remove_background_api_returns_png(self, mock_remove):
+        mock_remove.return_value = (b'\x89PNG\r\n\x1a\nfake', 'portrait-khong-nen.png')
+        buffer = BytesIO()
+        Image.new('RGB', (64, 64), color=(255, 0, 0)).save(buffer, format='JPEG')
+        uploaded = SimpleUploadedFile('portrait.jpg', buffer.getvalue(), content_type='image/jpeg')
+        response = self.client.post(reverse('tools:remove_background_api'), {'image_file': uploaded})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'image/png')
+        self.assertTrue(response.content.startswith(b'\x89PNG'))
+
+    def test_remove_background_api_requires_file(self):
+        response = self.client.post(reverse('tools:remove_background_api'), {})
+        self.assertEqual(response.status_code, 400)

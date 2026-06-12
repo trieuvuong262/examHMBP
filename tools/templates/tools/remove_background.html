@@ -9,7 +9,7 @@
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Chọn ảnh</label>
                     <input type="file" id="rmbg-file" class="form-control" accept="image/*">
-                    <div class="form-text">Xử lý trên trình duyệt — lần đầu có thể mất vài giây để tải mô hình AI.</div>
+                    <div class="form-text">Xử lý trên server — lần đầu sau cập nhật có thể mất 1–2 phút để tải mô hình AI.</div>
                 </div>
 
                 <button type="button" id="rmbg-run" class="btn btn-hm" disabled>
@@ -44,5 +44,6 @@
 {% endblock %}
 
 {% block tool_js %}
-<script type="module" src="{% static 'js/tools/remove_bg.js' %}?v=20260535"></script>
+<script>document.body.dataset.rmbgApi = "{% url 'tools:remove_background_api' %}";</script>
+<script src="{% static 'js/tools/remove_bg.js' %}?v=20260612"></script>
 {% endblock %}

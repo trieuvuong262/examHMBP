@@ -9,6 +9,7 @@ urlpatterns = [
     path('ocr/', views.ocr_tool, name='ocr'),
     path('nen-anh/', views.compress_image_view, name='compress_image'),
     path('xoa-nen/', views.remove_background_tool, name='remove_background'),
+    path('api/xoa-nen/', views.remove_background_api, name='remove_background_api'),
     path('ma-qr/', views.qr_generator, name='qr_generator'),
     path('ghi-chu/', views.notes_page, name='notes'),
     path('ghi-chu/them/', views.note_quick_add, name='note_quick_add'),
