@@ -10,7 +10,10 @@ from .catalog import PORTAL_TOOLS
 from .models import UserNote
 from .services import (
     BackgroundRemovalNotReady,
+    apply_image_watermark,
     compress_image,
+    convert_image_format,
+    convert_office_to_pdf,
     convert_pdf_to_docx,
     generate_qr_image,
     is_background_removal_ready,
@@ -57,6 +60,32 @@ def pdf_to_word(request):
 
 
 @login_required
+def office_to_pdf(request):
+    if request.method == 'POST':
+        uploaded = request.FILES.get('office_file')
+        if not uploaded:
+            return render(request, 'tools/office_to_pdf.html', _tool_context(
+                'office-pdf',
+                error='Vui lòng chọn file Word hoặc Excel.',
+            ))
+        try:
+            pdf_bytes, filename = convert_office_to_pdf(uploaded)
+        except ValidationError as exc:
+            return render(request, 'tools/office_to_pdf.html', _tool_context('office-pdf', error=str(exc)))
+        except Exception:
+            return render(request, 'tools/office_to_pdf.html', _tool_context(
+                'office-pdf',
+                error='Không chuyển được sang PDF. Thử lưu file bản mới (.docx / .xlsx) rồi upload lại.',
+            ))
+
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+
+    return render(request, 'tools/office_to_pdf.html', _tool_context('office-pdf'))
+
+
+@login_required
 def compress_image_view(request):
     if request.method == 'POST':
         uploaded = request.FILES.get('image_file')
@@ -87,6 +116,70 @@ def compress_image_view(request):
         return response
 
     return render(request, 'tools/compress_image.html', _tool_context('compress'))
+
+
+@login_required
+def convert_image_format_view(request):
+    if request.method == 'POST':
+        uploaded = request.FILES.get('image_file')
+        if not uploaded:
+            return render(request, 'tools/convert_format.html', _tool_context(
+                'convert-format',
+                error='Vui lòng chọn ảnh.',
+            ))
+        try:
+            target_format = request.POST.get('target_format', 'png')
+            quality = int(request.POST.get('quality', 85))
+            image_bytes, filename, content_type = convert_image_format(
+                uploaded,
+                target_format,
+                quality=quality,
+            )
+        except (ValidationError, ValueError) as exc:
+            return render(request, 'tools/convert_format.html', _tool_context('convert-format', error=str(exc)))
+        except Exception:
+            return render(request, 'tools/convert_format.html', _tool_context(
+                'convert-format',
+                error='Không đổi được định dạng. Vui lòng thử file khác.',
+            ))
+
+        response = HttpResponse(image_bytes, content_type=content_type)
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+
+    return render(request, 'tools/convert_format.html', _tool_context('convert-format'))
+
+
+@login_required
+def watermark_image_view(request):
+    if request.method == 'POST':
+        uploaded = request.FILES.get('image_file')
+        if not uploaded:
+            return render(request, 'tools/watermark_image.html', _tool_context(
+                'watermark',
+                error='Vui lòng chọn ảnh.',
+            ))
+        try:
+            image_bytes, filename, content_type = apply_image_watermark(
+                uploaded,
+                text=request.POST.get('watermark_text', 'JustPlay'),
+                position=request.POST.get('position', 'bottom-right'),
+                opacity=int(request.POST.get('opacity', 35)),
+                watermark_file=request.FILES.get('watermark_file'),
+            )
+        except (ValidationError, ValueError) as exc:
+            return render(request, 'tools/watermark_image.html', _tool_context('watermark', error=str(exc)))
+        except Exception:
+            return render(request, 'tools/watermark_image.html', _tool_context(
+                'watermark',
+                error='Không đóng watermark được. Vui lòng thử file khác.',
+            ))
+
+        response = HttpResponse(image_bytes, content_type=content_type)
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+
+    return render(request, 'tools/watermark_image.html', _tool_context('watermark'))
 
 
 @login_required

@@ -1,16 +1,46 @@
 import io
 import os
+import shutil
+import subprocess
 import tempfile
 import threading
 
 import qrcode
 from django.core.exceptions import ValidationError
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 
 
 PDF_MAX_BYTES = 10 * 1024 * 1024
+OFFICE_MAX_BYTES = 15 * 1024 * 1024
 IMAGE_MAX_BYTES = 10 * 1024 * 1024
 IMAGE_TYPES = {'image/jpeg', 'image/png', 'image/webp', 'image/gif'}
+
+OFFICE_WORD_EXTENSIONS = {'.doc', '.docx', '.odt', '.rtf'}
+OFFICE_EXCEL_EXTENSIONS = {'.xls', '.xlsx', '.ods', '.csv'}
+OFFICE_TO_PDF_EXTENSIONS = OFFICE_WORD_EXTENSIONS | OFFICE_EXCEL_EXTENSIONS
+
+OUTPUT_IMAGE_FORMATS = {
+    'jpeg': ('JPEG', 'image/jpeg', '.jpg'),
+    'jpg': ('JPEG', 'image/jpeg', '.jpg'),
+    'png': ('PNG', 'image/png', '.png'),
+    'webp': ('WEBP', 'image/webp', '.webp'),
+}
+
+WATERMARK_POSITIONS = {
+    'center',
+    'bottom-right',
+    'bottom-left',
+    'top-right',
+    'top-left',
+    'tile',
+}
+
+_FONT_CANDIDATES = (
+    '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+    '/usr/share/fonts/dejavu/DejaVuSans.ttf',
+    'C:/Windows/Fonts/arial.ttf',
+    'C:/Windows/Fonts/segoeui.ttf',
+)
 
 _bg_session = None
 _bg_lock = threading.Lock()
@@ -135,6 +165,221 @@ def remove_image_background(uploaded_file) -> tuple[bytes, str]:
 
     base_name = os.path.splitext(os.path.basename(uploaded_file.name or 'image.png'))[0]
     return output_bytes, f'{base_name}-khong-nen.png'
+
+
+def _validate_office_for_pdf(uploaded_file):
+    if uploaded_file.size > OFFICE_MAX_BYTES:
+        raise ValidationError('File tối đa 15 MB.')
+    name = (uploaded_file.name or '').lower()
+    ext = os.path.splitext(name)[1]
+    if ext not in OFFICE_TO_PDF_EXTENSIONS:
+        raise ValidationError('Chỉ hỗ trợ Word (.doc, .docx) hoặc Excel (.xls, .xlsx, .csv).')
+
+
+def _libreoffice_binary() -> str | None:
+    for candidate in ('soffice', 'libreoffice'):
+        path = shutil.which(candidate)
+        if path:
+            return path
+    return None
+
+
+def _run_libreoffice_convert(input_path: str, output_dir: str) -> str:
+    binary = _libreoffice_binary()
+    if not binary:
+        raise ValidationError(
+            'Server chưa cài LibreOffice. Liên hệ IT để bật công cụ Word/Excel → PDF.'
+        )
+
+    env = os.environ.copy()
+    env.setdefault('HOME', '/tmp')
+    result = subprocess.run(
+        [
+            binary,
+            '--headless',
+            '--norestore',
+            '--nolockcheck',
+            '--nodefault',
+            '--nofirststartwizard',
+            '--convert-to',
+            'pdf',
+            '--outdir',
+            output_dir,
+            input_path,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env=env,
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or '').strip()
+        raise ValidationError(
+            'Không chuyển được sang PDF.'
+            + (f' ({detail[:200]})' if detail else '')
+        )
+
+    base_name = os.path.splitext(os.path.basename(input_path))[0]
+    pdf_path = os.path.join(output_dir, f'{base_name}.pdf')
+    if not os.path.isfile(pdf_path):
+        raise ValidationError('LibreOffice không tạo được file PDF.')
+    return pdf_path
+
+
+def convert_office_to_pdf(uploaded_file) -> tuple[bytes, str]:
+    """Chuyển Word / Excel sang PDF."""
+    _validate_office_for_pdf(uploaded_file)
+    base_name = os.path.splitext(os.path.basename(uploaded_file.name or 'document'))[0]
+    ext = os.path.splitext(uploaded_file.name or '')[1].lower() or '.docx'
+    output_name = f'{base_name}.pdf'
+
+    with tempfile.TemporaryDirectory() as tmp:
+        input_path = os.path.join(tmp, f'input{ext}')
+        with open(input_path, 'wb') as handle:
+            for chunk in uploaded_file.chunks():
+                handle.write(chunk)
+        pdf_path = _run_libreoffice_convert(input_path, tmp)
+        with open(pdf_path, 'rb') as handle:
+            data = handle.read()
+        if not data.startswith(b'%PDF'):
+            raise ValidationError('File kết quả không phải PDF hợp lệ.')
+        return data, output_name
+
+
+def _load_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    for path in _FONT_CANDIDATES:
+        if os.path.isfile(path):
+            try:
+                return ImageFont.truetype(path, size)
+            except OSError:
+                continue
+    return ImageFont.load_default()
+
+
+def _watermark_coords(
+    base_size: tuple[int, int],
+    mark_size: tuple[int, int],
+    position: str,
+    *,
+    margin: int,
+) -> tuple[int, int]:
+    width, height = base_size
+    mark_w, mark_h = mark_size
+    if position == 'center':
+        return ((width - mark_w) // 2, (height - mark_h) // 2)
+    if position == 'bottom-left':
+        return (margin, height - mark_h - margin)
+    if position == 'top-right':
+        return (width - mark_w - margin, margin)
+    if position == 'top-left':
+        return (margin, margin)
+    if position == 'tile':
+        return (margin, margin)
+    return (width - mark_w - margin, height - mark_h - margin)
+
+
+def apply_image_watermark(
+    uploaded_file,
+    *,
+    text: str = 'JustPlay',
+    position: str = 'bottom-right',
+    opacity: int = 35,
+    watermark_file=None,
+) -> tuple[bytes, str, str]:
+    """Đóng watermark chữ hoặc ảnh — trả về (bytes, tên file, content_type)."""
+    _validate_image(uploaded_file)
+    position = position if position in WATERMARK_POSITIONS else 'bottom-right'
+    opacity = max(5, min(90, int(opacity)))
+    alpha = int(255 * (opacity / 100.0))
+
+    uploaded_file.seek(0)
+    with Image.open(uploaded_file) as base:
+        base = base.convert('RGBA')
+        overlay = Image.new('RGBA', base.size, (0, 0, 0, 0))
+        margin = max(12, int(min(base.size) * 0.02))
+
+        if watermark_file:
+            with Image.open(watermark_file) as mark_img:
+                mark = mark_img.convert('RGBA')
+                target_w = max(48, int(base.width * 0.22))
+                ratio = target_w / float(mark.width)
+                target_h = max(1, int(mark.height * ratio))
+                mark = mark.resize((target_w, target_h), Image.Resampling.LANCZOS)
+                if position == 'tile':
+                    step_x = max(target_w + margin, int(target_w * 1.4))
+                    step_y = max(target_h + margin, int(target_h * 1.4))
+                    for y in range(0, base.height, step_y):
+                        for x in range(0, base.width, step_x):
+                            overlay.alpha_composite(mark, (x, y))
+                else:
+                    x, y = _watermark_coords(base.size, mark.size, position, margin=margin)
+                    overlay.alpha_composite(mark, (x, y))
+        else:
+            label = (text or 'JustPlay').strip()[:80] or 'JustPlay'
+            font_size = max(16, int(min(base.width, base.height) * 0.05))
+            font = _load_font(font_size)
+            draw = ImageDraw.Draw(overlay)
+            text_bbox = draw.textbbox((0, 0), label, font=font)
+            text_w = text_bbox[2] - text_bbox[0]
+            text_h = text_bbox[3] - text_bbox[1]
+
+            if position == 'tile':
+                step_x = text_w + margin * 3
+                step_y = text_h + margin * 3
+                for y in range(0, base.height, step_y):
+                    for x in range(0, base.width, step_x):
+                        draw.text((x, y), label, font=font, fill=(255, 255, 255, alpha))
+            else:
+                x, y = _watermark_coords(
+                    base.size,
+                    (text_w, text_h),
+                    position,
+                    margin=margin,
+                )
+                draw.text((x, y), label, font=font, fill=(255, 255, 255, alpha))
+
+        result = Image.alpha_composite(base, overlay)
+        base_name = os.path.splitext(os.path.basename(uploaded_file.name or 'image.png'))[0]
+        buffer = io.BytesIO()
+        result.save(buffer, format='PNG', optimize=True)
+        return buffer.getvalue(), f'{base_name}-watermark.png', 'image/png'
+
+
+def convert_image_format(
+    uploaded_file,
+    target_format: str,
+    *,
+    quality: int = 85,
+) -> tuple[bytes, str, str]:
+    """Đổi định dạng ảnh — JPEG / PNG / WebP."""
+    _validate_image(uploaded_file)
+    fmt_key = (target_format or 'png').strip().lower()
+    if fmt_key not in OUTPUT_IMAGE_FORMATS:
+        raise ValidationError('Chọn định dạng đích: JPEG, PNG hoặc WebP.')
+
+    pil_format, content_type, ext = OUTPUT_IMAGE_FORMATS[fmt_key]
+    quality = max(50, min(95, int(quality)))
+
+    uploaded_file.seek(0)
+    with Image.open(uploaded_file) as img:
+        base_name = os.path.splitext(os.path.basename(uploaded_file.name or 'image'))[0]
+        buffer = io.BytesIO()
+
+        if pil_format == 'JPEG':
+            rgb = img.convert('RGB')
+            rgb.save(buffer, format='JPEG', quality=quality, optimize=True)
+        elif pil_format == 'PNG':
+            if img.mode in ('RGBA', 'LA', 'P'):
+                img = img.convert('RGBA')
+            else:
+                img = img.convert('RGB')
+            img.save(buffer, format='PNG', optimize=True)
+        else:
+            if img.mode not in ('RGB', 'RGBA'):
+                img = img.convert('RGBA')
+            img.save(buffer, format='WEBP', quality=quality, method=4)
+
+        return buffer.getvalue(), f'{base_name}{ext}', content_type
 
 
 def generate_qr_image(data: str, *, box_size: int = 10, border: int = 2) -> bytes:

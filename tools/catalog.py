@@ -10,6 +10,14 @@ PORTAL_TOOLS = (
         'url_name': 'tools:pdf_to_word',
     },
     {
+        'slug': 'office-pdf',
+        'name': 'Word / Excel → PDF',
+        'description': 'Chuyển tài liệu Word hoặc Excel sang PDF.',
+        'icon': 'bi-file-earmark-pdf',
+        'accent': 'indigo',
+        'url_name': 'tools:office_to_pdf',
+    },
+    {
         'slug': 'ocr',
         'name': 'OCR ảnh',
         'description': 'Nhận dạng chữ trong ảnh — tiếng Việt & tiếng Anh.',
@@ -24,6 +32,22 @@ PORTAL_TOOLS = (
         'icon': 'bi-file-earmark-zip',
         'accent': 'green',
         'url_name': 'tools:compress_image',
+    },
+    {
+        'slug': 'convert-format',
+        'name': 'Đổi định dạng ảnh',
+        'description': 'Chuyển JPG, PNG, WebP, GIF sang định dạng khác.',
+        'icon': 'bi-arrow-repeat',
+        'accent': 'teal',
+        'url_name': 'tools:convert_image_format',
+    },
+    {
+        'slug': 'watermark',
+        'name': 'Watermark ảnh',
+        'description': 'Đóng dấu chữ hoặc logo lên ảnh trước khi chia sẻ.',
+        'icon': 'bi-droplet-half',
+        'accent': 'cyan',
+        'url_name': 'tools:watermark_image',
     },
     {
         'slug': 'remove-bg',

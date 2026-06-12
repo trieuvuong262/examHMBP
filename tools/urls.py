@@ -6,8 +6,11 @@ app_name = 'tools'
 
 urlpatterns = [
     path('pdf-word/', views.pdf_to_word, name='pdf_to_word'),
+    path('word-excel-pdf/', views.office_to_pdf, name='office_to_pdf'),
     path('ocr/', views.ocr_tool, name='ocr'),
     path('nen-anh/', views.compress_image_view, name='compress_image'),
+    path('doi-dinh-dang-anh/', views.convert_image_format_view, name='convert_image_format'),
+    path('watermark-anh/', views.watermark_image_view, name='watermark_image'),
     path('xoa-nen/', views.remove_background_tool, name='remove_background'),
     path('api/xoa-nen/', views.remove_background_api, name='remove_background_api'),
     path('ma-qr/', views.qr_generator, name='qr_generator'),

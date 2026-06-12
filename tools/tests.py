@@ -12,14 +12,30 @@ from reportlab.pdfgen import canvas
 
 from tools.catalog import PORTAL_TOOLS
 from tools.models import UserNote
-from tools.services import compress_image, convert_pdf_to_docx, generate_qr_image
+from tools.services import (
+    apply_image_watermark,
+    compress_image,
+    convert_image_format,
+    convert_pdf_to_docx,
+    generate_qr_image,
+)
 
 
 class ToolsCatalogTests(TestCase):
-    def test_portal_has_six_tools(self):
-        self.assertEqual(len(PORTAL_TOOLS), 6)
+    def test_portal_has_nine_tools(self):
+        self.assertEqual(len(PORTAL_TOOLS), 9)
         slugs = {tool['slug'] for tool in PORTAL_TOOLS}
-        self.assertEqual(slugs, {'pdf-word', 'ocr', 'compress', 'remove-bg', 'qr', 'notes'})
+        self.assertEqual(slugs, {
+            'pdf-word',
+            'office-pdf',
+            'ocr',
+            'compress',
+            'convert-format',
+            'watermark',
+            'remove-bg',
+            'qr',
+            'notes',
+        })
 
 
 class ToolsServiceTests(TestCase):
@@ -44,6 +60,29 @@ class ToolsServiceTests(TestCase):
         self.assertIn('nen', filename)
         self.assertEqual(content_type, 'image/jpeg')
         self.assertGreater(len(data), 0)
+
+    def test_convert_image_format_to_webp(self):
+        buffer = BytesIO()
+        Image.new('RGB', (120, 80), color=(10, 120, 200)).save(buffer, format='PNG')
+        uploaded = SimpleUploadedFile('src.png', buffer.getvalue(), content_type='image/png')
+        data, filename, content_type = convert_image_format(uploaded, 'webp', quality=80)
+        self.assertTrue(filename.endswith('.webp'))
+        self.assertEqual(content_type, 'image/webp')
+        self.assertGreater(len(data), 0)
+
+    def test_apply_image_watermark_text(self):
+        buffer = BytesIO()
+        Image.new('RGB', (400, 300), color=(40, 40, 40)).save(buffer, format='JPEG')
+        uploaded = SimpleUploadedFile('photo.jpg', buffer.getvalue(), content_type='image/jpeg')
+        data, filename, content_type = apply_image_watermark(
+            uploaded,
+            text='JustPlay Test',
+            position='center',
+            opacity=40,
+        )
+        self.assertTrue(filename.endswith('-watermark.png'))
+        self.assertEqual(content_type, 'image/png')
+        self.assertTrue(data.startswith(b'\x89PNG'))
 
 
 class ToolsViewTests(TestCase):
@@ -100,8 +139,11 @@ class ToolsIntegrationTests(TestCase):
     def test_all_tool_pages_load(self):
         for url_name in [
             'tools:pdf_to_word',
+            'tools:office_to_pdf',
             'tools:ocr',
             'tools:compress_image',
+            'tools:convert_image_format',
+            'tools:watermark_image',
             'tools:remove_background',
             'tools:qr_generator',
             'tools:notes',
@@ -201,6 +243,45 @@ class ToolsIntegrationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], 'image/png')
         self.assertTrue(response.content.startswith(b'\x89PNG'))
+
+    def test_convert_image_format_download(self):
+        buffer = BytesIO()
+        Image.new('RGB', (200, 200), color=(255, 128, 0)).save(buffer, format='JPEG')
+        uploaded = SimpleUploadedFile('pic.jpg', buffer.getvalue(), content_type='image/jpeg')
+        response = self.client.post(reverse('tools:convert_image_format'), {
+            'image_file': uploaded,
+            'target_format': 'png',
+            'quality': 85,
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'image/png')
+        self.assertTrue(response.content.startswith(b'\x89PNG'))
+
+    def test_watermark_image_download(self):
+        buffer = BytesIO()
+        Image.new('RGB', (300, 200), color=(0, 0, 128)).save(buffer, format='JPEG')
+        uploaded = SimpleUploadedFile('brand.jpg', buffer.getvalue(), content_type='image/jpeg')
+        response = self.client.post(reverse('tools:watermark_image'), {
+            'image_file': uploaded,
+            'watermark_text': 'JustPlay',
+            'position': 'bottom-right',
+            'opacity': 30,
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'image/png')
+
+    @patch('tools.views.convert_office_to_pdf')
+    def test_office_to_pdf_download(self, mock_convert):
+        mock_convert.return_value = (b'%PDF-1.4 fake', 'report.pdf')
+        uploaded = SimpleUploadedFile(
+            'report.docx',
+            b'fake-docx',
+            content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        )
+        response = self.client.post(reverse('tools:office_to_pdf'), {'office_file': uploaded})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+        self.assertTrue(response.content.startswith(b'%PDF'))
 
     def test_remove_background_api_requires_file(self):
         response = self.client.post(reverse('tools:remove_background_api'), {})

@@ -1,0 +1,45 @@
+{% extends "tools/tool_base.html" %}
+
+{% block tool_content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-8 col-xl-7">
+        <div class="jp-tool-card card border-0 shadow-sm">
+            <div class="card-body p-3 p-md-4">
+                {% if error %}
+                <div class="alert alert-danger py-2">{{ error }}</div>
+                {% endif %}
+
+                <form method="post" enctype="multipart/form-data" class="jp-tool-form-loading"
+                      data-loading-message="Đang đổi định dạng…">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Chọn ảnh</label>
+                        <input type="file" name="image_file" class="form-control"
+                               accept="image/jpeg,image/png,image/webp,image/gif" required>
+                        <div class="form-text">JPG, PNG, WebP, GIF — tối đa 10 MB.</div>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Định dạng đích</label>
+                            <select name="target_format" class="form-select">
+                                <option value="png">PNG (nền trong suốt)</option>
+                                <option value="jpeg">JPEG</option>
+                                <option value="webp">WebP</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Chất lượng (JPEG / WebP)</label>
+                            <input type="range" class="form-range" name="quality" min="50" max="95" value="85"
+                                   oninput="this.nextElementSibling.textContent = this.value + '%'">
+                            <div class="form-text">85%</div>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-hm">
+                        <i class="bi bi-arrow-repeat me-1"></i>Đổi định dạng và tải xuống
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

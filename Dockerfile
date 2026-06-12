@@ -18,6 +18,8 @@ RUN apt-get update && apt-get install -y \
     rclone \
     fonts-dejavu-core \
     fonts-noto-core \
+    libreoffice-writer-nogui \
+    libreoffice-calc-nogui \
     && rm -rf /var/lib/apt/lists/*
 
 # Cài đặt requirements
