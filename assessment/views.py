@@ -30,7 +30,7 @@ from PortalJustPlay.list_search import apply_term_search, get_search_query, sear
 from PortalJustPlay.pagination import paginate_queryset
 from kpi.models import YearlyKpi, KpiPeriod  # Import đúng Model mới
 from hrm.permissions import is_manager, is_portal_admin
-from tools.catalog import PORTAL_TOOLS
+from tools.catalog import PORTAL_TOOLS, get_portal_tool_groups
 from .portal_widgets import get_portal_dashboard
 from .models import (
     Exam, 
@@ -66,6 +66,7 @@ def login_redirect_view(request):
 def home_portal(request):
     return render(request, 'portal.html', {
         'portal_tools': PORTAL_TOOLS,
+        'portal_tool_groups': get_portal_tool_groups(),
         'dashboard_widgets': get_portal_dashboard(request.user),
     })
 

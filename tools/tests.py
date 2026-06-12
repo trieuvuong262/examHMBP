@@ -10,7 +10,7 @@ from django.urls import reverse
 from PIL import Image
 from reportlab.pdfgen import canvas
 
-from tools.catalog import PORTAL_TOOLS
+from tools.catalog import PORTAL_TOOLS, get_portal_tool_groups
 from tools.models import UserNote
 from tools.services import (
     apply_image_watermark,
@@ -36,6 +36,12 @@ class ToolsCatalogTests(TestCase):
             'qr',
             'notes',
         })
+
+    def test_portal_tool_groups_cover_all_tools(self):
+        groups = get_portal_tool_groups()
+        self.assertEqual(len(groups), 3)
+        total = sum(len(group['tools']) for group in groups)
+        self.assertEqual(total, len(PORTAL_TOOLS))
 
 
 class ToolsServiceTests(TestCase):
@@ -94,9 +100,10 @@ class ToolsViewTests(TestCase):
     def test_home_shows_tool_cards(self):
         response = self.client.get(reverse('home_portal'))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'jp-home-tool-card')
+        self.assertContains(response, 'jp-home-tools-group')
+        self.assertContains(response, 'Tài liệu')
         self.assertContains(response, 'PDF → Word')
-        self.assertContains(response, 'OCR ảnh')
+        self.assertContains(response, 'Watermark ảnh')
         self.assertContains(response, 'Ghi chú')
 
     def test_tool_pages_require_login(self):

@@ -30,104 +30,119 @@
             </div>
             <div class="jp-home-hero-aside d-none d-md-flex">
                 <div class="jp-home-hero-stat">
+                    <span class="jp-home-hero-stat-value">{{ portal_tool_groups|length }}</span>
+                    <span class="jp-home-hero-stat-label">Nhóm công cụ</span>
+                </div>
+                <div class="jp-home-hero-stat">
                     <span class="jp-home-hero-stat-value">{{ portal_tools|length }}</span>
-                    <span class="jp-home-hero-stat-label">Công cụ</span>
+                    <span class="jp-home-hero-stat-label">Tiện ích</span>
                 </div>
             </div>
         </div>
     </section>
 
-    <div class="row g-3 g-lg-4 align-items-start">
-        <div class="col-lg-8">
-            <section class="jp-home-block" aria-labelledby="jp-home-todo-title">
-                <div class="jp-home-block-head">
-                    <div class="jp-home-block-head-main">
-                        <h2 id="jp-home-todo-title" class="jp-home-block-title">
-                            <span class="jp-home-block-icon jp-home-block-icon--todo">
-                                <i class="bi bi-bell-fill"></i>
-                            </span>
-                            Việc cần làm
-                        </h2>
-                        <p class="jp-home-block-sub mb-0">Thông báo, công việc và báo cáo cần xử lý.</p>
-                    </div>
-                    {% if dashboard_widgets %}
-                    <span class="badge bg-hm rounded-pill">{{ dashboard_widgets|length }}</span>
-                    {% endif %}
-                </div>
-
-                <div class="jp-home-block-body">
-                    {% if dashboard_widgets %}
-                    <div class="jp-dashboard-list">
-                        {% for item in dashboard_widgets %}
-                        <a href="{{ item.url }}" class="jp-dashboard-item jp-dashboard-item--{{ item.level }}">
-                            <div class="jp-dashboard-item-icon">
-                                <i class="bi {{ item.icon }}"></i>
-                            </div>
-                            <div class="jp-dashboard-item-body">
-                                <div class="jp-dashboard-item-title">
-                                    {{ item.title }}
-                                    {% if item.badge %}
-                                    <span class="badge rounded-pill ms-1">{{ item.badge }}</span>
-                                    {% endif %}
-                                </div>
-                                <div class="jp-dashboard-item-text">{{ item.text }}</div>
-                            </div>
-                            <div class="jp-dashboard-item-action d-none d-sm-flex">
-                                {{ item.action }} <i class="bi bi-chevron-right ms-1"></i>
-                            </div>
-                        </a>
-                        {% endfor %}
-                    </div>
-                    {% else %}
-                    <div class="jp-home-empty">
-                        <div class="jp-home-empty-icon">
-                            <i class="bi bi-check2-circle"></i>
-                        </div>
-                        <div>
-                            <div class="jp-home-empty-title">Không còn việc gấp</div>
-                            <p class="jp-home-empty-text mb-0">Mọi thứ đã xử lý xong — bạn có thể dùng công cụ bên cạnh hoặc vào module qua menu trái.</p>
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
-            </section>
+    <section class="jp-home-block mb-3 mb-lg-4" aria-labelledby="jp-home-todo-title">
+        <div class="jp-home-block-head">
+            <div class="jp-home-block-head-main">
+                <h2 id="jp-home-todo-title" class="jp-home-block-title">
+                    <span class="jp-home-block-icon jp-home-block-icon--todo">
+                        <i class="bi bi-bell-fill"></i>
+                    </span>
+                    Việc cần làm
+                </h2>
+                <p class="jp-home-block-sub mb-0">Thông báo, công việc và báo cáo cần xử lý.</p>
+            </div>
+            {% if dashboard_widgets %}
+            <span class="badge bg-hm rounded-pill">{{ dashboard_widgets|length }}</span>
+            {% endif %}
         </div>
 
-        <div class="col-lg-4">
-            <section class="jp-home-block jp-home-block--tools jp-home-tools-sticky" aria-labelledby="jp-home-tools-title">
-                <div class="jp-home-block-head">
-                    <div class="jp-home-block-head-main">
-                        <h2 id="jp-home-tools-title" class="jp-home-block-title">
-                            <span class="jp-home-block-icon jp-home-block-icon--tools">
-                                <i class="bi bi-tools"></i>
-                            </span>
-                            Công cụ
-                        </h2>
-                        <p class="jp-home-block-sub mb-0">Tài liệu, ảnh &amp; watermark.</p>
+        <div class="jp-home-block-body">
+            {% if dashboard_widgets %}
+            <div class="jp-dashboard-list">
+                {% for item in dashboard_widgets %}
+                <a href="{{ item.url }}" class="jp-dashboard-item jp-dashboard-item--{{ item.level }}">
+                    <div class="jp-dashboard-item-icon">
+                        <i class="bi {{ item.icon }}"></i>
                     </div>
-                </div>
-
-                <div class="jp-home-block-body jp-home-block-body--tools">
-                    <div class="jp-home-tools-grid">
-                        {% for tool in portal_tools %}
-                        <a href="{% url tool.url_name %}" class="jp-home-tool-card jp-home-tool-card--{{ tool.accent }}" title="{{ tool.description }}">
-                            <span class="jp-home-tool-icon">
-                                <i class="bi {{ tool.icon }}"></i>
-                            </span>
-                            <span class="jp-home-tool-body">
-                                <span class="jp-home-tool-name">{{ tool.name }}</span>
-                                <span class="jp-home-tool-desc">{{ tool.description }}</span>
-                            </span>
-                            <span class="jp-home-tool-arrow" aria-hidden="true">
-                                <i class="bi bi-chevron-right"></i>
-                            </span>
-                        </a>
-                        {% endfor %}
+                    <div class="jp-dashboard-item-body">
+                        <div class="jp-dashboard-item-title">
+                            {{ item.title }}
+                            {% if item.badge %}
+                            <span class="badge rounded-pill ms-1">{{ item.badge }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="jp-dashboard-item-text">{{ item.text }}</div>
                     </div>
+                    <div class="jp-dashboard-item-action d-none d-sm-flex">
+                        {{ item.action }} <i class="bi bi-chevron-right ms-1"></i>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="jp-home-empty">
+                <div class="jp-home-empty-icon">
+                    <i class="bi bi-check2-circle"></i>
                 </div>
-            </section>
+                <div>
+                    <div class="jp-home-empty-title">Không còn việc gấp</div>
+                    <p class="jp-home-empty-text mb-0">Mọi thứ đã xử lý xong — dùng công cụ bên dưới hoặc vào module qua menu trái.</p>
+                </div>
+            </div>
+            {% endif %}
         </div>
-    </div>
+    </section>
+
+    <section class="jp-home-block jp-home-block--tools" aria-labelledby="jp-home-tools-title">
+        <div class="jp-home-block-head">
+            <div class="jp-home-block-head-main">
+                <h2 id="jp-home-tools-title" class="jp-home-block-title">
+                    <span class="jp-home-block-icon jp-home-block-icon--tools">
+                        <i class="bi bi-tools"></i>
+                    </span>
+                    Công cụ
+                </h2>
+                <p class="jp-home-block-sub mb-0">Xử lý tài liệu, ảnh và tiện ích nhanh — không cần cài phần mềm.</p>
+            </div>
+        </div>
+
+        <div class="jp-home-block-body jp-home-block-body--tools-board">
+            <div class="row g-3 g-lg-4">
+                {% for group in portal_tool_groups %}
+                <div class="col-md-6 col-xl-4">
+                    <div class="jp-home-tools-group jp-home-tools-group--{{ group.accent }}">
+                        <div class="jp-home-tools-group-head">
+                            <span class="jp-home-tools-group-icon">
+                                <i class="bi {{ group.icon }}"></i>
+                            </span>
+                            <div>
+                                <h3 class="jp-home-tools-group-title">{{ group.title }}</h3>
+                                <p class="jp-home-tools-group-sub mb-0">{{ group.subtitle }}</p>
+                            </div>
+                        </div>
+                        <div class="jp-home-tools-group-list">
+                            {% for tool in group.tools %}
+                            <a href="{% url tool.url_name %}"
+                               class="jp-home-tool-mini jp-home-tool-mini--{{ tool.accent }}"
+                               title="{{ tool.description }}">
+                                <span class="jp-home-tool-mini-icon">
+                                    <i class="bi {{ tool.icon }}"></i>
+                                </span>
+                                <span class="jp-home-tool-mini-body">
+                                    <span class="jp-home-tool-mini-name">{{ tool.name }}</span>
+                                    <span class="jp-home-tool-mini-desc">{{ tool.description }}</span>
+                                </span>
+                                <i class="bi bi-chevron-right jp-home-tool-mini-arrow" aria-hidden="true"></i>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
     {% endwith %}
 </div>
 {% endblock %}

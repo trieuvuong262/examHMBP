@@ -8,6 +8,7 @@ PORTAL_TOOLS = (
         'icon': 'bi-file-earmark-word',
         'accent': 'blue',
         'url_name': 'tools:pdf_to_word',
+        'group': 'documents',
     },
     {
         'slug': 'office-pdf',
@@ -16,6 +17,7 @@ PORTAL_TOOLS = (
         'icon': 'bi-file-earmark-pdf',
         'accent': 'indigo',
         'url_name': 'tools:office_to_pdf',
+        'group': 'documents',
     },
     {
         'slug': 'ocr',
@@ -24,6 +26,7 @@ PORTAL_TOOLS = (
         'icon': 'bi-type',
         'accent': 'purple',
         'url_name': 'tools:ocr',
+        'group': 'documents',
     },
     {
         'slug': 'compress',
@@ -32,6 +35,7 @@ PORTAL_TOOLS = (
         'icon': 'bi-file-earmark-zip',
         'accent': 'green',
         'url_name': 'tools:compress_image',
+        'group': 'images',
     },
     {
         'slug': 'convert-format',
@@ -40,6 +44,7 @@ PORTAL_TOOLS = (
         'icon': 'bi-arrow-repeat',
         'accent': 'teal',
         'url_name': 'tools:convert_image_format',
+        'group': 'images',
     },
     {
         'slug': 'watermark',
@@ -48,6 +53,7 @@ PORTAL_TOOLS = (
         'icon': 'bi-droplet-half',
         'accent': 'cyan',
         'url_name': 'tools:watermark_image',
+        'group': 'images',
     },
     {
         'slug': 'remove-bg',
@@ -56,6 +62,7 @@ PORTAL_TOOLS = (
         'icon': 'bi-scissors',
         'accent': 'pink',
         'url_name': 'tools:remove_background',
+        'group': 'images',
     },
     {
         'slug': 'qr',
@@ -64,6 +71,7 @@ PORTAL_TOOLS = (
         'icon': 'bi-qr-code',
         'accent': 'red',
         'url_name': 'tools:qr_generator',
+        'group': 'utility',
     },
     {
         'slug': 'notes',
@@ -72,5 +80,45 @@ PORTAL_TOOLS = (
         'icon': 'bi-sticky',
         'accent': 'amber',
         'url_name': 'tools:notes',
+        'group': 'utility',
     },
 )
+
+PORTAL_TOOL_GROUPS = (
+    {
+        'key': 'documents',
+        'title': 'Tài liệu',
+        'subtitle': 'PDF, Word, Excel, OCR',
+        'icon': 'bi-file-earmark-text',
+        'accent': 'blue',
+    },
+    {
+        'key': 'images',
+        'title': 'Ảnh',
+        'subtitle': 'Nén, đổi định dạng, watermark, xóa nền',
+        'icon': 'bi-image',
+        'accent': 'green',
+    },
+    {
+        'key': 'utility',
+        'title': 'Tiện ích',
+        'subtitle': 'QR, ghi chú cá nhân',
+        'icon': 'bi-lightning-charge',
+        'accent': 'amber',
+    },
+)
+
+
+def get_portal_tool_groups():
+    """Nhóm công cụ cho trang chủ — giữ thứ tự trong PORTAL_TOOLS."""
+    by_slug = {tool['slug']: tool for tool in PORTAL_TOOLS}
+    ordered_slugs = [tool['slug'] for tool in PORTAL_TOOLS]
+    groups = []
+    for group in PORTAL_TOOL_GROUPS:
+        tools = [
+            by_slug[slug]
+            for slug in ordered_slugs
+            if by_slug[slug].get('group') == group['key']
+        ]
+        groups.append({**group, 'tools': tools})
+    return groups

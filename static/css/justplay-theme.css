@@ -982,8 +982,11 @@ textarea.form-control {
 }
 
 .jp-home-hero-aside {
+    display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
 }
 
 .jp-home-hero-stat {
@@ -1075,9 +1078,143 @@ textarea.form-control {
     padding: 0.85rem;
 }
 
+.jp-home-block-body--tools-board {
+    padding: 1rem 1.15rem 1.15rem;
+}
+
 .jp-home-tools-sticky {
     position: sticky;
     top: 1rem;
+}
+
+.jp-home-tools-group {
+    height: 100%;
+    border: 1px solid #e2e8f0;
+    border-radius: var(--jp-radius-lg);
+    background: linear-gradient(180deg, #fafbfc 0%, #fff 100%);
+    padding: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.jp-home-tools-group-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    padding-bottom: 0.55rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.jp-home-tools-group-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.jp-home-tools-group--blue .jp-home-tools-group-icon { background: #eff6ff; color: #2563eb; }
+.jp-home-tools-group--green .jp-home-tools-group-icon { background: #ecfdf5; color: #059669; }
+.jp-home-tools-group--amber .jp-home-tools-group-icon { background: #fffbeb; color: #d97706; }
+
+.jp-home-tools-group-title {
+    font-size: 0.92rem;
+    font-weight: 800;
+    color: #1e293b;
+    margin: 0 0 0.1rem;
+}
+
+.jp-home-tools-group-sub {
+    font-size: 0.74rem;
+    color: #64748b;
+    line-height: 1.35;
+}
+
+.jp-home-tools-group-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.jp-home-tool-mini {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.65rem 0.7rem;
+    border-radius: var(--jp-radius);
+    border: 1px solid #e8edf3;
+    background: #fff;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.jp-home-tool-mini:hover {
+    color: inherit;
+    transform: translateY(-1px);
+    border-color: rgba(220, 38, 38, 0.2);
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.07);
+}
+
+.jp-home-tool-mini-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+}
+
+.jp-home-tool-mini--blue .jp-home-tool-mini-icon { background: #eff6ff; color: #2563eb; }
+.jp-home-tool-mini--indigo .jp-home-tool-mini-icon { background: #eef2ff; color: #4f46e5; }
+.jp-home-tool-mini--purple .jp-home-tool-mini-icon { background: #f5f3ff; color: #7c3aed; }
+.jp-home-tool-mini--green .jp-home-tool-mini-icon { background: #ecfdf5; color: #059669; }
+.jp-home-tool-mini--teal .jp-home-tool-mini-icon { background: #f0fdfa; color: #0d9488; }
+.jp-home-tool-mini--cyan .jp-home-tool-mini-icon { background: #ecfeff; color: #0891b2; }
+.jp-home-tool-mini--pink .jp-home-tool-mini-icon { background: #fdf2f8; color: #db2777; }
+.jp-home-tool-mini--red .jp-home-tool-mini-icon { background: #fef2f2; color: #dc2626; }
+.jp-home-tool-mini--amber .jp-home-tool-mini-icon { background: #fffbeb; color: #d97706; }
+
+.jp-home-tool-mini-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.jp-home-tool-mini-name {
+    display: block;
+    font-size: 0.84rem;
+    font-weight: 700;
+    color: #1e293b;
+    line-height: 1.25;
+}
+
+.jp-home-tool-mini-desc {
+    display: block;
+    font-size: 0.72rem;
+    color: #64748b;
+    line-height: 1.35;
+    margin-top: 0.1rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.jp-home-tool-mini-arrow {
+    color: #94a3b8;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+    transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.jp-home-tool-mini:hover .jp-home-tool-mini-arrow {
+    transform: translateX(2px);
+    color: var(--hm-primary);
 }
 
 .jp-home-empty {
@@ -8092,10 +8229,24 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
 
 [data-theme="dark"] .jp-home-tool-card,
 [data-theme="dark"] .jp-home-tool-tile,
+[data-theme="dark"] .jp-home-tool-mini,
+[data-theme="dark"] .jp-home-tools-group,
 [data-theme="dark"] .jp-tool-card,
 [data-theme="dark"] .jp-tool-preview-box {
     background: var(--jp-surface-bg);
     border-color: var(--jp-surface-border);
+}
+
+[data-theme="dark"] .jp-home-tools-group {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 100%);
+}
+
+[data-theme="dark"] .jp-home-tools-group-head {
+    border-bottom-color: var(--jp-surface-border);
+}
+
+[data-theme="dark"] .jp-home-tools-group-title {
+    color: var(--jp-text-primary);
 }
 
 [data-theme="dark"] .jp-home-tool-tile {
