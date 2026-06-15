@@ -43,7 +43,6 @@ KHO_NPL_FILES = [
     'documents/templates/documents/admin/qa_settings.html',
     'service_requests/templates/service_requests/catalog_list.html',
     'service_requests/templates/service_requests/form.html',
-    'equipment/templates/equipment/agent_guide.html',
     'equipment/templates/equipment/it_repair_list.html',
     'templates/training/admin/course_form.html',
 ]

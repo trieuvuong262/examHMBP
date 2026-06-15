@@ -28,7 +28,6 @@ SKIP_GET = {
     "import_devices",
     "api_agent_report",
     "api_agent_poll",
-    "request_agent_rescan",
 }
 
 
@@ -94,13 +93,6 @@ def _url_specs():
         "download_sample_it",
         "download_sample_production",
         "download_sample",
-        "agent_guide",
-        "agent_install_gate",
-        "agent_confirm_shared_pc",
-        "agent_download_installer",
-        "agent_install_done",
-        "api_agent_install_status",
-        "agent_config_ping",
     ]
 
     specs = [(n, ()) for n in names]

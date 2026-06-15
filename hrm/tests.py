@@ -485,35 +485,12 @@ class PermissionMiddlewareTests(TestCase):
         response = client.get('/announcements/')
         self.assertEqual(response.status_code, 200)
 
-    def test_agent_gate_allowed_without_equipment_module(self):
-        """Trang bắt cài agent không thuộc quyền menu Thiết bị — tránh redirect loop."""
-        from django.test import override_settings
-
+    def test_agent_gate_removed_from_portal(self):
+        """Trang cài/đăng ký agent đã gỡ — không còn redirect loop."""
         client = Client(HTTP_HOST='testserver')
         client.force_login(self.user)
-        with override_settings(EQUIPMENT_REQUIRE_AGENT_INSTALL=True, EQUIPMENT_AGENT_SECRET='sec'):
-            response = client.get(
-                '/thiet-bi/agent/yeu-cau-cai/',
-                HTTP_USER_AGENT='Mozilla/5.0 Windows NT 10.0',
-                follow=False,
-            )
+        response = client.get('/', follow=False)
         self.assertEqual(response.status_code, 200)
-
-    def test_home_to_agent_gate_no_redirect_loop_without_equipment_module(self):
-        from django.test import override_settings
-
-        client = Client(HTTP_HOST='testserver')
-        client.force_login(self.user)
-        with override_settings(EQUIPMENT_REQUIRE_AGENT_INSTALL=True, EQUIPMENT_AGENT_SECRET='sec'):
-            response = client.get(
-                '/',
-                HTTP_USER_AGENT='Mozilla/5.0 Windows NT 10.0',
-                follow=True,
-            )
-        self.assertEqual(response.status_code, 200)
-        final = response.redirect_chain[-1][0] if response.redirect_chain else response.request['PATH_INFO']
-        self.assertIn('/thiet-bi/agent/yeu-cau-cai', final)
-        self.assertLessEqual(len(response.redirect_chain), 2)
 
     def test_middleware_blocks_hrm_user_list_for_employee(self):
         """Nhân viên xưởng không có quyền HRM — chặn /dashboard/users/."""

@@ -126,10 +126,7 @@ PORTAL_PUBLIC_BASE_URL = os.getenv(
 ).rstrip("/")
 EQUIPMENT_TAG_HEADER = os.getenv("EQUIPMENT_TAG_HEADER", "JUSTPLAY — QUẢN LÝ THIẾT BỊ")
 EQUIPMENT_AGENT_SECRET = os.getenv("EQUIPMENT_AGENT_SECRET", "")
-EQUIPMENT_REQUIRE_AGENT_INSTALL = env_bool(
-    "EQUIPMENT_REQUIRE_AGENT_INSTALL",
-    bool(os.getenv("EQUIPMENT_AGENT_SECRET", "")),
-)
+EQUIPMENT_REQUIRE_AGENT_INSTALL = env_bool("EQUIPMENT_REQUIRE_AGENT_INSTALL", False)
 EQUIPMENT_AGENT_GATE_EXEMPT_USERNAMES = os.getenv("EQUIPMENT_AGENT_GATE_EXEMPT_USERNAMES", "admin")
 EQUIPMENT_AGENT_EXE_PATH = os.getenv("EQUIPMENT_AGENT_EXE_PATH", "")
 EQUIPMENT_ULTRAVIEWER_FIXED_PASSWORD = os.getenv(
@@ -210,7 +207,6 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'PortalJustPlay.middleware.ForcePasswordChangeMiddleware',
-    'equipment.middleware.AgentInstallGateMiddleware',
     'hrm.middleware.DepartmentModuleAccessMiddleware',
     'audit.middleware.ActivityAuditMiddleware',
 ]

@@ -223,20 +223,15 @@ class EmailNotifyTests(SimpleTestCase):
         self.assertEqual(emails, ['a@test.com', 'b@test.com'])
 
 
-class AgentInstallFlowTests(TestCase):
-    @override_settings(
-        EQUIPMENT_AGENT_SECRET='sec',
-        PORTAL_PUBLIC_BASE_URL='https://portal.example.com',
-    )
-    def test_agent_report_links_user_and_registration(self):
+class AgentReportApiTests(TestCase):
+    @override_settings(EQUIPMENT_AGENT_SECRET='sec')
+    def test_agent_report_creates_device_and_assigns_user(self):
         from django.contrib.auth import get_user_model
 
-        from equipment.models import AgentInstallToken, Device, UserAgentRegistration
-        from equipment.services.agent_install import create_install_token
+        from equipment.models import Device
 
         User = get_user_model()
         user = User.objects.create_user(username='nv01', password='x')
-        tok = create_install_token(user)
 
         client = __import__('django.test', fromlist=['Client']).Client()
         payload = {
@@ -248,7 +243,6 @@ class AgentInstallFlowTests(TestCase):
             'cpu': 'i5',
             'ram': '16',
             'disk': '512',
-            'install_token': tok.token,
             'portal_user_id': user.pk,
             'full_name': 'Nguyen Van A',
         }
@@ -260,16 +254,12 @@ class AgentInstallFlowTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         device = Device.objects.get(serial_number='SN123456')
         self.assertEqual(device.assigned_user_id, user.pk)
-        self.assertTrue(UserAgentRegistration.objects.filter(user=user, serial_number='SN123456').exists())
-        tok.refresh_from_db()
-        self.assertIsNotNone(tok.used_at)
 
     @override_settings(EQUIPMENT_AGENT_SECRET='sec')
-    def test_agent_report_username_fallback_registers_user(self):
+    def test_agent_report_username_fallback(self):
         from django.contrib.auth import get_user_model
 
-        from equipment.models import UserAgentRegistration
-        from equipment.services.agent_install import user_is_in_equipment_registry
+        from equipment.models import Device
 
         User = get_user_model()
         user = User.objects.create_user(username='adia', password='x')
@@ -288,92 +278,24 @@ class AgentInstallFlowTests(TestCase):
             content_type='application/json',
         )
         self.assertEqual(resp.status_code, 200)
-        self.assertTrue(user_is_in_equipment_registry(user))
+        device = Device.objects.get(serial_number='SN-USER-ONLY')
+        self.assertEqual(device.assigned_user_id, user.pk)
 
     @override_settings(EQUIPMENT_AGENT_SECRET='sec')
-    def test_reconcile_registration_by_hostname_cookie(self):
-        from django.contrib.auth import get_user_model
-        from django.test import Client, RequestFactory
-        from django.utils import timezone
-
-        from equipment.models import Device, UserAgentRegistration
-        from equipment.services.agent_install import try_reconcile_agent_registration
-
-        User = get_user_model()
-        user = User.objects.create_user(username='gate1', password='x')
-        other = User.objects.create_user(username='other', password='x')
-        device = Device.objects.create(
-            serial_number='SN-RECON',
-            name='PC',
-            hostname='DESKTOP-RECON',
-            last_scan_date=timezone.now(),
-        )
-        UserAgentRegistration.objects.create(
-            user=other,
-            serial_number='SN-RECON',
-            device=device,
-        )
-
-        factory = RequestFactory()
-        request = factory.get('/thiet-bi/agent/trang-thai/')
-        request.user = user
-        request.COOKIES = {'jp_hostname': 'DESKTOP-RECON'}
-
-        self.assertTrue(try_reconcile_agent_registration(request))
-        self.assertTrue(
-            UserAgentRegistration.objects.filter(user=user, serial_number='SN-RECON').exists(),
-        )
-
-    @override_settings(EQUIPMENT_AGENT_SECRET='sec')
-    def test_agent_report_with_used_token_still_registers_user(self):
+    def test_personal_agent_report_skipped(self):
         from django.contrib.auth import get_user_model
 
-        from equipment.models import UserAgentRegistration
-        from equipment.services.agent_install import create_install_token
-
-        User = get_user_model()
-        user = User.objects.create_user(username='reuse', password='x')
-        tok = create_install_token(user)
-        tok.mark_used()
-
-        client = __import__('django.test', fromlist=['Client']).Client()
-        payload = {
-            'api_secret': 'sec',
-            'serial': 'SN-REUSE-01',
-            'hostname': 'PC-REUSE',
-            'install_token': tok.token,
-            'portal_user_id': user.pk,
-            'machine_type': 'company',
-        }
-        resp = client.post(
-            '/thiet-bi/api/agent-report/',
-            data=__import__('json').dumps(payload),
-            content_type='application/json',
-        )
-        self.assertEqual(resp.status_code, 200)
-        self.assertTrue(UserAgentRegistration.objects.filter(user=user, serial_number='SN-REUSE-01').exists())
-
-    @override_settings(EQUIPMENT_AGENT_SECRET='sec')
-    def test_personal_agent_report_no_device(self):
-        from django.contrib.auth import get_user_model
-
-        from equipment.models import AgentInstallToken, Device, UserAgentRegistration
-        from equipment.services.agent_install import (
-            MACHINE_TYPE_PERSONAL,
-            create_install_token,
-            user_is_in_equipment_registry,
-        )
+        from equipment.models import Device
+        from equipment.services.agent_install import MACHINE_TYPE_PERSONAL
 
         User = get_user_model()
         user = User.objects.create_user(username='homepc', password='x')
-        tok = create_install_token(user, machine_type=MACHINE_TYPE_PERSONAL)
 
         client = __import__('django.test', fromlist=['Client']).Client()
         payload = {
             'api_secret': 'sec',
             'serial': 'PERS-SN-001',
             'hostname': 'HOME-LAPTOP',
-            'install_token': tok.token,
             'portal_user_id': user.pk,
             'machine_type': MACHINE_TYPE_PERSONAL,
         }
@@ -383,282 +305,8 @@ class AgentInstallFlowTests(TestCase):
             content_type='application/json',
         )
         self.assertEqual(resp.status_code, 200)
-        self.assertTrue(resp.json().get('personal'))
+        self.assertTrue(resp.json().get('skipped'))
         self.assertFalse(Device.objects.filter(serial_number='PERS-SN-001').exists())
-        reg = UserAgentRegistration.objects.get(user=user, serial_number='PERS-SN-001')
-        self.assertIsNone(reg.device_id)
-        self.assertTrue(user_is_in_equipment_registry(user))
-
-    @override_settings(
-        EQUIPMENT_AGENT_SECRET='sec',
-        PORTAL_PUBLIC_BASE_URL='https://portal.example.com',
-    )
-    def test_installer_cmd_writes_ini_via_base64(self):
-        from django.contrib.auth import get_user_model
-
-        from equipment.services.agent_install import (
-            MACHINE_TYPE_COMPANY,
-            build_agent_ini_content,
-            build_installer_cmd,
-            create_install_token,
-        )
-
-        User = get_user_model()
-        user = User.objects.create_user(username='ini_test', password='x')
-        profile = getattr(user, 'profile', None)
-        if profile:
-            profile.job_position = 'Công nhân (may'
-            profile.save()
-        tok = create_install_token(user, machine_type=MACHINE_TYPE_COMPANY)
-        cmd = build_installer_cmd(user=user, token=tok.token, machine_type=MACHINE_TYPE_COMPANY)
-        self.assertIn('FromBase64String', cmd)
-        self.assertNotIn('; ^', cmd)
-        self.assertIn('findstr /C:"install_token="', cmd)
-
-    @override_settings(
-        EQUIPMENT_AGENT_SECRET='sec',
-        PORTAL_PUBLIC_BASE_URL='https://portal.example.com',
-    )
-    def test_installer_cmd_has_ultraviewer_and_portal_steps(self):
-        from django.contrib.auth import get_user_model
-
-        from equipment.services.agent_install import (
-            MACHINE_TYPE_COMPANY,
-            build_installer_cmd,
-            create_install_token,
-        )
-
-        User = get_user_model()
-        user = User.objects.create_user(username='steps6', password='x')
-        tok = create_install_token(user, machine_type=MACHINE_TYPE_COMPANY)
-        cmd = build_installer_cmd(user=user, token=tok.token, machine_type=MACHINE_TYPE_COMPANY)
-        self.assertIn('[4/5] Quet PC, UltraViewer', cmd)
-        self.assertIn('ultraviewer_sidecar.json', cmd)
-        self.assertIn('JP_UV_PASSWORD=123123sS', cmd)
-        self.assertIn('JP_UV_SETUP_URL=', cmd)
-        self.assertIn('cai neu chua co', cmd)
-        import base64
-        import re
-
-        uv_match = re.findall(r'-EncodedCommand\s+(\S+)', cmd)
-        self.assertGreaterEqual(len(uv_match), 1)
-        uv_ps = base64.b64decode(uv_match[0]).decode('utf-16le')
-        self.assertIn('Install-UltraViewerIfMissing', uv_ps)
-        self.assertIn('Test-UvInstallComplete', uv_ps)
-        self.assertIn('LanguageList.ini', uv_ps)
-        self.assertIn('Click-UvGoldenKeyButton', uv_ps)
-        self.assertIn('Set-UvPasswordViaSendKeys', uv_ps)
-        self.assertIn('[5/5] Cai ung dung JustPlay Portal', cmd)
-        self.assertIn('Go bo Agent tu khoi dong', cmd)
-        self.assertNotIn('schtasks /Create /TN "JustPlay-Agent"', cmd)
-        self.assertIn('JP_ICON_URL=', cmd)
-        self.assertIn('jp-portal-install.ps1', cmd)
-        self.assertIn('-File "%JP_DIR%\\jp-portal-install.ps1"', cmd)
-        self.assertIn('browser-pwa-profile', cmd)
-        self.assertIn('--new-window', cmd)
-        self.assertIn('Mo trang Cai JustPlay Portal', cmd)
-        self.assertIn('cai-portal-app', cmd)
-        from equipment.services.agent_install import portal_install_powershell_script
-
-        portal_ps = portal_install_powershell_script()
-        self.assertNotIn('\u2014', portal_ps)
-        self.assertIn('PWA: xong', portal_ps)
-        self.assertIn('browser-pwa-profile', portal_ps)
-        self.assertIn('--new-window', portal_ps)
-        self.assertIn('--install-app=', portal_ps)
-        self.assertIn('Start-Sleep -Seconds 25', portal_ps)
-        self.assertIn('Deploy-JustPlayPortalShortcuts', portal_ps)
-        self.assertIn('taskbarpin', portal_ps)
-        self.assertIn('pintostartmenu', portal_ps)
-        self.assertIn('JustPlayPortal', portal_ps)
-        self.assertIn('--app=', portal_ps)
-
-    def test_jp_portal_install_ps1_served_with_utf8_bom(self):
-        from django.test import Client
-        from django.urls import reverse
-
-        client = Client()
-        resp = client.get(reverse('equipment:agent_jp_portal_install_ps1'))
-        self.assertEqual(resp.status_code, 200)
-        self.assertTrue(resp.content.startswith(b'\xef\xbb\xbf'))
-        self.assertIn(b'PWA: xong', resp.content)
-
-    @override_settings(
-        EQUIPMENT_AGENT_SECRET='sec',
-        PORTAL_PUBLIC_BASE_URL='https://portal.example.com',
-    )
-    def test_installer_cmd_includes_machine_type(self):
-        from django.contrib.auth import get_user_model
-
-        from equipment.services.agent_install import (
-            MACHINE_TYPE_PERSONAL,
-            build_installer_cmd,
-            create_install_token,
-        )
-
-        User = get_user_model()
-        user = User.objects.create_user(username='nv02', password='x')
-        tok = create_install_token(user, machine_type=MACHINE_TYPE_PERSONAL)
-        cmd = build_installer_cmd(user=user, token=tok.token, machine_type=MACHINE_TYPE_PERSONAL)
-        self.assertIn('FromBase64String', cmd)
-        import base64
-        import re
-
-        match = re.search(r"FromBase64String\('([^']+)'\)", cmd)
-        self.assertIsNotNone(match)
-        ini_text = base64.b64decode(match.group(1)).decode('utf-8')
-        self.assertIn('machine_type=personal', ini_text)
-        self.assertEqual(tok.machine_type, MACHINE_TYPE_PERSONAL)
-        self.assertIn('[4/4] Cai ung dung JustPlay Portal', cmd)
-        self.assertNotIn('[4/5] Quet PC, UltraViewer', cmd)
-        self.assertNotIn('JustPlayAgent.exe" --once', cmd)
-        self.assertIn('May ca nhan: khong quet PC/UltraViewer', cmd)
-        self.assertIn('/thiet-bi/agent/api/hoan-tat-ca-nhan/', cmd)
-
-    @override_settings(EQUIPMENT_AGENT_SECRET='sec')
-    def test_api_complete_personal_install_no_login(self):
-        from django.contrib.auth import get_user_model
-
-        from equipment.services.agent_install import (
-            MACHINE_TYPE_PERSONAL,
-            create_install_token,
-            user_is_in_equipment_registry,
-        )
-
-        User = get_user_model()
-        user = User.objects.create_user(username='api_pers', password='x')
-        tok = create_install_token(user, machine_type=MACHINE_TYPE_PERSONAL)
-        client = __import__('django.test', fromlist=['Client']).Client()
-        resp = client.get(f'/thiet-bi/agent/api/hoan-tat-ca-nhan/?token={tok.token}')
-        self.assertEqual(resp.status_code, 200)
-        self.assertTrue(resp.json().get('ok'))
-        self.assertTrue(user_is_in_equipment_registry(user))
-
-    @override_settings(EQUIPMENT_AGENT_SECRET='sec')
-    def test_complete_personal_install_from_token(self):
-        from django.contrib.auth import get_user_model
-
-        from equipment.models import UserAgentRegistration
-        from equipment.services.agent_install import (
-            MACHINE_TYPE_PERSONAL,
-            complete_personal_install_from_token,
-            create_install_token,
-            user_is_in_equipment_registry,
-        )
-
-        User = get_user_model()
-        user = User.objects.create_user(username='pers01', password='x')
-        tok = create_install_token(user, machine_type=MACHINE_TYPE_PERSONAL)
-        self.assertTrue(complete_personal_install_from_token(tok.token, user=user))
-        self.assertTrue(user_is_in_equipment_registry(user))
-        reg = UserAgentRegistration.objects.get(user=user)
-        self.assertIsNone(reg.device_id)
-        self.assertTrue(reg.serial_number.startswith('PERSONAL-'))
-
-    @override_settings(EQUIPMENT_AGENT_SECRET='sec')
-    def test_install_status_when_user_in_registry(self):
-        from django.contrib.auth import get_user_model
-
-        from equipment.models import Device
-        from equipment.services.agent_install import user_is_in_equipment_registry
-
-        User = get_user_model()
-        user = User.objects.create_user(username='u2', password='x')
-        Device.objects.create(
-            serial_number='SN99',
-            name='PC',
-            assigned_user=user,
-            assigned_user_text='u2',
-        )
-        self.assertTrue(user_is_in_equipment_registry(user))
-
-        client = __import__('django.test', fromlist=['Client']).Client()
-        client.force_login(user)
-        resp = client.get('/thiet-bi/agent/trang-thai/')
-        self.assertTrue(resp.json()['ready'])
-
-    @override_settings(EQUIPMENT_REQUIRE_AGENT_INSTALL=True, EQUIPMENT_AGENT_SECRET='sec')
-    def test_middleware_skips_admin_username(self):
-        from django.contrib.auth import get_user_model
-        from django.test import Client
-
-        User = get_user_model()
-        user = User.objects.create_superuser(username='admin', password='x', email='a@test.com')
-        client = Client()
-        client.force_login(user)
-        resp = client.get('/', HTTP_USER_AGENT='Mozilla/5.0 Windows NT 10.0')
-        self.assertEqual(resp.status_code, 200)
-
-    @override_settings(EQUIPMENT_REQUIRE_AGENT_INSTALL=True, EQUIPMENT_AGENT_SECRET='sec')
-    def test_middleware_skips_admin_username(self):
-        from django.contrib.auth import get_user_model
-        from django.test import Client
-
-        User = get_user_model()
-        user = User.objects.create_superuser(username='admin', password='x', email='a@test.com')
-        client = Client()
-        client.force_login(user)
-        resp = client.get('/', HTTP_USER_AGENT='Mozilla/5.0 Windows NT 10.0')
-        self.assertEqual(resp.status_code, 200)
-
-    @override_settings(EQUIPMENT_REQUIRE_AGENT_INSTALL=True, EQUIPMENT_AGENT_SECRET='sec')
-    def test_gate_page_no_redirect_loop(self):
-        from django.contrib.auth import get_user_model
-        from django.test import Client
-
-        User = get_user_model()
-        user = User.objects.create_user(username='loop_user', password='x')
-        client = Client()
-        client.force_login(user)
-        resp = client.get(
-            '/thiet-bi/agent/yeu-cau-cai/',
-            HTTP_USER_AGENT='Mozilla/5.0 Windows NT 10.0',
-            follow=False,
-        )
-        self.assertEqual(resp.status_code, 200)
-
-    @override_settings(EQUIPMENT_REQUIRE_AGENT_INSTALL=True, EQUIPMENT_AGENT_SECRET='sec')
-    def test_middleware_redirects_to_gate(self):
-        from django.contrib.auth import get_user_model
-        from django.test import Client
-
-        User = get_user_model()
-        user = User.objects.create_user(username='gate_user', password='x')
-        client = Client()
-        client.force_login(user)
-        resp = client.get('/', HTTP_USER_AGENT='Mozilla/5.0 Windows NT 10.0')
-        self.assertEqual(resp.status_code, 302)
-        self.assertIn('/thiet-bi/agent/yeu-cau-cai', resp.url)
-
-    @override_settings(EQUIPMENT_AGENT_SECRET='sec')
-    def test_middleware_skips_when_user_assigned(self):
-        from django.contrib.auth import get_user_model
-        from django.test import Client
-
-        from equipment.models import Device
-
-        User = get_user_model()
-        user = User.objects.create_user(username='assigned', password='x')
-        Device.objects.create(serial_number='SN1', name='PC', assigned_user=user)
-        client = Client()
-        client.force_login(user)
-        resp = client.get('/', HTTP_USER_AGENT='Mozilla/5.0 Windows NT 10.0')
-        self.assertEqual(resp.status_code, 200)
-
-    @override_settings(EQUIPMENT_REQUIRE_AGENT_INSTALL=True, EQUIPMENT_AGENT_SECRET='')
-    def test_gate_enabled_without_secret(self):
-        from django.contrib.auth import get_user_model
-        from django.test import Client, RequestFactory
-
-        from equipment.services.agent_install import is_agent_install_required
-
-        User = get_user_model()
-        user = User.objects.create_user(username='gate_only', password='x')
-        factory = RequestFactory()
-        request = factory.get('/')
-        request.user = user
-        request.META['HTTP_USER_AGENT'] = 'Mozilla/5.0 Windows NT 10.0'
-        self.assertTrue(is_agent_install_required(request))
 
     def test_resolve_serial_fallback_host(self):
         from equipment.agent.core import is_bad_serial, resolve_serial
@@ -721,53 +369,6 @@ class AgentInstallFlowTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()['status'], 'ok')
 
-    @override_settings(
-        EQUIPMENT_REQUIRE_AGENT_INSTALL=True,
-        EQUIPMENT_AGENT_SECRET='sec',
-    )
-    def test_confirm_shared_pc_registers_second_user(self):
-        from django.contrib.auth import get_user_model
-        from django.test import Client
-
-        from equipment.models import Device, UserAgentRegistration
-        from equipment.services.agent_install import user_is_in_equipment_registry
-
-        User = get_user_model()
-        user_a = User.objects.create_user(username='user_a', password='x')
-        user_b = User.objects.create_user(username='user_b', password='x')
-        device = Device.objects.create(
-            serial_number='SN-SHARED-1',
-            name='PC-SHARED',
-            hostname='DESKTOP-SHARED',
-            ip_address='192.168.1.100',
-            assigned_user=user_a,
-            assigned_user_text='User A',
-        )
-        UserAgentRegistration.objects.create(
-            user=user_a,
-            serial_number='SN-SHARED-1',
-            device=device,
-        )
-
-        client = Client()
-        client.force_login(user_b)
-        client.cookies['jp_hostname'] = 'DESKTOP-SHARED'
-        client.cookies['jp_local_ip'] = '192.168.1.100'
-        resp = client.post(
-            '/thiet-bi/agent/xac-nhan-chung/',
-            HTTP_USER_AGENT='Mozilla/5.0 Windows NT 10.0',
-        )
-        self.assertEqual(resp.status_code, 302)
-        self.assertEqual(resp.url, '/')
-
-        device.refresh_from_db()
-        self.assertEqual(device.assigned_user_id, user_a.pk)
-        self.assertTrue(
-            UserAgentRegistration.objects.filter(user=user_b, serial_number='SN-SHARED-1').exists(),
-        )
-        self.assertTrue(user_is_in_equipment_registry(user_b))
-        self.assertEqual(resp.cookies.get('jp_agent_serial').value, 'SN-SHARED-1')
-
     @override_settings(EQUIPMENT_AGENT_SECRET='sec')
     def test_agent_report_second_user_keeps_primary_assigned(self):
         from django.contrib.auth import get_user_model
@@ -810,57 +411,6 @@ class AgentInstallFlowTests(TestCase):
         self.assertTrue(
             UserAgentRegistration.objects.filter(user=user_b, serial_number='SN-SHARED-2').exists(),
         )
-
-    @override_settings(
-        EQUIPMENT_REQUIRE_AGENT_INSTALL=True,
-        EQUIPMENT_AGENT_SECRET='sec',
-    )
-    def test_gate_context_detects_shared_pc(self):
-        from django.contrib.auth import get_user_model
-        from django.test import Client, RequestFactory
-
-        from equipment.models import Device, UserAgentRegistration
-        from equipment.services.shared_pc import get_shared_pc_context_for_gate
-
-        User = get_user_model()
-        user_a = User.objects.create_user(username='owner', password='x')
-        user_b = User.objects.create_user(username='guest', password='x')
-        device = Device.objects.create(
-            serial_number='SN-DETECT',
-            name='PC-DETECT',
-            hostname='DESKTOP-DETECT',
-            ip_address='10.0.0.50',
-            assigned_user=user_a,
-        )
-        UserAgentRegistration.objects.create(
-            user=user_a,
-            serial_number='SN-DETECT',
-            device=device,
-        )
-
-        factory = RequestFactory()
-        request = factory.get('/thiet-bi/agent/yeu-cau-cai/')
-        request.user = user_b
-        request.COOKIES = {'jp_hostname': 'DESKTOP-DETECT', 'jp_local_ip': '10.0.0.50'}
-
-        ctx = get_shared_pc_context_for_gate(request, user_b)
-        self.assertIsNotNone(ctx)
-        self.assertEqual(ctx['device'].pk, device.pk)
-        self.assertTrue(ctx['can_confirm_shared'])
-
-        client = Client()
-        client.force_login(user_b)
-        client.cookies['jp_hostname'] = 'DESKTOP-DETECT'
-        client.cookies['jp_local_ip'] = '10.0.0.50'
-        resp = client.get(
-            '/thiet-bi/agent/yeu-cau-cai/',
-            HTTP_USER_AGENT='Mozilla/5.0 Windows NT 10.0',
-        )
-        self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, 'dùng chung')
-        self.assertContains(resp, 'Xác nhận')
-        self.assertContains(resp, 'Máy cá nhân')
-        self.assertContains(resp, 'Tải file cài')
 
 
 class DeviceCategoryTests(SimpleTestCase):

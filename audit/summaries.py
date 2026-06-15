@@ -734,10 +734,6 @@ def _describe_equipment_url(url_name: str, method: str) -> str:
         'device_history': (verb_open, 'lịch sử thiết bị'),
         'device_update_history': (verb_open, 'lịch sử cập nhật thiết bị'),
         'device_qr_public': (verb_open, 'mã QR thiết bị (công khai)'),
-        'agent_guide': (verb_open, 'hướng dẫn cài agent thiết bị'),
-        'agent_install_gate': (verb_open, 'trang yêu cầu cài agent'),
-        'agent_download_installer': ('tải', 'trình cài JustPlay Agent'),
-        'request_agent_rescan': ('yêu cầu', 'quét lại thiết bị qua agent'),
     }
     if base in patterns:
         v, rest = patterns[base]

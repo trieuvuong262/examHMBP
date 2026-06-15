@@ -4,7 +4,6 @@ from datetime import date
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from pathlib import Path
 from django.db.models import Count, Q, Sum
 from django.db.models.functions import ExtractMonth
 from django.http import HttpResponse, JsonResponse
@@ -914,31 +913,23 @@ def api_agent_report(request):
         from equipment.agent.core import is_bad_serial
         from equipment.services.agent_install import (
             MACHINE_TYPE_PERSONAL,
-            register_personal_agent_from_report,
+            link_user_from_agent_report,
             resolve_machine_type_from_report,
-            resolve_user_from_agent_data,
         )
 
         if is_bad_serial(serial):
             return JsonResponse({'status': 'error', 'message': 'Serial không hợp lệ'}, status=400)
 
-        machine_type = resolve_machine_type_from_report(data)
-        if machine_type == MACHINE_TYPE_PERSONAL:
-            if not register_personal_agent_from_report(data=data):
-                return JsonResponse(
-                    {'status': 'error', 'message': 'Không xác định được tài khoản portal'},
-                    status=400,
-                )
+        if resolve_machine_type_from_report(data) == MACHINE_TYPE_PERSONAL:
             return JsonResponse({
                 'status': 'success',
                 'personal': True,
-                'registered': True,
+                'skipped': True,
+                'message': 'Máy cá nhân không còn đăng ký qua portal',
             })
 
         from equipment.services.agent_device import apply_agent_hardware_to_device
         from equipment.services.chassis_category import infer_it_category_from_agent_data
-        from equipment.services.agent_install import link_user_from_agent_report
-
         from equipment.services.agent_device import agent_device_default_name
         from equipment.services.device_code import allocate_agent_device_code
         from equipment.services.managed_department import default_managed_department_for_scope
@@ -962,31 +953,10 @@ def api_agent_report(request):
 
         link_user_from_agent_report(data=data, device=device)
 
-        from equipment.services.agent_install import (
-            ensure_user_registered_for_device,
-            user_is_in_equipment_registry,
-        )
-
-        user, _ = resolve_user_from_agent_data(data)
-        if user:
-            ensure_user_registered_for_device(user=user, device=device)
-
-        registered = bool(user and user_is_in_equipment_registry(user))
-        if not registered:
-            return JsonResponse(
-                {
-                    'status': 'error',
-                    'message': 'Đã nhận PC nhưng chưa gắn được tài khoản portal — tải lại file cài',
-                    'device_id': str(device.id),
-                },
-                status=400,
-            )
-
         return JsonResponse({
             'status': 'success',
             'created': created,
             'device_id': str(device.id),
-            'registered': True,
         })
     except Exception as exc:
         return JsonResponse({'status': 'error', 'message': str(exc)}, status=500)
@@ -1006,300 +976,4 @@ def api_agent_poll(request):
     return JsonResponse({
         'status': 'ok',
         'rescan_at': rescan_at.isoformat() if rescan_at else None,
-    })
-
-
-@_update_required
-@require_http_methods(['POST'])
-def request_agent_rescan(request):
-    """Portal: yêu cầu mọi agent báo cáo lại (trong ~1–2 phút)."""
-    from equipment.models import EquipmentScanControl
-
-    if not getattr(settings, 'EQUIPMENT_AGENT_SECRET', ''):
-        messages.error(request, 'Chưa cấu hình EQUIPMENT_AGENT_SECRET trên server.')
-        return _redirect_device_list(SCOPE_IT)
-
-    when = EquipmentScanControl.request_agent_rescan()
-    messages.success(
-        request,
-        f'Đã gửi tín hiệu quét tới các PC có Agent (lúc {when:%H:%M:%S}). '
-        'Để cập nhật lại PC: chạy lại file cài Agent trên máy đó (quét một lần).',
-    )
-    return _redirect_device_list(SCOPE_IT)
-
-
-@login_required
-def agent_install_gate(request):
-    """Màn hình bắt buộc cài agent — không thể vào module khác."""
-    from equipment.services.agent_install import (
-        agent_gate_enabled,
-        agent_install_enabled,
-        is_agent_install_required,
-        user_is_in_equipment_registry,
-    )
-    from equipment.services.shared_pc import get_shared_pc_context_for_gate
-
-    if not agent_gate_enabled():
-        return redirect('home_portal')
-    if user_is_in_equipment_registry(request.user):
-        return redirect('home_portal')
-    # Chỉ đẩy về trang chủ khi gate không còn áp dụng (vd. không phải Windows) — tránh vòng với middleware
-    if not is_agent_install_required(request):
-        return redirect('home_portal')
-
-    shared_pc = get_shared_pc_context_for_gate(request, request.user)
-
-    from equipment.services.agent_install import MACHINE_TYPE_COMPANY, MACHINE_TYPE_PERSONAL
-
-    return render(request, 'equipment/agent_install_gate.html', {
-        'portal_user': request.user,
-        'agent_download_ready': agent_install_enabled(),
-        'shared_pc': shared_pc,
-        'machine_type_company': MACHINE_TYPE_COMPANY,
-        'machine_type_personal': MACHINE_TYPE_PERSONAL,
-    })
-
-
-def _set_agent_serial_cookie(response, serial: str):
-    if serial:
-        response.set_cookie(
-            'jp_agent_serial',
-            serial,
-            max_age=365 * 24 * 3600,
-            samesite='Lax',
-        )
-    return response
-
-
-@login_required
-@require_http_methods(['POST'])
-def agent_confirm_shared_pc(request):
-    """User mới xác nhận dùng PC đã có agent — không cần cài lại."""
-    from equipment.services.agent_install import (
-        agent_gate_enabled,
-        is_agent_install_required,
-        user_is_in_equipment_registry,
-    )
-    from equipment.services.shared_pc import (
-        confirm_user_on_shared_device,
-        find_device_for_client_request,
-        user_registered_on_device,
-    )
-
-    if not agent_gate_enabled():
-        return redirect('home_portal')
-    if user_is_in_equipment_registry(request.user):
-        return redirect('home_portal')
-
-    device = find_device_for_client_request(request)
-    if not device:
-        messages.error(
-            request,
-            'Không nhận diện được PC đã cài agent. Hãy tải file cài hoặc đăng nhập '
-            'trên đúng máy Windows đã có JustPlay Agent.',
-        )
-        return redirect('equipment:agent_install_gate')
-
-    if user_registered_on_device(request.user, device):
-        response = redirect('home_portal')
-        return _set_agent_serial_cookie(response, device.serial_number)
-
-    confirm_user_on_shared_device(request.user, device)
-    messages.success(
-        request,
-        f'Đã xác nhận bạn dùng chung PC {device.hostname or device.name}. '
-        'Bạn có thể vào portal bình thường.',
-    )
-    response = redirect('home_portal')
-    return _set_agent_serial_cookie(response, device.serial_number)
-
-
-@login_required
-def agent_download_installer(request):
-    """1 file .cmd cá nhân hóa — tải EXE, tạo ini, quét sau 5 giây."""
-    from equipment.services.agent_install import (
-        agent_install_enabled,
-        build_installer_cmd,
-        create_install_token,
-    )
-
-    from equipment.services.agent_install import normalize_machine_type
-
-    if not agent_install_enabled():
-        messages.error(request, 'Chưa bật Agent trên server (EQUIPMENT_AGENT_SECRET).')
-        return redirect('equipment:agent_install_gate')
-
-    machine_type = normalize_machine_type(request.GET.get('machine_type'))
-    token = create_install_token(request.user, machine_type=machine_type)
-    content = build_installer_cmd(
-        user=request.user,
-        token=token.token,
-        machine_type=machine_type,
-    )
-    filename = f'JustPlay-CaiDat-{request.user.username}.cmd'
-    response = HttpResponse(content, content_type='application/octet-stream')
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    return response
-
-
-def _agent_exe_path() -> Path | None:
-    custom = getattr(settings, 'EQUIPMENT_AGENT_EXE_PATH', '').strip()
-    if custom:
-        path = Path(custom)
-        if path.is_file():
-            return path
-    base = Path(settings.BASE_DIR)
-    for candidate in (
-        base / 'static' / 'equipment' / 'JustPlayAgent.exe',
-        base / 'dist' / 'JustPlayAgent.exe',
-    ):
-        if candidate.is_file():
-            return candidate
-    return None
-
-
-def agent_jp_portal_install_ps1(request):
-    """Script PowerShell bước 5 installer — tải qua curl (tránh giới hạn dòng CMD)."""
-    from equipment.services.agent_install import portal_install_powershell_script
-
-    # UTF-8 BOM — Windows PowerShell 5.x doc file .ps1 (tranh loi parse ky tu dac biet)
-    body = portal_install_powershell_script().encode('utf-8-sig')
-    response = HttpResponse(body, content_type='application/octet-stream; charset=utf-8')
-    response['Content-Disposition'] = 'attachment; filename="jp-portal-install.ps1"'
-    return response
-
-
-def agent_serve_exe(request):
-    """Agent EXE — curl từ file cài .cmd (không cần đăng nhập)."""
-    path = _agent_exe_path()
-    if not path:
-        return HttpResponse('JustPlayAgent.exe chua duoc dat tren server.', status=404)
-    with path.open('rb') as fh:
-        data = fh.read()
-    response = HttpResponse(data, content_type='application/octet-stream')
-    response['Content-Disposition'] = 'attachment; filename="JustPlayAgent.exe"'
-    return response
-
-
-def agent_portal_app_install(request):
-    """Trang cài PWA công khai — SW + manifest; file .cmd mở trước --install-app."""
-    from django.conf import settings
-
-    base = (getattr(settings, 'PORTAL_PUBLIC_BASE_URL', '') or '').rstrip('/')
-    if not base:
-        base = request.build_absolute_uri('/').rstrip('/')
-    return render(request, 'equipment/agent_portal_app_install.html', {
-        'portal_url': f'{base}/',
-        'autoinstall': request.GET.get('autoinstall') == '1',
-    })
-
-
-@require_GET
-def api_complete_personal_install(request):
-    """
-    Hoàn tất đăng ký máy cá nhân — không cần cookie đăng nhập.
-    Installer gọi qua curl sau khi cài xong (trình duyệt mở từ .cmd thường không có session).
-    """
-    from equipment.services.agent_install import complete_personal_install_from_token
-
-    token_str = request.GET.get('token', '').strip()
-    if not token_str:
-        return JsonResponse({'ok': False, 'error': 'missing_token'}, status=400)
-    if complete_personal_install_from_token(token_str):
-        return JsonResponse({'ok': True})
-    return JsonResponse({'ok': False, 'error': 'invalid_or_expired_token'}, status=400)
-
-
-@login_required
-def agent_install_done(request):
-    """Trang xác nhận sau cài — chờ agent gửi thông tin lên quản lý thiết bị."""
-    from equipment.services.agent_install import (
-        complete_personal_install_from_token,
-        try_reconcile_agent_registration,
-        user_is_in_equipment_registry,
-    )
-
-    token_str = request.GET.get('token', '').strip()
-    if token_str:
-        complete_personal_install_from_token(
-            token_str,
-            user=request.user if request.user.is_authenticated else None,
-        )
-    try_reconcile_agent_registration(request)
-    ready = user_is_in_equipment_registry(request.user)
-    serial = ''
-
-    if ready:
-        from equipment.models import UserAgentRegistration
-
-        reg = (
-            UserAgentRegistration.objects.filter(user=request.user)
-            .order_by('-registered_at')
-            .first()
-        )
-        if reg:
-            serial = reg.serial_number
-
-    response = render(request, 'equipment/agent_install_done.html', {
-        'token': token_str,
-        'ready': ready,
-        'serial': serial,
-    })
-    return _set_agent_serial_cookie(response, serial)
-
-
-@login_required
-def api_agent_install_status(request):
-    """Poll — user đã có trong quản lý thiết bị chưa."""
-    from equipment.services.agent_install import (
-        complete_personal_install_from_token,
-        is_agent_install_required,
-        try_reconcile_agent_registration,
-        user_is_in_equipment_registry,
-    )
-    from equipment.services.shared_pc import get_shared_pc_context_for_gate
-
-    token_str = request.GET.get('token', '').strip()
-    if token_str:
-        complete_personal_install_from_token(token_str, user=request.user)
-    try_reconcile_agent_registration(request)
-    gate_required = is_agent_install_required(request)
-    if user_is_in_equipment_registry(request.user):
-        return JsonResponse({
-            'ready': True,
-            'registered': True,
-            'gate_required': gate_required,
-        })
-
-    shared = get_shared_pc_context_for_gate(request, request.user)
-    if shared:
-        return JsonResponse({
-            'ready': False,
-            'shared_confirm_available': True,
-            'device_name': shared['device'].hostname or shared['device'].name,
-        })
-
-    return JsonResponse({'ready': False, 'gate_required': gate_required})
-
-
-@require_GET
-def agent_config_ping(request):
-    """Ping cấu hình gate — kiểm tra production."""
-    from equipment.services.agent_install import agent_gate_enabled, agent_install_enabled
-
-    return JsonResponse({
-        'gate_enabled': agent_gate_enabled(),
-        'agent_secret_set': agent_install_enabled(),
-        'exempt_usernames': getattr(settings, 'EQUIPMENT_AGENT_GATE_EXEMPT_USERNAMES', 'admin'),
-        'middleware': 'equipment.middleware.AgentInstallGateMiddleware' in settings.MIDDLEWARE,
-    })
-
-
-@_access_required
-def agent_guide(request):
-    portal_url = getattr(settings, 'PORTAL_PUBLIC_BASE_URL', '').rstrip('/')
-    return render(request, 'equipment/agent_guide.html', {
-        'portal_url': portal_url,
-        'has_agent_secret': bool(getattr(settings, 'EQUIPMENT_AGENT_SECRET', '')),
-        **_subnav_context(request),
     })
