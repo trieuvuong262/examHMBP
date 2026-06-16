@@ -2,6 +2,13 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from django.urls import reverse
 
+from PortalJustPlay.utils import (
+    build_hm_username_base,
+    generate_hm_email,
+    generate_hm_username,
+    next_employee_code,
+)
+
 from hrm.models import (
     Department,
     DepartmentMenuPermission,
@@ -27,6 +34,33 @@ from hrm.module_permissions import (
 )
 from hrm.group_permissions import normalize_group_permissions, permissions_from_legacy_role
 from hrm.permissions import ROLE_DIRECTOR, ROLE_EMPLOYEE, ROLE_TEAM_LEADER
+
+
+class HMUsernameSuggestionTests(TestCase):
+    def test_build_username_examples(self):
+        self.assertEqual(build_hm_username_base('Nguyễn Thành Nam'), 'nam.nt')
+        self.assertEqual(build_hm_username_base('Trần Thái Viết Hưng'), 'hung.ttv')
+
+    def test_generate_username_avoids_duplicate_with_suffix(self):
+        User.objects.create_user(username='nam.nt', password='x')
+        self.assertEqual(generate_hm_username('Nguyễn Thành Nam'), 'nam.nt1')
+
+    def test_generate_username_ignores_self_on_edit(self):
+        user = User.objects.create_user(username='nam.nt', password='x')
+        self.assertEqual(
+            generate_hm_username('Nguyễn Thành Nam', exclude_user_id=user.pk),
+            'nam.nt',
+        )
+
+    def test_generate_email_from_username(self):
+        self.assertEqual(generate_hm_email('nam.nt'), 'nam.nt@justplay.vn')
+
+    def test_next_employee_code_increments_from_max(self):
+        user = User.objects.create_user(username='code1', password='x')
+        Profile.objects.filter(user=user).update(employee_code='440')
+        self.assertEqual(next_employee_code(), '441')
+
+
 from hrm.role_permissions import get_role_permissions, role_allows_edit, role_allows_view
 
 
@@ -659,6 +693,28 @@ class UserAddFormTests(TestCase):
         response = self.client.get(reverse('user_add'))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'name="password"')
+
+    def test_user_add_get_prefills_probation_defaults(self):
+        response = self.client.get(reverse('user_add'))
+        self.assertEqual(response.status_code, 200)
+        form = response.context['form']
+        self.assertEqual(form.initial.get('job_position'), 'Nhân viên thử việc')
+        self.assertEqual(form.initial.get('job_title'), 'Nhân viên thử việc')
+        self.assertEqual(form.initial.get('role'), ROLE_EMPLOYEE)
+        self.assertTrue(form.initial.get('join_date'))
+        self.assertTrue(form.initial.get('employee_code'))
+
+    def test_user_suggest_username_api(self):
+        response = self.client.get(
+            reverse('user_suggest_username'),
+            {'full_name': 'Nguyễn Thành Nam'},
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['username'], 'nam.nt')
+        self.assertEqual(data['email'], 'nam.nt@justplay.vn')
+        self.assertTrue(data['employee_code'])
+
 
     def test_user_add_get_has_avatar_and_tabs(self):
         response = self.client.get(reverse('user_add'))

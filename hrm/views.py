@@ -30,14 +30,24 @@ from hrm.models import (
     RoleModulePermission,
 )
 from hrm.role_permissions import ROLE_LABELS, default_role_permissions
-from hrm.permissions import ROLE_CHOICES
+from hrm.permissions import ROLE_CHOICES, ROLE_EMPLOYEE
 from hrm.choices import (
     EXCEL_ALL_HEADERS,
     row_to_profile_data,
     profile_defaults_from_import,
     user_to_excel_row,
 )
-from PortalJustPlay.utils import generate_hm_username, generate_secure_password
+from datetime import date
+
+from PortalJustPlay.utils import (
+    PROBATION_JOB_LABEL,
+    generate_hm_email,
+    generate_hm_username,
+    generate_secure_password,
+    get_probation_permission_group,
+    next_employee_code,
+    suggest_hm_credentials,
+)
 from hrm.forms import (
     CustomUserForm,
     DepartmentForm,
@@ -321,7 +331,17 @@ def user_add(request):
 
         messages.error(request, 'Không lưu được — vui lòng kiểm tra các ô báo đỏ bên dưới.')
     else:
-        initial = {'password': generate_secure_password()}
+        initial = {
+            'password': generate_secure_password(),
+            'join_date': date.today(),
+            'job_position': PROBATION_JOB_LABEL,
+            'job_title': PROBATION_JOB_LABEL,
+            'role': ROLE_EMPLOYEE,
+            'employee_code': next_employee_code(),
+        }
+        probation_group = get_probation_permission_group()
+        if probation_group:
+            initial['permission_group'] = probation_group.pk
         dept_id = (request.GET.get('department') or '').strip()
         div_id = (request.GET.get('division') or '').strip()
         job_position = (request.GET.get('job_position') or '').strip()
@@ -355,14 +375,25 @@ def user_add(request):
     })
 
 
-@module_perm_required(MODULE_HRM, 'create')
+@module_perm_required(MODULE_HRM, 'view')
 @require_GET
 def user_suggest_username(request):
-    """Gợi ý account từ họ tên (form thêm NV)."""
+    """Gợi ý account / email / mã NS từ họ tên (form thêm/sửa NV)."""
     full_name = (request.GET.get('full_name') or '').strip()
     if not full_name:
-        return JsonResponse({'username': ''})
-    return JsonResponse({'username': generate_hm_username(full_name)})
+        return JsonResponse({'username': '', 'email': '', 'employee_code': ''})
+
+    exclude_raw = (request.GET.get('exclude_user_id') or '').strip()
+    exclude_user_id = int(exclude_raw) if exclude_raw.isdigit() else None
+    include_code = (request.GET.get('include_employee_code') or '1').strip() not in ('0', 'false', 'no')
+
+    return JsonResponse(
+        suggest_hm_credentials(
+            full_name,
+            exclude_user_id=exclude_user_id,
+            include_employee_code=include_code,
+        )
+    )
 
 
 @module_perm_required(MODULE_HRM, 'view')
@@ -786,7 +817,7 @@ def user_import_excel(request):
                         continue
 
                     password = data.get('password', '').strip() or generate_secure_password()
-                    email = data.get('email', '').strip() or f'{username.lower()}@justplay.vn'
+                    email = data.get('email', '').strip() or generate_hm_email(username)
 
                     user = User.objects.create_user(
                         username=username,

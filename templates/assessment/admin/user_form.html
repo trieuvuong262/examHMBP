@@ -1349,14 +1349,17 @@
         });
     }
 
-    {% if not is_edit %}
     const fullNameInput = document.querySelector('input[name="full_name"]');
     const usernameInput = document.querySelector('input[name="username"]');
+    const emailInput = document.querySelector('input[name="email"]');
+    const employeeCodeInput = document.querySelector('input[name="employee_code"]');
     const suggestBtn = document.getElementById('jpSuggestUsername');
     const suggestUrl = '{% url "user_suggest_username" %}';
+    const isCreateForm = {% if not is_edit %}true{% else %}false{% endif %};
 
     if (fullNameInput && usernameInput) {
         let usernameManual = false;
+        let emailManual = false;
         let suggestTimer = null;
         let lastFetchedName = '';
 
@@ -1365,69 +1368,96 @@
             usernameInput.dataset.jpManual = '1';
         }
 
+        function markEmailManual() {
+            emailManual = true;
+            if (emailInput) emailInput.dataset.jpManual = '1';
+        }
+
         usernameInput.addEventListener('keydown', markUsernameManual);
         usernameInput.addEventListener('paste', markUsernameManual);
         usernameInput.addEventListener('drop', markUsernameManual);
+        if (emailInput) {
+            emailInput.addEventListener('keydown', markEmailManual);
+            emailInput.addEventListener('paste', markEmailManual);
+            emailInput.addEventListener('drop', markEmailManual);
+        }
 
-        function applySuggestion(username) {
-            if (!username || usernameManual) return;
-            usernameInput.value = username;
-            usernameInput.classList.add('is-valid');
-            usernameInput.classList.remove('is-invalid');
+        function applySuggestion(data) {
+            if (!data) return;
+            if (data.username && !usernameManual) {
+                usernameInput.value = data.username;
+                usernameInput.classList.add('is-valid');
+                usernameInput.classList.remove('is-invalid');
+            }
+            if (data.email && emailInput && !emailManual) {
+                emailInput.value = data.email;
+            }
+            if (isCreateForm && data.employee_code && employeeCodeInput && !employeeCodeInput.value.trim()) {
+                employeeCodeInput.value = data.employee_code;
+            }
             updateAddHeroPreview();
         }
 
         function fetchSuggestion(force) {
             const name = fullNameInput.value.trim();
             if (!name) return Promise.resolve();
-            if (!force && usernameManual) return Promise.resolve();
+            if (!force && isCreateForm && usernameManual) return Promise.resolve();
             if (!force && name === lastFetchedName) return Promise.resolve();
             lastFetchedName = name;
-            return fetch(suggestUrl + '?full_name=' + encodeURIComponent(name), {
+
+            const params = new URLSearchParams();
+            params.set('full_name', name);
+            if (editUserId) params.set('exclude_user_id', editUserId);
+            if (!isCreateForm) params.set('include_employee_code', '0');
+
+            return fetch(suggestUrl + '?' + params.toString(), {
                 headers: { 'Accept': 'application/json' },
             })
                 .then(function (r) { return r.json(); })
-                .then(function (data) {
-                    if (data.username) applySuggestion(data.username);
-                })
+                .then(function (data) { applySuggestion(data); })
                 .catch(function () {});
         }
 
         function scheduleSuggest(force) {
+            if (!isCreateForm && !force) return;
             clearTimeout(suggestTimer);
             suggestTimer = setTimeout(function () { fetchSuggestion(force); }, force ? 0 : 400);
         }
 
-        fullNameInput.addEventListener('input', function () {
-            lastFetchedName = '';
-            scheduleSuggest(false);
-        });
-        fullNameInput.addEventListener('change', function () { scheduleSuggest(true); });
-        fullNameInput.addEventListener('blur', function () { scheduleSuggest(true); });
+        if (isCreateForm) {
+            fullNameInput.addEventListener('input', function () {
+                lastFetchedName = '';
+                scheduleSuggest(false);
+            });
+            fullNameInput.addEventListener('change', function () { scheduleSuggest(true); });
+            fullNameInput.addEventListener('blur', function () { scheduleSuggest(true); });
 
-        fullNameInput.addEventListener('animationstart', function (e) {
-            if (e.animationName === 'jp-autofill-start') scheduleSuggest(true);
-        });
-        usernameInput.addEventListener('animationstart', function (e) {
-            if (e.animationName === 'jp-autofill-start' && !usernameManual) {
-                fullNameInput.value.trim() && scheduleSuggest(true);
-            }
-        });
+            fullNameInput.addEventListener('animationstart', function (e) {
+                if (e.animationName === 'jp-autofill-start') scheduleSuggest(true);
+            });
+            usernameInput.addEventListener('animationstart', function (e) {
+                if (e.animationName === 'jp-autofill-start' && !usernameManual) {
+                    fullNameInput.value.trim() && scheduleSuggest(true);
+                }
+            });
+
+            [300, 900, 1800].forEach(function (ms) {
+                setTimeout(function () {
+                    if (fullNameInput.value.trim() && !usernameManual) scheduleSuggest(true);
+                }, ms);
+            });
+        }
 
         if (suggestBtn) {
             suggestBtn.addEventListener('click', function () {
                 usernameManual = false;
+                emailManual = false;
                 delete usernameInput.dataset.jpManual;
+                if (emailInput) delete emailInput.dataset.jpManual;
                 lastFetchedName = '';
                 fetchSuggestion(true);
             });
         }
-
-        [300, 900, 1800].forEach(function (ms) {
-            setTimeout(function () {
-                if (fullNameInput.value.trim() && !usernameManual) scheduleSuggest(true);
-            }, ms);
-        });
     }
 
     function updateAddHeroPreview() {
@@ -1477,7 +1507,6 @@
         updateAddRoleBadge();
     }
     updateAddHeroPreview();
-    {% endif %}
 })();
 </script>
 {% endblock %}

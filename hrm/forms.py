@@ -56,7 +56,7 @@ class CustomUserForm(forms.Form):
     # Tài khoản
     username = forms.CharField(
         label='Account',
-        widget=forms.TextInput(attrs={**INPUT, 'placeholder': 'Annt'}),
+        widget=forms.TextInput(attrs={**INPUT, 'placeholder': 'nam.nt'}),
     )
     password = forms.CharField(
         required=False,
@@ -64,7 +64,7 @@ class CustomUserForm(forms.Form):
     )
     email = forms.EmailField(
         required=False,
-        widget=forms.EmailInput(attrs={**INPUT, 'placeholder': 'annt@justplay.vn (tuỳ chọn)'}),
+        widget=forms.EmailInput(attrs={**INPUT, 'placeholder': 'nam.nt@justplay.vn (tuỳ chọn)'}),
     )
 
     # Thông tin nhân sự

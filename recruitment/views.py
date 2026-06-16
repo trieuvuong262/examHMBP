@@ -23,7 +23,7 @@ from assessment.models import Exam
 from hrm.models import Profile
 from hrm.choices import normalize_position
 from hrm.choices import resolve_department
-from PortalJustPlay.utils import generate_hm_username, generate_secure_password
+from PortalJustPlay.utils import generate_hm_email, generate_hm_username, generate_secure_password
 from PortalJustPlay.list_search import apply_term_search, get_search_query
 from PortalJustPlay.pagination import paginate_columns, paginate_queryset
 from .models import Interview
@@ -244,7 +244,7 @@ def convert_to_employee(request, candidate_id):
 
             user = User.objects.create_user(
                 username=new_username,
-                email=candidate.email or f'{new_username.lower()}@justplay.vn',
+                email=candidate.email or generate_hm_email(new_username),
                 password=new_password,
                 first_name=candidate.full_name,
                 is_staff=False,
