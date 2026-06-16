@@ -147,19 +147,34 @@ def mark_lesson_complete(request, lesson_id):
         progress.is_completed = True
         progress.save()
 
-        enrollment = Enrollment.objects.get(user=request.user, course=lesson.chapter.course)
+        course = lesson.chapter.course
+        enrollment = Enrollment.objects.get(user=request.user, course=course)
         is_course_finished = False
-        
+        exam_url = None
+
         if enrollment.progress_percent >= 100.0:
             enrollment.is_completed = True
             enrollment.completed_at = timezone.now()
             enrollment.save()
             is_course_finished = True
 
+            if course.final_exam_id:
+                from assessment.models import ExamSubmission
+                from django.urls import reverse
+
+                already_submitted = ExamSubmission.objects.filter(
+                    user=request.user,
+                    exam_id=course.final_exam_id,
+                    is_completed=True,
+                ).exists()
+                if not already_submitted:
+                    exam_url = reverse('take_exam', args=[course.final_exam_id])
+
         return JsonResponse({
             'status': 'success',
             'progress_percent': enrollment.progress_percent,
-            'is_course_finished': is_course_finished
+            'is_course_finished': is_course_finished,
+            'exam_url': exam_url,
         })
     return JsonResponse({'status': 'error'}, status=400)
 

@@ -168,12 +168,17 @@
                 if(res.status === 'success') {
                     const btn = $('#btn-complete');
                     btn.removeClass('btn-hm').addClass('btn-success disabled');
-                    btn.html('<i class="bi bi-check-circle-fill me-2"></i>Đã hoàn thành bài này');
 
                     $('#top-progress-bar').css('width', res.progress_percent + '%');
                     $('#progress-text').text(res.progress_percent + '% Hoàn thành');
 
-                    setTimeout(() => location.reload(), 800);
+                    if (res.exam_url) {
+                        btn.html('<i class="bi bi-pencil-square me-2"></i>Chuyển sang bài kiểm tra…');
+                        setTimeout(function() { window.location.href = res.exam_url; }, 700);
+                    } else {
+                        btn.html('<i class="bi bi-check-circle-fill me-2"></i>Đã hoàn thành bài này');
+                        setTimeout(function() { location.reload(); }, 800);
+                    }
                 }
             }
         });
