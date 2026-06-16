@@ -464,6 +464,7 @@ def device_list(request, equipment_scope=SCOPE_IT):
         'can_edit': user_can_edit_module(request.user, MODULE_EQUIPMENT),
         'can_edit_equipment': user_can_edit_module(request.user, MODULE_EQUIPMENT),
         'can_export': user_can_export_module(request.user, MODULE_EQUIPMENT),
+        'show_device_list_toolbar': True,
         **_subnav_context(request, equipment_scope),
     })
 

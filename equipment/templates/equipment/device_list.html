@@ -15,31 +15,6 @@
         </h2>
     </div>
 
-    <div class="card border-0 shadow-sm mb-3 jp-eq-list-actions">
-        <div class="card-body py-2 px-3">
-            {% include 'equipment/includes/list_toolbar.html' %}
-        </div>
-    </div>
-
-    <div class="jp-eq-stats mb-3">
-        <div class="jp-eq-stat">
-            <div class="jp-eq-stat-value text-hm">{{ filtered_count|intcomma }}</div>
-            <div class="jp-eq-stat-label">Đang xem</div>
-        </div>
-        <div class="jp-eq-stat">
-            <div class="jp-eq-stat-value text-success">{{ stat_active }}</div>
-            <div class="jp-eq-stat-label">Hoạt động</div>
-        </div>
-        <div class="jp-eq-stat">
-            <div class="jp-eq-stat-value text-danger">{{ stat_broken }}</div>
-            <div class="jp-eq-stat-label">Đang hỏng</div>
-        </div>
-        <div class="jp-eq-stat">
-            <div class="jp-eq-stat-value text-warning">{{ stat_maintenance }}</div>
-            <div class="jp-eq-stat-label">Bảo trì</div>
-        </div>
-    </div>
-
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-body p-3">
             <form method="get" id="filterForm">

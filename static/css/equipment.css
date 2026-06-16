@@ -8,6 +8,23 @@
     white-space: nowrap;
 }
 
+.jp-eq-subnav-row .jp-tab-pills {
+    flex: 1 1 auto;
+    min-width: min(100%, 280px);
+}
+
+.jp-eq-subnav-row .jp-eq-list-toolbar {
+    flex: 0 1 auto;
+    margin-left: auto;
+}
+
+@media (max-width: 767.98px) {
+    .jp-eq-subnav-row .jp-eq-list-toolbar {
+        width: 100%;
+        margin-left: 0;
+    }
+}
+
 .jp-eq-form-section {
     padding-bottom: 0.25rem;
 }

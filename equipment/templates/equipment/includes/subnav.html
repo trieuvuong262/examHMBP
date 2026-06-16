@@ -4,7 +4,8 @@
             <i class="bi bi-{{ scope_icon|default:'hdd-stack' }} me-1"></i>{{ equipment_scope_short }}
         </span>
     </div>
-    <div class="jp-tab-pills d-flex flex-wrap gap-2">
+    <div class="jp-eq-subnav-row d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div class="jp-tab-pills d-flex flex-wrap gap-2">
         <a href="{{ equipment_urls.dashboard }}"
            class="btn btn-sm {% if request.resolver_match.url_name == 'dashboard_it' or request.resolver_match.url_name == 'dashboard_production' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
             <i class="bi bi-speedometer2 me-1"></i>Tổng quan
@@ -26,5 +27,11 @@
            class="btn btn-sm {% if 'status_' in request.resolver_match.url_name %}btn-hm{% else %}btn-outline-secondary{% endif %}">
             <i class="bi bi-activity me-1"></i>Trạng thái
         </a>
+        </div>
+        {% if show_device_list_toolbar %}
+        <div class="jp-eq-list-toolbar d-flex flex-wrap align-items-center gap-2">
+            {% include 'equipment/includes/list_toolbar.html' %}
+        </div>
+        {% endif %}
     </div>
 </nav>
