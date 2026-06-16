@@ -60,6 +60,7 @@ def portal_permissions(request):
     user = request.user
     if not user.is_authenticated:
         return {
+            'jp_force_password_change': False,
             'jp_can_portal_admin': False,
             'jp_can_edit_guide': False,
             'jp_is_hod': False,
@@ -176,7 +177,9 @@ def portal_permissions(request):
             'jp_can_manage_permissions': False,
         }
     enabled = get_user_enabled_modules(user)
+    profile = getattr(user, 'profile', None)
     base = {
+        'jp_force_password_change': bool(profile and profile.must_change_password),
         'jp_can_portal_admin': is_portal_admin(user),
         'jp_can_edit_guide': can_edit_user_guide(user),
         'jp_is_hod': is_hod(user),

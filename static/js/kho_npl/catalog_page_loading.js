@@ -95,6 +95,11 @@
         const el = root();
         if (!el || !isVisible) {
             clearPending();
+            document.body.classList.remove('jp-npl-catalog-loading-active');
+            if (el) {
+                el.classList.add('d-none');
+                el.setAttribute('aria-hidden', 'true');
+            }
             return;
         }
         const wait = force ? 0 : Math.max(0, MIN_VISIBLE_MS - (Date.now() - shownAt));

@@ -145,12 +145,12 @@
     {% endif %}
 </div>
 
-<div class="modal fade" id="resultModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+<div class="modal fade" id="resultModal" tabindex="-1" aria-labelledby="resultModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content border-0 shadow-lg overflow-hidden">
             <div class="modal-header bg-dark text-white border-0 py-3">
-                <h5 class="modal-title fw-bold"><i class="bi bi-award-fill me-2 text-warning"></i>KẾT QUẢ CHI TIẾT</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title fw-bold" id="resultModalTitle"><i class="bi bi-award-fill me-2 text-warning"></i>KẾT QUẢ CHI TIẾT</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
             </div>
             <div class="modal-body p-4 text-center">
                 <h5 id="modalExamTitle" class="fw-bold text-dark mb-2"></h5>
@@ -191,50 +191,112 @@
     .btn-hm { background-color: var(--hm-primary); color: white; border: none; }
     .btn-hm:hover { background-color: #b91c1c; color: white; box-shadow: 0 5px 15px rgba(220, 38, 38, 0.3); }
     .exam-card { border: 1px solid #f1f5f9 !important; transition: all 0.3s ease; }
-    .exam-card:hover { transform: translateY(-8px); box-shadow: 0 15px 35px rgba(0,0,0,0.1) !important; border-color: var(--hm-primary) !important; }
+    @media (hover: hover) {
+        .exam-card:hover { transform: translateY(-8px); box-shadow: 0 15px 35px rgba(0,0,0,0.1) !important; border-color: var(--hm-primary) !important; }
+    }
     .btn-hover-lift:hover { transform: translateY(-2px); }
     .bg-success-subtle { background-color: rgba(25, 135, 84, 0.1) !important; }
     .bg-danger-subtle { background-color: rgba(220, 53, 69, 0.1) !important; }
+
+    /* Modal kết quả thi — tránh kẹt backdrop trên mobile */
+    #resultModal {
+        z-index: 1065;
+    }
+    #resultModal .modal-content {
+        max-height: min(92dvh, 100%);
+    }
+    #resultModal .btn-close {
+        min-width: 44px;
+        min-height: 44px;
+    }
+    #resultModal .modal-footer .btn {
+        min-height: 44px;
+    }
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const resultModal = document.getElementById('resultModal');
-    if (resultModal) {
-        resultModal.addEventListener('show.bs.modal', function (event) {
-            const btn = event.relatedTarget;
-            
-            const rawMC = btn.getAttribute('data-mc');
-            const rawEssay = btn.getAttribute('data-essay');
-            const rawTotal = btn.getAttribute('data-total');
-            const duration = btn.getAttribute('data-duration');
-            const isGraded = btn.getAttribute('data-graded') === 'True';
+    if (!resultModal) return;
 
-            const normalize = (val) => parseFloat(String(val).replace(',', '.')) || 0;
+    // Bootstrap khuyến nghị modal nằm trực tiếp dưới body (tránh kẹt trên iOS)
+    if (resultModal.parentElement !== document.body) {
+        document.body.appendChild(resultModal);
+    }
 
-            const mc = normalize(rawMC);
-            const essay = normalize(rawEssay);
-            const total = normalize(rawTotal);
+    try {
+        if (window.JpNplCatalogLoading) {
+            window.JpNplCatalogLoading.hide(true);
+        }
+    } catch (e) {}
 
-            document.getElementById('modalExamTitle').textContent = btn.getAttribute('data-title');
-            document.getElementById('modalDurationText').innerHTML = `Thời gian thực hiện: <b>${duration} phút</b>`;
-            
-            document.getElementById('modalMCScore').textContent = mc.toFixed(1).replace('.', ',');
-            document.getElementById('modalTotalScore').textContent = total.toFixed(1).replace('.', ',');
-            
-            const essayEl = document.getElementById('modalEssayScore');
-            const statusEl = document.getElementById('gradingStatus');
-            
-            if (isGraded) {
-                essayEl.textContent = essay.toFixed(1).replace('.', ',');
-                essayEl.className = 'fw-bold text-hm mb-0';
-            } else {
-                essayEl.textContent = "Đang chấm";
-                essayEl.className = 'small text-muted mb-0 pt-2';
-                statusEl.innerHTML = "<span class='text-muted italic'>⏳ Phần tự luận đang được chờ chấm...</span>";
-            }
+    function cleanupDuplicateBackdrops() {
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        for (let i = 1; i < backdrops.length; i += 1) {
+            backdrops[i].remove();
+        }
+    }
+
+    function cleanupModalArtifacts() {
+        cleanupDuplicateBackdrops();
+        const openModals = document.querySelectorAll('.modal.show');
+        if (openModals.length) return;
+        document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('padding-right');
+        document.querySelectorAll('.modal-backdrop').forEach(function (el) {
+            el.remove();
         });
     }
+
+    resultModal.addEventListener('show.bs.modal', function (event) {
+        cleanupDuplicateBackdrops();
+        try {
+            if (window.JpNplCatalogLoading) {
+                window.JpNplCatalogLoading.hide(true);
+            }
+        } catch (e) {}
+
+        const btn = event.relatedTarget;
+        if (!btn) return;
+
+        const rawMC = btn.getAttribute('data-mc');
+        const rawEssay = btn.getAttribute('data-essay');
+        const rawTotal = btn.getAttribute('data-total');
+        const duration = btn.getAttribute('data-duration');
+        const isGraded = btn.getAttribute('data-graded') === 'True';
+
+        const normalize = (val) => parseFloat(String(val).replace(',', '.')) || 0;
+
+        const mc = normalize(rawMC);
+        const essay = normalize(rawEssay);
+        const total = normalize(rawTotal);
+
+        document.getElementById('modalExamTitle').textContent = btn.getAttribute('data-title');
+        document.getElementById('modalDurationText').innerHTML = `Thời gian thực hiện: <b>${duration} phút</b>`;
+
+        document.getElementById('modalMCScore').textContent = mc.toFixed(1).replace('.', ',');
+        document.getElementById('modalTotalScore').textContent = total.toFixed(1).replace('.', ',');
+
+        const essayEl = document.getElementById('modalEssayScore');
+        const statusEl = document.getElementById('gradingStatus');
+
+        if (isGraded) {
+            essayEl.textContent = essay.toFixed(1).replace('.', ',');
+            essayEl.className = 'fw-bold text-hm mb-0';
+            statusEl.innerHTML = '';
+        } else {
+            essayEl.textContent = 'Đang chấm';
+            essayEl.className = 'small text-muted mb-0 pt-2';
+            statusEl.innerHTML = "<span class='text-muted'>⏳ Phần tự luận đang được chờ chấm...</span>";
+        }
+    });
+
+    resultModal.addEventListener('hidden.bs.modal', cleanupModalArtifacts);
+
+    window.addEventListener('pageshow', function (e) {
+        if (e.persisted) cleanupModalArtifacts();
+    });
 });
 </script>
 {% endblock %}
