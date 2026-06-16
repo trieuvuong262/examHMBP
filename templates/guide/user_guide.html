@@ -14,34 +14,17 @@
         <span class="badge bg-danger-subtle text-danger px-3 py-2 mb-2">
             <i class="bi bi-journal-bookmark-fill me-1"></i> Tài liệu nội bộ
         </span>
-        <h1 class="jp-page-title text-hm">Hướng dẫn sử dụng JustPlay Portal</h1>
-        <p class="jp-page-subtitle mx-auto" style="max-width: 720px;">
-            Hướng dẫn từng bước — dành cho người <strong>chưa từng dùng</strong> hệ thống.
-            Đọc theo thứ tự từ mục 1, hoặc nhảy thẳng tới chức năng bạn cần ở mục lục bên trái.
-        </p>
-        <div class="d-flex flex-wrap justify-content-center gap-2 mt-3">
-            <span class="badge bg-secondary px-3 py-2"><i class="bi bi-person me-1"></i>Nhân viên xưởng</span>
-            <span class="badge bg-primary px-3 py-2"><i class="bi bi-people me-1"></i>Tổ trưởng (HOD)</span>
-            <span class="badge bg-danger px-3 py-2"><i class="bi bi-briefcase me-1"></i>HR / Quản trị</span>
-        </div>
+        <h1 class="jp-page-title text-hm">{{ guide_title }}</h1>
     </div>
 
     <div class="row g-4">
-        <!-- Mobile TOC -->
         <div class="col-12 d-lg-none">
             <div class="guide-mobile-toc sticky-top" style="top: 4.5rem; z-index: 9;">
                 <div class="guide-mobile-toc-label"><i class="bi bi-list-ul me-1"></i> Nhảy tới mục</div>
                 <div class="guide-mobile-toc-scroll" id="guideMobileToc">
-                    <a class="guide-toc-link" href="#bat-dau">0. Bắt đầu</a>
-                    <a class="guide-toc-link" href="#dang-nhap">3. Đăng nhập</a>
-                    <a class="guide-toc-link" href="#doi-mat-khau">4. Mật khẩu</a>
-                    <a class="guide-toc-link" href="#man-hinh">5. Màn hình</a>
-                    <a class="guide-toc-link" href="#thong-bao">7. Thông báo</a>
-                    <a class="guide-toc-link" href="#bao-cao">8. Báo cáo</a>
-                    <a class="guide-toc-link" href="#kpi">9. KPI</a>
-                    <a class="guide-toc-link" href="#dao-tao">10. Học</a>
-                    <a class="guide-toc-link" href="#kiem-tra">11. Thi</a>
-                    <a class="guide-toc-link" href="#faq">13. FAQ</a>
+                    {% for sec in visible_sections %}
+                    <a class="guide-toc-link" href="#{{ sec.id }}">{{ sec.toc_short|default:sec.toc }}</a>
+                    {% endfor %}
                 </div>
             </div>
         </div>
@@ -53,20 +36,7 @@
                     <div class="small opacity-75">Bấm để nhảy tới phần cần đọc</div>
                 </div>
                 <nav class="nav flex-column guide-toc" id="guideDesktopToc">
-                    <a class="guide-toc-link" href="#bat-dau">0. Bắt đầu nhanh</a>
-                    <a class="guide-toc-link" href="#gioi-thieu">1. Giới thiệu</a>
-                    <a class="guide-toc-link" href="#chuan-bi">2. Chuẩn bị</a>
-                    <a class="guide-toc-link" href="#dang-nhap">3. Đăng nhập</a>
-                    <a class="guide-toc-link" href="#doi-mat-khau">4. Đổi mật khẩu</a>
-                    <a class="guide-toc-link" href="#man-hinh">5. Làm quen màn hình</a>
-                    <a class="guide-toc-link" href="#phan-quyen">6. Phân quyền</a>
-                    <a class="guide-toc-link" href="#thong-bao">7. Thông báo</a>
-                    <a class="guide-toc-link" href="#bao-cao">8. Báo cáo công việc</a>
-                    <a class="guide-toc-link" href="#kpi">9. KPI</a>
-                    <a class="guide-toc-link" href="#dao-tao">10. Đào tạo</a>
-                    <a class="guide-toc-link" href="#kiem-tra">11. Kiểm tra</a>
-                    <a class="guide-toc-link" href="#quan-tri">12. Quản trị (HR)</a>
-                    <a class="guide-toc-link" href="#faq">13. Câu hỏi thường gặp</a>
+                    {% include 'guide/_toc.html' %}
                 </nav>
             </div>
         </div>
@@ -78,9 +48,25 @@
                 <a href="{% url 'home_portal' %}" class="btn btn-hm px-4">
                     <i class="bi bi-house me-1"></i> Về trang chủ
                 </a>
+                {% if 'thong-bao' in visible_section_ids %}
                 <a href="{% url 'announcements:list' %}" class="btn btn-outline-hm px-4">
                     <i class="bi bi-megaphone me-1"></i> Xem thông báo
                 </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade guide-image-modal" id="guideImageModal" tabindex="-1" aria-labelledby="guideImageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl modal-fullscreen-lg-down">
+        <div class="modal-content border-0 bg-transparent shadow-none">
+            <div class="modal-header border-0 pb-0">
+                <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body p-0 text-center">
+                <img src="" alt="" class="guide-lightbox-img" id="guideLightboxImg">
+                <p class="guide-lightbox-caption text-white small mt-2 mb-0 px-3" id="guideLightboxCaption"></p>
             </div>
         </div>
     </div>

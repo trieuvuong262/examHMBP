@@ -1556,3 +1556,58 @@ class ExcelHrFieldsTests(TestCase):
         self.assertIn('Vai trò HT', headers)
         self.assertIn('Nhóm quyền', headers)
         self.assertIn('Trạng thái', headers)
+
+
+class GuideSectionTests(TestCase):
+    def setUp(self):
+        from hrm.guide_sections import get_visible_guide_sections
+
+        self.get_visible = get_visible_guide_sections
+
+        dept = Department.objects.create(name='GUIDE-DEPT', sort_order=1)
+        DepartmentMenuPermission.objects.create(
+            department=dept,
+            modules=['announcements', 'guide'],
+        )
+        deny = {'view': False, 'create': False, 'update': False, 'delete': False, 'export': False}
+        group_perms = {key: dict(deny) for key in ALL_MODULE_KEYS}
+        group_perms['announcements'] = {'view': True, 'create': False, 'update': False, 'delete': False, 'export': False}
+        group_perms['guide'] = {'view': True, 'create': False, 'update': False, 'delete': False, 'export': False}
+        group = PermissionGroup.objects.create(
+            slug='guide-nv',
+            name='Guide NV',
+            module_permissions=group_perms,
+        )
+        self.user = User.objects.create_user(username='guide_nv', password='x')
+        profile, _ = Profile.objects.get_or_create(user=self.user)
+        profile.role = ROLE_EMPLOYEE
+        profile.department = dept
+        profile.permission_group = group
+        profile.is_employed = True
+        profile.save()
+
+    def test_kpi_section_hidden_when_module_hidden(self):
+        ids = {s['id'] for s in self.get_visible(self.user)}
+        self.assertNotIn('kpi', ids)
+
+    def test_only_permitted_module_sections_visible(self):
+        ids = {s['id'] for s in self.get_visible(self.user)}
+        self.assertIn('thong-bao', ids)
+        self.assertNotIn('kpi', ids)
+        self.assertNotIn('phan-quyen', ids)
+        self.assertIn('bat-dau', ids)
+
+    def test_user_guide_page_filters_toc(self):
+        self.client = Client(HTTP_HOST='testserver')
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('user_guide'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="thong-bao"')
+        self.assertNotContains(response, 'id="kho-npl"')
+        self.assertNotContains(response, 'Dành cho HR / Quản trị')
+
+    def test_admin_sections_hidden_without_manage_permission(self):
+        from hrm.guide_sections import get_guide_admin_section_ids
+
+        self.assertEqual(get_guide_admin_section_ids(self.user), set())
+        self.assertNotIn('quan-tri', {s['id'] for s in self.get_visible(self.user)})

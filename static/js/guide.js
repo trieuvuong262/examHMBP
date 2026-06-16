@@ -1,5 +1,5 @@
 /**
- * Hướng dẫn — mở accordion + cuộn tới mục khi bấm mục lục / hash URL.
+ * Hướng dẫn — mở accordion + cuộn tới mục khi bấm mục lục / hash URL + phóng to ảnh.
  */
 (function () {
     'use strict';
@@ -89,6 +89,51 @@
             handleJump(e, link);
         });
     });
+
+    /* Phóng to ảnh minh họa */
+    var modalEl = document.getElementById('guideImageModal');
+    var modalImg = document.getElementById('guideLightboxImg');
+    var modalCaption = document.getElementById('guideLightboxCaption');
+    var imageModal = modalEl && window.bootstrap && bootstrap.Modal
+        ? bootstrap.Modal.getOrCreateInstance(modalEl)
+        : null;
+
+    function openImageLightbox(img) {
+        if (!imageModal || !modalImg) return;
+        modalImg.src = img.currentSrc || img.src;
+        modalImg.alt = img.alt || '';
+        var fig = img.closest('.guide-figure');
+        var caption = fig ? fig.querySelector('figcaption') : null;
+        if (modalCaption) {
+            modalCaption.textContent = caption ? caption.textContent.trim() : (img.alt || '');
+        }
+        imageModal.show();
+    }
+
+    root.querySelectorAll('.guide-figure img, .guide-preview-grid img').forEach(function (img) {
+        img.classList.add('guide-zoomable');
+        img.setAttribute('role', 'button');
+        img.setAttribute('tabindex', '0');
+        img.setAttribute('title', 'Bấm để phóng to');
+        img.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            openImageLightbox(img);
+        });
+        img.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                e.stopPropagation();
+                openImageLightbox(img);
+            }
+        });
+    });
+
+    if (modalEl) {
+        modalEl.addEventListener('hidden.bs.modal', function () {
+            if (modalImg) modalImg.src = '';
+        });
+    }
 
     /* Highlight section while scrolling */
     var sections = root.querySelectorAll('.accordion-item[id]');

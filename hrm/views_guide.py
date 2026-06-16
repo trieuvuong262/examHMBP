@@ -4,36 +4,45 @@ from django.template.loader import render_to_string
 
 from assessment.decorators import module_perm_required
 from hrm.forms_guide import UserGuideForm
+from hrm.guide_sections import (
+    get_guide_admin_section_ids,
+    get_guide_preview_items,
+    get_visible_guide_sections,
+)
 from hrm.models import UserGuide
 from hrm.module_permissions import MODULE_GUIDE
 from hrm.permissions import can_edit_user_guide
 
 
 DEFAULT_TITLE = 'Hướng dẫn sử dụng JustPlay Portal'
-DEFAULT_SUBTITLE = (
-    'Hướng dẫn từng bước — dành cho người chưa từng dùng hệ thống. '
-    'Đọc theo thứ tự từ mục 1, hoặc nhảy thẳng tới chức năng bạn cần ở mục lục bên trái.'
-)
+DEFAULT_SUBTITLE = ''
+
+
+def _guide_context(request, guide: UserGuide, *, can_edit: bool) -> dict:
+    visible_sections = get_visible_guide_sections(request.user)
+    return {
+        'guide': guide,
+        'can_edit': can_edit,
+        'visible_sections': visible_sections,
+        'visible_section_ids': {s['id'] for s in visible_sections},
+        'guide_admin_section_ids': get_guide_admin_section_ids(request.user),
+        'guide_preview_items': get_guide_preview_items(request.user),
+        'guide_title': guide.title or DEFAULT_TITLE,
+        'guide_subtitle': '',
+    }
 
 
 def _default_body_html(request):
-    return render_to_string('guide/_default_body.html', request=request)
+    guide = UserGuide.load()
+    ctx = _guide_context(request, guide, can_edit=False)
+    return render_to_string('guide/_default_body.html', ctx, request=request)
 
 
 @module_perm_required(MODULE_GUIDE, 'view')
 def user_guide(request):
     guide = UserGuide.load()
     can_edit = can_edit_user_guide(request.user)
-
-    if guide.has_content:
-        return render(request, 'guide/view.html', {
-            'guide': guide,
-            'can_edit': can_edit,
-        })
-
-    return render(request, 'guide/user_guide.html', {
-        'can_edit': can_edit,
-    })
+    return render(request, 'guide/user_guide.html', _guide_context(request, guide, can_edit=can_edit))
 
 
 @module_perm_required(MODULE_GUIDE, 'update')

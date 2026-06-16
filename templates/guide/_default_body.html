@@ -26,24 +26,26 @@
                                 </div>
                                 <div class="guide-step">
                                     <div class="guide-step-num">4</div>
-                                    <div>Vào <strong>Thông báo</strong> → đọc và bấm <strong>Xác nhận đã đọc</strong> các tin có dấu vàng "Chưa đọc".</div>
+                                    <div>{% if 'thong-bao' in visible_section_ids %}Vào <strong>Thông báo</strong> → đọc và bấm <strong>Xác nhận đã đọc</strong> các tin có dấu vàng "Chưa đọc".{% else %}Khám phá menu trên trang chủ — chỉ thấy các chức năng bạn được phân quyền.{% endif %}</div>
                                 </div>
                             </div>
                             <div class="alert alert-info border-0 mt-3 mb-0 small">
                                 <i class="bi bi-info-circle me-1"></i>
-                                <strong>Công việc hàng ngày trên điện thoại:</strong> dùng thanh menu <strong>dưới cùng màn hình</strong> — Trang chủ · Thông báo · Báo cáo · KPI · Học.
+                                <strong>Trên máy tính:</strong> menu bên trái chỉ hiện module bạn được phép. <strong>Trên điện thoại:</strong> dùng thanh menu dưới cùng hoặc icon <i class="bi bi-list"></i> góc trái.
                             </div>
                             <div class="mt-4 pt-3 border-top">
-                                <div class="small fw-bold text-muted text-uppercase mb-2">Xem trước các màn hình chính</div>
+                                <div class="small fw-bold text-muted text-uppercase mb-2">Xem trước các màn hình (theo quyền của bạn)</div>
                                 <div class="row g-2 guide-preview-grid">
-                                    <div class="col-4 col-md-3"><a href="#dang-nhap" class="guide-preview-item"><img src="{% static 'images/guide/01-dang-nhap.png' %}" alt="Đăng nhập"><span>Đăng nhập</span></a></div>
-                                    <div class="col-4 col-md-3"><a href="#man-hinh" class="guide-preview-item"><img src="{% static 'images/guide/02-trang-chu.png' %}" alt="Trang chủ"><span>Trang chủ</span></a></div>
-                                    <div class="col-4 col-md-3"><a href="#man-hinh" class="guide-preview-item"><img src="{% static 'images/guide/03-menu-mobile.png' %}" alt="Menu mobile"><span>Menu ĐT</span></a></div>
-                                    <div class="col-4 col-md-3"><a href="#thong-bao" class="guide-preview-item"><img src="{% static 'images/guide/05-thong-bao.png' %}" alt="Thông báo"><span>Thông báo</span></a></div>
-                                    <div class="col-4 col-md-3"><a href="#bao-cao" class="guide-preview-item"><img src="{% static 'images/guide/06-bao-cao.png' %}" alt="Báo cáo"><span>Báo cáo</span></a></div>
-                                    <div class="col-4 col-md-3"><a href="#kpi" class="guide-preview-item"><img src="{% static 'images/guide/09-kpi.png' %}" alt="KPI"><span>KPI</span></a></div>
-                                    <div class="col-4 col-md-3"><a href="#dao-tao" class="guide-preview-item"><img src="{% static 'images/guide/07-dao-tao.png' %}" alt="Đào tạo"><span>Học</span></a></div>
-                                    <div class="col-4 col-md-3"><a href="#kiem-tra" class="guide-preview-item"><img src="{% static 'images/guide/08-kiem-tra.png' %}" alt="Kiểm tra"><span>Thi</span></a></div>
+                                    {% for item in guide_preview_items %}
+                                    <div class="col-4 col-md-3">
+                                        <a href="{{ item.href }}" class="guide-preview-item">
+                                            <img src="{% static 'images/guide/' %}{{ item.image }}" alt="{{ item.label }}">
+                                            <span>{{ item.label }}</span>
+                                        </a>
+                                    </div>
+                                    {% empty %}
+                                    <div class="col-12 text-muted small">Đăng nhập và được phân quyền module để xem ảnh minh họa tại đây.</div>
+                                    {% endfor %}
                                 </div>
                             </div>
                         </div>
@@ -59,15 +61,17 @@
                     </h2>
                     <div id="c1" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
                         <div class="accordion-body">
-                            <p><strong>JustPlay Portal</strong> là cổng thông tin nội bộ của công ty sản xuất quần áo thể thao. Bạn dùng portal để:</p>
+                            <p><strong>JustPlay Portal</strong> là cổng thông tin nội bộ của công ty. Menu và hướng dẫn <strong>chỉ hiện chức năng bạn được phân quyền</strong> (theo phòng ban và nhóm quyền). Các module phổ biến:</p>
                             <ul>
-                                <li><strong>Đọc thông báo</strong> — chính sách, lịch giao hàng, thông tin xưởng</li>
-                                <li><strong>Nộp báo cáo công việc</strong> — báo sản lượng ca làm hàng ngày cho tổ trưởng</li>
-                                <li><strong>Chấm KPI</strong> — tự đánh giá và được quản lý chấm điểm theo quý</li>
-                                <li><strong>Học đào tạo</strong> — xem video/PDF quy trình may, QC, ATLD…</li>
-                                <li><strong>Làm bài kiểm tra</strong> — thi năng lực, ATLD, QC theo lịch HR giao</li>
+                                {% if 'thong-bao' in visible_section_ids %}<li><strong>Thông báo</strong> — chính sách, lịch giao hàng, tin xưởng</li>{% endif %}
+                                {% if 'bao-cao' in visible_section_ids %}<li><strong>Báo cáo công việc</strong> — sản lượng ca làm hàng ngày</li>{% endif %}
+                                {% if 'kpi' in visible_section_ids %}<li><strong>KPI</strong> — tự đánh giá và được quản lý chấm điểm</li>{% endif %}
+                                {% if 'dao-tao' in visible_section_ids %}<li><strong>Đào tạo</strong> — video/PDF quy trình may, QC, ATLD…</li>{% endif %}
+                                {% if 'kiem-tra' in visible_section_ids %}<li><strong>Kiểm tra</strong> — thi năng lực, ATLD, QC theo lịch HR</li>{% endif %}
+                                {% if 'cong-viec' in visible_section_ids %}<li><strong>Công việc</strong> — giao việc, dự án Kanban</li>{% endif %}
+                                {% if 'tai-lieu' in visible_section_ids %}<li><strong>Tài liệu</strong> — thư viện quy trình, hỏi đáp AI</li>{% endif %}
                             </ul>
-                            <p class="mb-0">Bộ phận <strong>HR / IT</strong> còn dùng thêm: quản lý nhân sự, tuyển dụng, tạo khóa học và đề thi.</p>
+                            <p class="mb-0">HR / IT thường có thêm: nhân sự, tuyển dụng, phân quyền menu, quản trị hệ thống — tùy nhóm quyền được gán.</p>
                         </div>
                     </div>
                 </div>
@@ -88,7 +92,7 @@
                                 <li><strong>Trình duyệt</strong> — Chrome, Safari, Edge (cập nhật mới nhất). Tránh dùng trình duyệt quá cũ trên điện thoại.</li>
                             </ul>
                             <h6 class="fw-bold mt-3">Tên đăng nhập thường có dạng:</h6>
-                            <p class="mb-2"><code>Tên + chữ cái đầu họ + chữ cái đầu đệm</code> — ví dụ: <strong>Nguyễn Thành An</strong> → <code>Annt</code></p>
+                            <p class="mb-2"><code>tên.chữ_cái_họ_đệm</code> — ví dụ: <strong>Nguyễn Thành Nam</strong> → <code>nam.nt</code>, email <code>nam.nt@justplay.vn</code></p>
                             <p class="text-muted small mb-0">Không có khoảng trắng. Lần đăng nhập đầu tiên bắt buộc đổi mật khẩu.</p>
                         </div>
                     </div>
@@ -111,7 +115,7 @@
                                 </div>
                                 <div class="guide-step">
                                     <div class="guide-step-num">2</div>
-                                    <div>Ô <strong>TÊN ĐĂNG NHẬP</strong> (có icon người) — gõ tài khoản HR cấp, ví dụ <code>Annt</code>.</div>
+                                    <div>Ô <strong>TÊN ĐĂNG NHẬP</strong> (có icon người) — gõ tài khoản HR cấp, ví dụ <code>nam.nt</code>.</div>
                                 </div>
                                 <div class="guide-step">
                                     <div class="guide-step-num">3</div>
@@ -123,7 +127,7 @@
                                 </div>
                                 <div class="guide-step">
                                     <div class="guide-step-num">5</div>
-                                    <div>Thành công → vào <strong>Trang chủ</strong>, thấy dòng chào <em>"Xin chào, [tên bạn]!"</em> và 5 ô lớn: Thông báo, Học tập, Kiểm tra, KPI, Báo cáo.</div>
+                                    <div>Thành công → vào <strong>Trang chủ</strong>, thấy dòng chào <em>"Xin chào, [tên bạn]!"</em> và các ô chức năng theo quyền của bạn.</div>
                                 </div>
                                 </div>
                                 <figure class="guide-figure">
@@ -181,69 +185,8 @@
                     </div>
                 </div>
 
-                <!-- 5. Screen -->
-                <div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="man-hinh">
-                    <h2 class="accordion-header">
-                        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c4">
-                            <i class="bi bi-layout-text-window text-hm me-2"></i> 5. Làm quen màn hình
-                        </button>
-                    </h2>
-                    <div id="c4" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
-                        <div class="accordion-body">
-                            <div class="guide-split guide-split-wide-img mb-4">
-                                <div>
-                                    <h6 class="fw-bold text-hm"><i class="bi bi-phone me-1"></i> Trên điện thoại (dùng nhiều nhất ở xưởng)</h6>
-                                    <div class="row g-3">
-                                        <div class="col-md-6">
-                                            <div class="card bg-light border-0 h-100">
-                                                <div class="card-body small">
-                                                    <strong>Thanh trên (đỏ):</strong>
-                                                    <ul class="mb-0 mt-2">
-                                                        <li>Logo JustPlay — bấm về Trang chủ</li>
-                                                        <li>Icon <i class="bi bi-list"></i> góc trái — mở menu đầy đủ</li>
-                                                    </ul>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="card bg-light border-0 h-100">
-                                                <div class="card-body small">
-                                                    <strong>Thanh dưới cùng (5 nút):</strong>
-                                                    <ul class="mb-0 mt-2">
-                                                        <li><i class="bi bi-house-fill"></i> Trang chủ</li>
-                                                        <li><i class="bi bi-megaphone-fill"></i> Thông báo <span class="text-danger">(số đỏ = tin chưa đọc)</span></li>
-                                                        <li><i class="bi bi-clipboard-check-fill"></i> Báo cáo</li>
-                                                        <li><i class="bi bi-graph-up-arrow"></i> KPI</li>
-                                                        <li><i class="bi bi-mortarboard-fill"></i> Học</li>
-                                                    </ul>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <figure class="guide-figure">
-                                    <img src="{% static 'images/guide/03-menu-mobile.png' %}" alt="Minh họa menu trượt trên điện thoại" loading="lazy">
-                                    <figcaption><strong>Hình 3.</strong> Bấm <i class="bi bi-list"></i> góc trái → menu trượt; thanh dưới cùng là lối tắt nhanh.</figcaption>
-                                </figure>
-                            </div>
-
-                            <div class="guide-split guide-split-wide-img">
-                                <div>
-                                    <h6 class="fw-bold text-hm"><i class="bi bi-display me-1"></i> Trên máy tính</h6>
-                                    <p>Thanh menu đỏ phía trên có các mục: <strong>Thông Báo · KPI · Báo Cáo</strong> (mọi người đều vào được).</p>
-                                    <p>Các mục <strong>Tuyển dụng · Đào tạo · Kiểm tra · Nhân sự</strong> chỉ hiện nếu bạn là HR/Quản trị — nhân viên thường không thấy các mục này.</p>
-                                    <p class="mb-0">Góc phải: avatar + tên → <strong>Đổi mật khẩu</strong> hoặc <strong>Đăng xuất</strong>.</p>
-                                </div>
-                                <figure class="guide-figure">
-                                    <img src="{% static 'images/guide/02-trang-chu.png' %}" alt="Minh họa trang chủ JustPlay Portal" loading="lazy">
-                                    <figcaption><strong>Hình 4.</strong> Trang chủ sau đăng nhập — 5 ô lớn dẫn tới chức năng chính.</figcaption>
-                                </figure>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- 6. Roles -->
+                {% if 'phan-quyen' in visible_section_ids %}
                 <div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="phan-quyen">
                     <h2 class="accordion-header">
                         <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c3">
@@ -252,46 +195,32 @@
                     </h2>
                     <div id="c3" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
                         <div class="accordion-body">
-                            <div class="table-responsive jp-table-wrap">
-                                <table class="table table-sm align-middle mb-3 jp-table">
-                                    <thead class="table-light">
-                                        <tr><th>Vai trò</th><th>Ai?</th><th>Làm được gì?</th></tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td><span class="badge bg-secondary">Nhân viên</span></td>
-                                            <td>Công nhân may, cắt, QC…</td>
-                                            <td>Đọc TB, nộp báo cáo, tự chấm KPI, học & thi</td>
-                                        </tr>
-                                        <tr>
-                                            <td><span class="badge bg-primary">HOD</span></td>
-                                            <td>Tổ trưởng / Trưởng BP</td>
-                                            <td>+ Xem báo cáo team, chấm KPI cấp dưới, phản hồi BC</td>
-                                        </tr>
-                                        <tr>
-                                            <td><span class="badge bg-danger">GM</span></td>
-                                            <td>Giám đốc / Ban GĐ</td>
-                                            <td>+ Chốt KPI, xem toàn bộ team</td>
-                                        </tr>
-                                        <tr>
-                                            <td><span class="badge bg-dark">HR / Admin</span></td>
-                                            <td>Phòng NS, IT</td>
-                                            <td>Tạo user, TB, khóa học, đề thi, tuyển dụng, import Excel</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                            <p class="text-muted small mb-2">Menu trên máy tính <strong>chỉ hiện</strong> chức năng trong nhóm quyền được gán cho phòng ban / vai trò của bạn.</p>
+                            <div class="guide-steps small">
+                                <div class="guide-step">
+                                    <div class="guide-step-num">1</div>
+                                    <div>HR vào <strong>Phân quyền</strong> → tạo <strong>Nhóm quyền</strong> (vd. «Nhân viên xưởng», «Tổ trưởng», «Kho NPL»).</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">2</div>
+                                    <div>Tick quyền <strong>Xem / Thêm / Sửa / Xóa</strong> cho từng module và menu con.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">3</div>
+                                    <div>Gán nhóm quyền cho <strong>Phòng ban</strong> hoặc <strong>Vai trò</strong> — nhân viên đăng nhập lại sẽ thấy menu khớp quyền.</div>
+                                </div>
                             </div>
-                            <p class="text-muted small mb-2">Menu trên máy tính <strong>chỉ hiện</strong> chức năng bạn được phép — không còn mục khóa gây nhầm lẫn.</p>
-                            <ul class="small text-muted mb-0">
-                                <li><strong>Mọi người:</strong> Thông báo · KPI · Báo cáo (+ Học/Thi qua trang chủ hoặc menu mobile)</li>
-                                <li><strong>HOD / GM:</strong> thêm quyền xem báo cáo team, chấm KPI (theo <code>Profile.role</code>)</li>
-                                <li><strong>HR / Quản trị:</strong> thêm menu Tuyển dụng · Đào tạo · Kiểm tra · Nhân sự (tài khoản <code>is_staff</code>)</li>
-                            </ul>
+                            <figure class="guide-figure mt-3 mb-0">
+                                <img src="{% static 'images/guide/11-phan-quyen.png' %}" alt="Cấu hình phân quyền menu" loading="lazy">
+                                <figcaption><strong>Hình.</strong> Form phân quyền theo module và menu con.</figcaption>
+                            </figure>
                         </div>
                     </div>
                 </div>
+                {% endif %}
 
                 <!-- 7. Announcements -->
+                {% if 'thong-bao' in visible_section_ids %}
                 <div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="thong-bao">
                     <h2 class="accordion-header">
                         <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c5">
@@ -334,6 +263,7 @@
                                 </figure>
                             </div>
 
+                            {% if 'thong-bao' in guide_admin_section_ids %}
                             <hr class="my-4">
                             <span class="badge bg-dark mb-3">Dành cho HR / Quản trị</span>
                             <div class="guide-steps">
@@ -354,11 +284,14 @@
                                     <div>Lưu → nhân viên sẽ thấy tin mới và số đỏ trên menu.</div>
                                 </div>
                             </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
+                {% endif %}
 
                 <!-- 8. Reports -->
+                {% if 'bao-cao' in visible_section_ids %}
                 <div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="bao-cao">
                     <h2 class="accordion-header">
                         <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c6">
@@ -425,6 +358,7 @@
                                 <strong>Mẹo:</strong> Công việc lặp lại mỗi ngày? Dùng <em>Sao chép hôm qua</em> rồi chỉ sửa số lượng — tiết kiệm 2–3 phút mỗi ca.
                             </div>
 
+                            {% if 'bao-cao' in guide_admin_section_ids %}
                             <hr class="my-4">
                             <span class="badge bg-primary mb-3">Tổ trưởng (HOD) — theo dõi team</span>
                             <div class="guide-steps">
@@ -449,11 +383,14 @@
                                     <div>HOD cũng nộp BC cá nhân → bấm <strong>Báo cáo của tôi</strong>.</div>
                                 </div>
                             </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
+                {% endif %}
 
                 <!-- 9. KPI -->
+                {% if 'kpi' in visible_section_ids %}
                 <div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="kpi">
                     <h2 class="accordion-header">
                         <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c7">
@@ -493,16 +430,20 @@
                                 </div>
                             </div>
 
+                            {% if 'kpi' in guide_admin_section_ids %}
                             <hr class="my-4">
                             <span class="badge bg-primary mb-3">HOD / GM</span>
                             <p class="small">Vào KPI → phần <strong>Team / Cấp dưới</strong> → chọn nhân viên → chấm điểm ở cột quản lý tương ứng.</p>
                             <span class="badge bg-dark mb-3">HR / Admin</span>
                             <p class="small mb-0">Nút <strong>Giao KPI Mới</strong>, <strong>Import Excel</strong>, <strong>Quản lý Kỳ Đánh giá</strong> — dùng để tạo bảng KPI và mở/khóa từng quý.</p>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
+                {% endif %}
 
                 <!-- 10. Training -->
+                {% if 'dao-tao' in visible_section_ids %}
                 <div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="dao-tao">
                     <h2 class="accordion-header">
                         <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c8">
@@ -548,8 +489,10 @@
                         </div>
                     </div>
                 </div>
+                {% endif %}
 
                 <!-- 11. Exams -->
+                {% if 'kiem-tra' in visible_section_ids %}
                 <div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="kiem-tra">
                     <h2 class="accordion-header">
                         <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c9">
@@ -594,8 +537,12 @@
                         </div>
                     </div>
                 </div>
+                {% endif %}
+
+                {% include 'guide/_extra_sections.html' %}
 
                 <!-- 12. Admin -->
+                {% if 'quan-tri' in visible_section_ids %}
                 <div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="quan-tri">
                     <h2 class="accordion-header">
                         <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c10">
@@ -604,11 +551,11 @@
                     </h2>
                     <div id="c10" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
                         <div class="accordion-body">
-                            <p class="text-muted small">Chỉ tài khoản HR/Quản trị (<code>is_staff</code>) mới thấy menu Tuyển dụng, Đào tạo, Kiểm tra, Nhân sự.</p>
+                            <p class="text-muted small">Module <strong>Nhân sự</strong> — thêm/sửa tài khoản, import Excel, reset mật khẩu, gán cấp dưới cho HOD.</p>
 
                             <figure class="guide-figure mb-4">
                                 <img src="{% static 'images/guide/10-nhan-su.png' %}" alt="Minh họa màn hình quản lý nhân sự" loading="lazy">
-                                <figcaption><strong>Hình 12.</strong> Danh sách nhân sự — thêm, sửa vai trò, reset mật khẩu.</figcaption>
+                                <figcaption><strong>Hình.</strong> Danh sách nhân sự — thêm, sửa vai trò, reset mật khẩu.</figcaption>
                             </figure>
 
                             <h6 class="fw-bold mt-3"><i class="bi bi-people-fill me-1 text-hm"></i> Quản lý nhân sự</h6>
@@ -619,11 +566,11 @@
                                 </div>
                                 <div class="guide-step">
                                     <div class="guide-step-num">2</div>
-                                    <div><strong>Thêm mới</strong> — điền họ tên, username, vai trò (NV/HOD/GM), chức danh.</div>
+                                    <div><strong>Thêm mới</strong> — điền họ tên; hệ thống gợi ý username <code>nam.nt</code> và email <code>nam.nt@justplay.vn</code>.</div>
                                 </div>
                                 <div class="guide-step">
                                     <div class="guide-step-num">3</div>
-                                    <div>Với HOD: gán <strong>danh sách cấp dưới</strong> để họ xem báo cáo & KPI team.</div>
+                                    <div>Với HOD: gán <strong>danh sách cấp dưới</strong> để họ xem báo cáo team.</div>
                                 </div>
                                 <div class="guide-step">
                                     <div class="guide-step-num">4</div>
@@ -634,28 +581,10 @@
                                     <div><strong>Reset mật khẩu</strong> — copy mật khẩu mới gửi cho nhân viên (nhắc họ đổi ngay).</div>
                                 </div>
                             </div>
-
-                            <h6 class="fw-bold mt-4"><i class="bi bi-kanban me-1 text-hm"></i> Tuyển dụng (Kanban)</h6>
-                            <div class="guide-steps">
-                                <div class="guide-step">
-                                    <div class="guide-step-num">1</div>
-                                    <div>Menu <strong>Tuyển dụng</strong> → Bảng Kanban 4 cột.</div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">2</div>
-                                    <div>Kéo thả ứng viên: Mới → Xem xét → Phỏng vấn → Trúng tuyển.</div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">3</div>
-                                    <div>Ứng viên <strong>Trúng tuyển</strong> → bấm <strong>Tạo User</strong> → hệ thống sinh tài khoản (ví dụ <code>Annt</code>) và mật khẩu tạm.</div>
-                                </div>
-                            </div>
-
-                            <h6 class="fw-bold mt-4"><i class="bi bi-mortarboard me-1 text-hm"></i> Đào tạo & Kiểm tra</h6>
-                            <p class="small mb-0">Menu <strong>Đào tạo</strong> / <strong>Kiểm tra</strong> → Bảng điều khiển → tạo khóa học, chương, bài học; tạo đề thi, giao thí sinh, chấm bài tự luận.</p>
                         </div>
                     </div>
                 </div>
+                {% endif %}
 
                 <!-- 13. FAQ -->
                 <div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="faq">
@@ -670,20 +599,28 @@
                                 <dt class="fw-bold">Đăng nhập báo "Sai tài khoản hoặc mật khẩu"?</dt>
                                 <dd class="text-muted">Kiểm tra Caps Lock, gõ đúng username HR cấp. Vẫn lỗi → HR reset mật khẩu.</dd>
 
-                                <dt class="fw-bold mt-3">Không thấy menu Tuyển dụng / Nhân sự?</dt>
-                                <dd class="text-muted">Các mục quản trị chỉ hiện với tài khoản HR/IT (<code>is_staff</code>). Nhân viên và HOD bình thường không thấy — liên hệ HR nếu cần quyền.</dd>
+                                <dt class="fw-bold mt-3">Không thấy một số menu (Tuyển dụng, Kho NPL, …)?</dt>
+                                <dd class="text-muted">Menu chỉ hiện module trong <strong>nhóm quyền</strong> được HR gán cho phòng ban / vai trò của bạn. Liên hệ HR nếu cần thêm quyền.</dd>
 
+                                {% if 'bao-cao' in visible_section_ids %}
                                 <dt class="fw-bold mt-3">Báo cáo nộp rồi muốn sửa?</dt>
                                 <dd class="text-muted">Vào lại <strong>Báo cáo hôm nay</strong>, chỉnh và bấm <strong>Nộp cho HOD</strong> lại.</dd>
+                                {% endif %}
 
+                                {% if 'kpi' in visible_section_ids %}
                                 <dt class="fw-bold mt-3">KPI không gõ được điểm (ô xám)?</dt>
                                 <dd class="text-muted">Kỳ chấm (Q1, Q2…) đang khóa — chờ HR/GM mở kỳ.</dd>
+                                {% endif %}
 
+                                {% if 'dao-tao' in visible_section_ids or 'kiem-tra' in visible_section_ids %}
                                 <dt class="fw-bold mt-3">Không thấy bài thi / khóa học?</dt>
                                 <dd class="text-muted">HR chưa giao cho bạn — liên hệ quản lý trực tiếp hoặc phòng đào tạo.</dd>
+                                {% endif %}
 
+                                {% if 'kiem-tra' in visible_section_ids %}
                                 <dt class="fw-bold mt-3">Thi bị mất kết nối giữa chừng?</dt>
                                 <dd class="text-muted">Thử vào lại mục Kiểm tra. Nếu đã nộp → xem kết quả. Nếu chưa → liên hệ IT kèm tên bài thi.</dd>
+                                {% endif %}
 
                                 <dt class="fw-bold mt-3">Trang load chậm trên điện thoại?</dt>
                                 <dd class="text-muted">Kiểm tra sóng Wi-Fi/4G. Tắt mở lại trình duyệt. Tránh mở quá nhiều tab.</dd>

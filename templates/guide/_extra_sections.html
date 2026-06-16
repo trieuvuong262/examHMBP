@@ -1,0 +1,323 @@
+{% load static %}
+{# Các mục mở rộng theo module — chỉ render khi user có quyền xem #}
+
+{% if 'tai-lieu' in visible_section_ids %}
+<div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="tai-lieu">
+    <h2 class="accordion-header">
+        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#cTaiLieu">
+            <i class="bi bi-folder2-open text-hm me-2"></i> Tài liệu & Hỏi đáp AI
+        </button>
+    </h2>
+    <div id="cTaiLieu" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+        <div class="accordion-body">
+            <div class="guide-split guide-split-wide-img mb-3">
+                <div class="guide-steps">
+                    <div class="guide-step">
+                        <div class="guide-step-num">1</div>
+                        <div>Menu <strong>Tài liệu</strong> → duyệt thư mục theo phòng ban / danh mục HR đã cấu hình.</div>
+                    </div>
+                    <div class="guide-step">
+                        <div class="guide-step-num">2</div>
+                        <div>Bấm tên file → xem PDF/Word trong trình duyệt hoặc tải về.</div>
+                    </div>
+                    <div class="guide-step">
+                        <div class="guide-step-num">3</div>
+                        <div>Menu con <strong>Hỏi đáp</strong> → đặt câu hỏi về quy trình; trợ lý AI trả lời dựa trên tài liệu bạn được phép đọc.</div>
+                    </div>
+                </div>
+                <figure class="guide-figure">
+                    <img src="{% static 'images/guide/12-tai-lieu.png' %}" alt="Thư viện tài liệu" loading="lazy">
+                    <figcaption><strong>Hình.</strong> Danh mục tài liệu nội bộ — chỉ hiện file thuộc quyền của bạn.</figcaption>
+                </figure>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if 'cong-viec' in visible_section_ids %}
+<div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="cong-viec">
+    <h2 class="accordion-header">
+        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#cCongViec">
+            <i class="bi bi-kanban text-hm me-2"></i> Công việc
+        </button>
+    </h2>
+    <div id="cCongViec" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+        <div class="accordion-body">
+            <p>Module gồm 3 khu vực (menu con): <strong>Giao việc cá nhân</strong>, <strong>Dự án nội bộ</strong>, <strong>Dự án liên phòng ban</strong>.</p>
+            <div class="guide-split guide-split-wide-img mb-3">
+                <div class="guide-steps">
+                    <div class="guide-step">
+                        <div class="guide-step-num">1</div>
+                        <div><strong>Cá nhân:</strong> xem việc được giao, cập nhật tiến độ, bình luận, đánh dấu hoàn thành.</div>
+                    </div>
+                    <div class="guide-step">
+                        <div class="guide-step-num">2</div>
+                        <div><strong>Dự án:</strong> bảng Kanban theo cột trạng thái — kéo thả thẻ việc hoặc bấm mở chi tiết.</div>
+                    </div>
+                    <div class="guide-step">
+                        <div class="guide-step-num">3</div>
+                        <div><strong>Liên phòng ban:</strong> dự án có thành viên nhiều BP — lọc theo phòng ban / người phụ trách.</div>
+                    </div>
+                </div>
+                <figure class="guide-figure">
+                    <img src="{% static 'images/guide/13-cong-viec.png' %}" alt="Giao việc cá nhân" loading="lazy">
+                    <figcaption><strong>Hình.</strong> Danh sách công việc được giao — lọc theo trạng thái và hạn.</figcaption>
+                </figure>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if 'de-xuat' in visible_section_ids %}
+<div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="de-xuat">
+    <h2 class="accordion-header">
+        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#cDeXuat">
+            <i class="bi bi-send-plus text-hm me-2"></i> Đề xuất mới
+        </button>
+    </h2>
+    <div id="cDeXuat" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+        <div class="accordion-body">
+            <div class="guide-split guide-split-wide-img mb-3">
+                <div class="guide-steps">
+                    <div class="guide-step">
+                        <div class="guide-step-num">1</div>
+                        <div><strong>Yêu cầu của tôi</strong> — theo dõi đề xuất đã gửi và trạng thái duyệt.</div>
+                    </div>
+                    <div class="guide-step">
+                        <div class="guide-step-num">2</div>
+                        <div><strong>Gửi đề xuất</strong> → chọn loại (mua sắm, sửa chữa, ý tưởng…) → điền mô tả, đính kèm nếu cần → Gửi.</div>
+                    </div>
+                    {% if 'de-xuat' in guide_admin_section_ids %}
+                    <div class="guide-step">
+                        <div class="guide-step-num">3</div>
+                        <div>Người có quyền duyệt vào <strong>Chờ xử lý</strong> → Phê duyệt / Từ chối / Yêu cầu bổ sung.</div>
+                    </div>
+                    {% endif %}
+                </div>
+                <figure class="guide-figure">
+                    <img src="{% static 'images/guide/14-de-xuat.png' %}" alt="Đề xuất mới" loading="lazy">
+                    <figcaption><strong>Hình.</strong> Danh sách đề xuất — trạng thái chờ duyệt / đã xử lý.</figcaption>
+                </figure>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if 'ho-tro' in visible_section_ids %}
+<div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="ho-tro">
+    <h2 class="accordion-header">
+        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#cHoTro">
+            <i class="bi bi-headset text-hm me-2"></i> Hỗ trợ kỹ thuật
+        </button>
+    </h2>
+    <div id="cHoTro" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+        <div class="accordion-body">
+            <div class="guide-split guide-split-wide-img mb-3">
+                <div class="guide-steps">
+                    <div class="guide-step">
+                        <div class="guide-step-num">1</div>
+                        <div><strong>Gửi yêu cầu hỗ trợ</strong> — mô tả sự cố (máy tính, mạng, phần mềm…), chọn mức độ ưu tiên.</div>
+                    </div>
+                    <div class="guide-step">
+                        <div class="guide-step-num">2</div>
+                        <div><strong>Yêu cầu của tôi</strong> — xem tiến độ xử lý, bình luận thêm thông tin.</div>
+                    </div>
+                    {% if 'ho-tro' in guide_admin_section_ids %}
+                    <div class="guide-step">
+                        <div class="guide-step-num">3</div>
+                        <div>IT/Admin vào <strong>Chờ duyệt</strong> → tiếp nhận, cập nhật trạng thái, đóng ticket khi xong.</div>
+                    </div>
+                    {% endif %}
+                </div>
+                <figure class="guide-figure">
+                    <img src="{% static 'images/guide/15-ho-tro.png' %}" alt="Hỗ trợ kỹ thuật" loading="lazy">
+                    <figcaption><strong>Hình.</strong> Yêu cầu hỗ trợ IT — theo dõi từng bước xử lý.</figcaption>
+                </figure>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if 'thiet-bi' in visible_section_ids %}
+<div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="thiet-bi">
+    <h2 class="accordion-header">
+        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#cThietBi">
+            <i class="bi bi-pc-display-horizontal text-hm me-2"></i> Quản lý thiết bị
+        </button>
+    </h2>
+    <div id="cThietBi" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+        <div class="accordion-body">
+            <p>Menu con: <strong>Thiết bị IT</strong> và <strong>Thiết bị sản xuất</strong> — danh mục, phiếu bàn giao, yêu cầu sửa chữa.</p>
+            <figure class="guide-figure mb-3">
+                <img src="{% static 'images/guide/16-thiet-bi.png' %}" alt="Quản lý thiết bị IT" loading="lazy">
+                <figcaption><strong>Hình.</strong> Danh sách thiết bị — mã, người giữ, trạng thái.</figcaption>
+            </figure>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if 'gop-y' in visible_section_ids %}
+<div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="gop-y">
+    <h2 class="accordion-header">
+        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#cGopY">
+            <i class="bi bi-chat-square-heart text-hm me-2"></i> Góp ý
+        </button>
+    </h2>
+    <div id="cGopY" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+        <div class="accordion-body">
+            <div class="guide-split guide-split-wide-img mb-3">
+                <div class="guide-steps">
+                    <div class="guide-step">
+                        <div class="guide-step-num">1</div>
+                        <div><strong>Gửi góp ý</strong> — chia sẻ ý kiến cải tiến xưởng, quy trình, môi trường làm việc (có thể ẩn danh tùy cấu hình).</div>
+                    </div>
+                    {% if 'gop-y' in guide_admin_section_ids %}
+                    <div class="guide-step">
+                        <div class="guide-step-num">2</div>
+                        <div><strong>Danh sách góp ý</strong> — HR/Ban quản lý xem, phản hồi, đánh dấu đã xử lý.</div>
+                    </div>
+                    {% endif %}
+                </div>
+                <figure class="guide-figure">
+                    <img src="{% static 'images/guide/17-gop-y.png' %}" alt="Góp ý" loading="lazy">
+                    <figcaption><strong>Hình.</strong> Gửi và theo dõi góp ý nội bộ.</figcaption>
+                </figure>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if 'kho-npl' in visible_section_ids %}
+<div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="kho-npl">
+    <h2 class="accordion-header">
+        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#cKhoNpl">
+            <i class="bi bi-boxes text-hm me-2"></i> Kho NPL
+        </button>
+    </h2>
+    <div id="cKhoNpl" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+        <div class="accordion-body">
+            <p>Quản lý nguyên phụ liệu: danh mục, tồn kho, phiếu nhập/xuất/chuyển/hủy/điều chỉnh, kiểm kê và báo cáo.</p>
+            <figure class="guide-figure mb-3">
+                <img src="{% static 'images/guide/18-kho-npl.png' %}" alt="Kho NPL tổng quan" loading="lazy">
+                <figcaption><strong>Hình.</strong> Tổng quan kho — tồn, nhập/xuất trong kỳ.</figcaption>
+            </figure>
+            <ul class="small text-muted mb-0">
+                <li><strong>Tồn kho / Thẻ kho:</strong> tra cứu số lượng theo vật tư và vị trí.</li>
+                <li><strong>Phiếu nhập/xuất:</strong> tạo phiếu → duyệt → cập nhật tồn tự động.</li>
+                <li><strong>Báo cáo:</strong> xuất Excel tồn kho, sổ kho theo kỳ.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if 'kiotviet' in visible_section_ids %}
+<div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="kiotviet">
+    <h2 class="accordion-header">
+        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#cKiotViet">
+            <i class="bi bi-shop text-hm me-2"></i> KiotViet
+        </button>
+    </h2>
+    <div id="cKiotViet" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+        <div class="accordion-body">
+            <p>Tra cứu dữ liệu đồng bộ từ KiotViet: khách hàng, đơn hàng, hóa đơn, hàng hóa, tồn kho, phiếu nhập.</p>
+            <figure class="guide-figure mb-3">
+                <img src="{% static 'images/guide/19-kiotviet.png' %}" alt="KiotViet tra cứu" loading="lazy">
+                <figcaption><strong>Hình.</strong> Tra cứu khách hàng / đơn hàng trên portal.</figcaption>
+            </figure>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if 'nas' in visible_section_ids %}
+<div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="nas">
+    <h2 class="accordion-header">
+        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#cNas">
+            <i class="bi bi-hdd-network text-hm me-2"></i> Thư mục NAS
+        </button>
+    </h2>
+    <div id="cNas" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+        <div class="accordion-body">
+            <div class="guide-steps mb-3">
+                <div class="guide-step">
+                    <div class="guide-step-num">1</div>
+                    <div>Duyệt thư mục NAS được IT gán cho phòng ban / cá nhân.</div>
+                </div>
+                <div class="guide-step">
+                    <div class="guide-step-num">2</div>
+                    <div>Tải file, tạo link chia sẻ có thời hạn (nếu được phép).</div>
+                </div>
+            </div>
+            <figure class="guide-figure mb-0">
+                <img src="{% static 'images/guide/20-nas.png' %}" alt="Thư mục NAS" loading="lazy">
+                <figcaption><strong>Hình.</strong> Duyệt file trên NAS qua trình duyệt.</figcaption>
+            </figure>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if 'tuyen-dung' in visible_section_ids %}
+<div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="tuyen-dung">
+    <h2 class="accordion-header">
+        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#cTuyenDung">
+            <i class="bi bi-person-plus-fill text-hm me-2"></i> Tuyển dụng
+        </button>
+    </h2>
+    <div id="cTuyenDung" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+        <div class="accordion-body">
+            <div class="guide-split guide-split-wide-img mb-3">
+                <div class="guide-steps">
+                    <div class="guide-step">
+                        <div class="guide-step-num">1</div>
+                        <div><strong>Bảng Kanban</strong> — kéo ứng viên qua các cột: Mới → Xem xét → Phỏng vấn → Trúng tuyển.</div>
+                    </div>
+                    <div class="guide-step">
+                        <div class="guide-step-num">2</div>
+                        <div><strong>Vị trí tuyển dụng</strong> — tạo/sửa JD, số lượng cần tuyển.</div>
+                    </div>
+                    <div class="guide-step">
+                        <div class="guide-step-num">3</div>
+                        <div>Ứng viên trúng tuyển → <strong>Tạo User</strong> — hệ thống gợi ý username dạng <code>nam.nt</code>, email <code>nam.nt@justplay.vn</code>.</div>
+                    </div>
+                </div>
+                <figure class="guide-figure">
+                    <img src="{% static 'images/guide/21-tuyen-dung.png' %}" alt="Kanban tuyển dụng" loading="lazy">
+                    <figcaption><strong>Hình.</strong> Bảng Kanban ứng viên theo giai đoạn.</figcaption>
+                </figure>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if 'quan-tri-he-thong' in visible_section_ids %}
+<div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="quan-tri-he-thong">
+    <h2 class="accordion-header">
+        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#cAudit">
+            <i class="bi bi-shield-lock text-hm me-2"></i> Quản trị hệ thống
+        </button>
+    </h2>
+    <div id="cAudit" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+        <div class="accordion-body">
+            <p>Dành cho IT/Admin: nhật ký thao tác, backup NAS, đồng bộ KiotViet, bảo mật đăng nhập, cấu hình trợ lý AI.</p>
+            <figure class="guide-figure mb-3">
+                <img src="{% static 'images/guide/22-audit.png' %}" alt="Nhật ký hệ thống" loading="lazy">
+                <figcaption><strong>Hình.</strong> Nhật ký thao tác — lọc theo user, module, thời gian.</figcaption>
+            </figure>
+            <ul class="small text-muted mb-0">
+                <li><strong>Bảo mật đăng nhập:</strong> mở khóa tài khoản/IP bị chặn.</li>
+                <li><strong>Backup:</strong> chạy sao lưu DB lên NAS theo lịch.</li>
+                <li><strong>Trợ lý AI:</strong> cấu hình prompt và nguồn tài liệu cho Hỏi đáp.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endif %}

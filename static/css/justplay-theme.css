@@ -2493,6 +2493,41 @@ body.jp-tool-loading-active {
     box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
 }
 
+.jp-guide-page .guide-zoomable {
+    cursor: zoom-in;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.jp-guide-page .guide-zoomable:hover {
+    transform: scale(1.02);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+}
+
+.guide-image-modal .modal-content {
+    background: transparent;
+}
+
+.guide-image-modal .modal-body {
+    background: rgba(15, 23, 42, 0.92);
+    border-radius: var(--jp-radius-lg);
+    padding: 1rem 1rem 1.25rem !important;
+}
+
+.guide-image-modal .guide-lightbox-img {
+    max-width: 100%;
+    max-height: min(82vh, 900px);
+    width: auto;
+    height: auto;
+    margin: 0 auto;
+    border-radius: 6px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+}
+
+.guide-image-modal .btn-close-white {
+    filter: invert(1) grayscale(1);
+    opacity: 0.9;
+}
+
 .jp-guide-page .guide-figure figcaption {
     padding: 0.65rem 0.85rem;
     font-size: 0.78rem;
