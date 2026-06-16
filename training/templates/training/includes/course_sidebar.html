@@ -1,0 +1,42 @@
+<div class="p-3 bg-light border-bottom sticky-top">
+    <h6 class="fw-bold mb-0 text-uppercase" style="color: #dc2626;">Nội dung khóa học</h6>
+</div>
+
+<div class="accordion accordion-flush" id="courseAccordion{{ accordion_suffix|default:'' }}">
+    {% for chapter in chapters %}
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button fw-bold bg-white" type="button" data-bs-toggle="collapse" data-bs-target="#chapter{{ chapter.id }}{{ accordion_suffix|default:'' }}">
+                Chương {{ forloop.counter }}: {{ chapter.title }}
+            </button>
+        </h2>
+        <div id="chapter{{ chapter.id }}{{ accordion_suffix|default:'' }}" class="accordion-collapse collapse show">
+            <div class="accordion-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for lesson in chapter.lessons.all %}
+                    <a href="{% url 'learning_space' course.id lesson.id %}"
+                       class="list-group-item list-group-item-action py-3 {% if current_lesson and current_lesson.id == lesson.id %}bg-light border-start border-4 active-lesson-border{% endif %}"
+                       {% if close_offcanvas %}data-bs-dismiss="offcanvas"{% endif %}>
+                        <div class="d-flex align-items-center">
+                            <div class="me-3">
+                                {% if lesson.id in completed_lesson_ids %}
+                                    <i class="bi bi-check-circle-fill text-success fs-5"></i>
+                                {% else %}
+                                    {% if lesson.lesson_type == 'video' %}<i class="bi bi-play-circle text-muted fs-5"></i>
+                                    {% elif lesson.lesson_type == 'pdf' %}<i class="bi bi-file-pdf text-muted fs-5"></i>
+                                    {% else %}<i class="bi bi-file-text text-muted fs-5"></i>{% endif %}
+                                {% endif %}
+                            </div>
+                            <div>
+                                <div class="small fw-bold {% if current_lesson and current_lesson.id == lesson.id %}text-dark{% else %}text-secondary{% endif %}">{{ lesson.title }}</div>
+                                <div class="text-muted" style="font-size: 0.75rem;">{{ lesson.duration_estimate }} phút</div>
+                            </div>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>

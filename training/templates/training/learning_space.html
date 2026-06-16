@@ -1,20 +1,30 @@
 {% extends "base.html" %}
+{% load static %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/training-learning.css' %}">
+{% endblock %}
 
 {% block content %}
-<div class="text-white p-3 sticky-top" style="background-color: #dc2626; z-index: 1020;">
-    <div class="container-fluid d-flex justify-content-between align-items-center">
-        <div class="d-flex align-items-center">
-            <a href="{% url 'my_courses' %}" class="btn btn-sm btn-outline-light me-3"><i class="bi bi-arrow-left"></i> Thoát</a>
+<div class="text-white p-2 p-md-3 sticky-top jp-learning-topbar">
+    <div class="container-fluid d-flex justify-content-between align-items-center gap-2">
+        <div class="d-flex align-items-center min-w-0">
+            <a href="{% url 'my_courses' %}" class="btn btn-sm btn-outline-light me-2 flex-shrink-0">
+                <i class="bi bi-arrow-left"></i><span class="d-none d-sm-inline ms-1">Thoát</span>
+            </a>
+            <button class="btn btn-sm btn-light d-lg-none flex-shrink-0 me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#courseSidebar" aria-controls="courseSidebar">
+                <i class="bi bi-list-ul"></i>
+            </button>
             <h5 class="mb-0 fw-bold">{{ course.title }}</h5>
         </div>
-        <div class="d-flex align-items-center gap-3">
-            <span class="small fw-bold" id="progress-text">{{ enrollment.progress_percent }}% Hoàn thành</span>
+        <div class="d-flex align-items-center gap-2 flex-shrink-0">
+            <span class="small fw-bold d-none d-sm-inline" id="progress-text">{{ enrollment.progress_percent }}% Hoàn thành</span>
             <div class="progress" style="width: 150px; height: 10px; background-color: rgba(255,255,255,0.3);">
                 <div class="progress-bar bg-success" id="top-progress-bar" style="width: {{ enrollment.progress_percent }}%"></div>
             </div>
             {% if course.final_exam %}
                 <a href="{% url 'take_exam' course.final_exam.id %}" id="exam-btn" class="btn btn-sm btn-danger fw-bold {% if enrollment.progress_percent < 100 %}d-none{% endif %}">
-                    <i class="bi bi-pencil-square me-1"></i>Làm bài thi cuối khóa
+                    <i class="bi bi-pencil-square"></i><span class="d-none d-md-inline ms-1">Thi cuối khóa</span>
                 </a>
             {% endif %}
         </div>
@@ -22,13 +32,13 @@
 </div>
 
 <div class="container-fluid p-0">
-    <div class="row g-0" style="min-height: calc(100vh - 70px);">
-        <div class="col-lg-8 col-xl-9 bg-light p-4 overflow-auto">
+    <div class="row g-0 jp-learning-main">
+        <div class="col-lg-8 col-xl-9 bg-light p-3 p-md-4 jp-learning-content">
             {% if current_lesson %}
-                <div class="bg-white p-4 rounded shadow-sm border mb-4">
-                    <h3 class="fw-bold mb-3 text-dark">{{ current_lesson.title }}</h3>
+                <div class="bg-white p-3 p-md-4 rounded shadow-sm border mb-3 mb-md-4 jp-learning-lesson-card">
+                    <h3 class="fw-bold mb-3 text-dark h5 h-md-3">{{ current_lesson.title }}</h3>
                     <hr>
-                    
+
                     {% if current_lesson.lesson_type == 'video' %}
                         {% if current_lesson.video_embed_url %}
                         <div class="ratio ratio-16x9 mb-4 shadow-sm overflow-hidden border">
@@ -51,54 +61,61 @@
                     {% endif %}
 
                     {% if current_lesson.lesson_type == 'pdf' and current_lesson.attachment %}
-                    <div class="pdf-container mb-4 shadow-sm overflow-hidden border">
-                        <div class="d-flex justify-content-between align-items-center text-white p-2 px-3" style="background-color: #343a40;">
+                    <div class="jp-training-pdf mb-4 shadow-sm border" data-jp-pdf-viewer data-pdf-url="{{ current_lesson.attachment.url }}">
+                        <div class="jp-training-pdf-toolbar d-flex flex-wrap justify-content-between align-items-center">
                             <div class="small fw-bold">
-                                <i class="bi bi-file-earmark-pdf text-danger me-2"></i>TÀI LIỆU
+                                <i class="bi bi-file-earmark-pdf text-danger me-2"></i>TÀI LIỆU PDF
+                                <span class="text-white-50 ms-1" data-pdf-meta></span>
                             </div>
-                            <div class="btn-group">
-                                <a href="{{ current_lesson.attachment.url }}" download class="btn btn-sm btn-hm px-3">
-                                    <i class="bi bi-cloud-download me-1"></i> Tải về
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ current_lesson.attachment.url }}" target="_blank" rel="noopener" class="btn btn-outline-light">
+                                    <i class="bi bi-arrows-fullscreen me-1"></i><span class="d-none d-sm-inline">Mở toàn màn hình</span>
                                 </a>
-                                <a href="{{ current_lesson.attachment.url }}" target="_blank" class="btn btn-sm btn-outline-light">
-                                    <i class="bi bi-arrows-fullscreen"></i>
+                                <a href="{{ current_lesson.attachment.url }}" download class="btn btn-hm">
+                                    <i class="bi bi-cloud-download me-1"></i><span class="d-none d-sm-inline">Tải về</span>
                                 </a>
                             </div>
                         </div>
 
-                        <div class="pdf-viewer-wrapper" style="height: 75vh; background: #525659;">
-                            <embed 
-                                src="{{ current_lesson.attachment.url }}#view=FitH&toolbar=1" 
-                                type="application/pdf" 
-                                width="100%" 
-                                height="100%" 
-                            />
+                        <div class="jp-training-pdf-status">
+                            <div class="spinner-border spinner-border-sm text-light me-2" role="status" aria-hidden="true"></div>
+                            Đang tải tài liệu…
+                        </div>
+                        <div class="jp-training-pdf-pages"></div>
+                        <div class="jp-training-pdf-fallback">
+                            <p class="mb-2 small">Không hiển thị được trong trang. Vui lòng mở file PDF trực tiếp.</p>
+                            <a href="{{ current_lesson.attachment.url }}" target="_blank" rel="noopener" class="btn btn-sm btn-hm">
+                                <i class="bi bi-box-arrow-up-right me-1"></i>Mở PDF
+                            </a>
                         </div>
                     </div>
+                    <p class="text-muted small mb-0 d-lg-none">
+                        <i class="bi bi-hand-index-thumb me-1"></i>Vuốt trang để đọc toàn bộ tài liệu.
+                    </p>
                     {% endif %}
 
                     {% if current_lesson.content %}
-                        <div class="fs-5 lh-lg text-dark mb-4">
+                        <div class="fs-6 fs-md-5 lh-lg text-dark mb-4">
                             {{ current_lesson.content|safe }}
                         </div>
                     {% endif %}
                 </div>
 
-                <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm border border-top-0 border-4" style="border-color: #dc2626 !important;">
+                <div class="d-flex flex-column flex-sm-row justify-content-between align-items-stretch align-items-sm-center gap-2 bg-white p-3 rounded shadow-sm border border-top-0 border-4" style="border-color: #dc2626 !important;">
                     <div>
                         {% if current_lesson.id in completed_lesson_ids %}
-                            <button class="btn btn-hm fw-bold disabled">
+                            <button class="btn btn-hm fw-bold disabled w-100 w-sm-auto">
                                 <i class="bi bi-check-circle-fill me-2"></i>Đã hoàn thành bài này
                             </button>
                         {% else %}
-                            <button id="btn-complete" class="btn btn-hm fw-bold" onclick="markComplete({{ current_lesson.id }})">
+                            <button id="btn-complete" class="btn btn-hm fw-bold w-100 w-sm-auto" onclick="markComplete({{ current_lesson.id }})">
                                 <i class="bi bi-circle me-2"></i>Đánh dấu hoàn thành
                             </button>
                         {% endif %}
                     </div>
                     <div>
                         {% if next_lesson %}
-                            <a href="{% url 'learning_space' course.id next_lesson.id %}" class="btn btn-outline-dark fw-bold">
+                            <a href="{% url 'learning_space' course.id next_lesson.id %}" class="btn btn-outline-dark fw-bold w-100 w-sm-auto">
                                 Bài tiếp theo <i class="bi bi-chevron-right ms-1"></i>
                             </a>
                         {% endif %}
@@ -111,85 +128,33 @@
             {% endif %}
         </div>
 
-        <div class="col-lg-4 col-xl-3 bg-white border-start overflow-auto" style="height: calc(100vh - 70px);">
-            <div class="p-3 bg-light border-bottom sticky-top">
-                <h6 class="fw-bold mb-0 text-uppercase" style="color: #dc2626;">Nội dung khóa học</h6>
-            </div>
-            
-            <div class="accordion accordion-flush" id="courseAccordion">
-                {% for chapter in chapters %}
-                <div class="accordion-item">
-                    <h2 class="accordion-header">
-                        <button class="accordion-button fw-bold bg-white" type="button" data-bs-toggle="collapse" data-bs-target="#chapter{{ chapter.id }}">
-                            Chương {{ forloop.counter }}: {{ chapter.title }}
-                        </button>
-                    </h2>
-                    <div id="chapter{{ chapter.id }}" class="accordion-collapse collapse show">
-                        <div class="accordion-body p-0">
-                            <ul class="list-group list-group-flush">
-                                {% for lesson in chapter.lessons.all %}
-                                <a href="{% url 'learning_space' course.id lesson.id %}" 
-                                   class="list-group-item list-group-item-action py-3 {% if current_lesson.id == lesson.id %}bg-light border-start border-4 active-lesson-border{% endif %}">
-                                    <div class="d-flex align-items-center">
-                                        <div class="me-3">
-                                            {% if lesson.id in completed_lesson_ids %}
-                                                <i class="bi bi-check-circle-fill text-success fs-5"></i>
-                                            {% else %}
-                                                {% if lesson.lesson_type == 'video' %}<i class="bi bi-play-circle text-muted fs-5"></i>
-                                                {% elif lesson.lesson_type == 'pdf' %}<i class="bi bi-file-pdf text-muted fs-5"></i>
-                                                {% else %}<i class="bi bi-file-text text-muted fs-5"></i>{% endif %}
-                                            {% endif %}
-                                        </div>
-                                        <div>
-                                            <div class="small fw-bold {% if current_lesson.id == lesson.id %}text-dark{% else %}text-secondary{% endif %}">{{ lesson.title }}</div>
-                                            <div class="text-muted" style="font-size: 0.75rem;">{{ lesson.duration_estimate }} phút</div>
-                                        </div>
-                                    </div>
-                                </a>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
+        <div class="col-lg-4 col-xl-3 bg-white border-start d-none d-lg-block overflow-auto" style="height: calc(100vh - 70px);">
+            {% include 'training/includes/course_sidebar.html' %}
         </div>
     </div>
 </div>
 
-<style>
-/* Bo góc Plyr */
-.plyr-wrapper {
-    border-radius: 5px;
-    overflow: hidden;
-    background-color: #000;
-}
-
-/* Đổi màu nhấn của Plyr sang màu HM */
-:root {
-    --plyr-color-main: #dc2626;
-}
-
-.pdf-container iframe {
-    background-color: #525659;
-}
-
-.active-lesson-border {
-    border-color: #dc2626 !important;
-}
-</style>
+<div class="offcanvas offcanvas-end d-lg-none" tabindex="-1" id="courseSidebar" aria-labelledby="courseSidebarLabel" style="width: min(92vw, 360px);">
+    <div class="offcanvas-header border-bottom">
+        <h5 class="offcanvas-title fw-bold text-hm" id="courseSidebarLabel">Nội dung khóa học</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Đóng"></button>
+    </div>
+    <div class="offcanvas-body p-0 overflow-auto">
+        {% include 'training/includes/course_sidebar.html' with accordion_suffix='-mobile' close_offcanvas=True %}
+    </div>
+</div>
 
 <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
 <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="{% static 'js/training-pdf-viewer.js' %}"></script>
 
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // Khởi tạo Plyr nếu có thẻ video trên trang
         if (document.getElementById('player')) {
-            const player = new Plyr('#player', {
+            new Plyr('#player', {
                 tooltips: { controls: true, seek: true },
-                download: false, // Tắt chức năng download
+                download: false,
             });
         }
     });
