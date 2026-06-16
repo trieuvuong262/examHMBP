@@ -156,8 +156,8 @@ EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@portal.justplay.vn")
 
-# Giới hạn dung lượng upload (báo cáo tuần, media…) — mặc định 50MB
-UPLOAD_MAX_MB = int(os.getenv('UPLOAD_MAX_MB', '50'))
+# Giới hạn dung lượng upload (báo cáo tuần, media…) — mặc định 100MB
+UPLOAD_MAX_MB = int(os.getenv('UPLOAD_MAX_MB', '100'))
 UPLOAD_MAX_BYTES = UPLOAD_MAX_MB * 1024 * 1024
 DATA_UPLOAD_MAX_MEMORY_SIZE = UPLOAD_MAX_BYTES
 FILE_UPLOAD_MAX_MEMORY_SIZE = UPLOAD_MAX_BYTES
@@ -394,7 +394,7 @@ KIOTVIET_DETAIL_STOCK_BRANCHES = os.getenv(
 
 # NAS (Synology qua Tailscale + rclone mount trên VPS)
 NAS_MOUNT_ROOT = os.getenv('NAS_MOUNT_ROOT', '/mnt/nas-portal')
-NAS_RCLONE_REMOTE = os.getenv('NAS_RCLONE_REMOTE', 'synology:DATACHUNG')
+NAS_RCLONE_REMOTE = os.getenv('NAS_RCLONE_REMOTE', 'synology:')
 NAS_RCLONE_CONFIG = os.getenv('NAS_RCLONE_CONFIG', '/root/.config/rclone/rclone.conf')
 # Phòng ban dùng share rclone riêng làm gốc (không thêm DATACHUNG/MÃ_PB)
 # VD: KD-MKT:synology:KD-MKT,IT:synology:IT
@@ -411,6 +411,11 @@ NAS_SHARE_EXPIRE_DAYS = int(os.getenv('NAS_SHARE_EXPIRE_DAYS', '30'))
 NAS_BACKUP_RCLONE_REMOTE = os.getenv('NAS_BACKUP_RCLONE_REMOTE', 'synology:backup').strip()
 NAS_BACKUP_REL_PATH = os.getenv('NAS_BACKUP_REL_PATH', '').strip()
 NAS_BACKUP_RETENTION_DAYS = int(os.getenv('NAS_BACKUP_RETENTION_DAYS', '30'))
+# Báo cáo tuần — đính kèm lưu trên NAS, không lưu media VPS
+NAS_WEEKLY_REPORT_REL_PATH = os.getenv(
+    'NAS_WEEKLY_REPORT_REL_PATH',
+    '99_LUU_TRU/1.2026/BAO_CAO_TUAN',
+).strip('/')
 PORTAL_BACKUP_SOURCE_DIRS = os.getenv('PORTAL_BACKUP_SOURCE_DIRS', '/app,/backup-source')
 PORTAL_BACKUP_INCLUDE_MEDIA = os.getenv('PORTAL_BACKUP_INCLUDE_MEDIA', '1').lower() in ('1', 'true', 'yes', 'on')
 GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash')

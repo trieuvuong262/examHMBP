@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.core.files.storage import default_storage
-from django.http import JsonResponse
+from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
@@ -43,7 +43,7 @@ from .forms import (
     OfficeDailyWorkReportForm,
     WeeklyWorkReportForm,
 )
-from .models import DailyWorkReport, WeeklyWorkReport
+from .models import DailyWorkReport, WeeklyWorkReport, WeeklyWorkReportAttachment
 from .team_utils import (
     build_report_team_department_groups,
     daily_report_visible_to_team,
@@ -53,6 +53,7 @@ from .team_utils import (
     weekly_report_visible_to_team,
 )
 from .weekly_preview import file_attachment_preview, link_preview_rows
+from .weekly_nas_storage import ensure_weekly_report_nas_dir, weekly_attachment_abs_path
 from .weekly_uploads import copy_weekly_attachments, save_weekly_uploads, weekly_report_has_content
 
 
@@ -323,6 +324,7 @@ def weekly_report(request):
                 msg = _finalize_report_submission(report, action)
                 messages.success(request, msg)
                 report.save()
+                ensure_weekly_report_nas_dir()
                 save_weekly_uploads(report, image_list=image_uploads, file_list=file_uploads)
                 return redirect(f'{reverse("reports:weekly")}?week={week_start.isoformat()}')
     else:
@@ -713,3 +715,39 @@ def weekly_report_detail(request, pk):
         'report_date': report.week_start,
         'week_start': report.week_start,
     })
+
+
+@_reports_access_required
+def weekly_attachment_serve(request, pk):
+    import mimetypes
+
+    att = get_object_or_404(
+        WeeklyWorkReportAttachment.objects.select_related('report__employee'),
+        pk=pk,
+    )
+    report = att.report
+    if not can_view_user_weekly_report(request.user, report):
+        messages.error(request, 'Bạn không có quyền tải file này.')
+        return redirect('reports:hub')
+    if not weekly_report_visible_to_team(report) and report.employee_id != request.user.id:
+        raise Http404
+
+    path = weekly_attachment_abs_path(att)
+    if not path:
+        raise Http404
+
+    content_type = mimetypes.guess_type(att.display_name)[0] or 'application/octet-stream'
+    inline_types = {
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'image/bmp',
+        'image/svg+xml',
+    }
+    as_attachment = content_type not in inline_types
+    response = FileResponse(path.open('rb'), content_type=content_type, as_attachment=as_attachment)
+    if as_attachment:
+        response['Content-Disposition'] = f'attachment; filename="{att.display_name}"'
+    return response

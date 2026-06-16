@@ -48,7 +48,7 @@ def file_attachment_preview(att) -> dict:
     name = att.original_name or os.path.basename(att.file.name)
     lower = name.lower()
     ext = os.path.splitext(lower)[1]
-    url = att.file.url
+    url = att.file_url if att.pk else att.file.url
     if att.is_image or ext in IMAGE_EXTENSIONS:
         return {'type': 'image', 'url': url, 'name': name, 'pk': att.pk}
     if ext in PDF_EXTENSIONS:

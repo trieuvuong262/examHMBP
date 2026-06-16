@@ -337,8 +337,8 @@ verify_agent_exe
 
 verify_nas_rclone() {
   echo "==> Verify NAS rclone in web container"
-  if compose exec -T web rclone lsd synology:DATACHUNG >/dev/null 2>&1; then
-    echo "    NAS rclone OK (synology:DATACHUNG)"
+  if compose exec -T web rclone lsd synology: >/dev/null 2>&1; then
+    echo "    NAS rclone OK (synology: — user tailscale-justplay)"
   else
     echo "    WARNING: rclone không kết nối được NAS trong container."
     echo "             Kiểm tra: /root/.config/rclone/rclone.conf và scripts/setup-rclone-nas.sh"

@@ -39,6 +39,20 @@ def nas_mount_root() -> Path:
     return Path(getattr(settings, 'NAS_MOUNT_ROOT', '/mnt/nas-portal'))
 
 
+def nas_rclone_remote_path(base: str, rel_path: str = '') -> str:
+    """Ghép remote rclone — hỗ trợ gốc share ``synology:`` (không còn DATACHUNG)."""
+    base = (base or 'synology:').strip()
+    rel = (rel_path or '').strip().strip('/')
+    if base.endswith(':'):
+        return f'{base}{rel}' if rel else base
+    base = base.rstrip('/')
+    return f'{base}/{rel}' if rel else base
+
+
+def default_nas_rclone_remote() -> str:
+    return getattr(settings, 'NAS_RCLONE_REMOTE', 'synology:').strip() or 'synology:'
+
+
 def nas_is_available() -> bool:
     root = nas_mount_root()
     return root.is_dir() and os.access(root, os.R_OK)
@@ -355,16 +369,13 @@ def _rclone_remote_path(rel_path: str, *, user=None) -> str:
         base = remotes[dept_code].rstrip('/')
         return f'{base}/{rel}' if rel else base
 
-    base = getattr(settings, 'NAS_RCLONE_REMOTE', 'synology:DATACHUNG').rstrip('/')
+    base = default_nas_rclone_remote()
     kd_remote = remotes.get('KD-MKT')
     if kd_remote and rel and (rel == 'KD-MKT' or rel.startswith('KD-MKT/')):
         stripped = rel[7:].lstrip('/') if len(rel) > 6 else ''
-        kd_base = kd_remote.rstrip('/')
-        return f'{kd_base}/{stripped}' if stripped else kd_base
+        return nas_rclone_remote_path(kd_remote, stripped)
 
-    if rel:
-        return f'{base}/{rel}'
-    return base
+    return nas_rclone_remote_path(base, rel)
 
 
 def _rclone_env() -> dict:

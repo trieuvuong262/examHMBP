@@ -12,11 +12,11 @@ rclone config delete synology 2>/dev/null || true
 rclone config create synology smb host 100.93.5.42 user "$NAS_USER" pass "$OBSCURED"
 
 echo "=== rclone lsd ==="
-rclone lsd synology:DATACHUNG
+rclone lsd synology:
 
 fusermount -u /mnt/nas-portal 2>/dev/null || true
 mkdir -p /mnt/nas-portal
-rclone mount synology:DATACHUNG /mnt/nas-portal \
+rclone mount synology: /mnt/nas-portal \
   --daemon --allow-other --vfs-cache-mode writes \
   --dir-cache-time 5s --poll-interval 5s --attr-timeout 1s
 
@@ -26,13 +26,13 @@ ls -la /mnt/nas-portal
 
 cat > /etc/systemd/system/rclone-nas.service << 'UNIT'
 [Unit]
-Description=Rclone mount NAS DATACHUNG
+Description=Rclone mount NAS (tailscale-justplay)
 After=network-online.target tailscaled.service
 Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/rclone mount synology:DATACHUNG /mnt/nas-portal \
+ExecStart=/usr/bin/rclone mount synology: /mnt/nas-portal \
   --allow-other --vfs-cache-mode writes \
   --dir-cache-time 5s --poll-interval 5s --attr-timeout 1s
 ExecStop=/bin/fusermount -u /mnt/nas-portal

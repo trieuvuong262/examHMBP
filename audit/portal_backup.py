@@ -15,7 +15,7 @@ from pathlib import Path
 from django.conf import settings
 from django.utils import timezone
 
-from nas_storage.nas_paths import rclone_listing_available
+from nas_storage.nas_paths import default_nas_rclone_remote, nas_rclone_remote_path, rclone_listing_available
 
 
 class PortalBackupError(Exception):
@@ -44,11 +44,9 @@ def backup_rclone_base() -> str:
     if dedicated:
         base = dedicated
     else:
-        base = getattr(settings, 'NAS_RCLONE_REMOTE', 'synology:DATACHUNG').rstrip('/')
+        base = default_nas_rclone_remote()
         rel = (getattr(settings, 'NAS_BACKUP_REL_PATH', 'backup') or 'backup').strip('/')
-        if rel:
-            base = f'{base}/{rel}'
-    return base
+        return nas_rclone_remote_path(base, rel)
 
 
 def backup_remote_dir(stamp: str, run_id: str) -> str:

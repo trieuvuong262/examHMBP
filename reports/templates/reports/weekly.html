@@ -61,7 +61,7 @@
                         <span class="jp-weekly-field-icon is-file"><i class="bi bi-file-earmark-arrow-up"></i></span>
                         <div>
                             <h6 class="fw-bold mb-0">File</h6>
-                            <small class="text-muted">PDF, Word, Excel, ZIP… — tối đa 50MB mỗi file</small>
+                            <small class="text-muted">PDF, Word, Excel, ZIP… — tối đa 100MB mỗi file</small>
                         </div>
                     </div>
                 </div>
@@ -73,7 +73,7 @@
                         <label class="jp-weekly-existing-item">
                             <input type="checkbox" name="delete_attachments" value="{{ att.pk }}" class="form-check-input">
                             <i class="bi bi-file-earmark-text text-hm"></i>
-                            <a href="{{ att.file.url }}" target="_blank" rel="noopener" class="text-decoration-none">{{ att.display_name }}</a>
+                            <a href="{{ att.file_url }}" target="_blank" rel="noopener" class="text-decoration-none">{{ att.display_name }}</a>
                             <span class="text-muted small">(tick để xóa)</span>
                         </label>
                         {% endfor %}
@@ -102,8 +102,8 @@
                             {% for att in weekly_images %}
                             <div class="col-6 col-md-4 col-lg-3">
                                 <div class="jp-weekly-thumb">
-                                    <a href="{{ att.file.url }}" target="_blank" rel="noopener">
-                                        <img src="{{ att.file.url }}" alt="{{ att.display_name }}" loading="lazy">
+                                    <a href="{{ att.file_url }}" target="_blank" rel="noopener">
+                                        <img src="{{ att.file_url }}" alt="{{ att.display_name }}" loading="lazy">
                                     </a>
                                     <label class="jp-weekly-thumb-delete">
                                         <input type="checkbox" name="delete_attachments" value="{{ att.pk }}" class="form-check-input">

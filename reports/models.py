@@ -7,6 +7,7 @@ from reports.report_profile import (
     REPORT_PROFILE_CHOICES,
     REPORT_PROFILE_PRODUCTION,
 )
+from reports.weekly_nas_storage import WeeklyReportNasStorage, weekly_attachment_upload_to
 
 
 class DailyWorkReport(models.Model):
@@ -179,7 +180,10 @@ class WeeklyWorkReportAttachment(models.Model):
         verbose_name='Báo cáo tuần',
     )
     kind = models.CharField(max_length=10, choices=KIND_CHOICES)
-    file = models.FileField(upload_to='reports/weekly/%Y/%m/')
+    file = models.FileField(
+        upload_to=weekly_attachment_upload_to,
+        storage=WeeklyReportNasStorage(),
+    )
     original_name = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -194,6 +198,13 @@ class WeeklyWorkReportAttachment(models.Model):
     @property
     def display_name(self):
         return self.original_name or os.path.basename(self.file.name)
+
+    @property
+    def file_url(self):
+        from django.urls import reverse
+        if not self.pk:
+            return ''
+        return reverse('reports:weekly_attachment', kwargs={'pk': self.pk})
 
     @property
     def is_image(self):
