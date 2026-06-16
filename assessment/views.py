@@ -281,7 +281,9 @@ def admin_dashboard(request):
     )
     
     # --- PHẦN TUYỂN DỤNG ---
-    active_jobs = JobPosting.objects.filter(is_active=True).count()
+    today = timezone.localdate()
+    open_jobs_qs = JobPosting.objects.filter(is_active=True, deadline__gte=today)
+    active_jobs = open_jobs_qs.count()
     total_candidates = Candidate.objects.count()
     upcoming_interviews = Interview.objects.filter(interview_time__gte=now).count()
     recent_candidates = Candidate.objects.select_related('job_posting').order_by('-applied_at')
@@ -292,7 +294,7 @@ def admin_dashboard(request):
         'total_yearly_kpis': total_yearly_kpis, # Thay cho total_employee_kpis cũ
         
         # Exams & Users
-        'jobs': JobPosting.objects.filter(is_active=True), 
+        'jobs': open_jobs_qs,
         'total_exams': all_exams.count(),
         'active_exams_count': all_exams.filter(is_active=True, end_time__gt=now).count(),
         'total_users': User.objects.count(),

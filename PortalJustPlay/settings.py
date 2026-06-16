@@ -156,8 +156,11 @@ EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@portal.justplay.vn")
 
-# Giới hạn dung lượng File Upload (Tối đa 10MB) để chống DoS
-DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
+# Giới hạn dung lượng upload (báo cáo tuần, media…) — mặc định 50MB
+UPLOAD_MAX_MB = int(os.getenv('UPLOAD_MAX_MB', '50'))
+UPLOAD_MAX_BYTES = UPLOAD_MAX_MB * 1024 * 1024
+DATA_UPLOAD_MAX_MEMORY_SIZE = UPLOAD_MAX_BYTES
+FILE_UPLOAD_MAX_MEMORY_SIZE = UPLOAD_MAX_BYTES
 # Admin xóa hàng loạt gửi 1 hidden field / dòng — mặc định Django chỉ 1000
 DATA_UPLOAD_MAX_NUMBER_FIELDS = int(os.getenv('DATA_UPLOAD_MAX_NUMBER_FIELDS', '20000'))
 

@@ -6,7 +6,7 @@ from .models import WeeklyWorkReportAttachment
 
 
 def save_weekly_uploads(report, *, image_list=None, file_list=None):
-    """Lưu file/ảnh báo cáo tuần — không giới hạn kích thước ở tầng ứng dụng."""
+    """Lưu file/ảnh báo cáo tuần — giới hạn kích thước theo UPLOAD_MAX_MB (settings)."""
     created = []
     for uploaded in image_list or []:
         created.append(

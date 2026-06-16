@@ -139,19 +139,27 @@
     <div class="tab-content" id="dashboardTabsContent">
         
         <div class="tab-pane fade show active" id="recruitment" role="tabpanel">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h5 class="fw-bold text-dark mb-0"><i class="bi bi-activity text-hm me-2"></i>Tổng quan Tuyển dụng</h5>
-                <div class="d-flex gap-2">
-                    <a href="{% url 'job_posting_list' %}" class="btn btn-hm">
-                        <i class="bi bi-megaphone me-2"></i>Đăng tin tuyển dụng
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+                <div>
+                    <h5 class="fw-bold text-dark mb-1"><i class="bi bi-activity text-hm me-2"></i>Tổng quan Tuyển dụng</h5>
+                    <p class="text-muted small mb-0">Số liệu cập nhật theo dữ liệu thực trên hệ thống.</p>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="{% url 'kanban_board' %}" class="btn btn-outline-hm fw-bold bg-white">
+                        <i class="bi bi-kanban me-1"></i>Bảng Kanban
                     </a>
+                    <a href="{% url 'job_posting_list' %}" class="btn btn-hm">
+                        <i class="bi bi-megaphone me-1"></i>Vị trí tuyển dụng
+                    </a>
+                    {% if jobs %}
                     <button type="button" class="btn btn-outline-hm fw-bold bg-white" data-bs-toggle="modal" data-bs-target="#addCandidateModal">
-                        <i class="bi bi-person-plus-fill me-2"></i>Thêm ứng viên
+                        <i class="bi bi-person-plus-fill me-1"></i>Thêm ứng viên
                     </button>
+                    {% endif %}
                 </div>
             </div>
 
-            <div class="row g-4 mb-5">
+            <div class="row g-3 g-md-4 mb-4">
                 <div class="col-md-4">
                     <a href="{% url 'job_posting_list' %}" class="stat-card-link">
                         <div class="stat-card">
@@ -159,7 +167,7 @@
                                 <div class="icon-box bg-info-soft text-info"><i class="bi bi-briefcase-fill"></i></div>
                                 <div class="ms-3">
                                     <div class="small text-muted fw-bold">VỊ TRÍ ĐANG MỞ</div>
-                                    <h2 class="fw-bold mb-0 text-dark transition">{{ active_jobs|default:"3" }}</h2>
+                                    <h2 class="fw-bold mb-0 text-dark transition">{{ active_jobs }}</h2>
                                 </div>
                             </div>
                         </div>
@@ -172,7 +180,7 @@
                                 <div class="icon-box bg-primary-soft text-hm"><i class="bi bi-file-earmark-person-fill"></i></div>
                                 <div class="ms-3">
                                     <div class="small text-muted fw-bold">HỒ SƠ ỨNG VIÊN</div>
-                                    <h2 class="fw-bold mb-0 text-dark">{{ total_candidates|default:"10" }}</h2>
+                                    <h2 class="fw-bold mb-0 text-dark">{{ total_candidates }}</h2>
                                 </div>
                             </div>
                         </div>
@@ -184,8 +192,8 @@
                             <div class="d-flex align-items-center">
                                 <div class="icon-box bg-warning-soft text-warning"><i class="bi bi-calendar-check-fill"></i></div>
                                 <div class="ms-3">
-                                    <div class="small text-muted fw-bold">LỊCH PHỎNG VẤN</div>
-                                    <h2 class="fw-bold mb-0 text-dark">{{ upcoming_interviews|default:"2" }}</h2>
+                                    <div class="small text-muted fw-bold">LỊCH PHỎNG VẤN SẮP TỚI</div>
+                                    <h2 class="fw-bold mb-0 text-dark">{{ upcoming_interviews }}</h2>
                                 </div>
                             </div>
                         </div>
@@ -193,12 +201,26 @@
                 </div>
             </div>
 
-            <div class="card card-table shadow-sm">
-                <div class="card-header bg-white py-4 px-4 border-0 d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-clock-history me-2 text-hm"></i>Hồ sơ mới tiếp nhận</h6>
-                    <a href="{% url 'kanban_board' %}" class="btn btn-sm btn-outline-hm fw-bold px-3">
-                        <i class="bi bi-kanban me-1"></i> Bảng theo dõi Ứng viên
+            {% if not active_jobs and not total_candidates and not upcoming_interviews %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body text-center py-5 px-4">
+                    <i class="bi bi-inbox text-muted opacity-25" style="font-size: 3.5rem;"></i>
+                    <p class="text-muted mt-3 mb-3">Chưa có dữ liệu tuyển dụng. Bắt đầu bằng cách đăng vị trí cần tuyển.</p>
+                    <a href="{% url 'job_posting_list' %}" class="btn btn-hm fw-bold">
+                        <i class="bi bi-plus-lg me-1"></i>Đăng tin tuyển dụng
                     </a>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="card card-table shadow-sm">
+                <div class="card-header bg-white py-3 px-4 border-0 d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-clock-history me-2 text-hm"></i>Hồ sơ mới tiếp nhận</h6>
+                    {% if total_candidates %}
+                    <a href="{% url 'kanban_board' %}" class="btn btn-sm btn-outline-hm fw-bold px-3">
+                        <i class="bi bi-kanban me-1"></i>Xem tất cả
+                    </a>
+                    {% endif %}
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
@@ -250,7 +272,12 @@
                                 </td>
                             </tr>
                             {% empty %}
-                            <tr><td colspan="5" class="text-center py-5 text-muted">Chưa có ứng viên mới.</td></tr>
+                            <tr>
+                                <td colspan="5" class="text-center py-5 text-muted">
+                                    <i class="bi bi-person-lines-fill d-block mb-2 opacity-25" style="font-size: 2rem;"></i>
+                                    Chưa có hồ sơ ứng viên nào.
+                                </td>
+                            </tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -482,7 +509,7 @@
                                 <div class="icon-box bg-white bg-opacity-25 text-white border-0"><i class="bi bi-file-earmark-bar-graph"></i></div>
                                 <div class="ms-3">
                                     <div class="small opacity-75 fw-bold">TỔNG SỐ BẢNG ĐÁNH GIÁ</div>
-                                    <h2 class="fw-bold mb-0" style="color: white !important;">{{ total_employee_kpis|default:"0" }}</h2>
+                                    <h2 class="fw-bold mb-0" style="color: white !important;">{{ total_yearly_kpis }}</h2>
                                 </div>
                             </div>
                         </div>
@@ -534,6 +561,8 @@
                         <option value="">-- Chọn vị trí đang tuyển --</option>
                         {% for job in jobs %}
                             <option value="{{ job.id }}">{{ job.title }}</option>
+                        {% empty %}
+                            <option value="" disabled>Chưa có vị trí đang mở — hãy đăng tin tuyển dụng trước</option>
                         {% endfor %}
                     </select>
                 </div>
