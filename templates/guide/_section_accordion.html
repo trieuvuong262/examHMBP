@@ -1,0 +1,17 @@
+<div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="{{ section_id }}">
+    <h2 class="accordion-header">
+        <button class="accordion-button {% if not expanded %}collapsed{% endif %} fw-bold" type="button"
+                data-bs-toggle="collapse" data-bs-target="#{{ collapse_id }}" {% if expanded %}aria-expanded="true"{% endif %}>
+            <i class="bi {{ icon }} text-hm me-2"></i> {{ title }}
+        </button>
+    </h2>
+    <div id="{{ collapse_id }}" class="accordion-collapse collapse {% if expanded %}show{% endif %}" data-bs-parent="#guideAccordion">
+        <div class="accordion-body">
+            {% if has_inner %}
+                {{ inner_html }}
+            {% else %}
+                <p class="text-muted small mb-0">Nội dung mục này đang được cập nhật.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>

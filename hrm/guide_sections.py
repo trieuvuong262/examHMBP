@@ -223,6 +223,13 @@ GUIDE_SECTIONS: list[dict] = [
 ]
 
 
+def get_section_by_id(section_id: str) -> dict | None:
+    for sec in GUIDE_SECTIONS:
+        if sec['id'] == section_id:
+            return sec
+    return None
+
+
 def user_can_manage_module_in_guide(user, module_key: str) -> bool:
     """Có quyền thêm/sửa/xóa module — hiện phần «Dành cho HR / Quản trị»."""
     from hrm.module_permissions import (

@@ -5,7 +5,7 @@ from django.conf.urls.static import static
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns 
 from django.contrib.auth import views as auth_views
 from hrm.views import MyPasswordChangeView, update_avatar
-from hrm.views_guide import user_guide, user_guide_edit
+from hrm.views_guide import user_guide, user_guide_edit, user_guide_edit_section
 from PortalJustPlay import ckeditor_upload
 from PortalJustPlay.pwa import portal_service_worker, site_manifest
 from audit.views_login import PortalLoginView
@@ -18,6 +18,7 @@ urlpatterns = [
     path('accounts/', include('django.contrib.auth.urls')),
     path('huong-dan/', user_guide, name='user_guide'),
     path('huong-dan/chinh-sua/', user_guide_edit, name='user_guide_edit'),
+    path('huong-dan/chinh-sua/<slug:section_id>/', user_guide_edit_section, name='user_guide_edit_section'),
     path('', include('assessment.urls')),
     path('cong-cu/', include('tools.urls')),
     path('training/', include('training.urls')),

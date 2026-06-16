@@ -1,0 +1,18 @@
+<div class="guide-split guide-split-wide-img mb-3">
+                <div class="guide-steps">
+                    <div class="guide-step">
+                        <div class="guide-step-num">1</div>
+                        <div><strong>Gửi góp ý</strong> — chia sẻ ý kiến cải tiến xưởng, quy trình, môi trường làm việc (có thể ẩn danh tùy cấu hình).</div>
+                    </div>
+                    {% if 'gop-y' in guide_admin_section_ids %}
+                    <div class="guide-step">
+                        <div class="guide-step-num">2</div>
+                        <div><strong>Danh sách góp ý</strong> — HR/Ban quản lý xem, phản hồi, đánh dấu đã xử lý.</div>
+                    </div>
+                    {% endif %}
+                </div>
+                <figure class="guide-figure">
+                    <img src="{% static 'images/guide/17-gop-y.png' %}" alt="Góp ý" loading="lazy">
+                    <figcaption><strong>Hình.</strong> Gửi và theo dõi góp ý nội bộ.</figcaption>
+                </figure>
+            </div>

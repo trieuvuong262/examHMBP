@@ -23,7 +23,13 @@ class UserGuide(models.Model):
         ),
         verbose_name='Mô tả ngắn',
     )
-    body = RichTextField(blank=True, verbose_name='Nội dung')
+    body = RichTextField(blank=True, verbose_name='Nội dung (cũ)')
+    section_overrides = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name='Ghi đè theo mục',
+        help_text='{section_id: {title?, body}}',
+    )
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(
         User,

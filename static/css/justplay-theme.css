@@ -2589,6 +2589,30 @@ body.jp-tool-loading-active {
     border-top: 1px solid #e2e8f0;
 }
 
+/* Guide admin edit hub */
+.jp-guide-edit .guide-edit-section-item {
+    transition: background-color 0.15s ease;
+}
+
+.jp-guide-edit .guide-edit-section-item:hover {
+    background-color: #f8fafc;
+}
+
+.jp-guide-edit .guide-edit-section-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.75rem;
+    background: rgba(var(--jp-hm-rgb, 220, 38, 38), 0.08);
+    font-size: 1.25rem;
+}
+
+.jp-guide-edit .breadcrumb a {
+    text-decoration: none;
+}
+
 /* Dynamic guide content (CKEditor) */
 .guide-prose {
     overflow-wrap: anywhere;

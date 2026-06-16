@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block content %}
+{{ form.media }}
+<div class="container jp-page jp-guide-edit py-3 py-md-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-xl-10">
+            <nav aria-label="breadcrumb" class="mb-3">
+                <ol class="breadcrumb small mb-0">
+                    <li class="breadcrumb-item"><a href="{% url 'user_guide_edit' %}">Chỉnh sửa hướng dẫn</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ section.toc }}</li>
+                </ol>
+            </nav>
+
+            <div class="jp-page-header mb-3">
+                <div>
+                    <h2 class="jp-page-title fw-bold text-hm mb-1">
+                        <i class="bi {{ icon }} me-2"></i>Sửa mục: {{ section.toc }}
+                    </h2>
+                    <p class="text-muted small mb-0">
+                        {% for label in module_labels %}{{ label }}{% if not forloop.last %} · {% endif %}{% endfor %}
+                    </p>
+                </div>
+                <a href="{% url 'user_guide_edit' %}" class="btn btn-outline-dark fw-bold">
+                    <i class="bi bi-arrow-left me-1"></i>Danh sách mục
+                </a>
+            </div>
+
+            {% if is_custom %}
+            <div class="alert alert-warning border-0 shadow-sm mb-3">
+                <i class="bi bi-pencil-fill me-2"></i>
+                Mục này đang dùng <strong>nội dung tùy chỉnh</strong>. Bấm «Khôi phục mặc định» để quay về bản gốc trong hệ thống.
+            </div>
+            {% else %}
+            <div class="alert alert-info border-0 shadow-sm mb-3">
+                <i class="bi bi-info-circle me-2"></i>
+                Đang hiển thị <strong>nội dung mặc định</strong>. Lưu bất kỳ thay đổi nào sẽ ghi đè riêng mục này.
+            </div>
+            {% endif %}
+
+            <div class="card border-0 shadow-sm overflow-hidden">
+                <div class="card-body p-4 p-md-5">
+                    <form method="post" id="guideSectionForm">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold" for="id_title">Tiêu đề trên accordion</label>
+                            {{ form.title }}
+                            <div class="form-text">Để trống hoặc giữ mặc định: «{{ section.toc }}»</div>
+                            {% if form.title.errors %}<div class="text-danger small">{{ form.title.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold" for="id_body">Nội dung mục</label>
+                            <div class="border bg-white jp-ckeditor-wrap">
+                                {{ form.body }}
+                            </div>
+                            <div class="form-text">
+                                Soạn như Word — tiêu đề, bảng, danh sách, dán từ Word, chèn ảnh.
+                                Ảnh chụp màn hình đặt trong <code>static/images/guide/</code>.
+                            </div>
+                            {% if form.body.errors %}<div class="text-danger small">{{ form.body.errors }}</div>{% endif %}
+                        </div>
+
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="submit" class="btn btn-hm fw-bold px-4">
+                                <i class="bi bi-check-lg me-1"></i>Lưu mục
+                            </button>
+                            <a href="{% url 'user_guide' %}#{{ section_id }}" class="btn btn-outline-hm fw-bold" target="_blank" rel="noopener">
+                                <i class="bi bi-eye me-1"></i>Xem trên trang
+                            </a>
+                            <a href="{% url 'user_guide_edit' %}" class="btn btn-outline-dark fw-bold">Hủy</a>
+                        </div>
+                    </form>
+
+                    {% if is_custom %}
+                    <hr class="my-4">
+                    <form method="post" onsubmit="return confirm('Khôi phục nội dung mặc định cho mục này?');">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="reset">
+                        <button type="submit" class="btn btn-outline-danger fw-bold">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>Khôi phục mặc định
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

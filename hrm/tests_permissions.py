@@ -146,3 +146,42 @@ class GuideGranularPermissionTests(TestCase):
         self.client.force_login(self.editor_user)
         response = self.client.get(reverse('user_guide_edit'))
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Danh sách mục')
+        self.assertContains(response, 'Sửa mục')
+
+    def test_editor_can_save_section_override(self):
+        from hrm.models import UserGuide
+
+        self.client.force_login(self.editor_user)
+        url = reverse('user_guide_edit_section', kwargs={'section_id': 'bat-dau'})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+        response = self.client.post(url, {
+            'title': '0. Bắt đầu nhanh',
+            'body': '<p>Nội dung test tùy chỉnh</p>',
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('user_guide_edit'))
+
+        guide = UserGuide.load()
+        self.assertIn('bat-dau', guide.section_overrides)
+        self.assertIn('Nội dung test tùy chỉnh', guide.section_overrides['bat-dau']['body'])
+
+        page = self.client.get(reverse('user_guide'))
+        self.assertContains(page, 'Nội dung test tùy chỉnh')
+
+    def test_editor_can_reset_section_override(self):
+        from hrm.models import UserGuide
+
+        guide = UserGuide.load()
+        guide.section_overrides = {'bat-dau': {'body': '<p>Custom</p>'}}
+        guide.save()
+
+        self.client.force_login(self.editor_user)
+        url = reverse('user_guide_edit_section', kwargs={'section_id': 'bat-dau'})
+        response = self.client.post(url, {'action': 'reset'})
+        self.assertEqual(response.status_code, 302)
+
+        guide.refresh_from_db()
+        self.assertNotIn('bat-dau', guide.section_overrides)

@@ -1,0 +1,33 @@
+<dl class="mb-0">
+                                <dt class="fw-bold">Đăng nhập báo "Sai tài khoản hoặc mật khẩu"?</dt>
+                                <dd class="text-muted">Kiểm tra Caps Lock, gõ đúng username HR cấp. Vẫn lỗi → HR reset mật khẩu.</dd>
+
+                                <dt class="fw-bold mt-3">Không thấy một số menu (Tuyển dụng, Kho NPL, …)?</dt>
+                                <dd class="text-muted">Menu chỉ hiện module trong <strong>nhóm quyền</strong> được HR gán cho phòng ban / vai trò của bạn. Liên hệ HR nếu cần thêm quyền.</dd>
+
+                                {% if 'bao-cao' in visible_section_ids %}
+                                <dt class="fw-bold mt-3">Báo cáo nộp rồi muốn sửa?</dt>
+                                <dd class="text-muted">Vào lại <strong>Báo cáo hôm nay</strong>, chỉnh và bấm <strong>Nộp cho HOD</strong> lại.</dd>
+                                {% endif %}
+
+                                {% if 'kpi' in visible_section_ids %}
+                                <dt class="fw-bold mt-3">KPI không gõ được điểm (ô xám)?</dt>
+                                <dd class="text-muted">Kỳ chấm (Q1, Q2…) đang khóa — chờ HR/GM mở kỳ.</dd>
+                                {% endif %}
+
+                                {% if 'dao-tao' in visible_section_ids or 'kiem-tra' in visible_section_ids %}
+                                <dt class="fw-bold mt-3">Không thấy bài thi / khóa học?</dt>
+                                <dd class="text-muted">HR chưa giao cho bạn — liên hệ quản lý trực tiếp hoặc phòng đào tạo.</dd>
+                                {% endif %}
+
+                                {% if 'kiem-tra' in visible_section_ids %}
+                                <dt class="fw-bold mt-3">Thi bị mất kết nối giữa chừng?</dt>
+                                <dd class="text-muted">Thử vào lại mục Kiểm tra. Nếu đã nộp → xem kết quả. Nếu chưa → liên hệ IT kèm tên bài thi.</dd>
+                                {% endif %}
+
+                                <dt class="fw-bold mt-3">Trang load chậm trên điện thoại?</dt>
+                                <dd class="text-muted">Kiểm tra sóng Wi-Fi/4G. Tắt mở lại trình duyệt. Tránh mở quá nhiều tab.</dd>
+
+                                <dt class="fw-bold mt-3">Hỗ trợ kỹ thuật?</dt>
+                                <dd class="text-muted mb-0">Email <a href="mailto:support@justplay.vn">support@justplay.vn</a> hoặc phòng IT nội bộ. Ghi rõ: họ tên, username, màn hình đang dùng, chụp màn hình lỗi nếu có.</dd>
+                            </dl>

@@ -1,0 +1,38 @@
+<p class="mb-3">Nếu bạn vừa được HR cấp tài khoản, làm <strong>4 việc này trước</strong>:</p>
+                            <div class="guide-steps">
+                                <div class="guide-step">
+                                    <div class="guide-step-num">1</div>
+                                    <div>Mở trình duyệt trên điện thoại hoặc máy tính → gõ địa chỉ portal công ty (HR sẽ gửi link, ví dụ <code>https://portal.justplay.vn</code>).</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">2</div>
+                                    <div>Đăng nhập bằng <strong>Tên đăng nhập</strong> và <strong>Mật khẩu</strong> HR cấp → bấm nút đỏ <strong>Đăng nhập</strong>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">3</div>
+                                    <div>Đổi mật khẩu ngay lần đầu (mục 4 bên dưới) — đừng dùng mật khẩu tạm lâu dài.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">4</div>
+                                    <div>{% if 'thong-bao' in visible_section_ids %}Vào <strong>Thông báo</strong> → đọc và bấm <strong>Xác nhận đã đọc</strong> các tin có dấu vàng "Chưa đọc".{% else %}Khám phá menu trên trang chủ — chỉ thấy các chức năng bạn được phân quyền.{% endif %}</div>
+                                </div>
+                            </div>
+                            <div class="alert alert-info border-0 mt-3 mb-0 small">
+                                <i class="bi bi-info-circle me-1"></i>
+                                <strong>Trên máy tính:</strong> menu bên trái chỉ hiện module bạn được phép. <strong>Trên điện thoại:</strong> dùng thanh menu dưới cùng hoặc icon <i class="bi bi-list"></i> góc trái.
+                            </div>
+                            <div class="mt-4 pt-3 border-top">
+                                <div class="small fw-bold text-muted text-uppercase mb-2">Xem trước các màn hình (theo quyền của bạn)</div>
+                                <div class="row g-2 guide-preview-grid">
+                                    {% for item in guide_preview_items %}
+                                    <div class="col-4 col-md-3">
+                                        <a href="{{ item.href }}" class="guide-preview-item">
+                                            <img src="{% static 'images/guide/' %}{{ item.image }}" alt="{{ item.label }}">
+                                            <span>{{ item.label }}</span>
+                                        </a>
+                                    </div>
+                                    {% empty %}
+                                    <div class="col-12 text-muted small">Đăng nhập và được phân quyền module để xem ảnh minh họa tại đây.</div>
+                                    {% endfor %}
+                                </div>
+                            </div>

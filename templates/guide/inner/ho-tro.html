@@ -1,0 +1,22 @@
+<div class="guide-split guide-split-wide-img mb-3">
+                <div class="guide-steps">
+                    <div class="guide-step">
+                        <div class="guide-step-num">1</div>
+                        <div><strong>Gửi yêu cầu hỗ trợ</strong> — mô tả sự cố (máy tính, mạng, phần mềm…), chọn mức độ ưu tiên.</div>
+                    </div>
+                    <div class="guide-step">
+                        <div class="guide-step-num">2</div>
+                        <div><strong>Yêu cầu của tôi</strong> — xem tiến độ xử lý, bình luận thêm thông tin.</div>
+                    </div>
+                    {% if 'ho-tro' in guide_admin_section_ids %}
+                    <div class="guide-step">
+                        <div class="guide-step-num">3</div>
+                        <div>IT/Admin vào <strong>Chờ duyệt</strong> → tiếp nhận, cập nhật trạng thái, đóng ticket khi xong.</div>
+                    </div>
+                    {% endif %}
+                </div>
+                <figure class="guide-figure">
+                    <img src="{% static 'images/guide/15-ho-tro.png' %}" alt="Hỗ trợ kỹ thuật" loading="lazy">
+                    <figcaption><strong>Hình.</strong> Yêu cầu hỗ trợ IT — theo dõi từng bước xử lý.</figcaption>
+                </figure>
+            </div>

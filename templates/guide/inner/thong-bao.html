@@ -1,0 +1,56 @@
+<span class="badge bg-secondary mb-3">Dành cho nhân viên</span>
+                            <div class="guide-split guide-split-wide-img mb-4">
+                                <div class="guide-steps">
+                                <div class="guide-step">
+                                    <div class="guide-step-num">1</div>
+                                    <div>Bấm <strong>Thông báo</strong> (thanh dưới hoặc menu trên).</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">2</div>
+                                    <div>Nếu có tin chưa đọc → banner vàng: <em>"Bạn còn X thông báo chưa xác nhận đọc"</em>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">3</div>
+                                    <div>Mỗi thông báo có nhãn: <span class="badge bg-warning-subtle text-warning">Chưa đọc</span> hoặc <span class="badge bg-success-subtle text-success">Đã đọc</span>. Tin ghim có nhãn <span class="badge bg-danger-subtle text-danger">Ghim</span>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">4</div>
+                                    <div>Bấm nút đỏ <strong>Xem chi tiết</strong> trên thông báo cần đọc.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">5</div>
+                                    <div>Đọc nội dung — có thể là văn bản, PDF (xem trong khung), hoặc video (bấm nút Play).</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">6</div>
+                                    <div>Cuối trang, nếu có nút lớn <strong>Xác nhận đã đọc</strong> → bấm một lần. Trạng thái đổi sang xanh "Đã xác nhận đọc".</div>
+                                </div>
+                                </div>
+                                <figure class="guide-figure">
+                                    <img src="{% static 'images/guide/05-thong-bao.png' %}" alt="Minh họa đọc và xác nhận thông báo" loading="lazy">
+                                    <figcaption><strong>Hình 5.</strong> Danh sách thông báo → <em>Xem chi tiết</em> → <em>Xác nhận đã đọc</em>.</figcaption>
+                                </figure>
+                            </div>
+
+                            {% if 'thong-bao' in guide_admin_section_ids %}
+                            <hr class="my-4">
+                            <span class="badge bg-dark mb-3">Dành cho HR / Quản trị</span>
+                            <div class="guide-steps">
+                                <div class="guide-step">
+                                    <div class="guide-step-num">1</div>
+                                    <div>Vào <strong>Thông Báo</strong> → góc phải bấm <strong>Tạo thông báo</strong>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">2</div>
+                                    <div>Điền tiêu đề, tóm tắt, chọn loại (Văn bản / PDF / Video), tải file nếu cần.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">3</div>
+                                    <div>Tick <strong>Ghim</strong> nếu tin quan trọng; tick <strong>Bắt buộc xác nhận</strong> nếu cần nhân viên bấm xác nhận.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">4</div>
+                                    <div>Lưu → nhân viên sẽ thấy tin mới và số đỏ trên menu.</div>
+                                </div>
+                            </div>
+                            {% endif %}

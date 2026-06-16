@@ -1,0 +1,635 @@
+﻿{% load static %}
+            <div class="accordion guide-accordion" id="guideAccordion">
+
+                <!-- 0. Quick start -->
+                <div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="bat-dau">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c0" aria-expanded="true">
+                            <i class="bi bi-lightning-charge-fill text-hm me-2"></i> 0. Bắt đầu nhanh (5 phút)
+                        </button>
+                    </h2>
+                    <div id="c0" class="accordion-collapse collapse show" data-bs-parent="#guideAccordion">
+                        <div class="accordion-body">
+                            <p class="mb-3">Nếu bạn vừa được HR cấp tài khoản, làm <strong>4 việc này trước</strong>:</p>
+                            <div class="guide-steps">
+                                <div class="guide-step">
+                                    <div class="guide-step-num">1</div>
+                                    <div>Mở trình duyệt trên điện thoại hoặc máy tính → gõ địa chỉ portal công ty (HR sẽ gửi link, ví dụ <code>https://portal.justplay.vn</code>).</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">2</div>
+                                    <div>Đăng nhập bằng <strong>Tên đăng nhập</strong> và <strong>Mật khẩu</strong> HR cấp → bấm nút đỏ <strong>Đăng nhập</strong>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">3</div>
+                                    <div>Đổi mật khẩu ngay lần đầu (mục 4 bên dưới) — đừng dùng mật khẩu tạm lâu dài.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">4</div>
+                                    <div>{% if 'thong-bao' in visible_section_ids %}Vào <strong>Thông báo</strong> → đọc và bấm <strong>Xác nhận đã đọc</strong> các tin có dấu vàng "Chưa đọc".{% else %}Khám phá menu trên trang chủ — chỉ thấy các chức năng bạn được phân quyền.{% endif %}</div>
+                                </div>
+                            </div>
+                            <div class="alert alert-info border-0 mt-3 mb-0 small">
+                                <i class="bi bi-info-circle me-1"></i>
+                                <strong>Trên máy tính:</strong> menu bên trái chỉ hiện module bạn được phép. <strong>Trên điện thoại:</strong> dùng thanh menu dưới cùng hoặc icon <i class="bi bi-list"></i> góc trái.
+                            </div>
+                            <div class="mt-4 pt-3 border-top">
+                                <div class="small fw-bold text-muted text-uppercase mb-2">Xem trước các màn hình (theo quyền của bạn)</div>
+                                <div class="row g-2 guide-preview-grid">
+                                    {% for item in guide_preview_items %}
+                                    <div class="col-4 col-md-3">
+                                        <a href="{{ item.href }}" class="guide-preview-item">
+                                            <img src="{% static 'images/guide/' %}{{ item.image }}" alt="{{ item.label }}">
+                                            <span>{{ item.label }}</span>
+                                        </a>
+                                    </div>
+                                    {% empty %}
+                                    <div class="col-12 text-muted small">Đăng nhập và được phân quyền module để xem ảnh minh họa tại đây.</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 1. Intro -->
+                <div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="gioi-thieu">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c1">
+                            <i class="bi bi-info-circle text-hm me-2"></i> 1. Giới thiệu hệ thống
+                        </button>
+                    </h2>
+                    <div id="c1" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+                        <div class="accordion-body">
+                            <p><strong>JustPlay Portal</strong> là cổng thông tin nội bộ của công ty. Menu và hướng dẫn <strong>chỉ hiện chức năng bạn được phân quyền</strong> (theo phòng ban và nhóm quyền). Các module phổ biến:</p>
+                            <ul>
+                                {% if 'thong-bao' in visible_section_ids %}<li><strong>Thông báo</strong> — chính sách, lịch giao hàng, tin xưởng</li>{% endif %}
+                                {% if 'bao-cao' in visible_section_ids %}<li><strong>Báo cáo công việc</strong> — sản lượng ca làm hàng ngày</li>{% endif %}
+                                {% if 'kpi' in visible_section_ids %}<li><strong>KPI</strong> — tự đánh giá và được quản lý chấm điểm</li>{% endif %}
+                                {% if 'dao-tao' in visible_section_ids %}<li><strong>Đào tạo</strong> — video/PDF quy trình may, QC, ATLD…</li>{% endif %}
+                                {% if 'kiem-tra' in visible_section_ids %}<li><strong>Kiểm tra</strong> — thi năng lực, ATLD, QC theo lịch HR</li>{% endif %}
+                                {% if 'cong-viec' in visible_section_ids %}<li><strong>Công việc</strong> — giao việc, dự án Kanban</li>{% endif %}
+                                {% if 'tai-lieu' in visible_section_ids %}<li><strong>Tài liệu</strong> — thư viện quy trình, hỏi đáp AI</li>{% endif %}
+                            </ul>
+                            <p class="mb-0">HR / IT thường có thêm: nhân sự, tuyển dụng, phân quyền menu, quản trị hệ thống — tùy nhóm quyền được gán.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Prepare -->
+                <div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="chuan-bi">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c2prep">
+                            <i class="bi bi-check2-square text-hm me-2"></i> 2. Chuẩn bị trước khi dùng
+                        </button>
+                    </h2>
+                    <div id="c2prep" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+                        <div class="accordion-body">
+                            <h6 class="fw-bold">Bạn cần có:</h6>
+                            <ul>
+                                <li><strong>Tài khoản</strong> do HR/IT cấp (tên đăng nhập + mật khẩu tạm)</li>
+                                <li><strong>Internet</strong> — Wi-Fi công ty hoặc 4G</li>
+                                <li><strong>Trình duyệt</strong> — Chrome, Safari, Edge (cập nhật mới nhất). Tránh dùng trình duyệt quá cũ trên điện thoại.</li>
+                            </ul>
+                            <h6 class="fw-bold mt-3">Tên đăng nhập thường có dạng:</h6>
+                            <p class="mb-2"><code>tên.chữ_cái_họ_đệm</code> — ví dụ: <strong>Nguyễn Thành Nam</strong> → <code>nam.nt</code>, email <code>nam.nt@justplay.vn</code></p>
+                            <p class="text-muted small mb-0">Không có khoảng trắng. Lần đăng nhập đầu tiên bắt buộc đổi mật khẩu.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Login -->
+                <div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="dang-nhap">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c2">
+                            <i class="bi bi-box-arrow-in-right text-hm me-2"></i> 3. Đăng nhập (từng bước)
+                        </button>
+                    </h2>
+                    <div id="c2" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+                        <div class="accordion-body">
+                            <div class="guide-split guide-split-wide-img">
+                                <div class="guide-steps">
+                                <div class="guide-step">
+                                    <div class="guide-step-num">1</div>
+                                    <div>Mở trình duyệt → vào địa chỉ portal. Bạn sẽ thấy màn hình trắng, phía trên có chữ <strong>JUSTPLAY PORTAL</strong> nền đỏ.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">2</div>
+                                    <div>Ô <strong>TÊN ĐĂNG NHẬP</strong> (có icon người) — gõ tài khoản HR cấp, ví dụ <code>nam.nt</code>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">3</div>
+                                    <div>Ô <strong>MẬT KHẨU</strong> (có icon chìa khóa) — gõ mật khẩu. Ký tự hiện dạng chấm tròn •••• là bình thường.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">4</div>
+                                    <div>Bấm nút đỏ <strong>ĐĂNG NHẬP</strong> (có mũi tên).</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">5</div>
+                                    <div>Thành công → vào <strong>Trang chủ</strong>, thấy dòng chào <em>"Xin chào, [tên bạn]!"</em> và các ô chức năng theo quyền của bạn.</div>
+                                </div>
+                                </div>
+                                <figure class="guide-figure">
+                                    <img src="{% static 'images/guide/01-dang-nhap.png' %}" alt="Minh họa màn hình đăng nhập JustPlay Portal" loading="lazy">
+                                    <figcaption><strong>Hình 1.</strong> Màn hình đăng nhập — gõ username, mật khẩu, bấm nút đỏ <em>Đăng nhập</em>.</figcaption>
+                                </figure>
+                            </div>
+                            <div class="alert alert-warning border-0 mt-3 mb-0 small">
+                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                Thấy <strong>"Sai tài khoản hoặc mật khẩu!"</strong> → kiểm tra lại chữ hoa/thường, Caps Lock, hoặc liên hệ HR cấp lại mật khẩu.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. Password -->
+                <div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="doi-mat-khau">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c2pw">
+                            <i class="bi bi-shield-lock text-hm me-2"></i> 4. Đổi mật khẩu (từng bước)
+                        </button>
+                    </h2>
+                    <div id="c2pw" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+                        <div class="accordion-body">
+                            <p>Nên đổi ngay sau lần đăng nhập đầu tiên.</p>
+                            <div class="guide-split">
+                                <div class="guide-steps">
+                                <div class="guide-step">
+                                    <div class="guide-step-num">1</div>
+                                    <div>
+                                        <strong>Trên máy tính:</strong> góc phải trên thanh đỏ → bấm vào <strong>tên/avatar</strong> của bạn → chọn <strong>Đổi mật khẩu</strong>.<br>
+                                        <strong>Trên điện thoại:</strong> bấm icon <i class="bi bi-list"></i> góc trái trên → kéo xuống → <strong>Đổi mật khẩu</strong>.
+                                    </div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">2</div>
+                                    <div>Điền 3 ô: <strong>Mật khẩu hiện tại</strong> (mật khẩu cũ HR cấp), <strong>Mật khẩu mới</strong>, <strong>Xác nhận mật khẩu mới</strong> (gõ lại y hệt).</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">3</div>
+                                    <div>Bấm nút đỏ <strong>LƯU THAY ĐỔI</strong>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">4</div>
+                                    <div>Thấy trang xác nhận thành công → bấm <strong>Về trang chủ</strong>. Từ lần sau dùng mật khẩu mới.</div>
+                                </div>
+                                </div>
+                                <figure class="guide-figure">
+                                    <img src="{% static 'images/guide/04-doi-mat-khau.png' %}" alt="Minh họa màn hình đổi mật khẩu" loading="lazy">
+                                    <figcaption><strong>Hình 2.</strong> Menu avatar góc phải → <em>Đổi mật khẩu</em> → điền 3 ô → <em>Lưu thay đổi</em>.</figcaption>
+                                </figure>
+                            </div>
+                            <p class="text-muted small mb-0 mt-3">Quên mật khẩu: liên hệ HR/IT — hệ thống không tự gửi email khôi phục trừ khi IT đã bật.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6. Roles -->
+                {% if 'phan-quyen' in visible_section_ids %}
+                <div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="phan-quyen">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c3">
+                            <i class="bi bi-shield-check text-hm me-2"></i> 6. Phân quyền — ai làm được gì?
+                        </button>
+                    </h2>
+                    <div id="c3" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+                        <div class="accordion-body">
+                            <p class="text-muted small mb-2">Menu trên máy tính <strong>chỉ hiện</strong> chức năng trong nhóm quyền được gán cho phòng ban / vai trò của bạn.</p>
+                            <div class="guide-steps small">
+                                <div class="guide-step">
+                                    <div class="guide-step-num">1</div>
+                                    <div>HR vào <strong>Phân quyền</strong> → tạo <strong>Nhóm quyền</strong> (vd. «Nhân viên xưởng», «Tổ trưởng», «Kho NPL»).</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">2</div>
+                                    <div>Tick quyền <strong>Xem / Thêm / Sửa / Xóa</strong> cho từng module và menu con.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">3</div>
+                                    <div>Gán nhóm quyền cho <strong>Phòng ban</strong> hoặc <strong>Vai trò</strong> — nhân viên đăng nhập lại sẽ thấy menu khớp quyền.</div>
+                                </div>
+                            </div>
+                            <figure class="guide-figure mt-3 mb-0">
+                                <img src="{% static 'images/guide/11-phan-quyen.png' %}" alt="Cấu hình phân quyền menu" loading="lazy">
+                                <figcaption><strong>Hình.</strong> Form phân quyền theo module và menu con.</figcaption>
+                            </figure>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- 7. Announcements -->
+                {% if 'thong-bao' in visible_section_ids %}
+                <div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="thong-bao">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c5">
+                            <i class="bi bi-megaphone-fill text-hm me-2"></i> 7. Thông báo — đọc & xác nhận
+                        </button>
+                    </h2>
+                    <div id="c5" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+                        <div class="accordion-body">
+                            <span class="badge bg-secondary mb-3">Dành cho nhân viên</span>
+                            <div class="guide-split guide-split-wide-img mb-4">
+                                <div class="guide-steps">
+                                <div class="guide-step">
+                                    <div class="guide-step-num">1</div>
+                                    <div>Bấm <strong>Thông báo</strong> (thanh dưới hoặc menu trên).</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">2</div>
+                                    <div>Nếu có tin chưa đọc → banner vàng: <em>"Bạn còn X thông báo chưa xác nhận đọc"</em>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">3</div>
+                                    <div>Mỗi thông báo có nhãn: <span class="badge bg-warning-subtle text-warning">Chưa đọc</span> hoặc <span class="badge bg-success-subtle text-success">Đã đọc</span>. Tin ghim có nhãn <span class="badge bg-danger-subtle text-danger">Ghim</span>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">4</div>
+                                    <div>Bấm nút đỏ <strong>Xem chi tiết</strong> trên thông báo cần đọc.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">5</div>
+                                    <div>Đọc nội dung — có thể là văn bản, PDF (xem trong khung), hoặc video (bấm nút Play).</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">6</div>
+                                    <div>Cuối trang, nếu có nút lớn <strong>Xác nhận đã đọc</strong> → bấm một lần. Trạng thái đổi sang xanh "Đã xác nhận đọc".</div>
+                                </div>
+                                </div>
+                                <figure class="guide-figure">
+                                    <img src="{% static 'images/guide/05-thong-bao.png' %}" alt="Minh họa đọc và xác nhận thông báo" loading="lazy">
+                                    <figcaption><strong>Hình 5.</strong> Danh sách thông báo → <em>Xem chi tiết</em> → <em>Xác nhận đã đọc</em>.</figcaption>
+                                </figure>
+                            </div>
+
+                            {% if 'thong-bao' in guide_admin_section_ids %}
+                            <hr class="my-4">
+                            <span class="badge bg-dark mb-3">Dành cho HR / Quản trị</span>
+                            <div class="guide-steps">
+                                <div class="guide-step">
+                                    <div class="guide-step-num">1</div>
+                                    <div>Vào <strong>Thông Báo</strong> → góc phải bấm <strong>Tạo thông báo</strong>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">2</div>
+                                    <div>Điền tiêu đề, tóm tắt, chọn loại (Văn bản / PDF / Video), tải file nếu cần.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">3</div>
+                                    <div>Tick <strong>Ghim</strong> nếu tin quan trọng; tick <strong>Bắt buộc xác nhận</strong> nếu cần nhân viên bấm xác nhận.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">4</div>
+                                    <div>Lưu → nhân viên sẽ thấy tin mới và số đỏ trên menu.</div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- 8. Reports -->
+                {% if 'bao-cao' in visible_section_ids %}
+                <div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="bao-cao">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c6">
+                            <i class="bi bi-clipboard-check-fill text-hm me-2"></i> 8. Báo cáo công việc hàng ngày
+                        </button>
+                    </h2>
+                    <div id="c6" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+                        <div class="accordion-body">
+                            <p>Báo cáo sản lượng theo ca — mỗi dòng = một công đoạn / một đơn hàng. <strong>Nộp trước khi tan ca</strong> (hoặc theo quy định tổ).</p>
+
+                            <span class="badge bg-secondary mb-3">Nhân viên — nộp báo cáo</span>
+                            <div class="guide-split guide-split-wide-img mb-4">
+                                <div class="guide-steps">
+                                <div class="guide-step">
+                                    <div class="guide-step-num">1</div>
+                                    <div>Bấm <strong>Báo cáo</strong> (menu dưới) → vào trang <strong>Báo cáo hôm nay</strong>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">2</div>
+                                    <div>Chọn <strong>Ca làm</strong>: Sáng / Chiều / Đêm (đúng ca bạn đang báo).</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">3</div>
+                                    <div>Điền từng dòng trong bảng:
+                                        <ul class="mt-2 mb-0">
+                                            <li><strong>Công đoạn</strong> — May, Cắt, QC, KHSX…</li>
+                                            <li><strong>Mã đơn/Style</strong> — ví dụ <code>JP-2026-001</code></li>
+                                            <li><strong>Tên SP</strong> — ví dụ <code>Áo thun team A</code></li>
+                                            <li><strong>SL</strong> — số lượng (chỉ nhập số)</li>
+                                            <li><strong>ĐVT</strong> — cái, bộ, mét…</li>
+                                            <li><strong>Ghi chú</strong> — tuỳ chọn (lỗi, chuyển ca…)</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">4</div>
+                                    <div>Cần thêm dòng → bấm <strong>+ Thêm dòng</strong>. Xóa dòng → bấm icon <i class="bi bi-x-lg text-danger"></i> bên phải.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">5</div>
+                                    <div>Công việc giống hôm qua → bấm <strong>Sao chép hôm qua</strong> (nếu có nút này) → chỉnh lại số lượng.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">6</div>
+                                    <div>Chưa xong → bấm <strong>Lưu nháp</strong> (sửa tiếp được). Xong hết → bấm <strong>Nộp cho HOD</strong>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">7</div>
+                                    <div>Thấy banner xanh <em>"Đã nộp lúc …"</em> → thành công. Muốn sửa: chỉnh lại và bấm <strong>Nộp cho HOD</strong> lần nữa.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">8</div>
+                                    <div>Xem báo cáo ngày cũ → bấm <strong>Lịch sử</strong> góc phải trên.</div>
+                                </div>
+                                </div>
+                                <figure class="guide-figure">
+                                    <img src="{% static 'images/guide/06-bao-cao.png' %}" alt="Minh họa nhập báo cáo công việc hàng ngày" loading="lazy">
+                                    <figcaption><strong>Hình 6.</strong> Chọn ca → điền bảng → <em>Lưu nháp</em> hoặc <em>Nộp cho HOD</em>.</figcaption>
+                                </figure>
+                            </div>
+
+                            <div class="guide-tip mb-4">
+                                <i class="bi bi-lightbulb text-hm me-1"></i>
+                                <strong>Mẹo:</strong> Công việc lặp lại mỗi ngày? Dùng <em>Sao chép hôm qua</em> rồi chỉ sửa số lượng — tiết kiệm 2–3 phút mỗi ca.
+                            </div>
+
+                            {% if 'bao-cao' in guide_admin_section_ids %}
+                            <hr class="my-4">
+                            <span class="badge bg-primary mb-3">Tổ trưởng (HOD) — theo dõi team</span>
+                            <div class="guide-steps">
+                                <div class="guide-step">
+                                    <div class="guide-step-num">1</div>
+                                    <div>Bấm <strong>Báo cáo</strong> → tự vào <strong>Báo cáo team</strong> (không phải trang hôm nay của NV).</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">2</div>
+                                    <div>Chọn <strong>Ngày</strong> → bấm <strong>Xem</strong>. Xem 3 ô thống kê: tổng NV / đã nộp / chưa nộp.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">3</div>
+                                    <div>Trong bảng, bấm <strong>Chi tiết</strong> (hoặc tên NV) để xem từng dòng công việc.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">4</div>
+                                    <div>Phần <strong>Phản hồi HOD</strong>: tick <strong>Đã xem / xác nhận</strong>, ghi chú ngắn → <strong>Lưu phản hồi</strong>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">5</div>
+                                    <div>HOD cũng nộp BC cá nhân → bấm <strong>Báo cáo của tôi</strong>.</div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- 9. KPI -->
+                {% if 'kpi' in visible_section_ids %}
+                <div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="kpi">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c7">
+                            <i class="bi bi-graph-up-arrow text-hm me-2"></i> 9. Đánh giá KPI
+                        </button>
+                    </h2>
+                    <div id="c7" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+                        <div class="accordion-body">
+                            <p>Luồng chấm điểm: <strong>Bạn tự chấm → HOD chấm → GM chốt</strong> (theo quý Q1, Q2, Q3, Q4).</p>
+
+                            <figure class="guide-figure guide-split-wide-img mb-4">
+                                <img src="{% static 'images/guide/09-kpi.png' %}" alt="Minh họa màn hình đánh giá KPI" loading="lazy">
+                                <figcaption><strong>Hình 9.</strong> Bảng KPI — kéo ngang trên điện thoại để xem các cột quý.</figcaption>
+                            </figure>
+
+                            <span class="badge bg-secondary mb-3">Nhân viên</span>
+                            <div class="guide-steps">
+                                <div class="guide-step">
+                                    <div class="guide-step-num">1</div>
+                                    <div>Bấm <strong>KPI</strong> (menu) → thấy <strong>Bảng KPI Tổng Thể - Năm 20XX</strong>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">2</div>
+                                    <div>Bấm vào bảng KPI của bạn → mở trang chi tiết (bảng nhiều cột, có thể kéo ngang trên điện thoại).</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">3</div>
+                                    <div>Tìm cột kỳ đang mở (Q1, Q2…) — ô điểm <strong>trắng, gõ được</strong> = đang mở. Ô xám = chưa mở hoặc đã khóa.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">4</div>
+                                    <div>Điền điểm tự đánh giá (thang thường 0–100 hoặc theo quy định công ty).</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">5</div>
+                                    <div>Bấm <strong>Lưu</strong> / <strong>Nộp</strong> (nút ở cuối trang) khi hoàn tất.</div>
+                                </div>
+                            </div>
+
+                            {% if 'kpi' in guide_admin_section_ids %}
+                            <hr class="my-4">
+                            <span class="badge bg-primary mb-3">HOD / GM</span>
+                            <p class="small">Vào KPI → phần <strong>Team / Cấp dưới</strong> → chọn nhân viên → chấm điểm ở cột quản lý tương ứng.</p>
+                            <span class="badge bg-dark mb-3">HR / Admin</span>
+                            <p class="small mb-0">Nút <strong>Giao KPI Mới</strong>, <strong>Import Excel</strong>, <strong>Quản lý Kỳ Đánh giá</strong> — dùng để tạo bảng KPI và mở/khóa từng quý.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- 10. Training -->
+                {% if 'dao-tao' in visible_section_ids %}
+                <div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="dao-tao">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c8">
+                            <i class="bi bi-mortarboard-fill text-hm me-2"></i> 10. Đào tạo (E-Learning)
+                        </button>
+                    </h2>
+                    <div id="c8" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+                        <div class="accordion-body">
+                            <span class="badge bg-secondary mb-3">Nhân viên</span>
+                            <div class="guide-split guide-split-wide-img mb-3">
+                                <div class="guide-steps">
+                                <div class="guide-step">
+                                    <div class="guide-step-num">1</div>
+                                    <div>Trang chủ → <strong>Học tập</strong> hoặc menu dưới → <strong>Học</strong>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">2</div>
+                                    <div>Trang <strong>Không gian học tập</strong> — lọc: Tất cả / Đang học / Chưa bắt đầu / Đã hoàn thành.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">3</div>
+                                    <div>Chọn khóa → bấm <strong>BẮT ĐẦU HỌC</strong> hoặc <strong>TIẾP TỤC HỌC</strong>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">4</div>
+                                    <div>Bên phải (hoặc kéo xuống trên điện thoại): danh sách chương & bài. Bấm từng bài để mở.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">5</div>
+                                    <div>Đọc / xem video / PDF. Xem xong → bấm <strong>Đánh dấu hoàn thành</strong> (nút đỏ dưới bài).</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">6</div>
+                                    <div>Thanh tiến độ trên cùng tăng dần. Hết 100% → nếu có thi cuối khóa, bấm <strong>LÀM BÀI THI CUỐI KHÓA</strong>.</div>
+                                </div>
+                                </div>
+                                <figure class="guide-figure">
+                                    <img src="{% static 'images/guide/07-dao-tao.png' %}" alt="Minh họa khóa học E-Learning" loading="lazy">
+                                    <figcaption><strong>Hình 7.</strong> Chọn khóa → học từng bài → theo dõi % tiến độ trên thẻ khóa học.</figcaption>
+                                </figure>
+                            </div>
+                            <p class="text-muted small mb-0">Không thấy khóa nào → HR chưa giao — liên hệ quản lý.</p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- 11. Exams -->
+                {% if 'kiem-tra' in visible_section_ids %}
+                <div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="kiem-tra">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c9">
+                            <i class="bi bi-journal-check text-hm me-2"></i> 11. Kiểm tra / Bài thi
+                        </button>
+                    </h2>
+                    <div id="c9" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+                        <div class="accordion-body">
+                            <div class="alert alert-danger border-0 small">
+                                <i class="bi bi-alarm me-1"></i>
+                                <strong>Lưu ý:</strong> Bài thi có <strong>giới hạn thời gian</strong>. Bấm <strong>BẮT ĐẦU THI NGAY</strong> chỉ khi bạn sẵn sàng, không bị gián đoạn.
+                            </div>
+                            <div class="guide-split guide-split-wide-img mb-3">
+                                <div class="guide-steps">
+                                <div class="guide-step">
+                                    <div class="guide-step-num">1</div>
+                                    <div>Trang chủ → <strong>Kiểm tra</strong> (hoặc menu trượt trên điện thoại).</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">2</div>
+                                    <div>Trang <strong>Đánh giá Năng lực</strong> — thẻ bài thi có nhãn <span class="badge bg-danger-subtle text-danger">ĐANG MỞ</span> hoặc <span class="badge bg-success-subtle text-success">HOÀN THÀNH</span>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">3</div>
+                                    <div>Đọc <strong>Thời gian làm bài</strong> và <strong>Hạn chót nộp</strong> trên thẻ.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">4</div>
+                                    <div>Bấm <strong>BẮT ĐẦU THI NGAY</strong> → làm từng câu → nộp bài trước khi hết giờ.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">5</div>
+                                    <div>Trắc nghiệm: chấm ngay, bấm <strong>XEM KẾT QUẢ CHI TIẾT</strong>. Tự luận: chờ HR chấm.</div>
+                                </div>
+                                </div>
+                                <figure class="guide-figure">
+                                    <img src="{% static 'images/guide/08-kiem-tra.png' %}" alt="Minh họa danh sách bài thi" loading="lazy">
+                                    <figcaption><strong>Hình 8.</strong> Bài <em>ĐANG MỞ</em> → bấm đỏ bắt đầu; bài <em>HOÀN THÀNH</em> → xem điểm.</figcaption>
+                                </figure>
+                            </div>
+                            <p class="text-muted small mb-0">Thấy <em>"Hiện không có kỳ thi nào dành cho bạn"</em> → chưa được HR giao đề hoặc đã hết hạn.</p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% include 'guide/_extra_sections.html' %}
+
+                <!-- 12. Admin -->
+                {% if 'quan-tri' in visible_section_ids %}
+                <div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="quan-tri">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c10">
+                            <i class="bi bi-gear-fill text-hm me-2"></i> 12. Quản trị (HR / Ban quản lý)
+                        </button>
+                    </h2>
+                    <div id="c10" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+                        <div class="accordion-body">
+                            <p class="text-muted small">Module <strong>Nhân sự</strong> — thêm/sửa tài khoản, import Excel, reset mật khẩu, gán cấp dưới cho HOD.</p>
+
+                            <figure class="guide-figure mb-4">
+                                <img src="{% static 'images/guide/10-nhan-su.png' %}" alt="Minh họa màn hình quản lý nhân sự" loading="lazy">
+                                <figcaption><strong>Hình.</strong> Danh sách nhân sự — thêm, sửa vai trò, reset mật khẩu.</figcaption>
+                            </figure>
+
+                            <h6 class="fw-bold mt-3"><i class="bi bi-people-fill me-1 text-hm"></i> Quản lý nhân sự</h6>
+                            <div class="guide-steps">
+                                <div class="guide-step">
+                                    <div class="guide-step-num">1</div>
+                                    <div>Menu <strong>Nhân sự</strong> → danh sách tài khoản.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">2</div>
+                                    <div><strong>Thêm mới</strong> — điền họ tên; hệ thống gợi ý username <code>nam.nt</code> và email <code>nam.nt@justplay.vn</code>.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">3</div>
+                                    <div>Với HOD: gán <strong>danh sách cấp dưới</strong> để họ xem báo cáo team.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">4</div>
+                                    <div><strong>Import Excel</strong> — tải file mẫu trước, điền đúng cột, rồi import.</div>
+                                </div>
+                                <div class="guide-step">
+                                    <div class="guide-step-num">5</div>
+                                    <div><strong>Reset mật khẩu</strong> — copy mật khẩu mới gửi cho nhân viên (nhắc họ đổi ngay).</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- 13. FAQ -->
+                <div class="accordion-item border-0 shadow-sm mb-3 overflow-hidden" id="faq">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#c11">
+                            <i class="bi bi-question-circle-fill text-hm me-2"></i> 13. Câu hỏi thường gặp
+                        </button>
+                    </h2>
+                    <div id="c11" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+                        <div class="accordion-body">
+                            <dl class="mb-0">
+                                <dt class="fw-bold">Đăng nhập báo "Sai tài khoản hoặc mật khẩu"?</dt>
+                                <dd class="text-muted">Kiểm tra Caps Lock, gõ đúng username HR cấp. Vẫn lỗi → HR reset mật khẩu.</dd>
+
+                                <dt class="fw-bold mt-3">Không thấy một số menu (Tuyển dụng, Kho NPL, …)?</dt>
+                                <dd class="text-muted">Menu chỉ hiện module trong <strong>nhóm quyền</strong> được HR gán cho phòng ban / vai trò của bạn. Liên hệ HR nếu cần thêm quyền.</dd>
+
+                                {% if 'bao-cao' in visible_section_ids %}
+                                <dt class="fw-bold mt-3">Báo cáo nộp rồi muốn sửa?</dt>
+                                <dd class="text-muted">Vào lại <strong>Báo cáo hôm nay</strong>, chỉnh và bấm <strong>Nộp cho HOD</strong> lại.</dd>
+                                {% endif %}
+
+                                {% if 'kpi' in visible_section_ids %}
+                                <dt class="fw-bold mt-3">KPI không gõ được điểm (ô xám)?</dt>
+                                <dd class="text-muted">Kỳ chấm (Q1, Q2…) đang khóa — chờ HR/GM mở kỳ.</dd>
+                                {% endif %}
+
+                                {% if 'dao-tao' in visible_section_ids or 'kiem-tra' in visible_section_ids %}
+                                <dt class="fw-bold mt-3">Không thấy bài thi / khóa học?</dt>
+                                <dd class="text-muted">HR chưa giao cho bạn — liên hệ quản lý trực tiếp hoặc phòng đào tạo.</dd>
+                                {% endif %}
+
+                                {% if 'kiem-tra' in visible_section_ids %}
+                                <dt class="fw-bold mt-3">Thi bị mất kết nối giữa chừng?</dt>
+                                <dd class="text-muted">Thử vào lại mục Kiểm tra. Nếu đã nộp → xem kết quả. Nếu chưa → liên hệ IT kèm tên bài thi.</dd>
+                                {% endif %}
+
+                                <dt class="fw-bold mt-3">Trang load chậm trên điện thoại?</dt>
+                                <dd class="text-muted">Kiểm tra sóng Wi-Fi/4G. Tắt mở lại trình duyệt. Tránh mở quá nhiều tab.</dd>
+
+                                <dt class="fw-bold mt-3">Hỗ trợ kỹ thuật?</dt>
+                                <dd class="text-muted mb-0">Email <a href="mailto:support@justplay.vn">support@justplay.vn</a> hoặc phòng IT nội bộ. Ghi rõ: họ tên, username, màn hình đang dùng, chụp màn hình lỗi nếu có.</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+
+            </div>

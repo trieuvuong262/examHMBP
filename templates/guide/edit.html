@@ -1,63 +1,103 @@
 {% extends 'base.html' %}
 
 {% block content %}
-{{ form.media }}
-<div class="container jp-page py-3 py-md-4 mb-5">
+<div class="container jp-page jp-guide-edit py-3 py-md-4 mb-5">
     <div class="row justify-content-center">
-        <div class="col-lg-10">
+        <div class="col-xl-10">
             <div class="jp-page-header mb-3">
                 <div>
                     <h2 class="jp-page-title fw-bold text-hm mb-1">
                         <i class="bi bi-pencil-square me-2"></i>Chỉnh sửa hướng dẫn
                     </h2>
+                    <p class="text-muted small mb-0">
+                        Sửa từng mục riêng — không cần chỉnh cả trang. Người xem chỉ thấy mục theo quyền của họ.
+                    </p>
                 </div>
-                <a href="{% url 'user_guide' %}" class="btn btn-outline-dark fw-bold flex-fill flex-md-grow-0">
-                    <i class="bi bi-x-lg me-1"></i>Hủy
-                </a>
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="{% url 'user_guide' %}" class="btn btn-outline-hm fw-bold">
+                        <i class="bi bi-eye me-1"></i>Xem trang
+                    </a>
+                </div>
             </div>
 
-            {% if is_new %}
-            <div class="alert alert-info border-0 shadow-sm mb-3">
-                <i class="bi bi-info-circle me-2"></i>
-                Đang tải nội dung mẫu mặc định. Bạn có thể chỉnh sửa và bấm <strong>Lưu</strong> để áp dụng.
+            <div class="alert alert-light border shadow-sm mb-4">
+                <div class="d-flex flex-wrap align-items-center gap-3">
+                    <div>
+                        <span class="badge bg-hm-subtle text-hm px-3 py-2">{{ section_count }} mục</span>
+                    </div>
+                    <div class="small text-muted">
+                        {% if custom_count %}
+                        <i class="bi bi-pencil-fill text-hm me-1"></i>{{ custom_count }} mục đã tùy chỉnh · còn lại dùng nội dung mặc định
+                        {% else %}
+                        <i class="bi bi-check-circle me-1"></i>Tất cả mục đang dùng nội dung mặc định
+                        {% endif %}
+                    </div>
+                    {% if guide.updated_at %}
+                    <div class="small text-muted ms-md-auto">
+                        Cập nhật lần cuối: {{ guide.updated_at|date:"d/m/Y H:i" }}
+                        {% if guide.updated_by %}— {{ guide.updated_by.get_full_name|default:guide.updated_by.username }}{% endif %}
+                    </div>
+                    {% endif %}
+                </div>
             </div>
-            {% endif %}
 
-            <div class="card border-0 shadow-sm overflow-hidden">
-                <div class="card-body p-4 p-md-5">
-                    <form method="post">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-3"><i class="bi bi-type-h1 me-2 text-hm"></i>Tiêu đề trang</h5>
+                    <form method="post" class="row g-3 align-items-end">
                         {% csrf_token %}
-
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Tiêu đề trang</label>
-                            {{ form.title }}
-                            {% if form.title.errors %}<div class="text-danger small">{{ form.title.errors }}</div>{% endif %}
+                        <input type="hidden" name="action" value="save_title">
+                        <div class="col-md-9">
+                            {{ title_form.title }}
+                            {% if title_form.title.errors %}<div class="text-danger small">{{ title_form.title.errors }}</div>{% endif %}
                         </div>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Mô tả ngắn</label>
-                            {{ form.subtitle }}
-                            {% if form.subtitle.errors %}<div class="text-danger small">{{ form.subtitle.errors }}</div>{% endif %}
-                        </div>
-
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">Nội dung hướng dẫn</label>
-                            <div class="border bg-white jp-ckeditor-wrap">
-                                {{ form.body }}
-                            </div>
-                            <div class="form-text">
-                                Soạn như Word — tiêu đề, bảng, danh sách, dán từ Word, chèn ảnh (Image / kéo thả).
-                            </div>
-                            {% if form.body.errors %}<div class="text-danger small">{{ form.body.errors }}</div>{% endif %}
-                        </div>
-
-                        <div class="d-flex flex-wrap gap-2">
-                            <button type="submit" class="btn btn-hm fw-bold px-4">
-                                <i class="bi bi-check-lg me-1"></i>Lưu hướng dẫn
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-hm fw-bold w-100">
+                                <i class="bi bi-check-lg me-1"></i>Lưu tiêu đề
                             </button>
-                            <a href="{% url 'user_guide' %}" class="btn btn-outline-dark fw-bold">Xem trước</a>
                         </div>
                     </form>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-list-columns-reverse me-2 text-hm"></i>Danh sách mục</h5>
+                </div>
+                <div class="list-group list-group-flush guide-edit-section-list">
+                    {% for sec in sections %}
+                    <div class="list-group-item guide-edit-section-item py-3 px-4">
+                        <div class="d-flex flex-column flex-md-row align-items-md-center gap-3">
+                            <div class="guide-edit-section-icon flex-shrink-0">
+                                <i class="bi {{ sec.icon }} text-hm"></i>
+                            </div>
+                            <div class="flex-grow-1 min-w-0">
+                                <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                                    <h6 class="fw-bold mb-0">{{ sec.display_title }}</h6>
+                                    {% if sec.is_custom %}
+                                    <span class="badge bg-warning-subtle text-warning-emphasis">Đã tùy chỉnh</span>
+                                    {% endif %}
+                                    {% if sec.admin_only %}
+                                    <span class="badge bg-secondary-subtle text-secondary">HR / Quản trị</span>
+                                    {% endif %}
+                                </div>
+                                <div class="small text-muted">
+                                    {% for label in sec.module_labels %}
+                                    <span class="me-2"><i class="bi bi-tag me-1"></i>{{ label }}</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2 flex-shrink-0">
+                                <a href="{% url 'user_guide_edit_section' section_id=sec.id %}" class="btn btn-hm btn-sm fw-bold">
+                                    <i class="bi bi-pencil me-1"></i>Sửa mục
+                                </a>
+                                <a href="{% url 'user_guide' %}#{{ sec.id }}" class="btn btn-outline-dark btn-sm fw-bold" target="_blank" rel="noopener">
+                                    <i class="bi bi-box-arrow-up-right me-1"></i>Xem
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
         </div>

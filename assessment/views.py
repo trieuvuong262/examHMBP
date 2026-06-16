@@ -277,7 +277,6 @@ def exam_result(request, exam_id):
 
     answer_by_question = {answer.question_id: answer for answer in submission.answers.all()}
     question_rows = []
-    stats = {'correct': 0, 'wrong': 0, 'partial': 0, 'pending': 0, 'graded': 0}
 
     for question in exam.ordered_questions():
         answer = answer_by_question.get(question.id)
@@ -316,17 +315,14 @@ def exam_result(request, exam_id):
                 status_label = 'Đúng'
                 status_class = 'success'
                 card_class = 'is-correct'
-                stats['correct'] += 1
             elif earned > 0:
                 status_label = 'Đúng một phần'
                 status_class = 'warning'
                 card_class = 'is-partial'
-                stats['partial'] += 1
             else:
                 status_label = 'Sai'
                 status_class = 'danger'
                 card_class = 'is-wrong'
-                stats['wrong'] += 1
 
             question_rows.append({
                 'sort_order': getattr(question, 'sort_order', None),
@@ -350,12 +346,10 @@ def exam_result(request, exam_id):
                 status_label = f'{earned:g}/{question.points:g} đ'
                 status_class = 'primary'
                 card_class = 'is-graded'
-                stats['graded'] += 1
             else:
                 status_label = 'Đang chấm'
                 status_class = 'secondary'
                 card_class = 'is-pending'
-                stats['pending'] += 1
 
             question_rows.append({
                 'sort_order': getattr(question, 'sort_order', None),
@@ -381,12 +375,10 @@ def exam_result(request, exam_id):
                 status_label = f'{earned:g}/{question.points:g} đ'
                 status_class = 'primary'
                 card_class = 'is-graded'
-                stats['graded'] += 1
             else:
                 status_label = 'Đang chấm'
                 status_class = 'secondary'
                 card_class = 'is-pending'
-                stats['pending'] += 1
 
             question_rows.append({
                 'sort_order': getattr(question, 'sort_order', None),
@@ -410,7 +402,6 @@ def exam_result(request, exam_id):
         'submission': submission,
         'result': _submission_result_summary(submission),
         'question_rows': question_rows,
-        'stats': stats,
     })
 
 

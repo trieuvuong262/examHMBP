@@ -104,8 +104,12 @@ URL_DESCRIPTIONS: dict[str, dict[str, str] | str] = {
     'logout': 'bấm nút Đăng xuất',
     'user_guide': 'xem hướng dẫn sử dụng',
     'user_guide_edit': {
-        'GET': 'mở form chỉnh sửa hướng dẫn',
-        'POST': 'lưu nội dung hướng dẫn sử dụng',
+        'GET': 'mở trang quản lý chỉnh sửa hướng dẫn',
+        'POST': 'lưu tiêu đề hoặc nội dung hướng dẫn',
+    },
+    'user_guide_edit_section': {
+        'GET': 'mở form sửa mục hướng dẫn #{section_id}',
+        'POST': 'lưu hoặc khôi phục mục hướng dẫn #{section_id}',
     },
 
     # HRM — Nhân sự

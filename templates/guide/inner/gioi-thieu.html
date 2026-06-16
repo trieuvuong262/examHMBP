@@ -1,0 +1,11 @@
+<p><strong>JustPlay Portal</strong> là cổng thông tin nội bộ của công ty. Menu và hướng dẫn <strong>chỉ hiện chức năng bạn được phân quyền</strong> (theo phòng ban và nhóm quyền). Các module phổ biến:</p>
+                            <ul>
+                                {% if 'thong-bao' in visible_section_ids %}<li><strong>Thông báo</strong> — chính sách, lịch giao hàng, tin xưởng</li>{% endif %}
+                                {% if 'bao-cao' in visible_section_ids %}<li><strong>Báo cáo công việc</strong> — sản lượng ca làm hàng ngày</li>{% endif %}
+                                {% if 'kpi' in visible_section_ids %}<li><strong>KPI</strong> — tự đánh giá và được quản lý chấm điểm</li>{% endif %}
+                                {% if 'dao-tao' in visible_section_ids %}<li><strong>Đào tạo</strong> — video/PDF quy trình may, QC, ATLD…</li>{% endif %}
+                                {% if 'kiem-tra' in visible_section_ids %}<li><strong>Kiểm tra</strong> — thi năng lực, ATLD, QC theo lịch HR</li>{% endif %}
+                                {% if 'cong-viec' in visible_section_ids %}<li><strong>Công việc</strong> — giao việc, dự án Kanban</li>{% endif %}
+                                {% if 'tai-lieu' in visible_section_ids %}<li><strong>Tài liệu</strong> — thư viện quy trình, hỏi đáp AI</li>{% endif %}
+                            </ul>
+                            <p class="mb-0">HR / IT thường có thêm: nhân sự, tuyển dụng, phân quyền menu, quản trị hệ thống — tùy nhóm quyền được gán.</p>
