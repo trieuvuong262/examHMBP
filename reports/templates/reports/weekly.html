@@ -7,7 +7,7 @@
 
 {% block content %}
 <div class="container jp-page jp-reports-page py-3 py-md-4 mb-5">
-    {% include 'reports/includes/reports_intro_header.html' with intro_icon='bi-calendar-week' intro_title='Báo cáo tuần' %}
+    {% include 'reports/includes/reports_intro_header.html' with intro_icon='bi-calendar-week' intro_title='Báo cáo tuần' report_period='weekly' week_start=week_start can_view_team=can_view_team %}
 
     {% if report.status == 'SUBMITTED' %}
     <div class="alert alert-success border-0 shadow-sm py-2 mb-3">

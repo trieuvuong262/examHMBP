@@ -105,7 +105,45 @@ def weekly_attachment_abs_path(att) -> Path | None:
     if not name:
         return None
     path = Path(WeeklyReportNasStorage().path(name))
-    return path if path.is_file() else None
+    if path.is_file():
+        return path
+    cached = _rclone_cache_path(name)
+    if cached.is_file():
+        return cached
+    try:
+        return _rclone_download_to_cache(name)
+    except OSError:
+        return None
+
+
+def open_weekly_attachment(att, mode: str = 'rb'):
+    path = weekly_attachment_abs_path(att)
+    if not path:
+        raise FileNotFoundError(att.file.name or 'attachment')
+    return path.open(mode)
+
+
+def _rclone_cache_path(rel_name: str) -> Path:
+    safe = rel_name.replace('/', '__').replace('\\', '__')
+    return Path(tempfile.gettempdir()) / 'weekly-nas-cache' / safe
+
+
+def _rclone_download_to_cache(rel_name: str) -> Path:
+    cached = _rclone_cache_path(rel_name)
+    cached.parent.mkdir(parents=True, exist_ok=True)
+    target = _weekly_rclone_target(rel_name)
+    proc = subprocess.run(
+        ['rclone', 'copyto', target, str(cached)],
+        capture_output=True,
+        text=True,
+        timeout=600,
+        check=False,
+        env=_rclone_env(),
+    )
+    if proc.returncode != 0 or not cached.is_file():
+        err = (proc.stderr or proc.stdout or '').strip()
+        raise OSError(f'Không tải được file từ NAS: {err[:200]}')
+    return cached
 
 
 def ensure_weekly_report_nas_dir() -> Path:

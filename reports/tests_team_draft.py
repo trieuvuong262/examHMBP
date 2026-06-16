@@ -146,6 +146,18 @@ class ReportTeamDraftTests(TestCase):
             WeeklyWorkReport.objects.get(employee=self.member, week_start=week).pk,
         ]))
 
+    def test_my_reports_hides_unsaved_weekly_draft(self):
+        week = monday_of(date.today())
+        WeeklyWorkReport.objects.create(
+            employee=self.member,
+            week_start=week,
+            status=WeeklyWorkReport.STATUS_DRAFT,
+        )
+        self.client.force_login(self.member)
+        resp = self.client.get(reverse('reports:my'), {'period': 'weekly'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Chưa có báo cáo tuần nào')
+
     def test_team_weekly_page_loads_for_leader(self):
         week = monday_of(date.today())
         WeeklyWorkReport.objects.create(

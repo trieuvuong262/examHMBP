@@ -53,7 +53,7 @@ from .team_utils import (
     weekly_report_visible_to_team,
 )
 from .weekly_preview import file_attachment_preview, link_preview_rows
-from .weekly_nas_storage import ensure_weekly_report_nas_dir, weekly_attachment_abs_path
+from .weekly_nas_storage import ensure_weekly_report_nas_dir, open_weekly_attachment, weekly_attachment_abs_path
 from .weekly_uploads import copy_weekly_attachments, save_weekly_uploads, weekly_report_has_content
 
 
@@ -467,7 +467,7 @@ def my_reports(request):
     period = _my_reports_period(request)
 
     if period == 'weekly':
-        reports_qs = WeeklyWorkReport.objects.filter(
+        reports_qs = meaningful_weekly_reports_qs().filter(
             employee=request.user,
         ).annotate(
             attachment_count=Count('attachments'),
@@ -747,7 +747,8 @@ def weekly_attachment_serve(request, pk):
         'image/svg+xml',
     }
     as_attachment = content_type not in inline_types
-    response = FileResponse(path.open('rb'), content_type=content_type, as_attachment=as_attachment)
+    file_handle = open_weekly_attachment(att)
+    response = FileResponse(file_handle, content_type=content_type, as_attachment=as_attachment)
     if as_attachment:
         response['Content-Disposition'] = f'attachment; filename="{att.display_name}"'
     return response

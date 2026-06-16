@@ -17,7 +17,11 @@
             </a>
             {% endif %}
             {% if can_view_team %}
+            {% if report_period == 'weekly' %}
+            <a href="{% url 'reports:team_weekly' %}" class="btn btn-outline-hm fw-bold flex-fill flex-md-grow-0">Báo cáo cấp dưới</a>
+            {% else %}
             <a href="{% url 'reports:team' %}" class="btn btn-outline-hm fw-bold flex-fill flex-md-grow-0">Báo cáo cấp dưới</a>
+            {% endif %}
             {% endif %}
         </div>
     </div>
