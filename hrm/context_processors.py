@@ -5,6 +5,7 @@ from hrm.module_permissions import (
     MODULE_DOCUMENTS,
     MODULE_GUIDE,
     MODULE_HRM,
+    HIDDEN_PORTAL_MODULES,
     MODULE_KPI,
     MODULE_PERMISSIONS,
     MODULE_RECRUITMENT,
@@ -176,7 +177,7 @@ def portal_permissions(request):
             'jp_can_delete_nas_storage': False,
             'jp_can_manage_permissions': False,
         }
-    enabled = get_user_enabled_modules(user)
+    enabled = [m for m in get_user_enabled_modules(user) if m not in HIDDEN_PORTAL_MODULES]
     profile = getattr(user, 'profile', None)
     base = {
         'jp_force_password_change': bool(profile and profile.must_change_password),

@@ -12,6 +12,7 @@ from hrm.module_permissions import (
     MODULE_RECRUITMENT,
     MODULE_TRAINING,
     bypass_department_modules,
+    is_portal_module_visible,
     resolve_module_from_request,
     user_can_access_module,
     user_can_create_module,
@@ -21,7 +22,10 @@ from hrm.module_permissions import (
     user_can_update_module,
 )
 
-DASHBOARD_HUB_MODULES = tuple(DASHBOARD_TAB_MODULES.values()) + (MODULE_KPI,)
+DASHBOARD_HUB_MODULES = tuple(
+    module_key for module_key in (*DASHBOARD_TAB_MODULES.values(), MODULE_KPI)
+    if is_portal_module_visible(module_key)
+)
 from hrm.permissions import portal_admin_denied_message
 
 _MODULE_ACTION_CHECKS = {

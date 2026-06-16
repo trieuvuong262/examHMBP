@@ -162,11 +162,9 @@ class PermissionLogicTests(TestCase):
         self.assertTrue(user_can_access_module(self.team_leader, MODULE_HRM))
         self.assertFalse(user_can_edit_module(self.team_leader, MODULE_HRM))
 
-    def test_team_leader_can_edit_kpi(self):
-        self.assertTrue(user_can_edit_module(self.team_leader, MODULE_KPI))
-
-    def test_employee_blocked_from_kpi_when_dept_lacks_module(self):
-        self.assertFalse(user_can_access_module(self.employee, MODULE_KPI))
+    def test_kpi_hidden_from_portal_permissions(self):
+        self.assertFalse(user_can_edit_module(self.team_leader, MODULE_KPI))
+        self.assertFalse(user_can_access_module(self.team_leader, MODULE_KPI))
 
     def test_employee_can_view_training(self):
         self.assertTrue(user_can_access_module(self.employee, MODULE_TRAINING))

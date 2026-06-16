@@ -1,12 +1,21 @@
+import unittest
+
 from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from django.urls import reverse
 
 from hrm.models import Department, DepartmentMenuPermission, Profile
+from hrm.module_permissions import HIDDEN_PORTAL_MODULES, MODULE_KPI
 from hrm.permissions import ROLE_EMPLOYEE, ROLE_TEAM_LEADER
 from kpi.models import KpiPeriod, YearlyKpi
 
+skip_if_kpi_hidden = unittest.skipUnless(
+    MODULE_KPI not in HIDDEN_PORTAL_MODULES,
+    'KPI module is temporarily hidden from portal',
+)
 
+
+@skip_if_kpi_hidden
 class KpiDetailAccessTests(TestCase):
     def setUp(self):
         self.dept = Department.objects.create(name='KPI Test Dept')
@@ -59,6 +68,7 @@ class KpiDetailAccessTests(TestCase):
         self.assertEqual(response.status_code, 200)
 
 
+@skip_if_kpi_hidden
 class KpiGranularPermissionTests(TestCase):
     def setUp(self):
         from hrm.models import PermissionGroup

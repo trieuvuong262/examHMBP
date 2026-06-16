@@ -34,7 +34,12 @@ MODULE_FEEDBACK = 'feedback'
 MODULE_KIOTVIET = 'kiotviet'
 MODULE_KHO_NPL = 'kho_npl'
 
-MODULE_CHOICES = [
+# Tạm ẩn khỏi sidebar + màn hình phân quyền — gỡ MODULE_KPI khỏi set khi bật lại.
+HIDDEN_PORTAL_MODULES = frozenset({
+    MODULE_KPI,
+})
+
+_ALL_MODULE_CHOICES = [
     (MODULE_ANNOUNCEMENTS, 'Thông báo'),
     (MODULE_RECRUITMENT, 'Tuyển dụng'),
     (MODULE_TRAINING, 'Đào tạo'),
@@ -56,15 +61,29 @@ MODULE_CHOICES = [
     (MODULE_AUDIT, 'Quản trị hệ thống'),
 ]
 
-ALL_MODULE_KEYS = {key for key, _ in MODULE_CHOICES}
+MODULE_CHOICES = [
+    (key, label) for key, label in _ALL_MODULE_CHOICES
+    if key not in HIDDEN_PORTAL_MODULES
+]
 
-MODULE_LABELS = dict(MODULE_CHOICES)
+ALL_MODULE_KEYS = {key for key, _ in _ALL_MODULE_CHOICES}
+
+MODULE_LABELS = dict(_ALL_MODULE_CHOICES)
+
+
+def is_portal_module_visible(module_key: str) -> bool:
+    return module_key not in HIDDEN_PORTAL_MODULES
+
+
+def _visible_module_list(modules: list[str]) -> list[str]:
+    return [key for key in modules if is_portal_module_visible(key)]
+
 
 # Nhóm hiển thị form «Phân quyền menu» — khớp cấu trúc sidebar.
 DEPARTMENT_MENU_SECTIONS = [
     {
         'label': 'Menu chính',
-        'modules': [
+        'modules': _visible_module_list([
             MODULE_ANNOUNCEMENTS,
             MODULE_RECRUITMENT,
             MODULE_TRAINING,
@@ -73,29 +92,29 @@ DEPARTMENT_MENU_SECTIONS = [
             MODULE_KPI,
             MODULE_REPORTS,
             MODULE_TASKS,
-        ],
+        ]),
     },
     {
         'label': 'Yêu cầu',
-        'modules': [MODULE_DE_XUAT, MODULE_HO_TRO],
+        'modules': _visible_module_list([MODULE_DE_XUAT, MODULE_HO_TRO]),
     },
     {
         'label': 'Vận hành',
-        'modules': [
+        'modules': _visible_module_list([
             MODULE_EQUIPMENT,
             MODULE_FEEDBACK,
             MODULE_KIOTVIET,
             MODULE_KHO_NPL,
             MODULE_NAS_STORAGE,
-        ],
+        ]),
     },
     {
         'label': 'Thư viện',
-        'modules': [MODULE_DOCUMENTS, MODULE_GUIDE],
+        'modules': _visible_module_list([MODULE_DOCUMENTS, MODULE_GUIDE]),
     },
     {
         'label': 'Hệ thống',
-        'modules': [MODULE_PERMISSIONS, MODULE_AUDIT],
+        'modules': _visible_module_list([MODULE_PERMISSIONS, MODULE_AUDIT]),
     },
 ]
 
@@ -200,6 +219,8 @@ def get_user_enabled_modules(user) -> set:
 
 def user_can_access_module(user, module_key: str) -> bool:
     """Phòng ban + nhóm quyền — quyền xem module (hoặc bất kỳ menu con nào)."""
+    if not is_portal_module_visible(module_key):
+        return False
     if module_key not in ALL_MODULE_KEYS:
         return True
     if bypass_department_modules(user):
@@ -216,6 +237,8 @@ def user_can_access_module(user, module_key: str) -> bool:
 
 def user_can_edit_module(user, module_key: str) -> bool:
     """Phòng ban + nhóm quyền — thêm/sửa/xóa module."""
+    if not is_portal_module_visible(module_key):
+        return False
     if module_key not in ALL_MODULE_KEYS:
         return True
     if bypass_department_modules(user):
@@ -227,6 +250,8 @@ def user_can_edit_module(user, module_key: str) -> bool:
 
 
 def user_can_create_module(user, module_key: str) -> bool:
+    if not is_portal_module_visible(module_key):
+        return False
     if module_key not in ALL_MODULE_KEYS:
         return True
     if bypass_department_modules(user):
@@ -238,6 +263,8 @@ def user_can_create_module(user, module_key: str) -> bool:
 
 
 def user_can_update_module(user, module_key: str) -> bool:
+    if not is_portal_module_visible(module_key):
+        return False
     if module_key not in ALL_MODULE_KEYS:
         return True
     if bypass_department_modules(user):
@@ -249,6 +276,8 @@ def user_can_update_module(user, module_key: str) -> bool:
 
 
 def user_can_delete_module(user, module_key: str) -> bool:
+    if not is_portal_module_visible(module_key):
+        return False
     if module_key not in ALL_MODULE_KEYS:
         return True
     if bypass_department_modules(user):
@@ -260,6 +289,8 @@ def user_can_delete_module(user, module_key: str) -> bool:
 
 
 def user_can_export_module(user, module_key: str) -> bool:
+    if not is_portal_module_visible(module_key):
+        return False
     if module_key not in ALL_MODULE_KEYS:
         return True
     if bypass_department_modules(user):
