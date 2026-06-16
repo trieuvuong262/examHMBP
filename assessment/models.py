@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
-from django.db.models import Max
+from django.db.models import F, Max, Prefetch
 
 # 1. Danh mục năng lực
 class Competency(models.Model):
@@ -54,6 +54,12 @@ class Choice(models.Model):
     question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='choices')
     text = models.CharField(max_length=500, verbose_name="Nội dung đáp án")
     is_correct = models.BooleanField(default=False, verbose_name="Đáp án đúng?")
+    sort_order = models.PositiveIntegerField(default=1, verbose_name='STT')
+
+    class Meta:
+        ordering = ['sort_order', 'id']
+        verbose_name = 'Đáp án'
+        verbose_name_plural = 'Đáp án'
 
     def __str__(self):
         return self.text
@@ -82,19 +88,20 @@ class Exam(models.Model):
         return (current or 0) + 1
 
     def ordered_exam_questions(self):
+        choice_qs = Choice.objects.order_by('sort_order', 'id')
         return (
             self.exam_questions.select_related('question', 'question__competency')
-            .prefetch_related('question__choices')
+            .prefetch_related(Prefetch('question__choices', queryset=choice_qs))
             .order_by('sort_order', 'id')
         )
 
     def ordered_questions(self):
-        from django.db.models import F
+        choice_qs = Choice.objects.order_by('sort_order', 'id')
         return (
-            Question.objects.filter(examquestion__exam=self)
-            .annotate(sort_order=F('examquestion__sort_order'))
-            .order_by('sort_order', 'examquestion__id')
-            .prefetch_related('choices')
+            Question.objects.filter(exam_links__exam=self)
+            .annotate(sort_order=F('exam_links__sort_order'))
+            .order_by('sort_order', 'exam_links__id')
+            .prefetch_related(Prefetch('choices', queryset=choice_qs))
         )
 
     def replace_questions(self, questions, *, start_order=1):

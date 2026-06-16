@@ -1,14 +1,96 @@
 {% extends "base.html" %}
+
 {% block content %}
-<div class="container jp-page mt-4 mt-md-5 text-center">
-    <div class="card shadow p-5">
-        <h2 class="text-success">Nộp bài thành công!</h2>
-        <p class="lead">Cảm ơn {{ request.user.get_full_name }}, bài làm của bạn đã được ghi nhận.</p>
-        <div class="alert alert-info">
-            Điểm trắc nghiệm tạm thời: <strong>{{ submission.auto_score }}</strong><br>
-            <small>* Các câu hỏi tự luận và hình ảnh sẽ được hội đồng chuyên môn chấm sau.</small>
-        </div>
-        <a href="{% url 'exam_list' %}" class="btn btn-hm">Quay lại danh sách kỳ thi</a>
+<div class="container jp-page mt-4 mt-md-5 text-center d-none" id="resultNoticeFallback">
+    <div class="card shadow p-4 p-md-5">
+        <h2 class="text-success mb-2">Nộp bài thành công!</h2>
+        {% if message %}
+        <p class="text-muted">{{ message }}</p>
+        {% else %}
+        <p class="lead">Cảm ơn bạn, bài làm đã được ghi nhận.</p>
+        {% endif %}
+        <a href="{% url 'exam_list' %}" class="btn btn-hm mt-3">Quay lại danh sách kỳ thi</a>
     </div>
 </div>
+
+<div class="modal fade" id="resultModal" tabindex="-1" aria-labelledby="resultModalTitle" aria-hidden="true"
+     data-auto-show="{% if show_result_modal %}1{% else %}0{% endif %}">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
+        <div class="modal-content border-0 shadow-lg overflow-hidden">
+            <div class="modal-header bg-dark text-white border-0 py-3">
+                <h5 class="modal-title fw-bold" id="resultModalTitle">
+                    <i class="bi bi-award-fill me-2 text-warning"></i>KẾT QUẢ CHI TIẾT
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <h5 class="fw-bold text-dark mb-2">{{ exam.title }}</h5>
+                <div class="small text-muted mb-4">
+                    Thời gian thực hiện: <b>{{ result.duration_spent }} phút</b>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-6">
+                        <div class="p-3 bg-light border">
+                            <div class="small text-muted fw-bold mb-1">Trắc nghiệm</div>
+                            <h3 class="fw-bold text-primary mb-0">{{ result.mc_score|floatformat:1 }}</h3>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-3 bg-light border">
+                            <div class="small text-muted fw-bold mb-1">Tự luận</div>
+                            {% if result.is_completed %}
+                            <h3 class="fw-bold text-hm mb-0">{{ result.essay_score|floatformat:1 }}</h3>
+                            {% else %}
+                            <h3 class="small text-muted mb-0 pt-2">Đang chấm</h3>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="py-4 px-4 bg-success bg-opacity-10 border border-success border-dashed shadow-sm">
+                    <div class="small text-success fw-bold">Tổng điểm đạt được</div>
+                    <div class="display-2 fw-bold text-success">{{ result.total_score|floatformat:1 }}</div>
+                    {% if not result.is_completed %}
+                    <div class="small mt-2 text-muted">⏳ Phần tự luận đang được chờ chấm...</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="modal-footer border-0 pb-4 justify-content-center gap-2 flex-wrap">
+                <a href="{% url 'exam_result' exam.id %}" class="btn btn-hm px-4 fw-bold">
+                    <i class="bi bi-eye-fill me-1"></i>Xem kết quả
+                </a>
+                <a href="{% url 'exam_list' %}" class="btn btn-secondary px-4 fw-bold">Đóng cửa sổ</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root { --hm-primary: #dc2626; }
+    .btn-hm { background-color: var(--hm-primary); color: #fff; border: none; }
+    .btn-hm:hover { background-color: #b91c1c; color: #fff; }
+    .text-hm { color: var(--hm-primary) !important; }
+    #resultModal { z-index: 1065; }
+    #resultModal .modal-footer .btn { min-height: 44px; }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const resultModal = document.getElementById('resultModal');
+    if (!resultModal) return;
+
+    if (resultModal.parentElement !== document.body) {
+        document.body.appendChild(resultModal);
+    }
+
+    if (resultModal.dataset.autoShow === '1' && window.bootstrap) {
+        bootstrap.Modal.getOrCreateInstance(resultModal, { backdrop: 'static', keyboard: false }).show();
+    }
+
+    resultModal.addEventListener('hidden.bs.modal', function () {
+        window.location.href = "{% url 'exam_list' %}";
+    });
+});
+</script>
 {% endblock %}

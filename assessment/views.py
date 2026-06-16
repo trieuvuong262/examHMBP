@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
 from django.utils import timezone
 from .models import Exam, ExamSubmission, Question, UserAnswer, Choice, ExamQuestion
-from .forms import ExamForm, QuestionForm, ChoiceFormSet, UserForm
+from .forms import ExamForm, QuestionForm, ChoiceFormSet, UserForm, save_choice_formset_in_order
 from django.contrib import messages
 from django.http import HttpResponseForbidden, JsonResponse
 from training.models import Course, Enrollment
@@ -79,6 +79,31 @@ def _assessment_perm_context(user):
     }
 
 
+def _submission_result_summary(submission):
+    mc_score = 0
+    essay_score = 0
+    for ans in submission.answers.select_related('question').all():
+        score_val = ans.graded_score or 0
+        if ans.question.q_type in ['single', 'multiple']:
+            mc_score += score_val
+        else:
+            essay_score += score_val
+
+    duration_spent = 1
+    if submission.submitted_at and submission.start_at:
+        diff = submission.submitted_at - submission.start_at
+        duration_spent = max(1, int(diff.total_seconds() / 60))
+
+    return {
+        'total_score': submission.total_score,
+        'mc_score': mc_score,
+        'essay_score': essay_score,
+        'is_completed': submission.is_completed,
+        'submitted_at': submission.submitted_at,
+        'duration_spent': duration_spent,
+    }
+
+
 @module_perm_required(MODULE_ASSESSMENT, 'view')
 def exam_list(request):
     now = timezone.now()
@@ -105,30 +130,7 @@ def exam_list(request):
 
     submission_results = {}
     for s in submissions:
-        mc_score = 0
-        essay_score = 0
-        
-        for ans in s.answers.all():
-            score_val = ans.graded_score or 0
-            if ans.question.q_type in ['single', 'multiple']:
-                mc_score += score_val
-            else:
-                essay_score += score_val
-        
-        duration_spent = 0
-        if s.submitted_at and s.start_at:
-            diff = s.submitted_at - s.start_at
-            duration_spent = int(diff.total_seconds() / 60)
-            if duration_spent < 1: duration_spent = 1
-
-        submission_results[s.exam_id] = {
-            'total_score': s.total_score, 
-            'mc_score': mc_score,
-            'essay_score': essay_score,
-            'is_completed': s.is_completed,
-            'submitted_at': s.submitted_at,
-            'duration_spent': duration_spent,
-        }
+        submission_results[s.exam_id] = _submission_result_summary(s)
 
     return render(request, 'assessment/exam_list.html', {
         'active_exams': active_exams,
@@ -176,7 +178,10 @@ def take_exam(request, exam_id):
     if existing_submission:
         return render(request, 'assessment/result_notice.html', {
             'submission': existing_submission,
-            'message': 'Bạn đã hoàn tất bài thi này.'
+            'exam': exam,
+            'result': _submission_result_summary(existing_submission),
+            'show_result_modal': True,
+            'message': 'Bạn đã hoàn tất bài thi này.',
         })
 
     submission, created = ExamSubmission.objects.get_or_create(
@@ -252,7 +257,12 @@ def take_exam(request, exam_id):
 
         submission.save()
 
-        return render(request, 'assessment/result_notice.html', {'submission': submission})
+        return render(request, 'assessment/result_notice.html', {
+            'submission': submission,
+            'exam': exam,
+            'result': _submission_result_summary(submission),
+            'show_result_modal': True,
+        })
 
     context = {
         'exam': exam,
@@ -261,6 +271,62 @@ def take_exam(request, exam_id):
         'time_remaining': real_time_remaining 
     }
     return render(request, 'assessment/take_exam.html', context)
+
+
+@module_perm_required(MODULE_ASSESSMENT, 'view')
+def exam_result(request, exam_id):
+    exam = get_object_or_404(Exam, pk=exam_id)
+    submission = (
+        ExamSubmission.objects.filter(
+            user=request.user,
+            exam=exam,
+            submitted_at__isnull=False,
+        )
+        .prefetch_related('answers__question', 'answers__selected_choices')
+        .first()
+    )
+    if not submission:
+        messages.warning(request, 'Bạn chưa hoàn thành bài thi này.')
+        return redirect('exam_list')
+
+    answer_by_question = {answer.question_id: answer for answer in submission.answers.all()}
+    question_rows = []
+    for question in exam.ordered_questions():
+        answer = answer_by_question.get(question.id)
+        earned = (answer.graded_score if answer else 0) or 0
+        if question.q_type in ['single', 'multiple']:
+            if earned >= question.points:
+                status_label = 'Đúng'
+                status_class = 'success'
+            elif earned > 0:
+                status_label = 'Một phần'
+                status_class = 'warning'
+            else:
+                status_label = 'Sai'
+                status_class = 'danger'
+        elif submission.is_completed and answer and answer.is_graded:
+            status_label = f'{earned:g}/{question.points:g} đ'
+            status_class = 'primary'
+        else:
+            status_label = 'Đang chấm'
+            status_class = 'secondary'
+
+        question_rows.append({
+            'sort_order': getattr(question, 'sort_order', None),
+            'content': question.content,
+            'q_type_display': question.get_q_type_display(),
+            'points': question.points,
+            'earned': earned,
+            'status_label': status_label,
+            'status_class': status_class,
+        })
+
+    return render(request, 'assessment/exam_result.html', {
+        'exam': exam,
+        'submission': submission,
+        'result': _submission_result_summary(submission),
+        'question_rows': question_rows,
+    })
 
 
 @dashboard_hub_required
@@ -498,7 +564,7 @@ def question_edit(request, exam_id, question_id=None):
 
         if form.is_valid() and formset.is_valid():
             question = form.save()
-            formset.save()
+            save_choice_formset_in_order(formset, question)
             sort_order = form.cleaned_data['sort_order']
             if exam_question:
                 exam_question.sort_order = sort_order

@@ -113,6 +113,8 @@
                                     class="btn btn-outline-hm w-100 fw-bold py-2 shadow-sm btn-hover-lift"
                                     data-bs-toggle="modal" 
                                     data-bs-target="#resultModal"
+                                    data-exam-id="{{ exam.id }}"
+                                    data-result-url="{% url 'exam_result' exam.id %}"
                                     data-title="{{ exam.title }}"
                                     data-mc="{{ res.mc_score }}"
                                     data-essay="{{ res.essay_score }}"
@@ -177,8 +179,11 @@
                     <div class="small mt-2" id="gradingStatus"></div>
                 </div>
             </div>
-            <div class="modal-footer border-0 pb-4 justify-content-center">
-                <button type="button" class="btn btn-secondary px-5 fw-bold" data-bs-dismiss="modal">Đóng cửa sổ</button>
+            <div class="modal-footer border-0 pb-4 justify-content-center gap-2 flex-wrap">
+                <a href="#" id="modalViewResultBtn" class="btn btn-hm px-4 fw-bold">
+                    <i class="bi bi-eye-fill me-1"></i>Xem kết quả
+                </a>
+                <button type="button" class="btn btn-secondary px-4 fw-bold" data-bs-dismiss="modal">Đóng cửa sổ</button>
             </div>
         </div>
     </div>
@@ -274,6 +279,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
         document.getElementById('modalExamTitle').textContent = btn.getAttribute('data-title');
         document.getElementById('modalDurationText').innerHTML = `Thời gian thực hiện: <b>${duration} phút</b>`;
+
+        const viewBtn = document.getElementById('modalViewResultBtn');
+        const resultUrl = btn.getAttribute('data-result-url');
+        if (viewBtn && resultUrl) {
+            viewBtn.href = resultUrl;
+        }
 
         document.getElementById('modalMCScore').textContent = mc.toFixed(1).replace('.', ',');
         document.getElementById('modalTotalScore').textContent = total.toFixed(1).replace('.', ',');

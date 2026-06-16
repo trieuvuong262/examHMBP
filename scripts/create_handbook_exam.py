@@ -197,8 +197,8 @@ def _sync_choices(question, choices_spec: list[tuple[str, bool]]):
 
     question.choices.all().delete()
     Choice.objects.bulk_create([
-        Choice(question=question, text=text, is_correct=correct)
-        for text, correct in choices_spec
+        Choice(question=question, text=text, is_correct=correct, sort_order=idx)
+        for idx, (text, correct) in enumerate(choices_spec, start=1)
     ])
 
 

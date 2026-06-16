@@ -63,11 +63,34 @@ class QuestionForm(forms.ModelForm):
             'image_hint': forms.FileInput(attrs={'class': 'form-control'}),
         }
 
+def save_choice_formset_in_order(formset, question):
+    """Lưu đáp án theo thứ tự dòng trong form."""
+    order = 1
+    for form in formset.forms:
+        if not form.cleaned_data:
+            continue
+        if form.cleaned_data.get('DELETE'):
+            if form.instance.pk:
+                form.instance.delete()
+            continue
+        choice = form.save(commit=False)
+        choice.question = question
+        choice.sort_order = order
+        choice.save()
+        order += 1
+
+
+class OrderedChoiceFormSet(forms.BaseInlineFormSet):
+    def get_queryset(self):
+        return super().get_queryset().order_by('sort_order', 'id')
+
+
 ChoiceFormSet = inlineformset_factory(
     Question, Choice,
     fields=('text', 'is_correct'),
     extra=4,
     can_delete=True,
+    formset=OrderedChoiceFormSet,
     widgets={
         'text': forms.TextInput(attrs={'class': 'form-control'}),
         'is_correct': forms.CheckboxInput(attrs={'class': 'form-check-input'}),

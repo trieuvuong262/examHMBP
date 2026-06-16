@@ -6,6 +6,7 @@ urlpatterns = [
     path('', views.home_portal, name='home_portal'), 
     path('exams/', views.exam_list, name='exam_list'),
     path('exams/<int:exam_id>/take/', views.take_exam, name='take_exam'),
+    path('exams/<int:exam_id>/result/', views.exam_result, name='exam_result'),
     path('dashboard/', views.admin_dashboard, name='admin_dashboard'),
     path('dashboard/exam/add/', views.exam_create, name='exam_create'),
     path('dashboard/exam/<int:pk>/edit/', views.exam_edit, name='exam_edit'),

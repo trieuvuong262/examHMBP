@@ -122,6 +122,7 @@
                             <table class="table table-choices align-middle mb-0">
                                 <thead>
                                     <tr class="text-uppercase fw-bold">
+                                        <th class="text-center" style="width: 3rem;">STT</th>
                                         <th class="text-center" style="width: 100px;">Đúng?</th>
                                         <th>Nội dung đáp án</th>
                                         <th class="text-center" style="width: 100px;">Gỡ bỏ</th>
@@ -130,6 +131,7 @@
                                 <tbody>
                                     {% for choice_form in choices %}
                                     <tr>
+                                        <td class="text-center text-muted fw-bold">{{ forloop.counter }}</td>
                                         <td class="text-center">
                                             <div class="form-check d-inline-block">
                                                 {{ choice_form.is_correct }}
