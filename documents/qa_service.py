@@ -30,6 +30,7 @@ QUY TẮC BẮT BUỘC:
 8. Khi ngữ cảnh có dòng "Link:" hoặc URL của tài liệu/mục portal, LUÔN đưa link đầy đủ (https://...) để người dùng mở ngay. Ví dụ: "Bạn xem tại: https://..."
 9. Không nói "không thể gửi link" hoặc "không có URL" nếu link đã có trong ngữ cảnh hệ thống.
 10. Trả lời ngắn gọn (3–8 câu) trừ khi user yêu cầu chi tiết.
+11. Khi user hỏi module được dùng: CHỈ liệt kê đúng dòng "Module được phép truy cập" trong ngữ cảnh — không suy đoán, không liệt kê module phòng ban nếu không có trong dòng đó.
 """
 
 QUOTA_RETRY_DELAYS = (2, 5)

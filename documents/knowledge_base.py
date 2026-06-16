@@ -10,7 +10,7 @@ from django.utils.html import strip_tags
 from announcements.models import Announcement
 from documents.models import Document, DocumentCategory
 from hrm.models import UserGuide
-from hrm.module_permissions import MODULE_LABELS, get_user_enabled_modules
+from hrm.module_permissions import ALL_MODULE_KEYS, MODULE_LABELS, user_can_access_module
 from hrm.permissions import get_profile, role_display
 
 
@@ -42,10 +42,15 @@ def _document_url(category, document, request=None) -> str:
     return _absolute_url(path, request)
 
 
+def _accessible_module_labels(user) -> list[str]:
+    """Module user thực sự mở được (phòng ban + nhóm quyền), không chỉ cấu hình phòng ban."""
+    keys = sorted(k for k in ALL_MODULE_KEYS if user_can_access_module(user, k))
+    return [MODULE_LABELS.get(k, k) for k in keys]
+
+
 def build_user_context(user) -> str:
     profile = get_profile(user)
-    enabled = sorted(get_user_enabled_modules(user))
-    module_labels = [MODULE_LABELS.get(key, key) for key in enabled]
+    module_labels = _accessible_module_labels(user)
 
     lines = [
         '=== THÔNG TIN NGƯỜI HỎI (chỉ dùng để xưng hô, không tiết lộ cho người khác) ===',
@@ -56,7 +61,10 @@ def build_user_context(user) -> str:
         lines.append(f'Phòng ban: {profile.department.name}')
     if profile and profile.division:
         lines.append(f'Bộ phận: {profile.division.name}')
-    lines.append(f'Module được phép truy cập: {", ".join(module_labels) or "không xác định"}')
+    lines.append(
+        'Module được phép truy cập (CHỈ trả lời đúng danh sách này — không thêm module khác): '
+        f'{", ".join(module_labels) or "không có"}'
+    )
     return '\n'.join(lines)
 
 

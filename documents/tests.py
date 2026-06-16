@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.test import Client, RequestFactory, TestCase
 from django.urls import reverse
 
-from documents.knowledge_base import build_portal_knowledge
+from documents.knowledge_base import _accessible_module_labels, build_portal_knowledge
 from documents.models import LibraryQAChatMessage
 from documents.qa_history import save_qa_turn
 from documents.suggestion_service import (
@@ -59,6 +59,17 @@ class LibraryQATests(TestCase):
         text = build_portal_knowledge(self.user)
         self.assertIn('Lib User', text)
         self.assertIn('Test Dept', text)
+
+    def test_knowledge_lists_only_accessible_modules_not_department_all(self):
+        DepartmentMenuPermission.objects.filter(department=self.dept).update(
+            modules=['documents', 'reports', 'tasks'],
+        )
+        labels = _accessible_module_labels(self.user)
+        text = build_portal_knowledge(self.user)
+        self.assertEqual(labels, ['Tài liệu & Hỏi đáp'])
+        self.assertIn('Module được phép truy cập', text)
+        self.assertIn('Tài liệu & Hỏi đáp', text)
+        self.assertNotIn('Báo cáo', text.split('Module được phép truy cập')[1].split('\n')[0])
 
     def test_knowledge_includes_document_links(self):
         req = self.factory.get('/tai-lieu/hoi-dap/')
