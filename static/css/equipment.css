@@ -238,6 +238,55 @@
     border: 1px solid var(--bs-border-color);
 }
 
+.jp-eq-photo-cell {
+    width: 52px;
+    vertical-align: middle;
+}
+
+.jp-eq-photo-thumb-btn {
+    display: inline-flex;
+    cursor: zoom-in;
+    border-radius: 4px;
+    line-height: 0;
+}
+
+.jp-eq-photo-thumb-btn:hover .jp-eq-photo-thumb {
+    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.35);
+}
+
+.jp-eq-photo-thumb {
+    width: 44px;
+    height: 44px;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid var(--bs-border-color);
+    background: #fff;
+}
+
+.jp-eq-photo-placeholder {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 4px;
+    border: 1px dashed var(--bs-border-color);
+    background: var(--bs-light);
+    font-size: 1rem;
+}
+
+.jp-eq-photo-modal-img {
+    max-height: min(72vh, 640px);
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+}
+
+#devicePhotoModal .btn-close {
+    min-width: 44px;
+    min-height: 44px;
+}
+
 .jp-eq-qr-placeholder {
     width: 52px;
     height: 52px;

@@ -106,6 +106,7 @@
                 <table class="table table-hover align-middle mb-0 jp-eq-table">
                     <thead class="table-light">
                         <tr>
+                            <th style="width:52px">Ảnh</th>
                             <th style="width:48px">QR</th>
                             <th>Mã / Thiết bị</th>
                             <th>Loại</th>
@@ -118,6 +119,27 @@
                     <tbody>
                         {% for device in page_obj %}
                         <tr>
+                            <td class="jp-eq-photo-cell text-center">
+                                {% if device.photo %}
+                                <button type="button"
+                                        class="jp-eq-photo-thumb-btn border-0 bg-transparent p-0"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#devicePhotoModal"
+                                        data-photo-url="{{ device.photo.url }}?v={{ device.updated_at|date:'U' }}"
+                                        data-photo-title="{{ device.name }}"
+                                        data-photo-code="{{ device.device_code }}"
+                                        title="Xem ảnh {{ device.name }}">
+                                    <img src="{{ device.photo.url }}?v={{ device.updated_at|date:'U' }}"
+                                         alt="Ảnh {{ device.name }}"
+                                         class="jp-eq-photo-thumb"
+                                         loading="lazy">
+                                </button>
+                                {% else %}
+                                <span class="jp-eq-photo-placeholder" aria-hidden="true">
+                                    <i class="bi bi-image text-muted"></i>
+                                </span>
+                                {% endif %}
+                            </td>
                             <td class="jp-eq-qr-cell text-center">
                                 {% if device.qr_code %}
                                 <a href="{{ device.qr_code.url }}" download title="Tải tem QR">
@@ -175,6 +197,23 @@
             <div class="card-body text-center text-muted py-5">Không tìm thấy thiết bị.</div>
         </div>
         {% endif %}
+</div>
+
+<div class="modal fade" id="devicePhotoModal" tabindex="-1" aria-labelledby="devicePhotoModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-0 pb-0">
+                <div>
+                    <h5 class="modal-title fw-bold mb-0" id="devicePhotoModalTitle">Hình ảnh thiết bị</h5>
+                    <div class="small text-muted font-monospace" id="devicePhotoModalCode"></div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body text-center pt-3 pb-4">
+                <img src="" alt="" id="devicePhotoModalImg" class="jp-eq-photo-modal-img img-fluid rounded border">
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -242,6 +281,33 @@
         });
     }
     updateCategoryLabel();
+})();
+
+(function () {
+    var photoModal = document.getElementById('devicePhotoModal');
+    if (!photoModal) return;
+
+    photoModal.addEventListener('show.bs.modal', function (event) {
+        var btn = event.relatedTarget;
+        if (!btn) return;
+        var url = btn.getAttribute('data-photo-url') || '';
+        var title = btn.getAttribute('data-photo-title') || 'Hình ảnh thiết bị';
+        var code = btn.getAttribute('data-photo-code') || '';
+        var img = document.getElementById('devicePhotoModalImg');
+        var titleEl = document.getElementById('devicePhotoModalTitle');
+        var codeEl = document.getElementById('devicePhotoModalCode');
+        if (img) {
+            img.src = url;
+            img.alt = title;
+        }
+        if (titleEl) titleEl.textContent = title;
+        if (codeEl) codeEl.textContent = code;
+    });
+
+    photoModal.addEventListener('hidden.bs.modal', function () {
+        var img = document.getElementById('devicePhotoModalImg');
+        if (img) img.removeAttribute('src');
+    });
 })();
 </script>
 {% endblock %}
