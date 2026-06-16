@@ -40,9 +40,7 @@
         <ol class="breadcrumb shadow-sm p-3 bg-white border-0">
             <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}" class="text-decoration-none text-muted">Dashboard</a></li>
             <li class="breadcrumb-item"><a href="{% url 'exam_edit' exam.id %}" class="text-decoration-none" style="color: var(--hm-primary);">Quản lý kỳ thi</a></li>
-            <li class="breadcrumb-item active fw-bold">
-                {{ title }}{% if question_stt %} — Câu {{ question_stt }}/{{ question_total }}{% endif %}
-            </li>
+            <li class="breadcrumb-item active fw-bold">{{ title }}</li>
         </ol>
     </nav>
 
@@ -53,14 +51,7 @@
                 
                 <div class="card card-hm mb-4">
                     <div class="card-header-main d-flex justify-content-between align-items-center flex-wrap gap-2">
-                        <div class="d-flex align-items-center gap-2 flex-wrap">
-                            <h5 class="mb-0 fw-bold"><i class="bi bi-pencil-square me-2"></i>{{ title }}</h5>
-                            {% if question_stt %}
-                            <span class="badge bg-warning text-dark fw-bold px-3 py-2">Câu {{ question_stt }}/{{ question_total }}</span>
-                            {% elif not is_edit and question_total %}
-                            <span class="badge bg-light text-dark fw-bold px-3 py-2 border border-light">Câu mới (sau câu {{ question_total }})</span>
-                            {% endif %}
-                        </div>
+                        <h5 class="mb-0 fw-bold"><i class="bi bi-pencil-square me-2"></i>{{ title }}</h5>
                         <span class="badge bg-primary-soft text-white border border-light x-small">KỲ THI: {{ exam.title }}</span>
                     </div>
                     
@@ -84,7 +75,17 @@
                                 </div>
 
                                 <div class="row">
-                                    <div class="col-md-7 mb-3">
+                                    <div class="col-md-3 mb-3">
+                                        <label class="form-label fw-bold" for="id_sort_order">STT trong đề</label>
+                                        {{ form.sort_order }}
+                                        {% if form.sort_order.help_text %}
+                                        <div class="form-text x-small">{{ form.sort_order.help_text }}</div>
+                                        {% endif %}
+                                        {% if form.sort_order.errors %}
+                                        <div class="text-danger x-small">{{ form.sort_order.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-4 mb-3">
                                         <label class="form-label fw-bold">Loại hình trả lời</label>
                                         {{ form.q_type }}
                                     </div>

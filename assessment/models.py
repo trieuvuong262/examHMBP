@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.db.models import Max
 
 # 1. Danh mục năng lực
 class Competency(models.Model):
@@ -31,6 +32,23 @@ class Question(models.Model):
     def __str__(self):
         return f"[{self.get_q_type_display()}] {self.content[:50]}"
 
+
+class ExamQuestion(models.Model):
+    """Liên kết câu hỏi trong đề — có STT do admin chỉnh."""
+
+    exam = models.ForeignKey('Exam', on_delete=models.CASCADE, related_name='exam_questions')
+    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='exam_links')
+    sort_order = models.PositiveIntegerField(default=1, verbose_name='STT trong đề')
+
+    class Meta:
+        ordering = ['sort_order', 'id']
+        unique_together = ('exam', 'question')
+        verbose_name = 'Câu hỏi trong đề'
+        verbose_name_plural = 'Câu hỏi trong đề'
+
+    def __str__(self):
+        return f'#{self.sort_order} — {self.question}'
+
 # 3. Đáp án
 class Choice(models.Model):
     question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='choices')
@@ -45,14 +63,48 @@ class Exam(models.Model):
     title = models.CharField(max_length=255, verbose_name="Tên kỳ thi")
     description = models.TextField(blank=True, verbose_name="Mô tả kỳ thi")
     assigned_users = models.ManyToManyField(User, related_name='assigned_exams', blank=True, verbose_name="Nhân viên dự thi")
-    questions = models.ManyToManyField(Question, related_name='exams', verbose_name="Câu hỏi trong đề")
-    start_time = models.DateTimeField(verbose_name="Thời gian bắt đầu")
-    end_time = models.DateTimeField(verbose_name="Thời gian kết thúc")
-    duration_minutes = models.PositiveIntegerField(verbose_name="Thời gian làm bài (phút)")
-    is_active = models.BooleanField(default=True, verbose_name="Đang hoạt động")
+    questions = models.ManyToManyField(
+        Question,
+        through='ExamQuestion',
+        related_name='exams',
+        verbose_name='Câu hỏi trong đề',
+    )
+    start_time = models.DateTimeField(verbose_name='Thời gian bắt đầu')
+    end_time = models.DateTimeField(verbose_name='Thời gian kết thúc')
+    duration_minutes = models.PositiveIntegerField(verbose_name='Thời gian làm bài (phút)')
+    is_active = models.BooleanField(default=True, verbose_name='Đang hoạt động')
 
     def __str__(self):
         return self.title
+
+    def next_sort_order(self) -> int:
+        current = self.exam_questions.aggregate(m=Max('sort_order'))['m']
+        return (current or 0) + 1
+
+    def ordered_exam_questions(self):
+        return (
+            self.exam_questions.select_related('question', 'question__competency')
+            .prefetch_related('question__choices')
+            .order_by('sort_order', 'id')
+        )
+
+    def ordered_questions(self):
+        from django.db.models import F
+        return (
+            Question.objects.filter(examquestion__exam=self)
+            .annotate(sort_order=F('examquestion__sort_order'))
+            .order_by('sort_order', 'examquestion__id')
+            .prefetch_related('choices')
+        )
+
+    def replace_questions(self, questions, *, start_order=1):
+        self.exam_questions.all().delete()
+        for idx, question in enumerate(questions, start=start_order):
+            ExamQuestion.objects.create(
+                exam=self,
+                question=question,
+                sort_order=idx,
+            )
 
 # 5. Bài nộp của User
 class ExamSubmission(models.Model):

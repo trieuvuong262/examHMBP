@@ -343,7 +343,7 @@ class Command(BaseCommand):
                 'is_active': True,
             },
         )
-        exam.questions.set([q1, q2])
+        exam.replace_questions([q1, q2])
         employees = [users['nv_may1'], users['nv_may2'], users['nv_cat1'], users['nv_qc1']]
         exam.assigned_users.set(employees)
 

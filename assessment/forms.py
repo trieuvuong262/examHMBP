@@ -1,5 +1,5 @@
 from django import forms
-from .models import Exam, Question, Choice, User
+from .models import Exam, Question, Choice, User, ExamQuestion
 from django.forms import inlineformset_factory
 from django.contrib.auth.models import User
 from hrm.models import Profile
@@ -40,6 +40,19 @@ class ExamForm(forms.ModelForm):
         self.fields['start_time'].input_formats = ['%Y-%m-%dT%H:%M']
         self.fields['end_time'].input_formats = ['%Y-%m-%dT%H:%M']
 class QuestionForm(forms.ModelForm):
+    sort_order = forms.IntegerField(
+        min_value=1,
+        required=True,
+        label='STT trong đề',
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'min': 1,
+            'step': 1,
+            'placeholder': 'Ví dụ: 1',
+        }),
+        help_text='Thứ tự câu hỏi khi thí sinh làm bài (số nhỏ hiện trước).',
+    )
+
     class Meta:
         model = Question
         fields = ['competency', 'content', 'q_type', 'points', 'image_hint']

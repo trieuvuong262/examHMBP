@@ -224,20 +224,20 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for q in questions %}
+                                {% for link in exam_questions %}
                                 <tr>
-                                    <td class="ps-4 py-3 text-center text-muted fw-bold">{{ forloop.counter }}</td>
+                                    <td class="ps-4 py-3 text-center text-muted fw-bold">{{ link.sort_order }}</td>
                                     <td class="py-3">
-                                        <div class="fw-bold text-dark mb-1">{{ q.content|truncatewords:15 }}</div>
-                                        <span class="badge bg-primary-soft text-hm x-small fw-bold">{{ q.competency.name }}</span>
+                                        <div class="fw-bold text-dark mb-1">{{ link.question.content|truncatewords:15 }}</div>
+                                        <span class="badge bg-primary-soft text-hm x-small fw-bold">{{ link.question.competency.name }}</span>
                                     </td>
-                                    <td><span class="badge bg-white border text-muted x-small">{{ q.get_q_type_display }}</span></td>
-                                    <td class="text-center"><strong class="text-hm">{{ q.points }}</strong></td>
+                                    <td><span class="badge bg-white border text-muted x-small">{{ link.question.get_q_type_display }}</span></td>
+                                    <td class="text-center"><strong class="text-hm">{{ link.question.points }}</strong></td>
                                     <td class="text-end pe-4">
                                         {% if can_update %}
                                         <div class="btn-group shadow-sm overflow-hidden border">
-                                            <a href="{% url 'question_edit_detail' exam.id q.id %}" class="btn btn-sm btn-white"><i class="bi bi-pencil-square text-warning"></i></a>
-                                            <form action="{% url 'question_remove' exam.id q.id %}" method="POST" class="d-inline">
+                                            <a href="{% url 'question_edit_detail' exam.id link.question.id %}" class="btn btn-sm btn-white"><i class="bi bi-pencil-square text-warning"></i></a>
+                                            <form action="{% url 'question_remove' exam.id link.question.id %}" method="POST" class="d-inline">
                                                 {% csrf_token %}
                                                 <button type="submit" class="btn btn-sm btn-white border-start" onclick="return confirm('Gỡ câu hỏi khỏi đề?')">
                                                     <i class="bi bi-trash text-danger"></i>

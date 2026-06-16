@@ -243,7 +243,7 @@ def create_exam(*, assign_all: bool = False):
             'is_active': True,
         },
     )
-    exam.questions.set(question_objs)
+    exam.replace_questions(question_objs)
 
     assigned_count = 0
     if assign_all:

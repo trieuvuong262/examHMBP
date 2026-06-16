@@ -2,7 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
 from django.utils import timezone
-from .models import Exam, ExamSubmission, Question, UserAnswer, Choice
+from .models import Exam, ExamSubmission, Question, UserAnswer, Choice, ExamQuestion
 from .forms import ExamForm, QuestionForm, ChoiceFormSet, UserForm
 from django.contrib import messages
 from django.http import HttpResponseForbidden, JsonResponse
@@ -203,7 +203,7 @@ def take_exam(request, exam_id):
             messages.error(request, "Hệ thống đã tự động nộp bài vì hết giờ quy định.")
             return redirect('exam_list')
 
-        questions = exam.questions.all()
+        questions = exam.ordered_questions()
         total_auto_score = 0
         needs_manual_grading = False # THÊM CỜ NÀY ĐỂ THEO DÕI
 
@@ -256,7 +256,7 @@ def take_exam(request, exam_id):
 
     context = {
         'exam': exam,
-        'questions': exam.questions.all().prefetch_related('choices'),
+        'questions': exam.ordered_questions(),
         'submission': submission,
         'time_remaining': real_time_remaining 
     }
@@ -354,15 +354,22 @@ def exam_create(request):
 @module_perm_required(MODULE_ASSESSMENT, 'update')
 def exam_edit(request, pk):
     exam = get_object_or_404(Exam, pk=pk)
-    questions_in_exam = exam.questions.all().order_by('id')
-    
-    question_bank = Question.objects.exclude(id__in=questions_in_exam.values_list('id', flat=True))
+    exam_questions = exam.ordered_exam_questions()
+    questions_in_exam = [link.question for link in exam_questions]
+
+    question_bank = Question.objects.exclude(id__in=[q.id for q in questions_in_exam])
 
     if request.method == 'POST':
         if 'add_from_bank' in request.POST:
             selected_q_ids = request.POST.getlist('selected_questions')
             if selected_q_ids:
-                exam.questions.add(*selected_q_ids)
+                next_order = exam.next_sort_order()
+                for offset, qid in enumerate(selected_q_ids):
+                    ExamQuestion.objects.get_or_create(
+                        exam=exam,
+                        question_id=qid,
+                        defaults={'sort_order': next_order + offset},
+                    )
             return redirect('exam_edit', pk=exam.id)
             
         form = ExamForm(request.POST, instance=exam)
@@ -375,6 +382,7 @@ def exam_edit(request, pk):
     return render(request, 'assessment/admin/exam_form.html', {
         'form': form,
         'exam': exam,
+        'exam_questions': exam_questions,
         'questions': questions_in_exam,
         'question_bank': question_bank,
         'title': 'Chỉnh sửa kỳ thi',
@@ -480,32 +488,39 @@ def question_edit(request, exam_id, question_id=None):
     """View dùng chung cho cả THÊM và SỬA câu hỏi, hỗ trợ Inline Formset để sửa đáp án"""
     exam = get_object_or_404(Exam, id=exam_id)
     question = get_object_or_404(Question, id=question_id) if question_id else Question()
+    exam_question = None
+    if question_id:
+        exam_question = ExamQuestion.objects.filter(exam=exam, question=question).first()
 
     if request.method == 'POST':
         form = QuestionForm(request.POST, request.FILES, instance=question)
         formset = ChoiceFormSet(request.POST, instance=question)
-        
+
         if form.is_valid() and formset.is_valid():
             question = form.save()
             formset.save()
-            if not question_id: 
-                exam.questions.add(question)
-            
+            sort_order = form.cleaned_data['sort_order']
+            if exam_question:
+                exam_question.sort_order = sort_order
+                exam_question.save(update_fields=['sort_order'])
+            else:
+                ExamQuestion.objects.create(
+                    exam=exam,
+                    question=question,
+                    sort_order=sort_order,
+                )
+
             messages.success(request, "Đã lưu câu hỏi thành công.")
             return redirect('exam_edit', pk=exam.id)
         else:
             messages.error(request, "Vui lòng kiểm tra lại các thông tin nhập liệu.")
     else:
-        form = QuestionForm(instance=question)
+        initial_sort = exam_question.sort_order if exam_question else exam.next_sort_order()
+        form = QuestionForm(instance=question, initial={'sort_order': initial_sort})
         formset = ChoiceFormSet(instance=question)
 
     competencies = Competency.objects.all().order_by('-id')
-
-    ordered_question_ids = list(exam.questions.order_by('id').values_list('id', flat=True))
-    question_total = len(ordered_question_ids)
-    question_stt = None
-    if question_id and question_id in ordered_question_ids:
-        question_stt = ordered_question_ids.index(question_id) + 1
+    question_total = exam.exam_questions.count()
 
     return render(request, 'assessment/admin/question_form.html', {
         'form': form,
@@ -514,7 +529,6 @@ def question_edit(request, exam_id, question_id=None):
         'competencies': competencies,
         'title': 'Sửa câu hỏi' if question_id else 'Thêm câu hỏi mới',
         'is_edit': bool(question_id),
-        'question_stt': question_stt,
         'question_total': question_total,
     })
 
@@ -528,7 +542,8 @@ def question_remove(request, exam_id, question_id):
     if request.method == 'POST':
         exam = get_object_or_404(Exam, id=exam_id)
         question = get_object_or_404(Question, id=question_id)
-        exam.questions.remove(question) 
+        exam_question = get_object_or_404(ExamQuestion, exam=exam, question=question)
+        exam_question.delete()
         messages.info(request, "Đã gỡ câu hỏi khỏi đề thi.")
     return redirect('exam_edit', pk=exam_id)
 
