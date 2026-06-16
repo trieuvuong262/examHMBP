@@ -20,6 +20,41 @@
         </div>
     </div>
 
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100 border-success border-2">
+                <div class="card-body text-center p-3">
+                    <div class="small text-success fw-bold">Đúng</div>
+                    <div class="fs-3 fw-bold text-success">{{ stats.correct }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100 border-danger border-2">
+                <div class="card-body text-center p-3">
+                    <div class="small text-danger fw-bold">Sai</div>
+                    <div class="fs-3 fw-bold text-danger">{{ stats.wrong }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100 border-warning border-2">
+                <div class="card-body text-center p-3">
+                    <div class="small text-warning fw-bold">Một phần</div>
+                    <div class="fs-3 fw-bold text-warning">{{ stats.partial }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center p-3">
+                    <div class="small text-muted fw-bold">Đang chấm</div>
+                    <div class="fs-3 fw-bold text-secondary">{{ stats.pending }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="row g-3 mb-4">
         <div class="col-md-4">
             <div class="card border-0 shadow-sm h-100">
@@ -44,47 +79,82 @@
                 <div class="card-body text-center p-4">
                     <div class="small text-success fw-bold mb-1">Tổng điểm</div>
                     <div class="display-6 fw-bold text-success">{{ result.total_score|floatformat:1 }}</div>
-                    {% if not result.is_completed %}
-                    <div class="small text-muted mt-2">⏳ Phần tự luận đang được chờ chấm...</div>
-                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm overflow-hidden">
-        <div class="card-header bg-white py-3">
-            <h5 class="mb-0 fw-bold">Chi tiết từng câu</h5>
+    <h5 class="fw-bold mb-3">Chi tiết từng câu</h5>
+
+    {% for row in question_rows %}
+    <div class="card mb-3 shadow-sm jp-result-qcard {{ row.card_class }}">
+        <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-start gap-2 py-3">
+            <div class="flex-grow-1">
+                <span class="badge bg-hm me-2">Câu {{ row.sort_order|default:forloop.counter }}</span>
+                <span class="fw-bold text-dark">{{ row.content }}</span>
+            </div>
+            <div class="text-end flex-shrink-0">
+                <span class="badge bg-{{ row.status_class }}-subtle text-{{ row.status_class }} px-3 py-2 me-1">
+                    {% if row.status_class == 'success' %}<i class="bi bi-check-circle-fill me-1"></i>{% endif %}
+                    {% if row.status_class == 'danger' %}<i class="bi bi-x-circle-fill me-1"></i>{% endif %}
+                    {{ row.status_label }}
+                </span>
+                <span class="badge bg-light text-dark border">{{ row.earned|floatformat:1 }}/{{ row.points|floatformat:1 }} đ</span>
+            </div>
         </div>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th class="text-center" style="width:4rem;">STT</th>
-                        <th>Câu hỏi</th>
-                        <th>Loại</th>
-                        <th class="text-center">Điểm</th>
-                        <th class="text-center">Kết quả</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in question_rows %}
-                    <tr>
-                        <td class="text-center fw-bold text-muted">{{ row.sort_order|default:forloop.counter }}</td>
-                        <td>{{ row.content|truncatewords:20 }}</td>
-                        <td><span class="badge bg-light text-dark border">{{ row.q_type_display }}</span></td>
-                        <td class="text-center">{{ row.earned|floatformat:1 }} / {{ row.points|floatformat:1 }}</td>
-                        <td class="text-center">
-                            <span class="badge bg-{{ row.status_class }}-subtle text-{{ row.status_class }}">
-                                {{ row.status_label }}
-                            </span>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="card-body pt-0">
+            <div class="small text-muted mb-3">{{ row.q_type_display }}</div>
+
+            {% if row.choice_rows %}
+            <div class="row g-2 mb-3">
+                {% for choice in row.choice_rows %}
+                <div class="col-md-6">
+                    <div class="jp-result-choice jp-result-choice--{{ choice.state }}">
+                        {% if choice.state == 'ok' %}
+                        <i class="bi bi-check-circle-fill text-success"></i>
+                        {% elif choice.state == 'wrong' %}
+                        <i class="bi bi-x-circle-fill text-danger"></i>
+                        {% elif choice.state == 'correct' %}
+                        <i class="bi bi-check2 text-success"></i>
+                        {% else %}
+                        <i class="bi bi-circle text-muted opacity-50"></i>
+                        {% endif %}
+                        <span>{{ choice.text }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="row g-2 small">
+                <div class="col-md-6">
+                    <div class="p-2 rounded jp-result-answer-box jp-result-answer-box--user">
+                        <strong>Bạn chọn:</strong> {{ row.user_answer }}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="p-2 rounded jp-result-answer-box jp-result-answer-box--correct">
+                        <strong>Đáp án đúng:</strong> {{ row.correct_answer }}
+                    </div>
+                </div>
+            </div>
+
+            {% elif row.q_type == 'essay' %}
+            <div class="p-3 rounded jp-result-answer-box jp-result-answer-box--user">
+                <strong>Bài làm của bạn:</strong>
+                <div class="mt-2 white-space-pre-wrap">{{ row.essay_answer|default:"— Chưa trả lời —"|linebreaksbr }}</div>
+            </div>
+
+            {% elif row.image_answer_url %}
+            <div class="mb-2"><strong>Bài làm của bạn:</strong></div>
+            <img src="{{ row.image_answer_url }}" alt="Bài làm" class="img-fluid rounded border shadow-sm" style="max-height: 360px;">
+
+            {% else %}
+            <div class="p-3 rounded jp-result-answer-box jp-result-answer-box--user text-muted">
+                {{ row.user_answer }}
+            </div>
+            {% endif %}
         </div>
     </div>
+    {% endfor %}
 
     <div class="mt-4">
         <a href="{% url 'exam_list' %}" class="btn btn-outline-hm fw-bold">
@@ -96,5 +166,50 @@
 <style>
     :root { --hm-primary: #dc2626; }
     .text-hm { color: var(--hm-primary) !important; }
+    .bg-hm { background-color: var(--hm-primary) !important; }
+
+    .jp-result-qcard { border-left: 5px solid #dee2e6 !important; }
+    .jp-result-qcard.is-correct { border-left-color: #198754 !important; background: #f8fff9; }
+    .jp-result-qcard.is-wrong { border-left-color: #dc3545 !important; background: #fff8f8; }
+    .jp-result-qcard.is-partial { border-left-color: #ffc107 !important; background: #fffdf5; }
+    .jp-result-qcard.is-pending,
+    .jp-result-qcard.is-graded { border-left-color: #6c757d !important; }
+
+    .jp-result-choice {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+        padding: 0.65rem 0.85rem;
+        border-radius: 8px;
+        border: 2px solid #e9ecef;
+        background: #fff;
+        min-height: 100%;
+    }
+    .jp-result-choice--ok {
+        border-color: #198754;
+        background: #d1e7dd;
+        font-weight: 600;
+    }
+    .jp-result-choice--wrong {
+        border-color: #dc3545;
+        background: #f8d7da;
+        font-weight: 600;
+    }
+    .jp-result-choice--correct {
+        border-color: #198754;
+        background: #f0fdf4;
+    }
+    .jp-result-choice--idle {
+        opacity: 0.85;
+    }
+
+    .jp-result-answer-box--user {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+    }
+    .jp-result-answer-box--correct {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+    }
 </style>
 {% endblock %}

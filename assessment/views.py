@@ -282,7 +282,10 @@ def exam_result(request, exam_id):
             exam=exam,
             submitted_at__isnull=False,
         )
-        .prefetch_related('answers__question', 'answers__selected_choices')
+        .prefetch_related(
+            'answers__selected_choices',
+            'answers__question__choices',
+        )
         .first()
     )
     if not submission:
@@ -291,41 +294,140 @@ def exam_result(request, exam_id):
 
     answer_by_question = {answer.question_id: answer for answer in submission.answers.all()}
     question_rows = []
+    stats = {'correct': 0, 'wrong': 0, 'partial': 0, 'pending': 0, 'graded': 0}
+
     for question in exam.ordered_questions():
         answer = answer_by_question.get(question.id)
         earned = (answer.graded_score if answer else 0) or 0
-        if question.q_type in ['single', 'multiple']:
+        q_type = question.q_type
+
+        if q_type in ['single', 'multiple']:
+            selected_ids = set()
+            if answer:
+                selected_ids = set(answer.selected_choices.values_list('id', flat=True))
+
+            choice_rows = []
+            user_picks = []
+            correct_picks = []
+            for choice in question.choices.all():
+                is_selected = choice.id in selected_ids
+                if choice.is_correct:
+                    correct_picks.append(choice.text)
+                if is_selected:
+                    user_picks.append(choice.text)
+
+                if choice.is_correct and is_selected:
+                    state = 'ok'
+                elif choice.is_correct:
+                    state = 'correct'
+                elif is_selected:
+                    state = 'wrong'
+                else:
+                    state = 'idle'
+                choice_rows.append({
+                    'text': choice.text,
+                    'state': state,
+                })
+
             if earned >= question.points:
                 status_label = 'Đúng'
                 status_class = 'success'
+                card_class = 'is-correct'
+                stats['correct'] += 1
             elif earned > 0:
-                status_label = 'Một phần'
+                status_label = 'Đúng một phần'
                 status_class = 'warning'
+                card_class = 'is-partial'
+                stats['partial'] += 1
             else:
                 status_label = 'Sai'
                 status_class = 'danger'
-        elif submission.is_completed and answer and answer.is_graded:
-            status_label = f'{earned:g}/{question.points:g} đ'
-            status_class = 'primary'
-        else:
-            status_label = 'Đang chấm'
-            status_class = 'secondary'
+                card_class = 'is-wrong'
+                stats['wrong'] += 1
 
-        question_rows.append({
-            'sort_order': getattr(question, 'sort_order', None),
-            'content': question.content,
-            'q_type_display': question.get_q_type_display(),
-            'points': question.points,
-            'earned': earned,
-            'status_label': status_label,
-            'status_class': status_class,
-        })
+            question_rows.append({
+                'sort_order': getattr(question, 'sort_order', None),
+                'content': question.content,
+                'q_type': q_type,
+                'q_type_display': question.get_q_type_display(),
+                'points': question.points,
+                'earned': earned,
+                'status_label': status_label,
+                'status_class': status_class,
+                'card_class': card_class,
+                'choice_rows': choice_rows,
+                'user_answer': ' · '.join(user_picks) if user_picks else '— Chưa chọn —',
+                'correct_answer': ' · '.join(correct_picks) if correct_picks else '—',
+                'essay_answer': '',
+                'image_answer_url': '',
+            })
+        elif q_type == 'essay':
+            essay_text = (answer.essay_answer if answer else '') or ''
+            if submission.is_completed and answer and answer.is_graded:
+                status_label = f'{earned:g}/{question.points:g} đ'
+                status_class = 'primary'
+                card_class = 'is-graded'
+                stats['graded'] += 1
+            else:
+                status_label = 'Đang chấm'
+                status_class = 'secondary'
+                card_class = 'is-pending'
+                stats['pending'] += 1
+
+            question_rows.append({
+                'sort_order': getattr(question, 'sort_order', None),
+                'content': question.content,
+                'q_type': q_type,
+                'q_type_display': question.get_q_type_display(),
+                'points': question.points,
+                'earned': earned,
+                'status_label': status_label,
+                'status_class': status_class,
+                'card_class': card_class,
+                'choice_rows': [],
+                'user_answer': essay_text or '— Chưa trả lời —',
+                'correct_answer': '',
+                'essay_answer': essay_text,
+                'image_answer_url': '',
+            })
+        else:
+            image_url = ''
+            if answer and answer.image_answer:
+                image_url = answer.image_answer.url
+            if submission.is_completed and answer and answer.is_graded:
+                status_label = f'{earned:g}/{question.points:g} đ'
+                status_class = 'primary'
+                card_class = 'is-graded'
+                stats['graded'] += 1
+            else:
+                status_label = 'Đang chấm'
+                status_class = 'secondary'
+                card_class = 'is-pending'
+                stats['pending'] += 1
+
+            question_rows.append({
+                'sort_order': getattr(question, 'sort_order', None),
+                'content': question.content,
+                'q_type': q_type,
+                'q_type_display': question.get_q_type_display(),
+                'points': question.points,
+                'earned': earned,
+                'status_label': status_label,
+                'status_class': status_class,
+                'card_class': card_class,
+                'choice_rows': [],
+                'user_answer': 'Đã nộp ảnh' if image_url else '— Chưa nộp ảnh —',
+                'correct_answer': '',
+                'essay_answer': '',
+                'image_answer_url': image_url,
+            })
 
     return render(request, 'assessment/exam_result.html', {
         'exam': exam,
         'submission': submission,
         'result': _submission_result_summary(submission),
         'question_rows': question_rows,
+        'stats': stats,
     })
 
 
