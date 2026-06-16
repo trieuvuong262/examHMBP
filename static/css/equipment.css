@@ -229,13 +229,39 @@
     border-radius: 0;
 }
 
-.jp-eq-table .jp-eq-qr-cell img {
-    width: 56px;
+.jp-eq-table .jp-eq-qr-cell img,
+.jp-eq-qr-thumb {
+    width: 48px;
     height: auto;
-    max-height: 40px;
+    max-height: 48px;
     object-fit: contain;
     border-radius: 0;
     border: 1px solid var(--bs-border-color);
+    background: #fff;
+}
+
+.jp-eq-qr-thumb-btn {
+    display: inline-flex;
+    cursor: zoom-in;
+    line-height: 0;
+}
+
+.jp-eq-qr-thumb-btn:hover .jp-eq-qr-thumb {
+    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.35);
+}
+
+.jp-eq-list-row[data-href] {
+    cursor: pointer;
+}
+
+.jp-eq-list-row[data-href] .jp-eq-code-link:hover {
+    color: var(--hm-primary, #dc2626) !important;
+}
+
+#devicePhotoModal .btn-close,
+#deviceQrModal .btn-close {
+    min-width: 44px;
+    min-height: 44px;
 }
 
 .jp-eq-photo-cell {
@@ -282,9 +308,13 @@
     object-fit: contain;
 }
 
-#devicePhotoModal .btn-close {
-    min-width: 44px;
-    min-height: 44px;
+
+#deviceQrModal .jp-eq-qr-preview {
+    max-width: 280px;
+}
+
+#deviceQrModal .jp-eq-qr-preview img {
+    max-width: 240px;
 }
 
 .jp-eq-qr-placeholder {

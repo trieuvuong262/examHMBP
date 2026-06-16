@@ -107,18 +107,16 @@
                     <thead class="table-light">
                         <tr>
                             <th style="width:52px">Ảnh</th>
-                            <th style="width:48px">QR</th>
-                            <th>Mã / Thiết bị</th>
+                            <th>Mã</th>
                             <th>Loại</th>
-                            <th>{{ scope_list_col_specs }}</th>
-                            <th>{{ scope_list_col_usage }}</th>
-                            <th>Trạng thái</th>
-                            <th></th>
+                            <th>{% if is_it_scope %}Hostname / IP{% else %}Model / Series{% endif %}</th>
+                            <th>Phòng ban / Trạng thái</th>
+                            <th style="width:56px">QR</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for device in page_obj %}
-                        <tr>
+                        <tr class="jp-eq-list-row" data-href="{% url 'equipment:device_detail_manage' device.id %}">
                             <td class="jp-eq-photo-cell text-center">
                                 {% if device.photo %}
                                 <button type="button"
@@ -140,29 +138,19 @@
                                 </span>
                                 {% endif %}
                             </td>
-                            <td class="jp-eq-qr-cell text-center">
-                                {% if device.qr_code %}
-                                <a href="{{ device.qr_code.url }}" download title="Tải tem QR">
-                                    <img src="{{ device.qr_code.url }}" alt="">
-                                </a>
-                                {% else %}
-                                <span class="text-muted small">—</span>
-                                {% endif %}
-                            </td>
                             <td>
-                                <div class="font-monospace small text-muted">{{ device.device_code }}</div>
-                                <a href="{% url 'equipment:device_detail_manage' device.id %}" class="fw-semibold text-decoration-none">{{ device.name }}</a>
-                                <div class="small text-muted">{{ device.managed_department_label }}{% if device.usage_room %} · {{ device.usage_room }}{% endif %}</div>
+                                <a href="{% url 'equipment:device_detail_manage' device.id %}"
+                                   class="fw-semibold text-decoration-none font-monospace text-dark jp-eq-code-link">{{ device.device_code }}</a>
+                                <div class="small text-muted text-truncate" style="max-width: 14rem;">{{ device.name }}</div>
                             </td>
                             <td><span class="badge bg-light text-dark border">{{ device.get_category_display }}</span></td>
                             <td class="small">
                                 {% if is_it_scope %}
-                                    {% if device.hostname or device.ip_address %}
                                     {% if device.hostname %}<div>{{ device.hostname }}</div>{% endif %}
                                     {% if device.ip_address %}<div class="text-muted font-monospace">{{ device.ip_address }}</div>{% endif %}
-                                    {% elif device.serial_number %}
-                                    <div class="text-muted font-monospace">S/N {{ device.serial_number|truncatechars:22 }}</div>
-                                    {% else %}<span class="text-muted">—</span>{% endif %}
+                                    {% if not device.hostname and not device.ip_address %}
+                                        {% if device.serial_number %}<div class="text-muted font-monospace">S/N {{ device.serial_number|truncatechars:22 }}</div>{% else %}<span class="text-muted">—</span>{% endif %}
+                                    {% endif %}
                                 {% else %}
                                     {% if device.model_number %}<div>{{ device.model_number }}</div>{% endif %}
                                     {% if device.serial_number %}<div class="text-muted font-monospace">S/N {{ device.serial_number|truncatechars:22 }}</div>{% endif %}
@@ -171,15 +159,25 @@
                             </td>
                             <td class="small">
                                 <div>{{ device.usage_department_label }}</div>
-                                {% if is_production_scope and device.usage_room %}
-                                <div class="text-muted">{{ device.usage_room }}</div>
-                                {% elif is_it_scope and device.assigned_user_label and device.assigned_user_label != "—" %}
-                                <div class="text-muted">{{ device.assigned_user_label }}</div>
-                                {% endif %}
+                                <div class="mt-1"><span class="jp-eq-status-pill {{ device.status }}">{{ device.get_status_display }}</span></div>
                             </td>
-                            <td><span class="jp-eq-status-pill {{ device.status }}">{{ device.get_status_display }}</span></td>
-                            <td class="text-end text-nowrap">
-                                <a href="{% url 'equipment:device_detail_manage' device.id %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
+                            <td class="jp-eq-qr-cell text-center">
+                                {% if device.qr_code %}
+                                <button type="button"
+                                        class="jp-eq-qr-thumb-btn border-0 bg-transparent p-0"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#deviceQrModal"
+                                        data-qr-url="{{ device.qr_code.url }}?v={{ device.updated_at|date:'U' }}"
+                                        data-qr-title="{{ device.name }}"
+                                        data-qr-code="{{ device.device_code }}"
+                                        data-qr-download="{{ device.qr_code.url }}"
+                                        data-qr-public="{% url 'equipment:device_qr_public' device.device_code %}"
+                                        title="Xem tem QR">
+                                    <img src="{{ device.qr_code.url }}?v={{ device.updated_at|date:'U' }}" alt="QR {{ device.device_code }}" class="jp-eq-qr-thumb">
+                                </button>
+                                {% else %}
+                                <span class="text-muted small">—</span>
+                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}
@@ -211,6 +209,33 @@
             </div>
             <div class="modal-body text-center pt-3 pb-4">
                 <img src="" alt="" id="devicePhotoModalImg" class="jp-eq-photo-modal-img img-fluid rounded border">
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deviceQrModal" tabindex="-1" aria-labelledby="deviceQrModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-0 pb-0">
+                <div>
+                    <h5 class="modal-title fw-bold mb-0" id="deviceQrModalTitle">Tem QR</h5>
+                    <div class="small text-muted font-monospace" id="deviceQrModalCode"></div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body text-center pt-3 pb-4">
+                <div class="jp-eq-qr-preview mb-3 mx-auto">
+                    <img src="" alt="" id="deviceQrModalImg">
+                </div>
+                <div class="d-flex flex-wrap justify-content-center gap-2">
+                    <a href="#" id="deviceQrModalDownload" class="btn btn-sm btn-outline-hm" download>
+                        <i class="bi bi-download me-1"></i>Tải PNG
+                    </a>
+                    <a href="#" id="deviceQrModalPublic" class="btn btn-sm btn-outline-secondary" target="_blank">
+                        <i class="bi bi-box-arrow-up-right me-1"></i>Trang quét QR
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -307,6 +332,49 @@
     photoModal.addEventListener('hidden.bs.modal', function () {
         var img = document.getElementById('devicePhotoModalImg');
         if (img) img.removeAttribute('src');
+    });
+})();
+
+(function () {
+    var qrModal = document.getElementById('deviceQrModal');
+    if (!qrModal) return;
+
+    qrModal.addEventListener('show.bs.modal', function (event) {
+        var btn = event.relatedTarget;
+        if (!btn) return;
+        var url = btn.getAttribute('data-qr-url') || '';
+        var title = btn.getAttribute('data-qr-title') || 'Tem QR';
+        var code = btn.getAttribute('data-qr-code') || '';
+        var download = btn.getAttribute('data-qr-download') || url;
+        var publicUrl = btn.getAttribute('data-qr-public') || '#';
+        var img = document.getElementById('deviceQrModalImg');
+        var titleEl = document.getElementById('deviceQrModalTitle');
+        var codeEl = document.getElementById('deviceQrModalCode');
+        var downloadEl = document.getElementById('deviceQrModalDownload');
+        var publicEl = document.getElementById('deviceQrModalPublic');
+        if (img) {
+            img.src = url;
+            img.alt = 'QR ' + code;
+        }
+        if (titleEl) titleEl.textContent = title;
+        if (codeEl) codeEl.textContent = code;
+        if (downloadEl) downloadEl.href = download;
+        if (publicEl) publicEl.href = publicUrl;
+    });
+
+    qrModal.addEventListener('hidden.bs.modal', function () {
+        var img = document.getElementById('deviceQrModalImg');
+        if (img) img.removeAttribute('src');
+    });
+})();
+
+(function () {
+    document.querySelectorAll('.jp-eq-list-row[data-href]').forEach(function (row) {
+        row.addEventListener('click', function (e) {
+            if (e.target.closest('button, a, input, label, .dropdown-menu')) return;
+            var href = row.getAttribute('data-href');
+            if (href) window.location.href = href;
+        });
     });
 })();
 </script>
