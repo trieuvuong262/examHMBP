@@ -64,7 +64,12 @@ def export_columns_for_scope(equipment_scope: str | None) -> list[tuple[str, str
 def export_sheet_title_for_scope(equipment_scope: str | None) -> str:
     return 'Thiết bị sản xuất' if equipment_scope == SCOPE_PRODUCTION else 'Thiết bị IT'
 
-STATUS_MAP = dict(Device.STATUS_CHOICES)
+def status_map() -> dict[str, str]:
+    from equipment.services.device_statuses import status_map as _status_map
+    return _status_map()
+
+
+STATUS_MAP = status_map()
 
 # Alias cột Excel (tiếng Việt / tên cũ)
 COLUMN_ALIASES = {
@@ -322,16 +327,19 @@ def import_devices_from_excel(file_obj, category_code: str) -> tuple[int, list[s
 
         try:
             from equipment.services.device_code import normalize_device_code
+            from equipment.services.device_statuses import normalize_status_value
 
             device_code_raw = normalize_device_code(_cell(row, 'device_code'))
             managed_raw = _cell(row, 'managed_department') or _cell(row, 'managed_by')
             managed_dept = resolve_managed_department(managed_raw) or default_dept
+            status_raw = _safe_str(_cell(row, 'status'), Device.STATUS_NEW) or Device.STATUS_NEW
+            status_value = normalize_status_value(status_raw) or status_raw
             Device.objects.create(
                 device_code=device_code_raw,
                 name=_safe_str(name),
                 category=category_code,
                 managed_department=managed_dept,
-                status=_safe_str(_cell(row, 'status'), Device.STATUS_NEW) or Device.STATUS_NEW,
+                status=status_value,
                 usage_department_text=_safe_str(_cell(row, 'usage_department_text')),
                 usage_room=_safe_str(_cell(row, 'usage_room')),
                 assigned_user_text=_safe_str(_cell(row, 'assigned_user_text')),

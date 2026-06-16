@@ -92,7 +92,7 @@
     <div class="row g-4">
         <div class="col-lg-8">
             {% if can_edit and form %}
-            <form method="post" novalidate>
+            <form method="post" enctype="multipart/form-data" novalidate>
                 {% csrf_token %}
                 {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
 
@@ -138,6 +138,17 @@
         </div>
 
         <div class="col-lg-4">
+            {% if device.photo %}
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-white fw-bold"><i class="bi bi-image me-1"></i>Hình ảnh</div>
+                <div class="card-body text-center">
+                    <img src="{{ device.photo.url }}?v={{ device.updated_at|date:'U' }}"
+                         alt="Ảnh {{ device.name }}"
+                         class="img-fluid rounded border"
+                         style="max-height: 220px; object-fit: cover;">
+                </div>
+            </div>
+            {% endif %}
             <div class="card border-0 shadow-sm jp-eq-qr-card">
                 <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
                     <span><i class="bi bi-qr-code me-1"></i>Tem QR</span>

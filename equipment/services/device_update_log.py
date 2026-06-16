@@ -24,7 +24,7 @@ TRACKED_FIELDS: list[tuple[str, str]] = [
     ('serial_number', 'Serial'),
     ('configuration', 'Cấu hình'),
     ('description', 'Mô tả'),
-    ('contact_email', 'Email'),
+    ('photo', 'Hình ảnh'),
     ('quantity', 'Số lượng'),
     ('unit_price', 'Đơn giá'),
     ('hostname', 'Hostname'),
@@ -49,6 +49,10 @@ def _display_value(device: Device, field: str):
         return device.handover_date.strftime('%d/%m/%Y') if device.handover_date else '—'
     if field == 'unit_price':
         return str(int(device.unit_price or 0))
+    if field == 'photo':
+        if device.photo:
+            return device.photo.name.rsplit('/', 1)[-1]
+        return '—'
     value = getattr(device, field, None)
     if value in (None, ''):
         return '—'

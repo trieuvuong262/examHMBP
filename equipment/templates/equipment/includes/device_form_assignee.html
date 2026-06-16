@@ -1,0 +1,4 @@
+<label class="form-label fw-semibold">{{ form.assigned_user.label }}</label>
+{% user_picker field=form.assigned_user mode='single' placeholder='Chọn người sử dụng...' show_bulk_actions=False show_org_meta=True %}
+{% if form.assigned_user.errors %}<div class="text-danger small">{{ form.assigned_user.errors }}</div>{% endif %}
+<div class="form-text">Ưu tiên nhân viên cấp dưới của bạn (giống chọn cấp dưới trong Nhân sự).</div>

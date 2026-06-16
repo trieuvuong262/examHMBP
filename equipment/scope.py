@@ -75,6 +75,7 @@ def scope_urls(scope: str | None) -> dict[str, str]:
         'device_add': scope_url_name('device_add', scope),
         'import_export_hub': scope_url_name('import_export_hub', scope),
         'category_list': scope_url_name('category_list', scope),
+        'status_list': scope_url_name('status_list', scope),
         'export_devices': scope_url_name('export_devices', scope),
         'download_sample': scope_url_name('download_sample', scope),
         'import_devices': scope_url_name('import_devices', scope),

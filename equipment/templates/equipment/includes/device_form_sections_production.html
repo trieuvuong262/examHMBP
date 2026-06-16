@@ -13,6 +13,9 @@
         <div class="col-md-4">
             <label class="form-label fw-semibold" for="{{ form.status.id_for_label }}">{{ form.status.label }}</label>
             {{ form.status }}
+            <div class="form-text">
+                <a href="{{ equipment_urls.status_list }}" class="text-decoration-none">Quản lý trạng thái</a>
+            </div>
         </div>
         <div class="col-md-4">
             <label class="form-label fw-semibold" for="{{ form.category.id_for_label }}">{{ form.category.label }}</label>
@@ -28,7 +31,10 @@
                 </optgroup>
                 {% endfor %}
             </select>
-            <div class="form-text">Chỉ loại máy xưởng (may, cắt, ủi, bàn ủi…).</div>
+            <div class="form-text">
+                Chỉ loại máy xưởng (may, cắt, ủi, bàn ủi…).
+                <a href="{{ equipment_urls.category_list }}" class="text-decoration-none">Quản lý loại</a>
+            </div>
         </div>
         <div class="col-md-4">
             <label class="form-label fw-semibold" for="{{ form.managed_department.id_for_label }}">{{ form.managed_department.label }}</label>
@@ -64,9 +70,7 @@
             <div class="form-text">Ngày đưa máy vào chuyền / bàn giao vận hành.</div>
         </div>
         <div class="col-md-6">
-            <label class="form-label fw-semibold" for="{{ form.assigned_user.id_for_label }}">{{ form.assigned_user.label }}</label>
-            {{ form.assigned_user }}
-            <div class="form-text">Tổ trưởng / người phụ trách máy.</div>
+            {% include 'equipment/includes/device_form_assignee.html' %}
         </div>
         <div class="col-md-6">
             <label class="form-label fw-semibold" for="{{ form.assigned_user_text.id_for_label }}">{{ form.assigned_user_text.label }}</label>

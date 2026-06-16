@@ -40,6 +40,7 @@ from equipment.services.device_categories import (
     category_map,
     valid_codes,
 )
+from equipment.services.device_statuses import status_choices
 
 from .forms import DeviceForm, ReportIssueForm
 from .models import Device, MaintenanceLog
@@ -459,7 +460,7 @@ def device_list(request, equipment_scope=SCOPE_IT):
         'managed_departments': Department.objects.filter(is_active=True).order_by('sort_order', 'name'),
         'category_choices': category_choices(),
         'category_groups': categories_by_group_for_scope(equipment_scope),
-        'status_choices': Device.STATUS_CHOICES,
+        'status_choices': status_choices(),
         'can_edit': user_can_edit_module(request.user, MODULE_EQUIPMENT),
         'can_edit_equipment': user_can_edit_module(request.user, MODULE_EQUIPMENT),
         'can_export': user_can_export_module(request.user, MODULE_EQUIPMENT),
@@ -472,7 +473,11 @@ def device_add(request, equipment_scope=SCOPE_IT):
     from equipment.services.managed_department import default_managed_department_for_scope
 
     if request.method == 'POST':
-        form = DeviceForm(request.POST, equipment_scope=equipment_scope)
+        form = DeviceForm(
+            request.POST, request.FILES,
+            equipment_scope=equipment_scope,
+            editor_user=request.user,
+        )
         if form.is_valid():
             device = form.save(commit=False)
             if not form.cleaned_data.get('managed_department'):
@@ -484,7 +489,7 @@ def device_add(request, equipment_scope=SCOPE_IT):
             messages.success(request, 'Đã thêm thiết bị mới.')
             return _redirect_device_list(equipment_scope)
     else:
-        form = DeviceForm(equipment_scope=equipment_scope)
+        form = DeviceForm(equipment_scope=equipment_scope, editor_user=request.user)
     return render(request, 'equipment/device_form.html', {
         'form': form,
         'is_edit': False,
@@ -616,7 +621,12 @@ def device_detail_manage(request, device_id):
         if not can_edit:
             messages.error(request, 'Bạn không có quyền sửa thiết bị.')
             return redirect('equipment:device_detail_manage', device_id=device.id)
-        form = DeviceForm(request.POST, instance=device, equipment_scope=merge_scope_context(request, device=device).get('equipment_scope'))
+        form = DeviceForm(
+            request.POST, request.FILES,
+            instance=device,
+            equipment_scope=merge_scope_context(request, device=device).get('equipment_scope'),
+            editor_user=request.user,
+        )
         if form.is_valid():
             from equipment.services.device_update_log import log_device_update
 
@@ -636,7 +646,11 @@ def device_detail_manage(request, device_id):
             return redirect('equipment:device_detail_manage', device_id=device.id)
     elif can_edit:
         scope_ctx = merge_scope_context(request, device=device)
-        form = DeviceForm(instance=device, equipment_scope=scope_ctx.get('equipment_scope'))
+        form = DeviceForm(
+            instance=device,
+            equipment_scope=scope_ctx.get('equipment_scope'),
+            editor_user=request.user,
+        )
 
     logs = device.logs.select_related('service_request').order_by('-created_at')[:10]
     shared_users = list(get_registered_users(device)) if device.is_shared_pc else []
@@ -836,7 +850,11 @@ def category_add(request, equipment_scope=SCOPE_IT):
             messages.success(request, f'Đã thêm loại «{form.instance.name}».')
             return _redirect_category_list(equipment_scope)
     else:
-        form = DeviceCategoryForm()
+        from equipment.models import DeviceCategory
+        from equipment.services.scope_ui import is_it_scope
+
+        profile = DeviceCategory.IMPORT_IT if is_it_scope(equipment_scope) else DeviceCategory.IMPORT_MACHINE
+        form = DeviceCategoryForm(initial={'import_profile': profile})
     return render(request, 'equipment/category_form.html', {
         'form': form,
         'is_edit': False,
@@ -881,6 +899,88 @@ def category_delete(request, pk, equipment_scope=SCOPE_IT):
     category.delete()
     messages.success(request, f'Đã xóa loại «{name}».')
     return _redirect_category_list(equipment_scope)
+
+
+def _redirect_status_list(equipment_scope=None):
+    return redirect(scope_urls(equipment_scope or SCOPE_IT)['status_list'])
+
+
+@_access_required
+def status_list(request, equipment_scope=SCOPE_IT):
+    from equipment.models import DeviceStatus
+
+    search = (request.GET.get('q') or '').strip()
+    qs = DeviceStatus.objects.all()
+    if search:
+        qs = qs.filter(Q(code__icontains=search) | Q(name__icontains=search))
+    statuses = qs.order_by('sort_order', 'name')
+    return render(request, 'equipment/status_list.html', {
+        'statuses': statuses,
+        'search_query': search,
+        **_subnav_context(request, equipment_scope),
+    })
+
+
+@_create_required
+@require_http_methods(['GET', 'POST'])
+def status_add(request, equipment_scope=SCOPE_IT):
+    from equipment.forms import DeviceStatusForm
+
+    if request.method == 'POST':
+        form = DeviceStatusForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Đã thêm trạng thái «{form.instance.name}».')
+            return _redirect_status_list(equipment_scope)
+    else:
+        form = DeviceStatusForm()
+    return render(request, 'equipment/status_form.html', {
+        'form': form,
+        'is_edit': False,
+        **_subnav_context(request, equipment_scope),
+    })
+
+
+@_update_required
+@require_http_methods(['GET', 'POST'])
+def status_edit(request, pk, equipment_scope=SCOPE_IT):
+    from equipment.forms import DeviceStatusForm
+    from equipment.models import DeviceStatus
+
+    status = get_object_or_404(DeviceStatus, pk=pk)
+    if request.method == 'POST':
+        form = DeviceStatusForm(request.POST, instance=status)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Đã cập nhật trạng thái.')
+            return _redirect_status_list(equipment_scope)
+    else:
+        form = DeviceStatusForm(instance=status)
+    return render(request, 'equipment/status_form.html', {
+        'form': form,
+        'status': status,
+        'is_edit': True,
+        **_subnav_context(request, equipment_scope),
+    })
+
+
+@_delete_required
+@require_http_methods(['POST'])
+def status_delete(request, pk, equipment_scope=SCOPE_IT):
+    from equipment.models import Device, DeviceStatus
+
+    status = get_object_or_404(DeviceStatus, pk=pk)
+    if status.is_system:
+        messages.error(request, 'Không xóa được trạng thái hệ thống.')
+        return _redirect_status_list(equipment_scope)
+    in_use = Device.objects.filter(status=status.code).count()
+    if in_use:
+        messages.error(request, f'Không xóa được — còn {in_use} thiết bị đang dùng trạng thái này.')
+        return _redirect_status_list(equipment_scope)
+    name = status.name
+    status.delete()
+    messages.success(request, f'Đã xóa trạng thái «{name}».')
+    return _redirect_status_list(equipment_scope)
 
 
 @_delete_required

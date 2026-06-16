@@ -71,6 +71,9 @@ class Device(models.Model):
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default=STATUS_NEW, verbose_name='Trạng thái',
     )
+    photo = models.ImageField(
+        upload_to='equipment/photos/', blank=True, null=True, verbose_name='Hình ảnh thiết bị',
+    )
     qr_code = models.ImageField(upload_to='equipment/qr_codes/', blank=True, null=True)
     quantity = models.PositiveIntegerField(default=1, verbose_name='Số lượng')
     unit_price = models.DecimalField(max_digits=15, decimal_places=0, default=0, verbose_name='Đơn giá (VNĐ)')
@@ -102,6 +105,10 @@ class Device(models.Model):
     def get_category_display(self):
         from equipment.services.device_categories import category_label
         return category_label(self.category)
+
+    def get_status_display(self):
+        from equipment.services.device_statuses import status_label
+        return status_label(self.status)
 
     @property
     def managed_department_label(self):
@@ -204,6 +211,28 @@ class Device(models.Model):
                 kwargs['update_fields'] = fields
 
         super().save(*args, **kwargs)
+
+
+class DeviceStatus(models.Model):
+    code = models.CharField(max_length=20, unique=True, verbose_name='Mã trạng thái')
+    name = models.CharField(max_length=100, verbose_name='Tên hiển thị')
+    sort_order = models.PositiveIntegerField(default=0, verbose_name='Thứ tự')
+    is_active = models.BooleanField(default=True, verbose_name='Đang dùng')
+    is_system = models.BooleanField(default=False, verbose_name='Trạng thái hệ thống')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['sort_order', 'name']
+        verbose_name = 'Trạng thái thiết bị'
+        verbose_name_plural = 'Trạng thái thiết bị'
+
+    def __str__(self):
+        return f'{self.name} ({self.code})'
+
+    @property
+    def device_count(self):
+        return Device.objects.filter(status=self.code).count()
 
 
 class DeviceCategory(models.Model):

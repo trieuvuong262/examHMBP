@@ -1,9 +1,8 @@
 from django import forms
-from django.contrib.auth import get_user_model
 
 from hrm.models import Department
 
-from .models import Device, DeviceCategory
+from .models import Device, DeviceCategory, DeviceStatus
 
 
 class DeviceForm(forms.ModelForm):
@@ -26,6 +25,7 @@ class DeviceForm(forms.ModelForm):
             'description',
             'contact_email',
             'status',
+            'photo',
             'quantity',
             'unit_price',
             'hostname',
@@ -50,6 +50,10 @@ class DeviceForm(forms.ModelForm):
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
             'contact_email': forms.EmailInput(attrs={'class': 'form-control'}),
             'status': forms.Select(attrs={'class': 'form-select'}),
+            'photo': forms.ClearableFileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/jpeg,image/png,image/gif,image/webp,image/bmp',
+            }),
             'quantity': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
             'unit_price': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
             'hostname': forms.TextInput(attrs={'class': 'form-control'}),
@@ -67,13 +71,16 @@ class DeviceForm(forms.ModelForm):
             }),
         }
 
-    def __init__(self, *args, equipment_scope=None, **kwargs):
+    def __init__(self, *args, equipment_scope=None, editor_user=None, **kwargs):
         super().__init__(*args, **kwargs)
+        from equipment.services.assignee_users import equipment_assignee_queryset
         from equipment.services.device_categories import category_label
+        from equipment.services.device_statuses import status_choices
         from equipment.services.managed_department import default_managed_department_for_scope
         from equipment.services.scope_ui import categories_by_group_for_scope, is_it_scope
 
         self._equipment_scope = equipment_scope
+        self._editor_user = editor_user
         from equipment.services.device_categories import categories_by_group
 
         grouped = (
@@ -107,6 +114,15 @@ class DeviceForm(forms.ModelForm):
         category_field.extra_option = extra_option
         self.fields['category'] = category_field
 
+        status_field = forms.ChoiceField(
+            choices=status_choices(),
+            widget=forms.Select(attrs={'class': 'form-select'}),
+            required=True,
+            label=Device._meta.get_field('status').verbose_name,
+            initial=(self.instance.status if self.instance and self.instance.pk else Device.STATUS_NEW),
+        )
+        self.fields['status'] = status_field
+
         self.fields['usage_department'].queryset = Department.objects.filter(is_active=True).order_by('sort_order', 'name')
         self.fields['usage_department'].required = False
 
@@ -117,14 +133,18 @@ class DeviceForm(forms.ModelForm):
             if default_dept:
                 self.fields['managed_department'].initial = default_dept.pk
 
-        User = get_user_model()
-        self.fields['assigned_user'].queryset = (
-            User.objects.filter(profile__is_employed=True)
-            .select_related('profile')
-            .order_by('profile__full_name', 'username')
+        current_assignee_id = self.instance.assigned_user_id if self.instance and self.instance.pk else None
+        self.fields['assigned_user'].queryset = equipment_assignee_queryset(
+            editor_user,
+            current_user_id=current_assignee_id,
         )
         self.fields['assigned_user'].label_from_instance = self._user_choice_label
         self.fields['assigned_user'].required = False
+        self.fields['assigned_user'].widget = forms.Select(attrs={
+            'class': 'form-select d-none jp-user-picker-native',
+        })
+        self.fields['photo'].required = False
+        self.fields['photo'].help_text = 'JPG, PNG, GIF hoặc WebP — tối đa 10 MB.'
         self.fields['device_code'].required = False
         self.fields['device_code'].help_text = 'Để trống để hệ thống tự sinh mã (TB-000001).'
 
@@ -197,6 +217,29 @@ class DeviceForm(forms.ModelForm):
             return normalized
         raise forms.ValidationError('Loại thiết bị không hợp lệ.')
 
+    def clean_status(self):
+        from equipment.services.device_statuses import normalize_status_value, valid_status_codes
+
+        value = (self.cleaned_data.get('status') or '').strip()
+        if not value:
+            raise forms.ValidationError('Vui lòng chọn trạng thái.')
+        normalized = normalize_status_value(value) or value
+        if normalized in valid_status_codes():
+            return normalized
+        if self.instance.pk and self.instance.status == normalized:
+            return normalized
+        raise forms.ValidationError('Trạng thái không hợp lệ.')
+
+    def clean_photo(self):
+        from tasks.attachment_utils import validate_image_file
+
+        photo = self.cleaned_data.get('photo')
+        if photo is False:
+            return photo
+        if photo:
+            validate_image_file(photo)
+        return photo
+
     def clean_device_code(self):
         from equipment.services.device_code import normalize_device_code
 
@@ -241,6 +284,34 @@ class DeviceCategoryForm(forms.ModelForm):
             return self.instance.code
         if DeviceCategory.objects.filter(code=code).exists():
             raise forms.ValidationError('Mã loại đã tồn tại.')
+        return code
+
+
+class DeviceStatusForm(forms.ModelForm):
+    class Meta:
+        model = DeviceStatus
+        fields = ['code', 'name', 'sort_order', 'is_active']
+        widgets = {
+            'code': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'VD: active'}),
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'sort_order': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            self.fields['code'].disabled = True
+        self.fields['code'].help_text = 'Mã duy nhất — không đổi sau khi tạo.'
+
+    def clean_code(self):
+        code = (self.cleaned_data.get('code') or '').strip().lower().replace(' ', '_')
+        if not code:
+            raise forms.ValidationError('Vui lòng nhập mã trạng thái.')
+        if self.instance.pk:
+            return self.instance.code
+        if DeviceStatus.objects.filter(code=code).exists():
+            raise forms.ValidationError('Mã trạng thái đã tồn tại.')
         return code
 
 

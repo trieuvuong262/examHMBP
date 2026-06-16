@@ -545,6 +545,7 @@ class DeviceFormCategoryTests(TestCase):
                 'description': '',
                 'contact_email': '',
                 'status': Device.STATUS_ACTIVE,
+                'photo': '',
                 'quantity': 1,
                 'unit_price': 0,
                 'hostname': '',
@@ -557,6 +558,84 @@ class DeviceFormCategoryTests(TestCase):
         device.refresh_from_db()
         self.assertEqual(device.name, 'May test 2')
         self.assertTrue(device.qr_code)
+
+
+class DeviceStatusCrudTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from django.test import Client
+
+        User = get_user_model()
+        self.user = User.objects.create_superuser(username='eq_status_admin', password='x', email='s@test.com')
+        self.client = Client(HTTP_HOST='testserver')
+        self.client.login(username='eq_status_admin', password='x')
+
+    def test_status_list_and_seed_data(self):
+        from django.urls import reverse
+
+        from equipment.models import DeviceStatus
+
+        self.assertGreaterEqual(DeviceStatus.objects.count(), 5)
+        response = self.client.get(reverse('equipment:status_list_it'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Đang hoạt động')
+
+    def test_status_form_save_and_delete(self):
+        from equipment.forms import DeviceStatusForm
+        from equipment.models import DeviceStatus
+
+        form = DeviceStatusForm({
+            'code': 'stored',
+            'name': 'Lưu kho',
+            'sort_order': 50,
+            'is_active': True,
+        })
+        self.assertTrue(form.is_valid(), form.errors)
+        row = form.save()
+        self.assertEqual(row.name, 'Lưu kho')
+
+        row.delete()
+        self.assertFalse(DeviceStatus.objects.filter(code='stored').exists())
+
+    def test_status_label_from_db(self):
+        from equipment.models import Device, DeviceStatus
+        from equipment.services.device_statuses import status_label
+
+        DeviceStatus.objects.update_or_create(
+            code='active',
+            defaults={'name': 'Hoạt động OK', 'sort_order': 10, 'is_active': True},
+        )
+        device = Device.objects.create(name='PC', category='PC', status='active')
+        self.assertEqual(status_label('active'), 'Hoạt động OK')
+        self.assertEqual(device.get_status_display(), 'Hoạt động OK')
+
+
+class DeviceFormAssigneeTests(TestCase):
+    def test_assignee_queryset_prefers_subordinates(self):
+        from django.contrib.auth import get_user_model
+
+        from equipment.forms import DeviceForm
+        from equipment.services.assignee_users import equipment_assignee_queryset
+
+        User = get_user_model()
+        manager = User.objects.create_user(username='mgr_eq', password='x')
+        sub = User.objects.create_user(username='sub_eq', password='x')
+        User.objects.create_user(username='other_eq', password='x')
+        for u, name in ((manager, 'Quản lý'), (sub, 'Cấp dưới')):
+            profile = u.profile
+            profile.full_name = name
+            profile.is_employed = True
+            profile.save(update_fields=['full_name', 'is_employed'])
+        manager.profile.subordinates.add(sub)
+
+        qs = equipment_assignee_queryset(manager)
+        self.assertEqual(list(qs.values_list('username', flat=True)), ['sub_eq'])
+
+        form = DeviceForm(equipment_scope='it', editor_user=manager)
+        self.assertEqual(
+            list(form.fields['assigned_user'].queryset.values_list('username', flat=True)),
+            ['sub_eq'],
+        )
 
 
 class DeviceCodeTests(TestCase):

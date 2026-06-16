@@ -1,0 +1,19 @@
+<div class="jp-eq-form-section mb-4">
+    <h6 class="fw-bold text-hm mb-3"><i class="bi bi-image me-1"></i>Hình ảnh thiết bị</h6>
+    <div class="row g-3 align-items-start">
+        {% if form.instance.pk and form.instance.photo %}
+        <div class="col-auto">
+            <img src="{{ form.instance.photo.url }}?v={{ form.instance.updated_at|date:'U' }}"
+                 alt="Ảnh {{ form.instance.name }}"
+                 class="rounded border shadow-sm"
+                 style="max-width: 160px; max-height: 160px; object-fit: cover;">
+        </div>
+        {% endif %}
+        <div class="col">
+            <label class="form-label fw-semibold" for="{{ form.photo.id_for_label }}">{{ form.photo.label }}</label>
+            {{ form.photo }}
+            {% if form.photo.help_text %}<div class="form-text">{{ form.photo.help_text }}</div>{% endif %}
+            {% if form.photo.errors %}<div class="text-danger small">{{ form.photo.errors }}</div>{% endif %}
+        </div>
+    </div>
+</div>

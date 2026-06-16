@@ -10,13 +10,21 @@
             <i class="bi bi-speedometer2 me-1"></i>Tổng quan
         </a>
         <a href="{{ equipment_urls.device_list }}"
-           class="btn btn-sm {% if request.resolver_match.url_name == 'device_list_it' or request.resolver_match.url_name == 'device_list_production' or request.resolver_match.url_name == 'device_add_it' or request.resolver_match.url_name == 'device_add_production' or request.resolver_match.url_name == 'device_edit' or request.resolver_match.url_name == 'device_detail_manage' or request.resolver_match.url_name == 'import_export_hub_it' or request.resolver_match.url_name == 'import_export_hub_production' or request.resolver_match.url_name == 'import_devices_it' or request.resolver_match.url_name == 'import_devices_production' or request.resolver_match.url_name == 'category_list_it' or request.resolver_match.url_name == 'category_list_production' or request.resolver_match.url_name == 'category_add_it' or request.resolver_match.url_name == 'category_add_production' or request.resolver_match.url_name == 'category_edit_it' or request.resolver_match.url_name == 'category_edit_production' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
+           class="btn btn-sm {% if request.resolver_match.url_name == 'device_list_it' or request.resolver_match.url_name == 'device_list_production' or request.resolver_match.url_name == 'device_add_it' or request.resolver_match.url_name == 'device_add_production' or request.resolver_match.url_name == 'device_edit' or request.resolver_match.url_name == 'device_detail_manage' or request.resolver_match.url_name == 'import_export_hub_it' or request.resolver_match.url_name == 'import_export_hub_production' or request.resolver_match.url_name == 'import_devices_it' or request.resolver_match.url_name == 'import_devices_production' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
             <i class="bi bi-hdd-stack me-1"></i>Danh sách thiết bị
         </a>
         <a href="{{ equipment_urls.it_repair_list }}"
            class="btn btn-sm {% if 'it_repair' in request.resolver_match.url_name %}btn-hm{% else %}btn-outline-secondary{% endif %}">
             <i class="bi bi-tools me-1"></i>Hỗ trợ kỹ thuật
             {% if it_repair_pending_count %}<span class="badge bg-danger ms-1">{{ it_repair_pending_count }}</span>{% endif %}
+        </a>
+        <a href="{{ equipment_urls.category_list }}"
+           class="btn btn-sm {% if 'category_' in request.resolver_match.url_name %}btn-hm{% else %}btn-outline-secondary{% endif %}">
+            <i class="bi bi-tags me-1"></i>Loại thiết bị
+        </a>
+        <a href="{{ equipment_urls.status_list }}"
+           class="btn btn-sm {% if 'status_' in request.resolver_match.url_name %}btn-hm{% else %}btn-outline-secondary{% endif %}">
+            <i class="bi bi-activity me-1"></i>Trạng thái
         </a>
     </div>
 </nav>

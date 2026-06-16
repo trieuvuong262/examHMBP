@@ -4,6 +4,7 @@ from .models import (
     AgentInstallToken,
     Device,
     DeviceCategory,
+    DeviceStatus,
     EquipmentScanControl,
     MaintenanceLog,
     UserAgentRegistration,
@@ -50,7 +51,7 @@ class DeviceAdmin(admin.ModelAdmin):
     inlines = [MaintenanceLogInline]
     fieldsets = (
         ('Thiết bị', {
-            'fields': ('device_code', 'name', 'category', 'status', 'managed_department', 'description'),
+            'fields': ('device_code', 'name', 'category', 'status', 'managed_department', 'description', 'photo'),
         }),
         ('Người dùng & phòng ban', {
             'fields': (
@@ -91,6 +92,14 @@ class DeviceCategoryAdmin(admin.ModelAdmin):
     list_filter = ('group', 'import_profile', 'is_active')
     search_fields = ('code', 'name')
     ordering = ('group', 'sort_order', 'name')
+
+
+@admin.register(DeviceStatus)
+class DeviceStatusAdmin(admin.ModelAdmin):
+    list_display = ('code', 'name', 'sort_order', 'is_active', 'is_system')
+    list_filter = ('is_active', 'is_system')
+    search_fields = ('code', 'name')
+    ordering = ('sort_order', 'name')
 
 
 @admin.register(MaintenanceLog)
