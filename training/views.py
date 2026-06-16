@@ -5,7 +5,6 @@ from django.core.paginator import Paginator
 from django.db.models import Count
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.utils import timezone
 from django.views.decorators.http import require_POST
 import json
 
@@ -55,7 +54,8 @@ def my_courses(request):
     course_data = []
     for course in assigned_courses_qs:
         enrollment, created = Enrollment.objects.get_or_create(user=user, course=course)
-        
+        enrollment.sync_completion_status()
+
         status = 'not_started'
         if enrollment.is_completed:
             status = 'completed'
@@ -100,6 +100,7 @@ def my_courses(request):
 def learning_space(request, course_id, lesson_id=None):
     course = get_object_or_404(Course, id=course_id, is_active=True)
     enrollment, _ = Enrollment.objects.get_or_create(user=request.user, course=course)
+    enrollment.sync_completion_status()
 
     chapters = course.chapters.all().prefetch_related('lessons')
 
@@ -149,26 +150,20 @@ def mark_lesson_complete(request, lesson_id):
 
         course = lesson.chapter.course
         enrollment = Enrollment.objects.get(user=request.user, course=course)
-        is_course_finished = False
+        is_course_finished = enrollment.sync_completion_status()
         exam_url = None
 
-        if enrollment.progress_percent >= 100.0:
-            enrollment.is_completed = True
-            enrollment.completed_at = timezone.now()
-            enrollment.save()
-            is_course_finished = True
+        if is_course_finished and course.final_exam_id:
+            from assessment.models import ExamSubmission
+            from django.urls import reverse
 
-            if course.final_exam_id:
-                from assessment.models import ExamSubmission
-                from django.urls import reverse
-
-                already_submitted = ExamSubmission.objects.filter(
-                    user=request.user,
-                    exam_id=course.final_exam_id,
-                    is_completed=True,
-                ).exists()
-                if not already_submitted:
-                    exam_url = reverse('take_exam', args=[course.final_exam_id])
+            already_submitted = ExamSubmission.objects.filter(
+                user=request.user,
+                exam_id=course.final_exam_id,
+                is_completed=True,
+            ).exists()
+            if not already_submitted:
+                exam_url = reverse('take_exam', args=[course.final_exam_id])
 
         return JsonResponse({
             'status': 'success',

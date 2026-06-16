@@ -95,16 +95,46 @@ class Enrollment(models.Model):
     @property
     def progress_percent(self):
         total_lessons = Lesson.objects.filter(chapter__course=self.course).count()
-        if total_lessons == 0: 
+        if total_lessons == 0:
             return 0
-        
+
         completed_lessons = LessonProgress.objects.filter(
-            user=self.user, 
-            lesson__chapter__course=self.course, 
+            user=self.user,
+            lesson__chapter__course=self.course,
             is_completed=True
         ).count()
-        
+
         return round((completed_lessons / total_lessons) * 100, 1)
+
+    def sync_completion_status(self, *, save=True):
+        """Đồng bộ cờ is_completed theo số bài đã hoàn thành."""
+        from django.utils import timezone
+
+        total_lessons = Lesson.objects.filter(chapter__course=self.course).count()
+        if total_lessons == 0:
+            return False
+
+        completed_lessons = LessonProgress.objects.filter(
+            user=self.user,
+            lesson__chapter__course=self.course,
+            is_completed=True,
+        ).count()
+        all_done = completed_lessons >= total_lessons
+        changed = False
+
+        if all_done and not self.is_completed:
+            self.is_completed = True
+            if not self.completed_at:
+                self.completed_at = timezone.now()
+            changed = True
+        elif not all_done and self.is_completed:
+            self.is_completed = False
+            self.completed_at = None
+            changed = True
+
+        if changed and save:
+            self.save(update_fields=['is_completed', 'completed_at'])
+        return all_done
 class LessonProgress(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Nhân viên")
     lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, verbose_name="Bài học")

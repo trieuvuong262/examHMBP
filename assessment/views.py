@@ -30,7 +30,7 @@ from PortalJustPlay.list_search import apply_term_search, get_search_query, sear
 from PortalJustPlay.pagination import paginate_queryset
 from kpi.models import YearlyKpi, KpiPeriod  # Import đúng Model mới
 from hrm.permissions import is_manager, is_portal_admin
-from tools.catalog import PORTAL_TOOLS, get_portal_tool_groups
+from tools.catalog import get_portal_tool_groups
 from .portal_widgets import get_portal_dashboard
 from .models import (
     Exam, 
@@ -41,12 +41,7 @@ from .models import (
     Competency
 )
 
-from .forms import (
-    ExamForm, 
-    QuestionForm, 
-    ChoiceFormSet,
-    UserForm 
-)
+from .scoring import grade_mc_answer, rescore_submission
 
 
 @login_required
@@ -65,7 +60,6 @@ def login_redirect_view(request):
 @login_required
 def home_portal(request):
     return render(request, 'portal.html', {
-        'portal_tools': PORTAL_TOOLS,
         'portal_tool_groups': get_portal_tool_groups(),
         'dashboard_widgets': get_portal_dashboard(request.user),
     })
@@ -209,29 +203,18 @@ def take_exam(request, exam_id):
             return redirect('exam_list')
 
         questions = exam.ordered_questions()
-        total_auto_score = 0
-        needs_manual_grading = False # THÊM CỜ NÀY ĐỂ THEO DÕI
+        needs_manual_grading = False
 
         for q in questions:
             answer_obj, _ = UserAnswer.objects.get_or_create(submission=submission, question=q)
-            
+
             if q.q_type in ['single', 'multiple']:
                 choice_ids = request.POST.getlist(f'q_{q.id}')
                 if choice_ids:
                     answer_obj.selected_choices.set(choice_ids)
-                
-                if q.q_type == 'single' and choice_ids:
-                    correct_choice = q.choices.filter(is_correct=True).first()
-                    if correct_choice and str(correct_choice.id) == choice_ids[0]:
-                        total_auto_score += q.points
-                        answer_obj.graded_score = q.points 
-                        
-                elif q.q_type == 'multiple' and choice_ids:
-                    correct_ids = list(q.choices.filter(is_correct=True).values_list('id', flat=True))
-                    selected_ids = [int(i) for i in choice_ids]
-                    if sorted(correct_ids) == sorted(selected_ids):
-                        total_auto_score += q.points
-                        answer_obj.graded_score = q.points 
+                else:
+                    answer_obj.selected_choices.clear()
+                answer_obj.graded_score = grade_mc_answer(q, choice_ids)
 
             elif q.q_type == 'essay':
                 essay_text = request.POST.get(f'q_{q.id}', '').strip()
@@ -246,8 +229,8 @@ def take_exam(request, exam_id):
             
             answer_obj.save()
 
-        submission.auto_score = total_auto_score
-        submission.submitted_at = timezone.now() 
+        rescore_submission(submission)
+        submission.submitted_at = timezone.now()
         
         if needs_manual_grading:
             submission.is_completed = False 
@@ -611,10 +594,10 @@ def grade_submission(request, submission_id):
     )
     
     if not answers.exists():
+        rescore_submission(submission)
         if not submission.is_completed:
-            submission.manual_score = 0.0
             submission.is_completed = True
-            submission.save()
+            submission.save(update_fields=['is_completed'])
             messages.info(request, f"Bài thi của {submission.user.username} 100% trắc nghiệm, đã được máy chấm xong.")
         else:
             messages.info(request, "Bài thi này không có nội dung cần chấm tay.")
@@ -633,6 +616,7 @@ def grade_submission(request, submission_id):
                 score = answer.question.points
             
             answer.graded_score = score
+            answer.is_graded = True
             comment = request.POST.get(f'comment_{answer.id}', '')
             if hasattr(answer, 'admin_comment'):
                 answer.admin_comment = comment
@@ -643,6 +627,7 @@ def grade_submission(request, submission_id):
         submission.manual_score = total_manual
         submission.is_completed = True
         submission.save()
+        rescore_submission(submission)
         
         messages.success(request, f"Đã cập nhật điểm tay cho thí sinh {submission.user.username}")
         return redirect('admin_results')
