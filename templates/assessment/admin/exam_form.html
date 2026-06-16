@@ -64,6 +64,18 @@
 
     .x-small { font-size: 0.75rem; }
     .sticky-header { position: sticky; top: 0; z-index: 100; background: white; }
+    .jp-exam-questions-scroll {
+        max-height: min(70vh, 640px);
+        overflow-y: auto;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .jp-exam-questions-card.card-hm {
+        overflow: visible;
+    }
+    .jp-exam-questions-card .card-body {
+        overflow: visible;
+    }
     .btn-hover-lift { transition: transform 0.2s ease; }
     .btn-hover-lift:hover { transform: translateY(-2px); }
 </style>
@@ -183,7 +195,7 @@
 
         <div class="col-lg-8">
             {% if exam.id %}
-            <div class="card card-hm shadow-sm">
+            <div class="card card-hm shadow-sm jp-exam-questions-card">
                 <div class="card-header-hm d-flex justify-content-between align-items-center">
                     <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-journal-text me-2 text-hm"></i>DANH SÁCH CÂU HỎI TRONG ĐỀ</h6>
                     <div class="d-flex gap-2">
@@ -200,11 +212,12 @@
                     </div>
                 </div>
                 <div class="card-body p-0">
-                    <div class="table-responsive" style="max-height: 70vh;">
+                    <div class="table-responsive jp-exam-questions-scroll">
                         <table class="table table-hover align-middle mb-0">
                             <thead class="bg-light sticky-header shadow-sm">
                                 <tr>
-                                    <th class="ps-4 py-3" style="width: 50%;">Nội dung câu hỏi</th>
+                                    <th class="ps-4 py-3 text-center" style="width: 3rem;">#</th>
+                                    <th class="py-3" style="width: 46%;">Nội dung câu hỏi</th>
                                     <th>Loại</th>
                                     <th class="text-center">Điểm</th>
                                     <th class="text-end pe-4">Thao tác</th>
@@ -213,7 +226,8 @@
                             <tbody>
                                 {% for q in questions %}
                                 <tr>
-                                    <td class="ps-4 py-3">
+                                    <td class="ps-4 py-3 text-center text-muted fw-bold">{{ forloop.counter }}</td>
+                                    <td class="py-3">
                                         <div class="fw-bold text-dark mb-1">{{ q.content|truncatewords:15 }}</div>
                                         <span class="badge bg-primary-soft text-hm x-small fw-bold">{{ q.competency.name }}</span>
                                     </td>
@@ -235,7 +249,7 @@
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="4" class="text-center py-5">
+                                    <td colspan="5" class="text-center py-5">
                                         <i class="bi bi-inbox-fill display-1 text-light opacity-50"></i>
                                         <p class="text-muted mt-3 fw-bold">Đề thi chưa có câu hỏi nào.</p>
                                     </td>
@@ -246,7 +260,8 @@
                     </div>
                 </div>
                 <div class="card-footer bg-white py-3 border-0 text-end">
-                    <span class="text-muted small fw-bold">Tổng: <span class="text-hm fs-5">{{ questions.count }}</span> câu hỏi</span>
+                    <span class="text-muted small fw-bold">Tổng: <span class="text-hm fs-5">{{ questions|length }}</span> câu hỏi</span>
+                    <span class="text-muted x-small ms-2">(cuộn bảng để xem thêm)</span>
                 </div>
             </div>
             {% else %}

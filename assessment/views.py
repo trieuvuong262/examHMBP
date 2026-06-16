@@ -352,7 +352,7 @@ def exam_create(request):
 @module_perm_required(MODULE_ASSESSMENT, 'update')
 def exam_edit(request, pk):
     exam = get_object_or_404(Exam, pk=pk)
-    questions_in_exam = exam.questions.all().order_by('-created_at')
+    questions_in_exam = exam.questions.all().order_by('id')
     
     question_bank = Question.objects.exclude(id__in=questions_in_exam.values_list('id', flat=True))
 
