@@ -179,7 +179,7 @@ INSTALLED_APPS = [
     # Custom Apps
     'assessment',
     'training',
-    'recruitment',
+    'recruitment.apps.RecruitmentConfig',
     'reports',
     'hrm',
     'kpi',
