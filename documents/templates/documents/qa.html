@@ -11,16 +11,16 @@
         </div>
     </div>
 
-    {% include 'documents/includes/qa_admin_bar.html' with is_admin=is_admin %}
+    {% include 'documents/includes/qa_admin_bar.html' %}
 
     {% if not qa_enabled %}
     <div class="alert alert-warning border-0 shadow-sm">
         <i class="bi bi-exclamation-triangle me-2"></i>
         Trợ lý AI chưa được "đánh thức".
-        {% if is_admin %}
-        <a href="{% url 'documents:admin_qa_settings' %}" class="alert-link fw-semibold">Cấu hình ngay</a>.
+        {% if can_configure_qa %}
+        <a href="{% url 'audit:qa_assistant' %}" class="alert-link fw-semibold">Cấu hình ngay</a>.
         {% else %}
-        Nhờ quản trị viên hoặc IT bật trong Cấu hình AI.
+        Nhờ quản trị viên hoặc IT bật trong Quản Trị Hệ thống → Trợ lý AI.
         {% endif %}
     </div>
     {% endif %}

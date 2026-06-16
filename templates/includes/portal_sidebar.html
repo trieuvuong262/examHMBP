@@ -714,6 +714,15 @@
                     </a>
                 </li>
                 {% endif %}
+                {% jp_can_menu 'audit' 'qa_assistant' as jp_can_audit_qa_assistant %}
+                {% if jp_can_audit_qa_assistant %}
+                <li>
+                    <a href="{% url 'audit:qa_assistant' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'qa_assistant' %}active{% endif %}">
+                        <i class="bi bi-stars"></i><span>Trợ lý AI</span>
+                    </a>
+                </li>
+                {% endif %}
             </ul>
         </li>
         {% endif %}

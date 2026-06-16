@@ -99,6 +99,10 @@ class SubmenuPermissionTests(TestCase):
         module, menu = resolve_menu_from_request('/kho-npl/danh-muc/them/')
         self.assertEqual(menu, 'materials')
 
+        module, menu = resolve_menu_from_request('/nhat-ky/tro-ly-ai/')
+        self.assertEqual(module, 'audit')
+        self.assertEqual(menu, 'qa_assistant')
+
         module, menu = resolve_menu_from_request('/gop-y/danh-sach/')
         self.assertEqual(module, 'feedback')
         self.assertEqual(menu, 'list')

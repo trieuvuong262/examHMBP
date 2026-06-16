@@ -1,4 +1,5 @@
 from django.urls import path
+from django.views.generic import RedirectView
 
 from . import views
 
@@ -14,7 +15,11 @@ urlpatterns = [
     path('admin/documents/add/', views.admin_document_create, name='admin_document_create'),
     path('admin/documents/<int:pk>/edit/', views.admin_document_edit, name='admin_document_edit'),
     path('admin/documents/<int:pk>/delete/', views.admin_document_delete, name='admin_document_delete'),
-    path('admin/hoi-dap/', views.admin_qa_settings, name='admin_qa_settings'),
+    path(
+        'admin/hoi-dap/',
+        RedirectView.as_view(pattern_name='audit:qa_assistant', permanent=True),
+        name='admin_qa_settings',
+    ),
     path('hoi-dap/', views.qa_chat, name='qa'),
     path('hoi-dap/suggest/', views.qa_suggest_initial, name='qa_suggest_initial'),
     path('hoi-dap/ask/', views.qa_ask, name='qa_ask'),

@@ -381,6 +381,10 @@ NAMESPACE_URL_DESCRIPTIONS: dict[str, dict[str, str] | str] = {
         'GET': 'xem trang cập nhật link NAS',
         'POST': 'lưu cấu hình link NAS',
     },
+    'audit:qa_assistant': {
+        'GET': 'mở cấu hình trợ lý AI',
+        'POST': 'lưu cấu hình trợ lý AI',
+    },
 
     # KiotViet tra cứu
     'kiotviet:customer_lookup': 'tra cứu khách hàng KiotViet',

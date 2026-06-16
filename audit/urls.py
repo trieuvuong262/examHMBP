@@ -1,5 +1,6 @@
 from django.urls import path
 
+from documents.views import admin_qa_settings
 from kiotviet import sync_views as kiotviet_sync_views
 
 from . import views
@@ -8,6 +9,7 @@ from . import views_login_security
 app_name = 'audit'
 
 urlpatterns = [
+    path('tro-ly-ai/', admin_qa_settings, name='qa_assistant'),
     path('bao-mat-dang-nhap/', views_login_security.login_security_page, name='login_security'),
     path(
         'bao-mat-dang-nhap/save-config/',

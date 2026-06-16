@@ -9,8 +9,10 @@ from django.views.decorators.http import require_GET, require_POST
 
 from PortalJustPlay.list_search import apply_combined_search, apply_term_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
-from assessment.decorators import module_perm_required
+from assessment.decorators import module_perm_required, module_perm_required_methods
+from hrm.menu_permissions import user_can_access_menu
 from hrm.module_permissions import (
+    MODULE_AUDIT,
     MODULE_DOCUMENTS,
     user_can_access_module,
     user_can_create_module,
@@ -167,12 +169,10 @@ def admin_hub(request):
     return render(request, 'documents/admin/hub.html', {
         'categories': categories,
         'doc_count': doc_count,
-        'qa_enabled': is_qa_enabled(),
-        'qa_config_source': qa_config_source(),
     })
 
 
-@module_perm_required(MODULE_DOCUMENTS, 'update')
+@module_perm_required_methods(MODULE_AUDIT, get='view', post='export')
 def admin_qa_settings(request):
     config = LibraryQAConfig.load()
     if request.method == 'POST':
@@ -197,7 +197,7 @@ def admin_qa_settings(request):
                         request,
                         f'Đã xóa {deleted} tin nhắn hỏi đáp của {label}.',
                     )
-            return redirect('documents:admin_qa_settings')
+            return redirect('audit:qa_assistant')
 
         form = LibraryQAConfigForm(request.POST, instance=config)
         if form.is_valid():
@@ -208,7 +208,7 @@ def admin_qa_settings(request):
                 obj.gemini_api_key = config.gemini_api_key
             obj.save()
             messages.success(request, 'Đã lưu cấu hình Hỏi đáp AI.')
-            return redirect('documents:admin_qa_settings')
+            return redirect('audit:qa_assistant')
     else:
         form = LibraryQAConfigForm(instance=config)
 
@@ -382,6 +382,7 @@ def admin_document_delete(request, pk):
 def qa_chat(request):
     return render(request, 'documents/qa.html', {
         'qa_enabled': is_qa_enabled(),
+        'can_configure_qa': user_can_access_menu(request.user, MODULE_AUDIT, 'qa_assistant'),
         **_documents_perm_context(request.user),
         'qa_history': get_user_qa_history_for_display(request.user),
     })

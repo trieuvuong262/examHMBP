@@ -79,6 +79,7 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'backup', 'label': 'Backup lên NAS', 'icon': 'bi-cloud-arrow-up'},
         {'key': 'kiotviet_sync', 'label': 'Đồng bộ KiotViet', 'icon': 'bi-arrow-repeat'},
         {'key': 'nas_links', 'label': 'Cập nhật link NAS', 'icon': 'bi-hdd-network'},
+        {'key': 'qa_assistant', 'label': 'Trợ lý AI', 'icon': 'bi-stars'},
     ],
 }
 
@@ -146,6 +147,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/tai-lieu/file', MODULE_DOCUMENTS, 'browse'),
     ('/tai-lieu/', MODULE_DOCUMENTS, 'browse'),
     # Quản trị hệ thống
+    ('/nhat-ky/tro-ly-ai', MODULE_AUDIT, 'qa_assistant'),
     ('/nhat-ky/bao-mat-dang-nhap', MODULE_AUDIT, 'login_security'),
     ('/nhat-ky/backup', MODULE_AUDIT, 'backup'),
     ('/nhat-ky/kiotviet-sync', MODULE_AUDIT, 'kiotviet_sync'),

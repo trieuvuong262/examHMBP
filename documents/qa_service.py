@@ -42,7 +42,9 @@ class QAAssistantError(RuntimeError):
 def _get_client() -> genai.Client:
     api_key, _ = get_gemini_credentials()
     if not api_key:
-        raise QAAssistantError('Trợ lý AI chưa được "đánh thức". Nhờ quản trị viên bật trong Cấu hình AI.')
+        raise QAAssistantError(
+            'Trợ lý AI chưa được "đánh thức". Nhờ quản trị viên bật trong Quản Trị Hệ thống → Trợ lý AI.'
+        )
     return genai.Client(api_key=api_key)
 
 
