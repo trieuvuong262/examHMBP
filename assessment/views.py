@@ -501,13 +501,21 @@ def question_edit(request, exam_id, question_id=None):
 
     competencies = Competency.objects.all().order_by('-id')
 
+    ordered_question_ids = list(exam.questions.order_by('id').values_list('id', flat=True))
+    question_total = len(ordered_question_ids)
+    question_stt = None
+    if question_id and question_id in ordered_question_ids:
+        question_stt = ordered_question_ids.index(question_id) + 1
+
     return render(request, 'assessment/admin/question_form.html', {
         'form': form,
         'choices': formset,
         'exam': exam,
         'competencies': competencies,
         'title': 'Sửa câu hỏi' if question_id else 'Thêm câu hỏi mới',
-        'is_edit': bool(question_id)
+        'is_edit': bool(question_id),
+        'question_stt': question_stt,
+        'question_total': question_total,
     })
 
 @module_perm_required(MODULE_ASSESSMENT, 'create')
