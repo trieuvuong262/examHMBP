@@ -50,7 +50,6 @@ class QuestionForm(forms.ModelForm):
             'step': 1,
             'placeholder': 'Ví dụ: 1',
         }),
-        help_text='Thứ tự câu hỏi khi thí sinh làm bài (số nhỏ hiện trước).',
     )
 
     class Meta:
