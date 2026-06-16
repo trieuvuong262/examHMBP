@@ -11,10 +11,11 @@
 
     <div class="jp-eq-detail-header mb-3 mb-md-4">
         <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
-            <div class="flex-grow-1">
+            <div class="flex-grow-1 min-w-0">
+                {% if is_it_device %}
                 <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                    <span class="badge jp-eq-scope-badge {% if is_it_device %}jp-eq-scope-it{% else %}jp-eq-scope-prod{% endif %}">
-                        {% if is_it_device %}<i class="bi bi-pc-display me-1"></i>Thiết bị IT{% else %}<i class="bi bi-gear-wide-connected me-1"></i>Thiết bị sản xuất{% endif %}
+                    <span class="badge jp-eq-scope-badge jp-eq-scope-it">
+                        <i class="bi bi-pc-display me-1"></i>Thiết bị IT
                     </span>
                     {% if device.status == 'active' %}
                     <span class="badge bg-success-subtle text-success border border-success-subtle">Đang hoạt động</span>
@@ -36,6 +37,16 @@
                     · {{ device.get_category_display }}
                     {% if device.serial_number %} · S/N <code>{{ device.serial_number }}</code>{% endif %}
                 </p>
+                {% else %}
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                    <span class="jp-eq-status-pill {{ device.status }}">{{ device.get_status_display }}</span>
+                    <span class="text-muted small font-monospace">{{ device.device_code }}</span>
+                    <span class="text-muted small">{{ device.get_category_display }}</span>
+                </div>
+                <h2 class="fw-bold text-hm mb-0 jp-page-title">
+                    {% if can_edit and form %}{{ form.name.value|default:device.name }}{% else %}{{ device.name }}{% endif %}
+                </h2>
+                {% endif %}
             </div>
             <div class="d-flex flex-wrap gap-2">
                 <a href="{{ equipment_urls.device_list }}" class="btn btn-outline-secondary btn-sm">
@@ -47,6 +58,7 @@
         </div>
     </div>
 
+    {% if is_it_device %}
     <div class="jp-eq-detail-stats row g-2 g-md-3 mb-4">
         <div class="col-6 col-md-3">
             <div class="jp-eq-stat h-100">
@@ -60,7 +72,6 @@
                 <div class="jp-eq-stat-value small">{{ device.usage_department_label }}</div>
             </div>
         </div>
-        {% if is_it_device %}
         <div class="col-6 col-md-3">
             <div class="jp-eq-stat h-100">
                 <div class="jp-eq-stat-label">Hostname / IP</div>
@@ -73,21 +84,8 @@
                 <div class="jp-eq-stat-value small">{% if device.last_scan_date %}{{ device.last_scan_date|date:"d/m/Y H:i" }}{% else %}—{% endif %}</div>
             </div>
         </div>
-        {% else %}
-        <div class="col-6 col-md-3">
-            <div class="jp-eq-stat h-100">
-                <div class="jp-eq-stat-label">Vị trí</div>
-                <div class="jp-eq-stat-value small">{{ device.usage_room|default:"—" }}</div>
-            </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="jp-eq-stat h-100">
-                <div class="jp-eq-stat-label">Ngày bàn giao</div>
-                <div class="jp-eq-stat-value small">{% if device.handover_date %}{{ device.handover_date|date:"d/m/Y" }}{% else %}—{% endif %}</div>
-            </div>
-        </div>
-        {% endif %}
     </div>
+    {% endif %}
 
     <div class="row g-4">
         <div class="col-lg-8">
@@ -138,7 +136,7 @@
         </div>
 
         <div class="col-lg-4">
-            {% if device.photo %}
+            {% if device.photo and not can_edit %}
             <div class="card border-0 shadow-sm mb-3">
                 <div class="card-header bg-white fw-bold"><i class="bi bi-image me-1"></i>Hình ảnh</div>
                 <div class="card-body text-center">
@@ -163,7 +161,6 @@
                     <div class="jp-eq-qr-preview mb-3">
                         <img src="{{ device.qr_code.url }}?v={{ device.updated_at|date:'U' }}" alt="Tem QR {{ device.name }}">
                     </div>
-                    <p class="small text-muted mb-3">In tem dán thiết bị — quét mã để xem thông tin và báo hỏng.</p>
                     {% else %}
                     <div class="jp-eq-qr-placeholder mx-auto mb-3" style="width:120px;height:120px;font-size:2rem">
                         <i class="bi bi-qr-code"></i>
@@ -203,6 +200,7 @@
                 </ul>
             </div>
             {% else %}
+            {% if not can_edit or not form %}
             <div class="card border-0 shadow-sm mt-3">
                 <div class="card-header bg-white fw-bold"><i class="bi bi-person-workspace me-1"></i>Phân bổ</div>
                 <ul class="list-group list-group-flush small">
@@ -225,6 +223,7 @@
                 </ul>
             </div>
             {% endif %}
+            {% endif %}
 
             {% if device.is_shared_pc and shared_users %}
             <div class="card border-0 shadow-sm mt-3">
@@ -244,6 +243,7 @@
             {% endif %}
 
             {% if device.quantity > 1 or device.unit_price %}
+            {% if is_it_device or not can_edit or not form %}
             <div class="card border-0 shadow-sm mt-3">
                 <div class="card-header bg-white fw-bold"><i class="bi bi-cash-stack me-1"></i>Giá trị</div>
                 <div class="card-body small">
@@ -261,6 +261,7 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
             {% endif %}
         </div>
     </div>

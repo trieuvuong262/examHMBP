@@ -144,9 +144,16 @@ class DeviceForm(forms.ModelForm):
             'class': 'form-select d-none jp-user-picker-native',
         })
         self.fields['photo'].required = False
-        self.fields['photo'].help_text = 'JPG, PNG, GIF hoặc WebP — tối đa 10 MB.'
         self.fields['device_code'].required = False
-        self.fields['device_code'].help_text = 'Để trống để hệ thống tự sinh mã (TB-000001).'
+
+        scope_is_it = not (equipment_scope and not is_it_scope(equipment_scope))
+        if scope_is_it:
+            self.fields['photo'].help_text = 'JPG, PNG, GIF hoặc WebP — tối đa 10 MB.'
+            self.fields['device_code'].help_text = 'Để trống để hệ thống tự sinh mã (TB-000001).'
+        else:
+            self.fields['photo'].help_text = ''
+            self.fields['device_code'].help_text = ''
+            self.fields['device_code'].widget.attrs['placeholder'] = ''
 
         if equipment_scope and not is_it_scope(equipment_scope):
             for name in ('ultraviewer_id', 'ultraviewer_password'):
@@ -164,7 +171,6 @@ class DeviceForm(forms.ModelForm):
         self._apply_scope_labels(equipment_scope)
 
     def _apply_scope_labels(self, equipment_scope):
-        from equipment.scope import SCOPE_PRODUCTION
         from equipment.services.scope_ui import is_it_scope
 
         it = is_it_scope(equipment_scope) if equipment_scope else True
@@ -179,6 +185,8 @@ class DeviceForm(forms.ModelForm):
             )
             self.fields['hostname'].widget.attrs.setdefault('placeholder', 'VD: PC-HR-01')
             self.fields['ip_address'].widget.attrs.setdefault('placeholder', 'VD: 192.168.1.10')
+            if equipment_scope:
+                self.fields['managed_department'].help_text = 'Thường là IT / CNTT.'
         else:
             self.fields['name'].widget.attrs.setdefault('placeholder', 'VD: Máy may Juki DDL-8700')
             self.fields['usage_room'].label = 'Chuyền / vị trí lắp máy'
@@ -188,13 +196,9 @@ class DeviceForm(forms.ModelForm):
             self.fields['description'].widget.attrs.setdefault(
                 'placeholder', 'Công suất, phụ tùng chính, lịch bảo dưỡng…',
             )
-            self.fields['quantity'].help_text = 'Số máy cùng loại tại một vị trí (nếu có).'
-            self.fields['unit_price'].help_text = 'Giá mua hoặc giá trị còn lại (VNĐ).'
-
-        if equipment_scope == SCOPE_PRODUCTION:
-            self.fields['managed_department'].help_text = 'Thường là Bảo trì xưởng / Sản xuất.'
-        else:
-            self.fields['managed_department'].help_text = 'Thường là IT / CNTT.'
+            self.fields['quantity'].help_text = ''
+            self.fields['unit_price'].help_text = ''
+            self.fields['managed_department'].help_text = ''
 
     @staticmethod
     def _user_choice_label(user):

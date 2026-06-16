@@ -4,6 +4,20 @@
     border-left: 3px solid var(--hm-primary, #dc2626);
 }
 
+.jp-eq-detail-header .jp-eq-status-pill {
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.jp-eq-detail-header .jp-eq-status-pill.active { background: #dcfce7; color: #166534; }
+.jp-eq-detail-header .jp-eq-status-pill.broken { background: #fee2e2; color: #991b1b; }
+.jp-eq-detail-header .jp-eq-status-pill.maintenance { background: #ffedd5; color: #9a3412; }
+.jp-eq-detail-header .jp-eq-status-pill.scrapped { background: #f3f4f6; color: #374151; }
+.jp-eq-detail-header .jp-eq-status-pill.new { background: #dbeafe; color: #1e40af; }
+
 .jp-eq-list-toolbar .btn {
     white-space: nowrap;
 }

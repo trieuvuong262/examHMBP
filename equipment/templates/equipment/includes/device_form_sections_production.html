@@ -1,21 +1,18 @@
 <div class="jp-eq-form-section mb-4">
-    <h6 class="fw-bold text-hm mb-3"><i class="bi bi-info-circle me-1"></i>Thông tin máy</h6>
+    <h6 class="fw-bold text-hm mb-3"><i class="bi bi-info-circle me-1"></i>Thông tin cơ bản</h6>
     <div class="row g-3">
-        <div class="col-md-4">
+        <div class="col-md-3">
             <label class="form-label fw-semibold" for="{{ form.device_code.id_for_label }}">{{ form.device_code.label }}</label>
             {{ form.device_code }}
-            {% if form.device_code.help_text %}<div class="form-text">{{ form.device_code.help_text }}</div>{% endif %}
+            {% if form.device_code.errors %}<div class="text-danger small">{{ form.device_code.errors }}</div>{% endif %}
         </div>
-        <div class="col-md-8">
+        <div class="col-md-5">
             <label class="form-label fw-semibold" for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
             {{ form.name }}
         </div>
         <div class="col-md-4">
             <label class="form-label fw-semibold" for="{{ form.status.id_for_label }}">{{ form.status.label }}</label>
             {{ form.status }}
-            <div class="form-text">
-                <a href="{{ equipment_urls.status_list }}" class="text-decoration-none">Quản lý trạng thái</a>
-            </div>
         </div>
         <div class="col-md-4">
             <label class="form-label fw-semibold" for="{{ form.category.id_for_label }}">{{ form.category.label }}</label>
@@ -31,15 +28,14 @@
                 </optgroup>
                 {% endfor %}
             </select>
-            <div class="form-text">
-                Chỉ loại máy xưởng (may, cắt, ủi, bàn ủi…).
-                <a href="{{ equipment_urls.category_list }}" class="text-decoration-none">Quản lý loại</a>
-            </div>
         </div>
         <div class="col-md-4">
             <label class="form-label fw-semibold" for="{{ form.managed_department.id_for_label }}">{{ form.managed_department.label }}</label>
             {{ form.managed_department }}
-            {% if form.managed_department.help_text %}<div class="form-text">{{ form.managed_department.help_text }}</div>{% endif %}
+        </div>
+        <div class="col-md-4">
+            <label class="form-label fw-semibold" for="{{ form.usage_department.id_for_label }}">{{ form.usage_department.label }}</label>
+            {{ form.usage_department }}
         </div>
         <div class="col-12">
             <label class="form-label fw-semibold" for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
@@ -49,25 +45,19 @@
 </div>
 
 <div class="jp-eq-form-section mb-4">
-    <h6 class="fw-bold text-hm mb-3"><i class="bi bi-geo-alt me-1"></i>Phân bổ tại xưởng</h6>
+    <h6 class="fw-bold text-hm mb-3"><i class="bi bi-geo-alt me-1"></i>Phân bổ &amp; liên hệ</h6>
     <div class="row g-3">
-        <div class="col-md-6">
-            <label class="form-label fw-semibold" for="{{ form.usage_department.id_for_label }}">{{ form.usage_department.label }}</label>
-            {{ form.usage_department }}
-            <div class="form-text">Phòng / bộ phận sở hữu vận hành.</div>
-        </div>
-        <div class="col-md-6">
+        <div class="col-md-4">
             <label class="form-label fw-semibold" for="{{ form.usage_department_text.id_for_label }}">{{ form.usage_department_text.label }}</label>
             {{ form.usage_department_text }}
         </div>
-        <div class="col-md-6">
+        <div class="col-md-4">
             <label class="form-label fw-semibold" for="{{ form.usage_room.id_for_label }}">{{ form.usage_room.label }}</label>
             {{ form.usage_room }}
         </div>
-        <div class="col-md-6">
+        <div class="col-md-4">
             <label class="form-label fw-semibold" for="{{ form.handover_date.id_for_label }}">{{ form.handover_date.label }}</label>
             {{ form.handover_date }}
-            <div class="form-text">Ngày đưa máy vào chuyền / bàn giao vận hành.</div>
         </div>
         <div class="col-md-6">
             {% include 'equipment/includes/device_form_assignee.html' %}
@@ -97,7 +87,6 @@
         <div class="col-12">
             <label class="form-label fw-semibold" for="{{ form.configuration.id_for_label }}">{{ form.configuration.label }}</label>
             {{ form.configuration }}
-            <div class="form-text">Công suất, số kim, phụ tùng, nhà cung cấp bảo hành…</div>
         </div>
     </div>
 </div>
@@ -108,12 +97,10 @@
         <div class="col-md-4">
             <label class="form-label fw-semibold" for="{{ form.quantity.id_for_label }}">{{ form.quantity.label }}</label>
             {{ form.quantity }}
-            {% if form.quantity.help_text %}<div class="form-text">{{ form.quantity.help_text }}</div>{% endif %}
         </div>
         <div class="col-md-8">
             <label class="form-label fw-semibold" for="{{ form.unit_price.id_for_label }}">{{ form.unit_price.label }}</label>
             {{ form.unit_price }}
-            {% if form.unit_price.help_text %}<div class="form-text">{{ form.unit_price.help_text }}</div>{% endif %}
         </div>
     </div>
 </div>
