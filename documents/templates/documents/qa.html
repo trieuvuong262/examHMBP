@@ -32,7 +32,6 @@
                     <span class="jp-qa-avatar"><i class="bi bi-stars"></i></span>
                     <div>
                         <div class="fw-bold">Trợ lý AI JustPlay</div>
-                        <small class="text-muted">Hỗ trợ tra cứu nội bộ · lịch sử hội thoại được lưu lại</small>
                     </div>
                 </div>
                 <div class="card-body p-0">
@@ -49,9 +48,6 @@
                             <button type="submit" class="btn btn-hm px-4" id="qaSubmitBtn" {% if not qa_enabled %}disabled{% endif %}>
                                 <i class="bi bi-send-fill"></i>
                             </button>
-                        </div>
-                        <div class="form-text mt-2">
-                            Trợ lý chỉ trả lời trong phạm vi tài liệu & module bạn được phép xem. Lịch sử hỏi đáp được lưu vĩnh viễn trên portal.
                         </div>
                     </form>
                 </div>
@@ -74,7 +70,6 @@
                     <ul class="mb-0 ps-3">
                         <li>Câu trả lời tham khảo — quyết định chính thức theo tài liệu gốc.</li>
                         <li>Tối đa 40 câu hỏi / giờ / người.</li>
-                        <li>Lịch sử chỉ bị xóa khi quản trị viên thao tác trong Cấu hình AI.</li>
                     </ul>
                 </div>
             </div>
@@ -129,8 +124,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function showWelcome() {
         appendMessage('bot',
-            'Xin chào! Tôi là trợ lý AI của JustPlay, sẵn sàng hỗ trợ bạn tra cứu quy trình, chính sách và tài liệu trên portal. ' +
-            'Hỏi tên tài liệu (ví dụ: Quy chế lương) — tôi sẽ gửi link mở nhanh kèm tóm tắt.'
+            'Xin chào! Tôi là trợ lý AI của JustPlay, sẵn sàng hỗ trợ bạn tra cứu quy trình, chính sách và tài liệu trên portal.'
         );
     }
 
