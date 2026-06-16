@@ -34,9 +34,10 @@ MODULE_FEEDBACK = 'feedback'
 MODULE_KIOTVIET = 'kiotviet'
 MODULE_KHO_NPL = 'kho_npl'
 
-# Tạm ẩn khỏi sidebar + màn hình phân quyền — gỡ MODULE_KPI khỏi set khi bật lại.
+# Tạm ẩn khỏi sidebar + màn hình phân quyền — gỡ khỏi set khi bật lại.
 HIDDEN_PORTAL_MODULES = frozenset({
     MODULE_KPI,
+    MODULE_RECRUITMENT,
 })
 
 _ALL_MODULE_CHOICES = [

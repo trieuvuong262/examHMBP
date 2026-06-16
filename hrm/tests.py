@@ -166,6 +166,10 @@ class PermissionLogicTests(TestCase):
         self.assertFalse(user_can_edit_module(self.team_leader, MODULE_KPI))
         self.assertFalse(user_can_access_module(self.team_leader, MODULE_KPI))
 
+    def test_recruitment_hidden_from_portal_permissions(self):
+        self.assertFalse(user_can_edit_module(self.team_leader, MODULE_RECRUITMENT))
+        self.assertFalse(user_can_access_module(self.team_leader, MODULE_RECRUITMENT))
+
     def test_employee_can_view_training(self):
         self.assertTrue(user_can_access_module(self.employee, MODULE_TRAINING))
 
