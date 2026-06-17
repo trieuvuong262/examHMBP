@@ -24,11 +24,7 @@
                         <label class="form-label fw-bold small mb-1">Ngày</label>
                         {{ form.report_date }}
                     </div>
-                    <div class="col-6 col-md-4">
-                        <label class="form-label fw-bold small mb-1">Ca làm</label>
-                        {{ form.shift }}
-                    </div>
-                    <div class="col-12 col-md-5 text-md-end">
+                    <div class="col-12 col-md-9 text-md-end">
                         <span class="badge {% if report.status == 'SUBMITTED' %}bg-success{% else %}bg-secondary{% endif %} px-3 py-2">
                             {{ report.get_status_display }}
                         </span>

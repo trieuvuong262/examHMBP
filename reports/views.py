@@ -160,7 +160,7 @@ def _report_context_common(request, report_date):
 def _daily_report_defaults(user):
     profile = get_report_profile(user)
     return {
-        'shift': DailyWorkReport.SHIFT_MORNING if profile == REPORT_PROFILE_PRODUCTION else '',
+        'shift': '',
         'report_profile': profile,
         'status': DailyWorkReport.STATUS_DRAFT,
     }
@@ -439,13 +439,13 @@ def copy_yesterday(request):
         employee=request.user,
         report_date=today,
         defaults={
-            'shift': source.shift if profile == REPORT_PROFILE_PRODUCTION else '',
+            'shift': '',
             'report_profile': profile,
             'status': DailyWorkReport.STATUS_DRAFT,
         },
     )
     report.report_profile = profile
-    report.shift = source.shift if profile == REPORT_PROFILE_PRODUCTION else ''
+    report.shift = ''
     report.status = DailyWorkReport.STATUS_DRAFT
     report.submitted_at = None
     report.draft_saved_at = None
@@ -506,7 +506,6 @@ def my_reports(request):
         reports_qs = apply_combined_search(reports_qs, search_query, lambda term: (
             Q(hod_note__icontains=term)
             | Q(status__icontains=term)
-            | Q(shift__icontains=term)
             | Q(lines__area__icontains=term)
             | Q(lines__order_code__icontains=term)
             | Q(lines__product_name__icontains=term)

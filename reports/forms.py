@@ -17,11 +17,17 @@ from .widgets import OfficeWordEditorWidget
 class DailyWorkReportForm(forms.ModelForm):
     class Meta:
         model = DailyWorkReport
-        fields = ['report_date', 'shift']
+        fields = ['report_date']
         widgets = {
             'report_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'shift': forms.Select(attrs={'class': 'form-select form-select-lg'}),
         }
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.shift = ''
+        if commit:
+            instance.save()
+        return instance
 
 
 class DailyWorkReportLineForm(forms.ModelForm):

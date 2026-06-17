@@ -3,7 +3,7 @@
 
 {% block extra_head %}
 {% if report.is_production_report and hourly_grid or productivity %}
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260618g">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260618n">
 {% elif not report.is_production_report %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260528y">
 {% endif %}
@@ -32,9 +32,6 @@
                 <div class="jp-report-meta-chips">
                     <span class="jp-report-meta-chip"><i class="bi bi-building"></i>{{ report.employee.profile.department.name|default:"—" }}</span>
                     <span class="jp-report-meta-chip"><i class="bi bi-calendar3"></i>{{ report.report_date|date:"d/m/Y" }}</span>
-                    {% if report.is_production_report and report.shift %}
-                    <span class="jp-report-meta-chip"><i class="bi bi-sunrise"></i>{{ report.get_shift_display }}</span>
-                    {% endif %}
                 </div>
             </div>
         </div>
@@ -51,72 +48,68 @@
         </div>
     </div>
 
-    {% if report.is_production_report and productivity and productivity.has_data %}
-    <div class="jp-report-stat-grid mb-4">
-        <div class="jp-report-stat-card">
-            <div class="jp-report-stat-icon"><i class="bi bi-box-seam"></i></div>
-            <div>
-                <div class="jp-report-stat-value">{{ productivity.total_quantity }}</div>
-                <div class="jp-report-stat-label">Tổng sản lượng</div>
-            </div>
-        </div>
-        <div class="jp-report-stat-card">
-            <div class="jp-report-stat-icon"><i class="bi bi-clock-history"></i></div>
-            <div>
-                <div class="jp-report-stat-value">{{ productivity.total_hours_display }}</div>
-                <div class="jp-report-stat-label">Tổng thời gian</div>
-            </div>
-        </div>
-        <div class="jp-report-stat-card jp-report-stat-card--accent">
-            <div class="jp-report-stat-icon"><i class="bi bi-speedometer2"></i></div>
-            <div>
-                <div class="jp-report-stat-value">
-                    {% if productivity.overall_efficiency_pct is not None %}{{ productivity.overall_efficiency_pct|floatformat:1 }}%{% else %}—{% endif %}
-                </div>
-                <div class="jp-report-stat-label">Hiệu suất chung</div>
-            </div>
-        </div>
-        <div class="jp-report-stat-card">
-            <div class="jp-report-stat-icon"><i class="bi bi-tags"></i></div>
-            <div>
-                <div class="jp-report-stat-value">{{ productivity.product_summaries|length }}</div>
-                <div class="jp-report-stat-label">Mã hàng</div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
     {% if report.is_production_report %}
         {% if can_edit_norm and productivity and productivity.has_data %}
         <form method="post" id="jp-prod-norm-form">
             {% csrf_token %}
             <input type="hidden" name="action" value="update_norms">
         {% endif %}
-        {% if productivity and productivity.has_data %}
-        <div class="card border-0 jp-report-section-card mb-4">
-            <div class="card-header jp-report-section-head">
-                <div class="jp-report-section-title"><i class="bi bi-speedometer2"></i>Năng suất theo giờ</div>
-            </div>
-            <div class="card-body p-3 p-md-4">
-                {% include 'reports/includes/production_productivity_report.html' with can_edit_norm=can_edit_norm %}
+
+        {% if productivity and productivity.has_data or hourly_grid %}
+        <div class="card border-0 jp-report-section-card jp-report-tabs-card mb-4">
+            <ul class="nav nav-tabs jp-report-tabs" id="jpReportDetailTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="jp-tab-productivity-btn" data-bs-toggle="tab" data-bs-target="#jp-tab-productivity" type="button" role="tab" aria-controls="jp-tab-productivity" aria-selected="true">
+                        <i class="bi bi-speedometer2 me-1"></i>Báo cáo năng suất
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="jp-tab-quantity-btn" data-bs-toggle="tab" data-bs-target="#jp-tab-quantity" type="button" role="tab" aria-controls="jp-tab-quantity" aria-selected="false">
+                        <i class="bi bi-table me-1"></i>Báo cáo sản lượng
+                    </button>
+                </li>
+            </ul>
+            <div class="tab-content jp-report-tab-panels" id="jpReportDetailTabContent">
+                <div class="tab-pane fade show active" id="jp-tab-productivity" role="tabpanel" aria-labelledby="jp-tab-productivity-btn" tabindex="0">
+                    {% if productivity and productivity.has_data %}
+                    <div class="jp-report-tab-toolbar">
+                        <div class="jp-prod-eff-legend jp-prod-eff-legend--inline">
+                            <span class="jp-prod-eff-legend-title">Hiệu suất:</span>
+                            <span class="jp-prod-eff-legend-item"><span class="jp-prod-eff-badge is-good">≥100%</span> Đạt / vượt định mức</span>
+                            <span class="jp-prod-eff-legend-item"><span class="jp-prod-eff-badge is-ok">80–99%</span> Gần đạt</span>
+                            <span class="jp-prod-eff-legend-item"><span class="jp-prod-eff-badge is-low">&lt;80%</span> Chưa đạt</span>
+                        </div>
+                    </div>
+                    <div class="jp-report-tab-body">
+                        {% include 'reports/includes/production_productivity_report.html' with can_edit_norm=can_edit_norm %}
+                        {% if can_edit_norm %}
+                        <div class="d-flex justify-content-end mt-3">
+                            <button type="submit" class="btn btn-hm px-4">
+                                <i class="bi bi-check2-circle me-1"></i>Lưu định mức
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="jp-report-tab-body text-center text-muted py-5">Chưa có dữ liệu năng suất.</div>
+                    {% endif %}
+                </div>
+                <div class="tab-pane fade" id="jp-tab-quantity" role="tabpanel" aria-labelledby="jp-tab-quantity-btn" tabindex="0">
+                    <div class="jp-report-tab-body">
+                        {% if hourly_grid %}
+                        {% include 'reports/includes/production_hourly_grid_detail.html' %}
+                        {% else %}
+                        <div class="text-center text-muted py-5">Chưa có dữ liệu sản lượng theo giờ.</div>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
         </div>
+        {% if can_edit_norm and productivity and productivity.has_data %}
+        </form>
         {% endif %}
 
-        {% if hourly_grid %}
-        <div class="card border-0 jp-report-section-card mb-4">
-            <div class="card-header jp-report-section-head">
-                <div class="jp-report-section-title"><i class="bi bi-table"></i>Sản lượng hàng giờ</div>
-            </div>
-            <div class="card-body p-3 p-md-4">
-                {% if productivity %}
-                {% include 'reports/includes/production_hourly_grid_detail.html' with can_edit_norm=can_edit_norm summary_product_ids=productivity.summary_product_ids %}
-                {% else %}
-                {% include 'reports/includes/production_hourly_grid_detail.html' with can_edit_norm=can_edit_norm summary_product_ids=productivity.summary_product_ids|default_if_none:"" %}
-                {% endif %}
-            </div>
-        </div>
-        {% else %}
+        {% elif not hourly_grid %}
         <div class="card border-0 shadow-sm overflow-hidden mb-4">
             <div class="table-responsive">
                 <table class="table table-sm align-middle mb-0">
@@ -147,14 +140,6 @@
                 </table>
             </div>
         </div>
-        {% endif %}
-        {% if can_edit_norm and productivity and productivity.has_data %}
-            <div class="d-flex justify-content-end mb-4">
-                <button type="submit" class="btn btn-hm px-4">
-                    <i class="bi bi-check2-circle me-1"></i>Lưu định mức
-                </button>
-            </div>
-        </form>
         {% endif %}
     {% else %}
     <div class="card border-0 shadow-sm mb-4">
