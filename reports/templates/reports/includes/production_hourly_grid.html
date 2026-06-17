@@ -24,7 +24,12 @@
                     <td>{{ row.label_process|default:row.process_name|default:"Chưa gắn mã" }}</td>
                     <td class="text-end">
                         {% if can_edit_norm and row.id %}
-                        <input type="number" name="norm_{{ row.id }}" value="{% if row.norm_per_hour %}{{ row.norm_per_hour|floatformat:0 }}{% endif %}" class="form-control form-control-sm jp-prod-norm-input text-end ms-auto" min="1" step="1" title="Định mức cho {{ row.label_code }}">
+                        <input type="number"
+                            {% if not summary_product_ids or row.id not in summary_product_ids %}name="norm_{{ row.id }}"{% endif %}
+                            value="{% if row.norm_per_hour %}{{ row.norm_per_hour|floatformat:0 }}{% endif %}"
+                            class="form-control form-control-sm jp-prod-norm-input text-end ms-auto"
+                            min="1" step="1" data-product-id="{{ row.id }}"
+                            title="Định mức cho {{ row.label_code }}">
                         {% else %}
                         {{ row.norm_per_hour|default:"—" }}
                         {% endif %}

@@ -3,7 +3,7 @@
 
 {% block extra_head %}
 {% if report.is_production_report and hourly_grid %}
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260618c">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260618d">
 {% elif not report.is_production_report %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260528y">
 {% endif %}
@@ -34,8 +34,8 @@
     </div>
 
     {% if report.is_production_report %}
-        {% if can_review and hourly_grid %}
-        <form method="post">
+        {% if can_review and productivity and productivity.has_data %}
+        <form method="post" id="jp-prod-norm-form">
             {% csrf_token %}
             <input type="hidden" name="action" value="update_norms">
         {% endif %}
@@ -56,7 +56,11 @@
                 <i class="bi bi-table me-2 text-hm"></i>Sản lượng hàng giờ
             </div>
             <div class="card-body p-3">
-                {% include 'reports/includes/production_hourly_grid.html' with can_edit_norm=can_review %}
+                {% if productivity %}
+                {% include 'reports/includes/production_hourly_grid.html' with can_edit_norm=can_review summary_product_ids=productivity.summary_product_ids %}
+                {% else %}
+                {% include 'reports/includes/production_hourly_grid.html' with can_edit_norm=can_review summary_product_ids=productivity.summary_product_ids|default_if_none:"" %}
+                {% endif %}
             </div>
         </div>
         {% else %}
@@ -91,7 +95,7 @@
             </div>
         </div>
         {% endif %}
-        {% if can_review and hourly_grid %}
+        {% if can_review and productivity and productivity.has_data %}
             <div class="d-flex justify-content-end mb-4">
                 <button type="submit" class="btn btn-hm btn-sm px-4">
                     <i class="bi bi-check2-circle me-1"></i>Lưu định mức
@@ -167,4 +171,25 @@
     </div>
     {% endif %}
 </div>
+{% if report.is_production_report and can_review and productivity and productivity.has_data %}
+<script>
+(function () {
+    var inputs = document.querySelectorAll('.jp-prod-norm-input[data-product-id]');
+    if (!inputs.length) return;
+    var byProduct = {};
+    inputs.forEach(function (input) {
+        var id = input.getAttribute('data-product-id');
+        if (!byProduct[id]) byProduct[id] = [];
+        byProduct[id].push(input);
+    });
+    inputs.forEach(function (input) {
+        input.addEventListener('input', function () {
+            (byProduct[input.getAttribute('data-product-id')] || []).forEach(function (peer) {
+                if (peer !== input) peer.value = input.value;
+            });
+        });
+    });
+})();
+</script>
+{% endif %}
 {% endblock %}

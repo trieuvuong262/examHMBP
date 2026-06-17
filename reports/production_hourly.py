@@ -349,6 +349,7 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
     return {
         'hourly_rows': hourly_rows,
         'product_summaries': product_summaries,
+        'summary_product_ids': [summary['product_id'] for summary in product_summaries],
         'total_quantity': total_qty,
         'total_hours': float(total_hours),
         'total_hours_display': _format_hours(total_hours),

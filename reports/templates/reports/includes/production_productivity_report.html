@@ -78,7 +78,13 @@
                     <td class="fw-semibold">{{ row.product_code }}</td>
                     <td>{{ row.process_name }}</td>
                     <td class="text-end fw-bold">{{ row.quantity }}</td>
-                    <td class="text-end">{{ row.norm_per_hour|floatformat:0 }}</td>
+                    <td class="text-end">
+                        {% if can_edit_norm %}
+                        <input type="number" name="norm_{{ row.product_id }}" value="{{ row.norm_per_hour|floatformat:0 }}" class="form-control form-control-sm jp-prod-norm-input text-end ms-auto" min="1" step="1" data-product-id="{{ row.product_id }}" title="Định mức cho {{ row.product_code }}">
+                        {% else %}
+                        {{ row.norm_per_hour|floatformat:0 }}
+                        {% endif %}
+                    </td>
                     <td class="text-end">{{ row.hours_display }}</td>
                     <td class="text-end fw-bold jp-prod-productivity-eff">{{ row.efficiency_pct|floatformat:2 }}%</td>
                 </tr>
@@ -90,6 +96,6 @@
 
     <p class="text-muted small mt-3 mb-0">
         Hiệu suất = Số lượng ÷ (Định mức/H × Thời gian/H) × 100%. Chỉ tính các giờ có sản lượng &gt; 0 và đã gắn định mức.
-        {% if can_edit_norm %}Quản lý chỉnh định mức ở cột «ĐM 1 giờ» — áp dụng cho cả 3 bảng.{% endif %}
+        {% if can_edit_norm %}Quản lý chỉnh định mức ở bảng «Tổng hợp» hoặc «ĐM 1 giờ» — áp dụng cho cả 3 bảng.{% endif %}
     </p>
 </div>
