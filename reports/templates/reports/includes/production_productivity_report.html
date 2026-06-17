@@ -68,7 +68,6 @@
     <div class="jp-prod-section-label">
         <span class="jp-prod-section-label-icon jp-prod-section-label-icon--accent"><i class="bi bi-collection"></i></span>
         <span>Tổng hợp theo mã hàng / công đoạn</span>
-        {% if can_edit_norm %}<span class="jp-prod-section-edit-hint">Có thể chỉnh định mức</span>{% endif %}
     </div>
     <div class="table-responsive jp-prod-productivity-scroll">
         <table class="table table-sm jp-prod-productivity-table jp-prod-productivity-table--summary mb-0">
@@ -109,9 +108,4 @@
         </table>
     </div>
     {% endif %}
-
-    <p class="jp-prod-productivity-footnote mb-0">
-        <i class="bi bi-info-circle me-1"></i>
-        Hiệu suất = Số lượng ÷ (Định mức/H × Thời gian/H) × 100%
-    </p>
 </div>

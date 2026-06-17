@@ -622,15 +622,15 @@ body .modal-backdrop.show {
 }
 
 .jp-prod-productivity-head th {
-    background: #1e3a8a !important;
+    background: var(--hm-red, #c41e3a) !important;
     color: #fff !important;
     vertical-align: middle;
     white-space: nowrap;
 }
 
 .jp-prod-productivity-foot th {
-    background: #dbeafe !important;
-    color: #111 !important;
+    background: #ffe4e6 !important;
+    color: #881337 !important;
     font-weight: 800;
 }
 
@@ -667,8 +667,8 @@ body .modal-backdrop.show {
     gap: 1rem;
     padding: 1.25rem 1.35rem;
     border-radius: 1rem;
-    background: linear-gradient(135deg, #fff 0%, #f8fafc 55%, #eff6ff 100%);
-    border: 1px solid rgba(30, 58, 138, 0.1);
+    background: linear-gradient(135deg, #fff 0%, #fff8f8 55%, #fff1f2 100%);
+    border: 1px solid rgba(196, 30, 58, 0.12);
     box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
 }
 
@@ -730,7 +730,7 @@ body .modal-backdrop.show {
 }
 
 .jp-report-meta-chip i {
-    color: #1e3a8a;
+    color: var(--hm-red, #c41e3a);
     font-size: 0.85rem;
 }
 
@@ -752,8 +752,8 @@ body .modal-backdrop.show {
 }
 
 .jp-report-badge--reviewed {
-    background: #dbeafe;
-    color: #1e40af;
+    background: #ffe4e6;
+    color: #9f1239;
 }
 
 .jp-report-stat-grid {
@@ -776,14 +776,14 @@ body .modal-backdrop.show {
     padding: 1rem 1.1rem;
     border-radius: 0.9rem;
     background: #fff;
-    border: 1px solid #e8edf3;
-    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+    border: 1px solid #fce7e9;
+    box-shadow: 0 2px 10px rgba(196, 30, 58, 0.05);
     min-width: 0;
 }
 
 .jp-report-stat-card--accent {
     background: linear-gradient(145deg, #fff5f5, #fff);
-    border-color: rgba(196, 30, 58, 0.15);
+    border-color: rgba(196, 30, 58, 0.2);
 }
 
 .jp-report-stat-icon {
@@ -793,14 +793,13 @@ body .modal-backdrop.show {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #eff6ff;
-    color: #1e3a8a;
+    background: rgba(196, 30, 58, 0.08);
+    color: var(--hm-red, #c41e3a);
     font-size: 1.1rem;
     flex-shrink: 0;
 }
 
-.jp-report-stat-card--accent .jp-report-stat-icon {
-    background: rgba(196, 30, 58, 0.1);
+.jp-report-stat-card--accent .jp-report-stat-value {
     color: var(--hm-red, #c41e3a);
 }
 
@@ -869,13 +868,13 @@ body .modal-backdrop.show {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: #eff6ff;
-    color: #1e3a8a;
+    background: rgba(196, 30, 58, 0.08);
+    color: var(--hm-red, #c41e3a);
     font-size: 0.9rem;
 }
 
 .jp-prod-section-label-icon--accent {
-    background: rgba(196, 30, 58, 0.1);
+    background: rgba(196, 30, 58, 0.14);
     color: var(--hm-red, #c41e3a);
 }
 
@@ -936,8 +935,8 @@ body .modal-backdrop.show {
     display: inline-block;
     padding: 0.12rem 0.45rem;
     border-radius: 0.35rem;
-    background: #eff6ff;
-    color: #1e40af;
+    background: #fff1f2;
+    color: #9f1239;
     font-size: 0.78rem;
     font-weight: 600;
 }
@@ -996,15 +995,15 @@ body .modal-backdrop.show {
     padding: 0.35rem 0.45rem;
     font-weight: 700;
     font-size: 0.85rem;
-    border: 2px solid #bfdbfe;
+    border: 2px solid #fecdd3;
     border-radius: 0.5rem;
     background: #fff;
     transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .jp-prod-norm-input:focus {
-    border-color: #1e40af;
-    box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.15);
+    border-color: var(--hm-red, #c41e3a);
+    box-shadow: 0 0 0 3px rgba(196, 30, 58, 0.15);
     outline: none;
 }
 
@@ -1056,26 +1055,153 @@ body .modal-backdrop.show {
 }
 
 .jp-report-hod-note {
-    background: #eff6ff;
-    color: #1e3a8a;
-    border-left: 4px solid #3b82f6 !important;
+    background: #fff1f2;
+    color: #9f1239;
+    border-left: 4px solid var(--hm-red, #c41e3a) !important;
 }
 
-/* Hourly grid on detail page */
-.jp-report-detail-page .jp-prod-hourly-table {
+/* ——— Lưới sản lượng (màn chi tiết) ——— */
+.jp-prod-hourly-table--detail {
+    font-size: 0.8rem;
+    min-width: 960px;
+    border-collapse: separate;
+    border-spacing: 0;
     border-radius: 0.65rem;
     overflow: hidden;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #fce7e9;
 }
 
-.jp-report-detail-page .jp-prod-hourly-table thead tr.table-light th {
-    background: #f1f5f9 !important;
-    color: #334155 !important;
+.jp-prod-hourly-table--detail .jp-ph-head th {
+    background: var(--hm-red, #c41e3a) !important;
+    color: #fff !important;
     font-weight: 700;
-    font-size: 0.78rem;
-    border-color: #e2e8f0 !important;
+    font-size: 0.72rem;
+    border: none !important;
+    padding: 0.55rem 0.45rem;
+    vertical-align: middle;
 }
 
-.jp-report-detail-page .jp-ph-norm .jp-prod-norm-input {
-    margin-left: auto;
+.jp-prod-hourly-table--detail .jp-ph-slot {
+    min-width: 4.25rem;
+    text-align: center;
+    line-height: 1.2;
+    white-space: normal;
+}
+
+.jp-prod-hourly-table--detail .jp-ph-row td {
+    border-color: #f3e8ea !important;
+    padding: 0.45rem 0.5rem;
+    vertical-align: middle;
+}
+
+.jp-prod-hourly-table--detail .jp-ph-row:hover td {
+    background: #fffafb;
+}
+
+.jp-prod-hourly-table--detail .jp-ph-row.is-warning td {
+    background: #fffbeb;
+}
+
+.jp-prod-hourly-table--detail .jp-ph-process-cell {
+    max-width: 10rem;
+    white-space: normal;
+    font-size: 0.78rem;
+}
+
+.jp-prod-hourly-table--detail .jp-ph-badge-warn {
+    display: inline-block;
+    margin-left: 0.25rem;
+    padding: 0.1rem 0.35rem;
+    border-radius: 0.3rem;
+    background: #fef3c7;
+    color: #92400e;
+    font-size: 0.62rem;
+    font-weight: 700;
+    vertical-align: middle;
+}
+
+.jp-prod-hourly-table--detail .jp-ph-norm-val {
+    font-weight: 700;
+    color: #881337;
+}
+
+.jp-prod-hourly-table--detail .jp-ph-cell {
+    position: relative;
+    min-width: 3.75rem;
+    height: auto;
+    min-height: 2.75rem;
+    padding: 0.3rem 0.35rem !important;
+    background: #fff;
+    text-align: center;
+}
+
+.jp-prod-hourly-table--detail .jp-ph-cell.is-empty {
+    background: #fafafa;
+}
+
+.jp-prod-hourly-table--detail .jp-ph-cell.is-na {
+    background: #f5f5f5;
+}
+
+.jp-prod-hourly-table--detail .jp-ph-cell.has-qty {
+    background: #fff5f5;
+}
+
+.jp-prod-hourly-table--detail .jp-ph-cell-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.1rem;
+    min-height: 2.2rem;
+}
+
+.jp-prod-hourly-table--detail .jp-ph-qty {
+    position: static;
+    font-weight: 800;
+    font-size: 0.82rem;
+    color: var(--hm-red, #c41e3a);
+    line-height: 1.1;
+}
+
+.jp-prod-hourly-table--detail .jp-ph-qty.is-zero {
+    color: #94a3b8;
+    font-weight: 600;
+}
+
+.jp-prod-hourly-table--detail .jp-ph-cum {
+    position: static;
+    font-size: 0.68rem;
+    color: #64748b;
+    line-height: 1;
+}
+
+.jp-prod-hourly-table--detail .jp-ph-zero-reason {
+    position: static;
+    font-size: 0.58rem;
+    color: #94a3b8;
+    max-width: 100%;
+}
+
+.jp-prod-hourly-table--detail .jp-ph-partial {
+    font-size: 0.58rem;
+    color: #9f1239;
+    padding: 0;
+}
+
+.jp-prod-hourly-table--detail .jp-ph-na {
+    line-height: 2.2rem;
+}
+
+.jp-prod-hourly-table--detail .jp-ph-foot th {
+    background: #ffe4e6 !important;
+    color: #881337 !important;
+    font-weight: 800;
+    border-color: #fecdd3 !important;
+    padding: 0.55rem 0.65rem;
+}
+
+.jp-prod-hourly-table--detail .jp-ph-foot th:last-child {
+    font-size: 1rem;
+    color: var(--hm-red, #c41e3a) !important;
 }
