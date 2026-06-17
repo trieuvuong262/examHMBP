@@ -1,0 +1,103 @@
+{% load static %}
+<div class="jp-prod-productivity-wrap">
+    <div class="jp-prod-productivity-header text-center mb-3">
+        <h5 class="jp-prod-productivity-title fw-bold text-uppercase mb-2">Tính năng suất theo ngày</h5>
+        <div class="jp-prod-productivity-meta small">
+            <span class="jp-prod-productivity-meta-item"><strong>Tên nhân viên:</strong> {{ productivity.employee_name }}</span>
+            <span class="jp-prod-productivity-meta-item"><strong>Bộ phận:</strong> {{ productivity.department_name }}</span>
+            <span class="jp-prod-productivity-meta-item"><strong>Ngày:</strong> {{ productivity.report_date|date:"d/m/Y" }}</span>
+        </div>
+    </div>
+
+    <h6 class="fw-bold small text-muted text-uppercase mb-2">Chi tiết theo khung giờ</h6>
+    <div class="table-responsive jp-prod-productivity-scroll mb-4">
+        <table class="table table-bordered table-sm jp-prod-productivity-table mb-0">
+            <thead>
+                <tr class="jp-prod-productivity-head">
+                    <th class="text-center">STT</th>
+                    <th>Khung giờ</th>
+                    <th>Mã hàng</th>
+                    <th>Công đoạn</th>
+                    <th class="text-end">Số lượng</th>
+                    <th class="text-end">Định mức/H</th>
+                    <th class="text-end">Thời gian/H</th>
+                    <th class="text-end">Hiệu suất</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in productivity.hourly_rows %}
+                <tr{% if row.is_unfinalized %} class="table-warning"{% endif %}>
+                    <td class="text-center">{{ forloop.counter }}</td>
+                    <td class="text-nowrap">{{ row.slot_label }}</td>
+                    <td class="fw-semibold">{{ row.product_code }}</td>
+                    <td>{{ row.process_name }}</td>
+                    <td class="text-end fw-bold">
+                        {% if row.quantity > 0 %}{{ row.quantity }}{% else %}
+                        <span class="text-muted">0</span>
+                        {% if row.zero_reason %}<div class="jp-prod-productivity-reason">{{ row.zero_reason }}</div>{% endif %}
+                        {% endif %}
+                    </td>
+                    <td class="text-end">{% if row.norm_per_hour %}{{ row.norm_per_hour|floatformat:0 }}{% else %}—{% endif %}</td>
+                    <td class="text-end">{{ row.hours_display }}</td>
+                    <td class="text-end fw-bold jp-prod-productivity-eff">
+                        {% if row.efficiency_pct is not None %}{{ row.efficiency_pct|floatformat:2 }}%{% else %}—{% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" class="text-center text-muted py-4">Chưa có dữ liệu năng suất.</td></tr>
+                {% endfor %}
+            </tbody>
+            {% if productivity.hourly_rows %}
+            <tfoot>
+                <tr class="jp-prod-productivity-foot">
+                    <th colspan="4" class="text-end text-uppercase">Tổng</th>
+                    <th class="text-end">{{ productivity.total_quantity }}</th>
+                    <th></th>
+                    <th class="text-end">{{ productivity.total_hours_display }}</th>
+                    <th class="text-end">
+                        {% if productivity.overall_efficiency_pct is not None %}
+                        {{ productivity.overall_efficiency_pct|floatformat:2 }}%
+                        {% else %}—{% endif %}
+                    </th>
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
+    </div>
+
+    {% if productivity.product_summaries %}
+    <h6 class="fw-bold small text-muted text-uppercase mb-2">Tổng hợp theo mã hàng / công đoạn</h6>
+    <div class="table-responsive jp-prod-productivity-scroll">
+        <table class="table table-bordered table-sm jp-prod-productivity-table mb-0">
+            <thead>
+                <tr class="jp-prod-productivity-head">
+                    <th class="text-center">STT</th>
+                    <th>Mã hàng</th>
+                    <th>Công đoạn</th>
+                    <th class="text-end">Số lượng</th>
+                    <th class="text-end">Định mức/H</th>
+                    <th class="text-end">Thời gian/H</th>
+                    <th class="text-end">Hiệu suất</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in productivity.product_summaries %}
+                <tr>
+                    <td class="text-center">{{ forloop.counter }}</td>
+                    <td class="fw-semibold">{{ row.product_code }}</td>
+                    <td>{{ row.process_name }}</td>
+                    <td class="text-end fw-bold">{{ row.quantity }}</td>
+                    <td class="text-end">{{ row.norm_per_hour|floatformat:0 }}</td>
+                    <td class="text-end">{{ row.hours_display }}</td>
+                    <td class="text-end fw-bold jp-prod-productivity-eff">{{ row.efficiency_pct|floatformat:2 }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <p class="text-muted small mt-3 mb-0">
+        Hiệu suất = Số lượng ÷ (Định mức/H × Thời gian/H) × 100%. Chỉ tính các giờ có sản lượng &gt; 0 và đã gắn định mức.
+    </p>
+</div>

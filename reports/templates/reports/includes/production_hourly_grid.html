@@ -33,10 +33,17 @@
                     <td>{{ row.label_process|default:row.process_name|default:"Chưa gắn mã" }}</td>
                     <td class="text-end">{{ row.norm_per_hour|default:"—" }}</td>
                     {% for cell in row.slots %}
-                    <td class="jp-ph-cell{% if not cell.has_data %} is-empty{% endif %}">
-                        {% if cell.has_data %}
+                    <td class="jp-ph-cell{% if cell.is_na %} is-na{% elif not cell.has_data %} is-empty{% endif %}">
+                        {% if cell.is_na %}
+                        <span class="jp-ph-na">—</span>
+                        {% elif cell.has_data %}
+                        {% if cell.quantity > 0 %}
                         <span class="jp-ph-qty">{{ cell.quantity }}</span>
                         <span class="jp-ph-cum">{{ cell.cumulative }}</span>
+                        {% else %}
+                        <span class="jp-ph-qty text-muted">0</span>
+                        <span class="jp-ph-zero-reason" title="{{ cell.zero_reason }}">{{ cell.zero_reason|truncatechars:12 }}</span>
+                        {% endif %}
                         {% if cell.partial_hours %}
                         <span class="jp-ph-partial">{{ cell.display }}</span>
                         {% endif %}

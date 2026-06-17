@@ -151,6 +151,10 @@ class ProductionShiftProduct(models.Model):
     )
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
     sort_order = models.PositiveSmallIntegerField(default=0)
+    first_slot_index = models.PositiveSmallIntegerField(
+        default=0,
+        verbose_name='Khung giờ bắt đầu phiên mã hàng',
+    )
     started_at = models.DateTimeField(auto_now_add=True)
     ended_at = models.DateTimeField(null=True, blank=True)
 
@@ -179,6 +183,12 @@ class ProductionHourlyQuantity(models.Model):
         null=True,
         blank=True,
         verbose_name='Giờ thực tế (khi chia giờ)',
+    )
+    zero_reason = models.CharField(
+        max_length=200,
+        blank=True,
+        default='',
+        verbose_name='Lý do sản lượng 0',
     )
 
     class Meta:

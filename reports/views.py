@@ -741,6 +741,7 @@ def team_weekly_reports(request):
 def report_detail(request, pk):
     from reports.production_hourly import (
         build_hourly_grid,
+        build_productivity_report,
         can_edit_production_report,
         lock_production_report_on_supervisor_view,
     )
@@ -776,9 +777,11 @@ def report_detail(request, pk):
 
     office_sheet = normalize_spreadsheet_json(report.spreadsheet_json)
     hourly_grid = None
+    productivity = None
     edit_report_url = ''
     if report.is_production_report and report.shift_started_at:
         hourly_grid = build_hourly_grid(report)
+        productivity = build_productivity_report(report)
     if can_edit_production_report(
         request.user,
         report,
@@ -795,6 +798,7 @@ def report_detail(request, pk):
         'report': report,
         'office_sheet': office_sheet,
         'hourly_grid': hourly_grid,
+        'productivity': productivity,
         'edit_report_url': edit_report_url,
         'can_review': can_review,
         'can_submit_report': can_submit_daily_report(request.user),

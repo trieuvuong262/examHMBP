@@ -10,7 +10,9 @@ from django.utils import timezone
 from hrm.models import Department, DepartmentMenuPermission, Profile
 from reports.models import DailyWorkReport, ProductionHourlyQuantity, ProductionShiftProduct
 from reports.production_hourly import (
+    active_product,
     build_hourly_grid,
+    build_productivity_report,
     can_edit_production_report,
     cumulative_quantity,
     ensure_active_work_block,
@@ -85,9 +87,52 @@ class ProductionHourlyTests(TestCase):
         self.assertEqual(grid['rows'][0]['slots'][1]['cumulative'], 250)
         self.assertEqual(grid['grand_total'], 250)
 
-        new_active = ensure_active_work_block(self.report)
+        new_active = active_product(self.report)
         self.assertNotEqual(new_active.pk, finalized.pk)
         self.assertEqual(new_active.product_code, '')
+        self.assertEqual(new_active.first_slot_index, 2)
+
+    def test_pegasus_thor_slot_scope(self):
+        """Mã mới chỉ nhập từ khung sau mã trước — Thor không nhập được 7h30."""
+        ensure_work_day_started(self.report)
+        pegasus = ensure_active_work_block(self.report)
+        save_hourly_entry(pegasus, 0, 100)
+        save_hourly_entry(pegasus, 1, 100)
+        save_hourly_entry(pegasus, 2, 100)
+        finalize_product_with_metadata(
+            self.report,
+            product_code='PEGASUS',
+            process_name='May áo',
+            norm_per_hour=100,
+        )
+        thor = active_product(self.report)
+        self.assertEqual(thor.first_slot_index, 3)
+
+        with self.assertRaises(ValueError):
+            save_hourly_entry(thor, 0, 105)
+
+        save_hourly_entry(thor, 3, 105)
+        noon = timezone.make_aware(datetime.combine(self.report_date, time(11, 0)))
+        pending = pending_slots_for_report(self.report, now=noon)
+        self.assertTrue(all(p['slot_index'] >= 3 for p in pending))
+
+        grid = build_hourly_grid(self.report)
+        thor_row = next(r for r in grid['rows'] if r['id'] == thor.pk)
+        self.assertTrue(thor_row['slots'][0]['is_na'])
+        self.assertTrue(thor_row['slots'][2]['is_na'])
+
+    def test_zero_quantity_requires_reason(self):
+        ensure_work_day_started(self.report)
+        product = ensure_active_work_block(self.report)
+        with self.assertRaises(ValueError):
+            save_hourly_entry(product, 0, 0)
+        save_hourly_entry(product, 0, 0, zero_reason='Bận việc khác')
+        entry = product.hourly_entries.get(slot_index=0)
+        self.assertEqual(entry.quantity, 0)
+        self.assertEqual(entry.zero_reason, 'Bận việc khác')
+        fake_now = timezone.make_aware(datetime.combine(self.report_date, time(9, 0)))
+        pending = pending_slots_for_report(self.report, now=fake_now)
+        self.assertEqual(pending[0]['slot_index'], 1)
 
     def test_pending_slots(self):
         ensure_work_day_started(self.report)
@@ -159,3 +204,36 @@ class ProductionHourlyTests(TestCase):
             return_value=False,
         ):
             self.assertFalse(lock_production_report_on_supervisor_view(self.report, self.user))
+
+    def test_productivity_report_hourly(self):
+        ensure_work_day_started(self.report)
+        pegasus = ensure_active_work_block(self.report)
+        save_hourly_entry(pegasus, 0, 100)
+        save_hourly_entry(pegasus, 1, 100)
+        save_hourly_entry(pegasus, 2, 100)
+        finalize_product_with_metadata(
+            self.report,
+            product_code='PEGASUS',
+            process_name='May áo pegasus',
+            norm_per_hour=100,
+        )
+        thor = active_product(self.report)
+        save_hourly_entry(thor, 3, 105)
+        finalize_product_with_metadata(
+            self.report,
+            product_code='THOR',
+            process_name='May áo thor',
+            norm_per_hour=105,
+        )
+
+        prod = build_productivity_report(self.report)
+        self.assertTrue(prod['has_data'])
+        self.assertEqual(len(prod['hourly_rows']), 4)
+        self.assertEqual(prod['hourly_rows'][0]['slot_label'], '7h30 - 8h30')
+        self.assertEqual(prod['hourly_rows'][0]['product_code'], 'PEGASUS')
+        self.assertEqual(prod['hourly_rows'][3]['product_code'], 'THOR')
+        self.assertEqual(prod['hourly_rows'][0]['efficiency_pct'], 100.0)
+        self.assertEqual(prod['total_quantity'], 405)
+        self.assertEqual(prod['overall_efficiency_pct'], 100.0)
+        self.assertEqual(len(prod['product_summaries']), 2)
+        self.assertEqual(prod['product_summaries'][0]['efficiency_pct'], 100.0)

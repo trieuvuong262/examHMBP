@@ -57,13 +57,23 @@ def _apply_review_payload(report, payload_str):
                 continue
             qty = parse_int(cell.get('quantity'))
             partial = parse_decimal(cell.get('partial_hours'))
-            if qty > 0:
-                save_hourly_entry(product, int(slot_index), qty, partial_hours=partial)
-            else:
-                ProductionHourlyQuantity.objects.filter(
-                    product=product,
-                    slot_index=int(slot_index),
-                ).delete()
+            zero_reason = (cell.get('zero_reason') or '').strip()
+            try:
+                if qty > 0 or zero_reason:
+                    save_hourly_entry(
+                        product,
+                        int(slot_index),
+                        qty,
+                        partial_hours=partial,
+                        zero_reason=zero_reason,
+                    )
+                else:
+                    ProductionHourlyQuantity.objects.filter(
+                        product=product,
+                        slot_index=int(slot_index),
+                    ).delete()
+            except ValueError:
+                return False
     return True
 
 
@@ -158,13 +168,27 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         slot_index = parse_int(request.POST.get('slot_index'), -1)
         qty = parse_int(request.POST.get('quantity'))
         partial = parse_decimal(request.POST.get('partial_hours'))
+        zero_reason = (request.POST.get('zero_reason') or '').strip()
         if slot_index < 0:
             messages.error(request, 'Khung giờ không hợp lệ.')
             return redirect(_production_redirect(report_date, for_user or None))
-        save_hourly_entry(product, slot_index, qty, partial_hours=partial)
+        try:
+            save_hourly_entry(
+                product,
+                slot_index,
+                qty,
+                partial_hours=partial,
+                zero_reason=zero_reason,
+            )
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect(_production_redirect(report_date, for_user or None))
         slot = slot_by_index(slot_index)
         label = slot.label if slot else str(slot_index)
-        messages.success(request, f'Đã lưu {qty} — {label}.')
+        if qty > 0:
+            messages.success(request, f'Đã lưu {qty} — {label}.')
+        else:
+            messages.success(request, f'Đã ghi nhận sản lượng 0 — {label}.')
         return redirect(_production_redirect(report_date, for_user or None))
 
     if action == 'save_review':
@@ -279,6 +303,11 @@ def today_production_hourly(request, report_date, report_context_common):
         'pending_slots': pending,
         'current_slot_index': current_slot,
         'current_slot_label': slot_by_index(current_slot).label if current_slot is not None else '',
+        'active_first_slot_label': (
+            slot_by_index(current_product.first_slot_index).label
+            if current_product and slot_by_index(current_product.first_slot_index)
+            else ''
+        ),
         'hourly_grid': grid,
         'for_user_param': subject.id if editing_for_other else '',
         'back_team_url': reverse('reports:team') + f'?date={report_date.isoformat()}',

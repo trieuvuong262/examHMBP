@@ -21,8 +21,12 @@
             <div class="jp-prod-review-slot jp-prod-review-slot--readonly">
                 <div class="jp-prod-review-slot-label">{{ cell.slot_label }}</div>
                 <div class="jp-prod-review-slot-values">
-                    <span class="jp-prod-review-qty-display">{{ cell.quantity }}</span>
+                    <span class="jp-prod-review-qty-display{% if not cell.quantity %} text-muted{% endif %}">{{ cell.quantity }}</span>
+                    {% if cell.quantity > 0 %}
                     <span class="jp-prod-review-cum-display">Σ {{ cell.cumulative }}</span>
+                    {% elif cell.zero_reason %}
+                    <span class="jp-prod-review-zero-reason">{{ cell.zero_reason }}</span>
+                    {% endif %}
                 </div>
             </div>
             {% endif %}

@@ -4,6 +4,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Optional
 
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from reports.models import (
@@ -84,18 +85,57 @@ def active_product(report: DailyWorkReport) -> Optional[ProductionShiftProduct]:
     )
 
 
+def _entry_is_filled(entry: ProductionHourlyQuantity) -> bool:
+    if not entry:
+        return False
+    if entry.quantity > 0:
+        return True
+    return bool((entry.zero_reason or '').strip())
+
+
+def _last_filled_slot_index(product: ProductionShiftProduct) -> Optional[int]:
+    filled = [
+        e.slot_index
+        for e in product.hourly_entries.all()
+        if _entry_is_filled(e)
+    ]
+    return max(filled) if filled else None
+
+
+def compute_first_slot_index(
+    report: DailyWorkReport,
+    after_product: Optional[ProductionShiftProduct] = None,
+) -> int:
+    """Khung giờ đầu tiên được phép nhập cho phiên mã hàng mới."""
+    if after_product is None:
+        return 0
+    last_filled = _last_filled_slot_index(after_product)
+    if last_filled is None:
+        return 0
+    start = int(last_filled) + 1
+    if start >= SLOT_COUNT:
+        return SLOT_COUNT - 1
+    return start
+
+
 @transaction.atomic
-def ensure_active_work_block(report: DailyWorkReport) -> ProductionShiftProduct:
+def ensure_active_work_block(
+    report: DailyWorkReport,
+    *,
+    after_product: Optional[ProductionShiftProduct] = None,
+) -> ProductionShiftProduct:
     active = active_product(report)
     if active:
         return active
     sort_order = report.production_products.count()
+    first_slot = compute_first_slot_index(report, after_product=after_product)
     return ProductionShiftProduct.objects.create(
         report=report,
         product_code='',
         process_name='',
         norm_per_hour=None,
         sort_order=sort_order,
+        first_slot_index=first_slot,
         status=ProductionShiftProduct.STATUS_ACTIVE,
     )
 
@@ -124,7 +164,7 @@ def finalize_product_with_metadata(
     active.status = ProductionShiftProduct.STATUS_DONE
     active.ended_at = timezone.now()
     active.save()
-    ensure_active_work_block(report)
+    ensure_active_work_block(report, after_product=active)
     return active
 
 
@@ -140,9 +180,16 @@ def save_hourly_entry(
     slot_index: int,
     quantity: int,
     partial_hours=None,
+    zero_reason=None,
 ) -> ProductionHourlyQuantity:
     if slot_index < 0 or slot_index >= SLOT_COUNT:
         raise ValueError('slot_index không hợp lệ')
+    if slot_index < product.first_slot_index:
+        raise ValueError('Khung giờ này không thuộc phiên mã hàng hiện tại.')
+    qty = max(0, int(quantity))
+    reason = (zero_reason or '').strip()
+    if qty == 0 and not reason:
+        raise ValueError('Cần nhập lý do khi sản lượng bằng 0.')
     partial = None
     if partial_hours not in (None, ''):
         partial = Decimal(str(partial_hours))
@@ -150,8 +197,9 @@ def save_hourly_entry(
         product=product,
         slot_index=slot_index,
         defaults={
-            'quantity': max(0, int(quantity)),
+            'quantity': qty,
             'partial_hours': partial,
+            'zero_reason': '' if qty > 0 else reason[:200],
         },
     )
     return entry
@@ -165,16 +213,34 @@ def cumulative_quantity(product: ProductionShiftProduct, up_to_slot: int) -> int
 
 
 def product_slot_cell(product: ProductionShiftProduct, slot_index: int) -> dict:
+    if slot_index < product.first_slot_index:
+        return {
+            'slot_index': slot_index,
+            'slot_label': slot_by_index(slot_index).label if slot_by_index(slot_index) else str(slot_index),
+            'quantity': 0,
+            'cumulative': 0,
+            'partial_hours': None,
+            'display': '',
+            'has_data': False,
+            'is_na': True,
+            'zero_reason': '',
+            'entry_id': None,
+        }
     entry = product.hourly_entries.filter(slot_index=slot_index).first()
     qty = entry.quantity if entry else 0
+    reason = (entry.zero_reason or '').strip() if entry else ''
+    filled = _entry_is_filled(entry)
     cum = cumulative_quantity(product, slot_index) if qty else 0
     partial = entry.partial_hours if entry else None
     display = ''
-    if entry and qty:
-        if partial:
-            display = f'{qty}/{partial}h'
+    if entry and filled:
+        if qty > 0:
+            if partial:
+                display = f'{qty}/{partial}h'
+            else:
+                display = str(qty)
         else:
-            display = str(qty)
+            display = '0'
     slot = slot_by_index(slot_index)
     return {
         'slot_index': slot_index,
@@ -183,13 +249,118 @@ def product_slot_cell(product: ProductionShiftProduct, slot_index: int) -> dict:
         'cumulative': cum if qty else 0,
         'partial_hours': partial,
         'display': display,
-        'has_data': bool(entry and qty),
+        'has_data': filled,
+        'is_na': False,
+        'zero_reason': reason,
         'entry_id': entry.pk if entry else None,
     }
 
 
 def _product_has_hourly_data(product: ProductionShiftProduct) -> bool:
     return product.hourly_entries.filter(quantity__gt=0).exists()
+
+
+def build_productivity_report(report: DailyWorkReport) -> dict:
+    """Báo cáo năng suất theo từng khung giờ — dành cho quản lý xem."""
+    products = list(
+        report.production_products.prefetch_related('hourly_entries').order_by('sort_order', 'id')
+    )
+    hourly_rows = []
+    product_summaries = []
+    total_qty = 0
+    total_hours = Decimal('0')
+    total_expected = Decimal('0')
+
+    for product in products:
+        code = (product.product_code or '').strip() or '—'
+        process = (product.process_name or '').strip() or 'Chưa gắn mã'
+        norm = product.norm_per_hour
+        prod_qty = 0
+        prod_hours = Decimal('0')
+        prod_expected = Decimal('0')
+
+        for entry in product.hourly_entries.order_by('slot_index'):
+            if not _entry_is_filled(entry):
+                continue
+            if entry.slot_index < product.first_slot_index:
+                continue
+
+            slot = slot_by_index(entry.slot_index)
+            hours = entry.partial_hours if entry.partial_hours is not None else Decimal('1')
+            qty = entry.quantity
+            efficiency_pct = None
+
+            if qty > 0 and norm and norm > 0:
+                expected = norm * hours
+                efficiency_pct = float(
+                    (Decimal(qty) / expected * 100).quantize(Decimal('0.01'))
+                )
+                prod_qty += qty
+                prod_hours += hours
+                prod_expected += expected
+                total_qty += qty
+                total_hours += hours
+                total_expected += expected
+
+            hourly_rows.append({
+                'slot_index': entry.slot_index,
+                'slot_label': slot.label if slot else str(entry.slot_index),
+                'product_code': code,
+                'process_name': process,
+                'quantity': qty,
+                'norm_per_hour': float(norm) if norm is not None else None,
+                'hours': float(hours),
+                'hours_display': _format_hours(hours),
+                'efficiency_pct': efficiency_pct,
+                'zero_reason': (entry.zero_reason or '').strip(),
+                'is_unfinalized': not (product.product_code or '').strip(),
+            })
+
+        if prod_qty > 0 and norm and norm > 0:
+            product_summaries.append({
+                'product_code': code,
+                'process_name': process,
+                'quantity': prod_qty,
+                'norm_per_hour': float(norm),
+                'hours': float(prod_hours),
+                'hours_display': _format_hours(prod_hours),
+                'efficiency_pct': float(
+                    (Decimal(prod_qty) / prod_expected * 100).quantize(Decimal('0.01'))
+                ),
+            })
+
+    hourly_rows.sort(key=lambda r: (r['slot_index'], r['product_code']))
+
+    overall_efficiency_pct = None
+    if total_expected > 0:
+        overall_efficiency_pct = float(
+            (Decimal(total_qty) / total_expected * 100).quantize(Decimal('0.01'))
+        )
+
+    profile = getattr(report.employee, 'profile', None)
+    department_name = profile.department.name if profile and profile.department_id else '—'
+    employee_name = (profile.full_name if profile and profile.full_name else report.employee.username)
+
+    return {
+        'hourly_rows': hourly_rows,
+        'product_summaries': product_summaries,
+        'total_quantity': total_qty,
+        'total_hours': float(total_hours),
+        'total_hours_display': _format_hours(total_hours),
+        'overall_efficiency_pct': overall_efficiency_pct,
+        'employee_name': employee_name,
+        'department_name': department_name,
+        'report_date': report.report_date,
+        'has_data': bool(hourly_rows),
+    }
+
+
+def _format_hours(value) -> str:
+    dec = Decimal(str(value)).normalize()
+    text = format(dec, 'f')
+    if '.' in text:
+        text = text.rstrip('0').rstrip('.')
+    return f'{text}h'
 
 
 def build_hourly_grid(report: DailyWorkReport) -> dict:
@@ -214,6 +385,7 @@ def build_hourly_grid(report: DailyWorkReport) -> dict:
             'norm_per_hour': float(product.norm_per_hour) if product.norm_per_hour is not None else None,
             'status': product.status,
             'is_unfinalized': is_unfinalized,
+            'first_slot_index': product.first_slot_index,
             'label_code': product.product_code.strip() if product.product_code else '—',
             'label_process': product.process_name.strip() if product.process_name else 'Chưa gắn mã',
             'slots': slots,
@@ -228,16 +400,24 @@ def build_hourly_grid(report: DailyWorkReport) -> dict:
 
 
 def pending_slots_for_report(report: DailyWorkReport, now=None) -> list[dict]:
-    """Slot chưa nhập cho phiên đang làm (chỉ các giờ đã qua)."""
+    """Slot chưa nhập cho phiên đang làm (chỉ từ khung bắt đầu phiên trở đi)."""
     product = active_product(report)
     if not product:
         return []
     due = due_slot_indices(now, report.report_date)
     if not due:
         return []
-    filled = set(product.hourly_entries.filter(quantity__gt=0).values_list('slot_index', flat=True))
+    filled = set(
+        product.hourly_entries.filter(
+            slot_index__gte=product.first_slot_index,
+        ).filter(
+            Q(quantity__gt=0) | ~Q(zero_reason=''),
+        ).values_list('slot_index', flat=True)
+    )
     pending = []
     for idx in due:
+        if idx < product.first_slot_index:
+            continue
         if idx in filled:
             continue
         slot = slot_by_index(idx)

@@ -80,6 +80,31 @@
                 partialWrap.classList.toggle('d-none', !partialToggle.checked);
             });
         }
+
+        var qtyInput = document.getElementById('hourly-quantity');
+        var reasonWrap = document.getElementById('hourly-zero-reason-wrap');
+        var reasonInput = document.getElementById('hourly-zero-reason');
+        if (qtyInput && reasonWrap && reasonInput) {
+            qtyInput.addEventListener('input', function () {
+                var isZero = qtyInput.value === '0';
+                reasonWrap.classList.toggle('d-none', !isZero);
+                reasonInput.required = isZero;
+                if (!isZero) reasonInput.value = '';
+            });
+        }
+
+        var hourlyForm = document.getElementById('hourly-form');
+        if (hourlyForm) {
+            hourlyForm.addEventListener('submit', function (e) {
+                if (!qtyInput) return;
+                if (qtyInput.value === '0' && !(reasonInput && reasonInput.value.trim())) {
+                    e.preventDefault();
+                    reasonWrap.classList.remove('d-none');
+                    reasonInput.required = true;
+                    reasonInput.focus();
+                }
+            });
+        }
     }
 
     function fillHourlyModal(slotIndex, slotLabel) {
@@ -88,9 +113,16 @@
         if (idxInput) idxInput.value = slotIndex || '';
         if (slotText) slotText.textContent = slotLabel ? 'Khung giờ: ' + slotLabel : '';
         var modal = document.getElementById('hourlyModal');
-        var qty = modal && modal.querySelector('input[name="quantity"]');
+        var qty = document.getElementById('hourly-quantity');
+        var reasonWrap = document.getElementById('hourly-zero-reason-wrap');
+        var reasonInput = document.getElementById('hourly-zero-reason');
         if (qty) {
             qty.value = '';
+            if (reasonWrap) reasonWrap.classList.add('d-none');
+            if (reasonInput) {
+                reasonInput.value = '';
+                reasonInput.required = false;
+            }
             setTimeout(function () { qty.focus(); }, 200);
         }
     }
@@ -248,10 +280,9 @@
 
         var rowTotal = 0;
         row.slots.forEach(function (cell) {
-            if (!cell.quantity && cell.quantity !== 0) return;
-            if (parseInt(cell.quantity, 10) <= 0) return;
+            if (cell.is_na || !cell.has_data) return;
             var qty = parseInt(cell.quantity, 10) || 0;
-            rowTotal += qty;
+            if (qty > 0) rowTotal += qty;
             var label = escapeHtml(cell.slot_label || ('Giờ ' + (cell.slot_index + 1)));
             html += '<div class="jp-prod-review-slot">';
             html += '<div class="jp-prod-review-slot-label">' + label + '</div>';
@@ -290,9 +321,11 @@
             var rowTotal = 0;
             row.slots.forEach(function (cell) {
                 html += '<td class="text-center align-middle">';
-                if (cell.has_data || (cell.quantity && parseInt(cell.quantity, 10) > 0)) {
+                if (cell.is_na) {
+                    html += '<span class="text-muted">—</span>';
+                } else if (cell.has_data) {
                     var qty = parseInt(cell.quantity, 10) || 0;
-                    rowTotal += qty;
+                    if (qty > 0) rowTotal += qty;
                     html += '<input type="number" class="jp-review-cell-input" min="0" step="1" ';
                     html += 'data-slot-index="' + cell.slot_index + '" value="' + qty + '">';
                 }

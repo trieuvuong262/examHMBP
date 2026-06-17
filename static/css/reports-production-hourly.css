@@ -200,6 +200,37 @@ body .modal-backdrop.show {
     background: #f8f9fa;
 }
 
+.jp-ph-cell.is-na {
+    background: #f1f3f5;
+}
+
+.jp-ph-na {
+    display: block;
+    text-align: center;
+    color: #adb5bd;
+    font-size: 0.85rem;
+    line-height: 2.5rem;
+}
+
+.jp-ph-zero-reason {
+    position: absolute;
+    bottom: 2px;
+    left: 4px;
+    right: 4px;
+    font-size: 0.55rem;
+    color: #6c757d;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.jp-prod-review-zero-reason {
+    font-size: 0.72rem;
+    color: #6c757d;
+    text-align: right;
+    max-width: 8rem;
+}
+
 .jp-ph-qty {
     position: absolute;
     top: 2px;
@@ -562,4 +593,59 @@ body .modal-backdrop.show {
         padding-left: 0.75rem;
         padding-right: 0.75rem;
     }
+}
+
+/* ——— Báo cáo năng suất (quản lý) ——— */
+.jp-prod-productivity-title {
+    background: #fff3cd;
+    color: #111;
+    padding: 0.65rem 1rem;
+    border-radius: 0.5rem;
+    display: inline-block;
+    min-width: min(100%, 420px);
+}
+
+.jp-prod-productivity-meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.35rem 1.25rem;
+    color: #444;
+}
+
+.jp-prod-productivity-meta-item strong {
+    color: #1e3a8a;
+}
+
+.jp-prod-productivity-table {
+    font-size: 0.82rem;
+}
+
+.jp-prod-productivity-head th {
+    background: #1e3a8a !important;
+    color: #fff !important;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.jp-prod-productivity-foot th {
+    background: #dbeafe !important;
+    color: #111 !important;
+    font-weight: 800;
+}
+
+.jp-prod-productivity-eff {
+    color: var(--hm-red, #c41e3a);
+}
+
+.jp-prod-productivity-reason {
+    font-size: 0.68rem;
+    font-weight: 400;
+    color: #6c757d;
+    line-height: 1.2;
+    margin-top: 0.15rem;
+}
+
+.jp-prod-productivity-scroll {
+    overflow-x: auto;
 }
