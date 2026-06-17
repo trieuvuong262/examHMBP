@@ -2,129 +2,215 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260617g">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260617h">
 {% endblock %}
 
 {% block content %}
-<div class="jp-prod-mobile-page{% if phase == 'review' %} jp-prod-mobile-page--review{% endif %}" data-phase="{{ phase }}">
-    <header class="jp-prod-mobile-header">
-        <div>
-            <h1 class="jp-prod-mobile-title">{% if phase == 'review' %}Tổng kết ngày{% else %}Báo cáo sản xuất{% endif %}</h1>
-            <p class="jp-prod-mobile-sub mb-0">
-                {{ employee_name }}{% if department_name %} · {{ department_name }}{% endif %}
-            </p>
-            <p class="jp-prod-mobile-sub small text-muted mb-0">{{ report_date|date:"d/m/Y" }}</p>
+<div class="container jp-page jp-reports-page py-3 py-md-4 mb-md-5">
+<div class="jp-prod-page{% if editing_for_other %} jp-prod-page--proxy{% endif %}{% if phase == 'review' %} jp-prod-page--review{% endif %}" data-phase="{{ phase }}">
+    <header class="jp-prod-page-header">
+        <div class="jp-prod-page-header-main">
+            <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 w-100">
+                <div>
+                    <h1 class="jp-prod-page-title">{% if phase == 'review' %}Tổng kết ngày{% else %}Báo cáo sản xuất{% endif %}</h1>
+                    <p class="jp-prod-page-sub mb-0">
+                        <strong>{{ employee_name }}</strong>{% if department_name %} · {{ department_name }}{% endif %}
+                    </p>
+                    <p class="jp-prod-page-sub small text-muted mb-0">{{ report_date|date:"d/m/Y" }}</p>
+                </div>
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    {% if editing_for_other %}
+                    <span class="badge bg-warning text-dark"><i class="bi bi-person-fill-gear me-1"></i>Nhập hộ NV</span>
+                    {% endif %}
+                    {% if editing_for_other %}
+                    <a href="{{ back_team_url }}" class="btn btn-sm btn-outline-dark d-none d-md-inline-flex">
+                        <i class="bi bi-arrow-left me-1"></i>Cấp dưới
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% if editing_for_other and phase != 'review' %}
+            <a href="{{ back_team_url }}" class="btn btn-sm btn-outline-dark mt-2 d-md-none">
+                <i class="bi bi-arrow-left me-1"></i>Cấp dưới
+            </a>
+            {% endif %}
         </div>
-        {% if editing_for_other %}
-        <span class="badge bg-warning text-dark">Nhập hộ NV</span>
-        {% endif %}
     </header>
 
-    {% if editing_for_other and phase != 'review' %}
-    <a href="{{ back_team_url }}" class="btn btn-sm btn-outline-dark mb-3"><i class="bi bi-arrow-left me-1"></i>Cấp dưới</a>
-    {% endif %}
-
-    {% if shift_started and phase != 'review' %}
-    <section class="jp-prod-status-bar">
-        <span class="badge bg-success-subtle text-success"><i class="bi bi-clock me-1"></i>Đang làm việc</span>
-        {% if current_slot_label %}
-        <span class="small text-muted">Giờ hiện tại: {{ current_slot_label }}</span>
+    <div class="jp-prod-layout">
+        {% if shift_started and phase != 'review' %}
+        <aside class="jp-prod-sidebar d-none d-lg-block">
+            <div class="jp-prod-sidebar-card">
+                <div class="jp-prod-status-bar mb-3">
+                    <span class="badge bg-success-subtle text-success"><i class="bi bi-clock me-1"></i>Đang làm việc</span>
+                    {% if current_slot_label %}
+                    <span class="small text-muted d-block mt-2">Giờ hiện tại: {{ current_slot_label }}</span>
+                    {% endif %}
+                </div>
+                {% if phase == 'working' or phase == 'hourly' %}
+                <div class="jp-prod-actions jp-prod-actions--sidebar d-grid gap-2">
+                    {% if can_edit and pending_slots %}
+                    <button type="button" class="btn btn-hm fw-bold" data-bs-toggle="modal" data-bs-target="#hourlyModal"
+                            data-slot-index="{{ pending_slots.0.slot_index }}" data-slot-label="{{ pending_slots.0.label }}">
+                        <i class="bi bi-plus-circle me-2"></i>Nhập {{ pending_slots.0.label }}
+                    </button>
+                    {% elif can_edit and current_slot_label %}
+                    <div class="alert alert-light border small mb-0 py-2">
+                        Chưa đến giờ nhập hoặc đã nhập đủ các khung giờ hiện tại.
+                    </div>
+                    {% endif %}
+                    {% if can_edit %}
+                    <button type="button" class="btn btn-outline-hm fw-bold" data-bs-toggle="modal"
+                            data-bs-target="#productWizardModal" {% if not has_unfinalized %}disabled{% endif %}>
+                        <i class="bi bi-check2-square me-2"></i>Kết thúc mã hàng
+                    </button>
+                    <a href="?date={{ report_date|date:'Y-m-d' }}{% if for_user_param %}&for_user={{ for_user_param }}{% endif %}&phase=review"
+                       class="btn btn-outline-dark">
+                        <i class="bi bi-list-check me-2"></i>Kết thúc ngày — xem tổng
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </aside>
         {% endif %}
-    </section>
 
-    {% if phase == 'working' or phase == 'hourly' %}
-    <section class="jp-prod-actions d-grid gap-2">
-        {% if can_edit and pending_slots %}
-        <button type="button" class="btn btn-hm btn-lg fw-bold" data-bs-toggle="modal" data-bs-target="#hourlyModal"
-                data-slot-index="{{ pending_slots.0.slot_index }}" data-slot-label="{{ pending_slots.0.label }}">
-            <i class="bi bi-plus-circle me-2"></i>Nhập {{ pending_slots.0.label }}
-        </button>
-        {% elif can_edit and current_slot_label %}
-        <div class="alert alert-light border text-center small mb-0 py-3">
-            Chưa đến giờ nhập hoặc đã nhập đủ các khung giờ hiện tại.
+        <div class="jp-prod-main">
+            {% if shift_started and phase != 'review' %}
+            <section class="jp-prod-status-bar d-lg-none">
+                <span class="badge bg-success-subtle text-success"><i class="bi bi-clock me-1"></i>Đang làm việc</span>
+                {% if current_slot_label %}
+                <span class="small text-muted">Giờ hiện tại: {{ current_slot_label }}</span>
+                {% endif %}
+            </section>
+
+            {% if phase == 'working' or phase == 'hourly' %}
+            <section class="jp-prod-actions jp-prod-actions--mobile d-grid gap-2 d-lg-none">
+                {% if can_edit and pending_slots %}
+                <button type="button" class="btn btn-hm btn-lg fw-bold" data-bs-toggle="modal" data-bs-target="#hourlyModal"
+                        data-slot-index="{{ pending_slots.0.slot_index }}" data-slot-label="{{ pending_slots.0.label }}">
+                    <i class="bi bi-plus-circle me-2"></i>Nhập {{ pending_slots.0.label }}
+                </button>
+                {% elif can_edit and current_slot_label %}
+                <div class="alert alert-light border text-center small mb-0 py-3">
+                    Chưa đến giờ nhập hoặc đã nhập đủ các khung giờ hiện tại.
+                </div>
+                {% endif %}
+                {% if can_edit %}
+                <button type="button" class="btn btn-outline-hm w-100 fw-bold" data-bs-toggle="modal"
+                        data-bs-target="#productWizardModal" {% if not has_unfinalized %}disabled{% endif %}>
+                    <i class="bi bi-check2-square me-2"></i>Kết thúc mã hàng
+                </button>
+                {% if not has_unfinalized %}
+                <p class="text-muted small text-center mb-0">Nhập ít nhất một sản lượng trước khi kết thúc mã hàng.</p>
+                {% endif %}
+                <a href="?date={{ report_date|date:'Y-m-d' }}{% if for_user_param %}&for_user={{ for_user_param }}{% endif %}&phase=review"
+                   class="btn btn-outline-dark w-100">
+                    <i class="bi bi-list-check me-2"></i>Kết thúc ngày — xem tổng
+                </a>
+                {% endif %}
+            </section>
+            {% endif %}
+
+            {% if hourly_grid.rows %}
+            <section class="jp-prod-card jp-prod-grid-section mt-3 mt-lg-0">
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                    <h3 class="h6 fw-bold mb-0">Sản lượng đã nhập</h3>
+                    {% if hourly_grid.grand_total %}
+                    <span class="badge bg-light text-dark border">Tổng ngày: <strong class="text-hm ms-1">{{ hourly_grid.grand_total }}</strong></span>
+                    {% endif %}
+                </div>
+                <div class="d-md-none">
+                    {% include 'reports/includes/production_hourly_mobile_readonly.html' %}
+                </div>
+                <div class="d-none d-md-block">
+                    {% include 'reports/includes/production_hourly_grid.html' with hourly_grid=hourly_grid report=report %}
+                </div>
+            </section>
+            {% endif %}
+            {% endif %}
+
+            {% if phase == 'review' and hourly_grid is not None %}
+            <section class="jp-prod-review-main">
+                {% if is_submitted and can_edit %}
+                <div class="alert alert-success border-0 small mb-3">
+                    <i class="bi bi-check-circle-fill me-1"></i>Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }} — vẫn có thể chỉnh sửa cho đến khi cấp trên xem báo cáo.
+                </div>
+                {% elif is_locked %}
+                <div class="alert alert-secondary border-0 small mb-3">
+                    <i class="bi bi-lock-fill me-1"></i>Cấp trên đã xem báo cáo — không thể chỉnh sửa.
+                </div>
+                {% endif %}
+
+                {% if has_unfinalized and can_edit %}
+                <div class="alert alert-warning border-0 small mb-3">
+                    Còn sản lượng chưa gắn mã hàng.
+                    <button type="button" class="btn btn-hm w-100 w-md-auto mt-2 fw-bold" data-bs-toggle="modal"
+                            data-bs-target="#productWizardModal">
+                        Hoàn tất mã hàng đang làm
+                    </button>
+                </div>
+                {% endif %}
+
+                {% if hourly_grid.rows %}
+                {% if can_edit %}
+                <div id="review-grid-root" class="jp-prod-review-mobile d-md-none"></div>
+                <div id="review-grid-root-desktop" class="jp-prod-review-desktop d-none d-md-block"></div>
+                {% else %}
+                <div class="d-md-none">
+                    {% include 'reports/includes/production_hourly_mobile_readonly.html' %}
+                </div>
+                <div class="d-none d-md-block">
+                    {% include 'reports/includes/production_hourly_grid.html' with hourly_grid=hourly_grid report=report %}
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="jp-prod-card text-center text-muted py-4">Chưa có sản lượng nào được nhập.</div>
+                {% endif %}
+            </section>
+
+            {% if can_edit %}
+            <div class="jp-prod-review-sticky d-md-none">
+                {% if hourly_grid.rows %}
+                <div class="jp-prod-review-sticky-total">
+                    <span>Tổng ngày</span>
+                    <strong id="review-grand-total">{{ hourly_grid.grand_total }}</strong>
+                </div>
+                {% endif %}
+                <form method="post" class="mb-0" id="review-submit-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="submit">
+                    <input type="hidden" name="review_json" id="review-json-input">
+                    {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
+                    <button type="submit" class="btn btn-hm w-100 fw-bold btn-lg">
+                        <i class="bi bi-send-fill me-2"></i>{% if is_submitted %}Cập nhật báo cáo{% else %}Gửi báo cáo{% endif %}
+                    </button>
+                </form>
+            </div>
+            <div class="jp-prod-review-sticky-spacer d-md-none" aria-hidden="true"></div>
+
+            <div class="jp-prod-review-desktop-bar d-none d-md-flex">
+                {% if hourly_grid.rows %}
+                <div class="jp-prod-review-desktop-total">
+                    <span class="text-muted">Tổng ngày</span>
+                    <strong id="review-grand-total-desktop">{{ hourly_grid.grand_total }}</strong>
+                </div>
+                {% endif %}
+                <form method="post" class="mb-0 ms-auto" id="review-submit-form-desktop">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="submit">
+                    <input type="hidden" name="review_json" id="review-json-input-desktop">
+                    {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
+                    <button type="submit" class="btn btn-hm fw-bold px-4">
+                        <i class="bi bi-send-fill me-2"></i>{% if is_submitted %}Cập nhật báo cáo{% else %}Gửi báo cáo{% endif %}
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+            {% endif %}
         </div>
-        {% endif %}
-        {% if can_edit %}
-        <button type="button" class="btn btn-outline-hm w-100 fw-bold" data-bs-toggle="modal"
-                data-bs-target="#productWizardModal" {% if not has_unfinalized %}disabled{% endif %}>
-            <i class="bi bi-check2-square me-2"></i>Kết thúc mã hàng
-        </button>
-        {% if not has_unfinalized %}
-        <p class="text-muted small text-center mb-0">Nhập ít nhất một sản lượng trước khi kết thúc mã hàng.</p>
-        {% endif %}
-        <a href="?date={{ report_date|date:'Y-m-d' }}{% if for_user_param %}&for_user={{ for_user_param }}{% endif %}&phase=review"
-           class="btn btn-outline-dark w-100">
-            <i class="bi bi-list-check me-2"></i>Kết thúc ngày — xem tổng
-        </a>
-        {% endif %}
-    </section>
-    {% endif %}
-
-    {% if hourly_grid.rows %}
-    <section class="jp-prod-card mt-3 jp-prod-card--flush">
-        <h3 class="h6 fw-bold mb-3 px-1">Sản lượng đã nhập</h3>
-        {% include 'reports/includes/production_hourly_mobile_readonly.html' %}
-        <div class="jp-prod-desktop-table d-none d-md-block mt-3">
-            {% include 'reports/includes/production_hourly_grid.html' with hourly_grid=hourly_grid report=report %}
-        </div>
-    </section>
-    {% endif %}
-    {% endif %}
-
-    {% if phase == 'review' and hourly_grid is not None %}
-    <section class="jp-prod-review-main">
-        {% if is_submitted and can_edit %}
-        <div class="alert alert-success border-0 small mb-3">
-            <i class="bi bi-check-circle-fill me-1"></i>Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }} — vẫn có thể chỉnh sửa cho đến khi cấp trên xem báo cáo.
-        </div>
-        {% elif is_locked %}
-        <div class="alert alert-secondary border-0 small mb-3">
-            <i class="bi bi-lock-fill me-1"></i>Cấp trên đã xem báo cáo — không thể chỉnh sửa.
-        </div>
-        {% endif %}
-
-        {% if has_unfinalized and can_edit %}
-        <div class="alert alert-warning border-0 small mb-3">
-            Còn sản lượng chưa gắn mã hàng.
-            <button type="button" class="btn btn-hm w-100 mt-2 fw-bold" data-bs-toggle="modal"
-                    data-bs-target="#productWizardModal">
-                Hoàn tất mã hàng đang làm
-            </button>
-        </div>
-        {% endif %}
-
-        {% if hourly_grid.rows %}
-        {% if can_edit %}
-        <div id="review-grid-root" class="jp-prod-review-mobile"></div>
-        {% else %}
-        {% include 'reports/includes/production_hourly_mobile_readonly.html' %}
-        {% endif %}
-        {% else %}
-        <div class="jp-prod-card text-center text-muted py-4">Chưa có sản lượng nào được nhập.</div>
-        {% endif %}
-    </section>
-
-    {% if can_edit %}
-    <div class="jp-prod-review-sticky">
-        {% if hourly_grid.rows %}
-        <div class="jp-prod-review-sticky-total">
-            <span>Tổng ngày</span>
-            <strong id="review-grand-total">{{ hourly_grid.grand_total }}</strong>
-        </div>
-        {% endif %}
-        <form method="post" class="mb-0" id="review-submit-form">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="submit">
-            <input type="hidden" name="review_json" id="review-json-input">
-            {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
-            <button type="submit" class="btn btn-hm w-100 fw-bold btn-lg">
-                <i class="bi bi-send-fill me-2"></i>{% if is_submitted %}Cập nhật báo cáo{% else %}Gửi báo cáo{% endif %}
-            </button>
-        </form>
     </div>
-    <div class="jp-prod-review-sticky-spacer" aria-hidden="true"></div>
-    {% endif %}
-    {% endif %}
+</div>
 </div>
 
 {% if can_edit %}
@@ -211,5 +297,5 @@
 {% endif %}
 
 {% if hourly_grid %}{{ hourly_grid|json_script:"hourly-grid-data" }}{% endif %}
-<script src="{% static 'js/reports-production-hourly.js' %}?v=20260617g"></script>
+<script src="{% static 'js/reports-production-hourly.js' %}?v=20260617h"></script>
 {% endblock %}

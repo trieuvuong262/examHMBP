@@ -1,5 +1,30 @@
 /* Báo cáo sản xuất — mobile-first + bảng hàng giờ */
 
+.jp-prod-page {
+    width: 100%;
+}
+
+.jp-prod-page--proxy .jp-prod-page-header {
+    border-left: 4px solid #ffc107;
+    padding-left: 1rem;
+}
+
+.jp-prod-page-header {
+    margin-bottom: 1.25rem;
+}
+
+.jp-prod-page-title {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: var(--hm-red, #c41e3a);
+    margin-bottom: 0.25rem;
+}
+
+.jp-prod-page-sub {
+    font-size: 0.9rem;
+}
+
+/* Legacy alias */
 .jp-prod-mobile-page {
     max-width: 480px;
     margin: 0 auto;
@@ -428,5 +453,113 @@ body .modal-backdrop.show {
 @media (min-width: 768px) {
     .jp-prod-review-sticky {
         max-width: 480px;
+    }
+}
+
+/* ——— Desktop / quản lý nhập hộ ——— */
+@media (min-width: 992px) {
+    .jp-prod-layout {
+        display: grid;
+        grid-template-columns: 260px minmax(0, 1fr);
+        gap: 1.5rem;
+        align-items: start;
+    }
+
+    .jp-prod-page--review .jp-prod-layout {
+        display: block;
+    }
+
+    .jp-prod-sidebar-card {
+        background: #fff;
+        border-radius: 1rem;
+        padding: 1.25rem;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        position: sticky;
+        top: 1rem;
+    }
+
+    .jp-prod-page--proxy .jp-prod-sidebar-card {
+        border-top: 3px solid #ffc107;
+    }
+
+    .jp-prod-grid-section,
+    .jp-prod-review-main {
+        background: #fff;
+        border-radius: 1rem;
+        padding: 1.25rem 1.5rem;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .jp-prod-hourly-table {
+        font-size: 0.8rem;
+        min-width: 100%;
+        width: 100%;
+    }
+
+    .jp-prod-hourly-scroll {
+        overflow-x: auto;
+    }
+
+    .jp-prod-review-desktop-bar {
+        margin-top: 1.25rem;
+        padding: 1rem 1.25rem;
+        background: #fff;
+        border-radius: 1rem;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .jp-prod-review-desktop-total {
+        display: flex;
+        align-items: baseline;
+        gap: 0.75rem;
+    }
+
+    .jp-prod-review-desktop-total strong {
+        font-size: 1.75rem;
+        font-weight: 800;
+        color: var(--hm-red, #c41e3a);
+    }
+
+    .jp-prod-review-desktop .jp-prod-hourly-table {
+        min-width: 960px;
+    }
+
+    .jp-review-cell-input {
+        width: 100%;
+        min-width: 2.75rem;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        text-align: center;
+        font-size: 0.85rem;
+        font-weight: 700;
+        padding: 0.25rem;
+        color: var(--hm-red, #c41e3a);
+    }
+
+    .jp-review-cell-input:focus {
+        border-color: var(--hm-red, #c41e3a);
+        box-shadow: 0 0 0 2px rgba(196, 30, 58, 0.12);
+        outline: none;
+    }
+
+    body.jp-prod-hourly-review .jp-app-footer {
+        display: block;
+    }
+}
+
+@media (max-width: 991.98px) {
+    .jp-prod-page {
+        max-width: 480px;
+        margin: 0 auto;
+    }
+
+    .container.jp-reports-page:has(.jp-prod-page) {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
     }
 }

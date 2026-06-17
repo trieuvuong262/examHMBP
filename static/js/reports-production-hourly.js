@@ -17,7 +17,7 @@
     });
 
     function initReviewPageLayout() {
-        if (!document.querySelector('.jp-prod-mobile-page--review')) return;
+        if (!document.querySelector('.jp-prod-page--review')) return;
         document.body.classList.add('jp-prod-hourly-review');
         syncReviewStickySpacer();
         window.addEventListener('resize', syncReviewStickySpacer);
@@ -164,9 +164,10 @@
     }
 
     function initReviewGrid() {
-        var root = document.getElementById('review-grid-root');
+        var rootMobile = document.getElementById('review-grid-root');
+        var rootDesktop = document.getElementById('review-grid-root-desktop');
         var dataEl = document.getElementById('hourly-grid-data');
-        if (!root || !dataEl) return;
+        if ((!rootMobile && !rootDesktop) || !dataEl) return;
 
         var grid;
         try {
@@ -176,96 +177,211 @@
         }
 
         if (!grid.rows || !grid.rows.length) {
-            root.innerHTML = '<p class="text-muted text-center py-3">Chưa có dữ liệu để tổng kết.</p>';
+            var emptyMsg = '<p class="text-muted text-center py-3">Chưa có dữ liệu để tổng kết.</p>';
+            if (rootMobile) rootMobile.innerHTML = emptyMsg;
+            if (rootDesktop) rootDesktop.innerHTML = emptyMsg;
             return;
         }
 
-        var html = '<div class="jp-prod-review-list">';
-        grid.rows.forEach(function (row, ri) {
-            var code = escapeHtml(row.label_code || row.product_code || '—');
-            var process = escapeHtml(row.label_process || row.process_name || 'Chưa gắn mã');
-            var unfinalized = row.is_unfinalized ? ' is-unfinalized' : '';
-            html += '<article class="jp-prod-review-product' + unfinalized + '" data-product-id="' + row.id + '">';
-            html += '<header class="jp-prod-review-product-head">';
-            html += '<span class="jp-prod-review-num">' + (ri + 1) + '</span>';
-            html += '<div class="jp-prod-review-product-meta">';
-            html += '<div class="jp-prod-review-code">' + code + '</div>';
-            html += '<div class="jp-prod-review-process">' + process + '</div>';
-            if (row.norm_per_hour) {
-                html += '<div class="jp-prod-review-norm">ĐM ' + escapeHtml(row.norm_per_hour) + '/giờ</div>';
-            }
-            html += '</div>';
-            if (row.is_unfinalized) {
-                html += '<span class="badge bg-warning text-dark jp-prod-review-badge">Chưa gắn</span>';
-            }
-            html += '</header><div class="jp-prod-review-slots">';
-
-            var rowTotal = 0;
-            row.slots.forEach(function (cell) {
-                if (!cell.quantity && cell.quantity !== 0) return;
-                if (parseInt(cell.quantity, 10) <= 0) return;
-                var qty = parseInt(cell.quantity, 10) || 0;
-                rowTotal += qty;
-                var label = escapeHtml(cell.slot_label || ('Giờ ' + (cell.slot_index + 1)));
-                html += '<div class="jp-prod-review-slot">';
-                html += '<div class="jp-prod-review-slot-label">' + label + '</div>';
-                html += '<input type="number" class="jp-prod-review-qty-input" min="0" step="1" inputmode="numeric" ';
-                html += 'data-slot-index="' + cell.slot_index + '" value="' + qty + '" aria-label="Sản lượng ' + label + '">';
-                html += '<span class="jp-prod-review-slot-cum">Σ ' + (cell.cumulative || qty) + '</span>';
-                html += '</div>';
-            });
-
-            html += '</div><footer class="jp-prod-review-row-total">Tổng dòng: <strong class="jp-prod-row-total-val">' + (row.total_quantity || rowTotal) + '</strong></footer>';
-            html += '</article>';
-        });
-        html += '</div>';
-        root.innerHTML = html;
-
-        root.addEventListener('input', function (e) {
-            if (!e.target.classList.contains('jp-prod-review-qty-input')) return;
-            recalcReviewTotals(root);
-        });
-
-        var submitForm = document.getElementById('review-submit-form');
-        if (submitForm) {
-            submitForm.addEventListener('submit', function () {
-                fillReviewPayload(root);
-            });
+        if (rootMobile) {
+            rootMobile.innerHTML = renderReviewMobileCards(grid);
+            rootMobile.addEventListener('input', onReviewInput);
+        }
+        if (rootDesktop) {
+            rootDesktop.innerHTML = renderReviewDesktopTable(grid);
+            rootDesktop.addEventListener('input', onReviewInput);
         }
 
+        bindReviewSubmitForms();
         syncReviewStickySpacer();
     }
 
-    function recalcReviewTotals(root) {
-        var grand = 0;
-        root.querySelectorAll('.jp-prod-review-product').forEach(function (article) {
-            var rowTotal = 0;
-            article.querySelectorAll('.jp-prod-review-qty-input').forEach(function (inp) {
-                rowTotal += parseInt(inp.value, 10) || 0;
-            });
-            grand += rowTotal;
-            var el = article.querySelector('.jp-prod-row-total-val');
-            if (el) el.textContent = rowTotal;
-        });
-        var grandEl = document.getElementById('review-grand-total');
-        if (grandEl) grandEl.textContent = grand;
+    function onReviewInput(e) {
+        if (
+            !e.target.classList.contains('jp-prod-review-qty-input')
+            && !e.target.classList.contains('jp-review-cell-input')
+        ) return;
+        recalcReviewTotals();
     }
 
-    function fillReviewPayload(root) {
-        var payload = [];
-        root.querySelectorAll('.jp-prod-review-product').forEach(function (article) {
-            var productId = article.getAttribute('data-product-id');
-            var slots = [];
-            article.querySelectorAll('.jp-prod-review-qty-input').forEach(function (inp) {
-                slots.push({
-                    slot_index: parseInt(inp.getAttribute('data-slot-index'), 10),
-                    quantity: parseInt(inp.value, 10) || 0,
-                });
+    function bindReviewSubmitForms() {
+        var forms = [
+            document.getElementById('review-submit-form'),
+            document.getElementById('review-submit-form-desktop'),
+        ];
+        forms.forEach(function (form) {
+            if (!form || form.dataset.bound === '1') return;
+            form.dataset.bound = '1';
+            form.addEventListener('submit', function () {
+                fillReviewPayload();
             });
-            payload.push({ product_id: parseInt(productId, 10), slots: slots });
         });
-        var hidden = document.getElementById('review-json-input');
-        if (hidden) hidden.value = JSON.stringify(payload);
+    }
+
+    function renderReviewMobileCards(grid) {
+        var html = '<div class="jp-prod-review-list">';
+        grid.rows.forEach(function (row, ri) {
+            html += renderReviewMobileCard(row, ri);
+        });
+        html += '</div>';
+        return html;
+    }
+
+    function renderReviewMobileCard(row, ri) {
+        var code = escapeHtml(row.label_code || row.product_code || '—');
+        var process = escapeHtml(row.label_process || row.process_name || 'Chưa gắn mã');
+        var unfinalized = row.is_unfinalized ? ' is-unfinalized' : '';
+        var html = '<article class="jp-prod-review-product' + unfinalized + '" data-product-id="' + row.id + '">';
+        html += '<header class="jp-prod-review-product-head">';
+        html += '<span class="jp-prod-review-num">' + (ri + 1) + '</span>';
+        html += '<div class="jp-prod-review-product-meta">';
+        html += '<div class="jp-prod-review-code">' + code + '</div>';
+        html += '<div class="jp-prod-review-process">' + process + '</div>';
+        if (row.norm_per_hour) {
+            html += '<div class="jp-prod-review-norm">ĐM ' + escapeHtml(row.norm_per_hour) + '/giờ</div>';
+        }
+        html += '</div>';
+        if (row.is_unfinalized) {
+            html += '<span class="badge bg-warning text-dark jp-prod-review-badge">Chưa gắn</span>';
+        }
+        html += '</header><div class="jp-prod-review-slots">';
+
+        var rowTotal = 0;
+        row.slots.forEach(function (cell) {
+            if (!cell.quantity && cell.quantity !== 0) return;
+            if (parseInt(cell.quantity, 10) <= 0) return;
+            var qty = parseInt(cell.quantity, 10) || 0;
+            rowTotal += qty;
+            var label = escapeHtml(cell.slot_label || ('Giờ ' + (cell.slot_index + 1)));
+            html += '<div class="jp-prod-review-slot">';
+            html += '<div class="jp-prod-review-slot-label">' + label + '</div>';
+            html += '<input type="number" class="jp-prod-review-qty-input" min="0" step="1" inputmode="numeric" ';
+            html += 'data-slot-index="' + cell.slot_index + '" value="' + qty + '" aria-label="Sản lượng ' + label + '">';
+            html += '<span class="jp-prod-review-slot-cum">Σ ' + (cell.cumulative || qty) + '</span>';
+            html += '</div>';
+        });
+
+        html += '</div><footer class="jp-prod-review-row-total">Tổng dòng: <strong class="jp-prod-row-total-val">' + (row.total_quantity || rowTotal) + '</strong></footer>';
+        html += '</article>';
+        return html;
+    }
+
+    function renderReviewDesktopTable(grid) {
+        var html = '<div class="jp-prod-hourly-sheet-wrap"><div class="table-responsive jp-prod-hourly-scroll">';
+        html += '<table class="table table-bordered table-sm jp-prod-hourly-table mb-0"><thead><tr class="table-light">';
+        html += '<th class="jp-ph-stt">STT</th><th class="jp-ph-code">Mã hàng</th><th class="jp-ph-process">Tên công đoạn</th><th class="jp-ph-norm">ĐM 1 giờ</th>';
+        grid.slots.forEach(function (slot) {
+            html += '<th class="jp-ph-slot">' + escapeHtml(slot.label) + '</th>';
+        });
+        html += '<th class="text-end">Tổng dòng</th></tr></thead><tbody>';
+
+        grid.rows.forEach(function (row, ri) {
+            var rowClass = row.is_unfinalized ? ' class="table-warning"' : '';
+            html += '<tr data-product-id="' + row.id + '"' + rowClass + '>';
+            html += '<td class="text-center">' + (ri + 1) + '</td>';
+            html += '<td class="fw-semibold">' + escapeHtml(row.label_code || row.product_code || '—');
+            if (row.is_unfinalized) {
+                html += ' <span class="badge bg-warning text-dark ms-1">Chưa gắn</span>';
+            }
+            html += '</td>';
+            html += '<td>' + escapeHtml(row.label_process || row.process_name || 'Chưa gắn mã') + '</td>';
+            html += '<td class="text-end">' + escapeHtml(row.norm_per_hour || '—') + '</td>';
+
+            var rowTotal = 0;
+            row.slots.forEach(function (cell) {
+                html += '<td class="text-center align-middle">';
+                if (cell.has_data || (cell.quantity && parseInt(cell.quantity, 10) > 0)) {
+                    var qty = parseInt(cell.quantity, 10) || 0;
+                    rowTotal += qty;
+                    html += '<input type="number" class="jp-review-cell-input" min="0" step="1" ';
+                    html += 'data-slot-index="' + cell.slot_index + '" value="' + qty + '">';
+                }
+                html += '</td>';
+            });
+            html += '<td class="text-end fw-bold jp-prod-row-total-val">' + (row.total_quantity || rowTotal) + '</td>';
+            html += '</tr>';
+        });
+
+        html += '</tbody></table></div></div>';
+        return html;
+    }
+
+    function getActiveReviewRoot() {
+        if (window.matchMedia('(min-width: 768px)').matches) {
+            return document.getElementById('review-grid-root-desktop') || document.getElementById('review-grid-root');
+        }
+        return document.getElementById('review-grid-root') || document.getElementById('review-grid-root-desktop');
+    }
+
+    function recalcReviewTotals() {
+        var grand = 0;
+        var root = getActiveReviewRoot();
+        if (!root) return;
+
+        if (root.id === 'review-grid-root-desktop') {
+            root.querySelectorAll('tr[data-product-id]').forEach(function (tr) {
+                var rowTotal = 0;
+                tr.querySelectorAll('.jp-review-cell-input').forEach(function (inp) {
+                    rowTotal += parseInt(inp.value, 10) || 0;
+                });
+                grand += rowTotal;
+                var el = tr.querySelector('.jp-prod-row-total-val');
+                if (el) el.textContent = rowTotal;
+            });
+        } else {
+            root.querySelectorAll('.jp-prod-review-product').forEach(function (article) {
+                var rowTotal = 0;
+                article.querySelectorAll('.jp-prod-review-qty-input').forEach(function (inp) {
+                    rowTotal += parseInt(inp.value, 10) || 0;
+                });
+                grand += rowTotal;
+                var el = article.querySelector('.jp-prod-row-total-val');
+                if (el) el.textContent = rowTotal;
+            });
+        }
+
+        ['review-grand-total', 'review-grand-total-desktop'].forEach(function (id) {
+            var grandEl = document.getElementById(id);
+            if (grandEl) grandEl.textContent = grand;
+        });
+    }
+
+    function fillReviewPayload() {
+        var root = getActiveReviewRoot();
+        var payload = [];
+        if (!root) return;
+
+        if (root.id === 'review-grid-root-desktop') {
+            root.querySelectorAll('tr[data-product-id]').forEach(function (tr) {
+                var productId = tr.getAttribute('data-product-id');
+                var slots = [];
+                tr.querySelectorAll('.jp-review-cell-input').forEach(function (inp) {
+                    slots.push({
+                        slot_index: parseInt(inp.getAttribute('data-slot-index'), 10),
+                        quantity: parseInt(inp.value, 10) || 0,
+                    });
+                });
+                payload.push({ product_id: parseInt(productId, 10), slots: slots });
+            });
+        } else {
+            root.querySelectorAll('.jp-prod-review-product').forEach(function (article) {
+                var productId = article.getAttribute('data-product-id');
+                var slots = [];
+                article.querySelectorAll('.jp-prod-review-qty-input').forEach(function (inp) {
+                    slots.push({
+                        slot_index: parseInt(inp.getAttribute('data-slot-index'), 10),
+                        quantity: parseInt(inp.value, 10) || 0,
+                    });
+                });
+                payload.push({ product_id: parseInt(productId, 10), slots: slots });
+            });
+        }
+
+        var json = JSON.stringify(payload);
+        ['review-json-input', 'review-json-input-desktop'].forEach(function (id) {
+            var hidden = document.getElementById(id);
+            if (hidden) hidden.value = json;
+        });
     }
 
     function escapeHtml(str) {
