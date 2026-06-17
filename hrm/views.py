@@ -307,14 +307,14 @@ def user_add(request):
             e = form.cleaned_data['email']
             f = form.cleaned_data['full_name']
 
-            user = User.objects.create_user(
-                username=u,
-                email=e,
-                password=p,
+                user = User.objects.create_user(
+                    username=u, 
+                    email=e, 
+                    password=p, 
                 first_name=f,
-            )
+                )
             profile, _ = Profile.objects.update_or_create(
-                user=user,
+                    user=user, 
                 defaults=_profile_fields_from_form(form),
             )
             profile.subordinates.set(form.cleaned_data['subordinates'])
@@ -327,7 +327,7 @@ def user_add(request):
                 request,
                 f'Thành công: Đã thêm {f}. Tài khoản: {u} | Mật khẩu: {p}',
             )
-            return redirect('user_list')
+                return redirect('user_list')
 
         messages.error(request, 'Không lưu được — vui lòng kiểm tra các ô báo đỏ bên dưới.')
     else:
@@ -819,23 +819,23 @@ def user_import_excel(request):
                     password = data.get('password', '').strip() or generate_secure_password()
                     email = data.get('email', '').strip() or generate_hm_email(username)
 
-                    user = User.objects.create_user(
-                        username=username,
-                        password=password,
-                        email=email,
-                        first_name=full_name,
+                        user = User.objects.create_user(
+                            username=username,
+                            password=password,
+                            email=email,
+                            first_name=full_name,
                         is_staff=False,
-                    )
+                        )
                     new_defaults = profile_defaults_from_import(data)
                     _ensure_division_position_from_profile(new_defaults)
-                    Profile.objects.update_or_create(
-                        user=user,
+                        Profile.objects.update_or_create(
+                            user=user,
                         defaults={
                             **new_defaults,
                             'must_change_password': True,
                         },
-                    )
-                    success_count += 1
+                        )
+                        success_count += 1
             
             messages.success(
                 request,
