@@ -2,8 +2,8 @@
 {% load static %}
 
 {% block extra_head %}
-{% if report.is_production_report and hourly_grid %}
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260618d">
+{% if report.is_production_report and hourly_grid or productivity %}
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260618e">
 {% elif not report.is_production_report %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260528y">
 {% endif %}
@@ -34,7 +34,7 @@
     </div>
 
     {% if report.is_production_report %}
-        {% if can_review and productivity and productivity.has_data %}
+        {% if can_edit_norm and productivity and productivity.has_data %}
         <form method="post" id="jp-prod-norm-form">
             {% csrf_token %}
             <input type="hidden" name="action" value="update_norms">
@@ -45,7 +45,7 @@
                 <i class="bi bi-speedometer2 me-2 text-hm"></i>Năng suất theo giờ
             </div>
             <div class="card-body p-3">
-                {% include 'reports/includes/production_productivity_report.html' with can_edit_norm=can_review %}
+                {% include 'reports/includes/production_productivity_report.html' with can_edit_norm=can_edit_norm %}
             </div>
         </div>
         {% endif %}
@@ -57,9 +57,9 @@
             </div>
             <div class="card-body p-3">
                 {% if productivity %}
-                {% include 'reports/includes/production_hourly_grid.html' with can_edit_norm=can_review summary_product_ids=productivity.summary_product_ids %}
+                {% include 'reports/includes/production_hourly_grid.html' with can_edit_norm=can_edit_norm summary_product_ids=productivity.summary_product_ids %}
                 {% else %}
-                {% include 'reports/includes/production_hourly_grid.html' with can_edit_norm=can_review summary_product_ids=productivity.summary_product_ids|default_if_none:"" %}
+                {% include 'reports/includes/production_hourly_grid.html' with can_edit_norm=can_edit_norm summary_product_ids=productivity.summary_product_ids|default_if_none:"" %}
                 {% endif %}
             </div>
         </div>
@@ -95,7 +95,7 @@
             </div>
         </div>
         {% endif %}
-        {% if can_review and productivity and productivity.has_data %}
+        {% if can_edit_norm and productivity and productivity.has_data %}
             <div class="d-flex justify-content-end mb-4">
                 <button type="submit" class="btn btn-hm btn-sm px-4">
                     <i class="bi bi-check2-circle me-1"></i>Lưu định mức
@@ -171,9 +171,34 @@
     </div>
     {% endif %}
 </div>
-{% if report.is_production_report and can_review and productivity and productivity.has_data %}
+{% if report.is_production_report and can_edit_norm and productivity and productivity.has_data %}
 <script>
 (function () {
+    function efficiencyPct(qty, hours, norm) {
+        qty = parseFloat(qty);
+        hours = parseFloat(hours);
+        norm = parseFloat(norm);
+        if (!qty || !hours || !norm || norm <= 0) return null;
+        return (qty / (norm * hours) * 100).toFixed(2);
+    }
+
+    function applyNorm(productId, normValue) {
+        var norm = parseFloat(normValue);
+        document.querySelectorAll('[data-product-id="' + productId + '"]').forEach(function (row) {
+            var qty = row.getAttribute('data-quantity');
+            var hours = row.getAttribute('data-hours');
+            var normDisplay = row.querySelector('.jp-prod-norm-display');
+            if (normDisplay) {
+                normDisplay.textContent = norm > 0 ? Math.round(norm) : '—';
+            }
+            var effCell = row.querySelector('.jp-prod-eff-cell');
+            if (effCell) {
+                var eff = efficiencyPct(qty, hours, norm);
+                effCell.textContent = eff !== null ? eff + '%' : '—';
+            }
+        });
+    }
+
     var inputs = document.querySelectorAll('.jp-prod-norm-input[data-product-id]');
     if (!inputs.length) return;
     var byProduct = {};
@@ -184,9 +209,11 @@
     });
     inputs.forEach(function (input) {
         input.addEventListener('input', function () {
-            (byProduct[input.getAttribute('data-product-id')] || []).forEach(function (peer) {
+            var productId = input.getAttribute('data-product-id');
+            (byProduct[productId] || []).forEach(function (peer) {
                 if (peer !== input) peer.value = input.value;
             });
+            applyNorm(productId, input.value);
         });
     });
 })();
