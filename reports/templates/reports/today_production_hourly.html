@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260617f">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260617g">
 {% endblock %}
 
 {% block content %}
@@ -85,12 +85,6 @@
 
         {% if hourly_grid.rows %}
         <div id="review-grid-root" class="jp-prod-review-mobile"></div>
-        <form method="post" id="review-form" class="d-none">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="save_review">
-            <input type="hidden" name="review_json" id="review-json-input">
-            {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
-        </form>
         {% else %}
         <div class="jp-prod-card text-center text-muted py-4">Chưa có sản lượng nào được nhập.</div>
         {% endif %}
@@ -103,29 +97,18 @@
             <span>Tổng ngày</span>
             <strong id="review-grand-total">{{ hourly_grid.grand_total }}</strong>
         </div>
-        <button type="button" class="btn btn-outline-hm w-100 mb-2" id="review-save-btn">
-            <i class="bi bi-save me-1"></i>Lưu chỉnh sửa
-        </button>
         {% endif %}
-        <form method="post" class="mb-0">
+        <form method="post" class="mb-0" id="review-submit-form">
             {% csrf_token %}
             <input type="hidden" name="action" value="submit">
+            <input type="hidden" name="review_json" id="review-json-input">
             {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
             <button type="submit" class="btn btn-hm w-100 fw-bold btn-lg">
                 <i class="bi bi-send-fill me-2"></i>Gửi báo cáo
             </button>
         </form>
-        <div class="d-flex gap-2 mt-2">
-            <form method="post" class="flex-fill mb-0">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="save">
-                {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
-                <button type="submit" class="btn btn-link text-muted w-100 py-1">Lưu nháp</button>
-            </form>
-            <a href="?date={{ report_date|date:'Y-m-d' }}{% if for_user_param %}&for_user={{ for_user_param }}{% endif %}"
-               class="btn btn-outline-dark flex-fill">← Tiếp tục nhập</a>
-        </div>
     </div>
+    <div class="jp-prod-review-sticky-spacer" aria-hidden="true"></div>
     {% endif %}
     {% endif %}
 </div>
@@ -214,5 +197,5 @@
 {% endif %}
 
 {% if hourly_grid %}{{ hourly_grid|json_script:"hourly-grid-data" }}{% endif %}
-<script src="{% static 'js/reports-production-hourly.js' %}?v=20260617f"></script>
+<script src="{% static 'js/reports-production-hourly.js' %}?v=20260617g"></script>
 {% endblock %}

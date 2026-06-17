@@ -9,11 +9,26 @@
     ready(function () {
         mountModalsToBody();
         cleanupModalArtifacts();
+        initReviewPageLayout();
         initHourlyModal();
         initProductWizard();
         initReviewGrid();
         autoOpenModals();
     });
+
+    function initReviewPageLayout() {
+        if (!document.querySelector('.jp-prod-mobile-page--review')) return;
+        document.body.classList.add('jp-prod-hourly-review');
+        syncReviewStickySpacer();
+        window.addEventListener('resize', syncReviewStickySpacer);
+    }
+
+    function syncReviewStickySpacer() {
+        var sticky = document.querySelector('.jp-prod-review-sticky');
+        var spacer = document.querySelector('.jp-prod-review-sticky-spacer');
+        if (!sticky || !spacer) return;
+        spacer.style.height = sticky.offsetHeight + 'px';
+    }
 
     /** Modal trong main content dễ bị backdrop che (màn hình mờ, không bấm được). */
     function mountModalsToBody() {
@@ -211,14 +226,14 @@
             recalcReviewTotals(root);
         });
 
-        var saveBtn = document.getElementById('review-save-btn');
-        var reviewForm = document.getElementById('review-form');
-        if (saveBtn && reviewForm) {
-            saveBtn.addEventListener('click', function () {
+        var submitForm = document.getElementById('review-submit-form');
+        if (submitForm) {
+            submitForm.addEventListener('submit', function () {
                 fillReviewPayload(root);
-                reviewForm.submit();
             });
         }
+
+        syncReviewStickySpacer();
     }
 
     function recalcReviewTotals(root) {

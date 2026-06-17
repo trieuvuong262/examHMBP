@@ -36,6 +36,36 @@ from reports.report_profile import REPORT_PROFILE_PRODUCTION
 User = get_user_model()
 
 
+def _apply_review_payload(report, payload_str):
+    """Cập nhật sản lượng từ JSON tổng kết (chỉnh sửa trên màn review)."""
+    try:
+        rows = json.loads(payload_str or '[]')
+    except json.JSONDecodeError:
+        return False
+    for row in rows:
+        product_id = row.get('product_id')
+        if not product_id:
+            continue
+        try:
+            product = report.production_products.get(pk=product_id)
+        except ProductionShiftProduct.DoesNotExist:
+            continue
+        for cell in row.get('slots', []):
+            slot_index = cell.get('slot_index')
+            if slot_index is None:
+                continue
+            qty = parse_int(cell.get('quantity'))
+            partial = parse_decimal(cell.get('partial_hours'))
+            if qty > 0:
+                save_hourly_entry(product, int(slot_index), qty, partial_hours=partial)
+            else:
+                ProductionHourlyQuantity.objects.filter(
+                    product=product,
+                    slot_index=int(slot_index),
+                ).delete()
+    return True
+
+
 def _resolve_production_subject(request, report_date):
     """NV đang nhập hoặc cấp trên nhập hộ (?for_user=)."""
     for_user_id = request.GET.get('for_user') or request.POST.get('for_user')
@@ -131,33 +161,9 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         return redirect(_production_redirect(report_date, for_user or None))
 
     if action == 'save_review':
-        payload = request.POST.get('review_json') or '[]'
-        try:
-            rows = json.loads(payload)
-        except json.JSONDecodeError:
+        if not _apply_review_payload(report, request.POST.get('review_json')):
             messages.error(request, 'Dữ liệu tổng kết không hợp lệ.')
             return redirect(_production_redirect(report_date, for_user or None, 'phase=review'))
-        for row in rows:
-            product_id = row.get('product_id')
-            if not product_id:
-                continue
-            try:
-                product = report.production_products.get(pk=product_id)
-            except ProductionShiftProduct.DoesNotExist:
-                continue
-            for cell in row.get('slots', []):
-                slot_index = cell.get('slot_index')
-                if slot_index is None:
-                    continue
-                qty = parse_int(cell.get('quantity'))
-                partial = parse_decimal(cell.get('partial_hours'))
-                if qty > 0:
-                    save_hourly_entry(product, int(slot_index), qty, partial_hours=partial)
-                else:
-                    ProductionHourlyQuantity.objects.filter(
-                        product=product,
-                        slot_index=int(slot_index),
-                    ).delete()
         messages.success(request, 'Đã cập nhật tổng kết.')
         report.draft_saved_at = timezone.now()
         report.save(update_fields=['draft_saved_at'])
@@ -171,6 +177,11 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
             )
             return redirect(_production_redirect(report_date, for_user or None, 'phase=finish_product'))
         if action == 'submit':
+            review_json = request.POST.get('review_json')
+            if review_json:
+                if not _apply_review_payload(report, review_json):
+                    messages.error(request, 'Dữ liệu tổng kết không hợp lệ.')
+                    return redirect(_production_redirect(report_date, for_user or None, 'phase=review'))
             grid = build_hourly_grid(report)
             if not grid.get('rows') or grid.get('grand_total', 0) <= 0:
                 messages.error(request, 'Cần nhập ít nhất một mã hàng và sản lượng trước khi gửi.')

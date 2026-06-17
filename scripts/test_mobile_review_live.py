@@ -16,12 +16,15 @@ s.post(
 )
 review = s.get(f'{BASE}/reports/today/?phase=review', timeout=30)
 checks = {
-    'css_v': 'reports-production-hourly.css?v=20260617f' in review.text,
-    'js_v': 'reports-production-hourly.js?v=20260617f' in review.text,
+    'css_v': 'reports-production-hourly.css?v=20260617g' in review.text,
+    'js_v': 'reports-production-hourly.js?v=20260617g' in review.text,
     'review_sticky': 'jp-prod-review-sticky' in review.text,
     'review_page': 'jp-prod-mobile-page--review' in review.text,
     'grand_total_el': 'review-grand-total' in review.text,
     'save_btn': 'review-save-btn' in review.text,
+    'submit_form': 'review-submit-form' in review.text,
+    'no_save_draft': 'Lưu nháp' not in review.text,
+    'no_continue': 'Tiếp tục nhập' not in review.text,
 }
 for k, v in checks.items():
     print(k, v)
