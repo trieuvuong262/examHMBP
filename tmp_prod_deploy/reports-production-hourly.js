@@ -7,7 +7,6 @@
     }
 
     ready(function () {
-        mountModalsToBody();
         cleanupModalArtifacts();
         initHourlyModal();
         initProductWizard();
@@ -15,26 +14,12 @@
         autoOpenModals();
     });
 
-    /** Modal trong main content dễ bị backdrop che (màn hình mờ, không bấm được). */
-    function mountModalsToBody() {
-        ['hourlyModal', 'productWizardModal'].forEach(function (id) {
-            var el = document.getElementById(id);
-            if (el && el.parentElement !== document.body) {
-                document.body.appendChild(el);
-            }
-        });
-    }
-
+    /** Xóa backdrop/modal-open sót — gây màn hình mờ không tương tác được. */
     function cleanupModalArtifacts() {
         document.querySelectorAll('.modal-backdrop').forEach(function (el) { el.remove(); });
         document.body.classList.remove('modal-open');
         document.body.style.removeProperty('overflow');
         document.body.style.removeProperty('padding-right');
-        document.querySelectorAll('.modal.show').forEach(function (modal) {
-            modal.classList.remove('show');
-            modal.style.removeProperty('display');
-            modal.setAttribute('aria-hidden', 'true');
-        });
     }
 
     function openModal(el, setupFn) {
@@ -76,7 +61,7 @@
         var qty = modal && modal.querySelector('input[name="quantity"]');
         if (qty) {
             qty.value = '';
-            setTimeout(function () { qty.focus(); }, 200);
+            setTimeout(function () { qty.focus(); }, 150);
         }
     }
 
@@ -140,12 +125,29 @@
     }
 
     function autoOpenModals() {
+        var page = document.querySelector('.jp-prod-mobile-page');
+        var hourlyModal = document.getElementById('hourlyModal');
         var productModal = document.getElementById('productWizardModal');
-        if (!productModal || typeof bootstrap === 'undefined') return;
+        if (!page || typeof bootstrap === 'undefined') return;
 
-        if (productModal.getAttribute('data-show') === '1') {
-            setTimeout(function () { openModal(productModal); }, 100);
+        if (productModal && productModal.getAttribute('data-show') === '1') {
+            setTimeout(function () { openModal(productModal); }, 80);
+            return;
         }
+
+        if (page.getAttribute('data-auto-hourly') !== '1' || !hourlyModal) return;
+
+        var openBtn = document.querySelector('[data-bs-target="#hourlyModal"]');
+        if (!openBtn) return;
+
+        setTimeout(function () {
+            openModal(hourlyModal, function () {
+                fillHourlyModal(
+                    openBtn.getAttribute('data-slot-index'),
+                    openBtn.getAttribute('data-slot-label')
+                );
+            });
+        }, 120);
     }
 
     function initReviewGrid() {

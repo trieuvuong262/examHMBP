@@ -21,21 +21,10 @@ from reports.production_slots import (
 from reports.report_profile import REPORT_PROFILE_PRODUCTION
 
 
-def can_edit_production_report(viewer, report, *, can_submit, is_proxy=False) -> bool:
+def can_edit_production_report(viewer, report, *, can_submit, can_review) -> bool:
     if report.employee_id == viewer.id:
         return can_submit
-    if is_proxy:
-        return can_proxy_enter_daily_report(viewer, report.employee)
-    from hrm.permissions import can_review_user_report
-    return can_review_user_report(viewer, report)
-
-
-def can_proxy_enter_daily_report(viewer, employee) -> bool:
-    """Tổ trưởng / cấp trên nhập báo cáo hộ nhân viên (điện thoại hỏng)."""
-    from hrm.permissions import can_view_team_reports, get_report_team_users
-    if not can_view_team_reports(viewer):
-        return False
-    return get_report_team_users(viewer).filter(pk=employee.pk).exists()
+    return can_review
 
 
 @transaction.atomic

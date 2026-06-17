@@ -49,19 +49,11 @@
 }
 
 .jp-prod-modal {
-    z-index: 1065 !important;
-}
-
-.jp-prod-modal.show {
-    display: block !important;
-}
-
-body .modal-backdrop.show {
-    z-index: 1060 !important;
+    z-index: 1060;
 }
 
 .jp-prod-modal .modal-dialog {
-    z-index: 1066;
+    z-index: 1061;
     position: relative;
 }
 

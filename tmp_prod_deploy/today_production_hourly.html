@@ -2,11 +2,11 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260617d">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260617c">
 {% endblock %}
 
 {% block content %}
-<div class="jp-prod-mobile-page" data-phase="{{ phase }}">
+<div class="jp-prod-mobile-page" data-phase="{{ phase }}" data-auto-hourly="{% if phase == 'hourly' and pending_slots %}1{% else %}0{% endif %}">
     <header class="jp-prod-mobile-header">
         <div>
             <h1 class="jp-prod-mobile-title">Báo cáo sản xuất</h1>
@@ -109,7 +109,7 @@
 </div>
 
 {% if can_edit %}
-<div class="modal fade jp-prod-modal" id="hourlyModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
+<div class="modal jp-prod-modal" id="hourlyModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
     <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
         <form method="post" class="modal-content" id="hourly-form">
             {% csrf_token %}
@@ -142,7 +142,7 @@
     </div>
 </div>
 
-<div class="modal fade jp-prod-modal" id="productWizardModal" tabindex="-1" aria-hidden="true"
+<div class="modal jp-prod-modal" id="productWizardModal" tabindex="-1" aria-hidden="true"
      data-bs-backdrop="true" data-bs-keyboard="true" data-show="{% if phase == 'finish_product' %}1{% else %}0{% endif %}">
     <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
         <form method="post" class="modal-content" id="product-wizard-form">
@@ -192,5 +192,5 @@
 {% endif %}
 
 {% if hourly_grid %}{{ hourly_grid|json_script:"hourly-grid-data" }}{% endif %}
-<script src="{% static 'js/reports-production-hourly.js' %}?v=20260617d"></script>
+<script src="{% static 'js/reports-production-hourly.js' %}?v=20260617c"></script>
 {% endblock %}

@@ -9,6 +9,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from hrm.permissions import (
+    can_review_user_report,
     can_submit_daily_report,
     get_profile,
     get_report_team_users,
@@ -19,7 +20,6 @@ from reports.production_hourly import (
     active_product,
     build_hourly_grid,
     can_edit_production_report,
-    can_proxy_enter_daily_report,
     ensure_active_work_block,
     ensure_work_day_started,
     finalize_product_with_metadata,
@@ -47,7 +47,7 @@ def _resolve_production_subject(request, report_date):
         except (User.DoesNotExist, ValueError, TypeError):
             messages.error(request, 'Không tìm thấy nhân viên cấp dưới.')
             return None, None, redirect('reports:team')
-        if not can_proxy_enter_daily_report(request.user, target):
+        if not can_review_user_report(request.user, DailyWorkReport(employee=target)):
             messages.error(request, 'Bạn không có quyền nhập báo cáo hộ nhân viên này.')
             return None, None, redirect('reports:team')
         subject = target
@@ -84,7 +84,7 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         request.user,
         report,
         can_submit=can_submit_daily_report(request.user),
-        is_proxy=editing_for_other,
+        can_review=can_review_user_report(request.user, report),
     )
     if not can_edit:
         messages.error(request, 'Bạn không có quyền chỉnh sửa báo cáo này.')
@@ -199,7 +199,7 @@ def today_production_hourly(request, report_date, report_context_common):
         request.user,
         report,
         can_submit=can_submit_daily_report(request.user),
-        is_proxy=editing_for_other,
+        can_review=can_review_user_report(request.user, report),
     )
 
     if request.method == 'POST':

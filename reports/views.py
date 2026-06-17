@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from urllib.parse import urlencode
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.files.storage import default_storage
 from django.http import FileResponse, Http404, JsonResponse
@@ -57,6 +58,8 @@ from .weekly_preview import file_attachment_preview, link_preview_rows
 from .weekly_nas_storage import ensure_weekly_report_nas_dir, open_weekly_attachment, weekly_attachment_abs_path
 from .weekly_uploads import copy_weekly_attachments, save_weekly_uploads, weekly_report_has_content
 
+User = get_user_model()
+
 
 _CK5_IMAGE_TYPES = frozenset({'image/jpeg', 'image/png', 'image/gif', 'image/webp'})
 _CK5_IMAGE_EXTS = frozenset({'.jpg', '.jpeg', '.png', '.gif', '.webp'})
@@ -70,6 +73,20 @@ def _reports_access_required(view_func):
 _WEEKLY_SUBMIT_VIEWS = frozenset({'weekly_report', 'copy_prev_week'})
 
 
+def _is_supervisor_entry_request(request):
+    """Cấp trên nhập báo cáo hộ NV (?for_user=)."""
+    from reports.production_hourly import can_proxy_enter_daily_report
+
+    for_user_id = request.GET.get('for_user') or request.POST.get('for_user')
+    if not for_user_id:
+        return False
+    try:
+        target = get_report_team_users(request.user).get(pk=int(for_user_id))
+    except (ValueError, TypeError, User.DoesNotExist):
+        return False
+    return can_proxy_enter_daily_report(request.user, target)
+
+
 def _require_submit_access(view_func):
     @module_perm_required(MODULE_REPORTS, 'create')
     def wrapper(request, *args, **kwargs):
@@ -78,6 +95,27 @@ def _require_submit_access(view_func):
                 if view_func.__name__ in _WEEKLY_SUBMIT_VIEWS:
                     return redirect('reports:team_weekly')
                 return redirect('reports:team')
+            return redirect('home_portal')
+        return view_func(request, *args, **kwargs)
+    wrapper.__name__ = view_func.__name__
+    return wrapper
+
+
+def _require_today_report_access(view_func):
+    """NV nộp báo cáo của mình; cấp trên nhập hộ qua ?for_user=."""
+    @module_perm_required(MODULE_REPORTS, 'view')
+    def wrapper(request, *args, **kwargs):
+        from hrm.module_permissions import MODULE_REPORTS, user_can_create_module
+
+        if _is_supervisor_entry_request(request):
+            return view_func(request, *args, **kwargs)
+
+        if not can_submit_daily_report(request.user):
+            if can_view_team_reports(request.user):
+                return redirect('reports:team')
+            return redirect('home_portal')
+        if request.method == 'POST' and not user_can_create_module(request.user, MODULE_REPORTS):
+            messages.error(request, 'Bạn không có quyền nộp báo cáo.')
             return redirect('home_portal')
         return view_func(request, *args, **kwargs)
     wrapper.__name__ = view_func.__name__
@@ -348,10 +386,17 @@ def copy_prev_week(request):
     return redirect(f'{reverse("reports:weekly")}?week={this_week.isoformat()}')
 
 
-@_require_submit_access
+@_require_today_report_access
 def today_report(request):
     report_date = _parse_report_date(request)
-    if is_production_report_user(request.user):
+    subject = request.user
+    for_user_id = request.GET.get('for_user') or request.POST.get('for_user')
+    if for_user_id:
+        try:
+            subject = get_report_team_users(request.user).get(pk=int(for_user_id))
+        except (ValueError, TypeError, User.DoesNotExist):
+            subject = request.user
+    if is_production_report_user(subject):
         return _today_production_report(request, report_date)
     return _today_office_report(request, report_date)
 
