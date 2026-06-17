@@ -28,13 +28,16 @@ def can_edit_production_report(viewer, report, *, can_submit, can_review) -> boo
 
 
 @transaction.atomic
-def start_production_shift(report: DailyWorkReport, shift: str) -> DailyWorkReport:
-    report.report_profile = REPORT_PROFILE_PRODUCTION
-    report.shift = shift
-    report.shift_started_at = timezone.now()
-    report.status = DailyWorkReport.STATUS_DRAFT
-    report.draft_saved_at = timezone.now()
-    report.save()
+def ensure_work_day_started(report: DailyWorkReport) -> DailyWorkReport:
+    """Tự bắt đầu ngày làm khi vào trang — không chọn ca."""
+    if not report.shift_started_at:
+        report.report_profile = REPORT_PROFILE_PRODUCTION
+        report.shift = ''
+        report.shift_started_at = timezone.now()
+        report.status = DailyWorkReport.STATUS_DRAFT
+        report.draft_saved_at = timezone.now()
+        report.save()
+    ensure_active_work_block(report)
     return report
 
 
@@ -49,38 +52,54 @@ def active_product(report: DailyWorkReport) -> Optional[ProductionShiftProduct]:
 
 
 @transaction.atomic
-def start_product_session(
-    report: DailyWorkReport,
-    *,
-    product_code: str,
-    process_name: str,
-    norm_per_hour,
-) -> ProductionShiftProduct:
+def ensure_active_work_block(report: DailyWorkReport) -> ProductionShiftProduct:
     active = active_product(report)
     if active:
-        active.status = ProductionShiftProduct.STATUS_DONE
-        active.ended_at = timezone.now()
-        active.save(update_fields=['status', 'ended_at'])
+        return active
     sort_order = report.production_products.count()
     return ProductionShiftProduct.objects.create(
         report=report,
-        product_code=product_code.strip(),
-        process_name=process_name.strip(),
-        norm_per_hour=Decimal(str(norm_per_hour)),
+        product_code='',
+        process_name='',
+        norm_per_hour=None,
         sort_order=sort_order,
         status=ProductionShiftProduct.STATUS_ACTIVE,
     )
 
 
+def active_has_hourly_data(product: ProductionShiftProduct) -> bool:
+    return product.hourly_entries.filter(quantity__gt=0).exists()
+
+
 @transaction.atomic
-def end_active_product(report: DailyWorkReport) -> Optional[ProductionShiftProduct]:
+def finalize_product_with_metadata(
+    report: DailyWorkReport,
+    *,
+    product_code: str,
+    process_name: str,
+    norm_per_hour,
+) -> Optional[ProductionShiftProduct]:
+    """Kết thúc mã hàng — gắn thông tin sau khi đã nhập sản lượng từng giờ."""
     active = active_product(report)
     if not active:
         return None
+    if not active_has_hourly_data(active):
+        return None
+    active.product_code = product_code.strip()
+    active.process_name = process_name.strip()
+    active.norm_per_hour = Decimal(str(norm_per_hour))
     active.status = ProductionShiftProduct.STATUS_DONE
     active.ended_at = timezone.now()
-    active.save(update_fields=['status', 'ended_at'])
+    active.save()
+    ensure_active_work_block(report)
     return active
+
+
+def unfinalized_active_with_data(report: DailyWorkReport) -> Optional[ProductionShiftProduct]:
+    active = active_product(report)
+    if active and active_has_hourly_data(active):
+        return active
+    return None
 
 
 def save_hourly_entry(
@@ -136,17 +155,21 @@ def product_slot_cell(product: ProductionShiftProduct, slot_index: int) -> dict:
 
 def build_hourly_grid(report: DailyWorkReport) -> dict:
     products = list(
-        report.production_products.prefetch_related('hourly_entries').order_by('sort_order', 'id')
+        report.production_products.filter(status=ProductionShiftProduct.STATUS_DONE)
+        .prefetch_related('hourly_entries')
+        .order_by('sort_order', 'id')
     )
     rows = []
     for product in products:
+        if not product.product_code:
+            continue
         slots = [product_slot_cell(product, i) for i in range(SLOT_COUNT)]
         total_qty = cumulative_quantity(product, SLOT_COUNT - 1)
         rows.append({
             'id': product.pk,
             'product_code': product.product_code,
             'process_name': product.process_name,
-            'norm_per_hour': float(product.norm_per_hour),
+            'norm_per_hour': float(product.norm_per_hour) if product.norm_per_hour is not None else None,
             'status': product.status,
             'slots': slots,
             'total_quantity': total_qty,
@@ -159,7 +182,7 @@ def build_hourly_grid(report: DailyWorkReport) -> dict:
 
 
 def pending_slots_for_report(report: DailyWorkReport, now=None) -> list[dict]:
-    """Slot chưa nhập cho mã hàng đang làm (chỉ các giờ đã qua)."""
+    """Slot chưa nhập cho phiên đang làm (chỉ các giờ đã qua)."""
     product = active_product(report)
     if not product:
         return []

@@ -140,11 +140,13 @@ class ProductionShiftProduct(models.Model):
         related_name='production_products',
         verbose_name='Báo cáo',
     )
-    product_code = models.CharField(max_length=80, verbose_name='Mã hàng')
-    process_name = models.CharField(max_length=120, verbose_name='Tên công đoạn')
+    product_code = models.CharField(max_length=80, blank=True, default='', verbose_name='Mã hàng')
+    process_name = models.CharField(max_length=120, blank=True, default='', verbose_name='Tên công đoạn')
     norm_per_hour = models.DecimalField(
         max_digits=8,
         decimal_places=2,
+        null=True,
+        blank=True,
         verbose_name='Định mức 1 giờ',
     )
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
@@ -158,7 +160,8 @@ class ProductionShiftProduct(models.Model):
         verbose_name_plural = 'Mã hàng trong ca'
 
     def __str__(self):
-        return f'{self.product_code} — {self.process_name}'
+        label = self.product_code or 'Đang nhập'
+        return f'{label} — {self.process_name or "…"}'
 
 
 class ProductionHourlyQuantity(models.Model):

@@ -16,7 +16,7 @@
             <h2 class="fw-bold text-hm mb-1 jp-page-title">Báo cáo {{ report.report_date|date:"d/m/Y" }}</h2>
             <p class="text-muted mb-0 small">
                 {{ report.employee.profile.full_name|default:report.employee.username }}
-                {% if report.is_production_report %} · {{ report.get_shift_display }}{% endif %}
+                {% if report.is_production_report and report.shift %} · {{ report.get_shift_display }}{% endif %}
             </p>
         </div>
         <div class="d-flex gap-2 flex-wrap w-100 w-md-auto">
