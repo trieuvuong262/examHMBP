@@ -774,6 +774,9 @@ def weekly_report_detail(request, pk):
 
     images, files = _weekly_attachments(report)
     profile = report.employee.profile
+    edit_report_url = ''
+    if report.employee_id == request.user.id and can_submit_daily_report(request.user):
+        edit_report_url = f"{reverse('reports:weekly')}?week={report.week_start.isoformat()}"
     return render(request, 'reports/weekly_detail.html', {
         'report': report,
         'weekly_images': images,
@@ -787,6 +790,7 @@ def weekly_report_detail(request, pk):
         'can_review': can_review,
         'can_submit_report': can_submit_daily_report(request.user),
         'can_view_team': can_view_team_reports(request.user),
+        'edit_report_url': edit_report_url,
         'report_period': 'weekly',
         'report_date': report.week_start,
         'week_start': report.week_start,

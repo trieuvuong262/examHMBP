@@ -15,19 +15,12 @@
             <p class="text-muted mb-0 small">
                 {{ report.employee.profile.full_name|default:report.employee.username }}
                 {% if report.is_production_report %} · {{ report.get_shift_display }}{% endif %}
-                · <span class="badge {% if report.status == 'SUBMITTED' %}bg-success{% else %}bg-secondary{% endif %}">{{ report.get_status_display }}</span>
             </p>
         </div>
         <div class="d-flex gap-2 flex-wrap w-100 w-md-auto">
             {% if report.employee_id == request.user.id and can_submit_report %}
             <a href="{% url 'reports:today' %}?date={{ report.report_date|date:'Y-m-d' }}" class="btn btn-outline-hm btn-sm flex-fill flex-md-grow-0">Sửa</a>
-            {% endif %}
-            {% if can_review %}
-            <a href="{% url 'reports:team' %}?date={{ report.report_date|date:'Y-m-d' }}" class="btn btn-outline-dark btn-sm flex-fill flex-md-grow-0">← Cấp dưới</a>
-            {% elif can_submit_report %}
             <a href="{% url 'reports:my' %}" class="btn btn-outline-dark btn-sm flex-fill flex-md-grow-0">← Lịch sử</a>
-            {% elif can_view_team %}
-            <a href="{% url 'reports:team' %}?date={{ report.report_date|date:'Y-m-d' }}" class="btn btn-outline-dark btn-sm flex-fill flex-md-grow-0">← Cấp dưới</a>
             {% endif %}
         </div>
     </div>
