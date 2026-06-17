@@ -1,5 +1,103 @@
-<p>Menu con: <strong>Thiết bị IT</strong> và <strong>Thiết bị sản xuất</strong> — danh mục, phiếu bàn giao, yêu cầu sửa chữa.</p>
-            <figure class="guide-figure mb-3">
-                <img src="{% static 'images/guide/16-thiet-bi.png' %}" alt="Quản lý thiết bị IT" loading="lazy">
-                <figcaption><strong>Hình.</strong> Danh sách thiết bị — mã, người giữ, trạng thái.</figcaption>
-            </figure>
+{% load static %}
+<span class="badge bg-secondary mb-3">Dành cho nhân viên</span>
+<p class="mb-3">Module <strong>Quản lý thiết bị</strong> gồm <strong>Thiết bị IT</strong> (máy tính, laptop) và <strong>Thiết bị sản xuất</strong> (máy xưởng). Bạn thường dùng để tra cứu thiết bị mình đang giữ hoặc quét QR.</p>
+
+<div class="guide-steps mb-4">
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">1</div>
+        <div class="guide-step-body"><div>Menu <strong>Thiết bị</strong> → chọn <strong>IT</strong> hoặc <strong>Sản xuất</strong> tùy loại cần xem.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/thiet-bi-01.png' %}" alt="Minh họa bước 1 — thiet bi" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">2</div>
+        <div class="guide-step-body"><div>Danh sách hiện <strong>mã thiết bị</strong>, tên, người giữ, phòng ban, trạng thái (Đang dùng / Bảo trì / Thanh lý).</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/thiet-bi-02.png' %}" alt="Minh họa bước 2 — thiet bi" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">3</div>
+        <div class="guide-step-body"><div>Dùng ô <strong>Tìm kiếm</strong> theo mã, serial hoặc tên người giữ. Bấm dòng để xem lịch sử bàn giao, cấu hình, ảnh thiết bị.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/thiet-bi-03.png' %}" alt="Minh họa bước 3 — thiet bi" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">4</div>
+        <div class="guide-step-body"><div>Quét <strong>mã QR</strong> dán trên thiết bị (điện thoại) → mở nhanh trang chi tiết, xác nhận đúng máy mình đang dùng.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/thiet-bi-04.png' %}" alt="Minh họa bước 4 — thiet bi" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">5</div>
+        <div class="guide-step-body"><div>Máy hỏng / cần sửa → chuyển sang module <strong>Hỗ trợ kỹ thuật</strong>, gửi ticket và chọn mã thiết bị liên quan.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/thiet-bi-05.png' %}" alt="Minh họa bước 5 — thiet bi" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">6</div>
+        <div class="guide-step-body"><div>Thiết bị sản xuất: xem lịch bảo trì, phiếu sửa chữa gần nhất — báo tổ trưởng nếu thấy trạng thái bất thường.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/thiet-bi-06.png' %}" alt="Minh họa bước 6 — thiet bi" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    </div></div>
+
+{% if 'thiet-bi' in guide_admin_section_ids %}
+<hr class="my-4">
+<span class="badge bg-dark mb-3">Dành cho IT / Quản trị</span>
+<div class="guide-steps">
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">7</div>
+        <div class="guide-step-body"><div><strong>Thêm thiết bị:</strong> nhập mã, loại, serial, gán phòng ban quản lý. Tải ảnh và in <strong>tem QR</strong> dán máy.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/thiet-bi-07.png' %}" alt="Minh họa bước 7 — thiet bi" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">8</div>
+        <div class="guide-step-body"><div><strong>Bàn giao:</strong> chọn người nhận, ngày bàn giao — lịch sử lưu lại để đối soát khi thu hồi.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/thiet-bi-08.png' %}" alt="Minh họa bước 8 — thiet bi" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">9</div>
+        <div class="guide-step-body"><div><strong>Agent JustPlay</strong> (máy Windows): cài agent để đồng bộ cấu hình, IP, phiên bản OS — link cài trong trang thiết bị.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/thiet-bi-09.png' %}" alt="Minh họa bước 9 — thiet bi" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">10</div>
+        <div class="guide-step-body"><div>Thiết bị sản xuất: ghi <strong>nhật ký bảo trì</strong>, liên kết phiếu sửa từ module Hỗ trợ khi có sự cố.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/thiet-bi-10.png' %}" alt="Minh họa bước 10 — thiet bi" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+</div>
+{% endif %}

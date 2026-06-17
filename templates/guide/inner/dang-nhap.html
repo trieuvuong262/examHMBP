@@ -1,31 +1,51 @@
-<div class="guide-split guide-split-wide-img">
-                                <div class="guide-steps">
-                                <div class="guide-step">
-                                    <div class="guide-step-num">1</div>
-                                    <div>Mở trình duyệt → vào địa chỉ portal. Bạn sẽ thấy màn hình trắng, phía trên có chữ <strong>JUSTPLAY PORTAL</strong> nền đỏ.</div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">2</div>
-                                    <div>Ô <strong>TÊN ĐĂNG NHẬP</strong> (có icon người) — gõ tài khoản HR cấp, ví dụ <code>nam.nt</code>.</div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">3</div>
-                                    <div>Ô <strong>MẬT KHẨU</strong> (có icon chìa khóa) — gõ mật khẩu. Ký tự hiện dạng chấm tròn •••• là bình thường.</div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">4</div>
-                                    <div>Bấm nút đỏ <strong>ĐĂNG NHẬP</strong> (có mũi tên).</div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">5</div>
-                                    <div>Thành công → vào <strong>Trang chủ</strong>, thấy dòng chào <em>"Xin chào, [tên bạn]!"</em> và các ô chức năng theo quyền của bạn.</div>
-                                </div>
-                                </div>
-                                <figure class="guide-figure">
-                                    <img src="{% static 'images/guide/01-dang-nhap.png' %}" alt="Minh họa màn hình đăng nhập JustPlay Portal" loading="lazy">
-                                    <figcaption><strong>Hình 1.</strong> Màn hình đăng nhập — gõ username, mật khẩu, bấm nút đỏ <em>Đăng nhập</em>.</figcaption>
-                                </figure>
-                            </div>
+{% load static %}
+<div class="guide-steps mb-4">
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">1</div>
+        <div class="guide-step-body"><div>Mở trình duyệt → vào địa chỉ portal. Bạn sẽ thấy màn hình trắng, phía trên có chữ <strong>JUSTPLAY PORTAL</strong> nền đỏ.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/dang-nhap-01.png' %}" alt="Minh họa bước 1 — dang nhap" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">2</div>
+        <div class="guide-step-body"><div>Ô <strong>TÊN ĐĂNG NHẬP</strong> (có icon người) — gõ tài khoản HR cấp, ví dụ <code>nam.nt</code>.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/dang-nhap-02.png' %}" alt="Minh họa bước 2 — dang nhap" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">3</div>
+        <div class="guide-step-body"><div>Ô <strong>MẬT KHẨU</strong> (có icon chìa khóa) — gõ mật khẩu. Ký tự hiện dạng chấm tròn •••• là bình thường.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/dang-nhap-03.png' %}" alt="Minh họa bước 3 — dang nhap" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">4</div>
+        <div class="guide-step-body"><div>Bấm nút đỏ <strong>ĐĂNG NHẬP</strong> (có mũi tên).</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/dang-nhap-04.png' %}" alt="Minh họa bước 4 — dang nhap" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">5</div>
+        <div class="guide-step-body"><div>Thành công → vào <strong>Trang chủ</strong>, thấy dòng chào <em>"Xin chào, [tên bạn]!"</em> và các ô chức năng theo quyền của bạn.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/dang-nhap-05.png' %}" alt="Minh họa bước 5 — dang nhap" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+                                </div></div>
                             <div class="alert alert-warning border-0 mt-3 mb-0 small">
                                 <i class="bi bi-exclamation-triangle me-1"></i>
                                 Thấy <strong>"Sai tài khoản hoặc mật khẩu!"</strong> → kiểm tra lại chữ hoa/thường, Caps Lock, hoặc liên hệ HR cấp lại mật khẩu.

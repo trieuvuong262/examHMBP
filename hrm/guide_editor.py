@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import logging
+
 from django.template.loader import render_to_string
 
 from hrm.guide_sections import GUIDE_SECTIONS, get_section_by_id
+
+logger = logging.getLogger(__name__)
 
 
 def all_guide_sections_for_admin() -> list[dict]:
@@ -45,12 +49,25 @@ def section_has_override(section_id: str, overrides: dict) -> bool:
     return bool((overrides.get(section_id) or {}).get('body'))
 
 
-def render_section_inner_default(section_id: str, request, *, context: dict) -> str:
+def _as_template_context(context) -> dict:
+    if hasattr(context, 'flatten'):
+        return context.flatten()
+    if isinstance(context, dict):
+        return context
+    return dict(context)
+
+
+def render_section_inner_default(section_id: str, request, *, context) -> str:
     """HTML bên trong .accordion-body — mặc định từ template partial."""
     template = f'guide/inner/{section_id}.html'
     try:
-        return render_to_string(template, context, request=request).strip()
+        return render_to_string(
+            template,
+            _as_template_context(context),
+            request=request,
+        ).strip()
     except Exception:
+        logger.exception('guide inner template failed: %s', section_id)
         return ''
 
 

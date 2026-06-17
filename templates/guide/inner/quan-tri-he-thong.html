@@ -1,10 +1,65 @@
-<p>Dành cho IT/Admin: nhật ký thao tác, backup NAS, đồng bộ KiotViet, bảo mật đăng nhập, cấu hình trợ lý AI.</p>
-            <figure class="guide-figure mb-3">
-                <img src="{% static 'images/guide/22-audit.png' %}" alt="Nhật ký hệ thống" loading="lazy">
-                <figcaption><strong>Hình.</strong> Nhật ký thao tác — lọc theo user, module, thời gian.</figcaption>
-            </figure>
-            <ul class="small text-muted mb-0">
-                <li><strong>Bảo mật đăng nhập:</strong> mở khóa tài khoản/IP bị chặn.</li>
-                <li><strong>Backup:</strong> chạy sao lưu DB lên NAS theo lịch.</li>
-                <li><strong>Trợ lý AI:</strong> cấu hình prompt và nguồn tài liệu cho Hỏi đáp.</li>
-            </ul>
+{% load static %}
+<span class="badge bg-dark mb-3">Dành cho IT / Admin</span>
+<p class="mb-3">Module <strong>Quản trị hệ thống</strong> gồm: bảo mật đăng nhập, nhật ký thao tác, backup NAS, đồng bộ KiotViet, cấu hình NAS và trợ lý AI.</p>
+
+<div class="guide-steps mb-4">
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">1</div>
+        <div class="guide-step-body"><div><strong>Nhật ký thao tác:</strong> xem ai làm gì, lúc nào — lọc theo user, module (Nhân sự, Kho NPL…), khoảng thời gian. Xuất Excel khi cần đối soát.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/quan-tri-he-thong-01.png' %}" alt="Minh họa bước 1 — quan tri he thong" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">2</div>
+        <div class="guide-step-body"><div><strong>Bảo mật đăng nhập:</strong> mở khóa tài khoản bị khóa sau nhập sai mật khẩu nhiều lần; gỡ chặn IP nếu bị firewall tạm thời.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/quan-tri-he-thong-02.png' %}" alt="Minh họa bước 2 — quan tri he thong" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">3</div>
+        <div class="guide-step-body"><div><strong>Backup lên NAS:</strong> chạy sao lưu DB + mã nguồn + media thủ công hoặc kiểm tra lịch cron 00:00 hàng ngày. Xác nhận file trên <code>synology:backup</code>.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/quan-tri-he-thong-03.png' %}" alt="Minh họa bước 3 — quan tri he thong" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">4</div>
+        <div class="guide-step-body"><div><strong>Đồng bộ KiotViet:</strong> cấu hình chu kỳ sync, bấm <em>Chạy ngay</em> khi cần dữ liệu mới — xem log lỗi nếu thất bại.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/quan-tri-he-thong-04.png' %}" alt="Minh họa bước 4 — quan tri he thong" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">5</div>
+        <div class="guide-step-body"><div><strong>Cập nhật link NAS:</strong> chỉnh mapping thư mục portal ↔ NAS khi đổi cấu trúc shared folder.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/quan-tri-he-thong-05.png' %}" alt="Minh họa bước 5 — quan tri he thong" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">6</div>
+        <div class="guide-step-body"><div><strong>Trợ lý AI:</strong> cấu hình model, prompt hệ thống, nguồn tài liệu cho mục Hỏi đáp — test câu hỏi mẫu sau khi đổi cấu hình.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/quan-tri-he-thong-06.png' %}" alt="Minh họa bước 6 — quan tri he thong" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    </div>
+
+<div class="guide-tip mb-0">
+    <i class="bi bi-exclamation-triangle text-warning me-1"></i>
+    <strong>Lưu ý:</strong> Chỉ IT/Admin được quyền module này. Thao tác nhạy cảm (backup, mở khóa IP) nên ghi lại trong nhật ký nội bộ team IT.
+</div>

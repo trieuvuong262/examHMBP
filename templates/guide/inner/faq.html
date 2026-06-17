@@ -1,33 +1,75 @@
-<dl class="mb-0">
-                                <dt class="fw-bold">Đăng nhập báo "Sai tài khoản hoặc mật khẩu"?</dt>
-                                <dd class="text-muted">Kiểm tra Caps Lock, gõ đúng username HR cấp. Vẫn lỗi → HR reset mật khẩu.</dd>
-
-                                <dt class="fw-bold mt-3">Không thấy một số menu (Tuyển dụng, Kho NPL, …)?</dt>
-                                <dd class="text-muted">Menu chỉ hiện module trong <strong>nhóm quyền</strong> được HR gán cho phòng ban / vai trò của bạn. Liên hệ HR nếu cần thêm quyền.</dd>
-
-                                {% if 'bao-cao' in visible_section_ids %}
-                                <dt class="fw-bold mt-3">Báo cáo nộp rồi muốn sửa?</dt>
-                                <dd class="text-muted">Vào lại <strong>Báo cáo hôm nay</strong>, chỉnh và bấm <strong>Nộp cho HOD</strong> lại.</dd>
-                                {% endif %}
-
-                                {% if 'kpi' in visible_section_ids %}
-                                <dt class="fw-bold mt-3">KPI không gõ được điểm (ô xám)?</dt>
-                                <dd class="text-muted">Kỳ chấm (Q1, Q2…) đang khóa — chờ HR/GM mở kỳ.</dd>
-                                {% endif %}
-
-                                {% if 'dao-tao' in visible_section_ids or 'kiem-tra' in visible_section_ids %}
-                                <dt class="fw-bold mt-3">Không thấy bài thi / khóa học?</dt>
-                                <dd class="text-muted">HR chưa giao cho bạn — liên hệ quản lý trực tiếp hoặc phòng đào tạo.</dd>
-                                {% endif %}
-
-                                {% if 'kiem-tra' in visible_section_ids %}
-                                <dt class="fw-bold mt-3">Thi bị mất kết nối giữa chừng?</dt>
-                                <dd class="text-muted">Thử vào lại mục Kiểm tra. Nếu đã nộp → xem kết quả. Nếu chưa → liên hệ IT kèm tên bài thi.</dd>
-                                {% endif %}
-
-                                <dt class="fw-bold mt-3">Trang load chậm trên điện thoại?</dt>
-                                <dd class="text-muted">Kiểm tra sóng Wi-Fi/4G. Tắt mở lại trình duyệt. Tránh mở quá nhiều tab.</dd>
-
-                                <dt class="fw-bold mt-3">Hỗ trợ kỹ thuật?</dt>
-                                <dd class="text-muted mb-0">Email <a href="mailto:support@justplay.vn">support@justplay.vn</a> hoặc phòng IT nội bộ. Ghi rõ: họ tên, username, màn hình đang dùng, chụp màn hình lỗi nếu có.</dd>
-                            </dl>
+{% load static %}
+<div class="guide-steps mb-0">
+<div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">1</div>
+        <div class="guide-step-body"><p class="fw-bold mb-2">Đăng nhập báo "Sai tài khoản hoặc mật khẩu"?</p><div>Kiểm tra Caps Lock, gõ đúng username HR cấp. Vẫn lỗi → HR reset mật khẩu.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/faq-01.png' %}" alt="Minh họa bước 1 — faq" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+<div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">2</div>
+        <div class="guide-step-body"><p class="fw-bold mb-2">Không thấy một số menu (Tuyển dụng, Kho NPL, …)?</p><div>Menu chỉ hiện module trong <strong>nhóm quyền</strong> được HR gán cho phòng ban / vai trò của bạn. Liên hệ HR nếu cần thêm quyền.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/faq-02.png' %}" alt="Minh họa bước 2 — faq" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+<div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">3</div>
+        <div class="guide-step-body"><p class="fw-bold mb-2">Báo cáo nộp rồi muốn sửa?</p><div>Vào lại <strong>Báo cáo hôm nay</strong>, chỉnh và bấm <strong>Nộp cho HOD</strong> lại.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/faq-03.png' %}" alt="Minh họa bước 3 — faq" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+<div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">4</div>
+        <div class="guide-step-body"><p class="fw-bold mb-2">KPI không gõ được điểm (ô xám)?</p><div>Kỳ chấm (Q1, Q2…) đang khóa — chờ HR/GM mở kỳ.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/faq-04.png' %}" alt="Minh họa bước 4 — faq" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+<div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">5</div>
+        <div class="guide-step-body"><p class="fw-bold mb-2">Không thấy bài thi / khóa học?</p><div>HR chưa giao cho bạn — liên hệ quản lý trực tiếp hoặc phòng đào tạo.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/faq-05.png' %}" alt="Minh họa bước 5 — faq" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+<div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">6</div>
+        <div class="guide-step-body"><p class="fw-bold mb-2">Thi bị mất kết nối giữa chừng?</p><div>Thử vào lại mục Kiểm tra. Nếu đã nộp → xem kết quả. Nếu chưa → liên hệ IT kèm tên bài thi.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/faq-06.png' %}" alt="Minh họa bước 6 — faq" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+<div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">7</div>
+        <div class="guide-step-body"><p class="fw-bold mb-2">Trang load chậm trên điện thoại?</p><div>Kiểm tra sóng Wi-Fi/4G. Tắt mở lại trình duyệt. Tránh mở quá nhiều tab.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/faq-07.png' %}" alt="Minh họa bước 7 — faq" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+<div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">8</div>
+        <div class="guide-step-body"><p class="fw-bold mb-2">Hỗ trợ kỹ thuật?</p><div>Email <a href="mailto:support@justplay.vn">support@justplay.vn</a> hoặc phòng IT nội bộ. Ghi rõ: họ tên, username, màn hình đang dùng, chụp màn hình lỗi nếu có.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/faq-08.png' %}" alt="Minh họa bước 8 — faq" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+</div>

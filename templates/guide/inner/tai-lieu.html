@@ -1,20 +1,108 @@
-<div class="guide-split guide-split-wide-img mb-3">
-                <div class="guide-steps">
-                    <div class="guide-step">
-                        <div class="guide-step-num">1</div>
-                        <div>Menu <strong>Tài liệu</strong> → duyệt thư mục theo phòng ban / danh mục HR đã cấu hình.</div>
-                    </div>
-                    <div class="guide-step">
-                        <div class="guide-step-num">2</div>
-                        <div>Bấm tên file → xem PDF/Word trong trình duyệt hoặc tải về.</div>
-                    </div>
-                    <div class="guide-step">
-                        <div class="guide-step-num">3</div>
-                        <div>Menu con <strong>Hỏi đáp</strong> → đặt câu hỏi về quy trình; trợ lý AI trả lời dựa trên tài liệu bạn được phép đọc.</div>
-                    </div>
-                </div>
-                <figure class="guide-figure">
-                    <img src="{% static 'images/guide/12-tai-lieu.png' %}" alt="Thư viện tài liệu" loading="lazy">
-                    <figcaption><strong>Hình.</strong> Danh mục tài liệu nội bộ — chỉ hiện file thuộc quyền của bạn.</figcaption>
-                </figure>
-            </div>
+{% load static %}
+<span class="badge bg-secondary mb-3">Dành cho nhân viên</span>
+<p class="mb-3">Module <strong>Thư viện</strong> gồm 2 phần: <strong>Tài liệu</strong> (xem file nội bộ) và <strong>Hỏi đáp</strong> (trợ lý AI tra cứu quy trình theo tài liệu bạn được phép đọc).</p>
+
+<div class="guide-steps mb-4">
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">1</div>
+        <div class="guide-step-body"><div>Menu <strong>Thư viện</strong> → <strong>Tài liệu</strong>. Trang hiện thư mục theo phòng ban / danh mục HR đã cấu hình — bạn chỉ thấy file thuộc quyền của mình.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/tai-lieu-01.png' %}" alt="Minh họa bước 1 — tai lieu" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">2</div>
+        <div class="guide-step-body"><div>Dùng ô <strong>Tìm kiếm</strong> hoặc bấm từng thư mục để lọc. Tên file thường kèm ngày ban hành hoặc mã quy trình.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/tai-lieu-02.png' %}" alt="Minh họa bước 2 — tai lieu" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">3</div>
+        <div class="guide-step-body"><div>Bấm tên file → xem PDF/Word/ảnh ngay trong trình duyệt. Cần lưu máy → bấm <strong>Tải xuống</strong> (nếu có nút).</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/tai-lieu-03.png' %}" alt="Minh họa bước 3 — tai lieu" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">4</div>
+        <div class="guide-step-body"><div>Chuyển sang menu con <strong>Hỏi đáp</strong> → gõ câu hỏi bằng tiếng Việt tự nhiên, ví dụ: <em>"Quy trình xin nghỉ phép như thế nào?"</em></div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/tai-lieu-04.png' %}" alt="Minh họa bước 4 — tai lieu" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">5</div>
+        <div class="guide-step-body"><div>Trợ lý AI trả lời dựa trên tài liệu bạn được xem — kèm trích dẫn nguồn. Đọc kỹ đoạn trích; nếu chưa đủ, hỏi tiếp trong cùng phiên chat.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/tai-lieu-05.png' %}" alt="Minh họa bước 5 — tai lieu" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">6</div>
+        <div class="guide-step-body"><div>Không tìm thấy tài liệu cần → liên hệ HR/IT để được cấp quyền thư mục hoặc bổ sung file.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/tai-lieu-06.png' %}" alt="Minh họa bước 6 — tai lieu" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    </div>
+
+<div class="guide-tip mb-4">
+    <i class="bi bi-lightbulb text-hm me-1"></i>
+    <strong>Mẹo:</strong> Hỏi cụ thể (tên quy trình, tình huống) thay vì câu chung chung — AI trả lời chính xác hơn.
+</div>
+
+{% if 'tai-lieu' in guide_admin_section_ids %}
+<hr class="my-4">
+<span class="badge bg-dark mb-3">Dành cho HR / Quản trị</span>
+<div class="guide-steps">
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">7</div>
+        <div class="guide-step-body"><div>Vào <strong>Tài liệu</strong> → khu vực quản trị (nếu có quyền) → <strong>Tải lên</strong> file PDF/Word, chọn thư mục và phòng ban được xem.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/tai-lieu-07.png' %}" alt="Minh họa bước 7 — tai lieu" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">8</div>
+        <div class="guide-step-body"><div>Đặt tên file rõ ràng (mã quy trình + phiên bản). Cập nhật bản mới → tải file mới, không xóa bản cũ nếu cần lưu lịch sử.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/tai-lieu-08.png' %}" alt="Minh họa bước 8 — tai lieu" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">9</div>
+        <div class="guide-step-body"><div>Kiểm tra quyền menu <strong>Hỏi đáp</strong> trong nhóm quyền — nhân viên cần quyền xem tài liệu thì AI mới trả lời được.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/tai-lieu-09.png' %}" alt="Minh họa bước 9 — tai lieu" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">10</div>
+        <div class="guide-step-body"><div>Cấu hình trợ lý AI (prompt, model) tại <strong>Quản trị hệ thống → Trợ lý AI</strong> nếu cần tinh chỉnh cách trả lời.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/tai-lieu-10.png' %}" alt="Minh họa bước 10 — tai lieu" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+</div>
+{% endif %}

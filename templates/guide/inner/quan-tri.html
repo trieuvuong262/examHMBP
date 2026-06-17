@@ -1,30 +1,74 @@
-<p class="text-muted small">Module <strong>Nhân sự</strong> — thêm/sửa tài khoản, import Excel, reset mật khẩu, gán cấp dưới cho HOD.</p>
+{% load static %}
+<span class="badge bg-dark mb-3">Dành cho HR / Quản trị</span>
+<p class="text-muted small mb-3">Module <strong>Nhân sự</strong> — quản lý tài khoản, phòng ban, import Excel, reset mật khẩu, gán cấp dưới cho HOD.</p>
 
-                            <figure class="guide-figure mb-4">
-                                <img src="{% static 'images/guide/10-nhan-su.png' %}" alt="Minh họa màn hình quản lý nhân sự" loading="lazy">
-                                <figcaption><strong>Hình.</strong> Danh sách nhân sự — thêm, sửa vai trò, reset mật khẩu.</figcaption>
-                            </figure>
+<h6 class="fw-bold"><i class="bi bi-people-fill me-1 text-hm"></i> Quản lý nhân viên</h6>
+<div class="guide-steps mb-4">
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">1</div>
+        <div class="guide-step-body"><div>Menu <strong>Nhân sự</strong> → danh sách tài khoản. Lọc theo phòng ban, trạng thái làm việc, nhóm quyền.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/quan-tri-01.png' %}" alt="Minh họa bước 1 — quan tri" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">2</div>
+        <div class="guide-step-body"><div><strong>Thêm mới:</strong> điền họ tên, phòng ban, chức danh. Hệ thống gợi ý username <code>nam.nt</code> và email <code>nam.nt@justplay.vn</code>.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/quan-tri-02.png' %}" alt="Minh họa bước 2 — quan tri" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">3</div>
+        <div class="guide-step-body"><div>Chọn <strong>nhóm quyền</strong> (Nhân viên, HCNS, IT…) — quyết định menu và thao tác được phép. Vai trò HOD/GM bổ sung quyền xem báo cáo team.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/quan-tri-03.png' %}" alt="Minh họa bước 3 — quan tri" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">4</div>
+        <div class="guide-step-body"><div>Với HOD: gán <strong>danh sách cấp dưới</strong> (subordinates) để họ xem báo cáo và KPI của team.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/quan-tri-04.png' %}" alt="Minh họa bước 4 — quan tri" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">5</div>
+        <div class="guide-step-body"><div><strong>Import Excel:</strong> tải file mẫu → điền đúng cột (mã NS, phòng ban, nhóm quyền…) → import. Kiểm tra dòng lỗi trước khi xác nhận hàng loạt.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/quan-tri-05.png' %}" alt="Minh họa bước 5 — quan tri" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">6</div>
+        <div class="guide-step-body"><div><strong>Reset mật khẩu:</strong> tạo mật khẩu tạm → copy gửi nhân viên qua kênh nội bộ. Nhắc họ đổi ngay lần đầu đăng nhập.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/quan-tri-06.png' %}" alt="Minh họa bước 6 — quan tri" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">7</div>
+        <div class="guide-step-body"><div><strong>Nghỉ việc:</strong> tắt trạng thái làm việc — tài khoản không đăng nhập được nhưng dữ liệu lịch sử vẫn giữ.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/quan-tri-07.png' %}" alt="Minh họa bước 7 — quan tri" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
 
-                            <h6 class="fw-bold mt-3"><i class="bi bi-people-fill me-1 text-hm"></i> Quản lý nhân sự</h6>
-                            <div class="guide-steps">
-                                <div class="guide-step">
-                                    <div class="guide-step-num">1</div>
-                                    <div>Menu <strong>Nhân sự</strong> → danh sách tài khoản.</div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">2</div>
-                                    <div><strong>Thêm mới</strong> — điền họ tên; hệ thống gợi ý username <code>nam.nt</code> và email <code>nam.nt@justplay.vn</code>.</div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">3</div>
-                                    <div>Với HOD: gán <strong>danh sách cấp dưới</strong> để họ xem báo cáo team.</div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">4</div>
-                                    <div><strong>Import Excel</strong> — tải file mẫu trước, điền đúng cột, rồi import.</div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">5</div>
-                                    <div><strong>Reset mật khẩu</strong> — copy mật khẩu mới gửi cho nhân viên (nhắc họ đổi ngay).</div>
-                                </div>
-                            </div>
+<div class="guide-tip mb-0">
+    <i class="bi bi-lightbulb text-hm me-1"></i>
+    <strong>Mẹo:</strong> Sau khi tạo user mới, kiểm tra menu sidebar bằng tài khoản thử — đảm bảo phòng ban và nhóm quyền khớp mong muốn.
+</div>

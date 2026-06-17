@@ -1,22 +1,108 @@
-<div class="guide-split guide-split-wide-img mb-3">
-                <div class="guide-steps">
-                    <div class="guide-step">
-                        <div class="guide-step-num">1</div>
-                        <div><strong>Gửi yêu cầu hỗ trợ</strong> — mô tả sự cố (máy tính, mạng, phần mềm…), chọn mức độ ưu tiên.</div>
-                    </div>
-                    <div class="guide-step">
-                        <div class="guide-step-num">2</div>
-                        <div><strong>Yêu cầu của tôi</strong> — xem tiến độ xử lý, bình luận thêm thông tin.</div>
-                    </div>
-                    {% if 'ho-tro' in guide_admin_section_ids %}
-                    <div class="guide-step">
-                        <div class="guide-step-num">3</div>
-                        <div>IT/Admin vào <strong>Chờ duyệt</strong> → tiếp nhận, cập nhật trạng thái, đóng ticket khi xong.</div>
-                    </div>
-                    {% endif %}
-                </div>
-                <figure class="guide-figure">
-                    <img src="{% static 'images/guide/15-ho-tro.png' %}" alt="Hỗ trợ kỹ thuật" loading="lazy">
-                    <figcaption><strong>Hình.</strong> Yêu cầu hỗ trợ IT — theo dõi từng bước xử lý.</figcaption>
-                </figure>
-            </div>
+{% load static %}
+<span class="badge bg-secondary mb-3">Dành cho nhân viên</span>
+<p class="mb-3">Module <strong>Hỗ trợ kỹ thuật</strong> dùng báo sự cố IT (máy tính, mạng, phần mềm, email…) và theo dõi ticket đến khi xử lý xong.</p>
+
+<div class="guide-steps mb-4">
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">1</div>
+        <div class="guide-step-body"><div>Menu <strong>Yêu cầu</strong> → <strong>Hỗ trợ kỹ thuật</strong> → <strong>Gửi yêu cầu hỗ trợ</strong>.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/ho-tro-01.png' %}" alt="Minh họa bước 1 — ho tro" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">2</div>
+        <div class="guide-step-body"><div>Chọn <strong>loại sự cố</strong> (phần cứng, mạng, phần mềm, tài khoản…). Ghi tiêu đề ngắn, ví dụ: <em>"Máy A205 không vào Wi-Fi"</em>.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/ho-tro-02.png' %}" alt="Minh họa bước 2 — ho tro" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">3</div>
+        <div class="guide-step-body"><div>Mô tả chi tiết: triệu chứng, thời điểm bắt đầu, ảnh chụp màn hình lỗi. Chọn <strong>mức ưu tiên</strong> (Khẩn nếu ảnh hưởng sản xuất).</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/ho-tro-03.png' %}" alt="Minh họa bước 3 — ho tro" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">4</div>
+        <div class="guide-step-body"><div>Nếu liên quan thiết bị đã khai báo → chọn <strong>mã thiết bị</strong> trong danh sách (giúp IT xác định nhanh).</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/ho-tro-04.png' %}" alt="Minh họa bước 4 — ho tro" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">5</div>
+        <div class="guide-step-body"><div>Bấm <strong>Gửi</strong> → theo dõi tại <strong>Yêu cầu của tôi</strong>: <em>Mới / Đang xử lý / Chờ phản hồi / Hoàn tất</em>.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/ho-tro-05.png' %}" alt="Minh họa bước 5 — ho tro" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">6</div>
+        <div class="guide-step-body"><div>IT có thể bình luận yêu cầu thêm thông tin — bạn nhận và trả lời ngay trong chi tiết ticket để không bị trễ.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/ho-tro-06.png' %}" alt="Minh họa bước 6 — ho tro" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    </div>
+
+<div class="guide-tip mb-4">
+    <i class="bi bi-lightbulb text-hm me-1"></i>
+    <strong>Mẹo:</strong> Gửi một ticket cho một sự cố — tránh gộp nhiều vấn đề khác nhau vào cùng yêu cầu.
+</div>
+
+{% if 'ho-tro' in guide_admin_section_ids %}
+<hr class="my-4">
+<span class="badge bg-dark mb-3">Dành cho IT / Quản trị</span>
+<div class="guide-steps">
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">7</div>
+        <div class="guide-step-body"><div>Vào <strong>Chờ duyệt</strong> / <strong>Chờ xử lý</strong> — lọc ticket mới, ưu tiên Khẩn trước.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/ho-tro-07.png' %}" alt="Minh họa bước 7 — ho tro" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">8</div>
+        <div class="guide-step-body"><div><strong>Tiếp nhận</strong> → đổi trạng thái <em>Đang xử lý</em>, ghi chú bước đã làm (cài driver, reset mật khẩu…).</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/ho-tro-08.png' %}" alt="Minh họa bước 8 — ho tro" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">9</div>
+        <div class="guide-step-body"><div>Cần user xác nhận → đặt <em>Chờ phản hồi</em>. Xong việc → <strong>Đóng ticket</strong>, tóm tắt cách xử lý để tra cứu sau.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/ho-tro-09.png' %}" alt="Minh họa bước 9 — ho tro" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">10</div>
+        <div class="guide-step-body"><div>Liên kết với module <strong>Thiết bị IT</strong> nếu cần cập nhật người giữ máy hoặc ghi nhật ký bảo trì.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/ho-tro-10.png' %}" alt="Minh họa bước 10 — ho tro" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+</div>
+{% endif %}

@@ -1,10 +1,112 @@
-<p>Quản lý nguyên phụ liệu: danh mục, tồn kho, phiếu nhập/xuất/chuyển/hủy/điều chỉnh, kiểm kê và báo cáo.</p>
-            <figure class="guide-figure mb-3">
-                <img src="{% static 'images/guide/18-kho-npl.png' %}" alt="Kho NPL tổng quan" loading="lazy">
-                <figcaption><strong>Hình.</strong> Tổng quan kho — tồn, nhập/xuất trong kỳ.</figcaption>
-            </figure>
-            <ul class="small text-muted mb-0">
-                <li><strong>Tồn kho / Thẻ kho:</strong> tra cứu số lượng theo vật tư và vị trí.</li>
-                <li><strong>Phiếu nhập/xuất:</strong> tạo phiếu → duyệt → cập nhật tồn tự động.</li>
-                <li><strong>Báo cáo:</strong> xuất Excel tồn kho, sổ kho theo kỳ.</li>
-            </ul>
+{% load static %}
+<span class="badge bg-secondary mb-3">Dành cho nhân viên kho</span>
+<p class="mb-3">Module <strong>Kho NPL</strong> quản lý nguyên phụ liệu: danh mục vật tư, tồn kho, phiếu nhập/xuất/chuyển/hủy/điều chỉnh, kiểm kê và báo cáo.</p>
+
+<div class="guide-steps mb-4">
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">1</div>
+        <div class="guide-step-body"><div>Mở <strong>Tổng quan</strong> — xem tồn hiện tại, cảnh báo dưới định mức, nhập/xuất trong kỳ.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/kho-npl-01.png' %}" alt="Minh họa bước 1 — kho npl" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">2</div>
+        <div class="guide-step-body"><div><strong>Danh mục:</strong> tra mã vật tư, tên, đơn vị tính, nhóm NPL. Dùng tìm kiếm nhanh khi lập phiếu.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/kho-npl-02.png' %}" alt="Minh họa bước 2 — kho npl" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">3</div>
+        <div class="guide-step-body"><div><strong>Tồn kho / Thẻ kho:</strong> xem số lượng theo vật tư và <strong>vị trí</strong> (kệ, kho). Thẻ kho ghi lại từng lần nhập/xuất của một mã.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/kho-npl-03.png' %}" alt="Minh họa bước 3 — kho npl" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">4</div>
+        <div class="guide-step-body"><div><strong>Phiếu nhập:</strong> tạo phiếu → thêm dòng vật tư, số lượng, kho nhận → gửi duyệt. Sau duyệt, tồn tăng tự động.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/kho-npl-04.png' %}" alt="Minh họa bước 4 — kho npl" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">5</div>
+        <div class="guide-step-body"><div><strong>Phiếu xuất:</strong> chọn kho xuất, vật tư, SL xuất cho sản xuất/chuyển đi. Hệ thống kiểm tra tồn — không cho xuất quá số đang có.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/kho-npl-05.png' %}" alt="Minh họa bước 5 — kho npl" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">6</div>
+        <div class="guide-step-body"><div><strong>Phiếu chuyển:</strong> chuyển giữa hai kho/vị trí — không làm thay đổi tổng tồn công ty, chỉ đổi vị trí lưu.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/kho-npl-06.png' %}" alt="Minh họa bước 6 — kho npl" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">7</div>
+        <div class="guide-step-body"><div><strong>Kiểm kê:</strong> tạo phiếu kiểm → nhập SL thực tế → hệ thống tính chênh lệch → duyệt để cập nhật tồn.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/kho-npl-07.png' %}" alt="Minh họa bước 7 — kho npl" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    </div></div>
+
+{% if 'kho-npl' in guide_admin_section_ids %}
+<hr class="my-4">
+<span class="badge bg-dark mb-3">Dành cho thủ kho / Quản trị</span>
+<div class="guide-steps">
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">8</div>
+        <div class="guide-step-body"><div><strong>Thiết lập:</strong> khai báo kho, vị trí, đơn vị quy đổi, ngưỡng cảnh báo tồn tối thiểu.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/kho-npl-08.png' %}" alt="Minh họa bước 8 — kho npl" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">9</div>
+        <div class="guide-step-body"><div><strong>Phiếu hủy / Điều chỉnh:</strong> xử lý hàng hỏng, thất thoát có biên bản — bắt buộc ghi lý do trước khi duyệt.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/kho-npl-09.png' %}" alt="Minh họa bước 9 — kho npl" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">10</div>
+        <div class="guide-step-body"><div><strong>Báo cáo:</strong> xuất Excel tồn kho, sổ kho theo kỳ — dùng đối soát cuối tháng.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/kho-npl-10.png' %}" alt="Minh họa bước 10 — kho npl" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">11</div>
+        <div class="guide-step-body"><div>Đính kèm chứng từ (ảnh phiếu, biên bản) vào từng phiếu để lưu trữ và audit sau này.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/kho-npl-11.png' %}" alt="Minh họa bước 11 — kho npl" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+</div>
+{% endif %}

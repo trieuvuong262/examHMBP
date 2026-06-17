@@ -1,9 +1,39 @@
-<h6 class="fw-bold">Bạn cần có:</h6>
-                            <ul>
-                                <li><strong>Tài khoản</strong> do HR/IT cấp (tên đăng nhập + mật khẩu tạm)</li>
-                                <li><strong>Internet</strong> — Wi-Fi công ty hoặc 4G</li>
-                                <li><strong>Trình duyệt</strong> — Chrome, Safari, Edge (cập nhật mới nhất). Tránh dùng trình duyệt quá cũ trên điện thoại.</li>
-                            </ul>
-                            <h6 class="fw-bold mt-3">Tên đăng nhập thường có dạng:</h6>
-                            <p class="mb-2"><code>tên.chữ_cái_họ_đệm</code> — ví dụ: <strong>Nguyễn Thành Nam</strong> → <code>nam.nt</code>, email <code>nam.nt@justplay.vn</code></p>
-                            <p class="text-muted small mb-0">Không có khoảng trắng. Lần đăng nhập đầu tiên bắt buộc đổi mật khẩu.</p>
+{% load static %}
+<div class="guide-steps mb-0">
+<div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">1</div>
+        <div class="guide-step-body"><p><strong>Tài khoản</strong> do HR/IT cấp — username + mật khẩu tạm.</p></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/chuan-bi-01.png' %}" alt="Minh họa bước 1 — chuan bi" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+<div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">2</div>
+        <div class="guide-step-body"><p><strong>Internet</strong> — Wi-Fi công ty hoặc 4G ổn định.</p></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/chuan-bi-02.png' %}" alt="Minh họa bước 2 — chuan bi" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+<div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">3</div>
+        <div class="guide-step-body"><p><strong>Trình duyệt</strong> Chrome, Safari, Edge bản mới. Tránh trình duyệt quá cũ trên điện thoại.</p></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/chuan-bi-03.png' %}" alt="Minh họa bước 3 — chuan bi" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+<div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">4</div>
+        <div class="guide-step-body"><p>Username dạng <code>nam.nt</code>, email <code>nam.nt@justplay.vn</code>. Lần đầu đăng nhập bắt buộc đổi mật khẩu.</p></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/chuan-bi-04.png' %}" alt="Minh họa bước 4 — chuan bi" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+</div>

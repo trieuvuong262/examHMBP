@@ -1,18 +1,90 @@
-<div class="guide-split guide-split-wide-img mb-3">
-                <div class="guide-steps">
-                    <div class="guide-step">
-                        <div class="guide-step-num">1</div>
-                        <div><strong>Gửi góp ý</strong> — chia sẻ ý kiến cải tiến xưởng, quy trình, môi trường làm việc (có thể ẩn danh tùy cấu hình).</div>
-                    </div>
-                    {% if 'gop-y' in guide_admin_section_ids %}
-                    <div class="guide-step">
-                        <div class="guide-step-num">2</div>
-                        <div><strong>Danh sách góp ý</strong> — HR/Ban quản lý xem, phản hồi, đánh dấu đã xử lý.</div>
-                    </div>
-                    {% endif %}
-                </div>
-                <figure class="guide-figure">
-                    <img src="{% static 'images/guide/17-gop-y.png' %}" alt="Góp ý" loading="lazy">
-                    <figcaption><strong>Hình.</strong> Gửi và theo dõi góp ý nội bộ.</figcaption>
-                </figure>
-            </div>
+{% load static %}
+<span class="badge bg-secondary mb-3">Dành cho nhân viên</span>
+<p class="mb-3">Module <strong>Góp ý</strong> giúp gửi ý kiến cải tiến quy trình, môi trường làm việc, an toàn… — có thể gửi ẩn danh tùy cấu hình công ty.</p>
+
+<div class="guide-steps mb-4">
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">1</div>
+        <div class="guide-step-body"><div>Menu <strong>Góp ý</strong> → <strong>Gửi góp ý</strong>.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/gop-y-01.png' %}" alt="Minh họa bước 1 — gop y" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">2</div>
+        <div class="guide-step-body"><div>Chọn <strong>chủ đề</strong> (quy trình, an toàn, tiện ích, khác). Viết nội dung cụ thể: vấn đề gì, đề xuất giải pháp, lợi ích kỳ vọng.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/gop-y-02.png' %}" alt="Minh họa bước 2 — gop y" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">3</div>
+        <div class="guide-step-body"><div>Tick <strong>Gửi ẩn danh</strong> nếu không muốn lộ tên — HR vẫn xử lý nhưng không hiển thị người gửi với người khác.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/gop-y-03.png' %}" alt="Minh họa bước 3 — gop y" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">4</div>
+        <div class="guide-step-body"><div>Đính kèm ảnh minh họa (khu vực xưởng, thiết bị…) nếu giúp làm rõ vấn đề.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/gop-y-04.png' %}" alt="Minh họa bước 4 — gop y" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">5</div>
+        <div class="guide-step-body"><div>Sau khi gửi, theo dõi phản hồi tại <strong>Danh sách góp ý</strong> (nếu không ẩn danh) — trạng thái <em>Mới / Đang xem xét / Đã phản hồi / Đã xử lý</em>.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/gop-y-05.png' %}" alt="Minh họa bước 5 — gop y" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    </div>
+
+<div class="guide-tip mb-4">
+    <i class="bi bi-lightbulb text-hm me-1"></i>
+    <strong>Mẹo:</strong> Mô tả theo công thức <em>Vấn đề → Đề xuất → Lợi ích</em> — dễ được xem xét và phản hồi nhanh.
+</div>
+
+{% if 'gop-y' in guide_admin_section_ids %}
+<hr class="my-4">
+<span class="badge bg-dark mb-3">Dành cho HR / Quản trị</span>
+<div class="guide-steps">
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">6</div>
+        <div class="guide-step-body"><div>Vào <strong>Danh sách góp ý</strong> — lọc theo trạng thái, chủ đề, thời gian.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/gop-y-06.png' %}" alt="Minh họa bước 6 — gop y" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">7</div>
+        <div class="guide-step-body"><div>Đọc nội dung → <strong>Phản hồi</strong> công khai hoặc nội bộ. Chuyển trạng thái <em>Đang xem xét</em> khi đã chuyển bộ phận liên quan.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/gop-y-07.png' %}" alt="Minh họa bước 7 — gop y" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">8</div>
+        <div class="guide-step-body"><div>Khi đã triển khai hoặc từ chối có lý do → đánh dấu <strong>Đã xử lý</strong>, ghi tóm tắt kết quả để người gửi biết.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/gop-y-08.png' %}" alt="Minh họa bước 8 — gop y" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+</div>
+{% endif %}

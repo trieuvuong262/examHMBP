@@ -1,21 +1,42 @@
+{% load static %}
 <p class="mb-3">Nếu bạn vừa được HR cấp tài khoản, làm <strong>4 việc này trước</strong>:</p>
                             <div class="guide-steps">
-                                <div class="guide-step">
-                                    <div class="guide-step-num">1</div>
-                                    <div>Mở trình duyệt trên điện thoại hoặc máy tính → gõ địa chỉ portal công ty (HR sẽ gửi link, ví dụ <code>https://portal.justplay.vn</code>).</div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">2</div>
-                                    <div>Đăng nhập bằng <strong>Tên đăng nhập</strong> và <strong>Mật khẩu</strong> HR cấp → bấm nút đỏ <strong>Đăng nhập</strong>.</div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">3</div>
-                                    <div>Đổi mật khẩu ngay lần đầu (mục 4 bên dưới) — đừng dùng mật khẩu tạm lâu dài.</div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">4</div>
-                                    <div>{% if 'thong-bao' in visible_section_ids %}Vào <strong>Thông báo</strong> → đọc và bấm <strong>Xác nhận đã đọc</strong> các tin có dấu vàng "Chưa đọc".{% else %}Khám phá menu trên trang chủ — chỉ thấy các chức năng bạn được phân quyền.{% endif %}</div>
-                                </div>
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">1</div>
+        <div class="guide-step-body"><div>Mở trình duyệt trên điện thoại hoặc máy tính → gõ địa chỉ portal công ty (HR sẽ gửi link, ví dụ <code>https://portal.justplay.vn</code>).</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/bat-dau-01.png' %}" alt="Minh họa bước 1 — bat dau" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">2</div>
+        <div class="guide-step-body"><div>Đăng nhập bằng <strong>Tên đăng nhập</strong> và <strong>Mật khẩu</strong> HR cấp → bấm nút đỏ <strong>Đăng nhập</strong>.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/bat-dau-02.png' %}" alt="Minh họa bước 2 — bat dau" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">3</div>
+        <div class="guide-step-body"><div>Đổi mật khẩu ngay lần đầu (mục 4 bên dưới) — đừng dùng mật khẩu tạm lâu dài.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/bat-dau-03.png' %}" alt="Minh họa bước 3 — bat dau" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">4</div>
+        <div class="guide-step-body"><div>{% if 'thong-bao' in visible_section_ids %}Vào <strong>Thông báo</strong> → đọc và bấm <strong>Xác nhận đã đọc</strong> các tin có dấu vàng "Chưa đọc".{% else %}Khám phá menu trên trang chủ — chỉ thấy các chức năng bạn được phân quyền.{% endif %}</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/bat-dau-04.png' %}" alt="Minh họa bước 4 — bat dau" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
                             </div>
                             <div class="alert alert-info border-0 mt-3 mb-0 small">
                                 <i class="bi bi-info-circle me-1"></i>

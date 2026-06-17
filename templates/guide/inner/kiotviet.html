@@ -1,5 +1,90 @@
-<p>Tra cứu dữ liệu đồng bộ từ KiotViet: khách hàng, đơn hàng, hóa đơn, hàng hóa, tồn kho, phiếu nhập.</p>
-            <figure class="guide-figure mb-3">
-                <img src="{% static 'images/guide/19-kiotviet.png' %}" alt="KiotViet tra cứu" loading="lazy">
-                <figcaption><strong>Hình.</strong> Tra cứu khách hàng / đơn hàng trên portal.</figcaption>
-            </figure>
+{% load static %}
+<span class="badge bg-secondary mb-3">Dành cho nhân viên</span>
+<p class="mb-3">Module <strong>KiotViet</strong> tra cứu dữ liệu đã đồng bộ từ hệ thống bán hàng — không chỉnh sửa trực tiếp trên portal, chỉ xem và tìm kiếm.</p>
+
+<div class="guide-steps mb-4">
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">1</div>
+        <div class="guide-step-body"><div>Menu <strong>KiotViet</strong> — chọn mục cần tra: <strong>Khách hàng</strong>, <strong>Đơn đặt hàng</strong>, <strong>Hóa đơn</strong>, <strong>Hàng hóa</strong>, <strong>Tồn kho</strong>, <strong>Phiếu nhập</strong>.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/kiotviet-01.png' %}" alt="Minh họa bước 1 — kiotviet" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">2</div>
+        <div class="guide-step-body"><div>Dùng ô <strong>Tìm kiếm</strong>: số điện thoại, mã KH, mã đơn, tên sản phẩm, mã vạch… Hệ thống gợi ý khi gõ.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/kiotviet-02.png' %}" alt="Minh họa bước 2 — kiotviet" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">3</div>
+        <div class="guide-step-body"><div><strong>Khách hàng:</strong> xem lịch sử mua, điểm tích lũy, thông tin liên hệ — bấm dòng để mở chi tiết.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/kiotviet-03.png' %}" alt="Minh họa bước 3 — kiotviet" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">4</div>
+        <div class="guide-step-body"><div><strong>Đơn / Hóa đơn:</strong> lọc theo ngày, trạng thái thanh toán. Mở chi tiết để xem từng dòng hàng, giảm giá, nhân viên bán.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/kiotviet-04.png' %}" alt="Minh họa bước 4 — kiotviet" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">5</div>
+        <div class="guide-step-body"><div><strong>Hàng hóa & Tồn kho:</strong> tra SL tồn theo chi nhánh/kho đồng bộ. Ảnh sản phẩm hiển thị nếu đã sync từ KiotViet.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/kiotviet-05.png' %}" alt="Minh họa bước 5 — kiotviet" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">6</div>
+        <div class="guide-step-body"><div>Dữ liệu cũ hơn vài giờ → liên hệ IT chạy <strong>đồng bộ</strong> (mục Quản trị hệ thống) trước khi kết luận thiếu hàng.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/kiotviet-06.png' %}" alt="Minh họa bước 6 — kiotviet" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    </div>
+
+<div class="guide-tip mb-4">
+    <i class="bi bi-lightbulb text-hm me-1"></i>
+    <strong>Lưu ý:</strong> Portal chỉ <em>đọc</em> dữ liệu KiotViet. Sửa giá, tạo đơn mới → làm trên phần mềm KiotViet gốc.
+</div>
+
+{% if 'kiotviet' in guide_admin_section_ids %}
+<hr class="my-4">
+<span class="badge bg-dark mb-3">Dành cho IT / Quản trị</span>
+<div class="guide-steps">
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">7</div>
+        <div class="guide-step-body"><div><strong>Quản trị hệ thống → Đồng bộ KiotViet:</strong> cấu hình token, lịch sync, chạy đồng bộ thủ công khi cần cập nhật gấp.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/kiotviet-07.png' %}" alt="Minh họa bước 7 — kiotviet" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">8</div>
+        <div class="guide-step-body"><div>Kiểm tra log lần sync cuối — nếu lỗi API, xác minh kết nối mạng và quota KiotViet.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/kiotviet-08.png' %}" alt="Minh họa bước 8 — kiotviet" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+</div>
+{% endif %}

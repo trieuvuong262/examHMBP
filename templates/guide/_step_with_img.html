@@ -1,0 +1,13 @@
+{% load static %}
+<div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">{{ num }}</div>
+        <div class="guide-step-body">{{ body|safe }}</div>
+    </div>
+    {% if img %}
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/' %}{{ img }}" alt="{{ alt|default:'' }}" class="guide-zoomable" loading="lazy">
+        {% if caption %}<figcaption class="small text-muted mt-1 mb-0">{{ caption }}</figcaption>{% endif %}
+    </figure>
+    {% endif %}
+</div>

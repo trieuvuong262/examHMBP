@@ -1,20 +1,65 @@
-<div class="guide-split guide-split-wide-img mb-3">
-                <div class="guide-steps">
-                    <div class="guide-step">
-                        <div class="guide-step-num">1</div>
-                        <div><strong>Bảng Kanban</strong> — kéo ứng viên qua các cột: Mới → Xem xét → Phỏng vấn → Trúng tuyển.</div>
-                    </div>
-                    <div class="guide-step">
-                        <div class="guide-step-num">2</div>
-                        <div><strong>Vị trí tuyển dụng</strong> — tạo/sửa JD, số lượng cần tuyển.</div>
-                    </div>
-                    <div class="guide-step">
-                        <div class="guide-step-num">3</div>
-                        <div>Ứng viên trúng tuyển → <strong>Tạo User</strong> — hệ thống gợi ý username dạng <code>nam.nt</code>, email <code>nam.nt@justplay.vn</code>.</div>
-                    </div>
-                </div>
-                <figure class="guide-figure">
-                    <img src="{% static 'images/guide/21-tuyen-dung.png' %}" alt="Kanban tuyển dụng" loading="lazy">
-                    <figcaption><strong>Hình.</strong> Bảng Kanban ứng viên theo giai đoạn.</figcaption>
-                </figure>
-            </div>
+{% load static %}
+<span class="badge bg-dark mb-3">Dành cho HR / Quản trị</span>
+<p class="mb-3">Module <strong>Tuyển dụng</strong> quản lý vị trí tuyển, ứng viên theo Kanban và tạo tài khoản portal khi trúng tuyển.</p>
+
+<div class="guide-steps mb-4">
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">1</div>
+        <div class="guide-step-body"><div>Menu <strong>Tuyển dụng</strong> → <strong>Bảng Kanban</strong>: các cột <em>Mới → Xem xét → Phỏng vấn → Trúng tuyển / Loại</em>. Kéo thả thẻ ứng viên khi đổi giai đoạn.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/tuyen-dung-01.png' %}" alt="Minh họa bước 1 — tuyen dung" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">2</div>
+        <div class="guide-step-body"><div>Bấm thẻ ứng viên → xem hồ sơ, CV, ghi chú phỏng vấn, lịch hẹn. Thêm bình luận nội bộ cho team tuyển dụng.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/tuyen-dung-02.png' %}" alt="Minh họa bước 2 — tuyen dung" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">3</div>
+        <div class="guide-step-body"><div><strong>Vị trí tuyển dụng:</strong> tạo/sửa JD, số lượng cần tuyển, phòng ban, trạng thái Đang mở / Đã đủ / Tạm dừng.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/tuyen-dung-03.png' %}" alt="Minh họa bước 3 — tuyen dung" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">4</div>
+        <div class="guide-step-body"><div>Thêm ứng viên thủ công hoặc import — gán vào vị trí tương ứng, đặt ở cột <em>Mới</em>.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/tuyen-dung-04.png' %}" alt="Minh họa bước 4 — tuyen dung" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">5</div>
+        <div class="guide-step-body"><div>Ứng viên <strong>Trúng tuyển</strong> → bấm <strong>Tạo User</strong>: hệ thống gợi ý username <code>nam.nt</code>, email <code>nam.nt@justplay.vn</code>, phòng ban và nhóm quyền mặc định.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/tuyen-dung-05.png' %}" alt="Minh họa bước 5 — tuyen dung" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">6</div>
+        <div class="guide-step-body"><div>Kiểm tra lại thông tin trước khi lưu — nhân viên mới đăng nhập portal, đổi mật khẩu và đọc Hướng dẫn (mục Bắt đầu nhanh).</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/tuyen-dung-06.png' %}" alt="Minh họa bước 6 — tuyen dung" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    </div>
+
+<div class="guide-tip mb-0">
+    <i class="bi bi-lightbulb text-hm me-1"></i>
+    <strong>Mẹo:</strong> Ghi chú sau mỗi vòng phỏng vấn ngay trên thẻ ứng viên — tránh mất thông tin khi nhiều người cùng tuyển.
+</div>

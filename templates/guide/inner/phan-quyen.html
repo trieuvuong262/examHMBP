@@ -1,17 +1,33 @@
+{% load static %}
 <p class="text-muted small mb-2">Menu trên máy tính <strong>chỉ hiện</strong> chức năng trong nhóm quyền được gán cho phòng ban / vai trò của bạn.</p>
                             <div class="guide-steps small">
-                                <div class="guide-step">
-                                    <div class="guide-step-num">1</div>
-                                    <div>HR vào <strong>Phân quyền</strong> → tạo <strong>Nhóm quyền</strong> (vd. «Nhân viên xưởng», «Tổ trưởng», «Kho NPL»).</div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">2</div>
-                                    <div>Tick quyền <strong>Xem / Thêm / Sửa / Xóa</strong> cho từng module và menu con.</div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">3</div>
-                                    <div>Gán nhóm quyền cho <strong>Phòng ban</strong> hoặc <strong>Vai trò</strong> — nhân viên đăng nhập lại sẽ thấy menu khớp quyền.</div>
-                                </div>
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">1</div>
+        <div class="guide-step-body"><div>HR vào <strong>Phân quyền</strong> → tạo <strong>Nhóm quyền</strong> (vd. «Nhân viên xưởng», «Tổ trưởng», «Kho NPL»).</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/phan-quyen-01.png' %}" alt="Minh họa bước 1 — phan quyen" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">2</div>
+        <div class="guide-step-body"><div>Tick quyền <strong>Xem / Thêm / Sửa / Xóa</strong> cho từng module và menu con.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/phan-quyen-02.png' %}" alt="Minh họa bước 2 — phan quyen" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">3</div>
+        <div class="guide-step-body"><div>Gán nhóm quyền cho <strong>Phòng ban</strong> hoặc <strong>Vai trò</strong> — nhân viên đăng nhập lại sẽ thấy menu khớp quyền.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/phan-quyen-03.png' %}" alt="Minh họa bước 3 — phan quyen" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
                             </div>
                             <figure class="guide-figure mt-3 mb-0">
                                 <img src="{% static 'images/guide/11-phan-quyen.png' %}" alt="Cấu hình phân quyền menu" loading="lazy">

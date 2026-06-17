@@ -1,21 +1,103 @@
-<p>Module gồm 3 khu vực (menu con): <strong>Giao việc cá nhân</strong>, <strong>Dự án nội bộ</strong>, <strong>Dự án liên phòng ban</strong>.</p>
-            <div class="guide-split guide-split-wide-img mb-3">
-                <div class="guide-steps">
-                    <div class="guide-step">
-                        <div class="guide-step-num">1</div>
-                        <div><strong>Cá nhân:</strong> xem việc được giao, cập nhật tiến độ, bình luận, đánh dấu hoàn thành.</div>
-                    </div>
-                    <div class="guide-step">
-                        <div class="guide-step-num">2</div>
-                        <div><strong>Dự án:</strong> bảng Kanban theo cột trạng thái — kéo thả thẻ việc hoặc bấm mở chi tiết.</div>
-                    </div>
-                    <div class="guide-step">
-                        <div class="guide-step-num">3</div>
-                        <div><strong>Liên phòng ban:</strong> dự án có thành viên nhiều BP — lọc theo phòng ban / người phụ trách.</div>
-                    </div>
-                </div>
-                <figure class="guide-figure">
-                    <img src="{% static 'images/guide/13-cong-viec.png' %}" alt="Giao việc cá nhân" loading="lazy">
-                    <figcaption><strong>Hình.</strong> Danh sách công việc được giao — lọc theo trạng thái và hạn.</figcaption>
-                </figure>
-            </div>
+{% load static %}
+<span class="badge bg-secondary mb-3">Dành cho nhân viên</span>
+<p class="mb-3">Module <strong>Công việc</strong> có 3 menu con: <strong>Giao việc cá nhân</strong>, <strong>Dự án nội bộ</strong>, <strong>Dự án liên phòng ban</strong>.</p>
+
+<div class="guide-steps mb-4">
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">1</div>
+        <div class="guide-step-body"><div><strong>Giao việc cá nhân:</strong> mở menu → xem danh sách việc được giao. Lọc theo <em>Chưa làm / Đang làm / Hoàn thành</em> và hạn deadline.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/cong-viec-01.png' %}" alt="Minh họa bước 1 — cong viec" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">2</div>
+        <div class="guide-step-body"><div>Bấm tên việc → đọc mô tả, file đính kèm. Cập nhật <strong>Tiến độ %</strong>, thêm <strong>Bình luận</strong> khi cần trao đổi với người giao.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/cong-viec-02.png' %}" alt="Minh họa bước 2 — cong viec" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">3</div>
+        <div class="guide-step-body"><div>Xong việc → đổi trạng thái <strong>Hoàn thành</strong> (hoặc bấm nút tương ứng). Việc lặp theo tuần/tháng sẽ tự sinh lại nếu quản lý đã cấu hình.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/cong-viec-03.png' %}" alt="Minh họa bước 3 — cong viec" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">4</div>
+        <div class="guide-step-body"><div><strong>Dự án nội bộ:</strong> bảng Kanban — cột <em>Chờ / Đang làm / Xong</em>. Kéo thả thẻ việc giữa cột hoặc bấm thẻ để mở chi tiết.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/cong-viec-04.png' %}" alt="Minh họa bước 4 — cong viec" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">5</div>
+        <div class="guide-step-body"><div><strong>Dự án liên phòng ban:</strong> tương tự Kanban nhưng có nhiều BP tham gia — lọc theo phòng ban / người phụ trách để theo dõi phần việc của team bạn.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/cong-viec-05.png' %}" alt="Minh họa bước 5 — cong viec" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">6</div>
+        <div class="guide-step-body"><div>Việc có <strong>phụ thuộc</strong> (bước trước chưa xong) sẽ khóa bước sau — hoàn thành đúng thứ tự trong dự án.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/cong-viec-06.png' %}" alt="Minh họa bước 6 — cong viec" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    </div></div>
+
+{% if 'cong-viec' in guide_admin_section_ids %}
+<hr class="my-4">
+<span class="badge bg-dark mb-3">Dành cho HR / Quản trị</span>
+<div class="guide-steps">
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">7</div>
+        <div class="guide-step-body"><div>Tạo <strong>dự án mới</strong> (nội bộ hoặc liên phòng ban) → đặt tên, mô tả, thêm thành viên từng phòng ban.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/cong-viec-07.png' %}" alt="Minh họa bước 7 — cong viec" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">8</div>
+        <div class="guide-step-body"><div>Thêm thẻ việc trên Kanban → gán <strong>người thực hiện</strong>, <strong>hạn</strong>, mức ưu tiên. Có thể gắn file hướng dẫn.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/cong-viec-08.png' %}" alt="Minh họa bước 8 — cong viec" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">9</div>
+        <div class="guide-step-body"><div><strong>Giao việc cá nhân:</strong> tạo việc đơn lẻ không cần dự án — chọn nhân viên, deadline, tick lặp lại nếu là công việc định kỳ.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/cong-viec-09.png' %}" alt="Minh họa bước 9 — cong viec" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">10</div>
+        <div class="guide-step-body"><div>Theo dõi tiến độ qua Kanban hoặc danh sách — nhắc nhở qua bình luận khi quá hạn.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/cong-viec-10.png' %}" alt="Minh họa bước 10 — cong viec" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+</div>
+{% endif %}

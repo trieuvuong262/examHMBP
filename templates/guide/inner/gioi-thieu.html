@@ -1,11 +1,39 @@
-<p><strong>JustPlay Portal</strong> là cổng thông tin nội bộ của công ty. Menu và hướng dẫn <strong>chỉ hiện chức năng bạn được phân quyền</strong> (theo phòng ban và nhóm quyền). Các module phổ biến:</p>
-                            <ul>
-                                {% if 'thong-bao' in visible_section_ids %}<li><strong>Thông báo</strong> — chính sách, lịch giao hàng, tin xưởng</li>{% endif %}
-                                {% if 'bao-cao' in visible_section_ids %}<li><strong>Báo cáo công việc</strong> — sản lượng ca làm hàng ngày</li>{% endif %}
-                                {% if 'kpi' in visible_section_ids %}<li><strong>KPI</strong> — tự đánh giá và được quản lý chấm điểm</li>{% endif %}
-                                {% if 'dao-tao' in visible_section_ids %}<li><strong>Đào tạo</strong> — video/PDF quy trình may, QC, ATLD…</li>{% endif %}
-                                {% if 'kiem-tra' in visible_section_ids %}<li><strong>Kiểm tra</strong> — thi năng lực, ATLD, QC theo lịch HR</li>{% endif %}
-                                {% if 'cong-viec' in visible_section_ids %}<li><strong>Công việc</strong> — giao việc, dự án Kanban</li>{% endif %}
-                                {% if 'tai-lieu' in visible_section_ids %}<li><strong>Tài liệu</strong> — thư viện quy trình, hỏi đáp AI</li>{% endif %}
-                            </ul>
-                            <p class="mb-0">HR / IT thường có thêm: nhân sự, tuyển dụng, phân quyền menu, quản trị hệ thống — tùy nhóm quyền được gán.</p>
+{% load static %}
+<div class="guide-steps mb-0">
+<div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">1</div>
+        <div class="guide-step-body"><p><strong>JustPlay Portal</strong> là cổng thông tin nội bộ. Menu chỉ hiện module bạn được phân quyền.</p></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/gioi-thieu-01.png' %}" alt="Minh họa bước 1 — gioi thieu" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+<div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">2</div>
+        <div class="guide-step-body"><p>Các module phổ biến: Thông báo, Báo cáo, Đào tạo, Kiểm tra, Công việc, Tài liệu — tùy nhóm quyền của bạn.</p></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/gioi-thieu-02.png' %}" alt="Minh họa bước 2 — gioi thieu" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+<div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">3</div>
+        <div class="guide-step-body"><p>Trang chủ hiển thị lời chào và các ô truy cập nhanh theo quyền.</p></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/gioi-thieu-03.png' %}" alt="Minh họa bước 3 — gioi thieu" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+<div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">4</div>
+        <div class="guide-step-body"><p>HR / IT thường có thêm: Nhân sự, Phân quyền, Quản trị hệ thống.</p></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/gioi-thieu-04.png' %}" alt="Minh họa bước 4 — gioi thieu" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+</div>

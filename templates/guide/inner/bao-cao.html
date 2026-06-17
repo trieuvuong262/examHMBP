@@ -1,19 +1,30 @@
+{% load static %}
 <p>Báo cáo sản lượng theo ca — mỗi dòng = một công đoạn / một đơn hàng. <strong>Nộp trước khi tan ca</strong> (hoặc theo quy định tổ).</p>
 
                             <span class="badge bg-secondary mb-3">Nhân viên — nộp báo cáo</span>
-                            <div class="guide-split guide-split-wide-img mb-4">
-                                <div class="guide-steps">
-                                <div class="guide-step">
-                                    <div class="guide-step-num">1</div>
-                                    <div>Bấm <strong>Báo cáo</strong> (menu dưới) → vào trang <strong>Báo cáo hôm nay</strong>.</div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">2</div>
-                                    <div>Chọn <strong>Ca làm</strong>: Sáng / Chiều / Đêm (đúng ca bạn đang báo).</div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">3</div>
-                                    <div>Điền từng dòng trong bảng:
+                            <div class="guide-steps mb-4">
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">1</div>
+        <div class="guide-step-body"><div>Bấm <strong>Báo cáo</strong> (menu dưới) → vào trang <strong>Báo cáo hôm nay</strong>.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/bao-cao-01.png' %}" alt="Minh họa bước 1 — bao cao" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">2</div>
+        <div class="guide-step-body"><div>Chọn <strong>Ca làm</strong>: Sáng / Chiều / Đêm (đúng ca bạn đang báo).</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/bao-cao-02.png' %}" alt="Minh họa bước 2 — bao cao" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">3</div>
+        <div class="guide-step-body"><div>Điền từng dòng trong bảng:
                                         <ul class="mt-2 mb-0">
                                             <li><strong>Công đoạn</strong> — May, Cắt, QC, KHSX…</li>
                                             <li><strong>Mã đơn/Style</strong> — ví dụ <code>JP-2026-001</code></li>
@@ -22,34 +33,58 @@
                                             <li><strong>ĐVT</strong> — cái, bộ, mét…</li>
                                             <li><strong>Ghi chú</strong> — tuỳ chọn (lỗi, chuyển ca…)</li>
                                         </ul>
-                                    </div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">4</div>
-                                    <div>Cần thêm dòng → bấm <strong>+ Thêm dòng</strong>. Xóa dòng → bấm icon <i class="bi bi-x-lg text-danger"></i> bên phải.</div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">5</div>
-                                    <div>Công việc giống hôm qua → bấm <strong>Sao chép hôm qua</strong> (nếu có nút này) → chỉnh lại số lượng.</div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">6</div>
-                                    <div>Chưa xong → bấm <strong>Lưu nháp</strong> (sửa tiếp được). Xong hết → bấm <strong>Nộp cho HOD</strong>.</div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">7</div>
-                                    <div>Thấy banner xanh <em>"Đã nộp lúc …"</em> → thành công. Muốn sửa: chỉnh lại và bấm <strong>Nộp cho HOD</strong> lần nữa.</div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">8</div>
-                                    <div>Xem báo cáo ngày cũ → bấm <strong>Lịch sử</strong> góc phải trên.</div>
-                                </div>
-                                </div>
-                                <figure class="guide-figure">
-                                    <img src="{% static 'images/guide/06-bao-cao.png' %}" alt="Minh họa nhập báo cáo công việc hàng ngày" loading="lazy">
-                                    <figcaption><strong>Hình 6.</strong> Chọn ca → điền bảng → <em>Lưu nháp</em> hoặc <em>Nộp cho HOD</em>.</figcaption>
-                                </figure>
-                            </div>
+                                    </div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/bao-cao-03.png' %}" alt="Minh họa bước 3 — bao cao" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">4</div>
+        <div class="guide-step-body"><div>Cần thêm dòng → bấm <strong>+ Thêm dòng</strong>. Xóa dòng → bấm icon <i class="bi bi-x-lg text-danger"></i> bên phải.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/bao-cao-04.png' %}" alt="Minh họa bước 4 — bao cao" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">5</div>
+        <div class="guide-step-body"><div>Công việc giống hôm qua → bấm <strong>Sao chép hôm qua</strong> (nếu có nút này) → chỉnh lại số lượng.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/bao-cao-05.png' %}" alt="Minh họa bước 5 — bao cao" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">6</div>
+        <div class="guide-step-body"><div>Chưa xong → bấm <strong>Lưu nháp</strong> (sửa tiếp được). Xong hết → bấm <strong>Nộp cho HOD</strong>.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/bao-cao-06.png' %}" alt="Minh họa bước 6 — bao cao" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">7</div>
+        <div class="guide-step-body"><div>Thấy banner xanh <em>"Đã nộp lúc …"</em> → thành công. Muốn sửa: chỉnh lại và bấm <strong>Nộp cho HOD</strong> lần nữa.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/bao-cao-07.png' %}" alt="Minh họa bước 7 — bao cao" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">8</div>
+        <div class="guide-step-body"><div>Xem báo cáo ngày cũ → bấm <strong>Lịch sử</strong> góc phải trên.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/bao-cao-08.png' %}" alt="Minh họa bước 8 — bao cao" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+                                </div></div>
 
                             <div class="guide-tip mb-4">
                                 <i class="bi bi-lightbulb text-hm me-1"></i>
@@ -60,25 +95,50 @@
                             <hr class="my-4">
                             <span class="badge bg-primary mb-3">Tổ trưởng (HOD) — theo dõi team</span>
                             <div class="guide-steps">
-                                <div class="guide-step">
-                                    <div class="guide-step-num">1</div>
-                                    <div>Bấm <strong>Báo cáo</strong> → tự vào <strong>Báo cáo team</strong> (không phải trang hôm nay của NV).</div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">2</div>
-                                    <div>Chọn <strong>Ngày</strong> → bấm <strong>Xem</strong>. Xem 3 ô thống kê: tổng NV / đã nộp / chưa nộp.</div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">3</div>
-                                    <div>Trong bảng, bấm <strong>Chi tiết</strong> (hoặc tên NV) để xem từng dòng công việc.</div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">4</div>
-                                    <div>Phần <strong>Phản hồi HOD</strong>: tick <strong>Đã xem / xác nhận</strong>, ghi chú ngắn → <strong>Lưu phản hồi</strong>.</div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">5</div>
-                                    <div>HOD cũng nộp BC cá nhân → bấm <strong>Báo cáo của tôi</strong>.</div>
-                                </div>
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">9</div>
+        <div class="guide-step-body"><div>Bấm <strong>Báo cáo</strong> → tự vào <strong>Báo cáo team</strong> (không phải trang hôm nay của NV).</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/bao-cao-09.png' %}" alt="Minh họa bước 9 — bao cao" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">10</div>
+        <div class="guide-step-body"><div>Chọn <strong>Ngày</strong> → bấm <strong>Xem</strong>. Xem 3 ô thống kê: tổng NV / đã nộp / chưa nộp.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/bao-cao-10.png' %}" alt="Minh họa bước 10 — bao cao" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">11</div>
+        <div class="guide-step-body"><div>Trong bảng, bấm <strong>Chi tiết</strong> (hoặc tên NV) để xem từng dòng công việc.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/bao-cao-11.png' %}" alt="Minh họa bước 11 — bao cao" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">12</div>
+        <div class="guide-step-body"><div>Phần <strong>Phản hồi HOD</strong>: tick <strong>Đã xem / xác nhận</strong>, ghi chú ngắn → <strong>Lưu phản hồi</strong>.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/bao-cao-12.png' %}" alt="Minh họa bước 12 — bao cao" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">13</div>
+        <div class="guide-step-body"><div>HOD cũng nộp BC cá nhân → bấm <strong>Báo cáo của tôi</strong>.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/bao-cao-13.png' %}" alt="Minh họa bước 13 — bao cao" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
                             </div>
                             {% endif %}

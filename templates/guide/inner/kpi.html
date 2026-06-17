@@ -1,3 +1,4 @@
+{% load static %}
 <p>Luồng chấm điểm: <strong>Bạn tự chấm → HOD chấm → GM chốt</strong> (theo quý Q1, Q2, Q3, Q4).</p>
 
                             <figure class="guide-figure guide-split-wide-img mb-4">
@@ -7,26 +8,51 @@
 
                             <span class="badge bg-secondary mb-3">Nhân viên</span>
                             <div class="guide-steps">
-                                <div class="guide-step">
-                                    <div class="guide-step-num">1</div>
-                                    <div>Bấm <strong>KPI</strong> (menu) → thấy <strong>Bảng KPI Tổng Thể - Năm 20XX</strong>.</div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">2</div>
-                                    <div>Bấm vào bảng KPI của bạn → mở trang chi tiết (bảng nhiều cột, có thể kéo ngang trên điện thoại).</div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">3</div>
-                                    <div>Tìm cột kỳ đang mở (Q1, Q2…) — ô điểm <strong>trắng, gõ được</strong> = đang mở. Ô xám = chưa mở hoặc đã khóa.</div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">4</div>
-                                    <div>Điền điểm tự đánh giá (thang thường 0–100 hoặc theo quy định công ty).</div>
-                                </div>
-                                <div class="guide-step">
-                                    <div class="guide-step-num">5</div>
-                                    <div>Bấm <strong>Lưu</strong> / <strong>Nộp</strong> (nút ở cuối trang) khi hoàn tất.</div>
-                                </div>
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">1</div>
+        <div class="guide-step-body"><div>Bấm <strong>KPI</strong> (menu) → thấy <strong>Bảng KPI Tổng Thể - Năm 20XX</strong>.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/kpi-01.png' %}" alt="Minh họa bước 1 — kpi" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">2</div>
+        <div class="guide-step-body"><div>Bấm vào bảng KPI của bạn → mở trang chi tiết (bảng nhiều cột, có thể kéo ngang trên điện thoại).</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/kpi-02.png' %}" alt="Minh họa bước 2 — kpi" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">3</div>
+        <div class="guide-step-body"><div>Tìm cột kỳ đang mở (Q1, Q2…) — ô điểm <strong>trắng, gõ được</strong> = đang mở. Ô xám = chưa mở hoặc đã khóa.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/kpi-03.png' %}" alt="Minh họa bước 3 — kpi" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">4</div>
+        <div class="guide-step-body"><div>Điền điểm tự đánh giá (thang thường 0–100 hoặc theo quy định công ty).</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/kpi-04.png' %}" alt="Minh họa bước 4 — kpi" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+                                <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">5</div>
+        <div class="guide-step-body"><div>Bấm <strong>Lưu</strong> / <strong>Nộp</strong> (nút ở cuối trang) khi hoàn tất.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/kpi-05.png' %}" alt="Minh họa bước 5 — kpi" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
                             </div>
 
                             {% if 'kpi' in guide_admin_section_ids %}

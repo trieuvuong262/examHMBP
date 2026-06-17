@@ -1,14 +1,90 @@
-<div class="guide-steps mb-3">
-                <div class="guide-step">
-                    <div class="guide-step-num">1</div>
-                    <div>Duyệt thư mục NAS được IT gán cho phòng ban / cá nhân.</div>
-                </div>
-                <div class="guide-step">
-                    <div class="guide-step-num">2</div>
-                    <div>Tải file, tạo link chia sẻ có thời hạn (nếu được phép).</div>
-                </div>
-            </div>
-            <figure class="guide-figure mb-0">
-                <img src="{% static 'images/guide/20-nas.png' %}" alt="Thư mục NAS" loading="lazy">
-                <figcaption><strong>Hình.</strong> Duyệt file trên NAS qua trình duyệt.</figcaption>
-            </figure>
+{% load static %}
+<span class="badge bg-secondary mb-3">Dành cho nhân viên</span>
+<p class="mb-3">Module <strong>Thư mục NAS</strong> duyệt file công ty trên ổ mạng (Synology) qua trình duyệt — không cần cài phần mềm NAS riêng.</p>
+
+<div class="guide-steps mb-4">
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">1</div>
+        <div class="guide-step-body"><div>Menu <strong>Thư mục NAS</strong> → hiện cây thư mục bạn được IT/phòng ban cấp quyền (ví dụ: <em>Marketing / Kế hoạch / Backup</em>).</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/nas-01.png' %}" alt="Minh họa bước 1 — nas" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">2</div>
+        <div class="guide-step-body"><div>Bấm từng thư mục để mở. Dùng <strong>Tìm kiếm</strong> hoặc sắp xếp theo tên/ngày nếu danh sách dài.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/nas-02.png' %}" alt="Minh họa bước 2 — nas" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">3</div>
+        <div class="guide-step-body"><div>Bấm tên file → <strong>Tải xuống</strong> hoặc xem trước (PDF/ảnh) trực tiếp. File lớn nên tải về thay vì mở tab nhiều lần.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/nas-03.png' %}" alt="Minh họa bước 3 — nas" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">4</div>
+        <div class="guide-step-body"><div>Nếu có quyền <strong>Tải lên</strong> → nút Upload → chọn file từ máy. Đặt đúng thư mục quy định của phòng ban.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/nas-04.png' %}" alt="Minh họa bước 4 — nas" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">5</div>
+        <div class="guide-step-body"><div><strong>Chia sẻ link</strong> (khi được phép): tạo link có thời hạn cho đối tác nội bộ — hết hạn tự vô hiệu.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/nas-05.png' %}" alt="Minh họa bước 5 — nas" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+        <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">6</div>
+        <div class="guide-step-body"><div>Không thấy thư mục cần dùng → liên hệ IT để được gán quyền NAS (theo phòng ban hoặc cá nhân).</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/nas-06.png' %}" alt="Minh họa bước 6 — nas" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    </div>
+
+<div class="guide-tip mb-4">
+    <i class="bi bi-lightbulb text-hm me-1"></i>
+    <strong>Mẹo:</strong> Báo cáo tuần đính kèm file lớn nên đặt trên NAS rồi dán link trong báo cáo — tránh upload trùng nhiều nơi.
+</div>
+
+{% if 'nas' in guide_admin_section_ids %}
+<hr class="my-4">
+<span class="badge bg-dark mb-3">Dành cho IT / Quản trị</span>
+<div class="guide-steps">
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">7</div>
+        <div class="guide-step-body"><div><strong>Cập nhật link NAS</strong> (Quản trị hệ thống) — đồng bộ đường dẫn thư mục khi đổi cấu trúc trên Synology.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/nas-07.png' %}" alt="Minh họa bước 7 — nas" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+    <div class="guide-step guide-step--illustrated">
+    <div class="guide-step-head">
+        <div class="guide-step-num">8</div>
+        <div class="guide-step-body"><div>Phân quyền thư mục theo phòng ban trong cấu hình NAS user mapping — nhân viên chỉ thấy đúng phần được gán.</div></div>
+    </div>
+    <figure class="guide-step-figure">
+        <img src="{% static 'images/guide/nas-08.png' %}" alt="Minh họa bước 8 — nas" class="guide-zoomable" loading="lazy">
+    </figure>
+</div>
+</div>
+{% endif %}
