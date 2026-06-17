@@ -153,8 +153,10 @@ def product_slot_cell(product: ProductionShiftProduct, slot_index: int) -> dict:
             display = f'{qty}/{partial}h'
         else:
             display = str(qty)
+    slot = slot_by_index(slot_index)
     return {
         'slot_index': slot_index,
+        'slot_label': slot.label if slot else str(slot_index),
         'quantity': qty,
         'cumulative': cum if qty else 0,
         'partial_hours': partial,

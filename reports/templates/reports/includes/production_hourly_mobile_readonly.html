@@ -1,0 +1,44 @@
+{# Mobile — xem sản lượng (read-only) #}
+<div class="jp-prod-review-list jp-prod-review-list--readonly">
+    {% for row in hourly_grid.rows %}
+    <article class="jp-prod-review-product{% if row.is_unfinalized %} is-unfinalized{% endif %}">
+        <header class="jp-prod-review-product-head">
+            <span class="jp-prod-review-num">{{ forloop.counter }}</span>
+            <div class="jp-prod-review-product-meta">
+                <div class="jp-prod-review-code">{{ row.label_code|default:row.product_code|default:"—" }}</div>
+                <div class="jp-prod-review-process">{{ row.label_process|default:row.process_name|default:"Chưa gắn mã" }}</div>
+                {% if row.norm_per_hour %}
+                <div class="jp-prod-review-norm">ĐM {{ row.norm_per_hour }}/giờ</div>
+                {% endif %}
+            </div>
+            {% if row.is_unfinalized %}
+            <span class="badge bg-warning text-dark jp-prod-review-badge">Chưa gắn</span>
+            {% endif %}
+        </header>
+        <div class="jp-prod-review-slots">
+            {% for cell in row.slots %}
+            {% if cell.has_data %}
+            <div class="jp-prod-review-slot jp-prod-review-slot--readonly">
+                <div class="jp-prod-review-slot-label">{{ cell.slot_label }}</div>
+                <div class="jp-prod-review-slot-values">
+                    <span class="jp-prod-review-qty-display">{{ cell.quantity }}</span>
+                    <span class="jp-prod-review-cum-display">Σ {{ cell.cumulative }}</span>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        <footer class="jp-prod-review-row-total">
+            Tổng dòng: <strong>{{ row.total_quantity }}</strong>
+        </footer>
+    </article>
+    {% empty %}
+    <p class="text-muted text-center py-3 mb-0">Chưa có sản lượng.</p>
+    {% endfor %}
+</div>
+{% if hourly_grid.rows %}
+<div class="jp-prod-review-grand">
+    <span>Tổng ngày</span>
+    <strong>{{ hourly_grid.grand_total }}</strong>
+</div>
+{% endif %}
