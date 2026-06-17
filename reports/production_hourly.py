@@ -28,11 +28,11 @@ def is_production_report_locked(report) -> bool:
 
 def lock_production_report_on_supervisor_view(report, viewer) -> bool:
     """Tự khóa khi cấp trên mở xem báo cáo đã gửi (lần đầu)."""
-    from hrm.permissions import can_review_user_report
+    from hrm.permissions import can_view_user_report
 
     if (
         report.employee_id == viewer.id
-        or not can_review_user_report(viewer, report)
+        or not can_view_user_report(viewer, report)
         or report.status != DailyWorkReport.STATUS_SUBMITTED
         or report.hod_reviewed
     ):

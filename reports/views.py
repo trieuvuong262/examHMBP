@@ -761,7 +761,6 @@ def report_detail(request, pk):
     if (
         request.method == 'GET'
         and report.is_production_report
-        and report.shift_started_at
         and lock_production_report_on_supervisor_view(report, request.user)
     ):
         report.refresh_from_db()

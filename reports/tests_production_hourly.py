@@ -146,7 +146,7 @@ class ProductionHourlyTests(TestCase):
         self.report.save(update_fields=['status'])
 
         with patch(
-            'hrm.permissions.can_review_user_report',
+            'hrm.permissions.can_view_user_report',
             return_value=True,
         ):
             locked = lock_production_report_on_supervisor_view(self.report, leader)
@@ -155,7 +155,7 @@ class ProductionHourlyTests(TestCase):
         self.assertTrue(self.report.hod_reviewed)
 
         with patch(
-            'hrm.permissions.can_review_user_report',
+            'hrm.permissions.can_view_user_report',
             return_value=False,
         ):
             self.assertFalse(lock_production_report_on_supervisor_view(self.report, self.user))

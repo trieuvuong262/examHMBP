@@ -111,6 +111,9 @@ def _production_redirect(report_date, for_user_id=None, extra=None):
 def _handle_production_post(request, report, report_date, subject, editing_for_other):
     from reports.views import _ensure_daily_report_saved, _finalize_report_submission
 
+    if report.pk:
+        report = DailyWorkReport.objects.get(pk=report.pk)
+
     can_edit = can_edit_production_report(
         request.user,
         report,
@@ -118,6 +121,9 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         is_proxy=editing_for_other,
     )
     if not can_edit:
+        if is_production_report_locked(report) and report.employee_id == request.user.id:
+            messages.error(request, 'Cấp trên đã xem báo cáo — không thể chỉnh sửa.')
+            return redirect(_production_redirect(report_date, None, 'phase=review'))
         messages.error(request, 'Bạn không có quyền chỉnh sửa báo cáo này.')
         return redirect(_production_redirect(report_date, subject.id if editing_for_other else None))
 
