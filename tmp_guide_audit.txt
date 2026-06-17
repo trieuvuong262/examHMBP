@@ -1,0 +1,44 @@
+﻿=== LOCAL TEMPLATE AUDIT ===
+  kpi: steps=5 imgs=6
+  phan-quyen: steps=3 imgs=4
+
+=== LIVE PAGE (admin) ===
+TOC:
+  1. 0. Bß║»t ─æß║ºu nhanh -> #bat-dau
+  2. 1. Giß╗¢i thiß╗çu -> #gioi-thieu
+  3. 2. Chuß║⌐n bß╗ï -> #chuan-bi
+  4. 3. ─É─âng nhß║¡p -> #dang-nhap
+  5. 4. ─Éß╗òi mß║¡t khß║⌐u -> #doi-mat-khau
+  6. 1. Ph├ón quyß╗ün menu -> #phan-quyen
+  7. 2. Th├┤ng b├ío -> #thong-bao
+  8. 1. B├ío c├ío c├┤ng viß╗çc -> #bao-cao
+  9. 2. ─É├áo tß║ío -> #dao-tao
+  10. 3. Kiß╗âm tra -> #kiem-tra
+  11. 1. T├ái liß╗çu & Hß╗Åi ─æ├íp -> #tai-lieu
+  12. 2. C├┤ng viß╗çc -> #cong-viec
+  13. 3. ─Éß╗ü xuß║Ñt mß╗¢i -> #de-xuat
+  14. 4. Hß╗ù trß╗ú kß╗╣ thuß║¡t -> #ho-tro
+  15. 5. Quß║ún l├╜ thiß║┐t bß╗ï -> #thiet-bi
+  16. 6. G├│p ├╜ -> #gop-y
+  17. 1. Kho NPL -> #kho-npl
+  18. 2. KiotViet -> #kiotviet
+  19. 3. Th╞░ mß╗Ñc NAS -> #nas
+  20. 1. Quß║ún trß╗ï nh├ón sß╗▒ -> #quan-tri
+  21. 2. Quß║ún trß╗ï hß╗ç thß╗æng -> #quan-tri-he-thong
+  22. C├óu hß╗Åi th╞░ß╗¥ng gß║╖p -> #faq
+
+Total illustrated steps: 165, images: 165
+Nested guide-steps: 0
+Broken images: 161
+  - https://portal.justplay.vn/static/images/guide/gioi-thieu-01.png
+  - https://portal.justplay.vn/static/images/guide/gioi-thieu-02.png
+  - https://portal.justplay.vn/static/images/guide/gioi-thieu-03.png
+  - https://portal.justplay.vn/static/images/guide/gioi-thieu-04.png
+  - https://portal.justplay.vn/static/images/guide/chuan-bi-01.png
+  - https://portal.justplay.vn/static/images/guide/chuan-bi-02.png
+  - https://portal.justplay.vn/static/images/guide/chuan-bi-03.png
+  - https://portal.justplay.vn/static/images/guide/chuan-bi-04.png
+  - https://portal.justplay.vn/static/images/guide/dang-nhap-01.png
+  - https://portal.justplay.vn/static/images/guide/dang-nhap-02.png
+
+Section issues:

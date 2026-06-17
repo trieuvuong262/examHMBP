@@ -1,3 +1,8 @@
-{% for sec in visible_sections %}
-<a class="guide-toc-link" href="#{{ sec.id }}">{{ sec.toc }}</a>
+{% for group in guide_toc_groups %}
+<div class="guide-toc-group">
+    <div class="guide-toc-group-label">{{ group.label }}</div>
+    {% for sec in group.sections %}
+    <a class="guide-toc-link" href="#{{ sec.id }}">{{ sec.toc_display }}</a>
+    {% endfor %}
+</div>
 {% endfor %}

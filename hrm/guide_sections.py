@@ -25,13 +25,27 @@ from hrm.module_permissions import (
     user_can_access_module,
 )
 
+# Nhóm mục lục — đánh số lại trong từng nhóm (không nhảy số khi mục bị ẩn theo quyền).
+TOC_GROUP_LABELS: dict[str, str] = {
+    'foundation': 'Nền tảng',
+    'access': 'Quyền & thông báo',
+    'daily': 'Công việc hàng ngày',
+    'tools': 'Công cụ & module',
+    'special': 'Chuyên biệt',
+    'admin': 'HR / Quản trị',
+    'help': 'Hỗ trợ',
+}
+
 # modules=None → luôn hiển thị (phần nền tảng)
 # preview: (ảnh static/images/guide/, nhãn) — dùng ở mục «Bắt đầu nhanh»
+# toc_label: tên hiển thị (không kèm số) — dùng khi build toc_display theo nhóm
 GUIDE_SECTIONS: list[dict] = [
     {
         'id': 'bat-dau',
         'toc': '0. Bắt đầu nhanh',
         'toc_short': '0. Bắt đầu',
+        'toc_label': 'Bắt đầu nhanh',
+        'toc_group': 'foundation',
         'modules': None,
         'order': 0,
         'preview': ('02-trang-chu.png', 'Trang chủ'),
@@ -40,6 +54,8 @@ GUIDE_SECTIONS: list[dict] = [
         'id': 'gioi-thieu',
         'toc': '1. Giới thiệu',
         'toc_short': '1. GT',
+        'toc_label': 'Giới thiệu',
+        'toc_group': 'foundation',
         'modules': None,
         'order': 10,
     },
@@ -47,6 +63,8 @@ GUIDE_SECTIONS: list[dict] = [
         'id': 'chuan-bi',
         'toc': '2. Chuẩn bị',
         'toc_short': '2. CB',
+        'toc_label': 'Chuẩn bị',
+        'toc_group': 'foundation',
         'modules': None,
         'order': 20,
     },
@@ -54,6 +72,8 @@ GUIDE_SECTIONS: list[dict] = [
         'id': 'dang-nhap',
         'toc': '3. Đăng nhập',
         'toc_short': '3. ĐN',
+        'toc_label': 'Đăng nhập',
+        'toc_group': 'foundation',
         'modules': None,
         'order': 30,
         'preview': ('01-dang-nhap.png', 'Đăng nhập'),
@@ -62,13 +82,17 @@ GUIDE_SECTIONS: list[dict] = [
         'id': 'doi-mat-khau',
         'toc': '4. Đổi mật khẩu',
         'toc_short': '4. MK',
+        'toc_label': 'Đổi mật khẩu',
+        'toc_group': 'foundation',
         'modules': None,
         'order': 40,
     },
     {
         'id': 'phan-quyen',
-        'toc': '6. Phân quyền menu',
-        'toc_short': '6. PQ',
+        'toc': 'Phân quyền menu',
+        'toc_short': 'PQ',
+        'toc_label': 'Phân quyền menu',
+        'toc_group': 'access',
         'modules': [MODULE_PERMISSIONS],
         'order': 60,
         'preview': ('11-phan-quyen.png', 'Phân quyền'),
@@ -76,40 +100,50 @@ GUIDE_SECTIONS: list[dict] = [
     },
     {
         'id': 'thong-bao',
-        'toc': '7. Thông báo',
-        'toc_short': '7. TB',
+        'toc': 'Thông báo',
+        'toc_short': 'TB',
+        'toc_label': 'Thông báo',
+        'toc_group': 'access',
         'modules': [MODULE_ANNOUNCEMENTS],
         'order': 70,
         'preview': ('05-thong-bao.png', 'Thông báo'),
     },
     {
         'id': 'bao-cao',
-        'toc': '8. Báo cáo công việc',
-        'toc_short': '8. BC',
+        'toc': 'Báo cáo công việc',
+        'toc_short': 'BC',
+        'toc_label': 'Báo cáo công việc',
+        'toc_group': 'daily',
         'modules': [MODULE_REPORTS],
         'order': 80,
         'preview': ('06-bao-cao.png', 'Báo cáo'),
     },
     {
         'id': 'kpi',
-        'toc': '9. KPI',
-        'toc_short': '9. KPI',
+        'toc': 'KPI',
+        'toc_short': 'KPI',
+        'toc_label': 'KPI',
+        'toc_group': 'daily',
         'modules': [MODULE_KPI],
         'order': 90,
         'preview': ('09-kpi.png', 'KPI'),
     },
     {
         'id': 'dao-tao',
-        'toc': '10. Đào tạo',
-        'toc_short': '10. Học',
+        'toc': 'Đào tạo',
+        'toc_short': 'Học',
+        'toc_label': 'Đào tạo',
+        'toc_group': 'daily',
         'modules': [MODULE_TRAINING],
         'order': 100,
         'preview': ('07-dao-tao.png', 'Học'),
     },
     {
         'id': 'kiem-tra',
-        'toc': '11. Kiểm tra',
-        'toc_short': '11. Thi',
+        'toc': 'Kiểm tra',
+        'toc_short': 'Thi',
+        'toc_label': 'Kiểm tra',
+        'toc_group': 'daily',
         'modules': [MODULE_ASSESSMENT],
         'order': 110,
         'preview': ('08-kiem-tra.png', 'Thi'),
@@ -118,6 +152,8 @@ GUIDE_SECTIONS: list[dict] = [
         'id': 'tai-lieu',
         'toc': 'Tài liệu & Hỏi đáp',
         'toc_short': 'TL',
+        'toc_label': 'Tài liệu & Hỏi đáp',
+        'toc_group': 'tools',
         'modules': [MODULE_DOCUMENTS],
         'order': 115,
         'preview': ('12-tai-lieu.png', 'Tài liệu'),
@@ -126,6 +162,8 @@ GUIDE_SECTIONS: list[dict] = [
         'id': 'cong-viec',
         'toc': 'Công việc',
         'toc_short': 'CV',
+        'toc_label': 'Công việc',
+        'toc_group': 'tools',
         'modules': [MODULE_TASKS],
         'order': 120,
         'preview': ('13-cong-viec.png', 'Công việc'),
@@ -134,6 +172,8 @@ GUIDE_SECTIONS: list[dict] = [
         'id': 'de-xuat',
         'toc': 'Đề xuất mới',
         'toc_short': 'ĐX',
+        'toc_label': 'Đề xuất mới',
+        'toc_group': 'tools',
         'modules': [MODULE_DE_XUAT],
         'order': 130,
         'preview': ('14-de-xuat.png', 'Đề xuất'),
@@ -142,6 +182,8 @@ GUIDE_SECTIONS: list[dict] = [
         'id': 'ho-tro',
         'toc': 'Hỗ trợ kỹ thuật',
         'toc_short': 'HT',
+        'toc_label': 'Hỗ trợ kỹ thuật',
+        'toc_group': 'tools',
         'modules': [MODULE_HO_TRO],
         'order': 140,
         'preview': ('15-ho-tro.png', 'Hỗ trợ'),
@@ -150,6 +192,8 @@ GUIDE_SECTIONS: list[dict] = [
         'id': 'thiet-bi',
         'toc': 'Quản lý thiết bị',
         'toc_short': 'TB',
+        'toc_label': 'Quản lý thiết bị',
+        'toc_group': 'tools',
         'modules': [MODULE_EQUIPMENT],
         'order': 150,
         'preview': ('16-thiet-bi.png', 'Thiết bị'),
@@ -158,6 +202,8 @@ GUIDE_SECTIONS: list[dict] = [
         'id': 'gop-y',
         'toc': 'Góp ý',
         'toc_short': 'GY',
+        'toc_label': 'Góp ý',
+        'toc_group': 'tools',
         'modules': [MODULE_FEEDBACK],
         'order': 160,
         'preview': ('17-gop-y.png', 'Góp ý'),
@@ -166,6 +212,8 @@ GUIDE_SECTIONS: list[dict] = [
         'id': 'kho-npl',
         'toc': 'Kho NPL',
         'toc_short': 'KN',
+        'toc_label': 'Kho NPL',
+        'toc_group': 'special',
         'modules': [MODULE_KHO_NPL],
         'order': 170,
         'preview': ('18-kho-npl.png', 'Kho NPL'),
@@ -174,6 +222,8 @@ GUIDE_SECTIONS: list[dict] = [
         'id': 'kiotviet',
         'toc': 'KiotViet',
         'toc_short': 'KV',
+        'toc_label': 'KiotViet',
+        'toc_group': 'special',
         'modules': [MODULE_KIOTVIET],
         'order': 175,
         'preview': ('19-kiotviet.png', 'KiotViet'),
@@ -182,6 +232,8 @@ GUIDE_SECTIONS: list[dict] = [
         'id': 'nas',
         'toc': 'Thư mục NAS',
         'toc_short': 'NAS',
+        'toc_label': 'Thư mục NAS',
+        'toc_group': 'special',
         'modules': [MODULE_NAS_STORAGE],
         'order': 180,
         'preview': ('20-nas.png', 'NAS'),
@@ -190,6 +242,8 @@ GUIDE_SECTIONS: list[dict] = [
         'id': 'tuyen-dung',
         'toc': 'Tuyển dụng',
         'toc_short': 'TD',
+        'toc_label': 'Tuyển dụng',
+        'toc_group': 'admin',
         'modules': [MODULE_RECRUITMENT],
         'order': 190,
         'preview': ('21-tuyen-dung.png', 'Tuyển dụng'),
@@ -199,6 +253,8 @@ GUIDE_SECTIONS: list[dict] = [
         'id': 'quan-tri',
         'toc': 'Quản trị nhân sự',
         'toc_short': 'NS',
+        'toc_label': 'Quản trị nhân sự',
+        'toc_group': 'admin',
         'modules': [MODULE_HRM],
         'order': 200,
         'preview': ('10-nhan-su.png', 'Nhân sự'),
@@ -207,7 +263,9 @@ GUIDE_SECTIONS: list[dict] = [
     {
         'id': 'quan-tri-he-thong',
         'toc': 'Quản trị hệ thống',
-        'toc_short': 'HT',
+        'toc_short': 'Audit',
+        'toc_label': 'Quản trị hệ thống',
+        'toc_group': 'admin',
         'modules': [MODULE_AUDIT],
         'order': 210,
         'preview': ('22-audit.png', 'Audit'),
@@ -217,6 +275,8 @@ GUIDE_SECTIONS: list[dict] = [
         'id': 'faq',
         'toc': 'Câu hỏi thường gặp',
         'toc_short': 'FAQ',
+        'toc_label': 'Câu hỏi thường gặp',
+        'toc_group': 'help',
         'modules': None,
         'order': 999,
     },
@@ -281,6 +341,45 @@ def get_visible_guide_sections(user) -> list[dict]:
         sec for sec in sorted(GUIDE_SECTIONS, key=lambda s: s['order'])
         if section_visible_for_user(user, sec)
     ]
+
+
+def build_guide_toc_groups(visible_sections: list[dict]) -> tuple[list[dict], list[dict]]:
+    """
+    Gán toc_display / toc_short_display và gom mục theo nhóm cho sidebar.
+    Nền tảng giữ số 0–4; các nhóm khác đánh số lại từ 1 theo mục user thực sự thấy.
+    """
+    enriched: list[dict] = []
+    group_counters: dict[str, int] = {}
+    toc_groups: list[dict] = []
+
+    for sec in visible_sections:
+        item = dict(sec)
+        group = item.get('toc_group') or 'tools'
+        label = item.get('toc_label') or item['toc']
+
+        if group == 'foundation':
+            item['toc_display'] = item['toc']
+            item['toc_short_display'] = item.get('toc_short') or item['toc']
+        elif group == 'help':
+            item['toc_display'] = label
+            item['toc_short_display'] = item.get('toc_short') or label
+        else:
+            group_counters[group] = group_counters.get(group, 0) + 1
+            n = group_counters[group]
+            item['toc_display'] = f'{n}. {label}'
+            short = item.get('toc_short') or label
+            item['toc_short_display'] = f'{n}. {short}'
+
+        enriched.append(item)
+        if not toc_groups or toc_groups[-1]['id'] != group:
+            toc_groups.append({
+                'id': group,
+                'label': TOC_GROUP_LABELS.get(group, group),
+                'sections': [],
+            })
+        toc_groups[-1]['sections'].append(item)
+
+    return enriched, toc_groups
 
 
 def get_guide_preview_items(user) -> list[dict]:

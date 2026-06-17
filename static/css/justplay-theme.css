@@ -2337,6 +2337,21 @@ body.jp-tool-loading-active {
     padding: 0.65rem 0.5rem 0.85rem;
 }
 
+.jp-guide-page .guide-toc-group + .guide-toc-group {
+    margin-top: 0.55rem;
+    padding-top: 0.55rem;
+    border-top: 1px dashed #e2e8f0;
+}
+
+.jp-guide-page .guide-toc-group-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #94a3b8;
+    padding: 0.2rem 0.75rem 0.35rem 0.85rem;
+}
+
 .jp-guide-page .guide-toc-link {
     display: block;
     color: #475569 !important;
@@ -8880,6 +8895,14 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
 
 [data-theme="dark"] .jp-guide-page .guide-sidebar-header {
     background: linear-gradient(135deg, #5c1010 0%, #450a0a 100%);
+}
+
+[data-theme="dark"] .jp-guide-page .guide-toc-group + .guide-toc-group {
+    border-top-color: var(--jp-surface-border);
+}
+
+[data-theme="dark"] .jp-guide-page .guide-toc-group-label {
+    color: var(--jp-text-muted);
 }
 
 [data-theme="dark"] .jp-guide-page .guide-toc-link {

@@ -42,7 +42,7 @@ def normalize_section_overrides(raw: dict | None) -> dict:
 
 def section_display_title(section: dict, overrides: dict) -> str:
     custom = overrides.get(section['id'], {})
-    return custom.get('title') or section['toc']
+    return custom.get('title') or section.get('toc_display') or section['toc']
 
 
 def section_has_override(section_id: str, overrides: dict) -> bool:

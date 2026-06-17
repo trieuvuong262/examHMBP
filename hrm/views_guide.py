@@ -14,7 +14,13 @@ from hrm.guide_editor import (
     section_display_title,
     section_has_override,
 )
-from hrm.guide_sections import get_guide_admin_section_ids, get_guide_preview_items, get_section_by_id, get_visible_guide_sections
+from hrm.guide_sections import (
+    build_guide_toc_groups,
+    get_guide_admin_section_ids,
+    get_guide_preview_items,
+    get_section_by_id,
+    get_visible_guide_sections,
+)
 from hrm.models import UserGuide
 from hrm.module_permissions import MODULE_GUIDE, MODULE_LABELS
 from hrm.permissions import can_edit_user_guide
@@ -25,11 +31,14 @@ DEFAULT_SUBTITLE = ''
 
 
 def _guide_context(request, guide: UserGuide, *, can_edit: bool) -> dict:
-    visible_sections = get_visible_guide_sections(request.user)
+    visible_sections, guide_toc_groups = build_guide_toc_groups(
+        get_visible_guide_sections(request.user),
+    )
     return {
         'guide': guide,
         'can_edit': can_edit,
         'visible_sections': visible_sections,
+        'guide_toc_groups': guide_toc_groups,
         'visible_section_ids': {s['id'] for s in visible_sections},
         'guide_admin_section_ids': get_guide_admin_section_ids(request.user),
         'guide_preview_items': get_guide_preview_items(request.user),
