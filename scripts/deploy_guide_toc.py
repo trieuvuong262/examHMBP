@@ -13,12 +13,13 @@ FILES = [
     "hrm/guide_sections.py",
     "hrm/guide_editor.py",
     "hrm/views_guide.py",
+    "hrm/templatetags/guide_tags.py",
+    "templates/guide/_default_body.html",
+    "templates/guide/_section_panel.html",
     "templates/guide/_toc.html",
     "templates/guide/user_guide.html",
     "templates/guide/inner/bat-dau.html",
-    "templates/guide/inner/thong-bao.html",
-    "templates/guide/inner/thiet-bi.html",
-    "templates/guide/inner/quan-tri.html",
+    "static/js/guide.js",
     "static/css/justplay-theme.css",
 ]
 

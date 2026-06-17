@@ -1,5 +1,5 @@
 /**
- * Hướng dẫn — mở accordion + cuộn tới mục khi bấm mục lục / hash URL + phóng to ảnh.
+ * Hướng dẫn — chọn mục từ mục lục để xem nội dung (một mục tại một thời điểm) + phóng to ảnh.
  */
 (function () {
     'use strict';
@@ -7,11 +7,13 @@
     var root = document.querySelector('.jp-guide-page');
     if (!root) return;
 
-    var links = root.querySelectorAll('.guide-toc-link, .guide-preview-item, a[href^="#"]');
-    var sectionIds = {};
-    root.querySelectorAll('.accordion-item[id]').forEach(function (el) {
-        sectionIds[el.id] = el;
+    var panels = root.querySelectorAll('[data-guide-panel]');
+    var panelIds = {};
+    panels.forEach(function (el) {
+        panelIds[el.id] = el;
     });
+
+    var links = root.querySelectorAll('.guide-toc-link');
 
     function getScrollOffset() {
         var nav = document.querySelector('.navbar.sticky-top');
@@ -37,56 +39,32 @@
         window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
     }
 
-    function openSection(sectionId, options) {
+    function showPanel(sectionId, options) {
         options = options || {};
-        var item = sectionIds[sectionId] || document.getElementById(sectionId);
-        if (!item) return false;
+        var target = panelIds[sectionId] || document.getElementById(sectionId);
+        if (!target) return false;
 
-        var panel = item.classList.contains('accordion-item')
-            ? item.querySelector('.accordion-collapse')
-            : null;
-
-        function finish() {
-            scrollToEl(item);
-            setActive(sectionId);
-            if (options.updateHash !== false) {
-                history.replaceState(null, '', '#' + sectionId);
-            }
-        }
-
-        if (!panel || panel.classList.contains('show')) {
-            finish();
-            return true;
-        }
-
-        if (!window.bootstrap || !bootstrap.Collapse) {
-            panel.classList.add('show');
-            finish();
-            return true;
-        }
-
-        var inst = bootstrap.Collapse.getOrCreateInstance(panel, { toggle: false });
-        panel.addEventListener('shown.bs.collapse', function onShown() {
-            panel.removeEventListener('shown.bs.collapse', onShown);
-            finish();
+        panels.forEach(function (panel) {
+            panel.classList.toggle('is-active', panel.id === sectionId);
         });
-        inst.show();
+
+        scrollToEl(target);
+        setActive(sectionId);
+
+        if (options.updateHash !== false) {
+            history.replaceState(null, '', '#' + sectionId);
+        }
         return true;
-    }
-
-    function handleJump(event, link) {
-        var href = link.getAttribute('href') || '';
-        if (href.charAt(0) !== '#') return;
-        var id = href.slice(1);
-        if (!id || !sectionIds[id]) return;
-
-        event.preventDefault();
-        openSection(id);
     }
 
     links.forEach(function (link) {
         link.addEventListener('click', function (e) {
-            handleJump(e, link);
+            var href = link.getAttribute('href') || '';
+            if (href.charAt(0) !== '#') return;
+            var id = href.slice(1);
+            if (!id || !panelIds[id]) return;
+            e.preventDefault();
+            showPanel(id);
         });
     });
 
@@ -102,7 +80,7 @@
         if (!imageModal || !modalImg) return;
         modalImg.src = img.currentSrc || img.src;
         modalImg.alt = img.alt || '';
-        var fig = img.closest('.guide-figure');
+        var fig = img.closest('.guide-figure, .guide-step-figure');
         var caption = fig ? fig.querySelector('figcaption') : null;
         if (modalCaption) {
             modalCaption.textContent = caption ? caption.textContent.trim() : (img.alt || '');
@@ -110,24 +88,30 @@
         imageModal.show();
     }
 
-    root.querySelectorAll('.guide-figure img, .guide-preview-grid img').forEach(function (img) {
-        img.classList.add('guide-zoomable');
-        img.setAttribute('role', 'button');
-        img.setAttribute('tabindex', '0');
-        img.setAttribute('title', 'Bấm để phóng to');
-        img.addEventListener('click', function (e) {
-            e.preventDefault();
-            e.stopPropagation();
-            openImageLightbox(img);
-        });
-        img.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter' || e.key === ' ') {
+    function bindZoomableImages(scope) {
+        scope.querySelectorAll('.guide-figure img, .guide-step-figure img, .guide-zoomable').forEach(function (img) {
+            if (img.dataset.guideZoomBound === '1') return;
+            img.dataset.guideZoomBound = '1';
+            img.classList.add('guide-zoomable');
+            img.setAttribute('role', 'button');
+            img.setAttribute('tabindex', '0');
+            img.setAttribute('title', 'Bấm để phóng to');
+            img.addEventListener('click', function (e) {
                 e.preventDefault();
                 e.stopPropagation();
                 openImageLightbox(img);
-            }
+            });
+            img.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openImageLightbox(img);
+                }
+            });
         });
-    });
+    }
+
+    bindZoomableImages(root);
 
     if (modalEl) {
         modalEl.addEventListener('hidden.bs.modal', function () {
@@ -135,23 +119,15 @@
         });
     }
 
-    /* Highlight section while scrolling */
-    var sections = root.querySelectorAll('.accordion-item[id]');
-    if ('IntersectionObserver' in window && sections.length) {
-        var observer = new IntersectionObserver(function (entries) {
-            entries.forEach(function (entry) {
-                if (entry.isIntersecting) setActive(entry.target.id);
-            });
-        }, { rootMargin: '-25% 0px -50% 0px', threshold: 0 });
-        sections.forEach(function (el) { observer.observe(el); });
-    }
-
     /* Hash on load / back button */
     function openFromHash() {
         var id = (window.location.hash || '').replace('#', '');
-        if (id && sectionIds[id]) {
-            setTimeout(function () { openSection(id, { updateHash: false }); }, 80);
+        if (id && panelIds[id]) {
+            showPanel(id, { updateHash: false });
+            return;
         }
+        var active = root.querySelector('[data-guide-panel].is-active');
+        if (active) setActive(active.id);
     }
 
     window.addEventListener('hashchange', openFromHash);

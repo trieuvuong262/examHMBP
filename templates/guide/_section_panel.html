@@ -1,0 +1,14 @@
+<section class="guide-panel{% if is_active %} is-active{% endif %}" id="{{ section_id }}" data-guide-panel>
+    <header class="guide-panel-header">
+        <h2 class="guide-panel-title h5 mb-0">
+            <i class="bi {{ icon }} text-hm me-2"></i>{{ title }}
+        </h2>
+    </header>
+    <div class="guide-panel-body">
+        {% if has_inner %}
+            {{ inner_html }}
+        {% else %}
+            <p class="text-muted small mb-0">Nội dung mục này đang được cập nhật.</p>
+        {% endif %}
+    </div>
+</section>
