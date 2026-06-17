@@ -2,7 +2,7 @@
 <div class="guide-toc-group">
     <div class="guide-toc-group-label">{{ group.label }}</div>
     {% for sec in group.sections %}
-    <a class="guide-toc-link" href="#{{ sec.id }}">{{ sec.toc_display }}</a>
+    <a class="guide-toc-link" href="#{{ sec.id }}">{{ sec.toc_sidebar_display }}</a>
     {% endfor %}
 </div>
 {% endfor %}

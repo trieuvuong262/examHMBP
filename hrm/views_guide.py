@@ -17,7 +17,6 @@ from hrm.guide_editor import (
 from hrm.guide_sections import (
     build_guide_toc_groups,
     get_guide_admin_section_ids,
-    get_guide_preview_items,
     get_section_by_id,
     get_visible_guide_sections,
 )
@@ -41,7 +40,6 @@ def _guide_context(request, guide: UserGuide, *, can_edit: bool) -> dict:
         'guide_toc_groups': guide_toc_groups,
         'visible_section_ids': {s['id'] for s in visible_sections},
         'guide_admin_section_ids': get_guide_admin_section_ids(request.user),
-        'guide_preview_items': get_guide_preview_items(request.user),
         'guide_title': guide.title or DEFAULT_TITLE,
         'guide_subtitle': '',
         'section_overrides': normalize_section_overrides(guide.section_overrides),

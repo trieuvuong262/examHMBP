@@ -15,6 +15,7 @@ FILES = [
     "hrm/views_guide.py",
     "templates/guide/_toc.html",
     "templates/guide/user_guide.html",
+    "templates/guide/inner/bat-dau.html",
     "templates/guide/inner/thong-bao.html",
     "templates/guide/inner/thiet-bi.html",
     "templates/guide/inner/quan-tri.html",

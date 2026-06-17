@@ -345,30 +345,44 @@ def get_visible_guide_sections(user) -> list[dict]:
 
 def build_guide_toc_groups(visible_sections: list[dict]) -> tuple[list[dict], list[dict]]:
     """
-    Gán toc_display / toc_short_display và gom mục theo nhóm cho sidebar.
-    Nền tảng giữ số 0–4; các nhóm khác đánh số lại từ 1 theo mục user thực sự thấy.
+    Gán tiêu đề hiển thị và gom mục theo nhóm cho sidebar.
+    - toc_display: đánh số liên tục toàn trang (accordion) — 0–4 nền tảng, rồi 5, 6, 7…
+    - toc_sidebar_display: đánh số lại trong từng nhóm (sidebar)
     """
     enriched: list[dict] = []
     group_counters: dict[str, int] = {}
+    global_n = -1
     toc_groups: list[dict] = []
 
     for sec in visible_sections:
         item = dict(sec)
         group = item.get('toc_group') or 'tools'
         label = item.get('toc_label') or item['toc']
+        short = item.get('toc_short') or label
 
         if group == 'foundation':
             item['toc_display'] = item['toc']
             item['toc_short_display'] = item.get('toc_short') or item['toc']
+            global_n = max(global_n, int(item['toc'].split('.')[0]))
         elif group == 'help':
             item['toc_display'] = label
-            item['toc_short_display'] = item.get('toc_short') or label
+            item['toc_short_display'] = short
+        else:
+            global_n += 1
+            item['toc_display'] = f'{global_n}. {label}'
+            item['toc_short_display'] = f'{global_n}. {short}'
+
+        if group == 'foundation':
+            item['toc_sidebar_display'] = item['toc']
+            item['toc_short_sidebar'] = item.get('toc_short') or item['toc']
+        elif group == 'help':
+            item['toc_sidebar_display'] = label
+            item['toc_short_sidebar'] = short
         else:
             group_counters[group] = group_counters.get(group, 0) + 1
             n = group_counters[group]
-            item['toc_display'] = f'{n}. {label}'
-            short = item.get('toc_short') or label
-            item['toc_short_display'] = f'{n}. {short}'
+            item['toc_sidebar_display'] = f'{n}. {label}'
+            item['toc_short_sidebar'] = f'{n}. {short}'
 
         enriched.append(item)
         if not toc_groups or toc_groups[-1]['id'] != group:
