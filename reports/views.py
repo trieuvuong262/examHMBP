@@ -739,7 +739,11 @@ def team_weekly_reports(request):
 
 @_reports_access_required
 def report_detail(request, pk):
-    from reports.production_hourly import build_hourly_grid, can_edit_production_report
+    from reports.production_hourly import (
+        build_hourly_grid,
+        can_edit_production_report,
+        lock_production_report_on_supervisor_view,
+    )
 
     report = get_object_or_404(
         DailyWorkReport.objects.select_related('employee', 'employee__profile').prefetch_related(
@@ -753,6 +757,14 @@ def report_detail(request, pk):
         return redirect('reports:hub')
 
     can_review = can_review_user_report(request.user, report)
+
+    if (
+        request.method == 'GET'
+        and report.is_production_report
+        and report.shift_started_at
+        and lock_production_report_on_supervisor_view(report, request.user)
+    ):
+        report.refresh_from_db()
 
     if request.method == 'POST' and can_review:
         report.hod_reviewed = request.POST.get('hod_reviewed') == 'on'
@@ -772,7 +784,6 @@ def report_detail(request, pk):
         request.user,
         report,
         can_submit=can_submit_daily_report(request.user),
-        can_review=can_review,
     ):
         if report.employee_id == request.user.id:
             edit_report_url = f"{reverse('reports:today')}?date={report.report_date.isoformat()}"

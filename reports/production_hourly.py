@@ -21,13 +21,35 @@ from reports.production_slots import (
 from reports.report_profile import REPORT_PROFILE_PRODUCTION
 
 
+def is_production_report_locked(report) -> bool:
+    """Khóa chỉnh sửa sau khi tổ trưởng / trưởng BP / trưởng phòng đã xem báo cáo."""
+    return bool(report.hod_reviewed)
+
+
+def lock_production_report_on_supervisor_view(report, viewer) -> bool:
+    """Tự khóa khi cấp trên mở xem báo cáo đã gửi (lần đầu)."""
+    from hrm.permissions import can_review_user_report
+
+    if (
+        report.employee_id == viewer.id
+        or not can_review_user_report(viewer, report)
+        or report.status != DailyWorkReport.STATUS_SUBMITTED
+        or report.hod_reviewed
+    ):
+        return False
+    report.hod_reviewed = True
+    report.save(update_fields=['hod_reviewed', 'updated_at'])
+    return True
+
+
 def can_edit_production_report(viewer, report, *, can_submit, is_proxy=False) -> bool:
+    if is_production_report_locked(report):
+        return False
     if report.employee_id == viewer.id:
         return can_submit
     if is_proxy:
         return can_proxy_enter_daily_report(viewer, report.employee)
-    from hrm.permissions import can_review_user_report
-    return can_review_user_report(viewer, report)
+    return False
 
 
 def can_proxy_enter_daily_report(viewer, employee) -> bool:

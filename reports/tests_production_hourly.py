@@ -1,17 +1,23 @@
+"""Tests for production hourly report logic."""
+
 from datetime import date, datetime, time
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
 
-from hrm.models import Department, Profile
+from hrm.models import Department, DepartmentMenuPermission, Profile
 from reports.models import DailyWorkReport, ProductionHourlyQuantity, ProductionShiftProduct
 from reports.production_hourly import (
     build_hourly_grid,
+    can_edit_production_report,
     cumulative_quantity,
     ensure_active_work_block,
     ensure_work_day_started,
     finalize_product_with_metadata,
+    is_production_report_locked,
+    lock_production_report_on_supervisor_view,
     pending_slots_for_report,
     save_hourly_entry,
     unfinalized_active_with_data,
@@ -31,10 +37,15 @@ class ProductionHourlyTests(TestCase):
         if self.dept.report_profile != REPORT_PROFILE_PRODUCTION:
             self.dept.report_profile = REPORT_PROFILE_PRODUCTION
             self.dept.save(update_fields=['report_profile'])
+        DepartmentMenuPermission.objects.get_or_create(
+            department=self.dept,
+            defaults={'modules': ['reports']},
+        )
         self.user = User.objects.create_user(username='worker1', password='x')
         Profile.objects.filter(user=self.user).update(
             full_name='Công nhân A',
             department=self.dept,
+            is_employed=True,
         )
         self.report_date = date(2026, 6, 16)
         self.report = DailyWorkReport.objects.create(
@@ -115,3 +126,36 @@ class ProductionHourlyTests(TestCase):
         )
         self.assertIsNone(unfinalized_active_with_data(self.report))
         self.assertEqual(ProductionHourlyQuantity.objects.filter(product=product).count(), 1)
+
+    def test_submitted_employee_can_edit_until_locked(self):
+        self.report.status = DailyWorkReport.STATUS_SUBMITTED
+        self.report.save(update_fields=['status'])
+        self.assertTrue(
+            can_edit_production_report(self.user, self.report, can_submit=True),
+        )
+        self.report.hod_reviewed = True
+        self.report.save(update_fields=['hod_reviewed'])
+        self.assertFalse(
+            can_edit_production_report(self.user, self.report, can_submit=True),
+        )
+        self.assertTrue(is_production_report_locked(self.report))
+
+    def test_supervisor_view_locks_submitted_report(self):
+        leader = User.objects.create_user(username='leader1', password='x')
+        self.report.status = DailyWorkReport.STATUS_SUBMITTED
+        self.report.save(update_fields=['status'])
+
+        with patch(
+            'hrm.permissions.can_review_user_report',
+            return_value=True,
+        ):
+            locked = lock_production_report_on_supervisor_view(self.report, leader)
+        self.assertTrue(locked)
+        self.report.refresh_from_db()
+        self.assertTrue(self.report.hod_reviewed)
+
+        with patch(
+            'hrm.permissions.can_review_user_report',
+            return_value=False,
+        ):
+            self.assertFalse(lock_production_report_on_supervisor_view(self.report, self.user))

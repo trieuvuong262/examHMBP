@@ -73,6 +73,16 @@
 
     {% if phase == 'review' and hourly_grid is not None %}
     <section class="jp-prod-review-main">
+        {% if is_submitted and can_edit %}
+        <div class="alert alert-success border-0 small mb-3">
+            <i class="bi bi-check-circle-fill me-1"></i>Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }} — vẫn có thể chỉnh sửa cho đến khi cấp trên xem báo cáo.
+        </div>
+        {% elif is_locked %}
+        <div class="alert alert-secondary border-0 small mb-3">
+            <i class="bi bi-lock-fill me-1"></i>Cấp trên đã xem báo cáo — không thể chỉnh sửa.
+        </div>
+        {% endif %}
+
         {% if has_unfinalized and can_edit %}
         <div class="alert alert-warning border-0 small mb-3">
             Còn sản lượng chưa gắn mã hàng.
@@ -84,7 +94,11 @@
         {% endif %}
 
         {% if hourly_grid.rows %}
+        {% if can_edit %}
         <div id="review-grid-root" class="jp-prod-review-mobile"></div>
+        {% else %}
+        {% include 'reports/includes/production_hourly_mobile_readonly.html' %}
+        {% endif %}
         {% else %}
         <div class="jp-prod-card text-center text-muted py-4">Chưa có sản lượng nào được nhập.</div>
         {% endif %}
@@ -104,7 +118,7 @@
             <input type="hidden" name="review_json" id="review-json-input">
             {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
             <button type="submit" class="btn btn-hm w-100 fw-bold btn-lg">
-                <i class="bi bi-send-fill me-2"></i>Gửi báo cáo
+                <i class="bi bi-send-fill me-2"></i>{% if is_submitted %}Cập nhật báo cáo{% else %}Gửi báo cáo{% endif %}
             </button>
         </form>
     </div>

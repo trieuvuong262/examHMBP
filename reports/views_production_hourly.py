@@ -23,6 +23,7 @@ from reports.production_hourly import (
     ensure_active_work_block,
     ensure_work_day_started,
     finalize_product_with_metadata,
+    is_production_report_locked,
     parse_decimal,
     parse_int,
     pending_slots_for_report,
@@ -186,13 +187,16 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
             if not grid.get('rows') or grid.get('grand_total', 0) <= 0:
                 messages.error(request, 'Cần nhập ít nhất một mã hàng và sản lượng trước khi gửi.')
                 return redirect(_production_redirect(report_date, for_user or None, 'phase=review'))
+        was_submitted = report.status == DailyWorkReport.STATUS_SUBMITTED
         msg = _finalize_report_submission(report, action)
+        if action == 'submit' and was_submitted:
+            msg = 'Đã cập nhật báo cáo.'
         messages.success(request, msg)
         report.report_profile = REPORT_PROFILE_PRODUCTION
         report.save()
         if editing_for_other:
             return redirect('reports:detail', pk=report.pk)
-        return redirect(_production_redirect(report_date))
+        return redirect(_production_redirect(report_date, None, 'phase=review'))
 
     return None
 
@@ -227,6 +231,12 @@ def today_production_hourly(request, report_date, report_context_common):
 
     phase = (request.GET.get('phase') or '').strip().lower()
     started = shift_is_started(report)
+    is_submitted = report.status == DailyWorkReport.STATUS_SUBMITTED
+    is_locked = is_production_report_locked(report)
+
+    if is_submitted and phase not in ('review',):
+        phase = 'review'
+
     current_product = active_product(report)
     pending = pending_slots_for_report(report) if started else []
     current_slot = current_slot_index(report_date=report_date)
@@ -254,6 +264,8 @@ def today_production_hourly(request, report_date, report_context_common):
         'subject_user': subject,
         'editing_for_other': editing_for_other,
         'can_edit': can_edit,
+        'is_submitted': is_submitted,
+        'is_locked': is_locked,
         'phase': phase,
         'shift_started': started,
         'current_product': current_product,
