@@ -17,7 +17,7 @@
             </thead>
             <tbody>
                 {% for row in productivity.hourly_rows %}
-                <tr{% if row.is_unfinalized %} class="table-warning"{% endif %}>
+                <tr{% if row.is_unfinalized %} class="table-warning"{% endif %} data-product-id="{{ row.product_id }}" data-quantity="{{ row.quantity }}" data-hours="{{ row.hours }}">
                     <td class="text-center">{{ forloop.counter }}</td>
                     <td class="fw-semibold">{{ row.product_code }}</td>
                     <td>{{ row.process_name }}</td>
@@ -28,9 +28,9 @@
                         {% if row.zero_reason %}<div class="jp-prod-productivity-reason">{{ row.zero_reason }}</div>{% endif %}
                         {% endif %}
                     </td>
-                    <td class="text-end">{% if row.norm_per_hour %}{{ row.norm_per_hour|floatformat:0 }}{% else %}—{% endif %}</td>
+                    <td class="text-end jp-prod-norm-display">{% if row.norm_per_hour %}{{ row.norm_per_hour|floatformat:0 }}{% else %}—{% endif %}</td>
                     <td class="text-end">{{ row.hours_display }}</td>
-                    <td class="text-end fw-bold jp-prod-productivity-eff">
+                    <td class="text-end fw-bold jp-prod-productivity-eff jp-prod-eff-cell">
                         {% if row.efficiency_pct is not None %}{{ row.efficiency_pct|floatformat:2 }}%{% else %}—{% endif %}
                     </td>
                 </tr>
@@ -73,7 +73,7 @@
             </thead>
             <tbody>
                 {% for row in productivity.product_summaries %}
-                <tr>
+                <tr data-product-id="{{ row.product_id }}" data-quantity="{{ row.quantity }}" data-hours="{{ row.hours }}">
                     <td class="text-center">{{ forloop.counter }}</td>
                     <td class="fw-semibold">{{ row.product_code }}</td>
                     <td>{{ row.process_name }}</td>
@@ -86,7 +86,7 @@
                         {% endif %}
                     </td>
                     <td class="text-end">{{ row.hours_display }}</td>
-                    <td class="text-end fw-bold jp-prod-productivity-eff">{{ row.efficiency_pct|floatformat:2 }}%</td>
+                    <td class="text-end fw-bold jp-prod-productivity-eff jp-prod-eff-cell">{{ row.efficiency_pct|floatformat:2 }}%</td>
                 </tr>
                 {% endfor %}
             </tbody>

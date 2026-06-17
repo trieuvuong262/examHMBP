@@ -823,6 +823,7 @@ def report_detail(request, pk):
         'productivity': productivity,
         'edit_report_url': edit_report_url,
         'can_review': can_review,
+        'can_edit_norm': can_edit_norm,
         'can_submit_report': can_submit_daily_report(request.user),
         'can_view_team': can_view_team_reports(request.user),
     })
