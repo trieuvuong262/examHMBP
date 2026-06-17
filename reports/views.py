@@ -744,6 +744,8 @@ def report_detail(request, pk):
         build_productivity_report,
         can_edit_production_report,
         lock_production_report_on_supervisor_view,
+        parse_decimal,
+        update_product_norms,
     )
 
     report = get_object_or_404(
@@ -767,6 +769,24 @@ def report_detail(request, pk):
         report.refresh_from_db()
 
     if request.method == 'POST' and can_review:
+        if request.POST.get('action') == 'update_norms':
+            norms = {}
+            for key, value in request.POST.items():
+                if not key.startswith('norm_'):
+                    continue
+                product_id = key[5:]
+                if not product_id.isdigit():
+                    continue
+                norm = parse_decimal(value)
+                if norm and norm > 0:
+                    norms[int(product_id)] = norm
+            count = update_product_norms(report, norms)
+            if count:
+                messages.success(request, f'Đã cập nhật định mức cho {count} mã hàng.')
+            else:
+                messages.warning(request, 'Không có định mức hợp lệ để cập nhật.')
+            return redirect('reports:detail', pk=pk)
+
         report.hod_reviewed = request.POST.get('hod_reviewed') == 'on'
         report.hod_note = request.POST.get('hod_note', '').strip()
         report.save()

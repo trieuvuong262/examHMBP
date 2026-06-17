@@ -649,3 +649,9 @@ body .modal-backdrop.show {
 .jp-prod-productivity-scroll {
     overflow-x: auto;
 }
+
+.jp-prod-norm-input {
+    width: 5rem;
+    min-width: 4.5rem;
+    padding: 0.2rem 0.35rem;
+}

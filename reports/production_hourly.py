@@ -265,6 +265,7 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
     products = list(
         report.production_products.prefetch_related('hourly_entries').order_by('sort_order', 'id')
     )
+    product_order = {product.id: index for index, product in enumerate(products)}
     hourly_rows = []
     product_summaries = []
     total_qty = 0
@@ -303,6 +304,7 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
                 total_expected += expected
 
             hourly_rows.append({
+                'product_id': product.id,
                 'slot_index': entry.slot_index,
                 'slot_label': slot.label if slot else str(entry.slot_index),
                 'product_code': code,
@@ -318,6 +320,7 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
 
         if prod_qty > 0 and norm and norm > 0:
             product_summaries.append({
+                'product_id': product.id,
                 'product_code': code,
                 'process_name': process,
                 'quantity': prod_qty,
@@ -329,7 +332,9 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
                 ),
             })
 
-    hourly_rows.sort(key=lambda r: (r['slot_index'], r['product_code']))
+    hourly_rows.sort(
+        key=lambda row: (product_order.get(row['product_id'], 999), row['slot_index'])
+    )
 
     overall_efficiency_pct = None
     if total_expected > 0:
@@ -353,6 +358,22 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
         'report_date': report.report_date,
         'has_data': bool(hourly_rows),
     }
+
+
+def update_product_norms(report: DailyWorkReport, norms_by_id: dict) -> int:
+    """Quản lý chỉnh định mức theo mã hàng — cập nhật ProductionShiftProduct."""
+    if not norms_by_id:
+        return 0
+    products = {product.id: product for product in report.production_products.all()}
+    updated = 0
+    for product_id, norm in norms_by_id.items():
+        product = products.get(int(product_id))
+        if not product or norm is None or norm <= 0:
+            continue
+        product.norm_per_hour = Decimal(str(norm))
+        product.save(update_fields=['norm_per_hour'])
+        updated += 1
+    return updated
 
 
 def _format_hours(value) -> str:

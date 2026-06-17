@@ -1,14 +1,5 @@
 {% load static %}
 <div class="jp-prod-hourly-sheet-wrap">
-    <div class="jp-prod-hourly-sheet-header text-center mb-3">
-        <h5 class="fw-bold text-uppercase mb-1">Báo cáo số lượng hàng giờ</h5>
-        <div class="small text-muted">
-            Bộ phận: {{ report.employee.profile.department.name|default:"—" }}
-            · Tên CN: {{ report.employee.profile.full_name|default:report.employee.username }}
-            · Ngày: {{ report.report_date|date:"d/m/Y" }}
-            {% if report.shift %} · {{ report.get_shift_display }}{% endif %}
-        </div>
-    </div>
     <div class="table-responsive jp-prod-hourly-scroll">
         <table class="table table-bordered table-sm jp-prod-hourly-table mb-0">
             <thead>
@@ -31,7 +22,13 @@
                         {% if row.is_unfinalized %}<span class="badge bg-warning text-dark ms-1">Chưa gắn</span>{% endif %}
                     </td>
                     <td>{{ row.label_process|default:row.process_name|default:"Chưa gắn mã" }}</td>
-                    <td class="text-end">{{ row.norm_per_hour|default:"—" }}</td>
+                    <td class="text-end">
+                        {% if can_edit_norm and row.id %}
+                        <input type="number" name="norm_{{ row.id }}" value="{% if row.norm_per_hour %}{{ row.norm_per_hour|floatformat:0 }}{% endif %}" class="form-control form-control-sm jp-prod-norm-input text-end ms-auto" min="1" step="1" title="Định mức cho {{ row.label_code }}">
+                        {% else %}
+                        {{ row.norm_per_hour|default:"—" }}
+                        {% endif %}
+                    </td>
                     {% for cell in row.slots %}
                     <td class="jp-ph-cell{% if cell.is_na %} is-na{% elif not cell.has_data %} is-empty{% endif %}">
                         {% if cell.is_na %}

@@ -23,6 +23,7 @@ from reports.production_hourly import (
     pending_slots_for_report,
     save_hourly_entry,
     unfinalized_active_with_data,
+    update_product_norms,
 )
 from reports.production_slots import SLOT_COUNT, current_slot_index, due_slot_indices
 from reports.report_profile import REPORT_PROFILE_PRODUCTION
@@ -229,11 +230,59 @@ class ProductionHourlyTests(TestCase):
         prod = build_productivity_report(self.report)
         self.assertTrue(prod['has_data'])
         self.assertEqual(len(prod['hourly_rows']), 4)
-        self.assertEqual(prod['hourly_rows'][0]['slot_label'], '7h30 - 8h30')
         self.assertEqual(prod['hourly_rows'][0]['product_code'], 'PEGASUS')
+        self.assertEqual(prod['hourly_rows'][0]['slot_label'], '7h30 - 8h30')
         self.assertEqual(prod['hourly_rows'][3]['product_code'], 'THOR')
         self.assertEqual(prod['hourly_rows'][0]['efficiency_pct'], 100.0)
         self.assertEqual(prod['total_quantity'], 405)
         self.assertEqual(prod['overall_efficiency_pct'], 100.0)
         self.assertEqual(len(prod['product_summaries']), 2)
         self.assertEqual(prod['product_summaries'][0]['efficiency_pct'], 100.0)
+
+    def test_productivity_rows_sorted_by_product(self):
+        ensure_work_day_started(self.report)
+        product_a = ensure_active_work_block(self.report)
+        save_hourly_entry(product_a, 0, 50)
+        save_hourly_entry(product_a, 1, 50)
+        finalize_product_with_metadata(
+            self.report,
+            product_code='ALPHA',
+            process_name='Op A',
+            norm_per_hour=50,
+        )
+        product_b = active_product(self.report)
+        save_hourly_entry(product_b, 2, 40)
+        save_hourly_entry(product_b, 3, 40)
+        finalize_product_with_metadata(
+            self.report,
+            product_code='BETA',
+            process_name='Op B',
+            norm_per_hour=40,
+        )
+
+        prod = build_productivity_report(self.report)
+        codes = [row['product_code'] for row in prod['hourly_rows']]
+        self.assertEqual(codes, ['ALPHA', 'ALPHA', 'BETA', 'BETA'])
+
+    def test_update_product_norms(self):
+        ensure_work_day_started(self.report)
+        product = ensure_active_work_block(self.report)
+        save_hourly_entry(product, 0, 90)
+        finalize_product_with_metadata(
+            self.report,
+            product_code='PEGASUS',
+            process_name='May áo',
+            norm_per_hour=100,
+        )
+        product = self.report.production_products.get(product_code='PEGASUS')
+
+        count = update_product_norms(self.report, {product.id: 90})
+        self.assertEqual(count, 1)
+        product.refresh_from_db()
+        self.assertEqual(product.norm_per_hour, 90)
+
+        prod = build_productivity_report(self.report)
+        self.assertEqual(prod['product_summaries'][0]['norm_per_hour'], 90.0)
+        self.assertEqual(prod['product_summaries'][0]['efficiency_pct'], 100.0)
+        grid = build_hourly_grid(self.report)
+        self.assertEqual(grid['rows'][0]['norm_per_hour'], 90.0)

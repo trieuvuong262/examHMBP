@@ -1,23 +1,14 @@
 {% load static %}
 <div class="jp-prod-productivity-wrap">
-    <div class="jp-prod-productivity-header text-center mb-3">
-        <h5 class="jp-prod-productivity-title fw-bold text-uppercase mb-2">Tính năng suất theo ngày</h5>
-        <div class="jp-prod-productivity-meta small">
-            <span class="jp-prod-productivity-meta-item"><strong>Tên nhân viên:</strong> {{ productivity.employee_name }}</span>
-            <span class="jp-prod-productivity-meta-item"><strong>Bộ phận:</strong> {{ productivity.department_name }}</span>
-            <span class="jp-prod-productivity-meta-item"><strong>Ngày:</strong> {{ productivity.report_date|date:"d/m/Y" }}</span>
-        </div>
-    </div>
-
     <h6 class="fw-bold small text-muted text-uppercase mb-2">Chi tiết theo khung giờ</h6>
     <div class="table-responsive jp-prod-productivity-scroll mb-4">
         <table class="table table-bordered table-sm jp-prod-productivity-table mb-0">
             <thead>
                 <tr class="jp-prod-productivity-head">
                     <th class="text-center">STT</th>
-                    <th>Khung giờ</th>
                     <th>Mã hàng</th>
                     <th>Công đoạn</th>
+                    <th>Khung giờ</th>
                     <th class="text-end">Số lượng</th>
                     <th class="text-end">Định mức/H</th>
                     <th class="text-end">Thời gian/H</th>
@@ -28,9 +19,9 @@
                 {% for row in productivity.hourly_rows %}
                 <tr{% if row.is_unfinalized %} class="table-warning"{% endif %}>
                     <td class="text-center">{{ forloop.counter }}</td>
-                    <td class="text-nowrap">{{ row.slot_label }}</td>
                     <td class="fw-semibold">{{ row.product_code }}</td>
                     <td>{{ row.process_name }}</td>
+                    <td class="text-nowrap">{{ row.slot_label }}</td>
                     <td class="text-end fw-bold">
                         {% if row.quantity > 0 %}{{ row.quantity }}{% else %}
                         <span class="text-muted">0</span>
@@ -99,5 +90,6 @@
 
     <p class="text-muted small mt-3 mb-0">
         Hiệu suất = Số lượng ÷ (Định mức/H × Thời gian/H) × 100%. Chỉ tính các giờ có sản lượng &gt; 0 và đã gắn định mức.
+        {% if can_edit_norm %}Quản lý chỉnh định mức ở cột «ĐM 1 giờ» — áp dụng cho cả 3 bảng.{% endif %}
     </p>
 </div>

@@ -3,7 +3,7 @@
 
 {% block extra_head %}
 {% if report.is_production_report and hourly_grid %}
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260618b">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260618c">
 {% elif not report.is_production_report %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260528y">
 {% endif %}
@@ -15,7 +15,9 @@
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title">Báo cáo {{ report.report_date|date:"d/m/Y" }}</h2>
             <p class="text-muted mb-0 small">
-                {{ report.employee.profile.full_name|default:report.employee.username }}
+                <strong>Tên CN:</strong> {{ report.employee.profile.full_name|default:report.employee.username }}
+                · <strong>Bộ phận:</strong> {{ report.employee.profile.department.name|default:"—" }}
+                · <strong>Ngày:</strong> {{ report.report_date|date:"d/m/Y" }}
                 {% if report.is_production_report and report.shift %} · {{ report.get_shift_display }}{% endif %}
             </p>
         </div>
@@ -32,13 +34,18 @@
     </div>
 
     {% if report.is_production_report %}
+        {% if can_review and hourly_grid %}
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="update_norms">
+        {% endif %}
         {% if productivity and productivity.has_data %}
         <div class="card border-0 shadow-sm overflow-hidden mb-4">
             <div class="card-header bg-white fw-bold border-bottom py-3">
                 <i class="bi bi-speedometer2 me-2 text-hm"></i>Năng suất theo giờ
             </div>
             <div class="card-body p-3">
-                {% include 'reports/includes/production_productivity_report.html' %}
+                {% include 'reports/includes/production_productivity_report.html' with can_edit_norm=can_review %}
             </div>
         </div>
         {% endif %}
@@ -46,10 +53,10 @@
         {% if hourly_grid %}
         <div class="card border-0 shadow-sm overflow-hidden mb-4">
             <div class="card-header bg-white fw-bold border-bottom py-3">
-                <i class="bi bi-table me-2"></i>Sản lượng hàng giờ
+                <i class="bi bi-table me-2 text-hm"></i>Sản lượng hàng giờ
             </div>
             <div class="card-body p-3">
-                {% include 'reports/includes/production_hourly_grid.html' %}
+                {% include 'reports/includes/production_hourly_grid.html' with can_edit_norm=can_review %}
             </div>
         </div>
         {% else %}
@@ -83,6 +90,14 @@
                 </table>
             </div>
         </div>
+        {% endif %}
+        {% if can_review and hourly_grid %}
+            <div class="d-flex justify-content-end mb-4">
+                <button type="submit" class="btn btn-hm btn-sm px-4">
+                    <i class="bi bi-check2-circle me-1"></i>Lưu định mức
+                </button>
+            </div>
+        </form>
         {% endif %}
     {% else %}
     <div class="card border-0 shadow-sm mb-4">
