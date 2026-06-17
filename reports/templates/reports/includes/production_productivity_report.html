@@ -1,8 +1,11 @@
 {% load static %}
 <div class="jp-prod-productivity-wrap">
-    <h6 class="fw-bold small text-muted text-uppercase mb-2">Chi tiết theo khung giờ</h6>
+    <div class="jp-prod-section-label">
+        <span class="jp-prod-section-label-icon"><i class="bi bi-clock"></i></span>
+        <span>Chi tiết theo khung giờ</span>
+    </div>
     <div class="table-responsive jp-prod-productivity-scroll mb-4">
-        <table class="table table-bordered table-sm jp-prod-productivity-table mb-0">
+        <table class="table table-sm jp-prod-productivity-table mb-0">
             <thead>
                 <tr class="jp-prod-productivity-head">
                     <th class="text-center">STT</th>
@@ -17,21 +20,26 @@
             </thead>
             <tbody>
                 {% for row in productivity.hourly_rows %}
-                <tr{% if row.is_unfinalized %} class="table-warning"{% endif %} data-product-id="{{ row.product_id }}" data-quantity="{{ row.quantity }}" data-hours="{{ row.hours }}">
-                    <td class="text-center">{{ forloop.counter }}</td>
-                    <td class="fw-semibold">{{ row.product_code }}</td>
+                <tr class="jp-prod-hour-row{% if row.is_unfinalized %} is-warning{% endif %}{% ifchanged row.product_code %} jp-prod-hour-row--group-start{% endifchanged %}"
+                    data-product-id="{{ row.product_id }}" data-quantity="{{ row.quantity }}" data-hours="{{ row.hours }}">
+                    <td class="text-center text-muted">{{ forloop.counter }}</td>
+                    <td><span class="jp-prod-code-pill">{{ row.product_code }}</span></td>
                     <td>{{ row.process_name }}</td>
-                    <td class="text-nowrap">{{ row.slot_label }}</td>
-                    <td class="text-end fw-bold">
-                        {% if row.quantity > 0 %}{{ row.quantity }}{% else %}
-                        <span class="text-muted">0</span>
+                    <td class="text-nowrap"><span class="jp-prod-slot-pill">{{ row.slot_label }}</span></td>
+                    <td class="text-end">
+                        {% if row.quantity > 0 %}
+                        <span class="jp-prod-qty-val">{{ row.quantity }}</span>
+                        {% else %}
+                        <span class="jp-prod-qty-val is-zero">0</span>
                         {% if row.zero_reason %}<div class="jp-prod-productivity-reason">{{ row.zero_reason }}</div>{% endif %}
                         {% endif %}
                     </td>
                     <td class="text-end jp-prod-norm-display">{% if row.norm_per_hour %}{{ row.norm_per_hour|floatformat:0 }}{% else %}—{% endif %}</td>
-                    <td class="text-end">{{ row.hours_display }}</td>
-                    <td class="text-end fw-bold jp-prod-productivity-eff jp-prod-eff-cell">
-                        {% if row.efficiency_pct is not None %}{{ row.efficiency_pct|floatformat:2 }}%{% else %}—{% endif %}
+                    <td class="text-end text-muted">{{ row.hours_display }}</td>
+                    <td class="text-end jp-prod-eff-cell">
+                        {% if row.efficiency_pct is not None %}
+                        <span class="jp-prod-eff-badge{% if row.efficiency_pct >= 100 %} is-good{% elif row.efficiency_pct >= 80 %} is-ok{% else %} is-low{% endif %}">{{ row.efficiency_pct|floatformat:1 }}%</span>
+                        {% else %}<span class="text-muted">—</span>{% endif %}
                     </td>
                 </tr>
                 {% empty %}
@@ -47,7 +55,7 @@
                     <th class="text-end">{{ productivity.total_hours_display }}</th>
                     <th class="text-end">
                         {% if productivity.overall_efficiency_pct is not None %}
-                        {{ productivity.overall_efficiency_pct|floatformat:2 }}%
+                        <span class="jp-prod-eff-badge{% if productivity.overall_efficiency_pct >= 100 %} is-good{% elif productivity.overall_efficiency_pct >= 80 %} is-ok{% else %} is-low{% endif %}">{{ productivity.overall_efficiency_pct|floatformat:1 }}%</span>
                         {% else %}—{% endif %}
                     </th>
                 </tr>
@@ -57,9 +65,13 @@
     </div>
 
     {% if productivity.product_summaries %}
-    <h6 class="fw-bold small text-muted text-uppercase mb-2">Tổng hợp theo mã hàng / công đoạn</h6>
+    <div class="jp-prod-section-label">
+        <span class="jp-prod-section-label-icon jp-prod-section-label-icon--accent"><i class="bi bi-collection"></i></span>
+        <span>Tổng hợp theo mã hàng / công đoạn</span>
+        {% if can_edit_norm %}<span class="jp-prod-section-edit-hint">Có thể chỉnh định mức</span>{% endif %}
+    </div>
     <div class="table-responsive jp-prod-productivity-scroll">
-        <table class="table table-bordered table-sm jp-prod-productivity-table mb-0">
+        <table class="table table-sm jp-prod-productivity-table jp-prod-productivity-table--summary mb-0">
             <thead>
                 <tr class="jp-prod-productivity-head">
                     <th class="text-center">STT</th>
@@ -73,20 +85,24 @@
             </thead>
             <tbody>
                 {% for row in productivity.product_summaries %}
-                <tr data-product-id="{{ row.product_id }}" data-quantity="{{ row.quantity }}" data-hours="{{ row.hours }}">
-                    <td class="text-center">{{ forloop.counter }}</td>
-                    <td class="fw-semibold">{{ row.product_code }}</td>
+                <tr class="jp-prod-summary-row" data-product-id="{{ row.product_id }}" data-quantity="{{ row.quantity }}" data-hours="{{ row.hours }}">
+                    <td class="text-center text-muted">{{ forloop.counter }}</td>
+                    <td><span class="jp-prod-code-pill">{{ row.product_code }}</span></td>
                     <td>{{ row.process_name }}</td>
-                    <td class="text-end fw-bold">{{ row.quantity }}</td>
+                    <td class="text-end"><span class="jp-prod-qty-val">{{ row.quantity }}</span></td>
                     <td class="text-end">
                         {% if can_edit_norm %}
-                        <input type="number" name="norm_{{ row.product_id }}" value="{{ row.norm_per_hour|floatformat:0 }}" class="form-control form-control-sm jp-prod-norm-input text-end ms-auto" min="1" step="1" data-product-id="{{ row.product_id }}" title="Định mức cho {{ row.product_code }}">
+                        <div class="jp-prod-norm-edit-wrap">
+                            <input type="number" name="norm_{{ row.product_id }}" value="{{ row.norm_per_hour|floatformat:0 }}" class="form-control jp-prod-norm-input text-end" min="1" step="1" data-product-id="{{ row.product_id }}" title="Định mức cho {{ row.product_code }}">
+                        </div>
                         {% else %}
                         {{ row.norm_per_hour|floatformat:0 }}
                         {% endif %}
                     </td>
-                    <td class="text-end">{{ row.hours_display }}</td>
-                    <td class="text-end fw-bold jp-prod-productivity-eff jp-prod-eff-cell">{{ row.efficiency_pct|floatformat:2 }}%</td>
+                    <td class="text-end text-muted">{{ row.hours_display }}</td>
+                    <td class="text-end jp-prod-eff-cell">
+                        <span class="jp-prod-eff-badge{% if row.efficiency_pct >= 100 %} is-good{% elif row.efficiency_pct >= 80 %} is-ok{% else %} is-low{% endif %}">{{ row.efficiency_pct|floatformat:1 }}%</span>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -94,8 +110,8 @@
     </div>
     {% endif %}
 
-    <p class="text-muted small mt-3 mb-0">
-        Hiệu suất = Số lượng ÷ (Định mức/H × Thời gian/H) × 100%. Chỉ tính các giờ có sản lượng &gt; 0 và đã gắn định mức.
-        {% if can_edit_norm %}Quản lý chỉnh định mức ở bảng «Tổng hợp» hoặc «ĐM 1 giờ» — áp dụng cho cả 3 bảng.{% endif %}
+    <p class="jp-prod-productivity-footnote mb-0">
+        <i class="bi bi-info-circle me-1"></i>
+        Hiệu suất = Số lượng ÷ (Định mức/H × Thời gian/H) × 100%
     </p>
 </div>
