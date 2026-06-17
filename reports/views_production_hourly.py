@@ -223,8 +223,10 @@ def today_production_hourly(request, report_date, report_context_common):
     has_unfinalized = bool(unfinalized_active_with_data(report))
 
     if phase == 'review' and has_unfinalized:
-        messages.info(request, 'Hoàn tất thông tin mã hàng đang làm trước khi xem tổng.')
-        phase = 'finish_product'
+        messages.info(
+            request,
+            'Còn sản lượng chưa gắn mã hàng — xem bảng tổng bên dưới và bấm «Hoàn tất mã hàng» trước khi gửi.',
+        )
 
     if not phase:
         if pending:

@@ -95,6 +95,15 @@ class ProductionHourlyTests(TestCase):
         due = due_slot_indices(noon, self.report_date)
         self.assertIn(3, due)
 
+    def test_unfinalized_in_grid_before_finalize(self):
+        ensure_work_day_started(self.report)
+        product = ensure_active_work_block(self.report)
+        save_hourly_entry(product, 0, 88)
+        grid = build_hourly_grid(self.report)
+        self.assertEqual(len(grid['rows']), 1)
+        self.assertTrue(grid['has_unfinalized'])
+        self.assertEqual(grid['grand_total'], 88)
+
     def test_unfinalized_detection(self):
         ensure_work_day_started(self.report)
         product = ensure_active_work_block(self.report)

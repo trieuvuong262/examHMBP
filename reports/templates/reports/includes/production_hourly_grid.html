@@ -24,11 +24,14 @@
             </thead>
             <tbody>
                 {% for row in hourly_grid.rows %}
-                <tr>
+                <tr{% if row.is_unfinalized %} class="table-warning"{% endif %}>
                     <td class="text-center">{{ forloop.counter }}</td>
-                    <td class="fw-semibold">{{ row.product_code }}</td>
-                    <td>{{ row.process_name }}</td>
-                    <td class="text-end">{{ row.norm_per_hour }}</td>
+                    <td class="fw-semibold">
+                        {{ row.label_code|default:row.product_code|default:"—" }}
+                        {% if row.is_unfinalized %}<span class="badge bg-warning text-dark ms-1">Chưa gắn</span>{% endif %}
+                    </td>
+                    <td>{{ row.label_process|default:row.process_name|default:"Chưa gắn mã" }}</td>
+                    <td class="text-end">{{ row.norm_per_hour|default:"—" }}</td>
                     {% for cell in row.slots %}
                     <td class="jp-ph-cell{% if not cell.has_data %} is-empty{% endif %}">
                         {% if cell.has_data %}

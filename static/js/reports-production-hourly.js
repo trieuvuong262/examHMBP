@@ -175,8 +175,12 @@
         grid.rows.forEach(function (row, ri) {
             html += '<tr data-product-id="' + row.id + '">';
             html += '<td>' + (ri + 1) + '</td>';
-            html += '<td>' + escapeHtml(row.product_code) + '</td>';
-            html += '<td>' + escapeHtml(row.process_name) + '</td>';
+            html += '<td>' + escapeHtml(row.label_code || row.product_code || '—');
+            if (row.is_unfinalized) {
+                html += ' <span class="badge bg-warning text-dark">Chưa gắn</span>';
+            }
+            html += '</td>';
+            html += '<td>' + escapeHtml(row.label_process || row.process_name || 'Chưa gắn mã') + '</td>';
             row.slots.forEach(function (cell) {
                 html += '<td><input type="number" class="jp-review-cell-input" min="0" step="1" ';
                 html += 'data-slot-index="' + cell.slot_index + '" value="' + (cell.quantity || '') + '"></td>';

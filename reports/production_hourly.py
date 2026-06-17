@@ -164,24 +164,34 @@ def product_slot_cell(product: ProductionShiftProduct, slot_index: int) -> dict:
     }
 
 
+def _product_has_hourly_data(product: ProductionShiftProduct) -> bool:
+    return product.hourly_entries.filter(quantity__gt=0).exists()
+
+
 def build_hourly_grid(report: DailyWorkReport) -> dict:
+    """Bảng tổng — gồm mã đã kết thúc và phiên đang nhập (chưa gắn mã hàng)."""
     products = list(
-        report.production_products.filter(status=ProductionShiftProduct.STATUS_DONE)
-        .prefetch_related('hourly_entries')
-        .order_by('sort_order', 'id')
+        report.production_products.prefetch_related('hourly_entries').order_by('sort_order', 'id')
     )
     rows = []
     for product in products:
-        if not product.product_code:
+        if not _product_has_hourly_data(product):
             continue
+        is_unfinalized = (
+            product.status == ProductionShiftProduct.STATUS_ACTIVE
+            or not (product.product_code or '').strip()
+        )
         slots = [product_slot_cell(product, i) for i in range(SLOT_COUNT)]
-        total_qty = cumulative_quantity(product, SLOT_COUNT - 1)
+        total_qty = sum(cell['quantity'] for cell in slots)
         rows.append({
             'id': product.pk,
-            'product_code': product.product_code,
-            'process_name': product.process_name,
+            'product_code': product.product_code.strip() if product.product_code else '',
+            'process_name': product.process_name.strip() if product.process_name else '',
             'norm_per_hour': float(product.norm_per_hour) if product.norm_per_hour is not None else None,
             'status': product.status,
+            'is_unfinalized': is_unfinalized,
+            'label_code': product.product_code.strip() if product.product_code else '—',
+            'label_process': product.process_name.strip() if product.process_name else 'Chưa gắn mã',
             'slots': slots,
             'total_quantity': total_qty,
         })
@@ -189,6 +199,7 @@ def build_hourly_grid(report: DailyWorkReport) -> dict:
         'slots': [{'index': s.index, 'label': s.label} for s in PRODUCTION_HOURLY_SLOTS],
         'rows': rows,
         'grand_total': sum(r['total_quantity'] for r in rows),
+        'has_unfinalized': any(r['is_unfinalized'] for r in rows),
     }
 
 
