@@ -48,6 +48,7 @@ class DailyWorkReport(models.Model):
     draft_saved_at = models.DateTimeField(null=True, blank=True, verbose_name='Lưu nháp lúc')
     hod_reviewed = models.BooleanField(default=False, verbose_name='HOD đã xem')
     hod_note = models.CharField(max_length=500, blank=True, verbose_name='Ghi chú HOD')
+    shift_started_at = models.DateTimeField(null=True, blank=True, verbose_name='Bắt đầu ca')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -123,6 +124,68 @@ class DailyWorkReportLine(models.Model):
 
     def __str__(self):
         return f'{self.get_area_display()} - {self.order_code or self.product_name}'
+
+
+class ProductionShiftProduct(models.Model):
+    STATUS_ACTIVE = 'ACTIVE'
+    STATUS_DONE = 'DONE'
+    STATUS_CHOICES = [
+        (STATUS_ACTIVE, 'Đang làm'),
+        (STATUS_DONE, 'Đã kết thúc'),
+    ]
+
+    report = models.ForeignKey(
+        DailyWorkReport,
+        on_delete=models.CASCADE,
+        related_name='production_products',
+        verbose_name='Báo cáo',
+    )
+    product_code = models.CharField(max_length=80, verbose_name='Mã hàng')
+    process_name = models.CharField(max_length=120, verbose_name='Tên công đoạn')
+    norm_per_hour = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        verbose_name='Định mức 1 giờ',
+    )
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
+    sort_order = models.PositiveSmallIntegerField(default=0)
+    started_at = models.DateTimeField(auto_now_add=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['sort_order', 'id']
+        verbose_name = 'Mã hàng trong ca'
+        verbose_name_plural = 'Mã hàng trong ca'
+
+    def __str__(self):
+        return f'{self.product_code} — {self.process_name}'
+
+
+class ProductionHourlyQuantity(models.Model):
+    product = models.ForeignKey(
+        ProductionShiftProduct,
+        on_delete=models.CASCADE,
+        related_name='hourly_entries',
+        verbose_name='Mã hàng',
+    )
+    slot_index = models.PositiveSmallIntegerField(verbose_name='Khung giờ')
+    quantity = models.PositiveIntegerField(default=0, verbose_name='Sản lượng giờ')
+    partial_hours = models.DecimalField(
+        max_digits=4,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name='Giờ thực tế (khi chia giờ)',
+    )
+
+    class Meta:
+        ordering = ['slot_index']
+        unique_together = ('product', 'slot_index')
+        verbose_name = 'Sản lượng theo giờ'
+        verbose_name_plural = 'Sản lượng theo giờ'
+
+    def __str__(self):
+        return f'slot {self.slot_index}: {self.quantity}'
 
 
 class WeeklyWorkReport(models.Model):

@@ -106,8 +106,11 @@
                         <td class="text-end">
                             {% if row.report %}
                             <a href="{% url 'reports:detail' row.report.pk %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
+                            {% if row.report.is_production_report %}
+                            <a href="{% url 'reports:today' %}?date={{ report_date|date:'Y-m-d' }}&for_user={{ row.member.id }}" class="btn btn-sm btn-outline-dark">Nhập hộ</a>
+                            {% endif %}
                             {% else %}
-                            <span class="text-muted small">—</span>
+                            <a href="{% url 'reports:today' %}?date={{ report_date|date:'Y-m-d' }}&for_user={{ row.member.id }}" class="btn btn-sm btn-outline-dark">Nhập hộ</a>
                             {% endif %}
                         </td>
                     </tr>

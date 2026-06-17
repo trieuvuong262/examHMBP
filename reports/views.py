@@ -224,35 +224,8 @@ def _weekly_context_common(request, week_start):
 
 
 def _today_production_report(request, report_date):
-    report = _load_daily_report(request.user, report_date)
-
-    if request.method == 'POST':
-        action = request.POST.get('action', 'save')
-        report = _ensure_daily_report_saved(report)
-        form = DailyWorkReportForm(request.POST, instance=report)
-        formset = DailyWorkReportLineFormSet(request.POST, instance=report)
-        if form.is_valid() and formset.is_valid():
-            report = form.save(commit=False)
-            report.report_profile = REPORT_PROFILE_PRODUCTION
-            messages.success(request, _finalize_report_submission(report, action))
-            report.save()
-            formset.save()
-            return redirect('reports:today')
-    else:
-        form = DailyWorkReportForm(instance=report)
-        formset = DailyWorkReportLineFormSet(instance=report if report.pk else None)
-
-    ctx = _report_context_common(request, report_date)
-    ctx.update({
-        'form': form,
-        'formset': formset,
-        'report': report,
-        'report_period': 'daily',
-        'copy_url': reverse('reports:copy_yesterday') if ctx['has_yesterday'] else None,
-        'copy_label': 'Sao chép HQ',
-        'copy_confirm': 'Sao chép nội dung từ hôm qua?',
-    })
-    return render(request, 'reports/today.html', ctx)
+    from reports.views_production_hourly import today_production_hourly
+    return today_production_hourly(request, report_date, _report_context_common)
 
 
 def _today_office_report(request, report_date):
@@ -721,8 +694,13 @@ def team_weekly_reports(request):
 
 @_reports_access_required
 def report_detail(request, pk):
+    from reports.production_hourly import build_hourly_grid, can_edit_production_report
+
     report = get_object_or_404(
-        DailyWorkReport.objects.select_related('employee', 'employee__profile').prefetch_related('lines'),
+        DailyWorkReport.objects.select_related('employee', 'employee__profile').prefetch_related(
+            'lines',
+            'production_products__hourly_entries',
+        ),
         pk=pk,
     )
     if not can_view_user_report(request.user, report):
@@ -741,9 +719,28 @@ def report_detail(request, pk):
     from reports.office_content import normalize_spreadsheet_json
 
     office_sheet = normalize_spreadsheet_json(report.spreadsheet_json)
+    hourly_grid = None
+    edit_report_url = ''
+    if report.is_production_report and report.shift_started_at:
+        hourly_grid = build_hourly_grid(report)
+    if can_edit_production_report(
+        request.user,
+        report,
+        can_submit=can_submit_daily_report(request.user),
+        can_review=can_review,
+    ):
+        if report.employee_id == request.user.id:
+            edit_report_url = f"{reverse('reports:today')}?date={report.report_date.isoformat()}"
+        elif can_review:
+            edit_report_url = (
+                f"{reverse('reports:today')}?date={report.report_date.isoformat()}"
+                f"&for_user={report.employee_id}"
+            )
     return render(request, 'reports/detail.html', {
         'report': report,
         'office_sheet': office_sheet,
+        'hourly_grid': hourly_grid,
+        'edit_report_url': edit_report_url,
         'can_review': can_review,
         'can_submit_report': can_submit_daily_report(request.user),
         'can_view_team': can_view_team_reports(request.user),

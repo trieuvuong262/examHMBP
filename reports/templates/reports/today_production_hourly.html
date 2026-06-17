@@ -1,0 +1,215 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260617a">
+{% endblock %}
+
+{% block content %}
+<div class="jp-prod-mobile-page">
+    <header class="jp-prod-mobile-header">
+        <div>
+            <h1 class="jp-prod-mobile-title">Báo cáo sản xuất</h1>
+            <p class="jp-prod-mobile-sub mb-0">
+                {{ employee_name }}{% if department_name %} · {{ department_name }}{% endif %}
+            </p>
+            <p class="jp-prod-mobile-sub small text-muted mb-0">{{ report_date|date:"d/m/Y" }}</p>
+        </div>
+        {% if editing_for_other %}
+        <span class="badge bg-warning text-dark">Nhập hộ NV</span>
+        {% endif %}
+    </header>
+
+    {% if editing_for_other %}
+    <a href="{{ back_team_url }}" class="btn btn-sm btn-outline-dark mb-3"><i class="bi bi-arrow-left me-1"></i>Cấp dưới</a>
+    {% endif %}
+
+    {% if phase == 'idle' %}
+    <section class="jp-prod-card text-center">
+        <div class="jp-prod-idle-icon"><i class="bi bi-play-circle"></i></div>
+        <h2 class="h5 fw-bold mb-2">Bắt đầu ca làm việc</h2>
+        <p class="text-muted small mb-4">Bấm bắt đầu trước khi nhập sản lượng từng giờ trong ngày.</p>
+        {% if can_edit %}
+        <form method="post" class="jp-prod-start-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="start_shift">
+            {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
+            <label class="form-label fw-bold small text-start w-100">Ca làm</label>
+            <select name="shift" class="form-select form-select-lg mb-3">
+                {% for val, label in shift_choices %}
+                <option value="{{ val }}" {% if report.shift == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-hm btn-lg w-100 fw-bold">
+                <i class="bi bi-play-fill me-2"></i>Bắt đầu ca làm việc
+            </button>
+        </form>
+        {% endif %}
+    </section>
+    {% else %}
+    <section class="jp-prod-status-bar">
+        <span class="badge bg-success-subtle text-success"><i class="bi bi-clock me-1"></i>Ca đang làm</span>
+        {% if current_slot_label %}
+        <span class="small text-muted">Giờ hiện tại: {{ current_slot_label }}</span>
+        {% endif %}
+    </section>
+
+    {% if current_product %}
+    <section class="jp-prod-card jp-prod-active-product">
+        <div class="small text-muted text-uppercase fw-bold mb-1">Mã đang làm</div>
+        <div class="fw-bold fs-5 text-hm">{{ current_product.product_code }}</div>
+        <div>{{ current_product.process_name }}</div>
+        <div class="small text-muted">Định mức: {{ current_product.norm_per_hour }}/giờ</div>
+    </section>
+    {% endif %}
+
+    {% if phase == 'working' or phase == 'hourly' %}
+    <section class="jp-prod-actions d-grid gap-2">
+        {% if can_edit and pending_slots %}
+        <button type="button" class="btn btn-hm btn-lg fw-bold" data-bs-toggle="modal" data-bs-target="#hourlyModal"
+                data-slot-index="{{ pending_slots.0.slot_index }}" data-slot-label="{{ pending_slots.0.label }}">
+            <i class="bi bi-plus-circle me-2"></i>Nhập {{ pending_slots.0.label }}
+        </button>
+        {% endif %}
+        {% if can_edit and current_product %}
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="end_product">
+            {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
+            <button type="submit" class="btn btn-outline-hm w-100 fw-bold">
+                <i class="bi bi-check2-square me-2"></i>Kết thúc mã hàng
+            </button>
+        </form>
+        {% endif %}
+        {% if can_edit %}
+        <a href="?date={{ report_date|date:'Y-m-d' }}{% if for_user_param %}&for_user={{ for_user_param }}{% endif %}&phase=review"
+           class="btn btn-outline-dark w-100">
+            <i class="bi bi-list-check me-2"></i>Kết thúc ca — xem tổng
+        </a>
+        {% endif %}
+    </section>
+    {% endif %}
+
+    {% if hourly_grid.rows %}
+    <section class="jp-prod-card mt-3">
+        <h3 class="h6 fw-bold mb-3">Đã nhập hôm nay</h3>
+        {% include 'reports/includes/production_hourly_grid.html' with hourly_grid=hourly_grid report=report %}
+    </section>
+    {% endif %}
+    {% endif %}
+
+    {% if phase == 'review' and hourly_grid %}
+    <section class="jp-prod-card mt-3">
+        <h2 class="h5 fw-bold mb-2">Tổng kết ca</h2>
+        <p class="text-muted small mb-3">Kiểm tra và chỉnh sửa trước khi gửi báo cáo.</p>
+        <div id="review-grid-root" data-grid="{{ hourly_grid|escape }}"></div>
+        <form method="post" id="review-form" class="mt-3">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save_review">
+            <input type="hidden" name="review_json" id="review-json-input">
+            {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
+            {% if can_edit %}
+            <button type="submit" class="btn btn-outline-hm w-100 mb-2">Lưu chỉnh sửa</button>
+            {% endif %}
+        </form>
+        {% if can_edit %}
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="submit">
+            {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
+            <button type="submit" class="btn btn-hm w-100 fw-bold">
+                <i class="bi bi-send-fill me-2"></i>Gửi báo cáo
+            </button>
+        </form>
+        <form method="post" class="mt-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save">
+            {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
+            <button type="submit" class="btn btn-link text-muted w-100">Lưu nháp</button>
+        </form>
+        {% endif %}
+    </section>
+    {% endif %}
+</div>
+
+{% if can_edit %}
+{# Modal nhập sản lượng theo giờ #}
+<div class="modal fade jp-prod-modal" id="hourlyModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+        <form method="post" class="modal-content" id="hourly-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save_hourly">
+            <input type="hidden" name="slot_index" id="hourly-slot-index" value="">
+            {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" id="hourly-modal-title">Nhập sản lượng</h5>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small" id="hourly-modal-slot"></p>
+                <label class="form-label fw-bold">Sản lượng giờ này <span class="text-danger">*</span></label>
+                <input type="number" name="quantity" class="form-control form-control-lg text-center jp-prod-qty-input"
+                       min="0" step="1" required inputmode="numeric" autocomplete="off">
+                <div class="form-check mt-3">
+                    <input class="form-check-input" type="checkbox" id="hourly-partial-toggle">
+                    <label class="form-check-label small" for="hourly-partial-toggle">Chia giờ / kết thúc giữa khung giờ</label>
+                </div>
+                <div id="hourly-partial-wrap" class="mt-2 d-none">
+                    <label class="form-label small fw-bold">Số giờ thực tế (vd: 0.6)</label>
+                    <input type="number" name="partial_hours" class="form-control" min="0.1" max="1" step="0.1"
+                           placeholder="0.6" inputmode="decimal">
+                </div>
+            </div>
+            <div class="modal-footer border-0 flex-column gap-2">
+                <button type="submit" class="btn btn-hm btn-lg w-100 fw-bold">Tiếp tục</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{# Wizard mã hàng — 3 bước modal #}
+<div class="modal fade jp-prod-modal" id="productWizardModal" tabindex="-1" aria-hidden="true"
+     data-bs-backdrop="static" data-show="{% if phase == 'need_product' %}1{% else %}0{% endif %}">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+        <form method="post" class="modal-content" id="product-wizard-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="start_product">
+            {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
+            <div class="modal-header border-0">
+                <div class="w-100">
+                    <div class="jp-prod-wizard-steps mb-2">
+                        <span class="active" data-step="1">1</span>
+                        <span data-step="2">2</span>
+                        <span data-step="3">3</span>
+                    </div>
+                    <h5 class="modal-title fw-bold" id="wizard-title">Mã hàng</h5>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div class="wizard-pane" data-step="1">
+                    <label class="form-label fw-bold">Mã hàng <span class="text-danger">*</span></label>
+                    <input type="text" name="product_code" class="form-control form-control-lg" required
+                           autocomplete="off" placeholder="VD: PEGASUS">
+                </div>
+                <div class="wizard-pane d-none" data-step="2">
+                    <label class="form-label fw-bold">Tên công đoạn <span class="text-danger">*</span></label>
+                    <input type="text" name="process_name" class="form-control form-control-lg" required
+                           autocomplete="off" placeholder="VD: RÁP ĐÁY TRƯỚC x1">
+                </div>
+                <div class="wizard-pane d-none" data-step="3">
+                    <label class="form-label fw-bold">Định mức 1 giờ <span class="text-danger">*</span></label>
+                    <input type="number" name="norm_per_hour" class="form-control form-control-lg" required
+                           min="1" step="1" inputmode="numeric" placeholder="VD: 180">
+                </div>
+            </div>
+            <div class="modal-footer border-0 flex-column gap-2">
+                <button type="button" class="btn btn-hm btn-lg w-100 fw-bold" id="wizard-next-btn">Tiếp tục</button>
+                <button type="submit" class="btn btn-hm btn-lg w-100 fw-bold d-none" id="wizard-submit-btn">Bắt đầu mã hàng</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if hourly_grid %}{{ hourly_grid|json_script:"hourly-grid-data" }}{% endif %}
+<script src="{% static 'js/reports-production-hourly.js' %}?v=20260617a"></script>
+{% endblock %}

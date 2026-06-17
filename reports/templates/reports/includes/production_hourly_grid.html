@@ -1,0 +1,60 @@
+{% load static %}
+<div class="jp-prod-hourly-sheet-wrap">
+    <div class="jp-prod-hourly-sheet-header text-center mb-3">
+        <h5 class="fw-bold text-uppercase mb-1">Báo cáo số lượng hàng giờ</h5>
+        <div class="small text-muted">
+            Bộ phận: {{ report.employee.profile.department.name|default:"—" }}
+            · Tên CN: {{ report.employee.profile.full_name|default:report.employee.username }}
+            · Ngày: {{ report.report_date|date:"d/m/Y" }}
+            {% if report.shift %} · {{ report.get_shift_display }}{% endif %}
+        </div>
+    </div>
+    <div class="table-responsive jp-prod-hourly-scroll">
+        <table class="table table-bordered table-sm jp-prod-hourly-table mb-0">
+            <thead>
+                <tr class="table-light">
+                    <th class="jp-ph-stt">STT</th>
+                    <th class="jp-ph-code">Mã hàng</th>
+                    <th class="jp-ph-process">Tên công đoạn</th>
+                    <th class="jp-ph-norm">ĐM 1 giờ</th>
+                    {% for slot in hourly_grid.slots %}
+                    <th class="jp-ph-slot">{{ slot.label }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in hourly_grid.rows %}
+                <tr>
+                    <td class="text-center">{{ forloop.counter }}</td>
+                    <td class="fw-semibold">{{ row.product_code }}</td>
+                    <td>{{ row.process_name }}</td>
+                    <td class="text-end">{{ row.norm_per_hour }}</td>
+                    {% for cell in row.slots %}
+                    <td class="jp-ph-cell{% if not cell.has_data %} is-empty{% endif %}">
+                        {% if cell.has_data %}
+                        <span class="jp-ph-qty">{{ cell.quantity }}</span>
+                        <span class="jp-ph-cum">{{ cell.cumulative }}</span>
+                        {% if cell.partial_hours %}
+                        <span class="jp-ph-partial">{{ cell.display }}</span>
+                        {% endif %}
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="12" class="text-center text-muted py-4">Chưa có dữ liệu sản lượng.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            {% if hourly_grid.rows %}
+            <tfoot class="table-light">
+                <tr>
+                    <th colspan="4" class="text-end">Tổng</th>
+                    <th colspan="{{ hourly_grid.slots|length }}" class="text-hm">{{ hourly_grid.grand_total }}</th>
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
+    </div>
+</div>
