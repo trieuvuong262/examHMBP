@@ -178,3 +178,28 @@ class ReportTeamDraftTests(TestCase):
         self.assertContains(resp2, 'jp-weekly-link-card')
         self.assertContains(resp2, 'example.com')
         self.assertContains(resp2, 'Chi tiết báo cáo tuần')
+
+    def test_team_stat_filter_submitted_and_missing(self):
+        today = date.today()
+        other = self._user('mem2_draft', ROLE_EMPLOYEE, self.member.profile.department)
+        self.leader.profile.subordinates.add(other)
+        DailyWorkReport.objects.create(
+            employee=self.member,
+            report_date=today,
+            status=DailyWorkReport.STATUS_SUBMITTED,
+            submitted_at=timezone.now(),
+        )
+        self.client.force_login(self.leader)
+        base = reverse('reports:team') + f'?date={today.isoformat()}'
+
+        resp_all = self.client.get(base)
+        self.assertContains(resp_all, 'mem_draft')
+        self.assertContains(resp_all, 'mem2_draft')
+
+        resp_sub = self.client.get(base + '&status=submitted')
+        self.assertContains(resp_sub, 'mem_draft')
+        self.assertNotContains(resp_sub, 'mem2_draft')
+
+        resp_miss = self.client.get(base + '&status=missing')
+        self.assertNotContains(resp_miss, 'mem_draft')
+        self.assertContains(resp_miss, 'mem2_draft')

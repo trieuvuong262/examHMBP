@@ -5,10 +5,12 @@
         </h2>
     </header>
     <div class="guide-panel-body">
+        <div class="guide-panel-inner">
         {% if has_inner %}
             {{ inner_html }}
         {% else %}
             <p class="text-muted small mb-0">Nội dung mục này đang được cập nhật.</p>
         {% endif %}
+        </div>
     </div>
 </section>

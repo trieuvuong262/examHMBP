@@ -1,6 +1,7 @@
 import os
 import uuid
 from datetime import datetime, timedelta
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -532,6 +533,53 @@ def _build_department_group_rows(viewer, team, report_map, visible_fn, dept_filt
     return department_groups, dept_choices
 
 
+TEAM_STATUS_SUBMITTED = 'submitted'
+TEAM_STATUS_MISSING = 'missing'
+
+
+def _parse_team_status_filter(request) -> str:
+    val = (request.GET.get('status') or '').strip().lower()
+    if val in (TEAM_STATUS_SUBMITTED, TEAM_STATUS_MISSING):
+        return val
+    return ''
+
+
+def _team_row_is_submitted(row, *, submitted_status: str) -> bool:
+    report = row.get('report')
+    return bool(report and report.status == submitted_status)
+
+
+def _filter_team_department_groups(department_groups, status_filter: str, *, submitted_status: str):
+    if not status_filter:
+        return department_groups
+    filtered = []
+    for group in department_groups:
+        rows = [
+            row for row in group['rows']
+            if (
+                _team_row_is_submitted(row, submitted_status=submitted_status)
+                if status_filter == TEAM_STATUS_SUBMITTED
+                else not _team_row_is_submitted(row, submitted_status=submitted_status)
+            )
+        ]
+        if rows:
+            filtered.append({**group, 'rows': rows})
+    return filtered
+
+
+def _team_stat_urls(base_params: dict) -> dict:
+    def _url(extra: dict) -> str:
+        params = {**base_params, **extra}
+        params = {k: v for k, v in params.items() if v not in (None, '')}
+        return '?' + urlencode(params)
+
+    return {
+        'all': _url({}),
+        'submitted': _url({'status': TEAM_STATUS_SUBMITTED}),
+        'missing': _url({'status': TEAM_STATUS_MISSING}),
+    }
+
+
 @_reports_access_required
 def team_reports(request):
     if not can_view_team_reports(request.user):
@@ -549,6 +597,7 @@ def team_reports(request):
 
     search_query = get_search_query(request)
     dept_filter = (request.GET.get('dept') or '').strip()
+    status_filter = _parse_team_status_filter(request)
     team = _team_queryset(request.user, search_query)
     all_team_ids = list(team.values_list('id', flat=True))
     all_reports = meaningful_daily_reports_qs().filter(
@@ -574,11 +623,24 @@ def team_reports(request):
         daily_report_visible_to_team,
         dept_filter=dept_filter,
     )
+    department_groups = _filter_team_department_groups(
+        department_groups,
+        status_filter,
+        submitted_status=DailyWorkReport.STATUS_SUBMITTED,
+    )
+
+    base_params = {'date': report_date.isoformat()}
+    if search_query:
+        base_params['q'] = search_query
+    if dept_filter:
+        base_params['dept'] = dept_filter
 
     return render(request, 'reports/team.html', {
         'department_groups': department_groups,
         'dept_choices': dept_choices,
         'selected_dept': dept_filter,
+        'status_filter': status_filter,
+        'stat_urls': _team_stat_urls(base_params),
         'search_query': search_query,
         'report_date': report_date,
         'submitted_count': submitted,
@@ -603,6 +665,7 @@ def team_weekly_reports(request):
     week_start = _parse_week_start(request)
     search_query = get_search_query(request)
     dept_filter = (request.GET.get('dept') or '').strip()
+    status_filter = _parse_team_status_filter(request)
     team = _team_queryset(request.user, search_query)
     all_team_ids = list(team.values_list('id', flat=True))
     all_reports = meaningful_weekly_reports_qs().filter(
@@ -627,12 +690,25 @@ def team_weekly_reports(request):
         weekly_report_visible_to_team,
         dept_filter=dept_filter,
     )
+    department_groups = _filter_team_department_groups(
+        department_groups,
+        status_filter,
+        submitted_status=WeeklyWorkReport.STATUS_SUBMITTED,
+    )
+
+    base_params = {'week': week_start.isoformat()}
+    if search_query:
+        base_params['q'] = search_query
+    if dept_filter:
+        base_params['dept'] = dept_filter
 
     ctx = _weekly_context_common(request, week_start)
     ctx.update({
         'department_groups': department_groups,
         'dept_choices': dept_choices,
         'selected_dept': dept_filter,
+        'status_filter': status_filter,
+        'stat_urls': _team_stat_urls(base_params),
         'search_query': search_query,
         'submitted_count': submitted,
         'missing_count': missing,

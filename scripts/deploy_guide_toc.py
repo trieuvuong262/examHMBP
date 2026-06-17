@@ -9,18 +9,14 @@ HOST = "root@103.90.224.203"
 REMOTE = "/opt/portaljustplay"
 CONTAINER = "portaljustplay-web-1"
 
+INNER_DIR = ROOT / "templates" / "guide" / "inner"
+
 FILES = [
-    "hrm/guide_sections.py",
-    "hrm/guide_editor.py",
-    "hrm/views_guide.py",
-    "hrm/templatetags/guide_tags.py",
-    "templates/guide/_default_body.html",
     "templates/guide/_section_panel.html",
-    "templates/guide/_toc.html",
-    "templates/guide/user_guide.html",
-    "templates/guide/inner/bat-dau.html",
-    "static/js/guide.js",
+    "templates/guide/_default_body.html",
     "static/css/justplay-theme.css",
+] + [
+    f"templates/guide/inner/{p.name}" for p in sorted(INNER_DIR.glob("*.html"))
 ]
 
 
