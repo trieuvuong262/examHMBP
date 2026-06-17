@@ -36,14 +36,14 @@
             </div>
         </div>
         <div class="jp-report-detail-hero-actions d-flex gap-2 flex-wrap">
+            <a href="{% if report.employee_id != request.user.id and can_view_team %}{% url 'reports:team' %}?date={{ report.report_date|date:'Y-m-d' }}{% else %}{% url 'reports:my' %}{% endif %}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Danh sách báo cáo
+            </a>
             {% if edit_report_url %}
             <a href="{{ edit_report_url }}" class="btn btn-outline-hm btn-sm">
                 <i class="bi bi-pencil-square me-1"></i>
                 {% if report.employee_id == request.user.id %}Sửa{% else %}Chỉnh sửa báo cáo{% endif %}
             </a>
-            {% endif %}
-            {% if report.employee_id == request.user.id and can_submit_report %}
-            <a href="{% url 'reports:my' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Lịch sử</a>
             {% endif %}
         </div>
     </div>
