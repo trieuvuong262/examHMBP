@@ -356,6 +356,14 @@ def _feedback_widgets(user):
     }]
 
 
+def _utilities_widgets(user):
+    try:
+        from utilities.reminders import get_utilities_portal_widgets
+        return get_utilities_portal_widgets(user)
+    except Exception:
+        return []
+
+
 def get_portal_dashboard(user):
     """Trả về danh sách widget nhắc việc (dict) cho trang chủ."""
     widgets = []
@@ -406,6 +414,7 @@ def get_portal_dashboard(user):
     widgets.extend(_ho_tro_widgets(user))
     widgets.extend(_equipment_it_widgets(user))
     widgets.extend(_feedback_widgets(user))
+    widgets.extend(_utilities_widgets(user))
 
     # --- HOD / GM: team chưa nộp BC ---
     if can_view_team_reports(user):

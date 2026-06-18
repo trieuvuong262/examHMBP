@@ -1729,6 +1729,18 @@ body.jp-tool-loading-active {
     color: inherit;
 }
 
+.jp-dashboard-item--interactive {
+    cursor: default;
+}
+
+.jp-dashboard-item--interactive:hover {
+    background: #fff;
+}
+
+.jp-dashboard-item-actions .btn {
+    min-height: 2rem;
+}
+
 .jp-dashboard-item-icon {
     flex-shrink: 0;
     width: 42px;

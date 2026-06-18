@@ -33,7 +33,7 @@ from utilities.meal_rules import (
     meal_order_window_for,
     next_orderable_meal_date,
 )
-from utilities.models import MealDayOffering, MealDish, MealOrder, SalaryAdvanceRequest
+from utilities.models import MealDayOffering, MealDish, MealOrder, MealOrderDecline, SalaryAdvanceRequest
 from utilities.salary_rules import (
     MAX_SALARY_ADVANCE,
     current_advance_month,
@@ -244,6 +244,9 @@ def meal_summary(request):
     orders = MealOrder.objects.filter(meal_date=meal_date).select_related(
         'employee__profile', 'employee__profile__department', 'dish',
     ).order_by('employee__profile__full_name')
+    declines = MealOrderDecline.objects.filter(meal_date=meal_date).select_related(
+        'employee__profile', 'employee__profile__department',
+    ).order_by('employee__profile__full_name')
     totals = (
         MealOrder.objects.filter(meal_date=meal_date)
         .values('dish__name')
@@ -253,6 +256,7 @@ def meal_summary(request):
     return render(request, 'utilities/meal_summary.html', {
         'meal_date': meal_date,
         'orders': orders,
+        'declines': declines,
         'totals': totals,
         'can_export': user_can_export_menu(request.user, MODULE_UTILITIES, 'meal_ordering'),
         'can_manage': True,

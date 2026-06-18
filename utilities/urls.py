@@ -1,11 +1,12 @@
 from django.urls import path
 
-from utilities import views
+from utilities import portal_actions, views
 
 app_name = 'utilities'
 
 urlpatterns = [
     path('', views.utilities_hub, name='hub'),
+    path('dat-com/tu-choi/', portal_actions.meal_decline, name='meal_decline'),
     # Đặt cơm
     path('dat-com/', views.meal_home, name='meal_home'),
     path('dat-com/mon/', views.meal_dish_list, name='meal_dish_list'),
@@ -18,6 +19,7 @@ urlpatterns = [
     path('dat-com/thong-ke/', views.meal_stats, name='meal_stats'),
     path('dat-com/thong-ke/xuat/', views.meal_stats_export, name='meal_stats_export'),
     # Ứng lương
+    path('ung-luong/tu-choi/', portal_actions.salary_decline, name='salary_decline'),
     path('ung-luong/', views.salary_home, name='salary_home'),
     path('ung-luong/quan-ly/', views.salary_manage, name='salary_manage'),
     path('ung-luong/quan-ly/xuat/', views.salary_manage_export, name='salary_manage_export'),

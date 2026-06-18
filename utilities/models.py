@@ -72,6 +72,28 @@ class MealOrder(models.Model):
         return f'{self.employee} · {self.meal_date} · {self.dish.name}'
 
 
+class MealOrderDecline(models.Model):
+    """NV xác nhận không đặt cơm trong ngày ăn tương ứng."""
+
+    employee = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='meal_order_declines',
+        verbose_name='Nhân viên',
+    )
+    meal_date = models.DateField(verbose_name='Ngày ăn')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('employee', 'meal_date')
+        ordering = ['-meal_date', '-created_at']
+        verbose_name = 'Từ chối đặt cơm'
+        verbose_name_plural = 'Từ chối đặt cơm'
+
+    def __str__(self):
+        return f'{self.employee} · không đặt · {self.meal_date}'
+
+
 class SalaryAdvanceRequest(models.Model):
     employee = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -101,3 +123,25 @@ class SalaryAdvanceRequest(models.Model):
 
     def __str__(self):
         return f'{self.employee} · {self.request_month:%m/%Y} · {self.amount:,.0f}đ'
+
+
+class SalaryAdvanceDecline(models.Model):
+    """NV xác nhận không ứng lương trong tháng tương ứng."""
+
+    employee = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='salary_advance_declines',
+        verbose_name='Nhân viên',
+    )
+    request_month = models.DateField(verbose_name='Tháng ứng')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('employee', 'request_month')
+        ordering = ['-request_month', '-created_at']
+        verbose_name = 'Từ chối ứng lương'
+        verbose_name_plural = 'Từ chối ứng lương'
+
+    def __str__(self):
+        return f'{self.employee} · không ứng · {self.request_month:%m/%Y}'

@@ -21,13 +21,7 @@ class UtilitiesAccessTests(TestCase):
             role=ROLE_EMPLOYEE,
             defaults={
                 'module_permissions': {
-                    'utilities': {
-                        'view': True,
-                        'create': True,
-                        'update': False,
-                        'delete': False,
-                        'export': False,
-                    },
+                    'utilities': {'view': True, 'edit': True},
                 },
             },
         )

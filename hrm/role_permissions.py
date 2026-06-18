@@ -59,7 +59,7 @@ def default_role_permissions() -> dict:
         MODULE_NAS_STORAGE: _perm(True, True),
         MODULE_EQUIPMENT: _perm(True, False),
         MODULE_FEEDBACK: _perm(True, False),
-        MODULE_UTILITIES: _perm(True, False),
+        MODULE_UTILITIES: _perm(True, True),
         MODULE_KIOTVIET: _perm(True, False),
         MODULE_KHO_NPL: _perm(True, False),
         MODULE_PERMISSIONS: _perm(False, False),

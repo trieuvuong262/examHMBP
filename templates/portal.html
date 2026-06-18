@@ -48,6 +48,26 @@
             {% if dashboard_widgets %}
             <div class="jp-dashboard-list">
                 {% for item in dashboard_widgets %}
+                {% if item.dismiss_url %}
+                <div class="jp-dashboard-item jp-dashboard-item--{{ item.level }} jp-dashboard-item--interactive">
+                    <div class="jp-dashboard-item-body">
+                        <div class="jp-dashboard-item-title">
+                            {{ item.title }}
+                            {% if item.badge %}
+                            <span class="badge rounded-pill ms-1">{{ item.badge }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="jp-dashboard-item-text">{{ item.text }}</div>
+                        <div class="jp-dashboard-item-actions d-flex flex-wrap gap-2 mt-2">
+                            <a href="{{ item.url }}" class="btn btn-sm btn-hm fw-bold">{{ item.action }}</a>
+                            <form method="post" action="{{ item.dismiss_url }}" class="d-inline m-0">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-secondary">{{ item.dismiss_label }}</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
                 <a href="{{ item.url }}" class="jp-dashboard-item jp-dashboard-item--{{ item.level }}">
                     <div class="jp-dashboard-item-body">
                         <div class="jp-dashboard-item-title">
@@ -62,6 +82,7 @@
                         {{ item.action }} 
                     </div>
                 </a>
+                {% endif %}
                 {% endfor %}
             </div>
             {% else %}
