@@ -22,6 +22,19 @@ def get_utilities_portal_widgets(user):
     return widgets
 
 
+def get_utilities_pending_count(user) -> int:
+    """Số việc Tiện ích cần xử lý — hiển thị badge menu."""
+    return len(get_utilities_portal_widgets(user))
+
+
+def meal_reminder_pending(user) -> bool:
+    return user_needs_meal_reminder(user) is not None
+
+
+def salary_reminder_pending(user) -> bool:
+    return _salary_reminder_widget(user) is not None
+
+
 def _meal_reminder_widget(user):
     meal_date = user_needs_meal_reminder(user)
     if not meal_date:

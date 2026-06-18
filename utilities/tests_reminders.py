@@ -13,7 +13,7 @@ from hrm.permissions import ROLE_EMPLOYEE
 from reports.report_profile import REPORT_PROFILE_OFFICE, REPORT_PROFILE_PRODUCTION
 from utilities.meal_rules import meal_order_window_for
 from utilities.models import MealOrderDecline, SalaryAdvanceDecline
-from utilities.reminders import get_utilities_portal_widgets
+from utilities.reminders import get_utilities_portal_widgets, get_utilities_pending_count
 
 
 class UtilitiesReminderTests(TestCase):
@@ -120,3 +120,14 @@ class UtilitiesReminderTests(TestCase):
             widgets = get_portal_dashboard(self.prod_user)
             titles = [w['title'] for w in widgets]
             self.assertIn('Đặt cơm công ty', titles)
+            self.assertEqual(get_utilities_pending_count(self.prod_user), 1)
+
+    @override_settings(USE_TZ=True)
+    def test_utilities_pending_count_matches_widgets(self):
+        now, _ = self._meal_window_now()
+        with patch('django.utils.timezone.localtime', return_value=now):
+            self.assertEqual(
+                get_utilities_pending_count(self.prod_user),
+                len(get_utilities_portal_widgets(self.prod_user)),
+            )
+            self.assertEqual(get_utilities_pending_count(self.office_user), 0)

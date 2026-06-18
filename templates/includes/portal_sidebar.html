@@ -456,7 +456,15 @@
                     aria-expanded="{% if 'tien-ich' in request.path %}true{% else %}false{% endif %}"
                     aria-controls="jp-sidebar-utilities-submenu">
                 <span class="jp-sidebar-group-toggle-main">
-                    <i class="bi bi-lightning-charge-fill"></i><span>Tiện ích</span>
+                    <span class="jp-sidebar-link-icon">
+                        <i class="bi bi-lightning-charge-fill"></i>
+                        {% if jp_utilities_pending_count %}
+                        <span class="jp-sidebar-notify" aria-label="{{ jp_utilities_pending_count }} việc Tiện ích cần làm">
+                            {% if jp_utilities_pending_count > 99 %}99+{% else %}{{ jp_utilities_pending_count }}{% endif %}
+                        </span>
+                        {% endif %}
+                    </span>
+                    <span>Tiện ích</span>
                 </span>
                 <i class="bi bi-chevron-down jp-sidebar-group-chevron" aria-hidden="true"></i>
             </button>
@@ -467,6 +475,7 @@
                     <a href="{% url 'utilities:meal_home' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if '/tien-ich/dat-com' in request.path %}active{% endif %}">
                         <i class="bi bi-cup-hot"></i><span>Đặt cơm</span>
+                        {% if jp_utilities_meal_pending_count %}<span class="badge bg-danger ms-1">{{ jp_utilities_meal_pending_count }}</span>{% endif %}
                     </a>
                 </li>
                 {% endif %}
@@ -476,6 +485,7 @@
                     <a href="{% url 'utilities:salary_home' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if '/tien-ich/ung-luong' in request.path %}active{% endif %}">
                         <i class="bi bi-cash-coin"></i><span>Ứng lương</span>
+                        {% if jp_utilities_salary_pending_count %}<span class="badge bg-danger ms-1">{{ jp_utilities_salary_pending_count }}</span>{% endif %}
                     </a>
                 </li>
                 {% endif %}
