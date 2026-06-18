@@ -12,6 +12,7 @@
     <div class="jp-page-header mb-3">
         <h2 class="fw-bold text-hm mb-1 jp-page-title">
             <i class="bi bi-{{ scope_icon|default:'hdd-stack' }} me-2"></i>Danh sách — {{ equipment_scope_short }}
+            {% if filtered_count is not None %}<span class="text-muted fw-semibold fs-5 ms-1">({{ filtered_count|intcomma }})</span>{% endif %}
         </h2>
     </div>
 

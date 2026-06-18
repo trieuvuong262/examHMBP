@@ -955,3 +955,40 @@ class EquipmentGranularPermissionTests(TestCase):
         self.client.force_login(self.view_user)
         response = self.client.get(self.reverse('equipment:device_add_it'))
         self.assertEqual(response.status_code, 302)
+
+
+class ProductionLocationTests(TestCase):
+    def test_normalize_usage_room_variants(self):
+        from equipment.production_locations import (
+            LOCATION_6A,
+            LOCATION_CHIEN_LUOC,
+            normalize_usage_room,
+        )
+
+        self.assertEqual(normalize_usage_room('19 Chiến Lược'), LOCATION_CHIEN_LUOC)
+        self.assertEqual(normalize_usage_room('19 chien luoc'), LOCATION_CHIEN_LUOC)
+        self.assertEqual(normalize_usage_room('152A đường 6A'), LOCATION_6A)
+        self.assertEqual(normalize_usage_room('152a duong 6a'), LOCATION_6A)
+        self.assertEqual(normalize_usage_room('xyz lung tung'), '')
+
+    def test_normalize_management_command(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+        from equipment.models import Device
+
+        Device.objects.create(
+            name='May 1',
+            category='SEW_LOCKSTITCH',
+            status=Device.STATUS_ACTIVE,
+            usage_room='chien luoc',
+        )
+        Device.objects.create(
+            name='May 2',
+            category='SEW_LOCKSTITCH',
+            status=Device.STATUS_ACTIVE,
+            usage_room='152a',
+        )
+        call_command('normalize_production_usage_room', '--apply', stdout=StringIO())
+        self.assertEqual(Device.objects.get(name='May 1').usage_room, '19 Chiến Lược')
+        self.assertEqual(Device.objects.get(name='May 2').usage_room, '152A đường 6A')

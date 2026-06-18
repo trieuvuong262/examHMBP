@@ -169,7 +169,10 @@ IMPORT_COLUMNS_IT = IMPORT_COLUMNS_BASE + [
     ('ip_address', 'Địa chỉ IP', False),
 ]
 
-IMPORT_COLUMNS_MACHINE = IMPORT_COLUMNS_BASE  # máy xưởng — không bắt buộc IP/hostname
+IMPORT_COLUMNS_MACHINE = [
+    (key, ('Vị trí lắp máy' if key == 'usage_room' else label), required)
+    for key, label, required in IMPORT_COLUMNS_BASE
+]
 
 IMPORT_PROFILE_BY_GROUP = {
     'it': 'it',
@@ -214,7 +217,7 @@ SAMPLE_ROWS = {
         'managed_department': 'Bảo trì xưởng',
         'status': 'active',
         'usage_department_text': 'Xưởng may',
-        'usage_room': 'Line 3 — vị trí 12',
+        'usage_room': '19 Chiến Lược',
         'assigned_user_text': 'Trần Thị B',
         'contact_email': '',
         'handover_date': '2024-06-01',

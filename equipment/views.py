@@ -704,6 +704,11 @@ def _equipment_departments():
 
 
 def _equipment_usage_rooms(equipment_scope):
+    from equipment.scope import SCOPE_PRODUCTION
+    from equipment.production_locations import production_usage_room_filter_choices
+
+    if equipment_scope == SCOPE_PRODUCTION:
+        return production_usage_room_filter_choices()
     qs = filter_devices_for_scope(Device.objects.all(), equipment_scope)
     return (
         qs.exclude(usage_room='')

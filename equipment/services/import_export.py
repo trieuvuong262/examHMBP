@@ -299,6 +299,7 @@ def import_devices_from_excel(file_obj, category_code: str) -> tuple[int, list[s
 
     from equipment.services.device_categories import import_profile_for_code
     from equipment.services.managed_department import default_managed_department_for_scope, resolve_managed_department
+    from equipment.production_locations import normalize_usage_room
 
     count = 0
     errors = []
@@ -334,6 +335,11 @@ def import_devices_from_excel(file_obj, category_code: str) -> tuple[int, list[s
             managed_dept = resolve_managed_department(managed_raw) or default_dept
             status_raw = _safe_str(_cell(row, 'status'), Device.STATUS_NEW) or Device.STATUS_NEW
             status_value = normalize_status_value(status_raw) or status_raw
+            usage_room_raw = _safe_str(_cell(row, 'usage_room'))
+            if import_profile_for_code(category_code) == 'machine':
+                usage_room_value = normalize_usage_room(usage_room_raw)
+            else:
+                usage_room_value = usage_room_raw
             Device.objects.create(
                 device_code=device_code_raw,
                 name=_safe_str(name),
@@ -341,7 +347,7 @@ def import_devices_from_excel(file_obj, category_code: str) -> tuple[int, list[s
                 managed_department=managed_dept,
                 status=status_value,
                 usage_department_text=_safe_str(_cell(row, 'usage_department_text')),
-                usage_room=_safe_str(_cell(row, 'usage_room')),
+                usage_room=usage_room_value,
                 assigned_user_text=_safe_str(_cell(row, 'assigned_user_text')),
                 contact_email=_safe_str(_cell(row, 'contact_email')),
                 handover_date=_parse_excel_date(_cell(row, 'handover_date')),

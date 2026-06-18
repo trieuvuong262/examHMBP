@@ -189,8 +189,15 @@ class DeviceForm(forms.ModelForm):
                 self.fields['managed_department'].help_text = 'Thường là IT / CNTT.'
         else:
             self.fields['name'].widget.attrs.setdefault('placeholder', 'VD: Máy may Juki DDL-8700')
-            self.fields['usage_room'].label = 'Chuyền / vị trí lắp máy'
-            self.fields['usage_room'].widget.attrs.setdefault('placeholder', 'VD: Chuyền 3 · Cụm may áo')
+            from equipment.production_locations import production_usage_room_choices
+
+            self.fields['usage_room'] = forms.ChoiceField(
+                choices=production_usage_room_choices(),
+                required=False,
+                widget=forms.Select(attrs={'class': 'form-select'}),
+                label='Vị trí lắp máy',
+                initial=(self.instance.usage_room if self.instance and self.instance.pk else ''),
+            )
             self.fields['model_number'].label = 'Model máy'
             self.fields['configuration'].label = 'Thông số kỹ thuật'
             self.fields['description'].widget.attrs.setdefault(
