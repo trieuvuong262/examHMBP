@@ -127,6 +127,16 @@ class MealPushTests(TestCase):
             loaded = _load_vapid()
         self.assertIsInstance(loaded, Vapid)
 
+    def test_wns_headers_for_windows_endpoint(self):
+        from utilities.push_service import _webpush_extra_headers
+
+        headers = _webpush_extra_headers(
+            'https://wns2-pn1p.notify.windows.com/w/?token=abc',
+        )
+        self.assertEqual(headers['X-WNS-Cache-Policy'], 'no-cache')
+        self.assertEqual(headers['X-WNS-Type'], 'wns/raw')
+        self.assertEqual(_webpush_extra_headers('https://fcm.googleapis.com/fcm/send/xyz'), {})
+
     def test_push_unsubscribe(self):
         resp = self.client.post(
             reverse('utilities:push_unsubscribe'),

@@ -62,14 +62,34 @@ def _is_expired_push_subscription(exc) -> bool:
     return _push_exception_status(exc) in (404, 410)
 
 
+def _is_wns_endpoint(endpoint: str) -> bool:
+    return 'notify.windows.com' in (endpoint or '')
+
+
+def _webpush_extra_headers(endpoint: str) -> dict:
+    """
+    Microsoft WNS (Edge/Chrome trên Windows) từ chối push nếu TTL=0 mà không có
+    X-WNS-Cache-Policy=no-cache. Xem pywebpush#162.
+    """
+    if not _is_wns_endpoint(endpoint):
+        return {}
+    return {
+        'X-WNS-Cache-Policy': 'no-cache',
+        'X-WNS-Type': 'wns/raw',
+    }
+
+
 def send_push_to_subscription(subscription: MealPushSubscription, payload: str) -> None:
     from pywebpush import webpush
 
+    endpoint = subscription.endpoint
     webpush(
         subscription_info=subscription.subscription_info(),
         data=payload,
         vapid_private_key=_load_vapid(),
         vapid_claims={'sub': settings.WEBPUSH_VAPID_CLAIMS_EMAIL},
+        headers=_webpush_extra_headers(endpoint),
+        ttl=0,
     )
 
 

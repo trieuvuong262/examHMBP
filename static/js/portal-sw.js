@@ -1,4 +1,4 @@
-/* Service worker — PWA + web push nhắc đặt cơm. */
+/* Service worker — PWA + web push (đặt cơm, thông báo công ty). */
 self.addEventListener('install', function (event) {
     event.waitUntil(self.skipWaiting());
 });
@@ -9,10 +9,10 @@ self.addEventListener('activate', function (event) {
 
 self.addEventListener('push', function (event) {
     var data = {
-        title: 'Đặt cơm công ty',
-        body: 'Mở portal để đặt cơm.',
+        title: 'JustPlay Portal',
+        body: 'Bạn có thông báo mới.',
         url: '/',
-        tag: 'meal-reminder',
+        tag: 'portal-notification',
     };
     if (event.data) {
         try {

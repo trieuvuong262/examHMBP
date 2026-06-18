@@ -10355,3 +10355,84 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
         border-color: var(--jp-surface-border);
     }
 }
+
+/* --- Bắt buộc bật nhắc đẩy đặt cơm --- */
+body.jp-meal-push-locked {
+    overflow: hidden;
+}
+
+.jp-meal-push-gate {
+    position: fixed;
+    inset: 0;
+    z-index: 1080;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.25rem;
+}
+
+.jp-meal-push-gate[hidden] {
+    display: none !important;
+}
+
+.jp-meal-push-gate-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.72);
+    backdrop-filter: blur(4px);
+}
+
+.jp-meal-push-gate-card {
+    position: relative;
+    z-index: 1;
+    width: min(100%, 420px);
+    padding: 1.75rem 1.5rem;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 24px 48px rgba(15, 23, 42, 0.28);
+    text-align: center;
+}
+
+.jp-meal-push-gate-icon {
+    width: 3.5rem;
+    height: 3.5rem;
+    margin: 0 auto 1rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(220, 38, 38, 0.12);
+    color: var(--hm-primary, #dc2626);
+    font-size: 1.5rem;
+}
+
+.jp-meal-push-gate-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    color: #0f172a;
+}
+
+.jp-meal-push-gate-lead {
+    color: #334155;
+    line-height: 1.5;
+}
+
+.jp-meal-push-gate-error {
+    text-align: left;
+    line-height: 1.45;
+}
+
+[data-theme="dark"] .jp-meal-push-gate-card {
+    background: #1e1e1e;
+    border: 1px solid var(--jp-surface-border);
+}
+
+[data-theme="dark"] .jp-meal-push-gate-title {
+    color: #f8fafc;
+}
+
+[data-theme="dark"] .jp-meal-push-gate-lead {
+    color: #cbd5e1;
+}
+

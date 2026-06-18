@@ -1,0 +1,21 @@
+"""Điều kiện đăng ký web push portal — đặt cơm + thông báo công ty."""
+
+from hrm.menu_permissions import user_can_create_menu
+from hrm.module_permissions import MODULE_ANNOUNCEMENTS, MODULE_UTILITIES, user_can_access_module
+from reports.report_profile import is_production_report_user
+from utilities.push_service import webpush_configured
+
+
+def user_meal_push_eligible(user) -> bool:
+    if not user_can_create_menu(user, MODULE_UTILITIES, 'meal_ordering'):
+        return False
+    return is_production_report_user(user)
+
+
+def user_portal_push_eligible(user) -> bool:
+    """NV cần push: sản xuất (đặt cơm) hoặc có quyền xem Thông báo."""
+    if not webpush_configured():
+        return False
+    if user_meal_push_eligible(user):
+        return True
+    return user_can_access_module(user, MODULE_ANNOUNCEMENTS)

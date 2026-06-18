@@ -31,21 +31,11 @@
         </div>
     </section>
 
-    {% if jp_webpush_public_key and jp_meal_push_eligible %}
-    <div id="jpMealPushPrompt" class="alert alert-info border-0 shadow-sm d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-3 mb-lg-4" role="region" aria-label="Bật nhắc đẩy đặt cơm" hidden>
-        <div>
-            <strong><i class="bi bi-bell me-1"></i>Nhắc đặt cơm lúc 16h</strong>
-            <div class="small mb-0">Bật thông báo trình duyệt để nhận nhắc đặt cơm khi vào khung 16:00–20:00.</div>
-        </div>
-        <div class="d-flex flex-wrap gap-2">
-            <button type="button" class="btn btn-sm btn-hm fw-bold" id="jpMealPushEnable">Bật nhắc đẩy</button>
-            <button type="button" class="btn btn-sm btn-outline-secondary" id="jpMealPushDismiss">Để sau</button>
-        </div>
-    </div>
+    {% if jp_webpush_public_key and jp_portal_push_eligible %}
     <div id="jpMealPushSuccess" class="alert alert-success border-0 shadow-sm d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-3 mb-lg-4" role="status" aria-live="polite" hidden>
         <div>
-            <strong><i class="bi bi-bell-fill me-1"></i>Đã bật nhắc đẩy đặt cơm</strong>
-            <div class="small mb-0" id="jpMealPushSuccessText">Bạn sẽ nhận thông báo lúc 16:00 trong khung đặt cơm.</div>
+            <strong><i class="bi bi-bell-fill me-1"></i>Đã bật thông báo portal</strong>
+            <div class="small mb-0" id="jpMealPushSuccessText">Bạn sẽ nhận thông báo công ty mới{% if jp_meal_push_eligible %} và nhắc đặt cơm lúc 16:00{% endif %}.</div>
         </div>
         <div class="d-flex flex-wrap gap-2">
             <button type="button" class="btn btn-sm btn-outline-success fw-bold" id="jpMealPushTest">Gửi thử</button>

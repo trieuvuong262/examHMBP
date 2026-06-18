@@ -1,10 +1,12 @@
 from django.urls import path
 
+from . import push_views as announcement_push_views
 from . import views
 
 app_name = 'announcements'
 
 urlpatterns = [
+    path('push/poll/', announcement_push_views.poll_unread, name='push_poll'),
     path('', views.announcement_list, name='list'),
     path('<int:pk>/', views.announcement_detail, name='detail'),
     path('<int:pk>/file/<str:field>/', views.announcement_file_serve, name='file'),

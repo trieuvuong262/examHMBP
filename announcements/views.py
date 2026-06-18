@@ -18,6 +18,7 @@ from hrm.module_permissions import (
 from .forms import AnnouncementForm
 from .models import Announcement, AnnouncementRead
 from .nas_storage import ANNOUNCEMENT_FILE_FIELDS, announcement_file_abs_path, open_announcement_file
+from .push_service import send_announcement_push
 
 
 def _active_announcements():
@@ -154,6 +155,8 @@ def admin_create(request):
             announcement = form.save(commit=False)
             announcement.created_by = request.user
             announcement.save()
+            if announcement.is_active:
+                send_announcement_push(announcement)
             messages.success(request, 'Đã tạo thông báo mới.')
             return redirect('announcements:admin_list')
     else:
@@ -168,11 +171,14 @@ def admin_create(request):
 @module_perm_required(MODULE_ANNOUNCEMENTS, 'update')
 def admin_edit(request, pk):
     announcement = get_object_or_404(Announcement, pk=pk)
+    was_active = announcement.is_active
 
     if request.method == 'POST':
         form = AnnouncementForm(request.POST, request.FILES, instance=announcement)
         if form.is_valid():
-            form.save()
+            announcement = form.save()
+            if announcement.is_active and not was_active:
+                send_announcement_push(announcement)
             messages.success(request, 'Đã cập nhật thông báo.')
             return redirect('announcements:admin_list')
     else:

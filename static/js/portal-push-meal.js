@@ -1,13 +1,13 @@
 (function () {
     'use strict';
 
-    var cfg = window.JP_MEAL_PUSH;
+    var cfg = window.JP_PORTAL_PUSH || window.JP_MEAL_PUSH;
     if (!cfg || !cfg.publicKey) {
         return;
     }
 
     var LS_SUBSCRIBED = 'jp_meal_push_subscribed';
-    var LS_DISMISSED = 'jp_meal_push_prompt_dismissed';
+    var autoAttempted = false;
 
     function urlBase64ToUint8Array(base64String) {
         var padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -54,35 +54,54 @@
         } catch (e) {}
     }
 
-    function getPromptEl() {
-        return document.getElementById('jpMealPushPrompt');
+    function getGateEl() {
+        return document.getElementById('jpMealPushGate');
     }
 
     function getSuccessEl() {
         return document.getElementById('jpMealPushSuccess');
     }
 
-    function hideAllPushBanners() {
-        var prompt = getPromptEl();
-        var success = getSuccessEl();
-        if (prompt) {
-            prompt.hidden = true;
-        }
-        if (success) {
-            success.hidden = true;
-        }
+    function lockPage() {
+        document.body.classList.add('jp-meal-push-locked');
     }
 
-    function showPromptBanner() {
-        hideAllPushBanners();
-        var prompt = getPromptEl();
-        if (prompt) {
-            prompt.hidden = false;
+    function unlockPage() {
+        document.body.classList.remove('jp-meal-push-locked');
+    }
+
+    function showMandatoryGate() {
+        var gate = getGateEl();
+        if (!gate) {
+            return;
         }
+        gate.hidden = false;
+        lockPage();
+    }
+
+    function hideMandatoryGate() {
+        var gate = getGateEl();
+        if (gate) {
+            gate.hidden = true;
+        }
+        hideGateError();
+        unlockPage();
+    }
+
+    function showGateError(message) {
+        var err = document.getElementById('jpMealPushGateError');
+        if (!err) {
+            return;
+        }
+        err.textContent = message || '';
+        err.hidden = !message;
+    }
+
+    function hideGateError() {
+        showGateError('');
     }
 
     function showSuccessBanner(message) {
-        hideAllPushBanners();
         var success = getSuccessEl();
         var text = document.getElementById('jpMealPushSuccessText');
         if (text && message) {
@@ -90,6 +109,13 @@
         }
         if (success) {
             success.hidden = false;
+        }
+    }
+
+    function hideSuccessBanner() {
+        var success = getSuccessEl();
+        if (success) {
+            success.hidden = true;
         }
     }
 
@@ -128,7 +154,6 @@
     function saveSubscriptionOnServer(subscription) {
         return postJson(cfg.subscribeUrl, subscription.toJSON()).then(function () {
             lsSet(LS_SUBSCRIBED, '1');
-            lsRemove(LS_DISMISSED);
             return subscription;
         });
     }
@@ -140,56 +165,18 @@
         return fetchJson(cfg.statusUrl, { credentials: 'same-origin' });
     }
 
-    function isSubscribedLocally() {
-        return lsGet(LS_SUBSCRIBED) === '1';
+    function permissionDeniedMessage() {
+        return (
+            'Trình duyệt đang chặn thông báo. Vào cài đặt trang web → Thông báo → Cho phép, '
+            + 'sau đó tải lại trang và bấm «Cho phép nhận nhắc».'
+        );
     }
 
-    function isPromptDismissed() {
-        return lsGet(LS_DISMISSED) === '1';
-    }
-
-    function refreshPushUI() {
-        if (!supportsPush()) {
-            hideAllPushBanners();
-            return Promise.resolve();
+    function isFullySubscribed(browserSub, serverStatus, permission) {
+        if (serverStatus && serverStatus.subscribed) {
+            return true;
         }
-
-        return Promise.all([getBrowserSubscription(), fetchServerStatus()]).then(function (results) {
-            var browserSub = results[0];
-            var serverStatus = results[1];
-            var permission = Notification.permission;
-
-            if (!serverStatus.subscribed && isSubscribedLocally()) {
-                lsRemove(LS_SUBSCRIBED);
-            }
-
-            if (browserSub && permission === 'granted') {
-                return saveSubscriptionOnServer(browserSub).then(function () {
-                    showSuccessBanner('Đã đăng ký nhắc đẩy trên thiết bị này.');
-                }).catch(function () {
-                    if (serverStatus.subscribed) {
-                        showSuccessBanner('Đã đăng ký nhắc đẩy (đồng bộ từ máy chủ).');
-                    } else if (!isPromptDismissed()) {
-                        showPromptBanner();
-                    }
-                });
-            }
-
-            if (serverStatus.subscribed) {
-                showSuccessBanner('Đã đăng ký nhắc đẩy trên tài khoản của bạn.');
-                return;
-            }
-
-            if (!isPromptDismissed()) {
-                showPromptBanner();
-            } else {
-                hideAllPushBanners();
-            }
-        }).catch(function () {
-            if (!isPromptDismissed() && !isSubscribedLocally()) {
-                showPromptBanner();
-            }
-        });
+        return !!(browserSub && permission === 'granted');
     }
 
     window.jpSubscribeMealPush = function () {
@@ -197,9 +184,24 @@
             return Promise.reject(new Error('Trình duyệt không hỗ trợ thông báo đẩy.'));
         }
 
-        return Notification.requestPermission().then(function (permission) {
+        hideGateError();
+
+        var permissionPromise;
+        if (Notification.permission === 'granted') {
+            permissionPromise = Promise.resolve('granted');
+        } else if (Notification.permission === 'denied') {
+            return Promise.reject(new Error(permissionDeniedMessage()));
+        } else {
+            permissionPromise = Notification.requestPermission();
+        }
+
+        return permissionPromise.then(function (permission) {
             if (permission !== 'granted') {
-                throw new Error('Bạn chưa cho phép thông báo trên trình duyệt.');
+                throw new Error(
+                    permission === 'denied'
+                        ? permissionDeniedMessage()
+                        : 'Bạn cần chọn Cho phép để tiếp tục dùng portal.',
+                );
             }
             return navigator.serviceWorker.ready;
         }).then(function (registration) {
@@ -215,12 +217,15 @@
         }).then(function (subscription) {
             return saveSubscriptionOnServer(subscription);
         }).then(function () {
-            showSuccessBanner('Đã bật nhắc đẩy thành công.');
-            return refreshPushUI();
+            hideMandatoryGate();
+            showSuccessBanner('Đã bật thông báo portal thành công.');
+            if (window.jpResetAnnouncementPushBaseline) {
+                window.jpResetAnnouncementPushBaseline();
+            }
         });
     };
 
-  function disableMealPush() {
+    function disableMealPush() {
         return getBrowserSubscription().then(function (subscription) {
             var tasks = [postJson(cfg.unsubscribeUrl, subscription ? { endpoint: subscription.endpoint } : {})];
             if (subscription) {
@@ -229,9 +234,9 @@
             return Promise.all(tasks);
         }).then(function () {
             lsRemove(LS_SUBSCRIBED);
-            lsRemove(LS_DISMISSED);
-            hideAllPushBanners();
-            showPromptBanner();
+            hideSuccessBanner();
+            showMandatoryGate();
+            scheduleAutoSubscribe();
         });
     }
 
@@ -248,16 +253,68 @@
             var msg = (err && err.message) || '';
             if (msg.indexOf('Chưa đăng ký') !== -1 || msg.indexOf('bật lại') !== -1) {
                 lsRemove(LS_SUBSCRIBED);
-                hideAllPushBanners();
-                showPromptBanner();
+                hideSuccessBanner();
+                showMandatoryGate();
+                scheduleAutoSubscribe();
             }
             throw err;
         });
     }
 
+    function scheduleAutoSubscribe() {
+        if (autoAttempted) {
+            return;
+        }
+        autoAttempted = true;
+        window.setTimeout(function () {
+            window.jpSubscribeMealPush().catch(function (err) {
+                showGateError(err.message || 'Không bật được nhắc đẩy.');
+            });
+        }, 350);
+    }
+
+    function refreshPushUI() {
+        lsRemove('jp_meal_push_prompt_dismissed');
+
+        if (!supportsPush()) {
+            hideMandatoryGate();
+            return Promise.resolve();
+        }
+
+        return Promise.all([getBrowserSubscription(), fetchServerStatus()]).then(function (results) {
+            var browserSub = results[0];
+            var serverStatus = results[1];
+            var permission = Notification.permission;
+
+            if (!serverStatus.subscribed && lsGet(LS_SUBSCRIBED) === '1') {
+                lsRemove(LS_SUBSCRIBED);
+            }
+
+            if (isFullySubscribed(browserSub, serverStatus, permission)) {
+                if (browserSub && permission === 'granted' && !serverStatus.subscribed) {
+                    return saveSubscriptionOnServer(browserSub).then(function () {
+                        hideMandatoryGate();
+                        showSuccessBanner('Đã đăng ký nhắc đẩy trên thiết bị này.');
+                    }).catch(function () {
+                        hideMandatoryGate();
+                        showSuccessBanner('Đã đăng ký nhắc đẩy trên tài khoản của bạn.');
+                    });
+                }
+                hideMandatoryGate();
+                showSuccessBanner('Đã đăng ký thông báo đặt cơm.');
+                return;
+            }
+
+            showMandatoryGate();
+            scheduleAutoSubscribe();
+        }).catch(function () {
+            showMandatoryGate();
+            scheduleAutoSubscribe();
+        });
+    }
+
     function bindPushUI() {
         var enableBtn = document.getElementById('jpMealPushEnable');
-        var dismissBtn = document.getElementById('jpMealPushDismiss');
         var testBtn = document.getElementById('jpMealPushTest');
         var disableBtn = document.getElementById('jpMealPushDisable');
 
@@ -266,18 +323,11 @@
                 enableBtn.disabled = true;
                 window.jpSubscribeMealPush()
                     .catch(function (err) {
-                        window.alert(err.message || 'Không bật được nhắc đẩy.');
+                        showGateError(err.message || 'Không bật được nhắc đẩy.');
                     })
                     .finally(function () {
                         enableBtn.disabled = false;
                     });
-            });
-        }
-
-        if (dismissBtn) {
-            dismissBtn.addEventListener('click', function () {
-                lsSet(LS_DISMISSED, '1');
-                hideAllPushBanners();
             });
         }
 
@@ -296,7 +346,7 @@
 
         if (disableBtn) {
             disableBtn.addEventListener('click', function () {
-                if (!window.confirm('Tắt nhắc đẩy đặt cơm trên thiết bị này?')) {
+                if (!window.confirm('Tắt nhắc đẩy đặt cơm trên thiết bị này? Lần sau vào portal sẽ phải bật lại.')) {
                     return;
                 }
                 disableBtn.disabled = true;

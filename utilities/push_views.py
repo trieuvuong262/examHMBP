@@ -1,4 +1,4 @@
-"""API đăng ký / huỷ web push đặt cơm."""
+"""API đăng ký / huỷ web push portal (đặt cơm + thông báo)."""
 
 import json
 
@@ -6,10 +6,8 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET, require_http_methods
 
-from hrm.menu_permissions import user_can_create_menu
-from hrm.module_permissions import MODULE_UTILITIES
-from reports.report_profile import is_production_report_user
 from utilities.models import MealPushSubscription
+from utilities.portal_push_eligibility import user_portal_push_eligible
 from utilities.push_service import webpush_configured
 
 
@@ -22,8 +20,8 @@ def _json_error(message: str, *, status: int = 400):
 def vapid_public_key(request):
     if not webpush_configured():
         return _json_error('Web push chưa được cấu hình trên server.', status=503)
-    if not _user_can_subscribe_meal_push(request.user):
-        return _json_error('Tài khoản không đủ điều kiện nhận nhắc đặt cơm.', status=403)
+    if not user_portal_push_eligible(request.user):
+        return _json_error('Tài khoản không đủ điều kiện nhận thông báo đẩy.', status=403)
     from django.conf import settings
 
     return JsonResponse({
@@ -37,8 +35,8 @@ def vapid_public_key(request):
 def push_subscribe(request):
     if not webpush_configured():
         return _json_error('Web push chưa được cấu hình trên server.', status=503)
-    if not _user_can_subscribe_meal_push(request.user):
-        return _json_error('Tài khoản không đủ điều kiện nhận nhắc đặt cơm.', status=403)
+    if not user_portal_push_eligible(request.user):
+        return _json_error('Tài khoản không đủ điều kiện nhận thông báo đẩy.', status=403)
 
     try:
         body = json.loads(request.body.decode('utf-8') or '{}')
@@ -90,8 +88,8 @@ def push_unsubscribe(request):
 def push_status(request):
     if not webpush_configured():
         return _json_error('Web push chưa được cấu hình trên server.', status=503)
-    if not _user_can_subscribe_meal_push(request.user):
-        return _json_error('Tài khoản không đủ điều kiện nhận nhắc đặt cơm.', status=403)
+    if not user_portal_push_eligible(request.user):
+        return _json_error('Tài khoản không đủ điều kiện nhận thông báo đẩy.', status=403)
 
     count = MealPushSubscription.objects.filter(user=request.user).count()
     return JsonResponse({
@@ -106,8 +104,8 @@ def push_status(request):
 def push_test(request):
     if not webpush_configured():
         return _json_error('Web push chưa được cấu hình trên server.', status=503)
-    if not _user_can_subscribe_meal_push(request.user):
-        return _json_error('Tài khoản không đủ điều kiện nhận nhắc đặt cơm.', status=403)
+    if not user_portal_push_eligible(request.user):
+        return _json_error('Tài khoản không đủ điều kiện nhận thông báo đẩy.', status=403)
 
     from utilities.push_service import send_test_meal_push
 
@@ -117,16 +115,10 @@ def push_test(request):
     if stats.get('sent', 0) < 1:
         remaining = MealPushSubscription.objects.filter(user=request.user).count()
         if remaining == 0 and stats.get('failed', 0) > 0:
-            return _json_error('Đăng ký cũ đã hết hạn. Bấm «Bật nhắc đẩy» lại trên trình duyệt này.')
+            return _json_error('Đăng ký cũ đã hết hạn. Bấm «Cho phép nhận nhắc» lại trên trình duyệt này.')
         return _json_error('Không gửi được thông báo thử. Thử bật lại nhắc đẩy.')
     return JsonResponse({
         'ok': True,
         'message': 'Đã gửi thông báo thử — kiểm tra góc màn hình.',
         'sent': stats['sent'],
     })
-
-
-def _user_can_subscribe_meal_push(user) -> bool:
-    if not user_can_create_menu(user, MODULE_UTILITIES, 'meal_ordering'):
-        return False
-    return is_production_report_user(user)

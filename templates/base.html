@@ -49,7 +49,7 @@
         integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'css/justplay-theme.css' %}?v=20260618b">
+    <link rel="stylesheet" href="{% static 'css/justplay-theme.css' %}?v=20260618c">
     {% block extra_head %}{% endblock %}
     <script src="{% static 'js/client-device.js' %}"></script>
 </head>
@@ -133,6 +133,20 @@
     </div>
 </div>
 
+{% if jp_webpush_public_key and jp_portal_push_eligible %}
+<div id="jpMealPushGate" class="jp-meal-push-gate" hidden aria-modal="true" role="dialog" aria-labelledby="jpMealPushGateTitle">
+    <div class="jp-meal-push-gate-backdrop"></div>
+    <div class="jp-meal-push-gate-card">
+        <div class="jp-meal-push-gate-icon" aria-hidden="true"><i class="bi bi-bell-fill"></i></div>
+        <h2 class="jp-meal-push-gate-title" id="jpMealPushGateTitle">Bật thông báo portal</h2>
+        <p class="jp-meal-push-gate-lead mb-2">Portal yêu cầu <strong>cho phép thông báo</strong> để nhận <strong>thông báo công ty mới</strong>{% if jp_meal_push_eligible %} và nhắc <strong>đặt cơm lúc 16:00</strong>{% endif %}.</p>
+        <p class="jp-meal-push-gate-note small text-muted mb-3">Chọn <strong>Cho phép</strong> khi trình duyệt hỏi — bước bắt buộc trước khi dùng portal.</p>
+        <button type="button" class="btn btn-hm btn-lg w-100 fw-bold" id="jpMealPushEnable">Cho phép nhận thông báo</button>
+        <p id="jpMealPushGateError" class="jp-meal-push-gate-error small text-danger mb-0 mt-3" hidden></p>
+    </div>
+</div>
+{% endif %}
+
 <div class="offcanvas offcanvas-start jp-sidebar-drawer d-lg-none" tabindex="-1" id="mobileSidebar">
     <div class="offcanvas-header border-bottom">
         <h5 class="offcanvas-title fw-bold text-hm">Menu</h5>
@@ -175,17 +189,24 @@
 {% if user.is_authenticated and not jp_force_password_change %}<script src="{% static 'js/sidebar.js' %}"></script>{% endif %}
 {% if user.is_authenticated and not jp_force_password_change %}<script src="{% static 'js/mobile.js' %}"></script>{% endif %}
 {% if user.is_authenticated and not jp_force_password_change %}<script src="{% static 'js/user-picker.js' %}"></script>{% endif %}
-{% if user.is_authenticated and jp_webpush_public_key and jp_meal_push_eligible %}
+{% if user.is_authenticated and jp_webpush_public_key and jp_portal_push_eligible %}
 <script>
-window.JP_MEAL_PUSH = {
+window.JP_PORTAL_PUSH = {
     publicKey: "{{ jp_webpush_public_key|escapejs }}",
     subscribeUrl: "{% url 'utilities:push_subscribe' %}",
     unsubscribeUrl: "{% url 'utilities:push_unsubscribe' %}",
     statusUrl: "{% url 'utilities:push_status' %}",
-    testUrl: "{% url 'utilities:push_test' %}"
+    testUrl: "{% url 'utilities:push_test' %}",
+    {% if jp_can_announcements %}
+    announcementPollUrl: "{% url 'announcements:push_poll' %}",
+    {% endif %}
 };
+window.JP_MEAL_PUSH = window.JP_PORTAL_PUSH;
 </script>
-<script src="{% static 'js/portal-push-meal.js' %}?v=20260618d"></script>
+<script src="{% static 'js/portal-push-meal.js' %}?v=20260618f"></script>
+{% if jp_can_announcements %}
+<script src="{% static 'js/portal-push-announcements.js' %}?v=20260618f"></script>
+{% endif %}
 {% endif %}
 {% block scripts %}{% endblock %}
 </body>
