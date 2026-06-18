@@ -1,9 +1,9 @@
 import os
 from urllib.parse import urlencode
 
-from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -37,6 +37,12 @@ from nas_storage.share_access import (
     get_share_token_from_request,
     is_path_under_share,
     resolve_path_for_request,
+)
+from nas_storage.file_preview import (
+    PREVIEWABLE_EXTENSIONS,
+    inline_office_pdf_response,
+    inline_pdf_response,
+    share_preview_context,
 )
 
 
@@ -180,7 +186,7 @@ def open_share(request, token):
 
     share = get_active_share(str(token))
     if not share:
-        messages.error(request, 'Liên kết chia sẻ không tồn tại hoặc đã hết hạn.')
+        messages.error(request, 'Liên kết chia sẻ không tồn tại hoặc đã bị vô hiệu.')
         return redirect('nas_storage:browse')
 
     share_token = str(share.token)
@@ -194,11 +200,13 @@ def open_share(request, token):
         return redirect(_browse_url(share.rel_path, share_token=share_token))
 
     if path.is_file():
+        file_preview = share_preview_context(share.item_name, share.rel_path, share_token=share_token)
         return render(request, 'nas_storage/share_open.html', {
             'share': share,
             'share_token': share_token,
             'file_name': share.item_name,
             'file_size': path.stat().st_size,
+            'file_preview': file_preview,
             'download_url': (
                 reverse('nas_storage:download')
                 + '?'
@@ -237,14 +245,52 @@ def create_share(request):
     share_url = request.build_absolute_uri(
         reverse('nas_storage:share_open', args=[share.token])
     )
-    expires_label = share.expires_at.astimezone().strftime('%d/%m/%Y %H:%M')
     return JsonResponse({
         'url': share_url,
         'token': str(share.token),
-        'expires_at': expires_label,
         'item_name': share.item_name,
         'is_dir': share.is_dir,
     })
+
+
+@login_required
+def preview_file(request):
+    if not user_can_access_module(request.user, MODULE_NAS_STORAGE):
+        messages.error(request, 'Bạn cần quyền Thư mục NAS trên Portal để xem trước file.')
+        return redirect('home_portal')
+
+    rel_path = _rel_from_request(request)
+    share, share_token = _share_from_request(request)
+    if not rel_path:
+        raise Http404
+
+    if share and not is_path_under_share(rel_path, share.rel_path):
+        raise Http404
+
+    try:
+        path = resolve_path_for_request(request.user, rel_path, share=share)
+    except NasPathError as exc:
+        messages.error(request, str(exc))
+        if share:
+            return redirect('nas_storage:share_open', token=share.token)
+        return redirect('nas_storage:browse')
+
+    if not path.is_file():
+        raise Http404
+
+    ext = path.suffix.lower()
+    if ext not in PREVIEWABLE_EXTENSIONS:
+        raise Http404
+
+    try:
+        if ext == '.pdf':
+            return inline_pdf_response(path)
+        return inline_office_pdf_response(path, display_name=path.name)
+    except ValidationError as exc:
+        messages.error(request, str(exc))
+        if share:
+            return redirect('nas_storage:share_open', token=share.token)
+        return redirect(_browse_url(rel_path, share_token=share_token))
 
 
 @_access_required

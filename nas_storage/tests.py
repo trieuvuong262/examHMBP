@@ -268,12 +268,21 @@ class NasRcloneListingTests(TestCase):
 
 class NasShareTests(TestCase):
     def setUp(self):
-        self.dept_a = Department.objects.create(name='IT', sort_order=1)
-        self.dept_b = Department.objects.create(name='HÀNH CHÍNH NHÂN SỰ', sort_order=2)
+        self.dept_a, _ = Department.objects.get_or_create(name='IT', defaults={'sort_order': 1})
+        self.dept_b, _ = Department.objects.get_or_create(
+            name='HÀNH CHÍNH NHÂN SỰ',
+            defaults={'sort_order': 2},
+        )
         self.owner = User.objects.create_user(username='ownerIT', password='test')
         self.recipient = User.objects.create_user(username='hcnsUser', password='test')
-        Profile.objects.create(user=self.owner, full_name='Owner', department=self.dept_a)
-        Profile.objects.create(user=self.recipient, full_name='Recipient', department=self.dept_b)
+        Profile.objects.update_or_create(
+            user=self.owner,
+            defaults={'full_name': 'Owner', 'department': self.dept_a},
+        )
+        Profile.objects.update_or_create(
+            user=self.recipient,
+            defaults={'full_name': 'Recipient', 'department': self.dept_b},
+        )
 
     @override_settings(NAS_MOUNT_ROOT='/tmp/nas-share-test')
     def test_create_share_returns_link(self):
@@ -295,24 +304,79 @@ class NasShareTests(TestCase):
     def test_recipient_can_open_shared_file(self):
         import os
         os.makedirs('/tmp/nas-share-test/IT/ownerIT', exist_ok=True)
-        open('/tmp/nas-share-test/IT/ownerIT/report.pdf', 'wb').write(b'data')
+        open('/tmp/nas-share-test/IT/ownerIT/report.pdf', 'wb').write(b'%PDF-1.4 test')
         share = NasShareLink.objects.create(
             created_by=self.owner,
             rel_path='IT/ownerIT/report.pdf',
             item_name='report.pdf',
             is_dir=False,
-            expires_at=NasShareLink.default_expiry(),
+            expires_at=None,
         )
         self.client.login(username='hcnsUser', password='test')
         response = self.client.get(reverse('nas_storage:share_open', args=[share.token]))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'report.pdf')
+        self.assertContains(response, 'jp-weekly-embed-wrap')
+        self.assertContains(response, reverse('nas_storage:preview'))
+        self.assertNotContains(response, 'hết hạn')
+        self.assertNotContains(response, 'chia sẻ bởi')
+
+    @override_settings(NAS_MOUNT_ROOT='/tmp/nas-share-test')
+    def test_share_pdf_preview_endpoint(self):
+        import os
+        os.makedirs('/tmp/nas-share-test/IT/ownerIT', exist_ok=True)
+        open('/tmp/nas-share-test/IT/ownerIT/report.pdf', 'wb').write(b'%PDF-1.4 test')
+        share = NasShareLink.objects.create(
+            created_by=self.owner,
+            rel_path='IT/ownerIT/report.pdf',
+            item_name='report.pdf',
+            is_dir=False,
+            expires_at=None,
+        )
+        self.client.login(username='hcnsUser', password='test')
+        response = self.client.get(
+            reverse('nas_storage:preview'),
+            {'path': share.rel_path, 'share': str(share.token)},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+        self.assertIn(b'%PDF', b''.join(response.streaming_content))
+
+    @override_settings(NAS_MOUNT_ROOT='/tmp/nas-share-test')
+    @patch('nas_storage.file_preview.office_preview_available', return_value=True)
+    @patch('nas_storage.views.inline_office_pdf_response')
+    def test_share_docx_shows_preview_if_office_ready(self, mock_office_preview, _mock_lo):
+        import os
+        from django.http import HttpResponse
+
+        os.makedirs('/tmp/nas-share-test/IT/ownerIT', exist_ok=True)
+        open('/tmp/nas-share-test/IT/ownerIT/bao-cao.docx', 'wb').write(b'docx')
+        share = NasShareLink.objects.create(
+            created_by=self.owner,
+            rel_path='IT/ownerIT/bao-cao.docx',
+            item_name='bao-cao.docx',
+            is_dir=False,
+            expires_at=None,
+        )
+        mock_office_preview.return_value = HttpResponse(b'%PDF-mock', content_type='application/pdf')
+        self.client.login(username='hcnsUser', password='test')
+        response = self.client.get(reverse('nas_storage:share_open', args=[share.token]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'bao-cao.docx')
+        self.assertContains(response, 'jp-weekly-embed-wrap')
+
+        preview_resp = self.client.get(
+            reverse('nas_storage:preview'),
+            {'path': share.rel_path, 'share': str(share.token)},
+        )
+        self.assertEqual(preview_resp.status_code, 200)
+        mock_office_preview.assert_called_once()
 
     def test_is_path_under_share(self):
         self.assertTrue(is_path_under_share('IT/ownerIT/docs', 'IT/ownerIT'))
         self.assertFalse(is_path_under_share('IT/other/file', 'IT/ownerIT'))
 
-    def test_expired_share_is_invalid(self):
+    def test_expired_share_still_valid_without_expiry(self):
         from django.utils import timezone
         from datetime import timedelta
         share = NasShareLink.objects.create(
@@ -320,9 +384,23 @@ class NasShareTests(TestCase):
             rel_path='IT/ownerIT/a.txt',
             item_name='a.txt',
             is_dir=False,
+            expires_at=None,
+        )
+        self.assertIsNotNone(get_active_share(str(share.token)))
+
+    def test_legacy_expired_date_ignored_after_clearing_expiry(self):
+        from django.utils import timezone
+        from datetime import timedelta
+        share = NasShareLink.objects.create(
+            created_by=self.owner,
+            rel_path='IT/ownerIT/old.txt',
+            item_name='old.txt',
+            is_dir=False,
             expires_at=timezone.now() - timedelta(days=1),
         )
-        self.assertIsNone(get_active_share(str(share.token)))
+        share.expires_at = None
+        share.save(update_fields=['expires_at'])
+        self.assertIsNotNone(get_active_share(str(share.token)))
 
     def test_share_open_requires_login(self):
         share = NasShareLink.objects.create(
@@ -330,7 +408,7 @@ class NasShareTests(TestCase):
             rel_path='IT/ownerIT/a.txt',
             item_name='a.txt',
             is_dir=False,
-            expires_at=NasShareLink.default_expiry(),
+            expires_at=None,
         )
         response = self.client.get(reverse('nas_storage:share_open', args=[share.token]))
         self.assertEqual(response.status_code, 302)

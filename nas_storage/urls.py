@@ -8,6 +8,7 @@ urlpatterns = [
     path('', views.browse, name='browse'),
     path('chia-se/tao/', views.create_share, name='share_create'),
     path('chia-se/<uuid:token>/', views.open_share, name='share_open'),
+    path('xem-truoc/', views.preview_file, name='preview'),
     path('tai-xuong/', views.download, name='download'),
     path('xoa/', views.delete_entry, name='delete'),
 ]

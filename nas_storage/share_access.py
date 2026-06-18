@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from django.utils import timezone
-
 from nas_storage.models import NasShareLink
 from nas_storage.nas_paths import NasPathError, normalize_rel_path, nas_mount_root
 
@@ -63,12 +61,10 @@ def resolve_path_for_request(user, rel_path: str, share: NasShareLink | None = N
 
 def get_or_create_share(user, rel_path: str, *, item_name: str, is_dir: bool) -> NasShareLink:
     rel = normalize_rel_path(rel_path)
-    now = timezone.now()
     existing = NasShareLink.objects.filter(
         created_by=user,
         rel_path=rel,
         is_active=True,
-        expires_at__gt=now,
     ).first()
     if existing:
         return existing
@@ -78,5 +74,5 @@ def get_or_create_share(user, rel_path: str, *, item_name: str, is_dir: bool) ->
         rel_path=rel,
         item_name=item_name,
         is_dir=is_dir,
-        expires_at=NasShareLink.default_expiry(),
+        expires_at=None,
     )

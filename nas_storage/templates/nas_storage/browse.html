@@ -115,7 +115,7 @@
             <div class="modal-content border-0 shadow">
                 <div class="modal-header border-0 pb-0">
                     <h5 class="modal-title fw-bold" id="jp-nas-share-modal-label">
-                        <i class="bi bi-share text-hm me-2"></i>Chia sẻ NAS
+                        <i class="bi bi-share text-hm me-2"></i>Chia sẻ
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
                 </div>
@@ -127,11 +127,6 @@
                             <i class="bi bi-clipboard me-1"></i>Sao chép
                         </button>
                     </div>
-                    <p class="text-muted small mt-3 mb-0">
-                        <i class="bi bi-shield-lock me-1"></i>
-                        Người nhận phải <strong>đăng nhập tài khoản Portal</strong> và có quyền Thư mục NAS.
-                        Hết hạn: <span id="jp-nas-share-expires"></span>
-                    </p>
                 </div>
             </div>
         </div>
@@ -152,7 +147,6 @@
     var shareUrlInput = document.getElementById('jp-nas-share-url');
     var shareCopyBtn = document.getElementById('jp-nas-share-copy');
     var shareItemName = document.getElementById('jp-nas-share-item-name');
-    var shareExpires = document.getElementById('jp-nas-share-expires');
     var csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
     function bindShareButtons(container) {
@@ -192,7 +186,6 @@
             .then(function (data) {
                 if (shareItemName) shareItemName.textContent = data.item_name || name;
                 if (shareUrlInput) shareUrlInput.value = data.url;
-                if (shareExpires) shareExpires.textContent = data.expires_at;
                 shareModal.show();
             })
             .catch(function () {

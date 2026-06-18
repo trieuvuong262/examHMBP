@@ -405,7 +405,6 @@ NAS_LISTING_CACHE_SECONDS = int(os.getenv('NAS_LISTING_CACHE_SECONDS', '120'))
 NAS_RCLONE_FAST_LIST = env_bool('NAS_RCLONE_FAST_LIST', True)
 NAS_AUTO_SYNC_INTERVAL = int(os.getenv('NAS_AUTO_SYNC_INTERVAL', '60'))
 NAS_BACKGROUND_SYNC_DEFAULT = env_bool('NAS_BACKGROUND_SYNC_DEFAULT', False)
-NAS_SHARE_EXPIRE_DAYS = int(os.getenv('NAS_SHARE_EXPIRE_DAYS', '30'))
 # Backup Portal → NAS (database + source + media)
 # Mặc định: share/thư mục gốc ``backup`` trên NAS — synology:backup
 NAS_BACKUP_RCLONE_REMOTE = os.getenv('NAS_BACKUP_RCLONE_REMOTE', 'synology:backup').strip()

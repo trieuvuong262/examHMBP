@@ -246,6 +246,34 @@ def convert_office_to_pdf(uploaded_file) -> tuple[bytes, str]:
         return data, output_name
 
 
+def convert_office_path_to_pdf(file_path: str | os.PathLike) -> tuple[bytes, str]:
+    """Chuyển file Word / Excel trên đĩa sang PDF (xem trước NAS, v.v.)."""
+    path = os.path.abspath(str(file_path))
+    if not os.path.isfile(path):
+        raise ValidationError('File không tồn tại.')
+    if os.path.getsize(path) > OFFICE_MAX_BYTES:
+        raise ValidationError('File tối đa 15 MB.')
+    ext = os.path.splitext(path)[1].lower()
+    if ext not in OFFICE_TO_PDF_EXTENSIONS:
+        raise ValidationError('Định dạng không hỗ trợ xem trước Word/Excel.')
+    base_name = os.path.splitext(os.path.basename(path))[0]
+    output_name = f'{base_name}.pdf'
+
+    with tempfile.TemporaryDirectory() as tmp:
+        input_path = os.path.join(tmp, f'input{ext}')
+        shutil.copyfile(path, input_path)
+        pdf_path = _run_libreoffice_convert(input_path, tmp)
+        with open(pdf_path, 'rb') as handle:
+            data = handle.read()
+        if not data.startswith(b'%PDF'):
+            raise ValidationError('File kết quả không phải PDF hợp lệ.')
+        return data, output_name
+
+
+def office_preview_available() -> bool:
+    return _libreoffice_binary() is not None
+
+
 def _load_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     for path in _FONT_CANDIDATES:
         if os.path.isfile(path):

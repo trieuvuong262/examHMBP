@@ -18,13 +18,13 @@
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-body p-3">
             <form method="get" id="filterForm">
-                <div class="row g-2 align-items-end">
-                    <div class="col-lg-4 col-md-5">
+                <div class="row g-2 align-items-end jp-eq-filter-row{% if is_production_scope %} jp-eq-filter-row-prod{% endif %}">
+                    <div class="jp-eq-filter-search {% if is_production_scope %}col-lg-2 col-md-2{% else %}col-lg-4 col-md-5{% endif %}">
                         <label class="form-label small text-muted mb-1">Tìm kiếm</label>
                         <input type="search" name="q" value="{{ q }}" class="form-control form-control-sm"
                                placeholder="{{ scope_list_search_placeholder }}">
                     </div>
-                    <div class="col-lg-3 col-md-4">
+                    <div class="{% if is_production_scope %}col-lg-3 col-md-3{% else %}col-lg-3 col-md-4{% endif %}">
                         <label class="form-label small text-muted mb-1">Loại thiết bị</label>
                         <div class="dropdown jp-eq-category-filter w-100">
                             <button type="button"
@@ -69,7 +69,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-lg-2 col-md-3">
+                    <div class="col-lg-2 col-md-2">
                         <label class="form-label small text-muted mb-1">Trạng thái</label>
                         <select name="status" class="form-select form-select-sm">
                             <option value="">Tất cả</option>
@@ -79,7 +79,7 @@
                         </select>
                     </div>
                     {% if is_production_scope %}
-                    <div class="col-lg-2 col-md-3">
+                    <div class="col-lg-2 col-md-2">
                         <label class="form-label small text-muted mb-1">Vị trí máy</label>
                         <select name="usage_room" class="form-select form-select-sm">
                             <option value="">Tất cả</option>
@@ -91,7 +91,7 @@
                         </select>
                     </div>
                     {% endif %}
-                    <div class="col-lg-2 col-md-3">
+                    <div class="col-lg-2 col-md-2">
                         <label class="form-label small text-muted mb-1">Phòng ban</label>
                         <select name="usage_department" class="form-select form-select-sm">
                             <option value="">Tất cả</option>
@@ -102,11 +102,11 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-lg-1 col-md-2">
+                    <div class="col-lg-1 col-md-1">
                         <button type="submit" class="btn btn-hm btn-sm w-100">Lọc</button>
                     </div>
                 </div>
-                <div class="mt-2 text-end">
+                <div class="mt-2 d-flex justify-content-end">
                     <a href="{{ equipment_urls.device_list }}" class="btn btn-link btn-sm text-muted p-0">Xóa bộ lọc</a>
                 </div>
             </form>

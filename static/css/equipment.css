@@ -1,5 +1,19 @@
 /* Quản lý thiết bị — danh sách & lọc */
 
+@media (min-width: 768px) {
+    .jp-eq-filter-row-prod {
+        flex-wrap: nowrap;
+    }
+
+    .jp-eq-filter-row-prod > [class*="col-"] {
+        min-width: 0;
+    }
+
+    .jp-eq-filter-row-prod .jp-eq-filter-search .form-control {
+        min-width: 0;
+    }
+}
+
 .jp-eq-list-actions {
     border-left: 3px solid var(--hm-primary, #dc2626);
 }

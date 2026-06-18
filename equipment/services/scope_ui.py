@@ -66,7 +66,7 @@ def scope_ui_context(scope: str | None) -> dict:
         'scope_page_intro': (
             'Máy may, thiết bị xưởng — theo dõi chuyền, bàn giao, số lượng và chi phí bảo trì.'
         ),
-        'scope_list_search_placeholder': 'Mã TB, tên, serial, model, chuyền, phòng ban…',
+        'scope_list_search_placeholder': 'Mã TB, tên…',
         'scope_list_col_specs': 'Model / Serial',
         'scope_list_col_usage': 'Chuyền / phòng ban',
         'scope_add_title': 'Thêm thiết bị sản xuất',

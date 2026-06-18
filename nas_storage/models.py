@@ -1,7 +1,5 @@
 import uuid
-from datetime import timedelta
 
-from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
@@ -17,7 +15,7 @@ class NasShareLink(models.Model):
     rel_path = models.CharField(max_length=500)
     item_name = models.CharField(max_length=255)
     is_dir = models.BooleanField(default=False)
-    expires_at = models.DateTimeField()
+    expires_at = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -32,16 +30,19 @@ class NasShareLink(models.Model):
 
     @classmethod
     def default_expiry(cls):
-        days = int(getattr(settings, 'NAS_SHARE_EXPIRE_DAYS', 30))
-        return timezone.now() + timedelta(days=days)
+        return None
 
     def is_expired(self) -> bool:
+        if self.expires_at is None:
+            return False
         return self.expires_at <= timezone.now()
 
     def is_valid(self) -> bool:
         return self.is_active and not self.is_expired()
 
     def deactivate_if_expired(self) -> bool:
+        if self.expires_at is None:
+            return False
         if self.is_active and self.is_expired():
             self.is_active = False
             self.save(update_fields=['is_active'])
