@@ -10436,6 +10436,39 @@ body.jp-meal-push-locked {
     color: #cbd5e1;
 }
 
+.jp-meal-push-block-guide {
+    text-align: left;
+    padding: 0.75rem 0.85rem;
+    border-radius: var(--jp-btn-radius);
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+[data-theme="dark"] .jp-meal-push-block-guide {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(248, 113, 113, 0.3);
+}
+
+.jp-meal-push-block-guide ol {
+    margin-bottom: 0;
+}
+
+.jp-meal-push-chrome-hint {
+    padding: 0.55rem 0.75rem;
+    border-radius: var(--jp-btn-radius);
+    background: rgba(37, 99, 235, 0.1);
+    border: 1px solid rgba(37, 99, 235, 0.22);
+    color: #1e40af;
+    text-align: left;
+    line-height: 1.45;
+}
+
+[data-theme="dark"] .jp-meal-push-chrome-hint {
+    background: rgba(59, 130, 246, 0.14);
+    border-color: rgba(96, 165, 250, 0.28);
+    color: #bfdbfe;
+}
+
 .jp-push-admin-panel {
     background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
 }

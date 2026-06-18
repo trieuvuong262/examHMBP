@@ -75,12 +75,50 @@
         width: '100%',
         height: 580,
         language: 'vi',
-        extraPlugins: 'uploadimage,image2,tableresize,tabletools,tableselection,liststyle,pastefromword,copyformatting,stylescombo,autogrow',
+        extraPlugins: 'widget,uploadwidget,uploadimage,image2,tableresize,tabletools,tableselection,liststyle,pastefromword,copyformatting,stylescombo,autogrow',
         removePlugins: 'exportpdf,image',
+        image2_disableResizer: false,
+        image2_prefillDimensions: true,
         allowedContent: true,
         forcePasteAsPlainText: false,
-        contentsCss: ['/static/css/reports-office-contents.css'],
+        contentsCss: ['/static/css/reports-office-contents.css?v=20260628b'],
     };
+
+    function initImageWidgets(editor) {
+        if (!editor || !editor.widgets) {
+            return;
+        }
+        try {
+            editor.widgets.checkWidgets({ initOnlyNew: true });
+        } catch (err) {
+            console.warn('JP image widgets:', err);
+        }
+    }
+
+    function bindImageWidgetHooks(editor) {
+        if (!editor || editor._.jpImageWidgetsBound) {
+            return;
+        }
+        editor._.jpImageWidgetsBound = true;
+
+        editor.on('change', function () {
+            window.setTimeout(function () {
+                initImageWidgets(editor);
+            }, 0);
+        });
+
+        editor.on('fileUploadResponse', function () {
+            window.setTimeout(function () {
+                initImageWidgets(editor);
+            }, 30);
+        });
+
+        editor.on('afterPaste', function () {
+            window.setTimeout(function () {
+                initImageWidgets(editor);
+            }, 30);
+        });
+    }
 
     function applyWordPageLayout(editor) {
         if (!editor || !editor.editable) return;
@@ -157,7 +195,10 @@
         }
 
         if (CKEDITOR.instances[fieldId]) {
-            resizeEditor(CKEDITOR.instances[fieldId]);
+            const existing = CKEDITOR.instances[fieldId];
+            resizeEditor(existing);
+            bindImageWidgetHooks(existing);
+            initImageWidgets(existing);
             window.JP_WORD_EDITOR_READY = true;
             return;
         }
@@ -171,13 +212,16 @@
 
         editor.on('contentDom', function () {
             applyWordPageLayout(editor);
+            initImageWidgets(editor);
         });
 
         editor.on('instanceReady', function () {
             studio.classList.remove('is-loading');
             studio.classList.add('is-ready');
             window.JP_WORD_EDITOR_READY = true;
+            bindImageWidgetHooks(editor);
             resizeEditor(editor);
+            initImageWidgets(editor);
         });
     }
 

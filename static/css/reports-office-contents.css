@@ -19,3 +19,30 @@ body.cke_editable table th {
     border: 1px solid #bfbfbf;
     padding: 4px 6px;
 }
+
+/* image2 — chọn ảnh, kéo góc phóng to / thu nhỏ */
+body.cke_editable .cke_widget_wrapper {
+    overflow: visible;
+}
+
+body.cke_editable .cke_image_resizer_wrapper {
+    line-height: 0;
+}
+
+body.cke_editable .cke_widget_wrapper:hover .cke_image_resizer,
+body.cke_editable .cke_image_resizer.cke_image_resizing {
+    display: block !important;
+}
+
+body.cke_editable .cke_image_resizer {
+    width: 12px;
+    height: 12px;
+    background: #dc2626;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+
+body.cke_editable img:not([width]) {
+    max-width: 100%;
+    height: auto;
+}

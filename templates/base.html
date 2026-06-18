@@ -140,10 +140,34 @@
         <div class="jp-meal-push-gate-icon" aria-hidden="true"><i class="bi bi-bell-fill"></i></div>
         <h2 class="jp-meal-push-gate-title" id="jpMealPushGateTitle">Bật thông báo portal</h2>
         <p class="jp-meal-push-gate-lead mb-2">Portal yêu cầu <strong>cho phép thông báo</strong> để nhận <strong>thông báo công ty mới</strong>{% if jp_meal_push_eligible %} và nhắc <strong>đặt cơm lúc 16:00</strong>{% endif %}.</p>
-        <p class="jp-meal-push-gate-note small text-muted mb-3">
-            <strong>Bước 1:</strong> Bấm nút bên dưới → trình duyệt hiện hộp thoại riêng → chọn <strong>Allow</strong>.<br>
-            <strong>Nếu đang Block:</strong> ổ khoá cạnh địa chỉ → <strong>Notifications → Allow</strong> → F5 (nút portal <em>không</em> gỡ Block được).
+        <div id="jpMealPushChromeHint" class="jp-meal-push-chrome-hint small mb-3" hidden>
+            <i class="bi bi-caret-up-fill me-1" aria-hidden="true"></i>
+            Sau khi bấm nút, Chrome hiện hộp thoại <strong>Allow / Block</strong> ngay <strong>trên thanh địa chỉ</strong>.
+        </div>
+        <p class="jp-meal-push-gate-note small text-muted mb-3" id="jpMealPushGateNote">
+            <span data-jp-push-chrome hidden>Bấm nút bên dưới → chọn <strong>Allow</strong> trên hộp thoại Chrome (không chọn Block).</span>
+            <span data-jp-push-generic hidden>Bấm nút bên dưới → chọn <strong>Allow</strong> trên hộp thoại trình duyệt.</span>
         </p>
+        <div id="jpMealPushBlockGuide" class="jp-meal-push-block-guide" hidden>
+            <p class="small fw-semibold text-danger mb-2">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                Đã chọn <strong>Block</strong> — Chrome không hiện lại hộp thoại Allow.
+            </p>
+            <ol class="small text-muted ps-3 mb-0" data-jp-push-chrome hidden>
+                <li class="mb-1">Bấm biểu tượng <strong>điều chỉnh quyền</strong> <i class="bi bi-sliders"></i> hoặc <strong>ổ khoá</strong> bên trái <strong>portal.justplay.vn</strong></li>
+                <li class="mb-1">Chọn <strong>Site settings</strong> (Cài đặt trang)</li>
+                <li class="mb-1"><strong>Notifications</strong> → đổi <strong>Block</strong> thành <strong>Allow</strong></li>
+                <li>Bấm <strong>Kiểm tra lại</strong> — không cần tải lại nếu Chrome đã ghi nhận Allow</li>
+            </ol>
+            <ol class="small text-muted ps-3 mb-0" data-jp-push-generic hidden>
+                <li class="mb-1">Mở cài đặt trang web → <strong>Notifications</strong> → <strong>Allow</strong></li>
+                <li>Bấm <strong>Kiểm tra lại</strong> hoặc tải lại trang</li>
+            </ol>
+            <div class="d-flex flex-column gap-2 mt-3">
+                <button type="button" class="btn btn-hm w-100 fw-bold" id="jpMealPushRecheck">Kiểm tra lại</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="jpMealPushReload">Tải lại trang</button>
+            </div>
+        </div>
         <button type="button" class="btn btn-hm btn-lg w-100 fw-bold" id="jpMealPushEnable">Cho phép nhận thông báo</button>
         <p id="jpMealPushGateError" class="jp-meal-push-gate-error small text-danger mb-0 mt-3" hidden></p>
     </div>
@@ -211,7 +235,7 @@ window.JP_PORTAL_PUSH = {
 };
 window.JP_MEAL_PUSH = window.JP_PORTAL_PUSH;
 </script>
-<script src="{% static 'js/portal-push-meal.js' %}?v=20260628c"></script>
+<script src="{% static 'js/portal-push-meal.js' %}?v=20260628e"></script>
 {% if jp_can_announcements %}
 <script src="{% static 'js/portal-push-announcements.js' %}?v=20260628a"></script>
 {% endif %}

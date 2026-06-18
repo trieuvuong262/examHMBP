@@ -876,9 +876,25 @@
 }
 
 /* Trình soạn Word — CKEditor 4 ribbon + trang A4 */
+.jp-vanban-viewport {
+    max-height: 56vh;
+    overflow: auto;
+    overscroll-behavior: contain;
+    background: #f0f2f5;
+    -webkit-overflow-scrolling: touch;
+}
+
 .jp-vanban-panel {
-    padding: 0;
-    background: #fff;
+    padding: 1rem;
+    background: transparent;
+}
+
+.jp-vanban-viewport .jp-word-studio {
+    min-height: 420px;
+}
+
+.jp-vanban-viewport .jp-word-studio .cke_inner {
+    min-height: 420px;
 }
 
 .jp-word-studio {
@@ -959,6 +975,7 @@
     min-height: 580px !important;
     height: auto !important;
     flex: 1;
+    overflow: visible !important;
 }
 
 .jp-word-studio .cke_wysiwyg_div,
@@ -966,6 +983,7 @@
 .jp-word-studio iframe.cke_wysiwyg_frame {
     background: #fff !important;
     min-height: 560px !important;
+    overflow: visible !important;
 }
 
 .jp-word-studio .cke_reset_all iframe {
@@ -976,6 +994,10 @@
 .jp-word-desk-readonly {
     background: #fff;
     padding: 1.5rem 1rem 2rem;
+    max-height: 56vh;
+    overflow: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
 }
 
 .jp-word-page-readonly {
@@ -1062,6 +1084,7 @@
 }
 
 [data-theme="dark"] .jp-sheet-viewport,
+[data-theme="dark"] .jp-vanban-viewport,
 [data-theme="dark"] .jp-vanban-panel,
 [data-theme="dark"] .jp-word-desk-readonly {
     background: var(--jp-surface-bg);

@@ -7,6 +7,9 @@
     }
 
     var LS_SUBSCRIBED = 'jp_meal_push_subscribed';
+    var permissionWatchStarted = false;
+    var isChromium = /Chrome|Chromium|Edg\//.test(navigator.userAgent)
+        && !/OPR\/|Opera/.test(navigator.userAgent);
 
     function urlBase64ToUint8Array(base64String) {
         var padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -69,6 +72,12 @@
         document.body.classList.remove('jp-meal-push-locked');
     }
 
+    function prewarmServiceWorker() {
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.catch(function () {});
+        }
+    }
+
     function showMandatoryGate() {
         var gate = getGateEl();
         if (!gate) {
@@ -76,6 +85,8 @@
         }
         gate.hidden = false;
         lockPage();
+        prewarmServiceWorker();
+        applyBrowserGuideCopy();
     }
 
     function hideMandatoryGate() {
@@ -172,11 +183,22 @@
     }
 
     function permissionDeniedMessage() {
+        if (isChromium) {
+            return (
+                'Chrome đang chặn thông báo. Bấm biểu tượng điều chỉnh quyền (hoặc ổ khoá) '
+                + 'bên trái địa chỉ → Notifications → Allow, rồi bấm «Kiểm tra lại».'
+            );
+        }
         return (
-            'Trình duyệt đang chặn thông báo (Notifications = Block). '
-            + 'Bấm biểu tượng ổ khoá/cạnh địa chỉ trang → Notifications → chọn Allow, '
-            + 'sau đó tải lại trang portal.'
+            'Trình duyệt đang chặn thông báo. Mở cài đặt trang web → Notifications → Allow, '
+            + 'sau đó bấm «Kiểm tra lại».'
         );
+    }
+
+    function permissionDismissedMessage() {
+        return isChromium
+            ? 'Bấm Allow trên hộp thoại Chrome (góc trên thanh địa chỉ), không bấm Block.'
+            : 'Bấm Allow trên hộp thoại trình duyệt, không chỉ nút portal.';
     }
 
     function isFullySubscribed(browserSub, serverStatus, permission) {
@@ -189,14 +211,71 @@
         return !!browserSub;
     }
 
-    function requestNotificationPermission() {
-        if (Notification.permission === 'granted') {
-            return Promise.resolve('granted');
+    function applyBrowserGuideCopy() {
+        document.querySelectorAll('[data-jp-push-chrome]').forEach(function (el) {
+            el.hidden = !isChromium;
+        });
+        document.querySelectorAll('[data-jp-push-generic]').forEach(function (el) {
+            el.hidden = isChromium;
+        });
+        var chromeHint = document.getElementById('jpMealPushChromeHint');
+        if (chromeHint) {
+            chromeHint.hidden = Notification.permission !== 'default' || !isChromium;
+        }
+    }
+
+    function showBlockGuide() {
+        var guide = document.getElementById('jpMealPushBlockGuide');
+        var note = document.getElementById('jpMealPushGateNote');
+        var chromeHint = document.getElementById('jpMealPushChromeHint');
+        var enableBtn = document.getElementById('jpMealPushEnable');
+        if (guide) {
+            guide.hidden = false;
+        }
+        if (note) {
+            note.hidden = true;
+        }
+        if (chromeHint) {
+            chromeHint.hidden = true;
+        }
+        if (enableBtn) {
+            enableBtn.hidden = true;
+        }
+        hideGateError();
+        applyBrowserGuideCopy();
+        startPermissionWatch();
+    }
+
+    function hideBlockGuide() {
+        var guide = document.getElementById('jpMealPushBlockGuide');
+        var note = document.getElementById('jpMealPushGateNote');
+        var enableBtn = document.getElementById('jpMealPushEnable');
+        if (guide) {
+            guide.hidden = true;
+        }
+        if (note) {
+            note.hidden = false;
+        }
+        if (enableBtn) {
+            enableBtn.hidden = false;
+        }
+        applyBrowserGuideCopy();
+    }
+
+    function updateGateForPermission() {
+        var enableBtn = document.getElementById('jpMealPushEnable');
+        if (!enableBtn) {
+            return;
         }
         if (Notification.permission === 'denied') {
-            return Promise.reject(new Error(permissionDeniedMessage()));
+            enableBtn.textContent = isChromium ? 'Đã Block — hướng dẫn Chrome' : 'Đã Block — xem hướng dẫn';
+            enableBtn.hidden = false;
+            hideBlockGuide();
+        } else {
+            enableBtn.textContent = 'Cho phép nhận thông báo';
+            hideBlockGuide();
         }
-        return Notification.requestPermission();
+        applyBrowserGuideCopy();
     }
 
     function subscribeAfterPermission(permission) {
@@ -204,7 +283,7 @@
             return Promise.reject(new Error(
                 permission === 'denied'
                     ? permissionDeniedMessage()
-                    : 'Bạn cần chọn Allow trên hộp thoại của trình duyệt (không chỉ nút portal).',
+                    : permissionDismissedMessage(),
             ));
         }
         return navigator.serviceWorker.ready.then(function (registration) {
@@ -228,53 +307,137 @@
         });
     }
 
+    function requestPermissionInClick() {
+        if (Notification.permission === 'granted') {
+            return Promise.resolve('granted');
+        }
+        if (Notification.permission === 'denied') {
+            return Promise.reject(new Error(permissionDeniedMessage()));
+        }
+        return Notification.requestPermission();
+    }
+
     window.jpSubscribeMealPush = function () {
         if (!supportsPush()) {
             return Promise.reject(new Error('Trình duyệt không hỗ trợ thông báo đẩy.'));
         }
         hideGateError();
-        return requestNotificationPermission().then(subscribeAfterPermission);
+        return requestPermissionInClick().then(subscribeAfterPermission);
     };
 
-    function enablePushFromClick() {
+    function onEnableButtonClick() {
         if (!supportsPush()) {
             showGateError('Trình duyệt không hỗ trợ thông báo đẩy.');
-            return Promise.resolve();
-        }
-        hideGateError();
-        if (Notification.permission === 'denied') {
-            showGateError(permissionDeniedMessage());
-            return Promise.resolve();
-        }
-        var permissionResult;
-        try {
-            if (Notification.permission === 'granted') {
-                permissionResult = Promise.resolve('granted');
-            } else {
-                permissionResult = Notification.requestPermission();
-            }
-        } catch (err) {
-            showGateError((err && err.message) || 'Không gọi được quyền thông báo.');
-            return Promise.resolve();
-        }
-        return permissionResult
-            .then(subscribeAfterPermission)
-            .catch(function (err) {
-                showGateError(err.message || 'Không bật được thông báo.');
-            });
-    };
-
-    function updateGateForPermission() {
-        var enableBtn = document.getElementById('jpMealPushEnable');
-        if (!enableBtn) {
             return;
         }
+
+        hideGateError();
+
         if (Notification.permission === 'denied') {
-            enableBtn.textContent = 'Đã Block — mở cài đặt trang';
-            showGateError(permissionDeniedMessage());
-        } else {
-            enableBtn.textContent = 'Cho phép nhận thông báo';
+            showBlockGuide();
+            return;
         }
+
+        hideBlockGuide();
+
+        var enableBtn = document.getElementById('jpMealPushEnable');
+        var permissionPromise;
+
+        try {
+            permissionPromise = requestPermissionInClick();
+        } catch (err) {
+            showGateError((err && err.message) || 'Không gọi được quyền thông báo.');
+            return;
+        }
+
+        if (enableBtn) {
+            enableBtn.disabled = true;
+        }
+
+        permissionPromise
+            .then(function (permission) {
+                if (permission !== 'granted') {
+                    if (permission === 'denied') {
+                        showBlockGuide();
+                    }
+                    throw new Error(
+                        permission === 'denied'
+                            ? permissionDeniedMessage()
+                            : permissionDismissedMessage(),
+                    );
+                }
+                return subscribeAfterPermission(permission);
+            })
+            .catch(function (err) {
+                if (Notification.permission !== 'granted') {
+                    showGateError(err.message || 'Không bật được thông báo.');
+                }
+            })
+            .finally(function () {
+                if (enableBtn) {
+                    enableBtn.disabled = false;
+                }
+                updateGateForPermission();
+            });
+    }
+
+    function startPermissionWatch() {
+        if (permissionWatchStarted || !navigator.permissions || !navigator.permissions.query) {
+            return;
+        }
+        permissionWatchStarted = true;
+        navigator.permissions.query({ name: 'notifications' }).then(function (status) {
+            function onStatusChange() {
+                if (status.state === 'granted') {
+                    hideBlockGuide();
+                    hideGateError();
+                    subscribeAfterPermission('granted').catch(function (err) {
+                        showGateError(err.message || 'Không đăng ký được push.');
+                    });
+                } else if (status.state === 'denied') {
+                    updateGateForPermission();
+                }
+            }
+            if (status.state === 'granted') {
+                onStatusChange();
+            }
+            status.onchange = onStatusChange;
+        }).catch(function () {});
+    }
+
+    function recheckAfterUnblock() {
+        hideGateError();
+        var permission = Notification.permission;
+
+        if (permission === 'granted') {
+            hideBlockGuide();
+            var recheckBtn = document.getElementById('jpMealPushRecheck');
+            if (recheckBtn) {
+                recheckBtn.disabled = true;
+            }
+            return subscribeAfterPermission('granted')
+                .catch(function (err) {
+                    showGateError(err.message || 'Không đăng ký được push.');
+                })
+                .finally(function () {
+                    if (recheckBtn) {
+                        recheckBtn.disabled = false;
+                    }
+                });
+        }
+
+        if (permission === 'default') {
+            hideBlockGuide();
+            onEnableButtonClick();
+            return Promise.resolve();
+        }
+
+        showGateError(
+            isChromium
+                ? 'Chrome vẫn đang Block. Mở điều chỉnh quyền bên trái địa chỉ → Notifications → Allow.'
+                : 'Vẫn đang Block — đổi Notifications sang Allow trong cài đặt trang.',
+        );
+        return Promise.resolve();
     }
 
     function disableMealPush() {
@@ -287,8 +450,12 @@
         }).then(function () {
             lsRemove(LS_SUBSCRIBED);
             hideSuccessBanner();
+            permissionWatchStarted = false;
             showMandatoryGate();
             updateGateForPermission();
+            if (Notification.permission === 'denied') {
+                showBlockGuide();
+            }
         });
     }
 
@@ -336,10 +503,13 @@
             return Promise.resolve();
         }
 
+        applyBrowserGuideCopy();
+
         if (Notification.permission === 'denied') {
             lsRemove(LS_SUBSCRIBED);
             showMandatoryGate();
             updateGateForPermission();
+            showBlockGuide();
             return Promise.resolve();
         }
 
@@ -369,6 +539,7 @@
 
             showMandatoryGate();
             updateGateForPermission();
+            startPermissionWatch();
         }).catch(function () {
             showMandatoryGate();
             updateGateForPermission();
@@ -377,17 +548,27 @@
 
     function bindPushUI() {
         var enableBtn = document.getElementById('jpMealPushEnable');
+        var recheckBtn = document.getElementById('jpMealPushRecheck');
+        var reloadBtn = document.getElementById('jpMealPushReload');
         var testBtn = document.getElementById('jpMealPushTest');
         var annTestBtn = document.getElementById('jpAnnPushTest');
         var disableBtn = document.getElementById('jpMealPushDisable');
 
+        applyBrowserGuideCopy();
+
         if (enableBtn) {
-            enableBtn.addEventListener('click', function () {
-                enableBtn.disabled = true;
-                enablePushFromClick().finally(function () {
-                    enableBtn.disabled = false;
-                    updateGateForPermission();
-                });
+            enableBtn.addEventListener('click', onEnableButtonClick);
+        }
+
+        if (recheckBtn) {
+            recheckBtn.addEventListener('click', function () {
+                recheckAfterUnblock();
+            });
+        }
+
+        if (reloadBtn) {
+            reloadBtn.addEventListener('click', function () {
+                window.location.reload();
             });
         }
 
