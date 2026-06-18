@@ -5734,10 +5734,14 @@ html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
     flex-shrink: 0;
 }
 
-.jp-sidebar-group-toggle-main > span {
+.jp-sidebar-group-toggle-main > span:not(.jp-sidebar-link-icon) {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.jp-sidebar-group-toggle-main .jp-sidebar-link-icon {
+    overflow: visible;
 }
 
 .jp-sidebar-group-chevron {
