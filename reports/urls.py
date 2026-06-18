@@ -15,5 +15,6 @@ urlpatterns = [
     path('team/weekly/', views.team_weekly_reports, name='team_weekly'),
     path('weekly/<int:pk>/', views.weekly_report_detail, name='weekly_detail'),
     path('weekly/file/<int:pk>/', views.weekly_attachment_serve, name='weekly_attachment'),
+    path('<int:pk>/export/', views.report_detail_export, name='detail_export'),
     path('<int:pk>/', views.report_detail, name='detail'),
 ]

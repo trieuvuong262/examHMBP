@@ -480,14 +480,29 @@ def _my_reports_period(request):
     return period
 
 
-@_require_submit_access
+@_reports_access_required
 def my_reports(request):
     search_query = get_search_query(request)
     period = _my_reports_period(request)
+    subject = request.user
+    history_employee_name = ''
+    for_user_id = request.GET.get('for_user')
+    if for_user_id:
+        try:
+            subject = get_report_team_users(request.user).get(pk=int(for_user_id))
+            profile = getattr(subject, 'profile', None)
+            history_employee_name = profile.full_name if profile and profile.full_name else subject.username
+        except (ValueError, TypeError, User.DoesNotExist):
+            messages.error(request, 'Không tìm thấy nhân viên hoặc bạn không có quyền xem lịch sử.')
+            return redirect('reports:hub')
+    elif not can_submit_daily_report(request.user):
+        if can_view_team_reports(request.user):
+            return redirect('reports:team')
+        return redirect('home_portal')
 
     if period == 'weekly':
         reports_qs = meaningful_weekly_reports_qs().filter(
-            employee=request.user,
+            employee=subject,
         ).annotate(
             attachment_count=Count('attachments'),
         ).order_by('-week_start')
@@ -498,7 +513,7 @@ def my_reports(request):
         ))
     else:
         reports_qs = DailyWorkReport.objects.filter(
-            employee=request.user,
+            employee=subject,
         ).annotate(
             line_count=Count('lines'),
             total_qty=Sum('lines__quantity'),
@@ -519,6 +534,8 @@ def my_reports(request):
         'search_query': search_query,
         'can_view_team': can_view_team_reports(request.user),
         'report_period': period,
+        'history_employee_name': history_employee_name,
+        'history_for_user_id': subject.pk if subject.pk != request.user.pk else None,
     })
 
 
@@ -736,6 +753,44 @@ def team_weekly_reports(request):
     return render(request, 'reports/team_weekly.html', ctx)
 
 
+def _report_history_url_for(report, viewer) -> str:
+    if report.employee_id == viewer.id:
+        return reverse('reports:my')
+    return f"{reverse('reports:my')}?for_user={report.employee_id}"
+
+
+def _can_export_report_detail(report, hourly_grid, productivity, office_sheet) -> bool:
+    from reports.excel_export import can_export_daily_report
+    from reports.office_content import spreadsheet_has_content
+
+    if not can_export_daily_report(report):
+        return False
+    if report.is_production_report:
+        has_grid = bool(hourly_grid and hourly_grid.get('rows'))
+        has_productivity = bool(productivity and productivity.get('has_data'))
+        return has_grid or has_productivity
+    return spreadsheet_has_content(office_sheet) or bool((report.document_html or '').strip())
+
+
+@_reports_access_required
+def report_detail_export(request, pk):
+    from reports.excel_export import can_export_daily_report, export_daily_report_xlsx
+
+    report = get_object_or_404(
+        DailyWorkReport.objects.select_related('employee', 'employee__profile').prefetch_related(
+            'production_products__hourly_entries',
+        ),
+        pk=pk,
+    )
+    if not can_view_user_report(request.user, report):
+        messages.error(request, 'Bạn không có quyền xuất báo cáo này.')
+        return redirect('reports:hub')
+    if not can_export_daily_report(report):
+        messages.warning(request, 'Báo cáo chưa có dữ liệu để xuất Excel.')
+        return redirect('reports:detail', pk=pk)
+    return export_daily_report_xlsx(report)
+
+
 @_reports_access_required
 def report_detail(request, pk):
     from reports.production_hourly import (
@@ -825,6 +880,9 @@ def report_detail(request, pk):
         'can_edit_norm': can_edit_norm,
         'can_submit_report': can_submit_daily_report(request.user),
         'can_view_team': can_view_team_reports(request.user),
+        'history_url': _report_history_url_for(report, request.user),
+        'export_url': reverse('reports:detail_export', kwargs={'pk': pk}),
+        'can_export_report': _can_export_report_detail(report, hourly_grid, productivity, office_sheet),
     })
 
 
