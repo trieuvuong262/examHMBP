@@ -9,13 +9,18 @@
 <div class="container jp-page jp-reports-page py-3 py-md-4 mb-5">
     {% include 'reports/includes/reports_intro_header.html' with intro_icon='bi-calendar-week' intro_title='Báo cáo tuần' report_period='weekly' week_start=week_start can_view_team=can_view_team my_url_name=my_url_name team_weekly_url_name=team_weekly_url_name copy_url=copy_url copy_label=copy_label copy_confirm=copy_confirm %}
 
-    {% if report.status == 'SUBMITTED' %}
+    {% if is_locked %}
+    <div class="alert alert-secondary border-0 shadow-sm py-2 mb-3">
+        Cấp trên đã xem báo cáo — không thể chỉnh sửa.
+    </div>
+    {% elif report.status == 'SUBMITTED' %}
     <div class="alert alert-success border-0 shadow-sm py-2 mb-3">
         Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }} — vẫn có thể chỉnh và gửi lại.
     </div>
     {% endif %}
 
-    <form method="post" id="weekly-report-form" enctype="multipart/form-data">
+    <form method="post" id="weekly-report-form" enctype="multipart/form-data"
+          class="{% if not can_edit %}jp-report-locked{% endif %}">
         {% csrf_token %}
 
         <div class="jp-weekly-hero card border-0 shadow-sm mb-3">
@@ -124,10 +129,12 @@
         <div class="alert alert-danger border-0 shadow-sm mb-3">{{ form.non_field_errors }}</div>
         {% endif %}
 
+        {% if can_edit %}
         <div class="jp-office-actions">
             <button type="submit" name="action" value="save" class="btn btn-outline-dark px-4">Lưu nháp</button>
             <button type="submit" name="action" value="submit" class="btn btn-hm px-4 fw-bold">Gửi Báo cáo</button>
         </div>
+        {% endif %}
     </form>
 </div>
 {% endblock %}

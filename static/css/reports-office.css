@@ -1064,6 +1064,16 @@
     padding: 0.35rem 0.5rem;
 }
 
+.jp-word-page-body img,
+.jp-ckeditor-content img {
+    max-width: 100%;
+    height: auto;
+}
+
+.jp-word-page-body figure.image {
+    margin: 0.75rem 0;
+}
+
 .jp-office-actions {
     display: flex;
     flex-wrap: wrap;
@@ -1074,6 +1084,17 @@
     border-radius: 12px;
     box-shadow: 0 -4px 20px rgba(15, 23, 42, 0.06);
     border: 1px solid #eef2f6;
+}
+
+.jp-report-locked .jp-office-workspace,
+.jp-report-locked .jp-weekly-fields,
+.jp-report-locked .jp-office-hero-date .form-control {
+    pointer-events: none;
+    opacity: 0.72;
+}
+
+.jp-report-locked .jp-office-hero-date .form-control {
+    background: #f1f5f9;
 }
 
 @media (min-width: 768px) {

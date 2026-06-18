@@ -118,7 +118,9 @@
                         </td>
                         <td class="text-end">
                             <a href="{% url weekly_detail_url_name r.pk %}" class="btn btn-sm btn-outline-hm">Xem</a>
+                            {% if not r.hod_reviewed %}
                             <a href="{% url weekly_url_name %}?week={{ r.week_start|date:'Y-m-d' }}" class="btn btn-sm btn-outline-dark">Sửa</a>
+                            {% endif %}
                         </td>
                         {% else %}
                         <td>{{ r.report_date|date:"d/m/Y" }}</td>
@@ -156,7 +158,9 @@
                         </td>
                         <td class="text-end">
                             <a href="{% url detail_url_name r.pk %}" class="btn btn-sm btn-outline-hm">Xem</a>
+                            {% if not r.hod_reviewed %}
                             <a href="{% url today_url_name %}?date={{ r.report_date|date:'Y-m-d' }}" class="btn btn-sm btn-outline-dark">Sửa</a>
+                            {% endif %}
                         </td>
                         {% endif %}
                     </tr>

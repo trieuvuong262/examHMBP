@@ -5,7 +5,7 @@
 {% if report.is_production_report and hourly_grid or productivity %}
 <link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260618n">
 {% elif not report.is_production_report %}
-<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260628a">
+<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260528d">
 {% endif %}
 {% endblock %}
 
@@ -187,7 +187,7 @@
         {% if report.document_html %}
         <div class="jp-word-desk-readonly">
             <div class="jp-word-page-readonly">
-                <div class="jp-word-page-body jp-ckeditor-content">{{ report.document_html|safe }}</div>
+                <div class="jp-word-page-body jp-ckeditor-content">{{ document_html_display|safe }}</div>
             </div>
         </div>
         {% else %}

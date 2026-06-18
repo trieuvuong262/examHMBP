@@ -9,15 +9,21 @@
 <div class="container jp-page jp-reports-page py-3 py-md-4 mb-5">
     {% include 'reports/includes/reports_intro_header.html' with intro_icon='bi-calendar-day' intro_title='Báo cáo ngày' %}
 
-    {% if report.status == 'SUBMITTED' %}
+    {% if is_locked %}
+    <div class="alert alert-secondary border-0 shadow-sm py-2 mb-3">
+        Cấp trên đã xem báo cáo — không thể chỉnh sửa.
+    </div>
+    {% elif report.status == 'SUBMITTED' %}
     <div class="alert alert-success border-0 shadow-sm py-2 mb-3">
         Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }} — vẫn có thể chỉnh và gửi lại.
     </div>
     {% endif %}
 
     <form method="post" id="office-report-form" enctype="multipart/form-data"
+          class="{% if not can_edit %}jp-report-locked{% endif %}"
           data-ck-upload-url="{% url 'reports:ckeditor5_upload' %}"
-          data-ck-browse-url="">
+          data-ck-browse-url=""
+          {% if not can_edit %}data-report-locked="1"{% endif %}>
         {% csrf_token %}
 
         <div class="jp-office-hero card border-0 shadow-sm mb-3">
@@ -42,10 +48,12 @@
         <div class="alert alert-danger border-0 shadow-sm mb-3">{{ form.non_field_errors }}</div>
         {% endif %}
 
+        {% if can_edit %}
         <div class="jp-office-actions">
             <button type="submit" name="action" value="save" class="btn btn-outline-dark px-4">Lưu nháp</button>
             <button type="submit" name="action" value="submit" class="btn btn-hm px-4 fw-bold">Gửi Báo cáo</button>
         </div>
+        {% endif %}
     </form>
 </div>
 {% endblock %}

@@ -298,6 +298,9 @@
 
         if (CKEDITOR.instances[fieldId]) {
             const existing = CKEDITOR.instances[fieldId];
+            if (document.getElementById('office-report-form')?.dataset.reportLocked) {
+                existing.setReadOnly(true);
+            }
             resizeEditor(existing);
             bindImageWidgetHooks(existing);
             initImageWidgets(existing);
@@ -332,6 +335,9 @@
             bindImageWidgetHooks(editor);
             resizeEditor(editor);
             initImageWidgets(editor);
+            if (document.getElementById('office-report-form')?.dataset.reportLocked) {
+                editor.setReadOnly(true);
+            }
         });
     }
 

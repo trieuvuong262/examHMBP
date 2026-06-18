@@ -1,7 +1,7 @@
 import os
 import uuid
 from datetime import datetime, timedelta
-from urllib.parse import urlencode
+from urllib.parse import unquote, urlencode
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -34,6 +34,13 @@ from reports.report_profile import (
     REPORT_PROFILE_OFFICE,
     REPORT_PROFILE_PRODUCTION,
 )
+from reports.report_lock import (
+    can_edit_own_daily_report,
+    can_edit_own_weekly_report,
+    is_report_locked,
+    lock_report_on_supervisor_view,
+)
+from reports.office_content import CKEDITOR_INLINE_PREFIX
 from reports.navigation import (
     copy_prev_week_url_name_for_profile,
     detail_export_url_for_report,
@@ -370,8 +377,14 @@ def _today_office_report(request, report_date):
     user_profile = load_profile(request.user)
 
     report = _load_daily_report(request.user, report_date, report_profile=REPORT_PROFILE_OFFICE)
+    can_submit = can_submit_daily_report(request.user)
+    can_edit = can_edit_own_daily_report(request.user, report, can_submit=can_submit)
+    is_locked = is_report_locked(report)
 
     if request.method == 'POST':
+        if not can_edit:
+            messages.error(request, 'Cấp trên đã xem báo cáo — không thể chỉnh sửa.')
+            return redirect(f'{reverse("reports:today_vp")}?date={report_date.isoformat()}')
         action = request.POST.get('action', 'save')
         report = _ensure_daily_report_saved(report)
         form = OfficeDailyWorkReportForm(request.POST, request.FILES, instance=report)
@@ -410,9 +423,11 @@ def _today_office_report(request, report_date):
         'employee_name': (user_profile.full_name if user_profile else '') or request.user.username,
         'department_name': user_profile.department.name if user_profile and user_profile.department_id else '',
         'content_tab_hint': 'Nhập tiêu đề cột ở hàng hồng, số liệu ở từng ô bên dưới.',
-        'copy_url': reverse('reports:copy_yesterday_vp') if ctx['has_yesterday'] else None,
+        'copy_url': reverse('reports:copy_yesterday_vp') if ctx['has_yesterday'] and can_edit else None,
         'copy_label': 'Sao chép HQ',
         'copy_confirm': 'Sao chép nội dung từ hôm qua?',
+        'can_edit': can_edit,
+        'is_locked': is_locked,
     })
     return render(request, 'reports/today_office.html', ctx)
 
@@ -425,8 +440,14 @@ def _weekly_report(request, *, report_profile: str):
     report = _load_weekly_report(request.user, week_start, report_profile=report_profile)
     weekly_url_name = weekly_url_name_for_profile(report_profile)
     copy_prev_week_url_name = copy_prev_week_url_name_for_profile(report_profile)
+    can_submit = can_submit_daily_report(request.user)
+    can_edit = can_edit_own_weekly_report(request.user, report, can_submit=can_submit)
+    is_locked = is_report_locked(report)
 
     if request.method == 'POST':
+        if not can_edit:
+            messages.error(request, 'Cấp trên đã xem báo cáo — không thể chỉnh sửa.')
+            return redirect(f'{reverse(weekly_url_name)}?week={week_start.isoformat()}')
         action = request.POST.get('action', 'save')
         report = _ensure_weekly_report_saved(report)
         form = WeeklyWorkReportForm(request.POST, instance=report)
@@ -468,9 +489,11 @@ def _weekly_report(request, *, report_profile: str):
         'weekly_files': files,
         'employee_name': (user_profile.full_name if user_profile else '') or request.user.username,
         'department_name': user_profile.department.name if user_profile and user_profile.department_id else '',
-        'copy_url': reverse(copy_prev_week_url_name) if ctx['has_prev_week'] else None,
+        'copy_url': reverse(copy_prev_week_url_name) if ctx['has_prev_week'] and can_edit else None,
         'copy_label': 'Sao chép tuần trước',
         'copy_confirm': 'Sao chép nội dung từ tuần trước?',
+        'can_edit': can_edit,
+        'is_locked': is_locked,
     })
     return render(request, 'reports/weekly.html', ctx)
 
@@ -1039,7 +1062,6 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         build_productivity_report,
         can_edit_production_norms,
         can_edit_production_report,
-        lock_production_report_on_supervisor_view,
         parse_decimal,
         update_product_norms,
     )
@@ -1061,8 +1083,7 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
 
     if (
         request.method == 'GET'
-        and report.is_production_report
-        and lock_production_report_on_supervisor_view(report, request.user)
+        and lock_report_on_supervisor_view(report, request.user)
     ):
         report.refresh_from_db()
 
@@ -1091,9 +1112,19 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         messages.success(request, 'Đã cập nhật phản hồi.')
         return redirect(detail_url_name, pk=pk)
 
-    from reports.office_content import normalize_spreadsheet_json, spreadsheet_has_content
+    from reports.office_content import (
+        normalize_spreadsheet_json,
+        prepare_document_html_for_display,
+    )
 
     office_sheet = normalize_spreadsheet_json(report.spreadsheet_json)
+    document_html_display = ''
+    if not report.is_production_report and (report.document_html or '').strip():
+        document_html_display = prepare_document_html_for_display(
+            report.document_html,
+            report,
+            request,
+        )
     tab_attachments = _daily_attachments_by_tab(report) if not report.is_production_report else None
     bang_detail_images, bang_detail_files = tab_attachments['bang'] if tab_attachments else ([], [])
     vanban_detail_images, vanban_detail_files = tab_attachments['vanban'] if tab_attachments else ([], [])
@@ -1103,27 +1134,33 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
     if report.is_production_report and report.shift_started_at:
         hourly_grid = build_hourly_grid(report)
         productivity = build_productivity_report(report)
-    if can_edit_production_report(
-        request.user,
-        report,
-        can_submit=can_submit_daily_report(request.user),
+    can_submit = can_submit_daily_report(request.user)
+    if can_edit_own_daily_report(request.user, report, can_submit=can_submit):
+        today_name = (
+            'reports:today_cn' if report.is_production_report else 'reports:today_vp'
+        )
+        edit_report_url = f"{reverse(today_name)}?date={report.report_date.isoformat()}"
+    elif (
+        report.is_production_report
+        and can_review
+        and can_edit_production_report(
+            request.user,
+            report,
+            can_submit=can_submit,
+            is_proxy=True,
+        )
     ):
-        if report.employee_id == request.user.id:
-            today_name = (
-                'reports:today_cn' if report.is_production_report else 'reports:today_vp'
-            )
-            edit_report_url = f"{reverse(today_name)}?date={report.report_date.isoformat()}"
-        elif can_review:
-            today_name = (
-                'reports:today_cn' if report.is_production_report else 'reports:today_vp'
-            )
-            edit_report_url = (
-                f"{reverse(today_name)}?date={report.report_date.isoformat()}"
-                f"&for_user={report.employee_id}"
-            )
+        today_name = (
+            'reports:today_cn' if report.is_production_report else 'reports:today_vp'
+        )
+        edit_report_url = (
+            f"{reverse(today_name)}?date={report.report_date.isoformat()}"
+            f"&for_user={report.employee_id}"
+        )
     return render(request, 'reports/detail.html', {
         'report': report,
         'office_sheet': office_sheet,
+        'document_html_display': document_html_display,
         'tab_attachments': tab_attachments,
         'bang_detail_images': bang_detail_images,
         'bang_detail_files': bang_detail_files,
@@ -1273,6 +1310,9 @@ def _weekly_report_detail_core(request, pk, *, detail_url_name: str):
 
     can_review = can_review_user_weekly_report(request.user, report)
 
+    if request.method == 'GET' and lock_report_on_supervisor_view(report, request.user):
+        report.refresh_from_db()
+
     if request.method == 'POST' and can_review:
         report.hod_reviewed = request.POST.get('hod_reviewed') == 'on'
         report.hod_note = request.POST.get('hod_note', '').strip()
@@ -1283,7 +1323,8 @@ def _weekly_report_detail_core(request, pk, *, detail_url_name: str):
     images, files = _weekly_attachments(report)
     profile = report.employee.profile
     edit_report_url = ''
-    if report.employee_id == request.user.id and can_submit_daily_report(request.user):
+    can_submit = can_submit_daily_report(request.user)
+    if can_edit_own_weekly_report(request.user, report, can_submit=can_submit):
         edit_report_url = (
             f"{reverse(weekly_url_name_for_profile(report.report_profile))}"
             f"?week={report.week_start.isoformat()}"
@@ -1309,6 +1350,27 @@ def _weekly_report_detail_core(request, pk, *, detail_url_name: str):
         'team_weekly_url_name': team_weekly_url_name,
         'my_url_name': my_url_name_for_profile(report.report_profile),
     })
+
+
+@_reports_access_required
+def document_image_serve(request, report_pk, relpath):
+    import mimetypes
+
+    report = get_object_or_404(DailyWorkReport, pk=report_pk)
+    if not can_view_user_report(request.user, report):
+        raise Http404
+    if not daily_report_visible_to_team(report) and report.employee_id != request.user.id:
+        raise Http404
+
+    rel = unquote(relpath or '').lstrip('/')
+    if '..' in rel or not rel.startswith(CKEDITOR_INLINE_PREFIX):
+        raise Http404
+    if not default_storage.exists(rel):
+        raise Http404
+
+    content_type = mimetypes.guess_type(rel)[0] or 'application/octet-stream'
+    file_handle = default_storage.open(rel, 'rb')
+    return FileResponse(file_handle, content_type=content_type)
 
 
 @_reports_access_required

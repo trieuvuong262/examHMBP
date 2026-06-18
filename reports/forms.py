@@ -7,6 +7,7 @@ from reports.office_content import (
     DEFAULT_SPREADSHEET,
     normalize_spreadsheet_json,
     office_report_has_content,
+    sanitize_document_html_for_storage,
 )
 from reports.week_utils import monday_of
 
@@ -123,6 +124,9 @@ class OfficeDailyWorkReportForm(forms.ModelForm):
         except json.JSONDecodeError as exc:
             raise forms.ValidationError('Dữ liệu bảng Excel không hợp lệ.') from exc
         return normalize_spreadsheet_json(parsed)
+
+    def clean_document_html(self):
+        return sanitize_document_html_for_storage(self.cleaned_data.get('document_html') or '')
 
     def clean(self):
         cleaned = super().clean()

@@ -28,6 +28,7 @@ urlpatterns = [
     path('vp/<int:pk>/export/', views.report_detail_export_vp, name='detail_export_vp'),
     path('vp/<int:pk>/', views.report_detail_vp, name='detail_vp'),
     path('vp/file/<int:pk>/', views.daily_attachment_serve, name='daily_attachment'),
+    path('doc-image/<int:report_pk>/<path:relpath>', views.document_image_serve, name='document_image'),
     # Báo cáo tuần — SX
     path('sx/weekly/', views.weekly_report_cn, name='weekly_cn'),
     path('sx/copy-prev-week/', views.copy_prev_week_cn, name='copy_prev_week_cn'),
