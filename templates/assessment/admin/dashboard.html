@@ -164,8 +164,7 @@
                     <a href="{% url 'job_posting_list' %}" class="stat-card-link">
                         <div class="stat-card">
                             <div class="d-flex align-items-center">
-                                
-                                <div class="ms-3">
+                                <div>
                                     <div class="small text-muted fw-bold">VỊ TRÍ ĐANG MỞ</div>
                                     <h2 class="fw-bold mb-0 text-dark transition">{{ active_jobs }}</h2>
                                 </div>
@@ -177,8 +176,7 @@
                     <a href="{% url 'kanban_board' %}" class="stat-card-link">
                         <div class="stat-card">
                             <div class="d-flex align-items-center">
-                                
-                                <div class="ms-3">
+                                <div>
                                     <div class="small text-muted fw-bold">HỒ SƠ ỨNG VIÊN</div>
                                     <h2 class="fw-bold mb-0 text-dark">{{ total_candidates }}</h2>
                                 </div>
@@ -190,8 +188,7 @@
                     <a href="{% url 'kanban_board' %}" class="stat-card-link">
                         <div class="stat-card">
                             <div class="d-flex align-items-center">
-                                
-                                <div class="ms-3">
+                                <div>
                                     <div class="small text-muted fw-bold">LỊCH PHỎNG VẤN SẮP TỚI</div>
                                     <h2 class="fw-bold mb-0 text-dark">{{ upcoming_interviews }}</h2>
                                 </div>
@@ -303,8 +300,7 @@
                     <a href="{% url 'course_list' %}" class="stat-card-link">
                         <div class="stat-card">
                             <div class="d-flex align-items-center">
-                                
-                                <div class="ms-3">
+                                <div>
                                     <div class="small text-muted fw-bold">KHÓA HỌC</div>
                                     <h2 class="fw-bold mb-0 text-dark">{{ total_courses|default:"0" }}</h2>
                                 </div>
@@ -316,8 +312,7 @@
                     <a href="{% url 'course_list' %}" class="stat-card-link">
                         <div class="stat-card">
                             <div class="d-flex align-items-center">
-                                
-                                <div class="ms-3">
+                                <div>
                                     <div class="small text-muted fw-bold">ĐANG HỌC</div>
                                     <h2 class="fw-bold mb-0 text-dark">{{ active_learners|default:"0" }}</h2>
                                 </div>
@@ -329,8 +324,7 @@
                     <a href="{% url 'course_list' %}" class="stat-card-link">
                         <div class="stat-card">
                             <div class="d-flex align-items-center">
-                                
-                                <div class="ms-3">
+                                <div>
                                     <div class="small text-muted fw-bold">CHỨNG NHẬN</div>
                                     <h2 class="fw-bold mb-0 text-dark">{{ completed_learners|default:"0" }}</h2>
                                 </div>
@@ -406,8 +400,7 @@
                     <a href="#examListTable" class="stat-card-link">
                         <div class="stat-card">
                             <div class="d-flex align-items-center">
-                                
-                                <div class="ms-3">
+                                <div>
                                     <div class="small text-muted fw-bold">ĐANG MỞ</div>
                                     <h2 class="fw-bold mb-0 text-dark">{{ active_exams_count|default:"0" }}</h2>
                                 </div>
@@ -419,8 +412,7 @@
                     <a href="{% url 'user_list' %}" class="stat-card-link">
                         <div class="stat-card">
                             <div class="d-flex align-items-center">
-                                
-                                <div class="ms-3">
+                                <div>
                                     <div class="small text-muted fw-bold">NHÂN VIÊN</div>
                                     <h2 class="fw-bold mb-0 text-dark">{{ total_users|default:"0" }}</h2>
                                 </div>
@@ -432,8 +424,7 @@
                     <a href="{% url 'admin_results' %}" class="stat-card-link">
                         <div class="stat-card">
                             <div class="d-flex align-items-center">
-                                
-                                <div class="ms-3">
+                                <div>
                                     <div class="small text-muted fw-bold">BÀI NỘP</div>
                                     <h2 class="fw-bold mb-0 text-dark">{{ total_submissions|default:"0" }}</h2>
                                 </div>
@@ -520,8 +511,7 @@
                     <a href="#" class="stat-card-link">
                         <div class="stat-card">
                             <div class="d-flex align-items-center">
-                                
-                                <div class="ms-3">
+                                <div>
                                     <div class="small text-muted fw-bold">KỲ ĐÁNH GIÁ ĐANG MỞ</div>
                                     <h2 class="fw-bold mb-0 text-dark">{{ active_kpi_periods|default:"0" }}</h2>
                                 </div>
@@ -606,9 +596,7 @@
             </div>
             <div class="modal-body p-4">
                 <div class="text-center mb-4">
-                    <div class="bg-hm-light d-inline-block p-3 rounded-circle mb-2">
-                        
-                    </div>
+                    
                     <h4 class="fw-bold mb-0" id="det_full_name"></h4>
                     <span class="badge bg-primary-soft text-hm" id="det_job"></span>
                 </div>

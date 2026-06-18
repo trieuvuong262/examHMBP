@@ -57,8 +57,8 @@
                     {% if item.course.thumbnail %}
                         <img src="{{ item.course.thumbnail.url }}" class="w-100 h-100 object-fit-cover course-img" alt="{{ item.course.title }}">
                     {% else %}
-                        <div class="w-100 h-100 d-flex justify-content-center align-items-center bg-hm text-white opacity-75 course-img">
-                            
+                        <div class="w-100 h-100 d-flex justify-content-center align-items-center bg-light text-muted course-img">
+                            <span class="small">Chưa có ảnh</span>
                         </div>
                     {% endif %}
                     

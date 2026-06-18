@@ -327,6 +327,28 @@ class PortalBackupTests(TestCase):
         job = PortalBackupJob.objects.order_by('-pk').first()
         self.assertEqual(job.status, PortalBackupJob.STATUS_SUCCESS)
 
+    @override_settings(
+        NAS_BACKUP_RCLONE_REMOTE='synology:backup',
+        NAS_BACKUP_REL_PATH='',
+    )
+    def test_backup_rclone_base_with_dedicated_remote(self):
+        from audit.portal_backup import backup_rclone_base, backup_remote_dir
+
+        self.assertEqual(backup_rclone_base(), 'synology:backup')
+        path = backup_remote_dir('20260618132121', '20260618-132121-man')
+        self.assertTrue(path.startswith('synology:backup/'))
+        self.assertNotIn('None', path)
+
+    @override_settings(
+        NAS_BACKUP_RCLONE_REMOTE='',
+        NAS_BACKUP_REL_PATH='',
+        NAS_RCLONE_REMOTE='synology:',
+    )
+    def test_backup_rclone_base_default_remote_and_backup_folder(self):
+        from audit.portal_backup import backup_rclone_base
+
+        self.assertEqual(backup_rclone_base(), 'synology:backup')
+
 
 @override_settings(
     LOGIN_LOCK_MAX_ATTEMPTS=3,

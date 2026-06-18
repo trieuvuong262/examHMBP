@@ -17,40 +17,39 @@
 
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-body p-4 p-md-5">
-            <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
-                <div>
-                    <h4 class="fw-bold text-dark mb-1">{{ file_name }}</h4>
-                    <p class="text-muted small mb-0">{{ file_size|filesizeformat }}</p>
-                </div>
-                <a href="{{ download_url }}" class="btn btn-hm text-white fw-bold">
-                    <i class="bi bi-download me-2"></i>Tải xuống
-                </a>
+            <div class="mb-3">
+                <h4 class="fw-bold text-dark mb-1">{{ file_name }}</h4>
+                <p class="text-muted small mb-0">{{ file_size|filesizeformat }}</p>
             </div>
 
             {% if file_preview %}
                 {% if file_preview.kind == 'office' and not file_preview.office_preview_ready %}
                 <div class="alert alert-warning border-0 mb-3">
-                    
                     Server chưa cài LibreOffice — không xem trước Word/Excel trực tiếp. Vui lòng tải file về để mở.
                 </div>
                 {% else %}
                 <div class="jp-weekly-embed-wrap is-pdf mb-3">
                     <iframe src="{{ file_preview.preview_url }}" title="Xem trước {{ file_name }}" loading="lazy"></iframe>
                 </div>
-                <p class="text-muted small mb-0">
+                <p class="text-muted small mb-3">
                     {% if file_preview.kind == 'office' %}
-                    Word/Excel được chuyển sang PDF để xem trước — bản gốc vẫn tải qua nút <strong>Tải xuống</strong>.
+                    Word/Excel được chuyển sang PDF để xem trước — bản gốc vẫn tải qua nút bên dưới.
                     {% else %}
                     Xem trước PDF trực tiếp từ NAS.
                     {% endif %}
                 </p>
                 {% endif %}
             {% else %}
-            <div class="text-center py-4">
-                
+            <div class="text-center py-4 mb-2">
                 <p class="text-muted mb-0">Định dạng này chưa hỗ trợ xem trước — vui lòng tải file về.</p>
             </div>
             {% endif %}
+
+            <div class="text-center pt-2 border-top">
+                <a href="{{ download_url }}" class="btn btn-hm text-white fw-bold px-4">
+                    <i class="bi bi-download me-2"></i>Tải xuống
+                </a>
+            </div>
         </div>
     </div>
 </div>

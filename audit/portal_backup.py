@@ -41,12 +41,11 @@ def _rclone_env() -> dict:
 def backup_rclone_base() -> str:
     """Gốc trên NAS — mặc định ``synology:backup`` (thư mục/share backup ở gốc NAS)."""
     dedicated = (getattr(settings, 'NAS_BACKUP_RCLONE_REMOTE', '') or '').strip().rstrip('/')
+    rel = (getattr(settings, 'NAS_BACKUP_REL_PATH', '') or '').strip('/')
     if dedicated:
-        base = dedicated
-    else:
-        base = default_nas_rclone_remote()
-        rel = (getattr(settings, 'NAS_BACKUP_REL_PATH', 'backup') or 'backup').strip('/')
-        return nas_rclone_remote_path(base, rel)
+        return nas_rclone_remote_path(dedicated, rel) if rel else dedicated
+    base = default_nas_rclone_remote()
+    return nas_rclone_remote_path(base, rel or 'backup')
 
 
 def backup_remote_dir(stamp: str, run_id: str) -> str:
@@ -230,7 +229,7 @@ def run_portal_backup(*, job_id: int | None = None, trigger: str = 'scheduled', 
             rclone_copy_file(tar_path, remote_tar)
             artifacts.append(BackupArtifact(tar_path.name, tar_path, remote_tar, tar_path.stat().st_size))
 
-        media_root = Path(getattr(settings, 'MEDIA_ROOT', ''))
+        media_root = Path(getattr(settings, 'MEDIA_ROOT', '') or '')
         if getattr(settings, 'PORTAL_BACKUP_INCLUDE_MEDIA', True) and media_root.is_dir():
             has_files = any(media_root.rglob('*'))
             if has_files:
