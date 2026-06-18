@@ -11,7 +11,7 @@
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title">
                 <i class="bi bi-clock-history me-2"></i>
-                {% if history_employee_name %}Lịch sử báo cáo — {{ history_employee_name }}{% else %}Lịch sử báo cáo{% endif %}
+                {% if history_employee_name %}Lịch sử báo cáo — {{ history_employee_name }}{% elif reports_scope_label %}Lịch sử báo cáo ({{ reports_scope_label }}){% else %}Lịch sử báo cáo{% endif %}
             </h2>
         </div>
         <div class="d-flex gap-2 flex-wrap w-100 w-md-auto">
@@ -21,7 +21,7 @@
                 <i class="bi bi-plus-lg me-1"></i>Báo cáo tuần
             </a>
             {% else %}
-            <a href="{% url 'reports:today' %}" class="btn btn-hm fw-bold flex-fill flex-md-grow-0">
+            <a href="{% url today_url_name %}" class="btn btn-hm fw-bold flex-fill flex-md-grow-0">
                 <i class="bi bi-plus-lg me-1"></i>Báo cáo hôm nay
             </a>
             {% endif %}
@@ -30,7 +30,7 @@
             {% if report_period == 'weekly' %}
             <a href="{% url 'reports:team_weekly' %}" class="btn btn-outline-hm fw-bold flex-fill flex-md-grow-0">Báo cáo cấp dưới</a>
             {% else %}
-            <a href="{% url 'reports:team' %}" class="btn btn-outline-hm fw-bold flex-fill flex-md-grow-0">Báo cáo cấp dưới</a>
+            <a href="{% url team_url_name %}" class="btn btn-outline-hm fw-bold flex-fill flex-md-grow-0">Báo cáo cấp dưới</a>
             {% endif %}
             {% endif %}
         </div>
@@ -39,13 +39,13 @@
     <ul class="nav nav-pills gap-2 mb-3 jp-reports-period-nav">
         <li class="nav-item">
             <a class="nav-link rounded-pill fw-bold {% if report_period != 'weekly' %}active{% endif %}"
-               href="{% url 'reports:my' %}?period=daily{% if history_for_user_id %}&for_user={{ history_for_user_id }}{% endif %}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">
+               href="{% url my_url_name %}?period=daily{% if history_for_user_id %}&for_user={{ history_for_user_id }}{% endif %}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">
                 Theo ngày
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link rounded-pill fw-bold {% if report_period == 'weekly' %}active{% endif %}"
-               href="{% url 'reports:my' %}?period=weekly{% if history_for_user_id %}&for_user={{ history_for_user_id }}{% endif %}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">
+               href="{% url my_url_name %}?period=weekly{% if history_for_user_id %}&for_user={{ history_for_user_id }}{% endif %}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">
                 Theo tuần
             </a>
         </li>
@@ -155,8 +155,8 @@
                             {% endif %}
                         </td>
                         <td class="text-end">
-                            <a href="{% url 'reports:detail' r.pk %}" class="btn btn-sm btn-outline-hm">Xem</a>
-                            <a href="{% url 'reports:today' %}?date={{ r.report_date|date:'Y-m-d' }}" class="btn btn-sm btn-outline-dark">Sửa</a>
+                            <a href="{% url detail_url_name r.pk %}" class="btn btn-sm btn-outline-hm">Xem</a>
+                            <a href="{% url today_url_name %}?date={{ r.report_date|date:'Y-m-d' }}" class="btn btn-sm btn-outline-dark">Sửa</a>
                         </td>
                         {% endif %}
                     </tr>

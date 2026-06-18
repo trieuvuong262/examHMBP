@@ -4,10 +4,10 @@
 <div class="container jp-page jp-reports-page py-3 py-md-4 mb-5">
     <div class="jp-page-header mb-3 mb-md-4">
         <div>
-            <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-people-fill me-2"></i>Báo cáo cấp dưới</h2>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-people-fill me-2"></i>Báo cáo cấp dưới ({{ reports_scope_label }})</h2>
         </div>
         {% if can_submit_report %}
-        <a href="{% url 'reports:today' %}" class="btn btn-outline-hm btn-sm flex-fill flex-md-grow-0">Báo cáo của tôi</a>
+        <a href="{% url today_url_name %}" class="btn btn-outline-hm btn-sm flex-fill flex-md-grow-0">Báo cáo của tôi</a>
         {% endif %}
     </div>
 
@@ -105,12 +105,12 @@
                         </td>
                         <td class="text-end">
                             {% if row.report %}
-                            <a href="{% url 'reports:detail' row.report.pk %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
+                            <a href="{% url detail_url_name row.report.pk %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
                             {% if row.report.is_production_report %}
-                            <a href="{% url 'reports:today' %}?date={{ report_date|date:'Y-m-d' }}&for_user={{ row.member.id }}" class="btn btn-sm btn-outline-dark">Nhập hộ</a>
+                            <a href="{% url today_url_name %}?date={{ report_date|date:'Y-m-d' }}&for_user={{ row.member.id }}" class="btn btn-sm btn-outline-dark">Nhập hộ</a>
                             {% endif %}
                             {% else %}
-                            <a href="{% url 'reports:today' %}?date={{ report_date|date:'Y-m-d' }}&for_user={{ row.member.id }}" class="btn btn-sm btn-outline-dark">Nhập hộ</a>
+                            <a href="{% url today_url_name %}?date={{ report_date|date:'Y-m-d' }}&for_user={{ row.member.id }}" class="btn btn-sm btn-outline-dark">Nhập hộ</a>
                             {% endif %}
                         </td>
                     </tr>

@@ -32,12 +32,19 @@ from hrm.submenu_registry import (
 _MENU_DEFER_PATH_PATTERNS = (
     re.compile(r'^/yeu-cau/de-xuat/\d+/?'),
     re.compile(r'^/yeu-cau/ho-tro/\d+/?'),
+    re.compile(r'^/reports/cn/\d+'),
+    re.compile(r'^/reports/vp/\d+'),
+    re.compile(r'^/reports/\d+/?$'),
+    re.compile(r'^/reports/\d+/export/?'),
 )
 
 _MENU_REGEX_RULES: list[tuple[re.Pattern, str, str]] = [
     (re.compile(r'^/gop-y/\d+/?$'), 'feedback', 'list'),
     (re.compile(r'^/reports/weekly/\d+/?'), 'reports', 'weekly'),
-    (re.compile(r'^/reports/\d+/?$'), 'reports', 'daily'),
+    (re.compile(r'^/reports/cn/\d+/export/?'), 'reports', 'daily_cn_detail'),
+    (re.compile(r'^/reports/cn/\d+/?'), 'reports', 'daily_cn_detail'),
+    (re.compile(r'^/reports/vp/\d+/export/?'), 'reports', 'daily_vp_detail'),
+    (re.compile(r'^/reports/vp/\d+/?'), 'reports', 'daily_vp_detail'),
 ]
 
 _MENU_ACTION_CHECKS = {
@@ -57,12 +64,20 @@ def module_has_configured_menus(perm: dict) -> bool:
 
 def get_effective_menu_perm(user, module_key: str, menu_key: str) -> dict:
     """Quyền hiệu lực của một menu con — kế thừa module nếu nhóm chưa cấu hình menus."""
+    from reports.navigation import legacy_daily_menu_key
+
     mod_perm = get_user_module_perm(user, module_key)
     menus = mod_perm.get('menus')
     if module_has_configured_menus(mod_perm):
-        if not isinstance(menus, dict) or menu_key not in menus:
+        if not isinstance(menus, dict):
             return empty_module_perm()
-        menu_perm = menus[menu_key]
+        menu_perm = menus.get(menu_key)
+        if menu_perm is None:
+            legacy_key = legacy_daily_menu_key(menu_key)
+            if legacy_key:
+                menu_perm = menus.get(legacy_key)
+        if menu_perm is None:
+            return empty_module_perm()
         return {action: bool(menu_perm.get(action)) for action in PERM_ACTIONS}
     return {action: bool(mod_perm.get(action)) for action in PERM_ACTIONS}
 

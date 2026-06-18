@@ -36,7 +36,19 @@ from reports.report_profile import (
     get_report_profile,
     is_production_report_user,
 )
-
+from reports.navigation import (
+    detail_export_url_for_report,
+    detail_url_for_report,
+    history_url_for,
+    list_back_url_for,
+    redirect_team_legacy,
+    today_url_for_user,
+    today_url_name_for_user,
+    team_url_for_profile,
+    my_url_name_for_profile,
+    team_url_name_for_profile,
+    my_url_for_profile,
+)
 from reports.week_utils import monday_of, parse_week_start, week_end, week_label
 
 from .forms import (
@@ -94,7 +106,7 @@ def _require_submit_access(view_func):
             if can_view_team_reports(request.user):
                 if view_func.__name__ in _WEEKLY_SUBMIT_VIEWS:
                     return redirect('reports:team_weekly')
-                return redirect('reports:team')
+                return redirect(redirect_team_legacy(request.user))
             return redirect('home_portal')
         return view_func(request, *args, **kwargs)
     wrapper.__name__ = view_func.__name__
@@ -112,7 +124,7 @@ def _require_today_report_access(view_func):
 
         if not can_submit_daily_report(request.user):
             if can_view_team_reports(request.user):
-                return redirect('reports:team')
+                return redirect(redirect_team_legacy(request.user))
             return redirect('home_portal')
         if request.method == 'POST' and not user_can_create_module(request.user, MODULE_REPORTS):
             messages.error(request, 'Bạn không có quyền nộp báo cáo.')
@@ -124,12 +136,13 @@ def _require_today_report_access(view_func):
 
 @_reports_access_required
 def report_hub(request):
-    if can_view_team_reports(request.user) and is_director(request.user):
-        return redirect('reports:team')
-    if can_submit_daily_report(request.user):
-        return redirect('reports:today')
-    if can_view_team_reports(request.user):
-        return redirect('reports:team')
+    target = redirect_team_legacy(request.user) if can_view_team_reports(request.user) and is_director(request.user) else None
+    if target is None and can_submit_daily_report(request.user):
+        target = today_url_for_user(request.user)
+    if target is None and can_view_team_reports(request.user):
+        target = redirect_team_legacy(request.user)
+    if target:
+        return redirect(target)
     messages.warning(
         request,
         'Chưa có quyền báo cáo. Liên hệ HR nếu bạn cần nộp hoặc duyệt báo cáo.',
@@ -282,7 +295,7 @@ def _today_office_report(request, report_date):
             report.shift = ''
             messages.success(request, _finalize_report_submission(report, action))
             report.save()
-            return redirect('reports:today')
+            return redirect(f'{reverse("reports:today_vp")}?date={report_date.isoformat()}')
     else:
         form = OfficeDailyWorkReportForm(instance=report)
 
@@ -386,9 +399,7 @@ def copy_prev_week(request):
     return redirect(f'{reverse("reports:weekly")}?week={this_week.isoformat()}')
 
 
-@_require_today_report_access
-def today_report(request):
-    report_date = _parse_report_date(request)
+def _resolve_today_subject(request):
     subject = request.user
     for_user_id = request.GET.get('for_user') or request.POST.get('for_user')
     if for_user_id:
@@ -396,9 +407,16 @@ def today_report(request):
             subject = get_report_team_users(request.user).get(pk=int(for_user_id))
         except (ValueError, TypeError, User.DoesNotExist):
             subject = request.user
-    if is_production_report_user(subject):
-        return _today_production_report(request, report_date)
-    return _today_office_report(request, report_date)
+    return subject
+
+
+@_require_today_report_access
+def today_report(request):
+    query = request.GET.urlencode()
+    target = today_url_for_user(_resolve_today_subject(request))
+    if query:
+        target = f'{target}?{query}'
+    return redirect(target)
 
 
 @module_perm_required(MODULE_REPORTS, 'create')
@@ -432,7 +450,7 @@ def copy_yesterday(request):
     ).prefetch_related('lines').first()
     if not source:
         messages.warning(request, 'Không có báo cáo hôm qua để sao chép.')
-        return redirect('reports:today')
+        return redirect(today_url_for_user(request.user))
 
     profile = get_report_profile(request.user)
     report, _ = DailyWorkReport.objects.get_or_create(
@@ -470,7 +488,7 @@ def copy_yesterday(request):
                 sort_order=idx,
             )
     messages.success(request, 'Đã sao chép báo cáo hôm qua. Kiểm tra và nộp lại.')
-    return redirect('reports:today')
+    return redirect(today_url_for_user(request.user))
 
 
 def _my_reports_period(request):
@@ -482,6 +500,20 @@ def _my_reports_period(request):
 
 @_reports_access_required
 def my_reports(request):
+    return redirect(my_url_for_profile(get_report_profile(request.user)))
+
+
+@_reports_access_required
+def my_reports_cn(request):
+    return _my_reports(request, daily_report_profile=REPORT_PROFILE_PRODUCTION)
+
+
+@_reports_access_required
+def my_reports_vp(request):
+    return _my_reports(request, daily_report_profile=REPORT_PROFILE_OFFICE)
+
+
+def _my_reports(request, daily_report_profile=None):
     search_query = get_search_query(request)
     period = _my_reports_period(request)
     subject = request.user
@@ -497,7 +529,7 @@ def my_reports(request):
             return redirect('reports:hub')
     elif not can_submit_daily_report(request.user):
         if can_view_team_reports(request.user):
-            return redirect('reports:team')
+            return redirect(redirect_team_legacy(request.user))
         return redirect('home_portal')
 
     if period == 'weekly':
@@ -514,7 +546,10 @@ def my_reports(request):
     else:
         reports_qs = DailyWorkReport.objects.filter(
             employee=subject,
-        ).annotate(
+        )
+        if daily_report_profile:
+            reports_qs = reports_qs.filter(report_profile=daily_report_profile)
+        reports_qs = reports_qs.annotate(
             line_count=Count('lines'),
             total_qty=Sum('lines__quantity'),
         ).order_by('-report_date')
@@ -527,6 +562,7 @@ def my_reports(request):
         ))
 
     page_obj, query_string = paginate_queryset(request, reports_qs)
+    scope_label = 'CN' if daily_report_profile == REPORT_PROFILE_PRODUCTION else 'VP' if daily_report_profile else ''
     return render(request, 'reports/my_reports.html', {
         'reports': page_obj.object_list,
         'page_obj': page_obj,
@@ -536,6 +572,19 @@ def my_reports(request):
         'report_period': period,
         'history_employee_name': history_employee_name,
         'history_for_user_id': subject.pk if subject.pk != request.user.pk else None,
+        'reports_scope_label': scope_label,
+        'today_url_name': (
+            'reports:today_cn'
+            if daily_report_profile == REPORT_PROFILE_PRODUCTION
+            else 'reports:today_vp'
+        ),
+        'detail_url_name': (
+            'reports:detail_cn'
+            if daily_report_profile == REPORT_PROFILE_PRODUCTION
+            else 'reports:detail_vp'
+        ),
+        'my_url_name': my_url_name_for_profile(daily_report_profile) if daily_report_profile else 'reports:my',
+        'team_url_name': team_url_name_for_profile(daily_report_profile) if daily_report_profile else 'reports:team_cn',
     })
 
 
@@ -616,13 +665,27 @@ def _team_stat_urls(base_params: dict) -> dict:
 
 @_reports_access_required
 def team_reports(request):
+    return redirect(redirect_team_legacy(request.user))
+
+
+@_reports_access_required
+def team_reports_cn(request):
+    return _team_reports_for_profile(request, REPORT_PROFILE_PRODUCTION)
+
+
+@_reports_access_required
+def team_reports_vp(request):
+    return _team_reports_for_profile(request, REPORT_PROFILE_OFFICE)
+
+
+def _team_reports_for_profile(request, report_profile: str):
     if not can_view_team_reports(request.user):
         messages.error(
             request,
             'Chưa có nhân viên cấp dưới trực tiếp. HR cần cấu hình tại Nhân sự → Sửa nhân viên → Nhân viên dưới quyền.',
         )
         if can_submit_daily_report(request.user):
-            return redirect('reports:today')
+            return redirect(today_url_for_user(request.user))
         return redirect('home_portal')
 
     report_date = request.GET.get('date') or timezone.localdate()
@@ -632,11 +695,14 @@ def team_reports(request):
     search_query = get_search_query(request)
     dept_filter = (request.GET.get('dept') or '').strip()
     status_filter = _parse_team_status_filter(request)
-    team = _team_queryset(request.user, search_query)
+    team = _team_queryset(request.user, search_query).filter(
+        profile__department__report_profile=report_profile,
+    )
     all_team_ids = list(team.values_list('id', flat=True))
     all_reports = meaningful_daily_reports_qs().filter(
         employee_id__in=all_team_ids,
         report_date=report_date,
+        report_profile=report_profile,
     )
     team_count = team.count()
     submitted = all_reports.filter(status=DailyWorkReport.STATUS_SUBMITTED).count()
@@ -645,6 +711,7 @@ def team_reports(request):
     reports = meaningful_daily_reports_qs().filter(
         employee_id__in=all_team_ids,
         report_date=report_date,
+        report_profile=report_profile,
     ).select_related('employee', 'employee__profile').annotate(
         line_count=Count('lines'),
         total_qty=Sum('lines__quantity'),
@@ -669,6 +736,7 @@ def team_reports(request):
     if dept_filter:
         base_params['dept'] = dept_filter
 
+    scope_label = 'CN' if report_profile == REPORT_PROFILE_PRODUCTION else 'VP'
     return render(request, 'reports/team.html', {
         'department_groups': department_groups,
         'dept_choices': dept_choices,
@@ -682,6 +750,18 @@ def team_reports(request):
         'team_count': team_count,
         'can_submit_report': can_submit_daily_report(request.user),
         'report_period': 'daily',
+        'reports_scope_label': scope_label,
+        'today_url_name': (
+            'reports:today_cn'
+            if report_profile == REPORT_PROFILE_PRODUCTION
+            else 'reports:today_vp'
+        ),
+        'detail_url_name': (
+            'reports:detail_cn'
+            if report_profile == REPORT_PROFILE_PRODUCTION
+            else 'reports:detail_vp'
+        ),
+        'team_url_name': team_url_name_for_profile(report_profile),
     })
 
 
@@ -754,9 +834,7 @@ def team_weekly_reports(request):
 
 
 def _report_history_url_for(report, viewer) -> str:
-    if report.employee_id == viewer.id:
-        return reverse('reports:my')
-    return f"{reverse('reports:my')}?for_user={report.employee_id}"
+    return history_url_for(report, viewer)
 
 
 def _can_export_report_detail(report, hourly_grid, productivity, office_sheet) -> bool:
@@ -772,27 +850,7 @@ def _can_export_report_detail(report, hourly_grid, productivity, office_sheet) -
     return spreadsheet_has_content(office_sheet) or bool((report.document_html or '').strip())
 
 
-@_reports_access_required
-def report_detail_export(request, pk):
-    from reports.excel_export import can_export_daily_report, export_daily_report_xlsx
-
-    report = get_object_or_404(
-        DailyWorkReport.objects.select_related('employee', 'employee__profile').prefetch_related(
-            'production_products__hourly_entries',
-        ),
-        pk=pk,
-    )
-    if not can_view_user_report(request.user, report):
-        messages.error(request, 'Bạn không có quyền xuất báo cáo này.')
-        return redirect('reports:hub')
-    if not can_export_daily_report(report):
-        messages.warning(request, 'Báo cáo chưa có dữ liệu để xuất Excel.')
-        return redirect('reports:detail', pk=pk)
-    return export_daily_report_xlsx(report)
-
-
-@_reports_access_required
-def report_detail(request, pk):
+def _report_detail_core(request, pk, *, detail_url_name: str):
     from reports.production_hourly import (
         build_hourly_grid,
         build_productivity_report,
@@ -840,14 +898,14 @@ def report_detail(request, pk):
             messages.success(request, f'Đã cập nhật định mức cho {count} mã hàng.')
         else:
             messages.warning(request, 'Không có định mức hợp lệ để cập nhật.')
-        return redirect('reports:detail', pk=pk)
+        return redirect(detail_url_name, pk=pk)
 
     if request.method == 'POST' and can_review:
         report.hod_reviewed = request.POST.get('hod_reviewed') == 'on'
         report.hod_note = request.POST.get('hod_note', '').strip()
         report.save()
         messages.success(request, 'Đã cập nhật phản hồi.')
-        return redirect('reports:detail', pk=pk)
+        return redirect(detail_url_name, pk=pk)
 
     from reports.office_content import normalize_spreadsheet_json
 
@@ -864,10 +922,16 @@ def report_detail(request, pk):
         can_submit=can_submit_daily_report(request.user),
     ):
         if report.employee_id == request.user.id:
-            edit_report_url = f"{reverse('reports:today')}?date={report.report_date.isoformat()}"
+            today_name = (
+                'reports:today_cn' if report.is_production_report else 'reports:today_vp'
+            )
+            edit_report_url = f"{reverse(today_name)}?date={report.report_date.isoformat()}"
         elif can_review:
+            today_name = (
+                'reports:today_cn' if report.is_production_report else 'reports:today_vp'
+            )
             edit_report_url = (
-                f"{reverse('reports:today')}?date={report.report_date.isoformat()}"
+                f"{reverse(today_name)}?date={report.report_date.isoformat()}"
                 f"&for_user={report.employee_id}"
             )
     return render(request, 'reports/detail.html', {
@@ -880,10 +944,130 @@ def report_detail(request, pk):
         'can_edit_norm': can_edit_norm,
         'can_submit_report': can_submit_daily_report(request.user),
         'can_view_team': can_view_team_reports(request.user),
-        'history_url': _report_history_url_for(report, request.user),
-        'export_url': reverse('reports:detail_export', kwargs={'pk': pk}),
+        'history_url': history_url_for(report, request.user),
+        'export_url': detail_export_url_for_report(report),
         'can_export_report': _can_export_report_detail(report, hourly_grid, productivity, office_sheet),
+        'list_back_url': list_back_url_for(
+            report,
+            request.user,
+            can_view_team=can_view_team_reports(request.user),
+        ),
     })
+
+
+@_reports_access_required
+def report_detail_cn(request, pk):
+    report = get_object_or_404(DailyWorkReport, pk=pk)
+    if not report.is_production_report:
+        return redirect('reports:detail_vp', pk=pk)
+    return _report_detail_core(request, pk, detail_url_name='reports:detail_cn')
+
+
+@_reports_access_required
+def report_detail_vp(request, pk):
+    report = get_object_or_404(DailyWorkReport, pk=pk)
+    if report.is_production_report:
+        return redirect('reports:detail_cn', pk=pk)
+    return _report_detail_core(request, pk, detail_url_name='reports:detail_vp')
+
+
+@_reports_access_required
+def report_detail(request, pk):
+    report = get_object_or_404(DailyWorkReport, pk=pk)
+    if report.is_production_report:
+        return redirect('reports:detail_cn', pk=pk)
+    return redirect('reports:detail_vp', pk=pk)
+
+
+def _report_detail_export_core(request, pk, *, detail_url_name: str):
+    from reports.excel_export import can_export_daily_report, export_daily_report_xlsx
+
+    report = get_object_or_404(
+        DailyWorkReport.objects.select_related('employee', 'employee__profile').prefetch_related(
+            'production_products__hourly_entries',
+        ),
+        pk=pk,
+    )
+    if not can_view_user_report(request.user, report):
+        messages.error(request, 'Bạn không có quyền xuất báo cáo này.')
+        return redirect('reports:hub')
+    if not can_export_daily_report(report):
+        messages.warning(request, 'Báo cáo chưa có dữ liệu để xuất Excel.')
+        return redirect(detail_url_name, pk=pk)
+    return export_daily_report_xlsx(report)
+
+
+@_reports_access_required
+def report_detail_export_cn(request, pk):
+    report = get_object_or_404(DailyWorkReport, pk=pk)
+    if not report.is_production_report:
+        return redirect('reports:detail_export_vp', pk=pk)
+    return _report_detail_export_core(request, pk, detail_url_name='reports:detail_cn')
+
+
+@_reports_access_required
+def report_detail_export_vp(request, pk):
+    report = get_object_or_404(DailyWorkReport, pk=pk)
+    if report.is_production_report:
+        return redirect('reports:detail_export_cn', pk=pk)
+    return _report_detail_export_core(request, pk, detail_url_name='reports:detail_vp')
+
+
+@_reports_access_required
+def report_detail_export(request, pk):
+    report = get_object_or_404(DailyWorkReport, pk=pk)
+    if report.is_production_report:
+        return redirect('reports:detail_export_cn', pk=pk)
+    return redirect('reports:detail_export_vp', pk=pk)
+
+
+@_require_today_report_access
+def today_report_cn(request):
+    report_date = _parse_report_date(request)
+    subject = _resolve_today_subject(request)
+    if not is_production_report_user(subject):
+        query = request.GET.urlencode()
+        target = reverse('reports:today_vp')
+        if query:
+            target = f'{target}?{query}'
+        messages.info(request, 'Nhân viên này dùng báo cáo ngày (VP).')
+        return redirect(target)
+    return _today_production_report(request, report_date)
+
+
+@_require_today_report_access
+def today_report_vp(request):
+    report_date = _parse_report_date(request)
+    subject = _resolve_today_subject(request)
+    if is_production_report_user(subject):
+        query = request.GET.urlencode()
+        target = reverse('reports:today_cn')
+        if query:
+            target = f'{target}?{query}'
+        messages.info(request, 'Nhân viên này dùng báo cáo ngày (CN).')
+        return redirect(target)
+    return _today_office_report(request, report_date)
+
+
+@_require_submit_access
+def copy_yesterday_cn(request):
+    if get_report_profile(request.user) != REPORT_PROFILE_PRODUCTION:
+        return redirect('reports:copy_yesterday_vp')
+    return copy_yesterday(request)
+
+
+@_require_submit_access
+def copy_yesterday_vp(request):
+    if get_report_profile(request.user) != REPORT_PROFILE_OFFICE:
+        return redirect('reports:copy_yesterday_cn')
+    return copy_yesterday(request)
+
+
+@_require_submit_access
+def copy_yesterday_redirect(request):
+    if get_report_profile(request.user) == REPORT_PROFILE_PRODUCTION:
+        return redirect('reports:copy_yesterday_cn')
+    return redirect('reports:copy_yesterday_vp')
 
 
 @_reports_access_required

@@ -76,7 +76,7 @@ class ReportExcelExportTests(TestCase):
 
     def test_worker_can_export_own_report(self):
         self.client.force_login(self.worker)
-        response = self.client.get(reverse('reports:detail_export', args=[self.report.pk]))
+        response = self.client.get(reverse('reports:detail_export_cn', args=[self.report.pk]))
         self.assertEqual(response.status_code, 200)
         self.assertIn('spreadsheetml.sheet', response['Content-Type'])
         wb = load_workbook(BytesIO(response.content))
@@ -85,13 +85,13 @@ class ReportExcelExportTests(TestCase):
 
     def test_leader_can_export_subordinate_report(self):
         self.client.force_login(self.leader)
-        response = self.client.get(reverse('reports:detail_export', args=[self.report.pk]))
+        response = self.client.get(reverse('reports:detail_export_cn', args=[self.report.pk]))
         self.assertEqual(response.status_code, 200)
 
     def test_history_for_user_lists_subordinate_reports(self):
         self.client.force_login(self.leader)
         response = self.client.get(
-            reverse('reports:my'),
+            reverse('reports:my_cn'),
             {'for_user': self.worker.pk},
         )
         self.assertEqual(response.status_code, 200)

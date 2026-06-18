@@ -137,12 +137,39 @@
                 <i class="bi bi-chevron-down jp-sidebar-group-chevron" aria-hidden="true"></i>
             </button>
             <ul class="jp-sidebar-submenu" id="jp-sidebar-reports-submenu">
-                {% jp_can_menu 'reports' 'daily' as jp_can_reports_daily %}
-                {% if jp_can_reports_daily %}
+                {% jp_can_menu 'reports' 'daily_cn' as jp_can_reports_daily_cn %}
+                {% if jp_can_reports_daily_cn %}
                 <li>
-                    <a href="{% if jp_can_submit_reports %}{% url 'reports:today' %}{% else %}{% url 'reports:team' %}{% endif %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'today' or request.resolver_match.url_name == 'team' %}active{% endif %}">
-                        <i class="bi bi-calendar-day"></i><span>Báo cáo ngày</span>
+                    <a href="{% url 'reports:today_cn' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'today_cn' %}active{% endif %}">
+                        <i class="bi bi-calendar-day"></i><span>Báo cáo ngày (CN)</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% jp_can_menu 'reports' 'daily_cn_detail' as jp_can_reports_daily_cn_detail %}
+                {% if jp_can_reports_daily_cn_detail %}
+                <li>
+                    <a href="{% if jp_can_team_reports %}{% url 'reports:team_cn' %}{% else %}{% url 'reports:my_cn' %}{% endif %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'team_cn' or request.resolver_match.url_name == 'my_cn' or request.resolver_match.url_name == 'detail_cn' %}active{% endif %}">
+                        <i class="bi bi-table"></i><span>Chi tiết BC ngày (CN)</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% jp_can_menu 'reports' 'daily_vp' as jp_can_reports_daily_vp %}
+                {% if jp_can_reports_daily_vp %}
+                <li>
+                    <a href="{% url 'reports:today_vp' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'today_vp' %}active{% endif %}">
+                        <i class="bi bi-calendar-day"></i><span>Báo cáo ngày (VP)</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% jp_can_menu 'reports' 'daily_vp_detail' as jp_can_reports_daily_vp_detail %}
+                {% if jp_can_reports_daily_vp_detail %}
+                <li>
+                    <a href="{% if jp_can_team_reports %}{% url 'reports:team_vp' %}{% else %}{% url 'reports:my_vp' %}{% endif %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'team_vp' or request.resolver_match.url_name == 'my_vp' or request.resolver_match.url_name == 'detail_vp' %}active{% endif %}">
+                        <i class="bi bi-file-earmark-spreadsheet"></i><span>Chi tiết BC ngày (VP)</span>
                     </a>
                 </li>
                 {% endif %}

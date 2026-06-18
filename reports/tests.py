@@ -94,16 +94,16 @@ class ReportHierarchyTests(TestCase):
         client.force_login(self.director)
         resp = client.get(reverse('reports:today'))
         self.assertEqual(resp.status_code, 302)
-        self.assertIn('/reports/team/', resp.url)
+        self.assertIn('/reports/cn/team/', resp.url)
 
     def test_leader_sees_only_direct_subordinate_report(self):
         client = Client()
         client.force_login(self.leader)
-        resp = client.get(reverse('reports:detail', args=[self.report.pk]))
+        resp = client.get(reverse('reports:detail_cn', args=[self.report.pk]))
         self.assertEqual(resp.status_code, 200)
 
         client.force_login(self.div_head)
-        resp = client.get(reverse('reports:detail', args=[self.report.pk]))
+        resp = client.get(reverse('reports:detail_cn', args=[self.report.pk]))
         self.assertEqual(resp.status_code, 302)
 
         leader_report = DailyWorkReport.objects.create(
@@ -112,13 +112,13 @@ class ReportHierarchyTests(TestCase):
             status=DailyWorkReport.STATUS_SUBMITTED,
         )
         client.force_login(self.div_head)
-        resp = client.get(reverse('reports:detail', args=[leader_report.pk]))
+        resp = client.get(reverse('reports:detail_cn', args=[leader_report.pk]))
         self.assertEqual(resp.status_code, 200)
 
     def test_outsider_cannot_view_report(self):
         client = Client()
         client.force_login(self.outsider)
-        resp = client.get(reverse('reports:detail', args=[self.report.pk]))
+        resp = client.get(reverse('reports:detail_cn', args=[self.report.pk]))
         self.assertEqual(resp.status_code, 302)
 
 
@@ -158,25 +158,23 @@ class ReportProfileRoutingTests(TestCase):
     def test_production_user_sees_production_form(self):
         client = Client()
         client.force_login(self.prod_user)
-        resp = client.get(reverse('reports:today'))
+        resp = client.get(reverse('reports:today_cn'))
         self.assertEqual(resp.status_code, 200)
-        self.assertTemplateUsed(resp, 'reports/today.html')
-        self.assertContains(resp, 'Công đoạn')
+        self.assertTemplateUsed(resp, 'reports/today_production_hourly.html')
 
     def test_office_user_sees_office_form(self):
         client = Client()
         client.force_login(self.office_user)
-        resp = client.get(reverse('reports:today'))
+        resp = client.get(reverse('reports:today_vp'))
         self.assertEqual(resp.status_code, 200)
         self.assertTemplateUsed(resp, 'reports/today_office.html')
         self.assertContains(resp, 'Bảng')
         self.assertContains(resp, 'Văn bản')
-        self.assertNotContains(resp, 'Công đoạn')
 
     def test_daily_page_shows_daily_title_only(self):
         client = Client()
         client.force_login(self.office_user)
-        resp = client.get(reverse('reports:today'))
+        resp = client.get(reverse('reports:today_vp'))
         self.assertContains(resp, 'Báo cáo ngày')
         self.assertContains(resp, 'jp-reports-intro')
         self.assertNotContains(resp, 'jp-reports-period-nav')

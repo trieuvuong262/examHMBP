@@ -87,10 +87,10 @@ def _resolve_production_subject(request, report_date):
             target = get_report_team_users(request.user).get(pk=int(for_user_id))
         except (User.DoesNotExist, ValueError, TypeError):
             messages.error(request, 'Không tìm thấy nhân viên cấp dưới.')
-            return None, None, redirect('reports:team')
+            return None, None, redirect('reports:team_cn')
         if not can_proxy_enter_daily_report(request.user, target):
             messages.error(request, 'Bạn không có quyền nhập báo cáo hộ nhân viên này.')
-            return None, None, redirect('reports:team')
+            return None, None, redirect('reports:team_cn')
         subject = target
         editing_for_other = True
     return subject, editing_for_other, None
@@ -110,7 +110,7 @@ def _load_production_report(subject, report_date):
 
 
 def _production_redirect(report_date, for_user_id=None, extra=None):
-    url = f'{reverse("reports:today")}?date={report_date.isoformat()}'
+    url = f'{reverse("reports:today_cn")}?date={report_date.isoformat()}'
     if for_user_id:
         url += f'&for_user={for_user_id}'
     if extra:
@@ -225,7 +225,7 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         report.report_profile = REPORT_PROFILE_PRODUCTION
         report.save()
         if editing_for_other:
-            return redirect('reports:detail', pk=report.pk)
+            return redirect('reports:detail_cn', pk=report.pk)
         return redirect(_production_redirect(report_date, None, 'phase=review'))
 
     return None
@@ -310,7 +310,7 @@ def today_production_hourly(request, report_date, report_context_common):
         ),
         'hourly_grid': grid,
         'for_user_param': subject.id if editing_for_other else '',
-        'back_team_url': reverse('reports:team') + f'?date={report_date.isoformat()}',
-        'detail_url': reverse('reports:detail', kwargs={'pk': report.pk}) if report.pk else '',
+        'back_team_url': reverse('reports:team_cn') + f'?date={report_date.isoformat()}',
+        'detail_url': reverse('reports:detail_cn', kwargs={'pk': report.pk}) if report.pk else '',
     })
     return render(request, 'reports/today_production_hourly.html', ctx)
