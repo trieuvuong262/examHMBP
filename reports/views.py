@@ -66,7 +66,7 @@ from .forms import (
     OfficeDailyWorkReportForm,
     WeeklyWorkReportForm,
 )
-from .models import DailyWorkReport, WeeklyWorkReport, WeeklyWorkReportAttachment
+from .models import DailyWorkReport, DailyWorkReportAttachment, WeeklyWorkReport, WeeklyWorkReportAttachment
 from .team_utils import (
     build_report_team_department_groups,
     daily_report_visible_to_team,
@@ -76,6 +76,12 @@ from .team_utils import (
     weekly_report_visible_to_team,
 )
 from .weekly_preview import file_attachment_preview, link_preview_rows
+from .daily_nas_storage import (
+    daily_attachment_abs_path,
+    ensure_daily_report_nas_dir,
+    open_daily_attachment,
+)
+from .daily_uploads import copy_daily_attachments, save_daily_uploads
 from .weekly_nas_storage import ensure_weekly_report_nas_dir, open_weekly_attachment, weekly_attachment_abs_path
 from .weekly_uploads import copy_weekly_attachments, save_weekly_uploads, weekly_report_has_content
 
@@ -292,6 +298,40 @@ def _delete_weekly_attachments(report, attachment_ids):
     return count
 
 
+def _daily_attachments_by_tab(report):
+    empty = ([], [])
+    if not report.pk:
+        return {'bang': empty, 'vanban': empty}
+    bang_images, bang_files = [], []
+    vanban_images, vanban_files = [], []
+    for att in report.attachments.all():
+        if att.source_tab == DailyWorkReportAttachment.SOURCE_BANG:
+            if att.is_image:
+                bang_images.append(att)
+            else:
+                bang_files.append(att)
+        elif att.source_tab == DailyWorkReportAttachment.SOURCE_VANBAN:
+            if att.is_image:
+                vanban_images.append(att)
+            else:
+                vanban_files.append(att)
+    return {
+        'bang': (bang_images, bang_files),
+        'vanban': (vanban_images, vanban_files),
+    }
+
+
+def _delete_daily_attachments(report, attachment_ids):
+    if not attachment_ids:
+        return 0
+    qs = report.attachments.filter(pk__in=attachment_ids)
+    count = qs.count()
+    for att in qs:
+        att.file.delete(save=False)
+    qs.delete()
+    return count
+
+
 def _weekly_context_common(request, week_start, *, report_profile: str):
     prev_week = week_start - timedelta(days=7)
     return {
@@ -328,22 +368,39 @@ def _today_office_report(request, report_date):
     if request.method == 'POST':
         action = request.POST.get('action', 'save')
         report = _ensure_daily_report_saved(report)
-        form = OfficeDailyWorkReportForm(request.POST, instance=report)
+        form = OfficeDailyWorkReportForm(request.POST, request.FILES, instance=report)
+        delete_ids = [int(pk) for pk in request.POST.getlist('delete_attachments') if pk.isdigit()]
         if form.is_valid():
+            _delete_daily_attachments(report, delete_ids)
             report = form.save(commit=False)
             report.report_profile = REPORT_PROFILE_OFFICE
             report.shift = ''
             messages.success(request, _finalize_report_submission(report, action))
             report.save()
+            ensure_daily_report_nas_dir()
+            save_daily_uploads(
+                report,
+                bang_images=request.FILES.getlist('bang_images'),
+                bang_files=request.FILES.getlist('bang_files'),
+                vanban_images=request.FILES.getlist('vanban_images'),
+                vanban_files=request.FILES.getlist('vanban_files'),
+            )
             return redirect(f'{reverse("reports:today_vp")}?date={report_date.isoformat()}')
     else:
         form = OfficeDailyWorkReportForm(instance=report)
 
+    tab_attachments = _daily_attachments_by_tab(report)
+    bang_images, bang_files = tab_attachments['bang']
+    vanban_images, vanban_files = tab_attachments['vanban']
     ctx = _report_context_common(request, report_date)
     ctx.update(_ckeditor_context())
     ctx.update({
         'form': form,
         'report': report,
+        'bang_images': bang_images,
+        'bang_files': bang_files,
+        'vanban_images': vanban_images,
+        'vanban_files': vanban_files,
         'employee_name': (user_profile.full_name if user_profile else '') or request.user.username,
         'department_name': user_profile.department.name if user_profile and user_profile.department_id else '',
         'report_period': 'daily',
@@ -536,7 +593,7 @@ def copy_yesterday(request, *, report_profile: str):
         employee=request.user,
         report_date=yesterday,
         report_profile=report_profile,
-    ).prefetch_related('lines').first()
+    ).prefetch_related('lines', 'attachments').first()
     if not source:
         messages.warning(request, 'Không có báo cáo hôm qua để sao chép.')
         return redirect(today_url_for_user(request.user))
@@ -556,6 +613,8 @@ def copy_yesterday(request, *, report_profile: str):
         report.document_html = source.document_html
         report.save()
         report.lines.all().delete()
+        _delete_daily_attachments(report, list(report.attachments.values_list('pk', flat=True)))
+        copy_daily_attachments(source, report)
     else:
         report.spreadsheet_json = None
         report.document_html = ''
@@ -962,7 +1021,7 @@ def _can_export_report_detail(report, hourly_grid, productivity, office_sheet) -
         has_grid = bool(hourly_grid and hourly_grid.get('rows'))
         has_productivity = bool(productivity and productivity.get('has_data'))
         return has_grid or has_productivity
-    return spreadsheet_has_content(office_sheet) or bool((report.document_html or '').strip())
+    return spreadsheet_has_content(office_sheet) or bool((report.document_html or '').strip()) or report.attachments.exists()
 
 
 def _report_detail_core(request, pk, *, detail_url_name: str):
@@ -979,6 +1038,7 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
     report = get_object_or_404(
         DailyWorkReport.objects.select_related('employee', 'employee__profile').prefetch_related(
             'lines',
+            'attachments',
             'production_products__hourly_entries',
         ),
         pk=pk,
@@ -1022,9 +1082,12 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         messages.success(request, 'Đã cập nhật phản hồi.')
         return redirect(detail_url_name, pk=pk)
 
-    from reports.office_content import normalize_spreadsheet_json
+    from reports.office_content import normalize_spreadsheet_json, spreadsheet_has_content
 
     office_sheet = normalize_spreadsheet_json(report.spreadsheet_json)
+    tab_attachments = _daily_attachments_by_tab(report) if not report.is_production_report else None
+    bang_detail_images, bang_detail_files = tab_attachments['bang'] if tab_attachments else ([], [])
+    vanban_detail_images, vanban_detail_files = tab_attachments['vanban'] if tab_attachments else ([], [])
     hourly_grid = None
     productivity = None
     edit_report_url = ''
@@ -1052,6 +1115,11 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
     return render(request, 'reports/detail.html', {
         'report': report,
         'office_sheet': office_sheet,
+        'tab_attachments': tab_attachments,
+        'bang_detail_images': bang_detail_images,
+        'bang_detail_files': bang_detail_files,
+        'vanban_detail_images': vanban_detail_images,
+        'vanban_detail_files': vanban_detail_files,
         'hourly_grid': hourly_grid,
         'productivity': productivity,
         'edit_report_url': edit_report_url,
@@ -1232,6 +1300,43 @@ def _weekly_report_detail_core(request, pk, *, detail_url_name: str):
         'team_weekly_url_name': team_weekly_url_name,
         'my_url_name': my_url_name_for_profile(report.report_profile),
     })
+
+
+@_reports_access_required
+def daily_attachment_serve(request, pk):
+    import mimetypes
+
+    att = get_object_or_404(
+        DailyWorkReportAttachment.objects.select_related('report__employee'),
+        pk=pk,
+    )
+    report = att.report
+    if not can_view_user_report(request.user, report):
+        messages.error(request, 'Bạn không có quyền tải file này.')
+        return redirect('reports:hub')
+    if not daily_report_visible_to_team(report) and report.employee_id != request.user.id:
+        raise Http404
+
+    path = daily_attachment_abs_path(att)
+    if not path:
+        raise Http404
+
+    content_type = mimetypes.guess_type(att.display_name)[0] or 'application/octet-stream'
+    inline_types = {
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'image/bmp',
+        'image/svg+xml',
+    }
+    as_attachment = content_type not in inline_types
+    file_handle = open_daily_attachment(att)
+    response = FileResponse(file_handle, content_type=content_type, as_attachment=as_attachment)
+    if as_attachment:
+        response['Content-Disposition'] = f'attachment; filename="{att.display_name}"'
+    return response
 
 
 @_reports_access_required

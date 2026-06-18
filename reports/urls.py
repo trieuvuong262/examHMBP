@@ -27,6 +27,7 @@ urlpatterns = [
     path('vp/ckeditor5-upload/', views.ckeditor5_upload, name='ckeditor5_upload'),
     path('vp/<int:pk>/export/', views.report_detail_export_vp, name='detail_export_vp'),
     path('vp/<int:pk>/', views.report_detail_vp, name='detail_vp'),
+    path('vp/file/<int:pk>/', views.daily_attachment_serve, name='daily_attachment'),
     # Báo cáo tuần — SX
     path('sx/weekly/', views.weekly_report_cn, name='weekly_cn'),
     path('sx/copy-prev-week/', views.copy_prev_week_cn, name='copy_prev_week_cn'),

@@ -1,0 +1,52 @@
+<div class="jp-office-tab-attachments">
+    <div class="jp-office-tab-attachments-head">
+        <span class="jp-office-tab-attachments-title">Đính kèm</span>
+        <span class="text-muted small">Lưu trên NAS — tối đa 100MB mỗi file</span>
+    </div>
+    <div class="row g-3">
+        <div class="col-12 col-md-6">
+            <div class="jp-office-attach-block">
+                <label class="jp-office-attach-label"><i class="bi bi-file-earmark-arrow-up"></i> Thêm file</label>
+                {% if files %}
+                <div class="jp-weekly-existing mb-2">
+                    <div class="small fw-bold text-muted mb-1">File đã tải</div>
+                    {% for att in files %}
+                    <label class="jp-weekly-existing-item">
+                        <input type="checkbox" name="delete_attachments" value="{{ att.pk }}" class="form-check-input">
+                        <a href="{{ att.file_url }}" target="_blank" rel="noopener" class="text-decoration-none">{{ att.display_name }}</a>
+                        <span class="text-muted small">(tick để xóa)</span>
+                    </label>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <input type="file" name="{{ file_field }}" class="form-control form-control-sm" multiple>
+            </div>
+        </div>
+        <div class="col-12 col-md-6">
+            <div class="jp-office-attach-block">
+                <label class="jp-office-attach-label"><i class="bi bi-image"></i> Thêm ảnh</label>
+                {% if images %}
+                <div class="jp-weekly-existing mb-2">
+                    <div class="small fw-bold text-muted mb-1">Ảnh đã tải</div>
+                    <div class="row g-2">
+                        {% for att in images %}
+                        <div class="col-6 col-md-4">
+                            <div class="jp-weekly-thumb">
+                                <a href="{{ att.file_url }}" target="_blank" rel="noopener">
+                                    <img src="{{ att.file_url }}" alt="{{ att.display_name }}" loading="lazy">
+                                </a>
+                                <label class="jp-weekly-thumb-delete">
+                                    <input type="checkbox" name="delete_attachments" value="{{ att.pk }}" class="form-check-input">
+                                    <span>Xóa</span>
+                                </label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                <input type="file" name="{{ image_field }}" class="form-control form-control-sm" multiple accept="image/*">
+            </div>
+        </div>
+    </div>
+</div>

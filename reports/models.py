@@ -8,6 +8,7 @@ from reports.report_profile import (
     REPORT_PROFILE_OFFICE,
     REPORT_PROFILE_PRODUCTION,
 )
+from reports.daily_nas_storage import DailyReportNasStorage, daily_attachment_upload_to
 from reports.weekly_nas_storage import WeeklyReportNasStorage, weekly_attachment_upload_to
 
 
@@ -69,6 +70,60 @@ class DailyWorkReport(models.Model):
     @property
     def total_quantity(self):
         return sum(line.quantity for line in self.lines.all())
+
+
+class DailyWorkReportAttachment(models.Model):
+    SOURCE_BANG = 'BANG'
+    SOURCE_VANBAN = 'VANBAN'
+    SOURCE_TAB_CHOICES = [
+        (SOURCE_BANG, 'Bảng'),
+        (SOURCE_VANBAN, 'Văn bản'),
+    ]
+
+    KIND_FILE = 'FILE'
+    KIND_IMAGE = 'IMAGE'
+    KIND_CHOICES = [
+        (KIND_FILE, 'File'),
+        (KIND_IMAGE, 'Ảnh'),
+    ]
+
+    report = models.ForeignKey(
+        DailyWorkReport,
+        on_delete=models.CASCADE,
+        related_name='attachments',
+        verbose_name='Báo cáo ngày',
+    )
+    source_tab = models.CharField(max_length=10, choices=SOURCE_TAB_CHOICES)
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES)
+    file = models.FileField(
+        upload_to=daily_attachment_upload_to,
+        storage=DailyReportNasStorage(),
+    )
+    original_name = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at', 'id']
+        verbose_name = 'Đính kèm báo cáo ngày'
+        verbose_name_plural = 'Đính kèm báo cáo ngày'
+
+    def __str__(self):
+        return self.display_name
+
+    @property
+    def display_name(self):
+        return self.original_name or os.path.basename(self.file.name)
+
+    @property
+    def file_url(self):
+        from django.urls import reverse
+        if not self.pk:
+            return ''
+        return reverse('reports:daily_attachment', kwargs={'pk': self.pk})
+
+    @property
+    def is_image(self):
+        return self.kind == self.KIND_IMAGE
 
 
 class DailyWorkReportLine(models.Model):

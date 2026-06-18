@@ -72,7 +72,12 @@ def _xlsx_response(sheets: dict[str, pd.DataFrame], filename_prefix: str) -> Htt
 def can_export_daily_report(report: DailyWorkReport) -> bool:
     if report.is_production_report:
         return bool(report.shift_started_at)
-    return office_report_has_content(report.spreadsheet_json, report.document_html or '')
+    has_attachments = report.attachments.exists() if report.pk else False
+    return office_report_has_content(
+        report.spreadsheet_json,
+        report.document_html or '',
+        attachment_count=1 if has_attachments else 0,
+    )
 
 
 def export_daily_report_xlsx(report: DailyWorkReport) -> HttpResponse:

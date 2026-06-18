@@ -55,6 +55,8 @@ def document_has_content(html: str) -> bool:
     return len(strip_tags(html or '').strip()) >= 50
 
 
-def office_report_has_content(spreadsheet_json, document_html: str) -> bool:
+def office_report_has_content(spreadsheet_json, document_html: str, *, attachment_count: int = 0) -> bool:
     data = normalize_spreadsheet_json(spreadsheet_json)
+    if attachment_count > 0:
+        return True
     return spreadsheet_has_content(data) or document_has_content(document_html)

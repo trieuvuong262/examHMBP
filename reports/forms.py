@@ -129,9 +129,20 @@ class OfficeDailyWorkReportForm(forms.ModelForm):
         sheet = cleaned.get('spreadsheet_data') or DEFAULT_SPREADSHEET
         doc = cleaned.get('document_html') or ''
         if self.data.get('action') == 'submit':
-            if not office_report_has_content(sheet, doc):
+            delete_ids = {int(pk) for pk in self.data.getlist('delete_attachments') if pk.isdigit()}
+            existing = 0
+            if self.instance.pk:
+                existing = self.instance.attachments.exclude(pk__in=delete_ids).count()
+            new_uploads = 0
+            for key in ('bang_images', 'bang_files', 'vanban_images', 'vanban_files'):
+                new_uploads += len(self.files.getlist(key))
+            if not office_report_has_content(
+                sheet,
+                doc,
+                attachment_count=existing + new_uploads,
+            ):
                 raise forms.ValidationError(
-                    'Khi nộp báo cáo, điền ít nhất một ô trong tab Bảng hoặc ≥ 50 ký tự trong tab Văn bản.',
+                    'Khi nộp báo cáo, điền ít nhất một ô trong tab Bảng, ≥ 50 ký tự trong tab Văn bản, hoặc tải file/ảnh.',
                 )
         return cleaned
 

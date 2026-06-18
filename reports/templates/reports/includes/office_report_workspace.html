@@ -12,11 +12,13 @@
                 <table class="jp-office-sheet mb-0" id="jpOfficeSheet" aria-label="Bảng báo cáo"></table>
             </div>
             {{ form.spreadsheet_data }}
+            {% include 'reports/includes/office_tab_attachments.html' with images=bang_images files=bang_files image_field='bang_images' file_field='bang_files' %}
         </div>
         <div class="tab-pane fade" id="vanban-pane" role="tabpanel">
             <div class="jp-vanban-panel">
                 {{ form.document_html }}
             </div>
+            {% include 'reports/includes/office_tab_attachments.html' with images=vanban_images files=vanban_files image_field='vanban_images' file_field='vanban_files' %}
         </div>
     </div>
 </div>

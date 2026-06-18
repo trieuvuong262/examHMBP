@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260529d">
+<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260529e">
 {% endblock %}
 
 {% block content %}
@@ -15,7 +15,7 @@
     </div>
     {% endif %}
 
-    <form method="post" id="office-report-form"
+    <form method="post" id="office-report-form" enctype="multipart/form-data"
           data-ck-upload-url="{% url 'reports:ckeditor5_upload' %}"
           data-ck-browse-url="">
         {% csrf_token %}

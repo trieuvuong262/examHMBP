@@ -1,0 +1,26 @@
+{% if files or images %}
+<div class="jp-office-detail-attachments mt-2 mb-0">
+    {% if files %}
+    <div class="small fw-bold text-muted mb-1">File đính kèm</div>
+  <ul class="list-unstyled mb-2 small">
+        {% for att in files %}
+        <li class="mb-1">
+            <a href="{{ att.file_url }}" target="_blank" rel="noopener"><i class="bi bi-paperclip me-1"></i>{{ att.display_name }}</a>
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+    {% if images %}
+    <div class="small fw-bold text-muted mb-1">Ảnh đính kèm</div>
+    <div class="row g-2 mb-0">
+        {% for att in images %}
+        <div class="col-6 col-md-4 col-lg-3">
+            <a href="{{ att.file_url }}" target="_blank" rel="noopener" class="jp-weekly-thumb-btn d-block">
+                <img src="{{ att.file_url }}" alt="{{ att.display_name }}" class="jp-weekly-thumb img-fluid rounded" loading="lazy">
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endif %}

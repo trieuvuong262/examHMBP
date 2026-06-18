@@ -176,6 +176,11 @@
                 </table>
             </div>
         </div>
+        {% if bang_detail_images or bang_detail_files %}
+        <div class="card-body border-top pt-3">
+        {% include 'reports/includes/office_detail_attachments.html' with images=bang_detail_images files=bang_detail_files %}
+        </div>
+        {% endif %}
     </div>
     <div class="card border-0 shadow-sm mb-4 overflow-hidden">
         <div class="card-header bg-white fw-bold border-bottom">Văn bản</div>
@@ -188,6 +193,11 @@
         {% else %}
         <div class="card-body">
             <p class="text-muted mb-0">Chưa có nội dung văn bản.</p>
+        </div>
+        {% endif %}
+        {% if vanban_detail_images or vanban_detail_files %}
+        <div class="card-body border-top pt-3">
+        {% include 'reports/includes/office_detail_attachments.html' with images=vanban_detail_images files=vanban_detail_files %}
         </div>
         {% endif %}
     </div>
