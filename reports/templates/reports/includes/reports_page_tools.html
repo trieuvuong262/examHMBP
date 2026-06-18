@@ -8,11 +8,15 @@
         <i class="bi bi-copy me-1"></i>{{ copy_label }}
     </a>
     {% endif %}
-    <a href="{% url 'reports:my' %}{% if report_period == 'weekly' %}?period=weekly{% endif %}" class="btn btn-outline-dark btn-sm flex-fill flex-md-grow-0">Lịch sử</a>
-    {% if can_view_team %}
-    {% if report_period == 'weekly' %}
-    <a href="{% url 'reports:team_weekly' %}{% if week_start %}?week={{ week_start|date:'Y-m-d' }}{% endif %}" class="btn btn-outline-hm btn-sm flex-fill flex-md-grow-0">Báo cáo cấp dưới</a>
+    {% if my_url_name %}
+    <a href="{% url my_url_name %}{% if report_period == 'weekly' %}?period=weekly{% endif %}" class="btn btn-outline-dark btn-sm flex-fill flex-md-grow-0">Lịch sử</a>
     {% else %}
+    <a href="{% url 'reports:my' %}{% if report_period == 'weekly' %}?period=weekly{% endif %}" class="btn btn-outline-dark btn-sm flex-fill flex-md-grow-0">Lịch sử</a>
+    {% endif %}
+    {% if can_view_team %}
+    {% if report_period == 'weekly' and team_weekly_url_name %}
+    <a href="{% url team_weekly_url_name %}{% if week_start %}?week={{ week_start|date:'Y-m-d' }}{% endif %}" class="btn btn-outline-hm btn-sm flex-fill flex-md-grow-0">Báo cáo cấp dưới</a>
+    {% elif report_period != 'weekly' %}
     <a href="{% url 'reports:team' %}{% if report_date %}?date={{ report_date|date:'Y-m-d' }}{% endif %}" class="btn btn-outline-hm btn-sm flex-fill flex-md-grow-0">Báo cáo cấp dưới</a>
     {% endif %}
     {% endif %}

@@ -17,7 +17,7 @@
         <div class="d-flex gap-2 flex-wrap w-100 w-md-auto">
             {% if not history_for_user_id %}
             {% if report_period == 'weekly' %}
-            <a href="{% url 'reports:weekly' %}" class="btn btn-hm fw-bold flex-fill flex-md-grow-0">
+            <a href="{% url weekly_url_name %}" class="btn btn-hm fw-bold flex-fill flex-md-grow-0">
                 <i class="bi bi-plus-lg me-1"></i>Báo cáo tuần
             </a>
             {% else %}
@@ -28,7 +28,7 @@
             {% endif %}
             {% if can_view_team %}
             {% if report_period == 'weekly' %}
-            <a href="{% url 'reports:team_weekly' %}" class="btn btn-outline-hm fw-bold flex-fill flex-md-grow-0">Báo cáo cấp dưới</a>
+            <a href="{% url team_weekly_url_name %}" class="btn btn-outline-hm fw-bold flex-fill flex-md-grow-0">Báo cáo cấp dưới</a>
             {% else %}
             <a href="{% url team_url_name %}" class="btn btn-outline-hm fw-bold flex-fill flex-md-grow-0">Báo cáo cấp dưới</a>
             {% endif %}
@@ -117,8 +117,8 @@
                             {% endif %}
                         </td>
                         <td class="text-end">
-                            <a href="{% url 'reports:weekly_detail' r.pk %}" class="btn btn-sm btn-outline-hm">Xem</a>
-                            <a href="{% url 'reports:weekly' %}?week={{ r.week_start|date:'Y-m-d' }}" class="btn btn-sm btn-outline-dark">Sửa</a>
+                            <a href="{% url weekly_detail_url_name r.pk %}" class="btn btn-sm btn-outline-hm">Xem</a>
+                            <a href="{% url weekly_url_name %}?week={{ r.week_start|date:'Y-m-d' }}" class="btn btn-sm btn-outline-dark">Sửa</a>
                         </td>
                         {% else %}
                         <td>{{ r.report_date|date:"d/m/Y" }}</td>

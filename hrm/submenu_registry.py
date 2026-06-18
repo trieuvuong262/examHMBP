@@ -24,7 +24,10 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'daily_cn_detail', 'label': 'Quản lý báo cáo (SX)', 'icon': 'bi-people-fill'},
         {'key': 'daily_vp', 'label': 'Báo cáo ngày (VP)', 'icon': 'bi-calendar-day'},
         {'key': 'daily_vp_detail', 'label': 'Quản lý báo cáo (VP)', 'icon': 'bi-people-fill'},
-        {'key': 'weekly', 'label': 'Báo cáo tuần', 'icon': 'bi-calendar-week'},
+        {'key': 'weekly_cn', 'label': 'Báo cáo tuần (SX)', 'icon': 'bi-calendar-week'},
+        {'key': 'weekly_cn_detail', 'label': 'Quản lý báo cáo tuần (SX)', 'icon': 'bi-people-fill'},
+        {'key': 'weekly_vp', 'label': 'Báo cáo tuần (VP)', 'icon': 'bi-calendar-week'},
+        {'key': 'weekly_vp_detail', 'label': 'Quản lý báo cáo tuần (VP)', 'icon': 'bi-people-fill'},
     ],
     MODULE_TASKS: [
         {'key': 'personal', 'label': 'Giao việc cá nhân', 'icon': 'bi-person-check'},
@@ -104,14 +107,22 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/reports/vp/copy-yesterday', MODULE_REPORTS, 'daily_vp'),
     ('/reports/vp/today', MODULE_REPORTS, 'daily_vp'),
     ('/reports/vp/ckeditor5-upload', MODULE_REPORTS, 'daily_vp'),
+    # Báo cáo tuần — SX
+    ('/reports/sx/team/weekly', MODULE_REPORTS, 'weekly_cn_detail'),
+    ('/reports/sx/weekly', MODULE_REPORTS, 'weekly_cn'),
+    ('/reports/sx/copy-prev-week', MODULE_REPORTS, 'weekly_cn'),
+    # Báo cáo tuần — VP
+    ('/reports/vp/team/weekly', MODULE_REPORTS, 'weekly_vp_detail'),
+    ('/reports/vp/weekly', MODULE_REPORTS, 'weekly_vp'),
+    ('/reports/vp/copy-prev-week', MODULE_REPORTS, 'weekly_vp'),
     # Legacy (giữ tương thích URL cũ)
-    ('/reports/team/weekly', MODULE_REPORTS, 'weekly'),
-    ('/reports/weekly', MODULE_REPORTS, 'weekly'),
+    ('/reports/team/weekly', MODULE_REPORTS, 'weekly_cn_detail'),
+    ('/reports/weekly', MODULE_REPORTS, 'weekly_cn'),
     ('/reports/team', MODULE_REPORTS, 'daily_cn_detail'),
     ('/reports/today', MODULE_REPORTS, 'daily_cn'),
     ('/reports/my', MODULE_REPORTS, 'daily_cn_detail'),
     ('/reports/copy-yesterday', MODULE_REPORTS, 'daily_cn'),
-    ('/reports/copy-prev-week', MODULE_REPORTS, 'weekly'),
+    ('/reports/copy-prev-week', MODULE_REPORTS, 'weekly_cn'),
     ('/reports/ckeditor5-upload', MODULE_REPORTS, 'daily_vp'),
     # Công việc
     ('/cong-viec/lien-phong-ban', MODULE_TASKS, 'cross_dept'),

@@ -35,19 +35,28 @@ from reports.report_profile import (
     REPORT_PROFILE_PRODUCTION,
 )
 from reports.navigation import (
+    copy_prev_week_url_name_for_profile,
     detail_export_url_for_report,
     detail_url_for_report,
     history_url_for,
     list_back_url_for,
+    redirect_copy_prev_week_legacy,
     redirect_team_legacy,
+    redirect_team_weekly_legacy,
+    report_profile_label,
     today_url_for_user,
     today_url_name_for_user,
     team_url_for_profile,
+    team_weekly_url_name_for_profile,
     my_url_for_profile,
     my_url_for_user,
     my_url_name_for_profile,
     redirect_copy_yesterday_legacy,
     team_url_name_for_profile,
+    weekly_detail_url_name_for_profile,
+    weekly_url_for_profile,
+    weekly_url_for_user,
+    weekly_url_name_for_profile,
 )
 from reports.week_utils import monday_of, parse_week_start, week_end, week_label
 
@@ -82,7 +91,14 @@ def _reports_access_required(view_func):
     return module_perm_required(MODULE_REPORTS, 'view')(view_func)
 
 
-_WEEKLY_SUBMIT_VIEWS = frozenset({'weekly_report', 'copy_prev_week'})
+_WEEKLY_SUBMIT_VIEWS = frozenset({
+    'weekly_report_redirect',
+    'weekly_report_cn',
+    'weekly_report_vp',
+    'copy_prev_week_redirect',
+    'copy_prev_week_cn',
+    'copy_prev_week_vp',
+})
 
 
 def _is_supervisor_entry_request(request):
@@ -105,7 +121,7 @@ def _require_submit_access(view_func):
         if not can_submit_daily_report(request.user):
             if can_view_team_reports(request.user):
                 if view_func.__name__ in _WEEKLY_SUBMIT_VIEWS:
-                    return redirect('reports:team_weekly')
+                    return redirect(redirect_team_weekly_legacy(request.user))
                 return redirect(redirect_team_legacy(request.user))
             return redirect('home_portal')
         return view_func(request, *args, **kwargs)
@@ -222,11 +238,15 @@ def _parse_week_start(request):
     return parse_week_start(raw)
 
 
-def _load_weekly_report(user, week_start):
+def _load_weekly_report(user, week_start, *, report_profile: str):
     try:
         return WeeklyWorkReport.objects.get(employee=user, week_start=week_start)
     except WeeklyWorkReport.DoesNotExist:
-        return WeeklyWorkReport(employee=user, week_start=week_start)
+        return WeeklyWorkReport(
+            employee=user,
+            week_start=week_start,
+            report_profile=report_profile,
+        )
 
 
 def _ensure_weekly_report_saved(report):
@@ -256,7 +276,7 @@ def _delete_weekly_attachments(report, attachment_ids):
     return count
 
 
-def _weekly_context_common(request, week_start):
+def _weekly_context_common(request, week_start, *, report_profile: str):
     prev_week = week_start - timedelta(days=7)
     return {
         'week_start': week_start,
@@ -265,10 +285,16 @@ def _weekly_context_common(request, week_start):
         'has_prev_week': WeeklyWorkReport.objects.filter(
             employee=request.user,
             week_start=prev_week,
+            report_profile=report_profile,
         ).exists(),
         'prev_week': prev_week,
         'can_view_team': can_view_team_reports(request.user),
         'report_period': 'weekly',
+        'reports_scope_label': report_profile_label(report_profile),
+        'weekly_url_name': weekly_url_name_for_profile(report_profile),
+        'team_weekly_url_name': team_weekly_url_name_for_profile(report_profile),
+        'weekly_detail_url_name': weekly_detail_url_name_for_profile(report_profile),
+        'my_url_name': my_url_name_for_profile(report_profile),
     }
 
 
@@ -313,13 +339,14 @@ def _today_office_report(request, report_date):
     return render(request, 'reports/today_office.html', ctx)
 
 
-@_require_submit_access
-def weekly_report(request):
+def _weekly_report(request, *, report_profile: str):
     from hrm.permissions import get_profile as load_profile
 
     week_start = _parse_week_start(request)
     user_profile = load_profile(request.user)
-    report = _load_weekly_report(request.user, week_start)
+    report = _load_weekly_report(request.user, week_start, report_profile=report_profile)
+    weekly_url_name = weekly_url_name_for_profile(report_profile)
+    copy_prev_week_url_name = copy_prev_week_url_name_for_profile(report_profile)
 
     if request.method == 'POST':
         action = request.POST.get('action', 'save')
@@ -344,17 +371,18 @@ def weekly_report(request):
                 )
             else:
                 report = form.save(commit=False)
+                report.report_profile = report_profile
                 msg = _finalize_report_submission(report, action)
                 messages.success(request, msg)
                 report.save()
                 ensure_weekly_report_nas_dir()
                 save_weekly_uploads(report, image_list=image_uploads, file_list=file_uploads)
-                return redirect(f'{reverse("reports:weekly")}?week={week_start.isoformat()}')
+                return redirect(f'{reverse(weekly_url_name)}?week={week_start.isoformat()}')
     else:
         form = WeeklyWorkReportForm(instance=report)
 
     images, files = _weekly_attachments(report)
-    ctx = _weekly_context_common(request, week_start)
+    ctx = _weekly_context_common(request, week_start, report_profile=report_profile)
     ctx.update({
         'form': form,
         'report': report,
@@ -362,7 +390,7 @@ def weekly_report(request):
         'weekly_files': files,
         'employee_name': (user_profile.full_name if user_profile else '') or request.user.username,
         'department_name': user_profile.department.name if user_profile and user_profile.department_id else '',
-        'copy_url': reverse('reports:copy_prev_week') if ctx['has_prev_week'] else None,
+        'copy_url': reverse(copy_prev_week_url_name) if ctx['has_prev_week'] else None,
         'copy_label': 'Sao chép tuần trước',
         'copy_confirm': 'Sao chép nội dung từ tuần trước?',
     })
@@ -370,22 +398,43 @@ def weekly_report(request):
 
 
 @_require_submit_access
-def copy_prev_week(request):
+def weekly_report_cn(request):
+    return _weekly_report(request, report_profile=REPORT_PROFILE_PRODUCTION)
+
+
+@_require_submit_access
+def weekly_report_vp(request):
+    return _weekly_report(request, report_profile=REPORT_PROFILE_OFFICE)
+
+
+@_require_submit_access
+def weekly_report_redirect(request):
+    return redirect(weekly_url_for_user(request.user))
+
+
+@_require_submit_access
+def copy_prev_week(request, *, report_profile: str):
     this_week = monday_of(timezone.localdate())
     prev_week = this_week - timedelta(days=7)
     source = WeeklyWorkReport.objects.filter(
         employee=request.user,
         week_start=prev_week,
+        report_profile=report_profile,
     ).first()
+    weekly_url_name = weekly_url_name_for_profile(report_profile)
     if not source:
         messages.warning(request, 'Không có báo cáo tuần trước để sao chép.')
-        return redirect('reports:weekly')
+        return redirect(reverse(weekly_url_name))
 
     report, _ = WeeklyWorkReport.objects.get_or_create(
         employee=request.user,
         week_start=this_week,
-        defaults={'status': WeeklyWorkReport.STATUS_DRAFT},
+        defaults={
+            'status': WeeklyWorkReport.STATUS_DRAFT,
+            'report_profile': report_profile,
+        },
     )
+    report.report_profile = report_profile
     report.status = WeeklyWorkReport.STATUS_DRAFT
     report.submitted_at = None
     report.draft_saved_at = None
@@ -394,7 +443,22 @@ def copy_prev_week(request):
     _delete_weekly_attachments(report, list(report.attachments.values_list('pk', flat=True)))
     copy_weekly_attachments(source, report)
     messages.success(request, 'Đã sao chép báo cáo tuần trước. Kiểm tra và gửi lại.')
-    return redirect(f'{reverse("reports:weekly")}?week={this_week.isoformat()}')
+    return redirect(f'{reverse(weekly_url_name)}?week={this_week.isoformat()}')
+
+
+@_require_submit_access
+def copy_prev_week_cn(request):
+    return copy_prev_week(request, report_profile=REPORT_PROFILE_PRODUCTION)
+
+
+@_require_submit_access
+def copy_prev_week_vp(request):
+    return copy_prev_week(request, report_profile=REPORT_PROFILE_OFFICE)
+
+
+@_require_submit_access
+def copy_prev_week_redirect(request):
+    return redirect(redirect_copy_prev_week_legacy(request.user))
 
 
 def _resolve_today_subject(request):
@@ -532,7 +596,10 @@ def _my_reports(request, daily_report_profile=None):
     if period == 'weekly':
         reports_qs = meaningful_weekly_reports_qs().filter(
             employee=subject,
-        ).annotate(
+        )
+        if daily_report_profile:
+            reports_qs = reports_qs.filter(report_profile=daily_report_profile)
+        reports_qs = reports_qs.annotate(
             attachment_count=Count('attachments'),
         ).order_by('-week_start')
         reports_qs = apply_combined_search(reports_qs, search_query, lambda term: (
@@ -582,6 +649,18 @@ def _my_reports(request, daily_report_profile=None):
         ),
         'my_url_name': my_url_name_for_profile(daily_report_profile) if daily_report_profile else 'reports:my',
         'team_url_name': team_url_name_for_profile(daily_report_profile) if daily_report_profile else 'reports:team_cn',
+        'team_weekly_url_name': (
+            team_weekly_url_name_for_profile(daily_report_profile)
+            if daily_report_profile else 'reports:team_weekly_cn'
+        ),
+        'weekly_url_name': (
+            weekly_url_name_for_profile(daily_report_profile)
+            if daily_report_profile else 'reports:weekly_cn'
+        ),
+        'weekly_detail_url_name': (
+            weekly_detail_url_name_for_profile(daily_report_profile)
+            if daily_report_profile else 'reports:weekly_detail_cn'
+        ),
     })
 
 
@@ -761,14 +840,28 @@ def _team_reports_for_profile(request, report_profile: str):
 
 
 @_reports_access_required
-def team_weekly_reports(request):
+def team_weekly_reports_redirect(request):
+    return redirect(redirect_team_weekly_legacy(request.user))
+
+
+@_reports_access_required
+def team_weekly_reports_cn(request):
+    return _team_weekly_reports_for_profile(request, REPORT_PROFILE_PRODUCTION)
+
+
+@_reports_access_required
+def team_weekly_reports_vp(request):
+    return _team_weekly_reports_for_profile(request, REPORT_PROFILE_OFFICE)
+
+
+def _team_weekly_reports_for_profile(request, report_profile: str):
     if not can_view_team_reports(request.user):
         messages.error(
             request,
             'Chưa có nhân viên cấp dưới trực tiếp. HR cần cấu hình tại Nhân sự → Sửa nhân viên → Nhân viên dưới quyền.',
         )
         if can_submit_daily_report(request.user):
-            return redirect('reports:weekly')
+            return redirect(weekly_url_for_profile(report_profile))
         return redirect('home_portal')
 
     week_start = _parse_week_start(request)
@@ -780,6 +873,7 @@ def team_weekly_reports(request):
     all_reports = meaningful_weekly_reports_qs().filter(
         employee_id__in=all_team_ids,
         week_start=week_start,
+        report_profile=report_profile,
     )
     team_count = team.count()
     submitted = all_reports.filter(status=WeeklyWorkReport.STATUS_SUBMITTED).count()
@@ -788,6 +882,7 @@ def team_weekly_reports(request):
     reports = meaningful_weekly_reports_qs().filter(
         employee_id__in=all_team_ids,
         week_start=week_start,
+        report_profile=report_profile,
     ).select_related('employee', 'employee__profile').annotate(
         attachment_count=Count('attachments'),
     )
@@ -811,7 +906,7 @@ def team_weekly_reports(request):
     if dept_filter:
         base_params['dept'] = dept_filter
 
-    ctx = _weekly_context_common(request, week_start)
+    ctx = _weekly_context_common(request, week_start, report_profile=report_profile)
     ctx.update({
         'department_groups': department_groups,
         'dept_choices': dept_choices,
@@ -1044,7 +1139,24 @@ def copy_yesterday_redirect(request):
 
 
 @_reports_access_required
-def weekly_report_detail(request, pk):
+def weekly_report_detail_redirect(request, pk):
+    report = get_object_or_404(WeeklyWorkReport, pk=pk)
+    if report.is_production_report:
+        return redirect('reports:weekly_detail_cn', pk=pk, permanent=True)
+    return redirect('reports:weekly_detail_vp', pk=pk, permanent=True)
+
+
+@_reports_access_required
+def weekly_report_detail_cn(request, pk):
+    return _weekly_report_detail_core(request, pk, detail_url_name='reports:weekly_detail_cn')
+
+
+@_reports_access_required
+def weekly_report_detail_vp(request, pk):
+    return _weekly_report_detail_core(request, pk, detail_url_name='reports:weekly_detail_vp')
+
+
+def _weekly_report_detail_core(request, pk, *, detail_url_name: str):
     report = get_object_or_404(
         WeeklyWorkReport.objects.select_related('employee', 'employee__profile').prefetch_related('attachments'),
         pk=pk,
@@ -1052,9 +1164,10 @@ def weekly_report_detail(request, pk):
     if not can_view_user_weekly_report(request.user, report):
         messages.error(request, 'Bạn không có quyền xem báo cáo tuần này.')
         return redirect('reports:hub')
+    team_weekly_url_name = team_weekly_url_name_for_profile(report.report_profile)
     if not weekly_report_visible_to_team(report) and report.employee_id != request.user.id:
         messages.info(request, 'Nhân viên chưa lưu nháp hoặc gửi báo cáo tuần.')
-        return redirect(f'{reverse("reports:team_weekly")}?week={report.week_start.isoformat()}')
+        return redirect(f'{reverse(team_weekly_url_name)}?week={report.week_start.isoformat()}')
 
     can_review = can_review_user_weekly_report(request.user, report)
 
@@ -1063,13 +1176,16 @@ def weekly_report_detail(request, pk):
         report.hod_note = request.POST.get('hod_note', '').strip()
         report.save()
         messages.success(request, 'Đã cập nhật phản hồi.')
-        return redirect('reports:weekly_detail', pk=pk)
+        return redirect(detail_url_name, pk=pk)
 
     images, files = _weekly_attachments(report)
     profile = report.employee.profile
     edit_report_url = ''
     if report.employee_id == request.user.id and can_submit_daily_report(request.user):
-        edit_report_url = f"{reverse('reports:weekly')}?week={report.week_start.isoformat()}"
+        edit_report_url = (
+            f"{reverse(weekly_url_name_for_profile(report.report_profile))}"
+            f"?week={report.week_start.isoformat()}"
+        )
     return render(request, 'reports/weekly_detail.html', {
         'report': report,
         'weekly_images': images,
@@ -1087,6 +1203,9 @@ def weekly_report_detail(request, pk):
         'report_period': 'weekly',
         'report_date': report.week_start,
         'week_start': report.week_start,
+        'reports_scope_label': report_profile_label(report.report_profile),
+        'team_weekly_url_name': team_weekly_url_name,
+        'my_url_name': my_url_name_for_profile(report.report_profile),
     })
 
 

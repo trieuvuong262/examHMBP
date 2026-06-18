@@ -27,11 +27,21 @@ urlpatterns = [
     path('vp/ckeditor5-upload/', views.ckeditor5_upload, name='ckeditor5_upload'),
     path('vp/<int:pk>/export/', views.report_detail_export_vp, name='detail_export_vp'),
     path('vp/<int:pk>/', views.report_detail_vp, name='detail_vp'),
-    # Báo cáo tuần (chung)
-    path('weekly/', views.weekly_report, name='weekly'),
-    path('copy-prev-week/', views.copy_prev_week, name='copy_prev_week'),
-    path('team/weekly/', views.team_weekly_reports, name='team_weekly'),
-    path('weekly/<int:pk>/', views.weekly_report_detail, name='weekly_detail'),
+    # Báo cáo tuần — SX
+    path('sx/weekly/', views.weekly_report_cn, name='weekly_cn'),
+    path('sx/copy-prev-week/', views.copy_prev_week_cn, name='copy_prev_week_cn'),
+    path('sx/team/weekly/', views.team_weekly_reports_cn, name='team_weekly_cn'),
+    path('sx/weekly/<int:pk>/', views.weekly_report_detail_cn, name='weekly_detail_cn'),
+    # Báo cáo tuần — VP
+    path('vp/weekly/', views.weekly_report_vp, name='weekly_vp'),
+    path('vp/copy-prev-week/', views.copy_prev_week_vp, name='copy_prev_week_vp'),
+    path('vp/team/weekly/', views.team_weekly_reports_vp, name='team_weekly_vp'),
+    path('vp/weekly/<int:pk>/', views.weekly_report_detail_vp, name='weekly_detail_vp'),
+    # Legacy báo cáo tuần
+    path('weekly/', views.weekly_report_redirect, name='weekly'),
+    path('copy-prev-week/', views.copy_prev_week_redirect, name='copy_prev_week'),
+    path('team/weekly/', views.team_weekly_reports_redirect, name='team_weekly'),
+    path('weekly/<int:pk>/', views.weekly_report_detail_redirect, name='weekly_detail'),
     path('weekly/file/<int:pk>/', views.weekly_attachment_serve, name='weekly_attachment'),
     # Legacy — chuyển hướng sang SX/VP
     path('today/', views.today_report, name='today'),

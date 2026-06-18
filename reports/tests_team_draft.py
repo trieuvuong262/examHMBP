@@ -15,6 +15,7 @@ from hrm.models import (
 )
 from hrm.permissions import ROLE_DIRECTOR, ROLE_DIVISION_HEAD, ROLE_EMPLOYEE, ROLE_TEAM_LEADER
 from reports.models import DailyWorkReport, WeeklyWorkReport
+from reports.report_profile import REPORT_PROFILE_OFFICE
 from reports.team_utils import build_report_team_department_groups
 from reports.week_utils import monday_of
 
@@ -107,12 +108,13 @@ class ReportTeamDraftTests(TestCase):
         WeeklyWorkReport.objects.create(
             employee=self.member,
             week_start=week,
+            report_profile=REPORT_PROFILE_OFFICE,
             status=WeeklyWorkReport.STATUS_DRAFT,
             draft_saved_at=timezone.now(),
             links='https://draft.example',
         )
         self.client.force_login(self.leader)
-        resp = self.client.get(reverse('reports:team_weekly'))
+        resp = self.client.get(reverse('reports:team_weekly_vp'))
         self.assertContains(resp, 'Nháp')
 
     def test_unsaved_weekly_not_shown_as_draft_on_team_page(self):
@@ -120,10 +122,11 @@ class ReportTeamDraftTests(TestCase):
         WeeklyWorkReport.objects.create(
             employee=self.member,
             week_start=week,
+            report_profile=REPORT_PROFILE_OFFICE,
             status=WeeklyWorkReport.STATUS_DRAFT,
         )
         self.client.force_login(self.leader)
-        resp = self.client.get(reverse('reports:team_weekly'))
+        resp = self.client.get(reverse('reports:team_weekly_vp'))
         self.assertContains(resp, 'Chưa báo cáo')
         self.assertNotContains(resp, 'Nháp')
 
@@ -132,17 +135,18 @@ class ReportTeamDraftTests(TestCase):
         WeeklyWorkReport.objects.create(
             employee=self.member,
             week_start=week,
+            report_profile=REPORT_PROFILE_OFFICE,
             status=WeeklyWorkReport.STATUS_SUBMITTED,
             links='https://history.example',
             submitted_at=timezone.now(),
         )
         self.client.force_login(self.member)
-        resp = self.client.get(reverse('reports:my_cn'), {'period': 'weekly'})
+        resp = self.client.get(reverse('reports:my_vp'), {'period': 'weekly'})
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'Theo tuần')
         self.assertContains(resp, '1 link')
         self.assertContains(resp, 'Đã nộp')
-        self.assertContains(resp, reverse('reports:weekly_detail', args=[
+        self.assertContains(resp, reverse('reports:weekly_detail_vp', args=[
             WeeklyWorkReport.objects.get(employee=self.member, week_start=week).pk,
         ]))
 
@@ -151,10 +155,11 @@ class ReportTeamDraftTests(TestCase):
         WeeklyWorkReport.objects.create(
             employee=self.member,
             week_start=week,
+            report_profile=REPORT_PROFILE_OFFICE,
             status=WeeklyWorkReport.STATUS_DRAFT,
         )
         self.client.force_login(self.member)
-        resp = self.client.get(reverse('reports:my_cn'), {'period': 'weekly'})
+        resp = self.client.get(reverse('reports:my_vp'), {'period': 'weekly'})
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'Chưa có báo cáo tuần nào')
 
@@ -163,15 +168,16 @@ class ReportTeamDraftTests(TestCase):
         WeeklyWorkReport.objects.create(
             employee=self.member,
             week_start=week,
+            report_profile=REPORT_PROFILE_OFFICE,
             status=WeeklyWorkReport.STATUS_SUBMITTED,
             links='https://example.com',
             submitted_at=timezone.now(),
         )
         self.client.force_login(self.leader)
-        resp = self.client.get(reverse('reports:team_weekly'))
+        resp = self.client.get(reverse('reports:team_weekly_vp'))
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, 'Báo cáo tuần')
-        resp2 = self.client.get(reverse('reports:weekly_detail', args=[
+        self.assertContains(resp, 'Quản lý báo cáo tuần')
+        resp2 = self.client.get(reverse('reports:weekly_detail_vp', args=[
             WeeklyWorkReport.objects.get(employee=self.member, week_start=week).pk,
         ]))
         self.assertEqual(resp2.status_code, 200)

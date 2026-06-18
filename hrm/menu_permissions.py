@@ -41,7 +41,9 @@ _MENU_DEFER_PATH_PATTERNS = (
 
 _MENU_REGEX_RULES: list[tuple[re.Pattern, str, str]] = [
     (re.compile(r'^/gop-y/\d+/?$'), 'feedback', 'list'),
-    (re.compile(r'^/reports/weekly/\d+/?'), 'reports', 'weekly'),
+    (re.compile(r'^/reports/sx/weekly/\d+/?'), 'reports', 'weekly_cn_detail'),
+    (re.compile(r'^/reports/vp/weekly/\d+/?'), 'reports', 'weekly_vp_detail'),
+    (re.compile(r'^/reports/weekly/\d+/?'), 'reports', 'weekly_cn_detail'),
     (re.compile(r'^/reports/sx/\d+/export/?'), 'reports', 'daily_cn_detail'),
     (re.compile(r'^/reports/sx/\d+/?'), 'reports', 'daily_cn_detail'),
     (re.compile(r'^/reports/cn/\d+/export/?'), 'reports', 'daily_cn_detail'),
@@ -67,7 +69,7 @@ def module_has_configured_menus(perm: dict) -> bool:
 
 def get_effective_menu_perm(user, module_key: str, menu_key: str) -> dict:
     """Quyền hiệu lực của một menu con — kế thừa module nếu nhóm chưa cấu hình menus."""
-    from reports.navigation import legacy_daily_menu_key
+    from reports.navigation import legacy_reports_menu_key
 
     mod_perm = get_user_module_perm(user, module_key)
     menus = mod_perm.get('menus')
@@ -76,7 +78,7 @@ def get_effective_menu_perm(user, module_key: str, menu_key: str) -> dict:
             return empty_module_perm()
         menu_perm = menus.get(menu_key)
         if menu_perm is None:
-            legacy_key = legacy_daily_menu_key(menu_key)
+            legacy_key = legacy_reports_menu_key(menu_key)
             if legacy_key:
                 menu_perm = menus.get(legacy_key)
         if menu_perm is None:

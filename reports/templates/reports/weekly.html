@@ -7,7 +7,7 @@
 
 {% block content %}
 <div class="container jp-page jp-reports-page py-3 py-md-4 mb-5">
-    {% include 'reports/includes/reports_intro_header.html' with intro_icon='bi-calendar-week' intro_title='Báo cáo tuần' report_period='weekly' week_start=week_start can_view_team=can_view_team %}
+    {% include 'reports/includes/reports_intro_header.html' with intro_icon='bi-calendar-week' intro_title='Báo cáo tuần' report_period='weekly' week_start=week_start can_view_team=can_view_team my_url_name=my_url_name team_weekly_url_name=team_weekly_url_name copy_url=copy_url copy_label=copy_label copy_confirm=copy_confirm %}
 
     {% if report.status == 'SUBMITTED' %}
     <div class="alert alert-success border-0 shadow-sm py-2 mb-3">
@@ -139,7 +139,7 @@
     if (!weekInput) return;
     weekInput.addEventListener('change', function () {
         if (!this.value) return;
-        window.location.href = '{% url "reports:weekly" %}?week=' + this.value;
+        window.location.href = '{% url weekly_url_name %}?week=' + this.value;
     });
 })();
 </script>

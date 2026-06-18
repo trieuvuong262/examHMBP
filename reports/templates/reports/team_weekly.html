@@ -4,10 +4,10 @@
 <div class="container jp-page jp-reports-page py-3 py-md-4 mb-5">
     <div class="jp-page-header mb-3 mb-md-4">
         <div>
-            <h2 class="fw-bold text-hm mb-1 jp-page-title">Báo cáo tuần — cấp dưới</h2>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">Quản lý báo cáo tuần ({{ reports_scope_label }})</h2>
         </div>
         {% if can_submit_report %}
-        <a href="{% url 'reports:weekly' %}" class="btn btn-outline-hm btn-sm flex-fill flex-md-grow-0">Báo cáo tuần của tôi</a>
+        <a href="{% url weekly_url_name %}" class="btn btn-outline-hm btn-sm flex-fill flex-md-grow-0">Báo cáo tuần của tôi</a>
         {% endif %}
     </div>
 
@@ -89,7 +89,7 @@
                         </td>
                         <td class="text-end">
                             {% if row.report %}
-                            <a href="{% url 'reports:weekly_detail' row.report.pk %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
+                            <a href="{% url weekly_detail_url_name row.report.pk %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
                             {% else %}
                             <span class="text-muted small">—</span>
                             {% endif %}

@@ -5,6 +5,7 @@ from django.db import models
 
 from reports.report_profile import (
     REPORT_PROFILE_CHOICES,
+    REPORT_PROFILE_OFFICE,
     REPORT_PROFILE_PRODUCTION,
 )
 from reports.weekly_nas_storage import WeeklyReportNasStorage, weekly_attachment_upload_to
@@ -213,6 +214,12 @@ class WeeklyWorkReport(models.Model):
         verbose_name='Nhân viên',
     )
     week_start = models.DateField(verbose_name='Tuần (thứ 2)')
+    report_profile = models.CharField(
+        max_length=20,
+        choices=REPORT_PROFILE_CHOICES,
+        default=REPORT_PROFILE_OFFICE,
+        verbose_name='Loại báo cáo',
+    )
     links = models.TextField(blank=True, verbose_name='Link (mỗi dòng một link)')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT)
     submitted_at = models.DateTimeField(null=True, blank=True)
@@ -230,6 +237,10 @@ class WeeklyWorkReport(models.Model):
 
     def __str__(self):
         return f'{self.employee} - tuần {self.week_start}'
+
+    @property
+    def is_production_report(self):
+        return self.report_profile == REPORT_PROFILE_PRODUCTION
 
     @property
     def link_lines(self):
