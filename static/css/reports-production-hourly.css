@@ -716,6 +716,28 @@ body .modal-backdrop.show {
     }
 }
 
+.jp-prod-page--proxy-mode .jp-prod-layout {
+    display: block;
+}
+
+.jp-prod-proxy-toolbar .form-select {
+    font-weight: 600;
+}
+
+.jp-prod-main--proxy .jp-prod-proxy-grid-section {
+    background: #fff;
+    border-radius: 1rem;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+@media (min-width: 992px) {
+    .jp-prod-page--proxy-mode .jp-prod-review-desktop-bar {
+        margin-top: 1.25rem;
+    }
+}
+
 /* ——— Báo cáo năng suất (quản lý) ——— */
 .jp-prod-productivity-title {
     background: #fff3cd;

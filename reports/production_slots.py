@@ -24,6 +24,11 @@ PRODUCTION_HOURLY_SLOTS = (
     ProductionHourlySlot(5, '14h - 15h', time(14, 0), time(15, 0)),
     ProductionHourlySlot(6, '15h - 16h', time(15, 0), time(16, 0)),
     ProductionHourlySlot(7, '16h - 17h', time(16, 0), time(17, 0)),
+    ProductionHourlySlot(8, '17h - 18h', time(17, 0), time(18, 0)),
+    ProductionHourlySlot(9, '18h - 19h', time(18, 0), time(19, 0)),
+    ProductionHourlySlot(10, '19h - 20h', time(19, 0), time(20, 0)),
+    ProductionHourlySlot(11, '20h - 21h', time(20, 0), time(21, 0)),
+    ProductionHourlySlot(12, '21h - 22h30', time(21, 0), time(22, 30)),
 )
 
 SLOT_COUNT = len(PRODUCTION_HOURLY_SLOTS)

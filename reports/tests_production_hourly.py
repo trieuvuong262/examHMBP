@@ -12,6 +12,7 @@ from reports.models import DailyWorkReport, ProductionHourlyQuantity, Production
 from reports.production_hourly import (
     active_product,
     build_hourly_grid,
+    build_proxy_entry_grid,
     build_productivity_report,
     can_edit_production_report,
     cumulative_quantity,
@@ -25,7 +26,12 @@ from reports.production_hourly import (
     unfinalized_active_with_data,
     update_product_norms,
 )
-from reports.production_slots import SLOT_COUNT, current_slot_index, due_slot_indices
+from reports.production_slots import (
+    PRODUCTION_HOURLY_SLOTS,
+    SLOT_COUNT,
+    current_slot_index,
+    due_slot_indices,
+)
 from reports.report_profile import REPORT_PROFILE_PRODUCTION
 
 User = get_user_model()
@@ -146,11 +152,15 @@ class ProductionHourlyTests(TestCase):
         self.assertEqual(pending2[0]['slot_index'], 1)
 
     def test_slot_helpers(self):
-        self.assertEqual(SLOT_COUNT, 8)
+        self.assertEqual(SLOT_COUNT, 13)
+        self.assertEqual(PRODUCTION_HOURLY_SLOTS[0].start, time(7, 30))
+        self.assertEqual(PRODUCTION_HOURLY_SLOTS[-1].end, time(22, 30))
         noon = timezone.make_aware(datetime.combine(self.report_date, time(11, 0)))
         self.assertEqual(current_slot_index(noon, self.report_date), 3)
         due = due_slot_indices(noon, self.report_date)
         self.assertIn(3, due)
+        evening = timezone.make_aware(datetime.combine(self.report_date, time(20, 30)))
+        self.assertEqual(current_slot_index(evening, self.report_date), 11)
 
     def test_unfinalized_in_grid_before_finalize(self):
         ensure_work_day_started(self.report)
@@ -286,3 +296,39 @@ class ProductionHourlyTests(TestCase):
         self.assertEqual(prod['product_summaries'][0]['efficiency_pct'], 100.0)
         grid = build_hourly_grid(self.report)
         self.assertEqual(grid['rows'][0]['norm_per_hour'], 90.0)
+
+    def test_proxy_entry_grid_all_slots_editable(self):
+        ensure_work_day_started(self.report)
+        ensure_active_work_block(self.report)
+        grid = build_proxy_entry_grid(self.report)
+        self.assertTrue(grid['proxy_mode'])
+        self.assertEqual(len(grid['rows']), 1)
+        row = grid['rows'][0]
+        self.assertEqual(len(row['slots']), SLOT_COUNT)
+        self.assertTrue(all(not cell['is_na'] for cell in row['slots']))
+
+    def test_proxy_save_relaxes_slot_scope(self):
+        ensure_work_day_started(self.report)
+        pegasus = ensure_active_work_block(self.report)
+        save_hourly_entry(pegasus, 0, 100)
+        finalize_product_with_metadata(
+            self.report,
+            product_code='PEGASUS',
+            process_name='May',
+            norm_per_hour=100,
+        )
+        thor = active_product(self.report)
+        save_hourly_entry(thor, 3, 50, relax_slot_scope=True)
+        self.assertEqual(thor.hourly_entries.get(slot_index=3).quantity, 50)
+
+    def test_pending_slots_ignore_time(self):
+        ensure_work_day_started(self.report)
+        ensure_active_work_block(self.report)
+        with patch('reports.production_hourly.due_slot_indices', return_value=[]):
+            pending = pending_slots_for_report(self.report)
+            self.assertEqual(pending, [])
+            pending_proxy = pending_slots_for_report(
+                self.report,
+                ignore_time_constraints=True,
+            )
+            self.assertEqual(len(pending_proxy), SLOT_COUNT)

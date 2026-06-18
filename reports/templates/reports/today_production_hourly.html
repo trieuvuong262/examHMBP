@@ -7,12 +7,12 @@
 
 {% block content %}
 <div class="container-fluid jp-prod-page-wrap jp-page jp-reports-page py-3 py-md-4 mb-md-5">
-<div class="jp-prod-page{% if editing_for_other %} jp-prod-page--proxy{% endif %}{% if phase == 'review' %} jp-prod-page--review{% endif %}" data-phase="{{ phase }}">
+<div class="jp-prod-page{% if editing_for_other %} jp-prod-page--proxy{% endif %}{% if phase == 'review' %} jp-prod-page--review{% endif %}{% if proxy_mode %} jp-prod-page--proxy-mode{% endif %}" data-phase="{{ phase }}">
     <header class="jp-prod-page-header">
         <div class="jp-prod-page-header-main">
             <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 w-100">
                 <div>
-                    <h1 class="jp-prod-page-title">{% if phase == 'review' %}Tổng kết ngày{% else %}Báo cáo sản xuất{% endif %}</h1>
+                    <h1 class="jp-prod-page-title">{% if proxy_mode %}Nhập hộ báo cáo{% elif phase == 'review' %}Tổng kết ngày{% else %}Báo cáo sản xuất{% endif %}</h1>
                     <p class="jp-prod-page-sub mb-0">
                         <strong>{{ employee_name }}</strong>{% if department_name %} · {{ department_name }}{% endif %}
                     </p>
@@ -38,6 +38,133 @@
     </header>
 
     <div class="jp-prod-layout">
+        {% if proxy_mode %}
+        <div class="jp-prod-main jp-prod-main--proxy">
+            <section class="jp-prod-proxy-toolbar card border-0 shadow-sm mb-3">
+                <div class="card-body p-3">
+                    <form method="get" class="row g-3 align-items-end">
+                        <input type="hidden" name="date" value="{{ report_date|date:'Y-m-d' }}">
+                        <div class="col-md-6 col-lg-5">
+                            <label class="form-label fw-bold small mb-1">Chọn công nhân</label>
+                            <select name="for_user" class="form-select" onchange="this.form.submit()">
+                                {% for member in team_members %}
+                                <option value="{{ member.pk }}" {% if member.pk == subject_user.pk %}selected{% endif %}>
+                                    {{ member.profile.full_name|default:member.username }} · {{ member.username }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 col-lg-7">
+                            <p class="text-muted small mb-0">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Nhập hộ cho công nhân chưa dùng điện thoại — điền sản lượng các khung giờ, <strong>không cần đúng giờ thực</strong>.
+                            </p>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            {% if is_submitted and can_edit %}
+            <div class="alert alert-success border-0 small mb-3">
+                <i class="bi bi-check-circle-fill me-1"></i>Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }} — vẫn chỉnh sửa được trước khi cấp trên xem chi tiết.
+            </div>
+            {% elif is_locked %}
+            <div class="alert alert-secondary border-0 small mb-3">
+                <i class="bi bi-lock-fill me-1"></i>Đã khóa — không thể chỉnh sửa.
+            </div>
+            {% endif %}
+
+            {% if can_edit and has_unfinalized %}
+            <section class="jp-prod-card jp-prod-proxy-product-form mb-3">
+                <h3 class="h6 fw-bold mb-3"><i class="bi bi-tag me-2"></i>Thông tin mã hàng đang làm</h3>
+                <form method="post" class="row g-3 align-items-end">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="finalize_product">
+                    {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small">Mã hàng</label>
+                        <input type="text" name="product_code" class="form-control" required placeholder="VD: PEGASUS" autocomplete="off">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small">Tên công đoạn</label>
+                        <input type="text" name="process_name" class="form-control" required placeholder="VD: RÁP ĐÁY TRƯỚC x1" autocomplete="off">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold small">ĐM 1 giờ</label>
+                        <input type="number" name="norm_per_hour" class="form-control" required min="1" step="1" inputmode="numeric">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-outline-hm w-100 fw-bold">Lưu mã</button>
+                    </div>
+                </form>
+            </section>
+            {% endif %}
+
+            {% if can_edit %}
+            <section class="jp-prod-card jp-prod-proxy-grid-section">
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                    <h3 class="h6 fw-bold mb-0">Sản lượng theo khung giờ</h3>
+                    {% if hourly_grid.grand_total %}
+                    <span class="badge bg-light text-dark border">Tổng: <strong class="text-hm ms-1" id="review-grand-total">{{ hourly_grid.grand_total }}</strong></span>
+                    {% endif %}
+                </div>
+                <div id="review-grid-root" class="jp-prod-review-mobile d-md-none"></div>
+                <div id="review-grid-root-desktop" class="jp-prod-review-desktop d-none d-md-block"></div>
+            </section>
+
+            <div class="jp-prod-review-sticky d-md-none">
+                <div class="jp-prod-review-sticky-total">
+                    <span>Tổng ngày</span>
+                    <strong id="review-grand-total-mobile">{{ hourly_grid.grand_total|default:0 }}</strong>
+                </div>
+                <div class="d-grid gap-2">
+                    <form method="post" class="mb-0" id="review-save-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="save_review">
+                        <input type="hidden" name="review_json" id="review-json-save">
+                        {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
+                        <button type="submit" class="btn btn-outline-hm w-100 fw-bold">Lưu nháp</button>
+                    </form>
+                    <form method="post" class="mb-0" id="review-submit-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="submit">
+                        <input type="hidden" name="review_json" id="review-json-input">
+                        {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
+                        <button type="submit" class="btn btn-hm w-100 fw-bold btn-lg">
+                            <i class="bi bi-send-fill me-2"></i>{% if is_submitted %}Cập nhật báo cáo{% else %}Gửi báo cáo{% endif %}
+                        </button>
+                    </form>
+                </div>
+            </div>
+            <div class="jp-prod-review-sticky-spacer d-md-none" aria-hidden="true"></div>
+
+            <div class="jp-prod-review-desktop-bar d-none d-md-flex">
+                <div class="jp-prod-review-desktop-total">
+                    <span class="text-muted">Tổng ngày</span>
+                    <strong id="review-grand-total-desktop">{{ hourly_grid.grand_total|default:0 }}</strong>
+                </div>
+                <form method="post" class="mb-0" id="review-save-form-desktop">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="save_review">
+                    <input type="hidden" name="review_json" id="review-json-save-desktop">
+                    {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
+                    <button type="submit" class="btn btn-outline-hm fw-bold px-4">Lưu nháp</button>
+                </form>
+                <form method="post" class="mb-0 ms-auto" id="review-submit-form-desktop">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="submit">
+                    <input type="hidden" name="review_json" id="review-json-input-desktop">
+                    {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
+                    <button type="submit" class="btn btn-hm fw-bold px-4">
+                        <i class="bi bi-send-fill me-2"></i>{% if is_submitted %}Cập nhật báo cáo{% else %}Gửi báo cáo{% endif %}
+                    </button>
+                </form>
+            </div>
+            {% elif not can_edit %}
+            <div class="jp-prod-card text-center text-muted py-4">Không có quyền chỉnh sửa báo cáo này.</div>
+            {% endif %}
+        </div>
+        {% else %}
         {% if shift_started and phase != 'review' %}
         <aside class="jp-prod-sidebar d-none d-lg-block">
             <div class="jp-prod-sidebar-card">
@@ -212,11 +339,12 @@
             {% endif %}
             {% endif %}
         </div>
+        {% endif %}
     </div>
 </div>
 </div>
 
-{% if can_edit %}
+{% if can_edit and not proxy_mode %}
 <div class="modal fade jp-prod-modal" id="hourlyModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
     <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down modal-dialog-scrollable jp-prod-modal-dialog">
         <form method="post" class="modal-content" id="hourly-form">
@@ -306,5 +434,5 @@
 {% endif %}
 
 {% if hourly_grid %}{{ hourly_grid|json_script:"hourly-grid-data" }}{% endif %}
-<script src="{% static 'js/reports-production-hourly.js' %}?v=20260618a"></script>
+<script src="{% static 'js/reports-production-hourly.js' %}?v=20260618b"></script>
 {% endblock %}

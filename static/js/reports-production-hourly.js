@@ -17,7 +17,10 @@
     });
 
     function initReviewPageLayout() {
-        if (!document.querySelector('.jp-prod-page--review')) return;
+        if (
+            !document.querySelector('.jp-prod-page--review')
+            && !document.querySelector('.jp-prod-page--proxy-mode')
+        ) return;
         document.body.classList.add('jp-prod-hourly-review');
         syncReviewStickySpacer();
         window.addEventListener('resize', syncReviewStickySpacer);
@@ -215,12 +218,14 @@
             return;
         }
 
+        var proxyMode = !!grid.proxy_mode;
+
         if (rootMobile) {
-            rootMobile.innerHTML = renderReviewMobileCards(grid);
+            rootMobile.innerHTML = renderReviewMobileCards(grid, proxyMode);
             rootMobile.addEventListener('input', onReviewInput);
         }
         if (rootDesktop) {
-            rootDesktop.innerHTML = renderReviewDesktopTable(grid);
+            rootDesktop.innerHTML = renderReviewDesktopTable(grid, proxyMode);
             rootDesktop.addEventListener('input', onReviewInput);
         }
 
@@ -240,6 +245,8 @@
         var forms = [
             document.getElementById('review-submit-form'),
             document.getElementById('review-submit-form-desktop'),
+            document.getElementById('review-save-form'),
+            document.getElementById('review-save-form-desktop'),
         ];
         forms.forEach(function (form) {
             if (!form || form.dataset.bound === '1') return;
@@ -250,16 +257,16 @@
         });
     }
 
-    function renderReviewMobileCards(grid) {
+    function renderReviewMobileCards(grid, proxyMode) {
         var html = '<div class="jp-prod-review-list">';
         grid.rows.forEach(function (row, ri) {
-            html += renderReviewMobileCard(row, ri);
+            html += renderReviewMobileCard(row, ri, proxyMode);
         });
         html += '</div>';
         return html;
     }
 
-    function renderReviewMobileCard(row, ri) {
+    function renderReviewMobileCard(row, ri, proxyMode) {
         var code = escapeHtml(row.label_code || row.product_code || '—');
         var process = escapeHtml(row.label_process || row.process_name || 'Chưa gắn mã');
         var unfinalized = row.is_unfinalized ? ' is-unfinalized' : '';
@@ -280,7 +287,8 @@
 
         var rowTotal = 0;
         row.slots.forEach(function (cell) {
-            if (cell.is_na || !cell.has_data) return;
+            if (cell.is_na) return;
+            if (!proxyMode && !cell.has_data) return;
             var qty = parseInt(cell.quantity, 10) || 0;
             if (qty > 0) rowTotal += qty;
             var label = escapeHtml(cell.slot_label || ('Giờ ' + (cell.slot_index + 1)));
@@ -297,7 +305,7 @@
         return html;
     }
 
-    function renderReviewDesktopTable(grid) {
+    function renderReviewDesktopTable(grid, proxyMode) {
         var html = '<div class="jp-prod-hourly-sheet-wrap"><div class="table-responsive jp-prod-hourly-scroll">';
         html += '<table class="table table-bordered table-sm jp-prod-hourly-table mb-0"><thead><tr class="table-light">';
         html += '<th class="jp-ph-stt">STT</th><th class="jp-ph-code">Mã hàng</th><th class="jp-ph-process">Tên công đoạn</th><th class="jp-ph-norm">ĐM 1 giờ</th>';
@@ -323,7 +331,7 @@
                 html += '<td class="text-center align-middle">';
                 if (cell.is_na) {
                     html += '<span class="text-muted">—</span>';
-                } else if (cell.has_data) {
+                } else if (cell.has_data || proxyMode) {
                     var qty = parseInt(cell.quantity, 10) || 0;
                     if (qty > 0) rowTotal += qty;
                     html += '<input type="number" class="jp-review-cell-input" min="0" step="1" ';
@@ -373,7 +381,7 @@
             });
         }
 
-        ['review-grand-total', 'review-grand-total-desktop'].forEach(function (id) {
+        ['review-grand-total', 'review-grand-total-desktop', 'review-grand-total-mobile'].forEach(function (id) {
             var grandEl = document.getElementById(id);
             if (grandEl) grandEl.textContent = grand;
         });
@@ -411,7 +419,12 @@
         }
 
         var json = JSON.stringify(payload);
-        ['review-json-input', 'review-json-input-desktop'].forEach(function (id) {
+        [
+            'review-json-input',
+            'review-json-input-desktop',
+            'review-json-save',
+            'review-json-save-desktop',
+        ].forEach(function (id) {
             var hidden = document.getElementById(id);
             if (hidden) hidden.value = json;
         });

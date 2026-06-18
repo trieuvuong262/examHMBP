@@ -52,6 +52,13 @@
                             {% if form.video_file.errors %}<div class="text-danger small">{{ form.video_file.errors }}</div>{% endif %}
                         </div>
 
+                        <div class="mb-3" id="field-original">
+                            <label class="form-label fw-bold">File gốc đính kèm</label>
+                            {{ form.original_file }}
+                            <div class="form-text">Lưu trên NAS (99_LUU_TRU/1.2026/THONG_BAO). PDF, Word, Excel, nén… — dùng kèm văn bản hoặc bất kỳ loại thông báo.</div>
+                            {% if form.original_file.errors %}<div class="text-danger small">{{ form.original_file.errors }}</div>{% endif %}
+                        </div>
+
                         <div class="row g-3 mb-4">
                             <div class="col-md-4">
                                 <div class="form-check">

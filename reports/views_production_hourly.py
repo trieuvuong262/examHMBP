@@ -18,6 +18,7 @@ from reports.production_hourly import (
     active_has_hourly_data,
     active_product,
     build_hourly_grid,
+    build_proxy_entry_grid,
     can_edit_production_report,
     can_proxy_enter_daily_report,
     ensure_active_work_block,
@@ -37,8 +38,8 @@ from reports.report_profile import REPORT_PROFILE_PRODUCTION
 User = get_user_model()
 
 
-def _apply_review_payload(report, payload_str):
-    """Cập nhật sản lượng từ JSON tổng kết (chỉnh sửa trên màn review)."""
+def _apply_review_payload(report, payload_str, *, relax_slot_scope=False):
+    """Cập nhật sản lượng từ JSON tổng kết (chỉnh sửa trên màn review / nhập hộ)."""
     try:
         rows = json.loads(payload_str or '[]')
     except json.JSONDecodeError:
@@ -66,6 +67,7 @@ def _apply_review_payload(report, payload_str):
                         qty,
                         partial_hours=partial,
                         zero_reason=zero_reason,
+                        relax_slot_scope=relax_slot_scope,
                     )
                 else:
                     ProductionHourlyQuantity.objects.filter(
@@ -192,31 +194,45 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         return redirect(_production_redirect(report_date, for_user or None))
 
     if action == 'save_review':
-        if not _apply_review_payload(report, request.POST.get('review_json')):
+        relax = editing_for_other
+        if not _apply_review_payload(
+            report,
+            request.POST.get('review_json'),
+            relax_slot_scope=relax,
+        ):
             messages.error(request, 'Dữ liệu tổng kết không hợp lệ.')
-            return redirect(_production_redirect(report_date, for_user or None, 'phase=review'))
-        messages.success(request, 'Đã cập nhật tổng kết.')
+            extra = 'phase=proxy' if editing_for_other else 'phase=review'
+            return redirect(_production_redirect(report_date, for_user or None, extra))
+        messages.success(request, 'Đã lưu sản lượng.')
         report.draft_saved_at = timezone.now()
         report.save(update_fields=['draft_saved_at'])
-        return redirect(_production_redirect(report_date, for_user or None, 'phase=review'))
+        extra = 'phase=proxy' if editing_for_other else 'phase=review'
+        return redirect(_production_redirect(report_date, for_user or None, extra))
 
     if action in ('save', 'submit'):
         if unfinalized_active_with_data(report):
             messages.warning(
                 request,
-                'Còn sản lượng chưa gắn mã hàng — bấm «Kết thúc mã hàng» và điền thông tin trước khi gửi.',
+                'Còn sản lượng chưa gắn mã hàng — điền thông tin mã hàng trước khi gửi.',
             )
-            return redirect(_production_redirect(report_date, for_user or None, 'phase=finish_product'))
+            extra = 'phase=proxy' if editing_for_other else 'phase=finish_product'
+            return redirect(_production_redirect(report_date, for_user or None, extra))
         if action == 'submit':
             review_json = request.POST.get('review_json')
             if review_json:
-                if not _apply_review_payload(report, review_json):
+                if not _apply_review_payload(
+                    report,
+                    review_json,
+                    relax_slot_scope=editing_for_other,
+                ):
                     messages.error(request, 'Dữ liệu tổng kết không hợp lệ.')
-                    return redirect(_production_redirect(report_date, for_user or None, 'phase=review'))
-            grid = build_hourly_grid(report)
+                    extra = 'phase=proxy' if editing_for_other else 'phase=review'
+                    return redirect(_production_redirect(report_date, for_user or None, extra))
+            grid = build_proxy_entry_grid(report) if editing_for_other else build_hourly_grid(report)
             if not grid.get('rows') or grid.get('grand_total', 0) <= 0:
                 messages.error(request, 'Cần nhập ít nhất một mã hàng và sản lượng trước khi gửi.')
-                return redirect(_production_redirect(report_date, for_user or None, 'phase=review'))
+                extra = 'phase=proxy' if editing_for_other else 'phase=review'
+                return redirect(_production_redirect(report_date, for_user or None, extra))
         was_submitted = report.status == DailyWorkReport.STATUS_SUBMITTED
         msg = _finalize_report_submission(report, action)
         if action == 'submit' and was_submitted:
@@ -264,26 +280,54 @@ def today_production_hourly(request, report_date, report_context_common):
     is_submitted = report.status == DailyWorkReport.STATUS_SUBMITTED
     is_locked = is_production_report_locked(report)
 
-    if is_submitted and phase not in ('review',):
+    if editing_for_other and can_edit:
+        if not started:
+            from reports.views import _ensure_daily_report_saved
+            report = _ensure_daily_report_saved(report)
+            ensure_work_day_started(report)
+            ensure_active_work_block(report)
+            report = _load_production_report(subject, report_date)
+            started = True
+
+    if is_submitted and phase not in ('review', 'proxy'):
         phase = 'review'
 
     current_product = active_product(report)
-    pending = pending_slots_for_report(report) if started else []
+    if editing_for_other:
+        pending = []
+        if started:
+            grid = build_proxy_entry_grid(report)
+            if not grid.get('rows'):
+                ensure_active_work_block(report)
+                report = _load_production_report(subject, report_date)
+                grid = build_proxy_entry_grid(report)
+        else:
+            grid = None
+        if phase in ('', 'working', 'hourly'):
+            phase = 'proxy'
+    else:
+        pending = pending_slots_for_report(report) if started else []
+        grid = build_hourly_grid(report) if started else None
+        if not phase:
+            if pending:
+                phase = 'hourly'
+            else:
+                phase = 'working'
+
     current_slot = current_slot_index(report_date=report_date)
-    grid = build_hourly_grid(report) if started else None
     has_unfinalized = bool(unfinalized_active_with_data(report))
 
-    if phase == 'review' and has_unfinalized:
+    if phase == 'review' and has_unfinalized and not editing_for_other:
         messages.info(
             request,
             'Còn sản lượng chưa gắn mã hàng — xem bảng tổng bên dưới và bấm «Hoàn tất mã hàng» trước khi gửi.',
         )
 
-    if not phase:
-        if pending:
-            phase = 'hourly'
-        else:
-            phase = 'working'
+    team_members = []
+    if editing_for_other:
+        team_members = list(
+            get_report_team_users(request.user).select_related('profile').order_by('profile__full_name', 'username')
+        )
 
     ctx = report_context_common(request, report_date)
     ctx.update({
@@ -309,6 +353,8 @@ def today_production_hourly(request, report_date, report_context_common):
             else ''
         ),
         'hourly_grid': grid,
+        'proxy_mode': editing_for_other,
+        'team_members': team_members,
         'for_user_param': subject.id if editing_for_other else '',
         'back_team_url': reverse('reports:team_cn') + f'?date={report_date.isoformat()}',
         'detail_url': reverse('reports:detail_cn', kwargs={'pk': report.pk}) if report.pk else '',

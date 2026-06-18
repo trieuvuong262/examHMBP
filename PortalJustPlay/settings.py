@@ -416,6 +416,11 @@ NAS_WEEKLY_REPORT_REL_PATH = os.getenv(
     'NAS_WEEKLY_REPORT_REL_PATH',
     '99_LUU_TRU/1.2026/BAO_CAO_TUAN',
 ).strip('/')
+# Thông báo — file PDF/video/file gốc lưu trên NAS, không lưu media VPS
+NAS_ANNOUNCEMENT_REL_PATH = os.getenv(
+    'NAS_ANNOUNCEMENT_REL_PATH',
+    '99_LUU_TRU/1.2026/THONG_BAO',
+).strip('/')
 PORTAL_BACKUP_SOURCE_DIRS = os.getenv('PORTAL_BACKUP_SOURCE_DIRS', '/app,/backup-source')
 PORTAL_BACKUP_INCLUDE_MEDIA = os.getenv('PORTAL_BACKUP_INCLUDE_MEDIA', '1').lower() in ('1', 'true', 'yes', 'on')
 GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash')

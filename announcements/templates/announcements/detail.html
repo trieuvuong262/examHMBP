@@ -41,18 +41,26 @@
             </div>
             {% elif announcement.content_type == 'PDF' and announcement.pdf_file %}
             <div class="ratio ratio-16x9 border overflow-hidden bg-light mb-3">
-                <iframe src="{{ announcement.pdf_file.url }}" title="{{ announcement.title }}" class="w-100 h-100"></iframe>
+                <iframe src="{{ announcement.pdf_file_url }}" title="{{ announcement.title }}" class="w-100 h-100"></iframe>
             </div>
-            <a href="{{ announcement.pdf_file.url }}" target="_blank" class="btn btn-outline-hm">
+            <a href="{{ announcement.pdf_file_url }}" target="_blank" class="btn btn-outline-hm">
                 <i class="bi bi-download me-1"></i> Tải PDF
             </a>
             {% elif announcement.content_type == 'VIDEO' and announcement.video_file %}
             <video controls class="w-100 shadow-sm" style="max-height: 70vh;">
-                <source src="{{ announcement.video_file.url }}">
+                <source src="{{ announcement.video_file_url }}">
                 Trình duyệt không hỗ trợ phát video.
             </video>
             {% else %}
             <div class="alert alert-secondary border-0">Nội dung thông báo chưa được tải lên.</div>
+            {% endif %}
+
+            {% if announcement.original_file %}
+            <div class="mt-4">
+                <a href="{{ announcement.original_file_url }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-paperclip me-1"></i> Tải file gốc đính kèm{% if announcement.original_file_display_name %} ({{ announcement.original_file_display_name }}){% endif %}
+                </a>
+            </div>
             {% endif %}
 
             {% if announcement.require_acknowledgment %}

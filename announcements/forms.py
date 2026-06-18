@@ -14,6 +14,7 @@ class AnnouncementForm(forms.ModelForm):
             'body',
             'pdf_file',
             'video_file',
+            'original_file',
             'is_active',
             'is_pinned',
             'require_acknowledgment',
@@ -24,6 +25,10 @@ class AnnouncementForm(forms.ModelForm):
             'content_type': forms.Select(attrs={'class': 'form-select', 'id': 'id_content_type'}),
             'pdf_file': forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': '.pdf,application/pdf'}),
             'video_file': forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'video/*'}),
+            'original_file': forms.ClearableFileInput(attrs={
+                'class': 'form-control',
+                'accept': '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,application/pdf',
+            }),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_pinned': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'require_acknowledgment': forms.CheckboxInput(attrs={'class': 'form-check-input'}),

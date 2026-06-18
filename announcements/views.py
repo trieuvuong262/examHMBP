@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.db.models import Count
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 
 from PortalJustPlay.list_search import apply_combined_search, apply_term_search, apply_user_search, get_search_query
@@ -16,6 +17,7 @@ from hrm.module_permissions import (
 
 from .forms import AnnouncementForm
 from .models import Announcement, AnnouncementRead
+from .nas_storage import ANNOUNCEMENT_FILE_FIELDS, announcement_file_abs_path, open_announcement_file
 
 
 def _active_announcements():
@@ -84,6 +86,43 @@ def announcement_detail(request, pk):
         **_announcement_perm_context(request.user),
     }
     return render(request, 'announcements/detail.html', context)
+
+
+@module_perm_required(MODULE_ANNOUNCEMENTS, 'view')
+def announcement_file_serve(request, pk, field):
+    import mimetypes
+
+    if field not in ANNOUNCEMENT_FILE_FIELDS:
+        raise Http404
+
+    announcement = get_object_or_404(Announcement, pk=pk)
+    if not announcement.is_active and not user_can_edit_module(request.user, MODULE_ANNOUNCEMENTS):
+        raise Http404
+
+    path = announcement_file_abs_path(announcement, field)
+    if not path:
+        raise Http404
+
+    display_name = announcement.file_display_name(field) or 'file'
+    content_type = mimetypes.guess_type(display_name)[0] or 'application/octet-stream'
+    inline_types = {
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'image/bmp',
+        'image/svg+xml',
+        'video/mp4',
+        'video/webm',
+        'video/ogg',
+    }
+    as_attachment = content_type not in inline_types
+    file_handle = open_announcement_file(announcement, field)
+    response = FileResponse(file_handle, content_type=content_type, as_attachment=as_attachment)
+    if as_attachment:
+        response['Content-Disposition'] = f'attachment; filename="{display_name}"'
+    return response
 
 
 @module_perm_required(MODULE_ANNOUNCEMENTS, 'edit')

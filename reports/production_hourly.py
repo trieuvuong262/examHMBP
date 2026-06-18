@@ -189,10 +189,12 @@ def save_hourly_entry(
     quantity: int,
     partial_hours=None,
     zero_reason=None,
+    *,
+    relax_slot_scope: bool = False,
 ) -> ProductionHourlyQuantity:
     if slot_index < 0 or slot_index >= SLOT_COUNT:
         raise ValueError('slot_index không hợp lệ')
-    if slot_index < product.first_slot_index:
+    if not relax_slot_scope and slot_index < product.first_slot_index:
         raise ValueError('Khung giờ này không thuộc phiên mã hàng hiện tại.')
     qty = max(0, int(quantity))
     reason = (zero_reason or '').strip()
@@ -429,14 +431,90 @@ def build_hourly_grid(report: DailyWorkReport) -> dict:
     }
 
 
-def pending_slots_for_report(report: DailyWorkReport, now=None) -> list[dict]:
+def product_slot_cell_proxy(product: ProductionShiftProduct, slot_index: int) -> dict:
+    """Ô lưới nhập hộ — mọi khung giờ đều nhập được, không ràng buộc thời gian."""
+    entry = product.hourly_entries.filter(slot_index=slot_index).first()
+    qty = entry.quantity if entry else 0
+    reason = (entry.zero_reason or '').strip() if entry else ''
+    filled = _entry_is_filled(entry)
+    cum = cumulative_quantity(product, slot_index) if qty else 0
+    partial = entry.partial_hours if entry else None
+    display = ''
+    if entry and filled:
+        if qty > 0:
+            display = f'{qty}/{partial}h' if partial else str(qty)
+        else:
+            display = '0'
+    slot = slot_by_index(slot_index)
+    return {
+        'slot_index': slot_index,
+        'slot_label': slot.label if slot else str(slot_index),
+        'quantity': qty,
+        'cumulative': cum if qty else 0,
+        'partial_hours': partial,
+        'display': display,
+        'has_data': True,
+        'is_na': False,
+        'zero_reason': reason,
+        'entry_id': entry.pk if entry else None,
+    }
+
+
+def build_proxy_entry_grid(report: DailyWorkReport) -> dict:
+    """Bảng nhập hộ — tổ trưởng điền sản lượng công nhân, không theo giờ thực."""
+    products = list(
+        report.production_products.prefetch_related('hourly_entries').order_by('sort_order', 'id')
+    )
+    rows = []
+    for product in products:
+        is_active = product.status == ProductionShiftProduct.STATUS_ACTIVE
+        has_data = _product_has_hourly_data(product)
+        if not has_data and not is_active:
+            continue
+        is_unfinalized = (
+            is_active
+            or not (product.product_code or '').strip()
+        )
+        slots = [product_slot_cell_proxy(product, i) for i in range(SLOT_COUNT)]
+        total_qty = sum(cell['quantity'] for cell in slots)
+        rows.append({
+            'id': product.pk,
+            'product_code': product.product_code.strip() if product.product_code else '',
+            'process_name': product.process_name.strip() if product.process_name else '',
+            'norm_per_hour': float(product.norm_per_hour) if product.norm_per_hour is not None else None,
+            'status': product.status,
+            'is_unfinalized': is_unfinalized,
+            'first_slot_index': 0,
+            'label_code': product.product_code.strip() if product.product_code else '—',
+            'label_process': product.process_name.strip() if product.process_name else 'Chưa gắn mã',
+            'slots': slots,
+            'total_quantity': total_qty,
+        })
+    return {
+        'slots': [{'index': s.index, 'label': s.label} for s in PRODUCTION_HOURLY_SLOTS],
+        'rows': rows,
+        'grand_total': sum(r['total_quantity'] for r in rows),
+        'has_unfinalized': any(r['is_unfinalized'] for r in rows),
+        'proxy_mode': True,
+    }
+
+
+def pending_slots_for_report(
+    report: DailyWorkReport,
+    now=None,
+    *,
+    ignore_time_constraints: bool = False,
+) -> list[dict]:
     """Slot chưa nhập cho phiên đang làm (chỉ từ khung bắt đầu phiên trở đi)."""
     product = active_product(report)
     if not product:
         return []
-    due = due_slot_indices(now, report.report_date)
-    if not due:
-        return []
+    if ignore_time_constraints:
+        due = list(range(SLOT_COUNT))
+    else:
+        due = due_slot_indices(now, report.report_date)
+        if not due:
+            return []
     filled = set(
         product.hourly_entries.filter(
             slot_index__gte=product.first_slot_index,
@@ -445,8 +523,9 @@ def pending_slots_for_report(report: DailyWorkReport, now=None) -> list[dict]:
         ).values_list('slot_index', flat=True)
     )
     pending = []
+    start = 0 if ignore_time_constraints else product.first_slot_index
     for idx in due:
-        if idx < product.first_slot_index:
+        if idx < start:
             continue
         if idx in filled:
             continue
