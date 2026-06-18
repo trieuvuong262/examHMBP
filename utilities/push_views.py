@@ -115,6 +115,9 @@ def push_test(request):
     if stats.get('reason') == 'no_subscription':
         return _json_error('Chưa đăng ký nhắc đẩy trên thiết bị này.')
     if stats.get('sent', 0) < 1:
+        remaining = MealPushSubscription.objects.filter(user=request.user).count()
+        if remaining == 0 and stats.get('failed', 0) > 0:
+            return _json_error('Đăng ký cũ đã hết hạn. Bấm «Bật nhắc đẩy» lại trên trình duyệt này.')
         return _json_error('Không gửi được thông báo thử. Thử bật lại nhắc đẩy.')
     return JsonResponse({
         'ok': True,

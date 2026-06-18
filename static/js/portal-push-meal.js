@@ -159,6 +159,10 @@
             var serverStatus = results[1];
             var permission = Notification.permission;
 
+            if (!serverStatus.subscribed && isSubscribedLocally()) {
+                lsRemove(LS_SUBSCRIBED);
+            }
+
             if (browserSub && permission === 'granted') {
                 return saveSubscriptionOnServer(browserSub).then(function () {
                     showSuccessBanner('Đã đăng ký nhắc đẩy trên thiết bị này.');
@@ -171,7 +175,7 @@
                 });
             }
 
-            if (serverStatus.subscribed || isSubscribedLocally()) {
+            if (serverStatus.subscribed) {
                 showSuccessBanner('Đã đăng ký nhắc đẩy trên tài khoản của bạn.');
                 return;
             }
@@ -212,6 +216,7 @@
             return saveSubscriptionOnServer(subscription);
         }).then(function () {
             showSuccessBanner('Đã bật nhắc đẩy thành công.');
+            return refreshPushUI();
         });
     };
 
@@ -239,6 +244,14 @@
             if (text) {
                 text.textContent = data.message || 'Đã gửi thông báo thử.';
             }
+        }).catch(function (err) {
+            var msg = (err && err.message) || '';
+            if (msg.indexOf('Chưa đăng ký') !== -1 || msg.indexOf('bật lại') !== -1) {
+                lsRemove(LS_SUBSCRIBED);
+                hideAllPushBanners();
+                showPromptBanner();
+            }
+            throw err;
         });
     }
 

@@ -16,6 +16,26 @@ from utilities.models import MealPushReminderLog, MealPushSubscription
 
 logger = logging.getLogger(__name__)
 
+_vapid_instance = None
+
+
+def _load_vapid():
+    """pywebpush 2.x + cryptography 46: PEM string phải qua py_vapid.Vapid.from_pem."""
+    global _vapid_instance
+    if _vapid_instance is not None:
+        return _vapid_instance
+
+    from py_vapid import Vapid
+
+    raw = (settings.WEBPUSH_VAPID_PRIVATE_KEY or '').strip()
+    if not raw:
+        raise ValueError('WEBPUSH_VAPID_PRIVATE_KEY is empty')
+    if 'BEGIN' in raw:
+        _vapid_instance = Vapid.from_pem(raw.encode('utf-8'))
+    else:
+        _vapid_instance = Vapid.from_string(raw)
+    return _vapid_instance
+
 
 def webpush_configured() -> bool:
     return bool(
@@ -31,6 +51,28 @@ def _portal_base_url() -> str:
     return 'https://portal.justplay.vn'
 
 
+def _push_exception_status(exc) -> int | None:
+    response = getattr(exc, 'response', None)
+    if response is not None:
+        return getattr(response, 'status_code', None)
+    return None
+
+
+def _is_expired_push_subscription(exc) -> bool:
+    return _push_exception_status(exc) in (404, 410)
+
+
+def send_push_to_subscription(subscription: MealPushSubscription, payload: str) -> None:
+    from pywebpush import webpush
+
+    webpush(
+        subscription_info=subscription.subscription_info(),
+        data=payload,
+        vapid_private_key=_load_vapid(),
+        vapid_claims={'sub': settings.WEBPUSH_VAPID_CLAIMS_EMAIL},
+    )
+
+
 def _meal_push_payload(meal_date) -> str:
     meal_url = f'{_portal_base_url()}{reverse("utilities:meal_home")}'
     return json.dumps(
@@ -44,17 +86,6 @@ def _meal_push_payload(meal_date) -> str:
             'tag': f'meal-reminder-{meal_date.isoformat()}',
         },
         ensure_ascii=False,
-    )
-
-
-def send_push_to_subscription(subscription: MealPushSubscription, payload: str) -> None:
-    from pywebpush import webpush
-
-    webpush(
-        subscription_info=subscription.subscription_info(),
-        data=payload,
-        vapid_private_key=settings.WEBPUSH_VAPID_PRIVATE_KEY,
-        vapid_claims={'sub': settings.WEBPUSH_VAPID_CLAIMS_EMAIL},
     )
 
 
@@ -88,8 +119,7 @@ def send_test_meal_push(user) -> dict:
             sent += 1
         except Exception as exc:
             failed += 1
-            status_code = getattr(getattr(exc, 'response', None), 'status_code', None)
-            if status_code in (404, 410):
+            if _is_expired_push_subscription(exc):
                 subscription.delete()
             logger.warning('Test push failed for user %s: %s', user.pk, exc)
 
@@ -99,7 +129,7 @@ def send_test_meal_push(user) -> dict:
 def send_meal_reminder_pushes(*, now=None, dry_run: bool = False) -> dict:
     """
     Gửi push cho NV sản xuất đã đăng ký, trong khung 16h–20h, chưa đặc/từ chối.
-  Trả về thống kê sent/skipped/failed.
+    Trả về thống kê sent/skipped/failed.
     """
     if not webpush_configured():
         return {'sent': 0, 'skipped': 0, 'failed': 0, 'reason': 'webpush_not_configured'}
@@ -145,8 +175,7 @@ def send_meal_reminder_pushes(*, now=None, dry_run: bool = False) -> dict:
                 delivered = True
             except Exception as exc:
                 failed += 1
-                status_code = getattr(getattr(exc, 'response', None), 'status_code', None)
-                if status_code in (404, 410):
+                if _is_expired_push_subscription(exc):
                     subscription.delete()
                     logger.info('Removed expired push subscription %s', subscription.pk)
                 else:

@@ -114,6 +114,19 @@ class MealPushTests(TestCase):
         self.assertTrue(resp.json()['ok'])
         mock_send.assert_called()
 
+    def test_load_vapid_parses_pem_private_key(self):
+        from py_vapid import Vapid
+        import utilities.push_service as ps
+        from utilities.push_service import _load_vapid
+
+        vapid = Vapid()
+        vapid.generate_keys()
+        pem = vapid.private_pem().decode('utf-8')
+        with self.settings(WEBPUSH_VAPID_PRIVATE_KEY=pem):
+            ps._vapid_instance = None
+            loaded = _load_vapid()
+        self.assertIsInstance(loaded, Vapid)
+
     def test_push_unsubscribe(self):
         resp = self.client.post(
             reverse('utilities:push_unsubscribe'),
