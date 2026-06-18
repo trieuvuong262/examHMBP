@@ -60,6 +60,21 @@ class DocumentImageDisplayTests(TestCase):
 
     @override_settings(MEDIA_URL='/media/')
     def test_prepare_document_html_rewrites_inline_image_url(self):
+        rel = '2026/2026-05-28/doc_member/vanban/inline/abc.png'
+        html = f'<p>Xem</p><img src="/reports/inline-image/{rel}" alt="demo">'
+        request = self.client.request().wsgi_request
+        request.META['HTTP_HOST'] = 'testserver'
+        request.META['SERVER_NAME'] = 'testserver'
+        request.META['SERVER_PORT'] = '80'
+        out = prepare_document_html_for_display(html, self.report, request)
+        self.assertIn(reverse('reports:document_image', kwargs={
+            'report_pk': self.report.pk,
+            'relpath': rel,
+        }), out)
+        self.assertNotIn('/reports/inline-image/', out)
+
+    @override_settings(MEDIA_URL='/media/')
+    def test_prepare_document_html_rewrites_legacy_media_url(self):
         html = '<p>Xem</p><img src="/media/reports/ckeditor5/abc.png" alt="demo">'
         request = self.client.request().wsgi_request
         request.META['HTTP_HOST'] = 'testserver'
@@ -70,13 +85,13 @@ class DocumentImageDisplayTests(TestCase):
             'report_pk': self.report.pk,
             'relpath': 'reports/ckeditor5/abc.png',
         }), out)
-        self.assertNotIn('/media/reports/ckeditor5/abc.png', out)
 
     @override_settings(MEDIA_URL='/media/')
     def test_leader_can_load_document_image(self):
-        rel = 'reports/ckeditor5/test-doc.png'
-        default_storage.save(rel, BytesIO(b'\x89PNG\r\n\x1a\n'))
-        self.report.document_html = f'<p><img src="/media/{rel}"></p>'
+        rel = '2026/2026-05-28/doc_member/vanban/inline/test-doc.png'
+        from reports.daily_nas_storage import DailyReportNasStorage
+        DailyReportNasStorage().save(rel, BytesIO(b'\x89PNG\r\n\x1a\n'))
+        self.report.document_html = f'<p><img src="/reports/inline-image/{rel}"></p>'
         self.report.save(update_fields=['document_html'])
 
         self.client.force_login(self.leader)
@@ -93,8 +108,9 @@ class DocumentImageDisplayTests(TestCase):
         self.assertEqual(img_resp['Content-Type'], 'image/png')
 
     def test_outsider_cannot_load_document_image(self):
-        rel = 'reports/ckeditor5/private.png'
-        default_storage.save(rel, BytesIO(b'\x89PNG\r\n\x1a\n'))
+        rel = '2026/2026-05-28/doc_member/vanban/inline/private.png'
+        from reports.daily_nas_storage import DailyReportNasStorage
+        DailyReportNasStorage().save(rel, BytesIO(b'\x89PNG\r\n\x1a\n'))
         outsider = self._user('doc_outsider', ROLE_EMPLOYEE, self.member.profile.department)
         self.client.force_login(outsider)
         resp = self.client.get(reverse('reports:document_image', kwargs={
@@ -102,3 +118,34 @@ class DocumentImageDisplayTests(TestCase):
             'relpath': rel,
         }))
         self.assertEqual(resp.status_code, 404)
+
+
+class DocumentHtmlOrphanMediaTests(TestCase):
+    def test_document_html_images_are_not_orphaned(self):
+        import tempfile
+        from pathlib import Path
+
+        from django.test import override_settings
+
+        from hrm.media_cleanup import cleanup_orphan_media, collect_referenced_media_paths
+
+        with tempfile.TemporaryDirectory() as tmp:
+            media_root = Path(tmp)
+            img = media_root / 'reports' / 'ckeditor5'
+            img.mkdir(parents=True)
+            img_file = img / 'keep-me.png'
+            img_file.write_bytes(b'png')
+
+            DailyWorkReport.objects.create(
+                employee=User.objects.create_user(username='orphan_doc', password='x'),
+                report_date=date.today(),
+                report_profile=REPORT_PROFILE_OFFICE,
+                document_html='<p><img src="/media/reports/ckeditor5/keep-me.png"></p>',
+            )
+
+            with override_settings(MEDIA_ROOT=str(media_root)):
+                referenced = collect_referenced_media_paths()
+                self.assertIn('reports/ckeditor5/keep-me.png', referenced)
+                result = cleanup_orphan_media(dry_run=False)
+                self.assertEqual(result['removed_count'], 0)
+                self.assertTrue(img_file.exists())

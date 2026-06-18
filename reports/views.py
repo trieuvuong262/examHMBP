@@ -41,6 +41,14 @@ from reports.report_lock import (
     lock_report_on_supervisor_view,
 )
 from reports.office_content import CKEDITOR_INLINE_PREFIX
+from reports.daily_inline_images import (
+    can_view_inline_image,
+    inline_image_exists,
+    is_inline_image_relpath,
+    open_inline_image,
+    parse_upload_report_date,
+    save_inline_image,
+)
 from reports.navigation import (
     copy_prev_week_url_name_for_profile,
     detail_export_url_for_report,
@@ -602,10 +610,15 @@ def ckeditor5_upload(request):
             'image/gif': '.gif',
             'image/webp': '.webp',
         }.get(content_type, '.png')
-    rel_path = default_storage.save(f'reports/ckeditor5/{uuid.uuid4().hex}{ext}', upload)
-    url = request.build_absolute_uri(default_storage.url(rel_path))
-    if not url.startswith('http') and getattr(settings, 'MEDIA_URL', None):
-        url = request.build_absolute_uri(settings.MEDIA_URL + rel_path)
+    rel_path = save_inline_image(
+        upload,
+        username=request.user.username,
+        report_date=parse_upload_report_date(request),
+        ext=ext,
+    )
+    url = request.build_absolute_uri(
+        reverse('reports:inline_image', kwargs={'relpath': rel_path}),
+    )
     return JsonResponse({
         'uploaded': 1,
         'fileName': os.path.basename(rel_path),
@@ -1363,14 +1376,28 @@ def document_image_serve(request, report_pk, relpath):
         raise Http404
 
     rel = unquote(relpath or '').lstrip('/')
-    if '..' in rel or not rel.startswith(CKEDITOR_INLINE_PREFIX):
+    if not is_inline_image_relpath(rel):
         raise Http404
-    if not default_storage.exists(rel):
+    if not inline_image_exists(rel):
         raise Http404
 
     content_type = mimetypes.guess_type(rel)[0] or 'application/octet-stream'
-    file_handle = default_storage.open(rel, 'rb')
+    file_handle = open_inline_image(rel)
     return FileResponse(file_handle, content_type=content_type)
+
+
+@_reports_access_required
+def inline_image_serve(request, relpath):
+    """Ảnh inline khi soạn thảo — trước khi có URL chi tiết báo cáo."""
+    import mimetypes
+
+    rel = unquote(relpath or '').lstrip('/')
+    if not can_view_inline_image(request.user, rel):
+        raise Http404
+    if not inline_image_exists(rel):
+        raise Http404
+    content_type = mimetypes.guess_type(rel)[0] or 'application/octet-stream'
+    return FileResponse(open_inline_image(rel), content_type=content_type)
 
 
 @_reports_access_required

@@ -103,16 +103,29 @@ def daily_attachment_abs_path(att) -> Path | None:
     name = att.file.name
     if not name:
         return None
-    path = Path(DailyReportNasStorage().path(name))
+    return daily_nas_abs_path(name)
+
+
+def daily_nas_abs_path(rel_name: str) -> Path | None:
+    if not rel_name:
+        return None
+    path = Path(DailyReportNasStorage().path(rel_name))
     if path.is_file():
         return path
-    cached = _rclone_cache_path(name)
+    cached = _rclone_cache_path(rel_name)
     if cached.is_file():
         return cached
     try:
-        return _rclone_download_to_cache(name)
+        return _rclone_download_to_cache(rel_name)
     except OSError:
         return None
+
+
+def open_daily_nas_file(rel_name: str, mode: str = 'rb'):
+    path = daily_nas_abs_path(rel_name)
+    if not path:
+        raise FileNotFoundError(rel_name or 'nas-file')
+    return path.open(mode)
 
 
 def open_daily_attachment(att, mode: str = 'rb'):

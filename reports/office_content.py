@@ -111,13 +111,15 @@ def sanitize_document_html_for_storage(html: str) -> str:
 def prepare_document_html_for_display(html: str, report, request) -> str:
     if not html:
         return ''
+    from reports.daily_inline_images import inline_image_relpath_from_url
+
     cleaned = sanitize_document_html_for_storage(html)
 
     def repl_img(match):
         tag = match.group(0)
         src = _extract_html_attr(tag, 'src')
         saved = _extract_html_attr(tag, 'data-cke-saved-src')
-        relpath = _ckeditor_relpath_from_url(saved or src or '')
+        relpath = inline_image_relpath_from_url(saved or src or '')
         if not relpath:
             if saved and saved != src:
                 tag = _replace_html_attr(tag, 'src', saved)

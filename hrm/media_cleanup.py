@@ -13,6 +13,11 @@ from ckeditor.fields import RichTextField
 
 SKIP_FILENAMES = {'.gitkeep', '.keep', 'README', 'README.md'}
 
+# TextField HTML (không phải RichTextField) — ảnh inline báo cáo VP
+EXTRA_HTML_TEXT_FIELDS = (
+    ('reports', 'DailyWorkReport', 'document_html'),
+)
+
 
 def _media_url_path() -> str:
     return settings.MEDIA_URL.rstrip('/').lstrip('/')
@@ -57,6 +62,28 @@ def _extract_paths_from_html(html: str) -> set[str]:
     )
     for match in pattern.finditer(html):
         paths.add(normalize_media_relative_path(match.group(1)))
+
+    for match in re.finditer(
+        r'/reports/doc-image/\d+/([^"\')\s<>]+)',
+        html,
+        re.IGNORECASE,
+    ):
+        paths.add(normalize_media_relative_path(match.group(1)))
+
+    for match in re.finditer(
+        r'/reports/inline-image/([^"\')\s<>]+)',
+        html,
+        re.IGNORECASE,
+    ):
+        paths.add(normalize_media_relative_path(match.group(1)))
+
+    for match in re.finditer(
+        r'(\d{4}/\d{4}-\d{2}-\d{2}/[^/"\'\s<>]+/vanban/inline/[^"\')\s<>]+)',
+        html,
+        re.IGNORECASE,
+    ):
+        paths.add(normalize_media_relative_path(match.group(1)))
+
     return {path for path in paths if path}
 
 
@@ -84,6 +111,15 @@ def collect_referenced_media_paths() -> set[str]:
                         referenced.add(normalize_media_relative_path(value))
                 elif value:
                     referenced.update(_extract_paths_from_html(value))
+
+    for app_label, model_name, field_name in EXTRA_HTML_TEXT_FIELDS:
+        try:
+            model = apps.get_model(app_label, model_name)
+        except LookupError:
+            continue
+        for value in model._default_manager.values_list(field_name, flat=True).iterator():
+            if value:
+                referenced.update(_extract_paths_from_html(value))
 
     return {path for path in referenced if path}
 

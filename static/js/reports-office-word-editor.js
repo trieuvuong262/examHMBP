@@ -17,6 +17,12 @@
                     xhr.setRequestHeader('X-CSRFToken', token);
                 }
                 xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                var loader = evt.data.fileLoader;
+                var dateInput = document.getElementById('id_report_date');
+                if (loader && dateInput && dateInput.value) {
+                    var join = loader.uploadUrl.indexOf('?') >= 0 ? '&' : '?';
+                    loader.uploadUrl = loader.uploadUrl + join + 'report_date=' + encodeURIComponent(dateInput.value);
+                }
             });
 
             ev.editor.on('fileUploadResponse', function (evt) {
