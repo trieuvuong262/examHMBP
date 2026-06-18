@@ -15,6 +15,7 @@ from hrm.module_permissions import (
     MODULE_KIOTVIET,
     MODULE_REPORTS,
     MODULE_TASKS,
+    MODULE_UTILITIES,
 )
 
 # {module_key: [{key, label, icon}, ...]}
@@ -52,6 +53,10 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
     MODULE_FEEDBACK: [
         {'key': 'create', 'label': 'Gửi góp ý', 'icon': 'bi-plus-circle'},
         {'key': 'list', 'label': 'Danh sách góp ý', 'icon': 'bi-inbox-fill'},
+    ],
+    MODULE_UTILITIES: [
+        {'key': 'meal_ordering', 'label': 'Đặt cơm', 'icon': 'bi-cup-hot'},
+        {'key': 'salary_advance', 'label': 'Ứng lương', 'icon': 'bi-cash-coin'},
     ],
     MODULE_KHO_NPL: [
         {'key': 'overview', 'label': 'Tổng quan', 'icon': 'bi-speedometer2'},
@@ -147,6 +152,9 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     # Thiết bị
     ('/thiet-bi/san-xuat', MODULE_EQUIPMENT, 'production'),
     ('/thiet-bi/it', MODULE_EQUIPMENT, 'it'),
+    # Tiện ích
+    ('/tien-ich/ung-luong', MODULE_UTILITIES, 'salary_advance'),
+    ('/tien-ich/dat-com', MODULE_UTILITIES, 'meal_ordering'),
     # Góp ý
     ('/gop-y/danh-sach', MODULE_FEEDBACK, 'list'),
     ('/gop-y/tao', MODULE_FEEDBACK, 'create'),
@@ -171,6 +179,9 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/kiotviet/hoa-don', MODULE_KIOTVIET, 'invoices'),
     ('/kiotviet/don-dat-hang', MODULE_KIOTVIET, 'orders'),
     ('/kiotviet/khach-hang', MODULE_KIOTVIET, 'customers'),
+    # Tiện ích
+    ('/tien-ich/ung-luong', MODULE_UTILITIES, 'salary_advance'),
+    ('/tien-ich/dat-com', MODULE_UTILITIES, 'meal_ordering'),
     # Tài liệu
     ('/tai-lieu/hoi-dap', MODULE_DOCUMENTS, 'qa'),
     ('/tai-lieu/admin', MODULE_DOCUMENTS, 'browse'),

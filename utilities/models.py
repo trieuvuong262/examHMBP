@@ -1,0 +1,103 @@
+from decimal import Decimal
+
+from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models
+
+from utilities.salary_rules import MAX_SALARY_ADVANCE
+
+
+class MealDish(models.Model):
+    name = models.CharField(max_length=120, unique=True, verbose_name='Tên món')
+    sort_order = models.PositiveIntegerField(default=0, verbose_name='Thứ tự')
+    is_active = models.BooleanField(default=True, verbose_name='Đang dùng trong danh mục')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['sort_order', 'name']
+        verbose_name = 'Món cơm'
+        verbose_name_plural = 'Món cơm'
+
+    def __str__(self):
+        return self.name
+
+
+class MealDayOffering(models.Model):
+    meal_date = models.DateField(verbose_name='Ngày ăn')
+    dish = models.ForeignKey(
+        MealDish,
+        on_delete=models.CASCADE,
+        related_name='day_offerings',
+        verbose_name='Món',
+    )
+    is_offered = models.BooleanField(default=False, verbose_name='Cho phép đặt')
+
+    class Meta:
+        unique_together = ('meal_date', 'dish')
+        ordering = ['meal_date', 'dish__sort_order', 'dish__name']
+        verbose_name = 'Món trong ngày'
+        verbose_name_plural = 'Món trong ngày'
+
+    def __str__(self):
+        flag = '✓' if self.is_offered else '—'
+        return f'{self.meal_date} · {self.dish.name} {flag}'
+
+
+class MealOrder(models.Model):
+    employee = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='meal_orders',
+        verbose_name='Nhân viên',
+    )
+    meal_date = models.DateField(verbose_name='Ngày ăn')
+    dish = models.ForeignKey(
+        MealDish,
+        on_delete=models.PROTECT,
+        related_name='orders',
+        verbose_name='Món đã chọn',
+    )
+    note = models.CharField(max_length=200, blank=True, verbose_name='Ghi chú')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('employee', 'meal_date')
+        ordering = ['-meal_date', '-created_at']
+        verbose_name = 'Đơn đặt cơm'
+        verbose_name_plural = 'Đơn đặt cơm'
+
+    def __str__(self):
+        return f'{self.employee} · {self.meal_date} · {self.dish.name}'
+
+
+class SalaryAdvanceRequest(models.Model):
+    employee = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='salary_advance_requests',
+        verbose_name='Nhân viên',
+    )
+    request_month = models.DateField(verbose_name='Tháng ứng')
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=0,
+        validators=[
+            MinValueValidator(Decimal('1')),
+            MaxValueValidator(MAX_SALARY_ADVANCE),
+        ],
+        verbose_name='Số tiền (VNĐ)',
+    )
+    note = models.CharField(max_length=300, blank=True, verbose_name='Ghi chú')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('employee', 'request_month')
+        ordering = ['-request_month', '-created_at']
+        verbose_name = 'Yêu cầu ứng lương'
+        verbose_name_plural = 'Yêu cầu ứng lương'
+
+    def __str__(self):
+        return f'{self.employee} · {self.request_month:%m/%Y} · {self.amount:,.0f}đ'

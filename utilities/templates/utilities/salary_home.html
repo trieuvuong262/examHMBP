@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between gap-2">
+        <div>
+            <h2 class="fw-bold text-hm jp-page-title">Ứng lương</h2>
+            <p class="text-muted small mb-0">{{ window_label }} · Tối đa {{ max_amount|intcomma }}đ</p>
+        </div>
+        {% if can_manage %}
+        <a href="{% url 'utilities:salary_manage' %}" class="btn btn-outline-hm btn-sm">Quản lý (HR)</a>
+        {% endif %}
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body p-4">
+            <p class="mb-2"><strong>Tháng ứng:</strong> {{ request_month|date:"m/Y" }}</p>
+            {% if window_open %}
+            <span class="badge bg-success-subtle text-success">Đang mở đăng ký</span>
+            {% else %}
+            <span class="badge bg-secondary-subtle text-secondary">Chưa mở / đã đóng</span>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if existing_request %}
+    <div class="alert alert-success border-0 shadow-sm">
+        Bạn đã ứng <strong>{{ existing_request.amount|intcomma }}đ</strong>
+        lúc {{ existing_request.created_at|date:"H:i d/m/Y" }}.
+        {% if existing_request.note %}<div class="small text-muted mt-1">{{ existing_request.note }}</div>{% endif %}
+    </div>
+    {% elif form %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+            <form method="post">
+                {% csrf_token %}
+                {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Số tiền (VNĐ)</label>
+                    {{ form.amount }}
+                    {% if form.amount.errors %}<div class="text-danger small">{{ form.amount.errors }}</div>{% endif %}
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Ghi chú</label>
+                    {{ form.note }}
+                </div>
+                <button type="submit" class="btn btn-hm fw-bold">Gửi yêu cầu</button>
+            </form>
+        </div>
+    </div>
+    {% elif not window_open %}
+    <div class="alert alert-info border-0">Ứng lương chỉ mở vào ngày 18 và 19 hàng tháng.</div>
+    {% endif %}
+
+    {% if history %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white fw-bold">Lịch sử của tôi</div>
+        <div class="table-responsive">
+            <table class="table mb-0">
+                <thead class="table-light"><tr><th>Tháng</th><th class="text-end">Số tiền</th><th>Ghi chú</th></tr></thead>
+                <tbody>
+                    {% for item in history %}
+                    <tr>
+                        <td>{{ item.request_month|date:"m/Y" }}</td>
+                        <td class="text-end">{{ item.amount|intcomma }}đ</td>
+                        <td class="text-muted small">{{ item.note|default:"—" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

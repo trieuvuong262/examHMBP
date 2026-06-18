@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">Đặt cơm công ty</h2>
+            <p class="text-muted small mb-0">Đặt từ 16:00–20:00 ngày hôm trước ngày ăn.</p>
+        </div>
+        {% if can_manage %}
+        <a href="{% url 'utilities:meal_dish_list' %}" class="btn btn-outline-hm btn-sm">Quản lý (HR)</a>
+        {% endif %}
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body p-4">
+            {% if meal_date %}
+            <p class="mb-2"><strong>Ngày ăn:</strong> {{ meal_date|date:"l, d/m/Y" }}</p>
+            <p class="mb-2 text-muted small">Khung đặt: {{ window_label }}</p>
+            {% if window_open %}
+            <span class="badge bg-success-subtle text-success">Đang mở đặt cơm</span>
+            {% else %}
+            <span class="badge bg-secondary-subtle text-secondary">Chưa mở / đã đóng</span>
+            {% endif %}
+            {% else %}
+            <p class="text-muted mb-0">Chưa xác định được ngày đặt.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if existing_order %}
+    <div class="alert alert-success border-0 shadow-sm">
+        Bạn đã đặt <strong>{{ existing_order.dish.name }}</strong>
+        {% if existing_order.note %}<span class="text-muted">— {{ existing_order.note }}</span>{% endif %}
+        lúc {{ existing_order.created_at|date:"H:i d/m/Y" }}.
+    </div>
+    {% elif form %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+            <h5 class="fw-bold mb-3">Chọn món ({{ offered_count }} món)</h5>
+            <form method="post">
+                {% csrf_token %}
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                {% endif %}
+                <div class="vstack gap-2 mb-3">
+                    {% for radio in form.dish %}
+                    <label class="border rounded p-3 d-flex gap-2 align-items-center">
+                        {{ radio.tag }}
+                        <span>{{ radio.choice_label }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">Ghi chú</label>
+                    {{ form.note }}
+                </div>
+                <button type="submit" class="btn btn-hm fw-bold">Xác nhận đặt cơm</button>
+            </form>
+        </div>
+    </div>
+    {% elif not offered_count and meal_date %}
+    <div class="alert alert-warning border-0">HR chưa mở menu món cho ngày này.</div>
+    {% elif not window_open %}
+    <div class="alert alert-info border-0">Ngoài khung giờ đặt cơm. Vui lòng quay lại đúng giờ.</div>
+    {% endif %}
+</div>
+{% endblock %}

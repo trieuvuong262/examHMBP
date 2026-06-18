@@ -1,0 +1,5 @@
+<nav class="nav nav-pills flex-wrap gap-2 mb-3">
+    <a class="nav-link rounded-pill {% if active == 'home' %}active{% endif %}" href="{% url 'utilities:salary_home' %}">Ứng lương</a>
+    <a class="nav-link rounded-pill {% if active == 'manage' %}active{% endif %}" href="{% url 'utilities:salary_manage' %}">Tổng hợp</a>
+    <a class="nav-link rounded-pill {% if active == 'stats' %}active{% endif %}" href="{% url 'utilities:salary_stats' %}">Thống kê</a>
+</nav>

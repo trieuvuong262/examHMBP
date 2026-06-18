@@ -193,6 +193,7 @@ INSTALLED_APPS = [
     'service_requests.apps.ServiceRequestsConfig',
     'equipment.apps.EquipmentConfig',
     'feedback.apps.FeedbackConfig',
+    'utilities.apps.UtilitiesConfig',
     'kiotviet.apps.KiotvietConfig',
     'kho_npl.apps.KhoNplConfig',
     'nas_storage.apps.NasStorageConfig',

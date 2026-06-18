@@ -1005,6 +1005,7 @@ PERM_GROUP_MODULE_ICONS = {
     'nas_storage': 'bi-hdd-network',
     'equipment': 'bi-pc-display',
     'feedback': 'bi-chat-square-text',
+    'utilities': 'bi-lightning-charge',
     'kiotviet': 'bi-shop',
     'kho_npl': 'bi-boxes',
 }
