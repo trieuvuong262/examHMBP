@@ -877,24 +877,61 @@
 
 /* Trình soạn Word — CKEditor 4 ribbon + trang A4 */
 .jp-vanban-viewport {
-    max-height: 56vh;
-    overflow: auto;
+    --jp-vanban-viewport-h: min(56vh, calc(100dvh - 14rem));
+    max-height: var(--jp-vanban-viewport-h);
+    height: var(--jp-vanban-viewport-h);
+    overflow: hidden;
     overscroll-behavior: contain;
     background: #f0f2f5;
-    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
 }
 
 .jp-vanban-panel {
+    flex: 1;
+    min-height: 0;
     padding: 1rem;
     background: transparent;
+    display: flex;
+    flex-direction: column;
 }
 
 .jp-vanban-viewport .jp-word-studio {
-    min-height: 420px;
+    flex: 1;
+    min-height: 0 !important;
+    height: 100%;
+    width: 100%;
 }
 
+.jp-vanban-viewport .jp-word-studio .cke_chrome,
 .jp-vanban-viewport .jp-word-studio .cke_inner {
-    min-height: 420px;
+    height: 100% !important;
+    min-height: 0 !important;
+    display: flex;
+    flex-direction: column;
+}
+
+.jp-vanban-viewport .jp-word-studio .cke_top {
+    flex-shrink: 0;
+}
+
+.jp-vanban-viewport .jp-word-studio .cke_contents {
+    flex: 1 1 auto;
+    min-height: 0 !important;
+    height: auto !important;
+    overflow: hidden !important;
+}
+
+.jp-vanban-viewport .jp-word-studio .cke_wysiwyg_div,
+.jp-vanban-viewport .jp-word-studio .cke_wysiwyg_frame,
+.jp-vanban-viewport .jp-word-studio iframe.cke_wysiwyg_frame {
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+}
+
+.jp-vanban-viewport .jp-word-studio .cke_reset_all iframe {
+    min-height: 0 !important;
 }
 
 .jp-word-studio {

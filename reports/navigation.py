@@ -1,5 +1,7 @@
 """URL và menu báo cáo — tách SX (sản xuất) / VP (văn phòng)."""
 
+from urllib.parse import urlencode
+
 from django.urls import reverse
 
 from hrm.menu_permissions import user_can_access_menu
@@ -113,6 +115,22 @@ def my_url_for_profile(report_profile: str) -> str:
     return reverse(my_url_name_for_profile(report_profile))
 
 
+def page_tools_context_for_profile(report_profile: str, *, report_period: str = 'daily') -> dict:
+    """Context cho nút Lịch sử / cấp dưới trên trang nhập báo cáo."""
+    return {
+        'report_period': report_period,
+        'my_url_name': my_url_name_for_profile(report_profile),
+        'team_url_name': team_url_name_for_profile(report_profile),
+        'team_weekly_url_name': team_weekly_url_name_for_profile(report_profile),
+        'today_url_name': (
+            'reports:today_cn'
+            if report_profile == REPORT_PROFILE_PRODUCTION
+            else 'reports:today_vp'
+        ),
+        'weekly_url_name': weekly_url_name_for_profile(report_profile),
+    }
+
+
 def weekly_url_name_for_profile(report_profile: str) -> str:
     if report_profile == REPORT_PROFILE_PRODUCTION:
         return 'reports:weekly_cn'
@@ -168,13 +186,18 @@ def detail_export_url_for_report(report) -> str:
 def history_url_for(report, viewer) -> str:
     profile = (
         REPORT_PROFILE_PRODUCTION
-        if report.is_production_report
-        else REPORT_PROFILE_OFFICE
+        if getattr(report, 'is_production_report', False)
+        else getattr(report, 'report_profile', REPORT_PROFILE_OFFICE)
     )
     base = my_url_for_profile(profile)
-    if report.employee_id == viewer.id:
+    params = {}
+    if hasattr(report, 'week_start'):
+        params['period'] = 'weekly'
+    if report.employee_id != viewer.id:
+        params['for_user'] = report.employee_id
+    if not params:
         return base
-    return f'{base}?for_user={report.employee_id}'
+    return f'{base}?{urlencode(params)}'
 
 
 def list_back_url_for(report, viewer, *, can_view_team: bool) -> str:
@@ -190,7 +213,10 @@ def list_back_url_for(report, viewer, *, can_view_team: bool) -> str:
                 f"?week={report.week_start.isoformat()}"
             )
         return f"{team_url_for_profile(profile)}?date={report.report_date.isoformat()}"
-    return my_url_for_profile(profile)
+    base = my_url_for_profile(profile)
+    if hasattr(report, 'week_start'):
+        return f'{base}?period=weekly'
+    return base
 
 
 def redirect_team_legacy(user):

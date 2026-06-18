@@ -40,6 +40,7 @@ from reports.navigation import (
     detail_url_for_report,
     history_url_for,
     list_back_url_for,
+    page_tools_context_for_profile,
     redirect_copy_prev_week_legacy,
     redirect_team_legacy,
     redirect_team_weekly_legacy,
@@ -194,9 +195,9 @@ def _parse_report_date(request):
     return report_date
 
 
-def _report_context_common(request, report_date):
+def _report_context_common(request, report_date, *, report_profile=None):
     yesterday = report_date - timedelta(days=1)
-    return {
+    ctx = {
         'report_date': report_date,
         'has_yesterday': DailyWorkReport.objects.filter(
             employee=request.user,
@@ -205,6 +206,9 @@ def _report_context_common(request, report_date):
         'yesterday': yesterday,
         'can_view_team': can_view_team_reports(request.user),
     }
+    if report_profile:
+        ctx.update(page_tools_context_for_profile(report_profile, report_period='daily'))
+    return ctx
 
 
 def _daily_report_defaults(report_profile: str):
@@ -334,7 +338,8 @@ def _delete_daily_attachments(report, attachment_ids):
 
 def _weekly_context_common(request, week_start, *, report_profile: str):
     prev_week = week_start - timedelta(days=7)
-    return {
+    ctx = page_tools_context_for_profile(report_profile, report_period='weekly')
+    ctx.update({
         'week_start': week_start,
         'week_end': week_end(week_start),
         'week_label': week_label(week_start),
@@ -345,18 +350,19 @@ def _weekly_context_common(request, week_start, *, report_profile: str):
         ).exists(),
         'prev_week': prev_week,
         'can_view_team': can_view_team_reports(request.user),
-        'report_period': 'weekly',
         'reports_scope_label': report_profile_label(report_profile),
-        'weekly_url_name': weekly_url_name_for_profile(report_profile),
-        'team_weekly_url_name': team_weekly_url_name_for_profile(report_profile),
         'weekly_detail_url_name': weekly_detail_url_name_for_profile(report_profile),
-        'my_url_name': my_url_name_for_profile(report_profile),
-    }
+    })
+    return ctx
 
 
 def _today_production_report(request, report_date):
     from reports.views_production_hourly import today_production_hourly
-    return today_production_hourly(request, report_date, _report_context_common)
+
+    def _production_context(req, d):
+        return _report_context_common(req, d, report_profile=REPORT_PROFILE_PRODUCTION)
+
+    return today_production_hourly(request, report_date, _production_context)
 
 
 def _today_office_report(request, report_date):
@@ -392,7 +398,7 @@ def _today_office_report(request, report_date):
     tab_attachments = _daily_attachments_by_tab(report)
     bang_images, bang_files = tab_attachments['bang']
     vanban_images, vanban_files = tab_attachments['vanban']
-    ctx = _report_context_common(request, report_date)
+    ctx = _report_context_common(request, report_date, report_profile=REPORT_PROFILE_OFFICE)
     ctx.update(_ckeditor_context())
     ctx.update({
         'form': form,
@@ -403,7 +409,6 @@ def _today_office_report(request, report_date):
         'vanban_files': vanban_files,
         'employee_name': (user_profile.full_name if user_profile else '') or request.user.username,
         'department_name': user_profile.department.name if user_profile and user_profile.department_id else '',
-        'report_period': 'daily',
         'content_tab_hint': 'Nhập tiêu đề cột ở hàng hồng, số liệu ở từng ô bên dưới.',
         'copy_url': reverse('reports:copy_yesterday_vp') if ctx['has_yesterday'] else None,
         'copy_label': 'Sao chép HQ',
@@ -645,7 +650,11 @@ def _my_reports_period(request):
 
 @_reports_access_required
 def my_reports(request):
-    return redirect(my_url_for_user(request.user))
+    url = my_url_for_user(request.user)
+    query = request.META.get('QUERY_STRING', '').strip()
+    if query:
+        return redirect(f'{url}?{query}')
+    return redirect(url)
 
 
 @_reports_access_required

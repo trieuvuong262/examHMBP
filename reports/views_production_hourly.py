@@ -332,7 +332,6 @@ def today_production_hourly(request, report_date, report_context_common):
     ctx = report_context_common(request, report_date)
     ctx.update({
         'report': report,
-        'report_period': 'daily',
         'employee_name': (user_profile.full_name if user_profile else '') or subject.username,
         'department_name': user_profile.department.name if user_profile and user_profile.department_id else '',
         'subject_user': subject,

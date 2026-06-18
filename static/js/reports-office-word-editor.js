@@ -120,6 +120,14 @@
         });
     }
 
+    function isVanbanViewportEditor(editor) {
+        if (!editor || !editor.element) {
+            return false;
+        }
+        const el = editor.element.$;
+        return !!(el && el.closest && el.closest('.jp-vanban-viewport'));
+    }
+
     function applyWordPageLayout(editor) {
         if (!editor || !editor.editable) return;
         try {
@@ -128,15 +136,20 @@
             const $ = doc.$;
             const $html = $('html');
             const $body = $('body');
+            const inVanban = isVanbanViewportEditor(editor);
             if ($html.length) {
-                $html.css({ background: '#ffffff', minHeight: '100%', height: 'auto' });
+                $html.css({
+                    background: '#ffffff',
+                    minHeight: inVanban ? '100%' : '100%',
+                    height: inVanban ? '100%' : 'auto',
+                    overflow: inVanban ? 'hidden' : 'visible',
+                });
             }
             if ($body.length) {
-                $body.css({
+                const bodyStyles = {
                     width: '100%',
                     maxWidth: '21cm',
-                    minHeight: '29.7cm',
-                    margin: '16px auto 24px',
+                    margin: '0 auto',
                     padding: '2.54cm 2cm 2.54cm 2.5cm',
                     background: '#ffffff',
                     boxShadow: 'none',
@@ -146,17 +159,97 @@
                     lineHeight: '1.5',
                     color: '#000000',
                     boxSizing: 'border-box',
-                });
+                };
+                if (inVanban) {
+                    Object.assign(bodyStyles, {
+                        minHeight: '100%',
+                        height: 'auto',
+                        overflowY: 'auto',
+                        overflowX: 'hidden',
+                        WebkitOverflowScrolling: 'touch',
+                    });
+                } else {
+                    Object.assign(bodyStyles, {
+                        minHeight: '29.7cm',
+                        height: 'auto',
+                        margin: '16px auto 24px',
+                    });
+                }
+                $body.css(bodyStyles);
             }
         } catch (err) {
             console.warn('JP Word layout:', err);
         }
     }
 
+    function bindVanbanIframeScroll(editor) {
+        if (!isVanbanViewportEditor(editor) || editor._.jpVanbanScrollBound) {
+            return;
+        }
+        editor._.jpVanbanScrollBound = true;
+
+        const viewport = document.querySelector('.jp-vanban-viewport');
+        const iframe = editor.container.$.querySelector('iframe.cke_wysiwyg_frame');
+        if (!iframe || !iframe.contentWindow) {
+            return;
+        }
+
+        function scrollEditable(deltaY) {
+            const body = iframe.contentDocument && iframe.contentDocument.body;
+            if (!body) {
+                return false;
+            }
+            const maxScroll = body.scrollHeight - body.clientHeight;
+            if (maxScroll <= 0) {
+                return false;
+            }
+            const next = Math.max(0, Math.min(maxScroll, body.scrollTop + deltaY));
+            if (next === body.scrollTop) {
+                return false;
+            }
+            body.scrollTop = next;
+            return true;
+        }
+
+        function onWheel(e) {
+            if (scrollEditable(e.deltaY)) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }
+
+        iframe.contentWindow.addEventListener('wheel', onWheel, { passive: false });
+
+        iframe.contentWindow.addEventListener('touchmove', function (e) {
+            const body = iframe.contentDocument && iframe.contentDocument.body;
+            if (!body) {
+                return;
+            }
+            const maxScroll = body.scrollHeight - body.clientHeight;
+            if (maxScroll > 0) {
+                e.stopPropagation();
+            }
+        }, { passive: true });
+
+        if (viewport && !viewport.dataset.jpVanbanWheelBound) {
+            viewport.dataset.jpVanbanWheelBound = '1';
+            viewport.addEventListener('wheel', onWheel, { passive: false });
+        }
+    }
+
     function resizeEditor(editor) {
         if (!editor || !editor.resize) return;
-        editor.resize('100%', 580);
+        const viewport = document.querySelector('.jp-vanban-viewport');
+        if (viewport && isVanbanViewportEditor(editor)) {
+            const topBar = editor.container.$.querySelector('.cke_top');
+            const topH = topBar ? topBar.offsetHeight : 0;
+            const contentH = Math.max(240, viewport.clientHeight - topH - 4);
+            editor.resize('100%', contentH);
+        } else {
+            editor.resize('100%', 580);
+        }
         applyWordPageLayout(editor);
+        bindVanbanIframeScroll(editor);
     }
 
     function resolveUploadUrl() {
@@ -169,6 +262,15 @@
 
     function buildConfig() {
         const cfg = Object.assign({}, window.JP_WORD_EDITOR_CFG);
+        const inVanban = !!document.querySelector('.jp-vanban-viewport');
+        if (inVanban) {
+            cfg.extraPlugins = (cfg.extraPlugins || '')
+                .split(',')
+                .map(function (p) { return p.trim(); })
+                .filter(function (p) { return p && p !== 'autogrow'; })
+                .join(',');
+            cfg.height = 320;
+        }
         const ltsKey = window.JP_CKEDITOR_LTS_LICENSE || '';
         if (ltsKey) {
             cfg.licenseKey = ltsKey;
@@ -210,8 +312,16 @@
         studio.classList.add('is-loading');
         const editor = CKEDITOR.replace(fieldId, buildConfig());
 
+        editor.on('change', function () {
+            window.setTimeout(function () {
+                applyWordPageLayout(editor);
+                initImageWidgets(editor);
+            }, 0);
+        });
+
         editor.on('contentDom', function () {
             applyWordPageLayout(editor);
+            bindVanbanIframeScroll(editor);
             initImageWidgets(editor);
         });
 
@@ -231,12 +341,23 @@
 
         if (wordTab) {
             wordTab.addEventListener('shown.bs.tab', function () {
-                window.setTimeout(initWordEditor, 60);
+                window.setTimeout(function () {
+                    initWordEditor();
+                    Object.keys(CKEDITOR.instances || {}).forEach(function (key) {
+                        resizeEditor(CKEDITOR.instances[key]);
+                    });
+                }, 60);
             });
         }
         if (wordPane && wordPane.classList.contains('show') && wordPane.classList.contains('active')) {
             initWordEditor();
         }
+
+        window.addEventListener('resize', function () {
+            Object.keys(CKEDITOR.instances || {}).forEach(function (key) {
+                resizeEditor(CKEDITOR.instances[key]);
+            });
+        });
     }
 
     if (document.readyState === 'loading') {
