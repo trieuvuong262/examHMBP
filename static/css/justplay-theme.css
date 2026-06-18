@@ -6510,7 +6510,9 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     font-weight: 700;
 }
 
-/* Tab phân quyền — override .nav-link navbar (chữ trắng trên nền sáng) */
+/* Tab trong vùng nội dung sáng — override navbar .nav-link (hover/active chữ trắng).
+   Luôn bọc nav-pills bằng .jp-portal-pills (xem .cursor/rules/portal-content-tabs.mdc). */
+.jp-portal-pills .nav-link,
 .jp-perm-tabs .nav-link {
     color: #475569 !important;
     background: #fff !important;
@@ -6523,12 +6525,15 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     font-size: 0.8125rem;
 }
 
+.jp-portal-pills .nav-link:hover,
 .jp-perm-tabs .nav-link:hover {
     color: var(--hm-primary) !important;
     background: var(--hm-primary-soft) !important;
     border-color: rgba(220, 38, 38, 0.25) !important;
 }
 
+.jp-portal-pills .nav-link.active,
+.jp-portal-pills .nav-link.active:hover,
 .jp-perm-tabs .nav-link.active,
 .jp-perm-tabs .nav-link.active:hover {
     background: var(--hm-primary) !important;
@@ -8587,6 +8592,7 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
 }
 
 [data-theme="dark"] .jp-org-tabs .nav-link:not(.active),
+[data-theme="dark"] .jp-portal-pills .nav-link:not(.active),
 [data-theme="dark"] .jp-perm-tabs .nav-link:not(.active) {
     background: var(--jp-surface-bg) !important;
     color: var(--jp-text-secondary) !important;

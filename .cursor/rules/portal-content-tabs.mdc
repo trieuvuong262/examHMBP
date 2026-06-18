@@ -1,0 +1,60 @@
+---
+description: Tab/pill trong vùng nội dung portal — tránh chữ trắng trên nền trắng
+globs: templates/**/*.html,static/css/**/*.css
+alwaysApply: false
+---
+
+# Tab pill trong nội dung portal (không phải sidebar)
+
+## Lỗi đã gặp
+
+`justplay-theme.css` style **navbar** cho `.nav-link`:
+
+- `:hover` → `color: white !important`
+- `.active` → nền trắng (thiết kế cho sidebar tối)
+
+Nếu dùng `nav nav-pills` + `nav-link` **trực tiếp** trong trang nền sáng (Tiện ích, báo cáo, v.v.) → tab active/hover **chữ trắng trên nền trắng**, không đọc được.
+
+## Quy tắc bắt buộc
+
+Trong `jp-main-content` / card / form (mọi vùng **không** phải sidebar navbar):
+
+1. **Không** dùng `nav-pills` thuần không có class override.
+2. **Luôn** thêm class portal pill, ví dụ:
+
+```html
+<ul class="nav nav-pills jp-portal-pills gap-2 mb-3">
+  <li class="nav-item">
+    <a class="nav-link rounded-pill fw-bold active" href="...">Tab A</a>
+  </li>
+</ul>
+```
+
+3. Class được phép (cùng mục đích override navbar):
+
+| Class | Module |
+|-------|--------|
+| `jp-portal-pills` | Chung — **ưu tiên cho module mới** |
+| `jp-reports-period-nav` | Báo cáo — Theo ngày / tuần |
+| `jp-perm-tabs` | Phân quyền |
+| `jp-login-security-tabs` | Bảo mật đăng nhập |
+| `jp-org-tabs` / `jp-org-manage-tabs` | Cơ cấu tổ chức |
+| `jp-npl-transfer-tabs` | Kho NPL |
+
+4. Tab mới trong module khác → dùng `jp-portal-pills`; chỉ tạo class riêng khi layout tab đặc biệt.
+
+## CSS
+
+Style `jp-portal-pills` nằm trong `static/css/justplay-theme.css` (cùng block với `jp-perm-tabs`):
+
+- Tab thường: chữ `#475569`, nền trắng, viền nhạt
+- Tab active: nền `--hm-primary`, chữ trắng
+- Dark mode: `[data-theme="dark"] .jp-portal-pills .nav-link:not(.active)`
+
+Sau khi sửa `justplay-theme.css`, tăng `?v=` cache trong `templates/base.html`.
+
+## Checklist trước khi merge
+
+- [ ] Tab trong content có `jp-portal-pills` (hoặc class override ở bảng trên)?
+- [ ] Đã kiểm tra hover + active trên nền sáng và dark mode?
+- [ ] Đã bump cache CSS trong `base.html`?
