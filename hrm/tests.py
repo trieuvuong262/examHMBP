@@ -515,6 +515,18 @@ class PermissionMiddlewareTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse('home_portal'))
 
+    def test_middleware_allows_push_status_without_utilities_module(self):
+        """NV chỉ có Thông báo — poll push/status không bị chặn module Tiện ích."""
+        client = Client(HTTP_HOST='testserver')
+        client.force_login(self.user)
+        with self.settings(
+            WEBPUSH_VAPID_PUBLIC_KEY='test-public',
+            WEBPUSH_VAPID_PRIVATE_KEY='test-private',
+        ):
+            response = client.get('/tien-ich/push/status/', follow=False)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['ok'], True)
+
     def test_middleware_allows_announcements(self):
         client = Client(HTTP_HOST='testserver')
         client.force_login(self.user)

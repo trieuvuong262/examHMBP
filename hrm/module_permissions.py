@@ -131,6 +131,8 @@ EXEMPT_PATH_PREFIXES = (
     '/static/',
     '/media/',
     '/login-redirect/',
+    # Web push portal — view tự kiểm tra user_portal_push_eligible (không cần module Tiện ích)
+    '/tien-ich/push/',
 )
 
 # Map prefix URL → module (thứ tự quan trọng — dài/specific trước)
