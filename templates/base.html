@@ -180,10 +180,12 @@
 window.JP_MEAL_PUSH = {
     publicKey: "{{ jp_webpush_public_key|escapejs }}",
     subscribeUrl: "{% url 'utilities:push_subscribe' %}",
-    unsubscribeUrl: "{% url 'utilities:push_unsubscribe' %}"
+    unsubscribeUrl: "{% url 'utilities:push_unsubscribe' %}",
+    statusUrl: "{% url 'utilities:push_status' %}",
+    testUrl: "{% url 'utilities:push_test' %}"
 };
 </script>
-<script src="{% static 'js/portal-push-meal.js' %}?v=20260528"></script>
+<script src="{% static 'js/portal-push-meal.js' %}?v=20260618c"></script>
 {% endif %}
 {% block scripts %}{% endblock %}
 </body>

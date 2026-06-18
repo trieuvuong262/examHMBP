@@ -9,6 +9,8 @@ urlpatterns = [
     path('push/vapid-public-key/', push_views.vapid_public_key, name='push_vapid_public_key'),
     path('push/subscribe/', push_views.push_subscribe, name='push_subscribe'),
     path('push/unsubscribe/', push_views.push_unsubscribe, name='push_unsubscribe'),
+    path('push/status/', push_views.push_status, name='push_status'),
+    path('push/test/', push_views.push_test, name='push_test'),
     path('dat-com/tu-choi/', portal_actions.meal_decline, name='meal_decline'),
     # Đặt cơm
     path('dat-com/', views.meal_home, name='meal_home'),

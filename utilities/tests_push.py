@@ -100,6 +100,20 @@ class MealPushTests(TestCase):
         self.assertEqual(stats['sent'], 0)
         mock_send.assert_not_called()
 
+    def test_push_status(self):
+        resp = self.client.get(reverse('utilities:push_status'))
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertTrue(data['subscribed'])
+        self.assertEqual(data['subscription_count'], 1)
+
+    @patch('utilities.push_service.send_push_to_subscription')
+    def test_push_test(self, mock_send):
+        resp = self.client.post(reverse('utilities:push_test'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json()['ok'])
+        mock_send.assert_called()
+
     def test_push_unsubscribe(self):
         resp = self.client.post(
             reverse('utilities:push_unsubscribe'),

@@ -58,6 +58,44 @@ def send_push_to_subscription(subscription: MealPushSubscription, payload: str) 
     )
 
 
+def _test_meal_push_payload() -> str:
+    meal_url = f'{_portal_base_url()}{reverse("utilities:meal_home")}'
+    return json.dumps(
+        {
+            'title': 'Thử nhắc đặt cơm',
+            'body': 'Đây là thông báo thử. Bạn sẽ nhận nhắc thật lúc 16:00 trong khung đặt cơm.',
+            'url': meal_url,
+            'tag': 'meal-reminder-test',
+        },
+        ensure_ascii=False,
+    )
+
+
+def send_test_meal_push(user) -> dict:
+    """Gửi một push thử cho user hiện tại — xác nhận đăng ký hoạt động."""
+    if not webpush_configured():
+        return {'sent': 0, 'failed': 0, 'reason': 'webpush_not_configured'}
+
+    subscriptions = list(MealPushSubscription.objects.filter(user=user))
+    if not subscriptions:
+        return {'sent': 0, 'failed': 0, 'reason': 'no_subscription'}
+
+    payload = _test_meal_push_payload()
+    sent = failed = 0
+    for subscription in subscriptions:
+        try:
+            send_push_to_subscription(subscription, payload)
+            sent += 1
+        except Exception as exc:
+            failed += 1
+            status_code = getattr(getattr(exc, 'response', None), 'status_code', None)
+            if status_code in (404, 410):
+                subscription.delete()
+            logger.warning('Test push failed for user %s: %s', user.pk, exc)
+
+    return {'sent': sent, 'failed': failed}
+
+
 def send_meal_reminder_pushes(*, now=None, dry_run: bool = False) -> dict:
     """
     Gửi push cho NV sản xuất đã đăng ký, trong khung 16h–20h, chưa đặc/từ chối.

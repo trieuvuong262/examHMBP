@@ -85,6 +85,44 @@ def push_unsubscribe(request):
     return JsonResponse({'ok': True, 'deleted': deleted})
 
 
+@require_GET
+@login_required
+def push_status(request):
+    if not webpush_configured():
+        return _json_error('Web push chưa được cấu hình trên server.', status=503)
+    if not _user_can_subscribe_meal_push(request.user):
+        return _json_error('Tài khoản không đủ điều kiện nhận nhắc đặt cơm.', status=403)
+
+    count = MealPushSubscription.objects.filter(user=request.user).count()
+    return JsonResponse({
+        'ok': True,
+        'subscribed': count > 0,
+        'subscription_count': count,
+    })
+
+
+@login_required
+@require_http_methods(['POST'])
+def push_test(request):
+    if not webpush_configured():
+        return _json_error('Web push chưa được cấu hình trên server.', status=503)
+    if not _user_can_subscribe_meal_push(request.user):
+        return _json_error('Tài khoản không đủ điều kiện nhận nhắc đặt cơm.', status=403)
+
+    from utilities.push_service import send_test_meal_push
+
+    stats = send_test_meal_push(request.user)
+    if stats.get('reason') == 'no_subscription':
+        return _json_error('Chưa đăng ký nhắc đẩy trên thiết bị này.')
+    if stats.get('sent', 0) < 1:
+        return _json_error('Không gửi được thông báo thử. Thử bật lại nhắc đẩy.')
+    return JsonResponse({
+        'ok': True,
+        'message': 'Đã gửi thông báo thử — kiểm tra góc màn hình.',
+        'sent': stats['sent'],
+    })
+
+
 def _user_can_subscribe_meal_push(user) -> bool:
     if not user_can_create_menu(user, MODULE_UTILITIES, 'meal_ordering'):
         return False
