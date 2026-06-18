@@ -22,7 +22,7 @@
                 <div class="row g-2 align-items-end jp-eq-filter-row{% if is_production_scope %} jp-eq-filter-row-prod{% endif %}">
                     <div class="jp-eq-filter-search {% if is_production_scope %}col-lg-2 col-md-2{% else %}col-lg-4 col-md-5{% endif %}">
                         <label class="form-label small text-muted mb-1">Tìm kiếm</label>
-                        <input type="search" name="q" value="{{ q }}" class="form-control form-control-sm"
+                        <input type="search" name="q" value="{{ q }}" class="form-control form-control-sm jp-eq-filter-search"
                                placeholder="{{ scope_list_search_placeholder }}">
                     </div>
                     <div class="{% if is_production_scope %}col-lg-3 col-md-3{% else %}col-lg-3 col-md-4{% endif %}">
@@ -72,7 +72,7 @@
                     </div>
                     <div class="col-lg-2 col-md-2">
                         <label class="form-label small text-muted mb-1">Trạng thái</label>
-                        <select name="status" class="form-select form-select-sm">
+                        <select name="status" class="form-select form-select-sm jp-eq-filter-auto">
                             <option value="">Tất cả</option>
                             {% for val, label in status_choices %}
                             <option value="{{ val }}" {% if current_status == val %}selected{% endif %}>{{ label }}</option>
@@ -82,7 +82,7 @@
                     {% if is_production_scope %}
                     <div class="col-lg-2 col-md-2">
                         <label class="form-label small text-muted mb-1">Vị trí máy</label>
-                        <select name="usage_room" class="form-select form-select-sm">
+                        <select name="usage_room" class="form-select form-select-sm jp-eq-filter-auto">
                             <option value="">Tất cả</option>
                             {% for room in existing_usage_rooms %}
                             {% if room %}
@@ -94,7 +94,7 @@
                     {% endif %}
                     <div class="col-lg-2 col-md-2">
                         <label class="form-label small text-muted mb-1">Phòng ban</label>
-                        <select name="usage_department" class="form-select form-select-sm">
+                        <select name="usage_department" class="form-select form-select-sm jp-eq-filter-auto">
                             <option value="">Tất cả</option>
                             {% for dept in existing_depts %}
                             {% if dept %}
@@ -264,11 +264,38 @@
 {% block scripts %}
 <script>
 (function () {
+    var filterForm = document.getElementById('filterForm');
     var categoryChecks = document.querySelectorAll('.jp-category-check');
     var categoryLabel = document.getElementById('categoryFilterLabel');
     var categoryClear = document.getElementById('categoryClearBtn');
     var categorySearch = document.querySelector('.jp-category-search');
     var categoryEmpty = document.querySelector('.jp-category-empty');
+    var searchInput = filterForm ? filterForm.querySelector('.jp-eq-filter-search') : null;
+    var searchDebounceTimer = null;
+
+    function submitFilterForm() {
+        if (filterForm) filterForm.requestSubmit();
+    }
+
+    if (filterForm) {
+        filterForm.querySelectorAll('.jp-eq-filter-auto').forEach(function (el) {
+            el.addEventListener('change', submitFilterForm);
+        });
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener('input', function () {
+            window.clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = window.setTimeout(submitFilterForm, 450);
+        });
+        searchInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                window.clearTimeout(searchDebounceTimer);
+                submitFilterForm();
+            }
+        });
+    }
 
     function filterCategoryOptions(query) {
         var q = (query || '').trim().toLowerCase();
@@ -316,12 +343,16 @@
     }
 
     categoryChecks.forEach(function (cb) {
-        cb.addEventListener('change', updateCategoryLabel);
+        cb.addEventListener('change', function () {
+            updateCategoryLabel();
+            submitFilterForm();
+        });
     });
     if (categoryClear) {
         categoryClear.addEventListener('click', function () {
             categoryChecks.forEach(function (cb) { cb.checked = false; });
             updateCategoryLabel();
+            submitFilterForm();
         });
     }
     updateCategoryLabel();
