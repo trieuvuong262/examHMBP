@@ -5295,7 +5295,7 @@ body.jp-tool-loading-active {
     html.jp-sidebar-collapsed .jp-sidebar-profile-body,
     html.jp-sidebar-collapsed .jp-sidebar-theme-toggle,
     html.jp-sidebar-collapsed .jp-sidebar-link > span:not(.jp-sidebar-link-icon),
-    html.jp-sidebar-collapsed .jp-sidebar-group-toggle-main > span,
+    html.jp-sidebar-collapsed .jp-sidebar-group-toggle-main > span:not(.jp-sidebar-link-icon),
     html.jp-sidebar-collapsed .jp-sidebar-group-chevron,
     html.jp-sidebar-collapsed .jp-sidebar-footer .jp-sidebar-link > span {
         display: none !important;
