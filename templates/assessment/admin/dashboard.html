@@ -141,19 +141,19 @@
         <div class="tab-pane fade show active" id="recruitment" role="tabpanel">
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
                 <div>
-                    <h5 class="fw-bold text-dark mb-1"><i class="bi bi-activity text-hm me-2"></i>Tổng quan Tuyển dụng</h5>
+                    <h5 class="fw-bold text-dark mb-1">Tổng quan Tuyển dụng</h5>
                     <p class="text-muted small mb-0">Số liệu cập nhật theo dữ liệu thực trên hệ thống.</p>
                 </div>
                 <div class="d-flex flex-wrap gap-2">
                     <a href="{% url 'kanban_board' %}" class="btn btn-outline-hm fw-bold bg-white">
-                        <i class="bi bi-kanban me-1"></i>Bảng Kanban
+                        Bảng Kanban
                     </a>
                     <a href="{% url 'job_posting_list' %}" class="btn btn-hm">
-                        <i class="bi bi-megaphone me-1"></i>Vị trí tuyển dụng
+                        Vị trí tuyển dụng
                     </a>
                     {% if jobs %}
                     <button type="button" class="btn btn-outline-hm fw-bold bg-white" data-bs-toggle="modal" data-bs-target="#addCandidateModal">
-                        <i class="bi bi-person-plus-fill me-1"></i>Thêm ứng viên
+                        Thêm ứng viên
                     </button>
                     {% endif %}
                 </div>
@@ -164,8 +164,7 @@
                     <a href="{% url 'job_posting_list' %}" class="stat-card-link">
                         <div class="stat-card">
                             <div class="d-flex align-items-center">
-                                <div class="icon-box bg-info-soft text-info"><i class="bi bi-briefcase-fill"></i></div>
-                                <div class="ms-3">
+                                <div>
                                     <div class="small text-muted fw-bold">VỊ TRÍ ĐANG MỞ</div>
                                     <h2 class="fw-bold mb-0 text-dark transition">{{ active_jobs }}</h2>
                                 </div>
@@ -177,8 +176,7 @@
                     <a href="{% url 'kanban_board' %}" class="stat-card-link">
                         <div class="stat-card">
                             <div class="d-flex align-items-center">
-                                <div class="icon-box bg-primary-soft text-hm"><i class="bi bi-file-earmark-person-fill"></i></div>
-                                <div class="ms-3">
+                                <div>
                                     <div class="small text-muted fw-bold">HỒ SƠ ỨNG VIÊN</div>
                                     <h2 class="fw-bold mb-0 text-dark">{{ total_candidates }}</h2>
                                 </div>
@@ -190,8 +188,7 @@
                     <a href="{% url 'kanban_board' %}" class="stat-card-link">
                         <div class="stat-card">
                             <div class="d-flex align-items-center">
-                                <div class="icon-box bg-warning-soft text-warning"><i class="bi bi-calendar-check-fill"></i></div>
-                                <div class="ms-3">
+                                <div>
                                     <div class="small text-muted fw-bold">LỊCH PHỎNG VẤN SẮP TỚI</div>
                                     <h2 class="fw-bold mb-0 text-dark">{{ upcoming_interviews }}</h2>
                                 </div>
@@ -204,10 +201,10 @@
             {% if not active_jobs and not total_candidates and not upcoming_interviews %}
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body text-center py-5 px-4">
-                    <i class="bi bi-inbox text-muted opacity-25" style="font-size: 3.5rem;"></i>
+                    
                     <p class="text-muted mt-3 mb-3">Chưa có dữ liệu tuyển dụng. Bắt đầu bằng cách đăng vị trí cần tuyển.</p>
                     <a href="{% url 'job_posting_list' %}" class="btn btn-hm fw-bold">
-                        <i class="bi bi-plus-lg me-1"></i>Đăng tin tuyển dụng
+                        Đăng tin tuyển dụng
                     </a>
                 </div>
             </div>
@@ -215,10 +212,10 @@
 
             <div class="card card-table shadow-sm">
                 <div class="card-header bg-white py-3 px-4 border-0 d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-clock-history me-2 text-hm"></i>Hồ sơ mới tiếp nhận</h6>
+                    <h6 class="mb-0 fw-bold text-dark">Hồ sơ mới tiếp nhận</h6>
                     {% if total_candidates %}
                     <a href="{% url 'kanban_board' %}" class="btn btn-sm btn-outline-hm fw-bold px-3">
-                        <i class="bi bi-kanban me-1"></i>Xem tất cả
+                        Xem tất cả
                     </a>
                     {% endif %}
                 </div>
@@ -238,7 +235,7 @@
                             <tr>
                                 <td class="ps-4">
                                     <div class="fw-bold text-dark">{{ candidate.full_name }}</div>
-                                    <div class="small text-muted"><i class="bi bi-envelope me-1"></i>{{ candidate.email }}</div>
+                                    <div class="small text-muted">{{ candidate.email }}</div>
                                 </td>
                                 <td>
                                     <div class="fw-bold text-hm">{{ candidate.job_posting.title }}</div>
@@ -263,18 +260,15 @@
                                 <td class="text-end pe-4">
                                     <div class="btn-group shadow-sm">
                                         {% if candidate.cv_file %}
-                                        <a href="{{ candidate.cv_file.url }}" target="_blank" class="btn btn-sm btn-light border"><i class="bi bi-file-pdf text-danger"></i></a>
+                                        <a href="{{ candidate.cv_file.url }}" target="_blank" class="btn btn-sm btn-light border" title="Xem CV">CV</a>
                                         {% endif %}
-                                        <button class="btn btn-sm btn-light border view-candidate-detail" data-id="{{ candidate.id }}" title="Chi tiết ứng viên">
-                                            <i class="bi bi-eye text-hm"></i>
-                                        </button>                                    
-                                    </div>
+                                        <button class="btn btn-sm btn-light border view-candidate-detail" data-id="{{ candidate.id }}" title="Chi tiết ứng viên">Chi tiết ứng viên</button>                                     </div>
                                 </td>
                             </tr>
                             {% empty %}
                             <tr>
                                 <td colspan="5" class="text-center py-5 text-muted">
-                                    <i class="bi bi-person-lines-fill d-block mb-2 opacity-25" style="font-size: 2rem;"></i>
+                                    
                                     Chưa có hồ sơ ứng viên nào.
                                 </td>
                             </tr>
@@ -287,10 +281,10 @@
 
         <div class="tab-pane fade" id="training" role="tabpanel">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h5 class="fw-bold text-dark mb-0"><i class="bi bi-mortarboard-fill text-hm me-2"></i>Học viện Trực tuyến</h5>
+                <h5 class="fw-bold text-dark mb-0">Học viện Trực tuyến</h5>
                 <div class="d-flex gap-2">
                     {% if jp_can_create_training %}
-                    <a href="{% url 'course_create' %}" class="btn btn-hm"><i class="bi bi-plus-lg me-1"></i>Thêm Khóa học</a>
+                    <a href="{% url 'course_create' %}" class="btn btn-hm">Thêm Khóa học</a>
                     {% endif %}
                     {% if jp_can_edit_training %}
                     <a href="{% url 'course_list' %}" class="btn btn-outline-hm fw-bold bg-white">Quản lý Khóa học</a>
@@ -303,8 +297,7 @@
                     <a href="{% url 'course_list' %}" class="stat-card-link">
                         <div class="stat-card">
                             <div class="d-flex align-items-center">
-                                <div class="icon-box bg-success-soft text-success"><i class="bi bi-book"></i></div>
-                                <div class="ms-3">
+                                <div>
                                     <div class="small text-muted fw-bold">KHÓA HỌC</div>
                                     <h2 class="fw-bold mb-0 text-dark">{{ total_courses|default:"0" }}</h2>
                                 </div>
@@ -316,8 +309,7 @@
                     <a href="{% url 'course_list' %}" class="stat-card-link">
                         <div class="stat-card">
                             <div class="d-flex align-items-center">
-                                <div class="icon-box bg-warning-soft text-warning"><i class="bi bi-person-video3"></i></div>
-                                <div class="ms-3">
+                                <div>
                                     <div class="small text-muted fw-bold">ĐANG HỌC</div>
                                     <h2 class="fw-bold mb-0 text-dark">{{ active_learners|default:"0" }}</h2>
                                 </div>
@@ -329,8 +321,7 @@
                     <a href="{% url 'course_list' %}" class="stat-card-link">
                         <div class="stat-card">
                             <div class="d-flex align-items-center">
-                                <div class="icon-box bg-primary-soft text-hm"><i class="bi bi-award"></i></div>
-                                <div class="ms-3">
+                                <div>
                                     <div class="small text-muted fw-bold">CHỨNG NHẬN</div>
                                     <h2 class="fw-bold mb-0 text-dark">{{ completed_learners|default:"0" }}</h2>
                                 </div>
@@ -370,7 +361,7 @@
                                     {% endif %}
                                 </td>
                                 <td class="text-end pe-4">
-                                    <a href="{% url 'course_builder' course.id %}" class="btn btn-sm btn-outline-hm fw-bold"><i class="bi bi-gear"></i></a>
+                                    <a href="{% url 'course_builder' course.id %}" class="btn btn-sm btn-outline-hm fw-bold" title="Soạn khóa học">Soạn</a>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -382,9 +373,9 @@
 
         <div class="tab-pane fade" id="assessment" role="tabpanel">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h5 class="fw-bold text-dark mb-0"><i class="bi bi-journal-check text-hm me-2"></i>Kỳ thi & Đánh giá</h5>
+                <h5 class="fw-bold text-dark mb-0">Kỳ thi & Đánh giá</h5>
                 {% if jp_can_create_assessment %}
-                <a href="{% url 'exam_create' %}" class="btn btn-hm"><i class="bi bi-plus-lg me-1"></i>Thêm kỳ thi</a>
+                <a href="{% url 'exam_create' %}" class="btn btn-hm">Thêm kỳ thi</a>
                 {% endif %}
             </div>
             
@@ -397,7 +388,7 @@
                                     <div class="small opacity-75 fw-bold">TỔNG KỲ THI</div>
                                     <h2 class="fw-bold mb-0" style="color: white !important;">{{ total_exams|default:exams.count }}</h2>
                                 </div>
-                                <i class="bi bi-journal-text fs-1 opacity-25"></i>
+                                
                             </div>
                         </div>
                     </a>
@@ -406,8 +397,7 @@
                     <a href="#examListTable" class="stat-card-link">
                         <div class="stat-card">
                             <div class="d-flex align-items-center">
-                                <div class="icon-box bg-success-soft text-success"><i class="bi bi-play-circle"></i></div>
-                                <div class="ms-3">
+                                <div>
                                     <div class="small text-muted fw-bold">ĐANG MỞ</div>
                                     <h2 class="fw-bold mb-0 text-dark">{{ active_exams_count|default:"0" }}</h2>
                                 </div>
@@ -419,8 +409,7 @@
                     <a href="{% url 'user_list' %}" class="stat-card-link">
                         <div class="stat-card">
                             <div class="d-flex align-items-center">
-                                <div class="icon-box bg-warning-soft text-warning"><i class="bi bi-people"></i></div>
-                                <div class="ms-3">
+                                <div>
                                     <div class="small text-muted fw-bold">NHÂN VIÊN</div>
                                     <h2 class="fw-bold mb-0 text-dark">{{ total_users|default:"0" }}</h2>
                                 </div>
@@ -432,8 +421,7 @@
                     <a href="{% url 'admin_results' %}" class="stat-card-link">
                         <div class="stat-card">
                             <div class="d-flex align-items-center">
-                                <div class="icon-box bg-info-soft text-info"><i class="bi bi-check2-all"></i></div>
-                                <div class="ms-3">
+                                <div>
                                     <div class="small text-muted fw-bold">BÀI NỘP</div>
                                     <h2 class="fw-bold mb-0 text-dark">{{ total_submissions|default:"0" }}</h2>
                                 </div>
@@ -464,7 +452,7 @@
                                     <div class="fw-bold text-dark">{{ exam.title }}</div>
                                     <div class="x-small text-muted">Bắt đầu: {{ exam.start_time|date:"d/m/Y H:i" }}</div>
                                 </td>
-                                <td><span class="text-dark fw-bold"><i class="bi bi-stopwatch me-1"></i>{{ exam.duration_minutes }} phút</span></td>
+                                <td><span class="text-dark fw-bold">{{ exam.duration_minutes }} phút</span></td>
                                 <td class="text-center">
                                     {% if exam.is_active %}
                                         <span class="badge-soft bg-success-soft">Đang mở</span>
@@ -475,10 +463,10 @@
                                 <td class="text-end pe-4">
                                     <div class="btn-group">
                                         {% if jp_can_update_assessment %}
-                                        <a href="{% url 'exam_edit' exam.pk %}" class="btn btn-sm btn-light border"><i class="bi bi-pencil"></i></a>
+                                        <a href="{% url 'exam_edit' exam.pk %}" class="btn btn-sm btn-light border" title="Sửa kỳ thi">Sửa</a>
                                         {% endif %}
                                         {% if jp_can_edit_assessment %}
-                                        <a href="{% url 'admin_results' %}?exam={{ exam.id }}" class="btn btn-sm btn-light border"><i class="bi bi-bar-chart"></i></a>
+                                        <a href="{% url 'admin_results' %}?exam={{ exam.id }}" class="btn btn-sm btn-light border" title="Kết quả">Kết quả</a>
                                         {% endif %}
                                     </div>
                                 </td>
@@ -497,8 +485,8 @@
 
         <div class="tab-pane fade" id="kpi" role="tabpanel">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h5 class="fw-bold text-dark mb-0"><i class="bi bi-graph-up-arrow text-hm me-2"></i>Quản trị Hiệu suất (KPI)</h5>
-                <a href="#" class="btn btn-hm"><i class="bi bi-plus-lg me-1"></i>Tạo Kỳ Đánh giá mới</a>
+                <h5 class="fw-bold text-dark mb-0">Quản trị Hiệu suất (KPI)</h5>
+                <a href="#" class="btn btn-hm">Tạo Kỳ Đánh giá mới</a>
             </div>
             
             <div class="row g-4 mb-4">
@@ -506,8 +494,7 @@
                     <a href="#" class="stat-card-link">
                         <div class="stat-card" style="background: var(--hm-primary);">
                             <div class="d-flex align-items-center text-white">
-                                <div class="icon-box bg-white bg-opacity-25 text-white border-0"><i class="bi bi-file-earmark-bar-graph"></i></div>
-                                <div class="ms-3">
+                                <div>
                                     <div class="small opacity-75 fw-bold">TỔNG SỐ BẢNG ĐÁNH GIÁ</div>
                                     <h2 class="fw-bold mb-0" style="color: white !important;">{{ total_yearly_kpis }}</h2>
                                 </div>
@@ -520,8 +507,7 @@
                     <a href="#" class="stat-card-link">
                         <div class="stat-card">
                             <div class="d-flex align-items-center">
-                                <div class="icon-box bg-warning-soft text-warning"><i class="bi bi-unlock"></i></div>
-                                <div class="ms-3">
+                                <div>
                                     <div class="small text-muted fw-bold">KỲ ĐÁNH GIÁ ĐANG MỞ</div>
                                     <h2 class="fw-bold mb-0 text-dark">{{ active_kpi_periods|default:"0" }}</h2>
                                 </div>
@@ -536,7 +522,7 @@
                     <h6 class="mb-0 fw-bold text-dark">Các kỳ đánh giá gần đây</h6>
                 </div>
                 <div class="card-body text-center py-5">
-                    <i class="bi bi-bar-chart-steps text-muted opacity-25" style="font-size: 4rem;"></i>
+                    
                     <p class="text-muted mt-3 mb-0">Tính năng quản lý KPI dành cho Admin đang được phát triển...</p>
                 </div>
             </div>
@@ -550,8 +536,8 @@
         <form action="{% url 'add_candidate' %}" method="POST" enctype="multipart/form-data" class="modal-content border-0 shadow-lg" style="border-radius: 6px;">
             {% csrf_token %}
             <div class="modal-header bg-white border-0 pt-4 px-4">
-                <h5 class="modal-title fw-bold text-dark"><i class="bi bi-person-plus text-hm me-2"></i>Thêm Hồ sơ Ứng viên</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title fw-bold text-dark">Thêm Hồ sơ Ứng viên</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">Close</button>
             </div>
             
             <div class="modal-body p-4">
@@ -601,13 +587,13 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-bold text-hm"><i class="bi bi-person-vcard me-2"></i>Chi tiết hồ sơ</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title fw-bold text-hm">Chi tiết hồ sơ</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">Close</button>
             </div>
             <div class="modal-body p-4">
                 <div class="text-center mb-4">
                     <div class="bg-hm-light d-inline-block p-3 rounded-circle mb-2">
-                        <i class="bi bi-person-fill fs-1 text-hm"></i>
+                        
                     </div>
                     <h4 class="fw-bold mb-0" id="det_full_name"></h4>
                     <span class="badge bg-primary-soft text-hm" id="det_job"></span>
@@ -638,7 +624,7 @@
             </div>
             <div class="modal-footer border-0 p-4 pt-0">
                 <a href="#" id="det_cv_link" target="_blank" class="btn btn-danger fw-bold w-100">
-                    <i class="bi bi-file-pdf me-2"></i>Xem CV chi tiết
+                    Xem CV chi tiết
                 </a>
             </div>
         </div>

@@ -2,7 +2,7 @@
     <div class="col-md-6 col-lg-5">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-header bg-white fw-bold py-3">
-                <i class="bi bi-image me-1"></i>Hình ảnh
+                Hình ảnh
             </div>
             <div class="card-body">
                 {% if can_edit and form %}
@@ -40,10 +40,10 @@
     <div class="col-md-6 col-lg-4">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-header bg-white fw-bold py-3 d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-qr-code me-1"></i>Tem QR</span>
+                <span>Tem QR</span>
                 {% if device.qr_code %}
                 <a href="{{ device.qr_code.url }}" download class="btn btn-sm btn-outline-hm py-0">
-                    <i class="bi bi-download"></i>
+                    
                 </a>
                 {% endif %}
             </div>
@@ -54,12 +54,12 @@
                 </div>
                 {% else %}
                 <div class="jp-eq-qr-placeholder mb-2" style="width:100px;height:100px;font-size:1.75rem">
-                    <i class="bi bi-qr-code"></i>
+                    
                 </div>
                 <p class="text-muted small mb-2">Cập nhật thiết bị để tạo tem.</p>
                 {% endif %}
                 <a href="{% url 'equipment:device_qr_public' device.device_code %}" class="btn btn-sm btn-outline-hm" target="_blank">
-                    <i class="bi bi-box-arrow-up-right me-1"></i>Trang quét QR
+                    Trang quét QR
                 </a>
             </div>
         </div>

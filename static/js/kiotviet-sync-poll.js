@@ -7,7 +7,6 @@
         const bar = document.getElementById('jp-kv-sync-progress-bar');
         const pctBadge = document.getElementById('jp-kv-sync-percent');
         const statusLabel = document.getElementById('jp-kv-sync-status-label');
-        const statusIcon = document.getElementById('jp-kv-sync-status-icon');
         const entityStepEl = document.getElementById('jp-kv-sync-entity-step');
         const messageEl = document.getElementById('jp-kv-sync-message');
         const doneActions = document.getElementById('jp-kv-sync-done-actions');
@@ -26,23 +25,11 @@
             if (data.is_active) {
                 statusLabel.textContent = 'Đang đồng bộ'
                     + (data.current_entity_label ? ': ' + data.current_entity_label : '…');
-                if (statusIcon) {
-                    statusIcon.className = 'bi bi-hourglass-split text-hm me-1';
-                }
                 bar.classList.add('progress-bar-animated', 'progress-bar-striped', 'bg-hm');
                 bar.classList.remove('bg-success', 'bg-danger');
                 if (doneActions) doneActions.classList.add('d-none');
             } else {
                 statusLabel.textContent = data.status_display || 'Hoàn tất';
-                if (statusIcon) {
-                    if (data.status === 'success') {
-                        statusIcon.className = 'bi bi-check-circle-fill text-success me-1';
-                    } else if (data.status === 'failed') {
-                        statusIcon.className = 'bi bi-x-circle-fill text-danger me-1';
-                    } else {
-                        statusIcon.className = 'bi bi-flag-fill text-hm me-1';
-                    }
-                }
                 bar.classList.remove('progress-bar-animated', 'progress-bar-striped', 'bg-hm');
                 if (data.status === 'success') {
                     bar.classList.add('bg-success');

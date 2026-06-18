@@ -7,7 +7,7 @@
     <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title">
-                <i class="bi bi-box-arrow-in-down me-2"></i>{{ receipt.number }}
+                {{ receipt.number }}
             </h2>
             <p class="text-muted mb-0">
                 {{ receipt.get_status_display }}
@@ -18,22 +18,22 @@
         <div class="d-flex flex-wrap gap-2">
             {% if is_editable and can_update %}
             <a href="{% url 'kho_npl:receipt_edit' receipt.pk %}" class="btn btn-hm btn-sm">
-                <i class="bi bi-pencil me-1"></i>Sửa
+                Sửa
             </a>
             <form method="post" action="{% url 'kho_npl:receipt_post' receipt.pk %}" class="d-inline">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Ghi sổ phiếu và cập nhật tồn kho?');">
-                    <i class="bi bi-check2-circle me-1"></i>Ghi sổ
+                    Ghi sổ
                 </button>
             </form>
             {% endif %}
             {% if is_editable and can_delete %}
             <a href="{% url 'kho_npl:receipt_cancel' receipt.pk %}" class="btn btn-outline-danger btn-sm">
-                <i class="bi bi-x-circle me-1"></i>Hủy phiếu
+                Hủy phiếu
             </a>
             {% endif %}
             <a href="{% url 'kho_npl:receipt_list' %}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-arrow-left me-1"></i>Danh sách
+                Danh sách
             </a>
         </div>
     </div>

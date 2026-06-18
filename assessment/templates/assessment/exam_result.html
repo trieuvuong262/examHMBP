@@ -11,7 +11,7 @@
                 </ol>
             </nav>
             <h2 class="fw-bold text-dark mb-1 jp-page-title">
-                <i class="bi bi-award-fill text-hm me-2"></i>{{ exam.title }}
+                {{ exam.title }}
             </h2>
             <p class="text-muted mb-0 small">
                 Nộp lúc {{ result.submitted_at|date:"H:i d/m/Y" }}
@@ -31,8 +31,8 @@
             </div>
             <div class="text-end flex-shrink-0">
                 <span class="badge bg-{{ row.status_class }}-subtle text-{{ row.status_class }} px-3 py-2 me-1">
-                    {% if row.status_class == 'success' %}<i class="bi bi-check-circle-fill me-1"></i>{% endif %}
-                    {% if row.status_class == 'danger' %}<i class="bi bi-x-circle-fill me-1"></i>{% endif %}
+                    {% if row.status_class == 'success' %}{% endif %}
+                    {% if row.status_class == 'danger' %}{% endif %}
                     {{ row.status_label }}
                 </span>
                 <span class="badge bg-light text-dark border">{{ row.earned|floatformat:1 }}/{{ row.points|floatformat:1 }} đ</span>
@@ -47,13 +47,13 @@
                 <div class="col-md-6">
                     <div class="jp-result-choice jp-result-choice--{{ choice.state }}">
                         {% if choice.state == 'ok' %}
-                        <i class="bi bi-check-circle-fill text-success"></i>
+                        
                         {% elif choice.state == 'wrong' %}
-                        <i class="bi bi-x-circle-fill text-danger"></i>
+                        
                         {% elif choice.state == 'correct' %}
-                        <i class="bi bi-check2 text-success"></i>
+                        
                         {% else %}
-                        <i class="bi bi-circle text-muted opacity-50"></i>
+                        
                         {% endif %}
                         <span>{{ choice.text }}</span>
                     </div>
@@ -94,7 +94,7 @@
 
     <div class="mt-4">
         <a href="{% url 'exam_list' %}" class="btn btn-outline-hm fw-bold">
-            <i class="bi bi-arrow-left me-1"></i>Về danh sách kỳ thi
+            Về danh sách kỳ thi
         </a>
     </div>
 </div>

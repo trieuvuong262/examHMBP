@@ -7,7 +7,7 @@
             <div class="jp-page-header mb-3">
                 <div>
                     <h2 class="jp-page-title fw-bold text-hm mb-1">
-                        <i class="bi bi-pencil-square me-2"></i>Chỉnh sửa hướng dẫn
+                        Chỉnh sửa hướng dẫn
                     </h2>
                     <p class="text-muted small mb-0">
                         Sửa từng mục riêng — không cần chỉnh cả trang. Người xem chỉ thấy mục theo quyền của họ.
@@ -15,7 +15,7 @@
                 </div>
                 <div class="d-flex flex-wrap gap-2">
                     <a href="{% url 'user_guide' %}" class="btn btn-outline-hm fw-bold">
-                        <i class="bi bi-eye me-1"></i>Xem trang
+                        Xem trang
                     </a>
                 </div>
             </div>
@@ -27,9 +27,9 @@
                     </div>
                     <div class="small text-muted">
                         {% if custom_count %}
-                        <i class="bi bi-pencil-fill text-hm me-1"></i>{{ custom_count }} mục đã tùy chỉnh · còn lại dùng nội dung mặc định
+                        {{ custom_count }} mục đã tùy chỉnh · còn lại dùng nội dung mặc định
                         {% else %}
-                        <i class="bi bi-check-circle me-1"></i>Tất cả mục đang dùng nội dung mặc định
+                        Tất cả mục đang dùng nội dung mặc định
                         {% endif %}
                     </div>
                     {% if guide.updated_at %}
@@ -43,7 +43,7 @@
 
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body p-4">
-                    <h5 class="fw-bold mb-3"><i class="bi bi-type-h1 me-2 text-hm"></i>Tiêu đề trang</h5>
+                    <h5 class="fw-bold mb-3">Tiêu đề trang</h5>
                     <form method="post" class="row g-3 align-items-end">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="save_title">
@@ -53,7 +53,7 @@
                         </div>
                         <div class="col-md-3">
                             <button type="submit" class="btn btn-hm fw-bold w-100">
-                                <i class="bi bi-check-lg me-1"></i>Lưu tiêu đề
+                                Lưu tiêu đề
                             </button>
                         </div>
                     </form>
@@ -62,14 +62,14 @@
 
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white border-bottom py-3">
-                    <h5 class="fw-bold mb-0"><i class="bi bi-list-columns-reverse me-2 text-hm"></i>Danh sách mục</h5>
+                    <h5 class="fw-bold mb-0">Danh sách mục</h5>
                 </div>
                 <div class="list-group list-group-flush guide-edit-section-list">
                     {% for sec in sections %}
                     <div class="list-group-item guide-edit-section-item py-3 px-4">
                         <div class="d-flex flex-column flex-md-row align-items-md-center gap-3">
                             <div class="guide-edit-section-icon flex-shrink-0">
-                                <i class="bi {{ sec.icon }} text-hm"></i>
+                                
                             </div>
                             <div class="flex-grow-1 min-w-0">
                                 <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
@@ -83,16 +83,16 @@
                                 </div>
                                 <div class="small text-muted">
                                     {% for label in sec.module_labels %}
-                                    <span class="me-2"><i class="bi bi-tag me-1"></i>{{ label }}</span>
+                                    <span class="me-2">{{ label }}</span>
                                     {% endfor %}
                                 </div>
                             </div>
                             <div class="d-flex flex-wrap gap-2 flex-shrink-0">
                                 <a href="{% url 'user_guide_edit_section' section_id=sec.id %}" class="btn btn-hm btn-sm fw-bold">
-                                    <i class="bi bi-pencil me-1"></i>Sửa mục
+                                    Sửa mục
                                 </a>
                                 <a href="{% url 'user_guide' %}#{{ sec.id }}" class="btn btn-outline-dark btn-sm fw-bold" target="_blank" rel="noopener">
-                                    <i class="bi bi-box-arrow-up-right me-1"></i>Xem
+                                    Xem
                                 </a>
                             </div>
                         </div>

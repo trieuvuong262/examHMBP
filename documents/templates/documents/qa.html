@@ -6,7 +6,7 @@
     <div class="jp-page-header mb-2 mb-md-3">
         <div>
             <h1 class="jp-page-title text-hm mb-1">
-                <i class="bi bi-stars me-2"></i>Hỏi đáp AI
+                Hỏi đáp AI
             </h1>
         </div>
     </div>
@@ -15,7 +15,7 @@
 
     {% if not qa_enabled %}
     <div class="alert alert-warning border-0 shadow-sm">
-        <i class="bi bi-exclamation-triangle me-2"></i>
+        
         Trợ lý AI chưa được "đánh thức".
         {% if can_configure_qa %}
         <a href="{% url 'audit:qa_assistant' %}" class="alert-link fw-semibold">Cấu hình ngay</a>.
@@ -29,7 +29,7 @@
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm jp-qa-chat-card">
                 <div class="card-header bg-white border-bottom py-3 d-flex align-items-center gap-2">
-                    <span class="jp-qa-avatar"><i class="bi bi-stars"></i></span>
+                    <span class="jp-qa-avatar"></span>
                     <div>
                         <div class="fw-bold">Trợ lý AI JustPlay</div>
                     </div>
@@ -46,7 +46,7 @@
                                       maxlength="2000"
                                       {% if not qa_enabled %}disabled{% endif %}></textarea>
                             <button type="submit" class="btn btn-hm px-4" id="qaSubmitBtn" {% if not qa_enabled %}disabled{% endif %}>
-                                <i class="bi bi-send-fill"></i>
+                                
                             </button>
                         </div>
                     </form>
@@ -56,7 +56,7 @@
         <div class="col-lg-4">
             <div class="card border-0 shadow-sm mb-3">
                 <div class="card-body p-3">
-                    <h6 class="fw-bold mb-2"><i class="bi bi-lightbulb text-hm me-1"></i>Gợi ý câu hỏi</h6>
+                    <h6 class="fw-bold mb-2">Gợi ý câu hỏi</h6>
                     <div id="qaSuggestions" class="d-flex flex-column gap-2 jp-qa-suggest-list">
                         <p class="text-muted small mb-0 jp-qa-suggest-placeholder">
                             <span class="spinner-border spinner-border-sm me-2"></span>Đang gợi ý câu hỏi phù hợp với bạn...

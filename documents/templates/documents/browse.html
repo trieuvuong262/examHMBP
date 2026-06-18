@@ -6,7 +6,7 @@
     <div class="jp-page-header mb-2 mb-md-3">
         <div>
             <h1 class="jp-page-title text-hm mb-1">
-                <i class="bi bi-folder2-open me-2"></i>Tài liệu
+                Tài liệu
             </h1>
         </div>
     </div>
@@ -17,7 +17,7 @@
         <div class="col-lg-4 col-xl-3">
             <div class="jp-doc-tree card border-0 shadow-sm">
                 <div class="jp-doc-tree-header">
-                    <i class="bi bi-diagram-3-fill me-1"></i> Danh mục
+                     Danh mục
                 </div>
                 <div class="jp-doc-tree-body" id="docTree">
                     {% for category in categories %}
@@ -26,17 +26,17 @@
                             class="jp-doc-tree-category {% if selected_category and selected_category.id == category.id %}is-active{% endif %}"
                             data-doc-tree-toggle
                             aria-expanded="{% if selected_category and selected_category.id == category.id %}true{% else %}false{% endif %}">
-                            <i class="bi {{ category.icon|default:'bi-folder2' }} jp-doc-tree-cat-icon"></i>
+                            
                             <span class="jp-doc-tree-cat-label">{{ category.name }}</span>
                             <span class="jp-doc-tree-cat-count">{{ category.documents.all|length }}</span>
-                            <i class="bi bi-chevron-down jp-doc-tree-chevron"></i>
+                            
                         </button>
                         <ul class="jp-doc-tree-items list-unstyled mb-0">
                             {% for doc in category.documents.all %}
                             <li>
                                 <a href="{% url 'documents:browse_document' category.slug doc.slug %}"
                                    class="jp-doc-tree-item {% if selected_document and selected_document.id == doc.id %}is-active{% endif %}">
-                                    <i class="bi bi-file-earmark-text"></i>
+                                    
                                     <span>{{ doc.title }}</span>
                                 </a>
                             </li>
@@ -47,7 +47,7 @@
                     </div>
                     {% empty %}
                     <div class="jp-doc-tree-empty-state text-center py-4 px-3">
-                        <i class="bi bi-inbox display-6 text-muted opacity-50"></i>
+                        
                         <p class="text-muted small mb-0 mt-2">Chưa có nhóm tài liệu nào.</p>
                         {% if is_admin or can_create %}
                         <a href="{% url 'documents:admin_hub' %}" class="btn btn-sm btn-hm mt-3">Thiết lập ngay</a>
@@ -63,7 +63,7 @@
                 {% if selected_document %}
                 <div class="jp-doc-panel-header">
                     <div class="jp-doc-panel-breadcrumb text-muted small mb-1">
-                        <i class="bi {{ selected_category.icon|default:'bi-folder2' }} me-1"></i>
+                        
                         {{ selected_category.name }}
                     </div>
                     <h2 class="jp-doc-panel-title mb-1">{{ selected_document.title }}</h2>
@@ -90,7 +90,7 @@
                 {% else %}
                 <div class="jp-doc-panel-empty text-center py-5 px-4">
                     <div class="jp-doc-panel-empty-icon mb-3">
-                        <i class="bi bi-file-earmark-richtext"></i>
+                        
                     </div>
                     <h3 class="h5 fw-bold text-hm">Chọn tài liệu để xem</h3>
                     <p class="text-muted mb-0 mx-auto" style="max-width: 420px;">

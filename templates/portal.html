@@ -13,17 +13,17 @@
                 <div class="jp-home-hero-meta">
                     {% if jp_role_display %}
                     <span class="jp-home-meta-chip">
-                        <i class="bi bi-person-badge me-1"></i>{{ jp_role_display }}
+                        {{ jp_role_display }}
                     </span>
                     {% endif %}
                     {% if profile.department %}
                     <span class="jp-home-meta-chip">
-                        <i class="bi bi-building me-1"></i>{{ profile.department.name }}
+                        {{ profile.department.name }}
                     </span>
                     {% endif %}
                     {% if dashboard_widgets %}
                     <span class="jp-home-meta-chip jp-home-meta-chip--alert">
-                        <i class="bi bi-bell-fill me-1"></i>{{ dashboard_widgets|length }} việc cần làm
+                        {{ dashboard_widgets|length }} việc cần làm
                     </span>
                     {% endif %}
                 </div>
@@ -36,7 +36,7 @@
             <div class="jp-home-block-head-main">
                 <h2 id="jp-home-todo-title" class="jp-home-block-title">
                     <span class="jp-home-block-icon jp-home-block-icon--todo">
-                        <i class="bi bi-bell-fill"></i>
+                        
                     </span>
                     Việc cần làm
                 </h2>
@@ -53,7 +53,7 @@
                 {% for item in dashboard_widgets %}
                 <a href="{{ item.url }}" class="jp-dashboard-item jp-dashboard-item--{{ item.level }}">
                     <div class="jp-dashboard-item-icon">
-                        <i class="bi {{ item.icon }}"></i>
+                        
                     </div>
                     <div class="jp-dashboard-item-body">
                         <div class="jp-dashboard-item-title">
@@ -65,15 +65,14 @@
                         <div class="jp-dashboard-item-text">{{ item.text }}</div>
                     </div>
                     <div class="jp-dashboard-item-action d-none d-sm-flex">
-                        {{ item.action }} <i class="bi bi-chevron-right ms-1"></i>
-                    </div>
+                        {{ item.action }}                     </div>
                 </a>
                 {% endfor %}
             </div>
             {% else %}
             <div class="jp-home-empty">
                 <div class="jp-home-empty-icon">
-                    <i class="bi bi-check2-circle"></i>
+                    
                 </div>
                 <div>
                     <div class="jp-home-empty-title">Không còn việc gấp</div>
@@ -89,7 +88,7 @@
             <div class="jp-home-block-head-main">
                 <h2 id="jp-home-tools-title" class="jp-home-block-title">
                     <span class="jp-home-block-icon jp-home-block-icon--tools">
-                        <i class="bi bi-tools"></i>
+                        
                     </span>
                     Công cụ
                 </h2>
@@ -104,7 +103,7 @@
                     <div class="jp-home-tools-group jp-home-tools-group--{{ group.accent }}">
                         <div class="jp-home-tools-group-head">
                             <span class="jp-home-tools-group-icon">
-                                <i class="bi {{ group.icon }}"></i>
+                                
                             </span>
                             <div>
                                 <h3 class="jp-home-tools-group-title">{{ group.title }}</h3>
@@ -117,13 +116,13 @@
                                class="jp-home-tool-mini jp-home-tool-mini--{{ tool.accent }}"
                                title="{{ tool.description }}">
                                 <span class="jp-home-tool-mini-icon">
-                                    <i class="bi {{ tool.icon }}"></i>
+                                    
                                 </span>
                                 <span class="jp-home-tool-mini-body">
                                     <span class="jp-home-tool-mini-name">{{ tool.name }}</span>
                                     <span class="jp-home-tool-mini-desc">{{ tool.description }}</span>
                                 </span>
-                                <i class="bi bi-chevron-right jp-home-tool-mini-arrow" aria-hidden="true"></i>
+                                
                             </a>
                             {% endfor %}
                         </div>

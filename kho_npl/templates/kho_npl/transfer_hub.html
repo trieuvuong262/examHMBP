@@ -7,7 +7,7 @@
 {% block content %}
 <div class="container jp-page jp-npl-material-catalog-page jp-npl-transfer-page py-3 py-md-4 mb-5" data-transfer-tab="{{ tab }}" data-loading-message="Đang tải phiếu chuyển…">
     <div class="jp-npl-mat-topbar">
-        <h2 class="jp-npl-mat-topbar-title"><i class="bi bi-arrow-left-right me-2"></i>Phiếu chuyển</h2>
+        <h2 class="jp-npl-mat-topbar-title">Phiếu chuyển</h2>
         {% if show_transfer_search %}
         <form method="get" class="jp-npl-mat-topbar-search jp-npl-transfer-search-form" id="jp-npl-transfer-search-form">
             <div class="jp-npl-mat-search-row">
@@ -16,7 +16,7 @@
                 <input type="hidden" name="status" value="{{ list_status }}">
                 {% endif %}
                 <div class="input-group input-group-sm jp-npl-mat-filter-field jp-npl-mat-search-input">
-                    <span class="input-group-text bg-transparent"><i class="bi bi-search text-muted"></i></span>
+                    <span class="input-group-text bg-transparent"></span>
                     <input type="search" class="form-control" id="pc-q" name="q"
                            value="{{ search_query }}" placeholder="Tìm phiếu, kho..." autocomplete="off" aria-label="Tìm">
                 </div>
@@ -47,7 +47,7 @@
         <div class="card border-0 shadow-sm jp-npl-transfer-form-actions">
             <div class="card-body d-flex flex-wrap gap-2">
                 <button type="submit" class="btn btn-hm fw-bold px-4">
-                    <i class="bi bi-save me-1"></i>Lưu phiếu
+                    Lưu phiếu
                 </button>
                 <a href="{% url 'kho_npl:transfer_hub' %}?tab=chuyen" class="btn btn-outline-secondary fw-bold">Xem phiếu chờ chuyển</a>
             </div>
@@ -63,7 +63,7 @@
             <td class="jp-npl-line-notes-cell">{{ line_form.notes }}</td>
             <td class="text-center">
                 <div class="d-none">{{ line_form.DELETE }}</div>
-                <button type="button" class="btn btn-link btn-sm text-danger p-0 remove-row"><i class="bi bi-x-lg"></i></button>
+                <button type="button" class="btn btn-link btn-sm text-danger p-0 remove-row" title="Xóa dòng">Xóa dòng</button>
             </td>
         </tr>
         {% endwith %}
@@ -83,7 +83,7 @@
                                     data-sort="{{ col.key }}" title="Sắp xếp theo {{ col.label }}">
                                 {{ col.label }}
                                 {% if sort_key == col.key %}
-                                <i class="bi bi-caret-{% if sort_dir == 'asc' %}up{% else %}down{% endif %}-fill jp-mat-sort-icon"></i>
+                                
                                 {% endif %}
                             </button>
                             <span class="jp-mat-col-resizer" aria-hidden="true"></span>
@@ -110,17 +110,17 @@
                             <div class="d-inline-flex flex-nowrap gap-1 justify-content-end jp-npl-transfer-row-actions">
                                 {% if tab == 'chuyen' %}
                                     {% if can_update %}
-                                    <a href="{% url 'kho_npl:transfer_edit' transfer.pk %}" class="btn btn-outline-hm btn-sm jp-npl-transfer-act-btn" title="Sửa"><i class="bi bi-pencil"></i></a>
+                                    <a href="{% url 'kho_npl:transfer_edit' transfer.pk %}" class="btn btn-outline-hm btn-sm jp-npl-transfer-act-btn" title="Sửa">Sửa</a>
                                     {% endif %}
                                     {% if can_delete %}
-                                    <a href="{% url 'kho_npl:transfer_cancel' transfer.pk %}" class="btn btn-outline-danger btn-sm jp-npl-transfer-act-btn" title="Xóa phiếu"><i class="bi bi-trash"></i></a>
+                                    <a href="{% url 'kho_npl:transfer_cancel' transfer.pk %}" class="btn btn-outline-danger btn-sm jp-npl-transfer-act-btn" title="Xóa phiếu">Xóa phiếu</a>
                                     {% endif %}
                                     {% if can_update %}
                                     <form method="post" action="{% url 'kho_npl:transfer_send' transfer.pk %}" class="d-inline">
                                         {% csrf_token %}
                                         <button type="submit" class="btn btn-hm btn-sm jp-npl-transfer-flow-btn"
                                                 onclick="return confirm('Chuyển phiếu {{ transfer.number }}? Hàng sẽ trừ tồn tại {{ transfer.from_location.code }}.');"
-                                                title="Chuyển"><i class="bi bi-truck"></i></button>
+                                                title="Chuyển">Chuyển</button>
                                     </form>
                                     {% endif %}
                                 {% elif tab == 'nhan' and can_update %}
@@ -128,9 +128,7 @@
                                     {% csrf_token %}
                                     <button type="submit" class="btn btn-success btn-sm jp-npl-transfer-flow-btn"
                                             onclick="return confirm('Xác nhận nhận phiếu {{ transfer.number }} vào kho {{ transfer.to_location.code }}?');"
-                                            title="Nhận vào kho">
-                                        <i class="bi bi-box-arrow-in-down"></i>
-                                    </button>
+                                            title="Nhận vào kho">Nhận vào kho</button>
                                 </form>
                                 {% endif %}
                             </div>
@@ -141,7 +139,7 @@
                     <tr>
                         <td colspan="{% if tab == 'danh-sach' %}{{ list_columns|length }}{% else %}{{ list_columns|length|add:1 }}{% endif %}" class="text-center py-5">
                             <div class="jp-npl-transfer-empty">
-                                <i class="bi bi-inbox display-6 text-muted d-block mb-2"></i>
+                                
                                 <p class="text-muted mb-0">
                                     {% if has_filters %}Không có phiếu phù hợp bộ lọc.
                                     {% elif tab == 'danh-sach' %}Không có phiếu phù hợp bộ lọc.

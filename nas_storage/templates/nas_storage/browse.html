@@ -6,7 +6,7 @@
     <div class="jp-page-header mb-3 mb-md-4">
         <div class="jp-page-header-main">
             <h2 class="jp-page-title fw-bold text-dark mb-1">
-                <i class="bi bi-hdd-network text-hm me-2"></i>Thư mục NAS
+                Thư mục NAS
                 {% if nas_using_custom %}<span class="badge bg-info-subtle text-info ms-1 small">Tùy chỉnh</span>{% endif %}
             </h2>
             <p class="text-muted small mb-0">Xem, tải xuống, chia sẻ link và xóa trên NAS · cần đăng nhập Portal có quyền Thư mục NAS</p>
@@ -15,12 +15,12 @@
 
     {% if nas_unavailable %}
     <div class="alert alert-warning border-0 shadow-sm">
-        <i class="bi bi-exclamation-triangle me-2"></i>
+        
         Chưa kết nối được NAS trên server. Liên hệ IT nếu tình trạng kéo dài.
     </div>
     {% elif no_department %}
     <div class="alert alert-info border-0 shadow-sm">
-        <i class="bi bi-info-circle me-2"></i>
+        
         Tài khoản chưa được gán phòng ban. Liên hệ HCNS để cập nhật hồ sơ nhân sự.
     </div>
     {% else %}
@@ -41,7 +41,7 @@
 
     {% if share_mode %}
     <div class="alert alert-info border-0 shadow-sm py-2 mb-3">
-        <i class="bi bi-share me-2"></i>
+        
         Đang xem qua liên kết chia sẻ từ <strong>{{ share_from.username }}</strong>
         · chỉ tài khoản Portal đăng nhập mới truy cập được
     </div>
@@ -55,13 +55,13 @@
                class="card border-0 shadow-sm h-100 text-decoration-none jp-nas-root-card {% if not row.exists %}opacity-75{% endif %}">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-start gap-3">
-                        <span class="jp-nas-root-icon"><i class="bi {% if row.entry.key == 'personal' %}bi-person-badge{% else %}bi-people{% endif %}"></i></span>
+                        <span class="jp-nas-root-icon"></span>
                         <div>
                             <h5 class="fw-bold text-dark mb-1">{{ row.entry.label }}</h5>
                             <p class="text-muted small mb-2">{{ row.entry.description }}</p>
                             <code class="small text-hm">{{ row.entry.rel_path }}</code>
                             {% if not row.exists %}
-                            <div class="small text-warning mt-2"><i class="bi bi-folder-x me-1"></i>Chưa có folder trên NAS</div>
+                            <div class="small text-warning mt-2">Chưa có folder trên NAS</div>
                             {% endif %}
                         </div>
                     </div>
@@ -79,13 +79,13 @@
             <div class="d-flex align-items-center flex-wrap gap-2">
                 {% if parent_rel or rel_path %}
                 <a href="{% url 'nas_storage:browse' %}{% if parent_rel %}?path={{ parent_rel|urlencode }}{% if share_token %}&amp;share={{ share_token }}{% endif %}{% elif share_token %}?share={{ share_token }}{% endif %}" class="btn btn-light border btn-sm fw-bold">
-                    <i class="bi bi-arrow-up"></i> Lên
+                     Lên
                 </a>
                 {% endif %}
                 <a href="{% url 'nas_storage:browse' %}?path={{ rel_path|urlencode }}&amp;refresh=1{% if share_token %}&amp;share={{ share_token }}{% endif %}"
                    class="btn btn-outline-hm btn-sm fw-bold"
                    title="Tải lại danh sách từ NAS">
-                    <i class="bi bi-arrow-clockwise"></i> Tải lại
+                     Tải lại
                 </a>
                 <span class="text-muted small">
                     {% if folders or files %}{{ folders|length }} thư mục · {{ files|length }} file{% else %}Thư mục trống{% endif %}
@@ -115,16 +115,16 @@
             <div class="modal-content border-0 shadow">
                 <div class="modal-header border-0 pb-0">
                     <h5 class="modal-title fw-bold" id="jp-nas-share-modal-label">
-                        <i class="bi bi-share text-hm me-2"></i>Chia sẻ
+                        Chia sẻ
                     </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng">Đóng</button>
                 </div>
                 <div class="modal-body pt-2">
                     <p class="text-muted small mb-2" id="jp-nas-share-item-name"></p>
                     <div class="input-group">
                         <input type="text" class="form-control form-control-sm" id="jp-nas-share-url" readonly>
                         <button type="button" class="btn btn-hm text-white btn-sm fw-bold" id="jp-nas-share-copy">
-                            <i class="bi bi-clipboard me-1"></i>Sao chép
+                            Sao chép
                         </button>
                     </div>
                 </div>
@@ -164,7 +164,7 @@
         if (!shareCreateUrl || !shareModal) return;
         var originalHtml = btn.innerHTML;
         btn.disabled = true;
-        btn.innerHTML = '<span class="jp-nas-sync-spin"><i class="bi bi-arrow-repeat"></i></span>';
+        btn.innerHTML = '<span class="jp-nas-sync-spin"></span>';
 
         var body = new URLSearchParams();
         body.set('path', path);
@@ -206,9 +206,9 @@
             } else {
                 document.execCommand('copy');
             }
-            shareCopyBtn.innerHTML = '<i class="bi bi-check2 me-1"></i>Đã chép';
+            shareCopyBtn.innerHTML = 'Đã chép';
             window.setTimeout(function () {
-                shareCopyBtn.innerHTML = '<i class="bi bi-clipboard me-1"></i>Sao chép';
+                shareCopyBtn.innerHTML = 'Sao chép';
             }, 1500);
         });
     }

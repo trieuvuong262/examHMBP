@@ -7,11 +7,11 @@
     <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title">
-                <i class="bi {{ page_icon }} me-2"></i>{{ page_title }}
+                {{ page_title }}
             </h2>
         </div>
         <a href="{% url 'kho_npl:overview' %}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-arrow-left me-1"></i>Tổng quan
+            Tổng quan
         </a>
     </div>
 
@@ -28,7 +28,7 @@
                 </div>
                 <div class="col-12 col-md-2">
                     <button type="submit" class="btn btn-hm w-100 fw-bold">
-                        <i class="bi bi-search me-1"></i>Tìm
+                        Tìm
                     </button>
                 </div>
             </form>
@@ -40,7 +40,7 @@
             <h5 class="mb-0 fw-bold">{{ total_count|intcomma }} NPL</h5>
             {% if can_export %}
             <a href="{% url 'kho_npl:report_alerts_export' %}" class="btn btn-success btn-sm">
-                <i class="bi bi-file-earmark-excel me-1"></i>Xuất Excel
+                Xuất Excel
             </a>
             {% endif %}
         </div>

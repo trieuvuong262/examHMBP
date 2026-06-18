@@ -5,7 +5,7 @@
     <div class="jp-page-header mb-3 mb-md-4">
         <div class="jp-page-header-main">
             <h2 class="jp-page-title fw-bold text-dark mb-1">
-                <i class="bi bi-building text-hm me-2"></i>Quản lý Phòng ban
+                Quản lý Phòng ban
             </h2>
             <nav aria-label="breadcrumb" class="d-none d-md-block">
                 <ol class="breadcrumb mb-0 small">
@@ -16,10 +16,10 @@
         </div>
         <div class="jp-hrm-toolbar">
             <a href="{% url 'user_list' %}" class="btn btn-outline-hm fw-bold shadow-sm jp-hrm-tool-btn">
-                <i class="bi bi-people-fill"></i><span class="jp-hrm-tool-label"> Nhân sự</span>
+                <span class="jp-hrm-tool-label"> Nhân sự</span>
             </a>
             <a href="{% url 'department_add' %}" class="btn btn-hm shadow-sm text-white fw-bold jp-hrm-tool-btn jp-hrm-tool-btn-primary">
-                <i class="bi bi-plus-lg"></i><span class="jp-hrm-tool-label"> Thêm phòng ban</span>
+                <span class="jp-hrm-tool-label"> Thêm phòng ban</span>
             </a>
         </div>
     </div>
@@ -58,12 +58,8 @@
                         </td>
                         <td class="text-end pe-4">
                             <div class="d-inline-flex gap-1">
-                                <a href="{% url 'department_edit' dept.pk %}" class="btn btn-sm btn-outline-hm" title="Sửa">
-                                    <i class="bi bi-pencil-square"></i>
-                                </a>
-                                <a href="{% url 'department_delete' dept.pk %}" class="btn btn-sm btn-outline-danger" title="Xóa">
-                                    <i class="bi bi-trash"></i>
-                                </a>
+                                <a href="{% url 'department_edit' dept.pk %}" class="btn btn-sm btn-outline-hm" title="Sửa">Sửa</a>
+                                <a href="{% url 'department_delete' dept.pk %}" class="btn btn-sm btn-outline-danger" title="Xóa">Xóa</a>
                             </div>
                         </td>
                     </tr>

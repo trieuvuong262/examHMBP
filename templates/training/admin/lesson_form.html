@@ -5,11 +5,11 @@
 <div class="container jp-page mt-3 mt-md-4 mb-5" style="max-width: 900px;">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h3 class="fw-bold text-dark mb-1"><i class="bi bi-pencil-square text-warning me-2"></i>Chỉnh sửa bài học</h3>
+            <h3 class="fw-bold text-dark mb-1">Chỉnh sửa bài học</h3>
             <p class="text-muted mb-0">Chương: <span class="fw-bold text-primary">{{ lesson.chapter.title }}</span></p>
         </div>
         <a href="{% url 'course_builder' course_id %}" class="btn btn-outline-dark shadow-sm">
-            <i class="bi bi-arrow-left me-1"></i>Quay lại
+            Quay lại
         </a>
     </div>
 
@@ -42,18 +42,17 @@
                 
                 {% if lesson.video_url %}
                     <div class="form-text mt-2">
-                        <i class="bi bi-link-45deg text-primary me-1"></i> Link hiện tại:
+                         Link hiện tại:
                         <a href="{{ lesson.video_url }}" target="_blank">{{ lesson.video_url }}</a>
                     </div>
                 {% endif %}
                 {% if lesson.video_file %}
                     <div class="form-text mt-2">
-                        <i class="bi bi-camera-video-fill text-primary me-1"></i> Video hiện tại: 
-                        <a href="{{ lesson.video_file.url }}" target="_blank">Xem video</a>
+                         Video hiện tại:                         <a href="{{ lesson.video_file.url }}" target="_blank">Xem video</a>
                     </div>
                 {% endif %}
                 <div class="form-text text-danger mt-1">
-                    <i class="bi bi-exclamation-triangle-fill me-1"></i> Cần ít nhất link hoặc file video. Upload khuyến nghị dưới 100MB.
+                     Cần ít nhất link hoặc file video. Upload khuyến nghị dưới 100MB.
                 </div>
             </div>
 
@@ -62,7 +61,7 @@
                 {{ form.attachment }}
                 {% if lesson.attachment %}
                     <div class="form-text mt-2">
-                        <i class="bi bi-file-earmark-check text-success me-1"></i> File hiện tại: <a href="{{ lesson.attachment.url }}" target="_blank">{{ lesson.attachment.name }}</a>
+                         File hiện tại: <a href="{{ lesson.attachment.url }}" target="_blank">{{ lesson.attachment.name }}</a>
                     </div>
                 {% endif %}
             </div>
@@ -80,7 +79,7 @@
 
             <div class="text-end mt-2">
                 <button type="submit" class="btn btn-hm-dark fw-bold text-dark px-5 shadow">
-                    <i class="bi bi-save me-1"></i>CẬP NHẬT
+                    CẬP NHẬT
                 </button>
             </div>
         </form>

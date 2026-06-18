@@ -10,10 +10,10 @@
     <div class="container-fluid d-flex justify-content-between align-items-center gap-2">
         <div class="d-flex align-items-center min-w-0">
             <a href="{% url 'my_courses' %}" class="btn btn-sm btn-outline-light me-2 flex-shrink-0">
-                <i class="bi bi-arrow-left"></i><span class="d-none d-sm-inline ms-1">Thoát</span>
+                <span class="d-none d-sm-inline ms-1">Thoát</span>
             </a>
             <button class="btn btn-sm btn-light d-lg-none flex-shrink-0 me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#courseSidebar" aria-controls="courseSidebar">
-                <i class="bi bi-list-ul"></i>
+                
             </button>
             <h5 class="mb-0 fw-bold">{{ course.title }}</h5>
         </div>
@@ -24,7 +24,7 @@
             </div>
             {% if course.final_exam %}
                 <a href="{% url 'take_exam' course.final_exam.id %}" id="exam-btn" class="btn btn-sm btn-danger fw-bold {% if enrollment.progress_percent < 100 %}d-none{% endif %}">
-                    <i class="bi bi-pencil-square"></i><span class="d-none d-md-inline ms-1">Thi cuối khóa</span>
+                    <span class="d-none d-md-inline ms-1">Thi cuối khóa</span>
                 </a>
             {% endif %}
         </div>
@@ -64,15 +64,15 @@
                     <div class="jp-training-pdf mb-4 shadow-sm border" data-jp-pdf-viewer data-pdf-url="{{ current_lesson.attachment.url }}">
                         <div class="jp-training-pdf-toolbar d-flex flex-wrap justify-content-between align-items-center">
                             <div class="small fw-bold">
-                                <i class="bi bi-file-earmark-pdf text-danger me-2"></i>TÀI LIỆU PDF
+                                TÀI LIỆU PDF
                                 <span class="text-white-50 ms-1" data-pdf-meta></span>
                             </div>
                             <div class="btn-group btn-group-sm">
                                 <a href="{{ current_lesson.attachment.url }}" target="_blank" rel="noopener" class="btn btn-outline-light">
-                                    <i class="bi bi-arrows-fullscreen me-1"></i><span class="d-none d-sm-inline">Mở toàn màn hình</span>
+                                    <span class="d-none d-sm-inline">Mở toàn màn hình</span>
                                 </a>
                                 <a href="{{ current_lesson.attachment.url }}" download class="btn btn-hm">
-                                    <i class="bi bi-cloud-download me-1"></i><span class="d-none d-sm-inline">Tải về</span>
+                                    <span class="d-none d-sm-inline">Tải về</span>
                                 </a>
                             </div>
                         </div>
@@ -85,12 +85,12 @@
                         <div class="jp-training-pdf-fallback">
                             <p class="mb-2 small">Không hiển thị được trong trang. Vui lòng mở file PDF trực tiếp.</p>
                             <a href="{{ current_lesson.attachment.url }}" target="_blank" rel="noopener" class="btn btn-sm btn-hm">
-                                <i class="bi bi-box-arrow-up-right me-1"></i>Mở PDF
+                                Mở PDF
                             </a>
                         </div>
                     </div>
                     <p class="text-muted small mb-0 d-lg-none">
-                        <i class="bi bi-hand-index-thumb me-1"></i>Vuốt trang để đọc toàn bộ tài liệu.
+                        Vuốt trang để đọc toàn bộ tài liệu.
                     </p>
                     {% endif %}
 
@@ -105,19 +105,18 @@
                     <div>
                         {% if current_lesson.id in completed_lesson_ids %}
                             <button class="btn btn-hm fw-bold disabled w-100 w-sm-auto">
-                                <i class="bi bi-check-circle-fill me-2"></i>Đã hoàn thành bài này
+                                Đã hoàn thành bài này
                             </button>
                         {% else %}
                             <button id="btn-complete" class="btn btn-hm fw-bold w-100 w-sm-auto" onclick="markComplete({{ current_lesson.id }})">
-                                <i class="bi bi-circle me-2"></i>Đánh dấu hoàn thành
+                                Đánh dấu hoàn thành
                             </button>
                         {% endif %}
                     </div>
                     <div>
                         {% if next_lesson %}
                             <a href="{% url 'learning_space' course.id next_lesson.id %}" class="btn btn-outline-dark fw-bold w-100 w-sm-auto">
-                                Bài tiếp theo <i class="bi bi-chevron-right ms-1"></i>
-                            </a>
+                                Bài tiếp theo                             </a>
                         {% endif %}
                     </div>
                 </div>
@@ -137,7 +136,7 @@
 <div class="offcanvas offcanvas-end d-lg-none" tabindex="-1" id="courseSidebar" aria-labelledby="courseSidebarLabel" style="width: min(92vw, 360px);">
     <div class="offcanvas-header border-bottom">
         <h5 class="offcanvas-title fw-bold text-hm" id="courseSidebarLabel">Nội dung khóa học</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Đóng"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Đóng">Đóng</button>
     </div>
     <div class="offcanvas-body p-0 overflow-auto">
         {% include 'training/includes/course_sidebar.html' with accordion_suffix='-mobile' close_offcanvas=True %}
@@ -173,10 +172,10 @@
                     $('#progress-text').text(res.progress_percent + '% Hoàn thành');
 
                     if (res.exam_url) {
-                        btn.html('<i class="bi bi-pencil-square me-2"></i>Chuyển sang bài kiểm tra…');
+                        btn.html('Chuyển sang bài kiểm tra…');
                         setTimeout(function() { window.location.href = res.exam_url; }, 700);
                     } else {
-                        btn.html('<i class="bi bi-check-circle-fill me-2"></i>Đã hoàn thành bài này');
+                        btn.html('Đã hoàn thành bài này');
                         setTimeout(function() { location.reload(); }, 800);
                     }
                 }

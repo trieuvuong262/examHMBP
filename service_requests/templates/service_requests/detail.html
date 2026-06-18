@@ -23,7 +23,7 @@
             </span>
             {% endif %}
             <a href="{{ list_url }}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-arrow-left me-1"></i>Quay lại
+                Quay lại
             </a>
         </div>
     </div>
@@ -139,7 +139,7 @@
                         {% for att in request_attachments %}
                         <li class="mb-2">
                             <a href="{{ att.file.url }}" target="_blank" rel="noopener">
-                                <i class="bi bi-paperclip me-1"></i>{{ att.display_name }}
+                                {{ att.display_name }}
                             </a>
                         </li>
                         {% endfor %}
@@ -245,7 +245,7 @@
                     </form>
                     {% elif current_step.step_code == 'it_repair_execution' %}
                     <div class="alert alert-info border-0 small mb-0">
-                        <i class="bi bi-pc-display me-1"></i>
+                        
                         Bước xử lý IT được thực hiện trong module
                         <strong>Quản lý thiết bị</strong>.
                         {% if equipment_it_url %}
@@ -267,7 +267,7 @@
                     </form>
                     {% elif current_step_waiting_message %}
                     <div class="alert alert-info border-0 small mb-0">
-                        <i class="bi bi-hourglass-split me-1"></i>{{ current_step_waiting_message }}
+                        {{ current_step_waiting_message }}
                         {% if current_step.step_code == 'procurement_quote' %}
                         <div class="mt-2 text-muted">
                             Bước tiếp theo: Thu mua nhập báo giá NCC cho từng dòng hàng.

@@ -6,17 +6,17 @@
     <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title">
-                <i class="bi {{ section.icon }} me-2"></i>{{ section.title }}
+                {{ section.title }}
             </h2>
         </div>
         <div class="d-flex gap-2">
             {% if can_create %}
             <a href="{% url 'kho_npl:settings_create' section=section.key %}" class="btn btn-hm btn-sm fw-bold">
-                <i class="bi bi-plus-lg me-1"></i>Thêm
+                Thêm
             </a>
             {% endif %}
             <a href="{% url 'kho_npl:settings_hub' %}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-arrow-left me-1"></i>Thiết lập
+                Thiết lập
             </a>
         </div>
     </div>
@@ -35,7 +35,7 @@
                     </div>
                 </div>
                 <div class="col-12 col-md-2">
-                    <button type="submit" class="btn btn-hm w-100 fw-bold"><i class="bi bi-search me-1"></i>Tìm</button>
+                    <button type="submit" class="btn btn-hm w-100 fw-bold">Tìm</button>
                 </div>
             </form>
         </div>
@@ -64,10 +64,10 @@
                         </td>
                         <td class="text-end text-nowrap">
                             {% if can_update %}
-                            <a href="{% url 'kho_npl:settings_edit' section=section.key pk=obj.pk %}" class="btn btn-link btn-sm p-0" title="Sửa"><i class="bi bi-pencil"></i></a>
+                            <a href="{% url 'kho_npl:settings_edit' section=section.key pk=obj.pk %}" class="btn btn-link btn-sm p-0" title="Sửa">Sửa</a>
                             {% endif %}
                             {% if can_delete and obj.is_active %}
-                            <a href="{% url 'kho_npl:settings_deactivate' section=section.key pk=obj.pk %}" class="btn btn-link btn-sm p-0 text-danger" title="Ngừng dùng"><i class="bi bi-slash-circle"></i></a>
+                            <a href="{% url 'kho_npl:settings_deactivate' section=section.key pk=obj.pk %}" class="btn btn-link btn-sm p-0 text-danger" title="Ngừng dùng">Ngừng dùng</a>
                             {% endif %}
                         </td>
                     </tr>

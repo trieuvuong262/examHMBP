@@ -22,9 +22,9 @@
                     </small>
                 </div>
                 {% if is_read %}
-                <span class="badge bg-white text-success px-3 py-2"><i class="bi bi-check-circle-fill me-1"></i>Đã xác nhận đọc</span>
+                <span class="badge bg-white text-success px-3 py-2">Đã xác nhận đọc</span>
                 {% else %}
-                <span class="badge bg-white text-warning px-3 py-2"><i class="bi bi-exclamation-circle-fill me-1"></i>Chưa xác nhận</span>
+                <span class="badge bg-white text-warning px-3 py-2">Chưa xác nhận</span>
                 {% endif %}
             </div>
         </div>
@@ -44,7 +44,7 @@
                 <iframe src="{{ announcement.pdf_file_url }}" title="{{ announcement.title }}" class="w-100 h-100"></iframe>
             </div>
             <a href="{{ announcement.pdf_file_url }}" target="_blank" class="btn btn-outline-hm">
-                <i class="bi bi-download me-1"></i> Tải PDF
+                 Tải PDF
             </a>
             {% elif announcement.content_type == 'VIDEO' and announcement.video_file %}
             <video controls class="w-100 shadow-sm" style="max-height: 70vh;">
@@ -58,7 +58,7 @@
             {% if announcement.original_file %}
             <div class="mt-4">
                 <a href="{{ announcement.original_file_url }}" class="btn btn-outline-secondary">
-                    <i class="bi bi-paperclip me-1"></i> Tải file gốc đính kèm{% if announcement.original_file_display_name %} ({{ announcement.original_file_display_name }}){% endif %}
+                     Tải file gốc đính kèm{% if announcement.original_file_display_name %} ({{ announcement.original_file_display_name }}){% endif %}
                 </a>
             </div>
             {% endif %}
@@ -67,14 +67,14 @@
             <div class="mt-5 pt-4 border-top">
                 {% if is_read %}
                 <div class="alert alert-success border-0 mb-0">
-                    <i class="bi bi-check2-circle me-2"></i>Bạn đã xác nhận đọc thông báo này.
+                    Bạn đã xác nhận đọc thông báo này.
                 </div>
                 {% else %}
                 <form method="post">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="acknowledge">
                     <button type="submit" class="btn btn-hm btn-lg px-5 fw-bold">
-                        <i class="bi bi-check2-square me-2"></i>Xác nhận đã đọc
+                        Xác nhận đã đọc
                     </button>
                 </form>
                 {% endif %}

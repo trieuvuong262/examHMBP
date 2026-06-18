@@ -5,7 +5,7 @@
     <div class="jp-page-header mb-3 mb-md-4">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title">
-                <i class="bi bi-tools me-2"></i>Gửi yêu cầu hỗ trợ kỹ thuật
+                Gửi yêu cầu hỗ trợ kỹ thuật
             </h2>
         </div>
     </div>
@@ -15,13 +15,13 @@
            class="btn btn-sm {% if tab_it_active %}btn-hm{% else %}btn-outline-secondary{% endif %}"
            role="tab"
            aria-selected="{% if tab_it_active %}true{% else %}false{% endif %}">
-            <i class="bi bi-pc-display me-1"></i>Thiết bị IT
+            Thiết bị IT
         </a>
         <a href="{{ create_url_production }}{% if linked_equipment %}&equipment={{ linked_equipment.id }}{% endif %}"
            class="btn btn-sm {% if not tab_it_active %}btn-hm{% else %}btn-outline-secondary{% endif %}"
            role="tab"
            aria-selected="{% if not tab_it_active %}true{% else %}false{% endif %}">
-            <i class="bi bi-gear-wide-connected me-1"></i>Thiết bị sản xuất
+            Thiết bị sản xuất
         </a>
     </div>
 
@@ -33,7 +33,7 @@
                 {% if linked_equipment %}
                 <input type="hidden" name="equipment_id" value="{{ linked_equipment.id }}">
                 <div class="alert alert-light border mb-3">
-                    <i class="bi bi-{% if is_production_repair %}gear-wide-connected{% else %}pc-display{% endif %} me-1"></i>
+                    
                     Liên kết thiết bị: <strong>{{ linked_equipment.name }}</strong>
                     {% if linked_equipment.serial_number %}<span class="text-muted">({{ linked_equipment.serial_number }})</span>{% endif %}
                 </div>

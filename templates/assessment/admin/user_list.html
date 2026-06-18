@@ -7,7 +7,7 @@
     <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-hm text-white p-4 border-0 rounded-top-4">
-                <h5 class="modal-title fw-bold"><i class="bi bi-shield-check me-2"></i>THÔNG TIN TÀI KHOẢN</h5>
+                <h5 class="modal-title fw-bold">THÔNG TIN TÀI KHOẢN</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
@@ -16,17 +16,17 @@
                 </div>
                 
                 <div class="p-3 bg-light border mb-3 text-center">
-                    <p class="small text-muted mb-1 text-uppercase fw-bold"><i class="bi bi-person-badge me-1"></i>Tài khoản đăng nhập</p>
+                    <p class="small text-muted mb-1 text-uppercase fw-bold">Tài khoản đăng nhập</p>
                     <h5 class="fw-bold text-hm mb-0 user-select-all" id="modalUsernameText">...</h5>
                 </div>
 
                 <div class="p-4 bg-hm-subtle border border-hm border-2 border-opacity-50 mb-4 shadow-sm text-center">
-                    <p class="small text-hm mb-1 text-uppercase fw-bold"><i class="bi bi-key-fill me-1"></i>Mật khẩu mới</p>
+                    <p class="small text-hm mb-1 text-uppercase fw-bold">Mật khẩu mới</p>
                     <h2 class="fw-bold text-dark mb-0 user-select-all" id="modalPasswordText" style="letter-spacing: 3px; font-family: monospace;">...</h2>
                 </div>
 
                 <button class="btn btn-hm fw-bold px-5 py-3 shadow btn-hover-lift w-100 fs-5 text-white" onclick="copyAccountInfo(this)">
-                    <i class="bi bi-clipboard-plus fs-4 me-2 align-middle"></i> SAO CHÉP THÔNG TIN
+                     SAO CHÉP THÔNG TIN
                 </button>
             </div>
         </div>
@@ -37,7 +37,7 @@
     <div class="jp-page-header mb-3 mb-md-4">
         <div class="jp-page-header-main">
             <h2 class="jp-page-title fw-bold text-dark mb-1">
-                <i class="bi bi-people-fill text-hm me-2"></i>Quản lý Nhân sự
+                Quản lý Nhân sự
             </h2>
             <nav aria-label="breadcrumb" class="d-none d-md-block">
                 <ol class="breadcrumb mb-0 small">
@@ -50,19 +50,19 @@
 
         <div class="jp-hrm-toolbar">
             <a href="{% url 'org_structure' %}" class="btn btn-outline-dark fw-bold shadow-sm jp-hrm-tool-btn" title="Sơ đồ cơ cấu tổ chức">
-                <i class="bi bi-diagram-3"></i><span class="jp-hrm-tool-label"> Cơ cấu</span>
+                <span class="jp-hrm-tool-label"> Cơ cấu</span>
             </a>
             {% if jp_can_export_hrm %}
             <a href="{% url 'user_export_excel' %}{% if query_string %}?{{ query_string }}{% endif %}" class="btn btn-outline-hm fw-bold shadow-sm jp-hrm-tool-btn" title="Xuất Excel">
-                <i class="bi bi-download"></i><span class="jp-hrm-tool-label"> Xuất Excel</span>
+                <span class="jp-hrm-tool-label"> Xuất Excel</span>
             </a>
             {% endif %}
             {% if jp_can_create_hrm %}
             <button type="button" class="btn btn-outline-hm fw-bold shadow-sm jp-hrm-tool-btn" data-bs-toggle="modal" data-bs-target="#importExcelModal" title="Import Excel">
-                <i class="bi bi-file-earmark-excel-fill"></i><span class="jp-hrm-tool-label"> Import</span>
+                <span class="jp-hrm-tool-label"> Import</span>
             </button>
             <a href="{% url 'user_add' %}" class="btn btn-hm shadow-sm text-white fw-bold jp-hrm-tool-btn jp-hrm-tool-btn-primary" title="Thêm nhân viên">
-                <i class="bi bi-person-plus-fill"></i><span class="jp-hrm-tool-label"> Thêm NV</span>
+                <span class="jp-hrm-tool-label"> Thêm NV</span>
             </a>
             {% endif %}
         </div>
@@ -77,7 +77,7 @@
                     <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
                         <label for="userDepartmentFilter" class="form-label small text-muted mb-1">Phòng ban</label>
                         <div class="input-group">
-                            <span class="input-group-text bg-white"><i class="bi bi-building text-muted"></i></span>
+                            <span class="input-group-text bg-white"></span>
                             <select name="department" id="userDepartmentFilter" class="form-select">
                                 <option value="">Tất cả phòng ban</option>
                                 <option value="none" {% if current_department == 'none' %}selected{% endif %}>Chưa gán phòng ban</option>
@@ -90,7 +90,7 @@
                     <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
                         <label for="userDivisionFilter" class="form-label small text-muted mb-1">Bộ phận</label>
                         <div class="input-group">
-                            <span class="input-group-text bg-white"><i class="bi bi-diagram-2 text-muted"></i></span>
+                            <span class="input-group-text bg-white"></span>
                             <select name="division" id="userDivisionFilter" class="form-select">
                                 <option value="">Tất cả bộ phận</option>
                                 <option value="none" {% if current_division == 'none' %}selected{% endif %}>Chưa gán bộ phận</option>
@@ -103,7 +103,7 @@
                     <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
                         <label for="userPositionFilter" class="form-label small text-muted mb-1">Vị trí</label>
                         <div class="input-group">
-                            <span class="input-group-text bg-white"><i class="bi bi-person-badge text-muted"></i></span>
+                            <span class="input-group-text bg-white"></span>
                             <select name="position" id="userPositionFilter" class="form-select">
                                 <option value="">Tất cả vị trí</option>
                                 <option value="none" {% if current_position == 'none' %}selected{% endif %}>Chưa có vị trí</option>
@@ -116,7 +116,7 @@
                     <div class="col-xl-3 col-lg-5 col-md-6">
                         <label for="userSearch" class="form-label small text-muted mb-1">Tìm kiếm</label>
                         <div class="jp-hrm-search input-group">
-                            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                            <span class="input-group-text bg-white border-end-0"></span>
                             <input type="search"
                                    name="q"
                                    id="userSearch"
@@ -129,7 +129,7 @@
                     <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
                         <label for="userStatusFilter" class="form-label small text-muted mb-1">Trạng thái</label>
                         <div class="input-group">
-                            <span class="input-group-text bg-white"><i class="bi bi-person-check text-muted"></i></span>
+                            <span class="input-group-text bg-white"></span>
                             <select name="status" id="userStatusFilter" class="form-select">
                                 {% for value, label in employment_status_options.items %}
                                 <option value="{{ value }}" {% if current_status == value %}selected{% endif %}>{{ label }}</option>
@@ -141,7 +141,7 @@
                     <div class="col-xl-1 col-lg-2 col-md-4 col-sm-6">
                         <label class="form-label small text-muted mb-1 d-none d-md-block">&nbsp;</label>
                         <a href="{% url 'user_list' %}" class="btn btn-outline-secondary w-100" title="Xóa bộ lọc">
-                            <i class="bi bi-x-lg"></i><span class="d-inline d-md-none ms-1">Xóa lọc</span>
+                            <span class="d-inline d-md-none ms-1">Xóa lọc</span>
                         </a>
                     </div>
                     {% endif %}
@@ -152,27 +152,27 @@
                     <span class="small text-muted fw-semibold text-uppercase">Đang lọc:</span>
                     {% if current_department %}
                     <span class="badge rounded-pill bg-hm-subtle text-hm border border-danger border-opacity-25 px-3 py-2">
-                        <i class="bi bi-building me-1"></i>{{ current_department_label }}
+                        {{ current_department_label }}
                     </span>
                     {% endif %}
                     {% if current_division %}
                     <span class="badge rounded-pill bg-hm-subtle text-hm border border-danger border-opacity-25 px-3 py-2">
-                        <i class="bi bi-diagram-2 me-1"></i>{{ current_division_label }}
+                        {{ current_division_label }}
                     </span>
                     {% endif %}
                     {% if current_position %}
                     <span class="badge rounded-pill bg-hm-subtle text-hm border border-danger border-opacity-25 px-3 py-2">
-                        <i class="bi bi-person-badge me-1"></i>{{ current_position_label }}
+                        {{ current_position_label }}
                     </span>
                     {% endif %}
                     {% if current_status %}
                     <span class="badge rounded-pill bg-hm-subtle text-hm border border-danger border-opacity-25 px-3 py-2">
-                        <i class="bi bi-person-check me-1"></i>{{ current_status_label }}
+                        {{ current_status_label }}
                     </span>
                     {% endif %}
                     {% if search_query %}
                     <span class="badge rounded-pill bg-light text-dark border px-3 py-2">
-                        <i class="bi bi-search me-1"></i>“{{ search_query }}”
+                        “{{ search_query }}”
                     </span>
                     {% endif %}
                     <a href="{% url 'user_list' %}" class="btn btn-link btn-sm text-muted p-0 ms-auto">Xóa tất cả bộ lọc</a>
@@ -202,8 +202,8 @@
                                title="Sắp xếp theo {{ col.label }}">
                                 <span class="jp-hrm-list-th-label">{{ col.label }}</span>
                                 <span class="jp-table-sort-icons" aria-hidden="true">
-                                    <i class="bi bi-caret-up-fill"></i>
-                                    <i class="bi bi-caret-down-fill"></i>
+                                    
+                                    
                                 </span>
                             </a>
                             {% else %}
@@ -263,23 +263,23 @@
                         <td class="text-center jp-hrm-col-role" data-label="Vai trò HT">
                             {% if u.profile.role == 'DIRECTOR' %}
                                 <span class="badge bg-danger-subtle text-danger px-2 px-md-3">
-                                    <i class="bi bi-shield-fill-check me-1"></i>Giám đốc
+                                    Giám đốc
                                 </span>
                             {% elif u.profile.role == 'DEPARTMENT_HEAD' %}
                                 <span class="badge bg-secondary-subtle text-secondary-emphasis px-2 px-md-3">
-                                    <i class="bi bi-building-fill me-1"></i>Tr. phòng
+                                    Tr. phòng
                                 </span>
                             {% elif u.profile.role == 'DIVISION_HEAD' %}
                                 <span class="badge bg-info-subtle text-info-emphasis px-2 px-md-3">
-                                    <i class="bi bi-diagram-2-fill me-1"></i>Tr. bộ phận
+                                    Tr. bộ phận
                                 </span>
                             {% elif u.profile.role == 'TEAM_LEADER' %}
                                 <span class="badge bg-warning-subtle text-warning-emphasis px-2 px-md-3">
-                                    <i class="bi bi-person-badge-fill me-1"></i>Tổ trưởng
+                                    Tổ trưởng
                                 </span>
                             {% else %}
                                 <span class="badge bg-primary-subtle text-hm px-2 px-md-3">
-                                    <i class="bi bi-person-fill me-1"></i>Nhân viên
+                                    Nhân viên
                                 </span>
                             {% endif %}
                         </td>
@@ -291,14 +291,12 @@
                                         data-bs-toggle="dropdown"
                                         data-bs-popper-config='{"strategy":"fixed"}'
                                         aria-expanded="false"
-                                        title="Thao tác">
-                                    <i class="bi bi-three-dots-vertical"></i>
-                                </button>
+                                        title="Thao tác">Thao tác</button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                                     {% if jp_can_update_hrm %}
                                     <li>
                                         <a class="dropdown-item" href="{% url 'user_edit' u.id %}{% if nav_query_string %}?{{ nav_query_string }}{% endif %}">
-                                            <i class="bi bi-pencil-square me-2 text-warning"></i>Sửa thông tin
+                                            Sửa thông tin
                                         </a>
                                     </li>
                                     <li>
@@ -306,7 +304,7 @@
                                                 class="dropdown-item reset-pwd-btn"
                                                 data-url="{% url 'user_password_reset' u.id %}"
                                                 data-username="{{ u.username }}">
-                                            <i class="bi bi-key-fill me-2 text-primary"></i>Reset mật khẩu
+                                            Reset mật khẩu
                                         </button>
                                     </li>
                                     {% endif %}
@@ -316,7 +314,7 @@
                                         <a class="dropdown-item text-danger"
                                            href="{% url 'user_delete' u.id %}"
                                            onclick="return confirm('Xác nhận xóa vĩnh viễn tài khoản này?')">
-                                            <i class="bi bi-trash-fill me-2"></i>Xóa tài khoản
+                                            Xóa tài khoản
                                         </a>
                                     </li>
                                     {% endif %}
@@ -331,7 +329,7 @@
                     <tr>
                         <td colspan="12" class="text-center py-5 jp-td-empty">
                             <div class="py-4">
-                                <i class="bi bi-person-exclamation display-1 text-muted opacity-25"></i>
+                                
                                 <p class="mt-3 text-muted fs-5">Chưa có nhân viên nào trong hệ thống.</p>
                                 {% if jp_can_create_hrm %}
                                 <a href="{% url 'user_add' %}" class="btn btn-hm px-4">Thêm nhân viên ngay</a>
@@ -356,14 +354,14 @@
         <form id="importExcelForm" action="{% url 'user_import_excel' %}" method="POST" enctype="multipart/form-data" class="modal-content border-0 shadow-lg">
             {% csrf_token %}
             <div class="modal-header bg-dark text-white p-4">
-                <h5 class="modal-title fw-bold"><i class="bi bi-file-earmark-excel me-2 text-success"></i>IMPORT TỪ EXCEL</h5>
+                <h5 class="modal-title fw-bold">IMPORT TỪ EXCEL</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
                 <div class="text-center p-3 mb-4 border-2 border-dashed bg-light">
                     <p class="small text-muted mb-2 fw-bold">Bước 1: Sử dụng đúng định dạng file mẫu</p>
                     <a href="{% url 'user_download_template' %}" class="btn btn-hm btn-sm px-4 shadow-sm btn-hover-lift">
-                        <i class="bi bi-cloud-arrow-down-fill me-1"></i> Tải File Excel Mẫu
+                         Tải File Excel Mẫu
                     </a>
                 </div>
 
@@ -373,7 +371,7 @@
                 </div>
                 
                 <div class="p-3 bg-warning bg-opacity-10 border-start border-warning border-4 mt-4">
-                    <h6 class="fw-bold mb-1 small text-dark"><i class="bi bi-exclamation-triangle-fill me-1 text-warning"></i> Lưu ý quan trọng:</h6>
+                    <h6 class="fw-bold mb-1 small text-dark"> Lưu ý quan trọng:</h6>
                     <ul class="x-small text-dark mb-0 ps-3 lh-lg">
                         <li>Cột theo file mẫu: <strong>Mã NS, Họ và tên, Account, Phòng ban, Bộ phận, Vị trí, Chức vụ, Ngày vào, Ngày sinh, Giới tính</strong>.</li>
                         <li>Bắt buộc có <strong>Họ và tên</strong>. <strong>Account</strong> để trống sẽ tự sinh khi thêm mới.</li>
@@ -455,7 +453,7 @@ document.querySelectorAll('.reset-pwd-btn').forEach(btn => {
                 // 3. ĐỔI GIAO DIỆN NÚT TRONG MODAL THÀNH "ĐÃ TỰ ĐỘNG COPY"
                 const modalBtn = document.querySelector('#passwordResultModal .btn-hm');
                 if (modalBtn) {
-                    modalBtn.innerHTML = '<i class="bi bi-check-all me-2"></i>COPY';
+                    modalBtn.innerHTML = 'COPY';
                     modalBtn.classList.replace('btn-hm', 'btn-success');
                 }
 
@@ -550,7 +548,7 @@ function autoCopySync(text) {
     // Hiệu ứng xanh lá báo thành công
     function showSuccessEffect(btn) {
         const originalHTML = btn.innerHTML;
-        btn.innerHTML = '<i class="bi bi-check-all me-2"></i>ĐÃ SAO CHÉP!';
+        btn.innerHTML = 'ĐÃ SAO CHÉP!';
         btn.classList.replace('btn-hm', 'btn-success');
         setTimeout(() => {
             btn.innerHTML = originalHTML;

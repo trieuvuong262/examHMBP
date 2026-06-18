@@ -25,7 +25,7 @@
                         </select>
                     </div>
                     <button type="submit" class="btn btn-hm btn-sm w-100">
-                        <i class="bi bi-plus-lg me-1"></i>Thêm
+                        Thêm
                     </button>
                 </form>
             </div>
@@ -38,9 +38,7 @@
             <article class="jp-note-card jp-note-card--{{ note.color }}" data-note-id="{{ note.pk }}">
                 <div class="jp-note-card-head">
                     <input type="text" class="jp-note-title" value="{{ note.title }}" placeholder="Tiêu đề" maxlength="120">
-                    <button type="button" class="jp-note-delete btn btn-link btn-sm text-danger p-0" title="Xóa">
-                        <i class="bi bi-trash"></i>
-                    </button>
+                    <button type="button" class="jp-note-delete btn btn-link btn-sm text-danger p-0" title="Xóa">Xóa</button>
                 </div>
                 <textarea class="jp-note-content" rows="5" placeholder="Nội dung…">{{ note.content }}</textarea>
                 <div class="jp-note-foot">
@@ -57,7 +55,7 @@
             {% empty %}
             <div id="notes-empty" class="jp-tool-card card border-0 shadow-sm">
                 <div class="card-body text-center text-muted py-5">
-                    <i class="bi bi-sticky fs-2 d-block mb-2"></i>
+                    
                     Chưa có ghi chú — thêm ghi chú đầu tiên bên trái.
                 </div>
             </div>

@@ -11,7 +11,7 @@
 
     {% if report.status == 'SUBMITTED' %}
     <div class="alert alert-success border-0 shadow-sm py-2 mb-3">
-        <i class="bi bi-check-circle-fill me-1"></i>Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }} — vẫn có thể chỉnh và gửi lại.
+        Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }} — vẫn có thể chỉnh và gửi lại.
     </div>
     {% endif %}
 
@@ -61,9 +61,7 @@
                             <td class="text-center">
                                 {% if line_form.DELETE %}
                                 <div class="d-none">{{ line_form.DELETE }}</div>
-                                <button type="button" class="btn btn-link btn-sm text-danger p-0 remove-row" title="Xóa dòng">
-                                    <i class="bi bi-x-lg"></i>
-                                </button>
+                                <button type="button" class="btn btn-link btn-sm text-danger p-0 remove-row" title="Xóa dòng">Xóa dòng</button>
                                 {% endif %}
                             </td>
                         </tr>
@@ -76,7 +74,7 @@
             </div>
             <div class="p-3 border-top bg-light jp-reports-add-row">
                 <button type="button" class="btn btn-outline-hm btn-sm" id="add-row">
-                    <i class="bi bi-plus-lg me-1"></i>Thêm dòng
+                    Thêm dòng
                 </button>
             </div>
         </div>
@@ -87,10 +85,10 @@
 
         <div class="jp-sticky-actions mt-4">
             <button type="submit" name="action" value="save" class="btn btn-outline-hm px-4 fw-bold">
-                <i class="bi bi-save me-1"></i>Lưu nháp
+                Lưu nháp
             </button>
             <button type="submit" name="action" value="submit" class="btn btn-hm px-4 fw-bold">
-                <i class="bi bi-send-fill me-1"></i>Gửi Báo cáo
+                Gửi Báo cáo
             </button>
         </div>
     </form>
@@ -108,7 +106,7 @@
         <td>{{ line_form.note }}</td>
         <td class="text-center">
             <div class="d-none">{{ line_form.DELETE }}</div>
-            <button type="button" class="btn btn-link btn-sm text-danger p-0 remove-row"><i class="bi bi-x-lg"></i></button>
+            <button type="button" class="btn btn-link btn-sm text-danger p-0 remove-row" title="Xóa dòng">Xóa dòng</button>
         </td>
     </tr>
     {% endwith %}

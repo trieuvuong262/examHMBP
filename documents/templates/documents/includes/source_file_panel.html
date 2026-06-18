@@ -1,23 +1,23 @@
 {% if document.has_source_file %}
 <div class="jp-doc-source-toolbar mb-3 d-flex flex-wrap align-items-center gap-2">
     <span class="text-muted small me-1">
-        <i class="bi bi-paperclip me-1"></i>Tài liệu gốc:
+        Tài liệu gốc:
         <strong>{{ document.source_display_name }}</strong>
     </span>
     {% if document.source_is_pdf %}
     <a href="{% url 'documents:file_view' document.pk %}" target="_blank" rel="noopener"
        class="btn btn-sm btn-outline-hm fw-bold">
-        <i class="bi bi-box-arrow-up-right me-1"></i>Xem file gốc
+        Xem file gốc
     </a>
     {% else %}
     <a href="{% url 'documents:file_view' document.pk %}" target="_blank" rel="noopener"
        class="btn btn-sm btn-outline-hm fw-bold">
-        <i class="bi bi-eye me-1"></i>Mở file
+        Mở file
     </a>
     {% endif %}
     <a href="{% url 'documents:file_download' document.pk %}"
        class="btn btn-sm btn-outline-secondary fw-bold">
-        <i class="bi bi-download me-1"></i>Tải về
+        Tải về
     </a>
 </div>
 {% if document.content_type == 'TEXT' and document.source_is_pdf %}

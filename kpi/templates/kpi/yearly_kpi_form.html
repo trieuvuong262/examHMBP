@@ -30,11 +30,11 @@
     <div class="jp-page-header mb-3 mb-md-4">
         <div>
             <h3 class="fw-bold text-hm mb-1 jp-page-title">
-                <i class="bi bi-file-earmark-plus-fill me-2"></i>Thiết lập KPI năm
+                Thiết lập KPI năm
             </h3>
         </div>
         <a href="{% url 'kpi_list' %}" class="btn btn-outline-dark fw-bold shadow-sm flex-fill flex-md-grow-0">
-            <i class="bi bi-arrow-left me-1"></i> Quay lại
+             Quay lại
         </a>
     </div>
 
@@ -60,14 +60,14 @@
                             </option>
                             {% endfor %}
                         </select>
-                        <div class="form-text mt-1"><i class="bi bi-info-circle me-1"></i>Chỉ hiển thị danh sách nhân viên cấp dưới.</div>
+                        <div class="form-text mt-1">Chỉ hiển thị danh sách nhân viên cấp dưới.</div>
                     </div>
                     
                     <div class="col-md-3">
                         <label class="form-label small fw-bold text-muted text-uppercase">Quản lý trực tiếp (HOD)</label>
                         {% if is_hod %}
                             <div class="form-control bg-light fw-bold text-hm border-0">
-                                <i class="bi bi-person-check-fill me-2"></i>{{ request.user|display_name }}
+                                {{ request.user|display_name }}
                             </div>
                             <input type="hidden" name="direct_manager_id" value="{{ request.user.id }}">
                         {% else %}
@@ -95,7 +95,7 @@
 
         <div class="card border-0 shadow-sm overflow-hidden">
             <div class="card-header bg-hm text-white p-3 d-flex justify-content-between align-items-center border-0">
-                <h6 class="mb-0 fw-bold"><i class="bi bi-list-task me-2"></i>Chi tiết Mục tiêu & Chỉ tiêu (KPI Yearly)</h6>
+                <h6 class="mb-0 fw-bold">Chi tiết Mục tiêu & Chỉ tiêu (KPI Yearly)</h6>
                 <span class="badge bg-white text-hm px-3 py-2 shadow-sm fw-bold">Chế độ: Đánh giá Tổng kết Năm</span>
             </div>
             
@@ -136,7 +136,7 @@
                                 </select>
                             </td>
                             <td class="text-center">
-                                <button type="button" class="btn btn-sm text-danger border-0" onclick="removeRow(this)"><i class="bi bi-trash3-fill fs-5"></i></button>
+                                <button type="button" class="btn btn-sm text-danger border-0" onclick="removeRow(this)" title="Xóa dòng">Xóa</button>
                             </td>
                         </tr>
                     </tbody>
@@ -145,7 +145,7 @@
             
             <div class="p-3 bg-light text-center border-top">
                 <button type="button" class="btn btn-add-row fw-bold px-5 py-2 shadow-sm" onclick="addRow()">
-                    <i class="bi bi-plus-circle-fill me-2"></i> THÊM MỤC TIÊU MỚI
+                     THÊM MỤC TIÊU MỚI
                 </button>
             </div>
 
@@ -157,7 +157,7 @@
                 
                 <div class="d-flex gap-3">
                     <button type="submit" class="btn btn-hm fw-bold px-5 py-3 shadow-sm fs-5">
-                        <i class="bi bi-send-check-fill me-2"></i> PHÁT HÀNH KPI NĂM
+                         PHÁT HÀNH KPI NĂM
                     </button>
                 </div>
             </div>
@@ -206,9 +206,9 @@
 
         const display = document.getElementById('totalWeightDisplay');
         if (total === 100) {
-            display.innerHTML = `<span class="text-success">${total}%</span> / 100% <i class="bi bi-check-circle-fill text-success fs-5 ms-1"></i>`;
+            display.innerHTML = `<span class="text-success">${total}%</span> / 100% `;
         } else {
-            display.innerHTML = `<span class="text-danger">${total}%</span> / 100% <i class="bi bi-exclamation-triangle-fill text-warning fs-5 ms-1"></i>`;
+            display.innerHTML = `<span class="text-danger">${total}%</span> / 100% `;
         }
         return total;
     }

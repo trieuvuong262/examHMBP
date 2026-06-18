@@ -259,7 +259,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
 {% block content %}
 <div class="container jp-page jp-npl-material-catalog-page py-3 py-md-4 mb-5" data-loading-message="Đang tải danh mục…">
     <div class="jp-npl-mat-topbar">
-        <h2 class="jp-npl-mat-topbar-title"><i class="bi bi-tags me-2"></i>Danh mục</h2>
+        <h2 class="jp-npl-mat-topbar-title">Danh mục</h2>
         <form method="get" class="jp-npl-mat-topbar-search" id="npl-mat-search-form">
             <div class="jp-npl-mat-search-row">
                 <div class="jp-npl-mat-filter-field jp-npl-filter-multi">
@@ -271,7 +271,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
                     </select>
                 </div>
                 <div class="input-group input-group-sm jp-npl-mat-filter-field jp-npl-mat-search-input">
-                    <span class="input-group-text bg-transparent"><i class="bi bi-search text-muted"></i></span>
+                    <span class="input-group-text bg-transparent"></span>
                     <input type="search" class="form-control" id="npl-q" name="q"
                            value="{{ search_query }}" placeholder="Mã, tên, màu..." autocomplete="off" aria-label="Tìm">
                 </div>
@@ -290,22 +290,22 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
             {% if can_export %}
             <a href="{% url 'kho_npl:material_export' %}{% if query_string %}?{{ query_string }}{% endif %}"
                class="btn btn-outline-secondary btn-sm fw-bold" title="Xuất Excel">
-                <i class="bi bi-download me-1"></i>Xuất Excel
+                Xuất Excel
             </a>
             {% endif %}
             {% if can_create %}
             <button type="button" class="btn btn-outline-hm btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#nplImportModal">
-                <i class="bi bi-upload me-1"></i>Nhập Excel
+                Nhập Excel
             </button>
             <a href="{% url 'kho_npl:material_create' %}" class="btn btn-hm btn-sm fw-bold">
-                <i class="bi bi-plus-lg me-1"></i>Thêm
+                Thêm
             </a>
             {% endif %}
             <div class="dropdown jp-npl-mat-col-picker">
                 <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" id="npl-mat-col-btn"
                         data-bs-toggle="dropdown" data-bs-auto-close="outside"
                         aria-expanded="false" title="Chọn cột hiển thị">
-                    <i class="bi bi-layout-three-columns me-1"></i>Cột
+                    Cột
                 </button>
                 <div class="dropdown-menu shadow-sm jp-npl-mat-col-menu" data-bs-popper="static">
                     <div class="jp-npl-mat-col-head">Hiển thị cột</div>
@@ -337,7 +337,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
                                     data-sort="{{ col.key }}" title="Sắp xếp theo {{ col.label }}">
                                 {{ col.label }}
                                 {% if sort_key == col.key %}
-                                <i class="bi bi-caret-{% if sort_dir == 'asc' %}up{% else %}down{% endif %}-fill jp-mat-sort-icon"></i>
+                                
                                 {% endif %}
                             </button>
                             <span class="jp-mat-col-resizer" aria-hidden="true"></span>
@@ -368,7 +368,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
                         </td>
                         <td class="text-end text-nowrap npl-col" data-col="actions">
                             {% if can_update %}
-                            <a href="{% url 'kho_npl:material_edit' material.pk %}" class="jp-mat-edit-btn" title="Sửa"><i class="bi bi-pencil"></i></a>
+                            <a href="{% url 'kho_npl:material_edit' material.pk %}" class="jp-mat-edit-btn" title="Sửa">Sửa</a>
                             {% endif %}
                         </td>
                     </tr>
@@ -463,8 +463,8 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
               class="modal-content border-0 shadow" id="npl-import-form">
             {% csrf_token %}
             <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-bold"><i class="bi bi-file-earmark-arrow-up me-2 text-hm"></i>Nhập từ Excel</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                <h5 class="modal-title fw-bold">Nhập từ Excel</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng">Đóng</button>
             </div>
             <div class="modal-body">
                 <div class="jp-npl-import-steps">
@@ -474,10 +474,10 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
                 </div>
                 <div class="d-flex flex-wrap gap-2 mb-3">
                     <a href="{% url 'kho_npl:material_import_template' %}" class="btn btn-outline-hm btn-sm fw-bold">
-                        <i class="bi bi-download me-1"></i>Tải file mẫu
+                        Tải file mẫu
                     </a>
                     <a href="{% url 'kho_npl:material_export' %}" class="btn btn-outline-secondary btn-sm fw-bold">
-                        <i class="bi bi-box-arrow-up-right me-1"></i>Xuất danh mục hiện tại
+                        Xuất danh mục hiện tại
                     </a>
                 </div>
                 <div class="mb-2">
@@ -495,7 +495,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
                 </div>
                 <label class="jp-npl-import-drop d-block mb-0" id="npl-import-drop" for="npl-excel-file">
                     <input type="file" class="d-none" id="npl-excel-file" name="excel_file" accept=".xlsx,.xls" required>
-                    <i class="bi bi-cloud-arrow-up fs-3 text-hm d-block mb-2"></i>
+                    
                     <div class="fw-semibold" id="npl-import-drop-title">Kéo thả file hoặc bấm để chọn</div>
                     <div class="small text-muted" id="npl-import-drop-hint">.xlsx, .xls — trùng mã sẽ cập nhật</div>
                     <div class="jp-npl-import-file-meta fw-semibold text-success mt-2 d-none" id="npl-import-file-meta"></div>
@@ -504,7 +504,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
             <div class="modal-footer border-0 pt-0">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Huỷ</button>
                 <button type="submit" class="btn btn-hm fw-bold" id="npl-import-submit" disabled>
-                    <span class="jp-npl-import-submit-label"><i class="bi bi-upload me-1"></i>Nhập dữ liệu</span>
+                    <span class="jp-npl-import-submit-label">Nhập dữ liệu</span>
                     <span class="jp-npl-import-submit-loading d-none">
                         <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Đang xử lý...
                     </span>

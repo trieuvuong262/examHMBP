@@ -6,7 +6,7 @@
     <div class="jp-page-header mb-3 mb-md-4">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title">
-                <i class="bi bi-person-vcard me-2"></i>Tra cứu khách hàng
+                Tra cứu khách hàng
             </h2>
         </div>
     </div>
@@ -34,7 +34,7 @@
                 </div>
                 <div class="col-12 col-md-2">
                     <button type="submit" class="btn btn-hm w-100 fw-bold">
-                        <i class="bi bi-search me-1"></i>Tìm
+                        Tìm
                     </button>
                 </div>
             </form>
@@ -45,11 +45,11 @@
 
     {% if search_query and not customers and not api_error %}
     <div class="alert alert-light border shadow-sm mb-0">
-        <i class="bi bi-info-circle me-1"></i>Không có khách hàng phù hợp với từ khóa «{{ search_query }}».
+        Không có khách hàng phù hợp với từ khóa «{{ search_query }}».
     </div>
     {% elif not customers and not api_error and browse_mode %}
     <div class="alert alert-light border shadow-sm mb-0">
-        <i class="bi bi-info-circle me-1"></i>
+        
         {% if mirror_empty_hint %}{{ mirror_empty_hint }}{% else %}Chưa có dữ liệu khách hàng trong mirror.{% endif %}
     </div>
     {% elif customers %}

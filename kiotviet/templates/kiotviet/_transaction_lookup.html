@@ -6,7 +6,7 @@
     <div class="jp-page-header mb-3 mb-md-4">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title">
-                <i class="bi {{ icon }} me-2"></i>{{ title }}
+                {{ title }}
             </h2>
         </div>
     </div>
@@ -34,7 +34,7 @@
                 </div>
                 <div class="col-12 col-md-2">
                     <button type="submit" class="btn btn-hm w-100 fw-bold">
-                        <i class="bi bi-search me-1"></i>Tìm
+                        Tìm
                     </button>
                 </div>
             </form>
@@ -45,11 +45,11 @@
 
     {% if search_query and not items and not api_error %}
     <div class="alert alert-light border shadow-sm mb-0">
-        <i class="bi bi-info-circle me-1"></i>Không có kết quả phù hợp với «{{ search_query }}».
+        Không có kết quả phù hợp với «{{ search_query }}».
     </div>
     {% elif not items and not api_error and browse_mode %}
     <div class="alert alert-light border shadow-sm mb-0">
-        <i class="bi bi-info-circle me-1"></i>
+        
         {% if mirror_empty_hint %}{{ mirror_empty_hint }}{% else %}Chưa có dữ liệu trong mirror.{% endif %}
     </div>
     {% elif items %}
@@ -97,7 +97,7 @@
     {% include 'kiotviet/_list_pagination.html' %}
     {% elif not search_query and not browse_mode %}
     <div class="alert alert-light border shadow-sm mb-0">
-        <i class="bi bi-lightbulb me-1"></i>{{ empty_hint }}
+        {{ empty_hint }}
     </div>
     {% endif %}
 </div>

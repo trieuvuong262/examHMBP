@@ -5,7 +5,7 @@
     <div class="jp-page-header mb-3">
         <div class="jp-page-header-main">
             <h2 class="jp-page-title fw-bold text-dark mb-1">
-                <i class="bi bi-hdd-network text-hm me-2"></i>Cập nhật link NAS
+                Cập nhật link NAS
             </h2>
             <p class="text-muted mb-0 small">
                 Tài khoản <strong>{{ user_instance.username }}</strong>
@@ -22,7 +22,7 @@
 
     {% if nas_migration_missing %}
     <div class="alert alert-danger">
-        <i class="bi bi-exclamation-octagon me-1"></i>
+        
         Chưa áp dụng migration <code>nas_storage.0003_nasuserfolderaccess</code> trên server.
         Chạy: <code>docker compose exec web python manage.py migrate nas_storage</code> rồi tải lại trang.
     </div>
@@ -36,7 +36,7 @@
             <div class="card-footer bg-white border-top d-flex flex-wrap gap-2 justify-content-between">
                 <a href="{% url 'audit:nas_links' %}" class="btn btn-light border">Quay lại danh sách</a>
                 <button type="submit" class="btn btn-hm fw-bold">
-                    <i class="bi bi-check-circle me-1"></i>Lưu link NAS
+                    Lưu link NAS
                 </button>
             </div>
         </div>

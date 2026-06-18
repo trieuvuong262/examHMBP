@@ -15,25 +15,25 @@
             <div class="jp-page-header mb-3">
                 <div>
                     <h2 class="jp-page-title fw-bold text-hm mb-1">
-                        <i class="bi {{ icon }} me-2"></i>Sửa mục: {{ section.toc }}
+                        Sửa mục: {{ section.toc }}
                     </h2>
                     <p class="text-muted small mb-0">
                         {% for label in module_labels %}{{ label }}{% if not forloop.last %} · {% endif %}{% endfor %}
                     </p>
                 </div>
                 <a href="{% url 'user_guide_edit' %}" class="btn btn-outline-dark fw-bold">
-                    <i class="bi bi-arrow-left me-1"></i>Danh sách mục
+                    Danh sách mục
                 </a>
             </div>
 
             {% if is_custom %}
             <div class="alert alert-warning border-0 shadow-sm mb-3">
-                <i class="bi bi-pencil-fill me-2"></i>
+                
                 Mục này đang dùng <strong>nội dung tùy chỉnh</strong>. Bấm «Khôi phục mặc định» để quay về bản gốc trong hệ thống.
             </div>
             {% else %}
             <div class="alert alert-info border-0 shadow-sm mb-3">
-                <i class="bi bi-info-circle me-2"></i>
+                
                 Đang hiển thị <strong>nội dung mặc định</strong>. Lưu bất kỳ thay đổi nào sẽ ghi đè riêng mục này.
             </div>
             {% endif %}
@@ -64,10 +64,10 @@
 
                         <div class="d-flex flex-wrap gap-2">
                             <button type="submit" class="btn btn-hm fw-bold px-4">
-                                <i class="bi bi-check-lg me-1"></i>Lưu mục
+                                Lưu mục
                             </button>
                             <a href="{% url 'user_guide' %}#{{ section_id }}" class="btn btn-outline-hm fw-bold" target="_blank" rel="noopener">
-                                <i class="bi bi-eye me-1"></i>Xem trên trang
+                                Xem trên trang
                             </a>
                             <a href="{% url 'user_guide_edit' %}" class="btn btn-outline-dark fw-bold">Hủy</a>
                         </div>
@@ -79,7 +79,7 @@
                         {% csrf_token %}
                         <input type="hidden" name="action" value="reset">
                         <button type="submit" class="btn btn-outline-danger fw-bold">
-                            <i class="bi bi-arrow-counterclockwise me-1"></i>Khôi phục mặc định
+                            Khôi phục mặc định
                         </button>
                     </form>
                     {% endif %}

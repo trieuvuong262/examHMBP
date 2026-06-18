@@ -10,7 +10,7 @@
             <a href="{% url 'documents:admin_hub' %}" class="btn btn-outline-secondary fw-bold">Quay lại</a>
             {% if can_create %}
             <a href="{% url 'documents:admin_category_create' %}" class="btn btn-hm fw-bold">
-                <i class="bi bi-plus-circle me-1"></i> Thêm nhóm
+                 Thêm nhóm
             </a>
             {% endif %}
         </div>
@@ -43,7 +43,7 @@
                     {% for cat in categories %}
                     <tr>
                         <td>
-                            <div class="fw-bold"><i class="bi {{ cat.icon }} me-1 text-hm"></i>{{ cat.name }}</div>
+                            <div class="fw-bold">{{ cat.name }}</div>
                             {% if cat.description %}<small class="text-muted">{{ cat.description }}</small>{% endif %}
                         </td>
                         <td><code>{{ cat.slug }}</code></td>

@@ -866,7 +866,6 @@
     function updateShowAllEmployeesButton() {
         const btn = document.getElementById('org-show-all-employees-btn');
         const label = document.getElementById('org-show-all-employees-label');
-        const icon = document.getElementById('org-show-all-employees-icon');
         if (!btn || !label) return;
         const showingAll = isShowingAllEmployees();
         label.textContent = showingAll ? ' Ẩn tất cả NV' : ' Hiển thị tất cả NV';
@@ -874,9 +873,6 @@
             ? 'Ẩn nhân viên ở mọi vị trí trên sơ đồ'
             : 'Hiển thị nhân viên ở mọi vị trí trên sơ đồ';
         btn.setAttribute('aria-pressed', showingAll ? 'true' : 'false');
-        if (icon) {
-            icon.className = showingAll ? 'bi bi-eye-slash-fill' : 'bi bi-people-fill';
-        }
     }
 
     function toggleShowAllEmployees() {

@@ -20,11 +20,11 @@
                         <div class="d-flex align-items-center">
                             <div class="me-3">
                                 {% if lesson.id in completed_lesson_ids %}
-                                    <i class="bi bi-check-circle-fill text-success fs-5"></i>
+                                    
                                 {% else %}
-                                    {% if lesson.lesson_type == 'video' %}<i class="bi bi-play-circle text-muted fs-5"></i>
-                                    {% elif lesson.lesson_type == 'pdf' %}<i class="bi bi-file-pdf text-muted fs-5"></i>
-                                    {% else %}<i class="bi bi-file-text text-muted fs-5"></i>{% endif %}
+                                    {% if lesson.lesson_type == 'video' %}
+                                    {% elif lesson.lesson_type == 'pdf' %}
+                                    {% else %}{% endif %}
                                 {% endif %}
                             </div>
                             <div>

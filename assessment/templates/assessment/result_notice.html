@@ -19,9 +19,9 @@
         <div class="modal-content border-0 shadow-lg overflow-hidden">
             <div class="modal-header bg-dark text-white border-0 py-3">
                 <h5 class="modal-title fw-bold" id="resultModalTitle">
-                    <i class="bi bi-award-fill me-2 text-warning"></i>KẾT QUẢ CHI TIẾT
+                    KẾT QUẢ CHI TIẾT
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng">Đóng</button>
             </div>
             <div class="modal-body p-4 text-center">
                 <h5 class="fw-bold text-dark mb-2">{{ exam.title }}</h5>
@@ -58,7 +58,7 @@
             </div>
             <div class="modal-footer border-0 pb-4 justify-content-center gap-2 flex-wrap">
                 <a href="{% url 'exam_result' exam.id %}" class="btn btn-hm px-4 fw-bold">
-                    <i class="bi bi-eye-fill me-1"></i>Xem kết quả
+                    Xem kết quả
                 </a>
                 <a href="{% url 'exam_list' %}" class="btn btn-secondary px-4 fw-bold">Đóng cửa sổ</a>
             </div>

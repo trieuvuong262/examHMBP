@@ -4,7 +4,7 @@
 <div class="container jp-page jp-tasks-page py-3 py-md-4 mb-5">
     <div class="jp-page-header mb-3 mb-md-4">
         <div>
-            <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-person-check me-2"></i>Giao việc cá nhân</h2>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">Giao việc cá nhân</h2>
         </div>
     </div>
 
@@ -12,7 +12,7 @@
 
     {% if pending_ack_count %}
     <div class="alert alert-warning border-0 shadow-sm d-flex align-items-center gap-2">
-        <i class="bi bi-bell-fill"></i>
+        
         <span>Có <strong>{{ pending_ack_count }}</strong> việc chờ bạn xác nhận.</span>
     </div>
     {% endif %}
@@ -60,7 +60,7 @@
                             <span class="badge bg-secondary-subtle text-secondary-emphasis border ms-1">Miễn duyệt</span>
                             {% endif %}
                             {% if task.recurrence_id %}
-                            <span class="badge bg-info-subtle text-info-emphasis border ms-1"><i class="bi bi-arrow-repeat"></i></span>
+                            <span class="badge bg-info-subtle text-info-emphasis border ms-1"></span>
                             {% endif %}
                             {% if task.is_overdue %}<span class="badge bg-danger ms-1">Quá hạn</span>{% endif %}
                         </td>

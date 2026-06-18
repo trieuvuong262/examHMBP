@@ -23,20 +23,20 @@
 <div class="container jp-page mt-3 mt-md-4 mb-5">
     <div class="jp-page-header mb-3 mb-md-4">
         <div>
-            <h3 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-graph-up-arrow me-2"></i>Đánh giá KPI</h3>
+            <h3 class="fw-bold text-hm mb-1 jp-page-title">Đánh giá KPI</h3>
         </div>
         <div class="d-flex flex-wrap gap-2 w-100 w-md-auto">
         {% if can_manage_kpi %}
             <a href="{% url 'yearly_kpi_create' %}" class="btn btn-hm shadow-sm fw-bold btn-hover-lift flex-fill flex-md-grow-0">
-                <i class="bi bi-plus-circle me-1"></i> Giao KPI
+                 Giao KPI
             </a>
             <a href="{% url 'kpi_import_excel' %}" class="btn btn-hm shadow-sm fw-bold btn-hover-lift flex-fill flex-md-grow-0">
-                <i class="bi bi-file-earmark-excel-fill me-1"></i> Import
+                 Import
             </a>
         {% endif %}
         {% if can_toggle_period %}
             <button data-bs-toggle="modal" data-bs-target="#adminPeriodModal" class="btn btn-danger shadow-sm fw-bold btn-hover-lift flex-fill flex-md-grow-0">
-                <i class="bi bi-sliders me-1"></i> Kỳ ĐG
+                 Kỳ ĐG
             </button>
         {% endif %}
         </div>
@@ -55,7 +55,7 @@
 
     <div class="row mb-5">
         <div class="col-12 border-bottom pb-2 mb-4">
-            <h5 class="fw-bold text-dark mb-0"><i class="bi bi-bullseye me-2 text-danger"></i>Mục tiêu & Đánh giá của tôi</h5>
+            <h5 class="fw-bold text-dark mb-0">Mục tiêu & Đánh giá của tôi</h5>
         </div>
         
         <div class="row g-3">
@@ -66,7 +66,7 @@
                         
                         <div class="d-flex align-items-center">
                             <div class="bg-hm-light text-hm rounded-circle p-3 me-3">
-                                <i class="bi bi-flag-fill fs-4"></i>
+                                
                             </div>
                             <div>
                                 <h5 class="fw-bold text-dark mb-1">Bảng KPI Tổng Thể - Năm {{ kpi.year }}</h5>
@@ -76,8 +76,7 @@
                                     </span>
                                     
                                     <small class="text-muted border-start ps-2">
-                                        <i class="bi bi-person-check me-1"></i>Quản lý: 
-                                        <strong>
+                                        Quản lý:                                         <strong>
                                             {% with hod_profile=kpi.employee.my_hod_managers.first %}
                                                 {% if hod_profile %}
                                                     {{ hod_profile|profile_name }}
@@ -103,11 +102,11 @@
                         <div class="d-flex flex-column flex-md-row gap-3 align-items-stretch align-items-md-center">
                             {% if kpi.y_status == 'completed' %}
                                 <a href="{% url 'kpi_detail' kpi.id %}" class="btn btn-outline-hm px-3 px-md-5 py-2 fw-bold text-nowrap btn-hover-lift shadow-sm w-100 w-md-auto">
-                                    <i class="bi bi-eye-fill me-1"></i> Xem lại kết quả
+                                     Xem lại kết quả
                                 </a>
                             {% else %}
                                 <a href="{% url 'kpi_detail' kpi.id %}" class="btn btn-hm px-3 px-md-5 py-2 fw-bold text-nowrap btn-hover-lift shadow-sm w-100 w-md-auto">
-                                    <i class="bi bi-pencil-square me-1"></i> Vào đánh giá
+                                     Vào đánh giá
                                 </a>
                             {% endif %}
                         </div>
@@ -117,7 +116,7 @@
             </div>
             {% empty %}
             <div class="col-12 text-center py-5 bg-white border border-dashed shadow-sm">
-                <i class="bi bi-inbox display-4 text-muted opacity-25"></i>
+                
                 <p class="text-muted mb-0 mt-3 fw-medium">Bạn chưa được giao Mục tiêu KPI nào trong hệ thống.</p>
             </div>
             {% endfor %}
@@ -132,7 +131,7 @@
     {% if team_page.paginator.count %}
     <div class="row mt-5 mb-5">
         <div class="col-12 border-bottom pb-2 mb-4 d-flex justify-content-between align-items-center">
-            <h5 class="fw-bold text-warning-emphasis mb-0"><i class="bi bi-people-fill me-2 text-warning"></i>Duyệt KPI Nhân viên</h5>
+            <h5 class="fw-bold text-warning-emphasis mb-0">Duyệt KPI Nhân viên</h5>
             <span class="badge bg-warning bg-opacity-10 text-warning-emphasis px-3">{{ team_page.paginator.count }} bảng</span>
         </div>
         <div class="card border-0 shadow-sm overflow-hidden">
@@ -158,7 +157,7 @@
                             
                             <td class="text-center">
                                 {% if tk.y_status == 'completed' %}
-                                    <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-1"><i class="bi bi-check-circle-fill me-1"></i>Đã chốt</span>
+                                    <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-1">Đã chốt</span>
                                 {% elif tk.y_status == 'general_evaluating' %}
                                     <span class="badge bg-danger bg-opacity-10 text-danger border border-danger px-3 py-1">GM Đang chốt</span>
                                 {% elif tk.y_status == 'manager_evaluating' %}
@@ -194,8 +193,8 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-danger bg-opacity-10 border-0">
-                <h5 class="modal-title fw-bold text-danger"><i class="bi bi-key-fill me-2"></i>Mở / Đóng Kỳ Đánh Giá</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title fw-bold text-danger">Mở / Đóng Kỳ Đánh Giá</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">Close</button>
             </div>
             <div class="modal-body p-4">
                 <p class="text-muted small mb-4">Cần quyền sửa module KPI để bật/tắt các kỳ đánh giá. Khi kỳ bị tắt, các ô nhập điểm tương ứng sẽ bị đóng băng.</p>

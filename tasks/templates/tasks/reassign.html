@@ -7,7 +7,7 @@
 
     <div class="jp-page-header mb-3 mb-md-4">
         <div>
-            <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-arrow-repeat me-2"></i>Giao lại công việc</h2>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">Giao lại công việc</h2>
             <p class="text-muted mb-0">{{ task.title }} — từ chối bởi {% include 'tasks/includes/user_brief.html' with user=task.assignee %}</p>
         </div>
         <a href="{% url 'tasks:detail' task.pk %}" class="btn btn-outline-hm btn-sm">Quay lại</a>

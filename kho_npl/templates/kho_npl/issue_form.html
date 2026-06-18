@@ -10,13 +10,13 @@
     <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title">
-                <i class="bi bi-{% if is_edit %}pencil{% else %}plus-circle{% endif %} me-2"></i>
+                
                 {% if is_edit %}Sửa phiếu xuất {{ issue.number }}{% else %}Tạo phiếu xuất kho{% endif %}
             </h2>
             <p class="text-muted small mb-0">Chọn vị trí trước — NPL hiển thị <strong>tên hàng — tồn HT</strong>; cột Tồn HT cập nhật khi chọn hàng.</p>
         </div>
         <a href="{{ cancel_url }}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-arrow-left me-1"></i>Quay lại
+            Quay lại
         </a>
     </div>
 
@@ -98,7 +98,7 @@
                             <td class="text-center">
                                 {% if line_form.DELETE %}
                                 <div class="d-none">{{ line_form.DELETE }}</div>
-                                <button type="button" class="btn btn-link btn-sm text-danger p-0 remove-row"><i class="bi bi-x-lg"></i></button>
+                                <button type="button" class="btn btn-link btn-sm text-danger p-0 remove-row" title="Xóa dòng">Xóa dòng</button>
                                 {% endif %}
                             </td>
                         </tr>
@@ -108,7 +108,7 @@
             </div>
             <div class="p-3 border-top bg-light">
                 <button type="button" class="btn btn-outline-hm btn-sm" id="add-row">
-                    <i class="bi bi-plus-lg me-1"></i>Thêm dòng
+                    Thêm dòng
                 </button>
             </div>
         </div>
@@ -119,10 +119,10 @@
 
         <div class="d-flex flex-wrap gap-2">
             <button type="submit" name="action" value="save" class="btn btn-outline-hm fw-bold px-4">
-                <i class="bi bi-save me-1"></i>Lưu nháp
+                Lưu nháp
             </button>
             <button type="submit" name="action" value="post" class="btn btn-hm fw-bold px-4">
-                <i class="bi bi-check2-circle me-1"></i>Ghi sổ & trừ tồn
+                Ghi sổ & trừ tồn
             </button>
             <a href="{{ cancel_url }}" class="btn btn-outline-secondary">Huỷ</a>
         </div>
@@ -140,7 +140,7 @@
         <td>{{ line_form.notes }}</td>
         <td class="text-center">
             <div class="d-none">{{ line_form.DELETE }}</div>
-            <button type="button" class="btn btn-link btn-sm text-danger p-0 remove-row"><i class="bi bi-x-lg"></i></button>
+            <button type="button" class="btn btn-link btn-sm text-danger p-0 remove-row" title="Xóa dòng">Xóa dòng</button>
         </td>
     </tr>
     {% endwith %}

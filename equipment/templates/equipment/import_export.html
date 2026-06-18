@@ -11,10 +11,10 @@
 
     <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
         <div>
-            <h2 class="fw-bold text-hm mb-1 jp-page-title"><i class="bi bi-upload me-2"></i>Nhập Excel</h2>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">Nhập Excel</h2>
         </div>
         <a href="{{ equipment_urls.device_list }}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-arrow-left me-1"></i>Danh sách thiết bị
+            Danh sách thiết bị
         </a>
     </div>
 
@@ -40,7 +40,7 @@
                     </div>
                     <a href="{{ equipment_urls.download_sample }}?category={{ selected_category }}"
                        class="btn btn-outline-hm btn-sm w-100">
-                        <i class="bi bi-download me-1"></i>Tải file mẫu Excel
+                        Tải file mẫu Excel
                     </a>
                     <p class="small text-muted mt-3 mb-0">
                         Mỗi lần nhập <strong>một loại</strong>. Quản lý loại mới tại
@@ -88,7 +88,7 @@
                             <input type="file" name="excel_file" accept=".xlsx,.xls" class="form-control" required>
                         </div>
                         <button type="submit" class="btn btn-hm">
-                            <i class="bi bi-upload me-1"></i>Nhập {{ selected_category_label }}
+                            Nhập {{ selected_category_label }}
                         </button>
                         <a href="{{ equipment_urls.device_list }}" class="btn btn-outline-secondary ms-2">Hủy</a>
                     </form>

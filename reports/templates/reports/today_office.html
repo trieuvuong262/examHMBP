@@ -11,7 +11,7 @@
 
     {% if report.status == 'SUBMITTED' %}
     <div class="alert alert-success border-0 shadow-sm py-2 mb-3">
-        <i class="bi bi-check-circle-fill me-1"></i>Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }} — vẫn có thể chỉnh và gửi lại.
+        Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }} — vẫn có thể chỉnh và gửi lại.
     </div>
     {% endif %}
 
@@ -27,7 +27,7 @@
                     {{ form.report_date }}
                 </div>
                 <span class="jp-office-status-pill {% if report.status == 'SUBMITTED' %}is-submitted{% else %}is-draft{% endif %}">
-                    <i class="bi {% if report.status == 'SUBMITTED' %}bi-check-circle-fill{% else %}bi-pencil{% endif %}"></i>
+                    
                     {{ report.get_status_display }}
                 </span>
             </div>

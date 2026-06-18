@@ -6,7 +6,7 @@
     <div class="jp-page-header mb-3 mb-md-4">
         <div class="jp-page-header-main">
             <h2 class="jp-page-title fw-bold text-dark mb-1">
-                <i class="bi bi-cloud-arrow-up text-hm me-2"></i>Backup lên NAS
+                Backup lên NAS
             </h2>
             <p class="text-muted small mb-0 mt-1">
                 Sao lưu database, mã nguồn và media portal lên thư mục <code>backup</code> trên NAS.
@@ -19,7 +19,7 @@
                 {% csrf_token %}
                 <button type="submit" class="btn btn-hm text-white fw-bold"
                         {% if backup_running %}disabled title="Đang backup…"{% endif %}>
-                    <i class="bi bi-cloud-arrow-up me-1"></i>Chạy backup ngay
+                    Chạy backup ngay
                 </button>
             </form>
         </div>
@@ -28,9 +28,9 @@
 
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body py-3 small">
-            <div class="fw-bold text-dark mb-1"><i class="bi bi-hdd-network text-hm me-1"></i> Backup Portal → NAS</div>
+            <div class="fw-bold text-dark mb-1"> Backup Portal → NAS</div>
             {% if backup_running %}
-            <span class="text-primary"><i class="bi bi-arrow-repeat"></i> Đang chạy backup — vui lòng tải lại trang sau vài phút.</span>
+            <span class="text-primary"> Đang chạy backup — vui lòng tải lại trang sau vài phút.</span>
             {% elif backup_job %}
             <span class="{% if backup_job.status == 'success' %}text-success{% elif backup_job.status == 'failed' %}text-danger{% else %}text-muted{% endif %}">
                 Lần cuối: {{ backup_job.get_status_display }}

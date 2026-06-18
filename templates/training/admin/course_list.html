@@ -4,17 +4,17 @@
 <div class="container-fluid jp-page mt-3 mt-md-4 px-2 px-md-4 mb-5">
     <div class="jp-page-header mb-3 mb-md-4">
         <div>
-            <h3 class="fw-bold text-dark mb-1 jp-page-title"><i class="bi bi-collection-play-fill text-hm me-2"></i>Quản lý khóa học</h3>
+            <h3 class="fw-bold text-dark mb-1 jp-page-title">Quản lý khóa học</h3>
         </div>
         <div class="d-flex gap-2 flex-wrap w-100 w-md-auto">
             {% if can_create %}
             <a href="{% url 'course_create' %}" class="btn btn-hm shadow-sm fw-bold btn-hover-lift flex-fill flex-md-grow-0">
-                <i class="bi bi-plus-lg me-1"></i> Thêm khóa học
+                 Thêm khóa học
             </a>
             {% endif %}
             {% if is_admin %}
             <button class="btn btn-outline-hm fw-bold shadow-sm flex-fill flex-md-grow-0" onclick="openCategoryModal()">
-                <i class="bi bi-tags-fill me-1"></i> Danh mục
+                 Danh mục
             </button>
             {% endif %}
         </div>
@@ -45,7 +45,7 @@
                 </div>
                 <div class="col-md-2">
                     <a href="{% url 'course_list' %}" class="btn btn-light border w-100 fw-bold text-muted">
-                        <i class="bi bi-arrow-counterclockwise me-1"></i> Đặt lại
+                         Đặt lại
                     </a>
                 </div>
             </form>
@@ -78,7 +78,7 @@
                                             <img src="{{ course.thumbnail.url }}" alt="Thumbnail" class="w-100 h-100 object-fit-cover transition-scale">
                                         {% else %}
                                             <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-hm-subtle text-hm opacity-75">
-                                                <i class="bi bi-image fs-3"></i>
+                                                
                                             </div>
                                         {% endif %}
                                     </div>
@@ -89,7 +89,7 @@
                                         </span>
                                         {% if course.final_exam %}
                                             <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1 x-small ms-1" title="Khóa học có yêu cầu làm bài thi cuối khóa">
-                                                <i class="bi bi-award-fill me-1"></i> Có bài thi
+                                                 Có bài thi
                                             </span>
                                         {% endif %}
                                     </div>
@@ -99,10 +99,10 @@
                             <td class="text-center">
                                 <div class="d-flex flex-column align-items-center gap-1">
                                     <span class="badge bg-light text-dark border w-75 py-1 fw-medium shadow-sm">
-                                        <i class="bi bi-people-fill text-hm me-1"></i> {{ course.student_count }} Học viên
+                                         {{ course.student_count }} Học viên
                                     </span>
                                     <span class="badge bg-light text-dark border w-75 py-1 fw-medium shadow-sm">
-                                        <i class="bi bi-book-half text-success me-1"></i> {{ course.chapter_count }} Chương
+                                         {{ course.chapter_count }} Chương
                                     </span>
                                 </div>
                             </td>
@@ -110,11 +110,11 @@
                             <td class="text-center">
                                 {% if course.is_active %}
                                     <span class="badge bg-success-subtle text-success px-3 py-2 border border-success-subtle fw-bold course-status">
-                                        <i class="bi bi-check-circle-fill me-1"></i> Hoạt động
+                                         Hoạt động
                                     </span>
                                 {% else %}
                                     <span class="badge bg-secondary-subtle text-secondary px-3 py-2 border border-secondary-subtle fw-bold course-status">
-                                        <i class="bi bi-eye-slash-fill me-1"></i> Đang ẩn
+                                         Đang ẩn
                                     </span>
                                 {% endif %}
                             </td>
@@ -126,13 +126,11 @@
                             <td class="text-end pe-4">
                                 <div class="btn-group shadow-sm">
                                     {% if can_update %}
-                                    <a href="{% url 'course_edit' course.id %}" class="btn btn-light border px-3" title="Sửa thông tin cơ bản">
-                                        <i class="bi bi-pencil-square text-warning"></i>
-                                    </a>
+                                    <a href="{% url 'course_edit' course.id %}" class="btn btn-light border px-3" title="Sửa thông tin cơ bản">Sửa thông tin cơ bản</a>
                                     {% endif %}
                                     {% if is_admin %}
                                     <a href="{% url 'course_builder' course.id %}" class="btn btn-light border px-3 text-hm fw-bold bg-hm-subtle-hover" title="Biên soạn nội dung bài giảng">
-                                        <i class="bi bi-list-nested me-1"></i> Bài giảng
+                                         Bài giảng
                                     </a>
                                     {% endif %}
                                 </div>
@@ -142,7 +140,7 @@
                         <tr>
                             <td colspan="5" class="text-center py-5 my-4">
                                 <div class="d-inline-flex align-items-center justify-content-center bg-light rounded-circle mb-4" style="width: 100px; height: 100px;">
-                                    <i class="bi bi-folder-x display-4 text-muted opacity-50"></i>
+                                    
                                 </div>
                                 <h5 class="fw-bold text-dark mb-2">Thư viện trống</h5>
                                 <p class="text-muted small">Hệ thống chưa có khóa học nào. Bấm "Thêm khóa học mới" để bắt đầu.</p>
@@ -166,9 +164,9 @@
         <div class="modal-content border-0 shadow-lg" style="border-radius: 5px; overflow: hidden;">
             <div class="modal-header text-white border-0 py-3 px-4" style="background-color: #dc2626;">
                 <h5 class="modal-title fw-bold mb-0">
-                    <i class="bi bi-collection me-2"></i>Danh mục Đào tạo
+                    Danh mục Đào tạo
                 </h5>
-                <button type="button" class="btn-close btn-close-white m-0" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white m-0" data-bs-dismiss="modal" aria-label="Close">Close</button>
             </div>
             
             <div class="modal-body bg-light p-4">
@@ -176,7 +174,7 @@
                 <div class="input-group mb-4 shadow-sm overflow-hidden border-0">
                     <input type="text" id="newCatName" class="form-control border-0 py-2 px-3 focus-none" placeholder="Nhập tên danh mục...">
                     <button class="btn btn-hm fw-bold px-4" onclick="addCategory()">
-                        <i class="bi bi-plus-lg me-1"></i>Thêm
+                        Thêm
                     </button>
                 </div>
 
@@ -225,11 +223,7 @@
     .course-row:hover { background-color: #f8fafc; }
     
     .x-small { font-size: 0.75rem; }
-    .table thead th { 
-        font-size: 0.8rem; 
-        text-transform: uppercase; 
-        letter-spacing: 0.5px; 
-        padding: 1rem 0.5rem;
+    .table thead th {         font-size: 0.8rem;         text-transform: uppercase;         letter-spacing: 0.5px;         padding: 1rem 0.5rem;
         border-bottom: 2px solid #e2e8f0;
     }
 </style>
@@ -241,8 +235,7 @@
     // 👉 ĐIỂM SỬA LỖI: Chỉ khai báo biến, KHÔNG gán new bootstrap.Modal ở đây
     let catModal;
 
-    // 2. Hàm mở popup 
-    function openCategoryModal() {
+    // 2. Hàm mở popup     function openCategoryModal() {
         // Kiểm tra xem biến catModal đã được gán DOM chưa, chưa thì gán
         if (!catModal) {
             catModal = new bootstrap.Modal(document.getElementById('categoryModal'));
@@ -260,7 +253,7 @@
             $('#cat-count').text(`${data.categories.length} mục`);
 
             if (data.categories.length === 0) {
-                list.append('<li class="list-group-item text-center text-muted py-4"><i class="bi bi-inbox me-1"></i> Chưa có danh mục nào được tạo.</li>');
+                list.append('<li class="list-group-item text-center text-muted py-4"> Chưa có danh mục nào được tạo.</li>');
                 return;
             }
             
@@ -270,10 +263,10 @@
                         <span class="fw-bold text-dark" id="cat-text-${cat.id}">${cat.name}</span>
                         <div class="btn-group shadow-sm overflow-hidden">
                             <button class="btn btn-sm btn-light border-end text-primary fw-semibold" onclick="editCategory(${cat.id}, '${cat.name}')">
-                                <i class="bi bi-pencil-square"></i> Sửa
+                                 Sửa
                             </button>
                             <button class="btn btn-sm btn-light text-danger fw-semibold" onclick="deleteCategory(${cat.id})">
-                                <i class="bi bi-trash3"></i> Xóa
+                                 Xóa
                             </button>
                         </div>
                     </li>
@@ -299,9 +292,7 @@
             method: "POST",
             data: { 'name': name, 'csrfmiddlewaretoken': csrfToken },
             success: function(res) {
-                nameInput.val(''); 
-                loadCategories();  
-            },
+                nameInput.val('');                 loadCategories();             },
             error: function(xhr) {
                 alert(xhr.responseJSON?.message || "Có lỗi xảy ra khi thêm danh mục!");
             }

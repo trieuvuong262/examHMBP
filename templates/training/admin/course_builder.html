@@ -102,11 +102,11 @@
 
     <div class="d-flex justify-content-between align-items-center mb-4 px-2">
         <div>
-            <h3 class="fw-bold text-dark mb-1"><i class="bi bi-diagram-3-fill text-hm me-2"></i>Quản lý Nội dung</h3>
+            <h3 class="fw-bold text-dark mb-1">Quản lý Nội dung</h3>
         </div>
         {% if can_create %}
         <button type="button" class="btn btn-hm shadow-sm px-4" data-bs-toggle="modal" data-bs-target="#addChapterModal">
-            <i class="bi bi-folder-plus me-1"></i> Thêm Chương mới
+             Thêm Chương mới
         </button>
         {% endif %}
     </div>
@@ -118,7 +118,7 @@
                 <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}"
                         type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ chapter.id }}">
                     <div class="d-flex align-items-center w-100">
-                        <i class="bi bi-collection-play-fill text-hm me-3"></i>
+                        
                         <span>Chương {{ forloop.counter }}: {{ chapter.title }}</span>
                         <span class="badge badge-time ms-auto me-3">{{ chapter.lessons.count }} bài học</span>
                     </div>
@@ -131,7 +131,7 @@
                     <div class="bg-light p-2 text-end border-bottom px-3">
                         <button class="btn btn-sm btn-success fw-bold px-3" data-bs-toggle="modal"
                                 data-bs-target="#addLessonModal" data-chapter-id="{{ chapter.id }}">
-                            <i class="bi bi-plus-circle me-1"></i> Thêm bài học
+                             Thêm bài học
                         </button>
                     </div>
                     {% endif %}
@@ -141,20 +141,20 @@
                         <li class="list-group-item lesson-list-item d-flex justify-content-between align-items-center py-3 px-4"
                             data-lesson-id="{{ lesson.id }}">
                             <div class="d-flex align-items-center">
-                                <i class="bi bi-grip-vertical drag-handle me-3" style="font-size: 1.4rem; cursor: grab;"></i>
+                                
                                 <div class="me-3 fs-4 d-flex align-items-center justify-content-center bg-light rounded-circle" style="width: 45px; height: 45px;">
                                     {% if lesson.lesson_type == 'video' %}
-                                        <i class="bi bi-play-circle-fill text-danger"></i>
+                                        
                                     {% elif lesson.lesson_type == 'pdf' %}
-                                        <i class="bi bi-file-earmark-pdf-fill text-danger"></i>
+                                        
                                     {% else %}
-                                        <i class="bi bi-file-earmark-text-fill text-primary"></i>
+                                        
                                     {% endif %}
                                 </div>
                                 <div>
                                     <h6 class="mb-0 fw-bold text-dark">{{ lesson.title }}</h6>
                                     <div class="d-flex gap-3">
-                                        <span class="text-muted x-small"><i class="bi bi-clock me-1"></i>{{ lesson.duration_estimate }} phút</span>
+                                        <span class="text-muted x-small">{{ lesson.duration_estimate }} phút</span>
                                         <span class="text-muted x-small text-uppercase fw-bold">{{ lesson.get_lesson_type_display }}</span>
                                     </div>
                                 </div>
@@ -162,17 +162,12 @@
                             {% if can_update or can_delete %}
                             <div class="btn-group shadow-sm overflow-hidden">
                                 {% if can_update %}
-                                <a href="{% url 'lesson_edit' lesson.id %}" class="btn btn-sm btn-white border px-3 btn-action" title="Sửa bài học">
-                                    <i class="bi bi-pencil-square text-warning"></i>
-                                </a>
+                                <a href="{% url 'lesson_edit' lesson.id %}" class="btn btn-sm btn-white border px-3 btn-action" title="Sửa bài học">Sửa bài học</a>
                                 {% endif %}
                                 {% if can_delete %}
                                 <form action="{% url 'lesson_delete' lesson.id %}" method="POST" class="d-inline">
                                     {% csrf_token %}
-                                    <button type="submit" class="btn btn-sm btn-white border-start-0 px-3 btn-action" 
-                                            onclick="return confirm('Bạn có chắc chắn muốn xóa bài học này?');" title="Xóa bài học">
-                                        <i class="bi bi-trash3 text-danger"></i>
-                                    </button>
+                                    <button type="submit" class="btn btn-sm btn-white border-start-0 px-3 btn-action"                                             onclick="return confirm('Bạn có chắc chắn muốn xóa bài học này?');" title="Xóa bài học">Xóa bài học</button>
                                 </form>
                                 {% endif %}
                             </div>
@@ -180,7 +175,7 @@
                         </li>
                         {% empty %}
                         <li class="list-group-item text-center py-5 text-muted bg-white italic">
-                            <i class="bi bi-inbox display-6 d-block mb-3 opacity-25"></i>
+                            
                             Chương này chưa có bài học. Bấm "Thêm bài học" để bắt đầu.
                         </li>
                         {% endfor %}
@@ -191,11 +186,11 @@
         {% empty %}
         <div class="card border-0 shadow-sm text-center py-5 bg-white">
             <div class="card-body">
-                <i class="bi bi-diagram-3 display-1 text-hm opacity-10 mb-4 d-block"></i>
+                
                 <h4 class="fw-bold text-dark mb-3">Khởi tạo bài giảng</h4>
                 <p class="text-muted mb-4 mx-auto" style="max-width: 450px;">Khóa học này chưa có nội dung. Hãy tạo chương đầu tiên để bắt đầu xây dựng lộ trình học tập.</p>
                 <button type="button" class="btn btn-hm px-5 py-2 shadow-lg" data-bs-toggle="modal" data-bs-target="#addChapterModal">
-                    <i class="bi bi-plus-lg me-2"></i> Tạo Chương đầu tiên
+                     Tạo Chương đầu tiên
                 </button>
             </div>
         </div>

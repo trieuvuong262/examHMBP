@@ -5,7 +5,7 @@
     <div class="jp-page-header mb-3 mb-md-4">
         <div>
             <h2 class="fw-bold text-dark mb-1 jp-page-title">
-                <i class="bi bi-card-checklist text-hm me-2"></i>Đánh giá Năng lực
+                Đánh giá Năng lực
             </h2>
         </div>
     </div>
@@ -28,16 +28,16 @@
                 <div class="card-body p-3 p-md-4">
                     <div class="d-flex justify-content-between align-items-start mb-3">
                         <div class="bg-hm-subtle text-hm rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
-                            <i class="bi bi-patch-check-fill fs-4"></i>
+                            
                         </div>
                         
                         {% if exam.id in completed_exam_ids %}
                             <span class="badge bg-success-subtle text-success border border-success-subtle py-2 px-3 fw-bold">
-                                <i class="bi bi-check-lg me-1"></i>HOÀN THÀNH
+                                HOÀN THÀNH
                             </span>
                         {% else %}
                             <span class="badge bg-danger-subtle text-danger border border-danger-subtle py-2 px-3 fw-bold">
-                                <i class="bi bi-clock me-1"></i>ĐANG MỞ
+                                ĐANG MỞ
                             </span>
                         {% endif %}
                     </div>
@@ -67,7 +67,7 @@
                             {% for eid, res in submission_results.items %}
                                 {% if eid == exam.id %}
                                 <div class="d-flex align-items-center mb-2">
-                                    <i class="bi bi-clock-history text-hm me-2 fs-5"></i>
+                                    
                                     <span class="small fw-bold text-secondary">Thời gian đã làm:</span>
                                     <span class="small ms-auto fw-bold text-dark">{{ res.duration_spent }} phút</span>
                                 </div>
@@ -75,7 +75,7 @@
                             {% endfor %}
                         {% else %}
                             <div class="d-flex align-items-center mb-2">
-                                <i class="bi bi-stopwatch text-hm me-2 fs-5"></i>
+                                
                                 <span class="small fw-bold text-secondary">Thời gian làm bài:</span>
                                 <span class="small ms-auto fw-bold text-dark">{{ exam.duration_minutes }} phút</span>
                             </div>
@@ -84,7 +84,7 @@
                         <div class="pt-2 border-top">
                             {% if exam.id in completed_exam_ids %}
                                 <div class="d-flex align-items-center mb-1 text-success">
-                                    <i class="bi bi-calendar-check me-2 fs-5"></i>
+                                    
                                     <span class="small fw-bold">Hoàn thành lúc:</span>
                                 </div>
                                 <div class="text-end">
@@ -96,7 +96,7 @@
                                 </div>
                             {% else %}
                                 <div class="d-flex align-items-center mb-1 text-danger">
-                                    <i class="bi bi-hourglass-split me-2 fs-5"></i>
+                                    
                                     <span class="small fw-bold">Hạn chót nộp:</span>
                                 </div>
                                 <div class="text-end text-danger fw-bold small">{{ exam.end_time|date:"H:i - d/m/Y" }}</div>
@@ -109,10 +109,8 @@
                     {% if exam.id in completed_exam_ids %}
                         {% for eid, res in submission_results.items %}
                             {% if eid == exam.id %}
-                            <button type="button" 
-                                    class="btn btn-outline-hm w-100 fw-bold py-2 shadow-sm btn-hover-lift"
-                                    data-bs-toggle="modal" 
-                                    data-bs-target="#resultModal"
+                            <button type="button"                                     class="btn btn-outline-hm w-100 fw-bold py-2 shadow-sm btn-hover-lift"
+                                    data-bs-toggle="modal"                                     data-bs-target="#resultModal"
                                     data-exam-id="{{ exam.id }}"
                                     data-result-url="{% url 'exam_result' exam.id %}"
                                     data-title="{{ exam.title }}"
@@ -121,13 +119,13 @@
                                     data-graded="{{ res.is_completed }}"
                                     data-duration="{{ res.duration_spent }}"
                                     data-total="{{ res.total_score }}">
-                                <i class="bi bi-eye-fill me-2"></i>XEM KẾT QUẢ CHI TIẾT
+                                XEM KẾT QUẢ CHI TIẾT
                             </button>
                             {% endif %}
                         {% endfor %}
                     {% else %}
                         <a href="{% url 'take_exam' exam.id %}" class="btn btn-hm w-100 fw-bold shadow-sm btn-hover-lift py-2">
-                            <i class="bi bi-pencil-square me-2"></i>BẮT ĐẦU THI NGAY
+                            BẮT ĐẦU THI NGAY
                         </a>
                     {% endif %}
                 </div>
@@ -135,7 +133,7 @@
         </div>
         {% empty %}
         <div class="col-12 text-center py-5 my-5">
-            <i class="bi bi-clipboard-x display-1 text-muted opacity-25"></i>
+            
             <h4 class="fw-bold text-dark mt-3">Hiện không có kỳ thi nào dành cho bạn</h4>
         </div>
         {% endfor %}
@@ -151,8 +149,8 @@
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content border-0 shadow-lg overflow-hidden">
             <div class="modal-header bg-dark text-white border-0 py-3">
-                <h5 class="modal-title fw-bold" id="resultModalTitle"><i class="bi bi-award-fill me-2 text-warning"></i>KẾT QUẢ CHI TIẾT</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                <h5 class="modal-title fw-bold" id="resultModalTitle">KẾT QUẢ CHI TIẾT</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng">Đóng</button>
             </div>
             <div class="modal-body p-4 text-center">
                 <h5 id="modalExamTitle" class="fw-bold text-dark mb-2"></h5>
@@ -181,7 +179,7 @@
             </div>
             <div class="modal-footer border-0 pb-4 justify-content-center gap-2 flex-wrap">
                 <a href="#" id="modalViewResultBtn" class="btn btn-hm px-4 fw-bold">
-                    <i class="bi bi-eye-fill me-1"></i>Xem kết quả
+                    Xem kết quả
                 </a>
                 <button type="button" class="btn btn-secondary px-4 fw-bold" data-bs-dismiss="modal">Đóng cửa sổ</button>
             </div>

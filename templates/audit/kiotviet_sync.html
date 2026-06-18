@@ -6,7 +6,7 @@
     <div class="jp-page-header mb-3 mb-md-4">
         <div class="jp-page-header-main">
             <h2 class="jp-page-title fw-bold text-dark mb-1">
-                <i class="bi bi-arrow-repeat text-hm me-2"></i>Đồng bộ KiotViet
+                Đồng bộ KiotViet
             </h2>
             <p class="text-muted small mb-0 mt-1">
                 Cấu hình lịch đồng bộ mirror <code>kv_*</code> từ KiotViet API
@@ -22,7 +22,7 @@
     </div>
     {% else %}
     <div class="alert alert-light border shadow-sm small mb-4">
-        <i class="bi bi-lightning-charge text-hm me-1"></i>
+        
         <strong>Đồng bộ tối ưu:</strong> mặc định chỉ lấy bản ghi <strong>mới</strong> hoặc <strong>đã thay đổi</strong>
         (API <code>lastModifiedFrom</code> + bỏ qua bản ghi mirror không đổi). Bản ghi đã có giữ nguyên.
         Chỉ bật «Full sync» khi cần reset toàn bộ mirror.
@@ -36,7 +36,7 @@
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
                 <div class="fw-bold text-dark">
-                    <i class="bi bi-hourglass-split text-hm me-1" id="jp-kv-sync-status-icon"></i>
+                    
                     <span id="jp-kv-sync-status-label">Đang đồng bộ…</span>
                 </div>
                 <span class="badge bg-hm text-white" id="jp-kv-sync-percent">0%</span>
@@ -54,7 +54,7 @@
             <div class="small text-muted" id="jp-kv-sync-message"></div>
             <div class="mt-2 d-none" id="jp-kv-sync-done-actions">
                 <a href="{% url 'audit:kiotviet_sync' %}" class="btn btn-sm btn-outline-hm fw-bold">
-                    <i class="bi bi-arrow-clockwise me-1"></i>Tải lại trang
+                    Tải lại trang
                 </a>
             </div>
         </div>
@@ -63,7 +63,7 @@
     {% if latest_job and not poll_job_id %}
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body py-3 small">
-            <div class="fw-bold text-dark mb-1"><i class="bi bi-clock-history text-hm me-1"></i> Lần đồng bộ gần nhất</div>
+            <div class="fw-bold text-dark mb-1"> Lần đồng bộ gần nhất</div>
             <span class="{% if latest_job.status == 'success' %}text-success{% elif latest_job.status == 'failed' %}text-danger{% else %}text-primary{% endif %}">
                 {{ latest_job.get_status_display }}
                 · {{ latest_job.get_trigger_display }}
@@ -82,7 +82,7 @@
         <div class="col-lg-5">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-header bg-white border-0 pt-3 pb-0">
-                    <h5 class="fw-bold mb-0"><i class="bi bi-sliders text-hm me-1"></i> Cấu hình tự động</h5>
+                    <h5 class="fw-bold mb-0"> Cấu hình tự động</h5>
                 </div>
                 <div class="card-body">
                     {% if can_export and configured %}
@@ -113,7 +113,7 @@
                             {% endfor %}
                         </div>
                         <button type="submit" class="btn btn-outline-hm fw-bold">
-                            <i class="bi bi-save me-1"></i>Lưu cấu hình
+                            Lưu cấu hình
                         </button>
                     </form>
                     {% elif not can_export %}
@@ -130,7 +130,7 @@
         <div class="col-lg-7">
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
-                    <h5 class="fw-bold mb-0"><i class="bi bi-lightning-charge text-hm me-1"></i> Đồng bộ thủ công</h5>
+                    <h5 class="fw-bold mb-0"> Đồng bộ thủ công</h5>
                 </div>
                 <div class="card-body">
                     {% if can_export and configured %}
@@ -157,7 +157,7 @@
                         </div>
                         <button type="submit" class="btn btn-hm text-white fw-bold"
                                 {% if active_job %}disabled title="Đang đồng bộ…"{% endif %}>
-                            <i class="bi bi-arrow-repeat me-1"></i>Sync ngay
+                            Sync ngay
                         </button>
                     </form>
                     {% elif not can_export %}
@@ -168,7 +168,7 @@
 
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white border-0 pt-3 pb-0">
-                    <h5 class="fw-bold mb-0"><i class="bi bi-table text-hm me-1"></i> Trạng thái mirror</h5>
+                    <h5 class="fw-bold mb-0"> Trạng thái mirror</h5>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-sm table-hover mb-0 align-middle">

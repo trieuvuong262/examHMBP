@@ -7,7 +7,7 @@
         <div class="col-lg-8">
             <div class="card shadow-lg border-0">
                 <div class="card-header bg-dark text-white p-4">
-                    <h4 class="mb-0 fw-bold"><i class="bi bi-file-earmark-excel-fill text-success me-2"></i>Import Mục tiêu KPI từ Excel</h4>
+                    <h4 class="mb-0 fw-bold">Import Mục tiêu KPI từ Excel</h4>
                     <p class="mb-0 text-white-50 mt-1">Thiết lập hàng loạt Bảng mục tiêu năm (Yearly KPI) cho nhân sự</p>
                 </div>
                 <div class="card-body p-5">
@@ -15,11 +15,11 @@
                     <div class="alert border border-info bg-info bg-opacity-10 mb-4 shadow-sm position-relative">
                         <div class="position-absolute top-0 end-0 p-3">
                             <a href="{% url 'download_kpi_sample_excel' %}" class="btn btn-sm btn-info text-dark fw-bold shadow-sm">
-                                <i class="bi bi-download me-1"></i> Tải file mẫu (.xlsx)
+                                 Tải file mẫu (.xlsx)
                             </a>
                         </div>
 
-                        <h6 class="fw-bold text-info-emphasis"><i class="bi bi-info-circle-fill me-2"></i>Cấu trúc file Excel bắt buộc:</h6>
+                        <h6 class="fw-bold text-info-emphasis">Cấu trúc file Excel bắt buộc:</h6>
                         <p class="small mb-2 text-dark">Hệ thống đọc dữ liệu từ <strong>Sheet đầu tiên</strong>. Dòng 1 là tiêu đề (Header). Các cột theo thứ tự sau (A -> I):</p>
                         
                         <div class="table-responsive bg-white rounded border mt-3">
@@ -45,7 +45,7 @@
                     <form method="POST" enctype="multipart/form-data" class="p-4 border border-2 border-dashed bg-light">
                         {% csrf_token %}
                         
-                        <h6 class="fw-bold text-dark mb-3"><i class="bi bi-gear-fill text-secondary me-2"></i>Thiết lập chung cho đợt Import</h6>
+                        <h6 class="fw-bold text-dark mb-3">Thiết lập chung cho đợt Import</h6>
                         <div class="row g-3 mb-4 text-start">
                             <div class="col-md-4">
                                 <label class="form-label fw-bold text-muted small text-uppercase">Loại đánh giá</label>
@@ -81,7 +81,7 @@
                         <hr class="mb-4">
 
                         <div class="text-center">
-                            <i class="bi bi-cloud-arrow-up display-1 text-hm mb-3 d-block"></i>
+                            
                             <h5 class="fw-bold text-dark">Tải file Excel lên đây</h5>
                             <p class="text-muted small mb-4">Chỉ chấp nhận định dạng .xlsx</p>
                             
@@ -91,7 +91,7 @@
                             
                             <div class="d-flex justify-content-center gap-3">
                                 <button type="submit" class="btn btn-hm btn-lg px-5 shadow-sm fw-bold">
-                                    <i class="bi bi-upload me-2"></i>Tiến hành Import
+                                    Tiến hành Import
                                 </button>
                                 <a href="{% url 'kpi_list' %}" class="btn btn-outline-dark btn-lg px-4">Hủy bỏ</a>
                             </div>

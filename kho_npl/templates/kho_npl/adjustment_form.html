@@ -9,12 +9,12 @@
     <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title">
-                <i class="bi bi-plus-circle me-2"></i>Đề xuất điều chỉnh tồn
+                Đề xuất điều chỉnh tồn
             </h2>
             <p class="text-muted small mb-0">Chọn vị trí kho trước — danh sách NPL hiển thị <strong>tên hàng — tồn HT</strong> để dễ chọn.</p>
         </div>
         <a href="{{ cancel_url }}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-arrow-left me-1"></i>Quay lại
+            Quay lại
         </a>
     </div>
 
@@ -72,9 +72,7 @@
                             <td class="text-center">
                                 {% if line_form.DELETE %}
                                 <div class="d-none">{{ line_form.DELETE }}</div>
-                                <button type="button" class="btn btn-link btn-sm text-danger p-0 remove-row" title="Xóa dòng">
-                                    <i class="bi bi-x-lg"></i>
-                                </button>
+                                <button type="button" class="btn btn-link btn-sm text-danger p-0 remove-row" title="Xóa dòng">Xóa dòng</button>
                                 {% endif %}
                             </td>
                         </tr>
@@ -84,7 +82,7 @@
             </div>
             <div class="p-3 border-top bg-light">
                 <button type="button" class="btn btn-outline-hm btn-sm" id="add-row">
-                    <i class="bi bi-plus-lg me-1"></i>Thêm dòng
+                    Thêm dòng
                 </button>
             </div>
         </div>
@@ -95,7 +93,7 @@
 
         <div class="d-flex flex-wrap gap-2">
             <button type="submit" class="btn btn-hm fw-bold px-4">
-                <i class="bi bi-send me-1"></i>Gửi đề xuất
+                Gửi đề xuất
             </button>
             <a href="{{ cancel_url }}" class="btn btn-outline-secondary">Huỷ</a>
         </div>
@@ -113,7 +111,7 @@
         <td>{{ line_form.notes }}</td>
         <td class="text-center">
             <div class="d-none">{{ line_form.DELETE }}</div>
-            <button type="button" class="btn btn-link btn-sm text-danger p-0 remove-row"><i class="bi bi-x-lg"></i></button>
+            <button type="button" class="btn btn-link btn-sm text-danger p-0 remove-row" title="Xóa dòng">Xóa dòng</button>
         </td>
     </tr>
     {% endwith %}

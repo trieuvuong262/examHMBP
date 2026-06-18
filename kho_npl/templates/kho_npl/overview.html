@@ -170,7 +170,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
 {% block content %}
 <div class="container jp-page jp-npl-material-catalog-page py-3 py-md-4 mb-5" data-loading-message="Đang tải tổng quan…">
     <div class="jp-npl-mat-topbar">
-        <h2 class="jp-npl-mat-topbar-title"><i class="bi bi-speedometer2 me-2"></i>Tổng quan</h2>
+        <h2 class="jp-npl-mat-topbar-title">Tổng quan</h2>
         <form method="get" class="jp-npl-mat-topbar-search" id="npl-overview-search-form">
             <div class="jp-npl-mat-search-row">
                 <div class="jp-npl-mat-filter-field jp-npl-filter-multi">
@@ -182,7 +182,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
                     </select>
                 </div>
                 <div class="input-group input-group-sm jp-npl-mat-filter-field jp-npl-mat-search-input">
-                    <span class="input-group-text bg-transparent"><i class="bi bi-search text-muted"></i></span>
+                    <span class="input-group-text bg-transparent"></span>
                     <input type="search" class="form-control" id="npl-ov-q" name="q"
                            value="{{ search_query }}" placeholder="Mã, tên, màu..." autocomplete="off" aria-label="Tìm">
                 </div>
@@ -201,19 +201,19 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
             {% if can_export %}
             <a href="{% url 'kho_npl:overview_export' %}{% if query_string %}?{{ query_string }}{% endif %}"
                class="btn btn-outline-secondary btn-sm fw-bold" title="Xuất Excel">
-                <i class="bi bi-download me-1"></i>Xuất Excel
+                Xuất Excel
             </a>
             {% endif %}
             {% if can_create %}
             <button type="button" class="btn btn-outline-hm btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#nplImportModal">
-                <i class="bi bi-upload me-1"></i>Nhập Excel
+                Nhập Excel
             </button>
             {% endif %}
             <div class="dropdown jp-npl-mat-col-picker">
                 <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" id="npl-ov-col-btn"
                         data-bs-toggle="dropdown" data-bs-auto-close="outside"
                         aria-expanded="false" title="Chọn cột hiển thị">
-                    <i class="bi bi-layout-three-columns me-1"></i>Cột
+                    Cột
                 </button>
                 <div class="dropdown-menu shadow-sm jp-npl-mat-col-menu" data-bs-popper="static">
                     <div class="jp-npl-mat-col-head">Hiển thị cột</div>
@@ -256,7 +256,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
                 <div class="card-body">
                     <div class="text-muted small d-flex align-items-center justify-content-between gap-2">
                         <span>Sắp thiếu</span>
-                        <i class="bi bi-arrow-right-short text-warning"></i>
+                        
                     </div>
                     <div class="fs-4 fw-bold text-warning">{{ stats.low_count|intcomma }}</div>
                 </div>
@@ -268,7 +268,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
                 <div class="card-body">
                     <div class="text-muted small d-flex align-items-center justify-content-between gap-2">
                         <span>Hết hàng</span>
-                        <i class="bi bi-arrow-right-short text-danger"></i>
+                        
                     </div>
                     <div class="fs-4 fw-bold text-danger">{{ stats.out_count|intcomma }}</div>
                 </div>
@@ -288,7 +288,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
                                     data-sort="{{ col.key }}" title="Sắp xếp theo {{ col.label }}">
                                 {{ col.label }}
                                 {% if sort_key == col.key %}
-                                <i class="bi bi-caret-{% if sort_dir == 'asc' %}up{% else %}down{% endif %}-fill jp-mat-sort-icon"></i>
+                                
                                 {% endif %}
                             </button>
                             <span class="jp-mat-col-resizer" aria-hidden="true"></span>

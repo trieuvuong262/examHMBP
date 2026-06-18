@@ -6,7 +6,7 @@
     <div class="jp-page-header mb-3 mb-md-4">
         <div class="jp-page-header-main">
             <h2 class="jp-page-title fw-bold text-dark mb-1">
-                <i class="bi bi-journal-check text-hm me-2"></i>Nhật ký thao tác
+                Nhật ký thao tác
             </h2>
             <p class="text-muted small mb-0 mt-1">
                 {{ stats.total|intcomma }} bản ghi · hôm nay {{ stats.today|intcomma }}
@@ -42,11 +42,9 @@
                 </div>
                 <div class="col-md-2 d-flex gap-2">
                     <button type="submit" class="btn btn-hm text-white fw-bold flex-grow-1">
-                        <i class="bi bi-search"></i>
+                        
                     </button>
-                    <a href="{% url 'audit:log_list' %}" class="btn btn-light fw-bold" title="Xóa lọc">
-                        <i class="bi bi-x-lg"></i>
-                    </a>
+                    <a href="{% url 'audit:log_list' %}" class="btn btn-light fw-bold" title="Xóa lọc">Xóa lọc</a>
                 </div>
             </form>
         </div>
@@ -59,7 +57,7 @@
                 {% if can_export %}
                 <a href="{% url 'audit:log_export_excel' %}?{{ request.GET.urlencode }}"
                    class="btn btn-sm btn-outline-hm fw-bold">
-                    <i class="bi bi-file-earmark-excel me-1"></i>Xuất Excel
+                    Xuất Excel
                 </a>
                 {% endif %}
                 <span class="small text-muted">Trang {{ page_obj.number }}/{{ page_obj.paginator.num_pages|default:1 }}</span>

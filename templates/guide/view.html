@@ -6,7 +6,7 @@
     <div class="jp-page-header mb-4">
         <div>
             <span class="badge bg-danger-subtle text-danger px-3 py-2 mb-2">
-                <i class="bi bi-journal-bookmark-fill me-1"></i> Tài liệu nội bộ
+                 Tài liệu nội bộ
             </span>
             <h1 class="jp-page-title text-hm mb-2">{{ guide.title }}</h1>
             {% if guide.subtitle %}
@@ -14,14 +14,14 @@
             {% endif %}
             {% if guide.updated_by %}
             <p class="text-muted small mb-0 mt-2">
-                <i class="bi bi-clock me-1"></i>Cập nhật {{ guide.updated_at|date:"d/m/Y H:i" }}
+                Cập nhật {{ guide.updated_at|date:"d/m/Y H:i" }}
                 · {{ guide.updated_by.get_full_name|default:guide.updated_by.username }}
             </p>
             {% endif %}
         </div>
         {% if can_edit %}
         <a href="{% url 'user_guide_edit' %}" class="btn btn-outline-hm fw-bold flex-fill flex-md-grow-0">
-            <i class="bi bi-pencil-square me-1"></i>Chỉnh sửa
+            Chỉnh sửa
         </a>
         {% endif %}
     </div>
@@ -34,10 +34,10 @@
 
     <div class="text-center mt-4 d-flex flex-wrap justify-content-center gap-2">
         <a href="{% url 'home_portal' %}" class="btn btn-hm px-4">
-            <i class="bi bi-house me-1"></i> Về trang chủ
+             Về trang chủ
         </a>
         <a href="{% url 'announcements:list' %}" class="btn btn-outline-hm px-4">
-            <i class="bi bi-megaphone me-1"></i> Xem thông báo
+             Xem thông báo
         </a>
     </div>
 </div>

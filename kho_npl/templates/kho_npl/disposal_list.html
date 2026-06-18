@@ -7,11 +7,11 @@
 {% block content %}
 <div class="container jp-page jp-npl-material-catalog-page py-3 py-md-4 mb-5" data-loading-message="Đang tải phiếu hủy…">
     <div class="jp-npl-mat-topbar">
-        <h2 class="jp-npl-mat-topbar-title"><i class="bi bi-trash3 me-2"></i>Phiếu hủy</h2>
+        <h2 class="jp-npl-mat-topbar-title">Phiếu hủy</h2>
         <form method="get" class="jp-npl-mat-topbar-search" id="npl-dp-search-form">
             <div class="jp-npl-mat-search-row">
                 <div class="input-group input-group-sm jp-npl-mat-filter-field jp-npl-mat-search-input">
-                    <span class="input-group-text bg-transparent"><i class="bi bi-search text-muted"></i></span>
+                    <span class="input-group-text bg-transparent"></span>
                     <input type="search" class="form-control" id="ph-q" name="q"
                            value="{{ search_query }}" placeholder="Số phiếu, kho nguồn, ghi chú..." autocomplete="off" aria-label="Tìm">
                 </div>
@@ -29,7 +29,7 @@
         <div class="jp-npl-mat-topbar-actions">
             {% if can_create %}
             <a href="{% url 'kho_npl:disposal_create' %}" class="btn btn-hm btn-sm fw-bold">
-                <i class="bi bi-plus-lg me-1"></i>Thêm
+                Thêm
             </a>
             {% endif %}
             {% include 'kho_npl/includes/doc_list_col_picker.html' with col_btn_id='npl-dp-col-btn' col_prefix='npl-dp-col' col_toggle_class='npl-dp-col-toggle' %}
@@ -47,7 +47,7 @@
                                     data-sort="{{ col.key }}" title="Sắp xếp theo {{ col.label }}">
                                 {{ col.label }}
                                 {% if sort_key == col.key %}
-                                <i class="bi bi-caret-{% if sort_dir == 'asc' %}up{% else %}down{% endif %}-fill jp-mat-sort-icon"></i>
+                                
                                 {% endif %}
                             </button>
                             <span class="jp-mat-col-resizer" aria-hidden="true"></span>
@@ -69,7 +69,7 @@
                         <td class="npl-col" data-col="created_by">{% if disposal.created_by %}{{ disposal.created_by.get_full_name|default:disposal.created_by.username }}{% else %}—{% endif %}</td>
                         <td class="text-end text-nowrap npl-col" data-col="actions">
                             {% if can_update and disposal.status == 'draft' %}
-                            <a href="{% url 'kho_npl:disposal_edit' disposal.pk %}" class="jp-mat-edit-btn" title="Sửa"><i class="bi bi-pencil"></i></a>
+                            <a href="{% url 'kho_npl:disposal_edit' disposal.pk %}" class="jp-mat-edit-btn" title="Sửa">Sửa</a>
                             {% endif %}
                         </td>
                     </tr>

@@ -10,7 +10,7 @@
     <div class="jp-page-header mb-3 mb-md-4">
         <div class="jp-page-header-main">
             <h2 class="jp-page-title fw-bold text-dark mb-1">
-                <i class="bi bi-diagram-3 text-hm me-2"></i>Cơ cấu tổ chức
+                Cơ cấu tổ chức
             </h2>
             <nav aria-label="breadcrumb" class="d-none d-md-block">
                 <ol class="breadcrumb mb-0 small">
@@ -21,24 +21,24 @@
         </div>
         <div class="jp-hrm-toolbar">
             <a href="{% url 'user_list' %}" class="btn btn-outline-hm fw-bold shadow-sm jp-hrm-tool-btn">
-                <i class="bi bi-people-fill"></i><span class="jp-hrm-tool-label"> Nhân sự</span>
+                <span class="jp-hrm-tool-label"> Nhân sự</span>
             </a>
             {% if treemap and not migration_required %}
             <button type="button" class="btn btn-outline-hm fw-bold shadow-sm jp-hrm-tool-btn" data-bs-toggle="modal" data-bs-target="#orgImportExcelModal" title="Import nhân viên từ Excel">
-                <i class="bi bi-file-earmark-excel-fill"></i><span class="jp-hrm-tool-label"> Import Excel</span>
+                <span class="jp-hrm-tool-label"> Import Excel</span>
             </button>
             <button type="button" class="btn btn-outline-hm fw-bold shadow-sm jp-hrm-tool-btn" id="org-manage-toggle" data-bs-toggle="collapse" data-bs-target="#org-manage-panel" aria-expanded="false" aria-controls="org-manage-panel">
-                <i class="bi bi-pencil-square"></i><span class="jp-hrm-tool-label"> Cập nhật sơ đồ</span>
+                <span class="jp-hrm-tool-label"> Cập nhật sơ đồ</span>
             </button>
             <button type="button" class="btn btn-outline-hm fw-bold shadow-sm jp-hrm-tool-btn" id="org-show-all-employees-btn" title="Hiển thị hoặc ẩn nhân viên ở mọi vị trí">
-                <i class="bi bi-people-fill" id="org-show-all-employees-icon"></i><span class="jp-hrm-tool-label" id="org-show-all-employees-label"> Hiển thị tất cả NV</span>
+                <span class="jp-hrm-tool-label" id="org-show-all-employees-label"> Hiển thị tất cả NV</span>
             </button>
             <button type="button" class="btn btn-outline-hm fw-bold shadow-sm jp-hrm-tool-btn" id="org-export-chart-btn" title="Tải sơ đồ dạng ảnh PNG">
-                <i class="bi bi-image"></i><span class="jp-hrm-tool-label"> Export ảnh</span>
+                <span class="jp-hrm-tool-label"> Export ảnh</span>
             </button>
             {% endif %}
             <a href="{% url 'department_add' %}" class="btn btn-hm shadow-sm text-white fw-bold jp-hrm-tool-btn jp-hrm-tool-btn-primary">
-                <i class="bi bi-building"></i><span class="jp-hrm-tool-label"> Thêm phòng ban</span>
+                <span class="jp-hrm-tool-label"> Thêm phòng ban</span>
             </a>
         </div>
     </div>
@@ -74,7 +74,7 @@
         <div class="card border-0 jp-org-manage-card">
             <div class="card-header jp-org-manage-header">
                 <h5 class="mb-0 fw-bold">
-                    <i class="bi bi-pencil-square me-2"></i>Cập nhật sơ đồ
+                    Cập nhật sơ đồ
                 </h5>
                 <p class="small mb-0 mt-1 opacity-90">Thêm / sửa / xóa phòng ban và bộ phận — áp dụng ngay lên sơ đồ phía trên.</p>
             </div>
@@ -83,13 +83,13 @@
                     <li class="nav-item" role="presentation">
                         <button class="nav-link {% if manage_tab == 'departments' %}active{% endif %}" id="org-tab-depts-btn"
                                 data-bs-toggle="tab" data-bs-target="#org-tab-depts" type="button" role="tab">
-                            <i class="bi bi-building me-1"></i> Phòng ban
+                             Phòng ban
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link {% if manage_tab == 'divisions' %}active{% endif %}" id="org-tab-divs-btn"
                                 data-bs-toggle="tab" data-bs-target="#org-tab-divs" type="button" role="tab">
-                            <i class="bi bi-diagram-2 me-1"></i> Bộ phận
+                             Bộ phận
                         </button>
                     </li>
                 </ul>
@@ -98,7 +98,7 @@
                         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                             <span class="small text-muted">Danh sách phòng ban trên sơ đồ</span>
                             <a href="{% url 'department_add' %}" class="btn btn-sm btn-hm text-white fw-bold">
-                                <i class="bi bi-plus-lg"></i> Thêm phòng ban
+                                 Thêm phòng ban
                             </a>
                         </div>
                         <div class="table-responsive jp-org-manage-table-wrap">
@@ -124,10 +124,10 @@
                                         <td class="text-center small text-muted">{{ dept.sort_order }}</td>
                                         <td class="text-end pe-3">
                                             <div class="btn-group btn-group-sm jp-org-manage-actions" role="group">
-                                                <a href="{% url 'division_add' %}?department={{ dept.pk }}" class="btn btn-outline-hm" title="Thêm bộ phận"><i class="bi bi-plus-lg"></i></a>
-                                                <a href="{% url 'department_permissions' dept.pk %}" class="btn btn-outline-secondary" title="Phân quyền menu"><i class="bi bi-shield-lock"></i></a>
-                                                <a href="{% url 'department_edit' dept.pk %}" class="btn btn-outline-hm" title="Sửa"><i class="bi bi-pencil-square"></i></a>
-                                                <a href="{% url 'department_delete' dept.pk %}" class="btn btn-outline-danger" title="Xóa"><i class="bi bi-trash"></i></a>
+                                                <a href="{% url 'division_add' %}?department={{ dept.pk }}" class="btn btn-outline-hm" title="Thêm bộ phận">Thêm bộ phận</a>
+                                                <a href="{% url 'department_permissions' dept.pk %}" class="btn btn-outline-secondary" title="Phân quyền menu">Phân quyền menu</a>
+                                                <a href="{% url 'department_edit' dept.pk %}" class="btn btn-outline-hm" title="Sửa">Sửa</a>
+                                                <a href="{% url 'department_delete' dept.pk %}" class="btn btn-outline-danger" title="Xóa">Xóa</a>
                                             </div>
                                         </td>
                                     </tr>
@@ -144,7 +144,7 @@
                         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                             <span class="small text-muted">Bộ phận thuộc phòng ban hoặc chưa gán</span>
                             <a href="{% url 'division_add' %}" class="btn btn-sm btn-hm text-white fw-bold">
-                                <i class="bi bi-plus-lg"></i> Thêm bộ phận
+                                 Thêm bộ phận
                             </a>
                         </div>
                         <div class="table-responsive jp-org-manage-table-wrap">
@@ -173,8 +173,8 @@
                                         <td class="text-center small text-muted">{{ div.sort_order }}</td>
                                         <td class="text-end pe-3">
                                             <div class="btn-group btn-group-sm jp-org-manage-actions" role="group">
-                                                <a href="{% url 'division_edit' div.pk %}" class="btn btn-outline-hm" title="Sửa"><i class="bi bi-pencil-square"></i></a>
-                                                <a href="{% url 'division_delete' div.pk %}" class="btn btn-outline-danger" title="Xóa"><i class="bi bi-trash"></i></a>
+                                                <a href="{% url 'division_edit' div.pk %}" class="btn btn-outline-hm" title="Sửa">Sửa</a>
+                                                <a href="{% url 'division_delete' div.pk %}" class="btn btn-outline-danger" title="Xóa">Xóa</a>
                                             </div>
                                         </td>
                                     </tr>
@@ -200,14 +200,14 @@
                 {% csrf_token %}
                 <input type="hidden" name="return_to" value="org">
                 <div class="modal-header bg-dark text-white p-3 p-md-4">
-                    <h5 class="modal-title fw-bold mb-0"><i class="bi bi-file-earmark-excel me-2 text-success"></i>Import nhân viên vào sơ đồ</h5>
+                    <h5 class="modal-title fw-bold mb-0">Import nhân viên vào sơ đồ</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-3 p-md-4">
                     <div class="text-center p-3 mb-3 border border-2 border-dashed rounded bg-light">
                         <p class="small text-muted mb-2 fw-bold">Bước 1 — Tải file mẫu (5 sheet: nhập liệu + danh mục PB/BP/Vị trí + hướng dẫn)</p>
                         <a href="{% url 'user_download_template' %}" class="btn btn-hm btn-sm px-4 shadow-sm">
-                            <i class="bi bi-cloud-arrow-down-fill me-1"></i> Tải Excel mẫu
+                             Tải Excel mẫu
                         </a>
                     </div>
                     <div class="mb-0">
@@ -234,7 +234,7 @@
                         <h5 class="modal-title fw-bold" id="orgEmployeesModalTitle">Vị trí</h5>
                         <p class="small text-muted mb-0" id="orgEmployeesModalSubtitle"></p>
                     </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng">Đóng</button>
                 </div>
                 <div class="modal-body pt-2 pb-4">
                     <ul class="list-group list-group-flush" id="orgEmployeesModalList"></ul>

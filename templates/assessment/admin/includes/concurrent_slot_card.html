@@ -23,7 +23,7 @@
             </div>
             {% if is_edit %}
             <button type="button" class="btn btn-sm btn-outline-danger jp-concurrent-slot-delete jp-user-form--edit-only" title="Xóa slot kiêm nhiệm">
-                <i class="bi bi-trash"></i><span class="d-none d-sm-inline ms-1">Xóa slot</span>
+                <span class="d-none d-sm-inline ms-1">Xóa slot</span>
             </button>
             {% endif %}
         </div>
@@ -70,13 +70,13 @@
         <p class="small text-hm mb-2 jp-slot-sub-hint">{{ cp_form.subordinate_scope_hint }}</p>
         <div class="d-flex flex-wrap gap-2 mb-3 jp-slot-sub-quick">
             <button type="button" class="btn btn-sm btn-outline-hm jp-slot-sub-pick-div" hidden>
-                <i class="bi bi-diagram-3 me-1"></i>Chọn cùng bộ phận
+                Chọn cùng bộ phận
             </button>
             <button type="button" class="btn btn-sm btn-outline-hm jp-slot-sub-pick-dept" hidden>
-                <i class="bi bi-building me-1"></i>Chọn cùng phòng ban
+                Chọn cùng phòng ban
             </button>
             <button type="button" class="btn btn-sm btn-outline-secondary jp-slot-sub-clear">
-                <i class="bi bi-x-circle me-1"></i>Bỏ chọn
+                Bỏ chọn
             </button>
         </div>
         <div class="jp-subordinates-picker-wrap">
@@ -87,7 +87,7 @@
     {% if is_edit %}
     <div class="jp-concurrent-slot-footer jp-user-form--edit-only">
         <button type="button" class="btn btn-sm btn-hm fw-bold jp-concurrent-slot-save">
-            <i class="bi bi-check-circle me-1"></i>Lưu slot
+            Lưu slot
         </button>
         <span class="small jp-concurrent-slot-save-status text-muted"></span>
     </div>

@@ -10,7 +10,7 @@
     <div class="jp-page-header mb-3 mb-md-4">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title">
-                <i class="bi bi-clock-history me-2"></i>
+                
                 {% if history_employee_name %}Lịch sử báo cáo — {{ history_employee_name }}{% elif reports_scope_label %}Lịch sử báo cáo ({{ reports_scope_label }}){% else %}Lịch sử báo cáo{% endif %}
             </h2>
         </div>
@@ -18,11 +18,11 @@
             {% if not history_for_user_id %}
             {% if report_period == 'weekly' %}
             <a href="{% url 'reports:weekly' %}" class="btn btn-hm fw-bold flex-fill flex-md-grow-0">
-                <i class="bi bi-plus-lg me-1"></i>Báo cáo tuần
+                Báo cáo tuần
             </a>
             {% else %}
             <a href="{% url today_url_name %}" class="btn btn-hm fw-bold flex-fill flex-md-grow-0">
-                <i class="bi bi-plus-lg me-1"></i>Báo cáo hôm nay
+                Báo cáo hôm nay
             </a>
             {% endif %}
             {% endif %}
