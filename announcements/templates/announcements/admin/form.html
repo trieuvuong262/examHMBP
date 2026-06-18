@@ -33,10 +33,6 @@
                             <div class="border bg-white jp-ckeditor-wrap">
                                 {{ form.body }}
                             </div>
-                            <div class="form-text">
-                                Soạn như Word: font, cỡ chữ, màu, bảng, căn lề, dán từ Word.
-                                Chèn ảnh qua nút <strong>Image</strong> (tab Upload) hoặc kéo thả / dán trực tiếp.
-                            </div>
                             {% if form.body.errors %}<div class="text-danger small">{{ form.body.errors }}</div>{% endif %}
                         </div>
 
@@ -55,7 +51,6 @@
                         <div class="mb-3" id="field-original">
                             <label class="form-label fw-bold">File gốc đính kèm</label>
                             {{ form.original_file }}
-                            <div class="form-text">Lưu trên NAS (99_LUU_TRU/1.2026/THONG_BAO). PDF, Word, Excel, nén… — dùng kèm văn bản hoặc bất kỳ loại thông báo.</div>
                             {% if form.original_file.errors %}<div class="text-danger small">{{ form.original_file.errors }}</div>{% endif %}
                         </div>
 
