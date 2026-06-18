@@ -5,7 +5,11 @@ from django.test import TestCase
 from django.utils import timezone
 
 from assessment.models import Exam, ExamSubmission
-from assessment.portal_widgets import get_portal_dashboard
+from assessment.portal_widgets import (
+    get_assessment_pending_count,
+    get_portal_dashboard,
+    get_training_pending_count,
+)
 from hrm.models import Department, DepartmentMenuPermission, Profile, RoleModulePermission
 from hrm.permissions import ROLE_EMPLOYEE
 from training.models import Course, CourseCategory, Enrollment
@@ -100,6 +104,28 @@ class PortalTrainingExamWidgetTests(TestCase):
         titles = [w['title'] for w in widgets]
         self.assertNotIn('Bài kiểm tra', titles)
 
+    def test_training_menu_badge_count(self):
+        self._create_course()
+        self.assertEqual(get_training_pending_count(self.employee), 1)
+        self.assertEqual(get_assessment_pending_count(self.employee), 0)
+
+    def test_assessment_menu_badge_count(self):
+        self._create_exam()
+        self.assertEqual(get_assessment_pending_count(self.employee), 1)
+        self.assertEqual(get_training_pending_count(self.employee), 0)
+
+    def test_menu_badge_zero_when_completed(self):
+        course = self._create_course()
+        exam = self._create_exam()
+        Enrollment.objects.create(user=self.employee, course=course, is_completed=True)
+        ExamSubmission.objects.create(
+            user=self.employee,
+            exam=exam,
+            submitted_at=timezone.now(),
+            is_completed=True,
+        )
+        self.assertEqual(get_training_pending_count(self.employee), 0)
+        self.assertEqual(get_assessment_pending_count(self.employee), 0)
 
 class PaginationHelperTests(TestCase):
     def test_pagination_link_items_compact_range(self):

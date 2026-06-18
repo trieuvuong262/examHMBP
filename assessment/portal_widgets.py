@@ -155,14 +155,29 @@ def _pending_assigned_exams_qs(user):
     ).exclude(pk__in=completed_ids).distinct()
 
 
+def get_training_pending_count(user) -> int:
+    """Số khóa học được giao chưa hoàn thành — badge menu Đào tạo."""
+    if not user_can_access_module(user, MODULE_TRAINING):
+        return 0
+    return _incomplete_assigned_courses_qs(user).count()
+
+
+def get_assessment_pending_count(user) -> int:
+    """Số bài kiểm tra được giao chưa nộp — badge menu Kiểm tra."""
+    if not user_can_access_module(user, MODULE_ASSESSMENT):
+        return 0
+    return _pending_assigned_exams_qs(user).count()
+
+
 def _training_widgets(user):
     if not user_can_access_module(user, MODULE_TRAINING):
         return []
 
-    incomplete_qs = _incomplete_assigned_courses_qs(user)
-    count = incomplete_qs.count()
+    count = get_training_pending_count(user)
     if not count:
         return []
+
+    incomplete_qs = _incomplete_assigned_courses_qs(user)
 
     from training.models import Enrollment
 
@@ -191,10 +206,11 @@ def _exam_widgets(user):
     if not user_can_access_module(user, MODULE_ASSESSMENT):
         return []
 
-    pending_qs = _pending_assigned_exams_qs(user)
-    count = pending_qs.count()
+    count = get_assessment_pending_count(user)
     if not count:
         return []
+
+    pending_qs = _pending_assigned_exams_qs(user)
 
     now = timezone.now()
     open_count = pending_qs.filter(start_time__lte=now, end_time__gte=now).count()

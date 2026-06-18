@@ -229,6 +229,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'announcements.context_processors.unread_announcements',
+                'assessment.context_processors.portal_learning_menu_badges',
                 'hrm.context_processors.portal_permissions',
                 'utilities.context_processors.meal_push_context',
             ],
