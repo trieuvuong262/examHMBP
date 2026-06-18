@@ -26,7 +26,7 @@
             </div>
             <button type="submit" class="btn btn-hm px-4 align-self-end">Xem</button>
             {% if search_query or selected_dept or status_filter %}
-            <a href="?week={{ week_start|date:'Y-m-d' }}" class="btn btn-light border align-self-end" title="Xóa bộ lọc">Xóa bộ lọc</a>
+            <a href="?week={{ week_start|date:'Y-m-d' }}" class="btn btn-light border align-self-end" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>
             {% endif %}
         </div>
         {% if search_query %}

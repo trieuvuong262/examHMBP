@@ -9,8 +9,16 @@
     .bg-hm { background-color: var(--hm-primary) !important; }
     .text-hm { color: var(--hm-primary) !important; }
     
-    .btn-hm {         background-color: var(--hm-primary);         color: white;         border: none;         transition: all 0.3s;     }
-    .btn-hm:hover {         background-color: var(--hm-primary-hover);         color: white;         transform: translateY(-1px);
+    .btn-hm { 
+        background-color: var(--hm-primary); 
+        color: white; 
+        border: none; 
+        transition: all 0.3s; 
+    }
+    .btn-hm:hover { 
+        background-color: var(--hm-primary-hover); 
+        color: white; 
+        transform: translateY(-1px);
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
     
@@ -43,10 +51,12 @@
         
         <div class="d-flex gap-2 align-items-stretch flex-wrap w-100 w-md-auto">
             <a href="{% url 'job_posting_create' %}" class="btn btn-hm shadow-sm fw-bold d-flex align-items-center justify-content-center flex-fill flex-md-grow-0">
-                 Đăng tin
+                <i class="bi bi-plus-circle-fill me-1"></i> Đăng tin
             </a>
             
-            <a href="{% url 'admin_dashboard' %}" class="btn btn-white border shadow-sm d-flex align-items-center justify-content-center flex-fill flex-md-grow-0" title="Quay lại Dashboard">Quay lại Dashboard</a>
+            <a href="{% url 'admin_dashboard' %}" class="btn btn-white border shadow-sm d-flex align-items-center justify-content-center flex-fill flex-md-grow-0" title="Quay lại Dashboard">
+                <i class="bi bi-arrow-left fs-5 text-dark"></i>
+            </a>
         </div>
     </div>
 
@@ -101,11 +111,15 @@
                             
                             <td class="text-end pe-4">
                                 <div class="d-inline-flex gap-2">
-                                    <a href="{% url 'job_posting_edit' job.id %}" class="btn btn-light border action-btn shadow-sm" title="Chỉnh sửa tin">Chỉnh sửa tin</a>
+                                    <a href="{% url 'job_posting_edit' job.id %}" class="btn btn-light border action-btn shadow-sm" title="Chỉnh sửa tin">
+                                        <i class="bi bi-pencil-square text-warning fs-5"></i>
+                                    </a>
                                     
                                     <form action="{% url 'job_posting_delete' job.id %}" method="POST" class="m-0">
                                         {% csrf_token %}
-                                        <button type="submit" class="btn btn-light border action-btn shadow-sm" onclick="return confirm('Bạn có chắc chắn muốn xóa tin tuyển dụng này? Toàn bộ ứng viên thuộc tin này cũng sẽ bị ảnh hưởng.');" title="Xóa tin">Xóa tin</button>
+                                        <button type="submit" class="btn btn-light border action-btn shadow-sm" onclick="return confirm('Bạn có chắc chắn muốn xóa tin tuyển dụng này? Toàn bộ ứng viên thuộc tin này cũng sẽ bị ảnh hưởng.');" title="Xóa tin">
+                                            <i class="bi bi-trash-fill text-danger fs-5"></i>
+                                        </button>
                                     </form>
                                 </div>
                             </td>

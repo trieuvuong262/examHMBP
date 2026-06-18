@@ -54,7 +54,7 @@
             <div class="small text-muted" id="jp-kv-sync-message"></div>
             <div class="mt-2 d-none" id="jp-kv-sync-done-actions">
                 <a href="{% url 'audit:kiotviet_sync' %}" class="btn btn-sm btn-outline-hm fw-bold">
-                    Tải lại trang
+                    <i class="bi bi-arrow-clockwise me-1"></i>Tải lại trang
                 </a>
             </div>
         </div>
@@ -113,7 +113,7 @@
                             {% endfor %}
                         </div>
                         <button type="submit" class="btn btn-outline-hm fw-bold">
-                            Lưu cấu hình
+                            <i class="bi bi-save me-1"></i>Lưu cấu hình
                         </button>
                     </form>
                     {% elif not can_export %}
@@ -157,7 +157,7 @@
                         </div>
                         <button type="submit" class="btn btn-hm text-white fw-bold"
                                 {% if active_job %}disabled title="Đang đồng bộ…"{% endif %}>
-                            Sync ngay
+                            <i class="bi bi-arrow-repeat me-1"></i>Sync ngay
                         </button>
                     </form>
                     {% elif not can_export %}

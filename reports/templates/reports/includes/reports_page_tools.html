@@ -5,7 +5,7 @@
     {% if copy_url %}
     <a href="{{ copy_url }}" class="btn btn-outline-hm btn-sm fw-bold flex-fill flex-md-grow-0"
        onclick="return confirm('{{ copy_confirm }}');">
-        {{ copy_label }}
+        <i class="bi bi-copy me-1"></i>{{ copy_label }}
     </a>
     {% endif %}
     <a href="{% url 'reports:my' %}{% if report_period == 'weekly' %}?period=weekly{% endif %}" class="btn btn-outline-dark btn-sm flex-fill flex-md-grow-0">Lịch sử</a>

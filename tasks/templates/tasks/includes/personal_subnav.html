@@ -13,11 +13,11 @@
         </a>
         <a href="{% url 'tasks:assign' %}"
            class="btn btn-sm {% if request.resolver_match.url_name == 'assign' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
-            Giao việc
+            <i class="bi bi-plus-lg me-1"></i>Giao việc
         </a>
         <a href="{% url 'tasks:recurring' %}"
            class="btn btn-sm {% if request.resolver_match.url_name == 'recurring' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
-            Việc lặp
+            <i class="bi bi-arrow-repeat me-1"></i>Việc lặp
         </a>
         {% endif %}
     </div>

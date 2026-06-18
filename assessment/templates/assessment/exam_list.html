@@ -109,8 +109,10 @@
                     {% if exam.id in completed_exam_ids %}
                         {% for eid, res in submission_results.items %}
                             {% if eid == exam.id %}
-                            <button type="button"                                     class="btn btn-outline-hm w-100 fw-bold py-2 shadow-sm btn-hover-lift"
-                                    data-bs-toggle="modal"                                     data-bs-target="#resultModal"
+                            <button type="button" 
+                                    class="btn btn-outline-hm w-100 fw-bold py-2 shadow-sm btn-hover-lift"
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#resultModal"
                                     data-exam-id="{{ exam.id }}"
                                     data-result-url="{% url 'exam_result' exam.id %}"
                                     data-title="{{ exam.title }}"
@@ -119,13 +121,13 @@
                                     data-graded="{{ res.is_completed }}"
                                     data-duration="{{ res.duration_spent }}"
                                     data-total="{{ res.total_score }}">
-                                XEM KẾT QUẢ CHI TIẾT
+                                <i class="bi bi-eye-fill me-2"></i>XEM KẾT QUẢ CHI TIẾT
                             </button>
                             {% endif %}
                         {% endfor %}
                     {% else %}
                         <a href="{% url 'take_exam' exam.id %}" class="btn btn-hm w-100 fw-bold shadow-sm btn-hover-lift py-2">
-                            BẮT ĐẦU THI NGAY
+                            <i class="bi bi-pencil-square me-2"></i>BẮT ĐẦU THI NGAY
                         </a>
                     {% endif %}
                 </div>
@@ -150,7 +152,7 @@
         <div class="modal-content border-0 shadow-lg overflow-hidden">
             <div class="modal-header bg-dark text-white border-0 py-3">
                 <h5 class="modal-title fw-bold" id="resultModalTitle">KẾT QUẢ CHI TIẾT</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng">Đóng</button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
             </div>
             <div class="modal-body p-4 text-center">
                 <h5 id="modalExamTitle" class="fw-bold text-dark mb-2"></h5>
@@ -179,7 +181,7 @@
             </div>
             <div class="modal-footer border-0 pb-4 justify-content-center gap-2 flex-wrap">
                 <a href="#" id="modalViewResultBtn" class="btn btn-hm px-4 fw-bold">
-                    Xem kết quả
+                    <i class="bi bi-eye-fill me-1"></i>Xem kết quả
                 </a>
                 <button type="button" class="btn btn-secondary px-4 fw-bold" data-bs-dismiss="modal">Đóng cửa sổ</button>
             </div>

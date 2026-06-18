@@ -19,8 +19,15 @@
     }
 
     /* KHUNG CHỨA CÁC CỘT: Ép các cột cao bằng nhau */
-    .kanban-container {         min-height: 80vh;         overflow-x: auto;         overflow-y: hidden;         display: flex;
-        flex-wrap: nowrap;         justify-content: flex-start;         gap: 1.25rem;         padding-bottom: 1rem;
+    .kanban-container { 
+        min-height: 80vh; 
+        overflow-x: auto; 
+        overflow-y: hidden; 
+        display: flex;
+        flex-wrap: nowrap; 
+        justify-content: flex-start; 
+        gap: 1.25rem; 
+        padding-bottom: 1rem;
         align-items: stretch; /* VŨ KHÍ BÍ MẬT: Ép tất cả các cột phải cao bằng nhau */
     }
 
@@ -31,8 +38,11 @@
     .kanban-container::-webkit-scrollbar-thumb:hover { background: var(--hm-primary-hover); }
 
     /* ĐỊNH DẠNG TỪNG CỘT: Co giãn thông minh */
-    .col-kanban {         /* Tự động giãn lấp đầy khoảng trống (flex-grow: 1), tối thiểu 280px, tối đa 400px */
-        flex: 1 0 280px;         max-width: 400px;     }
+    .col-kanban { 
+        /* Tự động giãn lấp đầy khoảng trống (flex-grow: 1), tối thiểu 280px, tối đa 400px */
+        flex: 1 0 280px; 
+        max-width: 400px; 
+    }
 
     .column-card {
         background-color: #f1f5f9;
@@ -41,7 +51,8 @@
         display: flex;
         flex-direction: column;
         height: 100%; /* Chiếm trọn 100% chiều cao của col-kanban */
-        max-height: 82vh;         box-shadow: var(--hm-card-shadow);
+        max-height: 82vh; 
+        box-shadow: var(--hm-card-shadow);
     }
 
     .column-header {
@@ -57,12 +68,20 @@
         color: white;
     }
 
-    .kanban-column {         flex: 1; /* Khu vực chứa thẻ tự động kéo dài xuống tận đáy cột */
-        min-height: 200px;         padding: 0.75rem;
-        overflow-y: auto;         display: flex;         flex-direction: column;         gap: 0.75rem;     }
+    .kanban-column { 
+        flex: 1; /* Khu vực chứa thẻ tự động kéo dài xuống tận đáy cột */
+        min-height: 200px; 
+        padding: 0.75rem;
+        overflow-y: auto; 
+        display: flex; 
+        flex-direction: column; 
+        gap: 0.75rem; 
+    }
 
     /* ĐỊNH DẠNG THẺ (CARD) */
-    .kanban-card {         cursor: grab;         border: 1px solid #e2e8f0 !important;
+    .kanban-card { 
+        cursor: grab; 
+        border: 1px solid #e2e8f0 !important;
         border-radius: 4px !important;
         transition: all 0.2s ease;
         background: white;
@@ -91,7 +110,10 @@
     .bg-not-onboarded { background-color: #fd7e14; }
     .bg-rejected { background-color: #64748b; }
 
-    .sortable-ghost {         opacity: 0.4;         background-color: rgba(220, 38, 38, 0.1) !important;         border: 2px dashed var(--hm-primary) !important;
+    .sortable-ghost { 
+        opacity: 0.4; 
+        background-color: rgba(220, 38, 38, 0.1) !important; 
+        border: 2px dashed var(--hm-primary) !important;
     }
 
     .x-small { font-size: 0.75rem; }
@@ -111,13 +133,13 @@
         <div class="d-flex gap-2 align-items-stretch flex-wrap w-100 w-md-auto kanban-toolbar jp-kanban-toolbar">
             
             <button class="btn btn-hm shadow-sm fw-bold d-flex align-items-center justify-content-center flex-fill flex-md-grow-0" data-bs-toggle="modal" data-bs-target="#addCandidateModal">
-                 Thêm UV
+                <i class="bi bi-person-plus-fill me-1"></i> Thêm UV
             </button>
             <button class="btn btn-hm shadow-sm fw-bold d-flex align-items-center justify-content-center flex-fill flex-md-grow-0" onclick="openAllInterviewsModal()">
-                 Lịch PV
+                <i class="bi bi-calendar-week me-1"></i> Lịch PV
             </button>
             <button class="btn btn-hm shadow-sm fw-bold d-flex align-items-center justify-content-center flex-fill flex-md-grow-0" onclick="openAllLicensesModal()">
-                 CCHN
+                <i class="bi bi-file-medical me-1"></i> CCHN
             </button>
 
             <form method="GET" class="d-flex align-items-center bg-white shadow-sm px-2 border mb-0 flex-fill flex-md-grow-0 jp-kanban-filter" style="min-height: 42px;">
@@ -130,7 +152,9 @@
                 </select>
             </form>
 
-            <a href="{% url 'admin_dashboard' %}" class="btn btn-white border shadow-sm px-3 d-flex align-items-center justify-content-center" style="height: 42px; width: 42px;" title="Quay lại">Quay lại</a>
+            <a href="{% url 'admin_dashboard' %}" class="btn btn-white border shadow-sm px-3 d-flex align-items-center justify-content-center" style="height: 42px; width: 42px;" title="Quay lại">
+                <i class="bi bi-arrow-left fs-5 text-dark"></i>
+            </a>
             
         </div>
     </div>
@@ -148,17 +172,17 @@
                                 <div class="d-flex justify-content-between align-items-start mb-2">
                                     <h6 class="fw-bold text-dark mb-0 jp-text-clamp-2">{{ cand.full_name }}</h6>
                                     {% if cand.cv_file %}
-                                        <a href="{{ cand.cv_file.url }}" target="_blank" class="text-danger" title="Xem CV">Xem CV</a>
+                                        <a href="{{ cand.cv_file.url }}" target="_blank" class="text-danger" title="Xem CV"></a>
                                     {% endif %}
                                 </div>
                                 <p class="x-small text-hm mb-2 fw-semibold jp-text-clamp-2">{{ cand.job_posting.title }}</p>
                                 <div class="d-flex justify-content-between align-items-center mt-2 border-top pt-2">
                                     <span class="x-small text-muted">{{ cand.applied_at|date:"d/m" }}</span>
-                                    <button type="button" class="btn btn-sm btn-light border x-small py-0 px-2" title="Xem/Sửa Ghi chú" onclick="openNoteModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}', '{{ cand.hr_note|escapejs|default:'' }}')">Xem/Sửa Ghi chú</button>
+                                    <button type="button" class="btn btn-sm btn-light border x-small py-0 px-2" title="Xem/Sửa Ghi chú" onclick="openNoteModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}', '{{ cand.hr_note|escapejs|default:'' }}')"><i class="bi bi-chat-text-fill text-warning"></i></button>
                                 </div>
                                 
                                 <button type="button" class="btn btn-sm btn-outline-info w-100 fw-bold mt-2 set-interview-btn {% if cand.status != 'interviewing' %}d-none{% endif %}" onclick="openSetInterviewModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}')">
-                                     Lịch phỏng vấn
+                                    <i class="bi bi-calendar-plus me-1"></i> Lịch phỏng vấn
                                 </button>
                                 
                             </div>
@@ -187,7 +211,7 @@
                                 <p class="x-small text-hm mb-2 fw-semibold jp-text-clamp-2">{{ cand.job_posting.title }}</p>
                                 <div class="d-flex justify-content-between align-items-center mt-2 border-top pt-2">
                                     <span class="x-small text-muted">{{ cand.applied_at|date:"d/m" }}</span>
-                                    <button type="button" class="btn btn-sm btn-light border x-small py-0 px-2" title="Xem/Sửa Ghi chú" onclick="openNoteModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}', '{{ cand.hr_note|escapejs|default:'' }}')">Xem/Sửa Ghi chú</button>
+                                    <button type="button" class="btn btn-sm btn-light border x-small py-0 px-2" title="Xem/Sửa Ghi chú" onclick="openNoteModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}', '{{ cand.hr_note|escapejs|default:'' }}')"><i class="bi bi-chat-text-fill text-warning"></i></button>
                                 </div>
                             </div>
                         </div>
@@ -215,11 +239,11 @@
                                 <p class="x-small text-hm mb-2 fw-semibold jp-text-clamp-2">{{ cand.job_posting.title }}</p>
                                 <div class="d-flex justify-content-between align-items-center mt-2 border-top pt-2">
                                     <span class="x-small text-muted">{{ cand.applied_at|date:"d/m" }}</span>
-                                    <button type="button" class="btn btn-sm btn-light border x-small py-0 px-2" title="Xem/Sửa Ghi chú" onclick="openNoteModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}', '{{ cand.hr_note|escapejs|default:'' }}')">Xem/Sửa Ghi chú</button>
+                                    <button type="button" class="btn btn-sm btn-light border x-small py-0 px-2" title="Xem/Sửa Ghi chú" onclick="openNoteModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}', '{{ cand.hr_note|escapejs|default:'' }}')"><i class="bi bi-chat-text-fill text-warning"></i></button>
                                 </div>
 
                                 <button type="button" class="btn btn-sm btn-outline-info w-100 fw-bold mt-2 set-interview-btn {% if cand.status != 'interviewing' %}d-none{% endif %}" onclick="openSetInterviewModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}')">
-                                     Lịch phỏng vấn
+                                    <i class="bi bi-calendar-plus me-1"></i> Lịch phỏng vấn
                                 </button>
                                 
                             </div>
@@ -244,17 +268,17 @@
                                 
                                 {% if cand.status == 'hired' %}
                                     <button class="btn btn-sm btn-secondary w-100 fw-bold opacity-75 mb-2" disabled>
-                                         Đã tạo User
+                                        <i class="bi bi-check-circle-fill me-1"></i> Đã tạo User
                                     </button>
                                     <button type="button" class="btn btn-sm btn-outline-primary w-100 fw-bold license-btn" onclick="openLicenseModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}')">
-                                         ĐK Hành nghề
+                                        <i class="bi bi-file-medical-fill me-1"></i> ĐK Hành nghề
                                     </button>
                                 {% else %}
                                     <button class="btn btn-sm btn-success w-100 fw-bold convert-user-btn mb-2" data-id="{{ cand.id }}" data-name="{{ cand.full_name }}">
-                                         Tạo User
+                                        <i class="bi bi-person-check-fill me-1"></i> Tạo User
                                     </button>
                                     <button type="button" class="btn btn-sm btn-outline-primary w-100 fw-bold license-btn d-none" onclick="openLicenseModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}')">
-                                         ĐK Hành nghề
+                                        <i class="bi bi-file-medical-fill me-1"></i> ĐK Hành nghề
                                     </button>
                                 {% endif %}
                             </div>
@@ -312,7 +336,7 @@
             {% csrf_token %}
             <div class="modal-header bg-hm text-white border-0 py-3 px-4">
                 <h5 class="modal-title fw-bold">Thêm Hồ sơ Ứng viên</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close">Close</button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4">
                 <div class="mb-3">
@@ -372,7 +396,7 @@
             <div class="modal-footer p-3 border-0 bg-light rounded-bottom-4">
                 <button type="button" class="btn btn-white border px-4 fw-bold" data-bs-dismiss="modal">Đóng</button>
                 <button type="submit" class="btn btn-hm-dark px-4 fw-bold shadow-sm text-dark">
-                     LƯU GHI CHÚ
+                    <i class="bi bi-save me-1"></i> LƯU GHI CHÚ
                 </button>
             </div>
         </form>
@@ -426,9 +450,9 @@
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-hm text-white border-0 py-3 px-4">
-                <h5 class="modal-title fw-bold">Tổng hợp Đăng ký Hành Nghề -</h5>
+                <h5 class="modal-title fw-bold">Tổng hợp Đăng ký Hành Nghề   -</h5>
                 <button class="btn btn-sm btn-success fw-bold px-3 d-flex align-items-center" onclick="exportLicensesExcel()">
-                     Xuất Excel
+                    <i class="bi bi-file-earmark-excel me-1"></i> Xuất Excel
                 </button>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
@@ -480,9 +504,9 @@
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-hm text-white border-0 py-3 px-4">
-                <h5 class="modal-title fw-bold">Tổng lịch Phỏng Vấn -</h5>
+                <h5 class="modal-title fw-bold">Tổng lịch Phỏng Vấn   -</h5>
                 <button class="btn btn-sm btn-success fw-bold px-3 d-flex align-items-center" onclick="exportInterviewsExcel()">
-                     Xuất Excel
+                    <i class="bi bi-file-earmark-excel me-1"></i> Xuất Excel
                 </button>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
@@ -535,10 +559,10 @@ function ensureConvertButton(cardEl) {
     const wrap = document.createElement('div');
     wrap.innerHTML = `
         <button type="button" class="btn btn-sm btn-success w-100 fw-bold convert-user-btn mb-2" data-id="${candId}">
-             Tạo User
+            <i class="bi bi-person-check-fill me-1"></i> Tạo User
         </button>
         <button type="button" class="btn btn-sm btn-outline-primary w-100 fw-bold license-btn d-none" data-license-id="${candId}">
-             ĐK Hành nghề
+            <i class="bi bi-file-medical-fill me-1"></i> ĐK Hành nghề
         </button>`;
     cardEl.querySelector('.card-body').appendChild(wrap);
     const licenseBtn = wrap.querySelector('.license-btn');
@@ -599,7 +623,7 @@ async function convertCandidateToUser(btn) {
                 'Thông tin đăng nhập:\n' +
                 '----------------------------------------\n' +
                 `Tài khoản : ${data.username}\n` +
-                `Mật khẩu : ${data.password}\n` +
+                `Mật khẩu  : ${data.password}\n` +
                 '----------------------------------------\n'
             );
         } else {
@@ -775,6 +799,7 @@ function openAllInterviewsModal() {
                     const toColumn = evt.to;
                     const fromColumn = evt.from;
                     if (toColumn === fromColumn) return; 
+
                     const candidateId = evt.item.getAttribute('data-id');
                     const newStatus = toColumn.getAttribute('data-status');
                     
@@ -860,7 +885,7 @@ function openAllInterviewsModal() {
                                     if (newStatus === 'interviewing') {
                                         setInterviewBtn.classList.remove('d-none'); // Kéo vào ô Phỏng vấn -> Hiện nút
                                     } else {
-                                        setInterviewBtn.classList.add('d-none'); // Kéo ra ô khác -> Ẩn nút
+                                        setInterviewBtn.classList.add('d-none');    // Kéo ra ô khác -> Ẩn nút
                                     }
                                 }
                             }

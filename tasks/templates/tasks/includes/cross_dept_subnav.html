@@ -12,7 +12,7 @@
         {% if can_create|default:jp_can_create_cross_dept %}
         <a href="{% url 'tasks:cross_dept_create' %}"
            class="btn btn-sm {% if request.resolver_match.url_name == 'cross_dept_create' %}btn-hm{% else %}btn-outline-secondary{% endif %}">
-            Tạo dự án
+            <i class="bi bi-plus-lg me-1"></i>Tạo dự án
         </a>
         {% endif %}
     </div>

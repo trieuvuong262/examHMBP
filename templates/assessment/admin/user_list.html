@@ -26,7 +26,7 @@
                 </div>
 
                 <button class="btn btn-hm fw-bold px-5 py-3 shadow btn-hover-lift w-100 fs-5 text-white" onclick="copyAccountInfo(this)">
-                     SAO CHÉP THÔNG TIN
+                    <i class="bi bi-clipboard-plus fs-4 me-2 align-middle"></i> SAO CHÉP THÔNG TIN
                 </button>
             </div>
         </div>
@@ -50,19 +50,19 @@
 
         <div class="jp-hrm-toolbar">
             <a href="{% url 'org_structure' %}" class="btn btn-outline-dark fw-bold shadow-sm jp-hrm-tool-btn" title="Sơ đồ cơ cấu tổ chức">
-                <span class="jp-hrm-tool-label"> Cơ cấu</span>
+                <i class="bi bi-diagram-3"></i><span class="jp-hrm-tool-label"> Cơ cấu</span>
             </a>
             {% if jp_can_export_hrm %}
             <a href="{% url 'user_export_excel' %}{% if query_string %}?{{ query_string }}{% endif %}" class="btn btn-outline-hm fw-bold shadow-sm jp-hrm-tool-btn" title="Xuất Excel">
-                <span class="jp-hrm-tool-label"> Xuất Excel</span>
+                <i class="bi bi-download"></i><span class="jp-hrm-tool-label"> Xuất Excel</span>
             </a>
             {% endif %}
             {% if jp_can_create_hrm %}
             <button type="button" class="btn btn-outline-hm fw-bold shadow-sm jp-hrm-tool-btn" data-bs-toggle="modal" data-bs-target="#importExcelModal" title="Import Excel">
-                <span class="jp-hrm-tool-label"> Import</span>
+                <i class="bi bi-file-earmark-excel-fill"></i><span class="jp-hrm-tool-label"> Import</span>
             </button>
             <a href="{% url 'user_add' %}" class="btn btn-hm shadow-sm text-white fw-bold jp-hrm-tool-btn jp-hrm-tool-btn-primary" title="Thêm nhân viên">
-                <span class="jp-hrm-tool-label"> Thêm NV</span>
+                <i class="bi bi-person-plus-fill"></i><span class="jp-hrm-tool-label"> Thêm NV</span>
             </a>
             {% endif %}
         </div>
@@ -77,7 +77,6 @@
                     <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
                         <label for="userDepartmentFilter" class="form-label small text-muted mb-1">Phòng ban</label>
                         <div class="input-group">
-                            <span class="input-group-text bg-white"></span>
                             <select name="department" id="userDepartmentFilter" class="form-select">
                                 <option value="">Tất cả phòng ban</option>
                                 <option value="none" {% if current_department == 'none' %}selected{% endif %}>Chưa gán phòng ban</option>
@@ -90,7 +89,6 @@
                     <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
                         <label for="userDivisionFilter" class="form-label small text-muted mb-1">Bộ phận</label>
                         <div class="input-group">
-                            <span class="input-group-text bg-white"></span>
                             <select name="division" id="userDivisionFilter" class="form-select">
                                 <option value="">Tất cả bộ phận</option>
                                 <option value="none" {% if current_division == 'none' %}selected{% endif %}>Chưa gán bộ phận</option>
@@ -103,7 +101,6 @@
                     <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
                         <label for="userPositionFilter" class="form-label small text-muted mb-1">Vị trí</label>
                         <div class="input-group">
-                            <span class="input-group-text bg-white"></span>
                             <select name="position" id="userPositionFilter" class="form-select">
                                 <option value="">Tất cả vị trí</option>
                                 <option value="none" {% if current_position == 'none' %}selected{% endif %}>Chưa có vị trí</option>
@@ -116,7 +113,6 @@
                     <div class="col-xl-3 col-lg-5 col-md-6">
                         <label for="userSearch" class="form-label small text-muted mb-1">Tìm kiếm</label>
                         <div class="jp-hrm-search input-group">
-                            <span class="input-group-text bg-white border-end-0"></span>
                             <input type="search"
                                    name="q"
                                    id="userSearch"
@@ -129,7 +125,6 @@
                     <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6">
                         <label for="userStatusFilter" class="form-label small text-muted mb-1">Trạng thái</label>
                         <div class="input-group">
-                            <span class="input-group-text bg-white"></span>
                             <select name="status" id="userStatusFilter" class="form-select">
                                 {% for value, label in employment_status_options.items %}
                                 <option value="{{ value }}" {% if current_status == value %}selected{% endif %}>{{ label }}</option>
@@ -141,7 +136,7 @@
                     <div class="col-xl-1 col-lg-2 col-md-4 col-sm-6">
                         <label class="form-label small text-muted mb-1 d-none d-md-block">&nbsp;</label>
                         <a href="{% url 'user_list' %}" class="btn btn-outline-secondary w-100" title="Xóa bộ lọc">
-                            <span class="d-inline d-md-none ms-1">Xóa lọc</span>
+                            <i class="bi bi-x-lg"></i><span class="d-inline d-md-none ms-1">Xóa lọc</span>
                         </a>
                     </div>
                     {% endif %}
@@ -201,10 +196,7 @@
                                class="jp-table-sort-link{% if col.sort_active %} is-active is-{{ col.sort_dir }}{% endif %}"
                                title="Sắp xếp theo {{ col.label }}">
                                 <span class="jp-hrm-list-th-label">{{ col.label }}</span>
-                                <span class="jp-table-sort-icons" aria-hidden="true">
-                                    
-                                    
-                                </span>
+                                
                             </a>
                             {% else %}
                             <span class="jp-hrm-list-th-label">{{ col.label }}</span>
@@ -291,7 +283,9 @@
                                         data-bs-toggle="dropdown"
                                         data-bs-popper-config='{"strategy":"fixed"}'
                                         aria-expanded="false"
-                                        title="Thao tác">Thao tác</button>
+                                        title="Thao tác">
+                                    <i class="bi bi-three-dots-vertical"></i>
+                                </button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                                     {% if jp_can_update_hrm %}
                                     <li>
@@ -304,7 +298,7 @@
                                                 class="dropdown-item reset-pwd-btn"
                                                 data-url="{% url 'user_password_reset' u.id %}"
                                                 data-username="{{ u.username }}">
-                                            Reset mật khẩu
+                                            <i class="bi bi-key-fill me-2 text-primary"></i>Reset mật khẩu
                                         </button>
                                     </li>
                                     {% endif %}
@@ -361,7 +355,7 @@
                 <div class="text-center p-3 mb-4 border-2 border-dashed bg-light">
                     <p class="small text-muted mb-2 fw-bold">Bước 1: Sử dụng đúng định dạng file mẫu</p>
                     <a href="{% url 'user_download_template' %}" class="btn btn-hm btn-sm px-4 shadow-sm btn-hover-lift">
-                         Tải File Excel Mẫu
+                        <i class="bi bi-cloud-arrow-down-fill me-1"></i> Tải File Excel Mẫu
                     </a>
                 </div>
 

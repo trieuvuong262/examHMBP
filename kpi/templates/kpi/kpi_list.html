@@ -28,15 +28,15 @@
         <div class="d-flex flex-wrap gap-2 w-100 w-md-auto">
         {% if can_manage_kpi %}
             <a href="{% url 'yearly_kpi_create' %}" class="btn btn-hm shadow-sm fw-bold btn-hover-lift flex-fill flex-md-grow-0">
-                 Giao KPI
+                <i class="bi bi-plus-circle me-1"></i> Giao KPI
             </a>
             <a href="{% url 'kpi_import_excel' %}" class="btn btn-hm shadow-sm fw-bold btn-hover-lift flex-fill flex-md-grow-0">
-                 Import
+                <i class="bi bi-file-earmark-excel-fill me-1"></i> Import
             </a>
         {% endif %}
         {% if can_toggle_period %}
             <button data-bs-toggle="modal" data-bs-target="#adminPeriodModal" class="btn btn-danger shadow-sm fw-bold btn-hover-lift flex-fill flex-md-grow-0">
-                 Kỳ ĐG
+                <i class="bi bi-sliders me-1"></i> Kỳ ĐG
             </button>
         {% endif %}
         </div>
@@ -76,7 +76,8 @@
                                     </span>
                                     
                                     <small class="text-muted border-start ps-2">
-                                        Quản lý:                                         <strong>
+                                        Quản lý: 
+                                        <strong>
                                             {% with hod_profile=kpi.employee.my_hod_managers.first %}
                                                 {% if hod_profile %}
                                                     {{ hod_profile|profile_name }}
@@ -102,11 +103,11 @@
                         <div class="d-flex flex-column flex-md-row gap-3 align-items-stretch align-items-md-center">
                             {% if kpi.y_status == 'completed' %}
                                 <a href="{% url 'kpi_detail' kpi.id %}" class="btn btn-outline-hm px-3 px-md-5 py-2 fw-bold text-nowrap btn-hover-lift shadow-sm w-100 w-md-auto">
-                                     Xem lại kết quả
+                                    <i class="bi bi-eye-fill me-1"></i> Xem lại kết quả
                                 </a>
                             {% else %}
                                 <a href="{% url 'kpi_detail' kpi.id %}" class="btn btn-hm px-3 px-md-5 py-2 fw-bold text-nowrap btn-hover-lift shadow-sm w-100 w-md-auto">
-                                     Vào đánh giá
+                                    <i class="bi bi-pencil-square me-1"></i> Vào đánh giá
                                 </a>
                             {% endif %}
                         </div>
@@ -194,7 +195,7 @@
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-danger bg-opacity-10 border-0">
                 <h5 class="modal-title fw-bold text-danger">Mở / Đóng Kỳ Đánh Giá</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">Close</button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4">
                 <p class="text-muted small mb-4">Cần quyền sửa module KPI để bật/tắt các kỳ đánh giá. Khi kỳ bị tắt, các ô nhập điểm tương ứng sẽ bị đóng băng.</p>

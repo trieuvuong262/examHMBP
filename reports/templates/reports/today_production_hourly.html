@@ -24,14 +24,14 @@
                     {% endif %}
                     {% if editing_for_other %}
                     <a href="{{ back_team_url }}" class="btn btn-sm btn-outline-dark d-none d-md-inline-flex">
-                        Cấp dưới
+                        <i class="bi bi-arrow-left me-1"></i>Cấp dưới
                     </a>
                     {% endif %}
                 </div>
             </div>
             {% if editing_for_other and phase != 'review' %}
             <a href="{{ back_team_url }}" class="btn btn-sm btn-outline-dark mt-2 d-md-none">
-                Cấp dưới
+                <i class="bi bi-arrow-left me-1"></i>Cấp dưới
             </a>
             {% endif %}
         </div>
@@ -131,7 +131,7 @@
                         <input type="hidden" name="review_json" id="review-json-input">
                         {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
                         <button type="submit" class="btn btn-hm w-100 fw-bold btn-lg">
-                            {% if is_submitted %}Cập nhật báo cáo{% else %}Gửi báo cáo{% endif %}
+                            <i class="bi bi-send-fill me-2"></i>{% if is_submitted %}Cập nhật báo cáo{% else %}Gửi báo cáo{% endif %}
                         </button>
                     </form>
                 </div>
@@ -156,7 +156,7 @@
                     <input type="hidden" name="review_json" id="review-json-input-desktop">
                     {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
                     <button type="submit" class="btn btn-hm fw-bold px-4">
-                        {% if is_submitted %}Cập nhật báo cáo{% else %}Gửi báo cáo{% endif %}
+                        <i class="bi bi-send-fill me-2"></i>{% if is_submitted %}Cập nhật báo cáo{% else %}Gửi báo cáo{% endif %}
                     </button>
                 </form>
             </div>
@@ -179,7 +179,7 @@
                     {% if can_edit and pending_slots %}
                     <button type="button" class="btn btn-hm fw-bold" data-bs-toggle="modal" data-bs-target="#hourlyModal"
                             data-slot-index="{{ pending_slots.0.slot_index }}" data-slot-label="{{ pending_slots.0.label }}">
-                        Nhập {{ pending_slots.0.label }}
+                        <i class="bi bi-plus-circle me-2"></i>Nhập {{ pending_slots.0.label }}
                     </button>
                     {% elif can_edit and current_slot_label %}
                     <div class="alert alert-light border small mb-0 py-2">
@@ -189,11 +189,11 @@
                     {% if can_edit %}
                     <button type="button" class="btn btn-outline-hm fw-bold" data-bs-toggle="modal"
                             data-bs-target="#productWizardModal" {% if not has_unfinalized %}disabled{% endif %}>
-                        Kết thúc mã hàng
+                        <i class="bi bi-check2-square me-2"></i>Kết thúc mã hàng
                     </button>
                     <a href="?date={{ report_date|date:'Y-m-d' }}{% if for_user_param %}&for_user={{ for_user_param }}{% endif %}&phase=review"
                        class="btn btn-outline-dark">
-                        Kết thúc ngày — xem tổng
+                        <i class="bi bi-list-check me-2"></i>Kết thúc ngày — xem tổng
                     </a>
                     {% endif %}
                 </div>
@@ -219,7 +219,7 @@
                 {% if can_edit and pending_slots %}
                 <button type="button" class="btn btn-hm btn-lg fw-bold" data-bs-toggle="modal" data-bs-target="#hourlyModal"
                         data-slot-index="{{ pending_slots.0.slot_index }}" data-slot-label="{{ pending_slots.0.label }}">
-                    Nhập {{ pending_slots.0.label }}
+                    <i class="bi bi-plus-circle me-2"></i>Nhập {{ pending_slots.0.label }}
                 </button>
                 {% elif can_edit and current_slot_label %}
                 <div class="alert alert-light border text-center small mb-0 py-3">
@@ -229,14 +229,14 @@
                 {% if can_edit %}
                 <button type="button" class="btn btn-outline-hm w-100 fw-bold" data-bs-toggle="modal"
                         data-bs-target="#productWizardModal" {% if not has_unfinalized %}disabled{% endif %}>
-                    Kết thúc mã hàng
+                    <i class="bi bi-check2-square me-2"></i>Kết thúc mã hàng
                 </button>
                 {% if not has_unfinalized %}
                 <p class="text-muted small text-center mb-0">Nhập ít nhất một sản lượng trước khi kết thúc mã hàng.</p>
                 {% endif %}
                 <a href="?date={{ report_date|date:'Y-m-d' }}{% if for_user_param %}&for_user={{ for_user_param }}{% endif %}&phase=review"
                    class="btn btn-outline-dark w-100">
-                    Kết thúc ngày — xem tổng
+                    <i class="bi bi-list-check me-2"></i>Kết thúc ngày — xem tổng
                 </a>
                 {% endif %}
             </section>
@@ -313,7 +313,7 @@
                     <input type="hidden" name="review_json" id="review-json-input">
                     {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
                     <button type="submit" class="btn btn-hm w-100 fw-bold btn-lg">
-                        {% if is_submitted %}Cập nhật báo cáo{% else %}Gửi báo cáo{% endif %}
+                        <i class="bi bi-send-fill me-2"></i>{% if is_submitted %}Cập nhật báo cáo{% else %}Gửi báo cáo{% endif %}
                     </button>
                 </form>
             </div>
@@ -332,7 +332,7 @@
                     <input type="hidden" name="review_json" id="review-json-input-desktop">
                     {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
                     <button type="submit" class="btn btn-hm fw-bold px-4">
-                        {% if is_submitted %}Cập nhật báo cáo{% else %}Gửi báo cáo{% endif %}
+                        <i class="bi bi-send-fill me-2"></i>{% if is_submitted %}Cập nhật báo cáo{% else %}Gửi báo cáo{% endif %}
                     </button>
                 </form>
             </div>
@@ -354,7 +354,7 @@
             {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
             <div class="modal-header border-0 pb-0">
                 <h5 class="modal-title fw-bold">Nhập sản lượng</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng">Đóng</button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
             </div>
             <div class="modal-body">
                 <p class="text-muted small" id="hourly-modal-slot"></p>
@@ -403,7 +403,7 @@
                             </div>
                             <h5 class="modal-title fw-bold" id="wizard-title">Mã hàng</h5>
                         </div>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng">Đóng</button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
                     </div>
                 </div>
             </div>

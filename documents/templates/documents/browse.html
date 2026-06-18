@@ -26,10 +26,10 @@
                             class="jp-doc-tree-category {% if selected_category and selected_category.id == category.id %}is-active{% endif %}"
                             data-doc-tree-toggle
                             aria-expanded="{% if selected_category and selected_category.id == category.id %}true{% else %}false{% endif %}">
-                            
+                            <i class="bi {{ category.icon|default:'bi-folder2' }} jp-doc-tree-cat-icon"></i>
                             <span class="jp-doc-tree-cat-label">{{ category.name }}</span>
                             <span class="jp-doc-tree-cat-count">{{ category.documents.all|length }}</span>
-                            
+                            <i class="bi bi-chevron-down jp-doc-tree-chevron"></i>
                         </button>
                         <ul class="jp-doc-tree-items list-unstyled mb-0">
                             {% for doc in category.documents.all %}
@@ -89,9 +89,7 @@
                 </div>
                 {% else %}
                 <div class="jp-doc-panel-empty text-center py-5 px-4">
-                    <div class="jp-doc-panel-empty-icon mb-3">
-                        
-                    </div>
+                    
                     <h3 class="h5 fw-bold text-hm">Chọn tài liệu để xem</h3>
                     <p class="text-muted mb-0 mx-auto" style="max-width: 420px;">
                         Mở nhóm thư mục bên trái và chọn tài liệu — nội dung sẽ hiển thị tại đây.

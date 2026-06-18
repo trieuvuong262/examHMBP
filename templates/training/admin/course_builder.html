@@ -106,7 +106,7 @@
         </div>
         {% if can_create %}
         <button type="button" class="btn btn-hm shadow-sm px-4" data-bs-toggle="modal" data-bs-target="#addChapterModal">
-             Thêm Chương mới
+            <i class="bi bi-folder-plus me-1"></i> Thêm Chương mới
         </button>
         {% endif %}
     </div>
@@ -118,7 +118,7 @@
                 <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}"
                         type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ chapter.id }}">
                     <div class="d-flex align-items-center w-100">
-                        
+                        <i class="bi bi-collection-play-fill text-hm me-3"></i>
                         <span>Chương {{ forloop.counter }}: {{ chapter.title }}</span>
                         <span class="badge badge-time ms-auto me-3">{{ chapter.lessons.count }} bài học</span>
                     </div>
@@ -131,7 +131,7 @@
                     <div class="bg-light p-2 text-end border-bottom px-3">
                         <button class="btn btn-sm btn-success fw-bold px-3" data-bs-toggle="modal"
                                 data-bs-target="#addLessonModal" data-chapter-id="{{ chapter.id }}">
-                             Thêm bài học
+                            <i class="bi bi-plus-circle me-1"></i> Thêm bài học
                         </button>
                     </div>
                     {% endif %}
@@ -162,12 +162,17 @@
                             {% if can_update or can_delete %}
                             <div class="btn-group shadow-sm overflow-hidden">
                                 {% if can_update %}
-                                <a href="{% url 'lesson_edit' lesson.id %}" class="btn btn-sm btn-white border px-3 btn-action" title="Sửa bài học">Sửa bài học</a>
+                                <a href="{% url 'lesson_edit' lesson.id %}" class="btn btn-sm btn-white border px-3 btn-action" title="Sửa bài học">
+                                    <i class="bi bi-pencil-square text-warning"></i>
+                                </a>
                                 {% endif %}
                                 {% if can_delete %}
                                 <form action="{% url 'lesson_delete' lesson.id %}" method="POST" class="d-inline">
                                     {% csrf_token %}
-                                    <button type="submit" class="btn btn-sm btn-white border-start-0 px-3 btn-action"                                             onclick="return confirm('Bạn có chắc chắn muốn xóa bài học này?');" title="Xóa bài học">Xóa bài học</button>
+                                    <button type="submit" class="btn btn-sm btn-white border-start-0 px-3 btn-action" 
+                                            onclick="return confirm('Bạn có chắc chắn muốn xóa bài học này?');" title="Xóa bài học">
+                                        <i class="bi bi-trash3 text-danger"></i>
+                                    </button>
                                 </form>
                                 {% endif %}
                             </div>
@@ -190,7 +195,7 @@
                 <h4 class="fw-bold text-dark mb-3">Khởi tạo bài giảng</h4>
                 <p class="text-muted mb-4 mx-auto" style="max-width: 450px;">Khóa học này chưa có nội dung. Hãy tạo chương đầu tiên để bắt đầu xây dựng lộ trình học tập.</p>
                 <button type="button" class="btn btn-hm px-5 py-2 shadow-lg" data-bs-toggle="modal" data-bs-target="#addChapterModal">
-                     Tạo Chương đầu tiên
+                    <i class="bi bi-plus-lg me-2"></i> Tạo Chương đầu tiên
                 </button>
             </div>
         </div>

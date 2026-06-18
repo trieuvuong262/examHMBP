@@ -7,7 +7,7 @@
         {% if can_edit %}
         <div class="position-absolute top-0 end-0">
             <a href="{% url 'user_guide_edit' %}" class="btn btn-outline-hm btn-sm fw-bold">
-                Chỉnh sửa
+                <i class="bi bi-pencil-square me-1"></i>Chỉnh sửa
             </a>
         </div>
         {% endif %}
@@ -46,11 +46,11 @@
 
             <div class="text-center mt-4 d-flex flex-wrap justify-content-center gap-2">
                 <a href="{% url 'home_portal' %}" class="btn btn-hm px-4">
-                     Về trang chủ
+                    <i class="bi bi-house me-1"></i> Về trang chủ
                 </a>
                 {% if 'thong-bao' in visible_section_ids %}
                 <a href="{% url 'announcements:list' %}" class="btn btn-outline-hm px-4">
-                     Xem thông báo
+                    <i class="bi bi-megaphone me-1"></i> Xem thông báo
                 </a>
                 {% endif %}
             </div>
@@ -62,7 +62,7 @@
     <div class="modal-dialog modal-dialog-centered modal-xl modal-fullscreen-lg-down">
         <div class="modal-content border-0 bg-transparent shadow-none">
             <div class="modal-header border-0 pb-0">
-                <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal" aria-label="Đóng">Đóng</button>
+                <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal" aria-label="Đóng"></button>
             </div>
             <div class="modal-body p-0 text-center">
                 <img src="" alt="" class="guide-lightbox-img" id="guideLightboxImg">

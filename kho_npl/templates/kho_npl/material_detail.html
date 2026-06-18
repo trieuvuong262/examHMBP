@@ -14,16 +14,16 @@
         <div class="d-flex flex-wrap gap-2">
             {% if can_update %}
             <a href="{% url 'kho_npl:material_edit' material.pk %}" class="btn btn-hm btn-sm">
-                Sửa
+                <i class="bi bi-pencil me-1"></i>Sửa
             </a>
             {% endif %}
             {% if can_delete and material.is_active %}
             <a href="{% url 'kho_npl:material_deactivate' material.pk %}" class="btn btn-outline-danger btn-sm">
-                Ngừng dùng
+                <i class="bi bi-slash-circle me-1"></i>Ngừng dùng
             </a>
             {% endif %}
             <a href="{% url 'kho_npl:material_list' %}" class="btn btn-outline-secondary btn-sm">
-                Danh sách
+                <i class="bi bi-arrow-left me-1"></i>Danh sách
             </a>
         </div>
     </div>

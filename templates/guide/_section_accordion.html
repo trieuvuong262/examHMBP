@@ -2,7 +2,7 @@
     <h2 class="accordion-header">
         <button class="accordion-button {% if not expanded %}collapsed{% endif %} fw-bold" type="button"
                 data-bs-toggle="collapse" data-bs-target="#{{ collapse_id }}" {% if expanded %}aria-expanded="true"{% endif %}>
-             {{ title }}
+            <i class="bi {{ icon }} text-hm me-2"></i> {{ title }}
         </button>
     </h2>
     <div id="{{ collapse_id }}" class="accordion-collapse collapse {% if expanded %}show{% endif %}" data-bs-parent="#guideAccordion">

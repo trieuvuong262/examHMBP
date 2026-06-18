@@ -18,22 +18,22 @@
         <div class="d-flex flex-wrap gap-2">
             {% if is_editable and can_update %}
             <a href="{% url 'kho_npl:receipt_edit' receipt.pk %}" class="btn btn-hm btn-sm">
-                Sửa
+                <i class="bi bi-pencil me-1"></i>Sửa
             </a>
             <form method="post" action="{% url 'kho_npl:receipt_post' receipt.pk %}" class="d-inline">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Ghi sổ phiếu và cập nhật tồn kho?');">
-                    Ghi sổ
+                    <i class="bi bi-check2-circle me-1"></i>Ghi sổ
                 </button>
             </form>
             {% endif %}
             {% if is_editable and can_delete %}
             <a href="{% url 'kho_npl:receipt_cancel' receipt.pk %}" class="btn btn-outline-danger btn-sm">
-                Hủy phiếu
+                <i class="bi bi-x-circle me-1"></i>Hủy phiếu
             </a>
             {% endif %}
             <a href="{% url 'kho_npl:receipt_list' %}" class="btn btn-outline-secondary btn-sm">
-                Danh sách
+                <i class="bi bi-arrow-left me-1"></i>Danh sách
             </a>
         </div>
     </div>

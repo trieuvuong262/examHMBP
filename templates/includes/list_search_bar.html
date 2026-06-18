@@ -3,7 +3,6 @@
   <form method="get" class="input-group jp-hrm-search" role="search">…</form>
   Params: search_query, placeholder, clear_url, hidden_fields, show_button
 {% endcomment %}
-<span class="input-group-text bg-light border-end-0"></span>
 <input type="search"
        name="q"
        class="form-control bg-light border-start-0{% if not show_button %} border-end-0{% endif %}"
@@ -14,7 +13,7 @@
 <input type="hidden" name="{{ name }}" value="{{ value }}">
 {% endfor %}
 {% if search_query and clear_url %}
-<a href="{{ clear_url }}" class="btn btn-light border" title="Xóa tìm kiếm">Xóa tìm kiếm</a>
+<a href="{{ clear_url }}" class="btn btn-light border" title="Xóa tìm kiếm"><i class="bi bi-x-lg"></i></a>
 {% endif %}
 {% if show_button|default:True %}
 <button type="submit" class="btn btn-outline-hm">Tìm</button>

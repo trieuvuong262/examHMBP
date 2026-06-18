@@ -35,9 +35,6 @@
         <div class="jp-home-block-head">
             <div class="jp-home-block-head-main">
                 <h2 id="jp-home-todo-title" class="jp-home-block-title">
-                    <span class="jp-home-block-icon jp-home-block-icon--todo">
-                        
-                    </span>
                     Việc cần làm
                 </h2>
                 <p class="jp-home-block-sub mb-0">Thông báo, công việc và báo cáo cần xử lý.</p>
@@ -52,9 +49,6 @@
             <div class="jp-dashboard-list">
                 {% for item in dashboard_widgets %}
                 <a href="{{ item.url }}" class="jp-dashboard-item jp-dashboard-item--{{ item.level }}">
-                    <div class="jp-dashboard-item-icon">
-                        
-                    </div>
                     <div class="jp-dashboard-item-body">
                         <div class="jp-dashboard-item-title">
                             {{ item.title }}
@@ -65,15 +59,13 @@
                         <div class="jp-dashboard-item-text">{{ item.text }}</div>
                     </div>
                     <div class="jp-dashboard-item-action d-none d-sm-flex">
-                        {{ item.action }}                     </div>
+                        {{ item.action }} 
+                    </div>
                 </a>
                 {% endfor %}
             </div>
             {% else %}
             <div class="jp-home-empty">
-                <div class="jp-home-empty-icon">
-                    
-                </div>
                 <div>
                     <div class="jp-home-empty-title">Không còn việc gấp</div>
                     <p class="jp-home-empty-text mb-0">Mọi thứ đã xử lý xong — dùng công cụ bên dưới hoặc vào module qua menu trái.</p>
@@ -87,9 +79,6 @@
         <div class="jp-home-block-head">
             <div class="jp-home-block-head-main">
                 <h2 id="jp-home-tools-title" class="jp-home-block-title">
-                    <span class="jp-home-block-icon jp-home-block-icon--tools">
-                        
-                    </span>
                     Công cụ
                 </h2>
                 <p class="jp-home-block-sub mb-0">Xử lý tài liệu, ảnh và tiện ích nhanh — không cần cài phần mềm.</p>
@@ -102,9 +91,6 @@
                 <div class="col-md-6 col-xl-4">
                     <div class="jp-home-tools-group jp-home-tools-group--{{ group.accent }}">
                         <div class="jp-home-tools-group-head">
-                            <span class="jp-home-tools-group-icon">
-                                
-                            </span>
                             <div>
                                 <h3 class="jp-home-tools-group-title">{{ group.title }}</h3>
                                 <p class="jp-home-tools-group-sub mb-0">{{ group.subtitle }}</p>
@@ -115,14 +101,10 @@
                             <a href="{% url tool.url_name %}"
                                class="jp-home-tool-mini jp-home-tool-mini--{{ tool.accent }}"
                                title="{{ tool.description }}">
-                                <span class="jp-home-tool-mini-icon">
-                                    
-                                </span>
                                 <span class="jp-home-tool-mini-body">
                                     <span class="jp-home-tool-mini-name">{{ tool.name }}</span>
                                     <span class="jp-home-tool-mini-desc">{{ tool.description }}</span>
                                 </span>
-                                
                             </a>
                             {% endfor %}
                         </div>

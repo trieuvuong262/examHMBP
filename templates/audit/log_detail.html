@@ -19,11 +19,11 @@
         </div>
         <div class="jp-hrm-toolbar">
             <a href="{% url 'audit:log_list' %}" class="btn btn-outline-dark fw-bold shadow-sm jp-hrm-tool-btn">
-                <span class="jp-hrm-tool-label"> Quay lại</span>
+                <i class="bi bi-arrow-left"></i><span class="jp-hrm-tool-label"> Quay lại</span>
             </a>
             {% if log.user_id %}
             <a href="{% url 'audit:user_timeline' log.user_id %}" class="btn btn-hm text-white fw-bold shadow-sm jp-hrm-tool-btn">
-                <span class="jp-hrm-tool-label"> Timeline user</span>
+                <i class="bi bi-person-lines-fill"></i><span class="jp-hrm-tool-label"> Timeline user</span>
             </a>
             {% endif %}
         </div>

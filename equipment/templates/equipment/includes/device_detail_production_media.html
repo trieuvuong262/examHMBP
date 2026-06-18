@@ -43,7 +43,7 @@
                 <span>Tem QR</span>
                 {% if device.qr_code %}
                 <a href="{{ device.qr_code.url }}" download class="btn btn-sm btn-outline-hm py-0">
-                    
+                    <i class="bi bi-download"></i>
                 </a>
                 {% endif %}
             </div>
@@ -59,7 +59,7 @@
                 <p class="text-muted small mb-2">Cập nhật thiết bị để tạo tem.</p>
                 {% endif %}
                 <a href="{% url 'equipment:device_qr_public' device.device_code %}" class="btn btn-sm btn-outline-hm" target="_blank">
-                    Trang quét QR
+                    <i class="bi bi-box-arrow-up-right me-1"></i>Trang quét QR
                 </a>
             </div>
         </div>

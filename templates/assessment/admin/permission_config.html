@@ -16,7 +16,7 @@
         </div>
         <div class="jp-hrm-toolbar">
             <a href="{% url 'org_structure' %}?tab=department" class="btn btn-outline-dark fw-bold shadow-sm jp-hrm-tool-btn">
-                <span class="jp-hrm-tool-label"> Cơ cấu</span>
+                <i class="bi bi-diagram-3"></i><span class="jp-hrm-tool-label"> Cơ cấu</span>
             </a>
         </div>
     </div>
@@ -74,7 +74,7 @@
                                 </td>
                                 <td class="text-end pe-4">
                                     <a href="{% url 'department_permissions' row.department.pk %}" class="btn btn-sm btn-hm text-white fw-bold">
-                                        Cấu hình
+                                        <i class="bi bi-sliders me-1"></i>Cấu hình
                                     </a>
                                 </td>
                             </tr>
@@ -102,7 +102,7 @@
                     <h5 class="mb-0 fw-bold text-dark">Nhóm quyền</h5>
                     <div class="jp-hrm-filters">
                         <a href="{% url 'permission_group_add' %}" class="btn btn-hm text-white fw-bold btn-sm jp-hrm-tool-btn-primary">
-                            <span class="jp-hrm-tool-label"> Thêm nhóm</span>
+                            <i class="bi bi-plus-lg"></i><span class="jp-hrm-tool-label"> Thêm nhóm</span>
                         </a>
                     </div>
                 </div>
@@ -128,14 +128,14 @@
                                             aria-expanded="false"
                                             aria-controls="jp-perm-members-{{ group.pk }}"
                                             title="Xem danh sách nhân viên">
-                                        <span class="jp-perm-group-avatar"></span>
+                                        <span class="jp-perm-group-avatar"><i class="bi bi-shield-check"></i></span>
                                         <div class="min-w-0 flex-grow-1">
                                             <div class="jp-perm-group-name-text">{{ group.name }}</div>
                                             {% if group.description %}
                                             <div class="small text-muted jp-perm-group-desc">{{ group.description|truncatechars:100 }}</div>
                                             {% endif %}
                                         </div>
-                                        
+                                        <i class="bi bi-chevron-down jp-perm-member-chevron" aria-hidden="true"></i>
                                     </button>
                                     {% else %}
                                     <div class="jp-perm-group-name-static">
@@ -159,7 +159,7 @@
                                             aria-controls="jp-perm-members-{{ group.pk }}"
                                             title="Xem danh sách nhân viên">
                                         <span class="jp-perm-member-count">{{ group.profile_count }}</span>
-                                        
+                                        <i class="bi bi-chevron-down jp-perm-member-chevron" aria-hidden="true"></i>
                                     </button>
                                     {% else %}
                                     <span class="jp-perm-member-count jp-perm-member-count-empty">0</span>
@@ -167,15 +167,21 @@
                                 </td>
                                 <td class="text-end pe-4 jp-perm-col-actions">
                                     <div class="jp-perm-row-actions">
-                                        <a href="{% url 'permission_group_edit' group.pk %}" class="btn btn-sm btn-outline-hm fw-bold" title="Chỉnh sửa">Chỉnh sửa</a>
+                                        <a href="{% url 'permission_group_edit' group.pk %}" class="btn btn-sm btn-outline-hm fw-bold" title="Chỉnh sửa">
+                                            <i class="bi bi-sliders"></i>
+                                        </a>
                                         <form method="post" action="{% url 'permission_group_clone' group.pk %}" class="d-inline">
                                             {% csrf_token %}
-                                            <button type="submit" class="btn btn-sm btn-outline-secondary fw-bold" title="Nhân bản nhóm quyền">Nhân bản nhóm quyền</button>
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary fw-bold" title="Nhân bản nhóm quyền">
+                                                <i class="bi bi-copy"></i>
+                                            </button>
                                         </form>
                                         {% if row.is_deletable %}
                                         <form method="post" action="{% url 'permission_group_delete' group.pk %}" class="d-inline" onsubmit="return confirm('Xóa nhóm quyền này?');">
                                             {% csrf_token %}
-                                            <button type="submit" class="btn btn-sm btn-outline-danger fw-bold" {% if group.profile_count %}disabled title="Đang có nhân viên sử dụng"{% endif %}>Đang có nhân viên sử dụng</button>
+                                            <button type="submit" class="btn btn-sm btn-outline-danger fw-bold" {% if group.profile_count %}disabled title="Đang có nhân viên sử dụng"{% endif %}>
+                                                <i class="bi bi-trash"></i>
+                                            </button>
                                         </form>
                                         {% endif %}
                                     </div>
@@ -187,7 +193,7 @@
                                     <div class="collapse" id="jp-perm-members-{{ group.pk }}">
                                         <div class="jp-perm-members-panel">
                                             <div class="jp-perm-members-panel-head">
-                                                <span class="jp-perm-members-head-icon"></span>
+                                                
                                                 <div class="jp-perm-members-head-text">
                                                     <span class="jp-perm-members-head-count">{{ group.profile_count }} nhân viên</span>
                                                     <span class="jp-perm-members-head-group">trong nhóm «{{ group.name }}»</span>

@@ -13,7 +13,7 @@
             </h2>
         </div>
         <a href="{{ cancel_url }}" class="btn btn-outline-secondary btn-sm fw-bold">
-            Quay lại
+            <i class="bi bi-arrow-left me-1"></i>Quay lại
         </a>
     </div>
 
@@ -27,7 +27,7 @@
         <div class="card border-0 shadow-sm jp-npl-transfer-form-actions">
             <div class="card-body d-flex flex-wrap gap-2">
                 <button type="submit" class="btn btn-hm fw-bold px-4">
-                    Lưu thay đổi
+                    <i class="bi bi-save me-1"></i>Lưu thay đổi
                 </button>
                 <a href="{{ cancel_url }}" class="btn btn-outline-secondary fw-bold">Huỷ</a>
             </div>
@@ -44,7 +44,7 @@
             <td class="jp-npl-line-notes-cell">{{ line_form.notes }}</td>
         <td class="text-center">
             <div class="d-none">{{ line_form.DELETE }}</div>
-            <button type="button" class="btn btn-link btn-sm text-danger p-0 remove-row" title="Xóa dòng">Xóa dòng</button>
+            <button type="button" class="btn btn-link btn-sm text-danger p-0 remove-row"><i class="bi bi-x-lg"></i></button>
         </td>
     </tr>
     {% endwith %}

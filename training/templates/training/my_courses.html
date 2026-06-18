@@ -87,7 +87,8 @@
                             <small class="{% if item.status == 'completed' %}text-success{% else %}text-hm{% endif %} fw-bold fs-6">{{ item.progress }}%</small>
                         </div>
                         <div class="progress shadow-sm" style="height: 10px; border-radius: 3px; background-color: #e9ecef;">
-                            <div class="progress-bar {% if item.status == 'completed' %}bg-success{% else %}bg-hm{% endif %} progress-bar-striped progress-bar-animated"                                  style="width: {{ item.progress }}%">
+                            <div class="progress-bar {% if item.status == 'completed' %}bg-success{% else %}bg-hm{% endif %} progress-bar-striped progress-bar-animated" 
+                                 style="width: {{ item.progress }}%">
                             </div>
                         </div>
                     </div>
@@ -98,25 +99,25 @@
                         {% if item.course.final_exam %}
                             {% if item.has_taken_exam %}
                                 <a href="{% url 'exam_list' %}" class="btn btn-outline-hm w-100 fw-bold shadow-sm btn-hover-lift">
-                                    XEM KẾT QUẢ THI
+                                    <i class="bi bi-eye-fill me-2"></i>XEM KẾT QUẢ THI
                                 </a>
                             {% else %}
                                 <a href="{% url 'take_exam' item.final_exam_id %}" class="btn btn-danger w-100 fw-bold shadow-sm btn-hover-lift">
-                                    LÀM BÀI THI CUỐI KHÓA
+                                    <i class="bi bi-pencil-square me-2"></i>LÀM BÀI THI CUỐI KHÓA
                                 </a>
                             {% endif %}
                         {% else %}
                             <button class="btn btn-light text-success border border-success w-100 fw-bold disabled">
-                                Khóa học hoàn tất
+                                <i class="bi bi-award-fill me-2"></i>Khóa học hoàn tất
                             </button>
                         {% endif %}
                     {% elif item.status == 'in_progress' %}
                         <a href="{% url 'course_start' item.course.id %}" class="btn btn-hm w-100 fw-bold shadow-sm btn-hover-lift">
-                            Tiếp tục học
+                            <i class="bi bi-play-circle-fill me-2"></i>Tiếp tục học
                         </a>
                     {% else %}
                         <a href="{% url 'course_start' item.course.id %}" class="btn btn-outline-hm w-100 fw-bold shadow-sm btn-hover-lift">
-                            Bắt đầu học ngay
+                            <i class="bi bi-rocket-takeoff-fill me-2"></i>Bắt đầu học ngay
                         </a>
                     {% endif %}
                 </div>
@@ -190,9 +191,16 @@
         transition: all 0.3s ease;
     }
     
-    .custom-pills .nav-link:hover {         color: var(--hm-primary) !important;         background-color: rgba(220, 38, 38, 0.08) !important;     }
+    .custom-pills .nav-link:hover { 
+        color: var(--hm-primary) !important; 
+        background-color: rgba(220, 38, 38, 0.08) !important; 
+    }
     
-    .custom-pills .nav-link.active {         color: white !important;         background-color: var(--hm-primary) !important;         box-shadow: 0 4px 10px rgba(220, 38, 38, 0.3);     }
+    .custom-pills .nav-link.active { 
+        color: white !important; 
+        background-color: var(--hm-primary) !important; 
+        box-shadow: 0 4px 10px rgba(220, 38, 38, 0.3); 
+    }
 
     @keyframes fadeIn {
         from { opacity: 0; transform: translateY(10px); }

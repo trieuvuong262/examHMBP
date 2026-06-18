@@ -16,12 +16,12 @@
         <div class="d-flex flex-wrap gap-2 jp-npl-transfer-actions">
             {% if is_editable and can_update %}
             <a href="{% url 'kho_npl:transfer_edit' transfer.pk %}" class="btn btn-outline-hm btn-sm fw-bold">
-                Sửa
+                <i class="bi bi-pencil me-1"></i>Sửa
             </a>
             <form method="post" action="{% url 'kho_npl:transfer_send' transfer.pk %}" class="d-inline">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-hm btn-sm fw-bold" onclick="return confirm('Chuyển phiếu và trừ tồn tại kho gửi?');">
-                    Chuyển
+                    <i class="bi bi-truck me-1"></i>Chuyển
                 </button>
             </form>
             {% endif %}
@@ -29,17 +29,17 @@
             <form method="post" action="{% url 'kho_npl:transfer_receive' transfer.pk %}" class="d-inline">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-success btn-sm fw-bold" onclick="return confirm('Nhận hàng vào kho {{ transfer.to_location.code }}?');">
-                    Nhận vào kho
+                    <i class="bi bi-box-arrow-in-down me-1"></i>Nhận vào kho
                 </button>
             </form>
             {% endif %}
             {% if is_editable and can_delete %}
             <a href="{% url 'kho_npl:transfer_cancel' transfer.pk %}" class="btn btn-outline-danger btn-sm fw-bold">
-                Hủy phiếu
+                <i class="bi bi-x-circle me-1"></i>Hủy phiếu
             </a>
             {% endif %}
             <a href="{{ list_url }}" class="btn btn-outline-secondary btn-sm fw-bold">
-                Danh sách
+                <i class="bi bi-arrow-left me-1"></i>Danh sách
             </a>
         </div>
     </div>
@@ -69,7 +69,7 @@
                 <div class="card-body">
                     <h6 class="text-muted text-uppercase small fw-bold mb-3">Kho gửi</h6>
                     <div class="d-flex align-items-center gap-3">
-                        <div class="jp-npl-transfer-loc-icon"></div>
+                        
                         <div>
                             <div class="fw-bold fs-5">{{ transfer.from_location.code }}</div>
                             <div class="text-muted small">{{ transfer.from_location.name }}</div>
@@ -83,7 +83,7 @@
                 <div class="card-body">
                     <h6 class="text-muted text-uppercase small fw-bold mb-3">Kho nhận</h6>
                     <div class="d-flex align-items-center gap-3">
-                        <div class="jp-npl-transfer-loc-icon jp-npl-transfer-loc-icon--dest"></div>
+                        
                         <div>
                             <div class="fw-bold fs-5">{{ transfer.to_location.code }}</div>
                             <div class="text-muted small">{{ transfer.to_location.name }}</div>

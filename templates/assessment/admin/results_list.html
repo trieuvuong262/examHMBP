@@ -22,7 +22,7 @@
             </form>
 
             <button onclick="exportTableToCSV('Ket_Qua_Thi.csv')" class="btn btn-outline-hm fw-bold shadow-sm px-3">
-                 Xuất dữ liệu
+                <i class="bi bi-file-earmark-excel-fill me-1"></i> Xuất dữ liệu
             </button>
         </div>
     </div>
@@ -171,11 +171,11 @@
                                 {% if sub.submitted_at %}
                                     {% if not sub.is_completed %}
                                         <a href="{% url 'grade_submission' sub.id %}" class="btn btn-sm btn-warning text-dark fw-bold px-3 shadow-sm btn-hover-lift">
-                                             Chấm bài
+                                            <i class="bi bi-pencil-square me-1"></i> Chấm bài
                                         </a>
                                     {% else %}
                                         <button type="button" class="btn btn-sm btn-hm fw-bold px-3 shadow-sm btn-hover-lift" data-bs-toggle="modal" data-bs-target="#viewModal{{ sub.id }}">
-                                             Xem lại
+                                            <i class="bi bi-eye-fill me-1"></i> Xem lại
                                         </button>
 
                                         <div class="modal fade text-start" id="viewModal{{ sub.id }}" tabindex="-1" aria-hidden="true">
@@ -187,7 +187,7 @@
                                                             <h5 class="modal-title fw-bold mb-0">Chi tiết bài thi</h5>
                                                             <small class="opacity-75">Thí sinh: {{ sub.user.profile.full_name|default:sub.user.username }}</small>
                                                         </div>
-                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close">Close</button>
+                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                                                     </div>
                                                     
                                                     <div class="modal-body p-4 bg-light">
@@ -294,7 +294,7 @@
                                         {% endif %}
                                 {% else %}
                                     <button class="btn btn-sm btn-light text-muted px-3 border shadow-none disabled">
-                                        Đang làm...
+                                        <i class="bi bi-hourglass-split me-1"></i>Đang làm...
                                     </button>
                                 {% endif %}
                             </td>
@@ -364,12 +364,14 @@
             let manualScore = parseFloat(row.getAttribute('data-manual')) || 0;
             
             let isPending = isSubmitted && !isCompleted; 
+
             if (isPending) pendingCount++;
             
             if (isCompleted) {
                 completedCount++;
                 sumScore += totalScore;
-                if (totalScore >= 5.0) passCount++;             }
+                if (totalScore >= 5.0) passCount++; 
+            }
         });
 
         document.getElementById('statTotal').innerText = {{ total_count|default:0 }};

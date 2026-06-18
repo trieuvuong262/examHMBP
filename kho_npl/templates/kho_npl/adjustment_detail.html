@@ -11,10 +11,10 @@
         <div class="d-flex gap-2">
             {% if is_editable and can_update %}
             <form method="post" action="{% url 'kho_npl:adjustment_approve' adjustment.pk %}">{% csrf_token %}
-                <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Duyệt và cập nhật tồn cho {{ adjustment.lines.count }} dòng?');">Duyệt</button>
+                <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Duyệt và cập nhật tồn cho {{ adjustment.lines.count }} dòng?');"><i class="bi bi-check2 me-1"></i>Duyệt</button>
             </form>
             <form method="post" action="{% url 'kho_npl:adjustment_reject' adjustment.pk %}">{% csrf_token %}
-                <button type="submit" class="btn btn-outline-danger btn-sm">Từ chối</button>
+                <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-x me-1"></i>Từ chối</button>
             </form>
             {% endif %}
             <a href="{% url 'kho_npl:adjustment_list' %}" class="btn btn-outline-secondary btn-sm">Danh sách</a>

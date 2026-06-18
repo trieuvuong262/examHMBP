@@ -15,13 +15,13 @@
            class="btn btn-sm {% if tab_it_active %}btn-hm{% else %}btn-outline-secondary{% endif %}"
            role="tab"
            aria-selected="{% if tab_it_active %}true{% else %}false{% endif %}">
-            Thiết bị IT
+            <i class="bi bi-pc-display me-1"></i>Thiết bị IT
         </a>
         <a href="{{ create_url_production }}{% if linked_equipment %}&equipment={{ linked_equipment.id }}{% endif %}"
            class="btn btn-sm {% if not tab_it_active %}btn-hm{% else %}btn-outline-secondary{% endif %}"
            role="tab"
            aria-selected="{% if not tab_it_active %}true{% else %}false{% endif %}">
-            Thiết bị sản xuất
+            <i class="bi bi-gear-wide-connected me-1"></i>Thiết bị sản xuất
         </a>
     </div>
 

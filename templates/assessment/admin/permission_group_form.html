@@ -5,7 +5,9 @@
     <div class="jp-page-header jp-perm-group-header mb-3">
         <div class="jp-page-header-main">
             <div class="d-flex align-items-center gap-2 mb-1">
-                <a href="{{ perm_config_back_url }}" class="btn btn-light border jp-hrm-back-btn d-md-none" aria-label="Quay lại">Quay lại</a>
+                <a href="{{ perm_config_back_url }}" class="btn btn-light border jp-hrm-back-btn d-md-none" aria-label="Quay lại">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
                 <h2 class="jp-page-title fw-bold text-dark mb-0">
                     {{ title }}
                 </h2>
@@ -20,13 +22,13 @@
         </div>
         <div class="jp-hrm-toolbar jp-perm-group-header-actions">
             <a href="{{ perm_config_back_url }}" class="btn btn-light border fw-bold jp-hrm-tool-btn d-none d-md-inline-flex">
-                <span class="jp-hrm-tool-label"> Quay lại</span>
+                <i class="bi bi-arrow-left"></i><span class="jp-hrm-tool-label"> Quay lại</span>
             </a>
             {% if is_edit %}
             <form method="post" action="{% url 'permission_group_clone' group.pk %}" class="d-inline">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-outline-secondary fw-bold jp-hrm-tool-btn" title="Nhân bản nhóm quyền">
-                    <span class="jp-hrm-tool-label"> Nhân bản</span>
+                    <i class="bi bi-copy"></i><span class="jp-hrm-tool-label"> Nhân bản</span>
                 </button>
             </form>
             {% endif %}
@@ -34,12 +36,12 @@
             <form method="post" action="{% url 'permission_group_delete' group.pk %}" class="d-inline" onsubmit="return confirm('Xóa nhóm quyền này?');">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-outline-danger fw-bold jp-hrm-tool-btn" {% if group_profile_count %}disabled title="Đang có nhân viên sử dụng"{% endif %}>
-                    <span class="jp-hrm-tool-label"> Xóa</span>
+                    <i class="bi bi-trash"></i><span class="jp-hrm-tool-label"> Xóa</span>
                 </button>
             </form>
             {% endif %}
             <button type="submit" form="groupPermForm" class="btn btn-hm shadow-sm fw-bold jp-hrm-tool-btn jp-hrm-tool-btn-primary">
-                <span class="jp-hrm-tool-label"> Lưu nhóm</span>
+                <i class="bi bi-check-circle-fill"></i><span class="jp-hrm-tool-label"> Lưu nhóm</span>
             </button>
         </div>
     </div>
@@ -98,7 +100,7 @@
                             <tr data-module="{{ row.key }}" class="jp-perm-matrix-row jp-perm-module-row" data-supports-export="{% if row.supports_export %}1{% else %}0{% endif %}" data-has-submenus="{% if row.has_submenus %}1{% else %}0{% endif %}">
                                 <td class="jp-perm-sticky-col ps-3">
                                     <div class="jp-perm-module-cell">
-                                        <span class="jp-perm-module-icon"></span>
+                                        
                                         <span class="jp-perm-module-name">{{ row.label }}</span>
                                         {% if row.has_submenus %}<span class="jp-perm-module-badge">Module</span>{% endif %}
                                     </div>
@@ -130,7 +132,7 @@
                                 <td class="jp-perm-sticky-col ps-3">
                                     <div class="jp-perm-module-cell jp-perm-submenu-cell">
                                         <span class="jp-perm-submenu-indent" aria-hidden="true"></span>
-                                        <span class="jp-perm-module-icon jp-perm-submenu-icon"></span>
+                                        
                                         <span class="jp-perm-module-name">{{ submenu.label }}</span>
                                     </div>
                                 </td>

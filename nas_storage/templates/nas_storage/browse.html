@@ -55,7 +55,7 @@
                class="card border-0 shadow-sm h-100 text-decoration-none jp-nas-root-card {% if not row.exists %}opacity-75{% endif %}">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-start gap-3">
-                        <span class="jp-nas-root-icon"></span>
+                        
                         <div>
                             <h5 class="fw-bold text-dark mb-1">{{ row.entry.label }}</h5>
                             <p class="text-muted small mb-2">{{ row.entry.description }}</p>
@@ -79,13 +79,13 @@
             <div class="d-flex align-items-center flex-wrap gap-2">
                 {% if parent_rel or rel_path %}
                 <a href="{% url 'nas_storage:browse' %}{% if parent_rel %}?path={{ parent_rel|urlencode }}{% if share_token %}&amp;share={{ share_token }}{% endif %}{% elif share_token %}?share={{ share_token }}{% endif %}" class="btn btn-light border btn-sm fw-bold">
-                     Lên
+                    <i class="bi bi-arrow-up"></i> Lên
                 </a>
                 {% endif %}
                 <a href="{% url 'nas_storage:browse' %}?path={{ rel_path|urlencode }}&amp;refresh=1{% if share_token %}&amp;share={{ share_token }}{% endif %}"
                    class="btn btn-outline-hm btn-sm fw-bold"
                    title="Tải lại danh sách từ NAS">
-                     Tải lại
+                    <i class="bi bi-arrow-clockwise"></i> Tải lại
                 </a>
                 <span class="text-muted small">
                     {% if folders or files %}{{ folders|length }} thư mục · {{ files|length }} file{% else %}Thư mục trống{% endif %}
@@ -117,14 +117,14 @@
                     <h5 class="modal-title fw-bold" id="jp-nas-share-modal-label">
                         Chia sẻ
                     </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng">Đóng</button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
                 </div>
                 <div class="modal-body pt-2">
                     <p class="text-muted small mb-2" id="jp-nas-share-item-name"></p>
                     <div class="input-group">
                         <input type="text" class="form-control form-control-sm" id="jp-nas-share-url" readonly>
                         <button type="button" class="btn btn-hm text-white btn-sm fw-bold" id="jp-nas-share-copy">
-                            Sao chép
+                            <i class="bi bi-clipboard me-1"></i>Sao chép
                         </button>
                     </div>
                 </div>

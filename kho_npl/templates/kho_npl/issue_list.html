@@ -11,7 +11,6 @@
         <form method="get" class="jp-npl-mat-topbar-search" id="npl-is-search-form">
             <div class="jp-npl-mat-search-row">
                 <div class="input-group input-group-sm jp-npl-mat-filter-field jp-npl-mat-search-input">
-                    <span class="input-group-text bg-transparent"></span>
                     <input type="search" class="form-control" id="px-q" name="q"
                            value="{{ search_query }}" placeholder="Số phiếu, LSX, mã SP, người nhận..." autocomplete="off" aria-label="Tìm">
                 </div>
@@ -29,7 +28,7 @@
         <div class="jp-npl-mat-topbar-actions">
             {% if can_create %}
             <a href="{% url 'kho_npl:issue_create' %}" class="btn btn-hm btn-sm fw-bold">
-                Thêm
+                <i class="bi bi-plus-lg me-1"></i>Thêm
             </a>
             {% endif %}
             {% include 'kho_npl/includes/doc_list_col_picker.html' with col_btn_id='npl-is-col-btn' col_prefix='npl-is-col' col_toggle_class='npl-is-col-toggle' %}
@@ -47,7 +46,7 @@
                                     data-sort="{{ col.key }}" title="Sắp xếp theo {{ col.label }}">
                                 {{ col.label }}
                                 {% if sort_key == col.key %}
-                                
+                                <i class="bi bi-caret-{% if sort_dir == 'asc' %}up{% else %}down{% endif %}-fill jp-mat-sort-icon"></i>
                                 {% endif %}
                             </button>
                             <span class="jp-mat-col-resizer" aria-hidden="true"></span>
@@ -73,7 +72,7 @@
                         <td class="npl-col" data-col="issued_by">{% if issue.issued_by %}{{ issue.issued_by.get_full_name|default:issue.issued_by.username }}{% else %}—{% endif %}</td>
                         <td class="text-end text-nowrap npl-col" data-col="actions">
                             {% if can_update and issue.status == 'draft' %}
-                            <a href="{% url 'kho_npl:issue_edit' issue.pk %}" class="jp-mat-edit-btn" title="Sửa">Sửa</a>
+                            <a href="{% url 'kho_npl:issue_edit' issue.pk %}" class="jp-mat-edit-btn" title="Sửa"></a>
                             {% endif %}
                         </td>
                     </tr>

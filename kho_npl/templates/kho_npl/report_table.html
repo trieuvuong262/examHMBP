@@ -9,7 +9,7 @@
         </div>
         {% if can_export %}
         <a href="{% url report.export_name %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn btn-success btn-sm fw-bold">
-            Xuất Excel
+            <i class="bi bi-file-earmark-excel me-1"></i>Xuất Excel
         </a>
         {% endif %}
     </div>

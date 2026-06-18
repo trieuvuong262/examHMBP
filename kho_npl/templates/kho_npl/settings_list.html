@@ -12,11 +12,11 @@
         <div class="d-flex gap-2">
             {% if can_create %}
             <a href="{% url 'kho_npl:settings_create' section=section.key %}" class="btn btn-hm btn-sm fw-bold">
-                Thêm
+                <i class="bi bi-plus-lg me-1"></i>Thêm
             </a>
             {% endif %}
             <a href="{% url 'kho_npl:settings_hub' %}" class="btn btn-outline-secondary btn-sm">
-                Thiết lập
+                <i class="bi bi-arrow-left me-1"></i>Thiết lập
             </a>
         </div>
     </div>
@@ -35,7 +35,7 @@
                     </div>
                 </div>
                 <div class="col-12 col-md-2">
-                    <button type="submit" class="btn btn-hm w-100 fw-bold">Tìm</button>
+                    <button type="submit" class="btn btn-hm w-100 fw-bold"><i class="bi bi-search me-1"></i>Tìm</button>
                 </div>
             </form>
         </div>
@@ -64,10 +64,10 @@
                         </td>
                         <td class="text-end text-nowrap">
                             {% if can_update %}
-                            <a href="{% url 'kho_npl:settings_edit' section=section.key pk=obj.pk %}" class="btn btn-link btn-sm p-0" title="Sửa">Sửa</a>
+                            <a href="{% url 'kho_npl:settings_edit' section=section.key pk=obj.pk %}" class="btn btn-link btn-sm p-0" title="Sửa"><i class="bi bi-pencil"></i></a>
                             {% endif %}
                             {% if can_delete and obj.is_active %}
-                            <a href="{% url 'kho_npl:settings_deactivate' section=section.key pk=obj.pk %}" class="btn btn-link btn-sm p-0 text-danger" title="Ngừng dùng">Ngừng dùng</a>
+                            <a href="{% url 'kho_npl:settings_deactivate' section=section.key pk=obj.pk %}" class="btn btn-link btn-sm p-0 text-danger" title="Ngừng dùng"><i class="bi bi-slash-circle"></i></a>
                             {% endif %}
                         </td>
                     </tr>

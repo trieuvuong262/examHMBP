@@ -19,7 +19,9 @@
         <div class="jp-page-header jp-user-form-header mb-3">
             <div class="jp-page-header-main">
                 <div class="d-flex align-items-center gap-2 mb-1">
-                    <a href="{% if user_list_url %}{{ user_list_url }}{% else %}{% url 'user_list' %}{% endif %}" class="btn btn-light border jp-hrm-back-btn d-md-none" aria-label="Quay lại">Quay lại</a>
+                    <a href="{% if user_list_url %}{{ user_list_url }}{% else %}{% url 'user_list' %}{% endif %}" class="btn btn-light border jp-hrm-back-btn d-md-none" aria-label="Quay lại">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
                     <div>
                         <h2 class="jp-page-title fw-bold text-dark mb-0">
                             {% if is_edit %}
@@ -43,19 +45,19 @@
             </div>
             <div class="jp-hrm-toolbar jp-user-form-header-actions">
                 <a href="{% if user_list_url %}{{ user_list_url }}{% else %}{% url 'user_list' %}{% endif %}" class="btn btn-light border fw-bold jp-hrm-tool-btn d-none d-md-inline-flex">
-                    <span class="jp-hrm-tool-label"> Danh sách</span>
+                    <i class="bi bi-arrow-left"></i><span class="jp-hrm-tool-label"> Danh sách</span>
                 </a>
                 {% if is_edit %}
                 <button type="button"
                         class="btn btn-outline-hm fw-bold jp-hrm-tool-btn d-none d-md-inline-flex reset-pwd-btn jp-user-form--edit-only"
                         data-url="{% url 'user_password_reset' user_instance.id %}"
                         data-username="{{ user_instance.username }}">
-                    <span class="jp-hrm-tool-label"> Reset MK</span>
+                    <i class="bi bi-key-fill"></i><span class="jp-hrm-tool-label"> Reset MK</span>
                 </button>
                 {% endif %}
                 {% if not is_edit %}
                 <button type="submit" class="btn btn-hm shadow-sm fw-bold jp-hrm-tool-btn jp-hrm-tool-btn-primary">
-                    <span class="jp-hrm-tool-label"> Lưu nhân viên</span>
+                    <i class="bi bi-check-circle-fill"></i><span class="jp-hrm-tool-label"> Lưu nhân viên</span>
                 </button>
                 {% endif %}
             </div>
@@ -179,24 +181,24 @@
         <div class="jp-user-detail-nav-bar mb-3">
             <nav class="jp-user-detail-nav" aria-label="Tab thông tin nhân viên" role="tablist">
                 <button type="button" role="tab" class="jp-user-detail-nav-link is-active" data-tab="hr" aria-selected="true" aria-controls="section-hr" id="tab-hr">
-                    <span>Nhân sự</span>
+                    <i class="bi bi-person-vcard"></i><span>Nhân sự</span>
                 </button>
                 <button type="button" role="tab" class="jp-user-detail-nav-link" data-tab="org" aria-selected="false" aria-controls="section-org" id="tab-org">
-                    <span>Tổ chức</span>
+                    <i class="bi bi-diagram-3"></i><span>Tổ chức</span>
                 </button>
                 <button type="button" role="tab" class="jp-user-detail-nav-link" data-tab="permissions" aria-selected="false" aria-controls="section-permissions" id="tab-permissions">
-                    <span>Quyền</span>
+                    <i class="bi bi-key"></i><span>Quyền</span>
                 </button>
                 <button type="button" role="tab" class="jp-user-detail-nav-link jp-user-detail-nav-sub d-none" data-tab="subordinates" aria-selected="false" aria-controls="section-subordinates" id="navSubordinates">
-                    <span>Cấp dưới</span>
+                    <i class="bi bi-people"></i><span>Cấp dưới</span>
                 </button>
                 {% if concurrent_formset %}
                 <button type="button" role="tab" class="jp-user-detail-nav-link" data-tab="concurrent" aria-selected="false" aria-controls="section-concurrent" id="tab-concurrent">
-                    <span>Kiêm nhiệm</span>
+                    <i class="bi bi-layers"></i><span>Kiêm nhiệm</span>
                 </button>
                 {% endif %}
                 <button type="button" role="tab" class="jp-user-detail-nav-link" data-tab="account" aria-selected="false" aria-controls="section-account" id="tab-account">
-                    <span>Tài khoản</span>
+                    <i class="bi bi-shield-lock"></i><span>Tài khoản</span>
                 </button>
             </nav>
         </div>
@@ -285,13 +287,13 @@
                         <p class="small text-hm mb-2" id="subordinates_scope_hint">{{ form.subordinate_scope_hint }}</p>
                         <div class="d-flex flex-wrap gap-2 mb-3 jp-subordinates-quick-actions jp-user-form--edit-only">
                             <button type="button" class="btn btn-sm btn-outline-hm" id="jpSubPickDivision" hidden>
-                                Chọn cùng bộ phận
+                                <i class="bi bi-diagram-3 me-1"></i>Chọn cùng bộ phận
                             </button>
                             <button type="button" class="btn btn-sm btn-outline-hm" id="jpSubPickDepartment" hidden>
-                                Chọn cùng phòng ban
+                                <i class="bi bi-building me-1"></i>Chọn cùng phòng ban
                             </button>
                             <button type="button" class="btn btn-sm btn-outline-secondary" id="jpSubClear">
-                                Bỏ chọn
+                                <i class="bi bi-x-circle me-1"></i>Bỏ chọn
                             </button>
                         </div>
                         <div class="jp-subordinates-picker-wrap">
@@ -327,7 +329,7 @@
                             {% endfor %}
                         </div>
                         <button type="button" class="btn btn-sm btn-outline-hm mt-3 jp-user-form--edit-only" id="jpAddConcurrentSlot">
-                            Thêm slot mới
+                            <i class="bi bi-plus-circle me-1"></i>Thêm slot mới
                         </button>
                         {% if is_edit %}
                         <p class="small text-muted mt-2 mb-0">Mỗi slot lưu bằng nút «Lưu slot» — «Lưu nhân viên» chỉ cập nhật hồ sơ chính, không ghi thêm slot.</p>
@@ -370,14 +372,16 @@
                             </label>
                             <div class="input-group">
                                 {{ form.password }}
-                                <button type="button" class="btn btn-outline-secondary" id="jpTogglePwd" title="Hiện/ẩn mật khẩu" aria-label="Hiện mật khẩu">Hiện/ẩn mật khẩu</button>
+                                <button type="button" class="btn btn-outline-secondary" id="jpTogglePwd" title="Hiện/ẩn mật khẩu" aria-label="Hiện mật khẩu">
+                                    <i class="bi bi-eye"></i>
+                                </button>
                                 </div>
                             <div class="d-flex flex-wrap gap-2 mt-2">
                                 <button type="button" class="btn btn-sm btn-outline-hm" id="jpRegenPwd">
-                                    Tạo mật khẩu mới
+                                    <i class="bi bi-arrow-clockwise me-1"></i>Tạo mật khẩu mới
                                 </button>
                                 <button type="button" class="btn btn-sm btn-outline-secondary" id="jpCopyPwd" title="Sao chép tài khoản và mật khẩu">
-                                    <span class="jp-copy-label">Sao chép</span>
+                                    <i class="bi bi-clipboard me-1"></i><span class="jp-copy-label"> Sao chép</span>
                                 </button>
                             </div>
                             {% for error in form.password.errors %}
@@ -390,7 +394,7 @@
                                     class="btn btn-outline-hm btn-sm fw-bold reset-pwd-btn"
                                     data-url="{% url 'user_password_reset' user_instance.id %}"
                                     data-username="{{ user_instance.username }}">
-                                Reset mật khẩu
+                                <i class="bi bi-key-fill me-1"></i>Reset mật khẩu
                             </button>
                             <div class="small text-muted">Mật khẩu mới sẽ được tạo tự động và sao chép vào clipboard.</div>
                         </div>
@@ -408,7 +412,7 @@
             <div class="d-flex gap-2">
                 <a href="{% url 'user_list' %}" class="btn btn-light border fw-bold flex-fill">Hủy</a>
                 <button type="submit" class="btn btn-hm fw-bold flex-fill">
-                    Lưu nhân viên
+                    <i class="bi bi-check-circle-fill me-1"></i>Lưu nhân viên
                 </button>
             </div>
         </div>
@@ -437,7 +441,7 @@
                     <h2 class="fw-bold text-dark mb-0 user-select-all" id="modalPasswordText" style="letter-spacing: 3px; font-family: monospace;">...</h2>
                 </div>
                 <button type="button" class="btn btn-hm fw-bold px-5 py-3 shadow w-100 fs-5 text-white" onclick="copyAccountInfo(this)">
-                    Sao chép thông tin
+                    <i class="bi bi-clipboard-plus fs-4 me-2 align-middle"></i>Sao chép thông tin
                 </button>
             </div>
         </div>
@@ -1275,9 +1279,7 @@
         togglePwd.addEventListener('click', function () {
             const isPwd = pwdInput.type === 'password';
             pwdInput.type = isPwd ? 'text' : 'password';
-            const label = isPwd ? 'Ẩn mật khẩu' : 'Hiện mật khẩu';
-            togglePwd.textContent = label;
-            togglePwd.setAttribute('aria-label', label);
+            togglePwd.querySelector('i').className = isPwd ? 'bi bi-eye-slash' : 'bi bi-eye';
         });
     }
 
@@ -1295,10 +1297,7 @@
         regenBtn.addEventListener('click', function () {
             pwdInput.value = randomPassword(10);
             pwdInput.type = 'text';
-            if (togglePwd) {
-                togglePwd.textContent = 'Ẩn mật khẩu';
-                togglePwd.setAttribute('aria-label', 'Ẩn mật khẩu');
-            }
+            if (togglePwd) togglePwd.querySelector('i').className = 'bi bi-eye-slash';
         });
     }
 
@@ -1310,16 +1309,19 @@
             if (!pwd) return;
             const account = usernameInputForCopy ? (usernameInputForCopy.value || '').trim() : '';
             const text = 'Tài khoản: ' + account + '\nMật khẩu: ' + pwd;
+            const icon = copyBtn.querySelector('i');
             const label = copyBtn.querySelector('.jp-copy-label');
 
             function showCopied() {
                 copyBtn.classList.add('btn-success');
                 copyBtn.classList.remove('btn-outline-secondary');
-                if (label) label.textContent = 'Đã sao chép';
+                if (icon) icon.className = 'bi bi-check-lg me-1';
+                if (label) label.textContent = ' Đã sao chép';
                 setTimeout(function () {
                     copyBtn.classList.remove('btn-success');
                     copyBtn.classList.add('btn-outline-secondary');
-                    if (label) label.textContent = 'Sao chép';
+                    if (icon) icon.className = 'bi bi-clipboard me-1';
+                    if (label) label.textContent = ' Sao chép';
                 }, 2000);
             }
 

@@ -19,7 +19,7 @@
                 {% csrf_token %}
                 <button type="submit" class="btn btn-hm text-white fw-bold"
                         {% if backup_running %}disabled title="Đang backup…"{% endif %}>
-                    Chạy backup ngay
+                    <i class="bi bi-cloud-arrow-up me-1"></i>Chạy backup ngay
                 </button>
             </form>
         </div>

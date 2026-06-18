@@ -9,12 +9,12 @@
         <div class="d-flex gap-2 flex-wrap w-100 w-md-auto">
             {% if can_create %}
             <a href="{% url 'course_create' %}" class="btn btn-hm shadow-sm fw-bold btn-hover-lift flex-fill flex-md-grow-0">
-                 Thêm khóa học
+                <i class="bi bi-plus-lg me-1"></i> Thêm khóa học
             </a>
             {% endif %}
             {% if is_admin %}
             <button class="btn btn-outline-hm fw-bold shadow-sm flex-fill flex-md-grow-0" onclick="openCategoryModal()">
-                 Danh mục
+                <i class="bi bi-tags-fill me-1"></i> Danh mục
             </button>
             {% endif %}
         </div>
@@ -45,7 +45,7 @@
                 </div>
                 <div class="col-md-2">
                     <a href="{% url 'course_list' %}" class="btn btn-light border w-100 fw-bold text-muted">
-                         Đặt lại
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> Đặt lại
                     </a>
                 </div>
             </form>
@@ -126,11 +126,13 @@
                             <td class="text-end pe-4">
                                 <div class="btn-group shadow-sm">
                                     {% if can_update %}
-                                    <a href="{% url 'course_edit' course.id %}" class="btn btn-light border px-3" title="Sửa thông tin cơ bản">Sửa thông tin cơ bản</a>
+                                    <a href="{% url 'course_edit' course.id %}" class="btn btn-light border px-3" title="Sửa thông tin cơ bản">
+                                        <i class="bi bi-pencil-square text-warning"></i>
+                                    </a>
                                     {% endif %}
                                     {% if is_admin %}
                                     <a href="{% url 'course_builder' course.id %}" class="btn btn-light border px-3 text-hm fw-bold bg-hm-subtle-hover" title="Biên soạn nội dung bài giảng">
-                                         Bài giảng
+                                        <i class="bi bi-list-nested me-1"></i> Bài giảng
                                     </a>
                                     {% endif %}
                                 </div>
@@ -166,7 +168,7 @@
                 <h5 class="modal-title fw-bold mb-0">
                     Danh mục Đào tạo
                 </h5>
-                <button type="button" class="btn-close btn-close-white m-0" data-bs-dismiss="modal" aria-label="Close">Close</button>
+                <button type="button" class="btn-close btn-close-white m-0" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             
             <div class="modal-body bg-light p-4">
@@ -174,7 +176,7 @@
                 <div class="input-group mb-4 shadow-sm overflow-hidden border-0">
                     <input type="text" id="newCatName" class="form-control border-0 py-2 px-3 focus-none" placeholder="Nhập tên danh mục...">
                     <button class="btn btn-hm fw-bold px-4" onclick="addCategory()">
-                        Thêm
+                        <i class="bi bi-plus-lg me-1"></i>Thêm
                     </button>
                 </div>
 
@@ -223,7 +225,11 @@
     .course-row:hover { background-color: #f8fafc; }
     
     .x-small { font-size: 0.75rem; }
-    .table thead th {         font-size: 0.8rem;         text-transform: uppercase;         letter-spacing: 0.5px;         padding: 1rem 0.5rem;
+    .table thead th { 
+        font-size: 0.8rem; 
+        text-transform: uppercase; 
+        letter-spacing: 0.5px; 
+        padding: 1rem 0.5rem;
         border-bottom: 2px solid #e2e8f0;
     }
 </style>
@@ -235,7 +241,8 @@
     // 👉 ĐIỂM SỬA LỖI: Chỉ khai báo biến, KHÔNG gán new bootstrap.Modal ở đây
     let catModal;
 
-    // 2. Hàm mở popup     function openCategoryModal() {
+    // 2. Hàm mở popup 
+    function openCategoryModal() {
         // Kiểm tra xem biến catModal đã được gán DOM chưa, chưa thì gán
         if (!catModal) {
             catModal = new bootstrap.Modal(document.getElementById('categoryModal'));
@@ -263,10 +270,10 @@
                         <span class="fw-bold text-dark" id="cat-text-${cat.id}">${cat.name}</span>
                         <div class="btn-group shadow-sm overflow-hidden">
                             <button class="btn btn-sm btn-light border-end text-primary fw-semibold" onclick="editCategory(${cat.id}, '${cat.name}')">
-                                 Sửa
+                                <i class="bi bi-pencil-square"></i> Sửa
                             </button>
                             <button class="btn btn-sm btn-light text-danger fw-semibold" onclick="deleteCategory(${cat.id})">
-                                 Xóa
+                                <i class="bi bi-trash3"></i> Xóa
                             </button>
                         </div>
                     </li>
@@ -292,7 +299,9 @@
             method: "POST",
             data: { 'name': name, 'csrfmiddlewaretoken': csrfToken },
             success: function(res) {
-                nameInput.val('');                 loadCategories();             },
+                nameInput.val(''); 
+                loadCategories();  
+            },
             error: function(xhr) {
                 alert(xhr.responseJSON?.message || "Có lỗi xảy ra khi thêm danh mục!");
             }

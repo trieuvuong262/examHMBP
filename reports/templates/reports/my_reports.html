@@ -18,11 +18,11 @@
             {% if not history_for_user_id %}
             {% if report_period == 'weekly' %}
             <a href="{% url 'reports:weekly' %}" class="btn btn-hm fw-bold flex-fill flex-md-grow-0">
-                Báo cáo tuần
+                <i class="bi bi-plus-lg me-1"></i>Báo cáo tuần
             </a>
             {% else %}
             <a href="{% url today_url_name %}" class="btn btn-hm fw-bold flex-fill flex-md-grow-0">
-                Báo cáo hôm nay
+                <i class="bi bi-plus-lg me-1"></i>Báo cáo hôm nay
             </a>
             {% endif %}
             {% endif %}

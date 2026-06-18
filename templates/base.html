@@ -86,13 +86,13 @@
         <div class="d-flex align-items-center gap-2">
             <button type="button" class="btn jp-theme-toggle" data-jp-theme-toggle
                 aria-pressed="false" aria-label="Bật giao diện tối" title="Giao diện tối">
-                <span class="jp-theme-icon-dark small">Tối</span>
-                <span class="jp-theme-icon-light small d-none">Sáng</span>
+                <i class="bi bi-moon-stars-fill jp-theme-icon-dark" aria-hidden="true"></i>
+                <i class="bi bi-sun-fill jp-theme-icon-light d-none" aria-hidden="true"></i>
             </button>
             <form method="post" action="{% url 'logout' %}" class="m-0">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-sm btn-outline-light">
-                    <span class="d-none d-sm-inline">Đăng xuất</span>
+                    <i class="bi bi-box-arrow-right me-1"></i><span class="d-none d-sm-inline">Đăng xuất</span>
                 </button>
             </form>
         </div>
@@ -108,8 +108,8 @@
         </a>
         <button type="button" class="btn jp-theme-toggle" data-jp-theme-toggle
             aria-pressed="false" aria-label="Bật giao diện tối" title="Giao diện tối">
-            <span class="jp-theme-icon-dark small">Tối</span>
-            <span class="jp-theme-icon-light small d-none">Sáng</span>
+            <i class="bi bi-moon-stars-fill jp-theme-icon-dark" aria-hidden="true"></i>
+            <i class="bi bi-sun-fill jp-theme-icon-light d-none" aria-hidden="true"></i>
         </button>
     </div>
 </nav>
@@ -136,7 +136,7 @@
 <div class="offcanvas offcanvas-start jp-sidebar-drawer d-lg-none" tabindex="-1" id="mobileSidebar">
     <div class="offcanvas-header border-bottom">
         <h5 class="offcanvas-title fw-bold text-hm">Menu</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Đóng">Đóng</button>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Đóng"></button>
     </div>
     <div class="offcanvas-body p-0">
         {% include "includes/portal_sidebar.html" %}
@@ -148,7 +148,7 @@
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header border-0 pb-0">
                 <h5 class="modal-title fw-bold" id="jpAvatarZoomTitle">Avatar</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng">Đóng</button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
             </div>
             <div class="modal-body text-center pt-2 pb-4">
                 <img id="jpAvatarZoomImg" src="" alt="" class="jp-avatar-zoom-image">

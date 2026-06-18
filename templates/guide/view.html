@@ -21,7 +21,7 @@
         </div>
         {% if can_edit %}
         <a href="{% url 'user_guide_edit' %}" class="btn btn-outline-hm fw-bold flex-fill flex-md-grow-0">
-            Chỉnh sửa
+            <i class="bi bi-pencil-square me-1"></i>Chỉnh sửa
         </a>
         {% endif %}
     </div>
@@ -34,10 +34,10 @@
 
     <div class="text-center mt-4 d-flex flex-wrap justify-content-center gap-2">
         <a href="{% url 'home_portal' %}" class="btn btn-hm px-4">
-             Về trang chủ
+            <i class="bi bi-house me-1"></i> Về trang chủ
         </a>
         <a href="{% url 'announcements:list' %}" class="btn btn-outline-hm px-4">
-             Xem thông báo
+            <i class="bi bi-megaphone me-1"></i> Xem thông báo
         </a>
     </div>
 </div>

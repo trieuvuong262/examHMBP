@@ -22,7 +22,7 @@
                     </p>
                 </div>
                 <a href="{% url 'user_guide_edit' %}" class="btn btn-outline-dark fw-bold">
-                    Danh sách mục
+                    <i class="bi bi-arrow-left me-1"></i>Danh sách mục
                 </a>
             </div>
 
@@ -64,10 +64,10 @@
 
                         <div class="d-flex flex-wrap gap-2">
                             <button type="submit" class="btn btn-hm fw-bold px-4">
-                                Lưu mục
+                                <i class="bi bi-check-lg me-1"></i>Lưu mục
                             </button>
                             <a href="{% url 'user_guide' %}#{{ section_id }}" class="btn btn-outline-hm fw-bold" target="_blank" rel="noopener">
-                                Xem trên trang
+                                <i class="bi bi-eye me-1"></i>Xem trên trang
                             </a>
                             <a href="{% url 'user_guide_edit' %}" class="btn btn-outline-dark fw-bold">Hủy</a>
                         </div>
@@ -79,7 +79,7 @@
                         {% csrf_token %}
                         <input type="hidden" name="action" value="reset">
                         <button type="submit" class="btn btn-outline-danger fw-bold">
-                            Khôi phục mặc định
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>Khôi phục mặc định
                         </button>
                     </form>
                     {% endif %}

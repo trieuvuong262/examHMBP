@@ -34,7 +34,8 @@
     .option-item:has(input:checked) {
         background-color: var(--hm-primary-soft);
         border-color: var(--hm-primary) !important;
-        border-left: 5px solid var(--hm-primary) !important;         box-shadow: 0 4px 12px rgba(220, 38, 38, 0.12);
+        border-left: 5px solid var(--hm-primary) !important; 
+        box-shadow: 0 4px 12px rgba(220, 38, 38, 0.12);
     }
     .option-item input:checked + .option-text {
         color: var(--hm-primary) !important;
@@ -139,7 +140,8 @@
             <div class="card-header bg-white border-0 pt-4 px-4">
                 <div class="d-flex justify-content-between align-items-start">
                     <h5 class="fw-bold text-dark flex-grow-1 lh-base">
-                        <span class="badge bg-hm me-2 shadow-sm">Câu {{ q.sort_order }}</span>                         {{ q.content }}
+                        <span class="badge bg-hm me-2 shadow-sm">Câu {{ q.sort_order }}</span> 
+                        {{ q.content }}
                     </h5>
                     <div class="text-end ms-3">
                         <span class="badge bg-light text-hm border border-hm-subtle fw-semibold px-3 py-2">
@@ -151,7 +153,8 @@
                 <div class="mt-2 mb-1">
                     <small class="text-muted bg-light px-2 py-1 rounded border shadow-xs">
                         
-                        Hình thức:                         <span class="fw-bold text-secondary">
+                        Hình thức: 
+                        <span class="fw-bold text-secondary">
                             {% if q.q_type == 'single' %} Trắc nghiệm (Chọn 1 đáp án)
                             {% elif q.q_type == 'multiple' %} Trắc nghiệm (Chọn nhiều đáp án)
                             {% elif q.q_type == 'essay' %} Tự luận (Nhập văn bản)
@@ -165,7 +168,9 @@
             <div class="card-body px-4 pb-4">
                 {% if q.image_hint %}
                     <div class="text-center mb-4">
-                        <div class="magnifier-container border rounded shadow-sm overflow-hidden bg-white"                             onmousemove="zoom(event)"                             onmouseleave="resetZoom(event)">
+                        <div class="magnifier-container border rounded shadow-sm overflow-hidden bg-white" 
+                            onmousemove="zoom(event)" 
+                            onmouseleave="resetZoom(event)">
                             <img src="{{ q.image_hint.url }}" class="img-fluid magnifier-img" alt="Hình ảnh minh họa">
                         </div>
                         <small class="text-muted">Rê chuột vào ảnh để phóng to chi tiết</small>
@@ -178,7 +183,10 @@
                         {% for choice in q.choices.all %}
                             <div class="col-md-6">
                                 <label class="option-item d-flex align-items-center p-3 h-100 cursor-pointer transition-all">
-                                    <input class="form-check-input me-3 flex-shrink-0"                                            type="{% if q.q_type == 'multiple' %}checkbox{% else %}radio{% endif %}"                                            name="q_{{ q.id }}"                                            value="{{ choice.id }}">
+                                    <input class="form-check-input me-3 flex-shrink-0" 
+                                           type="{% if q.q_type == 'multiple' %}checkbox{% else %}radio{% endif %}" 
+                                           name="q_{{ q.id }}" 
+                                           value="{{ choice.id }}">
                                     <span class="option-text text-secondary">{{ choice.text }}</span>
                                 </label>
                             </div>
@@ -187,7 +195,8 @@
 
                     {% elif q.q_type == 'essay' %}
                         <div class="form-floating">
-                            <textarea class="form-control shadow-none border-hm-subtle" name="q_{{ q.id }}"                                       placeholder="Nhập câu trả lời..." style="height: 150px"></textarea>
+                            <textarea class="form-control shadow-none border-hm-subtle" name="q_{{ q.id }}" 
+                                      placeholder="Nhập câu trả lời..." style="height: 150px"></textarea>
                             <label class="text-muted">Nhập nội dung trả lời tại đây...</label>
                         </div>
 
@@ -204,7 +213,7 @@
 
         <div class="card border-0 shadow-lg mb-5 animate__animated animate__pulse animate__infinite animate__slow">
             <button type="button" class="btn btn-hm btn-lg fw-bold py-3" onclick="confirmSubmit()">
-                HOÀN THÀNH VÀ NỘP BÀI THI
+                <i class="bi bi-send-check-fill me-2"></i>HOÀN THÀNH VÀ NỘP BÀI THI
             </button>
         </div>
     </form>
@@ -214,7 +223,8 @@
 <script>
     // ĐỒNG HỒ ĐẾM NGƯỢC
     let totalSeconds = {{ exam.duration_minutes }} * 60;
-    let timeLeft = {{ time_remaining|default:0 }};     
+    let timeLeft = {{ time_remaining|default:0 }}; 
+    
     const timerDisplay = document.getElementById('timer');
     const timerProgress = document.getElementById('timerProgress');
     const form = document.getElementById('examForm');
@@ -237,7 +247,8 @@
         if (timeLeft <= 0) {
             clearInterval(countdown);
             window.onbeforeunload = null;
-            localStorage.removeItem(draftKey);             Swal.fire({
+            localStorage.removeItem(draftKey); 
+            Swal.fire({
                 title: 'Hết giờ làm bài!',
                 text: 'Hệ thống đang tự động nộp bài của bạn...',
                 icon: 'warning',
@@ -311,7 +322,8 @@
         }).then((result) => {
             if (result.isConfirmed) {
                 window.onbeforeunload = null;
-                localStorage.removeItem(draftKey);                 form.submit();
+                localStorage.removeItem(draftKey); 
+                form.submit();
             }
         });
     }

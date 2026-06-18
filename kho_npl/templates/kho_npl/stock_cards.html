@@ -182,7 +182,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
                     </select>
                 </div>
                 <button type="submit" class="btn btn-hm btn-sm fw-bold">
-                    Xem thẻ kho
+                    <i class="bi bi-funnel me-1"></i>Xem thẻ kho
                 </button>
                 {% if has_card_filters %}
                 <a href="{% url 'kho_npl:stock_cards' %}{% if catalog_only_filter_qs or selected_material %}?{% if selected_material %}material={{ selected_material.pk }}{% if catalog_only_filter_qs %}&{% endif %}{% endif %}{{ catalog_only_filter_qs }}{% endif %}"
@@ -194,14 +194,14 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
             {% if can_export %}
             <a href="{% url 'kho_npl:stock_cards_export' %}{% if catalog_query_string %}?{{ catalog_query_string }}{% endif %}"
                class="btn btn-outline-secondary btn-sm fw-bold" title="Xuất Excel">
-                Xuất Excel
+                <i class="bi bi-download me-1"></i>Xuất Excel
             </a>
             {% endif %}
             <div class="dropdown jp-npl-mat-col-picker">
                 <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" id="npl-sc-col-btn"
                         data-bs-toggle="dropdown" data-bs-auto-close="outside"
                         aria-expanded="false" title="Chọn cột hiển thị">
-                    Cột
+                    <i class="bi bi-layout-three-columns me-1"></i>Cột
                 </button>
                 <div class="dropdown-menu shadow-sm jp-npl-mat-col-menu" data-bs-popper="static">
                     <div class="jp-npl-mat-col-head">Hiển thị cột</div>
@@ -270,7 +270,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
                 <button type="button" class="btn btn-sm btn-warning fw-bold text-dark"
                         data-bs-toggle="collapse" data-bs-target="#stock-mismatch-diagnose"
                         aria-expanded="{% if show_diagnosis %}true{% else %}false{% endif %}">
-                    Kiểm tra lệch
+                    <i class="bi bi-search me-1"></i>Kiểm tra lệch
                     {% if mismatch_diagnosis.problem_count %}
                     <span class="badge text-bg-dark ms-1">{{ mismatch_diagnosis.problem_count }}</span>
                     {% endif %}
@@ -458,7 +458,6 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
                     </select>
                 </div>
                 <div class="input-group input-group-sm jp-npl-mat-filter-field jp-npl-mat-search-input">
-                    <span class="input-group-text bg-transparent"></span>
                     <input type="search" class="form-control" id="sc-q" name="q"
                            value="{{ search_query }}" placeholder="Mã, tên, màu..." autocomplete="off" aria-label="Tìm NPL">
                 </div>
@@ -480,7 +479,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
                                     data-sort="{{ col.key }}" title="Sắp xếp theo {{ col.label }}">
                                 {{ col.label }}
                                 {% if sort_key == col.key %}
-                                
+                                <i class="bi bi-caret-{% if sort_dir == 'asc' %}up{% else %}down{% endif %}-fill jp-mat-sort-icon"></i>
                                 {% endif %}
                             </button>
                             <span class="jp-mat-col-resizer" aria-hidden="true"></span>

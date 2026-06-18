@@ -50,7 +50,7 @@
             </div>
             <div class="d-flex flex-wrap gap-2">
                 <a href="{{ equipment_urls.device_list }}" class="btn btn-outline-secondary btn-sm">
-                    Danh sách
+                    <i class="bi bi-arrow-left me-1"></i>Danh sách
                 </a>
                 <a href="{% url 'equipment:device_history' device.id %}" class="btn btn-outline-secondary btn-sm">Lịch sử sự cố</a>
                 <a href="{% url 'equipment:device_update_history' device.id %}" class="btn btn-outline-secondary btn-sm">Lịch sử cập nhật</a>
@@ -98,7 +98,7 @@
 
         <div class="d-flex flex-wrap gap-2 mt-4 jp-eq-detail-actions">
             <button type="submit" class="btn btn-hm fw-bold px-4">
-                Cập nhật &amp; tạo lại tem QR
+                <i class="bi bi-check-lg me-1"></i>Cập nhật &amp; tạo lại tem QR
             </button>
             <a href="{{ equipment_urls.device_list }}" class="btn btn-outline-secondary">Huỷ</a>
         </div>
@@ -146,7 +146,7 @@
 
                 <div class="d-flex flex-wrap gap-2">
                     <button type="submit" class="btn btn-hm fw-bold px-4">
-                        Cập nhật &amp; tạo lại tem QR
+                        <i class="bi bi-check-lg me-1"></i>Cập nhật &amp; tạo lại tem QR
                     </button>
                     <a href="{{ equipment_urls.device_list }}" class="btn btn-outline-secondary">Huỷ</a>
                 </div>
@@ -196,7 +196,7 @@
                     <span>Tem QR</span>
                     {% if device.qr_code %}
                     <a href="{{ device.qr_code.url }}" download class="btn btn-sm btn-outline-hm">
-                        Tải PNG
+                        <i class="bi bi-download me-1"></i>Tải PNG
                     </a>
                     {% endif %}
                 </div>
@@ -212,7 +212,7 @@
                     <p class="text-muted mb-3">Tem QR sẽ được tạo khi cập nhật thiết bị.</p>
                     {% endif %}
                     <a href="{% url 'equipment:device_qr_public' device.device_code %}" class="btn btn-sm btn-outline-hm w-100" target="_blank">
-                        Trang quét QR
+                        <i class="bi bi-box-arrow-up-right me-1"></i>Trang quét QR
                     </a>
                 </div>
             </div>

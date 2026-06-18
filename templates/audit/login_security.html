@@ -71,7 +71,7 @@
                             <form method="post" action="{% url 'audit:unlock_user_login' row.pk %}" class="d-inline">
                                 {% csrf_token %}
                                 <button type="submit" class="btn btn-sm btn-hm text-white fw-bold">
-                                    Mở khóa
+                                    <i class="bi bi-unlock-fill me-1"></i>Mở khóa
                                 </button>
                             </form>
                             {% endif %}
@@ -126,7 +126,7 @@
                             <form method="post" action="{% url 'audit:unlock_ip_login' row.pk %}" class="d-inline">
                                 {% csrf_token %}
                                 <button type="submit" class="btn btn-sm btn-outline-hm fw-bold">
-                                    Bỏ chặn
+                                    <i class="bi bi-unlock me-1"></i>Bỏ chặn
                                 </button>
                             </form>
                             {% endif %}
@@ -227,7 +227,7 @@
                 </div>
                 <div class="mt-4 d-flex align-items-center gap-3">
                     <button type="submit" class="btn btn-hm text-white fw-bold">
-                        Lưu cấu hình
+                        <i class="bi bi-save me-1"></i>Lưu cấu hình
                     </button>
                     {% if security_config.updated_at %}
                     <span class="small text-muted">

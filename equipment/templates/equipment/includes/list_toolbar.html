@@ -2,17 +2,17 @@
 <div class="d-flex flex-wrap align-items-center gap-2">
     {% if jp_can_edit_equipment or can_edit_equipment or can_edit %}
     <a href="{{ equipment_urls.device_add }}" class="btn btn-hm btn-sm">
-        Thêm thiết bị
+        <i class="bi bi-plus-lg me-1"></i>Thêm thiết bị
     </a>
     <a href="{{ equipment_urls.import_export_hub }}" class="btn btn-outline-dark btn-sm">
-        Nhập Excel
+        <i class="bi bi-upload me-1"></i>Nhập Excel
     </a>
     {% endif %}
     {% if jp_can_edit_equipment or can_edit_equipment or can_edit or jp_can_equipment or can_export %}
     <a href="{{ equipment_urls.export_devices }}?{{ request.GET.urlencode }}"
        class="btn btn-outline-hm btn-sm"
        title="Xuất theo bộ lọc hiện tại">
-        Xuất Excel
+        <i class="bi bi-download me-1"></i>Xuất Excel
     </a>
     {% endif %}
 </div>

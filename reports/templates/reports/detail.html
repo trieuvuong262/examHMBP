@@ -37,19 +37,19 @@
         </div>
         <div class="jp-report-detail-hero-actions d-flex gap-2 flex-wrap">
             <a href="{{ list_back_url }}" class="btn btn-outline-secondary btn-sm">
-                Danh sách báo cáo
+                <i class="bi bi-arrow-left me-1"></i>Danh sách báo cáo
             </a>
             <a href="{{ history_url }}" class="btn btn-outline-dark btn-sm">
-                Lịch sử
+                <i class="bi bi-clock-history me-1"></i>Lịch sử
             </a>
             {% if can_export_report %}
             <a href="{{ export_url }}" class="btn btn-outline-hm btn-sm">
-                Xuất Excel
+                <i class="bi bi-file-earmark-spreadsheet me-1"></i>Xuất Excel
             </a>
             {% endif %}
             {% if edit_report_url %}
             <a href="{{ edit_report_url }}" class="btn btn-outline-hm btn-sm">
-                
+                <i class="bi bi-pencil-square me-1"></i>
                 {% if report.employee_id == request.user.id %}Sửa{% else %}Chỉnh sửa báo cáo{% endif %}
             </a>
             {% endif %}
@@ -68,12 +68,12 @@
             <ul class="nav nav-tabs jp-report-tabs" id="jpReportDetailTabs" role="tablist">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active" id="jp-tab-productivity-btn" data-bs-toggle="tab" data-bs-target="#jp-tab-productivity" type="button" role="tab" aria-controls="jp-tab-productivity" aria-selected="true">
-                        Báo cáo năng suất
+                        <i class="bi bi-speedometer2 me-1"></i>Báo cáo năng suất
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="jp-tab-quantity-btn" data-bs-toggle="tab" data-bs-target="#jp-tab-quantity" type="button" role="tab" aria-controls="jp-tab-quantity" aria-selected="false">
-                        Báo cáo sản lượng
+                        <i class="bi bi-table me-1"></i>Báo cáo sản lượng
                     </button>
                 </li>
             </ul>
@@ -93,7 +93,7 @@
                         {% if can_edit_norm %}
                         <div class="d-flex justify-content-end mt-3">
                             <button type="submit" class="btn btn-hm px-4">
-                                Lưu định mức
+                                <i class="bi bi-check2-circle me-1"></i>Lưu định mức
                             </button>
                         </div>
                         {% endif %}
@@ -209,7 +209,7 @@
                     <label class="form-label small fw-bold text-muted text-uppercase">Ghi chú</label>
                     <input type="text" name="hod_note" class="form-control" value="{{ report.hod_note }}" placeholder="Phản hồi ngắn cho nhân viên">
                 </div>
-                <button type="submit" class="btn btn-hm px-4">Lưu phản hồi</button>
+                <button type="submit" class="btn btn-hm px-4"><i class="bi bi-send me-1"></i>Lưu phản hồi</button>
             </form>
         </div>
     </div>

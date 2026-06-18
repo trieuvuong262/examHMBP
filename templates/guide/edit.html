@@ -15,7 +15,7 @@
                 </div>
                 <div class="d-flex flex-wrap gap-2">
                     <a href="{% url 'user_guide' %}" class="btn btn-outline-hm fw-bold">
-                        Xem trang
+                        <i class="bi bi-eye me-1"></i>Xem trang
                     </a>
                 </div>
             </div>
@@ -53,7 +53,7 @@
                         </div>
                         <div class="col-md-3">
                             <button type="submit" class="btn btn-hm fw-bold w-100">
-                                Lưu tiêu đề
+                                <i class="bi bi-check-lg me-1"></i>Lưu tiêu đề
                             </button>
                         </div>
                     </form>
@@ -68,9 +68,7 @@
                     {% for sec in sections %}
                     <div class="list-group-item guide-edit-section-item py-3 px-4">
                         <div class="d-flex flex-column flex-md-row align-items-md-center gap-3">
-                            <div class="guide-edit-section-icon flex-shrink-0">
-                                
-                            </div>
+                            
                             <div class="flex-grow-1 min-w-0">
                                 <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
                                     <h6 class="fw-bold mb-0">{{ sec.display_title }}</h6>
@@ -89,10 +87,10 @@
                             </div>
                             <div class="d-flex flex-wrap gap-2 flex-shrink-0">
                                 <a href="{% url 'user_guide_edit_section' section_id=sec.id %}" class="btn btn-hm btn-sm fw-bold">
-                                    Sửa mục
+                                    <i class="bi bi-pencil me-1"></i>Sửa mục
                                 </a>
                                 <a href="{% url 'user_guide' %}#{{ sec.id }}" class="btn btn-outline-dark btn-sm fw-bold" target="_blank" rel="noopener">
-                                    Xem
+                                    <i class="bi bi-box-arrow-up-right me-1"></i>Xem
                                 </a>
                             </div>
                         </div>
