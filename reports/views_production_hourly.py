@@ -99,7 +99,7 @@ def _resolve_production_subject(request, report_date):
 def _load_production_report(subject, report_date):
     from reports.views import _load_daily_report
 
-    report = _load_daily_report(subject, report_date)
+    report = _load_daily_report(subject, report_date, report_profile=REPORT_PROFILE_PRODUCTION)
     if report.pk:
         report = (
             DailyWorkReport.objects.prefetch_related(

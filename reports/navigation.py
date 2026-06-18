@@ -7,8 +7,6 @@ from hrm.module_permissions import MODULE_REPORTS
 from reports.report_profile import (
     REPORT_PROFILE_OFFICE,
     REPORT_PROFILE_PRODUCTION,
-    get_report_profile,
-    is_production_report_user,
 )
 
 MENU_DAILY_CN = 'daily_cn'
@@ -29,13 +27,28 @@ def legacy_daily_menu_key(menu_key: str) -> str | None:
 
 
 def today_url_name_for_user(user) -> str:
-    if is_production_report_user(user):
+    """Ưu tiên menu được cấp trong phân quyền — không theo phòng ban."""
+    if user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_CN):
         return 'reports:today_cn'
-    return 'reports:today_vp'
+    if user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_VP):
+        return 'reports:today_vp'
+    return 'reports:today_cn'
 
 
 def today_url_for_user(user) -> str:
     return reverse(today_url_name_for_user(user))
+
+
+def my_url_name_for_user(user) -> str:
+    if user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_CN_DETAIL):
+        return 'reports:my_cn'
+    if user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_VP_DETAIL):
+        return 'reports:my_vp'
+    return 'reports:my_cn'
+
+
+def my_url_for_user(user) -> str:
+    return reverse(my_url_name_for_user(user))
 
 
 def team_url_name_for_profile(report_profile: str) -> str:
@@ -102,7 +115,7 @@ def list_back_url_for(report, viewer, *, can_view_team: bool) -> str:
 
 
 def redirect_team_legacy(user):
-    """URL team mặc định khi truy cập /reports/team/ cũ."""
+    """URL quản lý báo cáo mặc định — theo phân quyền menu."""
     if user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_CN_DETAIL):
         return reverse('reports:team_cn')
     if user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_VP_DETAIL):
@@ -110,21 +123,15 @@ def redirect_team_legacy(user):
     return reverse('reports:team_cn')
 
 
-def redirect_hub_for_user(user, *, can_submit: bool, can_view_team: bool, is_director_user: bool):
-    if can_view_team and is_director_user:
-        return redirect_team_legacy(user)
-    if can_submit:
-        return today_url_for_user(user)
-    if can_view_team:
-        return redirect_team_legacy(user)
-    return None
+def redirect_copy_yesterday_legacy(user):
+    if user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_CN):
+        return reverse('reports:copy_yesterday_cn')
+    if user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_VP):
+        return reverse('reports:copy_yesterday_vp')
+    return reverse('reports:copy_yesterday_cn')
 
 
 def report_profile_label(report_profile: str) -> str:
     if report_profile == REPORT_PROFILE_PRODUCTION:
         return 'CN'
     return 'VP'
-
-
-def user_report_profile(user) -> str:
-    return get_report_profile(user)

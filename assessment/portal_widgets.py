@@ -1,6 +1,6 @@
 """Tóm tắt việc cần làm — hiển thị trên trang chủ portal."""
 
-from django.db.models import Q
+from reports.navigation import redirect_team_legacy, today_url_for_user
 from django.urls import reverse
 from django.utils import timezone
 
@@ -394,7 +394,7 @@ def get_portal_dashboard(user):
                 'icon': 'bi-clipboard-check-fill',
                 'title': 'Báo cáo hàng ngày',
                 'text': text,
-                'url': reverse('reports:today'),
+                'url': today_url_for_user(user),
                 'action': 'Nhập báo cáo',
             })
 
@@ -422,7 +422,7 @@ def get_portal_dashboard(user):
                     'icon': 'bi-people-fill',
                     'title': 'Báo cáo team',
                     'text': f'{missing} nhân viên chưa nộp báo cáo hôm nay ({today.strftime("%d/%m")}).',
-                    'url': reverse('reports:team'),
+                    'url': redirect_team_legacy(user),
                     'action': 'Xem team',
                     'badge': missing,
                 })
