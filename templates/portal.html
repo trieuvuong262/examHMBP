@@ -31,15 +31,25 @@
         </div>
     </section>
 
-    {% if jp_webpush_public_key and jp_portal_push_eligible %}
-    <div id="jpMealPushSuccess" class="alert alert-success border-0 shadow-sm d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-3 mb-lg-4" role="status" aria-live="polite" hidden>
+    {% if jp_webpush_public_key and jp_portal_push_eligible and jp_portal_push_debug %}
+    <div id="jpMealPushSuccess" class="alert alert-light border shadow-sm jp-push-admin-panel d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-3 mb-lg-4" role="status" aria-live="polite" hidden>
         <div>
-            <strong><i class="bi bi-bell-fill me-1"></i>Đã bật thông báo portal</strong>
-            <div class="small mb-0" id="jpMealPushSuccessText">Bạn sẽ nhận thông báo công ty mới{% if jp_meal_push_eligible %} và nhắc đặt cơm lúc 16:00{% endif %}.</div>
+            <span class="badge bg-secondary mb-1">Admin · test push</span>
+            <strong class="d-block"><i class="bi bi-bell-fill me-1"></i>Thông báo đẩy portal</strong>
+            <div class="small text-muted mb-0" id="jpMealPushSuccessText">Đang kiểm tra đăng ký thiết bị…</div>
         </div>
         <div class="d-flex flex-wrap gap-2">
-            <button type="button" class="btn btn-sm btn-outline-success fw-bold" id="jpMealPushTest">Gửi thử</button>
-            <button type="button" class="btn btn-sm btn-outline-secondary" id="jpMealPushDisable">Tắt nhắc đẩy</button>
+            {% if jp_meal_push_eligible %}
+            <button type="button" class="btn btn-sm btn-outline-primary fw-bold" id="jpMealPushTest">
+                <i class="bi bi-cup-hot me-1"></i>Thử đặt cơm
+            </button>
+            {% endif %}
+            {% if jp_can_announcements %}
+            <button type="button" class="btn btn-sm btn-outline-primary fw-bold" id="jpAnnPushTest">
+                <i class="bi bi-megaphone me-1"></i>Thử thông báo
+            </button>
+            {% endif %}
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="jpMealPushDisable">Tắt đăng ký</button>
         </div>
     </div>
     {% endif %}

@@ -109,10 +109,17 @@ class MealPushTests(TestCase):
 
     @patch('utilities.push_service.send_push_to_subscription')
     def test_push_test(self, mock_send):
+        self.user.is_staff = True
+        self.user.save(update_fields=['is_staff'])
         resp = self.client.post(reverse('utilities:push_test'))
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json()['ok'])
         mock_send.assert_called()
+
+    def test_push_test_denied_for_non_staff(self):
+        resp = self.client.post(reverse('utilities:push_test'))
+        self.assertEqual(resp.status_code, 403)
+        self.assertIn('admin', resp.json()['message'].lower())
 
     def test_load_vapid_parses_pem_private_key(self):
         from py_vapid import Vapid

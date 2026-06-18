@@ -79,3 +79,40 @@ def send_announcement_push(announcement: Announcement) -> dict:
             skipped += 1
 
     return {'sent': sent, 'failed': failed, 'skipped': skipped}
+
+
+def _test_announcement_push_payload() -> str:
+    list_url = f'{_portal_base_url()}{reverse("announcements:list")}'
+    return json.dumps(
+        {
+            'title': 'Thử thông báo công ty',
+            'body': 'Đây là push thử. Khi có thông báo mới thật, bạn sẽ nhận tương tự.',
+            'url': list_url,
+            'tag': 'announcement-test',
+        },
+        ensure_ascii=False,
+    )
+
+
+def send_test_announcement_push(user) -> dict:
+    """Gửi push thử thông báo — chỉ dùng admin test."""
+    if not webpush_configured():
+        return {'sent': 0, 'failed': 0, 'reason': 'webpush_not_configured'}
+
+    subscriptions = list(MealPushSubscription.objects.filter(user=user))
+    if not subscriptions:
+        return {'sent': 0, 'failed': 0, 'reason': 'no_subscription'}
+
+    payload = _test_announcement_push_payload()
+    sent = failed = 0
+    for subscription in subscriptions:
+        try:
+            send_push_to_subscription(subscription, payload)
+            sent += 1
+        except Exception as exc:
+            failed += 1
+            if _is_expired_push_subscription(exc):
+                subscription.delete()
+            logger.warning('Test announcement push failed user=%s: %s', user.pk, exc)
+
+    return {'sent': sent, 'failed': failed}

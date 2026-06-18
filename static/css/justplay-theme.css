@@ -10436,3 +10436,17 @@ body.jp-meal-push-locked {
     color: #cbd5e1;
 }
 
+.jp-push-admin-panel {
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+[data-theme="dark"] .jp-push-admin-panel {
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    border-color: rgba(148, 163, 184, 0.25) !important;
+    color: #e2e8f0;
+}
+
+[data-theme="dark"] .jp-push-admin-panel .text-muted {
+    color: #94a3b8 !important;
+}
+

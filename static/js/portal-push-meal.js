@@ -101,7 +101,14 @@
         showGateError('');
     }
 
+    function isAdminDebugPanel() {
+        return !!getSuccessEl();
+    }
+
     function showSuccessBanner(message) {
+        if (!isAdminDebugPanel()) {
+            return;
+        }
         var success = getSuccessEl();
         var text = document.getElementById('jpMealPushSuccessText');
         if (text && message) {
@@ -167,16 +174,20 @@
 
     function permissionDeniedMessage() {
         return (
-            'Trình duyệt đang chặn thông báo. Vào cài đặt trang web → Thông báo → Cho phép, '
-            + 'sau đó tải lại trang và bấm «Cho phép nhận nhắc».'
+            'Trình duyệt đang chặn thông báo (Notifications = Block). '
+            + 'Bấm biểu tượng ổ khoá/cạnh địa chỉ trang → Notifications → chọn Allow, '
+            + 'sau đó tải lại trang portal.'
         );
     }
 
     function isFullySubscribed(browserSub, serverStatus, permission) {
+        if (permission !== 'granted') {
+            return false;
+        }
         if (serverStatus && serverStatus.subscribed) {
             return true;
         }
-        return !!(browserSub && permission === 'granted');
+        return !!browserSub;
     }
 
     window.jpSubscribeMealPush = function () {
@@ -218,7 +229,7 @@
             return saveSubscriptionOnServer(subscription);
         }).then(function () {
             hideMandatoryGate();
-            showSuccessBanner('Đã bật thông báo portal thành công.');
+            showSuccessBanner('Đã đăng ký push trên thiết bị này.');
             if (window.jpResetAnnouncementPushBaseline) {
                 window.jpResetAnnouncementPushBaseline();
             }
@@ -242,13 +253,28 @@
 
     function sendTestPush() {
         if (!cfg.testUrl) {
-            return Promise.reject(new Error('Chưa cấu hình gửi thử.'));
+            return Promise.reject(new Error('Chỉ admin mới gửi thử được.'));
         }
         return postJson(cfg.testUrl, {}).then(function (data) {
-            var text = document.getElementById('jpMealPushSuccessText');
-            if (text) {
-                text.textContent = data.message || 'Đã gửi thông báo thử.';
+            showSuccessBanner(data.message || 'Đã gửi thông báo thử đặt cơm.');
+        }).catch(function (err) {
+            var msg = (err && err.message) || '';
+            if (msg.indexOf('Chưa đăng ký') !== -1 || msg.indexOf('bật lại') !== -1) {
+                lsRemove(LS_SUBSCRIBED);
+                hideSuccessBanner();
+                showMandatoryGate();
+                scheduleAutoSubscribe();
             }
+            throw err;
+        });
+    }
+
+    function sendTestAnnouncementPush() {
+        if (!cfg.announcementTestUrl) {
+            return Promise.reject(new Error('Chỉ admin mới gửi thử được.'));
+        }
+        return postJson(cfg.announcementTestUrl, {}).then(function (data) {
+            showSuccessBanner(data.message || 'Đã gửi thông báo thử công ty.');
         }).catch(function (err) {
             var msg = (err && err.message) || '';
             if (msg.indexOf('Chưa đăng ký') !== -1 || msg.indexOf('bật lại') !== -1) {
@@ -263,6 +289,10 @@
 
     function scheduleAutoSubscribe() {
         if (autoAttempted) {
+            return;
+        }
+        if (Notification.permission === 'denied') {
+            showGateError(permissionDeniedMessage());
             return;
         }
         autoAttempted = true;
@@ -281,6 +311,13 @@
             return Promise.resolve();
         }
 
+        if (Notification.permission === 'denied') {
+            lsRemove(LS_SUBSCRIBED);
+            showMandatoryGate();
+            showGateError(permissionDeniedMessage());
+            return Promise.resolve();
+        }
+
         return Promise.all([getBrowserSubscription(), fetchServerStatus()]).then(function (results) {
             var browserSub = results[0];
             var serverStatus = results[1];
@@ -294,14 +331,14 @@
                 if (browserSub && permission === 'granted' && !serverStatus.subscribed) {
                     return saveSubscriptionOnServer(browserSub).then(function () {
                         hideMandatoryGate();
-                        showSuccessBanner('Đã đăng ký nhắc đẩy trên thiết bị này.');
+                        showSuccessBanner('Đã đồng bộ đăng ký push lên server.');
                     }).catch(function () {
                         hideMandatoryGate();
-                        showSuccessBanner('Đã đăng ký nhắc đẩy trên tài khoản của bạn.');
+                        showSuccessBanner('Trình duyệt đã cho phép — chưa đồng bộ server.');
                     });
                 }
                 hideMandatoryGate();
-                showSuccessBanner('Đã đăng ký thông báo đặt cơm.');
+                showSuccessBanner('Đã đăng ký push — dùng nút bên phải để gửi thử.');
                 return;
             }
 
@@ -316,6 +353,7 @@
     function bindPushUI() {
         var enableBtn = document.getElementById('jpMealPushEnable');
         var testBtn = document.getElementById('jpMealPushTest');
+        var annTestBtn = document.getElementById('jpAnnPushTest');
         var disableBtn = document.getElementById('jpMealPushDisable');
 
         if (enableBtn) {
@@ -336,10 +374,23 @@
                 testBtn.disabled = true;
                 sendTestPush()
                     .catch(function (err) {
-                        window.alert(err.message || 'Không gửi được thông báo thử.');
+                        window.alert(err.message || 'Không gửi được thông báo thử đặt cơm.');
                     })
                     .finally(function () {
                         testBtn.disabled = false;
+                    });
+            });
+        }
+
+        if (annTestBtn) {
+            annTestBtn.addEventListener('click', function () {
+                annTestBtn.disabled = true;
+                sendTestAnnouncementPush()
+                    .catch(function (err) {
+                        window.alert(err.message || 'Không gửi được thông báo thử.');
+                    })
+                    .finally(function () {
+                        annTestBtn.disabled = false;
                     });
             });
         }

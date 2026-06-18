@@ -7,7 +7,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_GET, require_http_methods
 
 from utilities.models import MealPushSubscription
-from utilities.portal_push_eligibility import user_portal_push_eligible
+from utilities.portal_push_eligibility import user_portal_push_debug, user_portal_push_eligible
 from utilities.push_service import webpush_configured
 
 
@@ -104,6 +104,8 @@ def push_status(request):
 def push_test(request):
     if not webpush_configured():
         return _json_error('Web push chưa được cấu hình trên server.', status=503)
+    if not user_portal_push_debug(request.user):
+        return _json_error('Chỉ admin được gửi thử.', status=403)
     if not user_portal_push_eligible(request.user):
         return _json_error('Tài khoản không đủ điều kiện nhận thông báo đẩy.', status=403)
 

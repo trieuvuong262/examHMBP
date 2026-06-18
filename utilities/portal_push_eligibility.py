@@ -19,3 +19,8 @@ def user_portal_push_eligible(user) -> bool:
     if user_meal_push_eligible(user):
         return True
     return user_can_access_module(user, MODULE_ANNOUNCEMENTS)
+
+
+def user_portal_push_debug(user) -> bool:
+    """Chỉ admin/staff — panel test push trên trang chủ."""
+    return bool(getattr(user, 'is_authenticated', False) and getattr(user, 'is_staff', False))

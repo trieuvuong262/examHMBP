@@ -3,7 +3,11 @@ from django.test import TestCase, override_settings
 
 from hrm.models import Department, DepartmentMenuPermission, Profile, RoleModulePermission
 from hrm.permissions import ROLE_EMPLOYEE
-from utilities.portal_push_eligibility import user_meal_push_eligible, user_portal_push_eligible
+from utilities.portal_push_eligibility import (
+    user_meal_push_eligible,
+    user_portal_push_debug,
+    user_portal_push_eligible,
+)
 
 
 @override_settings(
@@ -51,3 +55,8 @@ class PortalPushEligibilityTests(TestCase):
     def test_vp_user_only_portal_eligible(self):
         self.assertFalse(user_meal_push_eligible(self.vp_user))
         self.assertTrue(user_portal_push_eligible(self.vp_user))
+
+    def test_push_debug_staff_only(self):
+        self.assertFalse(user_portal_push_debug(self.sx_user))
+        self.sx_user.is_staff = True
+        self.assertTrue(user_portal_push_debug(self.sx_user))

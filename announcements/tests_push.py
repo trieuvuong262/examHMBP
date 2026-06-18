@@ -5,7 +5,11 @@ from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from announcements.models import Announcement, AnnouncementRead
-from announcements.push_service import announcement_push_payload, send_announcement_push
+from announcements.push_service import (
+    announcement_push_payload,
+    send_announcement_push,
+    send_test_announcement_push,
+)
 from hrm.models import Department, DepartmentMenuPermission, Profile, RoleModulePermission
 from hrm.permissions import ROLE_EMPLOYEE
 from utilities.models import MealPushSubscription
@@ -68,3 +72,22 @@ class AnnouncementPushTests(TestCase):
         AnnouncementRead.objects.create(announcement=self.announcement, user=self.user)
         resp = self.client.get(reverse('announcements:push_poll'))
         self.assertFalse(resp.json()['has_new'])
+
+    @patch('announcements.push_service.send_push_to_subscription')
+    def test_push_test_staff(self, mock_send):
+        self.user.is_staff = True
+        self.user.save(update_fields=['is_staff'])
+        resp = self.client.post(reverse('announcements:push_test'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json()['ok'])
+        mock_send.assert_called_once()
+
+    def test_push_test_denied_for_non_staff(self):
+        resp = self.client.post(reverse('announcements:push_test'))
+        self.assertEqual(resp.status_code, 403)
+
+    @patch('announcements.push_service.send_push_to_subscription')
+    def test_send_test_announcement_push_helper(self, mock_send):
+        stats = send_test_announcement_push(self.user)
+        self.assertEqual(stats['sent'], 1)
+        mock_send.assert_called_once()
