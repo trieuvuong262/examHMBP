@@ -151,7 +151,7 @@
                 <li>
                     <a href="{% if jp_can_team_reports %}{% url 'reports:team_cn' %}{% else %}{% url 'reports:my_cn' %}{% endif %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'team_cn' or request.resolver_match.url_name == 'my_cn' or request.resolver_match.url_name == 'detail_cn' %}active{% endif %}">
-                        <i class="bi bi-table"></i><span>Chi tiết BC ngày (CN)</span>
+                        <i class="bi bi-people-fill"></i><span>Quản lý báo cáo (CN)</span>
                     </a>
                 </li>
                 {% endif %}
@@ -169,7 +169,7 @@
                 <li>
                     <a href="{% if jp_can_team_reports %}{% url 'reports:team_vp' %}{% else %}{% url 'reports:my_vp' %}{% endif %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'team_vp' or request.resolver_match.url_name == 'my_vp' or request.resolver_match.url_name == 'detail_vp' %}active{% endif %}">
-                        <i class="bi bi-file-earmark-spreadsheet"></i><span>Chi tiết BC ngày (VP)</span>
+                        <i class="bi bi-people-fill"></i><span>Quản lý báo cáo (VP)</span>
                     </a>
                 </li>
                 {% endif %}

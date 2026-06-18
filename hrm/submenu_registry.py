@@ -21,9 +21,9 @@ from hrm.module_permissions import (
 MODULE_SUBMENUS: dict[str, list[dict]] = {
     MODULE_REPORTS: [
         {'key': 'daily_cn', 'label': 'Báo cáo ngày (CN)', 'icon': 'bi-calendar-day'},
-        {'key': 'daily_cn_detail', 'label': 'Chi tiết BC ngày (CN)', 'icon': 'bi-table'},
+        {'key': 'daily_cn_detail', 'label': 'Quản lý báo cáo (CN)', 'icon': 'bi-people-fill'},
         {'key': 'daily_vp', 'label': 'Báo cáo ngày (VP)', 'icon': 'bi-calendar-day'},
-        {'key': 'daily_vp_detail', 'label': 'Chi tiết BC ngày (VP)', 'icon': 'bi-file-earmark-spreadsheet'},
+        {'key': 'daily_vp_detail', 'label': 'Quản lý báo cáo (VP)', 'icon': 'bi-people-fill'},
         {'key': 'weekly', 'label': 'Báo cáo tuần', 'icon': 'bi-calendar-week'},
     ],
     MODULE_TASKS: [
