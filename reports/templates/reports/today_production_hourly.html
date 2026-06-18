@@ -2,11 +2,11 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260618a">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260618b">
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-reports-page py-3 py-md-4 mb-md-5">
+<div class="container-fluid jp-prod-page-wrap jp-page jp-reports-page py-3 py-md-4 mb-md-5">
 <div class="jp-prod-page{% if editing_for_other %} jp-prod-page--proxy{% endif %}{% if phase == 'review' %} jp-prod-page--review{% endif %}" data-phase="{{ phase }}">
     <header class="jp-prod-page-header">
         <div class="jp-prod-page-header-main">
@@ -218,7 +218,7 @@
 
 {% if can_edit %}
 <div class="modal fade jp-prod-modal" id="hourlyModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
-    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down modal-dialog-scrollable jp-prod-modal-dialog">
         <form method="post" class="modal-content" id="hourly-form">
             {% csrf_token %}
             <input type="hidden" name="action" value="save_hourly">
@@ -258,7 +258,7 @@
 
 <div class="modal fade jp-prod-modal" id="productWizardModal" tabindex="-1" aria-hidden="true"
      data-bs-backdrop="true" data-bs-keyboard="true" data-show="{% if phase == 'finish_product' %}1{% else %}0{% endif %}">
-    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down modal-dialog-scrollable jp-prod-modal-dialog">
         <form method="post" class="modal-content" id="product-wizard-form">
             {% csrf_token %}
             <input type="hidden" name="action" value="finalize_product">

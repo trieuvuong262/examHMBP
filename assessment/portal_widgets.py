@@ -1,6 +1,7 @@
 """Tóm tắt việc cần làm — hiển thị trên trang chủ portal."""
 
 from reports.navigation import redirect_team_legacy, today_url_for_user
+from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
 

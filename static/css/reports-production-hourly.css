@@ -114,6 +114,16 @@ body .modal-backdrop.show {
     .jp-prod-modal .modal-content {
         border-radius: 1.25rem;
     }
+
+    .jp-prod-modal-dialog {
+        max-width: 420px;
+    }
+}
+
+@media (min-width: 992px) {
+    .jp-prod-modal-dialog {
+        max-width: 480px;
+    }
 }
 
 .jp-prod-qty-input {
@@ -488,10 +498,46 @@ body .modal-backdrop.show {
 }
 
 /* ——— Desktop / quản lý nhập hộ ——— */
+
+/* Vùng nội dung — rộng hơn container mặc định trên màn lớn */
+.jp-prod-page-wrap {
+    width: 100%;
+    max-width: 100%;
+    padding-left: max(0.75rem, env(safe-area-inset-left));
+    padding-right: max(0.75rem, env(safe-area-inset-right));
+}
+
+@media (min-width: 768px) {
+    .jp-prod-page-wrap {
+        padding-left: 1.25rem;
+        padding-right: 1.25rem;
+    }
+}
+
+@media (min-width: 1200px) {
+    .jp-prod-page-wrap {
+        max-width: 1480px;
+        margin-left: auto;
+        margin-right: auto;
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+    }
+}
+
 @media (min-width: 992px) {
+    .jp-prod-page-header {
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .jp-prod-page-title {
+        font-size: 1.65rem;
+    }
+
     .jp-prod-layout {
         display: grid;
-        grid-template-columns: 260px minmax(0, 1fr);
+        grid-template-columns: 240px minmax(0, 1fr);
         gap: 1.5rem;
         align-items: start;
     }
@@ -518,15 +564,34 @@ body .modal-backdrop.show {
     .jp-prod-review-main {
         background: #fff;
         border-radius: 1rem;
-        padding: 1.25rem 1.5rem;
+        padding: 1.35rem 1.65rem;
         box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
         border: 1px solid rgba(0, 0, 0, 0.06);
     }
 
     .jp-prod-hourly-table {
-        font-size: 0.8rem;
+        font-size: 0.85rem;
         min-width: 100%;
         width: 100%;
+    }
+
+    .jp-prod-hourly-table .jp-ph-slot {
+        min-width: 5.25rem;
+        font-size: 0.72rem;
+        padding: 0.45rem 0.35rem !important;
+    }
+
+    .jp-prod-hourly-table .jp-ph-cell {
+        min-width: 4.25rem;
+        height: 2.85rem;
+    }
+
+    .jp-prod-hourly-table .jp-ph-qty {
+        font-size: 0.82rem;
+    }
+
+    .jp-prod-hourly-table .jp-ph-cum {
+        font-size: 0.75rem;
     }
 
     .jp-prod-hourly-scroll {
@@ -557,7 +622,7 @@ body .modal-backdrop.show {
     }
 
     .jp-prod-review-desktop .jp-prod-hourly-table {
-        min-width: 960px;
+        min-width: 100%;
     }
 
     .jp-review-cell-input {
@@ -583,13 +648,69 @@ body .modal-backdrop.show {
     }
 }
 
-@media (max-width: 991.98px) {
+/* Desktop rộng: thanh thao tác ngang, bảng full width */
+@media (min-width: 1200px) {
+    .jp-prod-layout {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 1.25rem;
+    }
+
+    .jp-prod-sidebar {
+        width: 100%;
+    }
+
+    .jp-prod-sidebar-card {
+        position: static;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 1rem 1.25rem;
+        padding: 1rem 1.35rem;
+    }
+
+    .jp-prod-sidebar-card .jp-prod-status-bar {
+        margin-bottom: 0 !important;
+        flex: 0 0 auto;
+    }
+
+    .jp-prod-actions--sidebar {
+        display: flex !important;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 0.65rem !important;
+        margin-left: auto;
+    }
+
+    .jp-prod-actions--sidebar .btn {
+        width: auto;
+        white-space: nowrap;
+    }
+}
+
+/* Tablet: full width, không ép 480px */
+@media (min-width: 576px) and (max-width: 991.98px) {
+    .jp-prod-page {
+        max-width: none;
+        margin: 0;
+    }
+
+    .jp-prod-actions--mobile .btn {
+        min-height: 2.75rem;
+    }
+
+    .jp-prod-grid-section {
+        padding: 1.15rem 1.25rem;
+    }
+}
+
+/* Chỉ điện thoại: giữ layout mobile gọn 480px */
+@media (max-width: 575.98px) {
     .jp-prod-page {
         max-width: 480px;
         margin: 0 auto;
     }
 
-    .container.jp-reports-page:has(.jp-prod-page) {
+    .jp-prod-page-wrap {
         padding-left: 0.75rem;
         padding-right: 0.75rem;
     }
