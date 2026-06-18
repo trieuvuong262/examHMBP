@@ -140,7 +140,10 @@
         <div class="jp-meal-push-gate-icon" aria-hidden="true"><i class="bi bi-bell-fill"></i></div>
         <h2 class="jp-meal-push-gate-title" id="jpMealPushGateTitle">Bật thông báo portal</h2>
         <p class="jp-meal-push-gate-lead mb-2">Portal yêu cầu <strong>cho phép thông báo</strong> để nhận <strong>thông báo công ty mới</strong>{% if jp_meal_push_eligible %} và nhắc <strong>đặt cơm lúc 16:00</strong>{% endif %}.</p>
-        <p class="jp-meal-push-gate-note small text-muted mb-3">Chọn <strong>Cho phép</strong> khi trình duyệt hỏi. Nếu đang <strong>Block</strong>, mở cài đặt trang (ổ khoá cạnh địa chỉ) → <strong>Notifications → Allow</strong>, rồi tải lại.</p>
+        <p class="jp-meal-push-gate-note small text-muted mb-3">
+            <strong>Bước 1:</strong> Bấm nút bên dưới → trình duyệt hiện hộp thoại riêng → chọn <strong>Allow</strong>.<br>
+            <strong>Nếu đang Block:</strong> ổ khoá cạnh địa chỉ → <strong>Notifications → Allow</strong> → F5 (nút portal <em>không</em> gỡ Block được).
+        </p>
         <button type="button" class="btn btn-hm btn-lg w-100 fw-bold" id="jpMealPushEnable">Cho phép nhận thông báo</button>
         <p id="jpMealPushGateError" class="jp-meal-push-gate-error small text-danger mb-0 mt-3" hidden></p>
     </div>
@@ -208,7 +211,7 @@ window.JP_PORTAL_PUSH = {
 };
 window.JP_MEAL_PUSH = window.JP_PORTAL_PUSH;
 </script>
-<script src="{% static 'js/portal-push-meal.js' %}?v=20260628b"></script>
+<script src="{% static 'js/portal-push-meal.js' %}?v=20260628c"></script>
 {% if jp_can_announcements %}
 <script src="{% static 'js/portal-push-announcements.js' %}?v=20260628a"></script>
 {% endif %}
