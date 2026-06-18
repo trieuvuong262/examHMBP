@@ -179,7 +179,7 @@ def _daily_report_defaults(report_profile: str):
 
 
 def _load_daily_report(user, report_date, *, report_profile: str):
-    """Chỉ lấy bản ghi đã lưu; loại báo cáo theo trang CN/VP, không theo phòng ban."""
+    """Chỉ lấy bản ghi đã lưu; loại báo cáo theo trang SX/VP, không theo phòng ban."""
     try:
         return DailyWorkReport.objects.get(employee=user, report_date=report_date)
     except DailyWorkReport.DoesNotExist:
@@ -559,7 +559,7 @@ def _my_reports(request, daily_report_profile=None):
         ))
 
     page_obj, query_string = paginate_queryset(request, reports_qs)
-    scope_label = 'CN' if daily_report_profile == REPORT_PROFILE_PRODUCTION else 'VP' if daily_report_profile else ''
+    scope_label = 'SX' if daily_report_profile == REPORT_PROFILE_PRODUCTION else 'VP' if daily_report_profile else ''
     return render(request, 'reports/my_reports.html', {
         'reports': page_obj.object_list,
         'page_obj': page_obj,
@@ -731,7 +731,7 @@ def _team_reports_for_profile(request, report_profile: str):
     if dept_filter:
         base_params['dept'] = dept_filter
 
-    scope_label = 'CN' if report_profile == REPORT_PROFILE_PRODUCTION else 'VP'
+    scope_label = 'SX' if report_profile == REPORT_PROFILE_PRODUCTION else 'VP'
     return render(request, 'reports/team.html', {
         'department_groups': department_groups,
         'dept_choices': dept_choices,
@@ -1125,3 +1125,28 @@ def weekly_attachment_serve(request, pk):
     if as_attachment:
         response['Content-Disposition'] = f'attachment; filename="{att.display_name}"'
     return response
+
+
+def redirect_legacy_cn_today(request):
+    return redirect(reverse('reports:today_cn'), permanent=True)
+
+
+def redirect_legacy_cn_team(request):
+    return redirect(reverse('reports:team_cn'), permanent=True)
+
+
+def redirect_legacy_cn_my(request):
+    return redirect(reverse('reports:my_cn'), permanent=True)
+
+
+def redirect_legacy_cn_copy_yesterday(request):
+    return redirect(reverse('reports:copy_yesterday_cn'), permanent=True)
+
+
+def redirect_legacy_cn_detail(request, pk):
+    return redirect(reverse('reports:detail_cn', kwargs={'pk': pk}), permanent=True)
+
+
+def redirect_legacy_cn_export(request, pk):
+    return redirect(reverse('reports:detail_export_cn', kwargs={'pk': pk}), permanent=True)
+

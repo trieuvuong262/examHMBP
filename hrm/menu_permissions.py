@@ -32,6 +32,7 @@ from hrm.submenu_registry import (
 _MENU_DEFER_PATH_PATTERNS = (
     re.compile(r'^/yeu-cau/de-xuat/\d+/?'),
     re.compile(r'^/yeu-cau/ho-tro/\d+/?'),
+    re.compile(r'^/reports/sx/\d+'),
     re.compile(r'^/reports/cn/\d+'),
     re.compile(r'^/reports/vp/\d+'),
     re.compile(r'^/reports/\d+/?$'),
@@ -41,6 +42,8 @@ _MENU_DEFER_PATH_PATTERNS = (
 _MENU_REGEX_RULES: list[tuple[re.Pattern, str, str]] = [
     (re.compile(r'^/gop-y/\d+/?$'), 'feedback', 'list'),
     (re.compile(r'^/reports/weekly/\d+/?'), 'reports', 'weekly'),
+    (re.compile(r'^/reports/sx/\d+/export/?'), 'reports', 'daily_cn_detail'),
+    (re.compile(r'^/reports/sx/\d+/?'), 'reports', 'daily_cn_detail'),
     (re.compile(r'^/reports/cn/\d+/export/?'), 'reports', 'daily_cn_detail'),
     (re.compile(r'^/reports/cn/\d+/?'), 'reports', 'daily_cn_detail'),
     (re.compile(r'^/reports/vp/\d+/export/?'), 'reports', 'daily_vp_detail'),

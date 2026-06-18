@@ -62,5 +62,5 @@ class ReportsGranularPermissionTests(TestCase):
 
     def test_submit_user_can_open_today_report(self):
         self.client.force_login(self.submit_user)
-        response = self.client.get(reverse('reports:today'))
+        response = self.client.get(reverse('reports:today_cn'))
         self.assertEqual(response.status_code, 200)

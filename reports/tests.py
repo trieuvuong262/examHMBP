@@ -94,7 +94,7 @@ class ReportHierarchyTests(TestCase):
         client.force_login(self.director)
         resp = client.get(reverse('reports:today'))
         self.assertEqual(resp.status_code, 302)
-        self.assertIn('/reports/cn/team/', resp.url)
+        self.assertIn('/reports/sx/team/', resp.url)
 
     def test_leader_sees_only_direct_subordinate_report(self):
         client = Client()

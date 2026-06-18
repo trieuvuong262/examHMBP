@@ -50,7 +50,7 @@ class ReportTeamDraftTests(TestCase):
             status=DailyWorkReport.STATUS_DRAFT,
         )
         self.client.force_login(self.leader)
-        resp = self.client.get(reverse('reports:team'))
+        resp = self.client.get(reverse('reports:team_cn'))
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'Chưa báo cáo')
         self.assertNotContains(resp, 'Nháp')
@@ -63,7 +63,7 @@ class ReportTeamDraftTests(TestCase):
             draft_saved_at=timezone.now(),
         )
         self.client.force_login(self.leader)
-        resp = self.client.get(reverse('reports:team'))
+        resp = self.client.get(reverse('reports:team_cn'))
         self.assertContains(resp, 'Nháp')
 
     def test_team_grouped_by_concurrent_department(self):
@@ -98,7 +98,7 @@ class ReportTeamDraftTests(TestCase):
         self.assertEqual(groups[0]['members'][0].username, 'sub_sx')
 
         self.client.force_login(mgr)
-        resp = self.client.get(reverse('reports:team'))
+        resp = self.client.get(reverse('reports:team_cn'))
         self.assertContains(resp, 'SAN XUAT GRP')
         self.assertContains(resp, 'MARKETING GRP')
 
@@ -137,7 +137,7 @@ class ReportTeamDraftTests(TestCase):
             submitted_at=timezone.now(),
         )
         self.client.force_login(self.member)
-        resp = self.client.get(reverse('reports:my'), {'period': 'weekly'})
+        resp = self.client.get(reverse('reports:my_cn'), {'period': 'weekly'})
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'Theo tuần')
         self.assertContains(resp, '1 link')
@@ -154,7 +154,7 @@ class ReportTeamDraftTests(TestCase):
             status=WeeklyWorkReport.STATUS_DRAFT,
         )
         self.client.force_login(self.member)
-        resp = self.client.get(reverse('reports:my'), {'period': 'weekly'})
+        resp = self.client.get(reverse('reports:my_cn'), {'period': 'weekly'})
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'Chưa có báo cáo tuần nào')
 
@@ -190,7 +190,7 @@ class ReportTeamDraftTests(TestCase):
             submitted_at=timezone.now(),
         )
         self.client.force_login(self.leader)
-        base = reverse('reports:team') + f'?date={today.isoformat()}'
+        base = reverse('reports:team_cn') + f'?date={today.isoformat()}'
 
         resp_all = self.client.get(base)
         self.assertContains(resp_all, 'mem_draft')

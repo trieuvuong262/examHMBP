@@ -1,4 +1,4 @@
-"""URL và menu báo cáo ngày — tách CN (sản xuất) / VP (văn phòng)."""
+"""URL và menu báo cáo ngày — tách SX (sản xuất) / VP (văn phòng)."""
 
 from django.urls import reverse
 
@@ -133,5 +133,5 @@ def redirect_copy_yesterday_legacy(user):
 
 def report_profile_label(report_profile: str) -> str:
     if report_profile == REPORT_PROFILE_PRODUCTION:
-        return 'CN'
+        return 'SX'
     return 'VP'

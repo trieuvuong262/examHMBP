@@ -20,8 +20,8 @@ from hrm.module_permissions import (
 # {module_key: [{key, label, icon}, ...]}
 MODULE_SUBMENUS: dict[str, list[dict]] = {
     MODULE_REPORTS: [
-        {'key': 'daily_cn', 'label': 'Báo cáo ngày (CN)', 'icon': 'bi-calendar-day'},
-        {'key': 'daily_cn_detail', 'label': 'Quản lý báo cáo (CN)', 'icon': 'bi-people-fill'},
+        {'key': 'daily_cn', 'label': 'Báo cáo ngày (SX)', 'icon': 'bi-calendar-day'},
+        {'key': 'daily_cn_detail', 'label': 'Quản lý báo cáo (SX)', 'icon': 'bi-people-fill'},
         {'key': 'daily_vp', 'label': 'Báo cáo ngày (VP)', 'icon': 'bi-calendar-day'},
         {'key': 'daily_vp_detail', 'label': 'Quản lý báo cáo (VP)', 'icon': 'bi-people-fill'},
         {'key': 'weekly', 'label': 'Báo cáo tuần', 'icon': 'bi-calendar-week'},
@@ -88,7 +88,12 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
 
 # (path_prefix, module_key, menu_key) — prefix dài / cụ thể trước
 MENU_PATH_RULES: list[tuple[str, str, str]] = [
-    # Báo cáo — CN (sản xuất)
+    # Báo cáo — SX (sản xuất)
+    ('/reports/sx/team', MODULE_REPORTS, 'daily_cn_detail'),
+    ('/reports/sx/my', MODULE_REPORTS, 'daily_cn_detail'),
+    ('/reports/sx/copy-yesterday', MODULE_REPORTS, 'daily_cn'),
+    ('/reports/sx/today', MODULE_REPORTS, 'daily_cn'),
+    # Legacy /reports/cn/ → redirect sang sx
     ('/reports/cn/team', MODULE_REPORTS, 'daily_cn_detail'),
     ('/reports/cn/my', MODULE_REPORTS, 'daily_cn_detail'),
     ('/reports/cn/copy-yesterday', MODULE_REPORTS, 'daily_cn'),
