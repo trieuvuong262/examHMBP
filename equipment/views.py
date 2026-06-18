@@ -397,6 +397,7 @@ def device_list(request, equipment_scope=SCOPE_IT):
             | Q(usage_department_text__icontains=q)
             | Q(assigned_user_text__icontains=q)
             | Q(usage_department__name__icontains=q)
+            | Q(usage_room__icontains=q)
         )
 
     managed_department = request.GET.get('managed_department')
@@ -423,7 +424,7 @@ def device_list(request, equipment_scope=SCOPE_IT):
 
     usage_room = request.GET.get('usage_room', '').strip()
     if usage_room:
-        qs = qs.filter(usage_room__icontains=usage_room)
+        qs = qs.filter(usage_room=usage_room)
 
     sort_by = request.GET.get('sort')
     if sort_by == 'price_asc':
@@ -438,6 +439,7 @@ def device_list(request, equipment_scope=SCOPE_IT):
     page_obj, query_string = paginate_queryset(request, qs)
 
     existing_depts = _equipment_departments()
+    existing_usage_rooms = _equipment_usage_rooms(equipment_scope)
 
     return render(request, 'equipment/device_list.html', {
         'page_obj': page_obj,
@@ -457,6 +459,7 @@ def device_list(request, equipment_scope=SCOPE_IT):
         'current_usage_room': usage_room,
         'current_sort': sort_by,
         'existing_depts': existing_depts,
+        'existing_usage_rooms': existing_usage_rooms,
         'managed_departments': Department.objects.filter(is_active=True).order_by('sort_order', 'name'),
         'category_choices': category_choices(),
         'category_groups': categories_by_group_for_scope(equipment_scope),
@@ -697,6 +700,16 @@ def _equipment_departments():
         .values_list('usage_department_text', flat=True)
         .distinct()
         .order_by('usage_department_text')
+    )
+
+
+def _equipment_usage_rooms(equipment_scope):
+    qs = filter_devices_for_scope(Device.objects.all(), equipment_scope)
+    return (
+        qs.exclude(usage_room='')
+        .values_list('usage_room', flat=True)
+        .distinct()
+        .order_by('usage_room')
     )
 
 

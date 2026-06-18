@@ -78,6 +78,19 @@
                             {% endfor %}
                         </select>
                     </div>
+                    {% if is_production_scope %}
+                    <div class="col-lg-2 col-md-3">
+                        <label class="form-label small text-muted mb-1">Vị trí máy</label>
+                        <select name="usage_room" class="form-select form-select-sm">
+                            <option value="">Tất cả</option>
+                            {% for room in existing_usage_rooms %}
+                            {% if room %}
+                            <option value="{{ room }}" {% if current_usage_room == room %}selected{% endif %}>{{ room }}</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
                     <div class="col-lg-2 col-md-3">
                         <label class="form-label small text-muted mb-1">Phòng ban</label>
                         <select name="usage_department" class="form-select form-select-sm">
@@ -110,6 +123,7 @@
                             <th>Mã</th>
                             <th>Loại</th>
                             <th>{% if is_it_scope %}Hostname / IP{% else %}Model / Series{% endif %}</th>
+                            {% if is_production_scope %}<th>Vị trí lắp máy</th>{% endif %}
                             <th>Phòng ban / Trạng thái</th>
                             <th style="width:56px">QR</th>
                         </tr>
@@ -157,6 +171,9 @@
                                     {% if not device.model_number and not device.serial_number %}<span class="text-muted">—</span>{% endif %}
                                 {% endif %}
                             </td>
+                            {% if is_production_scope %}
+                            <td class="small">{{ device.usage_room|default:"—" }}</td>
+                            {% endif %}
                             <td class="small">
                                 <div>{{ device.usage_department_label }}</div>
                                 <div class="mt-1"><span class="jp-eq-status-pill {{ device.status }}">{{ device.get_status_display }}</span></div>

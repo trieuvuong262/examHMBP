@@ -8,8 +8,8 @@ SCOPE_IT = 'it'
 SCOPE_PRODUCTION = 'production'
 
 SCOPE_LABELS = {
-    SCOPE_IT: 'Quản lý thiết bị IT',
-    SCOPE_PRODUCTION: 'Quản lý thiết bị sản xuất',
+    SCOPE_IT: 'IT',
+    SCOPE_PRODUCTION: 'Sản xuất',
 }
 
 SCOPE_SHORT_LABELS = {
