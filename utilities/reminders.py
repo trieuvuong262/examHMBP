@@ -4,10 +4,10 @@ from django.urls import reverse
 
 from hrm.menu_permissions import user_can_access_menu, user_can_create_menu
 from hrm.module_permissions import MODULE_UTILITIES
-from reports.report_profile import is_production_report_user
 
-from utilities.meal_rules import current_orderable_meal_date, format_order_window
-from utilities.models import MealOrder, MealOrderDecline, SalaryAdvanceDecline, SalaryAdvanceRequest
+from utilities.meal_reminder import user_needs_meal_reminder
+from utilities.meal_rules import format_order_window
+from utilities.models import SalaryAdvanceDecline, SalaryAdvanceRequest
 from utilities.salary_rules import current_advance_month, is_salary_advance_open
 
 
@@ -23,20 +23,8 @@ def get_utilities_portal_widgets(user):
 
 
 def _meal_reminder_widget(user):
-    if not user_can_access_menu(user, MODULE_UTILITIES, 'meal_ordering'):
-        return None
-    if not user_can_create_menu(user, MODULE_UTILITIES, 'meal_ordering'):
-        return None
-    if not is_production_report_user(user):
-        return None
-
-    meal_date = current_orderable_meal_date()
+    meal_date = user_needs_meal_reminder(user)
     if not meal_date:
-        return None
-
-    if MealOrder.objects.filter(employee=user, meal_date=meal_date).exists():
-        return None
-    if MealOrderDecline.objects.filter(employee=user, meal_date=meal_date).exists():
         return None
 
     return {

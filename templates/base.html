@@ -175,6 +175,16 @@
 {% if user.is_authenticated and not jp_force_password_change %}<script src="{% static 'js/sidebar.js' %}"></script>{% endif %}
 {% if user.is_authenticated and not jp_force_password_change %}<script src="{% static 'js/mobile.js' %}"></script>{% endif %}
 {% if user.is_authenticated and not jp_force_password_change %}<script src="{% static 'js/user-picker.js' %}"></script>{% endif %}
+{% if user.is_authenticated and jp_webpush_public_key and jp_meal_push_eligible %}
+<script>
+window.JP_MEAL_PUSH = {
+    publicKey: "{{ jp_webpush_public_key|escapejs }}",
+    subscribeUrl: "{% url 'utilities:push_subscribe' %}",
+    unsubscribeUrl: "{% url 'utilities:push_unsubscribe' %}"
+};
+</script>
+<script src="{% static 'js/portal-push-meal.js' %}?v=20260528"></script>
+{% endif %}
 {% block scripts %}{% endblock %}
 </body>
 </html>

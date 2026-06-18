@@ -230,6 +230,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'announcements.context_processors.unread_announcements',
                 'hrm.context_processors.portal_permissions',
+                'utilities.context_processors.meal_push_context',
             ],
         },
     },
@@ -424,6 +425,11 @@ NAS_ANNOUNCEMENT_REL_PATH = os.getenv(
 PORTAL_BACKUP_SOURCE_DIRS = os.getenv('PORTAL_BACKUP_SOURCE_DIRS', '/app,/backup-source')
 PORTAL_BACKUP_INCLUDE_MEDIA = os.getenv('PORTAL_BACKUP_INCLUDE_MEDIA', '1').lower() in ('1', 'true', 'yes', 'on')
 GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash')
+
+# Web Push (VAPID) — nhắc đặt cơm; tạo khóa: python manage.py generate_webpush_vapid_keys
+WEBPUSH_VAPID_PUBLIC_KEY = os.getenv('WEBPUSH_VAPID_PUBLIC_KEY', '').strip()
+WEBPUSH_VAPID_PRIVATE_KEY = os.getenv('WEBPUSH_VAPID_PRIVATE_KEY', '').strip().replace('\\n', '\n')
+WEBPUSH_VAPID_CLAIMS_EMAIL = os.getenv('WEBPUSH_VAPID_CLAIMS_EMAIL', 'mailto:it@justplay.vn').strip()
 
 # ==============================================================================
 # 7. CẤU HÌNH BẢO MẬT CHUYÊN SÂU KHI CHẠY PRODUCTION

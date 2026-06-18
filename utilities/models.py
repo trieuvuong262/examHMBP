@@ -145,3 +145,59 @@ class SalaryAdvanceDecline(models.Model):
 
     def __str__(self):
         return f'{self.employee} · không ứng · {self.request_month:%m/%Y}'
+
+
+class MealPushSubscription(models.Model):
+    """Thiết bị/trình duyệt đăng ký nhận web push nhắc đặt cơm."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='meal_push_subscriptions',
+        verbose_name='Nhân viên',
+    )
+    endpoint = models.TextField(unique=True, verbose_name='Push endpoint')
+    p256dh = models.CharField(max_length=255, verbose_name='p256dh')
+    auth = models.CharField(max_length=255, verbose_name='auth')
+    user_agent = models.CharField(max_length=300, blank=True, verbose_name='User-Agent')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+        verbose_name = 'Đăng ký push đặt cơm'
+        verbose_name_plural = 'Đăng ký push đặt cơm'
+
+    def __str__(self):
+        return f'{self.user} · push · {self.endpoint[:48]}…'
+
+    def subscription_info(self) -> dict:
+        return {
+            'endpoint': self.endpoint,
+            'keys': {
+                'p256dh': self.p256dh,
+                'auth': self.auth,
+            },
+        }
+
+
+class MealPushReminderLog(models.Model):
+    """Đã gửi push nhắc đặt cơm — tránh gửi trùng trong cùng ngày ăn."""
+
+    employee = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='meal_push_reminder_logs',
+        verbose_name='Nhân viên',
+    )
+    meal_date = models.DateField(verbose_name='Ngày ăn')
+    sent_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('employee', 'meal_date')
+        ordering = ['-sent_at']
+        verbose_name = 'Log push đặt cơm'
+        verbose_name_plural = 'Log push đặt cơm'
+
+    def __str__(self):
+        return f'{self.employee} · {self.meal_date} · {self.sent_at:%d/%m/%Y %H:%M}'

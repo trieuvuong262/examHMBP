@@ -1,11 +1,14 @@
 from django.urls import path
 
-from utilities import portal_actions, views
+from utilities import portal_actions, push_views, views
 
 app_name = 'utilities'
 
 urlpatterns = [
     path('', views.utilities_hub, name='hub'),
+    path('push/vapid-public-key/', push_views.vapid_public_key, name='push_vapid_public_key'),
+    path('push/subscribe/', push_views.push_subscribe, name='push_subscribe'),
+    path('push/unsubscribe/', push_views.push_unsubscribe, name='push_unsubscribe'),
     path('dat-com/tu-choi/', portal_actions.meal_decline, name='meal_decline'),
     # Đặt cơm
     path('dat-com/', views.meal_home, name='meal_home'),
