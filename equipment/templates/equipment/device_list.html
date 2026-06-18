@@ -102,12 +102,13 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-lg-1 col-md-1">
-                        <button type="submit" class="btn btn-hm btn-sm w-100">Lọc</button>
+                    <div class="col-auto jp-eq-filter-actions">
+                        <label class="form-label small text-muted mb-1 invisible user-select-none">.</label>
+                        <div class="d-flex gap-1 flex-nowrap align-items-center">
+                            <button type="submit" class="btn btn-hm btn-sm">Lọc</button>
+                            <a href="{{ equipment_urls.device_list }}" class="btn btn-link btn-sm text-muted text-nowrap px-2">Xóa bộ lọc</a>
+                        </div>
                     </div>
-                </div>
-                <div class="mt-2 d-flex justify-content-end">
-                    <a href="{{ equipment_urls.device_list }}" class="btn btn-link btn-sm text-muted p-0">Xóa bộ lọc</a>
                 </div>
             </form>
         </div>
