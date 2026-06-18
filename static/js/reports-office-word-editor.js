@@ -3,6 +3,47 @@
 
     if (window.CKEDITOR) {
         CKEDITOR.config.versionCheck = false;
+
+        function getCsrfToken() {
+            var meta = document.querySelector('meta[name="csrf-token"]');
+            return meta ? meta.getAttribute('content') : '';
+        }
+
+        CKEDITOR.on('instanceCreated', function (ev) {
+            ev.editor.on('fileUploadRequest', function (evt) {
+                var xhr = evt.data.fileLoader.xhr;
+                var token = getCsrfToken();
+                if (token) {
+                    xhr.setRequestHeader('X-CSRFToken', token);
+                }
+                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            });
+
+            ev.editor.on('fileUploadResponse', function (evt) {
+                var xhr = evt.data.fileLoader.xhr;
+                var response = evt.data.response;
+                if (xhr.status >= 400) {
+                    evt.cancel();
+                    var message = 'Lỗi tải ảnh lên (HTTP ' + xhr.status + ').';
+                    try {
+                        var parsed = JSON.parse(response);
+                        if (parsed.error && parsed.error.message) {
+                            message = parsed.error.message;
+                        }
+                    } catch (err) {}
+                    evt.data.message = message;
+                    return;
+                }
+                try {
+                    var data = JSON.parse(response);
+                    if (!data.uploaded && data.url) {
+                        data.uploaded = 1;
+                        data.fileName = data.fileName || 'image';
+                        evt.data.response = JSON.stringify(data);
+                    }
+                } catch (err) {}
+            });
+        });
     }
 
     window.JP_WORD_EDITOR_CFG = window.JP_WORD_EDITOR_CFG || {
@@ -80,17 +121,26 @@
         applyWordPageLayout(editor);
     }
 
+    function resolveUploadUrl() {
+        if (window.JP_REPORTS_CK_UPLOAD_URL) {
+            return window.JP_REPORTS_CK_UPLOAD_URL;
+        }
+        const uploadEl = document.querySelector('[data-ck-upload-url]');
+        return uploadEl && uploadEl.dataset.ckUploadUrl ? uploadEl.dataset.ckUploadUrl : '';
+    }
+
     function buildConfig() {
         const cfg = Object.assign({}, window.JP_WORD_EDITOR_CFG);
         const ltsKey = window.JP_CKEDITOR_LTS_LICENSE || '';
         if (ltsKey) {
             cfg.licenseKey = ltsKey;
         }
-        const uploadEl = document.querySelector('[data-ck-upload-url]');
-        if (uploadEl && uploadEl.dataset.ckUploadUrl) {
-            cfg.filebrowserUploadUrl = uploadEl.dataset.ckUploadUrl;
-            cfg.filebrowserBrowseUrl = uploadEl.dataset.ckBrowseUrl || '';
-            cfg.filebrowserImageUploadUrl = uploadEl.dataset.ckUploadUrl;
+        const uploadUrl = resolveUploadUrl();
+        if (uploadUrl) {
+            cfg.filebrowserUploadUrl = uploadUrl;
+            cfg.filebrowserBrowseUrl = '';
+            cfg.filebrowserImageUploadUrl = uploadUrl;
+            cfg.imageUploadUrl = uploadUrl;
         }
         return cfg;
     }

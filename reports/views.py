@@ -87,6 +87,21 @@ _CK5_IMAGE_EXTS = frozenset({'.jpg', '.jpeg', '.png', '.gif', '.webp'})
 _CK5_MAX_BYTES = 5 * 1024 * 1024
 
 
+def _ckeditor_upload_error(message: str, *, status: int = 400) -> JsonResponse:
+    return JsonResponse({'uploaded': 0, 'error': {'message': message}}, status=status)
+
+
+def _is_allowed_ckeditor_image(upload) -> bool:
+    content_type = (getattr(upload, 'content_type', '') or '').split(';')[0].strip().lower()
+    if content_type in _CK5_IMAGE_TYPES:
+        return True
+    # Paste ảnh đôi khi gửi application/octet-stream hoặc thiếu content-type.
+    if content_type in ('', 'application/octet-stream'):
+        ext = os.path.splitext(getattr(upload, 'name', '') or '')[1].lower()
+        return ext in _CK5_IMAGE_EXTS or not ext
+    return False
+
+
 def _reports_access_required(view_func):
     return module_perm_required(MODULE_REPORTS, 'view')(view_func)
 
@@ -230,6 +245,7 @@ def _ckeditor_context():
     return {
         'ckeditor_lts_license': lts_key,
         'ckeditor_use_lts': bool(lts_key),
+        'reports_ck_upload_url': reverse('reports:ckeditor5_upload'),
     }
 
 
@@ -484,23 +500,32 @@ def today_report(request):
 @module_perm_required(MODULE_REPORTS, 'create')
 @require_POST
 def ckeditor5_upload(request):
-
     upload = request.FILES.get('upload')
     if not upload:
-        return JsonResponse({'error': {'message': 'Không có file.'}}, status=400)
-    if upload.content_type not in _CK5_IMAGE_TYPES:
-        return JsonResponse({'error': {'message': 'Chỉ chấp nhận ảnh JPG, PNG, GIF, WebP.'}}, status=400)
+        return _ckeditor_upload_error('Không có file.')
+    if not _is_allowed_ckeditor_image(upload):
+        return _ckeditor_upload_error('Chỉ chấp nhận ảnh JPG, PNG, GIF, WebP.')
     if upload.size > _CK5_MAX_BYTES:
-        return JsonResponse({'error': {'message': 'Ảnh tối đa 5MB.'}}, status=400)
+        return _ckeditor_upload_error('Ảnh tối đa 5MB.')
 
-    ext = os.path.splitext(upload.name)[1].lower()
+    ext = os.path.splitext(upload.name or '')[1].lower()
     if ext not in _CK5_IMAGE_EXTS:
-        ext = '.jpg'
+        content_type = (upload.content_type or '').split(';')[0].strip().lower()
+        ext = {
+            'image/jpeg': '.jpg',
+            'image/png': '.png',
+            'image/gif': '.gif',
+            'image/webp': '.webp',
+        }.get(content_type, '.png')
     rel_path = default_storage.save(f'reports/ckeditor5/{uuid.uuid4().hex}{ext}', upload)
     url = request.build_absolute_uri(default_storage.url(rel_path))
     if not url.startswith('http') and getattr(settings, 'MEDIA_URL', None):
         url = request.build_absolute_uri(settings.MEDIA_URL + rel_path)
-    return JsonResponse({'url': url})
+    return JsonResponse({
+        'uploaded': 1,
+        'fileName': os.path.basename(rel_path),
+        'url': url,
+    })
 
 
 @_require_submit_access

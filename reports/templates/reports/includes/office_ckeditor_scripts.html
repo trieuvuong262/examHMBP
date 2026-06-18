@@ -2,6 +2,7 @@
 <script>
     window.JP_CKEDITOR_LTS_LICENSE = '{{ ckeditor_lts_license|escapejs }}';
     window.JP_CKEDITOR_USE_LTS = {{ ckeditor_use_lts|yesno:"true,false" }};
+    window.JP_REPORTS_CK_UPLOAD_URL = '{{ reports_ck_upload_url|escapejs }}';
 </script>
 {% if ckeditor_use_lts %}
 <script src="https://cdn.ckeditor.com/4.25.1-lts/standard-all/ckeditor.js"></script>
@@ -10,3 +11,4 @@
 {% endif %}
 {{ form.media }}
 <script src="{% static 'js/reports-office-sheet.js' %}?v=20260529b"></script>
+<script src="{% static 'js/reports-office-word-editor.js' %}?v=20260618c"></script>
