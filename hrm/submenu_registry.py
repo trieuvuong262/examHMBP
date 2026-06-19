@@ -98,17 +98,17 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
 MENU_PATH_RULES: list[tuple[str, str, str]] = [
     # Báo cáo — SX (sản xuất)
     ('/reports/sx/team', MODULE_REPORTS, 'daily_cn_detail'),
-    ('/reports/sx/my', MODULE_REPORTS, 'daily_cn_detail'),
+    ('/reports/sx/my', MODULE_REPORTS, 'daily_cn'),
     ('/reports/sx/copy-yesterday', MODULE_REPORTS, 'daily_cn'),
     ('/reports/sx/today', MODULE_REPORTS, 'daily_cn'),
     # Legacy /reports/cn/ → redirect sang sx
     ('/reports/cn/team', MODULE_REPORTS, 'daily_cn_detail'),
-    ('/reports/cn/my', MODULE_REPORTS, 'daily_cn_detail'),
+    ('/reports/cn/my', MODULE_REPORTS, 'daily_cn'),
     ('/reports/cn/copy-yesterday', MODULE_REPORTS, 'daily_cn'),
     ('/reports/cn/today', MODULE_REPORTS, 'daily_cn'),
     # Báo cáo — VP (văn phòng)
     ('/reports/vp/team', MODULE_REPORTS, 'daily_vp_detail'),
-    ('/reports/vp/my', MODULE_REPORTS, 'daily_vp_detail'),
+    ('/reports/vp/my', MODULE_REPORTS, 'daily_vp'),
     ('/reports/vp/copy-yesterday', MODULE_REPORTS, 'daily_vp'),
     ('/reports/vp/today', MODULE_REPORTS, 'daily_vp'),
     ('/reports/vp/ckeditor5-upload', MODULE_REPORTS, 'daily_vp'),
@@ -125,7 +125,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/reports/weekly', MODULE_REPORTS, 'weekly_cn'),
     ('/reports/team', MODULE_REPORTS, 'daily_cn_detail'),
     ('/reports/today', MODULE_REPORTS, 'daily_cn'),
-    ('/reports/my', MODULE_REPORTS, 'daily_cn_detail'),
+    ('/reports/my', MODULE_REPORTS, 'daily_cn'),
     ('/reports/copy-yesterday', MODULE_REPORTS, 'daily_cn'),
     ('/reports/copy-prev-week', MODULE_REPORTS, 'weekly_cn'),
     ('/reports/ckeditor5-upload', MODULE_REPORTS, 'daily_vp'),

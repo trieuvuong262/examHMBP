@@ -40,6 +40,10 @@ _MENU_DEFER_PATH_PATTERNS = (
     re.compile(r'^/reports/vp/\d+'),
     re.compile(r'^/reports/\d+/?$'),
     re.compile(r'^/reports/\d+/export/?'),
+    re.compile(r'^/reports/sx/my/?'),
+    re.compile(r'^/reports/vp/my/?'),
+    re.compile(r'^/reports/cn/my/?'),
+    re.compile(r'^/reports/my/?'),
 )
 
 _MENU_REGEX_RULES: list[tuple[re.Pattern, str, str]] = [

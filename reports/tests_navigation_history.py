@@ -185,3 +185,36 @@ class ReportHistoryNavigationTests(TestCase):
         Profile.objects.filter(user=self.member).update(permission_group=group)
         self.member.refresh_from_db()
         self.assertEqual(my_url_name_for_user(self.member), 'reports:my_vp')
+
+    def test_my_vp_resolves_to_daily_menu_not_detail(self):
+        from hrm.menu_permissions import resolve_menu_from_request
+
+        module, menu = resolve_menu_from_request('/reports/vp/my/')
+        self.assertEqual(module, 'reports')
+        self.assertIsNone(menu)
+
+    def test_employee_with_daily_vp_only_can_open_history(self):
+        group = PermissionGroup.objects.create(
+            name='Employee VP daily',
+            slug='employee-vp-daily-nav',
+            module_permissions={
+                'reports': {
+                    'view': True,
+                    'create': True,
+                    'update': False,
+                    'delete': False,
+                    'export': False,
+                    'menus': {
+                        'daily_vp': {
+                            'view': True, 'create': True, 'update': False, 'delete': False, 'export': False,
+                        },
+                    },
+                },
+            },
+        )
+        Profile.objects.filter(user=self.member).update(permission_group=group)
+        self.member.refresh_from_db()
+        self.client.force_login(self.member)
+        resp = self.client.get(reverse('reports:my_vp'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Lịch sử báo cáo (VP)')
