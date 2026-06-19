@@ -1,4 +1,4 @@
-"""Quy tắc đặt cơm — khung giờ 16h–20h ngày hôm trước."""
+"""Quy tắc đặt cơm — khung giờ cấu hình bởi HR (mặc định 16h–20h ngày hôm trước)."""
 
 from datetime import datetime, time, timedelta
 
@@ -6,14 +6,22 @@ from django.utils import timezone
 
 MEAL_ORDER_START = time(16, 0)
 MEAL_ORDER_END = time(20, 0)
+MEAL_ORDER_DAYS_BEFORE = 1
+
+
+def get_meal_order_settings():
+    from utilities.models import MealOrderSettings
+
+    return MealOrderSettings.load()
 
 
 def meal_order_window_for(meal_date):
     """Trả về (bắt đầu, kết thúc) cửa sổ đặt cho ngày ăn `meal_date`."""
-    order_day = meal_date - timedelta(days=1)
+    settings = get_meal_order_settings()
+    order_day = meal_date - timedelta(days=settings.order_days_before)
     tz = timezone.get_current_timezone()
-    start = timezone.make_aware(datetime.combine(order_day, MEAL_ORDER_START), tz)
-    end = timezone.make_aware(datetime.combine(order_day, MEAL_ORDER_END), tz)
+    start = timezone.make_aware(datetime.combine(order_day, settings.order_start_time), tz)
+    end = timezone.make_aware(datetime.combine(order_day, settings.order_end_time), tz)
     return start, end
 
 
@@ -46,5 +54,8 @@ def next_orderable_meal_date(*, now=None):
 
 
 def format_order_window(meal_date) -> str:
-    order_day = meal_date - timedelta(days=1)
-    return f'{order_day.strftime("%d/%m/%Y")} từ 16:00 đến 20:00'
+    settings = get_meal_order_settings()
+    order_day = meal_date - timedelta(days=settings.order_days_before)
+    start_label = settings.order_start_time.strftime('%H:%M')
+    end_label = settings.order_end_time.strftime('%H:%M')
+    return f'{order_day.strftime("%d/%m/%Y")} từ {start_label} đến {end_label}'

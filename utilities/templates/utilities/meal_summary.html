@@ -45,7 +45,7 @@
                         <tbody>
                             {% for order in orders %}
                             <tr>
-                                <td>{{ order.employee.profile.full_name|default:order.employee.username }}</td>
+                                <td>{{ order.employee_name }}</td>
                                 <td>{{ order.dish.name }}</td>
                                 <td class="text-muted small">{{ order.note|default:"—" }}</td>
                             </tr>
@@ -68,8 +68,8 @@
                 <tbody>
                     {% for row in declines %}
                     <tr>
-                        <td>{{ row.employee.profile.full_name|default:row.employee.username }}</td>
-                        <td class="text-muted small">{{ row.employee.profile.department.name|default:"—" }}</td>
+                        <td>{{ row.employee_name }}</td>
+                        <td class="text-muted small">{{ row.department_name|default:"—" }}</td>
                         <td class="text-muted small">{{ row.created_at|date:"H:i d/m/Y" }}</td>
                     </tr>
                     {% endfor %}
@@ -79,3 +79,4 @@
     </div>
     {% endif %}
 </div>
+{% endblock %}

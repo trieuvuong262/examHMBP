@@ -2,7 +2,8 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 
 from django.contrib import messages
-from django.db.models import Count, Sum
+from django.db.models import Count, Sum, Value
+from django.db.models.functions import Coalesce
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -25,7 +26,14 @@ from utilities.excel_export import (
     export_salary_advances_xlsx,
     export_salary_stats_xlsx,
 )
-from utilities.forms import MealDayMenuForm, MealDishForm, MealOrderForm, MealStatsFilterForm, SalaryAdvanceForm
+from utilities.forms import (
+    MealDayMenuForm,
+    MealDishForm,
+    MealOrderForm,
+    MealOrderSettingsForm,
+    MealStatsFilterForm,
+    SalaryAdvanceForm,
+)
 from utilities.meal_rules import (
     current_orderable_meal_date,
     format_order_window,
@@ -33,7 +41,7 @@ from utilities.meal_rules import (
     meal_order_window_for,
     next_orderable_meal_date,
 )
-from utilities.models import MealDayOffering, MealDish, MealOrder, MealOrderDecline, SalaryAdvanceRequest
+from utilities.models import MealDayOffering, MealDish, MealOrder, MealOrderDecline, MealOrderSettings, SalaryAdvanceRequest
 from utilities.salary_rules import (
     current_advance_month,
     is_salary_advance_open,
@@ -43,6 +51,15 @@ from utilities.salary_rules import (
 
 def _can_manage_meals(user) -> bool:
     return user_can_update_menu(user, MODULE_UTILITIES, 'meal_ordering')
+
+
+def _parse_meal_date(raw: str | None, *, default):
+    if not raw:
+        return default
+    try:
+        return datetime.strptime(raw, '%Y-%m-%d').date()
+    except ValueError:
+        return default
 
 
 def _can_manage_salary(user) -> bool:
@@ -209,11 +226,11 @@ def meal_dish_delete(request, pk):
 
 @module_perm_required(MODULE_UTILITIES, 'update')
 def meal_day_menu(request):
-    raw_date = request.GET.get('meal_date') or request.POST.get('meal_date')
-    if raw_date:
-        meal_date = datetime.strptime(raw_date, '%Y-%m-%d').date()
-    else:
-        meal_date = next_orderable_meal_date()
+    default_date = next_orderable_meal_date()
+    meal_date = _parse_meal_date(
+        request.GET.get('meal_date') or request.POST.get('meal_date'),
+        default=default_date,
+    )
 
     _ensure_day_offerings(meal_date)
     offerings = MealDayOffering.objects.filter(meal_date=meal_date).select_related('dish')
@@ -235,17 +252,26 @@ def meal_day_menu(request):
 
 @module_perm_required(MODULE_UTILITIES, 'update')
 def meal_summary(request):
-    raw_date = request.GET.get('meal_date')
-    meal_date = (
-        datetime.strptime(raw_date, '%Y-%m-%d').date()
-        if raw_date else (current_orderable_meal_date() or next_orderable_meal_date())
+    default_date = current_orderable_meal_date() or next_orderable_meal_date()
+    meal_date = _parse_meal_date(request.GET.get('meal_date'), default=default_date)
+    orders = (
+        MealOrder.objects.filter(meal_date=meal_date)
+        .select_related('employee__profile', 'employee__profile__department', 'dish')
+        .annotate(
+            employee_name=Coalesce('employee__profile__full_name', 'employee__username'),
+            department_name=Coalesce('employee__profile__department__name', Value('')),
+        )
+        .order_by('employee_name')
     )
-    orders = MealOrder.objects.filter(meal_date=meal_date).select_related(
-        'employee__profile', 'employee__profile__department', 'dish',
-    ).order_by('employee__profile__full_name')
-    declines = MealOrderDecline.objects.filter(meal_date=meal_date).select_related(
-        'employee__profile', 'employee__profile__department',
-    ).order_by('employee__profile__full_name')
+    declines = (
+        MealOrderDecline.objects.filter(meal_date=meal_date)
+        .select_related('employee__profile', 'employee__profile__department')
+        .annotate(
+            employee_name=Coalesce('employee__profile__full_name', 'employee__username'),
+            department_name=Coalesce('employee__profile__department__name', Value('')),
+        )
+        .order_by('employee_name')
+    )
     totals = (
         MealOrder.objects.filter(meal_date=meal_date)
         .values('dish__name')
@@ -266,10 +292,9 @@ def meal_summary(request):
 def meal_summary_export(request):
     if not _can_manage_meals(request.user):
         raise Http404
-    raw_date = request.GET.get('meal_date')
-    if not raw_date:
+    meal_date = _parse_meal_date(request.GET.get('meal_date'), default=None)
+    if not meal_date:
         raise Http404
-    meal_date = datetime.strptime(raw_date, '%Y-%m-%d').date()
     return export_meal_summary_xlsx(meal_date)
 
 
@@ -311,6 +336,25 @@ def meal_stats_export(request):
         filter_form.cleaned_data['anchor_date'],
     )
     return export_meal_stats_xlsx(rows, period_label=label)
+
+
+@module_perm_required(MODULE_UTILITIES, 'update')
+def meal_settings(request):
+    settings = MealOrderSettings.load()
+    if request.method == 'POST':
+        form = MealOrderSettingsForm(request.POST, instance=settings)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Đã cập nhật khung giờ đặt cơm.')
+            return redirect('utilities:meal_settings')
+    else:
+        form = MealOrderSettingsForm(instance=settings)
+    return render(request, 'utilities/meal_settings.html', {
+        'form': form,
+        'settings': settings,
+        'window_example': format_order_window(next_orderable_meal_date()),
+        'can_manage': True,
+    })
 
 
 # --- Ứng lương ---

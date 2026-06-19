@@ -23,6 +23,7 @@ urlpatterns = [
     path('dat-com/tong-hop/xuat/', views.meal_summary_export, name='meal_summary_export'),
     path('dat-com/thong-ke/', views.meal_stats, name='meal_stats'),
     path('dat-com/thong-ke/xuat/', views.meal_stats_export, name='meal_stats_export'),
+    path('dat-com/khung-gio/', views.meal_settings, name='meal_settings'),
     # Ứng lương
     path('ung-luong/tu-choi/', portal_actions.salary_decline, name='salary_decline'),
     path('ung-luong/', views.salary_home, name='salary_home'),

@@ -1,3 +1,4 @@
+from datetime import time
 from decimal import Decimal
 
 from django.conf import settings
@@ -5,6 +6,32 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from utilities.salary_rules import MAX_SALARY_ADVANCE
+
+
+class MealOrderSettings(models.Model):
+    """Singleton — khung giờ đặt cơm (pk=1)."""
+
+    order_start_time = models.TimeField(default=time(16, 0), verbose_name='Bắt đầu')
+    order_end_time = models.TimeField(default=time(20, 0), verbose_name='Kết thúc')
+    order_days_before = models.PositiveSmallIntegerField(
+        default=1,
+        validators=[MinValueValidator(1), MaxValueValidator(7)],
+        verbose_name='Số ngày trước ngày ăn',
+        help_text='1 = đặt vào ngày hôm trước ngày ăn',
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Thiết lập đặt cơm'
+        verbose_name_plural = 'Thiết lập đặt cơm'
+
+    def __str__(self):
+        return 'Thiết lập đặt cơm'
+
+    @classmethod
+    def load(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
 
 
 class MealDish(models.Model):

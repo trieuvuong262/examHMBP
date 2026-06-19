@@ -4,7 +4,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 
 from utilities.meal_rules import is_meal_order_window_open
-from utilities.models import MealDish, MealOrder, SalaryAdvanceRequest
+from utilities.models import MealDish, MealOrder, MealOrderSettings, SalaryAdvanceRequest
 from utilities.salary_rules import MAX_SALARY_ADVANCE, is_salary_advance_open
 
 
@@ -81,6 +81,35 @@ class SalaryAdvanceForm(forms.ModelForm):
         cleaned = super().clean()
         if not is_salary_advance_open():
             raise ValidationError('Ứng lương chỉ mở vào ngày 18 và 19 hàng tháng.')
+        return cleaned
+
+
+class MealOrderSettingsForm(forms.ModelForm):
+    class Meta:
+        model = MealOrderSettings
+        fields = ('order_start_time', 'order_end_time', 'order_days_before')
+        widgets = {
+            'order_start_time': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
+            'order_end_time': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
+            'order_days_before': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 1,
+                'max': 7,
+                'step': 1,
+            }),
+        }
+        labels = {
+            'order_start_time': 'Giờ bắt đầu',
+            'order_end_time': 'Giờ kết thúc',
+            'order_days_before': 'Đặt trước ngày ăn',
+        }
+
+    def clean(self):
+        cleaned = super().clean()
+        start = cleaned.get('order_start_time')
+        end = cleaned.get('order_end_time')
+        if start and end and end <= start:
+            raise ValidationError('Giờ kết thúc phải sau giờ bắt đầu.')
         return cleaned
 
 

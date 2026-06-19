@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3">
+        <h2 class="fw-bold text-hm jp-page-title">Khung giờ đặt cơm</h2>
+        <p class="text-muted small mb-0">HR chỉnh thời gian nhân viên được đặt cơm cho ngày ăn sắp tới.</p>
+    </div>
+    {% include 'utilities/includes/meal_manage_nav.html' with active='settings' %}
+
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <form method="post" class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                    {% endif %}
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">{{ form.order_days_before.label }}</label>
+                        {{ form.order_days_before }}
+                        <div class="form-text">{{ form.order_days_before.help_text }}</div>
+                        {% if form.order_days_before.errors %}<div class="text-danger small">{{ form.order_days_before.errors }}</div>{% endif %}
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{{ form.order_start_time.label }}</label>
+                            {{ form.order_start_time }}
+                            {% if form.order_start_time.errors %}<div class="text-danger small">{{ form.order_start_time.errors }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{{ form.order_end_time.label }}</label>
+                            {{ form.order_end_time }}
+                            {% if form.order_end_time.errors %}<div class="text-danger small">{{ form.order_end_time.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-hm fw-bold">Lưu thiết lập</button>
+                </div>
+            </form>
+        </div>
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold mb-2">Ví dụ hiển thị với nhân viên</h6>
+                    <p class="text-muted small mb-0">Khung đặt: <strong>{{ window_example }}</strong></p>
+                    <hr>
+                    <p class="text-muted small mb-0">Cập nhật lần cuối: {{ settings.updated_at|date:"H:i d/m/Y" }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
