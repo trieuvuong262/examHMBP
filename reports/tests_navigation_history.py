@@ -5,7 +5,7 @@ from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from hrm.models import Department, DepartmentMenuPermission, Profile, RoleModulePermission
+from hrm.models import Department, DepartmentMenuPermission, PermissionGroup, Profile, RoleModulePermission
 from hrm.permissions import ROLE_EMPLOYEE, ROLE_TEAM_LEADER
 from reports.models import DailyWorkReport, WeeklyWorkReport
 from reports.navigation import history_url_for, list_back_url_for
@@ -121,3 +121,67 @@ class ReportHistoryNavigationTests(TestCase):
         resp = self.client.get(reverse('reports:detail_vp', args=[report.pk]))
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, reverse('reports:my_vp'))
+
+    def test_my_vp_history_not_redirected_to_team_for_manager(self):
+        """Tổ trưởng xem lịch sử cá nhân — không chuyển sang quản lý báo cáo."""
+        group = PermissionGroup.objects.create(
+            name='Leader VP only',
+            slug='leader-vp-only-nav',
+            module_permissions={
+                'reports': {
+                    'view': True,
+                    'create': False,
+                    'update': True,
+                    'delete': False,
+                    'export': True,
+                    'menus': {
+                        'daily_vp': {
+                            'view': True, 'create': True, 'update': True, 'delete': False, 'export': False,
+                        },
+                        'daily_vp_detail': {
+                            'view': True, 'create': False, 'update': True, 'delete': False, 'export': True,
+                        },
+                        'weekly_vp': {
+                            'view': True, 'create': True, 'update': True, 'delete': False, 'export': False,
+                        },
+                    },
+                },
+            },
+        )
+        Profile.objects.filter(user=self.leader).update(permission_group=group)
+        self.leader.refresh_from_db()
+        self.client.force_login(self.leader)
+
+        resp = self.client.get(reverse('reports:my_vp'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Lịch sử báo cáo (VP)')
+        self.assertContains(resp, reverse('reports:my_vp'))
+        self.assertNotContains(resp, 'jp-reports-team-page')
+
+    def test_my_url_for_user_prefers_daily_menu_over_detail(self):
+        from reports.navigation import my_url_name_for_user
+
+        group = PermissionGroup.objects.create(
+            name='VP daily only',
+            slug='vp-daily-only-nav',
+            module_permissions={
+                'reports': {
+                    'view': True,
+                    'create': True,
+                    'update': False,
+                    'delete': False,
+                    'export': False,
+                    'menus': {
+                        'daily_vp': {
+                            'view': True, 'create': True, 'update': False, 'delete': False, 'export': False,
+                        },
+                        'daily_vp_detail': {
+                            'view': True, 'create': False, 'update': True, 'delete': False, 'export': False,
+                        },
+                    },
+                },
+            },
+        )
+        Profile.objects.filter(user=self.member).update(permission_group=group)
+        self.member.refresh_from_db()
+        self.assertEqual(my_url_name_for_user(self.member), 'reports:my_vp')

@@ -74,6 +74,14 @@ def weekly_url_for_user(user) -> str:
 
 
 def my_url_name_for_user(user) -> str:
+    if user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_CN):
+        return 'reports:my_cn'
+    if user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_VP):
+        return 'reports:my_vp'
+    if user_can_access_menu(user, MODULE_REPORTS, MENU_WEEKLY_CN):
+        return 'reports:my_cn'
+    if user_can_access_menu(user, MODULE_REPORTS, MENU_WEEKLY_VP):
+        return 'reports:my_vp'
     if user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_CN_DETAIL):
         return 'reports:my_cn'
     if user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_VP_DETAIL):
@@ -181,6 +189,28 @@ def detail_export_url_name_for_report(report) -> str:
 
 def detail_export_url_for_report(report) -> str:
     return reverse(detail_export_url_name_for_report(report), kwargs={'pk': report.pk})
+
+
+def can_view_own_report_history(user, report_profile: str | None) -> bool:
+    """Xem lịch sử báo cáo cá nhân — theo menu ngày/tuần, không cần quyền quản lý."""
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    if report_profile == REPORT_PROFILE_PRODUCTION:
+        return (
+            user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_CN)
+            or user_can_access_menu(user, MODULE_REPORTS, MENU_WEEKLY_CN)
+        )
+    if report_profile == REPORT_PROFILE_OFFICE:
+        return (
+            user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_VP)
+            or user_can_access_menu(user, MODULE_REPORTS, MENU_WEEKLY_VP)
+        )
+    return (
+        user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_CN)
+        or user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_VP)
+        or user_can_access_menu(user, MODULE_REPORTS, MENU_WEEKLY_CN)
+        or user_can_access_menu(user, MODULE_REPORTS, MENU_WEEKLY_VP)
+    )
 
 
 def history_url_for(report, viewer) -> str:

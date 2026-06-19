@@ -55,6 +55,7 @@ from reports.navigation import (
     detail_url_for_report,
     history_url_for,
     list_back_url_for,
+    can_view_own_report_history,
     page_tools_context_for_profile,
     redirect_copy_prev_week_legacy,
     redirect_team_legacy,
@@ -717,9 +718,7 @@ def _my_reports(request, daily_report_profile=None):
         except (ValueError, TypeError, User.DoesNotExist):
             messages.error(request, 'Không tìm thấy nhân viên hoặc bạn không có quyền xem lịch sử.')
             return redirect('reports:hub')
-    elif not can_submit_daily_report(request.user):
-        if can_view_team_reports(request.user):
-            return redirect(redirect_team_legacy(request.user))
+    elif not can_view_own_report_history(request.user, daily_report_profile):
         return redirect('home_portal')
 
     if period == 'weekly':
