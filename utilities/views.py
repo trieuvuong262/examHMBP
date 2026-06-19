@@ -35,7 +35,6 @@ from utilities.meal_rules import (
 )
 from utilities.models import MealDayOffering, MealDish, MealOrder, MealOrderDecline, SalaryAdvanceRequest
 from utilities.salary_rules import (
-    MAX_SALARY_ADVANCE,
     current_advance_month,
     is_salary_advance_open,
     salary_advance_window_label,
@@ -342,7 +341,6 @@ def salary_home(request):
     return render(request, 'utilities/salary_home.html', {
         'window_open': window_open,
         'window_label': salary_advance_window_label(),
-        'max_amount': MAX_SALARY_ADVANCE,
         'request_month': month,
         'existing_request': existing,
         'form': form,

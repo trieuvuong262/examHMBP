@@ -53,6 +53,16 @@ class UtilitiesRulesTests(TestCase):
     def test_salary_advance_max(self):
         self.assertEqual(MAX_SALARY_ADVANCE, Decimal('3000000'))
 
+    def test_salary_advance_form_accepts_max_amount(self):
+        from unittest.mock import patch
+
+        from utilities.forms import SalaryAdvanceForm
+
+        with patch('utilities.forms.is_salary_advance_open', return_value=True):
+            form = SalaryAdvanceForm({'amount': '3000000', 'note': ''})
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data['amount'], Decimal('3000000'))
+
     def test_meal_window_boundaries(self):
         from datetime import date, datetime, time, timedelta
 

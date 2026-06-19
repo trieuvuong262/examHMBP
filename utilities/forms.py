@@ -59,10 +59,10 @@ class SalaryAdvanceForm(forms.ModelForm):
         widgets = {
             'amount': forms.NumberInput(attrs={
                 'class': 'form-control',
-                'min': 1,
+                'min': 1000,
                 'max': int(MAX_SALARY_ADVANCE),
                 'step': 1000,
-                'placeholder': 'Tối đa 3.000.000đ',
+                'placeholder': 'Số tiền (VNĐ)',
             }),
             'note': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Lý do (tuỳ chọn)'}),
         }

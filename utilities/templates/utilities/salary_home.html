@@ -6,7 +6,7 @@
     <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between gap-2">
         <div>
             <h2 class="fw-bold text-hm jp-page-title">Ứng lương</h2>
-            <p class="text-muted small mb-0">{{ window_label }} · Tối đa {{ max_amount|intcomma }}đ</p>
+            <p class="text-muted small mb-0">{{ window_label }}</p>
         </div>
         {% if can_manage %}
         <a href="{% url 'utilities:salary_manage' %}" class="btn btn-outline-hm btn-sm">Quản lý (HR)</a>
