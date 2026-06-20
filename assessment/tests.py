@@ -148,3 +148,20 @@ class PaginationHelperTests(TestCase):
         self.assertEqual(pagination_href('q=abc', 'page', 3), '?q=abc&page=3')
         self.assertEqual(pagination_href('', 'page', 2), '?page=2')
         self.assertEqual(pagination_href('sort=name', 'my_page', 4), '?sort=name&my_page=4')
+
+
+class LoginRedirectTests(TestCase):
+    def test_staff_redirects_to_home_portal(self):
+        from django.test import Client
+        from django.urls import reverse
+
+        admin = User.objects.create_user(
+            username='admin_test',
+            password='testpass123',
+            is_staff=True,
+            is_superuser=True,
+        )
+        client = Client(HTTP_HOST='testserver')
+        client.force_login(admin)
+        resp = client.get(reverse('login_redirect'))
+        self.assertRedirects(resp, reverse('home_portal'), fetch_redirect_response=False)

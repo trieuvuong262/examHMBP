@@ -46,16 +46,8 @@ from .scoring import grade_mc_answer, rescore_submission
 
 @login_required
 def login_redirect_view(request):
-    """
-    Trạm trung chuyển: Kiểm tra quyền user sau khi đăng nhập
-    để điều hướng về đúng trang.
-    """
-    # Nếu user có quyền Admin (is_staff hoặc is_superuser)
-    if is_portal_admin(request.user):
-        return redirect('admin_dashboard') # Chuyển qua http://ip/dashboard
-    
-    # Nếu là User bình thường
-    return redirect('home_portal') # Chuyển qua http://ip/ (Trang gốc của ní)
+    """Sau đăng nhập — mọi user về trang chủ portal."""
+    return redirect('home_portal')
 
 @login_required
 def home_portal(request):
