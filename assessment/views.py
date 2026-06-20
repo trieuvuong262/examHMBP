@@ -163,6 +163,18 @@ def take_exam(request, exam_id):
         messages.error(request, "Kỳ thi đã kết thúc thời gian hiệu lực.")
         return redirect('exam_list')
 
+    if not is_portal_admin(request.user):
+        from training.course_exam import incomplete_courses_blocking_exam, learning_url_for_course
+
+        blockers = incomplete_courses_blocking_exam(request.user, exam)
+        if blockers:
+            course = blockers[0]
+            messages.warning(
+                request,
+                f'Bạn cần hoàn thành khóa học «{course.title}» trước khi làm bài thi «{exam.title}».',
+            )
+            return redirect(learning_url_for_course(course))
+
     existing_submission = ExamSubmission.objects.filter(
         user=request.user, 
         exam=exam, 

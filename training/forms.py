@@ -20,7 +20,15 @@ class CourseForm(forms.ModelForm):
         
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        
+
+        if 'final_exam' in self.fields:
+            from assessment.models import Exam
+
+            self.fields['final_exam'].queryset = Exam.objects.filter(is_active=True).order_by('-start_time', 'title')
+            self.fields['final_exam'].required = False
+            self.fields['final_exam'].empty_label = '— Không gắn bài thi —'
+            self.fields['final_exam'].help_text = 'Học viên phải hoàn thành 100% bài học mới được làm bài thi này.'
+
         if 'assigned_users' in self.fields:
             self.fields['assigned_users'].queryset = User.objects.select_related('profile').all()
             self.fields['assigned_users'].label_from_instance = self.get_user_label
