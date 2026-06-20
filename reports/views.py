@@ -718,6 +718,9 @@ def _my_reports(request, daily_report_profile=None):
         except (ValueError, TypeError, User.DoesNotExist):
             messages.error(request, 'Không tìm thấy nhân viên hoặc bạn không có quyền xem lịch sử.')
             return redirect('reports:hub')
+    elif not can_submit_daily_report(request.user) and can_view_team_reports(request.user):
+        from reports.navigation import team_pending_url_for_user
+        return redirect(team_pending_url_for_user(request.user))
     elif not can_view_own_report_history(request.user, daily_report_profile):
         return redirect('home_portal')
 

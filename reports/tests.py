@@ -96,6 +96,16 @@ class ReportHierarchyTests(TestCase):
         self.assertEqual(resp.status_code, 302)
         self.assertIn('/reports/sx/team/', resp.url)
 
+    def test_director_my_cn_redirects_to_team_missing(self):
+        client = Client()
+        client.force_login(self.director)
+        resp = client.get(reverse('reports:my_cn'))
+        self.assertRedirects(
+            resp,
+            f'{reverse("reports:team_cn")}?status=missing',
+            fetch_redirect_response=False,
+        )
+
     def test_leader_sees_only_direct_subordinate_report(self):
         client = Client()
         client.force_login(self.leader)

@@ -117,7 +117,15 @@
                     {% endfor %}
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="text-center text-muted py-5">Chưa có nhân viên cấp dưới được cấu hình.</td>
+                        <td colspan="5" class="text-center text-muted py-5">
+                            {% if status_filter == 'submitted' %}
+                            Không có nhân viên đã nộp báo cáo trong ngày này.
+                            {% elif status_filter == 'missing' %}
+                            Tất cả nhân viên đã nộp báo cáo trong ngày này.
+                            {% else %}
+                            Chưa có nhân viên cấp dưới được cấu hình.
+                            {% endif %}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>

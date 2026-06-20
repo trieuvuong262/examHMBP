@@ -258,6 +258,11 @@ def redirect_team_legacy(user):
     return reverse('reports:team_cn')
 
 
+def team_pending_url_for_user(user) -> str:
+    """Trang team lọc «Chưa nộp» — khớp widget việc cần làm trên trang chủ."""
+    return f'{redirect_team_legacy(user)}?status=missing'
+
+
 def redirect_team_weekly_legacy(user):
     """URL quản lý báo cáo tuần mặc định — theo phân quyền menu."""
     if user_can_access_menu(user, MODULE_REPORTS, MENU_WEEKLY_CN_DETAIL):
