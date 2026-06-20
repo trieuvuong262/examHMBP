@@ -1,12 +1,12 @@
-"""Gán thư mục NAS theo user — tùy chỉnh thay cho map mặc định phòng ban."""
+"""Gán thư mục NAS theo user — chỉ dùng danh sách cấu hình thủ công."""
 
 from __future__ import annotations
 
 from django.contrib.auth.models import User
-from django.db import connection, transaction
+from django.db import connection
 
 from nas_storage.models import NasUserFolderAccess
-from nas_storage.nas_paths import NasRootEntry, department_default_nas_roots
+from nas_storage.nas_paths import NasRootEntry
 
 
 def nas_folders_feature_available() -> bool:
@@ -53,14 +53,12 @@ def save_user_nas_folder_formset(user, formset) -> None:
 
 def nas_folders_page_context(user: User, *, post_data=None) -> dict:
     """Context cho trang / dashboard/users/<id>/nas-folders/."""
-    from nas_storage.nas_paths import department_default_nas_roots
-
     if not nas_folders_feature_available():
         return {
             'nas_migration_missing': True,
             'nas_formset': None,
-            'nas_default_roots': [],
             'nas_using_custom': False,
+            'nas_active_count': 0,
         }
 
     if post_data is None:
@@ -68,11 +66,12 @@ def nas_folders_page_context(user: User, *, post_data=None) -> dict:
     else:
         formset = build_nas_folder_formset(user=user, data=post_data)
 
+    active_count = NasUserFolderAccess.objects.filter(user=user, is_active=True).count()
     return {
         'nas_migration_missing': False,
         'nas_formset': formset,
-        'nas_default_roots': department_default_nas_roots(user),
-        'nas_using_custom': user_has_custom_nas_folders(user),
+        'nas_using_custom': active_count > 0,
+        'nas_active_count': active_count,
     }
 
 
@@ -90,22 +89,3 @@ def build_nas_folder_formset(*, user: User, data=None):
         queryset=queryset,
         prefix='nas_folders',
     )
-
-
-@transaction.atomic
-def copy_department_defaults_to_user(user) -> int:
-    """Tạo bản ghi tùy chỉnh từ map phòng ban hiện tại (tiện IT chỉnh sửa)."""
-    if user_has_custom_nas_folders(user):
-        return 0
-    created = 0
-    for idx, entry in enumerate(department_default_nas_roots(user)):
-        NasUserFolderAccess.objects.create(
-            user=user,
-            label=entry.label,
-            rel_path=entry.rel_path,
-            description=entry.description,
-            sort_order=idx,
-            is_active=True,
-        )
-        created += 1
-    return created

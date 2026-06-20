@@ -468,37 +468,13 @@ def _save_profile_avatar(profile, upload, request):
 def user_nas_folders(request, user_id):
     """Cấu hình thư mục NAS riêng cho từng tài khoản."""
     from nas_storage.user_folders import (
-        copy_department_defaults_to_user,
         nas_folders_feature_available,
         nas_folders_page_context,
         save_user_nas_folder_formset,
-        user_has_custom_nas_folders,
     )
 
     user_obj = get_object_or_404(User, id=user_id)
     profile, _created = Profile.objects.get_or_create(user=user_obj)
-
-    if request.method == 'POST' and request.POST.get('nas_copy_defaults'):
-        if not nas_folders_feature_available():
-            messages.error(
-                request,
-                'Chưa migrate nas_storage trên server. Chạy: python manage.py migrate nas_storage',
-            )
-        else:
-            created_count = copy_department_defaults_to_user(user_obj)
-            if created_count:
-                messages.success(
-                    request,
-                    f'Đã tạo {created_count} thư mục từ map mặc định phòng ban.',
-                )
-            elif user_has_custom_nas_folders(user_obj):
-                messages.info(request, 'User đã có thư mục NAS tùy chỉnh.')
-            else:
-                messages.warning(
-                    request,
-                    'Không có map mặc định (chưa gán phòng ban hoặc mã thư mục).',
-                )
-        return redirect('user_nas_folders', user_id=user_obj.id)
 
     if request.method == 'POST':
         ctx = nas_folders_page_context(user_obj, post_data=request.POST)

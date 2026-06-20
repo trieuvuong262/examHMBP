@@ -36,16 +36,26 @@ class NasPathTests(TestCase):
         )
 
     @override_settings(NAS_DEPT_ROOT_REMOTES='KD-MKT:synology:KD-MKT')
-    def test_kd_mkt_default_roots_use_share_root(self):
+    def test_kd_mkt_department_default_roots_helper(self):
         dept, _ = Department.objects.get_or_create(
             name='KINH DOANH - MARKETING',
             defaults={'sort_order': 2},
         )
         user = User.objects.create_user(username='mkt1', password='test')
         Profile.objects.filter(user=user).update(full_name='MKT', department=dept)
-        roots = get_user_nas_roots(user)
+        roots = department_default_nas_roots(user)
         self.assertEqual(roots[0].rel_path, 'mkt1')
         self.assertEqual(roots[1].rel_path, '_CHUNG')
+
+    @override_settings(NAS_DEPT_ROOT_REMOTES='KD-MKT:synology:KD-MKT')
+    def test_kd_mkt_user_roots_empty_without_manual_config(self):
+        dept, _ = Department.objects.get_or_create(
+            name='KINH DOANH - MARKETING',
+            defaults={'sort_order': 2},
+        )
+        user = User.objects.create_user(username='mkt1b', password='test')
+        Profile.objects.filter(user=user).update(full_name='MKT', department=dept)
+        self.assertEqual(get_user_nas_roots(user), [])
 
     @override_settings(NAS_DEPT_ROOT_REMOTES='KD-MKT:synology:KD-MKT')
     def test_kd_mkt_rclone_path_not_under_datachung(self):
@@ -63,7 +73,22 @@ class NasPathTests(TestCase):
     def test_department_folder_code(self):
         self.assertEqual(department_folder_code('HÀNH CHÍNH NHÂN SỰ'), 'HCNS')
 
-    def test_user_roots(self):
+    def test_user_roots_empty_without_manual_config(self):
+        self.assertEqual(get_user_nas_roots(self.user), [])
+
+    def test_user_roots_with_manual_config(self):
+        NasUserFolderAccess.objects.create(
+            user=self.user,
+            label='Cá nhân',
+            rel_path='HCNS/naspath_annt',
+            sort_order=0,
+        )
+        NasUserFolderAccess.objects.create(
+            user=self.user,
+            label='Chung phòng ban',
+            rel_path='HCNS/_CHUNG',
+            sort_order=1,
+        )
         roots = get_user_nas_roots(self.user)
         self.assertEqual(len(roots), 2)
         self.assertEqual(roots[0].rel_path, 'HCNS/naspath_annt')
@@ -96,6 +121,12 @@ class NasPathTests(TestCase):
     @override_settings(NAS_MOUNT_ROOT='/tmp/nas-test')
     def test_resolve_allowed_path(self):
         import os
+        NasUserFolderAccess.objects.create(
+            user=self.user,
+            label='Cá nhân',
+            rel_path='HCNS/naspath_annt',
+            sort_order=0,
+        )
         os.makedirs('/tmp/nas-test/HCNS/naspath_annt', exist_ok=True)
         path = resolve_nas_path(self.user, 'HCNS/naspath_annt')
         self.assertTrue(path.as_posix().endswith('HCNS/naspath_annt'))
@@ -103,6 +134,12 @@ class NasPathTests(TestCase):
     @override_settings(NAS_MOUNT_ROOT='/tmp/nas-test')
     def test_resolve_denies_other_dept(self):
         import os
+        NasUserFolderAccess.objects.create(
+            user=self.user,
+            label='Cá nhân',
+            rel_path='HCNS/naspath_annt',
+            sort_order=0,
+        )
         os.makedirs('/tmp/nas-test/IT/Other', exist_ok=True)
         with self.assertRaises(NasPathError):
             resolve_nas_path(self.user, 'IT/Other')
@@ -132,6 +169,9 @@ class NasUserFoldersViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Cập nhật link NAS')
         self.assertContains(response, 'Lưu link NAS')
+        self.assertContains(response, 'thêm từng dòng thủ công')
+        self.assertNotContains(response, 'mặc định theo phòng ban')
+        self.assertNotContains(response, 'Lấy từ mặc định phòng ban')
 
     def test_user_nas_folders_save_custom_path(self):
         url = reverse('user_nas_folders', args=[self.target.id])
@@ -163,6 +203,12 @@ class NasBrowseViewTests(TestCase):
         self.dept, _ = Department.objects.get_or_create(name='IT', defaults={'sort_order': 1})
         self.user = User.objects.create_user(username='VuongIT', password='test')
         Profile.objects.filter(user=self.user).update(full_name='Vuong', department=self.dept)
+        NasUserFolderAccess.objects.create(
+            user=self.user,
+            label='Cá nhân',
+            rel_path='IT/VuongIT',
+            sort_order=0,
+        )
         self.client.login(username='VuongIT', password='test')
 
     def test_browse_requires_login(self):
@@ -268,20 +314,54 @@ class NasRcloneListingTests(TestCase):
 
 class NasShareTests(TestCase):
     def setUp(self):
+        from hrm.models import DepartmentMenuPermission, PermissionGroup
+        from hrm.module_permissions import MODULE_NAS_STORAGE
+        from hrm.group_permissions import normalize_group_permissions, permissions_from_legacy_role
+        from hrm.permissions import ROLE_EMPLOYEE
+
         self.dept_a, _ = Department.objects.get_or_create(name='IT', defaults={'sort_order': 1})
         self.dept_b, _ = Department.objects.get_or_create(
             name='HÀNH CHÍNH NHÂN SỰ',
             defaults={'sort_order': 2},
         )
+        DepartmentMenuPermission.objects.get_or_create(
+            department=self.dept_a,
+            defaults={'modules': ['nas_storage']},
+        )
+        base = normalize_group_permissions(permissions_from_legacy_role(ROLE_EMPLOYEE))
+        nas_full = dict(base)
+        nas_full[MODULE_NAS_STORAGE] = {
+            'view': True,
+            'create': True,
+            'update': True,
+            'delete': True,
+            'export': False,
+        }
+        self.nas_group = PermissionGroup.objects.create(
+            slug='test-nas-share-owner',
+            name='NAS share owner',
+            module_permissions=nas_full,
+        )
         self.owner = User.objects.create_user(username='ownerIT', password='test')
         self.recipient = User.objects.create_user(username='hcnsUser', password='test')
         Profile.objects.update_or_create(
             user=self.owner,
-            defaults={'full_name': 'Owner', 'department': self.dept_a},
+            defaults={
+                'full_name': 'Owner',
+                'department': self.dept_a,
+                'role': ROLE_EMPLOYEE,
+                'permission_group': self.nas_group,
+            },
         )
         Profile.objects.update_or_create(
             user=self.recipient,
             defaults={'full_name': 'Recipient', 'department': self.dept_b},
+        )
+        NasUserFolderAccess.objects.create(
+            user=self.owner,
+            label='Cá nhân',
+            rel_path='IT/ownerIT',
+            sort_order=0,
         )
 
     @override_settings(NAS_MOUNT_ROOT='/tmp/nas-share-test')
@@ -474,6 +554,13 @@ class NasGranularPermissionTests(TestCase):
             role=ROLE_EMPLOYEE,
             permission_group=self.group_create,
         )
+        for nas_user in (self.view_user, self.create_user):
+            NasUserFolderAccess.objects.create(
+                user=nas_user,
+                label='Cá nhân',
+                rel_path=f'IT/{nas_user.username}',
+                sort_order=0,
+            )
 
     @override_settings(NAS_MOUNT_ROOT='/tmp/nas-granular-test')
     def test_view_only_cannot_create_share(self):

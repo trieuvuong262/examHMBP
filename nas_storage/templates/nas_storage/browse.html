@@ -7,7 +7,6 @@
         <div class="jp-page-header-main">
             <h2 class="jp-page-title fw-bold text-dark mb-1">
                 Thư mục NAS
-                {% if nas_using_custom %}<span class="badge bg-info-subtle text-info ms-1 small">Tùy chỉnh</span>{% endif %}
             </h2>
             <p class="text-muted small mb-0">Xem, tải xuống, chia sẻ link và xóa trên NAS · cần đăng nhập Portal có quyền Thư mục NAS</p>
         </div>
@@ -18,10 +17,9 @@
         
         Chưa kết nối được NAS trên server. Liên hệ IT nếu tình trạng kéo dài.
     </div>
-    {% elif no_department %}
+    {% elif nas_not_configured %}
     <div class="alert alert-info border-0 shadow-sm">
-        
-        Tài khoản chưa được gán phòng ban. Liên hệ HCNS để cập nhật hồ sơ nhân sự.
+        Tài khoản chưa được cấu hình thư mục NAS. Liên hệ IT để được gán quyền truy cập.
     </div>
     {% else %}
 

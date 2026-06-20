@@ -190,7 +190,7 @@ def get_user_nas_roots(user) -> list[NasRootEntry]:
 
     if user_has_custom_nas_folders(user):
         return custom_roots_from_db(user)
-    return department_default_nas_roots(user)
+    return []
 
 
 def _allowed_rel_prefixes(user) -> list[str]:

@@ -1,35 +1,16 @@
 <p class="small text-muted mb-2">
     Chức năng duyệt / tải lên / chia sẻ trên menu <strong>Thư mục NAS</strong> giữ nguyên.
-    Trang này chỉ cấu hình <strong>thư mục gốc</strong> user được mở trên NAS.
+    Trang này chỉ cấu hình <strong>thư mục gốc</strong> user được mở trên NAS — thêm từng dòng thủ công bên dưới.
 </p>
 {% if nas_using_custom %}
 <div class="alert alert-info border-0 small py-2 mb-3">
-    
-    Đang dùng <strong>danh sách tùy chỉnh</strong> (không dùng map mặc định phòng ban).
+    Đang có <strong>{{ nas_active_count }}</strong> thư mục được bật.
 </div>
 {% else %}
 <div class="alert alert-light border small py-2 mb-3">
-    
-    Chưa có dòng bật → dùng <strong>mặc định theo phòng ban</strong>:
-    {% if nas_default_roots %}
-    <ul class="mb-0 mt-1">
-        {% for root in nas_default_roots %}
-        <li><code>{{ root.rel_path }}</code> — {{ root.label }}</li>
-        {% endfor %}
-    </ul>
-    {% else %}
-    <span class="text-warning">Chưa gán phòng ban hoặc không suy ra được mã thư mục NAS.</span>
-    {% endif %}
+    Chưa có thư mục nào được bật — user này <strong>chưa truy cập</strong> được menu Thư mục NAS.
 </div>
 {% endif %}
-<div class="d-flex flex-wrap gap-2 mb-3">
-    <button type="submit" name="nas_copy_defaults" value="1"
-            class="btn btn-outline-secondary btn-sm"
-            formnovalidate
-            onclick="return confirm('Tạo các dòng từ map mặc định phòng ban hiện tại?');">
-        <i class="bi bi-arrow-down-circle me-1"></i>Lấy từ mặc định phòng ban
-    </button>
-</div>
 {{ nas_formset.management_form }}
 {% if nas_formset.non_form_errors %}
 <div class="alert alert-danger small">{{ nas_formset.non_form_errors }}</div>
@@ -61,5 +42,5 @@
     </table>
 </div>
 <div class="form-text mt-2">
-    Đường dẫn tương đối trên share NAS (vd. <code>HCNS/Annt</code>, <code>IT/_CHUNG</code>).
+    Đường dẫn tương đối trên share NAS (vd. <code>SX/LTNgocbich</code>, <code>SX/_CHUNG</code>).
 </div>

@@ -130,7 +130,7 @@ def browse(request):
 
     if not roots and not share:
         return render(request, 'nas_storage/browse.html', {
-            'no_department': True,
+            'nas_not_configured': True,
         })
 
     if not rel_path:
@@ -140,13 +140,10 @@ def browse(request):
                 'entry': entry,
                 'exists': True,
             })
-        from nas_storage.user_folders import user_has_custom_nas_folders
-
         return render(request, 'nas_storage/browse.html', {
             'root_entries': root_entries,
             'rel_path': '',
             'breadcrumbs': [{'label': 'Thư mục NAS', 'rel_path': ''}],
-            'nas_using_custom': user_has_custom_nas_folders(request.user),
         })
 
     if share and not is_path_under_share(rel_path, share.rel_path):
