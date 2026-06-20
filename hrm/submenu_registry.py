@@ -23,11 +23,11 @@ from hrm.module_permissions import (
 # {module_key: [{key, label, icon}, ...]}
 MODULE_SUBMENUS: dict[str, list[dict]] = {
     MODULE_TRAINING: [
-        {'key': 'lessons', 'label': 'Bài học', 'icon': 'bi-book-fill'},
+        {'key': 'lessons', 'label': 'Bài học', 'icon': 'bi-book-fill', 'perm_view_only': True},
         {'key': 'manage', 'label': 'Quản lý bài học', 'icon': 'bi-journal-bookmark-fill'},
     ],
     MODULE_ASSESSMENT: [
-        {'key': 'exams', 'label': 'Kiểm tra', 'icon': 'bi-journal-check'},
+        {'key': 'exams', 'label': 'Kiểm tra', 'icon': 'bi-journal-check', 'perm_view_only': True},
         {'key': 'manage', 'label': 'Quản lý kiểm tra', 'icon': 'bi-ui-checks-grid'},
     ],
     MODULE_REPORTS: [
@@ -234,6 +234,13 @@ def get_menu_label(module_key: str, menu_key: str) -> str:
         if item['key'] == menu_key:
             return item['label']
     return menu_key
+
+
+def submenu_perm_view_only(module_key: str, menu_key: str) -> bool:
+    for item in get_module_submenus(module_key):
+        if item['key'] == menu_key:
+            return bool(item.get('perm_view_only'))
+    return False
 
 
 def perm_field_name(action: str, module_key: str, menu_key: str | None = None) -> str:

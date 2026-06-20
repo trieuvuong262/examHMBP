@@ -215,3 +215,26 @@ class SubmenuPermissionTests(TestCase):
         self.assertFalse(user_can_access_menu(self.user, 'training', 'manage'))
         self.assertTrue(user_can_access_menu(self.user, 'assessment', 'exams'))
         self.assertFalse(user_can_access_menu(self.user, 'assessment', 'manage'))
+
+    def test_learning_view_only_menu_saves_without_edit_flags(self):
+        from hrm.forms import PermissionGroupPermissionForm
+        from hrm.group_permissions import menu_permission_action_enabled
+
+        data = {
+            'view_training__lessons': 'on',
+            'view_assessment__exams': 'on',
+            'view_training__manage': 'on',
+            'create_training__manage': 'on',
+            'update_training__manage': 'on',
+        }
+        form = PermissionGroupPermissionForm(data)
+        self.assertTrue(form.is_valid(), form.errors)
+        perms = form.cleaned_permissions()
+        lessons = perms['training']['menus']['lessons']
+        self.assertTrue(lessons['view'])
+        self.assertFalse(lessons['create'])
+        self.assertFalse(lessons.get('export'))
+        manage = perms['training']['menus']['manage']
+        self.assertTrue(manage['view'])
+        self.assertTrue(manage['create'])
+        self.assertFalse(menu_permission_action_enabled('training', 'lessons', 'create'))

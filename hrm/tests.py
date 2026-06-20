@@ -381,6 +381,12 @@ class PermissionGroupTests(TestCase):
             submenu_labels,
             ['Bài học', 'Kiểm tra', 'Quản lý bài học', 'Quản lý kiểm tra'],
         )
+        lessons = hub['submenus'][0]
+        manage = hub['submenus'][2]
+        self.assertTrue(lessons['view_only'])
+        self.assertFalse(manage['view_only'])
+        self.assertFalse(lessons['action_enabled']['create'])
+        self.assertTrue(manage['action_enabled']['create'])
 
 
 class HrmGranularPermissionViewTests(TestCase):

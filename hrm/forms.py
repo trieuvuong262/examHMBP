@@ -36,11 +36,12 @@ from hrm.group_permissions import (
     PERM_EXPORT,
     aggregate_module_from_menus,
     module_permission_action_enabled,
+    menu_permission_action_enabled,
     module_supports_export,
     normalize_group_permissions,
     normalize_module_entry,
 )
-from hrm.submenu_registry import get_module_submenus, perm_field_name
+from hrm.submenu_registry import get_module_submenus, perm_field_name, submenu_perm_view_only
 from hrm.user_search import (
     subordinate_candidate_queryset,
     subordinate_scope_hint,
@@ -1037,8 +1038,13 @@ class PermissionGroupPermissionForm(forms.Form):
                     label=f'{PERM_ACTION_LABELS[action]} — {label}',
                     widget=forms.CheckboxInput(attrs=widget_attrs),
                 )
-                for sm in submenus:
-                    menu_perm = (mod.get('menus') or {}).get(sm['key'], mod)
+            for sm in submenus:
+                menu_perm = (mod.get('menus') or {}).get(sm['key'], mod)
+                for action in PERM_ACTIONS:
+                    action_enabled = menu_permission_action_enabled(module_key, sm['key'], action)
+                    widget_attrs = {'class': 'jp-perm-switch-input'}
+                    if not action_enabled:
+                        widget_attrs['disabled'] = True
                     menu_field = perm_field_name(action, module_key, sm['key'])
                     self.fields[menu_field] = forms.BooleanField(
                         required=False,
@@ -1057,6 +1063,11 @@ class PermissionGroupPermissionForm(forms.Form):
                     'key': sm['key'],
                     'label': sm['label'],
                     'icon': sm.get('icon', 'bi-dot'),
+                    'view_only': submenu_perm_view_only(module_key, sm['key']),
+                    'action_enabled': {
+                        action: menu_permission_action_enabled(module_key, sm['key'], action)
+                        for action in PERM_ACTIONS
+                    },
                     'fields': {
                         action: self[perm_field_name(action, module_key, sm['key'])]
                         for action in PERM_ACTIONS
@@ -1096,6 +1107,8 @@ class PermissionGroupPermissionForm(forms.Form):
                     'hub': 'learning',
                     'supports_export': row['supports_export'],
                     'view_export_only': row['view_export_only'],
+                    'view_only': sm.get('view_only', submenu_perm_view_only(row['key'], sm['key'])),
+                    'action_enabled': sm.get('action_enabled', {}),
                 }
 
         hub_submenus = []
@@ -1130,10 +1143,10 @@ class PermissionGroupPermissionForm(forms.Form):
         for action in PERM_ACTIONS:
             entry[action] = (
                 self.cleaned_data.get(perm_field_name(action, module_key, menu_key), False)
-                if module_permission_action_enabled(module_key, action)
+                if menu_permission_action_enabled(module_key, menu_key, action)
                 else False
             )
-        if not module_supports_export(module_key):
+        if not menu_permission_action_enabled(module_key, menu_key, PERM_EXPORT):
             entry[PERM_EXPORT] = False
         if any(entry[a] for a in ('create', 'update', 'delete', 'export')):
             entry['view'] = True

@@ -49,6 +49,17 @@ def module_permission_action_enabled(module_key: str, action: str) -> bool:
         return module_supports_export(module_key)
     return True
 
+
+def menu_permission_action_enabled(module_key: str, menu_key: str | None, action: str) -> bool:
+    """Quyền hiển thị / lưu theo menu con — ưu tiên hơn quyền module."""
+    if not menu_key:
+        return module_permission_action_enabled(module_key, action)
+    from hrm.submenu_registry import submenu_perm_view_only
+
+    if submenu_perm_view_only(module_key, menu_key):
+        return action == PERM_VIEW
+    return module_permission_action_enabled(module_key, action)
+
 DEFAULT_GROUP_SLUGS = {
     'EMPLOYEE': 'mac-dinh-nhan-vien',
     'TEAM_LEADER': 'mac-dinh-to-truong',
@@ -108,6 +119,16 @@ def normalize_module_perm(raw: dict | None, *, module_key: str | None = None) ->
     return result
 
 
+def normalize_menu_perm(raw: dict | None, *, module_key: str, menu_key: str) -> dict:
+    result = normalize_module_perm(raw, module_key=module_key)
+    for action in PERM_ACTIONS:
+        if not menu_permission_action_enabled(module_key, menu_key, action):
+            result[action] = False
+    if any(result[a] for a in (PERM_CREATE, PERM_UPDATE, PERM_DELETE, PERM_EXPORT)):
+        result[PERM_VIEW] = True
+    return result
+
+
 def aggregate_module_from_menus(menus: dict, *, module_key: str) -> dict:
     """Gộp quyền module từ các menu con (OR từng hành động)."""
     result = empty_module_perm()
@@ -139,9 +160,10 @@ def normalize_module_entry(raw, *, module_key: str) -> dict:
         for sm in submenus:
             mk = sm['key']
             mraw = menus_raw.get(mk, {})
-            menus[mk] = normalize_module_perm(
+            menus[mk] = normalize_menu_perm(
                 legacy_entry_to_five_flags(mraw, module_key=module_key),
                 module_key=module_key,
+                menu_key=mk,
             )
         five['menus'] = menus
         aggregated = aggregate_module_from_menus(menus, module_key=module_key)
