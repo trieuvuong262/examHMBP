@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
 
 from hrm.models import Department, DepartmentMenuPermission, Profile, RoleModulePermission
-from hrm.permissions import ROLE_EMPLOYEE
+from hrm.permissions import ROLE_DIRECTOR, ROLE_EMPLOYEE
 from utilities.portal_push_eligibility import (
     user_meal_push_eligible,
     user_portal_push_debug,
@@ -60,3 +60,13 @@ class PortalPushEligibilityTests(TestCase):
         self.assertFalse(user_portal_push_debug(self.sx_user))
         self.sx_user.is_staff = True
         self.assertTrue(user_portal_push_debug(self.sx_user))
+
+    def test_push_debug_hidden_for_director_even_if_staff(self):
+        director = User.objects.create_user(username='gm1', password='x', is_staff=True, is_superuser=True)
+        Profile.objects.filter(user=director).update(
+            department=self.vp_dept,
+            role=ROLE_DIRECTOR,
+            is_employed=True,
+        )
+        director.refresh_from_db()
+        self.assertFalse(user_portal_push_debug(director))

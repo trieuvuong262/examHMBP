@@ -1,7 +1,10 @@
 """Điều kiện đăng ký web push portal — đặt cơm + thông báo công ty."""
 
+from django.conf import settings
+
 from hrm.menu_permissions import user_can_create_menu
 from hrm.module_permissions import MODULE_ANNOUNCEMENTS, MODULE_UTILITIES, user_can_access_module
+from hrm.permissions import is_director
 from reports.report_profile import is_production_report_user
 from utilities.push_service import webpush_configured
 
@@ -22,5 +25,12 @@ def user_portal_push_eligible(user) -> bool:
 
 
 def user_portal_push_debug(user) -> bool:
-    """Chỉ admin/staff — panel test push trên trang chủ."""
-    return bool(getattr(user, 'is_authenticated', False) and getattr(user, 'is_staff', False))
+    """Panel test push trang chủ — chỉ IT/admin thử nghiệm, không hiện cho Giám đốc."""
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    if is_director(user):
+        return False
+    allowed = getattr(settings, 'PORTAL_PUSH_DEBUG_USERNAMES', None)
+    if allowed is not None:
+        return user.username in allowed
+    return bool(getattr(user, 'is_staff', False))
