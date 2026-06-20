@@ -1,3 +1,7 @@
+from hrm.menu_permissions import (
+    user_can_access_menu,
+    user_can_edit_menu,
+)
 from hrm.module_permissions import (
     MODULE_AUDIT,
     MODULE_ANNOUNCEMENTS,
@@ -211,8 +215,8 @@ def portal_permissions(request):
         'jp_enabled_modules': enabled,
         'jp_can_announcements': user_can_access_module(user, MODULE_ANNOUNCEMENTS),
         'jp_can_recruitment': user_can_access_module(user, MODULE_RECRUITMENT),
-        'jp_can_training': user_can_access_module(user, MODULE_TRAINING),
-        'jp_can_assessment': user_can_access_module(user, MODULE_ASSESSMENT),
+        'jp_can_training': user_can_access_menu(user, MODULE_TRAINING, 'lessons'),
+        'jp_can_assessment': user_can_access_menu(user, MODULE_ASSESSMENT, 'exams'),
         'jp_can_hrm': user_can_access_module(user, MODULE_HRM),
         'jp_can_kpi': user_can_access_module(user, MODULE_KPI),
         'jp_can_reports': user_can_access_module(user, MODULE_REPORTS),
@@ -251,8 +255,8 @@ def portal_permissions(request):
         'jp_can_create_assessment': user_can_create_module(user, MODULE_ASSESSMENT),
         'jp_can_update_assessment': user_can_update_module(user, MODULE_ASSESSMENT),
         'jp_can_delete_assessment': user_can_delete_module(user, MODULE_ASSESSMENT),
-        'jp_can_manage_training': _can_manage_module(user, MODULE_TRAINING),
-        'jp_can_manage_assessment': _can_manage_module(user, MODULE_ASSESSMENT),
+        'jp_can_manage_training': user_can_edit_menu(user, MODULE_TRAINING, 'manage'),
+        'jp_can_manage_assessment': user_can_edit_menu(user, MODULE_ASSESSMENT, 'manage'),
         'jp_can_edit_hrm': user_can_edit_module(user, MODULE_HRM),
         'jp_can_create_hrm': user_can_create_module(user, MODULE_HRM),
         'jp_can_update_hrm': user_can_update_module(user, MODULE_HRM),

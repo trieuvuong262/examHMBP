@@ -73,6 +73,21 @@ ALL_MODULE_KEYS = {key for key, _ in _ALL_MODULE_CHOICES}
 
 MODULE_LABELS = dict(_ALL_MODULE_CHOICES)
 
+# Nhãn phòng ban — khớp menu con sidebar (khác nhãn module trong ma trận).
+DEPARTMENT_MODULE_LABELS = {
+    MODULE_TRAINING: 'Bài học',
+    MODULE_ASSESSMENT: 'Kiểm tra',
+}
+
+# Gộp hiển thị ma trận nhóm quyền — một nhóm «Đào tạo» như sidebar.
+LEARNING_PERM_MATRIX_MODULES = frozenset({MODULE_TRAINING, MODULE_ASSESSMENT})
+LEARNING_PERM_MATRIX_SUBMENUS = (
+    (MODULE_TRAINING, 'lessons'),
+    (MODULE_ASSESSMENT, 'exams'),
+    (MODULE_TRAINING, 'manage'),
+    (MODULE_ASSESSMENT, 'manage'),
+)
+
 
 def is_portal_module_visible(module_key: str) -> bool:
     return module_key not in HIDDEN_PORTAL_MODULES
@@ -89,13 +104,15 @@ DEPARTMENT_MENU_SECTIONS = [
         'modules': _visible_module_list([
             MODULE_ANNOUNCEMENTS,
             MODULE_RECRUITMENT,
-            MODULE_TRAINING,
-            MODULE_ASSESSMENT,
             MODULE_HRM,
             MODULE_KPI,
             MODULE_REPORTS,
             MODULE_TASKS,
         ]),
+    },
+    {
+        'label': 'Đào tạo',
+        'modules': _visible_module_list([MODULE_TRAINING, MODULE_ASSESSMENT]),
     },
     {
         'label': 'Yêu cầu',

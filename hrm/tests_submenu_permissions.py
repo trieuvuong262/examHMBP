@@ -171,3 +171,47 @@ class SubmenuPermissionTests(TestCase):
         self.assertTrue(perms['menus']['materials']['create'])
         self.assertFalse(perms['menus']['receipts']['view'])
         self.assertFalse(perms['menus']['receipts']['create'])
+
+    def test_training_submenu_resolve_and_access(self):
+        group = PermissionGroup.objects.create(
+            name='Learning split',
+            slug='learning-split',
+            module_permissions={
+                'training': {
+                    'view': True,
+                    'menus': {
+                        'lessons': {'view': True, 'create': False, 'update': False, 'delete': False, 'export': False},
+                        'manage': {'view': False, 'create': False, 'update': False, 'delete': False, 'export': False},
+                    },
+                },
+                'assessment': {
+                    'view': True,
+                    'menus': {
+                        'exams': {'view': True, 'create': False, 'update': False, 'delete': False, 'export': False},
+                        'manage': {'view': False, 'create': False, 'update': False, 'delete': False, 'export': False},
+                    },
+                },
+            },
+        )
+        self._assign_group(group)
+
+        module, menu = resolve_menu_from_request('/training/my-courses/')
+        self.assertEqual(module, 'training')
+        self.assertEqual(menu, 'lessons')
+
+        module, menu = resolve_menu_from_request('/training/admin/course/')
+        self.assertEqual(module, 'training')
+        self.assertEqual(menu, 'manage')
+
+        module, menu = resolve_menu_from_request('/exams/')
+        self.assertEqual(module, 'assessment')
+        self.assertEqual(menu, 'exams')
+
+        module, menu = resolve_menu_from_request('/dashboard/', tab='assessment')
+        self.assertEqual(module, 'assessment')
+        self.assertEqual(menu, 'manage')
+
+        self.assertTrue(user_can_access_menu(self.user, 'training', 'lessons'))
+        self.assertFalse(user_can_access_menu(self.user, 'training', 'manage'))
+        self.assertTrue(user_can_access_menu(self.user, 'assessment', 'exams'))
+        self.assertFalse(user_can_access_menu(self.user, 'assessment', 'manage'))

@@ -17,7 +17,9 @@ from hrm.group_permissions import (
     module_perm_allows_view,
 )
 from hrm.module_permissions import (
+    MODULE_ASSESSMENT,
     MODULE_LABELS,
+    MODULE_TRAINING,
     bypass_department_modules,
     get_user_enabled_modules,
 )
@@ -170,6 +172,13 @@ def resolve_menu_from_request(path: str, tab: str | None = None) -> tuple[str | 
     module_key = resolve_module_from_request(path, tab)
     if not module_key or not module_has_submenus(module_key):
         return module_key, None
+
+    normalized_path = path.rstrip('/')
+    if normalized_path == '/dashboard' and tab:
+        if tab == 'assessment':
+            return MODULE_ASSESSMENT, 'manage'
+        if tab == 'training':
+            return MODULE_TRAINING, 'manage'
 
     if _path_defers_menu_check(path):
         return module_key, None

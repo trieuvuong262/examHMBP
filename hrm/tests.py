@@ -331,18 +331,19 @@ class PermissionGroupTests(TestCase):
         self.assertFalse(perms['delete'])
 
     def test_module_choices_aligned_with_menu_and_group_matrix(self):
-        from hrm.forms import PERM_GROUP_MODULE_ICONS, PermissionGroupPermissionForm
-        from hrm.group_permissions import MODULE_LIST_META
-        from hrm.module_permissions import DEPARTMENT_MENU_SECTIONS
+        from hrm.forms import PermissionGroupPermissionForm
+        from hrm.module_permissions import DEPARTMENT_MENU_SECTIONS, LEARNING_PERM_MATRIX_MODULES
 
         keys = {key for key, _ in MODULE_CHOICES}
-        self.assertEqual(keys, ALL_MODULE_KEYS)
-        self.assertEqual(set(MODULE_LIST_META), keys)
-        self.assertEqual(set(PERM_GROUP_MODULE_ICONS), keys)
+        from hrm.module_permissions import is_portal_module_visible
+
+        visible_keys = {k for k in ALL_MODULE_KEYS if is_portal_module_visible(k)}
+        self.assertEqual(keys, visible_keys)
 
         form = PermissionGroupPermissionForm()
-        matrix_keys = {row['key'] for row in form.module_rows()}
-        self.assertEqual(matrix_keys, keys)
+        matrix_keys = {row['key'] for row in form.matrix_rows()}
+        expected_matrix_keys = keys - LEARNING_PERM_MATRIX_MODULES | {'learning'}
+        self.assertEqual(matrix_keys, expected_matrix_keys)
 
         menu_keys = set()
         for section in DEPARTMENT_MENU_SECTIONS:
@@ -351,7 +352,7 @@ class PermissionGroupTests(TestCase):
 
     def test_department_menu_form_groups_match_sidebar_labels(self):
         from hrm.forms import DepartmentMenuPermissionForm
-        from hrm.module_permissions import DEPARTMENT_MENU_SECTIONS, MODULE_LABELS
+        from hrm.module_permissions import DEPARTMENT_MENU_SECTIONS, DEPARTMENT_MODULE_LABELS, MODULE_LABELS
 
         form = DepartmentMenuPermissionForm(initial={'modules': sorted(ALL_MODULE_KEYS)})
         sections = form.menu_section_rows()
@@ -359,9 +360,26 @@ class PermissionGroupTests(TestCase):
         row_labels = [row['label'] for section in sections for row in section['rows']]
         self.assertIn(MODULE_LABELS['documents'], row_labels)
         self.assertIn(MODULE_LABELS['audit'], row_labels)
+        self.assertIn(DEPARTMENT_MODULE_LABELS['training'], row_labels)
+        self.assertIn(DEPARTMENT_MODULE_LABELS['assessment'], row_labels)
+        section_labels = [section['label'] for section in sections]
+        self.assertIn('Đào tạo', section_labels)
         self.assertEqual(
             {row['key'] for section in sections for row in section['rows']},
-            ALL_MODULE_KEYS,
+            {key for key, _ in MODULE_CHOICES},
+        )
+
+    def test_learning_hub_matrix_rows_match_sidebar(self):
+        from hrm.forms import PermissionGroupPermissionForm
+
+        form = PermissionGroupPermissionForm()
+        hub = next(row for row in form.matrix_rows() if row['key'] == 'learning')
+        self.assertEqual(hub['label'], 'Đào tạo')
+        self.assertTrue(hub['virtual'])
+        submenu_labels = [sm['label'] for sm in hub['submenus']]
+        self.assertEqual(
+            submenu_labels,
+            ['Bài học', 'Kiểm tra', 'Quản lý bài học', 'Quản lý kiểm tra'],
         )
 
 

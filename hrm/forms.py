@@ -901,7 +901,11 @@ class DepartmentMenuPermissionForm(forms.Form):
 
     def menu_section_rows(self):
         """Checkbox theo nhóm — nhãn khớp menu sidebar."""
-        from hrm.module_permissions import DEPARTMENT_MENU_SECTIONS, MODULE_LABELS
+        from hrm.module_permissions import (
+            DEPARTMENT_MENU_SECTIONS,
+            DEPARTMENT_MODULE_LABELS,
+            MODULE_LABELS,
+        )
 
         if self.is_bound:
             selected = set(self.data.getlist('modules'))
@@ -916,7 +920,7 @@ class DepartmentMenuPermissionForm(forms.Form):
                     continue
                 rows.append({
                     'key': module_key,
-                    'label': MODULE_LABELS[module_key],
+                    'label': DEPARTMENT_MODULE_LABELS.get(module_key, MODULE_LABELS[module_key]),
                     'checked': module_key in selected,
                 })
             if rows:
@@ -1072,6 +1076,54 @@ class PermissionGroupPermissionForm(forms.Form):
                 },
             })
         return rows
+
+    def matrix_rows(self):
+        """Ma trận hiển thị — gộp Đào tạo + Kiểm tra thành nhóm «Đào tạo» như sidebar."""
+        from hrm.module_permissions import (
+            LEARNING_PERM_MATRIX_MODULES,
+            LEARNING_PERM_MATRIX_SUBMENUS,
+        )
+
+        all_rows = self.module_rows()
+        sub_lookup = {}
+        for row in all_rows:
+            if row['key'] not in LEARNING_PERM_MATRIX_MODULES:
+                continue
+            for sm in row['submenus']:
+                sub_lookup[(row['key'], sm['key'])] = {
+                    **sm,
+                    'module_key': row['key'],
+                    'hub': 'learning',
+                    'supports_export': row['supports_export'],
+                    'view_export_only': row['view_export_only'],
+                }
+
+        hub_submenus = []
+        for module_key, menu_key in LEARNING_PERM_MATRIX_SUBMENUS:
+            spec = sub_lookup.get((module_key, menu_key))
+            if spec:
+                hub_submenus.append(spec)
+
+        result = []
+        hub_inserted = False
+        for row in all_rows:
+            if row['key'] in LEARNING_PERM_MATRIX_MODULES:
+                if not hub_inserted and hub_submenus:
+                    result.append({
+                        'key': 'learning',
+                        'label': 'Đào tạo',
+                        'icon': 'bi-mortarboard',
+                        'virtual': True,
+                        'supports_export': False,
+                        'view_export_only': False,
+                        'has_submenus': True,
+                        'submenus': hub_submenus,
+                        'fields': {},
+                    })
+                    hub_inserted = True
+                continue
+            result.append(row)
+        return result
 
     def _menu_entry_from_form(self, module_key: str, menu_key: str) -> dict:
         entry = {}

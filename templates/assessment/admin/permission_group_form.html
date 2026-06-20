@@ -96,8 +96,8 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for row in perm_form.module_rows %}
-                            <tr data-module="{{ row.key }}" class="jp-perm-matrix-row jp-perm-module-row" data-supports-export="{% if row.supports_export %}1{% else %}0{% endif %}" data-has-submenus="{% if row.has_submenus %}1{% else %}0{% endif %}">
+                            {% for row in perm_form.matrix_rows %}
+                            <tr data-module="{{ row.key }}" class="jp-perm-matrix-row jp-perm-module-row{% if row.virtual %} jp-perm-virtual-row{% endif %}" data-supports-export="{% if row.supports_export %}1{% else %}0{% endif %}" data-has-submenus="{% if row.has_submenus %}1{% else %}0{% endif %}"{% if row.virtual %} data-virtual="1"{% endif %}>
                                 <td class="jp-perm-sticky-col ps-3">
                                     <div class="jp-perm-module-cell">
                                         
@@ -112,6 +112,13 @@
                                         <button type="button" class="jp-perm-quick-btn jp-perm-quick-btn-full" data-row-preset="full" title="Đủ 5 quyền"><span class="jp-perm-quick-label">Đủ</span></button>
                                     </div>
                                 </td>
+                                {% if row.virtual %}
+                                {% for action in perm_actions %}
+                                <td class="text-center jp-perm-action-cell jp-perm-col-{{ action }} jp-perm-virtual-cell">
+                                    <span class="jp-perm-na" title="Chọn quyền theo từng menu con bên dưới">—</span>
+                                </td>
+                                {% endfor %}
+                                {% else %}
                                 {% for action, field in row.fields.items %}
                                 <td class="text-center jp-perm-action-cell jp-perm-col-{{ action }}{% if action == 'export' and not row.supports_export %} jp-perm-export-na{% endif %}{% if row.view_export_only and action != 'view' and action != 'export' %} jp-perm-export-na{% endif %}">
                                     {% if action == 'export' and not row.supports_export %}
@@ -126,9 +133,10 @@
                                     {% endif %}
                                 </td>
                                 {% endfor %}
+                                {% endif %}
                             </tr>
                             {% for submenu in row.submenus %}
-                            <tr data-module="{{ row.key }}" data-menu="{{ submenu.key }}" class="jp-perm-matrix-row jp-perm-submenu-row" data-supports-export="{% if row.supports_export %}1{% else %}0{% endif %}">
+                            <tr data-module="{{ submenu.module_key|default:row.key }}" data-menu="{{ submenu.key }}" class="jp-perm-matrix-row jp-perm-submenu-row" data-supports-export="{% if submenu.supports_export|default:row.supports_export %}1{% else %}0{% endif %}"{% if submenu.hub %} data-hub="{{ submenu.hub }}"{% endif %}>
                                 <td class="jp-perm-sticky-col ps-3">
                                     <div class="jp-perm-module-cell jp-perm-submenu-cell">
                                         <span class="jp-perm-submenu-indent" aria-hidden="true"></span>
@@ -144,10 +152,10 @@
                                     </div>
                                 </td>
                                 {% for action, field in submenu.fields.items %}
-                                <td class="text-center jp-perm-action-cell jp-perm-col-{{ action }}{% if action == 'export' and not row.supports_export %} jp-perm-export-na{% endif %}{% if row.view_export_only and action != 'view' and action != 'export' %} jp-perm-export-na{% endif %}">
-                                    {% if action == 'export' and not row.supports_export %}
+                                <td class="text-center jp-perm-action-cell jp-perm-col-{{ action }}{% if action == 'export' and not submenu.supports_export|default:row.supports_export %} jp-perm-export-na{% endif %}{% if submenu.view_export_only|default:row.view_export_only and action != 'view' and action != 'export' %} jp-perm-export-na{% endif %}">
+                                    {% if action == 'export' and not submenu.supports_export|default:row.supports_export %}
                                     <span class="jp-perm-na" title="Menu này không có xuất Excel">—</span>
-                                    {% elif row.view_export_only and action != 'view' and action != 'export' %}
+                                    {% elif submenu.view_export_only|default:row.view_export_only and action != 'view' and action != 'export' %}
                                     <span class="jp-perm-na" title="Menu này chỉ có quyền Xem và Xuất Excel">—</span>
                                     {% else %}
                                     <label class="jp-perm-switch mb-0">
@@ -184,6 +192,15 @@
 
     function fieldName(action, moduleKey, menuKey) {
         return menuKey ? action + '_' + moduleKey + MENU_SEP + menuKey : action + '_' + moduleKey;
+    }
+
+    function hubSubmenuRows(hubKey) {
+        return form.querySelectorAll('tr.jp-perm-submenu-row[data-hub="' + hubKey + '"]');
+    }
+
+    function isVirtualRow(moduleKey) {
+        var row = moduleRow(moduleKey);
+        return row && row.getAttribute('data-virtual') === '1';
     }
 
     function box(moduleKey, action, menuKey) {
@@ -254,6 +271,32 @@
         row.classList.toggle('jp-perm-row-full', full);
     }
 
+    function syncVirtualHubState(hubKey) {
+        var hubRow = moduleRow(hubKey);
+        if (!hubRow) return;
+        var submenuRowsList = hubSubmenuRows(hubKey);
+        var any = false;
+        var full = true;
+        Array.prototype.forEach.call(submenuRowsList, function (row) {
+            var mod = row.getAttribute('data-module');
+            var menu = row.getAttribute('data-menu');
+            var supportsExport = row.getAttribute('data-supports-export') === '1';
+            var rowAny = actions.some(function (a) {
+                var input = box(mod, a, menu);
+                return input && input.checked;
+            });
+            var rowFull = actions.every(function (a) {
+                if (a === 'export' && !supportsExport) return true;
+                var input = box(mod, a, menu);
+                return input && input.checked;
+            });
+            if (rowAny) any = true;
+            if (!rowFull) full = false;
+        });
+        hubRow.classList.toggle('jp-perm-row-active', any);
+        hubRow.classList.toggle('jp-perm-row-full', any && full);
+    }
+
     function rowPreset(moduleKey, menuKey, preset) {
         var perm = {};
         if (preset === 'view') perm = { view: true };
@@ -269,7 +312,22 @@
         }
         if (menuKey) {
             setRowPerm(moduleKey, menuKey, perm);
-            syncModuleFromSubmenus(moduleKey);
+            var submenuRow = form.querySelector(
+                'tr.jp-perm-submenu-row[data-module="' + moduleKey + '"][data-menu="' + menuKey + '"]'
+            );
+            var hubKey = submenuRow && submenuRow.getAttribute('data-hub');
+            if (hubKey) {
+                syncVirtualHubState(hubKey);
+            } else {
+                syncModuleFromSubmenus(moduleKey);
+            }
+            return;
+        }
+        if (isVirtualRow(moduleKey)) {
+            hubSubmenuRows(moduleKey).forEach(function (row) {
+                setRowPerm(row.getAttribute('data-module'), row.getAttribute('data-menu'), perm);
+            });
+            syncVirtualHubState(moduleKey);
             return;
         }
         if (hasSubmenus(moduleKey)) {
@@ -336,7 +394,12 @@
                         export: box(moduleKey, 'export') && box(moduleKey, 'export').checked,
                     });
                 } else if (menuKey) {
-                    syncModuleFromSubmenus(moduleKey);
+                    var hubKey = row.getAttribute('data-hub');
+                    if (hubKey) {
+                        syncVirtualHubState(hubKey);
+                    } else {
+                        syncModuleFromSubmenus(moduleKey);
+                    }
                 }
                 updateRowState(moduleKey, menuKey);
                 syncColumnToggles();
@@ -391,7 +454,10 @@
         });
     }
 
-    form.querySelectorAll('tbody tr.jp-perm-module-row[data-has-submenus="1"]').forEach(function (row) {
+    form.querySelectorAll('tbody tr.jp-perm-module-row[data-virtual="1"]').forEach(function (row) {
+        syncVirtualHubState(row.getAttribute('data-module'));
+    });
+    form.querySelectorAll('tbody tr.jp-perm-module-row[data-has-submenus="1"]:not([data-virtual="1"])').forEach(function (row) {
         syncModuleFromSubmenus(row.getAttribute('data-module'));
     });
     syncColumnToggles();

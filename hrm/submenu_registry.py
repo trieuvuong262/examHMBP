@@ -5,6 +5,7 @@ Mỗi module có thể có danh sách submenu; path rules dùng để resolve me
 """
 
 from hrm.module_permissions import (
+    MODULE_ASSESSMENT,
     MODULE_AUDIT,
     MODULE_DE_XUAT,
     MODULE_DOCUMENTS,
@@ -15,11 +16,20 @@ from hrm.module_permissions import (
     MODULE_KIOTVIET,
     MODULE_REPORTS,
     MODULE_TASKS,
+    MODULE_TRAINING,
     MODULE_UTILITIES,
 )
 
 # {module_key: [{key, label, icon}, ...]}
 MODULE_SUBMENUS: dict[str, list[dict]] = {
+    MODULE_TRAINING: [
+        {'key': 'lessons', 'label': 'Bài học', 'icon': 'bi-book-fill'},
+        {'key': 'manage', 'label': 'Quản lý bài học', 'icon': 'bi-journal-bookmark-fill'},
+    ],
+    MODULE_ASSESSMENT: [
+        {'key': 'exams', 'label': 'Kiểm tra', 'icon': 'bi-journal-check'},
+        {'key': 'manage', 'label': 'Quản lý kiểm tra', 'icon': 'bi-ui-checks-grid'},
+    ],
     MODULE_REPORTS: [
         {'key': 'daily_cn', 'label': 'Báo cáo ngày (SX)', 'icon': 'bi-calendar-day'},
         {'key': 'daily_cn_detail', 'label': 'Quản lý báo cáo (SX)', 'icon': 'bi-people-fill'},
@@ -96,6 +106,16 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
 
 # (path_prefix, module_key, menu_key) — prefix dài / cụ thể trước
 MENU_PATH_RULES: list[tuple[str, str, str]] = [
+    # Đào tạo — quản lý
+    ('/training/admin/', MODULE_TRAINING, 'manage'),
+    ('/training/api/categories/', MODULE_TRAINING, 'manage'),
+    ('/training/', MODULE_TRAINING, 'lessons'),
+    # Kiểm tra — quản lý
+    ('/dashboard/exam/', MODULE_ASSESSMENT, 'manage'),
+    ('/dashboard/results/', MODULE_ASSESSMENT, 'manage'),
+    ('/dashboard/competency/', MODULE_ASSESSMENT, 'manage'),
+    ('/dashboard/submission/', MODULE_ASSESSMENT, 'manage'),
+    ('/exams/', MODULE_ASSESSMENT, 'exams'),
     # Báo cáo — SX (sản xuất)
     ('/reports/sx/team', MODULE_REPORTS, 'daily_cn_detail'),
     ('/reports/sx/my', MODULE_REPORTS, 'daily_cn'),
