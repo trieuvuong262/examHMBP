@@ -49,6 +49,16 @@ from hrm.permissions import (
 )
 
 
+def _can_manage_module(user, module_key: str) -> bool:
+    """Có ít nhất một quyền thêm/sửa/xóa trên module."""
+    return (
+        user_can_edit_module(user, module_key)
+        or user_can_create_module(user, module_key)
+        or user_can_update_module(user, module_key)
+        or user_can_delete_module(user, module_key)
+    )
+
+
 def _jp_concurrent_positions(user):
     from hrm.concurrent_positions import concurrent_positions_summary, get_profile
 
@@ -122,6 +132,8 @@ def portal_permissions(request):
             'jp_can_create_assessment': False,
             'jp_can_update_assessment': False,
             'jp_can_delete_assessment': False,
+            'jp_can_manage_training': False,
+            'jp_can_manage_assessment': False,
             'jp_can_edit_hrm': False,
             'jp_can_create_hrm': False,
             'jp_can_update_hrm': False,
@@ -239,6 +251,8 @@ def portal_permissions(request):
         'jp_can_create_assessment': user_can_create_module(user, MODULE_ASSESSMENT),
         'jp_can_update_assessment': user_can_update_module(user, MODULE_ASSESSMENT),
         'jp_can_delete_assessment': user_can_delete_module(user, MODULE_ASSESSMENT),
+        'jp_can_manage_training': _can_manage_module(user, MODULE_TRAINING),
+        'jp_can_manage_assessment': _can_manage_module(user, MODULE_ASSESSMENT),
         'jp_can_edit_hrm': user_can_edit_module(user, MODULE_HRM),
         'jp_can_create_hrm': user_can_create_module(user, MODULE_HRM),
         'jp_can_update_hrm': user_can_update_module(user, MODULE_HRM),

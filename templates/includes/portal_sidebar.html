@@ -84,12 +84,12 @@
             {% endif %}
         </li>
         {% endif %}
-        {% if jp_can_training or jp_can_assessment %}
-        <li class="jp-sidebar-group{% if 'training' in request.path or 'exams' in request.path or request.GET.tab == 'training' or request.GET.tab == 'assessment' %} is-open{% endif %}">
+        {% if jp_can_training or jp_can_assessment or jp_can_manage_training or jp_can_manage_assessment %}
+        <li class="jp-sidebar-group{% if 'training' in request.path or 'exams' in request.path or '/dashboard/exam' in request.path or '/dashboard/results' in request.path or '/dashboard/competency' in request.path or request.GET.tab == 'training' or request.GET.tab == 'assessment' %} is-open{% endif %}">
             <button type="button"
                     class="jp-sidebar-group-toggle"
                     data-jp-sidebar-group-toggle
-                    aria-expanded="{% if 'training' in request.path or 'exams' in request.path or request.GET.tab == 'training' or request.GET.tab == 'assessment' %}true{% else %}false{% endif %}"
+                    aria-expanded="{% if 'training' in request.path or 'exams' in request.path or '/dashboard/exam' in request.path or '/dashboard/results' in request.path or '/dashboard/competency' in request.path or request.GET.tab == 'training' or request.GET.tab == 'assessment' %}true{% else %}false{% endif %}"
                     aria-controls="jp-sidebar-training-submenu">
                 <span class="jp-sidebar-group-toggle-main">
                     <span class="jp-sidebar-link-icon">
@@ -109,22 +109,8 @@
             <ul class="jp-sidebar-submenu" id="jp-sidebar-training-submenu">
                 {% if jp_can_training %}
                 <li>
-                    {% if jp_can_edit_training %}
-                    <a href="{% url 'admin_dashboard' %}?tab=training"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.GET.tab == 'training' %}active{% endif %}">
-                        <span class="jp-sidebar-link-icon">
-                            <i class="bi bi-book-fill"></i>
-                            {% if jp_training_pending_count %}
-                            <span class="jp-sidebar-notify" aria-label="{{ jp_training_pending_count }} khóa học chưa hoàn thành">
-                                {% if jp_training_pending_count > 99 %}99+{% else %}{{ jp_training_pending_count }}{% endif %}
-                            </span>
-                            {% endif %}
-                        </span>
-                        <span>Bài học</span>
-                    </a>
-                    {% else %}
                     <a href="{% url 'my_courses' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if 'training' in request.path %}active{% endif %}">
+                       class="jp-sidebar-link jp-sidebar-sublink {% if 'training' in request.path and '/training/admin/' not in request.path %}active{% endif %}">
                         <span class="jp-sidebar-link-icon">
                             <i class="bi bi-book-fill"></i>
                             {% if jp_training_pending_count %}
@@ -135,25 +121,10 @@
                         </span>
                         <span>Bài học</span>
                     </a>
-                    {% endif %}
                 </li>
                 {% endif %}
                 {% if jp_can_assessment %}
                 <li>
-                    {% if jp_can_edit_assessment %}
-                    <a href="{% url 'admin_dashboard' %}?tab=assessment"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.GET.tab == 'assessment' %}active{% endif %}">
-                        <span class="jp-sidebar-link-icon">
-                            <i class="bi bi-journal-check"></i>
-                            {% if jp_assessment_pending_count %}
-                            <span class="jp-sidebar-notify" aria-label="{{ jp_assessment_pending_count }} bài kiểm tra chưa hoàn thành">
-                                {% if jp_assessment_pending_count > 99 %}99+{% else %}{{ jp_assessment_pending_count }}{% endif %}
-                            </span>
-                            {% endif %}
-                        </span>
-                        <span>Kiểm tra</span>
-                    </a>
-                    {% else %}
                     <a href="{% url 'exam_list' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if 'exams' in request.path %}active{% endif %}">
                         <span class="jp-sidebar-link-icon">
@@ -166,7 +137,22 @@
                         </span>
                         <span>Kiểm tra</span>
                     </a>
-                    {% endif %}
+                </li>
+                {% endif %}
+                {% if jp_can_manage_training %}
+                <li>
+                    <a href="{% url 'course_list' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/training/admin/' in request.path or request.GET.tab == 'training' %}active{% endif %}">
+                        <i class="bi bi-journal-bookmark-fill"></i><span>Quản lý bài học</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% if jp_can_manage_assessment %}
+                <li>
+                    <a href="{% url 'admin_dashboard' %}?tab=assessment"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.GET.tab == 'assessment' or '/dashboard/exam' in request.path or '/dashboard/results' in request.path or '/dashboard/competency' in request.path %}active{% endif %}">
+                        <i class="bi bi-ui-checks-grid"></i><span>Quản lý kiểm tra</span>
+                    </a>
                 </li>
                 {% endif %}
             </ul>
