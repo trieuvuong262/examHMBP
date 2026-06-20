@@ -164,16 +164,16 @@ def take_exam(request, exam_id):
         return redirect('exam_list')
 
     if not is_portal_admin(request.user):
-        from training.course_exam import incomplete_courses_blocking_exam, learning_url_for_course
+        from training.course_exam import incomplete_courses_blocking_exam
 
         blockers = incomplete_courses_blocking_exam(request.user, exam)
         if blockers:
             course = blockers[0]
-            messages.warning(
-                request,
-                f'Bạn cần hoàn thành khóa học «{course.title}» trước khi làm bài thi «{exam.title}».',
-            )
-            return redirect(learning_url_for_course(course))
+            return render(request, 'assessment/course_exam_gate.html', {
+                'exam': exam,
+                'course': course,
+                'show_course_gate_modal': True,
+            })
 
     existing_submission = ExamSubmission.objects.filter(
         user=request.user, 

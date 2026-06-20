@@ -57,15 +57,16 @@ class CourseExamGateTests(TestCase):
         )
         self.course.assigned_users.add(self.user)
 
-    def test_take_exam_redirects_when_course_incomplete(self):
+    def test_take_exam_shows_course_gate_modal_when_incomplete(self):
         Enrollment.objects.get_or_create(user=self.user, course=self.course)
 
         resp = self.client.get(reverse('take_exam', args=[self.exam.pk]))
-        self.assertEqual(resp.status_code, 302)
-        self.assertEqual(
-            resp.url,
-            reverse('course_start', args=[self.course.pk]),
-        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'courseExamGateModal')
+        self.assertContains(resp, 'Bắt đầu học')
+        self.assertContains(resp, self.course.title)
+        self.assertContains(resp, self.exam.title)
+        self.assertContains(resp, reverse('course_start', args=[self.course.pk]))
 
     def test_take_exam_allowed_when_course_completed(self):
         Enrollment.objects.create(

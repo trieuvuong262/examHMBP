@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container jp-page mt-4 mt-md-5 text-center d-none" id="courseGateFallback">
+    <div class="card shadow p-4 p-md-5 border-0">
+        <h2 class="text-hm mb-3">Cần hoàn thành khóa học</h2>
+        <p class="text-muted mb-4">
+            Bạn cần hoàn thành khóa học «{{ course.title }}» trước khi làm bài thi «{{ exam.title }}».
+        </p>
+        <div class="d-flex flex-column flex-sm-row gap-2 justify-content-center">
+            <a href="{% url 'course_start' course.pk %}" class="btn btn-hm fw-bold px-4">
+                <i class="bi bi-mortarboard-fill me-1"></i>Bắt đầu học
+            </a>
+            <a href="{% url 'exam_list' %}" class="btn btn-outline-secondary fw-bold px-4">Quay lại danh sách</a>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="courseExamGateModal" tabindex="-1" aria-labelledby="courseExamGateTitle" aria-hidden="true"
+     data-auto-show="{% if show_course_gate_modal %}1{% else %}0{% endif %}">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
+        <div class="modal-content border-0 shadow-lg overflow-hidden">
+            <div class="modal-header bg-hm text-white border-0 py-3">
+                <h5 class="modal-title fw-bold" id="courseExamGateTitle">
+                    <i class="bi bi-mortarboard-fill me-2"></i>Hoàn thành khóa học trước
+                </h5>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <div class="mb-3">
+                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-2 fw-bold">
+                        Bài thi: {{ exam.title }}
+                    </span>
+                </div>
+                <p class="lead fw-semibold text-dark mb-2">
+                    Bạn cần hoàn thành khóa học
+                </p>
+                <p class="fs-5 fw-bold text-hm mb-3">«{{ course.title }}»</p>
+                <p class="text-muted small mb-0">
+                    Học hết nội dung khóa học để mở khóa bài kiểm tra «{{ exam.title }}».
+                </p>
+            </div>
+            <div class="modal-footer border-0 pb-4 justify-content-center gap-2 flex-wrap">
+                <a href="{% url 'course_start' course.pk %}" class="btn btn-hm px-4 fw-bold">
+                    <i class="bi bi-play-fill me-1"></i>Bắt đầu học
+                </a>
+                <a href="{% url 'exam_list' %}" class="btn btn-outline-secondary px-4 fw-bold">Để sau</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root { --hm-primary: #dc2626; }
+    .btn-hm { background-color: var(--hm-primary); color: #fff; border: none; }
+    .btn-hm:hover { background-color: #b91c1c; color: #fff; }
+    .text-hm { color: var(--hm-primary) !important; }
+    .bg-hm { background-color: var(--hm-primary) !important; }
+    #courseExamGateModal { z-index: 1065; }
+    #courseExamGateModal .modal-footer .btn { min-height: 44px; }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const gateModal = document.getElementById('courseExamGateModal');
+    if (!gateModal) return;
+
+    if (gateModal.parentElement !== document.body) {
+        document.body.appendChild(gateModal);
+    }
+
+    if (gateModal.dataset.autoShow === '1' && window.bootstrap) {
+        bootstrap.Modal.getOrCreateInstance(gateModal, { backdrop: 'static', keyboard: false }).show();
+    }
+});
+</script>
+{% endblock %}
