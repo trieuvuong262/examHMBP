@@ -597,9 +597,9 @@ def ckeditor5_upload(request):
     if not upload:
         return _ckeditor_upload_error('Không có file.')
     if not _is_allowed_ckeditor_image(upload):
-        return _ckeditor_upload_error('Chỉ chấp nhận ảnh JPG, PNG, GIF, WebP.')
+        return _ckeditor_upload_error('File không hợp lệ.')
     if upload.size > _CK5_MAX_BYTES:
-        return _ckeditor_upload_error('Ảnh tối đa 5MB.')
+        return _ckeditor_upload_error('File không hợp lệ.')
 
     ext = os.path.splitext(upload.name or '')[1].lower()
     if ext not in _CK5_IMAGE_EXTS:

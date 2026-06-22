@@ -15,18 +15,12 @@
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Chọn file PDF</label>
                         <input type="file" name="pdf_file" class="form-control" accept=".pdf,application/pdf" required>
-                        <div class="form-text">Tối đa 10 MB. PDF dạng văn bản cho kết quả tốt nhất.</div>
                     </div>
                     <button type="submit" class="btn btn-hm">
                         <i class="bi bi-arrow-left-right me-1"></i>Chuyển sang Word
                     </button>
                 </form>
             </div>
-        </div>
-
-        <div class="jp-tool-tip mt-3">
-            
-            PDF scan ảnh nên dùng <a href="{% url 'tools:ocr' %}">OCR ảnh</a> trước, rồi dán vào Word.
         </div>
     </div>
 </div>

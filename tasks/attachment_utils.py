@@ -20,14 +20,14 @@ def is_image_filename(name: str) -> bool:
 def _check_file_size(uploaded_file, name: str):
     size = getattr(uploaded_file, 'size', 0) or 0
     if size > MAX_ATTACHMENT_SIZE:
-        raise ValidationError(f'File "{name}" vượt quá 10 MB.')
+        raise ValidationError(f'File "{name}" không hợp lệ.')
 
 
 def validate_image_file(uploaded_file):
     name = getattr(uploaded_file, 'name', '') or 'file'
     ext = os.path.splitext(name.lower())[1]
     if ext not in IMAGE_EXTENSIONS:
-        raise ValidationError(f'"{name}" không phải hình ảnh. Chọn file JPG, PNG, GIF hoặc WebP.')
+        raise ValidationError(f'"{name}" không phải hình ảnh hợp lệ.')
     _check_file_size(uploaded_file, name)
 
 
@@ -38,8 +38,7 @@ def validate_document_file(uploaded_file):
         raise ValidationError(f'"{name}" là hình ảnh — dùng ô tải hình ảnh riêng.')
     if ext not in DOCUMENT_EXTENSIONS:
         raise ValidationError(
-            f'File "{name}" không được hỗ trợ. '
-            'Chấp nhận: PDF, Word, Excel, PowerPoint, ZIP, TXT.',
+            f'File "{name}" không được hỗ trợ.',
         )
     _check_file_size(uploaded_file, name)
 
@@ -50,8 +49,7 @@ def validate_attachment_file(uploaded_file):
     ext = os.path.splitext(name.lower())[1]
     if ext not in ALLOWED_EXTENSIONS:
         raise ValidationError(
-            f'File "{name}" không được hỗ trợ. '
-            'Chấp nhận: hình ảnh, PDF, Word, Excel, PowerPoint, ZIP, TXT.',
+            f'File "{name}" không được hỗ trợ.',
         )
     _check_file_size(uploaded_file, name)
 

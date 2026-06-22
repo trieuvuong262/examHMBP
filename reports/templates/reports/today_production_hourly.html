@@ -56,10 +56,6 @@
                             </select>
                         </div>
                         <div class="col-md-6 col-lg-7">
-                            <p class="text-muted small mb-0">
-                                
-                                Nhập hộ cho công nhân chưa dùng điện thoại — điền sản lượng các khung giờ, <strong>không cần đúng giờ thực</strong>.
-                            </p>
                         </div>
                     </form>
                 </div>
@@ -183,9 +179,6 @@
                         <i class="bi bi-plus-circle me-2"></i>Nhập {{ pending_slots.0.label }}
                     </button>
                     {% elif can_edit and current_slot_label %}
-                    <div class="alert alert-light border small mb-0 py-2">
-                        Chưa đến giờ nhập hoặc đã nhập đủ các khung giờ hiện tại.
-                    </div>
                     {% endif %}
                     {% if can_edit %}
                     <button type="button" class="btn btn-outline-hm fw-bold" data-bs-toggle="modal"
@@ -223,9 +216,6 @@
                     <i class="bi bi-plus-circle me-2"></i>Nhập {{ pending_slots.0.label }}
                 </button>
                 {% elif can_edit and current_slot_label %}
-                <div class="alert alert-light border text-center small mb-0 py-3">
-                    Chưa đến giờ nhập hoặc đã nhập đủ các khung giờ hiện tại.
-                </div>
                 {% endif %}
                 {% if can_edit %}
                 <button type="button" class="btn btn-outline-hm w-100 fw-bold" data-bs-toggle="modal"
@@ -233,7 +223,6 @@
                     <i class="bi bi-check2-square me-2"></i>Kết thúc mã hàng
                 </button>
                 {% if not has_unfinalized %}
-                <p class="text-muted small text-center mb-0">Nhập ít nhất một sản lượng trước khi kết thúc mã hàng.</p>
                 {% endif %}
                 <a href="?date={{ report_date|date:'Y-m-d' }}{% if for_user_param %}&for_user={{ for_user_param }}{% endif %}&phase=review"
                    class="btn btn-outline-dark w-100">

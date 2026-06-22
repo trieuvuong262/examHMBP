@@ -1,6 +1,5 @@
 <div class="col-12">
     <label class="form-label fw-bold small" for="{{ field.id_for_label }}">Chứng từ / ảnh</label>
     {{ field }}
-    <div class="form-text">PDF, Word, Excel hoặc ảnh — tối đa 10MB. Không bắt buộc.</div>
     {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
 </div>

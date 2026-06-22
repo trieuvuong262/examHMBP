@@ -23,11 +23,7 @@
             </div>
 
             {% if file_preview %}
-                {% if file_preview.kind == 'office' and not file_preview.office_preview_ready %}
-                <div class="alert alert-warning border-0 mb-3">
-                    Server chưa cài LibreOffice — không xem trước Word/Excel trực tiếp. Vui lòng tải file về để mở.
-                </div>
-                {% else %}
+                {% if file_preview.kind != 'office' or file_preview.office_preview_ready %}
                 <div class="jp-weekly-embed-wrap is-pdf mb-3">
                     <iframe src="{{ file_preview.preview_url }}" title="Xem trước {{ file_name }}" loading="lazy"></iframe>
                 </div>

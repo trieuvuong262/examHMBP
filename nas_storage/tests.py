@@ -169,7 +169,7 @@ class NasUserFoldersViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Cập nhật link NAS')
         self.assertContains(response, 'Lưu link NAS')
-        self.assertContains(response, 'thêm từng dòng thủ công')
+        self.assertContains(response, 'Đường dẫn NAS')
         self.assertNotContains(response, 'mặc định theo phòng ban')
         self.assertNotContains(response, 'Lấy từ mặc định phòng ban')
 

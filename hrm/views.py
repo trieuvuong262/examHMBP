@@ -446,16 +446,16 @@ def _save_profile_avatar(profile, upload, request):
         return None
     try:
         validate_image_file(upload)
-    except ValidationError as exc:
-        messages.error(request, '; '.join(getattr(exc, 'messages', [str(exc)])))
+    except ValidationError:
+        messages.error(request, 'File không hợp lệ.')
         return False
     if upload.size > AVATAR_MAX_SIZE:
-        messages.error(request, 'Ảnh avatar tối đa 5 MB.')
+        messages.error(request, 'File không hợp lệ.')
         return False
     try:
         prepared = prepare_avatar_image(upload)
     except Exception:
-        messages.error(request, 'Không xử lý được ảnh avatar. Vui lòng chọn file JPG/PNG/WebP hợp lệ.')
+        messages.error(request, 'Không xử lý được ảnh avatar.')
         return False
     if profile.avatar:
         profile.avatar.delete(save=False)

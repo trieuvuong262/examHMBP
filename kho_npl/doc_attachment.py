@@ -17,11 +17,9 @@ def validate_doc_attachment(uploaded_file):
         return uploaded_file
     ext = os.path.splitext(uploaded_file.name or '')[1].lower()
     if ext not in DOC_ATTACHMENT_EXTENSIONS:
-        raise ValidationError(
-            'Chỉ chấp nhận file PDF, Word, Excel hoặc ảnh (JPG, PNG, GIF, WEBP).',
-        )
+        raise ValidationError('File không hợp lệ.')
     if uploaded_file.size > DOC_ATTACHMENT_MAX_BYTES:
-        raise ValidationError('File chứng từ không được lớn hơn 10MB.')
+        raise ValidationError('File không hợp lệ.')
     return uploaded_file
 
 

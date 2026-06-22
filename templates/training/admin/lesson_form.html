@@ -36,8 +36,7 @@
             <div id="video_field" class="mb-3 d-none">
                 <label class="form-label fw-bold">Link Video (YouTube/Vimeo)</label>
                 {{ form.video_url }}
-                <div class="form-text text-muted">Hoặc tải file MP4 trực tiếp:</div>
-                <label class="form-label fw-bold mt-2">Tải lên Video (MP4)</label>
+                <label class="form-label fw-bold mt-2">Tải lên video</label>
                 {{ form.video_file }}
                 
                 {% if lesson.video_url %}
@@ -52,9 +51,6 @@
                         <a href="{{ lesson.video_file.url }}" target="_blank">Xem video</a>
                     </div>
                 {% endif %}
-                <div class="form-text text-danger mt-1">
-                     Cần ít nhất link hoặc file video. Upload khuyến nghị dưới 100MB.
-                </div>
             </div>
 
             <div id="file_field" class="mb-3 d-none">

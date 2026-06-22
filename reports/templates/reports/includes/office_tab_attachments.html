@@ -13,7 +13,6 @@
                     <label class="jp-weekly-existing-item">
                         <input type="checkbox" name="delete_attachments" value="{{ att.pk }}" class="form-check-input">
                         <a href="{{ att.file_url }}" target="_blank" rel="noopener" class="text-decoration-none">{{ att.display_name }}</a>
-                        <span class="text-muted small">(tick để xóa)</span>
                     </label>
                     {% endfor %}
                 </div>

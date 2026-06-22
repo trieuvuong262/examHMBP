@@ -53,7 +53,7 @@ class BackgroundRemovalNotReady(Exception):
 
 def _validate_pdf(uploaded_file):
     if uploaded_file.size > PDF_MAX_BYTES:
-        raise ValidationError('File PDF tối đa 10 MB.')
+        raise ValidationError('File không hợp lệ.')
     name = (uploaded_file.name or '').lower()
     if not name.endswith('.pdf'):
         raise ValidationError('Vui lòng chọn file PDF.')
@@ -67,9 +67,9 @@ def _validate_pdf(uploaded_file):
 
 def _validate_image(uploaded_file):
     if uploaded_file.size > IMAGE_MAX_BYTES:
-        raise ValidationError('Ảnh tối đa 10 MB.')
+        raise ValidationError('File không hợp lệ.')
     if uploaded_file.content_type and uploaded_file.content_type not in IMAGE_TYPES:
-        raise ValidationError('Chỉ hỗ trợ JPG, PNG, WebP hoặc GIF.')
+        raise ValidationError('File không hợp lệ.')
 
 
 def convert_pdf_to_docx(uploaded_file) -> tuple[bytes, str]:
@@ -169,11 +169,11 @@ def remove_image_background(uploaded_file) -> tuple[bytes, str]:
 
 def _validate_office_for_pdf(uploaded_file):
     if uploaded_file.size > OFFICE_MAX_BYTES:
-        raise ValidationError('File tối đa 15 MB.')
+        raise ValidationError('File không hợp lệ.')
     name = (uploaded_file.name or '').lower()
     ext = os.path.splitext(name)[1]
     if ext not in OFFICE_TO_PDF_EXTENSIONS:
-        raise ValidationError('Chỉ hỗ trợ Word (.doc, .docx) hoặc Excel (.xls, .xlsx, .csv).')
+        raise ValidationError('File không hợp lệ.')
 
 
 def _libreoffice_binary() -> str | None:
@@ -252,10 +252,10 @@ def convert_office_path_to_pdf(file_path: str | os.PathLike) -> tuple[bytes, str
     if not os.path.isfile(path):
         raise ValidationError('File không tồn tại.')
     if os.path.getsize(path) > OFFICE_MAX_BYTES:
-        raise ValidationError('File tối đa 15 MB.')
+        raise ValidationError('File không hợp lệ.')
     ext = os.path.splitext(path)[1].lower()
     if ext not in OFFICE_TO_PDF_EXTENSIONS:
-        raise ValidationError('Định dạng không hỗ trợ xem trước Word/Excel.')
+        raise ValidationError('File không hợp lệ.')
     base_name = os.path.splitext(os.path.basename(path))[0]
     output_name = f'{base_name}.pdf'
 

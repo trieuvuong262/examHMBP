@@ -99,7 +99,6 @@
                             <div class="col-md-6">
                                 <label class="form-label fw-bold text-muted small text-uppercase">Kỳ thi cuối khóa (Tùy chọn)</label>
                                 {{ form.final_exam }}
-                                <div class="form-text x-small text-muted mt-1">Học viên phải hoàn thành lý thuyết mới được thi.</div>
                             </div>
                         </div>
 
@@ -160,9 +159,6 @@
 
                                 <div class="select2-hm-wrapper">
                                     {% user_picker field=form.assigned_users placeholder='Chọn nhân viên tham gia...' %}
-                                    <div class="form-text x-small text-muted mt-2">
-                                        Tìm theo tên, mã NS, account hoặc vị trí.
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -180,7 +176,6 @@
                         <div class="input-group-custom">
                             {{ form.thumbnail }}
                         </div>
-                        <div class="form-text x-small mt-3">Định dạng JPG, PNG. Tỷ lệ khuyên dùng 16:9.</div>
                     </div>
                 </div>
 

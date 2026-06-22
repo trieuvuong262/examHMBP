@@ -7,7 +7,7 @@
 
 {% block content %}
 <div class="container jp-page jp-reports-page py-3 py-md-4 mb-5">
-    {% include 'reports/includes/reports_intro_header.html' with intro_icon='bi-calendar-day' intro_title='Báo cáo ngày' intro_subtitle='Nhập nhanh công việc sản xuất — mỗi dòng = 1 công đoạn / đơn hàng.' %}
+    {% include 'reports/includes/reports_intro_header.html' with intro_icon='bi-calendar-day' intro_title='Báo cáo ngày' %}
 
     {% if report.status == 'SUBMITTED' %}
     <div class="alert alert-success border-0 shadow-sm py-2 mb-3">

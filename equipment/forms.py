@@ -148,7 +148,7 @@ class DeviceForm(forms.ModelForm):
 
         scope_is_it = not (equipment_scope and not is_it_scope(equipment_scope))
         if scope_is_it:
-            self.fields['photo'].help_text = 'JPG, PNG, GIF hoặc WebP — tối đa 10 MB.'
+            self.fields['photo'].help_text = ''
             self.fields['device_code'].help_text = 'Để trống để hệ thống tự sinh mã (TB-000001).'
         else:
             self.fields['photo'].help_text = ''

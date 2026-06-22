@@ -16,18 +16,12 @@
                         <label class="form-label fw-semibold">Chọn file Word hoặc Excel</label>
                         <input type="file" name="office_file" class="form-control"
                                accept=".doc,.docx,.odt,.rtf,.xls,.xlsx,.ods,.csv,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
-                        <div class="form-text">Tối đa 15 MB. Ưu tiên .docx / .xlsx.</div>
                     </div>
                     <button type="submit" class="btn btn-hm">
                         <i class="bi bi-file-earmark-pdf me-1"></i>Chuyển sang PDF
                     </button>
                 </form>
             </div>
-        </div>
-
-        <div class="jp-tool-tip mt-3">
-            
-            Cần PDF → Word? Dùng <a href="{% url 'tools:pdf_to_word' %}">PDF → Word</a>.
         </div>
     </div>
 </div>
