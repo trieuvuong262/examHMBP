@@ -28,8 +28,11 @@ def upsert_rustdesk_host(*, data: dict) -> tuple[object, bool]:
 
     rustdesk_id = normalize_rustdesk_id(data.get('rustdesk_id', ''))
     password = (data.get('rustdesk_password') or '').strip()[:128]
-    if not password:
-        password = (getattr(settings, 'RUSTDESK_CLIENT_PASSWORD', '') or '').strip()[:128]
+    env_pw = (getattr(settings, 'RUSTDESK_CLIENT_PASSWORD', '') or '').strip()[:128]
+    if env_pw:
+        password = env_pw
+    elif not password:
+        password = ''
     hostname = (data.get('hostname') or '').strip()[:128]
     ip_raw = (data.get('ip_address') or data.get('ip') or '').strip()
     ip_address = ip_raw or None

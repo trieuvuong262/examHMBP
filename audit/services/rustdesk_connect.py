@@ -8,10 +8,11 @@ from django.conf import settings
 
 
 def effective_rustdesk_password(host_password: str = '') -> str:
-    pwd = (host_password or '').strip()
-    if pwd:
-        return pwd
-    return (getattr(settings, 'RUSTDESK_CLIENT_PASSWORD', '') or '').strip()
+    """Ưu tiên RUSTDESK_CLIENT_PASSWORD (.env) — tránh mật khẩu cũ trong DB."""
+    env = (getattr(settings, 'RUSTDESK_CLIENT_PASSWORD', '') or '').strip()
+    if env:
+        return env
+    return (host_password or '').strip()
 
 
 def build_rustdesk_connect_url(rustdesk_id: str, password: str = '') -> str:

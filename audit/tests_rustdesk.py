@@ -15,6 +15,7 @@ class RustdeskConnectTests(SimpleTestCase):
     @override_settings(
         RUSTDESK_PUBLIC_HOST='rd.justplay.vn',
         RUSTDESK_PUBLIC_KEY='0KDL7LQhVpSud8Y2ciHOt16Jv+XWXGlc75goPVN0Zkk=',
+        RUSTDESK_CLIENT_PASSWORD='',
     )
     def test_build_connect_url_with_password(self):
         from audit.services.rustdesk_connect import build_rustdesk_connect_url
@@ -33,12 +34,22 @@ class RustdeskConnectTests(SimpleTestCase):
         url = build_rustdesk_connect_url('258599030', '')
         self.assertEqual(url, 'rustdesk://connection/new/258599030')
 
-    @override_settings(RUSTDESK_PUBLIC_KEY='')
+    @override_settings(RUSTDESK_PUBLIC_KEY='', RUSTDESK_CLIENT_PASSWORD='')
     def test_build_connect_url_fallback_without_key(self):
         from audit.services.rustdesk_connect import build_rustdesk_connect_url
 
         url = build_rustdesk_connect_url('258599030', 'pw')
         self.assertEqual(url, 'rustdesk://connection/new/258599030?password=pw')
+
+    @override_settings(
+        RUSTDESK_CLIENT_PASSWORD='env-pw',
+        RUSTDESK_APPROVE_MODE='password',
+    )
+    def test_build_connect_url_prefers_env_over_host_password(self):
+        from audit.services.rustdesk_connect import build_rustdesk_connect_url
+
+        url = build_rustdesk_connect_url('258599030', 'old-db-pw')
+        self.assertEqual(url, 'rustdesk://connection/new/258599030?password=env-pw')
 
     @override_settings(
         RUSTDESK_CLIENT_PASSWORD='env-pw',

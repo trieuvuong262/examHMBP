@@ -166,29 +166,51 @@ get_rustdesk_id() {
 
 set_password() {
   local bin="$1"
+  local root_cfg="/root/.config/rustdesk"
   if [[ -z "$CLIENT_PASSWORD" ]]; then
     echo '      Canh bao: Chua cau hinh RUSTDESK_CLIENT_PASSWORD tren Portal.'
     return 1
   fi
-  echo '      Dat mat khau mac dinh (permanent)...'
-  local attempt ok=1
+  echo '      Dat mat khau co dinh (can root + service)...'
+  systemctl start rustdesk 2>/dev/null || true
+  sleep 5
+  local out ok=1 attempt
   for attempt in 1 2 3; do
-    if run_as_user "$bin" --password "$CLIENT_PASSWORD"; then ok=0; break; fi
-    if "$bin" --password "$CLIENT_PASSWORD"; then ok=0; break; fi
-    echo "      Thu lai dat mat khau ($attempt/3)"
-    sleep 2
+    out="$("$bin" --password "$CLIENT_PASSWORD" 2>&1)" || true
+    if [[ "$out" == *Done* ]]; then
+      ok=0
+      echo '      Mat khau: Done!'
+      break
+    fi
+    echo "      Thu $attempt/3: ${out:-khong co phan hoi}"
+    sleep 3
+    systemctl restart rustdesk 2>/dev/null || true
+    sleep 4
   done
-  if [[ "$ok" -ne 0 ]]; then
-    echo '      Canh bao: Khong dat duoc mat khau qua CLI.'
+  mkdir -p "$root_cfg"
+  for f in RustDesk.toml RustDesk2.toml; do
+    if [[ -f "${CONFIG_DIR}/$f" ]]; then
+      cp "${CONFIG_DIR}/$f" "${root_cfg}/$f"
+    fi
+  done
+  if [[ -f "${root_cfg}/RustDesk2.toml" ]]; then
+    cp "${root_cfg}/RustDesk2.toml" "${CONFIG_DIR}/RustDesk2.toml" 2>/dev/null || true
   fi
-  sleep 2
-  return "$ok"
+  if [[ -n "${SUDO_USER:-}" ]]; then
+    chown -R "${SUDO_USER}:${SUDO_USER}" "$(dirname "$CONFIG_DIR")" 2>/dev/null || true
+  fi
+  systemctl restart rustdesk 2>/dev/null || true
+  sleep 3
+  if [[ "$ok" -ne 0 ]]; then
+    echo '      LOI: Khong dat duoc mat khau. Thu tay:'
+    echo "        sudo systemctl start rustdesk && sudo rustdesk --password '***'"
+    return 1
+  fi
+  return 0
 }
 
 apply_password() {
   local bin="$1"
-  restart_rustdesk "$bin"
-  set_password "$bin" || true
   restart_rustdesk "$bin"
   set_password "$bin" || true
 }
