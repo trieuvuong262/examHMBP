@@ -11,7 +11,15 @@
         </div>
     </div>
 
-    {% if not nas_unavailable and not nas_not_configured %}
+    {% if nas_unavailable %}
+    <div class="alert alert-warning border-0 shadow-sm">
+        Chưa kết nối được NAS trên server. Liên hệ IT nếu tình trạng kéo dài.
+    </div>
+    {% elif nas_not_configured %}
+    <div class="alert alert-info border-0 shadow-sm">
+        Tài khoản chưa được cấu hình thư mục NAS. Liên hệ IT để được gán quyền truy cập.
+    </div>
+    {% else %}
 
     <nav aria-label="breadcrumb" class="mb-3">
         <ol class="breadcrumb mb-0 small bg-white px-3 py-2 rounded shadow-sm">
