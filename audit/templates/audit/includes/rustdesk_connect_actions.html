@@ -1,0 +1,26 @@
+{% load humanize static %}
+<div class="d-flex flex-wrap align-items-center gap-1 jp-rd-actions">
+    {% if can_connect_rustdesk %}
+    <a href="{{ host.rustdesk_connect_url }}"
+       class="btn btn-sm btn-hm jp-rd-connect-btn"
+       title="Mở RustDesk trên máy bạn">
+        <i class="bi bi-display me-1"></i>Kết nối
+    </a>
+    <button type="button"
+            class="btn btn-sm btn-outline-secondary jp-rd-copy"
+            data-copy="{{ host.rustdesk_id }}"
+            data-copy-label="RustDesk ID">
+        <i class="bi bi-clipboard"></i>
+    </button>
+    {% if host.rustdesk_password %}
+    <button type="button"
+            class="btn btn-sm btn-outline-secondary jp-rd-copy"
+            data-copy="{{ host.rustdesk_password }}"
+            data-copy-label="mật khẩu">
+        <i class="bi bi-key"></i>
+    </button>
+    {% endif %}
+    {% else %}
+    <span class="text-muted small">Chỉ IT được kết nối</span>
+    {% endif %}
+</div>

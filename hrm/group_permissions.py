@@ -54,10 +54,14 @@ def menu_permission_action_enabled(module_key: str, menu_key: str | None, action
     """Quyền hiển thị / lưu theo menu con — ưu tiên hơn quyền module."""
     if not menu_key:
         return module_permission_action_enabled(module_key, action)
-    from hrm.submenu_registry import submenu_perm_view_only
+    from hrm.submenu_registry import submenu_perm_manage, submenu_perm_view_only
 
     if submenu_perm_view_only(module_key, menu_key):
         return action == PERM_VIEW
+    if module_key in MODULE_VIEW_EXPORT_ONLY and submenu_perm_manage(module_key, menu_key):
+        if action == PERM_EXPORT:
+            return module_supports_export(module_key)
+        return True
     return module_permission_action_enabled(module_key, action)
 
 DEFAULT_GROUP_SLUGS = {
@@ -120,10 +124,30 @@ def normalize_module_perm(raw: dict | None, *, module_key: str | None = None) ->
 
 
 def normalize_menu_perm(raw: dict | None, *, module_key: str, menu_key: str) -> dict:
-    result = normalize_module_perm(raw, module_key=module_key)
+    from hrm.submenu_registry import submenu_perm_manage
+
+    entry = raw if isinstance(raw, dict) else {}
+    if any(action in entry for action in PERM_ACTIONS):
+        source = {action: bool(entry.get(action, False)) for action in PERM_ACTIONS}
+    elif module_key in MODULE_VIEW_EXPORT_ONLY and submenu_perm_manage(module_key, menu_key):
+        view = bool(entry.get('view', False))
+        edit = bool(entry.get('edit', False))
+        if edit:
+            view = True
+        source = {
+            PERM_VIEW: view,
+            PERM_CREATE: edit,
+            PERM_UPDATE: edit,
+            PERM_DELETE: edit,
+            PERM_EXPORT: edit and module_supports_export(module_key),
+        }
+    else:
+        source = legacy_entry_to_five_flags(entry, module_key=module_key)
+
+    result = empty_module_perm()
     for action in PERM_ACTIONS:
-        if not menu_permission_action_enabled(module_key, menu_key, action):
-            result[action] = False
+        if menu_permission_action_enabled(module_key, menu_key, action):
+            result[action] = bool(source.get(action, False))
     if any(result[a] for a in (PERM_CREATE, PERM_UPDATE, PERM_DELETE, PERM_EXPORT)):
         result[PERM_VIEW] = True
     return result
@@ -161,7 +185,7 @@ def normalize_module_entry(raw, *, module_key: str) -> dict:
             mk = sm['key']
             mraw = menus_raw.get(mk, {})
             menus[mk] = normalize_menu_perm(
-                legacy_entry_to_five_flags(mraw, module_key=module_key),
+                mraw,
                 module_key=module_key,
                 menu_key=mk,
             )

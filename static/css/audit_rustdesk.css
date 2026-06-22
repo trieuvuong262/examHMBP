@@ -1,0 +1,12 @@
+.jp-rd-table code.jp-rd-id {
+    font-size: 0.95rem;
+    letter-spacing: 0.02em;
+}
+
+.jp-rd-connect-btn {
+    white-space: nowrap;
+}
+
+.jp-rd-hint code {
+    font-size: 0.85em;
+}

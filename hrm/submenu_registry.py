@@ -97,6 +97,7 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
     MODULE_AUDIT: [
         {'key': 'login_security', 'label': 'Bảo mật đăng nhập', 'icon': 'bi-shield-lock'},
         {'key': 'logs', 'label': 'Nhật ký thao tác', 'icon': 'bi-journal-check'},
+        {'key': 'rustdesk', 'label': 'RustDesk', 'icon': 'bi-display', 'perm_manage': True},
         {'key': 'backup', 'label': 'Backup lên NAS', 'icon': 'bi-cloud-arrow-up'},
         {'key': 'kiotviet_sync', 'label': 'Đồng bộ KiotViet', 'icon': 'bi-arrow-repeat'},
         {'key': 'nas_links', 'label': 'Cập nhật link NAS', 'icon': 'bi-hdd-network'},
@@ -210,6 +211,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     # Quản trị hệ thống
     ('/nhat-ky/tro-ly-ai', MODULE_AUDIT, 'qa_assistant'),
     ('/nhat-ky/bao-mat-dang-nhap', MODULE_AUDIT, 'login_security'),
+    ('/nhat-ky/rustdesk', MODULE_AUDIT, 'rustdesk'),
     ('/nhat-ky/backup', MODULE_AUDIT, 'backup'),
     ('/nhat-ky/kiotviet-sync', MODULE_AUDIT, 'kiotviet_sync'),
     ('/nhat-ky/nas-links', MODULE_AUDIT, 'nas_links'),
@@ -240,6 +242,14 @@ def submenu_perm_view_only(module_key: str, menu_key: str) -> bool:
     for item in get_module_submenus(module_key):
         if item['key'] == menu_key:
             return bool(item.get('perm_view_only'))
+    return False
+
+
+def submenu_perm_manage(module_key: str, menu_key: str) -> bool:
+    """Menu con trong module chỉ xem/xuất — vẫn cho phép đủ 5 quyền (vd. RustDesk)."""
+    for item in get_module_submenus(module_key):
+        if item['key'] == menu_key:
+            return bool(item.get('perm_manage'))
     return False
 
 

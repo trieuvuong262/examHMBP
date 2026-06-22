@@ -2,7 +2,7 @@ from django.contrib import admin, messages
 from django.shortcuts import redirect, render
 from django.urls import path, reverse
 
-from .models import PortalBackupJob, UserActivityLog
+from .models import PortalBackupJob, RustDeskHost, UserActivityLog
 
 _BULK_DELETE_SESSION_KEY = 'audit_admin_bulk_delete_pks'
 _DELETE_BATCH_SIZE = 500
@@ -112,3 +112,10 @@ class PortalBackupJobAdmin(admin.ModelAdmin):
     list_filter = ('status', 'trigger')
     readonly_fields = ('artifacts', 'message', 'remote_path', 'created_at', 'started_at', 'finished_at')
     search_fields = ('remote_path', 'message', 'started_by__username')
+
+
+@admin.register(RustDeskHost)
+class RustDeskHostAdmin(admin.ModelAdmin):
+    list_display = ('name', 'rustdesk_id', 'hostname', 'ip_address', 'is_active', 'updated_at')
+    search_fields = ('name', 'rustdesk_id', 'hostname', 'department_text', 'assigned_user_text')
+    list_filter = ('is_active',)

@@ -167,8 +167,6 @@ IMPORT_COLUMNS_IT = IMPORT_COLUMNS_BASE + [
     ('configuration', 'Cấu hình (RAM, CPU…)', False),
     ('hostname', 'Hostname', False),
     ('ip_address', 'Địa chỉ IP', False),
-    ('rustdesk_id', 'RustDesk ID', False),
-    ('rustdesk_password', 'RustDesk mật khẩu', False),
 ]
 
 IMPORT_COLUMNS_MACHINE = [
@@ -211,8 +209,6 @@ SAMPLE_ROWS = {
         'description': 'Máy cấp mới đợt 1',
         'hostname': 'PC-SX-02',
         'ip_address': '192.168.1.15',
-        'rustdesk_id': '258599030',
-        'rustdesk_password': '',
         'quantity': 1,
         'unit_price': 15000000,
     },

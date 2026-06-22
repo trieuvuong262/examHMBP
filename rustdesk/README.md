@@ -31,7 +31,7 @@ cat /opt/rustdesk/data/id_ed25519.pub
 
 ## DNS (khuyến nghị)
 
-Tạo bản ghi **A** `co.justplay.vn` → `103.90.224.203` (đã có sẵn — dùng cho RustDesk).
+Tạo bản ghi **A** `rd.justplay.vn` → `103.90.224.203` (RustDesk).
 
 ## Client Windows (IT)
 

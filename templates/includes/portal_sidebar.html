@@ -833,6 +833,15 @@
                     </a>
                 </li>
                 {% endif %}
+                {% jp_can_menu 'audit' 'rustdesk' as jp_can_audit_rustdesk %}
+                {% if jp_can_audit_rustdesk %}
+                <li>
+                    <a href="{% url 'audit:rustdesk_list' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if 'rustdesk' in request.path %}active{% endif %}">
+                        <i class="bi bi-display"></i><span>RustDesk</span>
+                    </a>
+                </li>
+                {% endif %}
                 {% jp_can_menu 'audit' 'backup' as jp_can_audit_backup %}
                 {% if jp_can_audit_backup %}
                 <li>

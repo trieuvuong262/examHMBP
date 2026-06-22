@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
-from django.test import SimpleTestCase, TestCase, override_settings
+from django.test import Client, SimpleTestCase, TestCase, override_settings
+from django.urls import reverse
 
 from equipment.services.email_notify import get_it_notify_emails
 
@@ -52,7 +53,7 @@ class UltraviewerCollectTests(SimpleTestCase):
 
 
 class UltraviewerDeviceTests(TestCase):
-    def test_apply_ultraviewer_to_device(self):
+    def test_agent_does_not_store_ultraviewer_on_device(self):
         from equipment.models import Device
         from equipment.services.agent_device import apply_agent_hardware_to_device
 
@@ -72,10 +73,7 @@ class UltraviewerDeviceTests(TestCase):
         )
         device.save()
         device.refresh_from_db()
-        self.assertEqual(device.ultraviewer_id, '99887766')
-        self.assertEqual(device.ultraviewer_password, 'fixed-pass')
-        self.assertNotIn('UltraViewer ID', device.configuration)
-        self.assertNotIn('UltraViewer mật khẩu', device.configuration)
+        self.assertEqual(device.hostname, 'PC01')
 
     def test_agent_device_name_uses_hostname(self):
         from equipment.services.agent_device import agent_device_default_name
@@ -88,7 +86,7 @@ class UltraviewerDeviceTests(TestCase):
             agent_device_default_name({'hostname': 'PC-HR-01'}, 'x'),
             'PC-HR-01',
         )
-        self.assertEqual(agent_device_default_name({}, 'SN1234567890'), 'PC-345678')
+        self.assertEqual(agent_device_default_name({}, 'SN1234567890'), 'PC-567890')
 
     def test_agent_apply_sets_managed_department_it(self):
         from equipment.models import Device
@@ -491,57 +489,17 @@ class ScopeCategoryFilterTests(TestCase):
 
 
 class DeviceFormCategoryTests(TestCase):
-    def test_it_form_has_ultraviewer_production_form_does_not(self):
+    def test_it_form_has_no_remote_access_fields(self):
         from equipment.forms import DeviceForm
         from equipment.scope import SCOPE_IT, SCOPE_PRODUCTION
 
         it_form = DeviceForm(equipment_scope=SCOPE_IT)
         prod_form = DeviceForm(equipment_scope=SCOPE_PRODUCTION)
-        self.assertIn('ultraviewer_id', it_form.fields)
-        self.assertIn('ultraviewer_password', it_form.fields)
-        self.assertIn('rustdesk_id', it_form.fields)
-        self.assertIn('rustdesk_password', it_form.fields)
-        self.assertNotIn('ultraviewer_id', prod_form.fields)
-        self.assertNotIn('ultraviewer_password', prod_form.fields)
-        self.assertNotIn('rustdesk_id', prod_form.fields)
-        self.assertNotIn('rustdesk_password', prod_form.fields)
-
-    def test_rustdesk_id_normalizes_digits(self):
-        from equipment.forms import DeviceForm
-        from equipment.scope import SCOPE_IT
-
-        form = DeviceForm(
-            equipment_scope=SCOPE_IT,
-            data={
-                'device_code': '',
-                'name': 'Test PC',
-                'managed_department': '',
-                'category': 'PC',
-                'usage_department': '',
-                'usage_department_text': '',
-                'usage_room': '',
-                'assigned_user': '',
-                'assigned_user_text': '',
-                'handover_date': '',
-                'model_number': '',
-                'serial_number': '',
-                'configuration': '',
-                'description': '',
-                'contact_email': '',
-                'status': 'active',
-                'photo': '',
-                'quantity': 1,
-                'unit_price': 0,
-                'hostname': '',
-                'ip_address': '',
-                'ultraviewer_id': '',
-                'ultraviewer_password': '',
-                'rustdesk_id': '258 599 030',
-                'rustdesk_password': 'abc',
-            },
-        )
-        self.assertTrue(form.is_valid(), form.errors)
-        self.assertEqual(form.cleaned_data['rustdesk_id'], '258599030')
+        for field in (
+            'ultraviewer_id', 'ultraviewer_password', 'rustdesk_id', 'rustdesk_password',
+        ):
+            self.assertNotIn(field, it_form.fields)
+            self.assertNotIn(field, prod_form.fields)
 
     def test_device_form_template_renders_category_options(self):
         from django.template import Context, Template
@@ -779,7 +737,6 @@ class DeviceImportExportTests(TestCase):
         )
         self.assertIn('Hostname', df_it.columns)
         self.assertIn('Địa chỉ IP', df_it.columns)
-        self.assertIn('Trạng thái mạng', df_it.columns)
         self.assertNotIn('Hostname', df_prod.columns)
         self.assertNotIn('Thành tiền (VNĐ)', df_it.columns)
         self.assertIn('Thành tiền (VNĐ)', df_prod.columns)

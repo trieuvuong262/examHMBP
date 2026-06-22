@@ -149,15 +149,6 @@ def apply_agent_hardware_to_device(device, data: dict, *, created: bool = False)
         device.status = Device.STATUS_ACTIVE
         updated.append('status')
 
-    uv_id = (data.get('ultraviewer_id') or '').strip()
-    if uv_id:
-        device.ultraviewer_id = uv_id[:32]
-        updated.append('ultraviewer_id')
-    uv_pass = (data.get('ultraviewer_password') or '').strip()
-    if uv_pass:
-        device.ultraviewer_password = uv_pass[:128]
-        updated.append('ultraviewer_password')
-
     win_ver = (data.get('windows_version') or '').strip()
     if win_ver:
         device.windows_version = win_ver[:200]

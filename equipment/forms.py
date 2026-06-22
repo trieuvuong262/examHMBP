@@ -30,10 +30,6 @@ class DeviceForm(forms.ModelForm):
             'unit_price',
             'hostname',
             'ip_address',
-            'ultraviewer_id',
-            'ultraviewer_password',
-            'rustdesk_id',
-            'rustdesk_password',
         ]
         widgets = {
             'device_code': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'TB-000001'}),
@@ -60,27 +56,6 @@ class DeviceForm(forms.ModelForm):
             'unit_price': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
             'hostname': forms.TextInput(attrs={'class': 'form-control'}),
             'ip_address': forms.TextInput(attrs={'class': 'form-control'}),
-            'ultraviewer_id': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'VD: 12345678',
-                'inputmode': 'numeric',
-                'autocomplete': 'off',
-            }),
-            'ultraviewer_password': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Mật khẩu cố định UltraViewer',
-                'autocomplete': 'off',
-            }),
-            'rustdesk_id': forms.TextInput(attrs={
-                'class': 'form-control font-monospace',
-                'placeholder': '258 599 030',
-                'inputmode': 'numeric',
-                'autocomplete': 'off',
-            }),
-            'rustdesk_password': forms.TextInput(attrs={
-                'class': 'form-control font-monospace',
-                'autocomplete': 'off',
-            }),
         }
 
     def __init__(self, *args, equipment_scope=None, editor_user=None, **kwargs):
@@ -167,28 +142,6 @@ class DeviceForm(forms.ModelForm):
             self.fields['device_code'].help_text = ''
             self.fields['device_code'].widget.attrs['placeholder'] = ''
 
-        if equipment_scope and not is_it_scope(equipment_scope):
-            for name in (
-                'ultraviewer_id', 'ultraviewer_password',
-                'rustdesk_id', 'rustdesk_password',
-            ):
-                self.fields.pop(name, None)
-        else:
-            self.fields['ultraviewer_id'].required = False
-            self.fields['ultraviewer_password'].required = False
-            self.fields['rustdesk_id'].required = False
-            self.fields['rustdesk_password'].required = False
-            self.fields['ultraviewer_id'].label = 'UltraViewer ID'
-            self.fields['ultraviewer_password'].label = 'UltraViewer mật khẩu'
-            self.fields['rustdesk_id'].label = 'RustDesk ID'
-            self.fields['rustdesk_password'].label = 'RustDesk mật khẩu'
-            self.fields['ultraviewer_id'].help_text = 'Chỉ thiết bị IT. Agent tự điền khi cài (UltraViewer).'
-            self.fields['ultraviewer_password'].help_text = (
-                'Mật khẩu cố định chuẩn IT — agent tự đặt khi cài. Thiết bị sản xuất không dùng.'
-            )
-            self.fields['rustdesk_id'].help_text = 'Server công ty: co.justplay.vn — nhập ID trên app RustDesk.'
-            self.fields['rustdesk_password'].help_text = 'Mật khẩu unattended hoặc mật khẩu tạm — chỉ IT xem.'
-
         self._apply_scope_labels(equipment_scope)
 
     def _apply_scope_labels(self, equipment_scope):
@@ -234,20 +187,6 @@ class DeviceForm(forms.ModelForm):
         if profile and profile.full_name:
             return profile.full_name
         return user.get_full_name() or user.username
-
-    def clean_rustdesk_id(self):
-        raw = (self.cleaned_data.get('rustdesk_id') or '').strip()
-        if not raw:
-            return ''
-        digits = ''.join(c for c in raw if c.isdigit())
-        if not digits:
-            raise forms.ValidationError('RustDesk ID chỉ gồm chữ số.')
-        if len(digits) < 6:
-            raise forms.ValidationError('RustDesk ID quá ngắn.')
-        return digits[:20]
-
-    def clean_rustdesk_password(self):
-        return (self.cleaned_data.get('rustdesk_password') or '').strip()[:128]
 
     def clean_category(self):
         from equipment.services.device_categories import normalize_category_value, valid_codes

@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5" style="max-width: 720px;">
+    <div class="mb-3">
+        <a href="{% url 'audit:rustdesk_list' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Danh sách RustDesk
+        </a>
+    </div>
+    <h2 class="fw-bold text-hm mb-1">{{ title }}</h2>
+    <p class="text-muted small mb-4">Server RustDesk: <code>{{ rustdesk_public_host }}</code></p>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+            <form method="post" novalidate>
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+                    {{ form.name }}
+                    {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors }}</div>{% endif %}
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold" for="{{ form.hostname.id_for_label }}">{{ form.hostname.label }}</label>
+                        {{ form.hostname }}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold" for="{{ form.ip_address.id_for_label }}">{{ form.ip_address.label }}</label>
+                        {{ form.ip_address }}
+                    </div>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold" for="{{ form.rustdesk_id.id_for_label }}">{{ form.rustdesk_id.label }}</label>
+                        {{ form.rustdesk_id }}
+                        {% if form.rustdesk_id.errors %}<div class="text-danger small">{{ form.rustdesk_id.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold" for="{{ form.rustdesk_password.id_for_label }}">{{ form.rustdesk_password.label }}</label>
+                        {{ form.rustdesk_password }}
+                    </div>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold" for="{{ form.department_text.id_for_label }}">{{ form.department_text.label }}</label>
+                        {{ form.department_text }}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold" for="{{ form.assigned_user_text.id_for_label }}">{{ form.assigned_user_text.label }}</label>
+                        {{ form.assigned_user_text }}
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" for="{{ form.device.id_for_label }}">{{ form.device.label }}</label>
+                    {{ form.device }}
+                    <div class="form-text">Tùy chọn — liên kết với thiết bị IT trên Portal.</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>
+                    {{ form.notes }}
+                </div>
+                <div class="form-check mb-4">
+                    {{ form.is_active }}
+                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
+                </div>
+                <button type="submit" class="btn btn-hm">Lưu</button>
+                <a href="{% url 'audit:rustdesk_list' %}" class="btn btn-outline-secondary ms-2">Hủy</a>
+                {% if host and can_delete_rustdesk %}
+                <button type="submit"
+                        formaction="{% url 'audit:rustdesk_delete' host.pk %}"
+                        formmethod="post"
+                        class="btn btn-outline-danger float-end"
+                        onclick="return confirm('Xóa máy RustDesk này?');">
+                    Xóa
+                </button>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

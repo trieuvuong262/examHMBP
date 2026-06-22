@@ -265,3 +265,50 @@ class PortalBackupJob(models.Model):
         if secs < 60:
             return f'{secs}s'
         return f'{secs // 60} phút {secs % 60}s'
+
+
+class RustDeskHost(models.Model):
+    """Máy tính remote qua RustDesk — quản lý tại Quản trị hệ thống, tách khỏi thiết bị IT."""
+
+    name = models.CharField(max_length=200, verbose_name='Tên / mô tả')
+    hostname = models.CharField(max_length=128, blank=True, verbose_name='Hostname')
+    ip_address = models.GenericIPAddressField(null=True, blank=True, verbose_name='IP')
+    rustdesk_id = models.CharField(max_length=20, unique=True, verbose_name='RustDesk ID')
+    rustdesk_password = models.CharField(max_length=128, blank=True, verbose_name='RustDesk mật khẩu')
+    department_text = models.CharField(max_length=200, blank=True, verbose_name='Phòng ban')
+    assigned_user_text = models.CharField(max_length=200, blank=True, verbose_name='Người dùng')
+    notes = models.TextField(blank=True, verbose_name='Ghi chú')
+    device = models.ForeignKey(
+        'equipment.Device',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='rustdesk_hosts',
+        verbose_name='Thiết bị IT liên kết',
+    )
+    is_active = models.BooleanField(default=True, verbose_name='Đang dùng')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name', 'rustdesk_id']
+        verbose_name = 'Máy RustDesk'
+        verbose_name_plural = 'Máy RustDesk'
+
+    def __str__(self):
+        return f'{self.name} ({self.rustdesk_id_display})'
+
+    @property
+    def rustdesk_id_display(self) -> str:
+        digits = ''.join(c for c in (self.rustdesk_id or '') if c.isdigit())
+        if len(digits) == 9:
+            return f'{digits[0:3]} {digits[3:6]} {digits[6:9]}'
+        if len(digits) == 12:
+            return f'{digits[0:3]} {digits[3:6]} {digits[6:9]} {digits[9:12]}'
+        return digits
+
+    @property
+    def rustdesk_connect_url(self) -> str:
+        from audit.services.rustdesk_connect import build_rustdesk_connect_url
+
+        return build_rustdesk_connect_url(self.rustdesk_id, self.rustdesk_password)
