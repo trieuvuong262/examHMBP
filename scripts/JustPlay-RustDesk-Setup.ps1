@@ -72,22 +72,46 @@ function Invoke-RustDeskCli {
     return $proc.ExitCode
 }
 
+function Wait-RustDeskInstaller {
+    param(
+        [System.Diagnostics.Process]$InstallerProc,
+        [int]$MaxWaitSec = 180
+    )
+    $installed = $null
+    $steps = [Math]::Max(1, [int]($MaxWaitSec / 3))
+    for ($i = 1; $i -le $steps; $i++) {
+        Start-Sleep -Seconds 3
+        $installed = Find-RustDeskExe
+        if ($installed) {
+            Write-Host "      Tim thay rustdesk.exe (sau $($i * 3)s)"
+            break
+        }
+        if ($InstallerProc.HasExited) {
+            $installed = Find-RustDeskExe
+            if ($installed) { break }
+        }
+    }
+    if ($InstallerProc -and -not $InstallerProc.HasExited) {
+        Stop-Process -Id $InstallerProc.Id -Force -ErrorAction SilentlyContinue
+    }
+    Get-Process -Name 'rustdesk-setup' -ErrorAction SilentlyContinue |
+        Stop-Process -Force -ErrorAction SilentlyContinue
+    return (Find-RustDeskExe)
+}
+
 function Install-RustDesk {
     param([string]$Url)
     $dest = Join-Path $env:TEMP 'rustdesk-setup.exe'
     Write-Host "[1/5] Tai RustDesk..."
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     Invoke-WebRequest -Uri $Url -OutFile $dest -UseBasicParsing
-    Write-Host "[2/5] Cai dat (silent)..."
-    $proc = Start-Process -FilePath $dest -ArgumentList '--silent-install' -Wait -PassThru
-    if ($proc.ExitCode -ne 0) {
-        throw "Cai dat that bai (exit $($proc.ExitCode))"
+    Write-Host "[2/5] Cai dat (silent) — RustDesk installer hay khong tu thoat, script se doi file .exe..."
+    $proc = Start-Process -FilePath $dest -ArgumentList '--silent-install' -PassThru
+    $installed = Wait-RustDeskInstaller -InstallerProc $proc -MaxWaitSec 180
+    if (-not $installed) {
+        throw 'Cai dat timeout (3 phut) — khong tim thay rustdesk.exe trong Program Files.'
     }
-    Start-Sleep -Seconds 5
-    $installed = Find-RustDeskExe
-    if ($installed) {
-        Install-RustDeskService -Exe $installed
-    }
+    Write-Host "      Da cai: $installed"
 }
 
 function Get-RustDeskConfigDirs {
