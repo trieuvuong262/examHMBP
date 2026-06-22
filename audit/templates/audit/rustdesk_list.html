@@ -13,9 +13,6 @@
                 RustDesk
                 {% if filtered_count is not None %}<span class="text-muted fw-semibold fs-5 ms-1">({{ filtered_count|intcomma }})</span>{% endif %}
             </h2>
-            <p class="text-muted small mb-0">
-                Server: <code>{{ rustdesk_public_host }}</code> — bấm <strong>Kết nối</strong> để RustDesk tự mở và kết nối (không cần nhập ID).
-            </p>
         </div>
         {% if can_edit_rustdesk %}
         <div class="d-flex flex-wrap gap-2">
@@ -23,34 +20,11 @@
                class="btn btn-outline-primary btn-sm">
                 <i class="bi bi-gear me-1"></i>Cấu hình máy IT (.zip)
             </a>
-            <a href="{% url 'audit:rustdesk_install' %}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-download me-1"></i>Cài trên máy
-            </a>
             <a href="{% url 'audit:rustdesk_add' %}" class="btn btn-hm btn-sm">
                 <i class="bi bi-plus-lg me-1"></i>Thêm máy
             </a>
         </div>
         {% endif %}
-    </div>
-
-    <div class="alert alert-info border small mb-3 jp-rd-hint">
-        <i class="bi bi-pc-display me-1"></i>
-        <strong>Máy đích báo Offline?</strong> Mở app không đủ — trên Windows cần service <strong>RustDesk Running</strong>
-        (services.msc). Settings → Network phải <strong>Ready</strong>. Không bấm Exit trên icon tray.
-        Chạy lại <a href="{% url 'audit:rustdesk_install' %}">script cài đặt</a> sau khi đổi server.
-    </div>
-
-    <div class="alert alert-warning border small mb-3 jp-rd-hint">
-        <i class="bi bi-key me-1"></i>
-        <strong>Bị hỏi mật khẩu?</strong> Portal tự gửi mật khẩu qua link Kết nối.
-        Nếu vẫn sai: trên máy đích chạy lại <a href="{% url 'audit:rustdesk_install' %}">script cài đặt</a>
-        (đặt lại mật khẩu cố định). Hoặc đặt <code>RUSTDESK_APPROVE_MODE=click</code> trên server để không cần mật khẩu (máy đích bấm Accept).
-    </div>
-
-    <div class="alert alert-light border small mb-3 jp-rd-hint">
-        <i class="bi bi-info-circle text-hm me-1"></i>
-        Cài hàng loạt: <a href="{% url 'audit:rustdesk_install' %}">tải script cài RustDesk</a>
-        (Windows / Linux) — máy tự đăng ký lên danh sách này.
     </div>
 
     <div class="card border-0 shadow-sm mb-3">

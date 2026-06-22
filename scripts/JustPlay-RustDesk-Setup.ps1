@@ -39,18 +39,99 @@ function Test-IsAdmin {
     return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
-function Find-RustDeskExe {
-    $candidates = @(
+function Get-ProperRustDeskExe {
+    foreach ($p in @(
         "${env:ProgramFiles}\RustDesk\rustdesk.exe",
-        "${env:ProgramFiles(x86)}\RustDesk\rustdesk.exe",
-        "$env:LOCALAPPDATA\RustDesk\rustdesk.exe"
-    )
-    foreach ($p in $candidates) {
+        "${env:ProgramFiles(x86)}\RustDesk\rustdesk.exe"
+    )) {
         if (Test-Path -LiteralPath $p) {
             return (Get-Item -LiteralPath $p).FullName
         }
     }
     return $null
+}
+
+function Find-RustDeskExe {
+    $proper = Get-ProperRustDeskExe
+    if ($proper) { return $proper }
+    $portable = "$env:LOCALAPPDATA\RustDesk\rustdesk.exe"
+    if (Test-Path -LiteralPath $portable) {
+        return (Get-Item -LiteralPath $portable).FullName
+    }
+    return $null
+}
+
+function Test-RustDeskExeWorks {
+    param([string]$Exe)
+    if (-not $Exe -or -not (Test-Path -LiteralPath $Exe)) { return $false }
+    $isProper = ($Exe -like '*\Program Files\*') -or ($Exe -like '*\Program Files (x86)\*')
+    if (-not $isProper) { return $false }
+    try {
+        $id = Get-RustDeskIdFromCli -Exe $Exe
+        if ($id) { return $true }
+    } catch {}
+    return $false
+}
+
+function Clear-RustDeskLeftovers {
+    Write-Host '      Don dep RustDesk cu (sau go cai dat khong sach)...'
+    Stop-RustDesk
+    $svc = Get-Service -Name 'RustDesk' -ErrorAction SilentlyContinue
+    if ($svc) {
+        Stop-Service -Name 'RustDesk' -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 2
+        Remove-RustDeskService
+        Write-Host '      Da go service RustDesk cu.'
+    }
+    foreach ($dir in @(
+        "$env:LOCALAPPDATA\RustDesk",
+        (Join-Path $env:APPDATA 'RustDesk'),
+        'C:\Windows\ServiceProfiles\LocalService\AppData\Roaming\RustDesk'
+    )) {
+        if (Test-Path -LiteralPath $dir) {
+            Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue
+            Write-Host "      Da xoa: $dir"
+        }
+    }
+    $startup = Join-Path ([Environment]::GetFolderPath('CommonStartup')) 'JustPlay-RustDesk.bat'
+    if (Test-Path -LiteralPath $startup) {
+        Remove-Item -LiteralPath $startup -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Test-RustDeskServiceReady {
+    $out = (& sc.exe query RustDesk 2>&1 | Out-String).Trim()
+    if ($out -match '(?i)does not exist|1060|marked for deletion') { return $null }
+    if ($out -match 'STATE\s*:\s*\d+\s+RUNNING') { return 'Running' }
+    if ($out -match 'STATE\s*:\s*\d+\s+STOPPED') { return 'Stopped' }
+    if ($out -match 'STATE\s*:\s*\d+\s+START_PENDING') { return 'Pending' }
+    if ($out -match 'STATE\s*:\s*\d+\s+STOP_PENDING') { return 'Pending' }
+    if ($out -match 'STATE') { return 'Unknown' }
+    return $null
+}
+
+function Remove-RustDeskService {
+    try {
+        Stop-Service -Name 'RustDesk' -Force -ErrorAction SilentlyContinue
+    } catch {}
+    & sc.exe stop RustDesk 2>$null | Out-Null
+    Start-Sleep -Seconds 2
+    & sc.exe delete RustDesk 2>$null | Out-Null
+    Start-Sleep -Seconds 2
+}
+
+function Start-RustDeskServiceSafe {
+    $state = Test-RustDeskServiceReady
+    if ($state -eq 'Running') { return $true }
+    if (-not $state) { return $false }
+    try {
+        & sc.exe start RustDesk 2>&1 | Out-Null
+        for ($i = 1; $i -le 10; $i++) {
+            Start-Sleep -Seconds 1
+            if ((Test-RustDeskServiceReady) -eq 'Running') { return $true }
+        }
+    } catch {}
+    return $false
 }
 
 function Invoke-RustDeskCli {
@@ -81,13 +162,13 @@ function Wait-RustDeskInstaller {
     $steps = [Math]::Max(1, [int]($MaxWaitSec / 3))
     for ($i = 1; $i -le $steps; $i++) {
         Start-Sleep -Seconds 3
-        $installed = Find-RustDeskExe
+        $installed = Get-ProperRustDeskExe
         if ($installed) {
             Write-Host "      Tim thay rustdesk.exe (sau $($i * 3)s)"
             break
         }
         if ($InstallerProc.HasExited) {
-            $installed = Find-RustDeskExe
+            $installed = Get-ProperRustDeskExe
             if ($installed) { break }
         }
     }
@@ -96,7 +177,29 @@ function Wait-RustDeskInstaller {
     }
     Get-Process -Name 'rustdesk-setup' -ErrorAction SilentlyContinue |
         Stop-Process -Force -ErrorAction SilentlyContinue
-    return (Find-RustDeskExe)
+    return (Get-ProperRustDeskExe)
+}
+
+function Ensure-RustDeskInstalled {
+    param([string]$Url)
+    $proper = Get-ProperRustDeskExe
+    if ($proper -and (Test-RustDeskExeWorks -Exe $proper)) {
+        Write-Host "      RustDesk da cai trong Program Files: $proper"
+        return $proper
+    }
+    if ($proper) {
+        Write-Host '      RustDesk trong Program Files nhung hong - cai lai...'
+    } elseif (Find-RustDeskExe) {
+        Write-Host '      Chi con file portable/config cu (da go qua Control Panel) - cai lai...'
+    }
+    Clear-RustDeskLeftovers
+    Install-RustDesk -Url $Url
+    $proper = Get-ProperRustDeskExe
+    if (-not $proper) {
+        throw 'Cai dat xong nhung khong tim thay rustdesk.exe trong Program Files. Chay lai script hoac cai tay tu rustdesk.com.'
+    }
+    Write-Host "      Da cai xong: $proper"
+    return $proper
 }
 
 function Install-RustDesk {
@@ -105,11 +208,11 @@ function Install-RustDesk {
     Write-Host "[1/5] Tai RustDesk..."
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     Invoke-WebRequest -Uri $Url -OutFile $dest -UseBasicParsing
-    Write-Host "[2/5] Cai dat (silent) — RustDesk installer hay khong tu thoat, script se doi file .exe..."
+    Write-Host "[2/5] Cai dat (silent) - RustDesk installer hay khong tu thoat, script se doi file .exe..."
     $proc = Start-Process -FilePath $dest -ArgumentList '--silent-install' -PassThru
     $installed = Wait-RustDeskInstaller -InstallerProc $proc -MaxWaitSec 180
     if (-not $installed) {
-        throw 'Cai dat timeout (3 phut) — khong tim thay rustdesk.exe trong Program Files.'
+        throw 'Cai dat timeout (3 phut) - khong tim thay rustdesk.exe trong Program Files.'
     }
     Write-Host "      Da cai: $installed"
 }
@@ -128,41 +231,52 @@ function Get-RustDeskConfigDirs {
 
 function Install-RustDeskService {
     param([string]$Exe)
-    $svc = Get-Service -Name 'RustDesk' -ErrorAction SilentlyContinue
-    if ($svc) {
-        if ($svc.Status -ne 'Running') {
-            Start-Service -Name 'RustDesk' -ErrorAction SilentlyContinue
-            Start-Sleep -Seconds 3
-        }
-        Write-Host '      Service RustDesk da co.'
-        Ensure-RustDeskServiceAccount
-        Ensure-RustDeskAutoStart -Exe $Exe
-        return
-    }
     $isSystemInstall = ($Exe -like '*\Program Files\*') -or ($Exe -like '*\Program Files (x86)\*')
     if (-not $isSystemInstall) {
         Write-Host '      Bo qua install-service (RustDesk portable/user).'
         return
     }
+
+    $state = Test-RustDeskServiceReady
+    if ($state) {
+        if ($state -ne 'Running') {
+            if (-not (Start-RustDeskServiceSafe)) {
+                Write-Host '      Service RustDesk loi (khong mo duoc) - cai lai...'
+                Remove-RustDeskService
+                $state = $null
+            }
+        }
+        if ($state) {
+            Write-Host '      Service RustDesk da co.'
+            Ensure-RustDeskServiceAccount
+            Ensure-RustDeskAutoStart -Exe $Exe
+            return
+        }
+    }
+
     Write-Host "      Chay: $Exe --install-service"
     $code = Invoke-RustDeskCli -Exe $Exe -ArgumentList @('--install-service')
     if ($code -ne 0) {
         Write-Host "      Canh bao: install-service exit $code (tiep tuc user mode)."
         return
     }
-    Start-Sleep -Seconds 2
+    Start-Sleep -Seconds 3
     Ensure-RustDeskServiceAccount
-    $svc = Get-Service -Name 'RustDesk' -ErrorAction SilentlyContinue
-    if ($svc -and $svc.Status -ne 'Running') {
-        Start-Service -Name 'RustDesk' -ErrorAction SilentlyContinue
-        Start-Sleep -Seconds 3
+    if (-not (Start-RustDeskServiceSafe)) {
+        Write-Host '      Service chua chay - thu cai lai lan 2...'
+        Remove-RustDeskService
+        $code = Invoke-RustDeskCli -Exe $Exe -ArgumentList @('--install-service')
+        if ($code -eq 0) {
+            Start-Sleep -Seconds 3
+            Ensure-RustDeskServiceAccount
+            Start-RustDeskServiceSafe | Out-Null
+        }
     }
     Ensure-RustDeskAutoStart -Exe $Exe
 }
 
 function Ensure-RustDeskServiceAccount {
-    $svc = Get-Service -Name 'RustDesk' -ErrorAction SilentlyContinue
-    if (-not $svc) { return }
+    if (-not (Test-RustDeskServiceReady)) { return }
     try {
         Start-Process -FilePath 'sc.exe' -ArgumentList 'config', 'RustDesk', 'obj=', 'LocalSystem' `
             -Wait -WindowStyle Hidden -ErrorAction SilentlyContinue | Out-Null
@@ -171,16 +285,16 @@ function Ensure-RustDeskServiceAccount {
 
 function Ensure-RustDeskAutoStart {
     param([string]$Exe)
-    $svc = Get-Service -Name 'RustDesk' -ErrorAction SilentlyContinue
-    if ($svc) {
+    $state = Test-RustDeskServiceReady
+    if ($state) {
         Set-Service -Name 'RustDesk' -StartupType Automatic -ErrorAction SilentlyContinue
         Start-Process -FilePath 'sc.exe' -ArgumentList 'config', 'RustDesk', 'start=', 'auto' `
             -Wait -WindowStyle Hidden -ErrorAction SilentlyContinue | Out-Null
         Start-Process -FilePath 'sc.exe' -ArgumentList 'failure', 'RustDesk', 'reset=', '86400', `
             'actions=', 'restart/5000/restart/5000/restart/10000' `
             -Wait -WindowStyle Hidden -ErrorAction SilentlyContinue | Out-Null
-        if ($svc.Status -ne 'Running') {
-            Start-Service -Name 'RustDesk' -ErrorAction SilentlyContinue
+        if ($state -ne 'Running') {
+            Start-RustDeskServiceSafe | Out-Null
         }
         Write-Host '      Windows service: Automatic + tu khoi dong khi bat may.'
         return
@@ -196,30 +310,30 @@ start "" "$Exe" --tray
         Write-Host "      Startup folder: $bat"
         return
     }
-    Write-Host '      Canh bao: Chua co service RustDesk — chay lai script voi quyen Admin.'
+    Write-Host '      Canh bao: Chua co service RustDesk - chay lai script voi quyen Admin.'
 }
 
 function Show-RustDeskRemoteStatus {
     param([string]$Exe, [string]$ExpectedId)
     Write-Host '[6/6] Kiem tra san sang nhan ket noi...'
-    $svc = Get-Service -Name 'RustDesk' -ErrorAction SilentlyContinue
-    if (-not $svc) {
-        Write-Host '      CANH BAO: Chua co Windows service — may se OFFLINE.'
+    $state = Test-RustDeskServiceReady
+    if (-not $state) {
+        Write-Host '      CANH BAO: Chua co Windows service - may se OFFLINE.'
         Write-Host '      Chay lai script voi quyen Administrator.'
         return
     }
-    if ($svc.Status -ne 'Running') {
-        Write-Host '      Service dang Stop — dang khoi dong...'
-        Start-Service -Name 'RustDesk' -ErrorAction SilentlyContinue
+    if ($state -ne 'Running') {
+        Write-Host '      Service dang Stop - dang khoi dong...'
+        Start-RustDeskServiceSafe | Out-Null
         Start-Sleep -Seconds 4
-        $svc.Refresh()
+        $state = Test-RustDeskServiceReady
     }
-    Write-Host "      Service: $($svc.Status) ($($svc.StartType))"
+    Write-Host "      Service: $state"
     Ensure-RustDeskAutoStart -Exe $Exe
     $liveId = Get-RustDeskId -Exe $Exe
     if ($liveId -and $liveId -ne $ExpectedId) {
         Write-Host "      CANH BAO: ID hien tai ($liveId) khac ID dang ky ($ExpectedId)."
-        Write-Host '      Portal can cap nhat — chay lai script hoac sua ID tren Portal.'
+        Write-Host '      Portal can cap nhat - chay lai script hoac sua ID tren Portal.'
     }
     Write-Host ''
     Write-Host '      Luu y tren may dich:'
@@ -301,11 +415,14 @@ function Start-RustDesk {
 function Restart-RustDesk {
     param([string]$Exe)
     Stop-RustDesk
-    $svc = Get-Service -Name 'RustDesk' -ErrorAction SilentlyContinue
-    if ($svc) {
-        Stop-Service -Name 'RustDesk' -Force -ErrorAction SilentlyContinue
+    $state = Test-RustDeskServiceReady
+    if ($state) {
+        try {
+            Stop-Service -Name 'RustDesk' -Force -ErrorAction SilentlyContinue
+        } catch {}
+        & sc.exe stop RustDesk 2>$null | Out-Null
         Start-Sleep -Seconds 2
-        Start-Service -Name 'RustDesk' -ErrorAction SilentlyContinue
+        Start-RustDeskServiceSafe | Out-Null
         Start-Sleep -Seconds 4
         return
     }
@@ -423,14 +540,7 @@ if (-not (Test-IsAdmin)) {
     exit 1
 }
 
-$exe = Find-RustDeskExe
-if (-not $exe) {
-    Install-RustDesk -Url $InstallerUrl
-    $exe = Find-RustDeskExe
-}
-if (-not $exe) {
-    throw 'Khong tim thay rustdesk.exe sau khi cai.'
-}
+$exe = Ensure-RustDeskInstalled -Url $InstallerUrl
 Write-Host "      Su dung: $exe"
 
 Write-Host '[2b/5] Cai Windows service (neu chua co)...'
@@ -476,6 +586,8 @@ Write-Host '========================================'
 Write-Host ' THANH CONG'
 Write-Host " RustDesk ID: $rdId"
 Write-Host " Portal: $($result.name) (created=$($result.created))"
+Write-Host " Cai dat: $exe"
+Write-Host ' Kiem tra: Start Menu co RustDesk, hoac mo Programs and Features.'
 Write-Host ' IT co the ket noi tai Quan tri -> RustDesk'
 Write-Host '========================================'
 exit 0

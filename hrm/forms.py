@@ -1061,7 +1061,7 @@ class PermissionGroupPermissionForm(forms.Form):
             for sm in submenus:
                 submenu_rows.append({
                     'key': sm['key'],
-                    'label': sm['label'],
+                    'label': sm.get('perm_label') or sm['label'],
                     'icon': sm.get('icon', 'bi-dot'),
                     'view_only': submenu_perm_view_only(module_key, sm['key']),
                     'action_enabled': {

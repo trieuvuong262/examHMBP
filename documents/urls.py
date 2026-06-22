@@ -1,6 +1,7 @@
 from django.urls import path
 from django.views.generic import RedirectView
 
+from audit import views_rustdesk_setup
 from . import views
 
 app_name = 'documents'
@@ -23,6 +24,8 @@ urlpatterns = [
     path('hoi-dap/', views.qa_chat, name='qa'),
     path('hoi-dap/suggest/', views.qa_suggest_initial, name='qa_suggest_initial'),
     path('hoi-dap/ask/', views.qa_ask, name='qa_ask'),
+    path('cau-hinh-rustdesk/tai/', views_rustdesk_setup.rustdesk_download_setup, name='rustdesk_download'),
+    path('cau-hinh-rustdesk/', views_rustdesk_setup.rustdesk_install_page, name='rustdesk_config'),
     path('file/<int:pk>/xem/', views.document_file_view, name='file_view'),
     path('file/<int:pk>/tai/', views.document_file_download, name='file_download'),
     path('', views.browse, name='browse'),

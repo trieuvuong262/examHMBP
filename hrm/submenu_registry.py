@@ -93,11 +93,12 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
     MODULE_DOCUMENTS: [
         {'key': 'browse', 'label': 'Tài liệu', 'icon': 'bi-folder2-open'},
         {'key': 'qa', 'label': 'Hỏi đáp', 'icon': 'bi-chat-dots-fill'},
+        {'key': 'rustdesk_config', 'label': 'Cấu hình', 'perm_label': 'Cấu hình RustDesk', 'icon': 'bi-pc-display-horizontal', 'perm_manage': True},
     ],
     MODULE_AUDIT: [
         {'key': 'login_security', 'label': 'Bảo mật đăng nhập', 'icon': 'bi-shield-lock'},
         {'key': 'logs', 'label': 'Nhật ký thao tác', 'icon': 'bi-journal-check'},
-        {'key': 'rustdesk', 'label': 'RustDesk', 'icon': 'bi-display', 'perm_manage': True},
+        {'key': 'rustdesk', 'label': 'RustDesk', 'perm_label': 'Quản lý RustDesk', 'icon': 'bi-display', 'perm_manage': True},
         {'key': 'backup', 'label': 'Backup lên NAS', 'icon': 'bi-cloud-arrow-up'},
         {'key': 'kiotviet_sync', 'label': 'Đồng bộ KiotViet', 'icon': 'bi-arrow-repeat'},
         {'key': 'nas_links', 'label': 'Cập nhật link NAS', 'icon': 'bi-hdd-network'},
@@ -204,6 +205,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/tien-ich/ung-luong', MODULE_UTILITIES, 'salary_advance'),
     ('/tien-ich/dat-com', MODULE_UTILITIES, 'meal_ordering'),
     # Tài liệu
+    ('/tai-lieu/cau-hinh-rustdesk', MODULE_DOCUMENTS, 'rustdesk_config'),
     ('/tai-lieu/hoi-dap', MODULE_DOCUMENTS, 'qa'),
     ('/tai-lieu/admin', MODULE_DOCUMENTS, 'browse'),
     ('/tai-lieu/file', MODULE_DOCUMENTS, 'browse'),
@@ -211,7 +213,10 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     # Quản trị hệ thống
     ('/nhat-ky/tro-ly-ai', MODULE_AUDIT, 'qa_assistant'),
     ('/nhat-ky/bao-mat-dang-nhap', MODULE_AUDIT, 'login_security'),
-    ('/nhat-ky/rustdesk', MODULE_AUDIT, 'rustdesk'),
+    ('/nhat-ky/rustdesk/tai-cai-dat', MODULE_AUDIT, 'rustdesk'),
+    ('/nhat-ky/rustdesk/tai-cau-hinh-it', MODULE_AUDIT, 'rustdesk'),
+    ('/nhat-ky/rustdesk/them', MODULE_AUDIT, 'rustdesk'),
+    ('/nhat-ky/rustdesk/', MODULE_AUDIT, 'rustdesk'),
     ('/nhat-ky/backup', MODULE_AUDIT, 'backup'),
     ('/nhat-ky/kiotviet-sync', MODULE_AUDIT, 'kiotviet_sync'),
     ('/nhat-ky/nas-links', MODULE_AUDIT, 'nas_links'),
@@ -234,7 +239,7 @@ def get_module_submenus(module_key: str) -> list[dict]:
 def get_menu_label(module_key: str, menu_key: str) -> str:
     for item in get_module_submenus(module_key):
         if item['key'] == menu_key:
-            return item['label']
+            return item.get('perm_label') or item['label']
     return menu_key
 
 

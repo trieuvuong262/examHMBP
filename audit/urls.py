@@ -1,4 +1,5 @@
 from django.urls import path
+from django.views.generic import RedirectView
 
 from documents.views import admin_qa_settings
 from kiotviet import sync_views as kiotviet_sync_views
@@ -33,7 +34,11 @@ urlpatterns = [
     path('rustdesk/them/', views_rustdesk.rustdesk_add, name='rustdesk_add'),
     path('rustdesk/<int:pk>/sua/', views_rustdesk.rustdesk_edit, name='rustdesk_edit'),
     path('rustdesk/<int:pk>/xoa/', views_rustdesk.rustdesk_delete, name='rustdesk_delete'),
-    path('rustdesk/cai-dat/', views_rustdesk_setup.rustdesk_install_page, name='rustdesk_install'),
+    path(
+        'rustdesk/cai-dat/',
+        RedirectView.as_view(pattern_name='documents:rustdesk_config', permanent=False),
+        name='rustdesk_install',
+    ),
     path('rustdesk/tai-cai-dat/', views_rustdesk_setup.rustdesk_download_setup, name='rustdesk_download_setup'),
     path('rustdesk/api/dang-ky/', views_rustdesk_setup.rustdesk_enroll_api, name='rustdesk_enroll_api'),
     path('<int:pk>/', views.log_detail, name='log_detail'),

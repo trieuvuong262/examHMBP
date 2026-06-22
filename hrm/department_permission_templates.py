@@ -100,6 +100,43 @@ def _portal_manager() -> dict:
     )
 
 
+def _module_with_menus(module_key: str, menus: dict, *, module_perm: dict | None = None) -> dict:
+    entry = dict(module_perm or VIEW)
+    entry['menus'] = {mk: dict(perm) for mk, perm in menus.items()}
+    return {module_key: entry}
+
+
+def _it_audit_menus(*, manager: bool) -> dict:
+    if manager:
+        return {
+            'login_security': FULL,
+            'logs': _f(view=True, export=True),
+            'rustdesk': FULL,
+            'backup': FULL,
+            'kiotviet_sync': FULL,
+            'nas_links': FULL,
+            'qa_assistant': FULL,
+        }
+    return {
+        'login_security': VIEW,
+        'logs': VIEW,
+        'rustdesk': MGR,
+        'backup': VIEW,
+        'kiotviet_sync': VIEW,
+        'nas_links': VIEW,
+        'qa_assistant': VIEW,
+    }
+
+
+def _it_documents_menus(*, manager: bool) -> dict:
+    browse = MGR if manager else VIEW
+    return {
+        'browse': browse,
+        'qa': browse,
+        'rustdesk_config': MGR,
+    }
+
+
 def _full_access() -> dict:
     return {key: dict(FULL) for key in ALL_MODULE_KEYS}
 
@@ -198,16 +235,18 @@ DEPARTMENT_PERMISSION_TEMPLATES = [
             {
                 M['guide']: MGR,
                 M['permissions']: VIEW,
-                M['audit']: VIEW,
             },
+            _module_with_menus(M['audit'], _it_audit_menus(manager=False)),
+            _module_with_menus(M['documents'], _it_documents_menus(manager=False)),
         ),
         'manager': _build(
             _portal_manager(),
             {
                 M['guide']: FULL,
                 M['permissions']: FULL,
-                M['audit']: _f(view=True, export=True),
             },
+            _module_with_menus(M['audit'], _it_audit_menus(manager=True), module_perm=_f(view=True, export=True)),
+            _module_with_menus(M['documents'], _it_documents_menus(manager=True), module_perm=MGR),
         ),
     },
 ]

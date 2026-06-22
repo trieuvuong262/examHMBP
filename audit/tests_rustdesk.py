@@ -7,7 +7,7 @@ from audit.forms_rustdesk import RustDeskHostForm
 from audit.models import RustDeskHost
 from hrm.group_permissions import normalize_group_permissions, permissions_from_legacy_role
 from hrm.models import Department, DepartmentMenuPermission, PermissionGroup, Profile
-from hrm.module_permissions import MODULE_AUDIT
+from hrm.module_permissions import MODULE_AUDIT, MODULE_DOCUMENTS
 from hrm.permissions import ROLE_EMPLOYEE
 
 
@@ -159,7 +159,6 @@ class RustdeskHostTests(TestCase):
         response = self.client.get(reverse('audit:rustdesk_list'))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, '258 599 030')
-        self.assertContains(response, 'rd.justplay.vn')
 
     def test_edit_user_can_edit_rustdesk_menu(self):
         from hrm.menu_permissions import user_can_edit_menu, user_can_update_menu
@@ -195,10 +194,14 @@ class RustdeskHostTests(TestCase):
         )
 
     def test_submenu_registry_has_rustdesk(self):
-        from hrm.submenu_registry import get_module_submenus
+        from hrm.submenu_registry import get_menu_label, get_module_submenus
 
-        keys = [m['key'] for m in get_module_submenus('audit')]
-        self.assertIn('rustdesk', keys)
+        audit_keys = [m['key'] for m in get_module_submenus('audit')]
+        self.assertIn('rustdesk', audit_keys)
+        doc_keys = [m['key'] for m in get_module_submenus('documents')]
+        self.assertIn('rustdesk_config', doc_keys)
+        self.assertEqual(get_menu_label('documents', 'rustdesk_config'), 'Cấu hình RustDesk')
+        self.assertEqual(get_menu_label('audit', 'rustdesk'), 'Quản lý RustDesk')
 
 
 class RustdeskEnrollApiTests(TestCase):
@@ -239,11 +242,23 @@ class RustdeskDownloadTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.dept = Department.objects.create(name='IT DL', sort_order=1)
-        DepartmentMenuPermission.objects.create(department=cls.dept, modules=['audit'])
+        DepartmentMenuPermission.objects.create(department=cls.dept, modules=['audit', 'documents'])
         perms = normalize_group_permissions(permissions_from_legacy_role(ROLE_EMPLOYEE))
         perms[MODULE_AUDIT] = {
             'view': True,
             'menus': {'rustdesk': {'view': True, 'create': False, 'update': False, 'delete': False, 'export': False}},
+        }
+        perms[MODULE_DOCUMENTS] = {
+            'view': True,
+            'menus': {
+                'rustdesk_config': {
+                    'view': True,
+                    'create': False,
+                    'update': False,
+                    'delete': False,
+                    'export': False,
+                },
+            },
         }
         cls.group = PermissionGroup.objects.create(
             slug='test-audit-rd-dl',
@@ -271,7 +286,7 @@ class RustdeskDownloadTests(TestCase):
         import zipfile
 
         self.client.force_login(self.user)
-        resp = self.client.get(reverse('audit:rustdesk_download_setup') + '?os=win')
+        resp = self.client.get(reverse('documents:rustdesk_download') + '?os=win')
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp['Content-Type'], 'application/zip')
         with zipfile.ZipFile(io.BytesIO(resp.content)) as archive:
@@ -293,10 +308,33 @@ class RustdeskDownloadTests(TestCase):
     )
     def test_linux_download_has_banner_and_lf(self):
         self.client.force_login(self.user)
-        resp = self.client.get(reverse('audit:rustdesk_download_setup') + '?os=linux')
+        resp = self.client.get(reverse('documents:rustdesk_download') + '?os=linux')
         self.assertEqual(resp.status_code, 200)
         body = resp.content.decode('utf-8')
         self.assertTrue(body.startswith('#!/usr/bin/env bash'))
         self.assertIn('JustPlay - Cai dat RustDesk (Linux)', body)
         self.assertNotIn('\r\n', body)
         self.assertNotIn('__ENROLL_SECRET__', body)
+
+    @override_settings(
+        RUSTDESK_ENROLL_SECRET='enroll-secret',
+        RUSTDESK_PUBLIC_KEY='public-key',
+        RUSTDESK_CLIENT_PASSWORD='client-pw',
+        RUSTDESK_PUBLIC_HOST='rd.justplay.vn',
+    )
+    def test_config_page_under_documents(self):
+        self.client.force_login(self.user)
+        resp = self.client.get(reverse('documents:rustdesk_config'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Cấu hình RustDesk')
+        self.assertContains(resp, reverse('documents:rustdesk_download') + '?os=win')
+
+    @override_settings(
+        RUSTDESK_PUBLIC_KEY='public-key',
+        RUSTDESK_PUBLIC_HOST='rd.justplay.vn',
+    )
+    def test_it_download_still_under_audit(self):
+        self.client.force_login(self.user)
+        resp = self.client.get(reverse('audit:rustdesk_download_setup') + '?os=it')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp['Content-Type'], 'application/zip')

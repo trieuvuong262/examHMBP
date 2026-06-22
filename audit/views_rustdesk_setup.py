@@ -3,15 +3,17 @@ import json
 import zipfile
 from pathlib import Path
 
+from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse
-from django.shortcuts import render
+from django.shortcuts import redirect
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods
 
 from assessment.decorators import module_perm_required
 from audit.services.rustdesk_enroll import enroll_secret_ok, script_config, upsert_rustdesk_host
-from hrm.module_permissions import MODULE_AUDIT
+from hrm.menu_permissions import user_can_access_menu
+from hrm.module_permissions import MODULE_AUDIT, MODULE_DOCUMENTS
 
 _SCRIPT_TOKENS = (
     '__PORTAL_URL__',
@@ -30,12 +32,17 @@ def _is_windows_request(request) -> bool:
     return 'windows' in ua
 
 
+def _escape_ps1_literal(value: str) -> str:
+    """Escape cho chuoi PS1 trong dau nhay don."""
+    return (value or '').replace("'", "''")
+
+
 def _apply_script_tokens(body: str, cfg: dict) -> str:
     replacements = {
         '__PORTAL_URL__': cfg['portal_url'],
         '__RUSTDESK_HOST__': cfg['rustdesk_host'],
         '__PUBLIC_KEY__': cfg['public_key'],
-        '__CLIENT_PASSWORD__': cfg['client_password'],
+        '__CLIENT_PASSWORD__': _escape_ps1_literal(cfg['client_password']),
         '__ENROLL_SECRET__': cfg['enroll_secret'],
         '__INSTALLER_URL_WIN__': cfg['installer_url_win'],
         '__INSTALLER_URL_LINUX__': cfg['installer_url_linux'],
@@ -46,25 +53,43 @@ def _apply_script_tokens(body: str, cfg: dict) -> str:
     return body
 
 
+def _prepare_ps1(body: str) -> str:
+    """UTF-8 BOM + CRLF — PowerShell 5.1 doc dung tren Windows."""
+    if not body.startswith('\ufeff'):
+        body = '\ufeff' + body
+    return body.replace('\r\n', '\n').replace('\n', '\r\n')
+
+
 def _to_crlf(text: str) -> str:
     return text.replace('\r\n', '\n').replace('\n', '\r\n')
 
 
-@module_perm_required(MODULE_AUDIT, 'view')
+@module_perm_required(MODULE_DOCUMENTS, 'view')
 @require_GET
 def rustdesk_install_page(request):
+    from django.shortcuts import render
+
     cfg = script_config()
     platform = request.GET.get('os', '').lower()
     if platform not in ('win', 'linux'):
         platform = 'win' if _is_windows_request(request) else 'linux'
-    return render(request, 'audit/rustdesk_install.html', {
+    return render(request, 'documents/rustdesk_config.html', {
         'config': cfg,
         'platform': platform,
         'rustdesk_public_host': cfg['rustdesk_host'],
     })
 
 
-@module_perm_required(MODULE_AUDIT, 'view')
+def _rustdesk_download_forbidden(request):
+    from assessment.decorators import portal_admin_denied_message
+    from django.contrib import messages
+
+    message = portal_admin_denied_message()
+    messages.error(request, message)
+    return redirect('home_portal')
+
+
+@login_required
 @require_GET
 def rustdesk_download_setup(request):
     cfg = script_config()
@@ -72,6 +97,16 @@ def rustdesk_download_setup(request):
     if platform not in ('win', 'linux', 'it'):
         platform = 'win' if _is_windows_request(request) else 'linux'
 
+    if platform == 'it':
+        if not user_can_access_menu(request.user, MODULE_AUDIT, 'rustdesk'):
+            return _rustdesk_download_forbidden(request)
+    elif not user_can_access_menu(request.user, MODULE_DOCUMENTS, 'rustdesk_config'):
+        return _rustdesk_download_forbidden(request)
+
+    return _rustdesk_download_response(request, cfg, platform)
+
+
+def _rustdesk_download_response(request, cfg: dict, platform: str) -> HttpResponse:
     if platform == 'it':
         if not cfg['public_key']:
             return HttpResponse('Thiếu RUSTDESK_PUBLIC_KEY trong cấu hình Portal.', status=503, content_type='text/plain')
@@ -81,7 +116,7 @@ def rustdesk_download_setup(request):
         if not cmd_path.is_file() or not ps1_path.is_file():
             return HttpResponse('Không tìm thấy script IT.', status=404, content_type='text/plain')
         cmd_body = _to_crlf(_apply_script_tokens(cmd_path.read_text(encoding='utf-8'), cfg))
-        ps1_body = _apply_script_tokens(ps1_path.read_text(encoding='utf-8'), cfg)
+        ps1_body = _prepare_ps1(_apply_script_tokens(ps1_path.read_text(encoding='utf-8'), cfg))
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as archive:
             archive.writestr('JustPlay-RustDesk-IT-Setup.cmd', cmd_body)
@@ -114,7 +149,7 @@ def rustdesk_download_setup(request):
         return HttpResponse('Không tìm thấy file cài đặt Windows.', status=404, content_type='text/plain')
 
     cmd_body = _to_crlf(_apply_script_tokens(cmd_path.read_text(encoding='utf-8'), cfg))
-    ps1_body = _apply_script_tokens(ps1_path.read_text(encoding='utf-8'), cfg)
+    ps1_body = _prepare_ps1(_apply_script_tokens(ps1_path.read_text(encoding='utf-8'), cfg))
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as archive:
         archive.writestr('JustPlay-RustDesk-Setup.cmd', cmd_body)
