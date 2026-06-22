@@ -126,6 +126,11 @@ PORTAL_PUBLIC_BASE_URL = os.getenv(
 ).rstrip("/")
 EQUIPMENT_TAG_HEADER = os.getenv("EQUIPMENT_TAG_HEADER", "JUSTPLAY — QUẢN LÝ THIẾT BỊ")
 RUSTDESK_PUBLIC_HOST = os.getenv("RUSTDESK_PUBLIC_HOST", "rd.justplay.vn")
+RUSTDESK_PUBLIC_KEY = os.getenv("RUSTDESK_PUBLIC_KEY", "").strip()
+RUSTDESK_CLIENT_PASSWORD = os.getenv("RUSTDESK_CLIENT_PASSWORD", "").strip()
+RUSTDESK_ENROLL_SECRET = os.getenv("RUSTDESK_ENROLL_SECRET", "").strip()
+RUSTDESK_INSTALLER_URL_WIN = os.getenv("RUSTDESK_INSTALLER_URL_WIN", "").strip()
+RUSTDESK_INSTALLER_URL_LINUX = os.getenv("RUSTDESK_INSTALLER_URL_LINUX", "").strip()
 EQUIPMENT_NOTIFY_EMAILS = os.getenv("EQUIPMENT_NOTIFY_EMAILS", "")
 
 # Nhân viên Thu mua (dropdown «Nhân viên Thu mua xử lý») — username cách nhau bởi dấu phẩy.

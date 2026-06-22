@@ -148,6 +148,7 @@ EXEMPT_PATH_PREFIXES = (
     '/static/',
     '/media/',
     '/login-redirect/',
+    '/nhat-ky/rustdesk/api/dang-ky/',
     # Web push portal — view tự kiểm tra user_portal_push_eligible (không cần module Tiện ích)
     '/tien-ich/push/',
 )

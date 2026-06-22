@@ -111,6 +111,7 @@ SPAM_GUARD_SKIP_PATH_PREFIXES = (
     '/static/',
     '/media/',
     '/favicon.ico',
+    '/nhat-ky/rustdesk/api/',
     '/.well-known/acme-challenge/',
     '/ckeditor/',
 )
@@ -123,7 +124,9 @@ SPAM_GUARD_SKIP_PATHS = frozenset({
 })
 
 # Portal route hợp lệ — không chặn UA script trên các path này
-SCRIPTING_UA_ALLOW_PREFIXES: tuple[str, ...] = ()
+SCRIPTING_UA_ALLOW_PREFIXES: tuple[str, ...] = (
+    '/nhat-ky/rustdesk/api/',
+)
 
 
 def should_skip_spam_guard(request: HttpRequest) -> bool:

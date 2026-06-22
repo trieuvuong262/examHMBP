@@ -18,16 +18,21 @@
             </p>
         </div>
         {% if can_edit_rustdesk %}
-        <a href="{% url 'audit:rustdesk_add' %}" class="btn btn-hm btn-sm">
-            <i class="bi bi-plus-lg me-1"></i>Thêm máy
-        </a>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'audit:rustdesk_install' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-download me-1"></i>Cài trên máy
+            </a>
+            <a href="{% url 'audit:rustdesk_add' %}" class="btn btn-hm btn-sm">
+                <i class="bi bi-plus-lg me-1"></i>Thêm máy
+            </a>
+        </div>
         {% endif %}
     </div>
 
     <div class="alert alert-light border small mb-3 jp-rd-hint">
         <i class="bi bi-info-circle text-hm me-1"></i>
-        Cấu hình client: <code>scripts/rustdesk-configure-client-windows.ps1 -ServerHost {{ rustdesk_public_host }}</code>
-        — xem <code>docs/RUSTDESK_SELF_HOST.md</code>.
+        Cài hàng loạt: <a href="{% url 'audit:rustdesk_install' %}">tải script cài RustDesk</a>
+        (Windows / Linux) — máy tự đăng ký lên danh sách này.
     </div>
 
     <div class="card border-0 shadow-sm mb-3">

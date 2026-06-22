@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
-from django.test import Client, SimpleTestCase, TestCase
+from django.test import Client, SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
+import json
 
 from audit.forms_rustdesk import RustDeskHostForm
 from audit.models import RustDeskHost
@@ -146,3 +147,37 @@ class RustdeskHostTests(TestCase):
 
         keys = [m['key'] for m in get_module_submenus('audit')]
         self.assertIn('rustdesk', keys)
+
+
+class RustdeskEnrollApiTests(TestCase):
+    @override_settings(
+        RUSTDESK_ENROLL_SECRET='test-enroll-secret',
+    )
+    def test_enroll_api_creates_host(self):
+        client = Client()
+        payload = {
+            'enroll_secret': 'test-enroll-secret',
+            'rustdesk_id': '258599030',
+            'rustdesk_password': 'pw123',
+            'hostname': 'PC-TEST',
+            'ip_address': '10.0.0.5',
+        }
+        resp = client.post(
+            '/nhat-ky/rustdesk/api/dang-ky/',
+            data=json.dumps(payload),
+            content_type='application/json',
+        )
+        self.assertEqual(resp.status_code, 200)
+        host = RustDeskHost.objects.get(rustdesk_id='258599030')
+        self.assertEqual(host.hostname, 'PC-TEST')
+        self.assertEqual(host.rustdesk_password, 'pw123')
+
+    @override_settings(RUSTDESK_ENROLL_SECRET='test-enroll-secret')
+    def test_enroll_api_rejects_bad_secret(self):
+        client = Client()
+        resp = client.post(
+            '/nhat-ky/rustdesk/api/dang-ky/',
+            data=json.dumps({'enroll_secret': 'wrong', 'rustdesk_id': '111222333'}),
+            content_type='application/json',
+        )
+        self.assertEqual(resp.status_code, 403)
