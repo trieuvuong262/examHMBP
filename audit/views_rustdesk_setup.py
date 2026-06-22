@@ -83,6 +83,7 @@ def rustdesk_download_setup(request):
         if not template_path.is_file():
             return HttpResponse('Không tìm thấy file cài đặt.', status=404, content_type='text/plain')
         body = _apply_script_tokens(template_path.read_text(encoding='utf-8'), cfg)
+        body = body.replace('\r\n', '\n')
         response = HttpResponse(body, content_type='application/x-sh; charset=utf-8')
         response['Content-Disposition'] = 'attachment; filename="JustPlay-RustDesk-Setup.sh"'
         return response

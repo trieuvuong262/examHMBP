@@ -42,9 +42,25 @@ function Find-RustDeskExe {
         "$env:LOCALAPPDATA\RustDesk\rustdesk.exe"
     )
     foreach ($p in $candidates) {
-        if (Test-Path $p) { return $p }
+        if (Test-Path -LiteralPath $p) {
+            return (Get-Item -LiteralPath $p).FullName
+        }
     }
     return $null
+}
+
+function Invoke-RustDeskCli {
+    param(
+        [Parameter(Mandatory = $true)][string]$Exe,
+        [string[]]$ArgumentList = @()
+    )
+    if (-not (Test-Path -LiteralPath $Exe)) {
+        throw "Khong tim thay rustdesk.exe: $Exe"
+    }
+    $workDir = Split-Path -Parent $Exe
+    $proc = Start-Process -FilePath $Exe -ArgumentList $ArgumentList `
+        -WorkingDirectory $workDir -Wait -PassThru -WindowStyle Hidden
+    return $proc.ExitCode
 }
 
 function Install-RustDesk {
@@ -79,7 +95,26 @@ function Get-RustDeskConfigDirs {
 
 function Install-RustDeskService {
     param([string]$Exe)
-    & $Exe --install-service 2>$null | Out-Null
+    $svc = Get-Service -Name 'RustDesk' -ErrorAction SilentlyContinue
+    if ($svc) {
+        if ($svc.Status -ne 'Running') {
+            Start-Service -Name 'RustDesk' -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 3
+        }
+        Write-Host '      Service RustDesk da co.'
+        return
+    }
+    $isSystemInstall = ($Exe -like '*\Program Files\*') -or ($Exe -like '*\Program Files (x86)\*')
+    if (-not $isSystemInstall) {
+        Write-Host '      Bo qua install-service (RustDesk portable/user).'
+        return
+    }
+    Write-Host "      Chay: $Exe --install-service"
+    $code = Invoke-RustDeskCli -Exe $Exe -ArgumentList @('--install-service')
+    if ($code -ne 0) {
+        Write-Host "      Canh bao: install-service exit $code (tiep tuc user mode)."
+        return
+    }
     Start-Sleep -Seconds 2
     $svc = Get-Service -Name 'RustDesk' -ErrorAction SilentlyContinue
     if ($svc -and $svc.Status -ne 'Running') {
@@ -134,18 +169,13 @@ function Restart-RustDesk {
 function Get-RustDeskIdFromCli {
     param([string]$Exe)
     try {
-        $raw = cmd.exe /c "`"$Exe`" --get-id 2>nul | more"
+        $raw = cmd.exe /c "cd /d `"$(Split-Path -Parent $Exe)`" && `"$Exe`" --get-id 2>nul | more"
         $text = ($raw | Out-String).Trim()
         if ($text -match '(\d{6,12})') { return $Matches[1] }
     } catch {}
 
     try {
-        $out = & $Exe --get-id 2>&1 | Out-String
-        if ($out -match '(\d{6,12})') { return $Matches[1] }
-    } catch {}
-
-    try {
-        Start-Process -FilePath $Exe -ArgumentList '--get-id' -Wait -WindowStyle Hidden -ErrorAction SilentlyContinue
+        Invoke-RustDeskCli -Exe $Exe -ArgumentList @('--get-id') | Out-Null
         Start-Sleep -Seconds 2
         $clip = Get-Clipboard -Raw -ErrorAction SilentlyContinue
         if ($clip -and ($clip.Trim() -match '^\d{6,12}$')) {
@@ -179,7 +209,7 @@ function Get-RustDeskId {
 function Set-RustDeskPassword {
     param([string]$Exe, [string]$Password)
     if (-not $Password) { return }
-    & $Exe --password $Password 2>$null | Out-Null
+    Invoke-RustDeskCli -Exe $Exe -ArgumentList @('--password', $Password) | Out-Null
     Start-Sleep -Seconds 2
 }
 
@@ -233,6 +263,7 @@ if (-not $exe) {
 if (-not $exe) {
     throw 'Khong tim thay rustdesk.exe sau khi cai.'
 }
+Write-Host "      Su dung: $exe"
 
 Write-Host '[2b/5] Cai Windows service (neu chua co)...'
 Install-RustDeskService -Exe $exe

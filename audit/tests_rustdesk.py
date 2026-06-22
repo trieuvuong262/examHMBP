@@ -228,6 +228,23 @@ class RustdeskDownloadTests(TestCase):
             cmd = archive.read('JustPlay-RustDesk-Setup.cmd').decode('utf-8')
             ps1 = archive.read('JustPlay-RustDesk-Setup.ps1').decode('utf-8')
         self.assertIn('\r\n', cmd)
+        self.assertIn('%LOCALAPPDATA%\\JustPlay\\RustDesk-Setup', cmd)
         self.assertNotIn('__ENROLL_SECRET__', ps1)
         self.assertIn('enroll-secret', ps1)
         self.assertIn('public-key', ps1)
+
+    @override_settings(
+        RUSTDESK_ENROLL_SECRET='enroll-secret',
+        RUSTDESK_PUBLIC_KEY='public-key',
+        RUSTDESK_CLIENT_PASSWORD='client-pw',
+        RUSTDESK_PUBLIC_HOST='rd.justplay.vn',
+    )
+    def test_linux_download_has_banner_and_lf(self):
+        self.client.force_login(self.user)
+        resp = self.client.get(reverse('audit:rustdesk_download_setup') + '?os=linux')
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode('utf-8')
+        self.assertTrue(body.startswith('#!/usr/bin/env bash'))
+        self.assertIn('JustPlay - Cai dat RustDesk (Linux)', body)
+        self.assertNotIn('\r\n', body)
+        self.assertNotIn('__ENROLL_SECRET__', body)

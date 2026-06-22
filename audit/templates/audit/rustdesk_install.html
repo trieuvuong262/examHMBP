@@ -33,8 +33,8 @@
         <div class="card-body small">
             <h5 class="fw-semibold mb-3">Bước 2 — Chạy file</h5>
             <ul class="mb-0">
-                <li><strong>Windows:</strong> Giải nén <code>JustPlay-RustDesk-Setup-win.zip</code>, chuột phải <code>JustPlay-RustDesk-Setup.cmd</code> → <em>Run as administrator</em> (giữ cả file <code>.ps1</code> cùng thư mục).</li>
-                <li><strong>Linux Mint:</strong> <code>chmod +x JustPlay-RustDesk-Setup.sh && sudo ./JustPlay-RustDesk-Setup.sh</code></li>
+                <li><strong>Windows:</strong> Giải nén <code>JustPlay-RustDesk-Setup-win.zip</code> vào thư mục cố định (ví dụ <code>Desktop\RustDesk</code>), chuột phải <code>JustPlay-RustDesk-Setup.cmd</code> → <em>Run as administrator</em>. Không chạy trực tiếp từ file zip trong Downloads.</li>
+                <li><strong>Linux Mint:</strong> Mở <strong>Terminal</strong>, vào thư mục đã tải: <code>chmod +x JustPlay-RustDesk-Setup.sh && ./JustPlay-RustDesk-Setup.sh</code> (script sẽ tự hỏi sudo nếu cần).</li>
             </ul>
             <p class="text-muted mt-3 mb-0">
                 Script sẽ: cài RustDesk (nếu chưa có) → trỏ về <code>{{ config.rustdesk_host }}</code> → đặt mật khẩu → gửi ID lên Portal.
