@@ -239,20 +239,6 @@ ensure_ssl_conf() {
   fi
 }
 
-ensure_agent_gate_disabled() {
-  echo "==> Disable agent install gate (.env)"
-  local env_file="${PROJECT_DIR}/.env"
-  if grep -q '^EQUIPMENT_REQUIRE_AGENT_INSTALL=' "${env_file}" 2>/dev/null; then
-    sed -i 's/^EQUIPMENT_REQUIRE_AGENT_INSTALL=.*/EQUIPMENT_REQUIRE_AGENT_INSTALL=0/' "${env_file}"
-    echo "    Set EQUIPMENT_REQUIRE_AGENT_INSTALL=0"
-  else
-    echo "EQUIPMENT_REQUIRE_AGENT_INSTALL=0" >> "${env_file}"
-    echo "    Added EQUIPMENT_REQUIRE_AGENT_INSTALL=0"
-  fi
-}
-
-ensure_agent_gate_disabled
-
 echo "==> 1) Pull latest code"
 git fetch --all --prune
 git checkout "${BRANCH}"
@@ -268,7 +254,6 @@ git clean -ffd \
   -e media/ \
   -e staticfiles \
   -e staticfiles/ \
-  -e static/equipment/JustPlayAgent.exe \
   -e '*.log' 2>/dev/null || true
 echo "    At commit: $(git rev-parse --short HEAD)"
 
@@ -299,41 +284,6 @@ echo "==> 8) Run migrations again on running web"
 compose exec -T web python manage.py migrate --noinput
 
 verify_migrations
-
-verify_agent_exe() {
-  echo "==> Verify JustPlayAgent.exe"
-  local exe_host="${PROJECT_DIR}/static/equipment/JustPlayAgent.exe"
-  if [[ ! -f "${exe_host}" ]]; then
-    echo "    WARNING: Thieu ${exe_host}"
-    echo "             Tren may Windows: scripts/build-justplay-agent.cmd"
-    echo "             Copy len VPS: static/equipment/JustPlayAgent.exe"
-    return 0
-  fi
-  if compose exec -T web test -f /app/static/equipment/JustPlayAgent.exe; then
-    echo "    JustPlayAgent.exe OK ($(wc -c < "${exe_host}" | tr -d ' ') bytes)"
-  else
-    echo "    WARNING: Container chua thay JustPlayAgent.exe — kiem tra volume mount."
-  fi
-}
-
-verify_agent_gate() {
-  echo "==> Verify agent install gate"
-  if compose exec -T web python manage.py check_agent_gate 2>/dev/null; then
-    return 0
-  fi
-  compose exec -T web python - <<'PY' || true
-import os
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "PortalJustPlay.settings")
-import django
-django.setup()
-from django.conf import settings
-print("EQUIPMENT_REQUIRE_AGENT_INSTALL:", settings.EQUIPMENT_REQUIRE_AGENT_INSTALL)
-print("EQUIPMENT_AGENT_SECRET_SET:", bool(settings.EQUIPMENT_AGENT_SECRET))
-PY
-}
-
-verify_agent_gate
-verify_agent_exe
 
 verify_nas_rclone() {
   echo "==> Verify NAS rclone in web container"

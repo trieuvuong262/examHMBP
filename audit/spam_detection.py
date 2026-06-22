@@ -111,8 +111,6 @@ SPAM_GUARD_SKIP_PATH_PREFIXES = (
     '/static/',
     '/media/',
     '/favicon.ico',
-    '/thiet-bi/api/',
-    '/thiet-bi/agent/',
     '/.well-known/acme-challenge/',
     '/ckeditor/',
 )
@@ -124,11 +122,8 @@ SPAM_GUARD_SKIP_PATHS = frozenset({
     '/favicon.ico',
 })
 
-# Portal route hợp lệ — không chặn UA script trên các path này (health/agent)
-SCRIPTING_UA_ALLOW_PREFIXES = (
-    '/thiet-bi/api/',
-    '/thiet-bi/agent/',
-)
+# Portal route hợp lệ — không chặn UA script trên các path này
+SCRIPTING_UA_ALLOW_PREFIXES: tuple[str, ...] = ()
 
 
 def should_skip_spam_guard(request: HttpRequest) -> bool:

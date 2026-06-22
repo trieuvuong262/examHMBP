@@ -73,8 +73,3 @@ def infer_it_category_from_chassis(types: list[int]) -> str | None:
     if any(code in DESKTOP_CHASSIS for code in types):
         return CATEGORY_PC
     return None
-
-
-def infer_it_category_from_agent_data(data: dict) -> str | None:
-    types = parse_chassis_types(data.get('chassis_types'))
-    return infer_it_category_from_chassis(types)

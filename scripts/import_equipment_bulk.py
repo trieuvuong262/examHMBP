@@ -147,17 +147,15 @@ def load_rows(optimized_path: Path) -> list[dict]:
 
 
 def wipe_equipment_data():
-    from equipment.models import Device, DeviceUpdateLog, MaintenanceLog, UserAgentRegistration
+    from equipment.models import Device, DeviceUpdateLog, MaintenanceLog
 
     counts = {
         'DeviceUpdateLog': DeviceUpdateLog.objects.count(),
         'MaintenanceLog': MaintenanceLog.objects.count(),
-        'UserAgentRegistration': UserAgentRegistration.objects.count(),
         'Device': Device.objects.count(),
     }
     DeviceUpdateLog.objects.all().delete()
     MaintenanceLog.objects.all().delete()
-    UserAgentRegistration.objects.all().delete()
     Device.objects.all().delete()
     return counts
 

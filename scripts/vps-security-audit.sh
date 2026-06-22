@@ -24,7 +24,6 @@ probe '/.env'
 probe '/.git/config'
 probe '/wp-admin/'
 probe '/phpmyadmin/'
-probe '/thiet-bi/api/agent-report/'
 probe '/ckeditor/upload/'
 probe '/robots.txt'
 

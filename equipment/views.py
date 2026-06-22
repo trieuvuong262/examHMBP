@@ -10,7 +10,6 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods
 
 from hrm.models import Department
@@ -616,8 +615,6 @@ def device_detail_manage(request, device_id):
         ),
         pk=device_id,
     )
-    from equipment.services.shared_pc import get_registered_users
-
     can_edit = user_can_update_module(request.user, MODULE_EQUIPMENT)
     form = None
 
@@ -657,12 +654,10 @@ def device_detail_manage(request, device_id):
         )
 
     logs = device.logs.select_related('service_request').order_by('-created_at')[:10]
-    shared_users = list(get_registered_users(device)) if device.is_shared_pc else []
     scope_ctx = merge_scope_context(request, device=device)
     return render(request, 'equipment/device_detail_manage.html', {
         'device': device,
         'form': form,
-        'shared_users': shared_users,
         'logs': logs,
         'can_edit': can_edit,
         'is_it_device': device.is_it_equipment,
@@ -1015,84 +1010,3 @@ def delete_bulk_devices(request, equipment_scope=SCOPE_IT):
     qs.delete()
     messages.success(request, f'Đã xóa {num} thiết bị.')
     return _redirect_device_list(equipment_scope)
-
-
-@csrf_exempt
-def api_agent_report(request):
-    if request.method != 'POST':
-        return JsonResponse({'status': 'error', 'message': 'Chỉ nhận POST'}, status=405)
-
-    try:
-        data = json.loads(request.body)
-        secret = getattr(settings, 'EQUIPMENT_AGENT_SECRET', '')
-        if not secret or data.get('api_secret') != secret:
-            return JsonResponse({'status': 'error', 'message': 'Sai Secret Key'}, status=403)
-
-        serial = data.get('serial')
-        from equipment.agent.core import is_bad_serial
-        from equipment.services.agent_install import (
-            MACHINE_TYPE_PERSONAL,
-            link_user_from_agent_report,
-            resolve_machine_type_from_report,
-        )
-
-        if is_bad_serial(serial):
-            return JsonResponse({'status': 'error', 'message': 'Serial không hợp lệ'}, status=400)
-
-        if resolve_machine_type_from_report(data) == MACHINE_TYPE_PERSONAL:
-            return JsonResponse({
-                'status': 'success',
-                'personal': True,
-                'skipped': True,
-                'message': 'Máy cá nhân không còn đăng ký qua portal',
-            })
-
-        from equipment.services.agent_device import apply_agent_hardware_to_device
-        from equipment.services.chassis_category import infer_it_category_from_agent_data
-        from equipment.services.agent_device import agent_device_default_name
-        from equipment.services.device_code import allocate_agent_device_code
-        from equipment.services.managed_department import default_managed_department_for_scope
-        from equipment.scope import SCOPE_IT
-
-        inferred_category = infer_it_category_from_agent_data(data) or 'PC'
-        it_dept = default_managed_department_for_scope(SCOPE_IT)
-        device, created = Device.objects.get_or_create(
-            serial_number=serial,
-            defaults={
-                'name': agent_device_default_name(data, serial),
-                'device_code': allocate_agent_device_code(),
-                'status': Device.STATUS_ACTIVE,
-                'category': inferred_category,
-                'managed_department': it_dept,
-            },
-        )
-
-        hw_fields = apply_agent_hardware_to_device(device, data, created=created)
-        device.save(update_fields=sorted(set(hw_fields)))
-
-        link_user_from_agent_report(data=data, device=device)
-
-        return JsonResponse({
-            'status': 'success',
-            'created': created,
-            'device_id': str(device.id),
-        })
-    except Exception as exc:
-        return JsonResponse({'status': 'error', 'message': str(exc)}, status=500)
-
-
-@csrf_exempt
-def api_agent_poll(request):
-    """Agent poll — có yêu cầu quét mới từ portal không."""
-    secret = request.GET.get('api_secret', '')
-    expected = getattr(settings, 'EQUIPMENT_AGENT_SECRET', '')
-    if not expected or secret != expected:
-        return JsonResponse({'status': 'error', 'message': 'Sai Secret Key'}, status=403)
-
-    from equipment.models import EquipmentScanControl
-
-    rescan_at = EquipmentScanControl.get_rescan_at()
-    return JsonResponse({
-        'status': 'ok',
-        'rescan_at': rescan_at.isoformat() if rescan_at else None,
-    })

@@ -269,23 +269,6 @@
             {% endif %}
             {% endif %}
 
-            {% if device.is_shared_pc and shared_users %}
-            <div class="card border-0 shadow-sm mt-3">
-                <div class="card-header bg-white fw-bold">
-                    PC dùng chung
-                    <span class="badge bg-info text-dark ms-1">{{ shared_users|length }} tài khoản</span>
-                </div>
-                <ul class="list-group list-group-flush small">
-                    {% for u in shared_users %}
-                    <li class="list-group-item">
-                        <code>{{ u.username }}</code>
-                        {% if u.get_full_name %} — {{ u.get_full_name }}{% endif %}
-                    </li>
-                    {% endfor %}
-                </ul>
-            </div>
-            {% endif %}
-
             {% if device.quantity > 1 or device.unit_price %}
             {% if is_it_device or not can_edit or not form %}
             <div class="card border-0 shadow-sm mt-3">

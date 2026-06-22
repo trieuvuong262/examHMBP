@@ -1,13 +1,10 @@
 from django.contrib import admin
 
 from .models import (
-    AgentInstallToken,
     Device,
     DeviceCategory,
     DeviceStatus,
-    EquipmentScanControl,
     MaintenanceLog,
-    UserAgentRegistration,
 )
 
 
@@ -109,40 +106,3 @@ class MaintenanceLogAdmin(admin.ModelAdmin):
     search_fields = ('device__name', 'reported_by', 'issue_description')
     raw_id_fields = ('device', 'service_request')
     readonly_fields = ('created_at',)
-
-
-@admin.register(AgentInstallToken)
-class AgentInstallTokenAdmin(admin.ModelAdmin):
-    list_display = ('user', 'token_preview', 'created_at', 'expires_at', 'used_at', 'is_valid_display')
-    list_filter = ('used_at',)
-    search_fields = ('user__username', 'token')
-    raw_id_fields = ('user',)
-    readonly_fields = ('token', 'created_at', 'used_at')
-
-    @admin.display(description='Token')
-    def token_preview(self, obj):
-        return f'{obj.token[:12]}…'
-
-    @admin.display(boolean=True, description='Hợp lệ')
-    def is_valid_display(self, obj):
-        return obj.is_valid()
-
-
-@admin.register(UserAgentRegistration)
-class UserAgentRegistrationAdmin(admin.ModelAdmin):
-    list_display = ('user', 'serial_number', 'device', 'registered_at')
-    search_fields = ('user__username', 'serial_number', 'device__name', 'device__hostname')
-    raw_id_fields = ('user', 'device')
-    readonly_fields = ('registered_at',)
-
-
-@admin.register(EquipmentScanControl)
-class EquipmentScanControlAdmin(admin.ModelAdmin):
-    list_display = ('id', 'agent_rescan_at')
-    readonly_fields = ('agent_rescan_at',)
-
-    def has_add_permission(self, request):
-        return not EquipmentScanControl.objects.exists()
-
-    def has_delete_permission(self, request, obj=None):
-        return False

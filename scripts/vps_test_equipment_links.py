@@ -26,8 +26,6 @@ SKIP_GET = {
     "import_devices_it",
     "import_devices_production",
     "import_devices",
-    "api_agent_report",
-    "api_agent_poll",
 }
 
 
