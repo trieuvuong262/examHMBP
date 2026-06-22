@@ -21,6 +21,7 @@ RUSTDESK_HOST='__RUSTDESK_HOST__'
 PUBLIC_KEY='__PUBLIC_KEY__'
 CLIENT_PASSWORD='__CLIENT_PASSWORD__'
 ENROLL_SECRET='__ENROLL_SECRET__'
+APPROVE_MODE='__RUSTDESK_APPROVE_MODE__'
 INSTALLER_URL='__INSTALLER_URL_LINUX__'
 
 if [[ "$PORTAL_URL" == *'__PORTAL'* ]]; then
@@ -44,6 +45,9 @@ if [[ -z "$INSTALLER_URL" || "$INSTALLER_URL" == *'__INSTALLER'* ]]; then
 fi
 if [[ "$CLIENT_PASSWORD" == *'__CLIENT'* ]]; then
   CLIENT_PASSWORD=''
+fi
+if [[ "$APPROVE_MODE" == *'__RUSTDESK'* || -z "$APPROVE_MODE" ]]; then
+  APPROVE_MODE='password'
 fi
 
 RUN_USER="${SUDO_USER:-$USER}"
@@ -75,23 +79,39 @@ install_rustdesk() {
 
 write_server_config() {
   echo "[3/5] Cau hinh server ${RUSTDESK_HOST}..."
+  local toml_path root_cfg="/root/.config/rustdesk"
   mkdir -p "$CONFIG_DIR"
-  cat > "${CONFIG_DIR}/RustDesk2.toml" <<EOF
-rendezvous_server = '${RUSTDESK_HOST}'
+  toml_path="${CONFIG_DIR}/RustDesk2.toml"
+  cat > "$toml_path" <<EOF
+rendezvous_server = '${RUSTDESK_HOST}:21116'
 nat_type = 1
+serial = 0
 
 [options]
 custom-rendezvous-server = '${RUSTDESK_HOST}'
 relay-server = '${RUSTDESK_HOST}:21117'
 api-server = ''
 key = '${PUBLIC_KEY}'
-approve-mode = 'password'
-verification-method = 'use-both-passwords'
+approve-mode = '${APPROVE_MODE}'
+verification-method = 'use-permanent-password'
 allow-logon-screen-password = 'Y'
 hide-stop-service = 'Y'
 EOF
   if [[ -n "${SUDO_USER:-}" ]]; then
     chown -R "${SUDO_USER}:${SUDO_USER}" "$(dirname "$CONFIG_DIR")" 2>/dev/null || true
+  fi
+  if systemctl list-unit-files 'rustdesk.service' &>/dev/null 2>&1; then
+    mkdir -p "$root_cfg"
+    cp "$toml_path" "${root_cfg}/RustDesk2.toml"
+    echo "      Da ghi them: ${root_cfg}/RustDesk2.toml (systemd)"
+  fi
+  local bin
+  bin="$(find_rustdesk_bin)"
+  if [[ -n "$bin" ]]; then
+    local b64
+    b64="$(python3 -c "import base64, pathlib; print(base64.b64encode(pathlib.Path('${toml_path}').read_bytes()).decode())")"
+    run_as_user "$bin" --config "$b64" 2>/dev/null || true
+    "$bin" --config "$b64" 2>/dev/null || true
   fi
 }
 
@@ -158,6 +178,9 @@ set_password() {
     echo "      Thu lai dat mat khau ($attempt/3)"
     sleep 2
   done
+  if [[ "$ok" -ne 0 ]]; then
+    echo '      Canh bao: Khong dat duoc mat khau qua CLI.'
+  fi
   sleep 2
   return "$ok"
 }

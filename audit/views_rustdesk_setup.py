@@ -21,6 +21,7 @@ _SCRIPT_TOKENS = (
     '__ENROLL_SECRET__',
     '__INSTALLER_URL_WIN__',
     '__INSTALLER_URL_LINUX__',
+    '__RUSTDESK_APPROVE_MODE__',
 )
 
 
@@ -38,6 +39,7 @@ def _apply_script_tokens(body: str, cfg: dict) -> str:
         '__ENROLL_SECRET__': cfg['enroll_secret'],
         '__INSTALLER_URL_WIN__': cfg['installer_url_win'],
         '__INSTALLER_URL_LINUX__': cfg['installer_url_linux'],
+        '__RUSTDESK_APPROVE_MODE__': cfg['approve_mode'],
     }
     for token in _SCRIPT_TOKENS:
         body = body.replace(token, replacements.get(token) or '')
@@ -66,16 +68,34 @@ def rustdesk_install_page(request):
 @require_GET
 def rustdesk_download_setup(request):
     cfg = script_config()
+    platform = request.GET.get('os', '').lower()
+    if platform not in ('win', 'linux', 'it'):
+        platform = 'win' if _is_windows_request(request) else 'linux'
+
+    if platform == 'it':
+        if not cfg['public_key']:
+            return HttpResponse('Thiếu RUSTDESK_PUBLIC_KEY trong cấu hình Portal.', status=503, content_type='text/plain')
+        base = Path(settings.BASE_DIR) / 'scripts'
+        cmd_path = base / 'JustPlay-RustDesk-IT-Setup.cmd'
+        ps1_path = base / 'JustPlay-RustDesk-IT-Setup.ps1'
+        if not cmd_path.is_file() or not ps1_path.is_file():
+            return HttpResponse('Không tìm thấy script IT.', status=404, content_type='text/plain')
+        cmd_body = _to_crlf(_apply_script_tokens(cmd_path.read_text(encoding='utf-8'), cfg))
+        ps1_body = _apply_script_tokens(ps1_path.read_text(encoding='utf-8'), cfg)
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr('JustPlay-RustDesk-IT-Setup.cmd', cmd_body)
+            archive.writestr('JustPlay-RustDesk-IT-Setup.ps1', ps1_body)
+        response = HttpResponse(buf.getvalue(), content_type='application/zip')
+        response['Content-Disposition'] = 'attachment; filename="JustPlay-RustDesk-IT-Setup.zip"'
+        return response
+
     if not cfg['enroll_secret'] or not cfg['public_key']:
         return HttpResponse(
             'Thiếu RUSTDESK_ENROLL_SECRET hoặc RUSTDESK_PUBLIC_KEY trong cấu hình Portal.',
             status=503,
             content_type='text/plain; charset=utf-8',
         )
-
-    platform = request.GET.get('os', '').lower()
-    if platform not in ('win', 'linux'):
-        platform = 'win' if _is_windows_request(request) else 'linux'
 
     base = Path(settings.BASE_DIR) / 'scripts'
     if platform == 'linux':

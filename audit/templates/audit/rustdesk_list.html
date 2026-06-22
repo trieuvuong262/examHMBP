@@ -14,11 +14,15 @@
                 {% if filtered_count is not None %}<span class="text-muted fw-semibold fs-5 ms-1">({{ filtered_count|intcomma }})</span>{% endif %}
             </h2>
             <p class="text-muted small mb-0">
-                Server: <code>{{ rustdesk_public_host }}</code> — bấm <strong>Kết nối</strong> để mở app RustDesk trên máy IT.
+                Server: <code>{{ rustdesk_public_host }}</code> — bấm <strong>Kết nối</strong> để RustDesk tự mở và kết nối (không cần nhập ID).
             </p>
         </div>
         {% if can_edit_rustdesk %}
         <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'audit:rustdesk_download_setup' %}?os=it"
+               class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-gear me-1"></i>Cấu hình máy IT (.zip)
+            </a>
             <a href="{% url 'audit:rustdesk_install' %}" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-download me-1"></i>Cài trên máy
             </a>
@@ -37,10 +41,10 @@
     </div>
 
     <div class="alert alert-warning border small mb-3 jp-rd-hint">
-        <i class="bi bi-exclamation-triangle me-1"></i>
-        <strong>Máy IT (người bấm Kết nối)</strong> cũng phải cấu hình RustDesk → Network:
-        ID server = Relay server = <code>{{ rustdesk_public_host }}</code>, Key giống server.
-        <a href="{% url 'audit:rustdesk_install' %}">Tải script cài đặt</a> trên máy IT hoặc nhập tay một lần.
+        <i class="bi bi-key me-1"></i>
+        <strong>Bị hỏi mật khẩu?</strong> Portal tự gửi mật khẩu qua link Kết nối.
+        Nếu vẫn sai: trên máy đích chạy lại <a href="{% url 'audit:rustdesk_install' %}">script cài đặt</a>
+        (đặt lại mật khẩu cố định). Hoặc đặt <code>RUSTDESK_APPROVE_MODE=click</code> trên server để không cần mật khẩu (máy đích bấm Accept).
     </div>
 
     <div class="alert alert-light border small mb-3 jp-rd-hint">

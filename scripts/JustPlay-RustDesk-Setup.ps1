@@ -5,6 +5,7 @@ $PortalUrl = '__PORTAL_URL__'
 $RustDeskHost = '__RUSTDESK_HOST__'
 $PublicKey = '__PUBLIC_KEY__'
 $ClientPassword = '__CLIENT_PASSWORD__'
+$ApproveMode = '__RUSTDESK_APPROVE_MODE__'
 $EnrollSecret = '__ENROLL_SECRET__'
 $InstallerUrl = '__INSTALLER_URL_WIN__'
 
@@ -27,6 +28,9 @@ if (-not $InstallerUrl -or $InstallerUrl -like '*__INSTALLER*') {
 }
 if ($ClientPassword -like '*__CLIENT*') {
     $ClientPassword = ''
+}
+if ($ApproveMode -like '*__RUSTDESK*' -or -not $ApproveMode) {
+    $ApproveMode = 'password'
 }
 
 function Test-IsAdmin {
@@ -201,28 +205,59 @@ function Show-RustDeskRemoteStatus {
     Write-Host "      - ID server: $RustDeskHost"
 }
 
+function Write-Utf8NoBom {
+    param([string]$Path, [string]$Content)
+    $utf8 = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText($Path, $Content, $utf8)
+}
+
+function Get-RustDeskTomlContent {
+    param([string]$HostName, [string]$Key, [switch]$WithSecurity)
+    $hostOnly = ($HostName -replace ':.*$', '').Trim()
+    $lines = @(
+        "rendezvous_server = '${hostOnly}:21116'",
+        'nat_type = 1',
+        'serial = 0',
+        '',
+        '[options]',
+        "custom-rendezvous-server = '$hostOnly'",
+        "relay-server = '${hostOnly}:21117'",
+        "api-server = ''",
+        "key = '$Key'"
+    )
+    if ($WithSecurity) {
+        $verify = if ($ApproveMode -eq 'click') { 'use-permanent-password' } else { 'use-permanent-password' }
+        $lines += @(
+            "approve-mode = '$ApproveMode'",
+            "verification-method = '$verify'",
+            "allow-logon-screen-password = 'Y'",
+            "hide-stop-service = 'Y'"
+        )
+    }
+    return ($lines -join "`n")
+}
+
+function Import-RustDeskConfigCli {
+    param([string]$Exe, [string]$Toml)
+    $b64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($Toml))
+    $code = Invoke-RustDeskCli -Exe $Exe -ArgumentList @('--config', $b64) -TimeoutSec 15
+    if ($code -eq 0 -or $code -eq 124) { return $true }
+    return $false
+}
+
 function Write-RustDeskServerConfig {
     param([string]$HostName, [string]$Key, [string]$Exe)
-    $toml = @"
-rendezvous_server = '$HostName'
-nat_type = 1
-
-[options]
-custom-rendezvous-server = '$HostName'
-relay-server = '${HostName}:21117'
-api-server = ''
-key = '$Key'
-approve-mode = 'password'
-verification-method = 'use-both-passwords'
-allow-logon-screen-password = 'Y'
-hide-stop-service = 'Y'
-"@
+    $toml = Get-RustDeskTomlContent -HostName $HostName -Key $Key -WithSecurity
     foreach ($dir in (Get-RustDeskConfigDirs)) {
         New-Item -ItemType Directory -Force -Path $dir | Out-Null
         $path = Join-Path $dir 'RustDesk2.toml'
-        Set-Content -Path $path -Value $toml -Encoding UTF8
+        Write-Utf8NoBom -Path $path -Content $toml
         (Get-Item $path).LastWriteTime = Get-Date
         Write-Host "      Da ghi $path"
+    }
+    if ($Exe) {
+        Write-Host '      Ap dung --config (base64)...'
+        Import-RustDeskConfigCli -Exe $Exe -Toml $toml | Out-Null
     }
 }
 

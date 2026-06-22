@@ -12,16 +12,49 @@ from hrm.permissions import ROLE_EMPLOYEE
 
 
 class RustdeskConnectTests(SimpleTestCase):
+    @override_settings(
+        RUSTDESK_PUBLIC_HOST='rd.justplay.vn',
+        RUSTDESK_PUBLIC_KEY='0KDL7LQhVpSud8Y2ciHOt16Jv+XWXGlc75goPVN0Zkk=',
+    )
     def test_build_connect_url_with_password(self):
         from audit.services.rustdesk_connect import build_rustdesk_connect_url
 
         url = build_rustdesk_connect_url('258 599 030', 'secret&x')
         self.assertEqual(url, 'rustdesk://connection/new/258599030?password=secret%26x')
 
+    @override_settings(
+        RUSTDESK_PUBLIC_HOST='rd.justplay.vn',
+        RUSTDESK_PUBLIC_KEY='0KDL7LQhVpSud8Y2ciHOt16Jv+XWXGlc75goPVN0Zkk=',
+        RUSTDESK_CLIENT_PASSWORD='',
+    )
     def test_build_connect_url_without_password(self):
         from audit.services.rustdesk_connect import build_rustdesk_connect_url
 
         url = build_rustdesk_connect_url('258599030', '')
+        self.assertEqual(url, 'rustdesk://connection/new/258599030')
+
+    @override_settings(RUSTDESK_PUBLIC_KEY='')
+    def test_build_connect_url_fallback_without_key(self):
+        from audit.services.rustdesk_connect import build_rustdesk_connect_url
+
+        url = build_rustdesk_connect_url('258599030', 'pw')
+        self.assertEqual(url, 'rustdesk://connection/new/258599030?password=pw')
+
+    @override_settings(
+        RUSTDESK_CLIENT_PASSWORD='env-pw',
+        RUSTDESK_APPROVE_MODE='password',
+    )
+    def test_build_connect_url_uses_env_password_fallback(self):
+        from audit.services.rustdesk_connect import build_rustdesk_connect_url
+
+        url = build_rustdesk_connect_url('258599030', '')
+        self.assertEqual(url, 'rustdesk://connection/new/258599030?password=env-pw')
+
+    @override_settings(RUSTDESK_APPROVE_MODE='click')
+    def test_build_connect_url_click_mode_no_password(self):
+        from audit.services.rustdesk_connect import build_rustdesk_connect_url
+
+        url = build_rustdesk_connect_url('258599030', 'pw123')
         self.assertEqual(url, 'rustdesk://connection/new/258599030')
 
 
@@ -124,6 +157,10 @@ class RustdeskHostTests(TestCase):
         self.assertTrue(user_can_update_menu(self.edit_user, MODULE_AUDIT, 'rustdesk'))
         self.assertTrue(user_can_edit_menu(self.edit_user, MODULE_AUDIT, 'rustdesk'))
 
+    @override_settings(
+        RUSTDESK_PUBLIC_HOST='rd.justplay.vn',
+        RUSTDESK_PUBLIC_KEY='test-public-key',
+    )
     def test_edit_user_sees_connect_link(self):
         self.client.force_login(self.edit_user)
         response = self.client.get(reverse('audit:rustdesk_list'))
@@ -136,6 +173,10 @@ class RustdeskHostTests(TestCase):
         self.assertNotContains(response, 'rustdesk://')
         self.assertContains(response, 'Chỉ IT được kết nối')
 
+    @override_settings(
+        RUSTDESK_PUBLIC_HOST='rd.justplay.vn',
+        RUSTDESK_PUBLIC_KEY='test-public-key',
+    )
     def test_host_connect_url_property(self):
         self.assertEqual(
             self.host.rustdesk_connect_url,
