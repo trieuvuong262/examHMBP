@@ -59,12 +59,37 @@ function Install-RustDesk {
         throw "Cai dat that bai (exit $($proc.ExitCode))"
     }
     Start-Sleep -Seconds 5
+    $installed = Find-RustDeskExe
+    if ($installed) {
+        Install-RustDeskService -Exe $installed
+    }
+}
+
+function Get-RustDeskConfigDirs {
+    $dirs = @()
+    if ($env:APPDATA) {
+        $dirs += (Join-Path $env:APPDATA 'RustDesk\config')
+    }
+    $serviceDir = 'C:\Windows\ServiceProfiles\LocalService\AppData\Roaming\RustDesk\config'
+    if (Test-Path (Split-Path $serviceDir -Parent)) {
+        $dirs += $serviceDir
+    }
+    return $dirs | Select-Object -Unique
+}
+
+function Install-RustDeskService {
+    param([string]$Exe)
+    & $Exe --install-service 2>$null | Out-Null
+    Start-Sleep -Seconds 2
+    $svc = Get-Service -Name 'RustDesk' -ErrorAction SilentlyContinue
+    if ($svc -and $svc.Status -ne 'Running') {
+        Start-Service -Name 'RustDesk' -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 3
+    }
 }
 
 function Write-RustDeskServerConfig {
-    param([string]$HostName, [string]$Key)
-    $dir = Join-Path $env:APPDATA 'RustDesk\config'
-    New-Item -ItemType Directory -Force -Path $dir | Out-Null
+    param([string]$HostName, [string]$Key, [string]$Exe)
     $toml = @"
 [options]
 custom-rendezvous-server = '$HostName'
@@ -72,9 +97,13 @@ relay-server = '$HostName'
 api-server = ''
 key = '$Key'
 "@
-    $path = Join-Path $dir 'RustDesk2.toml'
-    Set-Content -Path $path -Value $toml -Encoding UTF8
-    Write-Host "      Da ghi $path"
+    foreach ($dir in (Get-RustDeskConfigDirs)) {
+        New-Item -ItemType Directory -Force -Path $dir | Out-Null
+        $path = Join-Path $dir 'RustDesk2.toml'
+        Set-Content -Path $path -Value $toml -Encoding UTF8
+        (Get-Item $path).LastWriteTime = Get-Date
+        Write-Host "      Da ghi $path"
+    }
 }
 
 function Stop-RustDesk {
@@ -85,21 +114,64 @@ function Stop-RustDesk {
 function Start-RustDesk {
     $exe = Find-RustDeskExe
     if ($exe) {
-        Start-Process -FilePath $exe | Out-Null
+        Start-Process -FilePath $exe -WindowStyle Hidden -ErrorAction SilentlyContinue | Out-Null
         Start-Sleep -Seconds 6
     }
 }
 
+function Restart-RustDesk {
+    param([string]$Exe)
+    Stop-RustDesk
+    $svc = Get-Service -Name 'RustDesk' -ErrorAction SilentlyContinue
+    if ($svc) {
+        Restart-Service -Name 'RustDesk' -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 8
+        return
+    }
+    Start-RustDesk
+}
+
+function Get-RustDeskIdFromCli {
+    param([string]$Exe)
+    try {
+        $raw = cmd.exe /c "`"$Exe`" --get-id 2>nul | more"
+        $text = ($raw | Out-String).Trim()
+        if ($text -match '(\d{6,12})') { return $Matches[1] }
+    } catch {}
+
+    try {
+        $out = & $Exe --get-id 2>&1 | Out-String
+        if ($out -match '(\d{6,12})') { return $Matches[1] }
+    } catch {}
+
+    try {
+        Start-Process -FilePath $Exe -ArgumentList '--get-id' -Wait -WindowStyle Hidden -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 2
+        $clip = Get-Clipboard -Raw -ErrorAction SilentlyContinue
+        if ($clip -and ($clip.Trim() -match '^\d{6,12}$')) {
+            return $clip.Trim()
+        }
+    } catch {}
+
+    return $null
+}
+
 function Get-RustDeskId {
-    $paths = @(
-        (Join-Path $env:APPDATA 'RustDesk\config\RustDesk.toml'),
-        (Join-Path $env:APPDATA 'RustDesk\config\RustDesk2.toml')
-    )
-    foreach ($path in $paths) {
-        if (-not (Test-Path $path)) { continue }
-        $text = Get-Content -Path $path -Raw -ErrorAction SilentlyContinue
-        if ($text -match "id\s*=\s*'(\d+)'") { return $Matches[1] }
-        if ($text -match 'id\s*=\s*"(\d+)"') { return $Matches[1] }
+    param([string]$Exe)
+    $fromCli = Get-RustDeskIdFromCli -Exe $Exe
+    if ($fromCli) { return $fromCli }
+
+    foreach ($dir in (Get-RustDeskConfigDirs)) {
+        $paths = @(
+            (Join-Path $dir 'RustDesk.toml'),
+            (Join-Path $dir 'RustDesk2.toml')
+        )
+        foreach ($path in $paths) {
+            if (-not (Test-Path $path)) { continue }
+            $text = Get-Content -Path $path -Raw -ErrorAction SilentlyContinue
+            if ($text -match "id\s*=\s*'(\d+)'") { return $Matches[1] }
+            if ($text -match 'id\s*=\s*"(\d+)"') { return $Matches[1] }
+        }
     }
     return $null
 }
@@ -144,7 +216,7 @@ function Register-PortalHost {
 }
 
 Write-Host '========================================'
-Write-Host ' JustPlay — Cai dat RustDesk'
+Write-Host ' JustPlay - Cai dat RustDesk'
 Write-Host '========================================'
 Write-Host ''
 
@@ -162,22 +234,34 @@ if (-not $exe) {
     throw 'Khong tim thay rustdesk.exe sau khi cai.'
 }
 
-Write-Host "[3/5] Cau hinh server $RustDeskHost ..."
-Stop-RustDesk
-Write-RustDeskServerConfig -HostName $RustDeskHost -Key $PublicKey
+Write-Host '[2b/5] Cai Windows service (neu chua co)...'
+Install-RustDeskService -Exe $exe
 Start-RustDesk
+
+$rdId = Get-RustDeskId -Exe $exe
+if ($rdId) {
+    Write-Host "      ID hien co: $rdId"
+}
+
+Write-Host "[3/5] Cau hinh server $RustDeskHost ..."
+Write-RustDeskServerConfig -HostName $RustDeskHost -Key $PublicKey -Exe $exe
+Restart-RustDesk -Exe $exe
 Set-RustDeskPassword -Exe $exe -Password $ClientPassword
 
 Write-Host '[4/5] Doc RustDesk ID...'
-$rdId = $null
-for ($i = 0; $i -lt 12; $i++) {
-    $rdId = Get-RustDeskId
-    if ($rdId) { break }
-    Start-Sleep -Seconds 3
-    if ($i % 3 -eq 2) { Start-RustDesk }
+if (-not $rdId) {
+    for ($i = 0; $i -lt 20; $i++) {
+        $rdId = Get-RustDeskId -Exe $exe
+        if ($rdId) { break }
+        Write-Host "      Cho RustDesk khoi tao ID... ($($i + 1)/20)"
+        Start-Sleep -Seconds 5
+        if ($i % 4 -eq 3) {
+            Restart-RustDesk -Exe $exe
+        }
+    }
 }
 if (-not $rdId) {
-    throw 'Khong doc duoc RustDesk ID. Mo RustDesk, kiem tra ket noi rd.justplay.vn roi chay lai.'
+    throw "Khong doc duoc RustDesk ID. Kiem tra RustDesk dang chay, ket noi $RustDeskHost, roi chay lai script."
 }
 
 Write-Host "      ID: $rdId"
