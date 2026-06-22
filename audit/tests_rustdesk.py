@@ -181,3 +181,53 @@ class RustdeskEnrollApiTests(TestCase):
             content_type='application/json',
         )
         self.assertEqual(resp.status_code, 403)
+
+
+class RustdeskDownloadTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.dept = Department.objects.create(name='IT DL', sort_order=1)
+        DepartmentMenuPermission.objects.create(department=cls.dept, modules=['audit'])
+        perms = normalize_group_permissions(permissions_from_legacy_role(ROLE_EMPLOYEE))
+        perms[MODULE_AUDIT] = {
+            'view': True,
+            'menus': {'rustdesk': {'view': True, 'create': False, 'update': False, 'delete': False, 'export': False}},
+        }
+        cls.group = PermissionGroup.objects.create(
+            slug='test-audit-rd-dl',
+            name='Audit RD dl',
+            module_permissions=perms,
+        )
+        cls.user = User.objects.create_user('audrddl', password='x')
+        profile = Profile.objects.get(user=cls.user)
+        profile.department = cls.dept
+        profile.role = ROLE_EMPLOYEE
+        profile.permission_group = cls.group
+        profile.save()
+
+    def setUp(self):
+        self.client = Client(HTTP_HOST='testserver')
+
+    @override_settings(
+        RUSTDESK_ENROLL_SECRET='enroll-secret',
+        RUSTDESK_PUBLIC_KEY='public-key',
+        RUSTDESK_CLIENT_PASSWORD='client-pw',
+        RUSTDESK_PUBLIC_HOST='rd.justplay.vn',
+    )
+    def test_windows_download_is_zip_with_substituted_scripts(self):
+        import io
+        import zipfile
+
+        self.client.force_login(self.user)
+        resp = self.client.get(reverse('audit:rustdesk_download_setup') + '?os=win')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp['Content-Type'], 'application/zip')
+        with zipfile.ZipFile(io.BytesIO(resp.content)) as archive:
+            names = set(archive.namelist())
+            self.assertEqual(names, {'JustPlay-RustDesk-Setup.cmd', 'JustPlay-RustDesk-Setup.ps1'})
+            cmd = archive.read('JustPlay-RustDesk-Setup.cmd').decode('utf-8')
+            ps1 = archive.read('JustPlay-RustDesk-Setup.ps1').decode('utf-8')
+        self.assertIn('\r\n', cmd)
+        self.assertNotIn('__ENROLL_SECRET__', ps1)
+        self.assertIn('enroll-secret', ps1)
+        self.assertIn('public-key', ps1)

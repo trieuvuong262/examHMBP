@@ -19,7 +19,7 @@
             <div class="d-flex flex-wrap gap-2">
                 <a href="{% url 'audit:rustdesk_download_setup' %}?os=win"
                    class="btn btn-hm">
-                    <i class="bi bi-windows me-1"></i>Tải cho Windows (.cmd)
+                    <i class="bi bi-windows me-1"></i>Tải cho Windows (.zip)
                 </a>
                 <a href="{% url 'audit:rustdesk_download_setup' %}?os=linux"
                    class="btn btn-outline-secondary">
@@ -33,7 +33,7 @@
         <div class="card-body small">
             <h5 class="fw-semibold mb-3">Bước 2 — Chạy file</h5>
             <ul class="mb-0">
-                <li><strong>Windows:</strong> Chuột phải <code>JustPlay-RustDesk-Setup.cmd</code> → <em>Run as administrator</em>.</li>
+                <li><strong>Windows:</strong> Giải nén <code>JustPlay-RustDesk-Setup-win.zip</code>, chuột phải <code>JustPlay-RustDesk-Setup.cmd</code> → <em>Run as administrator</em> (giữ cả file <code>.ps1</code> cùng thư mục).</li>
                 <li><strong>Linux Mint:</strong> <code>chmod +x JustPlay-RustDesk-Setup.sh && sudo ./JustPlay-RustDesk-Setup.sh</code></li>
             </ul>
             <p class="text-muted mt-3 mb-0">
