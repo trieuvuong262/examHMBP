@@ -101,17 +101,6 @@
 
     form?.addEventListener('submit', function () { syncHidden(); });
 
-    const tabHint = document.getElementById('office-tab-hint');
-    const hints = {
-        'bang-tab': 'Nhập tiêu đề cột ở hàng hồng, số liệu ở từng ô bên dưới.',
-        'vanban-tab': 'Ribbon định dạng đầy đủ phía trên, soạn văn bản trên nền trắng.',
-    };
-    document.querySelectorAll('#officeReportTabs [data-bs-toggle="tab"]').forEach(function (btn) {
-        btn.addEventListener('shown.bs.tab', function () {
-            if (tabHint && hints[btn.id]) tabHint.textContent = hints[btn.id];
-        });
-    });
-
     loadInitial();
     render();
 })();

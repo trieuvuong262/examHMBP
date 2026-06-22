@@ -167,7 +167,7 @@ class WeeklyWorkReportForm(forms.ModelForm):
             'links': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 4,
-                'placeholder': 'Mỗi dòng một link (Google Drive, OneDrive, website…)',
+                'placeholder': 'Mỗi dòng một link',
             }),
         }
 

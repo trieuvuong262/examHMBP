@@ -431,7 +431,6 @@ def _today_office_report(request, report_date):
         'vanban_files': vanban_files,
         'employee_name': (user_profile.full_name if user_profile else '') or request.user.username,
         'department_name': user_profile.department.name if user_profile and user_profile.department_id else '',
-        'content_tab_hint': 'Nhập tiêu đề cột ở hàng hồng, số liệu ở từng ô bên dưới.',
         'copy_url': reverse('reports:copy_yesterday_vp') if ctx['has_yesterday'] and can_edit else None,
         'copy_label': 'Sao chép HQ',
         'copy_confirm': 'Sao chép nội dung từ hôm qua?',

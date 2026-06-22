@@ -31,13 +31,6 @@
                 <div class="jp-weekly-embed-wrap is-pdf mb-3">
                     <iframe src="{{ file_preview.preview_url }}" title="Xem trước {{ file_name }}" loading="lazy"></iframe>
                 </div>
-                <p class="text-muted small mb-3">
-                    {% if file_preview.kind == 'office' %}
-                    Word/Excel được chuyển sang PDF để xem trước — bản gốc vẫn tải qua nút bên dưới.
-                    {% else %}
-                    Xem trước PDF trực tiếp từ NAS.
-                    {% endif %}
-                </p>
                 {% endif %}
             {% else %}
             <div class="text-center py-4 mb-2">
