@@ -74,6 +74,10 @@ class DeviceAdmin(admin.ModelAdmin):
                 'windows_version',
                 'windows_license',
                 'last_scan_date',
+                'ultraviewer_id',
+                'ultraviewer_password',
+                'rustdesk_id',
+                'rustdesk_password',
             ),
         }),
         ('Tài chính & QR', {

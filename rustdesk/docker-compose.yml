@@ -1,0 +1,45 @@
+# RustDesk OSS — tách hoàn toàn khỏi Portal (thư mục /opt/rustdesk).
+# Port: 21115-21117 TCP, 21116 UDP — không trùng 80/443/5432 của Portal.
+#
+# Docs: docs/RUSTDESK_SELF_HOST.md
+
+services:
+  hbbr:
+    image: ${RUSTDESK_IMAGE:-rustdesk/rustdesk-server:1.1.14}
+    container_name: rustdesk-hbbr
+    command: hbbr
+    volumes:
+      - ./data:/root
+    network_mode: host
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: ${HBBR_MEM_LIMIT:-512m}
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  hbbs:
+    image: ${RUSTDESK_IMAGE:-rustdesk/rustdesk-server:1.1.14}
+    container_name: rustdesk-hbbs
+    command: hbbs -r ${RUSTDESK_PUBLIC_HOST}:21117
+    environment:
+      ALWAYS_USE_RELAY: ${ALWAYS_USE_RELAY:-Y}
+    volumes:
+      - ./data:/root
+    network_mode: host
+    depends_on:
+      - hbbr
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: ${HBBS_MEM_LIMIT:-256m}
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

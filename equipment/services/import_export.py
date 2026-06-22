@@ -92,6 +92,8 @@ COLUMN_ALIASES = {
     'description': ('description', 'Mô tả', 'mo ta'),
     'hostname': ('hostname', 'Hostname'),
     'ip_address': ('ip_address', 'Địa chỉ IP', 'dia chi ip', 'ip'),
+    'rustdesk_id': ('rustdesk_id', 'RustDesk ID', 'rustdesk id'),
+    'rustdesk_password': ('rustdesk_password', 'RustDesk mật khẩu', 'rustdesk mat khau'),
     'quantity': ('quantity', 'Số lượng', 'so luong'),
     'unit_price': ('unit_price', 'Đơn giá', 'don gia'),
 }
@@ -159,6 +161,7 @@ def apply_device_list_filters(qs, params):
             | Q(model_number__icontains=q)
             | Q(hostname__icontains=q)
             | Q(ip_address__icontains=q)
+            | Q(rustdesk_id__icontains=q)
             | Q(usage_department_text__icontains=q)
             | Q(assigned_user_text__icontains=q)
             | Q(usage_department__name__icontains=q)
@@ -222,6 +225,8 @@ def _device_export_row(device) -> dict:
         'description': device.description,
         'hostname': device.hostname,
         'ip_address': str(device.ip_address) if device.ip_address else '',
+        'rustdesk_id': device.rustdesk_id_display or device.rustdesk_id,
+        'rustdesk_password': device.rustdesk_password,
         'windows_version': device.windows_version,
         'windows_license': device.windows_license,
         'quantity': device.quantity,
@@ -357,6 +362,10 @@ def import_devices_from_excel(file_obj, category_code: str) -> tuple[int, list[s
                 description=_safe_str(_cell(row, 'description')),
                 hostname=_safe_str(_cell(row, 'hostname')),
                 ip_address=ip_value,
+                rustdesk_id=''.join(
+                    c for c in _safe_str(_cell(row, 'rustdesk_id')) if c.isdigit()
+                )[:20],
+                rustdesk_password=_safe_str(_cell(row, 'rustdesk_password'))[:128],
                 quantity=max(1, _safe_int(_cell(row, 'quantity'), 1)),
                 unit_price=_safe_int(_cell(row, 'unit_price'), 0),
             )

@@ -499,8 +499,49 @@ class DeviceFormCategoryTests(TestCase):
         prod_form = DeviceForm(equipment_scope=SCOPE_PRODUCTION)
         self.assertIn('ultraviewer_id', it_form.fields)
         self.assertIn('ultraviewer_password', it_form.fields)
+        self.assertIn('rustdesk_id', it_form.fields)
+        self.assertIn('rustdesk_password', it_form.fields)
         self.assertNotIn('ultraviewer_id', prod_form.fields)
         self.assertNotIn('ultraviewer_password', prod_form.fields)
+        self.assertNotIn('rustdesk_id', prod_form.fields)
+        self.assertNotIn('rustdesk_password', prod_form.fields)
+
+    def test_rustdesk_id_normalizes_digits(self):
+        from equipment.forms import DeviceForm
+        from equipment.scope import SCOPE_IT
+
+        form = DeviceForm(
+            equipment_scope=SCOPE_IT,
+            data={
+                'device_code': '',
+                'name': 'Test PC',
+                'managed_department': '',
+                'category': 'PC',
+                'usage_department': '',
+                'usage_department_text': '',
+                'usage_room': '',
+                'assigned_user': '',
+                'assigned_user_text': '',
+                'handover_date': '',
+                'model_number': '',
+                'serial_number': '',
+                'configuration': '',
+                'description': '',
+                'contact_email': '',
+                'status': 'active',
+                'photo': '',
+                'quantity': 1,
+                'unit_price': 0,
+                'hostname': '',
+                'ip_address': '',
+                'ultraviewer_id': '',
+                'ultraviewer_password': '',
+                'rustdesk_id': '258 599 030',
+                'rustdesk_password': 'abc',
+            },
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data['rustdesk_id'], '258599030')
 
     def test_device_form_template_renders_category_options(self):
         from django.template import Context, Template

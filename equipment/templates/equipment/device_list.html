@@ -164,7 +164,8 @@
                                 {% if is_it_scope %}
                                     {% if device.hostname %}<div>{{ device.hostname }}</div>{% endif %}
                                     {% if device.ip_address %}<div class="text-muted font-monospace">{{ device.ip_address }}</div>{% endif %}
-                                    {% if not device.hostname and not device.ip_address %}
+                                    {% if device.rustdesk_id %}<div class="text-hm font-monospace" title="RustDesk">RD {{ device.rustdesk_id_display }}</div>{% endif %}
+                                    {% if not device.hostname and not device.ip_address and not device.rustdesk_id %}
                                         {% if device.serial_number %}<div class="text-muted font-monospace">S/N {{ device.serial_number|truncatechars:22 }}</div>{% else %}<span class="text-muted">—</span>{% endif %}
                                     {% endif %}
                                 {% else %}

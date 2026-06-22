@@ -49,7 +49,7 @@ def scope_ui_context(scope: str | None) -> dict:
             'scope_page_intro': (
                 'Máy tính, mạng, thiết bị văn phòng — Agent quét một lần khi cài, theo dõi hostname, IP, Windows.'
             ),
-            'scope_list_search_placeholder': 'Mã TB, tên, serial, hostname, IP, người dùng…',
+            'scope_list_search_placeholder': 'Mã TB, tên, serial, hostname, IP, RustDesk ID, người dùng…',
             'scope_list_col_specs': 'Hostname / IP',
             'scope_list_col_usage': 'Phòng ban / NSD',
             'scope_add_title': 'Thêm thiết bị IT',

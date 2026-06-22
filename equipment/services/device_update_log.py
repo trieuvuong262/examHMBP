@@ -31,6 +31,8 @@ TRACKED_FIELDS: list[tuple[str, str]] = [
     ('ip_address', 'IP'),
     ('ultraviewer_id', 'UltraViewer ID'),
     ('ultraviewer_password', 'UltraViewer mật khẩu'),
+    ('rustdesk_id', 'RustDesk ID'),
+    ('rustdesk_password', 'RustDesk mật khẩu'),
 ]
 
 
@@ -53,6 +55,8 @@ def _display_value(device: Device, field: str):
         if device.photo:
             return device.photo.name.rsplit('/', 1)[-1]
         return '—'
+    if field == 'rustdesk_id':
+        return device.rustdesk_id_display or '—'
     value = getattr(device, field, None)
     if value in (None, ''):
         return '—'

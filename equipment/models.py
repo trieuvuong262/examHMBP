@@ -91,6 +91,12 @@ class Device(models.Model):
     ultraviewer_password = models.CharField(
         max_length=128, blank=True, verbose_name='UltraViewer mật khẩu',
     )
+    rustdesk_id = models.CharField(
+        max_length=20, blank=True, verbose_name='RustDesk ID',
+    )
+    rustdesk_password = models.CharField(
+        max_length=128, blank=True, verbose_name='RustDesk mật khẩu',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -115,6 +121,15 @@ class Device(models.Model):
         if self.managed_department_id:
             return self.managed_department.name
         return '—'
+
+    @property
+    def rustdesk_id_display(self) -> str:
+        digits = ''.join(c for c in (self.rustdesk_id or '') if c.isdigit())
+        if len(digits) == 9:
+            return f'{digits[0:3]} {digits[3:6]} {digits[6:9]}'
+        if len(digits) == 12:
+            return f'{digits[0:3]} {digits[3:6]} {digits[6:9]} {digits[9:12]}'
+        return digits
 
     @property
     def is_it_equipment(self) -> bool:

@@ -131,6 +131,24 @@
     </div>
 </div>
 
+<div class="jp-eq-form-section mb-4">
+    <h6 class="fw-bold text-hm mb-3">RustDesk <span class="text-muted fw-normal">(server co.justplay.vn)</span></h6>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label fw-semibold" for="{{ form.rustdesk_id.id_for_label }}">{{ form.rustdesk_id.label }}</label>
+            {{ form.rustdesk_id }}
+            {% if form.rustdesk_id.help_text %}<div class="form-text">{{ form.rustdesk_id.help_text }}</div>{% endif %}
+            {% if form.rustdesk_id.errors %}<div class="text-danger small">{{ form.rustdesk_id.errors }}</div>{% endif %}
+        </div>
+        <div class="col-md-6">
+            <label class="form-label fw-semibold" for="{{ form.rustdesk_password.id_for_label }}">{{ form.rustdesk_password.label }}</label>
+            {{ form.rustdesk_password }}
+            {% if form.rustdesk_password.help_text %}<div class="form-text">{{ form.rustdesk_password.help_text }}</div>{% endif %}
+            {% if form.rustdesk_password.errors %}<div class="text-danger small">{{ form.rustdesk_password.errors }}</div>{% endif %}
+        </div>
+    </div>
+</div>
+
 <div class="jp-eq-form-section mb-0">
     <h6 class="fw-bold text-hm mb-3">Giá trị tài sản <span class="text-muted fw-normal">(tuỳ chọn)</span></h6>
     <div class="row g-3">

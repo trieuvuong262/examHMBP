@@ -64,6 +64,15 @@
             <dd class="col-sm-8">{% if device.ultraviewer_id %}<code>{{ device.ultraviewer_id }}</code>{% else %}—{% endif %}</dd>
             <dt class="col-sm-4">UltraViewer mật khẩu</dt>
             <dd class="col-sm-8">{% if device.ultraviewer_password %}<code>{{ device.ultraviewer_password }}</code>{% else %}—{% endif %}</dd>
+            <dt class="col-sm-4">RustDesk ID</dt>
+            <dd class="col-sm-8">
+                {% if device.rustdesk_id %}
+                <code>{{ device.rustdesk_id_display }}</code>
+                <span class="text-muted small ms-1">· co.justplay.vn</span>
+                {% else %}—{% endif %}
+            </dd>
+            <dt class="col-sm-4">RustDesk mật khẩu</dt>
+            <dd class="col-sm-8">{% if device.rustdesk_password %}<code>{{ device.rustdesk_password }}</code>{% else %}—{% endif %}</dd>
         </dl>
     </div>
 </div>
