@@ -77,11 +77,18 @@ write_server_config() {
   echo "[3/5] Cau hinh server ${RUSTDESK_HOST}..."
   mkdir -p "$CONFIG_DIR"
   cat > "${CONFIG_DIR}/RustDesk2.toml" <<EOF
+rendezvous_server = '${RUSTDESK_HOST}'
+nat_type = 1
+
 [options]
 custom-rendezvous-server = '${RUSTDESK_HOST}'
-relay-server = '${RUSTDESK_HOST}'
+relay-server = '${RUSTDESK_HOST}:21117'
 api-server = ''
 key = '${PUBLIC_KEY}'
+approve-mode = 'password'
+verification-method = 'use-both-passwords'
+allow-logon-screen-password = 'Y'
+hide-stop-service = 'Y'
 EOF
   if [[ -n "${SUDO_USER:-}" ]]; then
     chown -R "${SUDO_USER}:${SUDO_USER}" "$(dirname "$CONFIG_DIR")" 2>/dev/null || true
@@ -99,6 +106,19 @@ start_rustdesk() {
   if [[ -n "$bin" ]]; then
     run_as_user "$bin" &>/dev/null &
     sleep 6
+  fi
+}
+
+restart_rustdesk() {
+  local bin="${1:-$(find_rustdesk_bin)}"
+  stop_rustdesk
+  if systemctl list-unit-files 'rustdesk.service' &>/dev/null; then
+    systemctl restart rustdesk 2>/dev/null || true
+    sleep 5
+    return
+  fi
+  if [[ -n "$bin" ]]; then
+    start_rustdesk
   fi
 }
 
@@ -127,10 +147,55 @@ get_rustdesk_id() {
 set_password() {
   local bin="$1"
   if [[ -z "$CLIENT_PASSWORD" ]]; then
-    return 0
+    echo '      Canh bao: Chua cau hinh RUSTDESK_CLIENT_PASSWORD tren Portal.'
+    return 1
   fi
-  run_as_user "$bin" --password "$CLIENT_PASSWORD" &>/dev/null || true
+  echo '      Dat mat khau mac dinh (permanent)...'
+  local attempt ok=1
+  for attempt in 1 2 3; do
+    if run_as_user "$bin" --password "$CLIENT_PASSWORD"; then ok=0; break; fi
+    if "$bin" --password "$CLIENT_PASSWORD"; then ok=0; break; fi
+    echo "      Thu lai dat mat khau ($attempt/3)"
+    sleep 2
+  done
   sleep 2
+  return "$ok"
+}
+
+apply_password() {
+  local bin="$1"
+  restart_rustdesk "$bin"
+  set_password "$bin" || true
+  restart_rustdesk "$bin"
+  set_password "$bin" || true
+}
+
+ensure_autostart() {
+  local bin="$1"
+  echo '[6/6] Kiem tra san sang nhan ket noi...'
+  if systemctl list-unit-files 'rustdesk.service' &>/dev/null; then
+    systemctl enable rustdesk 2>/dev/null || true
+    systemctl start rustdesk 2>/dev/null || true
+    echo "      systemd rustdesk: $(systemctl is-active rustdesk 2>/dev/null || echo unknown)"
+  fi
+  if [[ -n "${SUDO_USER:-}" ]]; then
+    local home autostart_dir
+    home="$(getent passwd "$SUDO_USER" | cut -d: -f6)"
+    autostart_dir="${home}/.config/autostart"
+    mkdir -p "$autostart_dir"
+    cat > "${autostart_dir}/rustdesk.desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Name=RustDesk
+Comment=JustPlay remote desktop
+Exec=${bin}
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+EOF
+    chown "${SUDO_USER}:${SUDO_USER}" "${autostart_dir}/rustdesk.desktop"
+  fi
+  echo '      Kiem tra: RustDesk -> Network phai Ready (khong Offline).'
 }
 
 register_portal() {
@@ -139,8 +204,22 @@ register_portal() {
   hostname="$(hostname -s 2>/dev/null || hostname)"
   ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
   echo '[5/5] Dang ky len Portal...'
-  payload=$(printf '{"enroll_secret":"%s","rustdesk_id":"%s","rustdesk_password":"%s","hostname":"%s","ip_address":"%s","name":"%s"}' \
-    "$ENROLL_SECRET" "$rd_id" "$CLIENT_PASSWORD" "$hostname" "$ip" "$hostname")
+  payload="$(
+    JP_ENROLL="$ENROLL_SECRET" \
+    JP_RD_ID="$rd_id" \
+    JP_PW="$CLIENT_PASSWORD" \
+    JP_HOST="$hostname" \
+    JP_IP="$ip" \
+    JP_NAME="$hostname" \
+    python3 -c "import json, os; print(json.dumps({
+        'enroll_secret': os.environ['JP_ENROLL'],
+        'rustdesk_id': os.environ['JP_RD_ID'],
+        'rustdesk_password': os.environ['JP_PW'],
+        'hostname': os.environ['JP_HOST'],
+        'ip_address': os.environ['JP_IP'],
+        'name': os.environ['JP_NAME'],
+    }))"
+  )"
   curl -fsSL -X POST \
     -H 'Content-Type: application/json' \
     -d "$payload" \
@@ -161,8 +240,7 @@ echo "      Su dung: $BIN"
 
 stop_rustdesk
 write_server_config
-start_rustdesk
-set_password "$BIN"
+restart_rustdesk "$BIN"
 
 echo '[4/5] Doc RustDesk ID...'
 RD_ID=''
@@ -183,7 +261,13 @@ if [[ -z "$RD_ID" ]]; then
 fi
 echo "      ID: $RD_ID"
 
+echo '[4b/5] Dat mat khau mac dinh...'
+apply_password "$BIN"
+
 RESP="$(register_portal "$RD_ID")"
+
+ensure_autostart "$BIN"
+
 echo ''
 echo '========================================'
 echo ' THANH CONG'

@@ -52,14 +52,19 @@ function Find-RustDeskExe {
 function Invoke-RustDeskCli {
     param(
         [Parameter(Mandatory = $true)][string]$Exe,
-        [string[]]$ArgumentList = @()
+        [string[]]$ArgumentList = @(),
+        [int]$TimeoutSec = 20
     )
     if (-not (Test-Path -LiteralPath $Exe)) {
         throw "Khong tim thay rustdesk.exe: $Exe"
     }
     $workDir = Split-Path -Parent $Exe
     $proc = Start-Process -FilePath $Exe -ArgumentList $ArgumentList `
-        -WorkingDirectory $workDir -Wait -PassThru -WindowStyle Hidden
+        -WorkingDirectory $workDir -PassThru -WindowStyle Hidden
+    if (-not $proc.WaitForExit($TimeoutSec * 1000)) {
+        Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+        return 124
+    }
     return $proc.ExitCode
 }
 
@@ -102,6 +107,8 @@ function Install-RustDeskService {
             Start-Sleep -Seconds 3
         }
         Write-Host '      Service RustDesk da co.'
+        Ensure-RustDeskServiceAccount
+        Ensure-RustDeskAutoStart -Exe $Exe
         return
     }
     $isSystemInstall = ($Exe -like '*\Program Files\*') -or ($Exe -like '*\Program Files (x86)\*')
@@ -116,21 +123,99 @@ function Install-RustDeskService {
         return
     }
     Start-Sleep -Seconds 2
+    Ensure-RustDeskServiceAccount
     $svc = Get-Service -Name 'RustDesk' -ErrorAction SilentlyContinue
     if ($svc -and $svc.Status -ne 'Running') {
         Start-Service -Name 'RustDesk' -ErrorAction SilentlyContinue
         Start-Sleep -Seconds 3
     }
+    Ensure-RustDeskAutoStart -Exe $Exe
+}
+
+function Ensure-RustDeskServiceAccount {
+    $svc = Get-Service -Name 'RustDesk' -ErrorAction SilentlyContinue
+    if (-not $svc) { return }
+    try {
+        Start-Process -FilePath 'sc.exe' -ArgumentList 'config', 'RustDesk', 'obj=', 'LocalSystem' `
+            -Wait -WindowStyle Hidden -ErrorAction SilentlyContinue | Out-Null
+    } catch {}
+}
+
+function Ensure-RustDeskAutoStart {
+    param([string]$Exe)
+    $svc = Get-Service -Name 'RustDesk' -ErrorAction SilentlyContinue
+    if ($svc) {
+        Set-Service -Name 'RustDesk' -StartupType Automatic -ErrorAction SilentlyContinue
+        Start-Process -FilePath 'sc.exe' -ArgumentList 'config', 'RustDesk', 'start=', 'auto' `
+            -Wait -WindowStyle Hidden -ErrorAction SilentlyContinue | Out-Null
+        Start-Process -FilePath 'sc.exe' -ArgumentList 'failure', 'RustDesk', 'reset=', '86400', `
+            'actions=', 'restart/5000/restart/5000/restart/10000' `
+            -Wait -WindowStyle Hidden -ErrorAction SilentlyContinue | Out-Null
+        if ($svc.Status -ne 'Running') {
+            Start-Service -Name 'RustDesk' -ErrorAction SilentlyContinue
+        }
+        Write-Host '      Windows service: Automatic + tu khoi dong khi bat may.'
+        return
+    }
+    $isSystemInstall = ($Exe -like '*\Program Files\*') -or ($Exe -like '*\Program Files (x86)\*')
+    if (-not $isSystemInstall) {
+        $startup = [Environment]::GetFolderPath('CommonStartup')
+        $bat = Join-Path $startup 'JustPlay-RustDesk.bat'
+        @"
+@echo off
+start "" "$Exe" --tray
+"@ | Set-Content -Path $bat -Encoding ASCII
+        Write-Host "      Startup folder: $bat"
+        return
+    }
+    Write-Host '      Canh bao: Chua co service RustDesk — chay lai script voi quyen Admin.'
+}
+
+function Show-RustDeskRemoteStatus {
+    param([string]$Exe, [string]$ExpectedId)
+    Write-Host '[6/6] Kiem tra san sang nhan ket noi...'
+    $svc = Get-Service -Name 'RustDesk' -ErrorAction SilentlyContinue
+    if (-not $svc) {
+        Write-Host '      CANH BAO: Chua co Windows service — may se OFFLINE.'
+        Write-Host '      Chay lai script voi quyen Administrator.'
+        return
+    }
+    if ($svc.Status -ne 'Running') {
+        Write-Host '      Service dang Stop — dang khoi dong...'
+        Start-Service -Name 'RustDesk' -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 4
+        $svc.Refresh()
+    }
+    Write-Host "      Service: $($svc.Status) ($($svc.StartType))"
+    Ensure-RustDeskAutoStart -Exe $Exe
+    $liveId = Get-RustDeskId -Exe $Exe
+    if ($liveId -and $liveId -ne $ExpectedId) {
+        Write-Host "      CANH BAO: ID hien tai ($liveId) khac ID dang ky ($ExpectedId)."
+        Write-Host '      Portal can cap nhat — chay lai script hoac sua ID tren Portal.'
+    }
+    Write-Host ''
+    Write-Host '      Luu y tren may dich:'
+    Write-Host '      - Icon RustDesk mo KHONG du = phai co Service Running'
+    Write-Host '      - Settings -> Network: trang thai Ready'
+    Write-Host '      - KHONG bam Exit tren tray (se tat service -> Offline)'
+    Write-Host "      - ID server: $RustDeskHost"
 }
 
 function Write-RustDeskServerConfig {
     param([string]$HostName, [string]$Key, [string]$Exe)
     $toml = @"
+rendezvous_server = '$HostName'
+nat_type = 1
+
 [options]
 custom-rendezvous-server = '$HostName'
-relay-server = '$HostName'
+relay-server = '${HostName}:21117'
 api-server = ''
 key = '$Key'
+approve-mode = 'password'
+verification-method = 'use-both-passwords'
+allow-logon-screen-password = 'Y'
+hide-stop-service = 'Y'
 "@
     foreach ($dir in (Get-RustDeskConfigDirs)) {
         New-Item -ItemType Directory -Force -Path $dir | Out-Null
@@ -159,8 +244,10 @@ function Restart-RustDesk {
     Stop-RustDesk
     $svc = Get-Service -Name 'RustDesk' -ErrorAction SilentlyContinue
     if ($svc) {
-        Restart-Service -Name 'RustDesk' -Force -ErrorAction SilentlyContinue
-        Start-Sleep -Seconds 8
+        Stop-Service -Name 'RustDesk' -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 2
+        Start-Service -Name 'RustDesk' -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 4
         return
     }
     Start-RustDesk
@@ -175,7 +262,7 @@ function Get-RustDeskIdFromCli {
     } catch {}
 
     try {
-        Invoke-RustDeskCli -Exe $Exe -ArgumentList @('--get-id') | Out-Null
+        Invoke-RustDeskCli -Exe $Exe -ArgumentList @('--get-id') -TimeoutSec 8 | Out-Null
         Start-Sleep -Seconds 2
         $clip = Get-Clipboard -Raw -ErrorAction SilentlyContinue
         if ($clip -and ($clip.Trim() -match '^\d{6,12}$')) {
@@ -208,9 +295,31 @@ function Get-RustDeskId {
 
 function Set-RustDeskPassword {
     param([string]$Exe, [string]$Password)
+    if (-not $Password) {
+        Write-Host '      Canh bao: Chua cau hinh RUSTDESK_CLIENT_PASSWORD tren Portal.'
+        return $false
+    }
+    $ok = $false
+    for ($attempt = 1; $attempt -le 2; $attempt++) {
+        Write-Host "      Dat mat khau (lan $attempt/2)..."
+        $code = Invoke-RustDeskCli -Exe $Exe -ArgumentList @('--password', $Password) -TimeoutSec 8
+        if ($code -eq 0 -or $code -eq 124) {
+            $ok = $true
+            break
+        }
+        Write-Host "      Canh bao: --password exit $code"
+        Start-Sleep -Seconds 2
+    }
+    Start-Sleep -Seconds 1
+    return $ok
+}
+
+function Apply-RustDeskPassword {
+    param([string]$Exe, [string]$Password)
     if (-not $Password) { return }
-    Invoke-RustDeskCli -Exe $Exe -ArgumentList @('--password', $Password) | Out-Null
-    Start-Sleep -Seconds 2
+    Write-Host '      Khoi dong lai RustDesk service...'
+    Restart-RustDesk -Exe $Exe
+    [void](Set-RustDeskPassword -Exe $Exe -Password $Password)
 }
 
 function Register-PortalHost {
@@ -236,7 +345,7 @@ function Register-PortalHost {
         name = $hostname
     } | ConvertTo-Json -Compress
     $uri = ($PortalBase.TrimEnd('/')) + '/nhat-ky/rustdesk/api/dang-ky/'
-    Write-Host "[5/5] Dang ky len Portal: $uri"
+    Write-Host "      POST $uri"
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     $resp = Invoke-RestMethod -Uri $uri -Method Post -Body $payload -ContentType 'application/json; charset=utf-8'
     if ($resp.status -ne 'success') {
@@ -267,7 +376,6 @@ Write-Host "      Su dung: $exe"
 
 Write-Host '[2b/5] Cai Windows service (neu chua co)...'
 Install-RustDeskService -Exe $exe
-Start-RustDesk
 
 $rdId = Get-RustDeskId -Exe $exe
 if ($rdId) {
@@ -277,7 +385,6 @@ if ($rdId) {
 Write-Host "[3/5] Cau hinh server $RustDeskHost ..."
 Write-RustDeskServerConfig -HostName $RustDeskHost -Key $PublicKey -Exe $exe
 Restart-RustDesk -Exe $exe
-Set-RustDeskPassword -Exe $exe -Password $ClientPassword
 
 Write-Host '[4/5] Doc RustDesk ID...'
 if (-not $rdId) {
@@ -296,7 +403,14 @@ if (-not $rdId) {
 }
 
 Write-Host "      ID: $rdId"
+
+Write-Host '[4b/5] Dat mat khau mac dinh...'
+Apply-RustDeskPassword -Exe $exe -Password $ClientPassword
+
+Write-Host '[5/5] Dang ky len Portal...'
 $result = Register-PortalHost -PortalBase $PortalUrl -Secret $EnrollSecret -RustDeskId $rdId -Password $ClientPassword
+
+Show-RustDeskRemoteStatus -Exe $exe -ExpectedId $rdId
 
 Write-Host ''
 Write-Host '========================================'
@@ -306,3 +420,4 @@ Write-Host " Portal: $($result.name) (created=$($result.created))"
 Write-Host ' IT co the ket noi tai Quan tri -> RustDesk'
 Write-Host '========================================'
 exit 0
+

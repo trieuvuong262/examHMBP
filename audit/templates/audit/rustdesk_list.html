@@ -29,6 +29,20 @@
         {% endif %}
     </div>
 
+    <div class="alert alert-info border small mb-3 jp-rd-hint">
+        <i class="bi bi-pc-display me-1"></i>
+        <strong>Máy đích báo Offline?</strong> Mở app không đủ — trên Windows cần service <strong>RustDesk Running</strong>
+        (services.msc). Settings → Network phải <strong>Ready</strong>. Không bấm Exit trên icon tray.
+        Chạy lại <a href="{% url 'audit:rustdesk_install' %}">script cài đặt</a> sau khi đổi server.
+    </div>
+
+    <div class="alert alert-warning border small mb-3 jp-rd-hint">
+        <i class="bi bi-exclamation-triangle me-1"></i>
+        <strong>Máy IT (người bấm Kết nối)</strong> cũng phải cấu hình RustDesk → Network:
+        ID server = Relay server = <code>{{ rustdesk_public_host }}</code>, Key giống server.
+        <a href="{% url 'audit:rustdesk_install' %}">Tải script cài đặt</a> trên máy IT hoặc nhập tay một lần.
+    </div>
+
     <div class="alert alert-light border small mb-3 jp-rd-hint">
         <i class="bi bi-info-circle text-hm me-1"></i>
         Cài hàng loạt: <a href="{% url 'audit:rustdesk_install' %}">tải script cài RustDesk</a>

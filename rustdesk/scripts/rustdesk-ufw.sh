@@ -32,10 +32,12 @@ allow_rule "21115/tcp" "RustDesk NAT test"
 allow_rule "21116/tcp" "RustDesk ID TCP"
 allow_rule "21116/udp" "RustDesk ID UDP"
 allow_rule "21117/tcp" "RustDesk relay"
+allow_rule "21118/tcp" "RustDesk hbbs websocket"
+allow_rule "21119/tcp" "RustDesk hbbr websocket"
 
 if [[ "$DRY_RUN" != "1" ]]; then
   ufw reload >/dev/null 2>&1 || true
 fi
 
 log "==> UFW (liên quan RustDesk):"
-ufw status | grep -E '2111[567]|Status' || true
+ufw status | grep -E '2111[56789]|Status' || true

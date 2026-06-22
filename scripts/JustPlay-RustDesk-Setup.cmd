@@ -25,9 +25,11 @@ if errorlevel 1 (
 
 powershell -NoProfile -ExecutionPolicy Bypass -File "%PS1%" %*
 set ERR=%ERRORLEVEL%
-if not "%ERR%"=="0" (
-  echo.
+echo.
+if "%ERR%"=="0" (
+  echo  Hoan tat. Kiem tra may trong menu RustDesk tren Portal.
+) else (
   echo  LOI cai dat. Ma loi: %ERR%
-  pause
 )
+pause
 exit /b %ERR%
