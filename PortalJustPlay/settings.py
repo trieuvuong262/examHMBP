@@ -134,6 +134,15 @@ RUSTDESK_APPROVE_MODE = os.getenv("RUSTDESK_APPROVE_MODE", "password").strip().l
 RUSTDESK_ENROLL_SECRET = os.getenv("RUSTDESK_ENROLL_SECRET", "").strip()
 RUSTDESK_INSTALLER_URL_WIN = os.getenv("RUSTDESK_INSTALLER_URL_WIN", "").strip()
 RUSTDESK_INSTALLER_URL_LINUX = os.getenv("RUSTDESK_INSTALLER_URL_LINUX", "").strip()
+RUSTDESK_RENDEZVOUS_PORT = int(os.getenv("RUSTDESK_RENDEZVOUS_PORT", "21116"))
+RUSTDESK_ONLINE_CHECK_ENABLED = os.getenv("RUSTDESK_ONLINE_CHECK_ENABLED", "true").lower() in (
+    "1",
+    "true",
+    "yes",
+)
+RUSTDESK_ONLINE_CHECK_TIMEOUT = float(os.getenv("RUSTDESK_ONLINE_CHECK_TIMEOUT", "3"))
+RUSTDESK_ONLINE_CACHE_SEC = int(os.getenv("RUSTDESK_ONLINE_CACHE_SEC", "5"))
+RUSTDESK_ONLINE_POLL_SEC = int(os.getenv("RUSTDESK_ONLINE_POLL_SEC", "5"))
 EQUIPMENT_NOTIFY_EMAILS = os.getenv("EQUIPMENT_NOTIFY_EMAILS", "")
 
 # Nhân viên Thu mua (dropdown «Nhân viên Thu mua xử lý») — username cách nhau bởi dấu phẩy.

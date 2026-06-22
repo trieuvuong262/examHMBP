@@ -69,6 +69,38 @@ class RustdeskConnectTests(SimpleTestCase):
         self.assertEqual(url, 'rustdesk://connection/new/258599030')
 
 
+class RustdeskOnlineServiceTests(SimpleTestCase):
+    def test_build_and_parse_online_request_roundtrip(self):
+        from audit.services.rustdesk_online import (
+            _encode_frame,
+            _parse_online_response_states,
+            _peer_states_from_bytes,
+            build_online_request_message,
+        )
+
+        message = build_online_request_message(
+            requester_id='258599030',
+            peer_ids=['258599030', '1647598964'],
+        )
+        self.assertIn(b'258599030', message)
+        framed = _encode_frame(message)
+        self.assertEqual(framed[0] >> 2, len(message))
+        states = bytes([0b10000000])
+        response = bytes([0xC2, 0x01, 0x03, 0x0A, 0x01, states[0]])
+        parsed = _parse_online_response_states(response)
+        self.assertEqual(parsed, states)
+        self.assertEqual(_peer_states_from_bytes(states, 2), [True, False])
+
+    @override_settings(
+        RUSTDESK_ONLINE_CHECK_ENABLED=False,
+        RUSTDESK_PUBLIC_HOST='rd.justplay.vn',
+    )
+    def test_query_disabled_returns_empty(self):
+        from audit.services.rustdesk_online import query_peers_online
+
+        self.assertEqual(query_peers_online(['258599030']), {})
+
+
 class RustdeskHostTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -159,6 +191,20 @@ class RustdeskHostTests(TestCase):
         response = self.client.get(reverse('audit:rustdesk_list'))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, '258 599 030')
+        self.assertContains(response, 'jp-rd-status-dot')
+
+    @override_settings(RUSTDESK_ONLINE_CHECK_ENABLED=True)
+    def test_online_status_api(self):
+        self.client.force_login(self.view_user)
+        response = self.client.get(
+            reverse('audit:rustdesk_online_status'),
+            {'id': ['258599030'], 'refresh': '1'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload['status'], 'ok')
+        self.assertIn('258599030', payload['online'])
 
     def test_edit_user_can_edit_rustdesk_menu(self):
         from hrm.menu_permissions import user_can_edit_menu, user_can_update_menu

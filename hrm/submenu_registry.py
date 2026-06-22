@@ -213,6 +213,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     # Quản trị hệ thống
     ('/nhat-ky/tro-ly-ai', MODULE_AUDIT, 'qa_assistant'),
     ('/nhat-ky/bao-mat-dang-nhap', MODULE_AUDIT, 'login_security'),
+    ('/nhat-ky/rustdesk/trang-thai', MODULE_AUDIT, 'rustdesk'),
     ('/nhat-ky/rustdesk/tai-cai-dat', MODULE_AUDIT, 'rustdesk'),
     ('/nhat-ky/rustdesk/tai-cau-hinh-it', MODULE_AUDIT, 'rustdesk'),
     ('/nhat-ky/rustdesk/them', MODULE_AUDIT, 'rustdesk'),

@@ -1,13 +1,16 @@
 from django.conf import settings
 from django.contrib import messages
 from django.db.models import Q
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 
 from assessment.decorators import module_perm_required
 from audit.forms_rustdesk import RustDeskHostForm
 from audit.models import RustDeskHost
+from audit.services.rustdesk_connect import effective_rustdesk_password
+from audit.services.rustdesk_online import get_peers_online_map, normalize_rustdesk_id
 from hrm.menu_permissions import user_can_delete_menu, user_can_edit_menu
 from hrm.module_permissions import MODULE_AUDIT
 from PortalJustPlay.pagination import paginate_queryset
@@ -53,6 +56,11 @@ def rustdesk_list(request):
     filtered_count = qs.count()
     page_obj, query_string = paginate_queryset(request, qs)
 
+    online_map = get_peers_online_map(host.rustdesk_id for host in page_obj)
+    for host in page_obj:
+        host.rd_is_online = online_map.get(normalize_rustdesk_id(host.rustdesk_id), False)
+        host.rd_password_copy = effective_rustdesk_password(host.rustdesk_password)
+
     return render(request, 'audit/rustdesk_list.html', {
         'page_obj': page_obj,
         'query_string': query_string,
@@ -61,7 +69,24 @@ def rustdesk_list(request):
         'filtered_count': filtered_count,
         'can_connect_rustdesk': _can_connect(request.user),
         'can_edit_rustdesk': _can_connect(request.user),
-        'rustdesk_public_host': _rustdesk_public_host(),
+        'rustdesk_online_check': getattr(settings, 'RUSTDESK_ONLINE_CHECK_ENABLED', True),
+        'rustdesk_online_poll_sec': getattr(settings, 'RUSTDESK_ONLINE_POLL_SEC', 5),
+    })
+
+
+@module_perm_required(MODULE_AUDIT, 'view')
+@require_GET
+def rustdesk_online_status(request):
+    raw_ids = list(request.GET.getlist('id'))
+    if not raw_ids and request.GET.get('ids'):
+        raw_ids = [part.strip() for part in request.GET.get('ids', '').split(',') if part.strip()]
+    peer_ids = [normalize_rustdesk_id(value) for value in raw_ids]
+    peer_ids = [value for value in peer_ids if value]
+    force_refresh = request.GET.get('refresh') == '1'
+    online_map = get_peers_online_map(peer_ids, force_refresh=force_refresh) if peer_ids else {}
+    return JsonResponse({
+        'status': 'ok',
+        'online': {peer_id: bool(online_map.get(peer_id)) for peer_id in peer_ids},
     })
 
 

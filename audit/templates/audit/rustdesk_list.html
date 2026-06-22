@@ -6,19 +6,22 @@
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page py-3 py-md-4 mb-5">
-    <div class="jp-page-header mb-3 d-flex flex-wrap justify-content-between align-items-start gap-2">
-        <div>
-            <h2 class="fw-bold text-hm mb-1 jp-page-title">
+<div class="container jp-page jp-rd-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <h2 class="fw-bold text-hm mb-0 jp-page-title">
                 RustDesk
                 {% if filtered_count is not None %}<span class="text-muted fw-semibold fs-5 ms-1">({{ filtered_count|intcomma }})</span>{% endif %}
             </h2>
+            {% if rustdesk_online_check and page_obj %}
+            <span class="jp-rd-live-hint" id="jpRdLiveHint">Cập nhật mỗi {{ rustdesk_online_poll_sec }}s</span>
+            {% endif %}
         </div>
         {% if can_edit_rustdesk %}
-        <div class="d-flex flex-wrap gap-2">
+        <div class="d-flex flex-wrap jp-rd-toolbar">
             <a href="{% url 'audit:rustdesk_download_setup' %}?os=it"
                class="btn btn-outline-primary btn-sm">
-                <i class="bi bi-gear me-1"></i>Cấu hình máy IT (.zip)
+                <i class="bi bi-gear me-1"></i>Cấu hình máy IT
             </a>
             <a href="{% url 'audit:rustdesk_add' %}" class="btn btn-hm btn-sm">
                 <i class="bi bi-plus-lg me-1"></i>Thêm máy
@@ -36,7 +39,7 @@
                            placeholder="Tên, hostname, IP, RustDesk ID…">
                 </div>
                 <div class="col-md-3 col-lg-2">
-                    <label class="form-label small text-muted mb-1">Trạng thái</label>
+                    <label class="form-label small text-muted mb-1">Sử dụng</label>
                     <select name="active" class="form-select form-select-sm">
                         <option value="">Tất cả</option>
                         <option value="1" {% if current_active == '1' %}selected{% endif %}>Đang dùng</option>
@@ -57,50 +60,77 @@
             <table class="table table-hover align-middle mb-0 jp-rd-table">
                 <thead class="table-light">
                     <tr>
-                        <th>Tên</th>
+                        <th class="jp-rd-status-cell" title="Online / Offline"></th>
+                        <th>Tên máy</th>
                         <th>Hostname / IP</th>
+                        <th>Người dùng</th>
                         <th>RustDesk ID</th>
                         <th>Mật khẩu</th>
-                        <th>Phòng ban / NSD</th>
-                        <th style="min-width: 11rem">Thao tác</th>
+                        <th>Phòng ban</th>
+                        <th style="min-width: 8rem">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for host in page_obj %}
-                    <tr class="{% if not host.is_active %}text-muted{% endif %}">
+                    <tr class="{% if not host.is_active %}text-muted{% endif %}" data-rd-id="{{ host.rustdesk_id }}">
+                        <td class="text-center jp-rd-status-cell">
+                            {% if rustdesk_online_check %}
+                            <span class="jp-rd-status-dot {% if host.rd_is_online %}is-online{% else %}is-offline{% endif %}"
+                                  title="{% if host.rd_is_online %}Online{% else %}Offline{% endif %}"
+                                  aria-label="{% if host.rd_is_online %}Online{% else %}Offline{% endif %}"></span>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
                         <td>
-                            <div class="fw-semibold">{{ host.name }}</div>
+                            <div class="jp-rd-name">{{ host.name }}</div>
                             {% if host.device_id %}
                             <a href="{% url 'equipment:device_detail_manage' host.device_id %}" class="small text-muted">{{ host.device.device_code }}</a>
                             {% endif %}
                         </td>
-                        <td class="small">
+                        <td class="jp-rd-host-meta">
                             {% if host.hostname %}<div>{{ host.hostname }}</div>{% endif %}
-                            {% if host.ip_address %}<div class="text-muted font-monospace">{{ host.ip_address }}</div>{% endif %}
-                            {% if not host.hostname and not host.ip_address %}<span class="text-muted">—</span>{% endif %}
+                            {% if host.ip_address %}<div class="font-monospace">{{ host.ip_address }}</div>{% endif %}
+                            {% if not host.hostname and not host.ip_address %}<span>—</span>{% endif %}
                         </td>
-                        <td><code class="jp-rd-id">{{ host.rustdesk_id_display }}</code></td>
                         <td class="small">
-                            {% if host.rustdesk_password %}
-                                {% if can_connect_rustdesk %}
-                                <span class="jp-rd-pw">
-                                    <span class="jp-rd-pw-mask font-monospace">••••••</span>
-                                    <span class="jp-rd-pw-plain font-monospace d-none">{{ host.rustdesk_password }}</span>
-                                    <button type="button" class="btn btn-link btn-sm p-0 ms-1 jp-rd-pw-toggle">Hiện</button>
-                                </span>
-                                {% else %}
-                                <span class="text-muted">••••••</span>
-                                {% endif %}
+                            {{ host.assigned_user_text|default:"—" }}
+                        </td>
+                        <td>
+                            <div class="jp-rd-id-cell">
+                                <code class="jp-rd-id">{{ host.rustdesk_id_display }}</code>
+                                <button type="button"
+                                        class="jp-rd-icon-btn jp-rd-copy"
+                                        data-copy="{{ host.rustdesk_id }}"
+                                        data-copy-label="RustDesk ID"
+                                        title="Copy ID">
+                                    <i class="bi bi-clipboard"></i>
+                                </button>
+                            </div>
+                        </td>
+                        <td>
+                            {% if host.rd_password_copy and can_connect_rustdesk %}
+                            <div class="jp-rd-pw-cell">
+                                <span class="jp-rd-pw-mask">••••••</span>
+                                <button type="button"
+                                        class="jp-rd-icon-btn jp-rd-copy"
+                                        data-copy="{{ host.rd_password_copy }}"
+                                        data-copy-label="mật khẩu"
+                                        title="Copy mật khẩu">
+                                    <i class="bi bi-key"></i>
+                                </button>
+                            </div>
+                            {% elif host.rustdesk_password %}
+                            <span class="text-muted">••••••</span>
                             {% else %}
                             <span class="text-muted">—</span>
                             {% endif %}
                         </td>
                         <td class="small">
-                            <div>{{ host.department_text|default:"—" }}</div>
-                            {% if host.assigned_user_text %}<div class="text-muted">{{ host.assigned_user_text }}</div>{% endif %}
+                            {{ host.department_text|default:"—" }}
                         </td>
                         <td>
-                            <div class="d-flex flex-wrap align-items-center gap-1">
+                            <div class="d-flex flex-nowrap align-items-center gap-1 jp-rd-row-actions">
                                 {% include 'audit/includes/rustdesk_connect_actions.html' %}
                                 {% if can_edit_rustdesk %}
                                 <a href="{% url 'audit:rustdesk_edit' host.pk %}" class="btn btn-sm btn-outline-secondary" title="Sửa">
@@ -134,37 +164,69 @@
 
 <script>
 (function () {
-    function copyText(text, label) {
+    var pollSec = {{ rustdesk_online_poll_sec|default:5 }};
+    var statusUrl = '{% url "audit:rustdesk_online_status" %}';
+    var onlineEnabled = {% if rustdesk_online_check %}true{% else %}false{% endif %};
+    var liveHint = document.getElementById('jpRdLiveHint');
+
+    function copyText(text, label, btn) {
         if (!text) return;
         navigator.clipboard.writeText(text).then(function () {
-            if (window.jpToast) window.jpToast('Đã sao chép ' + (label || ''));
+            if (btn) {
+                btn.classList.add('is-copied');
+                setTimeout(function () { btn.classList.remove('is-copied'); }, 1200);
+            }
+            if (window.jpToast) window.jpToast('Đã copy ' + (label || ''));
         }).catch(function () {
-            window.prompt('Sao chép:', text);
+            window.prompt('Copy:', text);
         });
     }
+
     document.querySelectorAll('.jp-rd-copy').forEach(function (btn) {
         btn.addEventListener('click', function () {
-            copyText(btn.getAttribute('data-copy'), btn.getAttribute('data-copy-label'));
+            copyText(btn.getAttribute('data-copy'), btn.getAttribute('data-copy-label'), btn);
         });
     });
-    document.querySelectorAll('.jp-rd-pw-toggle').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            var wrap = btn.closest('.jp-rd-pw');
-            if (!wrap) return;
-            var mask = wrap.querySelector('.jp-rd-pw-mask');
-            var plain = wrap.querySelector('.jp-rd-pw-plain');
-            var hidden = plain.classList.contains('d-none');
-            if (hidden) {
-                plain.classList.remove('d-none');
-                mask.classList.add('d-none');
-                btn.textContent = 'Ẩn';
-            } else {
-                plain.classList.add('d-none');
-                mask.classList.remove('d-none');
-                btn.textContent = 'Hiện';
-            }
+
+    function refreshOnlineStatus() {
+        if (!onlineEnabled) return;
+        var rows = document.querySelectorAll('tr[data-rd-id]');
+        if (!rows.length) return;
+        var params = new URLSearchParams();
+        params.set('refresh', '1');
+        rows.forEach(function (row) {
+            var id = (row.getAttribute('data-rd-id') || '').replace(/\D/g, '');
+            if (id) params.append('id', id);
         });
-    });
+        if (liveHint) liveHint.classList.add('is-refreshing');
+        fetch(statusUrl + '?' + params.toString(), {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin',
+        })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (!data || !data.online) return;
+                rows.forEach(function (row) {
+                    var id = (row.getAttribute('data-rd-id') || '').replace(/\D/g, '');
+                    var dot = row.querySelector('.jp-rd-status-dot');
+                    if (!dot || !id) return;
+                    var online = !!data.online[id];
+                    dot.classList.toggle('is-online', online);
+                    dot.classList.toggle('is-offline', !online);
+                    dot.title = online ? 'Online' : 'Offline';
+                    dot.setAttribute('aria-label', online ? 'Online' : 'Offline');
+                });
+            })
+            .catch(function () {})
+            .finally(function () {
+                if (liveHint) liveHint.classList.remove('is-refreshing');
+            });
+    }
+
+    if (onlineEnabled && pollSec > 0) {
+        setInterval(refreshOnlineStatus, pollSec * 1000);
+        setTimeout(refreshOnlineStatus, 1500);
+    }
 })();
 </script>
 {% endblock %}

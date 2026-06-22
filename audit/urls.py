@@ -31,6 +31,7 @@ urlpatterns = [
     path('kiotviet-sync/status/<int:job_id>/', kiotviet_sync_views.kiotviet_sync_status, name='kiotviet_sync_status'),
     path('nas-links/', views.nas_links_index, name='nas_links'),
     path('rustdesk/', views_rustdesk.rustdesk_list, name='rustdesk_list'),
+    path('rustdesk/trang-thai/', views_rustdesk.rustdesk_online_status, name='rustdesk_online_status'),
     path('rustdesk/them/', views_rustdesk.rustdesk_add, name='rustdesk_add'),
     path('rustdesk/<int:pk>/sua/', views_rustdesk.rustdesk_edit, name='rustdesk_edit'),
     path('rustdesk/<int:pk>/xoa/', views_rustdesk.rustdesk_delete, name='rustdesk_delete'),
