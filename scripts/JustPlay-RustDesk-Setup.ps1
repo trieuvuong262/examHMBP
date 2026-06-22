@@ -249,7 +249,7 @@ function Install-RustDeskService {
         if ($state) {
             Write-Host '      Service RustDesk da co.'
             Ensure-RustDeskServiceAccount
-            Ensure-RustDeskAutoStart -Exe $Exe
+            Ensure-RustDeskServiceAutoStart -Exe $Exe
             return
         }
     }
@@ -272,7 +272,7 @@ function Install-RustDeskService {
             Start-RustDeskServiceSafe | Out-Null
         }
     }
-    Ensure-RustDeskAutoStart -Exe $Exe
+    Ensure-RustDeskServiceAutoStart -Exe $Exe
 }
 
 function Ensure-RustDeskServiceAccount {
@@ -283,7 +283,7 @@ function Ensure-RustDeskServiceAccount {
     } catch {}
 }
 
-function Ensure-RustDeskAutoStart {
+function Ensure-RustDeskServiceAutoStart {
     param([string]$Exe)
     $state = Test-RustDeskServiceReady
     if ($state) {
@@ -300,17 +300,42 @@ function Ensure-RustDeskAutoStart {
         return
     }
     $isSystemInstall = ($Exe -like '*\Program Files\*') -or ($Exe -like '*\Program Files (x86)\*')
-    if (-not $isSystemInstall) {
-        $startup = [Environment]::GetFolderPath('CommonStartup')
-        $bat = Join-Path $startup 'JustPlay-RustDesk.bat'
-        @"
-@echo off
-start "" "$Exe" --tray
-"@ | Set-Content -Path $bat -Encoding ASCII
-        Write-Host "      Startup folder: $bat"
+    if ($isSystemInstall) {
+        Write-Host '      Canh bao: Chua co service RustDesk - chay lai script voi quyen Admin.'
+    }
+}
+
+function Ensure-RustDeskStartupFolder {
+    param([string]$Exe)
+    if (-not $Exe -or -not (Test-Path -LiteralPath $Exe)) {
+        Write-Host '      Bo qua Startup: khong tim thay rustdesk.exe.'
         return
     }
-    Write-Host '      Canh bao: Chua co service RustDesk - chay lai script voi quyen Admin.'
+    $startup = [Environment]::GetFolderPath('CommonStartup')
+    if (-not $startup) {
+        Write-Host '      Canh bao: Khong tim thay thu muc Windows Startup.'
+        return
+    }
+    New-Item -ItemType Directory -Force -Path $startup | Out-Null
+    $bat = Join-Path $startup 'JustPlay-RustDesk.bat'
+    $hasService = [bool](Test-RustDeskServiceReady)
+    if ($hasService) {
+        $content = @"
+@echo off
+REM JustPlay - tu khoi dong RustDesk (service + tray)
+sc query RustDesk | find /I "RUNNING" >nul || sc start RustDesk >nul 2>&1
+timeout /t 5 /nobreak >nul
+start "" "$Exe" --tray
+"@
+    } else {
+        $content = @"
+@echo off
+REM JustPlay - tu khoi dong RustDesk (tray)
+start "" "$Exe" --tray
+"@
+    }
+    Set-Content -Path $bat -Value $content -Encoding ASCII
+    Write-Host "      Da them vao Windows Startup (tat ca user): $bat"
 }
 
 function Show-RustDeskRemoteStatus {
@@ -329,7 +354,8 @@ function Show-RustDeskRemoteStatus {
         $state = Test-RustDeskServiceReady
     }
     Write-Host "      Service: $state"
-    Ensure-RustDeskAutoStart -Exe $Exe
+    Ensure-RustDeskServiceAutoStart -Exe $Exe
+    Ensure-RustDeskStartupFolder -Exe $Exe
     $liveId = Get-RustDeskId -Exe $Exe
     if ($liveId -and $liveId -ne $ExpectedId) {
         Write-Host "      CANH BAO: ID hien tai ($liveId) khac ID dang ky ($ExpectedId)."
@@ -545,6 +571,9 @@ Write-Host "      Su dung: $exe"
 
 Write-Host '[2b/5] Cai Windows service (neu chua co)...'
 Install-RustDeskService -Exe $exe
+
+Write-Host '[2c/5] Them RustDesk vao Windows Startup...'
+Ensure-RustDeskStartupFolder -Exe $exe
 
 $rdId = Get-RustDeskId -Exe $exe
 if ($rdId) {
