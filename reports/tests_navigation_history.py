@@ -1,13 +1,14 @@
 from datetime import date
 
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
 from hrm.models import Department, DepartmentMenuPermission, PermissionGroup, Profile, RoleModulePermission
 from hrm.permissions import ROLE_EMPLOYEE, ROLE_TEAM_LEADER
-from reports.models import DailyWorkReport, WeeklyWorkReport
+from reports.models import DailyWorkReport, DailyWorkReportAttachment, WeeklyWorkReport
 from reports.navigation import (
     history_url_for,
     list_back_url_for,
@@ -163,6 +164,31 @@ class ReportHistoryNavigationTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'docs.google.com')
         self.assertContains(resp, 'https://docs.google.com/document/d/abc123/edit')
+
+    def test_detail_vp_hides_empty_spreadsheet_grid_when_only_bang_file(self):
+        from reports.models import DailyWorkReportAttachment
+
+        report = DailyWorkReport.objects.create(
+            employee=self.member,
+            report_date=date.today(),
+            report_profile=REPORT_PROFILE_OFFICE,
+            report_period='week',
+            status=DailyWorkReport.STATUS_SUBMITTED,
+            spreadsheet_json={'columns': ['', '', ''], 'rows': [['', '', '']]},
+            submitted_at=timezone.now(),
+        )
+        DailyWorkReportAttachment.objects.create(
+            report=report,
+            source_tab=DailyWorkReportAttachment.SOURCE_BANG,
+            kind=DailyWorkReportAttachment.KIND_FILE,
+            file=SimpleUploadedFile('report.xlsx', b'xlsx'),
+            original_name='report.xlsx',
+        )
+        self.client.force_login(self.leader)
+        resp = self.client.get(reverse('reports:detail_vp', args=[report.pk]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'report.xlsx')
+        self.assertNotContains(resp, 'jp-office-sheet-readonly')
 
     def test_detail_vp_hides_empty_office_sections(self):
         report = DailyWorkReport.objects.create(

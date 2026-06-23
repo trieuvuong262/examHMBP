@@ -29,6 +29,7 @@ urlpatterns = [
     path('vp/<int:pk>/export/', views.report_detail_export_vp, name='detail_export_vp'),
     path('vp/<int:pk>/', views.report_detail_vp, name='detail_vp'),
     path('vp/file/<int:pk>/', views.daily_attachment_serve, name='daily_attachment'),
+    path('vp/file/<int:pk>/preview/', views.daily_attachment_preview, name='daily_attachment_preview'),
     path('doc-image/<int:report_pk>/<path:relpath>', views.document_image_serve, name='document_image'),
     path('inline-image/<path:relpath>', views.inline_image_serve, name='inline_image'),
     # Báo cáo tuần — SX
@@ -47,6 +48,7 @@ urlpatterns = [
     path('team/weekly/', views.team_weekly_reports_redirect, name='team_weekly'),
     path('weekly/<int:pk>/', views.weekly_report_detail_redirect, name='weekly_detail'),
     path('weekly/file/<int:pk>/', views.weekly_attachment_serve, name='weekly_attachment'),
+    path('weekly/file/<int:pk>/preview/', views.weekly_attachment_preview, name='weekly_attachment_preview'),
     # Legacy — chuyển hướng sang SX/VP
     path('today/', views.today_report, name='today'),
     path('team/', views.team_reports, name='team'),

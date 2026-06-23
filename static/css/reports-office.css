@@ -1358,3 +1358,85 @@
     color: var(--jp-text-primary);
 }
 
+/* Chi tiết báo cáo VP */
+.jp-report-detail-page {
+    max-width: 1200px;
+}
+
+.jp-report-detail-hero {
+    padding: 1.25rem 1.35rem;
+    border-radius: 1rem;
+    background: linear-gradient(135deg, #fff 0%, #fff8f8 55%, var(--hm-primary-light) 100%);
+    border: 1px solid var(--hm-primary-subtle);
+    box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+}
+
+@media (min-width: 768px) {
+    .jp-report-detail-hero {
+        padding: 1.5rem 1.75rem;
+    }
+}
+
+.jp-report-detail-hero-top {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+    width: 100%;
+}
+
+@media (min-width: 768px) {
+    .jp-report-detail-hero-top {
+        flex-direction: row;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1.25rem;
+    }
+}
+
+.jp-report-detail-hero-text {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.jp-report-detail-hero-actions {
+    flex: 0 0 auto;
+    justify-content: flex-start;
+}
+
+@media (min-width: 768px) {
+    .jp-report-detail-hero-actions {
+        justify-content: flex-end;
+        align-self: flex-start;
+        max-width: min(100%, 28rem);
+    }
+}
+
+.jp-report-detail-name {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.jp-report-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.35em 0.65em;
+    border-radius: 999px;
+}
+
+.jp-report-badge--submitted {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.jp-report-badge--draft {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.jp-report-badge--reviewed {
+    background: #dbeafe;
+    color: #1e40af;
+}
+

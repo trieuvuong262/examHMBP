@@ -1446,6 +1446,9 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
             or bang_detail_files
         )
     )
+    office_sheet_has_data = (
+        not report.is_production_report and spreadsheet_has_content(office_sheet)
+    )
     hourly_grid = None
     productivity = None
     edit_report_url = ''
@@ -1485,6 +1488,7 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         'link_previews': link_preview_rows(report.links) if not report.is_production_report else [],
         'has_office_document': has_office_document,
         'has_office_spreadsheet': has_office_spreadsheet,
+        'office_sheet_has_data': office_sheet_has_data,
         'has_office_links': (
             not report.is_production_report and links_has_content(report.links or '')
         ),
@@ -1724,6 +1728,33 @@ def inline_image_serve(request, relpath):
 
 
 @_reports_access_required
+def daily_attachment_preview(request, pk):
+    from nas_storage.file_preview import inline_office_pdf_response, inline_pdf_response, preview_kind
+    from tools.services import office_preview_available
+
+    att = get_object_or_404(
+        DailyWorkReportAttachment.objects.select_related('report__employee'),
+        pk=pk,
+    )
+    report = att.report
+    if not can_view_user_report(request.user, report):
+        raise Http404
+    if not daily_report_visible_to_team(report) and report.employee_id != request.user.id:
+        raise Http404
+
+    path = daily_attachment_abs_path(att)
+    if not path:
+        raise Http404
+
+    kind = preview_kind(att.display_name)
+    if kind == 'pdf':
+        return inline_pdf_response(path, filename=att.display_name)
+    if kind == 'office' and office_preview_available():
+        return inline_office_pdf_response(path, display_name=att.display_name)
+    raise Http404
+
+
+@_reports_access_required
 def daily_attachment_serve(request, pk):
     import mimetypes
 
@@ -1758,6 +1789,33 @@ def daily_attachment_serve(request, pk):
     if as_attachment:
         response['Content-Disposition'] = f'attachment; filename="{att.display_name}"'
     return response
+
+
+@_reports_access_required
+def weekly_attachment_preview(request, pk):
+    from nas_storage.file_preview import inline_office_pdf_response, inline_pdf_response, preview_kind
+    from tools.services import office_preview_available
+
+    att = get_object_or_404(
+        WeeklyWorkReportAttachment.objects.select_related('report__employee'),
+        pk=pk,
+    )
+    report = att.report
+    if not can_view_user_weekly_report(request.user, report):
+        raise Http404
+    if not weekly_report_visible_to_team(report) and report.employee_id != request.user.id:
+        raise Http404
+
+    path = weekly_attachment_abs_path(att)
+    if not path:
+        raise Http404
+
+    kind = preview_kind(att.display_name)
+    if kind == 'pdf':
+        return inline_pdf_response(path, filename=att.display_name)
+    if kind == 'office' and office_preview_available():
+        return inline_office_pdf_response(path, display_name=att.display_name)
+    raise Http404
 
 
 @_reports_access_required

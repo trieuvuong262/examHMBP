@@ -1,0 +1,28 @@
+<div class="jp-weekly-preview-block mb-3{% if not forloop.last %} pb-3 border-bottom{% endif %}">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+        <div class="jp-weekly-file-chip">
+            <span class="fw-semibold">{{ item.name }}</span>
+        </div>
+        <a href="{{ item.url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-hm">
+            <i class="bi bi-download me-1"></i>Tải / mở tab mới
+        </a>
+    </div>
+    {% if item.type == 'pdf' %}
+    <div class="jp-weekly-embed-wrap is-pdf">
+        <iframe src="{{ item.preview_url }}" title="{{ item.name }}" loading="lazy"></iframe>
+    </div>
+    {% elif item.type == 'office' and item.office_preview_ready %}
+    <div class="jp-weekly-embed-wrap is-pdf">
+        <iframe src="{{ item.preview_url }}" title="{{ item.name }}" loading="lazy"></iframe>
+    </div>
+    {% elif item.type == 'office' %}
+    <div class="jp-weekly-file-fallback">
+        <span class="badge text-bg-light border">{{ item.ext }}</span>
+        <span class="text-muted small">Máy chủ chưa hỗ trợ xem trước — tải file về hoặc mở tab mới.</span>
+    </div>
+    {% else %}
+    <div class="jp-weekly-file-fallback">
+        <span class="badge text-bg-light border">{{ item.ext }}</span>
+    </div>
+    {% endif %}
+</div>

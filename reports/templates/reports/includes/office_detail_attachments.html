@@ -1,17 +1,16 @@
+{% load report_extras %}
 {% if files or images %}
 <div class="jp-office-detail-attachments mt-2 mb-0">
     {% if files %}
-    <div class="small fw-bold text-muted mb-1">File đính kèm</div>
-  <ul class="list-unstyled mb-2 small">
-        {% for att in files %}
-        <li class="mb-1">
-            <a href="{{ att.file_url }}" target="_blank" rel="noopener"><i class="bi bi-paperclip me-1"></i>{{ att.display_name }}</a>
-        </li>
-        {% endfor %}
-    </ul>
+    <div class="small fw-bold text-muted mb-2">File đính kèm</div>
+    {% for att in files %}
+    {% with item=att|attachment_file_preview %}
+    {% include 'reports/includes/office_file_preview_block.html' %}
+    {% endwith %}
+    {% endfor %}
     {% endif %}
     {% if images %}
-    <div class="small fw-bold text-muted mb-1">Ảnh đính kèm</div>
+    <div class="small fw-bold text-muted mb-1{% if files %} mt-3{% endif %}">Ảnh đính kèm</div>
     <div class="row g-2 mb-0">
         {% for att in images %}
         <div class="col-6 col-md-4 col-lg-3">

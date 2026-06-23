@@ -815,12 +815,38 @@ body .modal-backdrop.show {
     box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
 }
 
+.jp-report-detail-hero-top {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+    width: 100%;
+}
+
 @media (min-width: 768px) {
-    .jp-report-detail-hero {
+    .jp-report-detail-hero-top {
         flex-direction: row;
-        align-items: center;
+        align-items: flex-start;
         justify-content: space-between;
-        padding: 1.5rem 1.75rem;
+        gap: 1.25rem;
+    }
+}
+
+.jp-report-detail-hero-text {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.jp-report-detail-hero-actions {
+    flex: 0 0 auto;
+    justify-content: flex-start;
+}
+
+@media (min-width: 768px) {
+    .jp-report-detail-hero-actions {
+        justify-content: flex-end;
+        align-self: flex-start;
+        max-width: min(100%, 28rem);
     }
 }
 

@@ -4,6 +4,7 @@ from django import template
 
 from reports.office_content import office_report_summary_text
 from reports.period_utils import PERIOD_LABELS
+from reports.weekly_preview import file_attachment_preview
 
 register = template.Library()
 
@@ -15,6 +16,13 @@ def office_report_summary(report):
     if getattr(report, 'is_production_report', False):
         return ''
     return office_report_summary_text(report)
+
+
+@register.filter
+def attachment_file_preview(att):
+    if not att:
+        return {}
+    return file_attachment_preview(att)
 
 
 @register.filter

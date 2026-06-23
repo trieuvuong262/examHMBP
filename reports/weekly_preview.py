@@ -1,4 +1,4 @@
-"""Xem trước link / file báo cáo tuần."""
+"""Xem trước link / file báo cáo tuần & VP."""
 
 from __future__ import annotations
 
@@ -6,8 +6,13 @@ import os
 import re
 from urllib.parse import urlparse
 
+from django.urls import reverse
+
+from tools.services import OFFICE_TO_PDF_EXTENSIONS, office_preview_available
+
 PDF_EXTENSIONS = frozenset({'.pdf'})
 IMAGE_EXTENSIONS = frozenset({'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'})
+PREVIEWABLE_FILE_EXTENSIONS = PDF_EXTENSIONS | OFFICE_TO_PDF_EXTENSIONS
 
 
 def embed_url_for_link(url: str) -> str | None:
@@ -45,19 +50,52 @@ def link_preview_rows(links_text: str) -> list[dict]:
     return rows
 
 
+def _preview_route_for(att) -> str:
+    if att.__class__.__name__ == 'WeeklyWorkReportAttachment':
+        return 'reports:weekly_attachment_preview'
+    return 'reports:daily_attachment_preview'
+
+
 def file_attachment_preview(att) -> dict:
     name = att.original_name or os.path.basename(att.file.name)
     lower = name.lower()
     ext = os.path.splitext(lower)[1]
     url = att.file_url
     if att.is_image or ext in IMAGE_EXTENSIONS:
-        return {'type': 'image', 'url': url, 'name': name, 'pk': att.pk}
+        return {'type': 'image', 'url': url, 'preview_url': url, 'name': name, 'pk': att.pk}
     if ext in PDF_EXTENSIONS:
-        return {'type': 'pdf', 'url': url, 'name': name, 'pk': att.pk}
+        return {
+            'type': 'pdf',
+            'url': url,
+            'preview_url': url,
+            'name': name,
+            'pk': att.pk,
+        }
+    if ext in OFFICE_TO_PDF_EXTENSIONS:
+        ready = office_preview_available()
+        preview_url = reverse(_preview_route_for(att), kwargs={'pk': att.pk}) if ready else ''
+        return {
+            'type': 'office',
+            'url': url,
+            'preview_url': preview_url,
+            'office_preview_ready': ready,
+            'name': name,
+            'ext': ext.lstrip('.').upper() or 'FILE',
+            'pk': att.pk,
+        }
     return {
         'type': 'download',
         'url': url,
+        'preview_url': '',
         'name': name,
         'ext': ext.lstrip('.').upper() or 'FILE',
         'pk': att.pk,
     }
+
+
+def file_preview_is_embeddable(item: dict) -> bool:
+    if item.get('type') == 'pdf':
+        return bool(item.get('preview_url'))
+    if item.get('type') == 'office':
+        return bool(item.get('office_preview_ready') and item.get('preview_url'))
+    return False

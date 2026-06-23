@@ -3,18 +3,18 @@
 
 {% block extra_head %}
 {% if report.is_production_report and hourly_grid or productivity %}
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260618n">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260628b">
 {% elif not report.is_production_report %}
-<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260528d">
+<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260628b">
 {% endif %}
 {% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-reports-page jp-report-detail-page py-3 py-md-4 mb-5">
     <div class="jp-report-detail-hero mb-4">
-        <div class="jp-report-detail-hero-main">
+        <div class="jp-report-detail-hero-top">
             <div class="jp-report-detail-hero-text">
-                <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                <div class="d-flex flex-wrap align-items-center gap-2">
                     <h2 class="fw-bold text-hm mb-0 jp-page-title">Báo cáo {{ report.report_date|date:"d/m/Y" }}</h2>
                     {% if report.status == 'SUBMITTED' %}
                     <span class="badge jp-report-badge jp-report-badge--submitted">Đã nộp</span>
@@ -25,31 +25,27 @@
                     <span class="badge jp-report-badge jp-report-badge--reviewed">Đã xem</span>
                     {% endif %}
                 </div>
-                <p class="jp-report-detail-name mb-2">{{ report.employee.profile.full_name|default:report.employee.username }}</p>
-                <div class="jp-report-meta-chips">
-                    <span class="jp-report-meta-chip">{{ report.employee.profile.department.name|default:"—" }}</span>
-                    <span class="jp-report-meta-chip">{{ report.report_date|date:"d/m/Y" }}</span>
-                </div>
+                <p class="jp-report-detail-name mb-0 mt-2">{{ report.employee.profile.full_name|default:report.employee.username }}</p>
             </div>
-        </div>
-        <div class="jp-report-detail-hero-actions d-flex gap-2 flex-wrap">
-            <a href="{{ list_back_url }}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-arrow-left me-1"></i>Danh sách báo cáo
-            </a>
-            <a href="{{ history_url }}" class="btn btn-outline-dark btn-sm">
-                <i class="bi bi-clock-history me-1"></i>Lịch sử
-            </a>
-            {% if can_export_report %}
-            <a href="{{ export_url }}" class="btn btn-outline-hm btn-sm">
-                <i class="bi bi-file-earmark-spreadsheet me-1"></i>Xuất Excel
-            </a>
-            {% endif %}
-            {% if edit_report_url %}
-            <a href="{{ edit_report_url }}" class="btn btn-outline-hm btn-sm">
-                <i class="bi bi-pencil-square me-1"></i>
-                {% if report.employee_id == request.user.id %}Sửa{% else %}Chỉnh sửa báo cáo{% endif %}
-            </a>
-            {% endif %}
+            <div class="jp-report-detail-hero-actions d-flex gap-2 flex-wrap">
+                <a href="{{ list_back_url }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i>Danh sách báo cáo
+                </a>
+                <a href="{{ history_url }}" class="btn btn-outline-dark btn-sm">
+                    <i class="bi bi-clock-history me-1"></i>Lịch sử
+                </a>
+                {% if can_export_report %}
+                <a href="{{ export_url }}" class="btn btn-outline-hm btn-sm">
+                    <i class="bi bi-file-earmark-spreadsheet me-1"></i>Xuất Excel
+                </a>
+                {% endif %}
+                {% if edit_report_url %}
+                <a href="{{ edit_report_url }}" class="btn btn-outline-hm btn-sm">
+                    <i class="bi bi-pencil-square me-1"></i>
+                    {% if report.employee_id == request.user.id %}Sửa{% else %}Chỉnh sửa báo cáo{% endif %}
+                </a>
+                {% endif %}
+            </div>
         </div>
     </div>
 
@@ -167,6 +163,7 @@
     {% if has_office_spreadsheet %}
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-white fw-bold">Bảng</div>
+        {% if office_sheet_has_data %}
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-bordered table-sm mb-0 jp-office-sheet-readonly">
@@ -189,8 +186,9 @@
                 </table>
             </div>
         </div>
+        {% endif %}
         {% if bang_detail_images or bang_detail_files %}
-        <div class="card-body border-top pt-3">
+        <div class="card-body{% if office_sheet_has_data %} border-top pt-3{% endif %}">
         {% include 'reports/includes/office_detail_attachments.html' with images=bang_detail_images files=bang_detail_files %}
         </div>
         {% endif %}
