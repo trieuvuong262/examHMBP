@@ -2,6 +2,7 @@ from django.urls import path
 from django.views.generic.base import RedirectView
 
 from . import views
+from . import views_inventory_scan
 
 app_name = 'equipment'
 
@@ -65,6 +66,9 @@ urlpatterns = [
     path('file-mau/', RedirectView.as_view(pattern_name='equipment:download_sample_it', permanent=False), name='download_sample'),
     path('nhap-excel/', RedirectView.as_view(pattern_name='equipment:import_devices_it', permanent=False), name='import_devices'),
     path('xoa-hang-loat/', RedirectView.as_view(pattern_name='equipment:delete_bulk_devices_it', permanent=False), name='delete_bulk_devices'),
+
+    path('api/quyet-cau-hinh/kiem-tra/', views_inventory_scan.equipment_scan_check_api, name='equipment_scan_check_api'),
+    path('api/quyet-cau-hinh/', views_inventory_scan.equipment_scan_submit_api, name='equipment_scan_submit_api'),
 
     path('qr/<str:device_key>/', views.device_qr_public, name='device_qr_public'),
     path('<uuid:device_id>/', views.device_detail_manage, name='device_detail_manage'),

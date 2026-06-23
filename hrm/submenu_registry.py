@@ -93,7 +93,8 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
     MODULE_DOCUMENTS: [
         {'key': 'browse', 'label': 'Tài liệu', 'icon': 'bi-folder2-open'},
         {'key': 'qa', 'label': 'Hỏi đáp', 'icon': 'bi-chat-dots-fill'},
-        {'key': 'rustdesk_config', 'label': 'Cấu hình', 'perm_label': 'Cấu hình RustDesk', 'icon': 'bi-pc-display-horizontal', 'perm_manage': True},
+        {'key': 'rustdesk_config', 'label': 'Cấu hình RustDesk', 'perm_label': 'Cấu hình RustDesk', 'icon': 'bi-pc-display-horizontal', 'perm_manage': True},
+        {'key': 'equipment_scan', 'label': 'Quét thiết bị', 'perm_label': 'Quét thiết bị IT', 'icon': 'bi-cpu', 'perm_manage': True},
     ],
     MODULE_AUDIT: [
         {'key': 'login_security', 'label': 'Bảo mật đăng nhập', 'icon': 'bi-shield-lock'},
@@ -205,6 +206,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/tien-ich/ung-luong', MODULE_UTILITIES, 'salary_advance'),
     ('/tien-ich/dat-com', MODULE_UTILITIES, 'meal_ordering'),
     # Tài liệu
+    ('/tai-lieu/quet-thiet-bi', MODULE_DOCUMENTS, 'equipment_scan'),
     ('/tai-lieu/cau-hinh-rustdesk', MODULE_DOCUMENTS, 'rustdesk_config'),
     ('/tai-lieu/hoi-dap', MODULE_DOCUMENTS, 'qa'),
     ('/tai-lieu/admin', MODULE_DOCUMENTS, 'browse'),

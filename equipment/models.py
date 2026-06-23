@@ -82,6 +82,7 @@ class Device(models.Model):
     )
     hostname = models.CharField(max_length=100, blank=True, verbose_name='Hostname')
     ip_address = models.GenericIPAddressField(protocol='IPv4', blank=True, null=True, verbose_name='IP')
+    mac_address = models.CharField(max_length=17, blank=True, db_index=True, verbose_name='MAC')
     windows_version = models.CharField(max_length=200, blank=True, verbose_name='Phiên bản Windows')
     windows_license = models.CharField(max_length=128, blank=True, verbose_name='License Windows')
     last_scan_date = models.DateTimeField(null=True, blank=True, verbose_name='Lần quét cuối')

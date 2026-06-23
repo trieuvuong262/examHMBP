@@ -132,6 +132,7 @@ RUSTDESK_CLIENT_PASSWORD = os.getenv("RUSTDESK_CLIENT_PASSWORD", "").strip()
 # click = không cần mật khẩu, máy đích bấm Accept
 RUSTDESK_APPROVE_MODE = os.getenv("RUSTDESK_APPROVE_MODE", "password").strip().lower()
 RUSTDESK_ENROLL_SECRET = os.getenv("RUSTDESK_ENROLL_SECRET", "").strip()
+EQUIPMENT_SCAN_SECRET = os.getenv("EQUIPMENT_SCAN_SECRET", "").strip()
 RUSTDESK_INSTALLER_URL_WIN = os.getenv("RUSTDESK_INSTALLER_URL_WIN", "").strip()
 RUSTDESK_INSTALLER_URL_LINUX = os.getenv("RUSTDESK_INSTALLER_URL_LINUX", "").strip()
 RUSTDESK_RENDEZVOUS_PORT = int(os.getenv("RUSTDESK_RENDEZVOUS_PORT", "21116"))

@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-4">
+        <h2 class="fw-bold text-hm mb-0">Quét cấu hình thiết bị IT</h2>
+        <p class="text-muted small mb-0 mt-2">
+            Chạy script trên máy cần khai báo. Portal chỉ nhận máy <strong>chưa có MAC</strong> trong Quản lý thiết bị IT.
+        </p>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{% url 'documents:equipment_scan_download' %}?os=win"
+                   class="btn btn-hm">
+                    <i class="bi bi-windows me-1"></i>Tải cho Windows (.zip)
+                </a>
+                <a href="{% url 'documents:equipment_scan_download' %}?os=linux"
+                   class="btn btn-outline-secondary">
+                    <i class="bi bi-ubuntu me-1"></i>Tải cho Linux (.sh)
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

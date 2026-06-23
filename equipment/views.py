@@ -393,6 +393,7 @@ def device_list(request, equipment_scope=SCOPE_IT):
             | Q(model_number__icontains=q)
             | Q(hostname__icontains=q)
             | Q(ip_address__icontains=q)
+            | Q(mac_address__icontains=q)
             | Q(usage_department_text__icontains=q)
             | Q(assigned_user_text__icontains=q)
             | Q(usage_department__name__icontains=q)

@@ -27,6 +27,7 @@ class DeviceAdmin(admin.ModelAdmin):
         'usage_department',
         'hostname',
         'ip_address',
+        'mac_address',
         'serial_number',
         'last_scan_date',
     )
@@ -36,6 +37,7 @@ class DeviceAdmin(admin.ModelAdmin):
         'name',
         'serial_number',
         'hostname',
+        'mac_address',
         'model_number',
         'assigned_user_text',
         'usage_department_text',
@@ -67,6 +69,7 @@ class DeviceAdmin(admin.ModelAdmin):
                 'serial_number',
                 'hostname',
                 'ip_address',
+                'mac_address',
                 'configuration',
                 'windows_version',
                 'windows_license',

@@ -30,6 +30,7 @@ class DeviceForm(forms.ModelForm):
             'unit_price',
             'hostname',
             'ip_address',
+            'mac_address',
         ]
         widgets = {
             'device_code': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'TB-000001'}),
@@ -56,6 +57,7 @@ class DeviceForm(forms.ModelForm):
             'unit_price': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
             'hostname': forms.TextInput(attrs={'class': 'form-control'}),
             'ip_address': forms.TextInput(attrs={'class': 'form-control'}),
+            'mac_address': forms.TextInput(attrs={'class': 'form-control'}),
         }
 
     def __init__(self, *args, equipment_scope=None, editor_user=None, **kwargs):
@@ -159,6 +161,7 @@ class DeviceForm(forms.ModelForm):
             )
             self.fields['hostname'].widget.attrs.setdefault('placeholder', 'VD: PC-HR-01')
             self.fields['ip_address'].widget.attrs.setdefault('placeholder', 'VD: 192.168.1.10')
+            self.fields['mac_address'].widget.attrs.setdefault('placeholder', 'VD: AA:BB:CC:DD:EE:FF')
             if equipment_scope:
                 self.fields['managed_department'].help_text = 'Thường là IT / CNTT.'
         else:
