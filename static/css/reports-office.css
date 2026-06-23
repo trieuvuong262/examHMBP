@@ -1445,3 +1445,140 @@
     color: #1e40af;
 }
 
+/* Phản hồi / xác nhận báo cáo */
+.jp-report-review-panel {
+    padding: 0.85rem 1rem;
+    border-radius: 0.85rem;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid #e8edf3;
+    box-shadow: 0 2px 12px rgba(15, 23, 42, 0.04);
+}
+
+@media (min-width: 768px) {
+    .jp-report-review-panel {
+        padding: 0.9rem 1.1rem;
+    }
+}
+
+.jp-report-review-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+    .jp-report-review-form {
+        flex-direction: row;
+        align-items: center;
+        gap: 0.85rem;
+    }
+}
+
+.jp-report-review-confirm {
+    display: inline-flex;
+    margin: 0;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.jp-report-review-confirm-input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.jp-report-review-confirm-box {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.45rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid #dbe3ee;
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 0.84rem;
+    font-weight: 600;
+    line-height: 1.2;
+    transition: border-color 0.15s, background 0.15s, color 0.15s, box-shadow 0.15s;
+    user-select: none;
+}
+
+.jp-report-review-confirm-icon {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.jp-report-review-confirm-input:focus-visible + .jp-report-review-confirm-box {
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.18);
+}
+
+.jp-report-review-confirm-input:checked + .jp-report-review-confirm-box {
+    border-color: #86efac;
+    background: #f0fdf4;
+    color: #166534;
+}
+
+.jp-report-review-fields {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: stretch;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.jp-report-review-note {
+    flex: 1 1 auto;
+    min-width: 0;
+    border-radius: 0.65rem;
+    border-color: #e2e8f0;
+    font-size: 0.9rem;
+    padding: 0.5rem 0.8rem;
+    background: #fff;
+}
+
+.jp-report-review-note:focus {
+    border-color: #fca5a5;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+.jp-report-review-note::placeholder {
+    color: #94a3b8;
+    font-weight: 400;
+}
+
+.jp-report-review-save {
+    flex-shrink: 0;
+    align-self: stretch;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    border-radius: 0.65rem;
+    font-weight: 600;
+}
+
+.jp-report-hod-note-readonly {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    padding: 0.85rem 1rem;
+    border-radius: 0.85rem;
+    background: #fff8f8;
+    border: 1px solid var(--hm-primary-subtle);
+    color: #334155;
+    font-size: 0.9rem;
+    line-height: 1.45;
+}
+
+.jp-report-hod-note-icon {
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+    color: var(--hm-primary);
+    font-size: 1.05rem;
+}
+
+.jp-report-hod-note-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
