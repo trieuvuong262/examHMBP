@@ -190,7 +190,7 @@
                 <li>
                     <a href="{% url 'reports:today_cn' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'today_cn' or request.resolver_match.url_name == 'my_cn' and request.GET.period != 'weekly' %}active{% endif %}">
-                        <i class="bi bi-calendar-day"></i><span>Báo cáo ngày (SX)</span>
+                        <i class="bi bi-calendar-day"></i><span>Báo cáo SX</span>
                     </a>
                 </li>
                 {% endif %}
@@ -199,7 +199,7 @@
                 <li>
                     <a href="{% url 'reports:team_cn' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'team_cn' or request.resolver_match.url_name == 'detail_cn' %}active{% endif %}">
-                        <i class="bi bi-people-fill"></i><span>Quản lý báo cáo (SX)</span>
+                        <i class="bi bi-people-fill"></i><span>Quản lý báo cáo SX</span>
                     </a>
                 </li>
                 {% endif %}
@@ -208,7 +208,7 @@
                 <li>
                     <a href="{% url 'reports:today_vp' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'today_vp' or request.resolver_match.url_name == 'my_vp' %}active{% endif %}">
-                        <i class="bi bi-clipboard-check"></i><span>Báo cáo VP</span>
+                        <i class="bi bi-clipboard-check"></i><span>Báo cáo (VP)</span>
                     </a>
                 </li>
                 {% endif %}
@@ -217,7 +217,7 @@
                 <li>
                     <a href="{% url 'reports:team_vp' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'team_vp' or request.resolver_match.url_name == 'detail_vp' %}active{% endif %}">
-                        <i class="bi bi-people-fill"></i><span>Quản lý BC (VP)</span>
+                        <i class="bi bi-people-fill"></i><span>Quản lý báo cáo (VP)</span>
                     </a>
                 </li>
                 {% endif %}
