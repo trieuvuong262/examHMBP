@@ -253,37 +253,54 @@ EOF
 
 register_portal() {
   local rd_id="$1"
-  local hostname ip payload
+  local hostname ip payload http_code
   hostname="$(hostname -s 2>/dev/null || hostname)"
   ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
   echo '[5/5] Dang ky len Portal...'
   payload="$(
-    JP_ENROLL="$ENROLL_SECRET" \
-    JP_RD_ID="$rd_id" \
-    JP_PW="$CLIENT_PASSWORD" \
-    JP_HOST="$hostname" \
-    JP_IP="$ip" \
-    JP_NAME="$hostname" \
-    JP_ASSIGNED="$ASSIGNED_USER_TEXT" \
-    JP_DEPT="$DEPARTMENT_TEXT" \
-    python3 -c "import json, os; d={
-        'enroll_secret': os.environ['JP_ENROLL'],
-        'rustdesk_id': os.environ['JP_RD_ID'],
-        'rustdesk_password': os.environ['JP_PW'],
-        'hostname': os.environ['JP_HOST'],
-        'ip_address': os.environ['JP_IP'],
-        'name': os.environ['JP_NAME'],
-    };
-    a=os.environ.get('JP_ASSIGNED','').strip();
-    p=os.environ.get('JP_DEPT','').strip();
-    if a: d['assigned_user_text']=a;
-    if p: d['department_text']=p;
-    print(json.dumps(d))"
+    export JP_ENROLL="$ENROLL_SECRET"
+    export JP_RD_ID="$rd_id"
+    export JP_PW="$CLIENT_PASSWORD"
+    export JP_HOST="$hostname"
+    export JP_IP="$ip"
+    export JP_NAME="$hostname"
+    export JP_ASSIGNED="$ASSIGNED_USER_TEXT"
+    export JP_DEPT="$DEPARTMENT_TEXT"
+    python3 <<'PY'
+import json
+import os
+
+data = {
+    'enroll_secret': os.environ['JP_ENROLL'],
+    'rustdesk_id': os.environ['JP_RD_ID'],
+    'rustdesk_password': os.environ['JP_PW'],
+    'hostname': os.environ['JP_HOST'],
+    'ip_address': os.environ['JP_IP'],
+    'name': os.environ['JP_NAME'],
+}
+assigned = os.environ.get('JP_ASSIGNED', '').strip()
+dept = os.environ.get('JP_DEPT', '').strip()
+if assigned:
+    data['assigned_user_text'] = assigned
+if dept:
+    data['department_text'] = dept
+print(json.dumps(data))
+PY
   )"
-  curl -fsSL -X POST \
-    -H 'Content-Type: application/json' \
+  http_code="$(curl -sS -o /tmp/justplay-rustdesk-enroll.json -w '%{http_code}' -X POST \
+    -H 'Content-Type: application/json; charset=utf-8' \
+    -H 'User-Agent: JustPlay-RustDesk-Setup/1.0' \
     -d "$payload" \
-    "${PORTAL_URL%/}/nhat-ky/rustdesk/api/dang-ky/"
+    "${PORTAL_URL%/}/nhat-ky/rustdesk/api/dang-ky/")"
+  if [[ "$http_code" != '200' ]]; then
+    echo "      LOI Portal HTTP $http_code" >&2
+    if [[ -f /tmp/justplay-rustdesk-enroll.json ]]; then
+      cat /tmp/justplay-rustdesk-enroll.json >&2
+      echo >&2
+    fi
+    return 1
+  fi
+  cat /tmp/justplay-rustdesk-enroll.json
 }
 
 BIN="$(find_rustdesk_bin)"
@@ -324,7 +341,11 @@ echo "      ID: $RD_ID"
 echo '[4b/5] Dat mat khau mac dinh...'
 apply_password "$BIN"
 
-RESP="$(register_portal "$RD_ID")"
+RESP="$(register_portal "$RD_ID")" || {
+  echo 'Dang ky Portal that bai. Kiem tra ENROLL_SECRET va ket noi mang.' >&2
+  read -r -p 'Nhan Enter de thoat...' _ || true
+  exit 1
+}
 
 ensure_autostart "$BIN"
 
