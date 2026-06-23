@@ -13,9 +13,6 @@
 <div class="container jp-page jp-reports-page jp-report-detail-page py-3 py-md-4 mb-5">
     <div class="jp-report-detail-hero mb-4">
         <div class="jp-report-detail-hero-main">
-            <div class="jp-report-detail-avatar" aria-hidden="true">
-                {{ report.employee.profile.full_name|default:report.employee.username|slice:":1"|upper }}
-            </div>
             <div class="jp-report-detail-hero-text">
                 <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
                     <h2 class="fw-bold text-hm mb-0 jp-page-title">Báo cáo {{ report.report_date|date:"d/m/Y" }}</h2>
@@ -150,25 +147,24 @@
         </div>
         {% endif %}
     {% else %}
+    {% if has_office_document %}
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-white fw-bold border-bottom">Văn bản</div>
-        {% if report.document_html %}
+        {% if document_html_display %}
         <div class="jp-word-desk-readonly">
             <div class="jp-word-page-readonly">
                 <div class="jp-word-page-body jp-ckeditor-content">{{ document_html_display|safe }}</div>
             </div>
         </div>
-        {% else %}
-        <div class="card-body">
-            <p class="text-muted mb-0">Chưa có nội dung văn bản.</p>
-        </div>
         {% endif %}
         {% if vanban_detail_images or vanban_detail_files %}
-        <div class="card-body border-top pt-3">
+        <div class="card-body{% if document_html_display %} border-top pt-3{% endif %}">
         {% include 'reports/includes/office_detail_attachments.html' with images=vanban_detail_images files=vanban_detail_files %}
         </div>
         {% endif %}
     </div>
+    {% endif %}
+    {% if has_office_spreadsheet %}
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-white fw-bold">Bảng</div>
         <div class="card-body p-0">
@@ -188,8 +184,6 @@
                             <td>{{ cell|default:"" }}</td>
                             {% endfor %}
                         </tr>
-                        {% empty %}
-                        <tr><td class="text-muted text-center py-3">Chưa có dữ liệu bảng.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -201,19 +195,33 @@
         </div>
         {% endif %}
     </div>
-    {% if link_previews %}
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white fw-bold">Link</div>
-        <div class="card-body">
-            <ul class="list-unstyled mb-0">
-                {% for item in link_previews %}
-                <li class="mb-2"><a href="{{ item.url }}" target="_blank" rel="noopener">{{ item.label }}</a></li>
-                {% endfor %}
-            </ul>
+    {% endif %}
+    {% if has_office_links %}
+    <div class="card border-0 shadow-sm mb-4 jp-weekly-field-card">
+        <div class="card-header bg-white border-bottom py-3">
+            <h6 class="fw-bold mb-0">Link</h6>
+        </div>
+        <div class="card-body p-3 p-md-4">
+            {% for item in link_previews %}
+            <div class="jp-weekly-preview-block mb-3{% if not forloop.last %} pb-3 border-bottom{% endif %}">
+                <a href="{{ item.url }}" target="_blank" rel="noopener" class="jp-weekly-link-card text-decoration-none">
+                    <span class="jp-weekly-link-card-icon" aria-hidden="true"><i class="bi bi-link-45deg"></i></span>
+                    <span class="jp-weekly-link-card-body">
+                        <span class="jp-weekly-link-card-domain">{{ item.domain }}</span>
+                        <span class="jp-weekly-link-card-url">{{ item.url }}</span>
+                    </span>
+                </a>
+                {% if item.embed_url %}
+                <div class="jp-weekly-embed-wrap mt-3">
+                    <iframe src="{{ item.embed_url }}" title="Xem trước link" loading="lazy" allowfullscreen></iframe>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
         </div>
     </div>
     {% endif %}
-    {% if link_detail_files or link_detail_images %}
+    {% if has_office_link_attachments %}
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-white fw-bold">File &amp; ảnh</div>
         <div class="card-body">

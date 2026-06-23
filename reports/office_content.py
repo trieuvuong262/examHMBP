@@ -60,7 +60,10 @@ def document_has_content(html: str) -> bool:
 
 
 def document_has_any_content(html: str) -> bool:
-    return bool(strip_tags(html or '').strip())
+    raw = html or ''
+    if strip_tags(raw).strip():
+        return True
+    return bool(re.search(r'<img\b', raw, re.I))
 
 
 def links_has_content(links_text: str) -> bool:

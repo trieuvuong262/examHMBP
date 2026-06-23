@@ -1411,22 +1411,41 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         return _detail_redirect()
 
     from reports.office_content import (
+        document_has_any_content,
+        links_has_content,
         normalize_spreadsheet_json,
         prepare_document_html_for_display,
+        spreadsheet_has_content,
     )
 
     office_sheet = normalize_spreadsheet_json(report.spreadsheet_json)
     document_html_display = ''
-    if not report.is_production_report and (report.document_html or '').strip():
+    tab_attachments = _daily_attachments_by_tab(report) if not report.is_production_report else None
+    bang_detail_images, bang_detail_files = tab_attachments['bang'] if tab_attachments else ([], [])
+    vanban_detail_images, vanban_detail_files = tab_attachments['vanban'] if tab_attachments else ([], [])
+    link_detail_images, link_detail_files = tab_attachments['link'] if tab_attachments else ([], [])
+    if not report.is_production_report and document_has_any_content(report.document_html or ''):
         document_html_display = prepare_document_html_for_display(
             report.document_html,
             report,
             request,
         )
-    tab_attachments = _daily_attachments_by_tab(report) if not report.is_production_report else None
-    bang_detail_images, bang_detail_files = tab_attachments['bang'] if tab_attachments else ([], [])
-    vanban_detail_images, vanban_detail_files = tab_attachments['vanban'] if tab_attachments else ([], [])
-    link_detail_images, link_detail_files = tab_attachments['link'] if tab_attachments else ([], [])
+    has_office_document = (
+        not report.is_production_report
+        and (
+            document_has_any_content(report.document_html or '')
+            or vanban_detail_images
+            or vanban_detail_files
+        )
+    )
+    has_office_spreadsheet = (
+        not report.is_production_report
+        and (
+            spreadsheet_has_content(office_sheet)
+            or bang_detail_images
+            or bang_detail_files
+        )
+    )
     hourly_grid = None
     productivity = None
     edit_report_url = ''
@@ -1464,6 +1483,15 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         'office_sheet': office_sheet,
         'document_html_display': document_html_display,
         'link_previews': link_preview_rows(report.links) if not report.is_production_report else [],
+        'has_office_document': has_office_document,
+        'has_office_spreadsheet': has_office_spreadsheet,
+        'has_office_links': (
+            not report.is_production_report and links_has_content(report.links or '')
+        ),
+        'has_office_link_attachments': (
+            not report.is_production_report
+            and (link_detail_images or link_detail_files)
+        ),
         'tab_attachments': tab_attachments,
         'bang_detail_images': bang_detail_images,
         'bang_detail_files': bang_detail_files,

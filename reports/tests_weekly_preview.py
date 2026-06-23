@@ -31,5 +31,6 @@ class WeeklyPreviewTests(SimpleTestCase):
         rows = link_preview_rows('https://example.com/a\n\nhttps://docs.google.com/spreadsheets/d/sheet1/edit')
         self.assertEqual(len(rows), 2)
         self.assertEqual(rows[0]['domain'], 'example.com')
+        self.assertEqual(rows[0]['label'], 'example.com')
         self.assertIsNone(rows[0]['embed_url'])
         self.assertTrue(rows[1]['embed_url'].endswith('/preview'))

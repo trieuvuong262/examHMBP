@@ -148,6 +148,43 @@ class ReportHistoryNavigationTests(TestCase):
         )
         self.assertEqual(url, f'{reverse("reports:team_vp")}?{list_q}')
 
+    def test_detail_vp_shows_link_section(self):
+        report = DailyWorkReport.objects.create(
+            employee=self.member,
+            report_date=date.today(),
+            report_profile=REPORT_PROFILE_OFFICE,
+            report_period='week',
+            status=DailyWorkReport.STATUS_SUBMITTED,
+            links='https://docs.google.com/document/d/abc123/edit',
+            submitted_at=timezone.now(),
+        )
+        self.client.force_login(self.leader)
+        resp = self.client.get(reverse('reports:detail_vp', args=[report.pk]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'docs.google.com')
+        self.assertContains(resp, 'https://docs.google.com/document/d/abc123/edit')
+
+    def test_detail_vp_hides_empty_office_sections(self):
+        report = DailyWorkReport.objects.create(
+            employee=self.member,
+            report_date=date.today(),
+            report_profile=REPORT_PROFILE_OFFICE,
+            report_period='week',
+            status=DailyWorkReport.STATUS_SUBMITTED,
+            document_html='<p><br></p>',
+            submitted_at=timezone.now(),
+        )
+        self.client.force_login(self.leader)
+        resp = self.client.get(reverse('reports:detail_vp', args=[report.pk]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, 'jp-report-detail-avatar')
+        self.assertNotContains(resp, 'Chưa có nội dung văn bản')
+        self.assertNotContains(resp, 'Chưa có dữ liệu bảng')
+        self.assertNotContains(resp, '>Văn bản</div>')
+        self.assertNotContains(resp, '>Bảng</div>')
+        self.assertNotContains(resp, '>Link</h6>')
+        self.assertNotContains(resp, 'File &amp; ảnh')
+
     def test_detail_back_link_keeps_team_filters(self):
         week = monday_of(date.today())
         report = DailyWorkReport.objects.create(

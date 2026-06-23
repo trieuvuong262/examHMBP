@@ -38,6 +38,7 @@ def link_preview_rows(links_text: str) -> list[dict]:
         parsed = urlparse(line)
         rows.append({
             'url': line,
+            'label': parsed.netloc.replace('www.', '') or line,
             'domain': parsed.netloc.replace('www.', '') or line,
             'embed_url': embed_url_for_link(line),
         })
