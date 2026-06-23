@@ -23,8 +23,10 @@ from reports.report_profile import REPORT_PROFILE_PRODUCTION
 
 
 from reports.report_lock import (
+    is_report_edit_expired,
     is_report_locked,
     lock_report_on_supervisor_view,
+    report_edit_denied_message,
 )
 
 
@@ -47,7 +49,7 @@ def can_edit_production_norms(viewer, report) -> bool:
 
 
 def can_edit_production_report(viewer, report, *, can_submit, is_proxy=False) -> bool:
-    if is_production_report_locked(report):
+    if is_production_report_locked(report) or is_report_edit_expired(report):
         return False
     if report.employee_id == viewer.id:
         return can_submit

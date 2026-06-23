@@ -24,6 +24,7 @@ urlpatterns = [
     path('vp/team/', views.team_reports_vp, name='team_vp'),
     path('vp/my/', views.my_reports_vp, name='my_vp'),
     path('vp/copy-yesterday/', views.copy_yesterday_vp, name='copy_yesterday_vp'),
+    path('vp/copy-prev/', views.copy_prev_vp, name='copy_prev_vp'),
     path('vp/ckeditor5-upload/', views.ckeditor5_upload, name='ckeditor5_upload'),
     path('vp/<int:pk>/export/', views.report_detail_export_vp, name='detail_export_vp'),
     path('vp/<int:pk>/', views.report_detail_vp, name='detail_vp'),

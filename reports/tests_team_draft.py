@@ -105,85 +105,84 @@ class ReportTeamDraftTests(TestCase):
 
     def test_saved_weekly_draft_shown_on_team_page(self):
         week = monday_of(date.today())
-        WeeklyWorkReport.objects.create(
+        DailyWorkReport.objects.create(
             employee=self.member,
-            week_start=week,
+            report_date=week,
             report_profile=REPORT_PROFILE_OFFICE,
-            status=WeeklyWorkReport.STATUS_DRAFT,
+            report_period='week',
+            status=DailyWorkReport.STATUS_DRAFT,
             draft_saved_at=timezone.now(),
             links='https://draft.example',
         )
         self.client.force_login(self.leader)
-        resp = self.client.get(reverse('reports:team_weekly_vp'))
+        resp = self.client.get(reverse('reports:team_vp'), {'period': 'week', 'date': week.isoformat()})
         self.assertContains(resp, 'Nháp')
 
     def test_unsaved_weekly_not_shown_as_draft_on_team_page(self):
         week = monday_of(date.today())
-        WeeklyWorkReport.objects.create(
+        DailyWorkReport.objects.create(
             employee=self.member,
-            week_start=week,
+            report_date=week,
             report_profile=REPORT_PROFILE_OFFICE,
-            status=WeeklyWorkReport.STATUS_DRAFT,
+            report_period='week',
+            status=DailyWorkReport.STATUS_DRAFT,
         )
         self.client.force_login(self.leader)
-        resp = self.client.get(reverse('reports:team_weekly_vp'))
+        resp = self.client.get(reverse('reports:team_vp'), {'period': 'week', 'date': week.isoformat()})
         self.assertContains(resp, 'Chưa báo cáo')
         self.assertNotContains(resp, 'Nháp')
 
     def test_my_reports_lists_weekly_history(self):
         week = monday_of(date.today())
-        WeeklyWorkReport.objects.create(
+        report = DailyWorkReport.objects.create(
             employee=self.member,
-            week_start=week,
+            report_date=week,
             report_profile=REPORT_PROFILE_OFFICE,
-            status=WeeklyWorkReport.STATUS_SUBMITTED,
+            report_period='week',
+            status=DailyWorkReport.STATUS_SUBMITTED,
             links='https://history.example',
             submitted_at=timezone.now(),
         )
         self.client.force_login(self.member)
-        resp = self.client.get(reverse('reports:my_vp'), {'period': 'weekly'})
+        resp = self.client.get(reverse('reports:my_vp'), {'period': 'week'})
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, 'Theo tuần')
-        self.assertContains(resp, '1 link')
+        self.assertContains(resp, 'Tuần')
+        self.assertContains(resp, 'Link')
         self.assertContains(resp, 'Đã nộp')
-        self.assertContains(resp, reverse('reports:weekly_detail_vp', args=[
-            WeeklyWorkReport.objects.get(employee=self.member, week_start=week).pk,
-        ]))
+        self.assertContains(resp, reverse('reports:detail_vp', args=[report.pk]))
 
     def test_my_reports_hides_unsaved_weekly_draft(self):
         week = monday_of(date.today())
-        WeeklyWorkReport.objects.create(
+        DailyWorkReport.objects.create(
             employee=self.member,
-            week_start=week,
+            report_date=week,
             report_profile=REPORT_PROFILE_OFFICE,
-            status=WeeklyWorkReport.STATUS_DRAFT,
+            report_period='week',
+            status=DailyWorkReport.STATUS_DRAFT,
         )
         self.client.force_login(self.member)
-        resp = self.client.get(reverse('reports:my_vp'), {'period': 'weekly'})
+        resp = self.client.get(reverse('reports:my_vp'), {'period': 'week'})
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, 'Chưa có báo cáo tuần nào')
+        self.assertContains(resp, 'Chưa có báo cáo nào')
 
-    def test_team_weekly_page_loads_for_leader(self):
+    def test_team_weekly_vp_redirects_to_unified_team_page(self):
         week = monday_of(date.today())
-        WeeklyWorkReport.objects.create(
+        report = DailyWorkReport.objects.create(
             employee=self.member,
-            week_start=week,
+            report_date=week,
             report_profile=REPORT_PROFILE_OFFICE,
-            status=WeeklyWorkReport.STATUS_SUBMITTED,
+            report_period='week',
+            status=DailyWorkReport.STATUS_SUBMITTED,
             links='https://example.com',
             submitted_at=timezone.now(),
         )
         self.client.force_login(self.leader)
         resp = self.client.get(reverse('reports:team_weekly_vp'))
-        self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, 'Quản lý báo cáo tuần')
-        resp2 = self.client.get(reverse('reports:weekly_detail_vp', args=[
-            WeeklyWorkReport.objects.get(employee=self.member, week_start=week).pk,
-        ]))
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn('period=week', resp.url)
+        resp2 = self.client.get(reverse('reports:detail_vp', args=[report.pk]))
         self.assertEqual(resp2.status_code, 200)
-        self.assertContains(resp2, 'jp-weekly-link-card')
         self.assertContains(resp2, 'example.com')
-        self.assertContains(resp2, 'Chi tiết báo cáo tuần')
 
     def test_team_stat_filter_submitted_and_missing(self):
         today = date.today()

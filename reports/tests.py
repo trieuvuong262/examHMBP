@@ -181,27 +181,28 @@ class ReportProfileRoutingTests(TestCase):
         self.assertContains(resp, 'Bảng')
         self.assertContains(resp, 'Văn bản')
 
-    def test_daily_page_shows_daily_title_only(self):
+    def test_daily_page_shows_vp_title_and_period_tabs(self):
         client = Client()
         client.force_login(self.office_user)
         resp = client.get(reverse('reports:today_vp'))
-        self.assertContains(resp, 'Báo cáo ngày')
+        self.assertContains(resp, 'Báo cáo VP')
         self.assertContains(resp, 'jp-reports-intro')
-        self.assertNotContains(resp, 'jp-reports-period-nav')
+        self.assertContains(resp, 'Ngày')
+        self.assertContains(resp, 'Tuần')
+        self.assertContains(resp, 'Tháng')
 
     def test_weekly_report_routed_by_scope(self):
         client = Client()
         client.force_login(self.prod_user)
         resp = client.get(reverse('reports:weekly_cn'))
-        self.assertEqual(resp.status_code, 200)
-        self.assertTemplateUsed(resp, 'reports/weekly.html')
-        self.assertContains(resp, 'Báo cáo tuần')
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn('/reports/sx/', resp.url)
 
         client.force_login(self.office_user)
         resp = client.get(reverse('reports:weekly_vp'))
-        self.assertEqual(resp.status_code, 200)
-        self.assertTemplateUsed(resp, 'reports/weekly.html')
-        self.assertContains(resp, 'Báo cáo tuần')
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn('/reports/vp/', resp.url)
+        self.assertIn('period=week', resp.url)
 
     def test_legacy_weekly_url_redirects(self):
         client = Client()

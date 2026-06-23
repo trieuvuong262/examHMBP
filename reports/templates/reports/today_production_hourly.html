@@ -69,6 +69,10 @@
             <div class="alert alert-secondary border-0 small mb-3">
                 Đã khóa — không thể chỉnh sửa.
             </div>
+            {% elif is_edit_expired %}
+            <div class="alert alert-secondary border-0 small mb-3">
+                Đã quá hạn chỉnh sửa — chỉ được sửa đến hết ngày {{ report.last_editable_on|date:"d/m/Y" }}.
+            </div>
             {% endif %}
 
             {% if can_edit and has_unfinalized %}

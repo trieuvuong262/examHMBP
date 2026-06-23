@@ -207,8 +207,8 @@
                 {% if jp_can_reports_daily_vp %}
                 <li>
                     <a href="{% url 'reports:today_vp' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'today_vp' or request.resolver_match.url_name == 'my_vp' and request.GET.period != 'weekly' %}active{% endif %}">
-                        <i class="bi bi-calendar-day"></i><span>Báo cáo ngày (VP)</span>
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'today_vp' or request.resolver_match.url_name == 'my_vp' %}active{% endif %}">
+                        <i class="bi bi-clipboard-check"></i><span>Báo cáo VP</span>
                     </a>
                 </li>
                 {% endif %}
@@ -217,43 +217,7 @@
                 <li>
                     <a href="{% url 'reports:team_vp' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'team_vp' or request.resolver_match.url_name == 'detail_vp' %}active{% endif %}">
-                        <i class="bi bi-people-fill"></i><span>Quản lý báo cáo (VP)</span>
-                    </a>
-                </li>
-                {% endif %}
-                {% jp_can_menu 'reports' 'weekly_cn' as jp_can_reports_weekly_cn %}
-                {% if jp_can_reports_weekly_cn %}
-                <li>
-                    <a href="{% url 'reports:weekly_cn' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'weekly_cn' or request.resolver_match.url_name == 'my_cn' and request.GET.period == 'weekly' %}active{% endif %}">
-                        <i class="bi bi-calendar-week"></i><span>Báo cáo tuần (SX)</span>
-                    </a>
-                </li>
-                {% endif %}
-                {% jp_can_menu 'reports' 'weekly_cn_detail' as jp_can_reports_weekly_cn_detail %}
-                {% if jp_can_reports_weekly_cn_detail %}
-                <li>
-                    <a href="{% url 'reports:team_weekly_cn' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'team_weekly_cn' or request.resolver_match.url_name == 'weekly_detail_cn' %}active{% endif %}">
-                        <i class="bi bi-people-fill"></i><span>Quản lý báo cáo tuần (SX)</span>
-                    </a>
-                </li>
-                {% endif %}
-                {% jp_can_menu 'reports' 'weekly_vp' as jp_can_reports_weekly_vp %}
-                {% if jp_can_reports_weekly_vp %}
-                <li>
-                    <a href="{% url 'reports:weekly_vp' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'weekly_vp' or request.resolver_match.url_name == 'my_vp' and request.GET.period == 'weekly' %}active{% endif %}">
-                        <i class="bi bi-calendar-week"></i><span>Báo cáo tuần (VP)</span>
-                    </a>
-                </li>
-                {% endif %}
-                {% jp_can_menu 'reports' 'weekly_vp_detail' as jp_can_reports_weekly_vp_detail %}
-                {% if jp_can_reports_weekly_vp_detail %}
-                <li>
-                    <a href="{% url 'reports:team_weekly_vp' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'team_weekly_vp' or request.resolver_match.url_name == 'weekly_detail_vp' %}active{% endif %}">
-                        <i class="bi bi-people-fill"></i><span>Quản lý báo cáo tuần (VP)</span>
+                        <i class="bi bi-people-fill"></i><span>Quản lý BC (VP)</span>
                     </a>
                 </li>
                 {% endif %}

@@ -56,7 +56,7 @@ class ProductionHourlyTests(TestCase):
             department=self.dept,
             is_employed=True,
         )
-        self.report_date = date(2026, 6, 16)
+        self.report_date = timezone.localdate()
         self.report = DailyWorkReport.objects.create(
             employee=self.user,
             report_date=self.report_date,

@@ -151,6 +151,25 @@
         {% endif %}
     {% else %}
     <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white fw-bold border-bottom">Văn bản</div>
+        {% if report.document_html %}
+        <div class="jp-word-desk-readonly">
+            <div class="jp-word-page-readonly">
+                <div class="jp-word-page-body jp-ckeditor-content">{{ document_html_display|safe }}</div>
+            </div>
+        </div>
+        {% else %}
+        <div class="card-body">
+            <p class="text-muted mb-0">Chưa có nội dung văn bản.</p>
+        </div>
+        {% endif %}
+        {% if vanban_detail_images or vanban_detail_files %}
+        <div class="card-body border-top pt-3">
+        {% include 'reports/includes/office_detail_attachments.html' with images=vanban_detail_images files=vanban_detail_files %}
+        </div>
+        {% endif %}
+    </div>
+    <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-white fw-bold">Bảng</div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -182,25 +201,18 @@
         </div>
         {% endif %}
     </div>
-    <div class="card border-0 shadow-sm mb-4 overflow-hidden">
-        <div class="card-header bg-white fw-bold border-bottom">Văn bản</div>
-        {% if report.document_html %}
-        <div class="jp-word-desk-readonly">
-            <div class="jp-word-page-readonly">
-                <div class="jp-word-page-body jp-ckeditor-content">{{ document_html_display|safe }}</div>
-            </div>
-        </div>
-        {% else %}
+    {% if link_previews %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white fw-bold">Link</div>
         <div class="card-body">
-            <p class="text-muted mb-0">Chưa có nội dung văn bản.</p>
+            <ul class="list-unstyled mb-0">
+                {% for item in link_previews %}
+                <li class="mb-2"><a href="{{ item.url }}" target="_blank" rel="noopener">{{ item.label }}</a></li>
+                {% endfor %}
+            </ul>
         </div>
-        {% endif %}
-        {% if vanban_detail_images or vanban_detail_files %}
-        <div class="card-body border-top pt-3">
-        {% include 'reports/includes/office_detail_attachments.html' with images=vanban_detail_images files=vanban_detail_files %}
-        </div>
-        {% endif %}
     </div>
+    {% endif %}
     {% endif %}
 
     {% if can_review %}

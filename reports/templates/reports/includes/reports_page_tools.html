@@ -9,13 +9,15 @@
     </a>
     {% endif %}
     {% if my_url_name %}
-    <a href="{% url my_url_name %}{% if report_period == 'weekly' %}?period=weekly{% endif %}" class="btn btn-outline-dark btn-sm flex-fill flex-md-grow-0">Lịch sử</a>
+    <a href="{% url my_url_name %}{% if report_period == 'week' or report_period == 'month' %}?period={{ report_period }}{% elif report_period == 'weekly' %}?period=weekly{% endif %}" class="btn btn-outline-dark btn-sm flex-fill flex-md-grow-0">Lịch sử</a>
     {% else %}
     <a href="{% url 'reports:my' %}{% if report_period == 'weekly' %}?period=weekly{% endif %}" class="btn btn-outline-dark btn-sm flex-fill flex-md-grow-0">Lịch sử</a>
     {% endif %}
     {% if can_view_team %}
     {% if report_period == 'weekly' and team_weekly_url_name %}
     <a href="{% url team_weekly_url_name %}{% if week_start %}?week={{ week_start|date:'Y-m-d' }}{% endif %}" class="btn btn-outline-hm btn-sm flex-fill flex-md-grow-0">Báo cáo cấp dưới</a>
+    {% elif report_period == 'week' or report_period == 'month' %}
+    <a href="{% url team_url_name %}?period={{ report_period }}{% if report_period == 'month' and report_date %}&month={{ report_date|date:'Y-m' }}{% elif report_date %}&date={{ report_date|date:'Y-m-d' }}{% endif %}" class="btn btn-outline-hm btn-sm flex-fill flex-md-grow-0">Báo cáo cấp dưới</a>
     {% elif report_period != 'weekly' and team_url_name %}
     <a href="{% url team_url_name %}{% if report_date %}?date={{ report_date|date:'Y-m-d' }}{% endif %}" class="btn btn-outline-hm btn-sm flex-fill flex-md-grow-0">Báo cáo cấp dưới</a>
     {% elif report_period != 'weekly' %}

@@ -49,11 +49,12 @@ class ReportHistoryNavigationTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, reverse('reports:my_cn'))
 
-    def test_weekly_vp_history_links_with_period(self):
+    def test_weekly_vp_redirects_to_unified_vp_report(self):
         self.client.force_login(self.member)
         resp = self.client.get(reverse('reports:weekly_vp'))
-        self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, f'{reverse("reports:my_vp")}?period=weekly')
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn('period=week', resp.url)
+        self.assertIn(reverse('reports:today_vp').rstrip('/'), resp.url)
 
     def test_my_reports_redirect_preserves_period(self):
         self.client.force_login(self.member)
@@ -64,7 +65,20 @@ class ReportHistoryNavigationTests(TestCase):
             fetch_redirect_response=False,
         )
 
-    def test_history_url_for_weekly_includes_period(self):
+    def test_history_url_for_office_weekly_includes_period(self):
+        week = monday_of(date.today())
+        report = DailyWorkReport.objects.create(
+            employee=self.member,
+            report_date=week,
+            report_profile=REPORT_PROFILE_OFFICE,
+            report_period='week',
+            status=DailyWorkReport.STATUS_SUBMITTED,
+            submitted_at=timezone.now(),
+        )
+        url = history_url_for(report, self.member)
+        self.assertEqual(url, f'{reverse("reports:my_vp")}?period=week')
+
+    def test_history_url_for_legacy_weekly_vp_includes_week_period(self):
         week = monday_of(date.today())
         report = WeeklyWorkReport.objects.create(
             employee=self.member,
@@ -74,21 +88,22 @@ class ReportHistoryNavigationTests(TestCase):
             submitted_at=timezone.now(),
         )
         url = history_url_for(report, self.member)
-        self.assertEqual(url, f'{reverse("reports:my_vp")}?period=weekly')
+        self.assertEqual(url, f'{reverse("reports:my_vp")}?period=week')
 
     def test_history_url_for_weekly_subordinate_includes_for_user(self):
         week = monday_of(date.today())
-        report = WeeklyWorkReport.objects.create(
+        report = DailyWorkReport.objects.create(
             employee=self.member,
-            week_start=week,
+            report_date=week,
             report_profile=REPORT_PROFILE_OFFICE,
-            status=WeeklyWorkReport.STATUS_SUBMITTED,
+            report_period='week',
+            status=DailyWorkReport.STATUS_SUBMITTED,
             submitted_at=timezone.now(),
         )
         url = history_url_for(report, self.leader)
         self.assertEqual(
             url,
-            f'{reverse("reports:my_vp")}?period=weekly&for_user={self.member.pk}',
+            f'{reverse("reports:my_vp")}?period=week&for_user={self.member.pk}',
         )
 
     def test_list_back_url_for_own_weekly_includes_period(self):

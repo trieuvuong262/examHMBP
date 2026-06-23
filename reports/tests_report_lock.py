@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
@@ -9,9 +9,12 @@ from django.utils import timezone
 from hrm.models import Department, DepartmentMenuPermission, Profile, RoleModulePermission
 from hrm.permissions import ROLE_EMPLOYEE, ROLE_TEAM_LEADER
 from reports.models import DailyWorkReport, WeeklyWorkReport
+from reports.production_hourly import can_edit_production_report
 from reports.report_lock import (
     can_edit_own_daily_report,
     can_edit_own_weekly_report,
+    is_report_edit_expired,
+    last_editable_date,
     lock_report_on_supervisor_view,
 )
 from reports.report_profile import REPORT_PROFILE_OFFICE, REPORT_PROFILE_PRODUCTION
@@ -92,37 +95,39 @@ class ReportLockTests(TestCase):
         )
         self.assertRedirects(
             resp,
-            f'{reverse("reports:today_vp")}?date={report.report_date.isoformat()}',
+            f'{reverse("reports:today_vp")}?period=day&date={report.report_date.isoformat()}',
         )
         report.refresh_from_db()
         self.assertNotEqual(report.document_html, '<p>changed</p>')
 
     def test_employee_cannot_edit_locked_weekly_vp(self):
         week = monday_of(date.today())
-        report = WeeklyWorkReport.objects.create(
+        report = DailyWorkReport.objects.create(
             employee=self.member,
-            week_start=week,
+            report_date=week,
             report_profile=REPORT_PROFILE_OFFICE,
-            status=WeeklyWorkReport.STATUS_SUBMITTED,
+            report_period='week',
+            status=DailyWorkReport.STATUS_SUBMITTED,
             hod_reviewed=True,
             links='https://original.example',
             submitted_at=timezone.now(),
         )
         self.assertFalse(
-            can_edit_own_weekly_report(self.member, report, can_submit=True),
+            can_edit_own_daily_report(self.member, report, can_submit=True),
         )
         self.client.force_login(self.member)
         resp = self.client.post(
-            reverse('reports:weekly_vp'),
+            reverse('reports:today_vp'),
             {
-                'week_start': week.isoformat(),
+                'period': 'week',
+                'report_date': week.isoformat(),
                 'links': 'https://changed.example',
                 'action': 'save',
             },
         )
         self.assertRedirects(
             resp,
-            f'{reverse("reports:weekly_vp")}?week={week.isoformat()}',
+            f'{reverse("reports:today_vp")}?period=week&date={week.isoformat()}',
         )
         report.refresh_from_db()
         self.assertEqual(report.links, 'https://original.example')
@@ -168,3 +173,69 @@ class ReportLockTests(TestCase):
         self.client.get(reverse('reports:detail_cn', args=[report.pk]))
         report.refresh_from_db()
         self.assertTrue(report.hod_reviewed)
+
+    def test_can_edit_until_end_of_day_after_report(self):
+        report_date = date(2026, 1, 10)
+        report = DailyWorkReport.objects.create(
+            employee=self.member,
+            report_date=report_date,
+            report_profile=REPORT_PROFILE_OFFICE,
+            status=DailyWorkReport.STATUS_SUBMITTED,
+            submitted_at=timezone.now(),
+        )
+        self.assertEqual(last_editable_date(report), date(2026, 1, 11))
+        with patch('reports.report_lock.timezone.localdate', return_value=date(2026, 1, 11)):
+            self.assertFalse(is_report_edit_expired(report))
+            self.assertTrue(can_edit_own_daily_report(self.member, report, can_submit=True))
+        with patch('reports.report_lock.timezone.localdate', return_value=date(2026, 1, 12)):
+            self.assertTrue(is_report_edit_expired(report))
+            self.assertFalse(can_edit_own_daily_report(self.member, report, can_submit=True))
+
+    def test_week_vp_edit_window_uses_week_end(self):
+        week = date(2026, 1, 5)
+        report = DailyWorkReport.objects.create(
+            employee=self.member,
+            report_date=week,
+            report_profile=REPORT_PROFILE_OFFICE,
+            report_period='week',
+            status=DailyWorkReport.STATUS_SUBMITTED,
+            submitted_at=timezone.now(),
+        )
+        self.assertEqual(last_editable_date(report), date(2026, 1, 12))
+        with patch('reports.report_lock.timezone.localdate', return_value=date(2026, 1, 12)):
+            self.assertFalse(is_report_edit_expired(report))
+        with patch('reports.report_lock.timezone.localdate', return_value=date(2026, 1, 13)):
+            self.assertTrue(is_report_edit_expired(report))
+
+    def test_production_daily_respects_edit_window(self):
+        report_date = date(2026, 3, 1)
+        report = DailyWorkReport.objects.create(
+            employee=self.member,
+            report_date=report_date,
+            report_profile=REPORT_PROFILE_PRODUCTION,
+            status=DailyWorkReport.STATUS_SUBMITTED,
+            submitted_at=timezone.now(),
+        )
+        with patch('reports.report_lock.timezone.localdate', return_value=date(2026, 3, 3)):
+            self.assertFalse(
+                can_edit_production_report(self.member, report, can_submit=True),
+            )
+
+    def test_expired_vp_page_shows_message(self):
+        report_date = date(2026, 1, 10)
+        DailyWorkReport.objects.create(
+            employee=self.member,
+            report_date=report_date,
+            report_profile=REPORT_PROFILE_OFFICE,
+            status=DailyWorkReport.STATUS_SUBMITTED,
+            submitted_at=timezone.now(),
+        )
+        self.client.force_login(self.member)
+        with patch('reports.report_lock.timezone.localdate', return_value=date(2026, 1, 12)):
+            resp = self.client.get(
+                reverse('reports:today_vp'),
+                {'date': report_date.isoformat()},
+            )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Đã quá hạn chỉnh sửa')
+        self.assertContains(resp, '11/01/2026')

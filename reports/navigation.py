@@ -10,6 +10,12 @@ from reports.report_profile import (
     REPORT_PROFILE_OFFICE,
     REPORT_PROFILE_PRODUCTION,
 )
+from reports.period_utils import (
+    PERIOD_DAY,
+    PERIOD_MONTH,
+    PERIOD_WEEK,
+    period_query_param,
+)
 
 MENU_DAILY_CN = 'daily_cn'
 MENU_DAILY_CN_DETAIL = 'daily_cn_detail'
@@ -142,7 +148,7 @@ def page_tools_context_for_profile(report_profile: str, *, report_period: str = 
 def weekly_url_name_for_profile(report_profile: str) -> str:
     if report_profile == REPORT_PROFILE_PRODUCTION:
         return 'reports:weekly_cn'
-    return 'reports:weekly_vp'
+    return 'reports:today_vp'
 
 
 def weekly_url_for_profile(report_profile: str) -> str:
@@ -222,7 +228,12 @@ def history_url_for(report, viewer) -> str:
     base = my_url_for_profile(profile)
     params = {}
     if hasattr(report, 'week_start'):
-        params['period'] = 'weekly'
+        if profile == REPORT_PROFILE_OFFICE:
+            params['period'] = PERIOD_WEEK
+        else:
+            params['period'] = 'weekly'
+    elif getattr(report, 'report_period', PERIOD_DAY) not in (PERIOD_DAY, '', None):
+        params['period'] = report.report_period
     if report.employee_id != viewer.id:
         params['for_user'] = report.employee_id
     if not params:
@@ -238,14 +249,28 @@ def list_back_url_for(report, viewer, *, can_view_team: bool) -> str:
     )
     if report.employee_id != viewer.id and can_view_team:
         if hasattr(report, 'week_start'):
+            if profile == REPORT_PROFILE_OFFICE:
+                return (
+                    f"{team_url_for_profile(profile)}"
+                    f"?{urlencode(period_query_param(PERIOD_WEEK, report.week_start))}"
+                )
             return (
                 f"{team_weekly_url_for_profile(profile)}"
                 f"?week={report.week_start.isoformat()}"
             )
+        if not report.is_production_report:
+            return (
+                f"{team_url_for_profile(profile)}"
+                f"?{urlencode(period_query_param(report.report_period, report.report_date))}"
+            )
         return f"{team_url_for_profile(profile)}?date={report.report_date.isoformat()}"
     base = my_url_for_profile(profile)
     if hasattr(report, 'week_start'):
+        if profile == REPORT_PROFILE_OFFICE:
+            return f'{base}?period={PERIOD_WEEK}'
         return f'{base}?period=weekly'
+    if not report.is_production_report and report.report_period != PERIOD_DAY:
+        return f'{base}?period={report.report_period}'
     return base
 
 
@@ -264,12 +289,14 @@ def team_pending_url_for_user(user) -> str:
 
 
 def redirect_team_weekly_legacy(user):
-    """URL quản lý báo cáo tuần mặc định — theo phân quyền menu."""
+    """URL quản lý báo cáo tuần VP (đã gộp vào team_vp) — SX chuyển về team ngày."""
     if user_can_access_menu(user, MODULE_REPORTS, MENU_WEEKLY_CN_DETAIL):
-        return reverse('reports:team_weekly_cn')
+        return reverse('reports:team_cn')
+    if user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_VP_DETAIL):
+        return reverse('reports:team_vp') + f'?period={PERIOD_WEEK}'
     if user_can_access_menu(user, MODULE_REPORTS, MENU_WEEKLY_VP_DETAIL):
-        return reverse('reports:team_weekly_vp')
-    return reverse('reports:team_weekly_cn')
+        return reverse('reports:team_vp') + f'?period={PERIOD_WEEK}'
+    return reverse('reports:team_cn')
 
 
 def redirect_copy_yesterday_legacy(user):
@@ -281,10 +308,12 @@ def redirect_copy_yesterday_legacy(user):
 
 
 def redirect_copy_prev_week_legacy(user):
+    if user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_VP):
+        return reverse('reports:copy_prev_vp') + f'?period={PERIOD_WEEK}'
+    if user_can_access_menu(user, MODULE_REPORTS, MENU_WEEKLY_VP):
+        return reverse('reports:copy_prev_vp') + f'?period={PERIOD_WEEK}'
     if user_can_access_menu(user, MODULE_REPORTS, MENU_WEEKLY_CN):
         return reverse('reports:copy_prev_week_cn')
-    if user_can_access_menu(user, MODULE_REPORTS, MENU_WEEKLY_VP):
-        return reverse('reports:copy_prev_week_vp')
     return reverse('reports:copy_prev_week_cn')
 
 

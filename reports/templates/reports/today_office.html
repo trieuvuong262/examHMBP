@@ -2,16 +2,26 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260528c">
+<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260623a">
 {% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-reports-page py-3 py-md-4 mb-5">
-    {% include 'reports/includes/reports_intro_header.html' with intro_icon='bi-calendar-day' intro_title='Báo cáo ngày' %}
+    {% include 'reports/includes/reports_intro_header.html' with intro_icon='bi-clipboard-check' intro_title=period_intro_title report_period=office_period %}
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body p-3">
+            {% include 'reports/includes/vp_period_tabs.html' with base_url_name='reports:today_vp' office_period=office_period report_date=report_date %}
+        </div>
+    </div>
 
     {% if is_locked %}
     <div class="alert alert-secondary border-0 shadow-sm py-2 mb-3">
         Cấp trên đã xem báo cáo — không thể chỉnh sửa.
+    </div>
+    {% elif is_edit_expired %}
+    <div class="alert alert-secondary border-0 shadow-sm py-2 mb-3">
+        Đã quá hạn chỉnh sửa — chỉ được sửa đến hết ngày {{ last_editable_on|date:"d/m/Y" }}.
     </div>
     {% elif report.status == 'SUBMITTED' %}
     <div class="alert alert-success border-0 shadow-sm py-2 mb-3">
@@ -25,15 +35,20 @@
           data-ck-browse-url=""
           {% if not can_edit %}data-report-locked="1"{% endif %}>
         {% csrf_token %}
+        <input type="hidden" name="period" value="{{ office_period }}">
 
         <div class="jp-office-hero card border-0 shadow-sm mb-3">
             <div class="jp-office-hero-top">
                 <div class="jp-office-hero-date">
-                    <label class="form-label fw-bold small mb-1">Ngày báo cáo</label>
+                    <label class="form-label fw-bold small mb-1">{{ period_date_label }}</label>
+                    {% if office_period == 'month' %}
+                    <input type="month" name="month" class="form-control" value="{{ period_date_input_value }}">
+                    <input type="hidden" name="report_date" value="{{ report_date|date:'Y-m-d' }}">
+                    {% else %}
                     {{ form.report_date }}
+                    {% endif %}
                 </div>
                 <span class="jp-office-status-pill {% if report.status == 'SUBMITTED' %}is-submitted{% else %}is-draft{% endif %}">
-                    
                     {{ report.get_status_display }}
                 </span>
             </div>
@@ -44,6 +59,14 @@
 
         {% include 'reports/includes/office_report_workspace.html' %}
 
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+                <label class="form-label fw-bold small mb-1" for="id_links">Link</label>
+                {{ form.links }}
+                <div class="form-text">Mỗi dòng một link (Google Drive, tài liệu, …)</div>
+            </div>
+        </div>
+
         {% if form.non_field_errors %}
         <div class="alert alert-danger border-0 shadow-sm mb-3">{{ form.non_field_errors }}</div>
         {% endif %}
@@ -51,7 +74,7 @@
         {% if can_edit %}
         <div class="jp-office-actions">
             <button type="submit" name="action" value="save" class="btn btn-outline-dark px-4">Lưu nháp</button>
-            <button type="submit" name="action" value="submit" class="btn btn-hm px-4 fw-bold">Gửi Báo cáo</button>
+            <button type="submit" name="action" value="submit" class="btn btn-hm px-4 fw-bold">Gửi báo cáo</button>
         </div>
         {% endif %}
     </form>

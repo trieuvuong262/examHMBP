@@ -33,12 +33,8 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
     MODULE_REPORTS: [
         {'key': 'daily_cn', 'label': 'Báo cáo ngày (SX)', 'icon': 'bi-calendar-day'},
         {'key': 'daily_cn_detail', 'label': 'Quản lý báo cáo (SX)', 'icon': 'bi-people-fill'},
-        {'key': 'daily_vp', 'label': 'Báo cáo ngày (VP)', 'icon': 'bi-calendar-day'},
-        {'key': 'daily_vp_detail', 'label': 'Quản lý báo cáo (VP)', 'icon': 'bi-people-fill'},
-        {'key': 'weekly_cn', 'label': 'Báo cáo tuần (SX)', 'icon': 'bi-calendar-week'},
-        {'key': 'weekly_cn_detail', 'label': 'Quản lý báo cáo tuần (SX)', 'icon': 'bi-people-fill'},
-        {'key': 'weekly_vp', 'label': 'Báo cáo tuần (VP)', 'icon': 'bi-calendar-week'},
-        {'key': 'weekly_vp_detail', 'label': 'Quản lý báo cáo tuần (VP)', 'icon': 'bi-people-fill'},
+        {'key': 'daily_vp', 'label': 'Báo cáo VP', 'icon': 'bi-clipboard-check'},
+        {'key': 'daily_vp_detail', 'label': 'Quản lý BC (VP)', 'icon': 'bi-people-fill'},
     ],
     MODULE_TASKS: [
         {'key': 'personal', 'label': 'Giao việc cá nhân', 'icon': 'bi-person-check'},

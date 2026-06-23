@@ -13,6 +13,7 @@ from hrm.permissions import (
     get_profile,
     get_report_team_users,
 )
+from reports.report_lock import is_report_edit_expired, report_edit_denied_message
 from reports.models import DailyWorkReport, ProductionHourlyQuantity, ProductionShiftProduct
 from reports.production_hourly import (
     active_has_hourly_data,
@@ -133,10 +134,10 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         is_proxy=editing_for_other,
     )
     if not can_edit:
-        if is_production_report_locked(report) and report.employee_id == request.user.id:
-            messages.error(request, 'Cấp trên đã xem báo cáo — không thể chỉnh sửa.')
-            return redirect(_production_redirect(report_date, None, 'phase=review'))
-        messages.error(request, 'Bạn không có quyền chỉnh sửa báo cáo này.')
+        if report.employee_id == request.user.id:
+            messages.error(request, report_edit_denied_message(report))
+        else:
+            messages.error(request, 'Bạn không có quyền chỉnh sửa báo cáo này.')
         return redirect(_production_redirect(report_date, subject.id if editing_for_other else None))
 
     action = request.POST.get('action', '')
@@ -279,6 +280,7 @@ def today_production_hourly(request, report_date, report_context_common):
     started = shift_is_started(report)
     is_submitted = report.status == DailyWorkReport.STATUS_SUBMITTED
     is_locked = is_production_report_locked(report)
+    is_edit_expired = is_report_edit_expired(report)
 
     if editing_for_other and can_edit:
         if not started:
@@ -339,6 +341,7 @@ def today_production_hourly(request, report_date, report_context_common):
         'can_edit': can_edit,
         'is_submitted': is_submitted,
         'is_locked': is_locked,
+        'is_edit_expired': is_edit_expired,
         'phase': phase,
         'shift_started': started,
         'current_product': current_product,

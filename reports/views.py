@@ -34,11 +34,29 @@ from reports.report_profile import (
     REPORT_PROFILE_OFFICE,
     REPORT_PROFILE_PRODUCTION,
 )
+from reports.period_utils import (
+    PERIOD_DAY,
+    PERIOD_MONTH,
+    PERIOD_WEEK,
+    anchor_date_for_period,
+    first_day_of_month,
+    parse_office_period,
+    parse_period_anchor_date,
+    period_date_input_name,
+    period_date_input_type,
+    period_date_input_value,
+    period_intro_title,
+    period_date_label,
+    period_query_param,
+)
 from reports.report_lock import (
     can_edit_own_daily_report,
     can_edit_own_weekly_report,
+    is_report_edit_expired,
     is_report_locked,
+    last_editable_date,
     lock_report_on_supervisor_view,
+    report_edit_denied_message,
 )
 from reports.office_content import CKEDITOR_INLINE_PREFIX
 from reports.daily_inline_images import (
@@ -211,39 +229,57 @@ def _parse_report_date(request):
     return report_date
 
 
-def _report_context_common(request, report_date, *, report_profile=None):
+def _report_context_common(request, report_date, *, report_profile=None, report_period=PERIOD_DAY):
     yesterday = report_date - timedelta(days=1)
+    prev_week = report_date - timedelta(days=7)
+    if report_period == PERIOD_MONTH:
+        prev_anchor = first_day_of_month(
+            (report_date.replace(day=1) - timedelta(days=1))
+        )
+    elif report_period == PERIOD_WEEK:
+        prev_anchor = prev_week
+    else:
+        prev_anchor = yesterday
     ctx = {
         'report_date': report_date,
+        'report_period': report_period,
         'has_yesterday': DailyWorkReport.objects.filter(
             employee=request.user,
-            report_date=yesterday,
+            report_date=prev_anchor,
+            report_profile=report_profile or REPORT_PROFILE_OFFICE,
+            report_period=report_period,
         ).exists(),
-        'yesterday': yesterday,
+        'yesterday': prev_anchor,
         'can_view_team': can_view_team_reports(request.user),
     }
     if report_profile:
-        ctx.update(page_tools_context_for_profile(report_profile, report_period='daily'))
+        ctx.update(page_tools_context_for_profile(report_profile, report_period=report_period))
     return ctx
 
 
-def _daily_report_defaults(report_profile: str):
+def _daily_report_defaults(report_profile: str, report_period: str = PERIOD_DAY):
     return {
         'shift': '',
         'report_profile': report_profile,
+        'report_period': report_period,
         'status': DailyWorkReport.STATUS_DRAFT,
     }
 
 
-def _load_daily_report(user, report_date, *, report_profile: str):
+def _load_daily_report(user, report_date, *, report_profile: str, report_period: str = PERIOD_DAY):
     """Chỉ lấy bản ghi đã lưu; loại báo cáo theo trang SX/VP, không theo phòng ban."""
     try:
-        return DailyWorkReport.objects.get(employee=user, report_date=report_date)
+        return DailyWorkReport.objects.get(
+            employee=user,
+            report_date=report_date,
+            report_profile=report_profile,
+            report_period=report_period,
+        )
     except DailyWorkReport.DoesNotExist:
         return DailyWorkReport(
             employee=user,
             report_date=report_date,
-            **_daily_report_defaults(report_profile),
+            **_daily_report_defaults(report_profile, report_period),
         )
 
 
@@ -381,19 +417,27 @@ def _today_production_report(request, report_date):
     return today_production_hourly(request, report_date, _production_context)
 
 
-def _today_office_report(request, report_date):
+def _today_office_report(request, report_date, *, report_period: str = PERIOD_DAY):
     from hrm.permissions import get_profile as load_profile
     user_profile = load_profile(request.user)
 
-    report = _load_daily_report(request.user, report_date, report_profile=REPORT_PROFILE_OFFICE)
+    report = _load_daily_report(
+        request.user,
+        report_date,
+        report_profile=REPORT_PROFILE_OFFICE,
+        report_period=report_period,
+    )
     can_submit = can_submit_daily_report(request.user)
     can_edit = can_edit_own_daily_report(request.user, report, can_submit=can_submit)
     is_locked = is_report_locked(report)
+    is_edit_expired = is_report_edit_expired(report)
+    period_params = period_query_param(report_period, report_date)
+    redirect_qs = urlencode(period_params)
 
     if request.method == 'POST':
         if not can_edit:
-            messages.error(request, 'Cấp trên đã xem báo cáo — không thể chỉnh sửa.')
-            return redirect(f'{reverse("reports:today_vp")}?date={report_date.isoformat()}')
+            messages.error(request, report_edit_denied_message(report))
+            return redirect(f'{reverse("reports:today_vp")}?{redirect_qs}')
         action = request.POST.get('action', 'save')
         report = _ensure_daily_report_saved(report)
         form = OfficeDailyWorkReportForm(request.POST, request.FILES, instance=report)
@@ -402,6 +446,11 @@ def _today_office_report(request, report_date):
             _delete_daily_attachments(report, delete_ids)
             report = form.save(commit=False)
             report.report_profile = REPORT_PROFILE_OFFICE
+            report.report_period = report_period
+            report.report_date = anchor_date_for_period(
+                form.cleaned_data.get('report_date') or report_date,
+                report_period,
+            )
             report.shift = ''
             messages.success(request, _finalize_report_submission(report, action))
             report.save()
@@ -413,15 +462,27 @@ def _today_office_report(request, report_date):
                 vanban_images=request.FILES.getlist('vanban_images'),
                 vanban_files=request.FILES.getlist('vanban_files'),
             )
-            return redirect(f'{reverse("reports:today_vp")}?date={report_date.isoformat()}')
+            return redirect(
+                f'{reverse("reports:today_vp")}?{urlencode(period_query_param(report_period, report.report_date))}',
+            )
     else:
         form = OfficeDailyWorkReportForm(instance=report)
 
     tab_attachments = _daily_attachments_by_tab(report)
     bang_images, bang_files = tab_attachments['bang']
     vanban_images, vanban_files = tab_attachments['vanban']
-    ctx = _report_context_common(request, report_date, report_profile=REPORT_PROFILE_OFFICE)
+    ctx = _report_context_common(
+        request,
+        report_date,
+        report_profile=REPORT_PROFILE_OFFICE,
+        report_period=report_period,
+    )
     ctx.update(_ckeditor_context())
+    copy_label = 'Sao chép kỳ trước'
+    if report_period == PERIOD_WEEK:
+        copy_label = 'Sao chép tuần trước'
+    elif report_period == PERIOD_MONTH:
+        copy_label = 'Sao chép tháng trước'
     ctx.update({
         'form': form,
         'report': report,
@@ -431,11 +492,19 @@ def _today_office_report(request, report_date):
         'vanban_files': vanban_files,
         'employee_name': (user_profile.full_name if user_profile else '') or request.user.username,
         'department_name': user_profile.department.name if user_profile and user_profile.department_id else '',
-        'copy_url': reverse('reports:copy_yesterday_vp') if ctx['has_yesterday'] and can_edit else None,
-        'copy_label': 'Sao chép HQ',
-        'copy_confirm': 'Sao chép nội dung từ hôm qua?',
+        'copy_url': reverse('reports:copy_prev_vp') + f'?{urlencode(period_params)}' if ctx['has_yesterday'] and can_edit else None,
+        'copy_label': copy_label,
+        'copy_confirm': f'Sao chép nội dung từ {copy_label.lower()}?',
         'can_edit': can_edit,
         'is_locked': is_locked,
+        'is_edit_expired': is_edit_expired,
+        'last_editable_on': last_editable_date(report),
+        'office_period': report_period,
+        'period_date_label': period_date_label(report_period),
+        'period_date_input_type': period_date_input_type(report_period),
+        'period_date_input_value': period_date_input_value(report_period, report_date),
+        'period_intro_title': period_intro_title(report_period),
+        'period_query': period_params,
     })
     return render(request, 'reports/today_office.html', ctx)
 
@@ -451,10 +520,11 @@ def _weekly_report(request, *, report_profile: str):
     can_submit = can_submit_daily_report(request.user)
     can_edit = can_edit_own_weekly_report(request.user, report, can_submit=can_submit)
     is_locked = is_report_locked(report)
+    is_edit_expired = is_report_edit_expired(report)
 
     if request.method == 'POST':
         if not can_edit:
-            messages.error(request, 'Cấp trên đã xem báo cáo — không thể chỉnh sửa.')
+            messages.error(request, report_edit_denied_message(report))
             return redirect(f'{reverse(weekly_url_name)}?week={week_start.isoformat()}')
         action = request.POST.get('action', 'save')
         report = _ensure_weekly_report_saved(report)
@@ -502,18 +572,23 @@ def _weekly_report(request, *, report_profile: str):
         'copy_confirm': 'Sao chép nội dung từ tuần trước?',
         'can_edit': can_edit,
         'is_locked': is_locked,
+        'is_edit_expired': is_edit_expired,
+        'last_editable_on': last_editable_date(report),
     })
     return render(request, 'reports/weekly.html', ctx)
 
 
 @_require_submit_access
 def weekly_report_cn(request):
-    return _weekly_report(request, report_profile=REPORT_PROFILE_PRODUCTION)
+    messages.info(request, 'Báo cáo tuần SX đã ngừng dùng — chỉ dùng báo cáo ngày SX.')
+    return redirect('reports:today_cn')
 
 
 @_require_submit_access
 def weekly_report_vp(request):
-    return _weekly_report(request, report_profile=REPORT_PROFILE_OFFICE)
+    period = request.GET.get('period') or PERIOD_WEEK
+    anchor = parse_period_anchor_date(request, period)
+    return redirect(f'{reverse("reports:today_vp")}?{urlencode(period_query_param(period, anchor))}')
 
 
 @_require_submit_access
@@ -562,7 +637,11 @@ def copy_prev_week_cn(request):
 
 @_require_submit_access
 def copy_prev_week_vp(request):
-    return copy_prev_week(request, report_profile=REPORT_PROFILE_OFFICE)
+    params = period_query_param(PERIOD_WEEK, monday_of(timezone.localdate()))
+    query = request.META.get('QUERY_STRING', '').strip()
+    if query:
+        return redirect(f'{reverse("reports:copy_prev_vp")}?{query}')
+    return redirect(f'{reverse("reports:copy_prev_vp")}?{urlencode(params)}')
 
 
 @_require_submit_access
@@ -627,6 +706,51 @@ def ckeditor5_upload(request):
 
 
 @_require_submit_access
+def copy_prev_vp(request):
+    report_period = parse_office_period(request)
+    anchor = parse_period_anchor_date(request, report_period)
+    if report_period == PERIOD_MONTH:
+        prev = first_day_of_month(anchor.replace(day=1) - timedelta(days=1))
+    elif report_period == PERIOD_WEEK:
+        prev = anchor - timedelta(days=7)
+    else:
+        prev = anchor - timedelta(days=1)
+
+    source = DailyWorkReport.objects.filter(
+        employee=request.user,
+        report_date=prev,
+        report_profile=REPORT_PROFILE_OFFICE,
+        report_period=report_period,
+    ).prefetch_related('attachments').first()
+    if not source:
+        messages.warning(request, 'Không có báo cáo kỳ trước để sao chép.')
+        return redirect(f'{reverse("reports:today_vp")}?{urlencode(period_query_param(report_period, anchor))}')
+
+    report, _ = DailyWorkReport.objects.get_or_create(
+        employee=request.user,
+        report_date=anchor,
+        report_profile=REPORT_PROFILE_OFFICE,
+        report_period=report_period,
+        defaults=_daily_report_defaults(REPORT_PROFILE_OFFICE, report_period),
+    )
+    report.report_profile = REPORT_PROFILE_OFFICE
+    report.report_period = report_period
+    report.shift = ''
+    report.status = DailyWorkReport.STATUS_DRAFT
+    report.submitted_at = None
+    report.draft_saved_at = None
+    report.spreadsheet_json = source.spreadsheet_json
+    report.document_html = source.document_html
+    report.links = source.links
+    report.save()
+    report.lines.all().delete()
+    _delete_daily_attachments(report, list(report.attachments.values_list('pk', flat=True)))
+    copy_daily_attachments(source, report)
+    messages.success(request, 'Đã sao chép báo cáo kỳ trước. Kiểm tra và nộp lại.')
+    return redirect(f'{reverse("reports:today_vp")}?{urlencode(period_query_param(report_period, anchor))}')
+
+
+@_require_submit_access
 def copy_yesterday(request, *, report_profile: str):
     today = timezone.localdate()
     yesterday = today - timedelta(days=1)
@@ -634,6 +758,7 @@ def copy_yesterday(request, *, report_profile: str):
         employee=request.user,
         report_date=yesterday,
         report_profile=report_profile,
+        report_period=PERIOD_DAY,
     ).prefetch_related('lines', 'attachments').first()
     if not source:
         messages.warning(request, 'Không có báo cáo hôm qua để sao chép.')
@@ -642,7 +767,9 @@ def copy_yesterday(request, *, report_profile: str):
     report, _ = DailyWorkReport.objects.get_or_create(
         employee=request.user,
         report_date=today,
-        defaults=_daily_report_defaults(report_profile),
+        report_profile=report_profile,
+        report_period=PERIOD_DAY,
+        defaults=_daily_report_defaults(report_profile, PERIOD_DAY),
     )
     report.report_profile = report_profile
     report.shift = ''
@@ -652,6 +779,7 @@ def copy_yesterday(request, *, report_profile: str):
     if report_profile == REPORT_PROFILE_OFFICE:
         report.spreadsheet_json = source.spreadsheet_json
         report.document_html = source.document_html
+        report.links = source.links
         report.save()
         report.lines.all().delete()
         _delete_daily_attachments(report, list(report.attachments.values_list('pk', flat=True)))
@@ -677,7 +805,16 @@ def copy_yesterday(request, *, report_profile: str):
     return redirect(f'{reverse("reports:today_vp")}?date={today.isoformat()}')
 
 
-def _my_reports_period(request):
+def _my_reports_period(request, *, office: bool = False):
+    if office:
+        raw = (request.GET.get('period') or PERIOD_DAY).strip().lower()
+        if raw == 'daily':
+            return PERIOD_DAY
+        if raw == 'weekly':
+            return PERIOD_WEEK
+        if raw in (PERIOD_DAY, PERIOD_WEEK, PERIOD_MONTH):
+            return raw
+        return PERIOD_DAY
     period = (request.GET.get('period') or 'daily').strip().lower()
     if period not in ('daily', 'weekly'):
         period = 'daily'
@@ -705,7 +842,8 @@ def my_reports_vp(request):
 
 def _my_reports(request, daily_report_profile=None):
     search_query = get_search_query(request)
-    period = _my_reports_period(request)
+    is_office = daily_report_profile == REPORT_PROFILE_OFFICE
+    period = _my_reports_period(request, office=is_office)
     subject = request.user
     history_employee_name = ''
     for_user_id = request.GET.get('for_user')
@@ -723,7 +861,23 @@ def _my_reports(request, daily_report_profile=None):
     elif not can_view_own_report_history(request.user, daily_report_profile):
         return redirect('home_portal')
 
-    if period == 'weekly':
+    if is_office:
+        reports_qs = meaningful_daily_reports_qs().filter(
+            employee=subject,
+            report_profile=REPORT_PROFILE_OFFICE,
+            report_period=period,
+        )
+        reports_qs = reports_qs.annotate(
+            line_count=Count('lines'),
+            total_qty=Sum('lines__quantity'),
+        ).order_by('-report_date')
+        reports_qs = apply_combined_search(reports_qs, search_query, lambda term: (
+            Q(hod_note__icontains=term)
+            | Q(status__icontains=term)
+            | Q(document_html__icontains=term)
+            | Q(links__icontains=term)
+        ))
+    elif period == 'weekly':
         reports_qs = meaningful_weekly_reports_qs().filter(
             employee=subject,
         )
@@ -740,6 +894,7 @@ def _my_reports(request, daily_report_profile=None):
     else:
         reports_qs = DailyWorkReport.objects.filter(
             employee=subject,
+            report_period=PERIOD_DAY,
         )
         if daily_report_profile:
             reports_qs = reports_qs.filter(report_profile=daily_report_profile)
@@ -757,6 +912,13 @@ def _my_reports(request, daily_report_profile=None):
 
     page_obj, query_string = paginate_queryset(request, reports_qs)
     scope_label = 'SX' if daily_report_profile == REPORT_PROFILE_PRODUCTION else 'VP' if daily_report_profile else ''
+    history_anchor = parse_period_anchor_date(request, period) if is_office else None
+    tab_extra = {}
+    if search_query:
+        tab_extra['q'] = search_query
+    if subject.pk != request.user.pk:
+        tab_extra['for_user'] = subject.pk
+    office_tab_extra_query = urlencode(tab_extra) if tab_extra else ''
     return render(request, 'reports/my_reports.html', {
         'reports': page_obj.object_list,
         'page_obj': page_obj,
@@ -791,6 +953,10 @@ def _my_reports(request, daily_report_profile=None):
             weekly_detail_url_name_for_profile(daily_report_profile)
             if daily_report_profile else 'reports:weekly_detail_cn'
         ),
+        'office_period': period if is_office else None,
+        'is_office_history': is_office,
+        'history_anchor_date': history_anchor,
+        'office_tab_extra_query': office_tab_extra_query,
     })
 
 
@@ -884,7 +1050,7 @@ def team_reports_vp(request):
     return _team_reports_for_profile(request, REPORT_PROFILE_OFFICE)
 
 
-def _team_reports_for_profile(request, report_profile: str):
+def _team_reports_for_profile(request, report_profile: str, *, report_period: str = PERIOD_DAY):
     if not can_view_team_reports(request.user):
         messages.error(
             request,
@@ -894,9 +1060,14 @@ def _team_reports_for_profile(request, report_profile: str):
             return redirect(today_url_for_user(request.user))
         return redirect('home_portal')
 
-    report_date = request.GET.get('date') or timezone.localdate()
-    if isinstance(report_date, str):
-        report_date = datetime.strptime(report_date, '%Y-%m-%d').date()
+    if report_profile == REPORT_PROFILE_OFFICE:
+        report_period = parse_office_period(request)
+        report_date = parse_period_anchor_date(request, report_period)
+    else:
+        report_period = PERIOD_DAY
+        report_date = request.GET.get('date') or timezone.localdate()
+        if isinstance(report_date, str):
+            report_date = datetime.strptime(report_date, '%Y-%m-%d').date()
 
     search_query = get_search_query(request)
     dept_filter = (request.GET.get('dept') or '').strip()
@@ -907,6 +1078,7 @@ def _team_reports_for_profile(request, report_profile: str):
         employee_id__in=all_team_ids,
         report_date=report_date,
         report_profile=report_profile,
+        report_period=report_period,
     )
     team_count = team.count()
     submitted = all_reports.filter(status=DailyWorkReport.STATUS_SUBMITTED).count()
@@ -916,6 +1088,7 @@ def _team_reports_for_profile(request, report_profile: str):
         employee_id__in=all_team_ids,
         report_date=report_date,
         report_profile=report_profile,
+        report_period=report_period,
     ).select_related('employee', 'employee__profile').annotate(
         line_count=Count('lines'),
         total_qty=Sum('lines__quantity'),
@@ -934,13 +1107,15 @@ def _team_reports_for_profile(request, report_profile: str):
         submitted_status=DailyWorkReport.STATUS_SUBMITTED,
     )
 
-    base_params = {'date': report_date.isoformat()}
+    base_params = period_query_param(report_period, report_date) if report_profile == REPORT_PROFILE_OFFICE else {'date': report_date.isoformat()}
     if search_query:
         base_params['q'] = search_query
     if dept_filter:
         base_params['dept'] = dept_filter
+    tab_extra = {k: v for k, v in base_params.items() if k not in ('period', 'date', 'month')}
 
     scope_label = 'SX' if report_profile == REPORT_PROFILE_PRODUCTION else 'VP'
+    team_title = 'Quản lý BC (VP)' if report_profile == REPORT_PROFILE_OFFICE else f'Quản lý báo cáo ({scope_label})'
     return render(request, 'reports/team.html', {
         'department_groups': department_groups,
         'dept_choices': dept_choices,
@@ -953,8 +1128,14 @@ def _team_reports_for_profile(request, report_profile: str):
         'missing_count': missing,
         'team_count': team_count,
         'can_submit_report': can_submit_daily_report(request.user),
-        'report_period': 'daily',
+        'report_period': report_period,
         'reports_scope_label': scope_label,
+        'team_page_title': team_title,
+        'office_period': report_period if report_profile == REPORT_PROFILE_OFFICE else PERIOD_DAY,
+        'period_date_label': period_date_label(report_period) if report_profile == REPORT_PROFILE_OFFICE else 'Ngày',
+        'period_date_input_type': period_date_input_type(report_period) if report_profile == REPORT_PROFILE_OFFICE else 'date',
+        'period_date_input_value': period_date_input_value(report_period, report_date) if report_profile == REPORT_PROFILE_OFFICE else report_date.isoformat(),
+        'period_query': period_query_param(report_period, report_date) if report_profile == REPORT_PROFILE_OFFICE else {'date': report_date.isoformat()},
         'today_url_name': (
             'reports:today_cn'
             if report_profile == REPORT_PROFILE_PRODUCTION
@@ -966,6 +1147,7 @@ def _team_reports_for_profile(request, report_profile: str):
             else 'reports:detail_vp'
         ),
         'team_url_name': team_url_name_for_profile(report_profile),
+        'team_tab_extra_query': urlencode(tab_extra) if tab_extra else '',
     })
 
 
@@ -976,12 +1158,19 @@ def team_weekly_reports_redirect(request):
 
 @_reports_access_required
 def team_weekly_reports_cn(request):
-    return _team_weekly_reports_for_profile(request, REPORT_PROFILE_PRODUCTION)
+    return redirect('reports:team_cn')
 
 
 @_reports_access_required
 def team_weekly_reports_vp(request):
-    return _team_weekly_reports_for_profile(request, REPORT_PROFILE_OFFICE)
+    period = request.GET.get('period') or PERIOD_WEEK
+    anchor = parse_period_anchor_date(request, period)
+    params = period_query_param(period, anchor)
+    query = request.META.get('QUERY_STRING', '').strip()
+    if query:
+        extra = dict(x.split('=', 1) for x in query.split('&') if '=' in x and x.split('=', 1)[0] not in params)
+        params.update(extra)
+    return redirect(f'{reverse("reports:team_vp")}?{urlencode(params)}')
 
 
 def _team_weekly_reports_for_profile(request, report_profile: str):
@@ -1150,10 +1339,13 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         productivity = build_productivity_report(report)
     can_submit = can_submit_daily_report(request.user)
     if can_edit_own_daily_report(request.user, report, can_submit=can_submit):
-        today_name = (
-            'reports:today_cn' if report.is_production_report else 'reports:today_vp'
-        )
-        edit_report_url = f"{reverse(today_name)}?date={report.report_date.isoformat()}"
+        if report.is_production_report:
+            edit_report_url = f"{reverse('reports:today_cn')}?date={report.report_date.isoformat()}"
+        else:
+            edit_report_url = (
+                f"{reverse('reports:today_vp')}"
+                f"?{urlencode(period_query_param(report.report_period, report.report_date))}"
+            )
     elif (
         report.is_production_report
         and can_review
@@ -1175,6 +1367,7 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         'report': report,
         'office_sheet': office_sheet,
         'document_html_display': document_html_display,
+        'link_previews': link_preview_rows(report.links) if not report.is_production_report else [],
         'tab_attachments': tab_attachments,
         'bang_detail_images': bang_detail_images,
         'bang_detail_files': bang_detail_files,
@@ -1272,8 +1465,9 @@ def today_report_cn(request):
 
 @_require_today_report_access
 def today_report_vp(request):
-    report_date = _parse_report_date(request)
-    return _today_office_report(request, report_date)
+    report_period = parse_office_period(request)
+    report_date = parse_period_anchor_date(request, report_period)
+    return _today_office_report(request, report_date, report_period=report_period)
 
 
 @_require_submit_access

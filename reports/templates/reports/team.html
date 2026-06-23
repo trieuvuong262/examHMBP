@@ -4,19 +4,39 @@
 <div class="container jp-page jp-reports-page py-3 py-md-4 mb-5">
     <div class="jp-page-header mb-3 mb-md-4">
         <div>
-            <h2 class="fw-bold text-hm mb-1 jp-page-title">Quản lý báo cáo ({{ reports_scope_label }})</h2>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ team_page_title|default:"Quản lý báo cáo" }}</h2>
         </div>
         {% if can_submit_report %}
-        <a href="{% url today_url_name %}" class="btn btn-outline-hm btn-sm flex-fill flex-md-grow-0">Báo cáo của tôi</a>
+        <a href="{% url today_url_name %}{% if office_period %}?period={{ office_period }}{% endif %}" class="btn btn-outline-hm btn-sm flex-fill flex-md-grow-0">Báo cáo của tôi</a>
         {% endif %}
     </div>
 
+    {% if reports_scope_label == 'VP' %}
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body p-3">
+            {% include 'reports/includes/vp_period_tabs.html' with base_url_name='reports:team_vp' office_period=office_period report_date=report_date extra_query=team_tab_extra_query %}
+        </div>
+    </div>
+    {% endif %}
+
     <form method="get" class="card border-0 shadow-sm mb-4">
         <div class="card-body p-3 d-flex flex-wrap gap-3 align-items-end">
+            {% if reports_scope_label == 'VP' %}
+            <input type="hidden" name="period" value="{{ office_period }}">
+            <div>
+                <label class="form-label fw-bold small mb-1">{{ period_date_label }}</label>
+                {% if office_period == 'month' %}
+                <input type="month" name="month" value="{{ period_date_input_value }}" class="form-control">
+                {% else %}
+                <input type="date" name="date" value="{{ period_date_input_value }}" class="form-control">
+                {% endif %}
+            </div>
+            {% else %}
             <div>
                 <label class="form-label fw-bold small mb-1">Ngày</label>
                 <input type="date" name="date" value="{{ report_date|date:'Y-m-d' }}" class="form-control">
             </div>
+            {% endif %}
             {% include 'reports/includes/team_filter_form_extra.html' %}
             <div class="flex-grow-1 jp-hrm-search-wrap" style="min-width: 240px;">
                 <label class="form-label fw-bold small mb-1">Tìm nhân viên</label>
@@ -99,7 +119,7 @@
                                 {% if row.report.is_production_report %}
                                 {{ row.report.line_count }} dòng · SL {{ row.report.total_qty|default:0 }}
                                 {% else %}
-                                Bảng + văn bản
+                                Văn bản + Bảng{% if row.report.links %} · Link{% endif %}
                                 {% endif %}
                             {% else %}—{% endif %}
                         </td>
@@ -108,9 +128,11 @@
                             <a href="{% url detail_url_name row.report.pk %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
                             {% if row.report.is_production_report %}
                             <a href="{% url today_url_name %}?date={{ report_date|date:'Y-m-d' }}&for_user={{ row.member.id }}" class="btn btn-sm btn-outline-dark">Nhập hộ</a>
+                            {% else %}
+                            <a href="{% url today_url_name %}?period={{ office_period }}&date={{ report_date|date:'Y-m-d' }}&for_user={{ row.member.id }}" class="btn btn-sm btn-outline-dark">Nhập hộ</a>
                             {% endif %}
                             {% else %}
-                            <a href="{% url today_url_name %}?date={{ report_date|date:'Y-m-d' }}&for_user={{ row.member.id }}" class="btn btn-sm btn-outline-dark">Nhập hộ</a>
+                            <a href="{% if reports_scope_label == 'VP' %}{% url today_url_name %}?period={{ office_period }}&date={{ report_date|date:'Y-m-d' }}&for_user={{ row.member.id }}{% else %}{% url today_url_name %}?date={{ report_date|date:'Y-m-d' }}&for_user={{ row.member.id }}{% endif %}" class="btn btn-sm btn-outline-dark">Nhập hộ</a>
                             {% endif %}
                         </td>
                     </tr>

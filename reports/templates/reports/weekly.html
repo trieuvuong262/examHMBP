@@ -13,6 +13,10 @@
     <div class="alert alert-secondary border-0 shadow-sm py-2 mb-3">
         Cấp trên đã xem báo cáo — không thể chỉnh sửa.
     </div>
+    {% elif is_edit_expired %}
+    <div class="alert alert-secondary border-0 shadow-sm py-2 mb-3">
+        Đã quá hạn chỉnh sửa — chỉ được sửa đến hết ngày {{ last_editable_on|date:"d/m/Y" }}.
+    </div>
     {% elif report.status == 'SUBMITTED' %}
     <div class="alert alert-success border-0 shadow-sm py-2 mb-3">
         Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }} — vẫn có thể chỉnh và gửi lại.

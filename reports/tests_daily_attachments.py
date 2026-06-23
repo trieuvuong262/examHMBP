@@ -4,6 +4,7 @@ from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from hrm.models import Department, DepartmentMenuPermission, Profile, RoleModulePermission
 from hrm.permissions import ROLE_EMPLOYEE
@@ -33,7 +34,7 @@ class DailyOfficeAttachmentViewTests(TestCase):
         )
         self.report = DailyWorkReport.objects.create(
             employee=self.user,
-            report_date=date(2026, 5, 28),
+            report_date=timezone.localdate(),
             report_profile=REPORT_PROFILE_OFFICE,
             status=DailyWorkReport.STATUS_DRAFT,
         )
@@ -48,7 +49,7 @@ class DailyOfficeAttachmentViewTests(TestCase):
             url,
             {
                 'action': 'save',
-                'report_date': '2026-05-28',
+                'report_date': self.report.report_date.isoformat(),
                 'spreadsheet_data': '{"columns":["A"],"rows":[["x"]]}',
                 'document_html': '',
                 'bang_files': pdf,
@@ -67,7 +68,7 @@ class DailyOfficeAttachmentViewTests(TestCase):
             url,
             {
                 'action': 'submit',
-                'report_date': '2026-05-28',
+                'report_date': self.report.report_date.isoformat(),
                 'spreadsheet_data': '{"columns":[""],"rows":[[""]]}',
                 'document_html': '',
                 'bang_files': pdf,

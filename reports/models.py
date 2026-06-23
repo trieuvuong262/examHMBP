@@ -3,6 +3,7 @@ import os
 from django.conf import settings
 from django.db import models
 
+from reports.period_utils import PERIOD_CHOICES, PERIOD_DAY
 from reports.report_profile import (
     REPORT_PROFILE_CHOICES,
     REPORT_PROFILE_OFFICE,
@@ -45,6 +46,13 @@ class DailyWorkReport(models.Model):
     )
     spreadsheet_json = models.JSONField(null=True, blank=True, verbose_name='Bảng Excel (JSON)')
     document_html = models.TextField(blank=True, verbose_name='Văn bản Word (HTML)')
+    links = models.TextField(blank=True, verbose_name='Link (mỗi dòng một link)')
+    report_period = models.CharField(
+        max_length=10,
+        choices=PERIOD_CHOICES,
+        default=PERIOD_DAY,
+        verbose_name='Chu kỳ',
+    )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT)
     submitted_at = models.DateTimeField(null=True, blank=True)
     draft_saved_at = models.DateTimeField(null=True, blank=True, verbose_name='Lưu nháp lúc')
@@ -56,7 +64,7 @@ class DailyWorkReport(models.Model):
 
     class Meta:
         ordering = ['-report_date', '-updated_at']
-        unique_together = ('employee', 'report_date')
+        unique_together = ('employee', 'report_date', 'report_profile', 'report_period')
         verbose_name = 'Báo cáo công việc ngày'
         verbose_name_plural = 'Báo cáo công việc ngày'
 
@@ -64,8 +72,22 @@ class DailyWorkReport(models.Model):
         return f'{self.employee} - {self.report_date}'
 
     @property
+    def link_lines(self):
+        return [line.strip() for line in (self.links or '').splitlines() if line.strip()]
+
+    @property
     def is_production_report(self):
         return self.report_profile == REPORT_PROFILE_PRODUCTION
+
+    @property
+    def is_edit_expired(self):
+        from reports.report_lock import is_report_edit_expired
+        return is_report_edit_expired(self)
+
+    @property
+    def last_editable_on(self):
+        from reports.report_lock import last_editable_date
+        return last_editable_date(self)
 
     @property
     def total_quantity(self):
@@ -305,6 +327,16 @@ class WeeklyWorkReport(models.Model):
     def week_range_label(self):
         from reports.week_utils import week_label
         return week_label(self.week_start)
+
+    @property
+    def is_edit_expired(self):
+        from reports.report_lock import is_report_edit_expired
+        return is_report_edit_expired(self)
+
+    @property
+    def last_editable_on(self):
+        from reports.report_lock import last_editable_date
+        return last_editable_date(self)
 
 
 class WeeklyWorkReportAttachment(models.Model):

@@ -147,8 +147,16 @@ def _replace_html_attr(tag: str, name: str, value: str) -> str:
     return tag[:-1] + replacement + '>'
 
 
-def office_report_has_content(spreadsheet_json, document_html: str, *, attachment_count: int = 0) -> bool:
+def office_report_has_content(
+    spreadsheet_json,
+    document_html: str,
+    *,
+    attachment_count: int = 0,
+    links_text: str = '',
+) -> bool:
     data = normalize_spreadsheet_json(spreadsheet_json)
     if attachment_count > 0:
+        return True
+    if any(line.strip() for line in (links_text or '').splitlines()):
         return True
     return spreadsheet_has_content(data) or document_has_content(document_html)

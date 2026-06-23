@@ -102,10 +102,15 @@ class OfficeDailyWorkReportForm(forms.ModelForm):
 
     class Meta:
         model = DailyWorkReport
-        fields = ['report_date', 'document_html']
+        fields = ['report_date', 'document_html', 'links']
         widgets = {
             'report_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'document_html': OfficeWordEditorWidget(),
+            'links': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'https://...\n(mỗi dòng một link)',
+            }),
         }
 
     def __init__(self, *args, **kwargs):
@@ -116,6 +121,8 @@ class OfficeDailyWorkReportForm(forms.ModelForm):
             ensure_ascii=False,
         )
         self.fields['document_html'].required = False
+        self.fields['links'].required = False
+        self.fields['links'].label = 'Link'
 
     def clean_spreadsheet_data(self):
         raw = self.cleaned_data.get('spreadsheet_data') or ''
@@ -127,6 +134,10 @@ class OfficeDailyWorkReportForm(forms.ModelForm):
 
     def clean_document_html(self):
         return sanitize_document_html_for_storage(self.cleaned_data.get('document_html') or '')
+
+    def clean_links(self):
+        lines = [line.strip() for line in (self.cleaned_data.get('links') or '').splitlines() if line.strip()]
+        return '\n'.join(lines)
 
     def clean(self):
         cleaned = super().clean()
@@ -144,9 +155,10 @@ class OfficeDailyWorkReportForm(forms.ModelForm):
                 sheet,
                 doc,
                 attachment_count=existing + new_uploads,
+                links_text=cleaned.get('links') or '',
             ):
                 raise forms.ValidationError(
-                    'Khi nộp báo cáo, điền ít nhất một ô trong tab Bảng, ≥ 50 ký tự trong tab Văn bản, hoặc tải file/ảnh.',
+                    'Khi nộp báo cáo, điền ít nhất một link, một ô trong tab Bảng, ≥ 50 ký tự trong tab Văn bản, hoặc tải file/ảnh.',
                 )
         return cleaned
 
