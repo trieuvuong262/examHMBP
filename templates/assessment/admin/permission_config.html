@@ -21,15 +21,29 @@
         </div>
     </div>
 
-    <div class="jp-perm-tabs-scroll mb-3">
-    <ul class="nav nav-pills jp-perm-tabs gap-2 flex-nowrap" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link fw-bold {% if active_tab != 'group' %}active{% endif %}" data-bs-toggle="pill" data-bs-target="#tab-dept" type="button" id="tab-btn-dept">Hiển thị menu</button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link fw-bold {% if active_tab == 'group' %}active{% endif %}" data-bs-toggle="pill" data-bs-target="#tab-group" type="button" id="tab-btn-group">Nhóm quyền</button>
-        </li>
-    </ul>
+    <div class="jp-perm-segment-bar mb-3">
+        <div class="jp-perm-segment" role="presentation">
+            <ul class="nav jp-perm-segment-tabs mb-0" role="tablist" aria-label="Loại phân quyền">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if active_tab != 'group' %}active{% endif %}" data-bs-toggle="pill" data-bs-target="#tab-dept" type="button" id="tab-btn-dept" role="tab" aria-controls="tab-dept" aria-selected="{% if active_tab != 'group' %}true{% else %}false{% endif %}">
+                        <i class="bi bi-layout-text-window-reverse jp-perm-segment-icon" aria-hidden="true"></i>
+                        <span class="jp-perm-segment-text">
+                            <span class="jp-perm-segment-label">Hiển thị menu</span>
+                            <span class="jp-perm-segment-desc">Theo phòng ban</span>
+                        </span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if active_tab == 'group' %}active{% endif %}" data-bs-toggle="pill" data-bs-target="#tab-group" type="button" id="tab-btn-group" role="tab" aria-controls="tab-group" aria-selected="{% if active_tab == 'group' %}true{% else %}false{% endif %}">
+                        <i class="bi bi-shield-check jp-perm-segment-icon" aria-hidden="true"></i>
+                        <span class="jp-perm-segment-text">
+                            <span class="jp-perm-segment-label">Nhóm quyền</span>
+                            <span class="jp-perm-segment-desc">Ma trận chức năng</span>
+                        </span>
+                    </button>
+                </li>
+            </ul>
+        </div>
     </div>
 
     <div class="tab-content">

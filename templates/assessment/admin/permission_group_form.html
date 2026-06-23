@@ -70,6 +70,17 @@
 
         <div class="card border-0 shadow-sm jp-perm-group-card jp-perm-matrix-card">
             <div class="card-body p-0">
+                <div class="jp-perm-matrix-mobile-head d-md-none">
+                    <div class="jp-perm-matrix-mobile-title">Ma trận quyền</div>
+                    <p class="jp-perm-matrix-mobile-hint mb-0">Chạm <strong>Tắt / Xem / Đủ</strong> để chọn nhanh từng dòng.</p>
+                    <div class="jp-perm-legend-inline jp-perm-matrix-mobile-legend" aria-hidden="true">
+                        <span class="jp-perm-legend-chip jp-perm-legend-view">Xem</span>
+                        <span class="jp-perm-legend-chip jp-perm-legend-create">Thêm</span>
+                        <span class="jp-perm-legend-chip jp-perm-legend-update">Sửa</span>
+                        <span class="jp-perm-legend-chip jp-perm-legend-delete">Xóa</span>
+                        <span class="jp-perm-legend-chip jp-perm-legend-export">Excel</span>
+                    </div>
+                </div>
                 <div class="jp-perm-matrix-wrap">
                     <table class="table mb-0 jp-perm-matrix-table">
                         <thead>
@@ -178,9 +189,11 @@
             </div>
         </div>
 
-        <div class="d-flex gap-2 mt-3 d-md-none">
-            <a href="{{ perm_config_back_url }}" class="btn btn-light border fw-bold flex-fill">Huỷ</a>
-            <button type="submit" class="btn btn-hm text-white fw-bold flex-fill">Lưu nhóm</button>
+        <div class="jp-perm-mobile-savebar d-md-none">
+            <a href="{{ perm_config_back_url }}" class="btn btn-light border fw-bold">Huỷ</a>
+            <button type="submit" form="groupPermForm" class="btn btn-hm text-white fw-bold">
+                <i class="bi bi-check-circle-fill me-1"></i>Lưu nhóm
+            </button>
         </div>
     </form>
 </div>
