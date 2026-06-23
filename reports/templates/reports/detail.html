@@ -213,6 +213,14 @@
         </div>
     </div>
     {% endif %}
+    {% if link_detail_files or link_detail_images %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white fw-bold">File &amp; ảnh</div>
+        <div class="card-body">
+        {% include 'reports/includes/office_detail_attachments.html' with images=link_detail_images files=link_detail_files %}
+        </div>
+    </div>
+    {% endif %}
     {% endif %}
 
     {% if can_review %}

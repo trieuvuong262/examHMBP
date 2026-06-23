@@ -149,7 +149,7 @@ class OfficeDailyWorkReportForm(forms.ModelForm):
             if self.instance.pk:
                 existing = self.instance.attachments.exclude(pk__in=delete_ids).count()
             new_uploads = 0
-            for key in ('bang_images', 'bang_files', 'vanban_images', 'vanban_files'):
+            for key in ('bang_images', 'bang_files', 'vanban_images', 'vanban_files', 'link_images', 'link_files'):
                 new_uploads += len(self.files.getlist(key))
             if not office_report_has_content(
                 sheet,

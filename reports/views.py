@@ -358,9 +358,10 @@ def _delete_weekly_attachments(report, attachment_ids):
 def _daily_attachments_by_tab(report):
     empty = ([], [])
     if not report.pk:
-        return {'bang': empty, 'vanban': empty}
+        return {'bang': empty, 'vanban': empty, 'link': empty}
     bang_images, bang_files = [], []
     vanban_images, vanban_files = [], []
+    link_images, link_files = [], []
     for att in report.attachments.all():
         if att.source_tab == DailyWorkReportAttachment.SOURCE_BANG:
             if att.is_image:
@@ -372,9 +373,15 @@ def _daily_attachments_by_tab(report):
                 vanban_images.append(att)
             else:
                 vanban_files.append(att)
+        elif att.source_tab == DailyWorkReportAttachment.SOURCE_LINK:
+            if att.is_image:
+                link_images.append(att)
+            else:
+                link_files.append(att)
     return {
         'bang': (bang_images, bang_files),
         'vanban': (vanban_images, vanban_files),
+        'link': (link_images, link_files),
     }
 
 
@@ -462,6 +469,8 @@ def _today_office_report(request, report_date, *, report_period: str = PERIOD_DA
                 bang_files=request.FILES.getlist('bang_files'),
                 vanban_images=request.FILES.getlist('vanban_images'),
                 vanban_files=request.FILES.getlist('vanban_files'),
+                link_images=request.FILES.getlist('link_images'),
+                link_files=request.FILES.getlist('link_files'),
             )
             return redirect(
                 f'{reverse("reports:today_vp")}?{urlencode(period_query_param(report_period, report.report_date))}',
@@ -472,6 +481,7 @@ def _today_office_report(request, report_date, *, report_period: str = PERIOD_DA
     tab_attachments = _daily_attachments_by_tab(report)
     bang_images, bang_files = tab_attachments['bang']
     vanban_images, vanban_files = tab_attachments['vanban']
+    link_images, link_files = tab_attachments['link']
     ctx = _report_context_common(
         request,
         report_date,
@@ -491,6 +501,8 @@ def _today_office_report(request, report_date, *, report_period: str = PERIOD_DA
         'bang_files': bang_files,
         'vanban_images': vanban_images,
         'vanban_files': vanban_files,
+        'link_images': link_images,
+        'link_files': link_files,
         'employee_name': (user_profile.full_name if user_profile else '') or request.user.username,
         'department_name': user_profile.department.name if user_profile and user_profile.department_id else '',
         'copy_url': reverse('reports:copy_prev_vp') + f'?{urlencode(period_params)}' if ctx['has_yesterday'] and can_edit else None,
@@ -1107,6 +1119,7 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
                 .annotate(
                     line_count=Count('lines'),
                     total_qty=Sum('lines__quantity'),
+                    attachment_count=Count('attachments'),
                 )
             )
             enriched = {r.employee_id: r for r in reports}
@@ -1351,6 +1364,7 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
     tab_attachments = _daily_attachments_by_tab(report) if not report.is_production_report else None
     bang_detail_images, bang_detail_files = tab_attachments['bang'] if tab_attachments else ([], [])
     vanban_detail_images, vanban_detail_files = tab_attachments['vanban'] if tab_attachments else ([], [])
+    link_detail_images, link_detail_files = tab_attachments['link'] if tab_attachments else ([], [])
     hourly_grid = None
     productivity = None
     edit_report_url = ''
@@ -1393,6 +1407,8 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         'bang_detail_files': bang_detail_files,
         'vanban_detail_images': vanban_detail_images,
         'vanban_detail_files': vanban_detail_files,
+        'link_detail_images': link_detail_images,
+        'link_detail_files': link_detail_files,
         'hourly_grid': hourly_grid,
         'productivity': productivity,
         'edit_report_url': edit_report_url,

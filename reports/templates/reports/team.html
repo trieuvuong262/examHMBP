@@ -121,8 +121,8 @@
                             {% if row.report %}
                                 {% if row.report.is_production_report %}
                                 {{ row.report.line_count }} dòng · SL {{ row.report.total_qty|default:0 }}
-                                {% else %}
-                                Văn bản + Bảng{% if row.report.links %} · Link{% endif %}
+                            {% else %}
+                            Văn bản + Bảng{% if row.report.links %} · Link{% endif %}{% if row.report.attachment_count %} · File{% endif %}
                                 {% endif %}
                             {% else %}—{% endif %}
                         </td>

@@ -79,8 +79,29 @@ class DailyOfficeAttachmentViewTests(TestCase):
         self.assertEqual(self.report.status, DailyWorkReport.STATUS_SUBMITTED)
         self.assertEqual(self.report.attachments.count(), 1)
 
-    def test_today_vp_page_shows_attachment_fields(self):
+    def test_submit_with_link_file_only_is_valid(self):
+        pdf = SimpleUploadedFile('only.pdf', b'%PDF', content_type='application/pdf')
+        url = reverse('reports:today_vp')
+        resp = self.client.post(
+            url,
+            {
+                'action': 'submit',
+                'report_date': self.report.report_date.isoformat(),
+                'spreadsheet_data': '{"columns":[""],"rows":[[""]]}',
+                'document_html': '',
+                'link_files': pdf,
+            },
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.status, DailyWorkReport.STATUS_SUBMITTED)
+        att = self.report.attachments.get()
+        self.assertEqual(att.source_tab, DailyWorkReportAttachment.SOURCE_LINK)
+
+    def test_today_vp_page_shows_link_attachment_fields(self):
         resp = self.client.get(reverse('reports:today_vp'))
         self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'name="link_files"')
+        self.assertContains(resp, 'name="link_images"')
         self.assertContains(resp, 'name="bang_files"')
         self.assertContains(resp, 'name="vanban_images"')

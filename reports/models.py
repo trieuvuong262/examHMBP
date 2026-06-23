@@ -97,9 +97,11 @@ class DailyWorkReport(models.Model):
 class DailyWorkReportAttachment(models.Model):
     SOURCE_BANG = 'BANG'
     SOURCE_VANBAN = 'VANBAN'
+    SOURCE_LINK = 'LINK'
     SOURCE_TAB_CHOICES = [
         (SOURCE_BANG, 'Bảng'),
         (SOURCE_VANBAN, 'Văn bản'),
+        (SOURCE_LINK, 'Link'),
     ]
 
     KIND_FILE = 'FILE'

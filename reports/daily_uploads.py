@@ -12,8 +12,10 @@ def save_daily_uploads(
     bang_files=None,
     vanban_images=None,
     vanban_files=None,
+    link_images=None,
+    link_files=None,
 ):
-    """Lưu file/ảnh báo cáo ngày VP — giới hạn kích thước theo UPLOAD_MAX_MB (settings)."""
+    """Lưu file/ảnh báo cáo VP — tab Bảng / Văn bản / Link."""
     created = []
     for uploaded in bang_images or []:
         created.append(
@@ -50,6 +52,26 @@ def save_daily_uploads(
             DailyWorkReportAttachment.objects.create(
                 report=report,
                 source_tab=DailyWorkReportAttachment.SOURCE_VANBAN,
+                kind=DailyWorkReportAttachment.KIND_FILE,
+                file=uploaded,
+                original_name=getattr(uploaded, 'name', '') or 'file',
+            ),
+        )
+    for uploaded in link_images or []:
+        created.append(
+            DailyWorkReportAttachment.objects.create(
+                report=report,
+                source_tab=DailyWorkReportAttachment.SOURCE_LINK,
+                kind=DailyWorkReportAttachment.KIND_IMAGE,
+                file=uploaded,
+                original_name=getattr(uploaded, 'name', '') or 'image',
+            ),
+        )
+    for uploaded in link_files or []:
+        created.append(
+            DailyWorkReportAttachment.objects.create(
+                report=report,
+                source_tab=DailyWorkReportAttachment.SOURCE_LINK,
                 kind=DailyWorkReportAttachment.KIND_FILE,
                 file=uploaded,
                 original_name=getattr(uploaded, 'name', '') or 'file',
