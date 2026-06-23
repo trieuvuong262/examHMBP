@@ -788,7 +788,16 @@
                 <li>
                     <a href="{% url 'documents:rustdesk_config' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'rustdesk_config' %}active{% endif %}">
-                        <i class="bi bi-pc-display-horizontal"></i><span>Cấu hình</span>
+                        <i class="bi bi-pc-display-horizontal"></i><span>Cấu hình RustDesk</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% jp_can_menu 'documents' 'equipment_scan' as jp_can_documents_equipment_scan %}
+                {% if jp_can_documents_equipment_scan %}
+                <li>
+                    <a href="{% url 'documents:equipment_scan_config' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'equipment_scan_config' %}active{% endif %}">
+                        <i class="bi bi-cpu"></i><span>Quét thiết bị</span>
                     </a>
                 </li>
                 {% endif %}

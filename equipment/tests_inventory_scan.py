@@ -7,7 +7,7 @@ from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from equipment.models import Device
-from equipment.services.inventory_scan import normalize_mac
+from equipment.services.inventory_scan import normalize_mac, scan_secret_ok
 from hrm.group_permissions import normalize_group_permissions, permissions_from_legacy_role
 from hrm.permissions import ROLE_EMPLOYEE
 from hrm.models import Department, DepartmentMenuPermission, PermissionGroup, Profile
@@ -51,6 +51,10 @@ class EquipmentInventoryScanTests(TestCase):
     def test_normalize_mac(self):
         self.assertEqual(normalize_mac('aabbccddeeff'), 'AA:BB:CC:DD:EE:FF')
         self.assertEqual(normalize_mac('AA-BB-CC-DD-EE-FF'), 'AA:BB:CC:DD:EE:FF')
+
+    @override_settings(RUSTDESK_ENROLL_SECRET='rustdesk-secret')
+    def test_scan_secret_falls_back_to_rustdesk_enroll_secret(self):
+        self.assertTrue(scan_secret_ok('rustdesk-secret'))
 
     @override_settings(EQUIPMENT_SCAN_SECRET='scan-secret')
     def test_check_api_reports_existing_mac(self):

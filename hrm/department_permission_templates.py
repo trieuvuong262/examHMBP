@@ -134,6 +134,7 @@ def _it_documents_menus(*, manager: bool) -> dict:
         'browse': browse,
         'qa': browse,
         'rustdesk_config': MGR,
+        'equipment_scan': MGR,
     }
 
 

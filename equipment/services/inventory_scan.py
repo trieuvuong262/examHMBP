@@ -25,6 +25,8 @@ def normalize_mac(raw: str) -> str:
 def scan_secret_ok(secret: str) -> bool:
     expected = (getattr(settings, 'EQUIPMENT_SCAN_SECRET', '') or '').strip()
     if not expected:
+        expected = (getattr(settings, 'RUSTDESK_ENROLL_SECRET', '') or '').strip()
+    if not expected:
         return False
     return secret == expected
 

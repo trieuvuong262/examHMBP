@@ -169,7 +169,15 @@ function Invoke-PortalApi {
     $uri = ($PortalUrl.TrimEnd('/')) + $Path
     $json = $Body | ConvertTo-Json -Compress -Depth 6
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    return Invoke-RestMethod -Uri $uri -Method Post -Body $json -ContentType 'application/json; charset=utf-8'
+    try {
+        return Invoke-RestMethod -Uri $uri -Method Post -Body $json -ContentType 'application/json; charset=utf-8'
+    } catch {
+        $detail = $_.Exception.Message
+        if ($_.ErrorDetails -and $_.ErrorDetails.Message) {
+            $detail = $_.ErrorDetails.Message
+        }
+        throw "Portal API loi: $detail"
+    }
 }
 
 Write-Host '========================================'
