@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260623a">
+<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260623b">
 {% endblock %}
 
 {% block content %}
@@ -52,27 +52,19 @@
                     {{ report.get_status_display }}
                 </span>
             </div>
-            <div class="jp-office-segment-wrap">
-                {% include 'reports/includes/office_content_tabs.html' %}
-            </div>
         </div>
 
         {% include 'reports/includes/office_report_workspace.html' %}
 
-        <div class="card border-0 shadow-sm mb-3">
-            <div class="card-body">
-                <label class="form-label fw-bold small mb-1" for="id_links">Link</label>
-                {{ form.links }}
-                <div class="form-text">Mỗi dòng một link (Google Drive, tài liệu, …)</div>
-            </div>
-        </div>
-
         <div class="card border-0 shadow-sm mb-3 jp-weekly-field-card">
             <div class="card-header bg-white border-bottom py-3">
-                <h6 class="fw-bold mb-0">File &amp; ảnh đính kèm</h6>
+                <h6 class="fw-bold mb-0">Link &amp; đính kèm</h6>
             </div>
             <div class="card-body p-3 p-md-4">
-                {% include 'reports/includes/office_tab_attachments.html' with images=link_images files=link_files image_field='link_images' file_field='link_files' %}
+                <label class="form-label fw-bold small mb-1" for="id_links">Link</label>
+                {{ form.links }}
+                <div class="form-text mb-3">Mỗi dòng một link (Google Drive, tài liệu, …)</div>
+                {% include 'reports/includes/office_unified_attachments.html' with images=attachment_images files=attachment_files %}
             </div>
         </div>
 

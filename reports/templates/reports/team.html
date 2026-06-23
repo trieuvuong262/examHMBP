@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load report_extras %}
 
 {% block content %}
 <div class="container jp-page jp-reports-page py-3 py-md-4 mb-5">
@@ -7,29 +8,20 @@
             <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ team_page_title|default:"Quản lý báo cáo" }}</h2>
         </div>
         {% if can_submit_report %}
-        <a href="{% url today_url_name %}{% if office_period %}?period={{ office_period }}{% endif %}" class="btn btn-outline-hm btn-sm flex-fill flex-md-grow-0">Báo cáo của tôi</a>
+        <a href="{% url today_url_name %}" class="btn btn-outline-hm btn-sm flex-fill flex-md-grow-0">Báo cáo của tôi</a>
         {% endif %}
     </div>
-
-    {% if reports_scope_label == 'VP' %}
-    <div class="card border-0 shadow-sm mb-3">
-        <div class="card-body p-3">
-            {% include 'reports/includes/vp_period_tabs.html' with base_url_name='reports:team_vp' office_period=office_period report_date=report_date extra_query=team_tab_extra_query %}
-        </div>
-    </div>
-    {% endif %}
 
     <form method="get" class="card border-0 shadow-sm mb-4">
         <div class="card-body p-3 d-flex flex-wrap gap-3 align-items-end">
             {% if reports_scope_label == 'VP' %}
-            <input type="hidden" name="period" value="{{ office_period }}">
             <div>
-                <label class="form-label fw-bold small mb-1">{{ period_date_label }}</label>
-                {% if office_period == 'month' %}
-                <input type="month" name="month" value="{{ period_date_input_value }}" class="form-control">
-                {% else %}
-                <input type="date" name="date" value="{{ period_date_input_value }}" class="form-control">
-                {% endif %}
+                <label class="form-label fw-bold small mb-1">Từ ngày</label>
+                <input type="date" name="from" value="{{ range_from|date:'Y-m-d' }}" class="form-control">
+            </div>
+            <div>
+                <label class="form-label fw-bold small mb-1">Đến ngày</label>
+                <input type="date" name="to" value="{{ range_to|date:'Y-m-d' }}" class="form-control">
             </div>
             {% else %}
             <div>
@@ -46,7 +38,7 @@
             </div>
             <button type="submit" class="btn btn-hm px-4 align-self-end">Xem</button>
             {% if search_query or selected_dept or status_filter %}
-            <a href="?date={{ report_date|date:'Y-m-d' }}" class="btn btn-light border align-self-end" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>
+            <a href="?{% if reports_scope_label == 'VP' %}from={{ range_from|date:'Y-m-d' }}&to={{ range_to|date:'Y-m-d' }}{% else %}date={{ report_date|date:'Y-m-d' }}{% endif %}" class="btn btn-light border align-self-end" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>
             {% endif %}
         </div>
         {% if search_query %}
@@ -64,8 +56,10 @@
                 <thead class="table-light">
                     <tr>
                         <th>Nhân viên</th>
+                        {% if reports_scope_label == 'VP' %}<th>Mốc</th>{% endif %}
                         <th>Loại</th>
                         <th>Trạng thái</th>
+                        <th class="text-center">Đã xem</th>
                         <th class="text-end">Tóm tắt</th>
                         <th></th>
                     </tr>
@@ -73,7 +67,7 @@
                 <tbody>
                     {% for group in department_groups %}
                     <tr class="table-light">
-                        <td colspan="5" class="py-2">
+                        <td colspan="{% if reports_scope_label == 'VP' %}7{% else %}6{% endif %}" class="py-2">
                             <div class="d-flex flex-wrap align-items-center gap-2">
                                 <span class="fw-bold text-hm">{{ group.label }}</span>
                                 {% if group.subtitle %}<span class="text-muted small">{{ group.subtitle }}</span>{% endif %}
@@ -89,12 +83,21 @@
                             <div class="text-muted small">{{ row.member.profile.department.name }}</div>
                             {% endif %}
                         </td>
+                        {% if reports_scope_label == 'VP' %}
+                        <td>
+                            {% if row.report %}
+                            <span class="text-nowrap small">{{ row.report|report_anchor_display }}</span>
+                            {% else %}
+                            <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+                        {% endif %}
                         <td>
                             {% if row.report %}
                                 {% if row.report.is_production_report %}
                                 <span class="badge bg-primary-subtle text-primary">Sản xuất</span>
                                 {% else %}
-                                <span class="badge bg-info-subtle text-info">Bảng / Văn bản</span>
+                                <span class="badge bg-info-subtle text-info">{{ row.report|report_period_label }}</span>
                                 {% endif %}
                             {% else %}
                             <span class="text-muted small">—</span>
@@ -104,17 +107,22 @@
                             {% if row.report %}
                                 {% if row.report.status == 'SUBMITTED' %}
                                 <span class="badge bg-success-subtle text-success">Đã nộp</span>
-                                {% if row.report.hod_reviewed %}
-                                <span class="badge bg-primary-subtle text-primary">Đã xem</span>
-                                {% endif %}
-                                {% if reports_scope_label == 'VP' and office_period == 'day' and row.report.report_period == 'week' %}
-                                <span class="badge bg-info-subtle text-info">Tuần</span>
-                                {% endif %}
                                 {% else %}
                                 <span class="badge bg-warning-subtle text-warning">Nháp</span>
                                 {% endif %}
                             {% else %}
                             <span class="badge bg-danger-subtle text-danger">Chưa báo cáo</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if row.report %}
+                                {% if row.report.hod_reviewed %}
+                                <i class="bi bi-check-circle-fill text-success" title="Đã xem"></i>
+                                {% else %}
+                                <i class="bi bi-circle text-muted opacity-50" title="Chưa xem"></i>
+                                {% endif %}
+                            {% else %}
+                            <span class="text-muted small">—</span>
                             {% endif %}
                         </td>
                         <td class="text-end">
@@ -126,27 +134,22 @@
                                 {% endif %}
                             {% else %}—{% endif %}
                         </td>
-                        <td class="text-end">
+                        <td class="text-end text-nowrap">
                             {% if row.report %}
                             <a href="{% url detail_url_name row.report.pk %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
-                            {% if row.report.is_production_report %}
-                            <a href="{% url today_url_name %}?date={{ report_date|date:'Y-m-d' }}&for_user={{ row.member.id }}" class="btn btn-sm btn-outline-dark">Nhập hộ</a>
                             {% else %}
-                            <a href="{% url today_url_name %}?period={{ row.report.report_period }}&{% if row.report.report_period == 'month' %}month={{ row.report.report_date|date:'Y-m' }}{% else %}date={{ row.report.report_date|date:'Y-m-d' }}{% endif %}&for_user={{ row.member.id }}" class="btn btn-sm btn-outline-dark">Nhập hộ</a>
-                            {% endif %}
-                            {% else %}
-                            <a href="{% if reports_scope_label == 'VP' %}{% url today_url_name %}?period={{ office_period }}&date={{ report_date|date:'Y-m-d' }}&for_user={{ row.member.id }}{% else %}{% url today_url_name %}?date={{ report_date|date:'Y-m-d' }}&for_user={{ row.member.id }}{% endif %}" class="btn btn-sm btn-outline-dark">Nhập hộ</a>
+                            <a href="{% if reports_scope_label == 'VP' %}{% url today_url_name %}?date={{ range_to|date:'Y-m-d' }}&for_user={{ row.member.id }}{% else %}{% url today_url_name %}?date={{ report_date|date:'Y-m-d' }}&for_user={{ row.member.id }}{% endif %}" class="btn btn-sm btn-outline-dark">Nhập hộ</a>
                             {% endif %}
                         </td>
                     </tr>
                     {% endfor %}
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="text-center text-muted py-5">
+                        <td colspan="{% if reports_scope_label == 'VP' %}7{% else %}6{% endif %}" class="text-center text-muted py-5">
                             {% if status_filter == 'submitted' %}
-                            Không có nhân viên đã nộp báo cáo trong ngày này.
+                            Không có nhân viên đã nộp báo cáo{% if reports_scope_label == 'VP' %} trong khoảng đã chọn{% else %} trong ngày này{% endif %}.
                             {% elif status_filter == 'missing' %}
-                            Tất cả nhân viên đã nộp báo cáo trong ngày này.
+                            Tất cả nhân viên đã nộp báo cáo{% if reports_scope_label == 'VP' %} trong khoảng đã chọn{% else %} trong ngày này{% endif %}.
                             {% else %}
                             Chưa có nhân viên cấp dưới được cấu hình.
                             {% endif %}

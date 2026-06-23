@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 from django.contrib.auth.models import User
 from django.test import Client, TestCase
@@ -115,7 +115,10 @@ class ReportTeamDraftTests(TestCase):
             links='https://draft.example',
         )
         self.client.force_login(self.leader)
-        resp = self.client.get(reverse('reports:team_vp'), {'period': 'week', 'date': week.isoformat()})
+        resp = self.client.get(reverse('reports:team_vp'), {
+            'from': week.isoformat(),
+            'to': (week + timedelta(days=6)).isoformat(),
+        })
         self.assertContains(resp, 'Nháp')
 
     def test_unsaved_weekly_not_shown_as_draft_on_team_page(self):
@@ -128,7 +131,10 @@ class ReportTeamDraftTests(TestCase):
             status=DailyWorkReport.STATUS_DRAFT,
         )
         self.client.force_login(self.leader)
-        resp = self.client.get(reverse('reports:team_vp'), {'period': 'week', 'date': week.isoformat()})
+        resp = self.client.get(reverse('reports:team_vp'), {
+            'from': week.isoformat(),
+            'to': (week + timedelta(days=6)).isoformat(),
+        })
         self.assertContains(resp, 'Chưa báo cáo')
         self.assertNotContains(resp, 'Nháp')
 
@@ -179,7 +185,7 @@ class ReportTeamDraftTests(TestCase):
         self.client.force_login(self.leader)
         resp = self.client.get(reverse('reports:team_weekly_vp'))
         self.assertEqual(resp.status_code, 302)
-        self.assertIn('period=week', resp.url)
+        self.assertIn('from=', resp.url)
         resp2 = self.client.get(reverse('reports:detail_vp', args=[report.pk]))
         self.assertEqual(resp2.status_code, 200)
         self.assertContains(resp2, 'example.com')
@@ -209,7 +215,7 @@ class ReportTeamDraftTests(TestCase):
         self.assertNotContains(resp_miss, 'mem_draft')
         self.assertContains(resp_miss, 'mem2_draft')
 
-    def test_team_vp_day_tab_shows_week_report_fallback(self):
+    def test_team_vp_shows_week_report_in_range(self):
         today = date.today()
         week = monday_of(today)
         DailyWorkReport.objects.create(
@@ -224,11 +230,15 @@ class ReportTeamDraftTests(TestCase):
         self.client.force_login(self.leader)
         resp = self.client.get(
             reverse('reports:team_vp'),
-            {'period': 'day', 'date': today.isoformat()},
+            {
+                'from': week.isoformat(),
+                'to': today.isoformat(),
+            },
         )
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'Đã nộp')
         self.assertContains(resp, 'Tuần')
+        self.assertNotContains(resp, 'Nhập hộ')
         self.assertContains(resp, reverse('reports:detail_vp', args=[
             DailyWorkReport.objects.get(employee=self.member, report_period='week').pk,
         ]))

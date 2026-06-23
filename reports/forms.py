@@ -149,7 +149,7 @@ class OfficeDailyWorkReportForm(forms.ModelForm):
             if self.instance.pk:
                 existing = self.instance.attachments.exclude(pk__in=delete_ids).count()
             new_uploads = 0
-            for key in ('bang_images', 'bang_files', 'vanban_images', 'vanban_files', 'link_images', 'link_files'):
+            for key in ('attachments', 'bang_images', 'bang_files', 'vanban_images', 'vanban_files', 'link_images', 'link_files'):
                 new_uploads += len(self.files.getlist(key))
             if not office_report_has_content(
                 sheet,
@@ -158,7 +158,7 @@ class OfficeDailyWorkReportForm(forms.ModelForm):
                 links_text=cleaned.get('links') or '',
             ):
                 raise forms.ValidationError(
-                    'Khi nộp báo cáo, điền ít nhất một link, một ô trong tab Bảng, ≥ 50 ký tự trong tab Văn bản, hoặc tải file/ảnh.',
+                    'Khi nộp báo cáo, điền ít nhất một link, nội dung văn bản (≥ 50 ký tự), một ô trong bảng, hoặc tải file/ảnh.',
                 )
         return cleaned
 

@@ -5,9 +5,18 @@ from django.core.files.base import ContentFile
 from .models import DailyWorkReportAttachment
 
 
+def _is_image_upload(uploaded) -> bool:
+    content_type = (getattr(uploaded, 'content_type', '') or '').lower()
+    if content_type.startswith('image/'):
+        return True
+    name = (getattr(uploaded, 'name', '') or '').lower()
+    return name.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg', '.heic', '.heif'))
+
+
 def save_daily_uploads(
     report,
     *,
+    attachments=None,
     bang_images=None,
     bang_files=None,
     vanban_images=None,
@@ -15,8 +24,22 @@ def save_daily_uploads(
     link_images=None,
     link_files=None,
 ):
-    """Lưu file/ảnh báo cáo VP — tab Bảng / Văn bản / Link."""
+    """Lưu file/ảnh báo cáo VP — mặc định gộp vào tab Link."""
     created = []
+    for uploaded in attachments or []:
+        created.append(
+            DailyWorkReportAttachment.objects.create(
+                report=report,
+                source_tab=DailyWorkReportAttachment.SOURCE_LINK,
+                kind=(
+                    DailyWorkReportAttachment.KIND_IMAGE
+                    if _is_image_upload(uploaded)
+                    else DailyWorkReportAttachment.KIND_FILE
+                ),
+                file=uploaded,
+                original_name=getattr(uploaded, 'name', '') or 'file',
+            ),
+        )
     for uploaded in bang_images or []:
         created.append(
             DailyWorkReportAttachment.objects.create(

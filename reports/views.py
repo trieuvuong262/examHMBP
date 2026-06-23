@@ -48,6 +48,10 @@ from reports.period_utils import (
     period_intro_title,
     period_date_label,
     period_query_param,
+    parse_team_date_range,
+    team_date_range_query_params,
+    team_range_query_params,
+    _parse_iso_date,
 )
 from reports.report_lock import (
     can_edit_own_daily_report,
@@ -104,7 +108,8 @@ from .forms import (
 from .models import DailyWorkReport, DailyWorkReportAttachment, WeeklyWorkReport, WeeklyWorkReportAttachment
 from .team_utils import (
     build_report_team_department_groups,
-    build_team_office_report_map,
+    build_vp_team_department_groups,
+    query_team_office_reports_in_range,
     daily_report_visible_to_team,
     department_filter_choices,
     meaningful_daily_reports_qs,
@@ -355,6 +360,19 @@ def _delete_weekly_attachments(report, attachment_ids):
     return count
 
 
+def _daily_report_attachments(report):
+    """Gộp mọi file/ảnh đính kèm (kể cả dữ liệu cũ theo tab Bảng/Văn bản)."""
+    images, files = [], []
+    if not report.pk:
+        return images, files
+    for att in report.attachments.all():
+        if att.is_image:
+            images.append(att)
+        else:
+            files.append(att)
+    return images, files
+
+
 def _daily_attachments_by_tab(report):
     empty = ([], [])
     if not report.pk:
@@ -465,12 +483,7 @@ def _today_office_report(request, report_date, *, report_period: str = PERIOD_DA
             ensure_daily_report_nas_dir()
             save_daily_uploads(
                 report,
-                bang_images=request.FILES.getlist('bang_images'),
-                bang_files=request.FILES.getlist('bang_files'),
-                vanban_images=request.FILES.getlist('vanban_images'),
-                vanban_files=request.FILES.getlist('vanban_files'),
-                link_images=request.FILES.getlist('link_images'),
-                link_files=request.FILES.getlist('link_files'),
+                attachments=request.FILES.getlist('attachments'),
             )
             return redirect(
                 f'{reverse("reports:today_vp")}?{urlencode(period_query_param(report_period, report.report_date))}',
@@ -478,10 +491,7 @@ def _today_office_report(request, report_date, *, report_period: str = PERIOD_DA
     else:
         form = OfficeDailyWorkReportForm(instance=report)
 
-    tab_attachments = _daily_attachments_by_tab(report)
-    bang_images, bang_files = tab_attachments['bang']
-    vanban_images, vanban_files = tab_attachments['vanban']
-    link_images, link_files = tab_attachments['link']
+    attachment_images, attachment_files = _daily_report_attachments(report)
     ctx = _report_context_common(
         request,
         report_date,
@@ -497,12 +507,8 @@ def _today_office_report(request, report_date, *, report_period: str = PERIOD_DA
     ctx.update({
         'form': form,
         'report': report,
-        'bang_images': bang_images,
-        'bang_files': bang_files,
-        'vanban_images': vanban_images,
-        'vanban_files': vanban_files,
-        'link_images': link_images,
-        'link_files': link_files,
+        'attachment_images': attachment_images,
+        'attachment_files': attachment_files,
         'employee_name': (user_profile.full_name if user_profile else '') or request.user.username,
         'department_name': user_profile.department.name if user_profile and user_profile.department_id else '',
         'copy_url': reverse('reports:copy_prev_vp') + f'?{urlencode(period_params)}' if ctx['has_yesterday'] and can_edit else None,
@@ -1074,26 +1080,39 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         return redirect('home_portal')
 
     if report_profile == REPORT_PROFILE_OFFICE:
-        report_period = parse_office_period(request)
-        report_date = parse_period_anchor_date(request, report_period)
+        date_from, date_to = parse_team_date_range(request)
+        report_date = date_to
+        report_period = PERIOD_DAY
     else:
         report_period = PERIOD_DAY
         report_date = request.GET.get('date') or timezone.localdate()
         if isinstance(report_date, str):
             report_date = datetime.strptime(report_date, '%Y-%m-%d').date()
+        date_from = report_date
+        date_to = report_date
 
     search_query = get_search_query(request)
     dept_filter = (request.GET.get('dept') or '').strip()
     status_filter = _parse_team_status_filter(request)
     team = _team_queryset(request.user, search_query)
     all_team_ids = list(team.values_list('id', flat=True))
+    team_count = team.count()
+
     if report_profile == REPORT_PROFILE_OFFICE:
-        report_map = build_team_office_report_map(all_team_ids, report_date, report_period)
-        visible_reports = [r for r in report_map.values() if daily_report_visible_to_team(r)]
-        submitted = sum(
-            1 for r in visible_reports
-            if r.status == DailyWorkReport.STATUS_SUBMITTED
+        reports_in_range = query_team_office_reports_in_range(
+            all_team_ids,
+            date_from,
+            date_to,
         )
+        department_groups, dept_choices, submitted_employee_ids = build_vp_team_department_groups(
+            request.user,
+            team,
+            reports_in_range,
+            daily_report_visible_to_team,
+            dept_filter=dept_filter,
+        )
+        submitted = len(submitted_employee_ids)
+        missing = team_count - submitted
     else:
         all_reports = meaningful_daily_reports_qs().filter(
             employee_id__in=all_team_ids,
@@ -1102,50 +1121,34 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
             report_period=report_period,
         )
         submitted = all_reports.filter(status=DailyWorkReport.STATUS_SUBMITTED).count()
+        missing = team_count - submitted
         reports = all_reports.select_related('employee', 'employee__profile').annotate(
             line_count=Count('lines'),
             total_qty=Sum('lines__quantity'),
         )
         report_map = {r.employee_id: r for r in reports}
+        department_groups, dept_choices = _build_department_group_rows(
+            request.user,
+            team,
+            report_map,
+            daily_report_visible_to_team,
+            dept_filter=dept_filter,
+        )
 
-    team_count = team.count()
-    missing = team_count - submitted
-
-    if report_profile == REPORT_PROFILE_OFFICE:
-        if report_map:
-            reports = (
-                DailyWorkReport.objects.filter(pk__in=[r.pk for r in report_map.values()])
-                .select_related('employee', 'employee__profile')
-                .annotate(
-                    line_count=Count('lines'),
-                    total_qty=Sum('lines__quantity'),
-                    attachment_count=Count('attachments'),
-                )
-            )
-            enriched = {r.employee_id: r for r in reports}
-            report_map = {
-                emp_id: enriched.get(emp_id, raw)
-                for emp_id, raw in report_map.items()
-            }
-    department_groups, dept_choices = _build_department_group_rows(
-        request.user,
-        team,
-        report_map,
-        daily_report_visible_to_team,
-        dept_filter=dept_filter,
-    )
     department_groups = _filter_team_department_groups(
         department_groups,
         status_filter,
         submitted_status=DailyWorkReport.STATUS_SUBMITTED,
     )
 
-    base_params = period_query_param(report_period, report_date) if report_profile == REPORT_PROFILE_OFFICE else {'date': report_date.isoformat()}
+    if report_profile == REPORT_PROFILE_OFFICE:
+        base_params = team_date_range_query_params(date_from, date_to)
+    else:
+        base_params = {'date': report_date.isoformat()}
     if search_query:
         base_params['q'] = search_query
     if dept_filter:
         base_params['dept'] = dept_filter
-    tab_extra = {k: v for k, v in base_params.items() if k not in ('period', 'date', 'month')}
 
     scope_label = 'SX' if report_profile == REPORT_PROFILE_PRODUCTION else 'VP'
     team_title = 'Quản lý BC (VP)' if report_profile == REPORT_PROFILE_OFFICE else f'Quản lý báo cáo ({scope_label})'
@@ -1157,6 +1160,8 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         'stat_urls': _team_stat_urls(base_params),
         'search_query': search_query,
         'report_date': report_date,
+        'range_from': date_from,
+        'range_to': date_to,
         'submitted_count': submitted,
         'missing_count': missing,
         'team_count': team_count,
@@ -1165,10 +1170,7 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         'reports_scope_label': scope_label,
         'team_page_title': team_title,
         'office_period': report_period if report_profile == REPORT_PROFILE_OFFICE else PERIOD_DAY,
-        'period_date_label': period_date_label(report_period) if report_profile == REPORT_PROFILE_OFFICE else 'Ngày',
-        'period_date_input_type': period_date_input_type(report_period) if report_profile == REPORT_PROFILE_OFFICE else 'date',
-        'period_date_input_value': period_date_input_value(report_period, report_date) if report_profile == REPORT_PROFILE_OFFICE else report_date.isoformat(),
-        'period_query': period_query_param(report_period, report_date) if report_profile == REPORT_PROFILE_OFFICE else {'date': report_date.isoformat()},
+        'period_query': base_params if report_profile == REPORT_PROFILE_OFFICE else {'date': report_date.isoformat()},
         'today_url_name': (
             'reports:today_cn'
             if report_profile == REPORT_PROFILE_PRODUCTION
@@ -1180,7 +1182,6 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
             else 'reports:detail_vp'
         ),
         'team_url_name': team_url_name_for_profile(report_profile),
-        'team_tab_extra_query': urlencode(tab_extra) if tab_extra else '',
     })
 
 
@@ -1197,11 +1198,29 @@ def team_weekly_reports_cn(request):
 @_reports_access_required
 def team_weekly_reports_vp(request):
     period = request.GET.get('period') or PERIOD_WEEK
-    anchor = parse_period_anchor_date(request, period)
-    params = period_query_param(period, anchor)
+    date_from = _parse_iso_date(request.GET.get('from'))
+    date_to = _parse_iso_date(request.GET.get('to'))
+    if not date_from or not date_to:
+        anchor = parse_period_anchor_date(request, period)
+        if period == PERIOD_MONTH:
+            from calendar import monthrange
+
+            date_from = anchor
+            last_day = monthrange(anchor.year, anchor.month)[1]
+            date_to = anchor.replace(day=last_day)
+        elif period == PERIOD_WEEK:
+            date_from = anchor
+            date_to = anchor + timedelta(days=6)
+        else:
+            date_from, date_to = parse_team_date_range(request)
+    params = team_date_range_query_params(date_from, date_to)
     query = request.META.get('QUERY_STRING', '').strip()
     if query:
-        extra = dict(x.split('=', 1) for x in query.split('&') if '=' in x and x.split('=', 1)[0] not in params)
+        extra = dict(
+            x.split('=', 1)
+            for x in query.split('&')
+            if '=' in x and x.split('=', 1)[0] not in params
+        )
         params.update(extra)
     return redirect(f'{reverse("reports:team_vp")}?{urlencode(params)}')
 

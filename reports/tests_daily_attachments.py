@@ -41,7 +41,7 @@ class DailyOfficeAttachmentViewTests(TestCase):
         self.client = Client(HTTP_HOST='testserver')
         self.client.force_login(self.user)
 
-    def test_today_vp_form_accepts_tab_upload_fields(self):
+    def test_today_vp_form_accepts_unified_attachment_field(self):
         pdf = SimpleUploadedFile('test.pdf', b'%PDF', content_type='application/pdf')
         png = SimpleUploadedFile('test.png', b'\x89PNG', content_type='image/png')
         url = reverse('reports:today_vp')
@@ -52,14 +52,15 @@ class DailyOfficeAttachmentViewTests(TestCase):
                 'report_date': self.report.report_date.isoformat(),
                 'spreadsheet_data': '{"columns":["A"],"rows":[["x"]]}',
                 'document_html': '',
-                'bang_files': pdf,
-                'vanban_images': png,
+                'attachments': [pdf, png],
             },
         )
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(self.report.attachments.count(), 2)
-        tabs = set(self.report.attachments.values_list('source_tab', flat=True))
-        self.assertEqual(tabs, {DailyWorkReportAttachment.SOURCE_BANG, DailyWorkReportAttachment.SOURCE_VANBAN})
+        self.assertEqual(
+            self.report.attachments.filter(source_tab=DailyWorkReportAttachment.SOURCE_LINK).count(),
+            2,
+        )
 
     def test_submit_with_only_attachment_is_valid(self):
         pdf = SimpleUploadedFile('only.pdf', b'%PDF', content_type='application/pdf')
@@ -71,7 +72,7 @@ class DailyOfficeAttachmentViewTests(TestCase):
                 'report_date': self.report.report_date.isoformat(),
                 'spreadsheet_data': '{"columns":[""],"rows":[[""]]}',
                 'document_html': '',
-                'bang_files': pdf,
+                'attachments': pdf,
             },
         )
         self.assertEqual(resp.status_code, 302)
@@ -79,29 +80,15 @@ class DailyOfficeAttachmentViewTests(TestCase):
         self.assertEqual(self.report.status, DailyWorkReport.STATUS_SUBMITTED)
         self.assertEqual(self.report.attachments.count(), 1)
 
-    def test_submit_with_link_file_only_is_valid(self):
-        pdf = SimpleUploadedFile('only.pdf', b'%PDF', content_type='application/pdf')
-        url = reverse('reports:today_vp')
-        resp = self.client.post(
-            url,
-            {
-                'action': 'submit',
-                'report_date': self.report.report_date.isoformat(),
-                'spreadsheet_data': '{"columns":[""],"rows":[[""]]}',
-                'document_html': '',
-                'link_files': pdf,
-            },
-        )
-        self.assertEqual(resp.status_code, 302)
-        self.report.refresh_from_db()
-        self.assertEqual(self.report.status, DailyWorkReport.STATUS_SUBMITTED)
-        att = self.report.attachments.get()
-        self.assertEqual(att.source_tab, DailyWorkReportAttachment.SOURCE_LINK)
-
-    def test_today_vp_page_shows_link_attachment_fields(self):
+    def test_today_vp_page_shows_unified_form_without_content_tabs(self):
         resp = self.client.get(reverse('reports:today_vp'))
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, 'name="link_files"')
-        self.assertContains(resp, 'name="link_images"')
-        self.assertContains(resp, 'name="bang_files"')
-        self.assertContains(resp, 'name="vanban_images"')
+        self.assertContains(resp, 'name="attachments"')
+        self.assertContains(resp, 'Link &amp; đính kèm')
+        self.assertNotContains(resp, 'id="vanban-tab"')
+        self.assertNotContains(resp, 'id="bang-tab"')
+        self.assertContains(resp, 'jp-office-panel-unified')
+
+    def test_today_vp_period_tabs_have_visible_styles(self):
+        resp = self.client.get(reverse('reports:today_vp'))
+        self.assertContains(resp, 'jp-reports-period-tabs')

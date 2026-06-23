@@ -97,6 +97,8 @@ for url_name, params in (
     print(f'\nGET {url_name} {params} -> {resp.status_code}')
     if resp.status_code == 200:
         html = resp.content.decode('utf-8', errors='replace')
+        print(f'  Da nop badges: {html.count("Đã nộp")}')
+        print(f'  Tuan badges: {html.count(">Tuần<")}')
         for u in mkt_team[:6]:
             name = u.profile.full_name or u.username
             print(f'  contains {u.username}: {u.username in html}')

@@ -1,26 +1,30 @@
 <div class="jp-office-workspace card border-0 shadow-sm mb-3">
-    <div class="tab-content jp-office-panel">
-        <div class="tab-pane fade show active" id="vanban-pane" role="tabpanel">
-            <div class="jp-vanban-viewport">
+    <div class="jp-office-panel jp-office-panel-unified">
+        <div class="jp-office-section jp-office-section-vanban">
+            <div class="jp-office-section-head">
+                <span class="jp-office-section-title"><i class="bi bi-file-earmark-richtext"></i> Văn bản</span>
+            </div>
+            <div class="jp-vanban-viewport jp-vanban-viewport-unified">
                 <div class="jp-vanban-panel">
                     {{ form.document_html }}
                 </div>
             </div>
-            {% include 'reports/includes/office_tab_attachments.html' with images=vanban_images files=vanban_files image_field='vanban_images' file_field='vanban_files' %}
         </div>
-        <div class="tab-pane fade" id="bang-pane" role="tabpanel">
-            <div class="jp-sheet-tools">
-                <span class="jp-sheet-tools-label">Bảng</span>
-                <button type="button" class="jp-sheet-tool-btn is-primary" id="jpSheetAddRow"><i class="bi bi-plus-lg"></i> Dòng</button>
-                <button type="button" class="jp-sheet-tool-btn is-primary" id="jpSheetAddCol"><i class="bi bi-plus-lg"></i> Cột</button>
-                <button type="button" class="jp-sheet-tool-btn is-muted" id="jpSheetRemoveRow"><i class="bi bi-dash-lg"></i> Dòng</button>
-                <button type="button" class="jp-sheet-tool-btn is-muted" id="jpSheetRemoveCol"><i class="bi bi-dash-lg"></i> Cột</button>
+
+        <div class="jp-office-section jp-office-section-bang">
+            <div class="jp-office-section-head jp-office-section-head-tools">
+                <span class="jp-office-section-title"><i class="bi bi-grid-3x3-gap-fill"></i> Bảng</span>
+                <div class="jp-sheet-tools jp-sheet-tools-inline">
+                    <button type="button" class="jp-sheet-tool-btn is-primary" id="jpSheetAddRow"><i class="bi bi-plus-lg"></i> Dòng</button>
+                    <button type="button" class="jp-sheet-tool-btn is-primary" id="jpSheetAddCol"><i class="bi bi-plus-lg"></i> Cột</button>
+                    <button type="button" class="jp-sheet-tool-btn is-muted" id="jpSheetRemoveRow"><i class="bi bi-dash-lg"></i> Dòng</button>
+                    <button type="button" class="jp-sheet-tool-btn is-muted" id="jpSheetRemoveCol"><i class="bi bi-dash-lg"></i> Cột</button>
+                </div>
             </div>
             <div class="jp-sheet-viewport">
                 <table class="jp-office-sheet mb-0" id="jpOfficeSheet" aria-label="Bảng báo cáo"></table>
             </div>
             {{ form.spreadsheet_data }}
-            {% include 'reports/includes/office_tab_attachments.html' with images=bang_images files=bang_files image_field='bang_images' file_field='bang_files' %}
         </div>
     </div>
 </div>

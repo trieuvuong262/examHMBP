@@ -1,0 +1,37 @@
+<div class="jp-office-unified-attachments">
+    {% if images or files %}
+    <div class="jp-weekly-existing mb-3">
+        <div class="small fw-bold text-muted mb-2">Đã đính kèm</div>
+        {% if images %}
+        <div class="row g-2 mb-2">
+            {% for att in images %}
+            <div class="col-6 col-md-4 col-lg-3">
+                <div class="jp-weekly-thumb">
+                    <a href="{{ att.file_url }}" target="_blank" rel="noopener">
+                        <img src="{{ att.file_url }}" alt="{{ att.display_name }}" loading="lazy">
+                    </a>
+                    <label class="jp-weekly-thumb-delete">
+                        <input type="checkbox" name="delete_attachments" value="{{ att.pk }}" class="form-check-input">
+                        <span>Xóa</span>
+                    </label>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% if files %}
+        {% for att in files %}
+        <label class="jp-weekly-existing-item">
+            <input type="checkbox" name="delete_attachments" value="{{ att.pk }}" class="form-check-input">
+            <a href="{{ att.file_url }}" target="_blank" rel="noopener" class="text-decoration-none">{{ att.display_name }}</a>
+        </label>
+        {% endfor %}
+        {% endif %}
+    </div>
+    {% endif %}
+    <label class="form-label fw-bold small mb-1" for="id_attachments">
+        <i class="bi bi-paperclip"></i> Thêm file hoặc ảnh
+    </label>
+    <input type="file" name="attachments" id="id_attachments" class="form-control" multiple>
+    <div class="form-text">Có thể chọn nhiều file, ảnh cùng lúc.</div>
+</div>

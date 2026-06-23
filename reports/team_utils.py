@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from django.db.models import Q
 
 from hrm.concurrent_positions import MANAGER_SLOT_ROLES, get_active_concurrent_positions
@@ -77,6 +79,73 @@ def build_team_office_report_map(
     for report in base.filter(report_period=PERIOD_DAY, report_date=report_date):
         report_map[report.employee_id] = report
     return report_map
+
+
+def query_team_office_reports_in_range(
+    team_ids,
+    date_from: date,
+    date_to: date,
+):
+    """Báo cáo VP của team trong khoảng thời gian (mọi chu kỳ ngày/tuần/tháng)."""
+    from django.db.models import Count, Sum
+
+    if not team_ids:
+        return DailyWorkReport.objects.none()
+
+    return (
+        meaningful_daily_reports_qs()
+        .filter(
+            employee_id__in=team_ids,
+            report_profile=REPORT_PROFILE_OFFICE,
+            report_date__gte=date_from,
+            report_date__lte=date_to,
+        )
+        .select_related('employee', 'employee__profile')
+        .annotate(
+            line_count=Count('lines'),
+            total_qty=Sum('lines__quantity'),
+            attachment_count=Count('attachments'),
+        )
+        .order_by('-report_date', 'employee__profile__full_name', 'employee__username')
+    )
+
+
+def build_vp_team_department_groups(
+    viewer,
+    team,
+    reports_qs,
+    visible_fn,
+    *,
+    dept_filter: str = '',
+):
+    """Nhóm báo cáo VP theo phòng ban — nhiều dòng / nhân viên nếu có nhiều mốc trong khoảng."""
+    reports_by_emp: dict[int, list] = {}
+    submitted_employee_ids: set[int] = set()
+    for report in reports_qs:
+        if not visible_fn(report):
+            continue
+        reports_by_emp.setdefault(report.employee_id, []).append(report)
+        if report.status == DailyWorkReport.STATUS_SUBMITTED:
+            submitted_employee_ids.add(report.employee_id)
+
+    all_groups = build_report_team_department_groups(viewer, team)
+    dept_choices = department_filter_choices(all_groups)
+    groups = (
+        build_report_team_department_groups(viewer, team, dept_filter=dept_filter)
+        if dept_filter else all_groups
+    )
+    department_groups = []
+    for group in groups:
+        rows = []
+        for member in group['members']:
+            member_reports = reports_by_emp.get(member.id, [])
+            if member_reports:
+                for report in member_reports:
+                    rows.append({'member': member, 'report': report})
+            else:
+                rows.append({'member': member, 'report': None})
+        department_groups.append({**group, 'rows': rows})
+    return department_groups, dept_choices, submitted_employee_ids
 
 
 def _active_subordinate_qs(m2m_manager):

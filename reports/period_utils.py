@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from django.utils import timezone
 
@@ -142,3 +142,39 @@ def period_date_label(period: str) -> str:
     if period == PERIOD_MONTH:
         return 'Tháng'
     return 'Ngày báo cáo'
+
+
+def parse_team_date_range(request, *, default_span_days: int = 7) -> tuple[date, date]:
+    """Khoảng thời gian lọc trên trang quản lý BC (VP)."""
+    today = timezone.localdate()
+    date_to = _parse_iso_date(request.GET.get('to')) or today
+    date_from = _parse_iso_date(request.GET.get('from'))
+    if not date_from:
+        date_from = date_to - timedelta(days=max(default_span_days - 1, 0))
+    if date_from > date_to:
+        date_from, date_to = date_to, date_from
+    return date_from, date_to
+
+
+def team_date_range_query_params(date_from: date, date_to: date) -> dict[str, str]:
+    return {
+        'from': date_from.isoformat(),
+        'to': date_to.isoformat(),
+    }
+
+
+def team_range_query_params(period: str, date_from: date, date_to: date) -> dict[str, str]:
+    """Giữ tương thích — trang quản lý BC chỉ dùng from/to."""
+    return team_date_range_query_params(date_from, date_to)
+
+
+def report_anchor_display(report) -> str:
+    """Nhãn mốc báo cáo trên bảng quản lý."""
+    period = getattr(report, 'report_period', PERIOD_DAY) or PERIOD_DAY
+    anchor = report.report_date
+    if period == PERIOD_MONTH:
+        return anchor.strftime('%m/%Y')
+    if period == PERIOD_WEEK:
+        end = anchor + timedelta(days=6)
+        return f'{anchor.strftime("%d/%m")} – {end.strftime("%d/%m/%Y")}'
+    return anchor.strftime('%d/%m/%Y')

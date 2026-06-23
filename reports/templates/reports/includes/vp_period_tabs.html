@@ -1,4 +1,24 @@
 <ul class="nav nav-pills jp-reports-period-tabs flex-nowrap gap-1 mb-0" role="tablist">
+    {% if period_tabs_use_range %}
+    <li class="nav-item" role="presentation">
+        <a class="nav-link rounded-pill fw-semibold {% if office_period == 'day' %}active{% endif %}"
+           href="{% url base_url_name %}?period=day&from={{ range_from|date:'Y-m-d' }}&to={{ range_to|date:'Y-m-d' }}{% if extra_query %}&{{ extra_query }}{% endif %}">
+            Ngày
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link rounded-pill fw-semibold {% if office_period == 'week' %}active{% endif %}"
+           href="{% url base_url_name %}?period=week&from={{ range_from|date:'Y-m-d' }}&to={{ range_to|date:'Y-m-d' }}{% if extra_query %}&{{ extra_query }}{% endif %}">
+            Tuần
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link rounded-pill fw-semibold {% if office_period == 'month' %}active{% endif %}"
+           href="{% url base_url_name %}?period=month&from={{ range_from|date:'Y-m-d' }}&to={{ range_to|date:'Y-m-d' }}{% if extra_query %}&{{ extra_query }}{% endif %}">
+            Tháng
+        </a>
+    </li>
+    {% else %}
     <li class="nav-item" role="presentation">
         <a class="nav-link rounded-pill fw-semibold {% if office_period == 'day' %}active{% endif %}"
            href="{% url base_url_name %}?period=day&date={{ report_date|date:'Y-m-d' }}{% if extra_query %}&{{ extra_query }}{% endif %}">
@@ -17,4 +37,5 @@
             Tháng
         </a>
     </li>
+    {% endif %}
 </ul>
