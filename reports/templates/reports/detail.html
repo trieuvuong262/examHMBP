@@ -3,9 +3,9 @@
 
 {% block extra_head %}
 {% if report.is_production_report and hourly_grid or productivity %}
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260628c">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260628d">
 {% elif not report.is_production_report %}
-<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260628c">
+<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260628d">
 {% endif %}
 {% endblock %}
 
@@ -56,19 +56,10 @@
             {% if team_list_query %}
             <input type="hidden" name="team_list_query" value="{{ team_list_query }}">
             {% endif %}
-            <label class="jp-report-review-confirm" for="hod_reviewed">
-                <input class="jp-report-review-confirm-input" type="checkbox" name="hod_reviewed" id="hod_reviewed" {% if report.hod_reviewed %}checked{% endif %}>
-                <span class="jp-report-review-confirm-box">
-                    <i class="bi bi-check2-lg jp-report-review-confirm-icon" aria-hidden="true"></i>
-                    <span class="jp-report-review-confirm-text">Đã xem báo cáo</span>
-                </span>
-            </label>
-            <div class="jp-report-review-fields">
-                <input type="text" name="hod_note" id="hod_note" class="form-control jp-report-review-note" value="{{ report.hod_note }}" placeholder="Ghi chú cho nhân viên (tuỳ chọn)" autocomplete="off">
-                <button type="submit" class="btn btn-hm btn-sm jp-report-review-save">
-                    <i class="bi bi-check2 me-1" aria-hidden="true"></i>Lưu
-                </button>
-            </div>
+            <input type="text" name="hod_note" id="hod_note" class="form-control jp-report-review-note" value="{{ report.hod_note }}" placeholder="Ghi chú cho nhân viên (tuỳ chọn)" autocomplete="off">
+            <button type="submit" class="btn btn-hm btn-sm jp-report-review-save">
+                <i class="bi bi-check2 me-1" aria-hidden="true"></i>Lưu
+            </button>
         </form>
     </div>
     {% elif report.hod_note %}

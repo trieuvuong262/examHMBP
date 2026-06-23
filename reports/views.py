@@ -1404,8 +1404,9 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         return _detail_redirect()
 
     if request.method == 'POST' and can_review:
-        report.hod_reviewed = request.POST.get('hod_reviewed') == 'on'
         report.hod_note = request.POST.get('hod_note', '').strip()
+        if report.status == DailyWorkReport.STATUS_SUBMITTED and not report.hod_reviewed:
+            report.hod_reviewed = True
         report.save()
         messages.success(request, 'Đã cập nhật phản hồi.')
         return _detail_redirect()
@@ -1654,8 +1655,9 @@ def _weekly_report_detail_core(request, pk, *, detail_url_name: str):
         report.refresh_from_db()
 
     if request.method == 'POST' and can_review:
-        report.hod_reviewed = request.POST.get('hod_reviewed') == 'on'
         report.hod_note = request.POST.get('hod_note', '').strip()
+        if report.status == WeeklyWorkReport.STATUS_SUBMITTED and not report.hod_reviewed:
+            report.hod_reviewed = True
         report.save()
         messages.success(request, 'Đã cập nhật phản hồi.')
         return redirect(detail_url_name, pk=pk)

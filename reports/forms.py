@@ -108,9 +108,10 @@ class OfficeDailyWorkReportForm(forms.ModelForm):
             'report_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'document_html': OfficeWordEditorWidget(),
             'links': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 3,
-                'placeholder': 'Dán link — có thể kèm câu chữ, hệ thống tự nhận URL\nvd: https://canva.link/...',
+                'class': 'form-control jp-office-links-input',
+                'rows': 2,
+                'placeholder': 'https://...',
+                'aria-label': 'Link',
             }),
         }
 
@@ -123,7 +124,7 @@ class OfficeDailyWorkReportForm(forms.ModelForm):
         )
         self.fields['document_html'].required = False
         self.fields['links'].required = False
-        self.fields['links'].label = 'Link'
+        self.fields['links'].label = ''
 
     def clean_spreadsheet_data(self):
         raw = self.cleaned_data.get('spreadsheet_data') or ''

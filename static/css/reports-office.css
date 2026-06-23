@@ -1268,12 +1268,14 @@
 
 .jp-report-locked .jp-office-workspace,
 .jp-report-locked .jp-weekly-fields,
-.jp-report-locked .jp-office-hero-date .form-control {
+.jp-report-locked .jp-office-date-bar .form-control,
+.jp-report-locked .jp-office-links-input {
     pointer-events: none;
     opacity: 0.72;
 }
 
-.jp-report-locked .jp-office-hero-date .form-control {
+.jp-report-locked .jp-office-date-bar .form-control,
+.jp-report-locked .jp-office-links-input {
     background: #f1f5f9;
 }
 
@@ -1463,69 +1465,16 @@
 .jp-report-review-form {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    align-items: stretch;
+    gap: 0.5rem;
 }
 
 @media (min-width: 768px) {
     .jp-report-review-form {
         flex-direction: row;
         align-items: center;
-        gap: 0.85rem;
+        gap: 0.65rem;
     }
-}
-
-.jp-report-review-confirm {
-    display: inline-flex;
-    margin: 0;
-    cursor: pointer;
-    flex-shrink: 0;
-}
-
-.jp-report-review-confirm-input {
-    position: absolute;
-    opacity: 0;
-    width: 0;
-    height: 0;
-    pointer-events: none;
-}
-
-.jp-report-review-confirm-box {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    padding: 0.45rem 0.85rem;
-    border-radius: 999px;
-    border: 1px solid #dbe3ee;
-    background: #f8fafc;
-    color: #64748b;
-    font-size: 0.84rem;
-    font-weight: 600;
-    line-height: 1.2;
-    transition: border-color 0.15s, background 0.15s, color 0.15s, box-shadow 0.15s;
-    user-select: none;
-}
-
-.jp-report-review-confirm-icon {
-    font-size: 1rem;
-    line-height: 1;
-}
-
-.jp-report-review-confirm-input:focus-visible + .jp-report-review-confirm-box {
-    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.18);
-}
-
-.jp-report-review-confirm-input:checked + .jp-report-review-confirm-box {
-    border-color: #86efac;
-    background: #f0fdf4;
-    color: #166534;
-}
-
-.jp-report-review-fields {
-    display: flex;
-    flex: 1 1 auto;
-    align-items: stretch;
-    gap: 0.5rem;
-    min-width: 0;
 }
 
 .jp-report-review-note {
@@ -1580,5 +1529,122 @@
 .jp-report-hod-note-text {
     min-width: 0;
     overflow-wrap: anywhere;
+}
+
+/* Nhập báo cáo VP — hero trang */
+.jp-office-today-page {
+    max-width: 1200px;
+}
+
+.jp-office-page-hero {
+    padding: 1.25rem 1.35rem;
+    border-radius: 1rem;
+    background: linear-gradient(135deg, #fff 0%, #fff8f8 55%, var(--hm-primary-light) 100%);
+    border: 1px solid var(--hm-primary-subtle);
+    box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+}
+
+@media (min-width: 768px) {
+    .jp-office-page-hero {
+        padding: 1.5rem 1.75rem;
+    }
+}
+
+.jp-office-page-hero-top {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+}
+
+@media (min-width: 768px) {
+    .jp-office-page-hero-top {
+        flex-direction: row;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1.25rem;
+    }
+}
+
+.jp-office-page-hero-text {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.jp-office-page-hero-name {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.jp-office-page-hero-actions {
+    flex-shrink: 0;
+}
+
+@media (min-width: 768px) {
+    .jp-office-page-hero-actions {
+        align-self: flex-start;
+        max-width: min(100%, 28rem);
+    }
+
+    .jp-office-page-hero-actions .d-flex {
+        justify-content: flex-end;
+    }
+}
+
+.jp-office-page-hero-tabs {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.jp-office-page-hero-tabs .jp-reports-office-tabs .nav-link {
+    background: rgba(255, 255, 255, 0.65) !important;
+}
+
+.jp-office-date-bar {
+    border-radius: 0.85rem;
+    background: #fff;
+}
+
+.jp-office-date-bar-field .form-control {
+    max-width: 220px;
+    border-radius: 0.65rem;
+    border-color: #e2e8f0;
+    font-weight: 600;
+}
+
+.jp-office-link-card .card-header {
+    background: #fff;
+}
+
+.jp-office-links-input {
+    border-radius: 0.65rem;
+    border-color: #e2e8f0;
+    font-size: 0.9rem;
+    resize: vertical;
+    min-height: 2.75rem;
+}
+
+.jp-office-links-input:focus {
+    border-color: #fca5a5;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+.jp-office-links-input::placeholder {
+    color: #94a3b8;
+}
+
+[data-theme="dark"] .jp-office-page-hero {
+    background: linear-gradient(135deg, var(--jp-surface-bg) 0%, var(--jp-surface-bg) 55%, rgba(220, 38, 38, 0.08) 100%);
+    border-color: var(--jp-surface-border);
+}
+
+[data-theme="dark"] .jp-office-page-hero-name {
+    color: var(--jp-text-primary);
+}
+
+[data-theme="dark"] .jp-office-page-hero-tabs {
+    border-top-color: var(--jp-surface-border);
 }
 

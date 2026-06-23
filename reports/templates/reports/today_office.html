@@ -2,15 +2,31 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260623b">
+<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260629a">
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-reports-page py-3 py-md-4 mb-5">
-    {% include 'reports/includes/reports_intro_header.html' with intro_icon='bi-clipboard-check' intro_title=period_intro_title report_period=office_period %}
-
-    <div class="card border-0 shadow-sm mb-3">
-        <div class="card-body p-3">
+<div class="container jp-page jp-reports-page jp-office-today-page py-3 py-md-4 mb-5">
+    <div class="jp-office-page-hero mb-3">
+        <div class="jp-office-page-hero-top">
+            <div class="jp-office-page-hero-text">
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <h2 class="fw-bold text-hm mb-0 jp-page-title">{{ period_intro_title }}</h2>
+                    {% if report.status == 'SUBMITTED' %}
+                    <span class="badge jp-report-badge jp-report-badge--submitted">{{ report.get_status_display }}</span>
+                    {% else %}
+                    <span class="badge jp-report-badge jp-report-badge--draft">{{ report.get_status_display }}</span>
+                    {% endif %}
+                </div>
+                {% if employee_name %}
+                <p class="jp-office-page-hero-name mb-0 mt-2">{{ employee_name }}</p>
+                {% endif %}
+            </div>
+            <div class="jp-office-page-hero-actions d-flex gap-2 flex-wrap">
+                {% include 'reports/includes/reports_page_tools.html' with report_period=office_period report_date=report_date can_view_team=can_view_team my_url_name=my_url_name team_url_name=team_url_name copy_url=copy_url copy_label=copy_label copy_confirm=copy_confirm %}
+            </div>
+        </div>
+        <div class="jp-office-page-hero-tabs">
             {% include 'reports/includes/vp_period_tabs.html' with base_url_name='reports:today_vp' office_period=office_period report_date=report_date %}
         </div>
     </div>
@@ -37,34 +53,32 @@
         {% csrf_token %}
         <input type="hidden" name="period" value="{{ office_period }}">
 
-        <div class="jp-office-hero card border-0 shadow-sm mb-3">
-            <div class="jp-office-hero-top">
-                <div class="jp-office-hero-date">
-                    <label class="form-label fw-bold small mb-1">{{ period_date_label }}</label>
+        <div class="jp-office-date-bar card border-0 shadow-sm mb-3">
+            <div class="card-body py-3 px-3 px-md-4">
+                <label class="form-label fw-semibold small text-muted mb-1" for="{% if office_period == 'month' %}office-month-input{% else %}id_report_date{% endif %}">{{ period_date_label }}</label>
+                <div class="jp-office-date-bar-field">
                     {% if office_period == 'month' %}
-                    <input type="month" name="month" class="form-control" value="{{ period_date_input_value }}">
+                    <input type="month" name="month" id="office-month-input" class="form-control" value="{{ period_date_input_value }}">
                     <input type="hidden" name="report_date" value="{{ report_date|date:'Y-m-d' }}">
                     {% else %}
                     {{ form.report_date }}
                     {% endif %}
                 </div>
-                <span class="jp-office-status-pill {% if report.status == 'SUBMITTED' %}is-submitted{% else %}is-draft{% endif %}">
-                    {{ report.get_status_display }}
-                </span>
             </div>
         </div>
 
         {% include 'reports/includes/office_report_workspace.html' %}
 
-        <div class="card border-0 shadow-sm mb-3 jp-weekly-field-card">
+        <div class="card border-0 shadow-sm mb-3 jp-office-link-card">
             <div class="card-header bg-white border-bottom py-3">
-                <h6 class="fw-bold mb-0">Link &amp; đính kèm</h6>
+                <h6 class="fw-bold mb-0"><i class="bi bi-link-45deg me-1 text-hm"></i>Link &amp; đính kèm</h6>
             </div>
             <div class="card-body p-3 p-md-4">
-                <label class="form-label fw-bold small mb-1" for="id_links">Link</label>
                 {{ form.links }}
-                <div class="form-text mb-3">Mỗi dòng một link (Google Drive, tài liệu, …)</div>
-                {% include 'reports/includes/office_unified_attachments.html' with images=attachment_images files=attachment_files %}
+                {% if form.links.errors %}<div class="text-danger small mt-2">{{ form.links.errors }}</div>{% endif %}
+                <div class="mt-3">
+                    {% include 'reports/includes/office_unified_attachments.html' with images=attachment_images files=attachment_files %}
+                </div>
             </div>
         </div>
 
