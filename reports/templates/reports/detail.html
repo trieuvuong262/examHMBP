@@ -231,6 +231,9 @@
         <div class="card-body p-4">
             <form method="post">
                 {% csrf_token %}
+                {% if team_list_query %}
+                <input type="hidden" name="team_list_query" value="{{ team_list_query }}">
+                {% endif %}
                 <div class="form-check form-switch mb-3 jp-report-review-switch">
                     <input class="form-check-input" type="checkbox" name="hod_reviewed" id="hod_reviewed" {% if report.hod_reviewed %}checked{% endif %}>
                     <label class="form-check-label fw-semibold" for="hod_reviewed">Đã xem / xác nhận báo cáo</label>

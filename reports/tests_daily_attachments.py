@@ -41,7 +41,7 @@ class DailyOfficeAttachmentViewTests(TestCase):
         self.client = Client(HTTP_HOST='testserver')
         self.client.force_login(self.user)
 
-    def test_today_vp_form_accepts_unified_attachment_field(self):
+    def test_today_vp_form_accepts_separate_link_upload_fields(self):
         pdf = SimpleUploadedFile('test.pdf', b'%PDF', content_type='application/pdf')
         png = SimpleUploadedFile('test.png', b'\x89PNG', content_type='image/png')
         url = reverse('reports:today_vp')
@@ -52,7 +52,8 @@ class DailyOfficeAttachmentViewTests(TestCase):
                 'report_date': self.report.report_date.isoformat(),
                 'spreadsheet_data': '{"columns":["A"],"rows":[["x"]]}',
                 'document_html': '',
-                'attachments': [pdf, png],
+                'link_files': pdf,
+                'link_images': png,
             },
         )
         self.assertEqual(resp.status_code, 302)
@@ -72,7 +73,7 @@ class DailyOfficeAttachmentViewTests(TestCase):
                 'report_date': self.report.report_date.isoformat(),
                 'spreadsheet_data': '{"columns":[""],"rows":[[""]]}',
                 'document_html': '',
-                'attachments': pdf,
+                'link_files': pdf,
             },
         )
         self.assertEqual(resp.status_code, 302)
@@ -80,15 +81,12 @@ class DailyOfficeAttachmentViewTests(TestCase):
         self.assertEqual(self.report.status, DailyWorkReport.STATUS_SUBMITTED)
         self.assertEqual(self.report.attachments.count(), 1)
 
-    def test_today_vp_page_shows_unified_form_without_content_tabs(self):
+    def test_today_vp_page_shows_word_editor_and_separate_attachments(self):
         resp = self.client.get(reverse('reports:today_vp'))
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, 'name="attachments"')
-        self.assertContains(resp, 'Link &amp; đính kèm')
-        self.assertNotContains(resp, 'id="vanban-tab"')
-        self.assertNotContains(resp, 'id="bang-tab"')
+        self.assertContains(resp, 'name="link_files"')
+        self.assertContains(resp, 'name="link_images"')
+        self.assertContains(resp, 'jp-word-studio')
+        self.assertContains(resp, 'reports-office-word-editor.js')
         self.assertContains(resp, 'jp-office-panel-unified')
-
-    def test_today_vp_period_tabs_have_visible_styles(self):
-        resp = self.client.get(reverse('reports:today_vp'))
-        self.assertContains(resp, 'jp-reports-period-tabs')
+        self.assertNotContains(resp, 'id="vanban-tab"')

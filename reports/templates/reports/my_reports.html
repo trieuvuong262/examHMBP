@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load report_extras %}
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260530b">
@@ -164,7 +165,7 @@
                             {% if r.is_production_report %}
                             {{ r.line_count }} dòng · SL {{ r.total_qty|default:0 }}
                             {% else %}
-                            Văn bản + Bảng{% if r.links %} · Link{% endif %}
+                            {{ r|office_report_summary|default:"—" }}
                             {% endif %}
                         </td>
                         <td class="text-end text-muted small">

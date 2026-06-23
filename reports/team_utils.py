@@ -85,14 +85,15 @@ def query_team_office_reports_in_range(
     team_ids,
     date_from: date,
     date_to: date,
+    report_period: str = '',
 ):
-    """Báo cáo VP của team trong khoảng thời gian (mọi chu kỳ ngày/tuần/tháng)."""
+    """Báo cáo VP của team trong khoảng thời gian (mọi hoặc một chu kỳ ngày/tuần/tháng)."""
     from django.db.models import Count, Sum
 
     if not team_ids:
         return DailyWorkReport.objects.none()
 
-    return (
+    qs = (
         meaningful_daily_reports_qs()
         .filter(
             employee_id__in=team_ids,
@@ -100,7 +101,11 @@ def query_team_office_reports_in_range(
             report_date__gte=date_from,
             report_date__lte=date_to,
         )
-        .select_related('employee', 'employee__profile')
+    )
+    if report_period:
+        qs = qs.filter(report_period=report_period)
+    return (
+        qs.select_related('employee', 'employee__profile')
         .annotate(
             line_count=Count('lines'),
             total_qty=Sum('lines__quantity'),

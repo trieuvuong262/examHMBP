@@ -27,6 +27,18 @@ MENU_WEEKLY_CN_DETAIL = 'weekly_cn_detail'
 MENU_WEEKLY_VP = 'weekly_vp'
 MENU_WEEKLY_VP_DETAIL = 'weekly_vp_detail'
 
+TEAM_LIST_FILTER_KEYS = frozenset({
+    'from',
+    'to',
+    'date',
+    'period',
+    'dept',
+    'status',
+    'q',
+    'sort',
+    'dir',
+})
+
 _LEGACY_DAILY_MENU_ALIASES = {
     MENU_DAILY_CN: 'daily',
     MENU_DAILY_CN_DETAIL: 'daily',
@@ -241,6 +253,53 @@ def history_url_for(report, viewer) -> str:
     return f'{base}?{urlencode(params)}'
 
 
+def _sanitize_team_list_query_string(raw: str) -> str:
+    from urllib.parse import parse_qsl
+
+    pairs = [
+        (key, val)
+        for key, val in parse_qsl(raw, keep_blank_values=True)
+        if key in TEAM_LIST_FILTER_KEYS
+    ]
+    return urlencode(pairs)
+
+
+def team_list_query_from_request(request) -> str:
+    """Chuỗi query bộ lọc trang quản lý BC — dùng khi quay lại từ chi tiết."""
+    if not request:
+        return ''
+    preserved = (
+        (request.POST.get('team_list_query') or request.GET.get('team_list_query') or '')
+        .strip()
+    )
+    if preserved:
+        return _sanitize_team_list_query_string(preserved)
+    params = {}
+    for key in TEAM_LIST_FILTER_KEYS:
+        val = request.GET.get(key) or request.POST.get(key)
+        if val:
+            params[key] = val
+    return urlencode(params) if params else ''
+
+
+def team_list_back_url_for(
+    report,
+    viewer,
+    *,
+    can_view_team: bool,
+    list_query: str = '',
+) -> str:
+    """URL quay lại danh sách team — ưu tiên giữ bộ lọc từ list_query."""
+    profile = (
+        REPORT_PROFILE_PRODUCTION
+        if report.is_production_report
+        else REPORT_PROFILE_OFFICE
+    )
+    if report.employee_id != viewer.id and can_view_team and list_query:
+        return f'{team_url_for_profile(profile)}?{list_query}'
+    return list_back_url_for(report, viewer, can_view_team=can_view_team)
+
+
 def list_back_url_for(report, viewer, *, can_view_team: bool) -> str:
     profile = (
         REPORT_PROFILE_PRODUCTION
@@ -261,7 +320,7 @@ def list_back_url_for(report, viewer, *, can_view_team: bool) -> str:
         if not report.is_production_report:
             return (
                 f"{team_url_for_profile(profile)}"
-                f"?{urlencode(period_query_param(report.report_period, report.report_date))}"
+                f"?date={report.report_date.isoformat()}"
             )
         return f"{team_url_for_profile(profile)}?date={report.report_date.isoformat()}"
     base = my_url_for_profile(profile)

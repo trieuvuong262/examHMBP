@@ -8,7 +8,12 @@ from django.utils import timezone
 from hrm.models import Department, DepartmentMenuPermission, PermissionGroup, Profile, RoleModulePermission
 from hrm.permissions import ROLE_EMPLOYEE, ROLE_TEAM_LEADER
 from reports.models import DailyWorkReport, WeeklyWorkReport
-from reports.navigation import history_url_for, list_back_url_for
+from reports.navigation import (
+    history_url_for,
+    list_back_url_for,
+    team_list_back_url_for,
+    team_list_query_from_request,
+)
 from reports.report_profile import REPORT_PROFILE_OFFICE, REPORT_PROFILE_PRODUCTION
 from reports.week_utils import monday_of
 
@@ -123,6 +128,46 @@ class ReportHistoryNavigationTests(TestCase):
         resp = self.client.get(reverse('reports:today_vp'))
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, reverse('reports:team_vp'))
+
+    def test_team_list_back_url_preserves_filters(self):
+        week = monday_of(date.today())
+        report = DailyWorkReport.objects.create(
+            employee=self.member,
+            report_date=week,
+            report_profile=REPORT_PROFILE_OFFICE,
+            report_period='week',
+            status=DailyWorkReport.STATUS_SUBMITTED,
+            submitted_at=timezone.now(),
+        )
+        list_q = f'from={week.isoformat()}&to={week.isoformat()}&sort=member&dir=desc'
+        url = team_list_back_url_for(
+            report,
+            self.leader,
+            can_view_team=True,
+            list_query=list_q,
+        )
+        self.assertEqual(url, f'{reverse("reports:team_vp")}?{list_q}')
+
+    def test_detail_back_link_keeps_team_filters(self):
+        week = monday_of(date.today())
+        report = DailyWorkReport.objects.create(
+            employee=self.member,
+            report_date=week,
+            report_profile=REPORT_PROFILE_OFFICE,
+            report_period='week',
+            status=DailyWorkReport.STATUS_SUBMITTED,
+            submitted_at=timezone.now(),
+        )
+        self.client.force_login(self.leader)
+        list_q = f'from={week.isoformat()}&to={week.isoformat()}&sort=status'
+        resp = self.client.get(
+            reverse('reports:detail_vp', args=[report.pk]),
+            {'from': week.isoformat(), 'to': week.isoformat(), 'sort': 'status'},
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, reverse('reports:team_vp'))
+        self.assertContains(resp, f'from={week.isoformat()}')
+        self.assertContains(resp, 'sort=status')
 
     def test_daily_detail_history_uses_profile_scope(self):
         report = DailyWorkReport.objects.create(

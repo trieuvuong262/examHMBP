@@ -35,6 +35,7 @@ from reports.report_profile import (
     REPORT_PROFILE_PRODUCTION,
 )
 from reports.period_utils import (
+    PERIOD_CHOICES,
     PERIOD_DAY,
     PERIOD_MONTH,
     PERIOD_WEEK,
@@ -49,6 +50,7 @@ from reports.period_utils import (
     period_date_label,
     period_query_param,
     parse_team_date_range,
+    parse_team_period_filter,
     team_date_range_query_params,
     team_range_query_params,
     _parse_iso_date,
@@ -77,6 +79,8 @@ from reports.navigation import (
     detail_url_for_report,
     history_url_for,
     list_back_url_for,
+    team_list_back_url_for,
+    team_list_query_from_request,
     can_view_own_report_history,
     page_tools_context_for_profile,
     redirect_copy_prev_week_legacy,
@@ -106,6 +110,11 @@ from .forms import (
     WeeklyWorkReportForm,
 )
 from .models import DailyWorkReport, DailyWorkReportAttachment, WeeklyWorkReport, WeeklyWorkReportAttachment
+from .team_sort import (
+    build_team_table_columns,
+    resolve_team_sort,
+    sort_team_department_groups,
+)
 from .team_utils import (
     build_report_team_department_groups,
     build_vp_team_department_groups,
@@ -483,7 +492,8 @@ def _today_office_report(request, report_date, *, report_period: str = PERIOD_DA
             ensure_daily_report_nas_dir()
             save_daily_uploads(
                 report,
-                attachments=request.FILES.getlist('attachments'),
+                link_images=request.FILES.getlist('link_images'),
+                link_files=request.FILES.getlist('link_files'),
             )
             return redirect(
                 f'{reverse("reports:today_vp")}?{urlencode(period_query_param(report_period, report.report_date))}',
@@ -1082,8 +1092,10 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
     if report_profile == REPORT_PROFILE_OFFICE:
         date_from, date_to = parse_team_date_range(request)
         report_date = date_to
-        report_period = PERIOD_DAY
+        period_filter = parse_team_period_filter(request)
+        report_period = period_filter or PERIOD_DAY
     else:
+        period_filter = ''
         report_period = PERIOD_DAY
         report_date = request.GET.get('date') or timezone.localdate()
         if isinstance(report_date, str):
@@ -1103,6 +1115,7 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
             all_team_ids,
             date_from,
             date_to,
+            period_filter,
         )
         department_groups, dept_choices, submitted_employee_ids = build_vp_team_department_groups(
             request.user,
@@ -1141,14 +1154,29 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         submitted_status=DailyWorkReport.STATUS_SUBMITTED,
     )
 
+    sort_key, sort_dir = resolve_team_sort(request.GET.get('sort'), request.GET.get('dir'))
+    department_groups = sort_team_department_groups(department_groups, sort_key, sort_dir)
+
     if report_profile == REPORT_PROFILE_OFFICE:
-        base_params = team_date_range_query_params(date_from, date_to)
+        base_params = team_date_range_query_params(date_from, date_to, period=period_filter)
     else:
         base_params = {'date': report_date.isoformat()}
     if search_query:
         base_params['q'] = search_query
     if dept_filter:
         base_params['dept'] = dept_filter
+    if status_filter:
+        base_params['status'] = status_filter
+    if request.GET.get('sort'):
+        base_params['sort'] = sort_key
+        base_params['dir'] = sort_dir
+
+    table_columns = build_team_table_columns(
+        is_vp=report_profile == REPORT_PROFILE_OFFICE,
+        base_params=base_params,
+        sort_key=sort_key,
+        sort_dir=sort_dir,
+    )
 
     scope_label = 'SX' if report_profile == REPORT_PROFILE_PRODUCTION else 'VP'
     team_title = 'Quản lý BC (VP)' if report_profile == REPORT_PROFILE_OFFICE else f'Quản lý báo cáo ({scope_label})'
@@ -1162,6 +1190,8 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         'report_date': report_date,
         'range_from': date_from,
         'range_to': date_to,
+        'selected_period': period_filter if report_profile == REPORT_PROFILE_OFFICE else '',
+        'period_filter_choices': PERIOD_CHOICES if report_profile == REPORT_PROFILE_OFFICE else [],
         'submitted_count': submitted,
         'missing_count': missing,
         'team_count': team_count,
@@ -1182,6 +1212,11 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
             else 'reports:detail_vp'
         ),
         'team_url_name': team_url_name_for_profile(report_profile),
+        'table_columns': table_columns,
+        'team_sort_key': sort_key,
+        'team_sort_dir': sort_dir,
+        'team_sort_active': bool(request.GET.get('sort')),
+        'team_list_query': urlencode(base_params),
     })
 
 
@@ -1335,6 +1370,14 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
 
     can_review = can_review_user_report(request.user, report)
     can_edit_norm = can_edit_production_norms(request.user, report)
+    list_query = team_list_query_from_request(request)
+
+    def _detail_redirect():
+        query = team_list_query_from_request(request)
+        url = reverse(detail_url_name, args=[pk])
+        if query:
+            return redirect(f'{url}?{query}')
+        return redirect(detail_url_name, pk=pk)
 
     if (
         request.method == 'GET'
@@ -1358,14 +1401,14 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
             messages.success(request, f'Đã cập nhật định mức cho {count} mã hàng.')
         else:
             messages.warning(request, 'Không có định mức hợp lệ để cập nhật.')
-        return redirect(detail_url_name, pk=pk)
+        return _detail_redirect()
 
     if request.method == 'POST' and can_review:
         report.hod_reviewed = request.POST.get('hod_reviewed') == 'on'
         report.hod_note = request.POST.get('hod_note', '').strip()
         report.save()
         messages.success(request, 'Đã cập nhật phản hồi.')
-        return redirect(detail_url_name, pk=pk)
+        return _detail_redirect()
 
     from reports.office_content import (
         normalize_spreadsheet_json,
@@ -1438,11 +1481,13 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         'history_url': history_url_for(report, request.user),
         'export_url': detail_export_url_for_report(report),
         'can_export_report': _can_export_report_detail(report, hourly_grid, productivity, office_sheet),
-        'list_back_url': list_back_url_for(
+        'list_back_url': team_list_back_url_for(
             report,
             request.user,
             can_view_team=can_view_team_reports(request.user),
+            list_query=list_query,
         ),
+        'team_list_query': list_query,
     })
 
 

@@ -156,16 +156,27 @@ def parse_team_date_range(request, *, default_span_days: int = 7) -> tuple[date,
     return date_from, date_to
 
 
-def team_date_range_query_params(date_from: date, date_to: date) -> dict[str, str]:
-    return {
+def parse_team_period_filter(request) -> str:
+    """Lọc loại báo cáo VP trên trang quản lý BC — rỗng = tất cả."""
+    raw = (request.GET.get('period') or '').strip().lower()
+    if raw in (PERIOD_DAY, PERIOD_WEEK, PERIOD_MONTH):
+        return raw
+    return ''
+
+
+def team_date_range_query_params(date_from: date, date_to: date, *, period: str = '') -> dict[str, str]:
+    params = {
         'from': date_from.isoformat(),
         'to': date_to.isoformat(),
     }
+    if period:
+        params['period'] = period
+    return params
 
 
 def team_range_query_params(period: str, date_from: date, date_to: date) -> dict[str, str]:
-    """Giữ tương thích — trang quản lý BC chỉ dùng from/to."""
-    return team_date_range_query_params(date_from, date_to)
+    """Giữ tương thích — trang quản lý BC dùng from/to và period lọc."""
+    return team_date_range_query_params(date_from, date_to, period=period)
 
 
 def report_anchor_display(report) -> str:

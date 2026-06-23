@@ -215,6 +215,39 @@ class ReportTeamDraftTests(TestCase):
         self.assertNotContains(resp_miss, 'mem_draft')
         self.assertContains(resp_miss, 'mem2_draft')
 
+    def test_team_vp_period_filter_week_only(self):
+        today = date.today()
+        week = monday_of(today)
+        DailyWorkReport.objects.create(
+            employee=self.member,
+            report_date=week,
+            report_profile=REPORT_PROFILE_OFFICE,
+            report_period='week',
+            status=DailyWorkReport.STATUS_SUBMITTED,
+            links='https://week-only.example',
+            submitted_at=timezone.now(),
+        )
+        DailyWorkReport.objects.create(
+            employee=self.member,
+            report_date=today,
+            report_profile=REPORT_PROFILE_OFFICE,
+            report_period='day',
+            status=DailyWorkReport.STATUS_SUBMITTED,
+            links='https://day-only.example',
+            submitted_at=timezone.now(),
+        )
+        self.client.force_login(self.leader)
+        resp = self.client.get(reverse('reports:team_vp'), {
+            'from': week.isoformat(),
+            'to': today.isoformat(),
+            'period': 'week',
+        })
+        self.assertEqual(resp.status_code, 200)
+        week_report = DailyWorkReport.objects.get(employee=self.member, report_period='week')
+        day_report = DailyWorkReport.objects.get(employee=self.member, report_period='day')
+        self.assertContains(resp, reverse('reports:detail_vp', args=[week_report.pk]))
+        self.assertNotContains(resp, reverse('reports:detail_vp', args=[day_report.pk]))
+
     def test_team_vp_shows_week_report_in_range(self):
         today = date.today()
         week = monday_of(today)

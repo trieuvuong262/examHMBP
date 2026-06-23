@@ -4,7 +4,7 @@ from django.utils.safestring import mark_safe
 
 
 class OfficeWordEditorWidget(forms.Textarea):
-    """CKEditor 4 WordLike — ribbon đầy đủ, khởi tạo khi mở tab Văn bản."""
+    """CKEditor 4 WordLike — ribbon đầy đủ, khởi tạo khi có vùng văn bản."""
 
     def __init__(self, attrs=None):
         default_attrs = {'class': 'jp-word-textarea'}

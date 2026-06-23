@@ -350,19 +350,24 @@
     function boot() {
         const wordTab = document.getElementById('vanban-tab');
         const wordPane = document.getElementById('vanban-pane');
+        const vanbanViewport = document.querySelector('.jp-vanban-viewport');
+
+        function bootWordEditor() {
+            window.setTimeout(function () {
+                initWordEditor();
+                Object.keys(CKEDITOR.instances || {}).forEach(function (key) {
+                    resizeEditor(CKEDITOR.instances[key]);
+                });
+            }, 60);
+        }
 
         if (wordTab) {
-            wordTab.addEventListener('shown.bs.tab', function () {
-                window.setTimeout(function () {
-                    initWordEditor();
-                    Object.keys(CKEDITOR.instances || {}).forEach(function (key) {
-                        resizeEditor(CKEDITOR.instances[key]);
-                    });
-                }, 60);
-            });
+            wordTab.addEventListener('shown.bs.tab', bootWordEditor);
         }
         if (wordPane && wordPane.classList.contains('show') && wordPane.classList.contains('active')) {
-            initWordEditor();
+            bootWordEditor();
+        } else if (vanbanViewport) {
+            bootWordEditor();
         }
 
         window.addEventListener('resize', function () {

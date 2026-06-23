@@ -301,6 +301,66 @@
     color: #fff !important;
 }
 
+/* Chu kỳ báo cáo VP — màu Ngày / Tuần / Tháng */
+
+.jp-report-period-badge--day {
+    background: #dbeafe !important;
+    color: #1d4ed8 !important;
+}
+
+.jp-report-period-badge--week {
+    background: #fef3c7 !important;
+    color: #b45309 !important;
+}
+
+.jp-report-period-badge--month {
+    background: #ede9fe !important;
+    color: #6d28d9 !important;
+}
+
+.jp-report-anchor {
+    font-weight: 600;
+}
+
+.jp-report-anchor--day {
+    color: #1d4ed8;
+}
+
+.jp-report-anchor--week {
+    color: #b45309;
+}
+
+.jp-report-anchor--month {
+    color: #6d28d9;
+}
+
+[data-theme="dark"] .jp-report-period-badge--day {
+    background: rgba(37, 99, 235, 0.2) !important;
+    color: #93c5fd !important;
+}
+
+[data-theme="dark"] .jp-report-period-badge--week {
+    background: rgba(245, 158, 11, 0.2) !important;
+    color: #fcd34d !important;
+}
+
+[data-theme="dark"] .jp-report-period-badge--month {
+    background: rgba(124, 58, 237, 0.2) !important;
+    color: #c4b5fd !important;
+}
+
+[data-theme="dark"] .jp-report-anchor--day {
+    color: #93c5fd;
+}
+
+[data-theme="dark"] .jp-report-anchor--week {
+    color: #fcd34d;
+}
+
+[data-theme="dark"] .jp-report-anchor--month {
+    color: #c4b5fd;
+}
+
 /* Báo cáo office — tab Bảng / Văn bản (báo cáo ngày) */
 
 .jp-reports-content-tabs {

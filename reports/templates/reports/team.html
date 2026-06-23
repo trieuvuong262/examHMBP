@@ -1,5 +1,12 @@
 {% extends 'base.html' %}
 {% load report_extras %}
+{% load static %}
+
+{% block extra_head %}
+{% if reports_scope_label == 'VP' %}
+<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260624a">
+{% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-reports-page py-3 py-md-4 mb-5">
@@ -23,11 +30,24 @@
                 <label class="form-label fw-bold small mb-1">Đến ngày</label>
                 <input type="date" name="to" value="{{ range_to|date:'Y-m-d' }}" class="form-control">
             </div>
+            <div>
+                <label class="form-label fw-bold small mb-1">Loại</label>
+                <select name="period" class="form-select">
+                    <option value="">Tất cả</option>
+                    {% for value, label in period_filter_choices %}
+                    <option value="{{ value }}" {% if selected_period == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
             {% else %}
             <div>
                 <label class="form-label fw-bold small mb-1">Ngày</label>
                 <input type="date" name="date" value="{{ report_date|date:'Y-m-d' }}" class="form-control">
             </div>
+            {% endif %}
+            {% if team_sort_active %}
+            <input type="hidden" name="sort" value="{{ team_sort_key }}">
+            <input type="hidden" name="dir" value="{{ team_sort_dir }}">
             {% endif %}
             {% include 'reports/includes/team_filter_form_extra.html' %}
             <div class="flex-grow-1 jp-hrm-search-wrap" style="min-width: 240px;">
@@ -37,7 +57,7 @@
                 </div>
             </div>
             <button type="submit" class="btn btn-hm px-4 align-self-end">Xem</button>
-            {% if search_query or selected_dept or status_filter %}
+            {% if search_query or selected_dept or status_filter or selected_period %}
             <a href="?{% if reports_scope_label == 'VP' %}from={{ range_from|date:'Y-m-d' }}&to={{ range_to|date:'Y-m-d' }}{% else %}date={{ report_date|date:'Y-m-d' }}{% endif %}" class="btn btn-light border align-self-end" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>
             {% endif %}
         </div>
@@ -53,21 +73,31 @@
     <div class="card border-0 shadow-sm overflow-hidden">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
+                <thead class="table-light jp-hrm-list-thead">
                     <tr>
-                        <th>Nhân viên</th>
-                        {% if reports_scope_label == 'VP' %}<th>Mốc</th>{% endif %}
-                        <th>Loại</th>
-                        <th>Trạng thái</th>
-                        <th class="text-center">Đã xem</th>
-                        <th class="text-end">Tóm tắt</th>
-                        <th></th>
+                        {% for col in table_columns %}
+                        <th scope="col" class="{{ col.th_class }}">
+                            {% if col.sortable %}
+                            <a href="{{ col.sort_href }}"
+                               class="jp-table-sort-link{% if col.sort_active %} is-active is-{{ col.sort_dir }}{% endif %}"
+                               title="Sắp xếp theo {{ col.label }}">
+                                <span class="jp-hrm-list-th-label">{{ col.label }}</span>
+                                <span class="jp-table-sort-icons">
+                                    <i class="bi bi-caret-up-fill" aria-hidden="true"></i>
+                                    <i class="bi bi-caret-down-fill" aria-hidden="true"></i>
+                                </span>
+                            </a>
+                            {% else %}
+                            <span class="jp-hrm-list-th-label">{{ col.label }}</span>
+                            {% endif %}
+                        </th>
+                        {% endfor %}
                     </tr>
                 </thead>
                 <tbody>
                     {% for group in department_groups %}
                     <tr class="table-light">
-                        <td colspan="{% if reports_scope_label == 'VP' %}7{% else %}6{% endif %}" class="py-2">
+                        <td colspan="{{ table_columns|length }}" class="py-2">
                             <div class="d-flex flex-wrap align-items-center gap-2">
                                 <span class="fw-bold text-hm">{{ group.label }}</span>
                                 {% if group.subtitle %}<span class="text-muted small">{{ group.subtitle }}</span>{% endif %}
@@ -86,7 +116,7 @@
                         {% if reports_scope_label == 'VP' %}
                         <td>
                             {% if row.report %}
-                            <span class="text-nowrap small">{{ row.report|report_anchor_display }}</span>
+                            <span class="jp-report-anchor jp-report-anchor--{{ row.report.report_period|default:'day' }} text-nowrap small">{{ row.report|report_anchor_display }}</span>
                             {% else %}
                             <span class="text-muted small">—</span>
                             {% endif %}
@@ -97,7 +127,7 @@
                                 {% if row.report.is_production_report %}
                                 <span class="badge bg-primary-subtle text-primary">Sản xuất</span>
                                 {% else %}
-                                <span class="badge bg-info-subtle text-info">{{ row.report|report_period_label }}</span>
+                                <span class="badge {{ row.report|report_period_badge_class }}">{{ row.report|report_period_label }}</span>
                                 {% endif %}
                             {% else %}
                             <span class="text-muted small">—</span>
@@ -130,13 +160,13 @@
                                 {% if row.report.is_production_report %}
                                 {{ row.report.line_count }} dòng · SL {{ row.report.total_qty|default:0 }}
                             {% else %}
-                            Văn bản + Bảng{% if row.report.links %} · Link{% endif %}{% if row.report.attachment_count %} · File{% endif %}
+                            {{ row.report|office_report_summary|default:"—" }}
                                 {% endif %}
                             {% else %}—{% endif %}
                         </td>
                         <td class="text-end text-nowrap">
                             {% if row.report %}
-                            <a href="{% url detail_url_name row.report.pk %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
+                            <a href="{% url detail_url_name row.report.pk %}{% if team_list_query %}?{{ team_list_query }}{% endif %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
                             {% else %}
                             <a href="{% if reports_scope_label == 'VP' %}{% url today_url_name %}?date={{ range_to|date:'Y-m-d' }}&for_user={{ row.member.id }}{% else %}{% url today_url_name %}?date={{ report_date|date:'Y-m-d' }}&for_user={{ row.member.id }}{% endif %}" class="btn btn-sm btn-outline-dark">Nhập hộ</a>
                             {% endif %}
@@ -145,7 +175,7 @@
                     {% endfor %}
                     {% empty %}
                     <tr>
-                        <td colspan="{% if reports_scope_label == 'VP' %}7{% else %}6{% endif %}" class="text-center text-muted py-5">
+                        <td colspan="{{ table_columns|length }}" class="text-center text-muted py-5">
                             {% if status_filter == 'submitted' %}
                             Không có nhân viên đã nộp báo cáo{% if reports_scope_label == 'VP' %} trong khoảng đã chọn{% else %} trong ngày này{% endif %}.
                             {% elif status_filter == 'missing' %}

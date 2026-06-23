@@ -59,6 +59,44 @@ def document_has_content(html: str) -> bool:
     return len(strip_tags(html or '').strip()) >= 50
 
 
+def document_has_any_content(html: str) -> bool:
+    return bool(strip_tags(html or '').strip())
+
+
+def links_has_content(links_text: str) -> bool:
+    return any(line.strip() for line in (links_text or '').splitlines())
+
+
+def office_report_summary_parts(
+    report,
+    *,
+    attachment_count: int | None = None,
+) -> list[str]:
+    """Nhãn tóm tắt VP — chỉ phần nhân viên đã nhập."""
+    if not report or getattr(report, 'is_production_report', False):
+        return []
+    parts: list[str] = []
+    if document_has_any_content(getattr(report, 'document_html', '') or ''):
+        parts.append('Văn bản')
+    sheet = normalize_spreadsheet_json(getattr(report, 'spreadsheet_json', None))
+    if spreadsheet_has_content(sheet):
+        parts.append('Bảng')
+    if links_has_content(getattr(report, 'links', '') or ''):
+        parts.append('Link')
+    att_count = attachment_count
+    if att_count is None:
+        att_count = getattr(report, 'attachment_count', None)
+    if att_count is None and getattr(report, 'pk', None):
+        att_count = report.attachments.count()
+    if att_count:
+        parts.append('File')
+    return parts
+
+
+def office_report_summary_text(report, **kwargs) -> str:
+    return ' · '.join(office_report_summary_parts(report, **kwargs))
+
+
 CKEDITOR_INLINE_PREFIX = 'reports/ckeditor5/'
 
 
