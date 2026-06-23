@@ -7902,6 +7902,121 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     gap: 0.35rem;
 }
 
+/* Permission config list — mobile */
+.jp-perm-tabs-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-left: -0.25rem;
+    margin-right: -0.25rem;
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+}
+
+.jp-perm-tabs-scroll .jp-perm-tabs {
+    flex-wrap: nowrap;
+    width: max-content;
+    min-width: 100%;
+}
+
+.jp-perm-tabs-scroll .jp-perm-tabs .nav-item {
+    flex: 1 1 0;
+    min-width: 9.5rem;
+}
+
+.jp-perm-tabs-scroll .jp-perm-tabs .nav-link {
+    width: 100%;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.jp-perm-config-page .jp-perm-dept-badges {
+    justify-content: flex-end;
+}
+
+@media (max-width: 767.98px) {
+    .jp-perm-config-page .jp-perm-dept-table tbody td[data-label="Quyền menu"] {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.35rem;
+        text-align: left !important;
+    }
+
+    .jp-perm-config-page .jp-perm-dept-table tbody td[data-label="Quyền menu"]::before {
+        max-width: none;
+    }
+
+    .jp-perm-config-page .jp-perm-dept-badges {
+        justify-content: flex-start;
+    }
+
+    .jp-perm-config-page .jp-perm-group-list-table.jp-table-stack tbody .jp-perm-group-row {
+        padding: 0.85rem;
+    }
+
+    .jp-perm-config-page .jp-perm-group-list-table.jp-table-stack tbody .jp-perm-members-row {
+        display: block;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        margin: -0.35rem 0 0.75rem;
+        padding: 0;
+        background: transparent;
+    }
+
+    .jp-perm-config-page .jp-perm-group-list-table.jp-table-stack tbody .jp-perm-members-row td {
+        display: block;
+        padding: 0 !important;
+    }
+
+    .jp-perm-config-page .jp-perm-group-list-table.jp-table-stack tbody .jp-perm-members-row td::before {
+        display: none;
+    }
+
+    .jp-perm-config-page .jp-perm-group-list-table .jp-perm-col-name {
+        min-width: 0;
+        padding: 0 !important;
+    }
+
+    .jp-perm-config-page .jp-perm-group-list-table .jp-perm-group-name-toggle,
+    .jp-perm-config-page .jp-perm-group-list-table .jp-perm-group-name-static {
+        padding: 0;
+    }
+
+    .jp-perm-config-page .jp-perm-group-list-table .jp-perm-col-count {
+        padding: 0.35rem 0 0 !important;
+    }
+
+    .jp-perm-config-page .jp-perm-group-list-table .jp-perm-member-toggle {
+        width: auto;
+        padding: 0;
+        justify-content: flex-end;
+    }
+
+    .jp-perm-config-page .jp-perm-group-list-table .jp-perm-col-actions {
+        padding-top: 0.5rem !important;
+    }
+
+    .jp-perm-config-page .jp-perm-row-actions {
+        width: 100%;
+        justify-content: stretch;
+    }
+
+    .jp-perm-config-page .jp-perm-row-actions .btn,
+    .jp-perm-config-page .jp-perm-row-actions form {
+        flex: 1 1 0;
+    }
+
+    .jp-perm-config-page .jp-perm-row-actions .btn {
+        width: 100%;
+        min-height: var(--jp-touch, 2.5rem);
+    }
+
+    .jp-perm-config-page .jp-perm-members-panel {
+        margin-left: 0;
+        margin-right: 0;
+    }
+}
+
 .jp-perm-group-meta-card .jp-perm-group-meta-fields {
     align-items: flex-start;
 }

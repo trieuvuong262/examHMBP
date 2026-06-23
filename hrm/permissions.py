@@ -146,12 +146,14 @@ def can_view_team_reports(user) -> bool:
 
 
 def can_submit_daily_report(user) -> bool:
-    """Nộp báo cáo cá nhân — Giám đốc chỉ xem, không nộp."""
+    """Nộp báo cáo cá nhân — Giám đốc chỉ xem, không nộp (trừ tài khoản hệ thống)."""
     if not _has_reports_module_access(user):
         return False
-    from hrm.module_permissions import MODULE_REPORTS, user_can_create_module
+    from hrm.module_permissions import MODULE_REPORTS, bypass_department_modules, user_can_create_module
     if not user_can_create_module(user, MODULE_REPORTS):
         return False
+    if bypass_department_modules(user):
+        return True
     return not is_director(user)
 
 

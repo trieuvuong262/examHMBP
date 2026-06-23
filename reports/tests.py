@@ -81,6 +81,30 @@ class ReportHierarchyTests(TestCase):
         self.assertFalse(can_submit_daily_report(self.director))
         self.assertTrue(can_view_team_reports(self.director))
 
+    def test_superuser_can_submit_despite_director_role(self):
+        admin = User.objects.create_user(
+            username='admin',
+            password='testpass123',
+            is_superuser=True,
+        )
+        Profile.objects.filter(user=admin).update(
+            department=self.employee.profile.department,
+            role=ROLE_DIRECTOR,
+            full_name='Admin',
+            is_employed=True,
+        )
+        admin.refresh_from_db()
+        self.assertTrue(can_submit_daily_report(admin))
+
+        client = Client()
+        client.force_login(admin)
+        resp = client.get(reverse('reports:today'))
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn('/today/', resp.url)
+
+        resp_vp = client.get(reverse('reports:today_vp'))
+        self.assertEqual(resp_vp.status_code, 200)
+
     def test_leader_can_submit_and_view_team(self):
         self.assertTrue(can_submit_daily_report(self.leader))
         self.assertTrue(can_view_team_reports(self.leader))
