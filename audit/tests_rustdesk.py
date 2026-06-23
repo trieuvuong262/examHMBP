@@ -273,6 +273,28 @@ class RustdeskEnrollApiTests(TestCase):
         self.assertEqual(host.hostname, 'PC-TEST')
         self.assertEqual(host.rustdesk_password, 'pw123')
 
+    @override_settings(
+        RUSTDESK_ENROLL_SECRET='test-enroll-secret',
+    )
+    def test_enroll_api_sets_downloader_user_fields(self):
+        client = Client()
+        payload = {
+            'enroll_secret': 'test-enroll-secret',
+            'rustdesk_id': '1647598964',
+            'hostname': 'PC-LINUX',
+            'assigned_user_text': 'Nguyen Van A',
+            'department_text': 'IT DL',
+        }
+        resp = client.post(
+            '/nhat-ky/rustdesk/api/dang-ky/',
+            data=json.dumps(payload),
+            content_type='application/json',
+        )
+        self.assertEqual(resp.status_code, 200)
+        host = RustDeskHost.objects.get(rustdesk_id='1647598964')
+        self.assertEqual(host.assigned_user_text, 'Nguyen Van A')
+        self.assertEqual(host.department_text, 'IT DL')
+
     @override_settings(RUSTDESK_ENROLL_SECRET='test-enroll-secret')
     def test_enroll_api_rejects_bad_secret(self):
         client = Client()
@@ -314,6 +336,7 @@ class RustdeskDownloadTests(TestCase):
         cls.user = User.objects.create_user('audrddl', password='x')
         profile = Profile.objects.get(user=cls.user)
         profile.department = cls.dept
+        profile.full_name = 'Nhan Vien Tai File'
         profile.role = ROLE_EMPLOYEE
         profile.permission_group = cls.group
         profile.save()
@@ -345,6 +368,8 @@ class RustdeskDownloadTests(TestCase):
         self.assertNotIn('__ENROLL_SECRET__', ps1)
         self.assertIn('enroll-secret', ps1)
         self.assertIn('public-key', ps1)
+        self.assertIn('Nhan Vien Tai File', ps1)
+        self.assertIn('IT DL', ps1)
 
     @override_settings(
         RUSTDESK_ENROLL_SECRET='enroll-secret',
@@ -361,6 +386,8 @@ class RustdeskDownloadTests(TestCase):
         self.assertIn('JustPlay - Cai dat RustDesk (Linux)', body)
         self.assertNotIn('\r\n', body)
         self.assertNotIn('__ENROLL_SECRET__', body)
+        self.assertIn('Nhan Vien Tai File', body)
+        self.assertIn('IT DL', body)
 
     @override_settings(
         RUSTDESK_ENROLL_SECRET='enroll-secret',

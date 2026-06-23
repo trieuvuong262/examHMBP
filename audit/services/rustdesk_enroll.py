@@ -52,11 +52,13 @@ def upsert_rustdesk_host(*, data: dict) -> tuple[object, bool]:
         'hostname': hostname,
         'ip_address': ip_address,
         'rustdesk_password': password,
-        'department_text': department_text,
-        'assigned_user_text': assigned_user_text,
         'notes': notes,
         'is_active': True,
     }
+    if department_text:
+        defaults['department_text'] = department_text
+    if assigned_user_text:
+        defaults['assigned_user_text'] = assigned_user_text
 
     host, created = RustDeskHost.objects.update_or_create(
         rustdesk_id=rustdesk_id,
@@ -77,6 +79,25 @@ def _try_link_device(host, *, hostname: str):
     from equipment.models import Device
 
     return Device.objects.filter(hostname__iexact=hostname).order_by('-updated_at').first()
+
+
+def downloader_script_fields(user) -> dict:
+    """Thông tin người tải script — nhúng vào file cài đặt."""
+    if not user or not getattr(user, 'is_authenticated', False):
+        return {'assigned_user_text': '', 'department_text': ''}
+    profile = getattr(user, 'profile', None)
+    full_name = ''
+    department_text = ''
+    if profile:
+        full_name = (profile.full_name or '').strip()
+        if profile.department_id:
+            department_text = (profile.department.name or '').strip()
+    if not full_name:
+        full_name = (user.get_full_name() or '').strip() or (user.username or '').strip()
+    return {
+        'assigned_user_text': full_name[:200],
+        'department_text': department_text[:200],
+    }
 
 
 def script_config() -> dict:

@@ -11,7 +11,12 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods
 
 from assessment.decorators import module_perm_required
-from audit.services.rustdesk_enroll import enroll_secret_ok, script_config, upsert_rustdesk_host
+from audit.services.rustdesk_enroll import (
+    downloader_script_fields,
+    enroll_secret_ok,
+    script_config,
+    upsert_rustdesk_host,
+)
 from hrm.menu_permissions import user_can_access_menu
 from hrm.module_permissions import MODULE_AUDIT, MODULE_DOCUMENTS
 
@@ -24,6 +29,8 @@ _SCRIPT_TOKENS = (
     '__INSTALLER_URL_WIN__',
     '__INSTALLER_URL_LINUX__',
     '__RUSTDESK_APPROVE_MODE__',
+    '__ASSIGNED_USER_TEXT__',
+    '__DEPARTMENT_TEXT__',
 )
 
 
@@ -37,16 +44,23 @@ def _escape_ps1_literal(value: str) -> str:
     return (value or '').replace("'", "''")
 
 
-def _apply_script_tokens(body: str, cfg: dict) -> str:
+def _escape_bash_single_quoted(value: str) -> str:
+    return (value or '').replace("'", "'\"'\"'")
+
+
+def _apply_script_tokens(body: str, cfg: dict, *, bash: bool = False) -> str:
+    esc = _escape_bash_single_quoted if bash else _escape_ps1_literal
     replacements = {
         '__PORTAL_URL__': cfg['portal_url'],
         '__RUSTDESK_HOST__': cfg['rustdesk_host'],
         '__PUBLIC_KEY__': cfg['public_key'],
-        '__CLIENT_PASSWORD__': _escape_ps1_literal(cfg['client_password']),
+        '__CLIENT_PASSWORD__': esc(cfg['client_password']),
         '__ENROLL_SECRET__': cfg['enroll_secret'],
         '__INSTALLER_URL_WIN__': cfg['installer_url_win'],
         '__INSTALLER_URL_LINUX__': cfg['installer_url_linux'],
         '__RUSTDESK_APPROVE_MODE__': cfg['approve_mode'],
+        '__ASSIGNED_USER_TEXT__': esc(cfg.get('assigned_user_text', '')),
+        '__DEPARTMENT_TEXT__': esc(cfg.get('department_text', '')),
     }
     for token in _SCRIPT_TOKENS:
         body = body.replace(token, replacements.get(token) or '')
@@ -107,6 +121,8 @@ def rustdesk_download_setup(request):
 
 
 def _rustdesk_download_response(request, cfg: dict, platform: str) -> HttpResponse:
+    if platform in ('win', 'linux'):
+        cfg = {**cfg, **downloader_script_fields(request.user)}
     if platform == 'it':
         if not cfg['public_key']:
             return HttpResponse('Thiếu RUSTDESK_PUBLIC_KEY trong cấu hình Portal.', status=503, content_type='text/plain')
@@ -137,7 +153,7 @@ def _rustdesk_download_response(request, cfg: dict, platform: str) -> HttpRespon
         template_path = base / 'JustPlay-RustDesk-Setup.sh'
         if not template_path.is_file():
             return HttpResponse('Không tìm thấy file cài đặt.', status=404, content_type='text/plain')
-        body = _apply_script_tokens(template_path.read_text(encoding='utf-8'), cfg)
+        body = _apply_script_tokens(template_path.read_text(encoding='utf-8'), cfg, bash=True)
         body = body.replace('\r\n', '\n')
         response = HttpResponse(body, content_type='application/x-sh; charset=utf-8')
         response['Content-Disposition'] = 'attachment; filename="JustPlay-RustDesk-Setup.sh"'

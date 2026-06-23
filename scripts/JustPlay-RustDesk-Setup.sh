@@ -23,6 +23,8 @@ CLIENT_PASSWORD='__CLIENT_PASSWORD__'
 ENROLL_SECRET='__ENROLL_SECRET__'
 APPROVE_MODE='__RUSTDESK_APPROVE_MODE__'
 INSTALLER_URL='__INSTALLER_URL_LINUX__'
+ASSIGNED_USER_TEXT='__ASSIGNED_USER_TEXT__'
+DEPARTMENT_TEXT='__DEPARTMENT_TEXT__'
 
 if [[ "$PORTAL_URL" == *'__PORTAL'* ]]; then
   PORTAL_URL='https://portal.justplay.vn'
@@ -48,6 +50,12 @@ if [[ "$CLIENT_PASSWORD" == *'__CLIENT'* ]]; then
 fi
 if [[ "$APPROVE_MODE" == *'__RUSTDESK'* || -z "$APPROVE_MODE" ]]; then
   APPROVE_MODE='password'
+fi
+if [[ "$ASSIGNED_USER_TEXT" == *'__ASSIGNED'* ]]; then
+  ASSIGNED_USER_TEXT=''
+fi
+if [[ "$DEPARTMENT_TEXT" == *'__DEPARTMENT'* ]]; then
+  DEPARTMENT_TEXT=''
 fi
 
 RUN_USER="${SUDO_USER:-$USER}"
@@ -256,14 +264,21 @@ register_portal() {
     JP_HOST="$hostname" \
     JP_IP="$ip" \
     JP_NAME="$hostname" \
-    python3 -c "import json, os; print(json.dumps({
+    JP_ASSIGNED="$ASSIGNED_USER_TEXT" \
+    JP_DEPT="$DEPARTMENT_TEXT" \
+    python3 -c "import json, os; d={
         'enroll_secret': os.environ['JP_ENROLL'],
         'rustdesk_id': os.environ['JP_RD_ID'],
         'rustdesk_password': os.environ['JP_PW'],
         'hostname': os.environ['JP_HOST'],
         'ip_address': os.environ['JP_IP'],
         'name': os.environ['JP_NAME'],
-    }))"
+    };
+    a=os.environ.get('JP_ASSIGNED','').strip();
+    p=os.environ.get('JP_DEPT','').strip();
+    if a: d['assigned_user_text']=a;
+    if p: d['department_text']=p;
+    print(json.dumps(d))"
   )"
   curl -fsSL -X POST \
     -H 'Content-Type: application/json' \

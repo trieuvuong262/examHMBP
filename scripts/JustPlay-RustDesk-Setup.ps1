@@ -8,6 +8,8 @@ $ClientPassword = '__CLIENT_PASSWORD__'
 $ApproveMode = '__RUSTDESK_APPROVE_MODE__'
 $EnrollSecret = '__ENROLL_SECRET__'
 $InstallerUrl = '__INSTALLER_URL_WIN__'
+$AssignedUserText = '__ASSIGNED_USER_TEXT__'
+$DepartmentText = '__DEPARTMENT_TEXT__'
 
 if ($PortalUrl -like '*__PORTAL*') {
     $PortalUrl = 'https://portal.justplay.vn'
@@ -31,6 +33,12 @@ if ($ClientPassword -like '*__CLIENT*') {
 }
 if ($ApproveMode -like '*__RUSTDESK*' -or -not $ApproveMode) {
     $ApproveMode = 'password'
+}
+if ($AssignedUserText -like '*__ASSIGNED*') {
+    $AssignedUserText = ''
+}
+if ($DepartmentText -like '*__DEPARTMENT*') {
+    $DepartmentText = ''
 }
 
 function Test-IsAdmin {
@@ -545,7 +553,10 @@ function Register-PortalHost {
         hostname = $hostname
         ip_address = $ip
         name = $hostname
-    } | ConvertTo-Json -Compress
+    }
+    if ($AssignedUserText) { $payload['assigned_user_text'] = $AssignedUserText }
+    if ($DepartmentText) { $payload['department_text'] = $DepartmentText }
+    $payload = $payload | ConvertTo-Json -Compress
     $uri = ($PortalBase.TrimEnd('/')) + '/nhat-ky/rustdesk/api/dang-ky/'
     Write-Host "      POST $uri"
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
