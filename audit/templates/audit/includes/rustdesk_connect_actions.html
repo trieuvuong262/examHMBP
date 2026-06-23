@@ -1,8 +1,6 @@
 {% if can_connect_rustdesk %}
 <a href="{{ host.rustdesk_connect_url }}"
    class="btn btn-sm btn-hm jp-rd-connect-btn"
-   data-rd-id="{{ host.rustdesk_id }}"
-   data-rd-password="{{ host.rd_password_copy|default:'' }}"
    title="Mở RustDesk và kết nối">
     <i class="bi bi-display me-1"></i>Kết nối
 </a>
