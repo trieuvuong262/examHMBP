@@ -188,6 +188,25 @@
         });
     });
 
+    document.querySelectorAll('.jp-rd-connect-btn').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            var url = btn.getAttribute('href') || '';
+            if (url.indexOf('rustdesk://') !== 0) return;
+            e.preventDefault();
+            var id = (btn.getAttribute('data-rd-id') || '').replace(/\D/g, '');
+            var pw = btn.getAttribute('data-rd-password') || '';
+            window.location.href = url;
+            setTimeout(function () {
+                var hint = 'Đang mở RustDesk… Nếu không thấy cửa sổ: mở RustDesk, nhập ID ' + id;
+                if (pw) {
+                    copyText(pw, 'mật khẩu', null);
+                    hint += ' (đã copy mật khẩu vào clipboard)';
+                }
+                if (window.jpToast) window.jpToast(hint);
+            }, 600);
+        });
+    });
+
     function refreshOnlineStatus() {
         if (!onlineEnabled) return;
         var rows = document.querySelectorAll('tr[data-rd-id]');

@@ -84,6 +84,40 @@ function Get-PrimaryLanIPv4 {
     return ''
 }
 
+function Register-RustDeskUrlProtocol {
+    param([string]$Exe)
+    if (-not $Exe -or -not (Test-Path -LiteralPath $Exe)) { return $false }
+    $exeQuoted = "`"$Exe`""
+    $targets = @(
+        @{ Root = 'HKLM:\Software\Classes\rustdesk'; PerUser = $false },
+        @{ Root = 'HKCU:\Software\Classes\rustdesk'; PerUser = $true }
+    )
+    $ok = $false
+    foreach ($target in $targets) {
+        try {
+            $root = $target.Root
+            New-Item -Path $root -Force | Out-Null
+            Set-ItemProperty -Path $root -Name '(Default)' -Value 'URL:RustDesk Protocol'
+            New-ItemProperty -Path $root -Name 'URL Protocol' -Value '' -PropertyType String -Force | Out-Null
+            $iconPath = Join-Path $root 'DefaultIcon'
+            New-Item -Path $iconPath -Force | Out-Null
+            Set-ItemProperty -Path $iconPath -Name '(Default)' -Value "${exeQuoted},0"
+            $cmdPath = Join-Path $root 'shell\open\command'
+            New-Item -Path $cmdPath -Force | Out-Null
+            Set-ItemProperty -Path $cmdPath -Name '(Default)' -Value "${exeQuoted} `"%1`""
+            $ok = $true
+        } catch {
+            if (-not $target.PerUser) {
+                Write-Host "      Canh bao: Khong ghi duoc protocol HKLM ($($_.Exception.Message))"
+            }
+        }
+    }
+    if ($ok) {
+        Write-Host '      Da dang ky rustdesk:// (nut Ket noi tren Portal).'
+    }
+    return $ok
+}
+
 function Get-ProperRustDeskExe {
     foreach ($p in @(
         "${env:ProgramFiles}\RustDesk\rustdesk.exe",
@@ -614,6 +648,9 @@ Write-Host "      Su dung: $exe"
 
 Write-Host '[2b/5] Cai Windows service (neu chua co)...'
 Install-RustDeskService -Exe $exe
+
+Write-Host '[2b2/5] Dang ky rustdesk:// cho trinh duyet...'
+Register-RustDeskUrlProtocol -Exe $exe | Out-Null
 
 Write-Host '[2c/5] Them RustDesk vao Windows Startup...'
 Ensure-RustDeskStartupFolder -Exe $exe
