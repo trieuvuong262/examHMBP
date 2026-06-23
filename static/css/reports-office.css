@@ -601,6 +601,11 @@
     color: #0f172a;
 }
 
+.jp-weekly-link-card-note {
+    font-size: 0.8rem;
+    line-height: 1.35;
+}
+
 .jp-weekly-link-card-url {
     font-size: 0.78rem;
     color: #64748b;

@@ -27,6 +27,9 @@
                     
                     <span class="jp-weekly-link-card-body">
                         <span class="jp-weekly-link-card-domain">{{ item.domain }}</span>
+                        {% if item.note %}
+                        <span class="jp-weekly-link-card-note text-muted">{{ item.note }}</span>
+                        {% endif %}
                         <span class="jp-weekly-link-card-url">{{ item.url }}</span>
                     </span>
                 </a>

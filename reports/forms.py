@@ -3,6 +3,7 @@ import json
 from django import forms
 from django.forms import inlineformset_factory
 
+from reports.link_utils import normalize_links_text
 from reports.office_content import (
     DEFAULT_SPREADSHEET,
     normalize_spreadsheet_json,
@@ -109,7 +110,7 @@ class OfficeDailyWorkReportForm(forms.ModelForm):
             'links': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 3,
-                'placeholder': 'https://...\n(mỗi dòng một link)',
+                'placeholder': 'Dán link — có thể kèm câu chữ, hệ thống tự nhận URL\nvd: https://canva.link/...',
             }),
         }
 
@@ -136,8 +137,7 @@ class OfficeDailyWorkReportForm(forms.ModelForm):
         return sanitize_document_html_for_storage(self.cleaned_data.get('document_html') or '')
 
     def clean_links(self):
-        lines = [line.strip() for line in (self.cleaned_data.get('links') or '').splitlines() if line.strip()]
-        return '\n'.join(lines)
+        return normalize_links_text(self.cleaned_data.get('links') or '')
 
     def clean(self):
         cleaned = super().clean()
@@ -195,8 +195,7 @@ class WeeklyWorkReportForm(forms.ModelForm):
         return monday_of(value) if value else value
 
     def clean_links(self):
-        lines = [line.strip() for line in (self.cleaned_data.get('links') or '').splitlines() if line.strip()]
-        return '\n'.join(lines)
+        return normalize_links_text(self.cleaned_data.get('links') or '')
 
 
 DailyWorkReportLineFormSet = inlineformset_factory(

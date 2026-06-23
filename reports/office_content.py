@@ -67,7 +67,8 @@ def document_has_any_content(html: str) -> bool:
 
 
 def links_has_content(links_text: str) -> bool:
-    return any(line.strip() for line in (links_text or '').splitlines())
+    from reports.link_utils import parse_link_lines
+    return bool(parse_link_lines(links_text))
 
 
 def office_report_summary_parts(
@@ -198,6 +199,7 @@ def office_report_has_content(
     data = normalize_spreadsheet_json(spreadsheet_json)
     if attachment_count > 0:
         return True
-    if any(line.strip() for line in (links_text or '').splitlines()):
+    from reports.link_utils import parse_link_lines
+    if parse_link_lines(links_text or ''):
         return True
     return spreadsheet_has_content(data) or document_has_content(document_html)

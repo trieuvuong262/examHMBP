@@ -156,14 +156,14 @@ class ReportHistoryNavigationTests(TestCase):
             report_profile=REPORT_PROFILE_OFFICE,
             report_period='week',
             status=DailyWorkReport.STATUS_SUBMITTED,
-            links='https://docs.google.com/document/d/abc123/edit',
+            links='Dạ em gửi báo cáo ạ: https://canva.link/dtkvcv0qvoe8u9q',
             submitted_at=timezone.now(),
         )
         self.client.force_login(self.leader)
         resp = self.client.get(reverse('reports:detail_vp', args=[report.pk]))
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, 'docs.google.com')
-        self.assertContains(resp, 'https://docs.google.com/document/d/abc123/edit')
+        self.assertContains(resp, 'canva.link')
+        self.assertContains(resp, 'https://canva.link/dtkvcv0qvoe8u9q')
 
     def test_detail_vp_hides_empty_spreadsheet_grid_when_only_bang_file(self):
         from reports.models import DailyWorkReportAttachment

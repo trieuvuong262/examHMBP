@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 
 from django.urls import reverse
 
+from reports.link_utils import extract_urls_from_text, link_line_note, parse_link_lines
 from tools.services import OFFICE_TO_PDF_EXTENSIONS, office_preview_available
 
 PDF_EXTENSIONS = frozenset({'.pdf'})
@@ -39,13 +40,22 @@ def embed_url_for_link(url: str) -> str | None:
 
 def link_preview_rows(links_text: str) -> list[dict]:
     rows = []
+    notes_by_url: dict[str, str] = {}
     for line in [part.strip() for part in (links_text or '').splitlines() if part.strip()]:
-        parsed = urlparse(line)
+        line_urls = extract_urls_from_text(line) or parse_link_lines(line)
+        for url in line_urls:
+            note = link_line_note(line, url)
+            if note and url not in notes_by_url:
+                notes_by_url[url] = note
+
+    for url in parse_link_lines(links_text):
+        parsed = urlparse(url)
         rows.append({
-            'url': line,
-            'label': parsed.netloc.replace('www.', '') or line,
-            'domain': parsed.netloc.replace('www.', '') or line,
-            'embed_url': embed_url_for_link(line),
+            'url': url,
+            'note': notes_by_url.get(url, ''),
+            'label': parsed.netloc.replace('www.', '') or url,
+            'domain': parsed.netloc.replace('www.', '') or url,
+            'embed_url': embed_url_for_link(url),
         })
     return rows
 

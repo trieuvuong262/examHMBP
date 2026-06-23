@@ -73,7 +73,8 @@ class DailyWorkReport(models.Model):
 
     @property
     def link_lines(self):
-        return [line.strip() for line in (self.links or '').splitlines() if line.strip()]
+        from reports.link_utils import parse_link_lines
+        return parse_link_lines(self.links or '')
 
     @property
     def is_production_report(self):
@@ -323,7 +324,8 @@ class WeeklyWorkReport(models.Model):
 
     @property
     def link_lines(self):
-        return [line.strip() for line in (self.links or '').splitlines() if line.strip()]
+        from reports.link_utils import parse_link_lines
+        return parse_link_lines(self.links or '')
 
     @property
     def week_range_label(self):
