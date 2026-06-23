@@ -273,6 +273,18 @@ class DeviceCodeTests(TestCase):
         second = Device.objects.create(name='PC B', category='PC', status=Device.STATUS_ACTIVE)
         self.assertNotEqual(device.device_code, second.device_code)
 
+    def test_allocate_pc_device_code_increments(self):
+        from equipment.models import Device
+        from equipment.services.device_code import allocate_pc_device_code
+
+        Device.objects.create(
+            name='Existing PC',
+            device_code='PC-000001',
+            category='PC',
+            status=Device.STATUS_ACTIVE,
+        )
+        self.assertEqual(allocate_pc_device_code(), 'PC-000002')
+
     def test_qr_public_by_device_code(self):
         from equipment.models import Device
 

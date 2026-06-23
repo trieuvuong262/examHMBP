@@ -82,7 +82,7 @@ class EquipmentInventoryScanTests(TestCase):
         payload = {
             'scan_secret': 'scan-secret',
             'mac_address': 'AA:BB:CC:DD:EE:01',
-            'hostname': 'PC-NEW',
+            'hostname': 'DESKTOP-01',
             'ip_address': '10.1.2.3',
             'manufacturer': 'Dell Inc.',
             'model': 'OptiPlex 7090',
@@ -102,9 +102,14 @@ class EquipmentInventoryScanTests(TestCase):
         self.assertEqual(data['status'], 'success')
         self.assertTrue(data['created'])
         device = Device.objects.get(mac_address='AA:BB:CC:DD:EE:01')
-        self.assertEqual(device.hostname, 'PC-NEW')
+        self.assertEqual(device.hostname, 'DESKTOP-01')
+        self.assertEqual(device.name, 'DESKTOP-01')
+        self.assertTrue(device.device_code.startswith('PC-'))
         self.assertEqual(device.assigned_user_text, 'Test User')
         self.assertIn('Intel Core i5', device.configuration)
+        self.assertIn('Đăng ký tự động', device.description)
+        self.assertNotIn('scan_secret', device.description)
+        self.assertIsNotNone(device.managed_department_id)
 
         resp2 = self.client.post(
             reverse('equipment:equipment_scan_submit_api'),

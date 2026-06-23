@@ -665,6 +665,23 @@ class FormSpamDetectionTests(TestCase):
         )
         self.assertFalse(detect_security_scan(req)[0])
 
+    def test_equipment_scan_api_allows_powershell_client(self):
+        from audit.spam_detection import detect_security_scan, should_skip_spam_guard
+        from types import SimpleNamespace
+
+        req = SimpleNamespace(
+            method='POST',
+            path='/thiet-bi/api/quyet-cau-hinh/kiem-tra/',
+            POST={},
+            GET={},
+            headers={'Content-Type': 'application/json'},
+            META={'HTTP_USER_AGENT': 'Mozilla/5.0 WindowsPowerShell/5.1.19041.6328'},
+            body=b'{"scan_secret":"x","mac_address":"58:04:4F:3F:FF:E9"}',
+            user=None,
+        )
+        self.assertTrue(should_skip_spam_guard(req))
+        self.assertFalse(detect_security_scan(req)[0])
+
     @override_settings(
         LOGIN_LOCK_MAX_ATTEMPTS=3,
         LOGIN_IP_BLOCK_MAX_ATTEMPTS=5,
