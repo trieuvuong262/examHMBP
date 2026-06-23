@@ -47,6 +47,43 @@ function Test-IsAdmin {
     return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
+function Test-IsPhysicalLanIPv4 {
+    param([string]$Ip)
+    if (-not $Ip) { return $false }
+    if ($Ip -like '127.*') { return $false }
+    if ($Ip -like '169.254.*') { return $false }
+    if ($Ip -like '192.168.65.*') { return $false }
+    if ($Ip -match '^172\.(1[6-9]|2[0-9]|3[01])\.') { return $false }
+    return $true
+}
+
+function Get-PrimaryLanIPv4 {
+    $virtualPattern = 'Virtual|Hyper-V|VMware|Docker|WSL|TAP|VPN|Loopback|Bluetooth|Npcap|vEthernet'
+    try {
+        $adapters = Get-NetAdapter -ErrorAction SilentlyContinue |
+            Where-Object {
+                $_.Status -eq 'Up' -and
+                $_.InterfaceDescription -notmatch $virtualPattern
+            } |
+            Sort-Object @{ Expression = { if ($_.Physical) { 0 } else { 1 } } }, InterfaceMetric
+        foreach ($adapter in $adapters) {
+            $addr = Get-NetIPAddress -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+                Where-Object { Test-IsPhysicalLanIPv4 $_.IPAddress } |
+                Sort-Object InterfaceMetric |
+                Select-Object -First 1 -ExpandProperty IPAddress
+            if ($addr) { return $addr }
+        }
+    } catch {}
+    try {
+        $addr = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+            Where-Object { Test-IsPhysicalLanIPv4 $_.IPAddress } |
+            Sort-Object InterfaceMetric |
+            Select-Object -First 1 -ExpandProperty IPAddress
+        if ($addr) { return $addr }
+    } catch {}
+    return ''
+}
+
 function Get-ProperRustDeskExe {
     foreach ($p in @(
         "${env:ProgramFiles}\RustDesk\rustdesk.exe",
@@ -540,12 +577,7 @@ function Register-PortalHost {
         [string]$Password
     )
     $hostname = $env:COMPUTERNAME
-    $ip = ''
-    try {
-        $ip = (Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
-            Where-Object { $_.IPAddress -notlike '127.*' -and $_.PrefixOrigin -ne 'WellKnown' } |
-            Select-Object -First 1 -ExpandProperty IPAddress)
-    } catch {}
+    $ip = Get-PrimaryLanIPv4
     $payload = @{
         enroll_secret = $Secret
         rustdesk_id = $RustDeskId

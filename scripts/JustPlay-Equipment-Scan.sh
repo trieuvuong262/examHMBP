@@ -28,6 +28,43 @@ if [[ "$DEPARTMENT_TEXT" == *'__DEPARTMENT'* ]]; then
   DEPARTMENT_TEXT=''
 fi
 
+is_lan_ip() {
+  local ip="$1"
+  [[ -z "$ip" ]] && return 1
+  [[ "$ip" == 127.* ]] && return 1
+  [[ "$ip" == 169.254.* ]] && return 1
+  [[ "$ip" == 192.168.65.* ]] && return 1
+  [[ "$ip" =~ ^172\.(1[6-9]|2[0-9]|3[01])\. ]] && return 1
+  return 0
+}
+
+get_primary_lan_ip() {
+  local line iface ip
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^[0-9]+:\ ([^:]+): ]]; then
+      iface="${BASH_REMATCH[1]}"
+    elif [[ "$line" =~ inet\ ([0-9.]+)/ ]]; then
+      ip="${BASH_REMATCH[1]}"
+      [[ "$iface" == lo ]] && continue
+      [[ "$iface" == docker* || "$iface" == br-* || "$iface" == veth* || "$iface" == virbr* ]] && continue
+      if is_lan_ip "$ip"; then
+        echo "$ip"
+        return 0
+      fi
+    fi
+  done < <(ip -o addr show scope global 2>/dev/null || true)
+
+  if command -v hostname >/dev/null 2>&1; then
+    for ip in $(hostname -I 2>/dev/null || true); do
+      if is_lan_ip "$ip"; then
+        echo "$ip"
+        return 0
+      fi
+    done
+  fi
+  return 1
+}
+
 normalize_mac() {
   local raw="$1"
   local hex
@@ -69,7 +106,7 @@ collect_inventory_json() {
   local network_adapters chassis_type
 
   hostname="$(hostname -s 2>/dev/null || hostname)"
-  ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+  ip="$(get_primary_lan_ip 2>/dev/null || true)"
   os_name=''
   os_version=''
   if [[ -f /etc/os-release ]]; then
