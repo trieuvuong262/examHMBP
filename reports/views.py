@@ -104,6 +104,7 @@ from .forms import (
 from .models import DailyWorkReport, DailyWorkReportAttachment, WeeklyWorkReport, WeeklyWorkReportAttachment
 from .team_utils import (
     build_report_team_department_groups,
+    build_team_office_report_map,
     daily_report_visible_to_team,
     department_filter_choices,
     meaningful_daily_reports_qs,
@@ -1074,26 +1075,45 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
     status_filter = _parse_team_status_filter(request)
     team = _team_queryset(request.user, search_query)
     all_team_ids = list(team.values_list('id', flat=True))
-    all_reports = meaningful_daily_reports_qs().filter(
-        employee_id__in=all_team_ids,
-        report_date=report_date,
-        report_profile=report_profile,
-        report_period=report_period,
-    )
+    if report_profile == REPORT_PROFILE_OFFICE:
+        report_map = build_team_office_report_map(all_team_ids, report_date, report_period)
+        visible_reports = [r for r in report_map.values() if daily_report_visible_to_team(r)]
+        submitted = sum(
+            1 for r in visible_reports
+            if r.status == DailyWorkReport.STATUS_SUBMITTED
+        )
+    else:
+        all_reports = meaningful_daily_reports_qs().filter(
+            employee_id__in=all_team_ids,
+            report_date=report_date,
+            report_profile=report_profile,
+            report_period=report_period,
+        )
+        submitted = all_reports.filter(status=DailyWorkReport.STATUS_SUBMITTED).count()
+        reports = all_reports.select_related('employee', 'employee__profile').annotate(
+            line_count=Count('lines'),
+            total_qty=Sum('lines__quantity'),
+        )
+        report_map = {r.employee_id: r for r in reports}
+
     team_count = team.count()
-    submitted = all_reports.filter(status=DailyWorkReport.STATUS_SUBMITTED).count()
     missing = team_count - submitted
 
-    reports = meaningful_daily_reports_qs().filter(
-        employee_id__in=all_team_ids,
-        report_date=report_date,
-        report_profile=report_profile,
-        report_period=report_period,
-    ).select_related('employee', 'employee__profile').annotate(
-        line_count=Count('lines'),
-        total_qty=Sum('lines__quantity'),
-    )
-    report_map = {r.employee_id: r for r in reports}
+    if report_profile == REPORT_PROFILE_OFFICE:
+        if report_map:
+            reports = (
+                DailyWorkReport.objects.filter(pk__in=[r.pk for r in report_map.values()])
+                .select_related('employee', 'employee__profile')
+                .annotate(
+                    line_count=Count('lines'),
+                    total_qty=Sum('lines__quantity'),
+                )
+            )
+            enriched = {r.employee_id: r for r in reports}
+            report_map = {
+                emp_id: enriched.get(emp_id, raw)
+                for emp_id, raw in report_map.items()
+            }
     department_groups, dept_choices = _build_department_group_rows(
         request.user,
         team,

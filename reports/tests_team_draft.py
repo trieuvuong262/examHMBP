@@ -208,3 +208,27 @@ class ReportTeamDraftTests(TestCase):
         resp_miss = self.client.get(base + '&status=missing')
         self.assertNotContains(resp_miss, 'mem_draft')
         self.assertContains(resp_miss, 'mem2_draft')
+
+    def test_team_vp_day_tab_shows_week_report_fallback(self):
+        today = date.today()
+        week = monday_of(today)
+        DailyWorkReport.objects.create(
+            employee=self.member,
+            report_date=week,
+            report_profile=REPORT_PROFILE_OFFICE,
+            report_period='week',
+            status=DailyWorkReport.STATUS_SUBMITTED,
+            links='https://week.example',
+            submitted_at=timezone.now(),
+        )
+        self.client.force_login(self.leader)
+        resp = self.client.get(
+            reverse('reports:team_vp'),
+            {'period': 'day', 'date': today.isoformat()},
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Đã nộp')
+        self.assertContains(resp, 'Tuần')
+        self.assertContains(resp, reverse('reports:detail_vp', args=[
+            DailyWorkReport.objects.get(employee=self.member, report_period='week').pk,
+        ]))

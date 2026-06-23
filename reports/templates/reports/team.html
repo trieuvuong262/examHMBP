@@ -107,6 +107,9 @@
                                 {% if row.report.hod_reviewed %}
                                 <span class="badge bg-primary-subtle text-primary">Đã xem</span>
                                 {% endif %}
+                                {% if reports_scope_label == 'VP' and office_period == 'day' and row.report.report_period == 'week' %}
+                                <span class="badge bg-info-subtle text-info">Tuần</span>
+                                {% endif %}
                                 {% else %}
                                 <span class="badge bg-warning-subtle text-warning">Nháp</span>
                                 {% endif %}
@@ -129,7 +132,7 @@
                             {% if row.report.is_production_report %}
                             <a href="{% url today_url_name %}?date={{ report_date|date:'Y-m-d' }}&for_user={{ row.member.id }}" class="btn btn-sm btn-outline-dark">Nhập hộ</a>
                             {% else %}
-                            <a href="{% url today_url_name %}?period={{ office_period }}&date={{ report_date|date:'Y-m-d' }}&for_user={{ row.member.id }}" class="btn btn-sm btn-outline-dark">Nhập hộ</a>
+                            <a href="{% url today_url_name %}?period={{ row.report.report_period }}&{% if row.report.report_period == 'month' %}month={{ row.report.report_date|date:'Y-m' }}{% else %}date={{ row.report.report_date|date:'Y-m-d' }}{% endif %}&for_user={{ row.member.id }}" class="btn btn-sm btn-outline-dark">Nhập hộ</a>
                             {% endif %}
                             {% else %}
                             <a href="{% if reports_scope_label == 'VP' %}{% url today_url_name %}?period={{ office_period }}&date={{ report_date|date:'Y-m-d' }}&for_user={{ row.member.id }}{% else %}{% url today_url_name %}?date={{ report_date|date:'Y-m-d' }}&for_user={{ row.member.id }}{% endif %}" class="btn btn-sm btn-outline-dark">Nhập hộ</a>

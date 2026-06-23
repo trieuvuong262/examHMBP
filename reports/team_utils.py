@@ -7,6 +7,9 @@ from django.db.models import Q
 from hrm.concurrent_positions import MANAGER_SLOT_ROLES, get_active_concurrent_positions
 from hrm.permissions import get_profile
 from reports.models import DailyWorkReport, WeeklyWorkReport
+from reports.period_utils import PERIOD_DAY, PERIOD_MONTH, PERIOD_WEEK
+from reports.report_profile import REPORT_PROFILE_OFFICE
+from reports.week_utils import monday_of
 
 
 def meaningful_daily_reports_qs():
@@ -37,6 +40,43 @@ def weekly_report_visible_to_team(report) -> bool:
     if report.status == WeeklyWorkReport.STATUS_SUBMITTED:
         return True
     return bool(report.draft_saved_at)
+
+
+def build_team_office_report_map(
+    team_ids,
+    report_date,
+    report_period: str,
+) -> dict[int, DailyWorkReport]:
+    """
+    Báo cáo VP theo chu kỳ tab quản lý.
+    Tab Ngày: ưu tiên báo cáo ngày; nếu chưa có thì hiển thị báo cáo tuần của tuần chứa ngày đó
+    (MKT và các phòng nộp báo tuần vẫn thấy trên tab Ngày).
+    """
+    if not team_ids:
+        return {}
+
+    base = meaningful_daily_reports_qs().filter(
+        employee_id__in=team_ids,
+        report_profile=REPORT_PROFILE_OFFICE,
+    )
+
+    if report_period == PERIOD_MONTH:
+        anchor = report_date.replace(day=1)
+        reports = base.filter(report_period=PERIOD_MONTH, report_date=anchor)
+        return {r.employee_id: r for r in reports}
+
+    if report_period == PERIOD_WEEK:
+        anchor = monday_of(report_date)
+        reports = base.filter(report_period=PERIOD_WEEK, report_date=anchor)
+        return {r.employee_id: r for r in reports}
+
+    week_anchor = monday_of(report_date)
+    report_map: dict[int, DailyWorkReport] = {}
+    for report in base.filter(report_period=PERIOD_WEEK, report_date=week_anchor):
+        report_map[report.employee_id] = report
+    for report in base.filter(report_period=PERIOD_DAY, report_date=report_date):
+        report_map[report.employee_id] = report
+    return report_map
 
 
 def _active_subordinate_qs(m2m_manager):
