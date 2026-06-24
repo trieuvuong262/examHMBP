@@ -68,6 +68,13 @@
                 <i class="bi bi-speedometer2 me-1"></i>Performance
             </button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="jp-nas-tab-dsm-btn" data-bs-toggle="tab"
+                    data-bs-target="#jp-nas-tab-dsm" type="button" role="tab"
+                    aria-controls="jp-nas-tab-dsm" aria-selected="false">
+                <i class="bi bi-window-desktop me-1"></i>Hệ thống DSM
+            </button>
+        </li>
     </ul>
 
     <div class="tab-content" id="jp-nas-tab-content">
@@ -151,9 +158,8 @@
         </div>
     </div>
 
-    {% if metrics.volumes %}
     <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white border-0 pt-3 pb-0">
+        <div class="card-header bg-white border-0 pt-3 pb-2">
             <h5 class="fw-bold mb-0">Volume (DSM)</h5>
         </div>
         <div class="card-body p-0">
@@ -175,13 +181,16 @@
                             <td class="text-end">{{ vol.display }}</td>
                             <td class="text-end">{% if vol.used_percent is not None %}{{ vol.used_percent }}%{% else %}—{% endif %}</td>
                         </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-muted small p-3">Chưa có dữ liệu volume (cần DSM API).</td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
-    {% endif %}
 
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-white border-0 pt-3 pb-0">
@@ -315,6 +324,203 @@
         </div>
 
     </div>{# /performance tab #}
+
+    {% with widgets=metrics.widgets %}
+    <div class="tab-pane fade" id="jp-nas-tab-dsm" role="tabpanel"
+         aria-labelledby="jp-nas-tab-dsm-btn" tabindex="0">
+
+        <div class="row g-3 mb-4">
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white border-0 pt-3 pb-2">
+                        <h6 class="fw-bold mb-0"><i class="bi bi-heart-pulse me-1"></i>System Health</h6>
+                    </div>
+                    <div class="card-body small">
+                        <div class="mb-1">Trạng thái: <strong data-jp-nas-health-status>{{ widgets.system_health.status|default:"—" }}</strong></div>
+                        {% if widgets.system_health.temperature %}
+                        <div class="mb-1">Nhiệt độ: <span data-jp-nas-health-temp>{{ widgets.system_health.temperature }}</span></div>
+                        {% endif %}
+                        <div class="text-muted" data-jp-nas-health-summary>{{ widgets.system_health.summary|default:"" }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white border-0 pt-3 pb-2">
+                        <h6 class="fw-bold mb-0"><i class="bi bi-speedometer me-1"></i>Resource Monitor</h6>
+                    </div>
+                    <div class="card-body small">
+                        <div>CPU: <strong>{{ metrics.cpu.percent|default:"—" }}{% if metrics.cpu.percent is not None %}%{% endif %}</strong></div>
+                        <div>RAM: <strong>{{ metrics.ram.used_percent|default:"—" }}{% if metrics.ram.used_percent is not None %}%{% endif %}</strong> — {{ metrics.ram.display|default:"—" }}</div>
+                        <div>Ổ đĩa: <strong>{{ metrics.disk.used_percent|default:"—" }}{% if metrics.disk.used_percent is not None %}%{% endif %}</strong></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white border-0 pt-3 pb-2">
+                        <h6 class="fw-bold mb-0"><i class="bi bi-hdd-stack me-1"></i>Storage</h6>
+                    </div>
+                    <div class="card-body small p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <tbody id="jp-nas-widget-volumes">
+                                    {% for vol in metrics.volumes|slice:":5" %}
+                                    <tr>
+                                        <td>{{ vol.name }}</td>
+                                        <td class="text-end">{{ vol.used_percent|default:"—" }}{% if vol.used_percent is not None %}%{% endif %}</td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr><td colspan="2" class="text-muted p-3">—</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white border-0 pt-3 pb-2">
+                        <h6 class="fw-bold mb-0"><i class="bi bi-people me-1"></i>Connected Users</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light"><tr><th>User</th><th>IP</th><th>Giao thức</th></tr></thead>
+                                <tbody id="jp-nas-widget-users">
+                                    {% for row in widgets.connected_users %}
+                                    <tr>
+                                        <td class="small">{{ row.user }}</td>
+                                        <td class="small font-monospace">{{ row.ip }}</td>
+                                        <td class="small">{{ row.protocol }}</td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr><td colspan="3" class="text-muted small p-3">Không có phiên đăng nhập.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white border-0 pt-3 pb-2">
+                        <h6 class="fw-bold mb-0"><i class="bi bi-calendar-check me-1"></i>Scheduled Tasks</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light"><tr><th>Tác vụ</th><th>Bật</th><th>Lần tới</th></tr></thead>
+                                <tbody id="jp-nas-widget-tasks">
+                                    {% for row in widgets.scheduled_tasks %}
+                                    <tr>
+                                        <td class="small">{{ row.name }}</td>
+                                        <td class="small">{% if row.enabled %}Có{% elif row.enabled is False %}Không{% else %}—{% endif %}</td>
+                                        <td class="small">{{ row.next }}</td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr><td colspan="3" class="text-muted small p-3">Không có tác vụ hoặc thiếu quyền DSM.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white border-0 pt-3 pb-2">
+                        <h6 class="fw-bold mb-0"><i class="bi bi-journal-text me-1"></i>Recent Logs</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light"><tr><th>Thời gian</th><th>Mức</th><th>Nội dung</th></tr></thead>
+                                <tbody id="jp-nas-widget-logs">
+                                    {% for row in widgets.recent_logs %}
+                                    <tr>
+                                        <td class="small text-nowrap">{{ row.time }}</td>
+                                        <td class="small">{{ row.level }}</td>
+                                        <td class="small">{{ row.message }}</td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr><td colspan="3" class="text-muted small p-3">Chưa lấy được log (cần Log Center / quyền admin).</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white border-0 pt-3 pb-2">
+                        <h6 class="fw-bold mb-0"><i class="bi bi-cloud-arrow-up me-1"></i>Backup</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light"><tr><th>Tác vụ</th><th>Trạng thái</th><th>Lần cuối</th></tr></thead>
+                                <tbody id="jp-nas-widget-backup">
+                                    {% for row in widgets.backup_tasks %}
+                                    <tr>
+                                        <td class="small">{{ row.name }}</td>
+                                        <td class="small">{{ row.status }}</td>
+                                        <td class="small">{{ row.last }}</td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="3" class="small p-3 text-muted">
+                                            Không có Hyper Backup / Active Backup.
+                                            Portal backup: <code>{{ metrics.backup.remote|default:"—" }}</code>
+                                            {% if metrics.backup.display %} — {{ metrics.backup.display }}{% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-0 pt-3 pb-2">
+                <h6 class="fw-bold mb-0"><i class="bi bi-file-earmark-diff me-1"></i>File Change Log</h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light"><tr><th>Thời gian</th><th>User</th><th>Đường dẫn</th><th>Thao tác</th></tr></thead>
+                        <tbody id="jp-nas-widget-changes">
+                            {% for row in widgets.file_changes %}
+                            <tr>
+                                <td class="small text-nowrap">{{ row.time }}</td>
+                                <td class="small">{{ row.user }}</td>
+                                <td class="small font-monospace">{{ row.path }}</td>
+                                <td class="small">{{ row.action }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-muted small p-3">Chưa lấy được nhật ký thay đổi file (Synology có thể không bật tính năng này).</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>{# /dsm tab #}
+    {% endwith %}
+
     </div>{# /tab-content #}
 </div>
 

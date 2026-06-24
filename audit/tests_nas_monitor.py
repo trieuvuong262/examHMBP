@@ -4,7 +4,13 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from audit.services.nas_monitor import collect_nas_metrics, dsm_configured
+from audit.services.nas_monitor import (
+    _collect_shares,
+    _volume_from_storage_api,
+    collect_dsm_widgets,
+    collect_nas_metrics,
+    dsm_configured,
+)
 from hrm.models import Department, DepartmentMenuPermission, PermissionGroup, Profile
 from hrm.module_permissions import MODULE_AUDIT
 
@@ -37,6 +43,52 @@ class NasMonitorServiceTests(TestCase):
     )
     def test_dsm_configured_from_env(self):
         self.assertTrue(dsm_configured())
+
+    def test_volume_from_storage_api(self):
+        row = _volume_from_storage_api({
+            'display_name': 'Volume 1',
+            'volume_path': '/volume1',
+            'size_total_byte': '1000',
+            'size_free_byte': '400',
+            'status': 'normal',
+            'volume_id': 1,
+        })
+        self.assertIsNotNone(row)
+        assert row is not None
+        self.assertEqual(row['used_bytes'], 600)
+        self.assertEqual(row['vol_path'], '/volume1')
+
+    @patch('audit.services.nas_monitor._dsm_request')
+    def test_utilization_memory_in_kilobytes(self, mock_dsm):
+        from audit.services.nas_monitor import _read_dsm_utilization
+
+        mock_dsm.return_value = {
+            'cpu': {'load': 12},
+            'memory': {
+                'total_real': 8388608,
+                'avail_real': 4194304,
+                'real_usage': 50,
+            },
+        }
+        util = _read_dsm_utilization()
+        self.assertEqual(util['ram']['total_bytes'], 8388608 * 1024)
+        self.assertEqual(util['ram']['used_bytes'], 4194304 * 1024)
+        self.assertEqual(util['ram']['used_percent'], 50)
+        self.assertIn('GB', util['ram']['display'])
+
+    @patch('audit.services.nas_monitor._read_dsm_filestation_shares', return_value=[])
+    @patch('audit.services.nas_monitor._list_shares_from_rclone')
+    @patch('audit.services.nas_monitor._read_dsm_volumes')
+    def test_collect_shares_fallback_rclone(self, mock_vols, mock_rclone, _mock_fs):
+        mock_vols.return_value = []
+        mock_rclone.return_value = [{'name': 'backup', 'display': '—'}]
+        rows = _collect_shares(volumes=[])
+        self.assertEqual(rows[0]['name'], 'backup')
+
+    @override_settings(NAS_DSM_URL='', NAS_DSM_PASSWORD='')
+    @patch('audit.services.nas_monitor._read_nas_cred', return_value=('', ''))
+    def test_collect_dsm_widgets_empty_without_dsm(self, _mock):
+        self.assertEqual(collect_dsm_widgets(), {})
 
 
 class NasMonitorViewTests(TestCase):
@@ -79,6 +131,7 @@ class NasMonitorViewTests(TestCase):
         self.assertContains(resp, 'Giám sát NAS')
         self.assertContains(resp, 'Performance')
         self.assertContains(resp, 'jp-nas-tab-performance')
+        self.assertContains(resp, 'Hệ thống DSM')
 
     @patch('audit.views_nas.collect_nas_metrics')
     def test_metrics_api(self, mock_collect):

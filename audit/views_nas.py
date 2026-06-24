@@ -28,6 +28,7 @@ def nas_monitor_page(request):
             'shares': [],
             'backup': {},
             'processes': [],
+            'widgets': {},
         }
     return render(request, 'audit/nas_monitor.html', {
         'metrics': metrics,

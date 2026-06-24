@@ -165,7 +165,10 @@
     function renderVolumes(rows) {
         const tbody = document.getElementById('jp-nas-volumes');
         if (!tbody) return;
-        if (!rows || !rows.length) return;
+        if (!rows || !rows.length) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-muted small p-3">Chưa có dữ liệu volume (cần DSM API).</td></tr>';
+            return;
+        }
         tbody.innerHTML = rows.map(function (vol) {
             const pct = vol.used_percent != null ? vol.used_percent + '%' : '—';
             return (
@@ -229,6 +232,91 @@
         }
     }
 
+    function renderWidgets(widgets, metrics) {
+        const health = widgets.system_health || {};
+        const healthStatus = document.querySelector('[data-jp-nas-health-status]');
+        if (healthStatus) healthStatus.textContent = health.status || '—';
+        const healthSummary = document.querySelector('[data-jp-nas-health-summary]');
+        if (healthSummary) healthSummary.textContent = health.summary || '';
+
+        function fillTable(tbodyId, rows, emptyHtml, renderRow) {
+            const tbody = document.getElementById(tbodyId);
+            if (!tbody) return;
+            if (!rows || !rows.length) {
+                tbody.innerHTML = emptyHtml;
+                return;
+            }
+            tbody.innerHTML = rows.map(renderRow).join('');
+        }
+
+        fillTable(
+            'jp-nas-widget-users',
+            widgets.connected_users,
+            '<tr><td colspan="3" class="text-muted small p-3">Không có phiên đăng nhập.</td></tr>',
+            function (row) {
+                return '<tr><td class="small">' + escapeHtml(row.user) + '</td><td class="small font-monospace">' +
+                    escapeHtml(row.ip) + '</td><td class="small">' + escapeHtml(row.protocol) + '</td></tr>';
+            }
+        );
+
+        fillTable(
+            'jp-nas-widget-tasks',
+            widgets.scheduled_tasks,
+            '<tr><td colspan="3" class="text-muted small p-3">Không có tác vụ hoặc thiếu quyền DSM.</td></tr>',
+            function (row) {
+                const enabled = row.enabled === true ? 'Có' : (row.enabled === false ? 'Không' : '—');
+                return '<tr><td class="small">' + escapeHtml(row.name) + '</td><td class="small">' + enabled +
+                    '</td><td class="small">' + escapeHtml(row.next) + '</td></tr>';
+            }
+        );
+
+        fillTable(
+            'jp-nas-widget-logs',
+            widgets.recent_logs,
+            '<tr><td colspan="3" class="text-muted small p-3">Chưa lấy được log (cần Log Center / quyền admin).</td></tr>',
+            function (row) {
+                return '<tr><td class="small text-nowrap">' + escapeHtml(row.time) + '</td><td class="small">' +
+                    escapeHtml(row.level) + '</td><td class="small">' + escapeHtml(row.message) + '</td></tr>';
+            }
+        );
+
+        const backupRows = widgets.backup_tasks || [];
+        const backup = (metrics && metrics.backup) || {};
+        fillTable(
+            'jp-nas-widget-backup',
+            backupRows,
+            '<tr><td colspan="3" class="small p-3 text-muted">Không có Hyper Backup. Portal backup: <code>' +
+                escapeHtml(backup.remote || '—') + '</code>' +
+                (backup.display ? ' — ' + escapeHtml(backup.display) : '') + '</td></tr>',
+            function (row) {
+                return '<tr><td class="small">' + escapeHtml(row.name) + '</td><td class="small">' +
+                    escapeHtml(row.status) + '</td><td class="small">' + escapeHtml(row.last) + '</td></tr>';
+            }
+        );
+
+        fillTable(
+            'jp-nas-widget-changes',
+            widgets.file_changes,
+            '<tr><td colspan="4" class="text-muted small p-3">Chưa lấy được nhật ký thay đổi file.</td></tr>',
+            function (row) {
+                return '<tr><td class="small text-nowrap">' + escapeHtml(row.time) + '</td><td class="small">' +
+                    escapeHtml(row.user) + '</td><td class="small font-monospace">' + escapeHtml(row.path) +
+                    '</td><td class="small">' + escapeHtml(row.action) + '</td></tr>';
+            }
+        );
+
+        const volRows = (metrics && metrics.volumes) || [];
+        fillTable(
+            'jp-nas-widget-volumes',
+            volRows.slice(0, 5),
+            '<tr><td colspan="2" class="text-muted p-3">—</td></tr>',
+            function (vol) {
+                const pct = vol.used_percent != null ? vol.used_percent + '%' : '—';
+                return '<tr><td>' + escapeHtml(vol.name) + '</td><td class="text-end">' + pct + '</td></tr>';
+            }
+        );
+    }
+
     function applyMetrics(metrics) {
         const ram = metrics.ram || {};
         const cpu = metrics.cpu || {};
@@ -262,6 +350,7 @@
         if (backupPct) backupPct.textContent = backup.used_percent != null ? ' (' + backup.used_percent + '%)' : '';
 
         applyPerformanceMetrics(metrics);
+        renderWidgets(metrics.widgets || {}, metrics);
 
         if (updatedEl) {
             updatedEl.textContent = 'Cập nhật ' + new Date().toLocaleTimeString('vi-VN');
