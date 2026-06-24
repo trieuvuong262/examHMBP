@@ -21,15 +21,21 @@ class NasMonitorServiceTests(TestCase):
         self.assertFalse(metrics['dsm_available'])
 
     @override_settings(NAS_DSM_URL='', NAS_DSM_ACCOUNT='', NAS_DSM_PASSWORD='')
-    def test_dsm_not_configured(self):
+    @patch('audit.services.nas_monitor._read_nas_cred', return_value=('', ''))
+    def test_dsm_not_configured(self, _mock):
         self.assertFalse(dsm_configured())
+
+    @override_settings(NAS_DSM_URL='https://nas.example:5001', NAS_DSM_PASSWORD='')
+    @patch('audit.services.nas_monitor._read_nas_cred', return_value=('tailscale-justplay', 'secret'))
+    def test_dsm_configured_from_cred_file(self, _mock):
+        self.assertTrue(dsm_configured())
 
     @override_settings(
         NAS_DSM_URL='https://nas.example:5001',
-        NAS_DSM_ACCOUNT='admin',
+        NAS_DSM_ACCOUNT='tailscale-justplay',
         NAS_DSM_PASSWORD='secret',
     )
-    def test_dsm_configured(self):
+    def test_dsm_configured_from_env(self):
         self.assertTrue(dsm_configured())
 
 

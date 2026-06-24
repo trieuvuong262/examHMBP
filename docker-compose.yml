@@ -35,6 +35,7 @@ services:
       - ${HOST_PROJECT_DIR:-.}:/backup-source:ro
       - /mnt/nas-portal:/mnt/nas-portal
       - /root/.config/rclone:/root/.config/rclone:ro
+      - /root/.nas-cred:/root/.nas-cred:ro
     environment:
       NAS_RCLONE_CONFIG: /root/.config/rclone/rclone.conf
       NAS_RCLONE_REMOTE: ${NAS_RCLONE_REMOTE:-synology:}

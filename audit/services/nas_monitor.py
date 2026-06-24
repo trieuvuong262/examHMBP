@@ -57,12 +57,40 @@ def _run_rclone(args: list[str], *, timeout: int = 30) -> subprocess.CompletedPr
     )
 
 
+def _read_nas_cred() -> tuple[str, str]:
+    """Đọc user/pass NAS từ file cred trên VPS (cùng nguồn rclone)."""
+    path = Path(getattr(settings, 'NAS_DSM_CRED_FILE', '/root/.nas-cred'))
+    if not path.is_file():
+        return '', ''
+    username = ''
+    password = ''
+    try:
+        for line in path.read_text(encoding='utf-8', errors='replace').splitlines():
+            line = line.strip()
+            if line.startswith('username='):
+                username = line.split('=', 1)[1].strip()
+            elif line.startswith('password='):
+                password = line.split('=', 1)[1].strip()
+    except OSError:
+        return '', ''
+    return username, password
+
+
+def _dsm_credentials() -> tuple[str, str]:
+    account = (getattr(settings, 'NAS_DSM_ACCOUNT', '') or '').strip()
+    password = (getattr(settings, 'NAS_DSM_PASSWORD', '') or '').strip()
+    cred_user, cred_pass = _read_nas_cred()
+    if not account:
+        account = cred_user or 'tailscale-justplay'
+    if not password:
+        password = cred_pass
+    return account, password
+
+
 def dsm_configured() -> bool:
-    return bool(
-        (getattr(settings, 'NAS_DSM_URL', '') or '').strip()
-        and (getattr(settings, 'NAS_DSM_ACCOUNT', '') or '').strip()
-        and (getattr(settings, 'NAS_DSM_PASSWORD', '') or '').strip()
-    )
+    url = (getattr(settings, 'NAS_DSM_URL', '') or '').strip()
+    account, password = _dsm_credentials()
+    return bool(url and account and password)
 
 
 def _dsm_base_url() -> str:
@@ -80,16 +108,17 @@ def _dsm_request(api: str, method: str, *, version: int = 1, params: dict | None
     global _dsm_sid, _dsm_sid_expires_at
 
     if not dsm_configured():
-        raise NasMonitorError('Chưa cấu hình tài khoản DSM (NAS_DSM_ACCOUNT / NAS_DSM_PASSWORD).')
+        raise NasMonitorError('Chưa cấu hình DSM (NAS_DSM_URL hoặc mật khẩu tailscale-justplay).')
 
+    account, password = _dsm_credentials()
     now = time.time()
     if not _dsm_sid or now >= _dsm_sid_expires_at:
         login_params = {
             'api': 'SYNO.API.Auth',
             'version': '7',
             'method': 'login',
-            'account': settings.NAS_DSM_ACCOUNT,
-            'passwd': settings.NAS_DSM_PASSWORD,
+            'account': account,
+            'passwd': password,
             'session': 'PortalNasMonitor',
             'format': 'sid',
         }
