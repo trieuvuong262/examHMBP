@@ -16,7 +16,7 @@ def user_meal_push_eligible(user) -> bool:
 
 
 def user_schedule_reminder_push_eligible(user) -> bool:
-    return user_can_access_menu(user, MODULE_UTILITIES, 'schedule_reminder')
+    return bool(getattr(user, 'is_authenticated', False) and getattr(user, 'is_active', False))
 
 
 def user_portal_push_eligible(user) -> bool:

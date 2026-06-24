@@ -1217,6 +1217,136 @@ textarea.form-control {
     color: var(--hm-primary);
 }
 
+/* --- Trang chủ: Nhắc lịch --- */
+.jp-home-block--schedule .jp-schedule-panel {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: var(--jp-radius-lg);
+    padding: 1rem 1.1rem;
+}
+
+.jp-schedule-repeat-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.jp-schedule-repeat-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0.35rem 0.65rem;
+    border: 1px solid #e2e8f0;
+    border-radius: var(--jp-btn-radius);
+    font-size: 0.82rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.jp-schedule-repeat-label:has(input:checked) {
+    border-color: var(--hm-primary);
+    background: var(--hm-primary-soft);
+    color: var(--hm-primary-dark);
+}
+
+.jp-schedule-repeat-label input {
+    margin: 0;
+}
+
+.jp-schedule-weekdays {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+.jp-schedule-weekday {
+    margin: 0;
+    cursor: pointer;
+    user-select: none;
+}
+
+.jp-schedule-weekday input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.jp-schedule-weekday span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.5rem;
+    min-height: var(--jp-touch);
+    padding: 0 0.65rem;
+    border: 1px solid #e2e8f0;
+    border-radius: var(--jp-btn-radius);
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #475569;
+    background: #f8fafc;
+    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.jp-schedule-weekday input:checked + span {
+    border-color: var(--hm-primary);
+    background: var(--hm-primary);
+    color: #fff;
+}
+
+.jp-schedule-once-row {
+    max-width: 14rem;
+}
+
+.jp-schedule-list-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #334155;
+    margin-bottom: 0.75rem;
+}
+
+.jp-schedule-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.85rem 0;
+    border-top: 1px solid #f1f5f9;
+}
+
+.jp-schedule-item:first-child {
+    border-top: 0;
+    padding-top: 0;
+}
+
+.jp-schedule-item-title {
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.jp-schedule-item-body {
+    font-size: 0.82rem;
+    color: #64748b;
+    margin-top: 0.15rem;
+}
+
+.jp-schedule-item-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.35rem;
+    font-size: 0.78rem;
+    color: #64748b;
+}
+
+@media (min-width: 768px) {
+    .jp-schedule-weekday span {
+        min-height: 2.25rem;
+    }
+}
+
 .jp-home-empty {
     display: flex;
     align-items: center;

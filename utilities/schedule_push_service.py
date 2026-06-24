@@ -1,29 +1,28 @@
-"""Web push nhắc lịch cá nhân."""
+"""Web push nhắc lịch cá nhân — theo thứ trong tuần."""
 
 from __future__ import annotations
 
 import json
 import logging
-from datetime import timedelta
 
+from django.db import transaction
 from django.urls import reverse
 from django.utils import timezone
 
-from utilities.models import MealPushSubscription, ScheduleReminder
+from utilities.models import MealPushSubscription, ScheduleReminder, ScheduleReminderPushLog
 from utilities.push_service import (
     _is_expired_push_subscription,
     _portal_base_url,
     send_push_to_subscription,
     webpush_configured,
 )
+from utilities.schedule_reminder_logic import should_fire_reminder
 
 logger = logging.getLogger(__name__)
 
-SCHEDULE_REMINDER_GRACE = timedelta(hours=24)
-
 
 def _schedule_push_payload(reminder: ScheduleReminder) -> str:
-    url = f'{_portal_base_url()}{reverse("utilities:schedule_reminder_home")}'
+    url = f'{_portal_base_url()}{reverse("home_portal")}#nhac-lich'
     body = (reminder.body or '').strip()
     if not body:
         body = reminder.title
@@ -43,20 +42,24 @@ def send_schedule_reminder_pushes(*, now=None, dry_run: bool = False) -> dict:
         return {'sent': 0, 'skipped': 0, 'failed': 0, 'reason': 'webpush_not_configured'}
 
     now = now or timezone.now()
-    window_start = now - SCHEDULE_REMINDER_GRACE
+    local_today = timezone.localdate(now)
     reminders = (
-        ScheduleReminder.objects.filter(
-            is_active=True,
-            push_sent_at__isnull=True,
-            remind_at__lte=now,
-            remind_at__gte=window_start,
-        )
+        ScheduleReminder.objects.filter(is_active=True)
         .select_related('user')
-        .order_by('remind_at')
+        .order_by('id')
     )
 
     sent = skipped = failed = 0
     for reminder in reminders:
+        if not should_fire_reminder(reminder, now):
+            continue
+        if ScheduleReminderPushLog.objects.filter(
+            reminder=reminder,
+            fire_date=local_today,
+        ).exists():
+            skipped += 1
+            continue
+
         subscriptions = list(
             MealPushSubscription.objects.filter(user=reminder.user, user__is_active=True),
         )
@@ -86,12 +89,22 @@ def send_schedule_reminder_pushes(*, now=None, dry_run: bool = False) -> dict:
                         exc,
                     )
 
-        if delivered:
-            if not dry_run:
-                reminder.push_sent_at = now
-                reminder.save(update_fields=['push_sent_at', 'updated_at'])
-            sent += 1
-        else:
+        if not delivered:
             skipped += 1
+            continue
+
+        if dry_run:
+            sent += 1
+            continue
+
+        with transaction.atomic():
+            ScheduleReminderPushLog.objects.get_or_create(
+                reminder=reminder,
+                fire_date=local_today,
+            )
+            if reminder.repeat_mode == ScheduleReminder.REPEAT_ONCE:
+                reminder.is_active = False
+                reminder.save(update_fields=['is_active', 'updated_at'])
+        sent += 1
 
     return {'sent': sent, 'skipped': skipped, 'failed': failed}

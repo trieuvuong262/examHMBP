@@ -133,23 +133,31 @@ class MealStatsFilterForm(forms.Form):
 
 
 class ScheduleReminderForm(forms.ModelForm):
-    remind_at = forms.DateTimeField(
-        label='Thời gian nhắc',
-        input_formats=['%Y-%m-%dT%H:%M', '%Y-%m-%d %H:%M', '%d/%m/%Y %H:%M'],
-        widget=forms.DateTimeInput(
-            attrs={
-                'class': 'form-control',
-                'type': 'datetime-local',
-            },
-            format='%Y-%m-%dT%H:%M',
+    weekdays = forms.MultipleChoiceField(
+        label='Các thứ trong tuần',
+        choices=[],
+        required=False,
+        widget=forms.CheckboxSelectMultiple(attrs={'class': 'jp-schedule-weekday-check'}),
+    )
+    once_date = forms.DateField(
+        label='Ngày nhắc',
+        required=False,
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+    )
+    remind_time = forms.TimeField(
+        label='Giờ nhắc',
+        widget=forms.TimeInput(
+            attrs={'class': 'form-control', 'type': 'time'},
+            format='%H:%M',
         ),
+        input_formats=['%H:%M', '%H:%M:%S'],
     )
 
     class Meta:
         from utilities.models import ScheduleReminder
 
         model = ScheduleReminder
-        fields = ('title', 'body', 'remind_at')
+        fields = ('title', 'body', 'repeat_mode', 'weekdays', 'once_date', 'remind_time')
         widgets = {
             'title': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -158,17 +166,57 @@ class ScheduleReminderForm(forms.ModelForm):
             }),
             'body': forms.Textarea(attrs={
                 'class': 'form-control',
-                'rows': 3,
+                'rows': 2,
                 'placeholder': 'Nội dung hiển thị trong thông báo push…',
             }),
+            'repeat_mode': forms.RadioSelect(attrs={'class': 'jp-schedule-repeat-radio'}),
         }
 
-    def clean_remind_at(self):
-        value = self.cleaned_data.get('remind_at')
-        if value is None:
-            return value
-        if timezone.is_naive(value):
-            value = timezone.make_aware(value, timezone.get_current_timezone())
-        if value <= timezone.now():
-            raise ValidationError('Chọn thời gian trong tương lai.')
-        return value
+    def __init__(self, *args, **kwargs):
+        from utilities.schedule_reminder_logic import REPEAT_MODE_CHOICES, WEEKDAY_CHOICES
+
+        super().__init__(*args, **kwargs)
+        self.fields['repeat_mode'].choices = REPEAT_MODE_CHOICES
+        self.fields['weekdays'].choices = WEEKDAY_CHOICES
+        if self.instance and self.instance.pk:
+            self.initial['weekdays'] = [str(d) for d in self.instance.weekday_list()]
+
+    def clean_weekdays(self):
+        from utilities.schedule_reminder_logic import normalize_weekdays
+
+        return normalize_weekdays(self.cleaned_data.get('weekdays') or [])
+
+    def clean(self):
+        from utilities.models import ScheduleReminder
+        from utilities.schedule_reminder_logic import validate_once_datetime
+
+        cleaned = super().clean()
+        repeat_mode = cleaned.get('repeat_mode')
+        weekdays = cleaned.get('weekdays') or []
+        once_date = cleaned.get('once_date')
+        remind_time = cleaned.get('remind_time')
+
+        if repeat_mode == ScheduleReminder.REPEAT_WEEKLY:
+            if not weekdays:
+                self.add_error('weekdays', 'Chọn ít nhất một thứ trong tuần.')
+            cleaned['once_date'] = None
+        elif repeat_mode == ScheduleReminder.REPEAT_ONCE:
+            if not once_date:
+                self.add_error('once_date', 'Chọn ngày nhắc.')
+            elif remind_time:
+                from django.core.exceptions import ValidationError
+
+                try:
+                    validate_once_datetime(once_date, remind_time)
+                except ValidationError as exc:
+                    self.add_error('once_date', exc)
+            if once_date:
+                cleaned['weekdays'] = [once_date.isoweekday()]
+        return cleaned
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.weekdays = self.cleaned_data.get('weekdays') or []
+        if commit:
+            instance.save()
+        return instance

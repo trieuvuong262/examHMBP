@@ -231,7 +231,14 @@ class MealPushReminderLog(models.Model):
 
 
 class ScheduleReminder(models.Model):
-    """Nhắc lịch cá nhân — gửi web push đúng giờ."""
+    """Nhắc lịch cá nhân — chọn thứ trong tuần, một lần hoặc lặp hàng tuần."""
+
+    REPEAT_ONCE = 'once'
+    REPEAT_WEEKLY = 'weekly'
+    REPEAT_MODE_CHOICES = (
+        (REPEAT_ONCE, 'Một lần'),
+        (REPEAT_WEEKLY, 'Hàng tuần'),
+    )
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -241,32 +248,70 @@ class ScheduleReminder(models.Model):
     )
     title = models.CharField(max_length=120, verbose_name='Tiêu đề')
     body = models.TextField(blank=True, verbose_name='Nội dung')
-    remind_at = models.DateTimeField(verbose_name='Thời gian nhắc', db_index=True)
+    repeat_mode = models.CharField(
+        max_length=10,
+        choices=REPEAT_MODE_CHOICES,
+        default=REPEAT_WEEKLY,
+        verbose_name='Kiểu nhắc',
+    )
+    weekdays = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name='Các thứ trong tuần',
+        help_text='ISO weekday: 1=T2 … 7=CN',
+    )
+    remind_time = models.TimeField(verbose_name='Giờ nhắc')
+    once_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Ngày nhắc (một lần)',
+    )
     is_active = models.BooleanField(default=True, verbose_name='Đang bật')
-    push_sent_at = models.DateTimeField(null=True, blank=True, verbose_name='Đã gửi push lúc')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['remind_at', '-created_at']
+        ordering = ['remind_time', '-created_at']
         verbose_name = 'Nhắc lịch'
         verbose_name_plural = 'Nhắc lịch'
         indexes = [
-            models.Index(
-                fields=['is_active', 'push_sent_at', 'remind_at'],
-                name='util_sched_push_idx',
-            ),
+            models.Index(fields=['is_active', 'repeat_mode'], name='util_sched_active_idx'),
         ]
 
     def __str__(self):
-        return f'{self.user} · {self.title} · {self.remind_at:%d/%m/%Y %H:%M}'
+        from utilities.schedule_reminder_logic import reminder_schedule_summary
+
+        return f'{self.user} · {self.title} · {reminder_schedule_summary(self)}'
+
+    def weekday_list(self) -> list[int]:
+        from utilities.schedule_reminder_logic import normalize_weekdays
+
+        return normalize_weekdays(self.weekdays)
 
     @property
-    def is_pending_push(self) -> bool:
-        return self.is_active and self.push_sent_at is None
+    def weekdays_label(self) -> str:
+        from utilities.schedule_reminder_logic import format_weekdays
 
-    @property
-    def is_overdue(self) -> bool:
-        from django.utils import timezone
+        return format_weekdays(self.weekdays)
 
-        return self.is_pending_push and self.remind_at <= timezone.now()
+
+class ScheduleReminderPushLog(models.Model):
+    """Đã gửi push nhắc lịch — tránh gửi trùng trong cùng ngày."""
+
+    reminder = models.ForeignKey(
+        ScheduleReminder,
+        on_delete=models.CASCADE,
+        related_name='push_logs',
+        verbose_name='Nhắc lịch',
+    )
+    fire_date = models.DateField(verbose_name='Ngày gửi')
+    sent_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('reminder', 'fire_date')
+        ordering = ['-sent_at']
+        verbose_name = 'Log push nhắc lịch'
+        verbose_name_plural = 'Log push nhắc lịch'
+
+    def __str__(self):
+        return f'{self.reminder_id} · {self.fire_date:%d/%m/%Y}'
