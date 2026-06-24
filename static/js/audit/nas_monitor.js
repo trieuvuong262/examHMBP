@@ -14,8 +14,8 @@
     const performanceTabBtn = document.getElementById('jp-nas-tab-performance-btn');
 
     const loading = window.jpCreateMonitorLoading
-        ? window.jpCreateMonitorLoading({ root: root, loadingEl: loadingEl, refreshBtn: refreshBtn })
-        : { show: function () {}, hide: function () {} };
+        ? window.jpCreateMonitorLoading({ loadingEl: loadingEl, refreshBtn: refreshBtn })
+        : { showInitial: function () {}, hideInitial: function () {}, showButtonBusy: function () {}, hideButtonBusy: function () {} };
 
     const HISTORY_MAX = 60;
     const chartHistory = { labels: [], cpu: [], ram: [], disk: [] };
@@ -508,9 +508,11 @@
 
     async function refreshMetrics(options) {
         if (!metricsUrl) return;
+        const initial = options && options.initial === true;
         const manual = options && options.manual === true;
         const scope = (options && options.scope) || activeScope;
-        loading.show(manual);
+        if (initial) loading.showInitial();
+        else if (manual) loading.showButtonBusy();
         try {
             const url = metricsUrl + (metricsUrl.indexOf('?') >= 0 ? '&' : '?') + 'scope=' + encodeURIComponent(scope);
             const resp = await fetch(url, {
@@ -527,7 +529,8 @@
             console.warn('NAS metrics refresh failed', err);
             if (updatedEl) updatedEl.textContent = 'Lỗi kết nối metrics';
         } finally {
-            loading.hide();
+            if (initial) loading.hideInitial();
+            else if (manual) loading.hideButtonBusy();
         }
     }
 
@@ -582,4 +585,5 @@
     }
 
     scheduleRefresh();
+    refreshMetrics({ initial: true, scope: activeScope });
 })();

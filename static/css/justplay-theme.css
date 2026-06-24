@@ -6693,24 +6693,16 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     inset: 0;
     z-index: 20;
     display: none;
-    align-items: center;
-    justify-content: center;
-    background: rgba(255, 255, 255, 0.72);
-    backdrop-filter: blur(3px);
+    align-items: flex-start;
+    justify-content: flex-end;
+    padding: 0.75rem 1rem;
+    background: transparent;
+    pointer-events: none;
     border-radius: 0.5rem;
-    pointer-events: all;
 }
 
 .jp-monitor-loading.is-visible {
     display: flex;
-}
-
-.jp-monitor-loading--subtle {
-    background: rgba(255, 255, 255, 0.45);
-    backdrop-filter: none;
-    align-items: flex-start;
-    justify-content: flex-end;
-    padding: 0.75rem 1rem;
 }
 
 .jp-monitor-loading--subtle .jp-monitor-loading-box {
@@ -6720,6 +6712,7 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.92);
     box-shadow: 0 1px 8px rgba(15, 23, 42, 0.08);
+    pointer-events: auto;
 }
 
 .jp-monitor-loading--subtle .jp-monitor-loading-text {
@@ -6739,14 +6732,6 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     flex-direction: column;
     align-items: center;
     text-align: center;
-}
-
-.jp-monitor-is-loading .jp-monitor-tab-wrap {
-    pointer-events: none;
-}
-
-.jp-monitor-is-loading.jp-monitor-is-loading--manual .jp-monitor-tab-wrap {
-    pointer-events: none;
 }
 
 @keyframes jp-monitor-spin {

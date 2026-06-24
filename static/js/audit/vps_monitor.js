@@ -15,8 +15,8 @@
     const openContainerIds = new Set();
 
     const loading = window.jpCreateMonitorLoading
-        ? window.jpCreateMonitorLoading({ root: root, loadingEl: loadingEl, refreshBtn: refreshBtn })
-        : { show: function () {}, hide: function () {} };
+        ? window.jpCreateMonitorLoading({ loadingEl: loadingEl, refreshBtn: refreshBtn })
+        : { showInitial: function () {}, hideInitial: function () {}, showButtonBusy: function () {}, hideButtonBusy: function () {} };
 
     const HISTORY_MAX = 60;
     const chartHistory = { labels: [], cpu: [], ram: [], disk: [] };
@@ -353,8 +353,10 @@
 
     async function refreshMetrics(options) {
         if (!metricsUrl) return;
+        const initial = options && options.initial === true;
         const manual = options && options.manual === true;
-        loading.show(manual);
+        if (initial) loading.showInitial();
+        else if (manual) loading.showButtonBusy();
         try {
             const resp = await fetch(metricsUrl, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' },
@@ -367,7 +369,8 @@
         } catch (err) {
             console.warn('VPS metrics refresh failed', err);
         } finally {
-            loading.hide();
+            if (initial) loading.hideInitial();
+            else if (manual) loading.hideButtonBusy();
         }
     }
 
@@ -415,4 +418,5 @@
     }
 
     scheduleRefresh();
+    refreshMetrics({ initial: true });
 })();

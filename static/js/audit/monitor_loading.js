@@ -2,42 +2,52 @@
     'use strict';
 
     function createMonitorLoading(options) {
-        const root = options.root;
         const loadingEl = options.loadingEl;
         const refreshBtn = options.refreshBtn;
-        let pending = 0;
-        let manualActive = false;
+        let initialPending = 0;
+        let buttonPending = 0;
+        let initialDone = false;
 
-        function syncUi() {
-            const visible = pending > 0;
-            const subtle = visible && !manualActive;
+        function syncInitial() {
+            const visible = initialPending > 0 && !initialDone;
             if (loadingEl) {
                 loadingEl.hidden = !visible;
                 loadingEl.classList.toggle('is-visible', visible);
-                loadingEl.classList.toggle('jp-monitor-loading--subtle', subtle);
+                loadingEl.classList.toggle('jp-monitor-loading--subtle', visible);
                 loadingEl.setAttribute('aria-busy', visible ? 'true' : 'false');
-            }
-            if (root) {
-                root.classList.toggle('jp-monitor-is-loading', visible);
-                root.classList.toggle('jp-monitor-is-loading--manual', visible && manualActive);
-            }
-            if (refreshBtn) {
-                refreshBtn.disabled = manualActive;
-                const icon = refreshBtn.querySelector('.bi-arrow-clockwise');
-                if (icon) icon.classList.toggle('jp-spin', visible);
             }
         }
 
+        function syncButton() {
+            if (!refreshBtn) return;
+            const busy = buttonPending > 0;
+            refreshBtn.disabled = busy;
+            const icon = refreshBtn.querySelector('.bi-arrow-clockwise');
+            if (icon) icon.classList.toggle('jp-spin', busy);
+        }
+
         return {
-            show: function (manual) {
-                pending += 1;
-                if (manual) manualActive = true;
-                syncUi();
+            /** Overlay nhẹ — chỉ lần đầu vào trang, không chặn thao tác. */
+            showInitial: function () {
+                if (initialDone) return;
+                initialPending += 1;
+                syncInitial();
             },
-            hide: function () {
-                pending = Math.max(0, pending - 1);
-                if (pending === 0) manualActive = false;
-                syncUi();
+            hideInitial: function () {
+                initialPending = Math.max(0, initialPending - 1);
+                if (initialPending === 0) {
+                    initialDone = true;
+                }
+                syncInitial();
+            },
+            /** Chỉ quay icon nút Làm mới. */
+            showButtonBusy: function () {
+                buttonPending += 1;
+                syncButton();
+            },
+            hideButtonBusy: function () {
+                buttonPending = Math.max(0, buttonPending - 1);
+                syncButton();
             },
         };
     }
