@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">Nhắc lịch</h2>
+            <p class="text-muted small mb-0">Tạo lịch nhắc — đến giờ portal gửi thông báo push kèm nội dung.</p>
+        </div>
+    </div>
+
+    {% if push_ready and not push_subscribed %}
+    <div class="alert alert-warning border-0 shadow-sm mb-3">
+        <i class="bi bi-bell me-1"></i>
+        Bật <strong>thông báo portal</strong> trên trình duyệt để nhận nhắc đúng giờ
+        (popup khi đăng nhập hoặc cài PWA).
+    </div>
+    {% elif push_ready %}
+    <div class="alert alert-success border-0 shadow-sm py-2 mb-3 small">
+        <i class="bi bi-bell-fill me-1"></i> Đã đăng ký nhận push — nhắc sẽ hiện trên thiết bị đúng giờ.
+    </div>
+    {% endif %}
+
+    {% if can_manage and form %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-bottom py-3">
+            <h5 class="fw-bold mb-0"><i class="bi bi-plus-circle me-1 text-hm"></i>Thêm nhắc mới</h5>
+        </div>
+        <div class="card-body p-4">
+            <form method="post" class="vstack gap-3">
+                {% csrf_token %}
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                {% endif %}
+                <div>
+                    <label class="form-label fw-semibold small" for="{{ form.title.id_for_label }}">Tiêu đề</label>
+                    {{ form.title }}
+                    {% if form.title.errors %}<div class="text-danger small mt-1">{{ form.title.errors }}</div>{% endif %}
+                </div>
+                <div>
+                    <label class="form-label fw-semibold small" for="{{ form.body.id_for_label }}">Nội dung thông báo</label>
+                    {{ form.body }}
+                    {% if form.body.errors %}<div class="text-danger small mt-1">{{ form.body.errors }}</div>{% endif %}
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-5">
+                        <label class="form-label fw-semibold small" for="{{ form.remind_at.id_for_label }}">Thời gian nhắc</label>
+                        {{ form.remind_at }}
+                        {% if form.remind_at.errors %}<div class="text-danger small mt-1">{{ form.remind_at.errors }}</div>{% endif %}
+                    </div>
+                </div>
+                <div>
+                    <button type="submit" class="btn btn-hm fw-bold">Lưu nhắc</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white border-bottom py-3">
+            <h5 class="fw-bold mb-0">Sắp tới</h5>
+        </div>
+        <div class="card-body p-0">
+            {% if upcoming %}
+            <ul class="list-group list-group-flush">
+                {% for item in upcoming %}
+                <li class="list-group-item d-flex flex-wrap align-items-start justify-content-between gap-2 py-3">
+                    <div>
+                        <div class="fw-bold">{{ item.title }}</div>
+                        {% if item.body %}<div class="small text-muted mt-1">{{ item.body|truncatechars:160 }}</div>{% endif %}
+                        <div class="small text-hm mt-1"><i class="bi bi-clock me-1"></i>{{ item.remind_at|date:"H:i d/m/Y" }}</div>
+                    </div>
+                    {% if can_manage %}
+                    <form method="post" action="{% url 'utilities:schedule_reminder_delete' item.pk %}" onsubmit="return confirm('Xóa nhắc này?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Xóa</button>
+                    </form>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-muted mb-0 p-4">Chưa có nhắc sắp tới.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if pending %}
+    <div class="card border-0 shadow-sm mb-3 border-warning">
+        <div class="card-header bg-white border-bottom py-3">
+            <h5 class="fw-bold mb-0 text-warning">Đang chờ gửi</h5>
+        </div>
+        <div class="card-body p-0">
+            <ul class="list-group list-group-flush">
+                {% for item in pending %}
+                <li class="list-group-item py-3">
+                    <div class="fw-bold">{{ item.title }}</div>
+                    <div class="small text-muted">{{ item.remind_at|date:"H:i d/m/Y" }} — chờ push (cần bật thông báo)</div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if sent %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom py-3">
+            <h5 class="fw-bold mb-0 text-muted">Đã gửi</h5>
+        </div>
+        <div class="card-body p-0">
+            <ul class="list-group list-group-flush">
+                {% for item in sent %}
+                <li class="list-group-item py-3">
+                    <div class="fw-semibold">{{ item.title }}</div>
+                    <div class="small text-muted">
+                        Nhắc {{ item.remind_at|date:"H:i d/m/Y" }}
+                        · Đã push {{ item.push_sent_at|date:"H:i d/m/Y" }}
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -501,6 +501,15 @@
                     </a>
                 </li>
                 {% endif %}
+                {% jp_can_menu 'utilities' 'schedule_reminder' as jp_can_utilities_schedule %}
+                {% if jp_can_utilities_schedule %}
+                <li>
+                    <a href="{% url 'utilities:schedule_reminder_home' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/tien-ich/nhac-lich' in request.path %}active{% endif %}">
+                        <i class="bi bi-alarm"></i><span>Nhắc lịch</span>
+                    </a>
+                </li>
+                {% endif %}
             </ul>
         </li>
         {% endif %}

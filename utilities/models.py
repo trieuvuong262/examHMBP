@@ -228,3 +228,45 @@ class MealPushReminderLog(models.Model):
 
     def __str__(self):
         return f'{self.employee} · {self.meal_date} · {self.sent_at:%d/%m/%Y %H:%M}'
+
+
+class ScheduleReminder(models.Model):
+    """Nhắc lịch cá nhân — gửi web push đúng giờ."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='schedule_reminders',
+        verbose_name='Nhân viên',
+    )
+    title = models.CharField(max_length=120, verbose_name='Tiêu đề')
+    body = models.TextField(blank=True, verbose_name='Nội dung')
+    remind_at = models.DateTimeField(verbose_name='Thời gian nhắc', db_index=True)
+    is_active = models.BooleanField(default=True, verbose_name='Đang bật')
+    push_sent_at = models.DateTimeField(null=True, blank=True, verbose_name='Đã gửi push lúc')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['remind_at', '-created_at']
+        verbose_name = 'Nhắc lịch'
+        verbose_name_plural = 'Nhắc lịch'
+        indexes = [
+            models.Index(
+                fields=['is_active', 'push_sent_at', 'remind_at'],
+                name='util_sched_push_idx',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.user} · {self.title} · {self.remind_at:%d/%m/%Y %H:%M}'
+
+    @property
+    def is_pending_push(self) -> bool:
+        return self.is_active and self.push_sent_at is None
+
+    @property
+    def is_overdue(self) -> bool:
+        from django.utils import timezone
+
+        return self.is_pending_push and self.remind_at <= timezone.now()

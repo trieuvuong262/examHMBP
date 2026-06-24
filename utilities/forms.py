@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from django import forms
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 from utilities.meal_rules import is_meal_order_window_open
 from utilities.models import MealDish, MealOrder, MealOrderSettings, SalaryAdvanceRequest
@@ -129,3 +130,45 @@ class MealStatsFilterForm(forms.Form):
         label='Tham chiếu',
         widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
     )
+
+
+class ScheduleReminderForm(forms.ModelForm):
+    remind_at = forms.DateTimeField(
+        label='Thời gian nhắc',
+        input_formats=['%Y-%m-%dT%H:%M', '%Y-%m-%d %H:%M', '%d/%m/%Y %H:%M'],
+        widget=forms.DateTimeInput(
+            attrs={
+                'class': 'form-control',
+                'type': 'datetime-local',
+            },
+            format='%Y-%m-%dT%H:%M',
+        ),
+    )
+
+    class Meta:
+        from utilities.models import ScheduleReminder
+
+        model = ScheduleReminder
+        fields = ('title', 'body', 'remind_at')
+        widgets = {
+            'title': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'VD: Họp ban sản xuất',
+                'maxlength': 120,
+            }),
+            'body': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Nội dung hiển thị trong thông báo push…',
+            }),
+        }
+
+    def clean_remind_at(self):
+        value = self.cleaned_data.get('remind_at')
+        if value is None:
+            return value
+        if timezone.is_naive(value):
+            value = timezone.make_aware(value, timezone.get_current_timezone())
+        if value <= timezone.now():
+            raise ValidationError('Chọn thời gian trong tương lai.')
+        return value

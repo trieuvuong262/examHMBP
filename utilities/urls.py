@@ -31,4 +31,7 @@ urlpatterns = [
     path('ung-luong/quan-ly/xuat/', views.salary_manage_export, name='salary_manage_export'),
     path('ung-luong/thong-ke/', views.salary_stats, name='salary_stats'),
     path('ung-luong/thong-ke/xuat/', views.salary_stats_export, name='salary_stats_export'),
+    # Nhắc lịch
+    path('nhac-lich/', views.schedule_reminder_home, name='schedule_reminder_home'),
+    path('nhac-lich/<int:pk>/xoa/', views.schedule_reminder_delete, name='schedule_reminder_delete'),
 ]

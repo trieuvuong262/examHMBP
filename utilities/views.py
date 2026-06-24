@@ -8,6 +8,7 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from assessment.decorators import module_perm_required
 from hrm.menu_permissions import (
@@ -33,6 +34,7 @@ from utilities.forms import (
     MealOrderSettingsForm,
     MealStatsFilterForm,
     SalaryAdvanceForm,
+    ScheduleReminderForm,
 )
 from utilities.meal_rules import (
     current_orderable_meal_date,
@@ -41,7 +43,15 @@ from utilities.meal_rules import (
     meal_order_window_for,
     next_orderable_meal_date,
 )
-from utilities.models import MealDayOffering, MealDish, MealOrder, MealOrderDecline, MealOrderSettings, SalaryAdvanceRequest
+from utilities.models import (
+    MealDayOffering,
+    MealDish,
+    MealOrder,
+    MealOrderDecline,
+    MealOrderSettings,
+    SalaryAdvanceRequest,
+    ScheduleReminder,
+)
 from utilities.salary_rules import (
     current_advance_month,
     is_salary_advance_open,
@@ -64,6 +74,14 @@ def _parse_meal_date(raw: str | None, *, default):
 
 def _can_manage_salary(user) -> bool:
     return user_can_update_menu(user, MODULE_UTILITIES, 'salary_advance')
+
+
+def _can_schedule_reminder(user) -> bool:
+    return user_can_access_menu(user, MODULE_UTILITIES, 'schedule_reminder')
+
+
+def _can_manage_schedule_reminder(user) -> bool:
+    return user_can_create_menu(user, MODULE_UTILITIES, 'schedule_reminder')
 
 
 def _offered_dish_ids(meal_date):
@@ -119,6 +137,8 @@ def utilities_hub(request):
         return redirect('utilities:meal_home')
     if user_can_access_menu(request.user, MODULE_UTILITIES, 'salary_advance'):
         return redirect('utilities:salary_home')
+    if user_can_access_menu(request.user, MODULE_UTILITIES, 'schedule_reminder'):
+        return redirect('utilities:schedule_reminder_home')
     messages.error(request, 'Bạn chưa được cấp quyền Tiện ích.')
     return redirect('home_portal')
 
@@ -471,3 +491,71 @@ def salary_stats_export(request):
             'total': int(row['total'] or 0),
         })
     return export_salary_stats_xlsx(rows)
+
+
+# --- Nhắc lịch ---
+
+
+@module_perm_required(MODULE_UTILITIES, 'view')
+def schedule_reminder_home(request):
+    if not _can_schedule_reminder(request.user):
+        messages.error(request, 'Bạn chưa được cấp quyền Nhắc lịch.')
+        return redirect('home_portal')
+
+    can_manage = _can_manage_schedule_reminder(request.user)
+    now = timezone.now()
+    reminders = list(
+        ScheduleReminder.objects.filter(user=request.user, is_active=True)
+        .order_by('remind_at', '-created_at')[:50],
+    )
+    upcoming = [r for r in reminders if r.push_sent_at is None and r.remind_at > now]
+    pending = [r for r in reminders if r.is_overdue]
+    sent = [r for r in reminders if r.push_sent_at is not None]
+
+    form = None
+    if can_manage:
+        if request.method == 'POST':
+            form = ScheduleReminderForm(request.POST)
+            if form.is_valid():
+                reminder = form.save(commit=False)
+                reminder.user = request.user
+                reminder.save()
+                messages.success(
+                    request,
+                    f'Đã tạo nhắc «{reminder.title}» lúc {timezone.localtime(reminder.remind_at):%H:%M %d/%m/%Y}.',
+                )
+                return redirect('utilities:schedule_reminder_home')
+        else:
+            form = ScheduleReminderForm()
+
+    from utilities.push_service import webpush_configured
+    from utilities.portal_push_eligibility import user_portal_push_eligible
+
+    push_ready = webpush_configured() and user_portal_push_eligible(request.user)
+    subscribed = False
+    if push_ready:
+        from utilities.models import MealPushSubscription
+        subscribed = MealPushSubscription.objects.filter(user=request.user).exists()
+
+    return render(request, 'utilities/schedule_reminder_home.html', {
+        'form': form,
+        'can_manage': can_manage,
+        'upcoming': upcoming,
+        'pending': pending,
+        'sent': sent,
+        'push_ready': push_ready,
+        'push_subscribed': subscribed,
+        'now': now,
+    })
+
+
+@module_perm_required(MODULE_UTILITIES, 'create')
+@require_POST
+def schedule_reminder_delete(request, pk):
+    if not _can_manage_schedule_reminder(request.user):
+        raise Http404
+    reminder = get_object_or_404(ScheduleReminder, pk=pk, user=request.user)
+    reminder.is_active = False
+    reminder.save(update_fields=['is_active', 'updated_at'])
+    messages.success(request, 'Đã xóa nhắc lịch.')
+    return redirect('utilities:schedule_reminder_home')
