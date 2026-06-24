@@ -237,6 +237,13 @@
         setTimeout(refreshOnlineStatus, 1500);
     }
 
+    function csrfToken() {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta && meta.content) return meta.content;
+        var input = document.querySelector('[name=csrfmiddlewaretoken]');
+        return input ? input.value : '';
+    }
+
     document.querySelectorAll('.jp-rd-wake-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
             var url = btn.getAttribute('data-wake-url');
@@ -283,7 +290,13 @@
                 credentials: 'same-origin',
                 body: new FormData(syncForm),
             })
-                .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
+                .then(function (res) {
+                    var ct = (res.headers.get('content-type') || '');
+                    if (ct.indexOf('application/json') >= 0) {
+                        return res.json().then(function (data) { return { ok: res.ok, data: data }; });
+                    }
+                    return { ok: res.ok, data: { message: res.ok ? 'Đã đồng bộ.' : 'Lỗi ' + res.status } };
+                })
                 .then(function (result) {
                     var msg = (result.data && result.data.message) || 'Không đồng bộ được.';
                     if (window.jpToast) {
@@ -294,10 +307,8 @@
                     if (result.ok) window.location.reload();
                 })
                 .catch(function () {
-                    syncForm.submit();
-                })
-                .finally(function () {
                     if (btn) btn.disabled = false;
+                    syncForm.submit();
                 });
         });
     }

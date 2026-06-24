@@ -298,6 +298,30 @@ class RustdeskHostTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()['status'], 'error')
 
+    def test_sync_devices_endpoint(self):
+        from equipment.models import Device
+
+        Device.objects.create(
+            device_code='IT-PC-SYNC',
+            name='PC Sync',
+            category='PC',
+            hostname='PC-SYNC-HOST',
+            mac_address='DE:AD:BE:EF:00:01',
+        )
+        self.host.hostname = 'PC-SYNC-HOST'
+        self.host.save(update_fields=['hostname'])
+        self.client.force_login(self.edit_user)
+        response = self.client.post(
+            reverse('audit:rustdesk_sync_devices'),
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload['status'], 'ok')
+        self.assertGreaterEqual(payload['mac_updated'], 1)
+        self.host.refresh_from_db()
+        self.assertEqual(self.host.mac_address, 'DE:AD:BE:EF:00:01')
+
     @override_settings(
         RUSTDESK_PUBLIC_HOST='rd.justplay.vn',
         RUSTDESK_PUBLIC_KEY='test-public-key',
