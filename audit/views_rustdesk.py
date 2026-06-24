@@ -12,7 +12,7 @@ from audit.models import RustDeskHost
 from audit.services.rustdesk_device_sync import sync_all_rustdesk_hosts_from_devices
 from audit.services.rustdesk_connect import effective_rustdesk_password
 from audit.services.rustdesk_online import get_peers_online_map, normalize_rustdesk_id
-from audit.services.wake_on_lan import send_wake_on_lan
+from audit.services.wake_on_lan import dispatch_wake_on_lan
 from hrm.menu_permissions import user_can_delete_menu, user_can_edit_menu
 from hrm.module_permissions import MODULE_AUDIT
 from PortalJustPlay.pagination import paginate_queryset
@@ -138,7 +138,7 @@ def rustdesk_wake(request, pk):
         }, status=400)
 
     try:
-        broadcast = send_wake_on_lan(
+        broadcast, mode = dispatch_wake_on_lan(
             mac,
             ip_address=str(host.ip_address) if host.ip_address else None,
         )
@@ -147,13 +147,15 @@ def rustdesk_wake(request, pk):
     except OSError as exc:
         return JsonResponse({
             'status': 'error',
-            'message': f'Không gửi được magic packet: {exc}',
+            'message': f'Không gửi được Wake-on-LAN: {exc}',
         }, status=500)
 
+    via = 'NAS relay' if mode == 'relay' else 'broadcast'
     return JsonResponse({
         'status': 'ok',
-        'message': f'Đã gửi Wake-on-LAN tới {host.name} ({broadcast}).',
+        'message': f'Đã gửi Wake-on-LAN tới {host.name} qua {via} ({broadcast}).',
         'broadcast': broadcast,
+        'mode': mode,
     })
 
 

@@ -151,6 +151,10 @@ RUSTDESK_WOL_ENABLED = os.getenv("RUSTDESK_WOL_ENABLED", "true").lower() in (
 )
 RUSTDESK_WOL_PORT = int(os.getenv("RUSTDESK_WOL_PORT", "9"))
 RUSTDESK_WOL_BROADCAST = os.getenv("RUSTDESK_WOL_BROADCAST", "").strip()
+# WoL qua NAS trong LAN — VPS gọi URL này (nên dùng IP Tailscale/LAN của NAS)
+RUSTDESK_WOL_RELAY_URL = os.getenv("RUSTDESK_WOL_RELAY_URL", "").strip()
+RUSTDESK_WOL_RELAY_SECRET = os.getenv("RUSTDESK_WOL_RELAY_SECRET", "").strip()
+RUSTDESK_WOL_RELAY_TIMEOUT = float(os.getenv("RUSTDESK_WOL_RELAY_TIMEOUT", "5"))
 EQUIPMENT_NOTIFY_EMAILS = os.getenv("EQUIPMENT_NOTIFY_EMAILS", "")
 
 # Nhân viên Thu mua (dropdown «Nhân viên Thu mua xử lý») — username cách nhau bởi dấu phẩy.

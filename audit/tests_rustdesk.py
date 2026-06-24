@@ -106,6 +106,40 @@ class WakeOnLanServiceTests(SimpleTestCase):
         args = mock_sock.sendto.call_args[0]
         self.assertEqual(args[1], ('192.168.74.255', 9))
 
+    @override_settings(
+        RUSTDESK_WOL_RELAY_URL='http://127.0.0.1:9/wake',
+        RUSTDESK_WOL_RELAY_SECRET='relay-secret',
+    )
+    def test_send_wake_via_relay(self):
+        from unittest.mock import MagicMock, patch
+
+        from audit.services.wake_on_lan import send_wake_via_relay
+
+        response_body = json.dumps({
+            'status': 'ok',
+            'broadcast': '192.168.2.255',
+        }).encode('utf-8')
+        mock_response = MagicMock()
+        mock_response.read.return_value = response_body
+        mock_response.__enter__ = lambda s: s
+        mock_response.__exit__ = MagicMock(return_value=False)
+
+        with patch('audit.services.wake_on_lan.urllib.request.urlopen', return_value=mock_response):
+            target = send_wake_via_relay('AA:BB:CC:DD:EE:FF', ip_address='192.168.2.50')
+        self.assertEqual(target, '192.168.2.255')
+
+    @override_settings(RUSTDESK_WOL_RELAY_URL='')
+    def test_dispatch_prefers_direct_without_relay_url(self):
+        from unittest.mock import patch
+
+        from audit.services.wake_on_lan import dispatch_wake_on_lan
+
+        with patch('audit.services.wake_on_lan.send_wake_on_lan', return_value='10.0.0.255') as mock_direct:
+            target, mode = dispatch_wake_on_lan('AA:BB:CC:DD:EE:FF', ip_address='10.0.0.5')
+        self.assertEqual(mode, 'direct')
+        self.assertEqual(target, '10.0.0.255')
+        mock_direct.assert_called_once()
+
 
 class RustdeskOnlineServiceTests(SimpleTestCase):
     def test_build_and_parse_online_request_roundtrip(self):
@@ -285,12 +319,29 @@ class RustdeskHostTests(TestCase):
         self.host.ip_address = '192.168.74.50'
         self.host.save(update_fields=['mac_address', 'ip_address'])
         self.client.force_login(self.edit_user)
-        with patch('audit.views_rustdesk.send_wake_on_lan', return_value='192.168.74.255') as mock_wake:
+        with patch('audit.views_rustdesk.dispatch_wake_on_lan', return_value=('192.168.74.255', 'direct')) as mock_wake:
             response = self.client.post(reverse('audit:rustdesk_wake', args=[self.host.pk]))
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual(payload['status'], 'ok')
         mock_wake.assert_called_once_with('AA:BB:CC:DD:EE:FF', ip_address='192.168.74.50')
+
+    @override_settings(
+        RUSTDESK_WOL_ENABLED=True,
+        RUSTDESK_WOL_RELAY_URL='http://nas.local:39280/wake',
+        RUSTDESK_WOL_RELAY_SECRET='relay-secret',
+    )
+    def test_wake_endpoint_uses_relay(self):
+        from unittest.mock import patch
+
+        self.host.mac_address = 'AA:BB:CC:DD:EE:FF'
+        self.host.save(update_fields=['mac_address'])
+        self.client.force_login(self.edit_user)
+        with patch('audit.views_rustdesk.dispatch_wake_on_lan', return_value=('192.168.2.255', 'relay')) as mock_wake:
+            response = self.client.post(reverse('audit:rustdesk_wake', args=[self.host.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['mode'], 'relay')
+        mock_wake.assert_called_once()
 
     def test_wake_endpoint_requires_mac(self):
         self.client.force_login(self.edit_user)
