@@ -388,37 +388,12 @@ def _quota_used_bytes(quota: dict | None) -> int | None:
     return None
 
 
-def _read_dsm_filestation_share_sizes(paths: list[str]) -> dict[str, int]:
-    """Lấy dung lượng thư mục share qua FileStation getinfo (chính xác hơn list_share.size)."""
-    sizes: dict[str, int] = {}
-    if not paths or not dsm_configured():
-        return sizes
-    for offset in range(0, len(paths), 15):
-        chunk = paths[offset:offset + 15]
-        try:
-            data = _dsm_request(
-                'SYNO.FileStation.List',
-                'getinfo',
-                version=2,
-                params={
-                    'path': json.dumps(chunk),
-                    'additional': '["size"]',
-                },
-                timeout=20,
-            )
-        except NasMonitorError:
-            continue
-        for item in data.get('files') or []:
-            if not isinstance(item, dict):
-                continue
-            path = str(item.get('path') or '').strip('/')
-            name = path.split('/')[0] if path else ''
-            if not name:
-                continue
-            used_b = _parse_byte_value((item.get('additional') or {}).get('size'))
-            if used_b is not None:
-                sizes[name] = used_b
-    return sizes
+def _share_list_size_bytes(value) -> int | None:
+    """list_share.size / getinfo trên thư mục thường chỉ là metadata (~vài trăm byte), bỏ qua."""
+    used_b = _parse_byte_value(value)
+    if used_b is None or used_b < 1024 * 1024:
+        return None
+    return used_b
 
 
 def _read_dsm_filestation_shares(quota_map: dict[str, dict] | None = None) -> list[dict]:
@@ -427,56 +402,29 @@ def _read_dsm_filestation_shares(quota_map: dict[str, dict] | None = None) -> li
         'SYNO.FileStation.List',
         'list_share',
         version=2,
-        params={'additional': '["size","real_path","volume_status"]', 'limit': '0'},
+        params={'additional': '["size","real_path"]', 'limit': '0'},
         timeout=20,
     )
-    raw_shares = data.get('shares') or []
-    missing_paths: list[str] = []
     rows: list[dict] = []
-    for share in raw_shares:
+    for share in data.get('shares') or []:
         name = share.get('name')
         if not name:
             continue
         extra = share.get('additional') or {}
-        used_b = _parse_byte_value(extra.get('size'))
-        if used_b is None:
-            share_path = share.get('path') or f'/{name}'
-            missing_paths.append(share_path)
         quota = quota_map.get(name) or {}
+        used_b = _share_list_size_bytes(extra.get('size'))
         if used_b is None:
             used_b = _quota_used_bytes(quota)
         total_b = _quota_total_bytes(quota)
-        if total_b is None:
-            vs = extra.get('volume_status') or {}
-            if isinstance(vs, dict):
-                vol_total = _parse_byte_value(vs.get('totalspace') or vs.get('total_space'))
-                if vol_total:
-                    total_b = vol_total
         real_path = extra.get('real_path') or ''
-        rows.append({
-            'name': name,
-            'path': share.get('path') or f'/{name}',
-            'used_b': used_b,
-            'total_b': total_b,
-            'remote': share.get('path') or real_path,
-        })
-
-    if missing_paths:
-        for name, used_b in _read_dsm_filestation_share_sizes(missing_paths).items():
-            for row in rows:
-                if row['name'] == name and row['used_b'] is None:
-                    row['used_b'] = used_b
-
-    result: list[dict] = []
-    for row in rows:
-        result.append(_share_row(
-            name=row['name'],
-            total_b=row['total_b'],
-            used_b=row['used_b'],
-            remote=row['remote'],
+        rows.append(_share_row(
+            name=name,
+            total_b=total_b,
+            used_b=used_b,
+            remote=share.get('path') or real_path or f'/{name}',
         ))
-    result.sort(key=lambda item: item['name'].lower())
-    return result
+    rows.sort(key=lambda item: item['name'].lower())
+    return rows
 
 
 def _read_dsm_core_shares(quota_map: dict[str, dict] | None = None) -> list[dict]:
@@ -509,42 +457,101 @@ def _read_dsm_core_shares(quota_map: dict[str, dict] | None = None) -> list[dict
     return rows
 
 
+def _share_rclone_remote(name: str, remote: str = '') -> str:
+    """Chuyển path DSM (/backup) sang remote rclone (synology:backup)."""
+    remote_base = default_nas_rclone_remote()
+    candidate = (remote or '').strip()
+    if candidate and ':' in candidate:
+        return candidate
+    if candidate and remote_base and candidate.startswith(remote_base.rstrip(':')):
+        return candidate
+    return f'{remote_base}{name}' if remote_base.endswith(':') else f'{remote_base.rstrip("/")}/{name}'
+
+
+def _volume_total_bytes_set(volumes: list[dict] | None) -> set[int]:
+    totals: set[int] = set()
+    for vol in volumes or []:
+        total_b = vol.get('total_bytes')
+        if isinstance(total_b, int) and total_b > 0:
+            totals.add(total_b)
+    return totals
+
+
+MAX_RCLONE_ABOUT_QUOTA_BYTES = 1024 ** 4  # 1 TB — quota share thường nhỏ hơn; pool/volume hay > 1 TB
+
+
+def _share_quota_from_about(about_total: int | None, volume_totals: set[int]) -> int | None:
+    if not about_total or _is_volume_capacity(about_total, volume_totals):
+        return None
+    if about_total > MAX_RCLONE_ABOUT_QUOTA_BYTES:
+        return None
+    return about_total
+
+
+def _is_volume_capacity(total_b: int | None, volume_totals: set[int]) -> bool:
+    return bool(total_b and total_b in volume_totals)
+
+
+def _rclone_size(remote: str, *, timeout: int = 45) -> int | None:
+    if not rclone_listing_available():
+        return None
+    proc = _run_rclone(['size', remote, '--json'], timeout=timeout)
+    if proc.returncode != 0 or not proc.stdout.strip():
+        return None
+    try:
+        data = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        return None
+    return _parse_byte_value(data.get('bytes'))
+
+
 def _enrich_shares_from_rclone(
     rows: list[dict],
     *,
-    max_shares: int = 5,
-    timeout_per_share: int = 10,
+    volumes: list[dict] | None = None,
+    timeout_about: int = 8,
+    timeout_size: int = 25,
     deadline: float | None = None,
 ) -> list[dict]:
     if not rclone_listing_available():
         return rows
-    remote_base = default_nas_rclone_remote()
-    enriched = 0
+    volume_totals = _volume_total_bytes_set(volumes)
     for row in rows:
         if deadline is not None and time.monotonic() >= deadline:
             break
-        if enriched >= max_shares:
-            break
-        if row.get('used_bytes') is not None:
-            continue
         name = row.get('name')
         if not name:
             continue
-        share_remote = row.get('remote') or (
-            f'{remote_base}{name}' if remote_base.endswith(':') else f'{remote_base.rstrip("/")}/{name}'
-        )
-        about = _rclone_about(share_remote, timeout=timeout_per_share)
-        if not about:
-            continue
-        used_b = about.get('used_bytes')
-        total_b = row.get('total_bytes') or about.get('total_bytes')
+        share_remote = _share_rclone_remote(name, row.get('remote') or '')
+        quota_total = row.get('total_bytes')
+        about = _rclone_about(share_remote, timeout=timeout_about)
+        about_total = about.get('total_bytes') if about else None
+        about_quota = _share_quota_from_about(about_total, volume_totals)
+        has_share_quota = bool(quota_total or about_quota)
+        total_b = quota_total or about_quota
+
+        used_b = row.get('used_bytes')
+        if has_share_quota and about:
+            used_b = about.get('used_bytes') or used_b
+        elif used_b is None or _is_volume_capacity(total_b, volume_totals):
+            remaining = None
+            if deadline is not None:
+                remaining = max(3, int(deadline - time.monotonic()))
+            if remaining is None or remaining > 3:
+                size_timeout = min(timeout_size, remaining) if remaining else timeout_size
+                used_b = _rclone_size(share_remote, timeout=size_timeout) or used_b
+            if used_b is None and about:
+                used_b = about.get('used_bytes')
+
+        if not has_share_quota:
+            total_b = None
+
         row.update(_share_row(
             name=name,
             total_b=total_b,
             used_b=used_b,
             remote=share_remote,
         ))
-        enriched += 1
     return rows
 
 
@@ -587,7 +594,7 @@ def _list_shares_from_rclone() -> list[dict]:
 
 
 def _collect_shares(*, volumes: list[dict] | None = None) -> list[dict]:
-    deadline = time.monotonic() + 25
+    deadline = time.monotonic() + 50
     if dsm_configured():
         quota_map: dict[str, dict] = {}
         try:
@@ -601,13 +608,13 @@ def _collect_shares(*, volumes: list[dict] | None = None) -> list[dict]:
             try:
                 rows = loader()
                 if rows:
-                    return _enrich_shares_from_rclone(rows, deadline=deadline)
+                    return _enrich_shares_from_rclone(rows, volumes=volumes, deadline=deadline)
             except NasMonitorError:
                 continue
 
     rows = _list_shares_from_rclone()
     if rows:
-        return _enrich_shares_from_rclone(rows, deadline=deadline)
+        return _enrich_shares_from_rclone(rows, volumes=volumes, deadline=deadline)
     return _list_shares_from_mount()
 
 
@@ -1237,7 +1244,23 @@ def _rclone_about(remote: str, *, timeout: int = 45) -> dict | None:
     }
 
 
-def collect_nas_metrics() -> dict:
+def collect_nas_metrics(*, scope: str = 'full') -> dict:
+    """Thu thập metrics NAS.
+
+    scope:
+      - performance: CPU/RAM/ổ đĩa + tiến trình (nhanh, không share/widgets/rclone about)
+      - overview: thêm share, volume, backup
+      - full: thêm widget DSM (tab Hệ thống DSM)
+    """
+    scope = (scope or 'full').strip().lower()
+    if scope not in ('performance', 'overview', 'full'):
+        scope = 'full'
+
+    include_shares = scope in ('overview', 'full')
+    include_widgets = scope == 'full'
+    include_backup = scope in ('overview', 'full')
+    include_rclone_disk = scope in ('overview', 'full')
+
     rclone_ok = rclone_listing_available()
     mount_ok = nas_is_available()
     dsm_ok = dsm_configured()
@@ -1293,12 +1316,13 @@ def collect_nas_metrics() -> dict:
         except NasMonitorError:
             metrics['processes'] = []
 
-    try:
-        metrics['shares'] = _collect_shares(volumes=metrics.get('volumes'))
-    except Exception:
-        metrics['shares'] = []
+    if include_shares:
+        try:
+            metrics['shares'] = _collect_shares(volumes=metrics.get('volumes'))
+        except Exception:
+            metrics['shares'] = []
 
-    if rclone_ok:
+    if rclone_ok and include_rclone_disk:
         root_remote = default_nas_rclone_remote()
         root_about = _rclone_about(root_remote)
         if root_about:
@@ -1307,6 +1331,7 @@ def collect_nas_metrics() -> dict:
                 **root_about,
             }
 
+    if rclone_ok and include_backup:
         backup_remote = backup_rclone_base()
         backup_about = _rclone_about(backup_remote)
         metrics['backup'] = {
@@ -1324,7 +1349,7 @@ def collect_nas_metrics() -> dict:
             'display': primary.get('display'),
         }
 
-    if dsm_ok:
+    if dsm_ok and include_widgets:
         try:
             metrics['widgets'] = collect_dsm_widgets(
                 volumes=metrics.get('volumes'),
@@ -1336,4 +1361,5 @@ def collect_nas_metrics() -> dict:
         except NasMonitorError:
             metrics['widgets'] = _empty_dsm_widgets()
 
+    metrics['scope'] = scope
     return metrics

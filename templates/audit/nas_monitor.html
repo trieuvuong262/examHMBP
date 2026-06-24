@@ -298,38 +298,6 @@
             </div>
         </div>
 
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-white border-0 pt-3 pb-2">
-                <h5 class="fw-bold mb-0">Share NAS</h5>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-sm table-hover mb-0 align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Share</th>
-                                <th class="text-end">Dung lượng</th>
-                                <th class="text-end">Đã dùng %</th>
-                            </tr>
-                        </thead>
-                        <tbody id="jp-nas-perf-shares">
-                            {% for row in metrics.shares %}
-                            <tr>
-                                <td class="font-monospace small">{{ row.name }}</td>
-                                <td class="text-end">{{ row.display }}</td>
-                                <td class="text-end">{% if row.used_percent is not None %}{{ row.used_percent }}%{% else %}—{% endif %}</td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="3" class="text-muted small p-3">Chưa có dữ liệu share.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
     </div>{# /performance tab #}
 
     {% with widgets=metrics.widgets %}

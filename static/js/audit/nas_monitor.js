@@ -152,9 +152,7 @@
             tbody.innerHTML = '<tr><td colspan="3" class="text-muted small p-3">Chưa có dữ liệu share.</td></tr>';
             return;
         }
-        const sorted = tbodyId.indexOf('perf') >= 0
-            ? rows.slice().sort(function (a, b) { return (Number(b.used_bytes) || 0) - (Number(a.used_bytes) || 0); })
-            : rows;
+        const sorted = rows;
         tbody.innerHTML = sorted.map(function (row) {
             const pct = row.used_percent != null ? row.used_percent + '%' : '—';
             return (
@@ -228,7 +226,6 @@
         if (perfDiskDetail) perfDiskDetail.textContent = disk.display || '—';
 
         renderProcesses(metrics.processes || []);
-        renderShares(metrics.shares || [], 'jp-nas-perf-shares');
 
         if (performanceTabActive) {
             pushChartHistory(metrics);
@@ -413,6 +410,62 @@
         );
     }
 
+    const overviewTabBtn = document.getElementById('jp-nas-tab-overview-btn');
+    const dsmTabBtn = document.getElementById('jp-nas-tab-dsm-btn');
+
+    let activeScope = 'overview';
+
+    function setActiveScope(scope) {
+        activeScope = scope || 'overview';
+    }
+
+    function applyMetricsForScope(metrics, scope) {
+        if (scope === 'performance') {
+            applyPerformanceMetrics(metrics);
+        } else if (scope === 'full') {
+            applyMetrics(metrics);
+        } else {
+            const ram = metrics.ram || {};
+            const cpu = metrics.cpu || {};
+            const disk = metrics.disk || {};
+            const backup = metrics.backup || {};
+
+            const ramDisplay = document.querySelector('[data-jp-nas-ram-display]');
+            if (ramDisplay) ramDisplay.textContent = ram.display || '—';
+            setBar(document.querySelector('[data-jp-nas-ram-bar]'), ram.used_percent);
+            const ramPct = document.querySelector('[data-jp-nas-ram-pct]');
+            if (ramPct) ramPct.textContent = (ram.used_percent != null ? ram.used_percent : '—') + (ram.used_percent != null ? '%' : '');
+
+            const cpuDisplay = document.querySelector('[data-jp-nas-cpu-display]');
+            if (cpuDisplay) cpuDisplay.textContent = cpu.percent != null ? cpu.percent + '%' : '—';
+            setBar(document.querySelector('[data-jp-nas-cpu-bar]'), cpu.percent);
+
+            const diskDisplay = document.querySelector('[data-jp-nas-disk-display]');
+            if (diskDisplay) diskDisplay.textContent = disk.display || '—';
+            setBar(document.querySelector('[data-jp-nas-disk-bar]'), disk.used_percent);
+            const diskPct = document.querySelector('[data-jp-nas-disk-pct]');
+            if (diskPct) diskPct.textContent = (disk.used_percent != null ? disk.used_percent : '—') + (disk.used_percent != null ? '%' : '');
+
+            renderShares(metrics.shares || [], 'jp-nas-shares');
+            renderVolumes(metrics.volumes || []);
+
+            const backupRemote = document.querySelector('[data-jp-nas-backup-remote]');
+            if (backupRemote) backupRemote.textContent = backup.remote || '—';
+            const backupSize = document.querySelector('[data-jp-nas-backup-size]');
+            if (backupSize) backupSize.textContent = backup.display || '—';
+            const backupPct = document.querySelector('[data-jp-nas-backup-pct]');
+            if (backupPct) backupPct.textContent = backup.used_percent != null ? ' (' + backup.used_percent + '%)' : '';
+
+            if (performanceTabActive) {
+                applyPerformanceMetrics(metrics);
+            }
+        }
+
+        if (updatedEl) {
+            updatedEl.textContent = 'Cập nhật ' + new Date().toLocaleTimeString('vi-VN');
+        }
+    }
+
     function applyMetrics(metrics) {
         const ram = metrics.ram || {};
         const cpu = metrics.cpu || {};
@@ -456,15 +509,17 @@
     async function refreshMetrics(options) {
         if (!metricsUrl) return;
         const manual = options && options.manual === true;
+        const scope = (options && options.scope) || activeScope;
         loading.show(manual);
         try {
-            const resp = await fetch(metricsUrl, {
+            const url = metricsUrl + (metricsUrl.indexOf('?') >= 0 ? '&' : '?') + 'scope=' + encodeURIComponent(scope);
+            const resp = await fetch(url, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' },
                 credentials: 'same-origin',
             });
             const data = await resp.json();
             if (data.status === 'success' && data.metrics) {
-                applyMetrics(data.metrics);
+                applyMetricsForScope(data.metrics, scope);
             } else if (updatedEl) {
                 updatedEl.textContent = 'Lỗi tải metrics' + (data.message ? ': ' + data.message : '');
             }
@@ -476,35 +531,49 @@
         }
     }
 
+    function bindTabScope(btn, scope) {
+        if (!btn) return;
+        btn.addEventListener('shown.bs.tab', function () {
+            setActiveScope(scope);
+            if (scope === 'performance') {
+                performanceTabActive = true;
+                initPerformanceCharts();
+            } else {
+                performanceTabActive = false;
+            }
+            scheduleRefresh();
+            refreshMetrics({ manual: false, scope: scope });
+        });
+        if (scope === 'performance') {
+            btn.addEventListener('hidden.bs.tab', function () {
+                performanceTabActive = false;
+                scheduleRefresh();
+            });
+        }
+    }
+
     function scheduleRefresh() {
         if (refreshTimer) clearInterval(refreshTimer);
         const sec = performanceTabActive ? performanceRefreshSec : refreshSec;
         if (sec > 0) {
             refreshTimer = setInterval(function () {
-                refreshMetrics({ manual: false });
+                refreshMetrics({ manual: false, scope: activeScope });
             }, sec * 1000);
         }
     }
 
-    if (performanceTabBtn) {
-        performanceTabBtn.addEventListener('shown.bs.tab', function () {
-            performanceTabActive = true;
-            initPerformanceCharts();
-            scheduleRefresh();
-            refreshMetrics({ manual: false });
-        });
-        performanceTabBtn.addEventListener('hidden.bs.tab', function () {
-            performanceTabActive = false;
-            scheduleRefresh();
-        });
-    }
+    bindTabScope(overviewTabBtn, 'overview');
+    bindTabScope(performanceTabBtn, 'performance');
+    bindTabScope(dsmTabBtn, 'full');
+
     if (performanceTab && performanceTab.classList.contains('active')) {
         performanceTabActive = true;
+        setActiveScope('performance');
     }
 
     if (refreshBtn) {
         refreshBtn.addEventListener('click', function () {
-            refreshMetrics({ manual: true });
+            refreshMetrics({ manual: true, scope: activeScope });
         });
     }
 

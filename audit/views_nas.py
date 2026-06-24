@@ -13,7 +13,7 @@ from hrm.module_permissions import MODULE_AUDIT
 @require_GET
 def nas_monitor_page(request):
     try:
-        metrics = collect_nas_metrics()
+        metrics = collect_nas_metrics(scope='overview')
     except Exception as exc:
         metrics = {
             'hostname': None,
@@ -39,8 +39,11 @@ def nas_monitor_page(request):
 @module_perm_required(MODULE_AUDIT, 'view')
 @require_GET
 def nas_monitor_metrics_api(request):
+    scope = (request.GET.get('scope') or 'overview').strip().lower()
+    if scope not in ('performance', 'overview', 'full'):
+        scope = 'overview'
     try:
-        metrics = collect_nas_metrics()
+        metrics = collect_nas_metrics(scope=scope)
     except Exception as exc:
         return JsonResponse({'status': 'error', 'message': str(exc)}, status=500)
     return JsonResponse({'status': 'success', 'metrics': metrics})
