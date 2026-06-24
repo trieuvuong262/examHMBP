@@ -309,9 +309,31 @@ def _read_dsm_volumes() -> list[dict]:
     return volumes
 
 
+def _parse_byte_value(value) -> int | None:
+    if value is None or value == '':
+        return None
+    if isinstance(value, dict):
+        for key in ('size', 'used', 'used_space', 'used_size', 'total_size', 'quota_size', 'quota', 'total'):
+            parsed = _parse_byte_value(value.get(key))
+            if parsed is not None:
+                return parsed
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _share_row(*, name: str, total_b: int | None, used_b: int | None, remote: str = '') -> dict:
-    pct = round(used_b / total_b * 100, 1) if total_b and used_b is not None else None
-    display = f'{_format_bytes(used_b)} / {_format_bytes(total_b)}' if total_b else '—'
+    pct = round(used_b / total_b * 100, 1) if total_b and used_b is not None and total_b > 0 else None
+    if used_b is not None and total_b:
+        display = f'{_format_bytes(used_b)} / {_format_bytes(total_b)}'
+    elif used_b is not None:
+        display = f'{_format_bytes(used_b)} đã dùng'
+    elif total_b:
+        display = f'— / {_format_bytes(total_b)}'
+    else:
+        display = '—'
     return {
         'name': name,
         'remote': remote,
@@ -322,59 +344,136 @@ def _share_row(*, name: str, total_b: int | None, used_b: int | None, remote: st
     }
 
 
-def _read_dsm_filestation_shares() -> list[dict]:
+def _read_dsm_share_quotas() -> dict[str, dict]:
+    quotas: dict[str, dict] = {}
+    try:
+        data = _dsm_request(
+            'SYNO.Core.Share',
+            'list',
+            version=1,
+            params={'shareType': 'all', 'additional': '["share_quota","real_path"]'},
+            timeout=15,
+        )
+    except NasMonitorError:
+        return quotas
+    for share in data.get('shares') or []:
+        name = share.get('name')
+        if not name:
+            continue
+        quota = (share.get('additional') or {}).get('share_quota')
+        if isinstance(quota, dict):
+            quotas[name] = quota
+        elif share.get('share_quota') not in (None, '', 0):
+            quotas[name] = {'quota_size': share.get('share_quota')}
+    return quotas
+
+
+def _quota_total_bytes(quota: dict | None) -> int | None:
+    if not isinstance(quota, dict):
+        return None
+    for key in ('quota_size', 'total_space', 'quota', 'total', 'limit'):
+        val = _parse_byte_value(quota.get(key))
+        if val is not None and val > 0:
+            return val
+    return None
+
+
+def _quota_used_bytes(quota: dict | None) -> int | None:
+    if not isinstance(quota, dict):
+        return None
+    for key in ('used_space', 'used', 'used_size'):
+        val = _parse_byte_value(quota.get(key))
+        if val is not None:
+            return val
+    return None
+
+
+def _read_dsm_filestation_shares(quota_map: dict[str, dict] | None = None) -> list[dict]:
+    quota_map = quota_map if quota_map is not None else _read_dsm_share_quotas()
     data = _dsm_request(
         'SYNO.FileStation.List',
         'list_share',
         version=2,
-        params={'additional': '["volume_status"]'},
-        timeout=15,
+        params={'additional': '["size","real_path"]', 'limit': '0'},
+        timeout=20,
     )
     rows: list[dict] = []
     for share in data.get('shares') or []:
         name = share.get('name')
         if not name:
             continue
-        vs = (share.get('additional') or {}).get('volume_status') or {}
-        try:
-            total_b = int(vs.get('totalspace') or vs.get('total_space') or 0) or None
-            free_b = int(vs.get('freespace') or vs.get('free_space') or 0)
-            used_b = (total_b - free_b) if total_b is not None else None
-        except (TypeError, ValueError):
-            total_b = None
-            used_b = None
-        rows.append(_share_row(name=name, total_b=total_b, used_b=used_b, remote=share.get('path') or ''))
+        extra = share.get('additional') or {}
+        used_b = _parse_byte_value(extra.get('size'))
+        quota = quota_map.get(name) or {}
+        if used_b is None:
+            used_b = _quota_used_bytes(quota)
+        total_b = _quota_total_bytes(quota)
+        real_path = extra.get('real_path') or ''
+        rows.append(_share_row(
+            name=name,
+            total_b=total_b,
+            used_b=used_b,
+            remote=share.get('path') or real_path,
+        ))
     rows.sort(key=lambda row: row['name'].lower())
     return rows
 
 
-def _read_dsm_core_shares(volumes: list[dict] | None = None) -> list[dict]:
+def _read_dsm_core_shares(quota_map: dict[str, dict] | None = None) -> list[dict]:
+    quota_map = quota_map if quota_map is not None else _read_dsm_share_quotas()
     data = _dsm_request(
         'SYNO.Core.Share',
         'list',
         version=1,
-        params={'shareType': 'all', 'additional': '["real_path"]'},
+        params={'shareType': 'all', 'additional': '["share_quota","real_path"]'},
         timeout=15,
     )
-    vol_by_path = {}
-    for vol in volumes or []:
-        for key in (vol.get('vol_path'), vol.get('name')):
-            if key and str(key).startswith('/volume'):
-                vol_by_path[str(key)] = vol
     rows: list[dict] = []
     for share in data.get('shares') or []:
         name = share.get('name')
         if not name:
             continue
-        vol_path = share.get('vol_path') or ''
-        vol = vol_by_path.get(vol_path) or {}
+        extra = share.get('additional') or {}
+        quota = quota_map.get(name) or extra.get('share_quota') or {}
+        if not isinstance(quota, dict):
+            quota = {}
+        used_b = _quota_used_bytes(quota)
+        total_b = _quota_total_bytes(quota)
         rows.append(_share_row(
             name=name,
-            total_b=vol.get('total_bytes'),
-            used_b=vol.get('used_bytes'),
-            remote=(share.get('additional') or {}).get('real_path') or vol_path,
+            total_b=total_b,
+            used_b=used_b,
+            remote=extra.get('real_path') or share.get('vol_path') or '',
         ))
     rows.sort(key=lambda row: row['name'].lower())
+    return rows
+
+
+def _enrich_shares_from_rclone(rows: list[dict]) -> list[dict]:
+    if not rclone_listing_available():
+        return rows
+    remote_base = default_nas_rclone_remote()
+    for row in rows:
+        if row.get('used_bytes') is not None:
+            continue
+        name = row.get('name')
+        if not name:
+            continue
+        share_remote = row.get('remote') or (
+            f'{remote_base}{name}' if remote_base.endswith(':') else f'{remote_base.rstrip("/")}/{name}'
+        )
+        about = _rclone_about(share_remote)
+        if not about:
+            continue
+        used_b = about.get('used_bytes')
+        total_b = row.get('total_bytes') or about.get('total_bytes')
+        enriched = _share_row(
+            name=name,
+            total_b=total_b,
+            used_b=used_b,
+            remote=share_remote,
+        )
+        row.update(enriched)
     return rows
 
 
@@ -411,21 +510,35 @@ def _list_shares_from_rclone() -> list[dict]:
         if not name:
             continue
         share_remote = f'{remote}{name}' if remote.endswith(':') else f'{remote.rstrip("/")}/{name}'
-        shares.append(_share_row(name=name, total_b=None, used_b=None, remote=share_remote))
+        about = _rclone_about(share_remote)
+        if about:
+            shares.append(_share_row(
+                name=name,
+                total_b=about.get('total_bytes'),
+                used_b=about.get('used_bytes'),
+                remote=share_remote,
+            ))
+        else:
+            shares.append(_share_row(name=name, total_b=None, used_b=None, remote=share_remote))
     shares.sort(key=lambda row: row['name'].lower())
     return shares
 
 
 def _collect_shares(*, volumes: list[dict] | None = None) -> list[dict]:
     if dsm_configured():
+        quota_map: dict[str, dict] = {}
+        try:
+            quota_map = _read_dsm_share_quotas()
+        except NasMonitorError:
+            pass
         for loader in (
-            lambda: _read_dsm_filestation_shares(),
-            lambda: _read_dsm_core_shares(volumes),
+            lambda: _read_dsm_filestation_shares(quota_map),
+            lambda: _read_dsm_core_shares(quota_map),
         ):
             try:
                 rows = loader()
                 if rows:
-                    return rows
+                    return _enrich_shares_from_rclone(rows)
             except NasMonitorError:
                 continue
 
@@ -453,10 +566,115 @@ def _mb_to_bytes(value) -> int | None:
         return None
 
 
+def _pick_dict(item: dict | None, *keys, default=None):
+    if not isinstance(item, dict):
+        return default
+    for key in keys:
+        val = item.get(key)
+        if val not in (None, '', []):
+            return val
+    return default
+
+
+def _format_dsm_time(value) -> str:
+    if value in (None, '', '—', 0, '0'):
+        return '—'
+    if isinstance(value, str) and not value.isdigit() and (':' in value or '-' in value):
+        return value[:19]
+    try:
+        ts = int(float(value))
+        if ts > 1_000_000_000_000:
+            ts //= 1000
+        if ts > 0:
+            return time.strftime('%Y-%m-%d %H:%M', time.localtime(ts))
+    except (TypeError, ValueError, OSError):
+        pass
+    return str(value)
+
+
+def _format_uptime(seconds) -> str:
+    if seconds in (None, '', 0, '0'):
+        return '—'
+    try:
+        total = int(seconds)
+    except (TypeError, ValueError):
+        return str(seconds)
+    days, rem = divmod(total, 86400)
+    hours, minutes = divmod(rem, 3600)
+    minutes //= 60
+    parts = []
+    if days:
+        parts.append(f'{days} ngày')
+    if hours:
+        parts.append(f'{hours} giờ')
+    if minutes or not parts:
+        parts.append(f'{minutes} phút')
+    return ' '.join(parts)
+
+
+def _extract_list(data: dict | None, *keys) -> list:
+    if not isinstance(data, dict):
+        return []
+    for key in keys:
+        val = data.get(key)
+        if isinstance(val, list):
+            return val
+    return []
+
+
+def _dsm_try_requests(calls: list[tuple[str, str, int, dict | None]]) -> dict:
+    merged: dict = {}
+    for api, method, version, params in calls:
+        try:
+            data = _dsm_request(api, method, version=version, params=params, timeout=15)
+        except NasMonitorError:
+            continue
+        if not isinstance(data, dict):
+            continue
+        for key, val in data.items():
+            if val in (None, '', {}):
+                continue
+            if key not in merged or merged[key] in (None, '', [], {}):
+                merged[key] = val
+            elif isinstance(val, list) and isinstance(merged[key], list):
+                merged[key] = merged[key] + val
+    return merged
+
+
+def _dsm_collect_items(
+    calls: list[tuple[str, str, int, dict | None]],
+    *list_keys: str,
+) -> list[dict]:
+    seen: set = set()
+    items: list[dict] = []
+    for api, method, version, params in calls:
+        try:
+            data = _dsm_request(api, method, version=version, params=params, timeout=15)
+        except NasMonitorError:
+            continue
+        for raw in _extract_list(data, *list_keys):
+            if not isinstance(raw, dict):
+                continue
+            uid = (
+                raw.get('id'),
+                raw.get('session_id'),
+                _pick_dict(raw, 'who', 'user', 'username', 'name'),
+                _pick_dict(raw, 'from', 'ip', 'address'),
+                _pick_dict(raw, 'time', 'datetime', 'mtime'),
+                _pick_dict(raw, 'path', 'file'),
+            )
+            if uid in seen:
+                continue
+            seen.add(uid)
+            items.append(raw)
+    return items
+
+
 def _read_dsm_utilization() -> dict:
     data = _dsm_request('SYNO.Core.System.Utilization', 'get')
     cpu = data.get('cpu') or {}
     memory = data.get('memory') or {}
+    swap = data.get('swap') or memory.get('swap') or {}
 
     cpu_load = cpu.get('load') or cpu.get('user_load')
     if cpu_load is None:
@@ -477,17 +695,96 @@ def _read_dsm_utilization() -> dict:
     else:
         mem_pct = round(mem_used / mem_total * 100, 1) if mem_total and mem_used is not None else None
 
+    swap_total = _kb_to_bytes(swap.get('total') or memory.get('swap_total'))
+    swap_used = _kb_to_bytes(swap.get('used') or memory.get('swap_usage'))
+    if swap_used is None and swap_total and swap.get('available') is not None:
+        swap_avail = _kb_to_bytes(swap.get('available'))
+        if swap_avail is not None:
+            swap_used = max(0, swap_total - swap_avail)
+
+    network_rows: list[dict] = []
+    for iface in data.get('network') or []:
+        if not isinstance(iface, dict):
+            continue
+        rx = iface.get('rx') or iface.get('rx_bytes') or iface.get('rx_kbyte')
+        tx = iface.get('tx') or iface.get('tx_bytes') or iface.get('tx_kbyte')
+        if isinstance(rx, (int, float)) and rx < 10_000_000:
+            rx = int(rx * 1024)
+        if isinstance(tx, (int, float)) and tx < 10_000_000:
+            tx = int(tx * 1024)
+        network_rows.append({
+            'device': _pick_dict(iface, 'device', 'id', 'name', default='—'),
+            'rx_bytes': int(rx) if rx is not None else None,
+            'tx_bytes': int(tx) if tx is not None else None,
+            'rx_display': _format_bytes(rx) if rx is not None else '—',
+            'tx_display': _format_bytes(tx) if tx is not None else '—',
+            'speed': iface.get('speed'),
+        })
+
+    space_rows: list[dict] = []
+    for vol in data.get('space') or []:
+        if not isinstance(vol, dict):
+            continue
+        total_b = _kb_to_bytes(vol.get('total')) or vol.get('total')
+        used_b = _kb_to_bytes(vol.get('used')) or vol.get('used')
+        try:
+            total_b = int(total_b) if total_b is not None else None
+            used_b = int(used_b) if used_b is not None else None
+        except (TypeError, ValueError):
+            total_b = None
+            used_b = None
+        pct = round(used_b / total_b * 100, 1) if total_b and used_b is not None else vol.get('used_percent')
+        space_rows.append({
+            'name': _pick_dict(vol, 'device', 'display_name', 'vol_path', default='—'),
+            'used_percent': pct,
+            'display': f'{_format_bytes(used_b)} / {_format_bytes(total_b)}' if total_b else '—',
+        })
+
+    disk_io = data.get('disk') if isinstance(data.get('disk'), dict) else {}
+    disk_rows = []
+    if isinstance(disk_io, dict):
+        for dev, stats in disk_io.items():
+            if not isinstance(stats, dict):
+                continue
+            disk_rows.append({
+                'device': dev,
+                'read': stats.get('read_byte') or stats.get('read'),
+                'write': stats.get('write_byte') or stats.get('write'),
+            })
+
     return {
         'cpu_percent': round(float(cpu_load), 1) if cpu_load is not None else None,
+        'cpu': {
+            'percent': round(float(cpu_load), 1) if cpu_load is not None else None,
+            'user_load': cpu.get('user_load'),
+            'system_load': cpu.get('system_load'),
+            'other_load': cpu.get('other_load'),
+            'loadavg': {
+                '1m': cpu.get('1min_load') or cpu.get('load1'),
+                '5m': cpu.get('5min_load') or cpu.get('load5'),
+                '15m': cpu.get('15min_load') or cpu.get('load15'),
+            },
+        },
         'ram': {
             'total_bytes': mem_total,
             'used_bytes': mem_used,
             'available_bytes': mem_avail,
             'used_percent': mem_pct,
             'display': f'{_format_bytes(mem_used)} / {_format_bytes(mem_total)}',
+            'buffer_bytes': _kb_to_bytes(memory.get('buffer')),
+            'cached_bytes': _kb_to_bytes(memory.get('cached')),
+            'buffer_display': _format_bytes(_kb_to_bytes(memory.get('buffer'))),
+            'cached_display': _format_bytes(_kb_to_bytes(memory.get('cached'))),
         },
-        'network': data.get('network') if isinstance(data.get('network'), list) else [],
-        'disk_io': data.get('disk') if isinstance(data.get('disk'), dict) else {},
+        'swap': {
+            'total_bytes': swap_total,
+            'used_bytes': swap_used,
+            'display': f'{_format_bytes(swap_used)} / {_format_bytes(swap_total)}',
+        },
+        'network': network_rows,
+        'space': space_rows,
+        'disk_io': disk_io,
+        'disk_io_rows': disk_rows,
     }
 
 
@@ -496,27 +793,43 @@ def _read_dsm_system_info() -> dict:
         data = _dsm_request('SYNO.Core.System', 'info', version=3)
     except NasMonitorError:
         data = _dsm_request('SYNO.Core.System', 'info', version=1)
+    uptime = data.get('uptime') or data.get('up_time') or data.get('system_time')
     return {
         'model': data.get('model') or data.get('model_string'),
         'version': data.get('version_string') or data.get('firmware_ver'),
         'hostname': data.get('hostname') or data.get('server_name'),
         'serial': data.get('serial'),
+        'temperature': data.get('temperature'),
+        'uptime_seconds': uptime,
+        'uptime_display': _format_uptime(uptime),
+        'time': _format_dsm_time(data.get('time_string') or data.get('time')),
     }
 
 
-def _dsm_try_requests(calls: list[tuple[str, str, int, dict | None]]) -> dict:
-    for api, method, version, params in calls:
-        try:
-            return _dsm_request(api, method, version=version, params=params, timeout=15)
-        except NasMonitorError:
+def _read_dsm_storage_disks() -> list[dict]:
+    try:
+        data = _dsm_request('SYNO.Storage.CGI.Storage', 'load_info', version=1, timeout=15)
+    except NasMonitorError:
+        return []
+    rows: list[dict] = []
+    for disk in data.get('disks') or []:
+        if not isinstance(disk, dict):
             continue
-    return {}
+        rows.append({
+            'slot': _pick_dict(disk, 'slot_id', 'id', 'num_id', 'name', default='—'),
+            'model': _pick_dict(disk, 'model', 'vendor', default='—'),
+            'status': _pick_dict(disk, 'status', 'health_status', 'health', default='—'),
+            'temperature': disk.get('temperature') or disk.get('temp'),
+            'size_bytes': disk.get('size') or disk.get('capacity'),
+        })
+    return rows
 
 
 def _read_dsm_widget_system_health() -> dict:
     data = _dsm_try_requests([
         ('SYNO.Core.System.SystemHealth', 'get', 1, None),
         ('SYNO.Core.System.Status', 'get', 1, None),
+        ('SYNO.Core.System.Status', 'get', 2, None),
     ])
     status = data.get('status') or data.get('system_status') or data.get('health')
     if isinstance(status, dict):
@@ -524,114 +837,205 @@ def _read_dsm_widget_system_health() -> dict:
     summary = data.get('summary') or data.get('message') or data.get('overview') or ''
     if isinstance(summary, dict):
         summary = summary.get('text') or summary.get('message') or ''
+
+    items_out: list[dict] = []
+    for item in data.get('items') or []:
+        if not isinstance(item, dict):
+            continue
+        items_out.append({
+            'id': _pick_dict(item, 'id', 'type', default=''),
+            'title': _pick_dict(item, 'title', 'name', 'id', default='—'),
+            'status': _pick_dict(item, 'status', 'status_key', 'health', default='—'),
+            'detail': str(_pick_dict(item, 'desc', 'message', 'detail', default=''))[:160],
+        })
+
+    disks = _read_dsm_storage_disks()
+    temps = [d['temperature'] for d in disks if d.get('temperature') not in (None, '', 0)]
+    avg_temp = round(sum(float(t) for t in temps) / len(temps), 1) if temps else None
+
     return {
         'status': str(status) if status not in (None, '') else '—',
-        'temperature': data.get('temperature'),
+        'temperature': data.get('temperature') or avg_temp,
         'summary': str(summary)[:300] if summary else '',
+        'items': items_out,
+        'disks': disks[:12],
+    }
+
+
+def _parse_connected_user(item: dict) -> dict:
+    return {
+        'user': _pick_dict(item, 'who', 'user', 'username', 'name', default='—'),
+        'ip': _pick_dict(item, 'from', 'ip', 'address', 'remote_ip', default='—'),
+        'protocol': _pick_dict(item, 'description', 'protocol', 'type', 'service', default='—'),
+        'time': _format_dsm_time(_pick_dict(item, 'connected_time', 'login_time', 'time', 'idle_time')),
+        'agent': _pick_dict(item, 'agent', 'client', 'user_agent', default=''),
     }
 
 
 def _read_dsm_widget_connected_users() -> list[dict]:
-    data = _dsm_try_requests([('SYNO.Core.CurrentConnection', 'list', 1, None)])
-    items = data.get('items') or data.get('connections') or data.get('users') or []
-    rows: list[dict] = []
-    for item in items[:25]:
-        if not isinstance(item, dict):
-            continue
-        rows.append({
-            'user': item.get('user') or item.get('username') or item.get('name') or '—',
-            'ip': item.get('ip') or item.get('from') or item.get('address') or '—',
-            'protocol': item.get('protocol') or item.get('type') or item.get('service') or '—',
-            'time': item.get('time') or item.get('login_time') or item.get('connected_time') or '—',
-        })
+    items = _dsm_collect_items([
+        ('SYNO.Core.CurrentConnection', 'list', 1, None),
+        ('SYNO.Core.CurrentConnection', 'list', 2, None),
+        ('SYNO.Core.System.Status', 'get', 1, {'type': 'connection'}),
+    ], 'items', 'connections', 'users', 'connection')
+    rows = [_parse_connected_user(item) for item in items[:30]]
     return rows
 
 
 def _read_dsm_widget_scheduled_tasks() -> list[dict]:
     data = _dsm_try_requests([
         ('SYNO.Core.TaskScheduler', 'list', 3, None),
+        ('SYNO.Core.TaskScheduler', 'list', 2, None),
         ('SYNO.Core.TaskScheduler', 'list', 1, None),
+        ('SYNO.Core.EventScheduler', 'list', 1, None),
     ])
     rows: list[dict] = []
-    for task in (data.get('tasks') or [])[:30]:
+    for task in (data.get('tasks') or data.get('events') or [])[:40]:
         if not isinstance(task, dict):
             continue
         enabled = task.get('enable') if 'enable' in task else task.get('enabled')
         rows.append({
-            'name': task.get('name') or '—',
-            'type': task.get('type') or task.get('real_owner') or '—',
+            'name': _pick_dict(task, 'name', 'task_name', default='—'),
+            'type': _pick_dict(task, 'type', 'real_owner', 'owner', 'app', default='—'),
             'enabled': enabled,
-            'next': task.get('next_trigger_time') or task.get('next_run') or '—',
-            'last': task.get('last_run_result') or task.get('last_run_time') or '—',
+            'next': _format_dsm_time(_pick_dict(task, 'next_trigger_time', 'next_run', 'next_time')),
+            'last': _format_dsm_time(_pick_dict(task, 'last_run_time', 'last_trigger_time')),
+            'last_result': _pick_dict(task, 'last_run_result', 'last_result', 'state', default='—'),
+            'running': task.get('is_running'),
         })
     return rows
 
 
-def _read_dsm_widget_recent_logs(*, limit: int = 15) -> list[dict]:
-    data = _dsm_try_requests([
+def _parse_log_row(log: dict) -> dict:
+    return {
+        'time': _format_dsm_time(_pick_dict(log, 'time', 'datetime', 'date', 'logtime')),
+        'level': _pick_dict(log, 'level', 'severity', 'pri', default='—'),
+        'source': _pick_dict(log, 'logtype', 'source', 'facility', 'who', 'program', default='—'),
+        'user': _pick_dict(log, 'user', 'who', default=''),
+        'message': str(_pick_dict(log, 'msg', 'message', 'desc', 'description', default='—'))[:280],
+    }
+
+
+def _read_dsm_widget_recent_logs(*, limit: int = 20) -> list[dict]:
+    items = _dsm_collect_items([
         ('SYNO.Core.SyslogClient.Status', 'latestlog_get', 1, {'limit': str(limit)}),
+        ('SYNO.Core.SyslogClient.Status', 'latestlog_get', 2, {'limit': str(limit)}),
+        ('SYNO.Core.SyslogClient.Log', 'list', 1, {'limit': str(limit), 'offset': '0'}),
+        ('SYNO.LogCenter.History', 'list', 1, {'limit': str(limit), 'offset': '0'}),
         ('SYNO.LogCenter.Client', 'list', 1, {'limit': str(limit), 'offset': '0'}),
-    ])
-    logs = data.get('logs') or data.get('items') or data.get('log') or []
-    rows: list[dict] = []
-    for log in logs[:limit]:
-        if not isinstance(log, dict):
-            continue
-        rows.append({
-            'time': log.get('time') or log.get('datetime') or log.get('date') or '—',
-            'level': log.get('level') or log.get('severity') or '—',
-            'message': str(log.get('msg') or log.get('message') or log.get('desc') or '—')[:240],
-        })
-    return rows
+    ], 'logs', 'items', 'log', 'history')
+    return [_parse_log_row(log) for log in items[:limit]]
+
+
+def _parse_backup_task(task: dict) -> dict:
+    return {
+        'name': _pick_dict(task, 'name', 'task_name', 'title', default='—'),
+        'type': _pick_dict(task, 'type', 'task_type', 'plugin', 'backup_type', default=''),
+        'status': _pick_dict(task, 'status', 'state', 'result', default='—'),
+        'last': _format_dsm_time(_pick_dict(task, 'last_run_time', 'last_bkp_time', 'last_backup_time')),
+        'next': _format_dsm_time(_pick_dict(task, 'next_run_time', 'next_bkp_time')),
+        'destination': _pick_dict(task, 'dest', 'destination', 'target', default=''),
+    }
 
 
 def _read_dsm_widget_backup_tasks() -> list[dict]:
-    data = _dsm_try_requests([
+    items = _dsm_collect_items([
+        ('SYNO.Backup.Task', 'list', 2, None),
         ('SYNO.Backup.Task', 'list', 1, None),
+        ('SYNO.HyperBackup.Util', 'list_task', 2, None),
         ('SYNO.HyperBackup.Util', 'list_task', 1, None),
-    ])
-    tasks = data.get('tasks') or data.get('data') or []
-    rows: list[dict] = []
-    for task in tasks[:20]:
-        if not isinstance(task, dict):
-            continue
-        rows.append({
-            'name': task.get('name') or task.get('task_name') or '—',
-            'status': task.get('status') or task.get('state') or '—',
-            'last': task.get('last_run_time') or task.get('last_bkp_time') or '—',
-        })
-    return rows
+        ('SYNO.ActiveBackup.Task', 'list', 1, None),
+    ], 'tasks', 'data', 'task_list')
+    return [_parse_backup_task(task) for task in items[:25]]
 
 
-def _read_dsm_widget_file_changes(*, limit: int = 15) -> list[dict]:
-    data = _dsm_try_requests([
+def _parse_file_change(item: dict) -> dict:
+    return {
+        'time': _format_dsm_time(_pick_dict(item, 'time', 'mtime', 'datetime', 'logtime')),
+        'user': _pick_dict(item, 'user', 'username', 'who', default='—'),
+        'path': str(_pick_dict(item, 'path', 'file', 'filepath', 'name', default='—'))[:160],
+        'action': _pick_dict(item, 'action', 'type', 'event', 'operation', default='—'),
+        'ip': _pick_dict(item, 'ip', 'from', default=''),
+    }
+
+
+def _read_dsm_widget_file_changes(*, limit: int = 20) -> list[dict]:
+    items = _dsm_collect_items([
         ('SYNO.Finder.FileSharing', 'get_changelog', 1, {'limit': str(limit)}),
         ('SYNO.Core.AuditLog', 'list', 1, {'limit': str(limit), 'offset': '0'}),
-    ])
-    items = data.get('items') or data.get('logs') or data.get('changelog') or []
-    rows: list[dict] = []
-    for item in items[:limit]:
-        if not isinstance(item, dict):
-            continue
-        rows.append({
-            'time': item.get('time') or item.get('mtime') or item.get('datetime') or '—',
-            'user': item.get('user') or item.get('username') or '—',
-            'path': str(item.get('path') or item.get('file') or '—')[:120],
-            'action': item.get('action') or item.get('type') or '—',
-        })
-    return rows
+        ('SYNO.LogCenter.History', 'list', 1, {'limit': str(limit), 'logtype': 'file'}),
+        ('SYNO.SynologyDrive.Log', 'list', 1, {'limit': str(limit)}),
+    ], 'items', 'logs', 'changelog', 'history')
+    return [_parse_file_change(item) for item in items[:limit]]
 
 
-def collect_dsm_widgets() -> dict:
+def _resource_from_utilization(util: dict | None) -> dict:
+    util = util or {}
+    ram = util.get('ram') or {}
+    swap = util.get('swap') or {}
+    cpu = util.get('cpu') or {}
+    return {
+        'cpu_percent': util.get('cpu_percent'),
+        'cpu': cpu,
+        'ram': ram,
+        'swap': swap,
+        'network': util.get('network') or [],
+        'space': util.get('space') or [],
+        'disk_io_rows': util.get('disk_io_rows') or [],
+    }
+
+
+def _empty_dsm_widgets() -> dict:
+    return {
+        'system_info': {},
+        'system_health': {'status': '—', 'summary': '', 'items': [], 'disks': []},
+        'resource': {
+            'cpu_percent': None,
+            'cpu': {'loadavg': {}},
+            'ram': {},
+            'swap': {},
+            'network': [],
+            'space': [],
+            'disk_io_rows': [],
+        },
+        'storage': {'volumes': [], 'shares': []},
+        'connected_users': [],
+        'scheduled_tasks': [],
+        'recent_logs': [],
+        'backup_tasks': [],
+        'file_changes': [],
+        'portal_backup': {},
+    }
+
+
+def collect_dsm_widgets(
+    *,
+    volumes: list[dict] | None = None,
+    shares: list[dict] | None = None,
+    system_info: dict | None = None,
+    utilization: dict | None = None,
+    portal_backup: dict | None = None,
+) -> dict:
     if not dsm_configured():
         return {}
+    util = utilization or _read_dsm_utilization()
+    info = system_info or _read_dsm_system_info()
+    vols = volumes if volumes is not None else _read_dsm_volumes()
+    share_rows = shares if shares is not None else []
     return {
+        'system_info': info,
         'system_health': _read_dsm_widget_system_health(),
+        'resource': _resource_from_utilization(util),
+        'storage': {
+            'volumes': vols,
+            'shares': share_rows[:12],
+        },
         'connected_users': _read_dsm_widget_connected_users(),
         'scheduled_tasks': _read_dsm_widget_scheduled_tasks(),
         'recent_logs': _read_dsm_widget_recent_logs(),
         'backup_tasks': _read_dsm_widget_backup_tasks(),
         'file_changes': _read_dsm_widget_file_changes(),
+        'portal_backup': portal_backup or {},
     }
 
 
@@ -717,11 +1121,13 @@ def collect_nas_metrics() -> dict:
         'shares': [],
         'backup': {},
         'processes': [],
-        'widgets': {},
+        'widgets': _empty_dsm_widgets(),
         'error': None,
     }
 
     if dsm_ok:
+        info = {}
+        util = {}
         try:
             info = _read_dsm_system_info()
             metrics['hostname'] = info.get('hostname')
@@ -734,6 +1140,9 @@ def collect_nas_metrics() -> dict:
             util = _read_dsm_utilization()
             metrics['cpu']['percent'] = util.get('cpu_percent')
             metrics['ram'] = util.get('ram') or {}
+            loadavg = (util.get('cpu') or {}).get('loadavg') or {}
+            if loadavg:
+                metrics['cpu']['loadavg'] = loadavg
         except NasMonitorError as exc:
             if not metrics['error']:
                 metrics['error'] = str(exc)
@@ -747,11 +1156,6 @@ def collect_nas_metrics() -> dict:
             metrics['processes'] = collect_nas_processes()
         except NasMonitorError:
             metrics['processes'] = []
-
-        try:
-            metrics['widgets'] = collect_dsm_widgets()
-        except NasMonitorError:
-            metrics['widgets'] = {}
 
     try:
         metrics['shares'] = _collect_shares(volumes=metrics.get('volumes'))
@@ -783,5 +1187,17 @@ def collect_nas_metrics() -> dict:
             'used_percent': primary.get('used_percent'),
             'display': primary.get('display'),
         }
+
+    if dsm_ok:
+        try:
+            metrics['widgets'] = collect_dsm_widgets(
+                volumes=metrics.get('volumes'),
+                shares=metrics.get('shares'),
+                system_info=info if info else None,
+                utilization=util if util else None,
+                portal_backup=metrics.get('backup'),
+            )
+        except NasMonitorError:
+            metrics['widgets'] = _empty_dsm_widgets()
 
     return metrics

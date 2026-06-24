@@ -234,10 +234,45 @@
 
     function renderWidgets(widgets, metrics) {
         const health = widgets.system_health || {};
+        const sys = widgets.system_info || {};
+        const res = widgets.resource || {};
+        const storage = widgets.storage || {};
+
         const healthStatus = document.querySelector('[data-jp-nas-health-status]');
         if (healthStatus) healthStatus.textContent = health.status || '—';
         const healthSummary = document.querySelector('[data-jp-nas-health-summary]');
         if (healthSummary) healthSummary.textContent = health.summary || '';
+        const healthTemp = document.querySelector('[data-jp-nas-health-temp]');
+        if (healthTemp) {
+            healthTemp.textContent = health.temperature != null && health.temperature !== ''
+                ? health.temperature + '°C' : '—';
+        }
+
+        const sysHost = document.querySelector('[data-jp-nas-sys-hostname]');
+        if (sysHost) sysHost.textContent = sys.hostname || (metrics && metrics.hostname) || '—';
+        const sysUptime = document.querySelector('[data-jp-nas-sys-uptime]');
+        if (sysUptime) sysUptime.textContent = sys.uptime_display || '—';
+
+        const resCpu = document.querySelector('[data-jp-nas-res-cpu]');
+        if (resCpu) {
+            const pct = res.cpu_percent != null ? res.cpu_percent : (metrics && metrics.cpu && metrics.cpu.percent);
+            resCpu.textContent = pct != null ? pct + '%' : '—';
+        }
+        const resRamPct = document.querySelector('[data-jp-nas-res-ram-pct]');
+        if (resRamPct) {
+            const ram = res.ram || (metrics && metrics.ram) || {};
+            resRamPct.textContent = ram.used_percent != null ? ram.used_percent + '%' : '—';
+        }
+        const resRamDisplay = document.querySelector('[data-jp-nas-res-ram-display]');
+        if (resRamDisplay) {
+            const ram = res.ram || (metrics && metrics.ram) || {};
+            resRamDisplay.textContent = ram.display || '—';
+        }
+        const resSwap = document.querySelector('[data-jp-nas-res-swap]');
+        if (resSwap) resSwap.textContent = (res.swap && res.swap.display) || '—';
+
+        const usersCount = document.querySelector('[data-jp-nas-users-count]');
+        if (usersCount) usersCount.textContent = String((widgets.connected_users || []).length);
 
         function fillTable(tbodyId, rows, emptyHtml, renderRow) {
             const tbody = document.getElementById(tbodyId);
@@ -250,69 +285,125 @@
         }
 
         fillTable(
+            'jp-nas-widget-health-items',
+            health.items,
+            '<tr><td colspan="2" class="text-muted small p-2">—</td></tr>',
+            function (row) {
+                const detail = row.detail ? ' — ' + escapeHtml(row.detail) : '';
+                return '<tr><td class="small">' + escapeHtml(row.title) + '</td><td class="small">' +
+                    escapeHtml(row.status) + detail + '</td></tr>';
+            }
+        );
+
+        fillTable(
+            'jp-nas-widget-health-disks',
+            health.disks,
+            '<tr><td colspan="4" class="text-muted small p-2">—</td></tr>',
+            function (row) {
+                return '<tr><td class="small">' + escapeHtml(row.slot) + '</td><td class="small">' +
+                    escapeHtml(row.model) + '</td><td class="small">' + escapeHtml(row.status) +
+                    '</td><td class="small text-end">' + escapeHtml(String(row.temperature != null ? row.temperature : '—')) +
+                    '</td></tr>';
+            }
+        );
+
+        fillTable(
+            'jp-nas-widget-network',
+            res.network,
+            '<tr><td colspan="3" class="text-muted small p-2">—</td></tr>',
+            function (row) {
+                return '<tr><td class="small">' + escapeHtml(row.device) + '</td><td class="small text-end">' +
+                    escapeHtml(row.rx_display || '—') + '</td><td class="small text-end">' +
+                    escapeHtml(row.tx_display || '—') + '</td></tr>';
+            }
+        );
+
+        fillTable(
             'jp-nas-widget-users',
             widgets.connected_users,
-            '<tr><td colspan="3" class="text-muted small p-3">Không có phiên đăng nhập.</td></tr>',
+            '<tr><td colspan="4" class="text-muted small p-3">Không có phiên đăng nhập.</td></tr>',
             function (row) {
                 return '<tr><td class="small">' + escapeHtml(row.user) + '</td><td class="small font-monospace">' +
-                    escapeHtml(row.ip) + '</td><td class="small">' + escapeHtml(row.protocol) + '</td></tr>';
+                    escapeHtml(row.ip) + '</td><td class="small">' + escapeHtml(row.protocol) +
+                    '</td><td class="small text-nowrap">' + escapeHtml(row.time) + '</td></tr>';
             }
         );
 
         fillTable(
             'jp-nas-widget-tasks',
             widgets.scheduled_tasks,
-            '<tr><td colspan="3" class="text-muted small p-3">Không có tác vụ hoặc thiếu quyền DSM.</td></tr>',
+            '<tr><td colspan="5" class="text-muted small p-3">Không có tác vụ hoặc thiếu quyền DSM.</td></tr>',
             function (row) {
                 const enabled = row.enabled === true ? 'Có' : (row.enabled === false ? 'Không' : '—');
-                return '<tr><td class="small">' + escapeHtml(row.name) + '</td><td class="small">' + enabled +
-                    '</td><td class="small">' + escapeHtml(row.next) + '</td></tr>';
+                const last = row.last + (row.last_result && row.last_result !== '—' ? ' (' + row.last_result + ')' : '');
+                return '<tr><td class="small">' + escapeHtml(row.name) + '</td><td class="small">' +
+                    escapeHtml(row.type) + '</td><td class="small">' + enabled +
+                    '</td><td class="small text-nowrap">' + escapeHtml(row.next) +
+                    '</td><td class="small text-nowrap">' + escapeHtml(last) + '</td></tr>';
             }
         );
 
         fillTable(
             'jp-nas-widget-logs',
             widgets.recent_logs,
-            '<tr><td colspan="3" class="text-muted small p-3">Chưa lấy được log (cần Log Center / quyền admin).</td></tr>',
+            '<tr><td colspan="4" class="text-muted small p-3">Chưa lấy được log (cần Log Center / quyền admin).</td></tr>',
             function (row) {
+                const msg = (row.user ? '<span class="text-muted">' + escapeHtml(row.user) + ':</span> ' : '') +
+                    escapeHtml(row.message);
                 return '<tr><td class="small text-nowrap">' + escapeHtml(row.time) + '</td><td class="small">' +
-                    escapeHtml(row.level) + '</td><td class="small">' + escapeHtml(row.message) + '</td></tr>';
+                    escapeHtml(row.level) + '</td><td class="small">' + escapeHtml(row.source) +
+                    '</td><td class="small">' + msg + '</td></tr>';
             }
         );
 
         const backupRows = widgets.backup_tasks || [];
-        const backup = (metrics && metrics.backup) || {};
+        const backup = (metrics && metrics.backup) || widgets.portal_backup || {};
         fillTable(
             'jp-nas-widget-backup',
             backupRows,
-            '<tr><td colspan="3" class="small p-3 text-muted">Không có Hyper Backup. Portal backup: <code>' +
+            '<tr><td colspan="5" class="small p-3 text-muted">Không có Hyper Backup / Active Backup. Portal backup: <code>' +
                 escapeHtml(backup.remote || '—') + '</code>' +
                 (backup.display ? ' — ' + escapeHtml(backup.display) : '') + '</td></tr>',
             function (row) {
                 return '<tr><td class="small">' + escapeHtml(row.name) + '</td><td class="small">' +
-                    escapeHtml(row.status) + '</td><td class="small">' + escapeHtml(row.last) + '</td></tr>';
+                    escapeHtml(row.type || '—') + '</td><td class="small">' + escapeHtml(row.status) +
+                    '</td><td class="small text-nowrap">' + escapeHtml(row.last) +
+                    '</td><td class="small">' + escapeHtml(row.destination || '—') + '</td></tr>';
             }
         );
 
         fillTable(
             'jp-nas-widget-changes',
             widgets.file_changes,
-            '<tr><td colspan="4" class="text-muted small p-3">Chưa lấy được nhật ký thay đổi file.</td></tr>',
+            '<tr><td colspan="5" class="text-muted small p-3">Chưa lấy được nhật ký thay đổi file.</td></tr>',
             function (row) {
                 return '<tr><td class="small text-nowrap">' + escapeHtml(row.time) + '</td><td class="small">' +
-                    escapeHtml(row.user) + '</td><td class="small font-monospace">' + escapeHtml(row.path) +
+                    escapeHtml(row.user) + '</td><td class="small font-monospace">' + escapeHtml(row.ip || '—') +
+                    '</td><td class="small font-monospace">' + escapeHtml(row.path) +
                     '</td><td class="small">' + escapeHtml(row.action) + '</td></tr>';
             }
         );
 
-        const volRows = (metrics && metrics.volumes) || [];
+        const volRows = storage.volumes || (metrics && metrics.volumes) || [];
         fillTable(
             'jp-nas-widget-volumes',
-            volRows.slice(0, 5),
-            '<tr><td colspan="2" class="text-muted p-3">—</td></tr>',
+            volRows.slice(0, 8),
+            '<tr><td colspan="4" class="text-muted p-3">—</td></tr>',
             function (vol) {
                 const pct = vol.used_percent != null ? vol.used_percent + '%' : '—';
-                return '<tr><td>' + escapeHtml(vol.name) + '</td><td class="text-end">' + pct + '</td></tr>';
+                return '<tr><td>' + escapeHtml(vol.name) + '</td><td class="small">' +
+                    escapeHtml(vol.status || '—') + '</td><td class="text-end">' + pct +
+                    '</td><td class="text-end small">' + escapeHtml(vol.display || '—') + '</td></tr>';
+            }
+        );
+
+        fillTable(
+            'jp-nas-widget-shares-mini',
+            (storage.shares || []).slice(0, 6),
+            '',
+            function (share) {
+                return '<tr><td>' + escapeHtml(share.name) + '</td><td class="text-end small">' +
+                    escapeHtml(share.display || '—') + '</td></tr>';
             }
         );
     }
