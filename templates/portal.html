@@ -144,10 +144,12 @@
                             {% for tool in group.tools %}
                             <a href="{% url tool.url_name %}"
                                class="jp-home-tool-mini jp-home-tool-mini--{{ tool.accent }}"
-                               title="{{ tool.description }}">
+                               {% if tool.description %}title="{{ tool.description }}"{% endif %}>
                                 <span class="jp-home-tool-mini-body">
                                     <span class="jp-home-tool-mini-name">{{ tool.name }}</span>
+                                    {% if tool.description %}
                                     <span class="jp-home-tool-mini-desc">{{ tool.description }}</span>
+                                    {% endif %}
                                 </span>
                             </a>
                             {% endfor %}

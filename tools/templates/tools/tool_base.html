@@ -12,7 +12,9 @@
             
             <div>
                 <h1 class="jp-tools-title mb-0">{{ current_tool.name }}</h1>
+                {% if current_tool.description %}
                 <p class="jp-tools-desc mb-0">{{ current_tool.description }}</p>
+                {% endif %}
             </div>
         </div>
         {% endif %}

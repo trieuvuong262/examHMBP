@@ -85,7 +85,7 @@ PORTAL_TOOLS = (
     {
         'slug': 'schedule-reminder',
         'name': 'Nhắc lịch',
-        'description': 'Chọn thứ trong tuần — nhắc push một lần hoặc lặp hàng tuần.',
+        'description': '',
         'icon': 'bi-alarm',
         'accent': 'red',
         'url_name': 'tools:schedule_reminder',

@@ -161,13 +161,11 @@ class ScheduleReminderForm(forms.ModelForm):
         widgets = {
             'title': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'VD: Họp ban sản xuất',
                 'maxlength': 120,
             }),
             'body': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 2,
-                'placeholder': 'Nội dung hiển thị trong thông báo push…',
             }),
             'repeat_mode': forms.RadioSelect(attrs={'class': 'jp-schedule-repeat-radio'}),
         }
