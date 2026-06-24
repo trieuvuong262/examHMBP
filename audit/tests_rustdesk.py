@@ -520,6 +520,32 @@ class RustdeskEnrollApiTests(TestCase):
         )
         self.assertEqual(resp.status_code, 403)
 
+    @override_settings(RUSTDESK_ENROLL_SECRET='test-enroll-secret')
+    def test_enroll_api_accepts_eight_digit_id(self):
+        client = Client()
+        payload = {
+            'enroll_secret': 'test-enroll-secret',
+            'rustdesk_id': '37921872',
+            'hostname': 'PC-ADMIN',
+        }
+        resp = client.post(
+            '/nhat-ky/rustdesk/api/dang-ky/',
+            data=json.dumps(payload),
+            content_type='application/json',
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(RustDeskHost.objects.filter(rustdesk_id='37921872').exists())
+
+    @override_settings(RUSTDESK_ENROLL_SECRET='test-enroll-secret')
+    def test_enroll_api_rejects_short_id(self):
+        client = Client()
+        resp = client.post(
+            '/nhat-ky/rustdesk/api/dang-ky/',
+            data=json.dumps({'enroll_secret': 'test-enroll-secret', 'rustdesk_id': '12345'}),
+            content_type='application/json',
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('không hợp lệ', resp.json()['message'].lower())
 
 class RustdeskDownloadTests(TestCase):
     @classmethod

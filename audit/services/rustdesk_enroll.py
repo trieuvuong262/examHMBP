@@ -6,7 +6,7 @@ import re
 
 from django.conf import settings
 
-RUSTDESK_ID_RE = re.compile(r'^\d{9,12}$')
+RUSTDESK_ID_RE = re.compile(r'^\d{6,12}$')
 
 
 def normalize_rustdesk_id(raw: str) -> str:
