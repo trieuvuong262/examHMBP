@@ -842,6 +842,15 @@
                     </a>
                 </li>
                 {% endif %}
+                {% jp_can_menu 'audit' 'nas_monitor' as jp_can_audit_nas_monitor %}
+                {% if jp_can_audit_nas_monitor %}
+                <li>
+                    <a href="{% url 'audit:nas_monitor' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'nas_monitor' or request.resolver_match.url_name == 'nas_monitor_metrics' %}active{% endif %}">
+                        <i class="bi bi-hdd-network"></i><span>Giám sát NAS</span>
+                    </a>
+                </li>
+                {% endif %}
                 {% jp_can_menu 'audit' 'kiotviet_sync' as jp_can_audit_kiotviet_sync %}
                 {% if jp_can_audit_kiotviet_sync %}
                 <li>

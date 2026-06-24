@@ -437,6 +437,11 @@ NAS_BACKUP_RETENTION_DAYS = int(os.getenv('NAS_BACKUP_RETENTION_DAYS', '30'))
 VPS_HOST_PROC = os.getenv('VPS_HOST_PROC', '/host/proc')
 VPS_HOST_ROOT = os.getenv('VPS_HOST_ROOT', '/host/root')
 VPS_DOCKER_SOCKET = os.getenv('VPS_DOCKER_SOCKET', '/var/run/docker.sock')
+# Giám sát NAS Synology (DSM Web API — CPU/RAM/tiến trình realtime)
+NAS_DSM_URL = os.getenv('NAS_DSM_URL', '').strip()
+NAS_DSM_ACCOUNT = os.getenv('NAS_DSM_ACCOUNT', '').strip()
+NAS_DSM_PASSWORD = os.getenv('NAS_DSM_PASSWORD', '').strip()
+NAS_DSM_VERIFY_SSL = env_bool('NAS_DSM_VERIFY_SSL', False)
 # Báo cáo tuần — đính kèm lưu trên NAS, không lưu media VPS
 NAS_WEEKLY_REPORT_REL_PATH = os.getenv(
     'NAS_WEEKLY_REPORT_REL_PATH',

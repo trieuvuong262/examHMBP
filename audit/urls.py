@@ -6,6 +6,7 @@ from kiotviet import sync_views as kiotviet_sync_views
 
 from . import views
 from . import views_login_security
+from . import views_nas
 from . import views_rustdesk
 from . import views_rustdesk_setup
 from . import views_vps
@@ -34,6 +35,8 @@ urlpatterns = [
     path('vps/', views_vps.vps_monitor_page, name='vps_monitor'),
     path('vps/metrics/', views_vps.vps_monitor_metrics_api, name='vps_monitor_metrics'),
     path('vps/toi-uu/', views_vps.vps_monitor_optimize, name='vps_monitor_optimize'),
+    path('nas/', views_nas.nas_monitor_page, name='nas_monitor'),
+    path('nas/metrics/', views_nas.nas_monitor_metrics_api, name='nas_monitor_metrics'),
     path('rustdesk/', views_rustdesk.rustdesk_list, name='rustdesk_list'),
     path('rustdesk/trang-thai/', views_rustdesk.rustdesk_online_status, name='rustdesk_online_status'),
     path('rustdesk/them/', views_rustdesk.rustdesk_add, name='rustdesk_add'),

@@ -378,6 +378,8 @@ NAMESPACE_URL_DESCRIPTIONS: dict[str, dict[str, str] | str] = {
     'audit:vps_monitor_optimize': {
         'POST': 'chạy tối ưu VPS (dọn Docker)',
     },
+    'audit:nas_monitor': 'xem trang giám sát NAS',
+    'audit:nas_monitor_metrics': 'tải số liệu RAM/CPU/ổ đĩa NAS',
     'audit:kiotviet_sync': 'xem trang đồng bộ KiotViet',
     'audit:kiotviet_sync_save': {
         'POST': 'lưu cấu hình lịch đồng bộ KiotViet',
