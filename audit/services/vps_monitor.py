@@ -452,15 +452,15 @@ def empty_vps_metrics() -> dict:
 
 
 def collect_vps_metrics(*, scope: str = 'full') -> dict:
-    """scope: performance (CPU/RAM/ổ đĩa) | full (+ Docker, tiến trình)."""
+    """scope: performance (CPU/RAM/ổ đĩa + tiến trình) | full (+ Docker)."""
     scope = (scope or 'full').strip().lower()
     if scope not in ('performance', 'full'):
         scope = 'full'
-    include_docker = scope == 'full'
-    include_processes = scope == 'full'
-
     host_ok = host_monitoring_available()
     docker_ok = docker_available()
+    include_docker = scope == 'full'
+    include_processes = host_ok  # Performance tab cần tiến trình; ps/proc nhanh, không chờ scope full
+
     scope = 'host' if host_ok else 'container'
 
     mem = _read_meminfo()

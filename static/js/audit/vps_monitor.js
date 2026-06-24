@@ -323,7 +323,10 @@
         }
 
         renderProcesses(metrics.processes || []);
-        renderPerfContainers((metrics.docker && metrics.docker.containers) || []);
+        const containers = (metrics.docker && metrics.docker.containers) || [];
+        if (containers.length) {
+            renderPerfContainers(containers);
+        }
 
         if (performanceTabActive) {
             pushChartHistory(metrics);

@@ -26,6 +26,12 @@ class VpsMonitorServiceTests(TestCase):
         self.assertIn('disk', metrics)
         self.assertIn('processes', metrics)
 
+    def test_collect_metrics_performance_includes_processes_when_host_ok(self):
+        with patch('audit.services.vps_monitor.host_monitoring_available', return_value=True):
+            with patch('audit.services.vps_monitor.collect_host_processes', return_value=[{'pid': 1, 'name': 'test'}]):
+                metrics = collect_vps_metrics(scope='performance')
+        self.assertEqual(len(metrics['processes']), 1)
+
     @patch('audit.services.vps_monitor.host_monitoring_available', return_value=False)
     def test_collect_host_processes_without_mount(self, _mock):
         self.assertEqual(collect_host_processes(), [])

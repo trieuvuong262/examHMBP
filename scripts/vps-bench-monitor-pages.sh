@@ -7,7 +7,7 @@ from django.test import Client
 from django.contrib.auth.models import User
 
 u = User.objects.filter(is_superuser=True).first()
-c = Client()
+c = Client(HTTP_HOST='portal.justplay.vn')
 c.force_login(u)
 paths = [
     ('/nhat-ky/nas/', 'nas page'),
