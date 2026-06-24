@@ -4,17 +4,31 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from audit.services.vps_monitor import OPTIMIZE_ACTIONS, collect_vps_metrics, run_optimize_action
+from audit.services.vps_monitor import OPTIMIZE_ACTIONS, collect_host_processes, collect_vps_metrics, run_optimize_action
 from hrm.models import Department, DepartmentMenuPermission, PermissionGroup, Profile
 from hrm.module_permissions import MODULE_AUDIT
 
 
 class VpsMonitorServiceTests(TestCase):
+    def test_decode_chunked_docker_body(self):
+        from audit.services.vps_monitor import _decode_chunked_body, _docker_response_body
+        raw = (
+            b'HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n'
+            b'9\r\n[{"a":1}]\r\n0\r\n\r\n'
+        )
+        body = _docker_response_body(raw)
+        self.assertEqual(body, b'[{"a":1}]')
+
     def test_collect_metrics_without_host_mount(self):
         metrics = collect_vps_metrics()
         self.assertIn('ram', metrics)
         self.assertIn('cpu', metrics)
         self.assertIn('disk', metrics)
+        self.assertIn('processes', metrics)
+
+    @patch('audit.services.vps_monitor.host_monitoring_available', return_value=False)
+    def test_collect_host_processes_without_mount(self, _mock):
+        self.assertEqual(collect_host_processes(), [])
 
     def test_invalid_optimize_action(self):
         with self.assertRaises(Exception):
@@ -61,6 +75,8 @@ class VpsMonitorViewTests(TestCase):
         resp = self.client.get(reverse('audit:vps_monitor'))
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'Giám sát VPS')
+        self.assertContains(resp, 'Performance')
+        self.assertContains(resp, 'jp-vps-tab-performance')
 
     @patch('audit.views_vps.collect_vps_metrics')
     def test_metrics_api(self, mock_collect):
@@ -99,4 +115,6 @@ class VpsMonitorViewTests(TestCase):
 
     def test_optimize_actions_registered(self):
         self.assertIn('prune_build_cache', OPTIMIZE_ACTIONS)
-        self.assertIn('remove_rembg_volume', OPTIMIZE_ACTIONS)
+        self.assertIn('prune_images', OPTIMIZE_ACTIONS)
+        self.assertNotIn('remove_rembg_volume', OPTIMIZE_ACTIONS)
+        self.assertNotIn('remove_migrate_image', OPTIMIZE_ACTIONS)

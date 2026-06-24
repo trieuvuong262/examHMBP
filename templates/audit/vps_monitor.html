@@ -5,7 +5,8 @@
 <div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5"
      id="jp-vps-monitor"
      data-metrics-url="{% url 'audit:vps_monitor_metrics' %}"
-     data-auto-refresh="30">
+     data-auto-refresh="30"
+     data-performance-refresh="5">
     <div class="jp-page-header mb-3 mb-md-4">
         <div class="jp-page-header-main">
             <h2 class="jp-page-title fw-bold text-dark mb-1">Giám sát VPS</h2>
@@ -36,6 +37,27 @@
         </ul>
     </div>
     {% endif %}
+
+    <ul class="nav nav-tabs mb-3" id="jp-vps-tabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="jp-vps-tab-overview-btn" data-bs-toggle="tab"
+                    data-bs-target="#jp-vps-tab-overview" type="button" role="tab"
+                    aria-controls="jp-vps-tab-overview" aria-selected="true">
+                <i class="bi bi-grid-1x2 me-1"></i>Tổng quan
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="jp-vps-tab-performance-btn" data-bs-toggle="tab"
+                    data-bs-target="#jp-vps-tab-performance" type="button" role="tab"
+                    aria-controls="jp-vps-tab-performance" aria-selected="false">
+                <i class="bi bi-speedometer2 me-1"></i>Performance
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="jp-vps-tab-content">
+    <div class="tab-pane fade show active" id="jp-vps-tab-overview" role="tabpanel"
+         aria-labelledby="jp-vps-tab-overview-btn" tabindex="0">
 
     <div class="row g-3 mb-4">
         <div class="col-md-4">
@@ -89,7 +111,8 @@
 
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-white border-0 pt-3 pb-0">
-            <h5 class="fw-bold mb-0">Container Docker (RAM)</h5>
+            <h5 class="fw-bold mb-0">Container Docker</h5>
+            <p class="text-muted small mb-0 mt-1">Bấm tên container để xem chi tiết CPU, mạng, image…</p>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -98,24 +121,53 @@
                         <tr>
                             <th>Container</th>
                             <th>RAM</th>
-                            <th class="text-end">%</th>
+                            <th>CPU</th>
+                            <th class="text-end">RAM %</th>
                         </tr>
                     </thead>
                     <tbody id="jp-vps-containers">
                         {% for row in metrics.docker.containers %}
-                        <tr>
-                            <td class="font-monospace small">{{ row.name }}</td>
+                        <tr class="jp-vps-container-row">
+                            <td class="small">
+                                <button type="button"
+                                        class="btn btn-link btn-sm p-0 text-start font-monospace text-decoration-none jp-vps-container-toggle"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#jp-vps-container-{{ row.id }}"
+                                        aria-expanded="false">
+                                    <i class="bi bi-chevron-right me-1 jp-vps-chevron"></i>{{ row.name }}
+                                </button>
+                            </td>
                             <td>{{ row.memory_display }}</td>
+                            <td>{% if row.cpu_percent is not None %}{{ row.cpu_percent }}%{% else %}—{% endif %}</td>
                             <td class="text-end">{{ row.memory_percent|default:"—" }}{% if row.memory_percent is not None %}%{% endif %}</td>
+                        </tr>
+                        <tr class="collapse bg-light" id="jp-vps-container-{{ row.id }}">
+                            <td colspan="4" class="small p-3">
+                                <div class="row g-2">
+                                    <div class="col-md-6">
+                                        <div><span class="text-muted">ID:</span> <code>{{ row.id }}</code></div>
+                                        <div><span class="text-muted">Image:</span> <code>{{ row.image }}</code></div>
+                                        <div><span class="text-muted">Trạng thái:</span> {{ row.state }} — {{ row.status }}</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div><span class="text-muted">Cache RAM:</span> {{ row.memory_cache_bytes|filesizeformat }}</div>
+                                        <div><span class="text-muted">Mạng ↓/↑:</span> {{ row.network_rx_bytes|filesizeformat }} / {{ row.network_tx_bytes|filesizeformat }}</div>
+                                        <div><span class="text-muted">Tiến trình:</span> {{ row.pids }}</div>
+                                    </div>
+                                </div>
+                            </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="3" class="text-muted small p-3">Chưa có dữ liệu container.</td>
+                            <td colspan="4" class="text-muted small p-3">Chưa có dữ liệu container.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+            {% if metrics.docker.error %}
+            <div class="alert alert-warning border-0 rounded-0 mb-0 small">{{ metrics.docker.error }}</div>
+            {% endif %}
         </div>
     </div>
 
@@ -181,14 +233,165 @@
                 Cần quyền <strong>cập nhật Giám sát VPS</strong> trong nhóm quyền IT để chạy dọn Docker.
             </p>
             {% endif %}
-            <p class="text-muted small mt-3 mb-0">
-                Giảm Gunicorn workers (3→2) vẫn cần sửa <code>docker-compose.yml</code> và deploy — không tự động từ đây.
-            </p>
         </div>
     </div>
+
+    </div>{# /overview tab #}
+
+    <div class="tab-pane fade" id="jp-vps-tab-performance" role="tabpanel"
+         aria-labelledby="jp-vps-tab-performance-btn" tabindex="0">
+
+        <div class="row g-3 mb-4">
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-muted small text-uppercase fw-semibold">CPU</span>
+                            <span class="fw-bold" data-jp-vps-perf-cpu>{{ metrics.cpu.percent|default:"—" }}{% if metrics.cpu.percent is not None %}%{% endif %}</span>
+                        </div>
+                        <div class="jp-vps-chart-wrap">
+                            <canvas id="jp-vps-chart-cpu" aria-label="Biểu đồ CPU"></canvas>
+                        </div>
+                        <div class="text-muted small mt-2">
+                            {{ metrics.cpu.cores|default:"—" }} core · load
+                            <span data-jp-vps-perf-load>{{ metrics.cpu.loadavg.1m|default:"—" }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-muted small text-uppercase fw-semibold">RAM</span>
+                            <span class="fw-bold" data-jp-vps-perf-ram>{{ metrics.ram.used_percent|default:"—" }}{% if metrics.ram.used_percent is not None %}%{% endif %}</span>
+                        </div>
+                        <div class="jp-vps-chart-wrap">
+                            <canvas id="jp-vps-chart-ram" aria-label="Biểu đồ RAM"></canvas>
+                        </div>
+                        <div class="text-muted small mt-2" data-jp-vps-perf-ram-detail>{{ metrics.ram.display|default:"—" }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-muted small text-uppercase fw-semibold">SSD</span>
+                            <span class="fw-bold" data-jp-vps-perf-disk>{{ metrics.disk.used_percent|default:"—" }}{% if metrics.disk.used_percent is not None %}%{% endif %}</span>
+                        </div>
+                        <div class="jp-vps-chart-wrap">
+                            <canvas id="jp-vps-chart-disk" aria-label="Biểu đồ SSD"></canvas>
+                        </div>
+                        <div class="text-muted small mt-2" data-jp-vps-perf-disk-detail>
+                            {% if metrics.disk %}
+                            {{ metrics.disk.used_bytes|filesizeformat }} / {{ metrics.disk.total_bytes|filesizeformat }}
+                            {% else %}—{% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-0 pt-3 pb-0">
+                <h5 class="fw-bold mb-0">Tiến trình VPS</h5>
+                <p class="text-muted small mb-0 mt-1">Top tiến trình trên máy chủ — giống Task Manager.</p>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Tên</th>
+                                <th class="text-end">PID</th>
+                                <th class="text-end">CPU</th>
+                                <th class="text-end">RAM</th>
+                                <th class="text-end">RAM %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="jp-vps-processes">
+                            {% for proc in metrics.processes %}
+                            <tr>
+                                <td class="font-monospace small">{{ proc.name }}</td>
+                                <td class="text-end font-monospace small">{{ proc.pid }}</td>
+                                <td class="text-end">{% if proc.cpu_percent is not None %}{{ proc.cpu_percent }}%{% else %}—{% endif %}</td>
+                                <td class="text-end">{{ proc.memory_bytes|filesizeformat }}</td>
+                                <td class="text-end">{% if proc.memory_percent is not None %}{{ proc.memory_percent }}%{% else %}—{% endif %}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-muted small p-3">Chưa có dữ liệu tiến trình.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-0 pt-3 pb-0">
+                <h5 class="fw-bold mb-0">Container Docker</h5>
+                <p class="text-muted small mb-0 mt-1">Sắp xếp theo mức dùng RAM.</p>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Container</th>
+                                <th>Image</th>
+                                <th>Trạng thái</th>
+                                <th class="text-end">RAM</th>
+                                <th class="text-end">CPU</th>
+                                <th class="text-end">RAM %</th>
+                                <th class="text-end">PIDs</th>
+                            </tr>
+                        </thead>
+                        <tbody id="jp-vps-perf-containers">
+                            {% for row in metrics.docker.containers %}
+                            <tr>
+                                <td class="font-monospace small">{{ row.name }}</td>
+                                <td class="small text-muted">{{ row.image }}</td>
+                                <td class="small">{{ row.state }}</td>
+                                <td class="text-end">{{ row.memory_display }}</td>
+                                <td class="text-end">{% if row.cpu_percent is not None %}{{ row.cpu_percent }}%{% else %}—{% endif %}</td>
+                                <td class="text-end">{% if row.memory_percent is not None %}{{ row.memory_percent }}%{% else %}—{% endif %}</td>
+                                <td class="text-end">{{ row.pids }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-muted small p-3">Chưa có dữ liệu container.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>{# /performance tab #}
+    </div>{# /tab-content #}
 </div>
+
+<style>
+.jp-vps-chart-wrap {
+    position: relative;
+    height: 180px;
+    width: 100%;
+}
+#jp-vps-tabs .nav-link {
+    color: var(--jp-black-500, #6b7280);
+}
+#jp-vps-tabs .nav-link.active {
+    color: var(--hm-primary, #dc2626);
+    font-weight: 600;
+}
+</style>
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="{% static 'js/audit/vps_monitor.js' %}"></script>
 {% endblock %}

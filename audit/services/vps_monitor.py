@@ -151,6 +151,100 @@ def _format_bytes(value: int | float | None) -> str:
     return f'{n:.1f} TB'
 
 
+def _decode_chunked_body(data: bytes) -> bytes:
+    out = bytearray()
+    pos = 0
+    while pos < len(data):
+        line_end = data.find(b'\r\n', pos)
+        if line_end < 0:
+            break
+        size_hex = data[pos:line_end].decode('ascii', errors='replace').split(';', 1)[0].strip()
+        try:
+            chunk_size = int(size_hex, 16)
+        except ValueError:
+            break
+        pos = line_end + 2
+        if chunk_size == 0:
+            break
+        out.extend(data[pos:pos + chunk_size])
+        pos += chunk_size + 2
+    return bytes(out)
+
+
+def _docker_response_body(raw: bytes) -> bytes:
+    if b'\r\n\r\n' not in raw:
+        raise VpsMonitorError('Phản hồi Docker không hợp lệ.')
+    header_bytes, body = raw.split(b'\r\n\r\n', 1)
+    header_lines = header_bytes.decode('utf-8', errors='replace').split('\r\n')
+    status = header_lines[0]
+    headers = {}
+    for line in header_lines[1:]:
+        if ':' in line:
+            key, value = line.split(':', 1)
+            headers[key.strip().lower()] = value.strip()
+
+    if b' 204 ' in status.encode():
+        return b''
+    if not any(code in status for code in (' 200 ', ' 201 ')):
+        detail = body.decode('utf-8', errors='replace')[:400]
+        raise VpsMonitorError(detail or status)
+
+    encoding = headers.get('transfer-encoding', '').lower()
+    if encoding == 'chunked':
+        body = _decode_chunked_body(body)
+
+    content_length = headers.get('content-length')
+    if content_length and content_length.isdigit():
+        body = body[:int(content_length)]
+
+    return body
+
+
+def _parse_docker_json(body: bytes) -> dict | list:
+    text = body.decode('utf-8', errors='replace').strip()
+    if not text:
+        return {}
+    decoder = json.JSONDecoder()
+    try:
+        obj, _idx = decoder.raw_decode(text)
+        return obj
+    except json.JSONDecodeError:
+        for line in text.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj, _idx = decoder.raw_decode(line)
+                return obj
+            except json.JSONDecodeError:
+                continue
+        raise VpsMonitorError('Docker trả JSON không đọc được.')
+
+
+def _cpu_percent_from_stats(stats: dict) -> float | None:
+    cpu = stats.get('cpu_stats') or {}
+    precpu = stats.get('precpu_stats') or {}
+    try:
+        cpu_usage = cpu.get('cpu_usage') or {}
+        precpu_usage = precpu.get('cpu_usage') or {}
+        cpu_delta = int(cpu_usage.get('total_usage') or 0) - int(precpu_usage.get('total_usage') or 0)
+        system_delta = int(cpu.get('system_cpu_usage') or 0) - int(precpu.get('system_cpu_usage') or 0)
+        if system_delta <= 0 or cpu_delta < 0:
+            return None
+        online = cpu.get('online_cpus') or len(cpu_usage.get('percpu_usage') or []) or 1
+        return round((cpu_delta / system_delta) * int(online) * 100.0, 1)
+    except (TypeError, ValueError):
+        return None
+
+
+def _network_bytes_from_stats(stats: dict) -> tuple[int, int]:
+    rx = tx = 0
+    for iface in (stats.get('networks') or {}).values():
+        rx += int(iface.get('rx_bytes') or 0)
+        tx += int(iface.get('tx_bytes') or 0)
+    return rx, tx
+
+
 def _docker_request(method: str, path: str, *, timeout: float = 120.0) -> dict | list:
     sock_path = _docker_socket()
     if not sock_path.exists():
@@ -177,22 +271,14 @@ def _docker_request(method: str, path: str, *, timeout: float = 120.0) -> dict |
     finally:
         sock.close()
 
-    if b'\r\n\r\n' not in raw:
-        raise VpsMonitorError('Phản hồi Docker không hợp lệ.')
-    header, body = raw.split(b'\r\n\r\n', 1)
-    status = header.split(b'\r\n', 1)[0]
-    if b' 204 ' in status:
-        return {}
-    if not any(code in status for code in (b' 200 ', b' 201 ')):
-        detail = body.decode('utf-8', errors='replace')[:400]
-        raise VpsMonitorError(detail or status.decode('utf-8', errors='replace'))
+    body = _docker_response_body(raw)
     if not body.strip():
         return {}
-    return json.loads(body.decode('utf-8'))
+    return _parse_docker_json(body)
 
 
-def _container_memory_stats() -> list[dict]:
-    containers = _docker_request('GET', '/containers/json')
+def _container_stats() -> list[dict]:
+    containers = _docker_request('GET', '/containers/json?all=0')
     rows: list[dict] = []
     for item in containers:
         cid = item.get('Id', '')
@@ -200,20 +286,37 @@ def _container_memory_stats() -> list[dict]:
             continue
         names = [n.lstrip('/') for n in item.get('Names') or []]
         name = names[0] if names else cid[:12]
+        short_id = cid[:12]
+        image = (item.get('Image') or '').split('@', 1)[0]
+        state = (item.get('State') or '').capitalize() or '—'
+        status = item.get('Status') or '—'
         try:
             stats = _docker_request('GET', f'/containers/{cid}/stats?stream=0&one-shot=1', timeout=15.0)
         except VpsMonitorError:
-            continue
+            stats = {}
         mem = stats.get('memory_stats') or {}
         usage = int(mem.get('usage') or 0)
         limit = int(mem.get('limit') or 0)
+        cache = int((mem.get('stats') or {}).get('cache') or 0)
         pct = round(usage / limit * 100, 1) if limit else None
+        cpu_pct = _cpu_percent_from_stats(stats)
+        rx, tx = _network_bytes_from_stats(stats)
+        pids = int((stats.get('pids_stats') or {}).get('current') or 0)
         rows.append({
+            'id': short_id,
             'name': name,
+            'image': image,
+            'state': state,
+            'status': status,
             'memory_bytes': usage,
             'memory_limit_bytes': limit,
+            'memory_cache_bytes': cache,
             'memory_percent': pct,
             'memory_display': f'{_format_bytes(usage)} / {_format_bytes(limit)}',
+            'cpu_percent': cpu_pct,
+            'network_rx_bytes': rx,
+            'network_tx_bytes': tx,
+            'pids': pids,
         })
     rows.sort(key=lambda row: row['memory_bytes'], reverse=True)
     return rows
@@ -229,8 +332,8 @@ def _docker_disk_summary() -> dict:
         tags = img.get('RepoTags') or []
         if not tags or tags == ['<none>:<none>']:
             reclaimable_images += int(img.get('Size') or 0)
-    containerd_bytes = _du_bytes(_host_root() / 'var/lib/containerd')
-    docker_lib_bytes = _du_bytes(_host_root() / 'var/lib/docker')
+    containerd_bytes = _du_bytes(_host_root() / 'var/lib/containerd', timeout=8)
+    docker_lib_bytes = _du_bytes(_host_root() / 'var/lib/docker', timeout=5)
     return {
         'images_bytes': image_bytes,
         'images_reclaimable_bytes': reclaimable_images,
@@ -247,6 +350,87 @@ def _docker_disk_summary() -> dict:
             if int(vol.get('UsageData', {}).get('RefCount') or 0) == 0
         ],
     }
+
+
+def _collect_host_processes_from_proc(*, limit: int = 25) -> list[dict]:
+    proc_root = _host_proc()
+    if not proc_root.is_dir():
+        return []
+    rows: list[dict] = []
+    for entry in proc_root.iterdir():
+        if not entry.name.isdigit():
+            continue
+        status_path = entry / 'status'
+        if not status_path.is_file():
+            continue
+        name = ''
+        rss_kb = 0
+        try:
+            for line in status_path.read_text(encoding='utf-8', errors='replace').splitlines()[:40]:
+                if line.startswith('Name:'):
+                    name = line.split(':', 1)[1].strip()
+                elif line.startswith('VmRSS:'):
+                    rss_kb = int(line.split()[1])
+        except OSError:
+            continue
+        if not name or rss_kb <= 0:
+            continue
+        rows.append({
+            'pid': int(entry.name),
+            'name': name[:64],
+            'cpu_percent': None,
+            'memory_percent': None,
+            'memory_bytes': rss_kb * 1024,
+        })
+    rows.sort(key=lambda row: row['memory_bytes'], reverse=True)
+    return rows[:limit]
+
+
+def collect_host_processes(*, limit: int = 25) -> list[dict]:
+    """Top tiến trình trên VPS host — giống tab Processes của Task Manager."""
+    if not host_monitoring_available():
+        return []
+
+    host_root = _host_root()
+    chroot_bin = shutil.which('chroot')
+    if chroot_bin and host_root.is_dir():
+        try:
+            proc = subprocess.run(
+                [
+                    chroot_bin,
+                    str(host_root),
+                    'ps',
+                    '-eo', 'pid,comm,%cpu,%mem,rss',
+                    '--no-headers',
+                    '--sort=-%mem',
+                ],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+            if proc.returncode == 0 and proc.stdout:
+                rows: list[dict] = []
+                for line in proc.stdout.strip().splitlines()[:limit]:
+                    parts = line.split(None, 4)
+                    if len(parts) < 5:
+                        continue
+                    try:
+                        rows.append({
+                            'pid': int(parts[0]),
+                            'name': parts[1][:64],
+                            'cpu_percent': round(float(parts[2]), 1),
+                            'memory_percent': round(float(parts[3]), 1),
+                            'memory_bytes': int(parts[4]) * 1024,
+                        })
+                    except ValueError:
+                        continue
+                if rows:
+                    return rows
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+
+    return _collect_host_processes_from_proc(limit=limit)
 
 
 def collect_vps_metrics() -> dict:
@@ -294,6 +478,7 @@ def collect_vps_metrics() -> dict:
             'containers': [],
             'summary': {},
         },
+        'processes': [],
         'tips': [],
     }
 
@@ -304,12 +489,21 @@ def collect_vps_metrics() -> dict:
 
     if docker_ok:
         try:
-            metrics['docker']['containers'] = _container_memory_stats()
-            metrics['docker']['summary'] = _docker_disk_summary()
+            metrics['docker']['containers'] = _container_stats()
         except VpsMonitorError as exc:
             metrics['docker']['error'] = str(exc)
+        try:
+            metrics['docker']['summary'] = _docker_disk_summary()
+        except VpsMonitorError as exc:
+            metrics['docker']['summary_error'] = str(exc)
     else:
         metrics['tips'].append('Chưa mount Docker socket — không xem được container và không chạy tối ưu Docker.')
+
+    if host_ok:
+        try:
+            metrics['processes'] = collect_host_processes()
+        except OSError:
+            metrics['processes'] = []
 
     summary = metrics['docker'].get('summary') or {}
     if summary.get('containerd_bytes', 0) and summary['containerd_bytes'] > 5 * 1024 ** 3:
@@ -331,20 +525,8 @@ OPTIMIZE_ACTIONS: dict[str, dict] = {
     },
     'prune_images': {
         'label': 'Xóa image Docker không dùng',
-        'description': 'Gỡ image không gắn container (migrate cũ, tag cũ…).',
+        'description': 'Gỡ image không gắn container (tag cũ, image lẻ…).',
         'confirm': 'Xóa mọi image Docker không được container sử dụng?',
-        'danger': False,
-    },
-    'remove_rembg_volume': {
-        'label': 'Xóa volume rembg_models',
-        'description': 'Model AI xóa nền cũ (~170 MB) — không còn dùng sau khi gỡ công cụ.',
-        'confirm': 'Xóa volume portaljustplay_rembg_models?',
-        'danger': False,
-    },
-    'remove_migrate_image': {
-        'label': 'Xóa image migrate cũ',
-        'description': 'Image portaljustplay-migrate (~2.7 GB) chỉ dùng một lần khi migrate.',
-        'confirm': 'Xóa image portaljustplay-migrate:latest?',
         'danger': False,
     },
 }
@@ -380,13 +562,5 @@ def run_optimize_action(action_id: str) -> dict:
             'reclaimed_bytes': reclaimed,
             'deleted_count': len(deleted),
         }
-
-    if action_id == 'remove_rembg_volume':
-        _docker_request('DELETE', '/volumes/portaljustplay_rembg_models?force=0')
-        return {'message': 'Đã xóa volume portaljustplay_rembg_models.'}
-
-    if action_id == 'remove_migrate_image':
-        _docker_request('DELETE', '/images/portaljustplay-migrate:latest?force=1')
-        return {'message': 'Đã xóa image portaljustplay-migrate:latest.'}
 
     raise VpsMonitorError('Thao tác không hợp lệ.')
