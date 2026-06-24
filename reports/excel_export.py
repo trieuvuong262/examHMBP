@@ -52,8 +52,6 @@ def _grid_cell_display(cell: dict) -> str:
         cumulative = cell.get('cumulative')
         if cumulative:
             parts.append(f'Σ{cumulative}')
-        if cell.get('partial_hours'):
-            parts.append(str(cell.get('display') or ''))
         return '\n'.join(part for part in parts if part)
     reason = (cell.get('zero_reason') or '').strip()
     return f'0\n{reason}' if reason else '0'

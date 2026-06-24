@@ -76,14 +76,6 @@
 
         modal.addEventListener('hidden.bs.modal', cleanupModalArtifacts);
 
-        var partialToggle = document.getElementById('hourly-partial-toggle');
-        var partialWrap = document.getElementById('hourly-partial-wrap');
-        if (partialToggle && partialWrap) {
-            partialToggle.addEventListener('change', function () {
-                partialWrap.classList.toggle('d-none', !partialToggle.checked);
-            });
-        }
-
         var qtyInput = document.getElementById('hourly-quantity');
         var reasonWrap = document.getElementById('hourly-zero-reason-wrap');
         var reasonInput = document.getElementById('hourly-zero-reason');

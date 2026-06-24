@@ -76,7 +76,6 @@ def _apply_review_payload(report, payload_str, *, relax_slot_scope=False):
             if slot_index is None:
                 continue
             qty = parse_int(cell.get('quantity'))
-            partial = parse_decimal(cell.get('partial_hours'))
             zero_reason = (cell.get('zero_reason') or '').strip()
             damaged_quantity = cell.get('damaged_quantity')
             if damaged_quantity not in (None, ''):
@@ -92,7 +91,6 @@ def _apply_review_payload(report, payload_str, *, relax_slot_scope=False):
                         product,
                         int(slot_index),
                         qty,
-                        partial_hours=partial,
                         zero_reason=zero_reason,
                         damaged_quantity=damaged_quantity,
                         note=note,
@@ -227,7 +225,6 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         product = ensure_active_work_block(report)
         slot_index = parse_int(request.POST.get('slot_index'), -1)
         qty = parse_int(request.POST.get('quantity'))
-        partial = parse_decimal(request.POST.get('partial_hours'))
         zero_reason = (request.POST.get('zero_reason') or '').strip()
         damaged_raw = request.POST.get('damaged_quantity')
         damaged_quantity = parse_int(damaged_raw) if damaged_raw not in (None, '') else 0
@@ -240,7 +237,6 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
                 product,
                 slot_index,
                 qty,
-                partial_hours=partial,
                 zero_reason=zero_reason,
                 damaged_quantity=damaged_quantity,
                 note=note,

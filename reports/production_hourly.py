@@ -196,7 +196,6 @@ def save_hourly_entry(
     product: ProductionShiftProduct,
     slot_index: int,
     quantity: int,
-    partial_hours=None,
     zero_reason=None,
     damaged_quantity=None,
     note=None,
@@ -213,12 +212,9 @@ def save_hourly_entry(
     reason = (zero_reason or '').strip()
     if qty == 0 and not reason:
         raise ValueError('Cần nhập lý do khi sản lượng bằng 0.')
-    partial = None
-    if partial_hours not in (None, ''):
-        partial = Decimal(str(partial_hours))
     defaults = {
         'quantity': qty,
-        'partial_hours': partial,
+        'partial_hours': None,
         'zero_reason': '' if qty > 0 else reason[:200],
     }
     if damaged_quantity is not None:
@@ -265,14 +261,10 @@ def product_slot_cell(product: ProductionShiftProduct, slot_index: int) -> dict:
     entry_note = (entry.note or '').strip() if entry else ''
     filled = _entry_is_filled(entry)
     cum = cumulative_quantity(product, slot_index) if qty else 0
-    partial = entry.partial_hours if entry else None
     display = ''
     if entry and filled:
         if qty > 0:
-            if partial:
-                display = f'{qty}/{partial}h'
-            else:
-                display = str(qty)
+            display = str(qty)
         else:
             display = '0'
     slot = slot_by_index(slot_index, shift)
@@ -281,7 +273,6 @@ def product_slot_cell(product: ProductionShiftProduct, slot_index: int) -> dict:
         'slot_label': slot.label if slot else str(slot_index),
         'quantity': qty,
         'cumulative': cum if qty else 0,
-        'partial_hours': partial,
         'display': display,
         'has_data': filled,
         'is_na': False,
@@ -324,7 +315,7 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
                 continue
 
             slot = slot_by_index(entry.slot_index, shift)
-            hours = entry.partial_hours if entry.partial_hours is not None else Decimal('1')
+            hours = Decimal('1')
             qty = entry.quantity
             efficiency_pct = None
 
@@ -474,20 +465,15 @@ def product_slot_cell_proxy(product: ProductionShiftProduct, slot_index: int) ->
     entry_note = (entry.note or '').strip() if entry else ''
     filled = _entry_is_filled(entry)
     cum = cumulative_quantity(product, slot_index) if qty else 0
-    partial = entry.partial_hours if entry else None
     display = ''
     if entry and filled:
-        if qty > 0:
-            display = f'{qty}/{partial}h' if partial else str(qty)
-        else:
-            display = '0'
+        display = str(qty) if qty > 0 else '0'
     slot = slot_by_index(slot_index, shift)
     return {
         'slot_index': slot_index,
         'slot_label': slot.label if slot else str(slot_index),
         'quantity': qty,
         'cumulative': cum if qty else 0,
-        'partial_hours': partial,
         'display': display,
         'has_data': True,
         'is_na': False,
