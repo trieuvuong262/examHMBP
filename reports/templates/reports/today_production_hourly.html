@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260618b">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260528a">
 {% endblock %}
 
 {% block content %}
@@ -355,6 +355,14 @@
                 <label class="form-label fw-bold">Số lượng giờ này <span class="text-danger">*</span></label>
                 <input type="number" name="quantity" id="hourly-quantity" class="form-control form-control-lg text-center jp-prod-qty-input"
                        min="0" step="1" required inputmode="numeric" autocomplete="off">
+                <div id="hourly-extra-wrap" class="mt-3">
+                    <label class="form-label fw-bold">Số lượng hư hỏng <span class="text-muted fw-normal">(tuỳ chọn)</span></label>
+                    <input type="number" name="damaged_quantity" id="hourly-damaged-quantity" class="form-control"
+                           min="0" step="1" inputmode="numeric" autocomplete="off">
+                    <label class="form-label fw-bold mt-3">Ghi chú <span class="text-muted fw-normal">(tuỳ chọn)</span></label>
+                    <input type="text" name="note" id="hourly-note" class="form-control"
+                           maxlength="500" autocomplete="off">
+                </div>
                 <div id="hourly-zero-reason-wrap" class="mt-3 d-none">
                     <label class="form-label fw-bold">Lý do sản lượng 0 <span class="text-danger">*</span></label>
                     <input type="text" name="zero_reason" id="hourly-zero-reason" class="form-control"
@@ -428,5 +436,5 @@
 {% endif %}
 
 {% if hourly_grid %}{{ hourly_grid|json_script:"hourly-grid-data" }}{% endif %}
-<script src="{% static 'js/reports-production-hourly.js' %}?v=20260618b"></script>
+<script src="{% static 'js/reports-production-hourly.js' %}?v=20260528a"></script>
 {% endblock %}

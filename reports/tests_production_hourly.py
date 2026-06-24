@@ -141,6 +141,39 @@ class ProductionHourlyTests(TestCase):
         pending = pending_slots_for_report(self.report, now=fake_now)
         self.assertEqual(pending[0]['slot_index'], 1)
 
+    def test_damaged_quantity_and_note(self):
+        ensure_work_day_started(self.report)
+        product = ensure_active_work_block(self.report)
+        save_hourly_entry(
+            product, 0, 120,
+            damaged_quantity=3,
+            note='Lỗi đường may',
+        )
+        entry = product.hourly_entries.get(slot_index=0)
+        self.assertEqual(entry.damaged_quantity, 3)
+        self.assertEqual(entry.note, 'Lỗi đường may')
+
+        grid = build_hourly_grid(self.report)
+        cell = grid['rows'][0]['slots'][0]
+        self.assertEqual(cell['damaged_quantity'], 3)
+        self.assertEqual(cell['note'], 'Lỗi đường may')
+
+        prod = build_productivity_report(self.report)
+        row = prod['hourly_rows'][0]
+        self.assertEqual(row['damaged_quantity'], 3)
+        self.assertEqual(row['note'], 'Lỗi đường may')
+
+        save_hourly_entry(product, 1, 50, damaged_quantity=2, note='')
+        entry2 = product.hourly_entries.get(slot_index=1)
+        self.assertEqual(entry2.damaged_quantity, 2)
+        self.assertEqual(entry2.note, '')
+
+        save_hourly_entry(product, 0, 100, note='Cập nhật')
+        entry.refresh_from_db()
+        self.assertEqual(entry.quantity, 100)
+        self.assertEqual(entry.damaged_quantity, 3)
+        self.assertEqual(entry.note, 'Cập nhật')
+
     def test_pending_slots(self):
         ensure_work_day_started(self.report)
         product = ensure_active_work_block(self.report)

@@ -59,6 +59,8 @@
                     <th>Công đoạn</th>
                     <th>Khung giờ</th>
                     <th class="text-end">Số lượng</th>
+                    <th class="text-end">Hư hỏng</th>
+                    <th>Ghi chú</th>
                     <th class="text-end">Định mức/H</th>
                     <th class="text-end">Thời gian/H</th>
                     <th class="text-end">Hiệu suất</th>
@@ -80,6 +82,12 @@
                         {% if row.zero_reason %}<div class="jp-prod-productivity-reason">{{ row.zero_reason }}</div>{% endif %}
                         {% endif %}
                     </td>
+                    <td class="text-end">
+                        {% if row.damaged_quantity %}<span class="jp-prod-damaged-val">{{ row.damaged_quantity }}</span>{% else %}<span class="text-muted">—</span>{% endif %}
+                    </td>
+                    <td class="jp-prod-note-cell">
+                        {% if row.note %}<span class="jp-prod-note-val" title="{{ row.note }}">{{ row.note|truncatechars:40 }}</span>{% else %}<span class="text-muted">—</span>{% endif %}
+                    </td>
                     <td class="text-end jp-prod-norm-display">{% if row.norm_per_hour %}{{ row.norm_per_hour|floatformat:0 }}{% else %}—{% endif %}</td>
                     <td class="text-end text-muted">{{ row.hours_display }}</td>
                     <td class="text-end jp-prod-eff-cell">
@@ -89,7 +97,7 @@
                     </td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="8" class="text-center text-muted py-4">Chưa có dữ liệu năng suất.</td></tr>
+                <tr><td colspan="10" class="text-center text-muted py-4">Chưa có dữ liệu năng suất.</td></tr>
                 {% endfor %}
             </tbody>
             {% if productivity.hourly_rows %}
@@ -97,7 +105,7 @@
                 <tr class="jp-prod-productivity-foot">
                     <th colspan="4" class="text-end text-uppercase">Tổng</th>
                     <th class="text-end">{{ productivity.total_quantity }}</th>
-                    <th></th>
+                    <th colspan="2"></th>
                     <th class="text-end">{{ productivity.total_hours_display }}</th>
                     <th class="text-end">
                         {% if productivity.overall_efficiency_pct is not None %}

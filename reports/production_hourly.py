@@ -186,6 +186,8 @@ def save_hourly_entry(
     quantity: int,
     partial_hours=None,
     zero_reason=None,
+    damaged_quantity=None,
+    note=None,
     *,
     relax_slot_scope: bool = False,
 ) -> ProductionHourlyQuantity:
@@ -200,14 +202,19 @@ def save_hourly_entry(
     partial = None
     if partial_hours not in (None, ''):
         partial = Decimal(str(partial_hours))
+    defaults = {
+        'quantity': qty,
+        'partial_hours': partial,
+        'zero_reason': '' if qty > 0 else reason[:200],
+    }
+    if damaged_quantity is not None:
+        defaults['damaged_quantity'] = max(0, int(damaged_quantity)) if qty > 0 else 0
+    if note is not None:
+        defaults['note'] = (note or '').strip()[:500]
     entry, _ = ProductionHourlyQuantity.objects.update_or_create(
         product=product,
         slot_index=slot_index,
-        defaults={
-            'quantity': qty,
-            'partial_hours': partial,
-            'zero_reason': '' if qty > 0 else reason[:200],
-        },
+        defaults=defaults,
     )
     return entry
 
@@ -231,11 +238,15 @@ def product_slot_cell(product: ProductionShiftProduct, slot_index: int) -> dict:
             'has_data': False,
             'is_na': True,
             'zero_reason': '',
+            'damaged_quantity': 0,
+            'note': '',
             'entry_id': None,
         }
     entry = product.hourly_entries.filter(slot_index=slot_index).first()
     qty = entry.quantity if entry else 0
     reason = (entry.zero_reason or '').strip() if entry else ''
+    damaged = entry.damaged_quantity if entry else 0
+    entry_note = (entry.note or '').strip() if entry else ''
     filled = _entry_is_filled(entry)
     cum = cumulative_quantity(product, slot_index) if qty else 0
     partial = entry.partial_hours if entry else None
@@ -259,6 +270,8 @@ def product_slot_cell(product: ProductionShiftProduct, slot_index: int) -> dict:
         'has_data': filled,
         'is_na': False,
         'zero_reason': reason,
+        'damaged_quantity': damaged,
+        'note': entry_note,
         'entry_id': entry.pk if entry else None,
     }
 
@@ -322,6 +335,8 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
                 'hours_display': _format_hours(hours),
                 'efficiency_pct': efficiency_pct,
                 'zero_reason': (entry.zero_reason or '').strip(),
+                'damaged_quantity': entry.damaged_quantity,
+                'note': (entry.note or '').strip(),
                 'is_unfinalized': not (product.product_code or '').strip(),
             })
 
@@ -433,6 +448,8 @@ def product_slot_cell_proxy(product: ProductionShiftProduct, slot_index: int) ->
     entry = product.hourly_entries.filter(slot_index=slot_index).first()
     qty = entry.quantity if entry else 0
     reason = (entry.zero_reason or '').strip() if entry else ''
+    damaged = entry.damaged_quantity if entry else 0
+    entry_note = (entry.note or '').strip() if entry else ''
     filled = _entry_is_filled(entry)
     cum = cumulative_quantity(product, slot_index) if qty else 0
     partial = entry.partial_hours if entry else None
@@ -453,6 +470,8 @@ def product_slot_cell_proxy(product: ProductionShiftProduct, slot_index: int) ->
         'has_data': True,
         'is_na': False,
         'zero_reason': reason,
+        'damaged_quantity': damaged,
+        'note': entry_note,
         'entry_id': entry.pk if entry else None,
     }
 

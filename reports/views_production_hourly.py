@@ -60,6 +60,14 @@ def _apply_review_payload(report, payload_str, *, relax_slot_scope=False):
             qty = parse_int(cell.get('quantity'))
             partial = parse_decimal(cell.get('partial_hours'))
             zero_reason = (cell.get('zero_reason') or '').strip()
+            damaged_quantity = cell.get('damaged_quantity')
+            if damaged_quantity not in (None, ''):
+                damaged_quantity = parse_int(damaged_quantity)
+            else:
+                damaged_quantity = None
+            note = cell.get('note')
+            if note is not None:
+                note = (note or '').strip()
             try:
                 if qty > 0 or zero_reason:
                     save_hourly_entry(
@@ -68,6 +76,8 @@ def _apply_review_payload(report, payload_str, *, relax_slot_scope=False):
                         qty,
                         partial_hours=partial,
                         zero_reason=zero_reason,
+                        damaged_quantity=damaged_quantity,
+                        note=note,
                         relax_slot_scope=relax_slot_scope,
                     )
                 else:
@@ -172,6 +182,9 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         qty = parse_int(request.POST.get('quantity'))
         partial = parse_decimal(request.POST.get('partial_hours'))
         zero_reason = (request.POST.get('zero_reason') or '').strip()
+        damaged_raw = request.POST.get('damaged_quantity')
+        damaged_quantity = parse_int(damaged_raw) if damaged_raw not in (None, '') else 0
+        note = (request.POST.get('note') or '').strip()
         if slot_index < 0:
             messages.error(request, 'Khung giờ không hợp lệ.')
             return redirect(_production_redirect(report_date, for_user or None))
@@ -182,6 +195,8 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
                 qty,
                 partial_hours=partial,
                 zero_reason=zero_reason,
+                damaged_quantity=damaged_quantity,
+                note=note,
             )
         except ValueError as exc:
             messages.error(request, str(exc))

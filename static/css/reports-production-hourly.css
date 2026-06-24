@@ -234,6 +234,36 @@ body .modal-backdrop.show {
     text-overflow: ellipsis;
 }
 
+.jp-ph-damaged,
+.jp-ph-note {
+    display: block;
+    font-size: 0.58rem;
+    color: #b45309;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.jp-ph-note {
+    color: #6c757d;
+}
+
+.jp-prod-review-damaged,
+.jp-prod-review-note {
+    display: block;
+    font-size: 0.72rem;
+    color: #b45309;
+}
+
+.jp-prod-review-note {
+    color: #6c757d;
+    max-width: 8rem;
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .jp-prod-review-zero-reason {
     font-size: 0.72rem;
     color: #6c757d;

@@ -125,6 +125,8 @@ def _export_production_report(report: DailyWorkReport, filename_prefix: str) -> 
                 'Định mức/H': row['norm_per_hour'] or '',
                 'Thời gian/H': row['hours_display'],
                 'Hiệu suất %': row['efficiency_pct'] if row['efficiency_pct'] is not None else '',
+                'Hư hỏng': row.get('damaged_quantity') or '',
+                'Ghi chú': row.get('note') or '',
                 'Lý do 0': row['zero_reason'] if row['quantity'] == 0 else '',
             })
         sheets['Nang_suat_chi_tiet'] = pd.DataFrame(detail_rows)

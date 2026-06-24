@@ -87,12 +87,17 @@
         var qtyInput = document.getElementById('hourly-quantity');
         var reasonWrap = document.getElementById('hourly-zero-reason-wrap');
         var reasonInput = document.getElementById('hourly-zero-reason');
+        var extraWrap = document.getElementById('hourly-extra-wrap');
+        var damagedInput = document.getElementById('hourly-damaged-quantity');
+        var noteInput = document.getElementById('hourly-note');
         if (qtyInput && reasonWrap && reasonInput) {
             qtyInput.addEventListener('input', function () {
                 var isZero = qtyInput.value === '0';
                 reasonWrap.classList.toggle('d-none', !isZero);
                 reasonInput.required = isZero;
                 if (!isZero) reasonInput.value = '';
+                if (extraWrap) extraWrap.classList.toggle('d-none', isZero);
+                if (isZero && damagedInput) damagedInput.value = '';
             });
         }
 
@@ -119,6 +124,9 @@
         var qty = document.getElementById('hourly-quantity');
         var reasonWrap = document.getElementById('hourly-zero-reason-wrap');
         var reasonInput = document.getElementById('hourly-zero-reason');
+        var extraWrap = document.getElementById('hourly-extra-wrap');
+        var damagedInput = document.getElementById('hourly-damaged-quantity');
+        var noteInput = document.getElementById('hourly-note');
         if (qty) {
             qty.value = '';
             if (reasonWrap) reasonWrap.classList.add('d-none');
@@ -126,6 +134,9 @@
                 reasonInput.value = '';
                 reasonInput.required = false;
             }
+            if (extraWrap) extraWrap.classList.remove('d-none');
+            if (damagedInput) damagedInput.value = '';
+            if (noteInput) noteInput.value = '';
             setTimeout(function () { qty.focus(); }, 200);
         }
     }

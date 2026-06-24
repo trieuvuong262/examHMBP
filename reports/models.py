@@ -258,6 +258,16 @@ class ProductionHourlyQuantity(models.Model):
     )
     slot_index = models.PositiveSmallIntegerField(verbose_name='Khung giờ')
     quantity = models.PositiveIntegerField(default=0, verbose_name='Sản lượng giờ')
+    damaged_quantity = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Số lượng hư hỏng',
+    )
+    note = models.CharField(
+        max_length=500,
+        blank=True,
+        default='',
+        verbose_name='Ghi chú',
+    )
     partial_hours = models.DecimalField(
         max_digits=4,
         decimal_places=2,

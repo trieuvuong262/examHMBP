@@ -24,6 +24,12 @@
                     <span class="jp-prod-review-qty-display{% if not cell.quantity %} text-muted{% endif %}">{{ cell.quantity }}</span>
                     {% if cell.quantity > 0 %}
                     <span class="jp-prod-review-cum-display">Σ {{ cell.cumulative }}</span>
+                    {% if cell.damaged_quantity %}
+                    <span class="jp-prod-review-damaged">Hư: {{ cell.damaged_quantity }}</span>
+                    {% endif %}
+                    {% if cell.note %}
+                    <span class="jp-prod-review-note" title="{{ cell.note }}">{{ cell.note|truncatechars:24 }}</span>
+                    {% endif %}
                     {% elif cell.zero_reason %}
                     <span class="jp-prod-review-zero-reason">{{ cell.zero_reason }}</span>
                     {% endif %}
