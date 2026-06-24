@@ -77,6 +77,7 @@ class VpsMonitorViewTests(TestCase):
         self.assertContains(resp, 'Giám sát VPS')
         self.assertContains(resp, 'Performance')
         self.assertContains(resp, 'jp-vps-tab-performance')
+        self.assertContains(resp, 'jp-vps-loading')
 
     @patch('audit.views_vps.collect_vps_metrics')
     def test_metrics_api(self, mock_collect):

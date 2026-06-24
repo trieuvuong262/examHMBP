@@ -9,8 +9,13 @@
     const performanceRefreshSec = parseInt(root.dataset.performanceRefresh || '5', 10);
     const refreshBtn = document.getElementById('jp-nas-refresh');
     const updatedEl = document.getElementById('jp-nas-updated');
+    const loadingEl = document.getElementById('jp-nas-loading');
     const performanceTab = document.getElementById('jp-nas-tab-performance');
     const performanceTabBtn = document.getElementById('jp-nas-tab-performance-btn');
+
+    const loading = window.jpCreateMonitorLoading
+        ? window.jpCreateMonitorLoading({ root: root, loadingEl: loadingEl, refreshBtn: refreshBtn })
+        : { show: function () {}, hide: function () {} };
 
     const HISTORY_MAX = 60;
     const chartHistory = { labels: [], cpu: [], ram: [], disk: [] };
@@ -448,8 +453,10 @@
         }
     }
 
-    async function refreshMetrics() {
+    async function refreshMetrics(options) {
         if (!metricsUrl) return;
+        const manual = options && options.manual === true;
+        loading.show(manual);
         try {
             const resp = await fetch(metricsUrl, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' },
@@ -458,16 +465,25 @@
             const data = await resp.json();
             if (data.status === 'success' && data.metrics) {
                 applyMetrics(data.metrics);
+            } else if (updatedEl) {
+                updatedEl.textContent = 'Lỗi tải metrics' + (data.message ? ': ' + data.message : '');
             }
         } catch (err) {
             console.warn('NAS metrics refresh failed', err);
+            if (updatedEl) updatedEl.textContent = 'Lỗi kết nối metrics';
+        } finally {
+            loading.hide();
         }
     }
 
     function scheduleRefresh() {
         if (refreshTimer) clearInterval(refreshTimer);
         const sec = performanceTabActive ? performanceRefreshSec : refreshSec;
-        if (sec > 0) refreshTimer = setInterval(refreshMetrics, sec * 1000);
+        if (sec > 0) {
+            refreshTimer = setInterval(function () {
+                refreshMetrics({ manual: false });
+            }, sec * 1000);
+        }
     }
 
     if (performanceTabBtn) {
@@ -475,7 +491,7 @@
             performanceTabActive = true;
             initPerformanceCharts();
             scheduleRefresh();
-            refreshMetrics();
+            refreshMetrics({ manual: false });
         });
         performanceTabBtn.addEventListener('hidden.bs.tab', function () {
             performanceTabActive = false;
@@ -486,7 +502,11 @@
         performanceTabActive = true;
     }
 
-    if (refreshBtn) refreshBtn.addEventListener('click', refreshMetrics);
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function () {
+            refreshMetrics({ manual: true });
+        });
+    }
 
     if (updatedEl) {
         updatedEl.textContent = 'Cập nhật ' + new Date().toLocaleTimeString('vi-VN');

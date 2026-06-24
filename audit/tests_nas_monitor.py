@@ -73,6 +73,12 @@ class NasMonitorServiceTests(TestCase):
         self.assertEqual(row['used_percent'], 20.0)
         self.assertIn('/', row['display'])
 
+    def test_parse_dsm_cpu_percent_from_load_parts(self):
+        from audit.services.nas_monitor import _parse_dsm_cpu_percent
+
+        self.assertEqual(_parse_dsm_cpu_percent({'user_load': 9, 'system_load': 8, 'other_load': 1}), 18.0)
+        self.assertEqual(_parse_dsm_cpu_percent({'1min_load': 42}), 42.0)
+
     @patch('audit.services.nas_monitor._dsm_request')
     def test_filestation_share_uses_folder_size_not_volume(self, mock_dsm):
         from audit.services.nas_monitor import _read_dsm_filestation_shares
@@ -103,7 +109,26 @@ class NasMonitorServiceTests(TestCase):
         self.assertEqual(_parse_byte_value({'used_space': 1024}), 1024)
 
     @patch('audit.services.nas_monitor._dsm_request')
-    def test_utilization_memory_in_kilobytes(self, mock_dsm):
+    def test_utilization_memory_uses_memory_size_and_real_usage(self, mock_dsm):
+        from audit.services.nas_monitor import _read_dsm_utilization
+
+        mock_dsm.return_value = {
+            'cpu': {'load': 12},
+            'memory': {
+                'memory_size': 8388608,
+                'total_real': 7923712,
+                'avail_real': 4194304,
+                'real_usage': 50,
+            },
+        }
+        util = _read_dsm_utilization()
+        self.assertEqual(util['ram']['total_bytes'], 8388608 * 1024)
+        self.assertEqual(util['ram']['used_bytes'], int(8388608 * 1024 * 0.5))
+        self.assertEqual(util['ram']['used_percent'], 50)
+        self.assertIn('GB', util['ram']['display'])
+
+    @patch('audit.services.nas_monitor._dsm_request')
+    def test_utilization_memory_fallback_total_real(self, mock_dsm):
         from audit.services.nas_monitor import _read_dsm_utilization
 
         mock_dsm.return_value = {
@@ -116,9 +141,7 @@ class NasMonitorServiceTests(TestCase):
         }
         util = _read_dsm_utilization()
         self.assertEqual(util['ram']['total_bytes'], 8388608 * 1024)
-        self.assertEqual(util['ram']['used_bytes'], 4194304 * 1024)
         self.assertEqual(util['ram']['used_percent'], 50)
-        self.assertIn('GB', util['ram']['display'])
 
     @patch('audit.services.nas_monitor._read_dsm_filestation_shares', return_value=[])
     @patch('audit.services.nas_monitor._list_shares_from_rclone')
@@ -229,6 +252,7 @@ class NasMonitorViewTests(TestCase):
         self.assertContains(resp, 'Performance')
         self.assertContains(resp, 'jp-nas-tab-performance')
         self.assertContains(resp, 'Hệ thống DSM')
+        self.assertContains(resp, 'jp-nas-loading')
 
     @patch('audit.views_nas.collect_nas_metrics')
     def test_metrics_api(self, mock_collect):

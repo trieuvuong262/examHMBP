@@ -77,6 +77,13 @@
         </li>
     </ul>
 
+    <div class="jp-monitor-tab-wrap">
+        <div id="jp-nas-loading" class="jp-monitor-loading" hidden aria-live="polite" aria-busy="false">
+            <div class="jp-monitor-loading-box">
+                <div class="spinner-border text-primary mb-2" role="status" aria-hidden="true"></div>
+                <div class="jp-monitor-loading-text text-muted small">Đang tải dữ liệu giám sát...</div>
+            </div>
+        </div>
     <div class="tab-content" id="jp-nas-tab-content">
     <div class="tab-pane fade show active" id="jp-nas-tab-overview" role="tabpanel"
          aria-labelledby="jp-nas-tab-overview-btn" tabindex="0">
@@ -617,6 +624,7 @@
     {% endwith %}
 
     </div>{# /tab-content #}
+    </div>{# /jp-monitor-tab-wrap #}
 </div>
 
 <style>
@@ -630,5 +638,6 @@
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="{% static 'js/audit/monitor_loading.js' %}"></script>
 <script src="{% static 'js/audit/nas_monitor.js' %}"></script>
 {% endblock %}

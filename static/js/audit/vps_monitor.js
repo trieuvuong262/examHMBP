@@ -9,9 +9,14 @@
     const performanceRefreshSec = parseInt(root.dataset.performanceRefresh || '5', 10);
     const refreshBtn = document.getElementById('jp-vps-refresh');
     const updatedEl = document.getElementById('jp-vps-updated');
+    const loadingEl = document.getElementById('jp-vps-loading');
     const performanceTab = document.getElementById('jp-vps-tab-performance');
     const performanceTabBtn = document.getElementById('jp-vps-tab-performance-btn');
     const openContainerIds = new Set();
+
+    const loading = window.jpCreateMonitorLoading
+        ? window.jpCreateMonitorLoading({ root: root, loadingEl: loadingEl, refreshBtn: refreshBtn })
+        : { show: function () {}, hide: function () {} };
 
     const HISTORY_MAX = 60;
     const chartHistory = { labels: [], cpu: [], ram: [], disk: [] };
@@ -346,8 +351,10 @@
         }
     }
 
-    async function refreshMetrics() {
+    async function refreshMetrics(options) {
         if (!metricsUrl) return;
+        const manual = options && options.manual === true;
+        loading.show(manual);
         try {
             const resp = await fetch(metricsUrl, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' },
@@ -359,6 +366,8 @@
             }
         } catch (err) {
             console.warn('VPS metrics refresh failed', err);
+        } finally {
+            loading.hide();
         }
     }
 
@@ -366,7 +375,9 @@
         if (refreshTimer) clearInterval(refreshTimer);
         const sec = performanceTabActive ? performanceRefreshSec : refreshSec;
         if (sec > 0) {
-            refreshTimer = setInterval(refreshMetrics, sec * 1000);
+            refreshTimer = setInterval(function () {
+                refreshMetrics({ manual: false });
+            }, sec * 1000);
         }
     }
 
@@ -374,7 +385,7 @@
         performanceTabActive = true;
         initPerformanceCharts();
         scheduleRefresh();
-        refreshMetrics();
+        refreshMetrics({ manual: false });
     }
 
     function onPerformanceTabHidden() {
@@ -394,7 +405,7 @@
 
     if (refreshBtn) {
         refreshBtn.addEventListener('click', function () {
-            refreshMetrics();
+            refreshMetrics({ manual: true });
         });
     }
 
