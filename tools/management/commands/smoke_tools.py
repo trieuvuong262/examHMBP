@@ -23,25 +23,16 @@ from tools.services import (
     convert_office_to_pdf,
     convert_pdf_to_docx,
     generate_qr_image,
-    is_background_removal_ready,
-    remove_image_background,
 )
 
 
 class Command(BaseCommand):
     help = 'Smoke test tất cả công cụ portal (service + trang GET).'
 
-    def add_arguments(self, parser):
-        parser.add_argument(
-            '--skip-rmbg',
-            action='store_true',
-            help='Bỏ qua xóa nền (chậm / cần model).',
-        )
-
     def handle(self, *args, **options):
         results = []
         results.append(self._check_catalog())
-        results.extend(self._check_services(skip_rmbg=options['skip_rmbg']))
+        results.extend(self._check_services())
         results.extend(self._check_pages())
 
         failed = [line for ok, line in results if not ok]
@@ -66,10 +57,10 @@ class Command(BaseCommand):
     def _check_catalog(self):
         groups = get_portal_tool_groups()
         total = sum(len(g['tools']) for g in groups)
-        ok = total == len(PORTAL_TOOLS) == 10 and len(groups) == 3
+        ok = total == len(PORTAL_TOOLS) == 9 and len(groups) == 3
         return ok, f'catalog: {len(groups)} groups, {total} tools'
 
-    def _check_services(self, *, skip_rmbg: bool):
+    def _check_services(self):
         lines = []
 
         pdf_buf = io.BytesIO()
@@ -148,18 +139,6 @@ class Command(BaseCommand):
             lines.append((png.startswith(b'\x89PNG'), 'service QR'))
         except Exception as exc:
             lines.append((False, f'service QR ({exc})'))
-
-        if skip_rmbg:
-            lines.append((True, 'service remove bg (skipped)'))
-        elif is_background_removal_ready():
-            img_upload.seek(0)
-            try:
-                data, name = remove_image_background(img_upload)
-                lines.append((data.startswith(b'\x89PNG'), 'service remove bg'))
-            except Exception as exc:
-                lines.append((False, f'service remove bg ({exc})'))
-        else:
-            lines.append((True, 'service remove bg (skip - model not warm)'))
 
         return lines
 

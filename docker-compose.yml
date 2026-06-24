@@ -27,7 +27,6 @@ services:
     volumes:
       - static_volume:/app/staticfiles
       - media_volume:/app/media
-      - rembg_models:/root/.u2net
       - ./static/equipment:/app/static/equipment:ro
       # Mã nguồn trên VPS (git pull) — đặt HOST_PROJECT_DIR=/opt/portaljustplay trong .env
       - ${HOST_PROJECT_DIR:-.}:/backup-source:ro
@@ -84,5 +83,4 @@ volumes:
   postgres_data:
   static_volume:
   media_volume:
-  rembg_models:
   certbot_webroot:

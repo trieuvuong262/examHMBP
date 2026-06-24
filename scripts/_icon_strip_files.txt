@@ -205,7 +205,6 @@ tools/templates/tools/ocr.html
 tools/templates/tools/office_to_pdf.html
 tools/templates/tools/pdf_to_word.html
 tools/templates/tools/qr_generator.html
-tools/templates/tools/remove_background.html
 tools/templates/tools/tool_base.html
 tools/templates/tools/watermark_image.html
 training/templates/training/includes/course_sidebar.html

@@ -11,15 +11,12 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 from .catalog import PORTAL_TOOLS
 from .models import UserNote
 from .services import (
-    BackgroundRemovalNotReady,
     apply_image_watermark,
     compress_image,
     convert_image_format,
     convert_office_to_pdf,
     convert_pdf_to_docx,
     generate_qr_image,
-    is_background_removal_ready,
-    remove_image_background,
 )
 
 
@@ -219,45 +216,6 @@ def qr_generator(request):
 @require_GET
 def ocr_tool(request):
     return render(request, 'tools/ocr.html', _tool_context('ocr'))
-
-
-@login_required
-@require_GET
-def remove_background_tool(request):
-    return render(request, 'tools/remove_background.html', _tool_context('remove-bg'))
-
-
-@login_required
-@require_POST
-def remove_background_api(request):
-    uploaded = request.FILES.get('image_file')
-    if not uploaded:
-        return JsonResponse({'error': 'Vui lòng chọn ảnh.'}, status=400)
-    try:
-        png_bytes, filename = remove_image_background(uploaded)
-    except BackgroundRemovalNotReady:
-        return JsonResponse({
-            'error': 'Server đang tải mô hình AI lần đầu. Vui lòng đợi 30–60 giây rồi bấm Xóa nền lại.',
-            'retry': True,
-            'warming': True,
-        }, status=503)
-    except ValidationError as exc:
-        return JsonResponse({'error': str(exc)}, status=400)
-    except Exception:
-        warming = not is_background_removal_ready()
-        return JsonResponse({
-            'error': (
-                'Server đang tải mô hình AI lần đầu. Vui lòng đợi 30–60 giây rồi thử lại.'
-                if warming else
-                'Không xóa được nền. Ảnh có thể quá lớn — thử file khác hoặc thử lại.'
-            ),
-            'retry': warming,
-            'warming': warming,
-        }, status=503 if warming else 500)
-
-    response = HttpResponse(png_bytes, content_type='image/png')
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    return response
 
 
 @login_required

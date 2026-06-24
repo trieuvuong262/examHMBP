@@ -22,8 +22,8 @@ from tools.services import (
 
 
 class ToolsCatalogTests(TestCase):
-    def test_portal_has_ten_tools(self):
-        self.assertEqual(len(PORTAL_TOOLS), 10)
+    def test_portal_has_nine_tools(self):
+        self.assertEqual(len(PORTAL_TOOLS), 9)
         slugs = {tool['slug'] for tool in PORTAL_TOOLS}
         self.assertEqual(slugs, {
             'pdf-word',
@@ -32,7 +32,6 @@ class ToolsCatalogTests(TestCase):
             'compress',
             'convert-format',
             'watermark',
-            'remove-bg',
             'qr',
             'notes',
             'schedule-reminder',
@@ -154,7 +153,6 @@ class ToolsIntegrationTests(TestCase):
             'tools:compress_image',
             'tools:convert_image_format',
             'tools:watermark_image',
-            'tools:remove_background',
             'tools:qr_generator',
             'tools:notes',
             'tools:schedule_reminder',
@@ -240,21 +238,6 @@ class ToolsIntegrationTests(TestCase):
         self.assertContains(ocr_response, 'tesseract.min.js')
         self.assertContains(ocr_response, 'ocr.js')
 
-        rmbg_response = self.client.get(reverse('tools:remove_background'))
-        self.assertContains(rmbg_response, 'remove_bg.js')
-        self.assertContains(rmbg_response, reverse('tools:remove_background_api'))
-
-    @patch('tools.views.remove_image_background')
-    def test_remove_background_api_returns_png(self, mock_remove):
-        mock_remove.return_value = (b'\x89PNG\r\n\x1a\nfake', 'portrait-khong-nen.png')
-        buffer = BytesIO()
-        Image.new('RGB', (64, 64), color=(255, 0, 0)).save(buffer, format='JPEG')
-        uploaded = SimpleUploadedFile('portrait.jpg', buffer.getvalue(), content_type='image/jpeg')
-        response = self.client.post(reverse('tools:remove_background_api'), {'image_file': uploaded})
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response['Content-Type'], 'image/png')
-        self.assertTrue(response.content.startswith(b'\x89PNG'))
-
     def test_convert_image_format_download(self):
         buffer = BytesIO()
         Image.new('RGB', (200, 200), color=(255, 128, 0)).save(buffer, format='JPEG')
@@ -293,19 +276,3 @@ class ToolsIntegrationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], 'application/pdf')
         self.assertTrue(response.content.startswith(b'%PDF'))
-
-    def test_remove_background_api_requires_file(self):
-        response = self.client.post(reverse('tools:remove_background_api'), {})
-        self.assertEqual(response.status_code, 400)
-
-    @patch('tools.views.is_background_removal_ready', return_value=False)
-    @patch('tools.views.remove_image_background', side_effect=Exception('boom'))
-    def test_remove_background_api_warming_returns_retry(self, _remove, _ready):
-        buffer = BytesIO()
-        Image.new('RGB', (32, 32), color=(0, 255, 0)).save(buffer, format='JPEG')
-        uploaded = SimpleUploadedFile('x.jpg', buffer.getvalue(), content_type='image/jpeg')
-        response = self.client.post(reverse('tools:remove_background_api'), {'image_file': uploaded})
-        self.assertEqual(response.status_code, 503)
-        payload = response.json()
-        self.assertTrue(payload.get('retry'))
-        self.assertTrue(payload.get('warming'))

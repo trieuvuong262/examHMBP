@@ -56,15 +56,6 @@ PORTAL_TOOLS = (
         'group': 'images',
     },
     {
-        'slug': 'remove-bg',
-        'name': 'Xóa nền',
-        'description': 'Tách chủ thể khỏi nền ảnh — xuất PNG trong suốt.',
-        'icon': 'bi-scissors',
-        'accent': 'pink',
-        'url_name': 'tools:remove_background',
-        'group': 'images',
-    },
-    {
         'slug': 'qr',
         'name': 'Tạo mã QR',
         'description': 'Tạo mã QR từ link, văn bản hoặc số điện thoại.',
@@ -104,7 +95,7 @@ PORTAL_TOOL_GROUPS = (
     {
         'key': 'images',
         'title': 'Ảnh',
-        'subtitle': 'Nén, đổi định dạng, watermark, xóa nền',
+        'subtitle': 'Nén, đổi định dạng, watermark',
         'icon': 'bi-image',
         'accent': 'green',
     },

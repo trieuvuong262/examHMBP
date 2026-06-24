@@ -3,7 +3,6 @@ import os
 import shutil
 import subprocess
 import tempfile
-import threading
 
 import qrcode
 from django.core.exceptions import ValidationError
@@ -41,15 +40,6 @@ _FONT_CANDIDATES = (
     'C:/Windows/Fonts/arial.ttf',
     'C:/Windows/Fonts/segoeui.ttf',
 )
-
-_bg_session = None
-_bg_lock = threading.Lock()
-_bg_warming = False
-
-
-class BackgroundRemovalNotReady(Exception):
-    """Mô hình AI đang tải — client nên thử lại."""
-
 
 def _validate_pdf(uploaded_file):
     if uploaded_file.size > PDF_MAX_BYTES:
@@ -121,50 +111,6 @@ def compress_image(uploaded_file, *, quality: int = 80, max_width: int | None = 
         rgb = img.convert('RGB') if img.mode != 'RGB' else img
         rgb.save(buffer, format='JPEG', quality=quality, optimize=True)
         return buffer.getvalue(), f'{base_name}-nen.jpg', 'image/jpeg'
-
-
-def is_background_removal_ready() -> bool:
-    return _bg_session is not None
-
-
-def _get_background_removal_session(*, wait: bool = True):
-    global _bg_session, _bg_warming
-    if _bg_session is not None:
-        return _bg_session
-    if _bg_warming and not wait:
-        raise BackgroundRemovalNotReady()
-
-    with _bg_lock:
-        if _bg_session is not None:
-            return _bg_session
-        if _bg_warming and not wait:
-            raise BackgroundRemovalNotReady()
-        _bg_warming = True
-        try:
-            from rembg import new_session
-            _bg_session = new_session('u2net')
-        finally:
-            _bg_warming = False
-    return _bg_session
-
-
-def warm_background_removal():
-    """Tải sẵn mô hình AI — gọi sau deploy / khi worker khởi động."""
-    _get_background_removal_session(wait=True)
-
-
-def remove_image_background(uploaded_file) -> tuple[bytes, str]:
-    """Xóa nền ảnh — trả về (bytes PNG, tên file gợi ý)."""
-    from rembg import remove
-
-    _validate_image(uploaded_file)
-    uploaded_file.seek(0)
-    output_bytes = remove(uploaded_file.read(), session=_get_background_removal_session())
-    if not output_bytes:
-        raise ValidationError('Không tách được chủ thể khỏi nền ảnh.')
-
-    base_name = os.path.splitext(os.path.basename(uploaded_file.name or 'image.png'))[0]
-    return output_bytes, f'{base_name}-khong-nen.png'
 
 
 def _validate_office_for_pdf(uploaded_file):

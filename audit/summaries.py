@@ -504,10 +504,6 @@ NAMESPACE_URL_DESCRIPTIONS: dict[str, dict[str, str] | str] = {
         'GET': 'mở công cụ nén ảnh',
         'POST': 'nén ảnh',
     },
-    'tools:remove_background': {
-        'GET': 'mở công cụ xóa nền ảnh',
-        'POST': 'xóa nền ảnh',
-    },
     'tools:qr_generator': {
         'GET': 'mở công cụ tạo mã QR',
         'POST': 'tạo mã QR',
