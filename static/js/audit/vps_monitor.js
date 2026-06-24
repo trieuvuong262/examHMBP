@@ -272,6 +272,32 @@
         }).join('');
     }
 
+    function applyResourceCards(metrics) {
+        const ram = metrics.ram || {};
+        const cpu = metrics.cpu || {};
+        const disk = metrics.disk || {};
+
+        const ramDisplay = document.querySelector('[data-jp-vps-ram-display]');
+        if (ramDisplay) ramDisplay.textContent = ram.display || formatBytes(ram.used_bytes) + ' / ' + formatBytes(ram.total_bytes);
+        setBar(document.querySelector('[data-jp-vps-ram-bar]'), ram.used_percent);
+        const ramPct = document.querySelector('[data-jp-vps-ram-pct]');
+        if (ramPct) ramPct.textContent = (ram.used_percent != null ? ram.used_percent : '—') + (ram.used_percent != null ? '%' : '');
+
+        const cpuDisplay = document.querySelector('[data-jp-vps-cpu-display]');
+        if (cpuDisplay) cpuDisplay.textContent = cpu.percent != null ? cpu.percent + '%' : '—';
+        setBar(document.querySelector('[data-jp-vps-cpu-bar]'), cpu.percent);
+        const loadEl = document.querySelector('[data-jp-vps-load]');
+        if (loadEl && cpu.loadavg) loadEl.textContent = cpu.loadavg['1m'];
+
+        const diskDisplay = document.querySelector('[data-jp-vps-disk-display]');
+        if (diskDisplay && disk.used_bytes != null) {
+            diskDisplay.textContent = formatBytes(disk.used_bytes) + ' / ' + formatBytes(disk.total_bytes);
+        }
+        setBar(document.querySelector('[data-jp-vps-disk-bar]'), disk.used_percent);
+        const diskPct = document.querySelector('[data-jp-vps-disk-pct]');
+        if (diskPct) diskPct.textContent = (disk.used_percent != null ? disk.used_percent : '—') + (disk.used_percent != null ? '%' : '');
+    }
+
     function applyPerformanceMetrics(metrics) {
         const ram = metrics.ram || {};
         const cpu = metrics.cpu || {};
@@ -317,6 +343,9 @@
     function applyMetricsForScope(metrics, scope) {
         if (scope === 'performance') {
             applyPerformanceMetrics(metrics);
+            if (!performanceTabActive) {
+                applyResourceCards(metrics);
+            }
         } else {
             applyMetrics(metrics);
         }
@@ -326,30 +355,9 @@
     }
 
     function applyMetrics(metrics) {
-        const ram = metrics.ram || {};
-        const cpu = metrics.cpu || {};
-        const disk = metrics.disk || {};
         const summary = (metrics.docker && metrics.docker.summary) || {};
 
-        const ramDisplay = document.querySelector('[data-jp-vps-ram-display]');
-        if (ramDisplay) ramDisplay.textContent = ram.display || formatBytes(ram.used_bytes) + ' / ' + formatBytes(ram.total_bytes);
-        setBar(document.querySelector('[data-jp-vps-ram-bar]'), ram.used_percent);
-        const ramPct = document.querySelector('[data-jp-vps-ram-pct]');
-        if (ramPct) ramPct.textContent = (ram.used_percent != null ? ram.used_percent : '—') + (ram.used_percent != null ? '%' : '');
-
-        const cpuDisplay = document.querySelector('[data-jp-vps-cpu-display]');
-        if (cpuDisplay) cpuDisplay.textContent = cpu.percent != null ? cpu.percent + '%' : '—';
-        setBar(document.querySelector('[data-jp-vps-cpu-bar]'), cpu.percent);
-        const loadEl = document.querySelector('[data-jp-vps-load]');
-        if (loadEl && cpu.loadavg) loadEl.textContent = cpu.loadavg['1m'];
-
-        const diskDisplay = document.querySelector('[data-jp-vps-disk-display]');
-        if (diskDisplay && disk.used_bytes != null) {
-            diskDisplay.textContent = formatBytes(disk.used_bytes) + ' / ' + formatBytes(disk.total_bytes);
-        }
-        setBar(document.querySelector('[data-jp-vps-disk-bar]'), disk.used_percent);
-        const diskPct = document.querySelector('[data-jp-vps-disk-pct]');
-        if (diskPct) diskPct.textContent = (disk.used_percent != null ? disk.used_percent : '—') + (disk.used_percent != null ? '%' : '');
+        applyResourceCards(metrics);
 
         renderContainers((metrics.docker && metrics.docker.containers) || []);
 
@@ -371,12 +379,14 @@
     }
 
     async function refreshMetrics(options) {
-        if (!metricsUrl) return;
+        if (!metricsUrl) return false;
         const initial = options && options.initial === true;
         const manual = options && options.manual === true;
+        const quiet = options && options.quiet === true;
         const scope = (options && options.scope) || activeScope;
         if (initial) loading.showInitial();
         else if (manual) loading.showButtonBusy();
+        let ok = false;
         try {
             const url = metricsUrl + (metricsUrl.indexOf('?') >= 0 ? '&' : '?') + 'scope=' + encodeURIComponent(scope);
             const resp = await fetch(url, {
@@ -386,6 +396,7 @@
             const data = await resp.json();
             if (data.status === 'success' && data.metrics) {
                 applyMetricsForScope(data.metrics, scope);
+                ok = true;
             }
         } catch (err) {
             console.warn('VPS metrics refresh failed', err);
@@ -393,6 +404,21 @@
             if (initial) loading.hideInitial();
             else if (manual) loading.hideButtonBusy();
         }
+        return ok;
+    }
+
+    async function loadInitialMetrics() {
+        if (activeScope === 'performance') {
+            await refreshMetrics({ initial: true, scope: 'performance' });
+            return;
+        }
+        loading.showInitial();
+        try {
+            await refreshMetrics({ scope: 'performance', quiet: true });
+        } finally {
+            loading.hideInitial();
+        }
+        await refreshMetrics({ scope: activeScope, quiet: true });
     }
 
     function bindTabScope(btn, scope) {
@@ -448,5 +474,5 @@
     }
 
     scheduleRefresh();
-    refreshMetrics({ initial: true, scope: activeScope });
+    loadInitialMetrics();
 })();
