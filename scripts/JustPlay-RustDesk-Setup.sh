@@ -95,6 +95,22 @@ get_primary_lan_ip() {
   return 1
 }
 
+get_primary_mac() {
+  local line iface mac
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^[0-9]+:\ ([^:]+): ]]; then
+      iface="${BASH_REMATCH[1]}"
+    elif [[ "$line" =~ link/ether\ ([0-9a-f:]{17}) ]]; then
+      mac="${BASH_REMATCH[1]}"
+      [[ "$iface" == lo ]] && continue
+      [[ "$iface" == docker* || "$iface" == br-* || "$iface" == veth* || "$iface" == virbr* ]] && continue
+      echo "$mac" | tr '[:lower:]' '[:upper:]'
+      return 0
+    fi
+  done < <(ip -o link show 2>/dev/null || true)
+  return 1
+}
+
 RUN_USER="${SUDO_USER:-$USER}"
 CONFIG_DIR="${HOME}/.config/rustdesk"
 if [[ -n "${SUDO_USER:-}" ]]; then
@@ -293,6 +309,7 @@ register_portal() {
   local hostname ip payload http_code
   hostname="$(hostname -s 2>/dev/null || hostname)"
   ip="$(get_primary_lan_ip 2>/dev/null || true)"
+  mac="$(get_primary_mac 2>/dev/null || true)"
   echo '[5/5] Dang ky len Portal...'
   payload="$(
     export JP_ENROLL="$ENROLL_SECRET"
@@ -300,6 +317,7 @@ register_portal() {
     export JP_PW="$CLIENT_PASSWORD"
     export JP_HOST="$hostname"
     export JP_IP="$ip"
+    export JP_MAC="$mac"
     export JP_NAME="$hostname"
     export JP_ASSIGNED="$ASSIGNED_USER_TEXT"
     export JP_DEPT="$DEPARTMENT_TEXT"
@@ -317,10 +335,13 @@ data = {
 }
 assigned = os.environ.get('JP_ASSIGNED', '').strip()
 dept = os.environ.get('JP_DEPT', '').strip()
+mac = os.environ.get('JP_MAC', '').strip()
 if assigned:
     data['assigned_user_text'] = assigned
 if dept:
     data['department_text'] = dept
+if mac:
+    data['mac_address'] = mac
 print(json.dumps(data))
 PY
   )"

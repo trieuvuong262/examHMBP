@@ -116,6 +116,6 @@ class PortalBackupJobAdmin(admin.ModelAdmin):
 
 @admin.register(RustDeskHost)
 class RustDeskHostAdmin(admin.ModelAdmin):
-    list_display = ('name', 'rustdesk_id', 'hostname', 'ip_address', 'is_active', 'updated_at')
+    list_display = ('name', 'rustdesk_id', 'hostname', 'ip_address', 'mac_address', 'is_active', 'updated_at')
     search_fields = ('name', 'rustdesk_id', 'hostname', 'department_text', 'assigned_user_text')
     list_filter = ('is_active',)

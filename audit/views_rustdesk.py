@@ -11,6 +11,7 @@ from audit.forms_rustdesk import RustDeskHostForm
 from audit.models import RustDeskHost
 from audit.services.rustdesk_connect import effective_rustdesk_password
 from audit.services.rustdesk_online import get_peers_online_map, normalize_rustdesk_id
+from audit.services.wake_on_lan import send_wake_on_lan
 from hrm.menu_permissions import user_can_delete_menu, user_can_edit_menu
 from hrm.module_permissions import MODULE_AUDIT
 from PortalJustPlay.pagination import paginate_queryset
@@ -57,9 +58,11 @@ def rustdesk_list(request):
     page_obj, query_string = paginate_queryset(request, qs)
 
     online_map = get_peers_online_map(host.rustdesk_id for host in page_obj)
+    wol_enabled = getattr(settings, 'RUSTDESK_WOL_ENABLED', True)
     for host in page_obj:
         host.rd_is_online = online_map.get(normalize_rustdesk_id(host.rustdesk_id), False)
         host.rd_password_copy = effective_rustdesk_password(host.rustdesk_password)
+        host.rd_can_wake = wol_enabled and bool(host.effective_mac_address)
 
     return render(request, 'audit/rustdesk_list.html', {
         'page_obj': page_obj,
@@ -71,6 +74,7 @@ def rustdesk_list(request):
         'can_edit_rustdesk': _can_connect(request.user),
         'rustdesk_online_check': getattr(settings, 'RUSTDESK_ONLINE_CHECK_ENABLED', True),
         'rustdesk_online_poll_sec': getattr(settings, 'RUSTDESK_ONLINE_POLL_SEC', 5),
+        'rustdesk_wol_enabled': getattr(settings, 'RUSTDESK_WOL_ENABLED', True),
     })
 
 
@@ -87,6 +91,42 @@ def rustdesk_online_status(request):
     return JsonResponse({
         'status': 'ok',
         'online': {peer_id: bool(online_map.get(peer_id)) for peer_id in peer_ids},
+    })
+
+
+@module_perm_required(MODULE_AUDIT, 'view')
+@require_POST
+def rustdesk_wake(request, pk):
+    if not _can_connect(request.user):
+        return JsonResponse({'status': 'error', 'message': 'Không có quyền.'}, status=403)
+    if not getattr(settings, 'RUSTDESK_WOL_ENABLED', True):
+        return JsonResponse({'status': 'error', 'message': 'Wake-on-LAN đã tắt.'}, status=403)
+
+    host = get_object_or_404(RustDeskHost.objects.select_related('device'), pk=pk)
+    mac = host.effective_mac_address
+    if not mac:
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Chưa có địa chỉ MAC. Nhập MAC hoặc liên kết thiết bị IT.',
+        }, status=400)
+
+    try:
+        broadcast = send_wake_on_lan(
+            mac,
+            ip_address=str(host.ip_address) if host.ip_address else None,
+        )
+    except ValueError as exc:
+        return JsonResponse({'status': 'error', 'message': str(exc)}, status=400)
+    except OSError as exc:
+        return JsonResponse({
+            'status': 'error',
+            'message': f'Không gửi được magic packet: {exc}',
+        }, status=500)
+
+    return JsonResponse({
+        'status': 'ok',
+        'message': f'Đã gửi Wake-on-LAN tới {host.name} ({broadcast}).',
+        'broadcast': broadcast,
     })
 
 

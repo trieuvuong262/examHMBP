@@ -1,6 +1,7 @@
 from django import forms
 
 from audit.models import RustDeskHost
+from audit.services.wake_on_lan import normalize_mac
 
 
 class RustDeskHostForm(forms.ModelForm):
@@ -10,6 +11,7 @@ class RustDeskHostForm(forms.ModelForm):
             'name',
             'hostname',
             'ip_address',
+            'mac_address',
             'rustdesk_id',
             'rustdesk_password',
             'department_text',
@@ -22,6 +24,11 @@ class RustDeskHostForm(forms.ModelForm):
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'VD: PC Kế toán — Nguyễn A'}),
             'hostname': forms.TextInput(attrs={'class': 'form-control'}),
             'ip_address': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '192.168.x.x'}),
+            'mac_address': forms.TextInput(attrs={
+                'class': 'form-control font-monospace',
+                'placeholder': 'AA:BB:CC:DD:EE:FF',
+                'autocomplete': 'off',
+            }),
             'rustdesk_id': forms.TextInput(attrs={
                 'class': 'form-control font-monospace',
                 'placeholder': '258 599 030',
@@ -50,6 +57,11 @@ class RustDeskHostForm(forms.ModelForm):
         )
         self.fields['device'].required = False
         self.fields['rustdesk_id'].label = 'RustDesk ID'
+        self.fields['mac_address'].label = 'MAC (Wake-on-LAN)'
+        self.fields['mac_address'].required = False
+        self.fields['mac_address'].help_text = (
+            'Tùy chọn — dùng để bật máy từ xa. Có thể lấy từ thiết bị IT liên kết.'
+        )
         self.fields['rustdesk_password'].label = 'RustDesk mật khẩu'
         self.fields['rustdesk_password'].required = False
 
@@ -63,6 +75,12 @@ class RustDeskHostForm(forms.ModelForm):
         if len(digits) < 6:
             raise forms.ValidationError('RustDesk ID quá ngắn.')
         return digits
+
+    def clean_mac_address(self):
+        raw = (self.cleaned_data.get('mac_address') or '').strip()
+        if not raw:
+            return ''
+        return normalize_mac(raw)
 
     def clean_rustdesk_password(self):
         return (self.cleaned_data.get('rustdesk_password') or '').strip()[:128]

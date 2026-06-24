@@ -612,6 +612,18 @@ function Register-PortalHost {
     )
     $hostname = $env:COMPUTERNAME
     $ip = Get-PrimaryLanIPv4
+    $mac = $null
+    try {
+        $adapter = Get-NetAdapter -ErrorAction SilentlyContinue |
+            Where-Object {
+                $_.MacAddress -and
+                $_.MacAddress -ne '00-00-00-00-00-00' -and
+                $_.InterfaceDescription -notmatch 'Virtual|Hyper-V|VMware|Loopback|TAP|VPN|Bluetooth'
+            } |
+            Sort-Object @{ Expression = { if ($_.Status -eq 'Up') { 0 } else { 1 } } }, InterfaceMetric |
+            Select-Object -First 1
+        if ($adapter) { $mac = ($adapter.MacAddress -replace '-', ':').ToUpper() }
+    } catch {}
     $payload = @{
         enroll_secret = $Secret
         rustdesk_id = $RustDeskId
@@ -620,6 +632,7 @@ function Register-PortalHost {
         ip_address = $ip
         name = $hostname
     }
+    if ($mac) { $payload['mac_address'] = $mac }
     if ($AssignedUserText) { $payload['assigned_user_text'] = $AssignedUserText }
     if ($DepartmentText) { $payload['department_text'] = $DepartmentText }
     $payload = $payload | ConvertTo-Json -Compress

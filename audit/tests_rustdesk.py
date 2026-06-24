@@ -69,6 +69,44 @@ class RustdeskConnectTests(SimpleTestCase):
         self.assertEqual(url, 'rustdesk://connection/new/258599030')
 
 
+class WakeOnLanServiceTests(SimpleTestCase):
+    def test_normalize_mac(self):
+        from audit.services.wake_on_lan import normalize_mac
+
+        self.assertEqual(normalize_mac('aa-bb-cc-dd-ee-ff'), 'AA:BB:CC:DD:EE:FF')
+
+    def test_broadcast_from_ip(self):
+        from audit.services.wake_on_lan import broadcast_address_for
+
+        self.assertEqual(broadcast_address_for('192.168.74.50'), '192.168.74.255')
+
+    @override_settings(RUSTDESK_WOL_BROADCAST='10.0.0.255')
+    def test_broadcast_setting_override(self):
+        from audit.services.wake_on_lan import broadcast_address_for
+
+        self.assertEqual(broadcast_address_for('192.168.1.10'), '10.0.0.255')
+
+    def test_magic_packet_length(self):
+        from audit.services.wake_on_lan import build_magic_packet
+
+        packet = build_magic_packet('AA:BB:CC:DD:EE:FF')
+        self.assertEqual(len(packet), 6 + 16 * 6)
+
+    @override_settings(RUSTDESK_WOL_PORT=9)
+    def test_send_wake_on_lan(self):
+        from unittest.mock import MagicMock, patch
+
+        from audit.services.wake_on_lan import send_wake_on_lan
+
+        mock_sock = MagicMock()
+        with patch('audit.services.wake_on_lan.socket.socket', return_value=mock_sock):
+            target = send_wake_on_lan('AA:BB:CC:DD:EE:FF', ip_address='192.168.74.50')
+        self.assertEqual(target, '192.168.74.255')
+        mock_sock.sendto.assert_called_once()
+        args = mock_sock.sendto.call_args[0]
+        self.assertEqual(args[1], ('192.168.74.255', 9))
+
+
 class RustdeskOnlineServiceTests(SimpleTestCase):
     def test_build_and_parse_online_request_roundtrip(self):
         from audit.services.rustdesk_online import (
@@ -175,6 +213,7 @@ class RustdeskHostTests(TestCase):
             'name': 'Test',
             'hostname': '',
             'ip_address': '',
+            'mac_address': '',
             'rustdesk_id': '111222333',
             'rustdesk_password': 'abc',
             'department_text': '',
@@ -227,11 +266,42 @@ class RustdeskHostTests(TestCase):
         self.client.force_login(self.view_user)
         response = self.client.get(reverse('audit:rustdesk_list'))
         self.assertNotContains(response, 'rustdesk://')
-        self.assertContains(response, 'Chỉ IT được kết nối')
+        self.assertNotContains(response, 'jp-rd-connect-btn')
+
+    @override_settings(RUSTDESK_WOL_ENABLED=True)
+    def test_edit_user_sees_wake_button_with_mac(self):
+        self.host.mac_address = 'AA:BB:CC:DD:EE:FF'
+        self.host.save(update_fields=['mac_address'])
+        self.client.force_login(self.edit_user)
+        response = self.client.get(reverse('audit:rustdesk_list'))
+        self.assertContains(response, 'jp-rd-wake-btn')
+        self.assertContains(response, 'Wake up')
+
+    @override_settings(RUSTDESK_WOL_ENABLED=True)
+    def test_wake_endpoint_sends_packet(self):
+        from unittest.mock import patch
+
+        self.host.mac_address = 'AA:BB:CC:DD:EE:FF'
+        self.host.ip_address = '192.168.74.50'
+        self.host.save(update_fields=['mac_address', 'ip_address'])
+        self.client.force_login(self.edit_user)
+        with patch('audit.views_rustdesk.send_wake_on_lan', return_value='192.168.74.255') as mock_wake:
+            response = self.client.post(reverse('audit:rustdesk_wake', args=[self.host.pk]))
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload['status'], 'ok')
+        mock_wake.assert_called_once_with('AA:BB:CC:DD:EE:FF', ip_address='192.168.74.50')
+
+    def test_wake_endpoint_requires_mac(self):
+        self.client.force_login(self.edit_user)
+        response = self.client.post(reverse('audit:rustdesk_wake', args=[self.host.pk]))
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['status'], 'error')
 
     @override_settings(
         RUSTDESK_PUBLIC_HOST='rd.justplay.vn',
         RUSTDESK_PUBLIC_KEY='test-public-key',
+        RUSTDESK_CLIENT_PASSWORD='',
     )
     def test_host_connect_url_property(self):
         self.assertEqual(
@@ -253,6 +323,7 @@ class RustdeskHostTests(TestCase):
 class RustdeskEnrollApiTests(TestCase):
     @override_settings(
         RUSTDESK_ENROLL_SECRET='test-enroll-secret',
+        RUSTDESK_CLIENT_PASSWORD='',
     )
     def test_enroll_api_creates_host(self):
         client = Client()
@@ -262,6 +333,7 @@ class RustdeskEnrollApiTests(TestCase):
             'rustdesk_password': 'pw123',
             'hostname': 'PC-TEST',
             'ip_address': '10.0.0.5',
+            'mac_address': 'aa-bb-cc-dd-ee-ff',
         }
         resp = client.post(
             '/nhat-ky/rustdesk/api/dang-ky/',
@@ -272,6 +344,7 @@ class RustdeskEnrollApiTests(TestCase):
         host = RustDeskHost.objects.get(rustdesk_id='258599030')
         self.assertEqual(host.hostname, 'PC-TEST')
         self.assertEqual(host.rustdesk_password, 'pw123')
+        self.assertEqual(host.mac_address, 'AA:BB:CC:DD:EE:FF')
 
     @override_settings(
         RUSTDESK_ENROLL_SECRET='test-enroll-secret',

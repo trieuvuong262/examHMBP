@@ -4,6 +4,14 @@
    title="Mở RustDesk và kết nối">
     <i class="bi bi-display me-1"></i>Kết nối
 </a>
+{% if host.rd_can_wake %}
+<button type="button"
+        class="btn btn-sm btn-outline-secondary jp-rd-wake-btn"
+        data-wake-url="{% url 'audit:rustdesk_wake' host.pk %}"
+        title="Gửi Wake-on-LAN — bật máy đang tắt/ngủ (cùng VLAN)">
+    <i class="bi bi-lightning-charge me-1"></i>Wake up
+</button>
+{% endif %}
 {% else %}
 <span class="text-muted small">—</span>
 {% endif %}

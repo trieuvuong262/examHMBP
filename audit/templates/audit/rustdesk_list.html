@@ -227,6 +227,44 @@
         setInterval(refreshOnlineStatus, pollSec * 1000);
         setTimeout(refreshOnlineStatus, 1500);
     }
+
+    function csrfToken() {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta && meta.content) return meta.content;
+        var input = document.querySelector('[name=csrfmiddlewaretoken]');
+        return input ? input.value : '';
+    }
+
+    document.querySelectorAll('.jp-rd-wake-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var url = btn.getAttribute('data-wake-url');
+            if (!url || btn.disabled) return;
+            btn.disabled = true;
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken(),
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+            })
+                .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
+                .then(function (result) {
+                    var msg = (result.data && result.data.message) || 'Không gửi được Wake-on-LAN.';
+                    if (window.jpToast) {
+                        window.jpToast(msg, result.ok ? 'success' : 'error');
+                    } else {
+                        alert(msg);
+                    }
+                })
+                .catch(function () {
+                    if (window.jpToast) window.jpToast('Lỗi mạng khi gửi Wake-on-LAN.', 'error');
+                })
+                .finally(function () {
+                    btn.disabled = false;
+                });
+        });
+    });
 })();
 </script>
 {% endblock %}

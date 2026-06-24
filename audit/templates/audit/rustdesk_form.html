@@ -32,6 +32,12 @@
                 </div>
                 <div class="row g-3 mb-3">
                     <div class="col-md-6">
+                        <label class="form-label fw-semibold" for="{{ form.mac_address.id_for_label }}">{{ form.mac_address.label }}</label>
+                        {{ form.mac_address }}
+                        {% if form.mac_address.help_text %}<div class="form-text">{{ form.mac_address.help_text }}</div>{% endif %}
+                        {% if form.mac_address.errors %}<div class="text-danger small">{{ form.mac_address.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6">
                         <label class="form-label fw-semibold" for="{{ form.rustdesk_id.id_for_label }}">{{ form.rustdesk_id.label }}</label>
                         {{ form.rustdesk_id }}
                         {% if form.rustdesk_id.errors %}<div class="text-danger small">{{ form.rustdesk_id.errors }}</div>{% endif %}

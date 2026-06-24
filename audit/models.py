@@ -273,6 +273,7 @@ class RustDeskHost(models.Model):
     name = models.CharField(max_length=200, verbose_name='Tên / mô tả')
     hostname = models.CharField(max_length=128, blank=True, verbose_name='Hostname')
     ip_address = models.GenericIPAddressField(null=True, blank=True, verbose_name='IP')
+    mac_address = models.CharField(max_length=17, blank=True, db_index=True, verbose_name='MAC (WoL)')
     rustdesk_id = models.CharField(max_length=20, unique=True, verbose_name='RustDesk ID')
     rustdesk_password = models.CharField(max_length=128, blank=True, verbose_name='RustDesk mật khẩu')
     department_text = models.CharField(max_length=200, blank=True, verbose_name='Phòng ban')
@@ -306,6 +307,16 @@ class RustDeskHost(models.Model):
         if len(digits) == 12:
             return f'{digits[0:3]} {digits[3:6]} {digits[6:9]} {digits[9:12]}'
         return digits
+
+    @property
+    def effective_mac_address(self) -> str:
+        mac = (self.mac_address or '').strip()
+        if mac:
+            return mac
+        device = getattr(self, 'device', None)
+        if device:
+            return (device.mac_address or '').strip()
+        return ''
 
     @property
     def rustdesk_connect_url(self) -> str:

@@ -144,6 +144,13 @@ RUSTDESK_ONLINE_CHECK_ENABLED = os.getenv("RUSTDESK_ONLINE_CHECK_ENABLED", "true
 RUSTDESK_ONLINE_CHECK_TIMEOUT = float(os.getenv("RUSTDESK_ONLINE_CHECK_TIMEOUT", "3"))
 RUSTDESK_ONLINE_CACHE_SEC = int(os.getenv("RUSTDESK_ONLINE_CACHE_SEC", "5"))
 RUSTDESK_ONLINE_POLL_SEC = int(os.getenv("RUSTDESK_ONLINE_POLL_SEC", "5"))
+RUSTDESK_WOL_ENABLED = os.getenv("RUSTDESK_WOL_ENABLED", "true").lower() in (
+    "1",
+    "true",
+    "yes",
+)
+RUSTDESK_WOL_PORT = int(os.getenv("RUSTDESK_WOL_PORT", "9"))
+RUSTDESK_WOL_BROADCAST = os.getenv("RUSTDESK_WOL_BROADCAST", "").strip()
 EQUIPMENT_NOTIFY_EMAILS = os.getenv("EQUIPMENT_NOTIFY_EMAILS", "")
 
 # Nhân viên Thu mua (dropdown «Nhân viên Thu mua xử lý») — username cách nhau bởi dấu phẩy.

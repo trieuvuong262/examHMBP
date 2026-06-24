@@ -36,6 +36,7 @@ def upsert_rustdesk_host(*, data: dict) -> tuple[object, bool]:
     hostname = (data.get('hostname') or '').strip()[:128]
     ip_raw = (data.get('ip_address') or data.get('ip') or '').strip()
     ip_address = ip_raw or None
+    mac_raw = (data.get('mac_address') or data.get('mac') or '').strip()
 
     name = (data.get('name') or hostname or f'PC-{rustdesk_id[-6:]}').strip()[:200]
     department_text = (data.get('department_text') or data.get('department') or '').strip()[:200]
@@ -59,6 +60,13 @@ def upsert_rustdesk_host(*, data: dict) -> tuple[object, bool]:
         defaults['department_text'] = department_text
     if assigned_user_text:
         defaults['assigned_user_text'] = assigned_user_text
+    if mac_raw:
+        try:
+            from audit.services.wake_on_lan import normalize_mac
+
+            defaults['mac_address'] = normalize_mac(mac_raw)
+        except ValueError:
+            pass
 
     host, created = RustDeskHost.objects.update_or_create(
         rustdesk_id=rustdesk_id,
@@ -69,6 +77,9 @@ def upsert_rustdesk_host(*, data: dict) -> tuple[object, bool]:
     if device and host.device_id != device.pk:
         host.device = device
         host.save(update_fields=['device', 'updated_at'])
+    elif device and not host.mac_address and device.mac_address:
+        host.mac_address = device.mac_address
+        host.save(update_fields=['mac_address', 'updated_at'])
 
     return host, created
 
