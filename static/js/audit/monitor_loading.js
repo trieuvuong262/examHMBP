@@ -13,9 +13,9 @@
             if (loadingEl) {
                 loadingEl.hidden = !visible;
                 loadingEl.classList.toggle('is-visible', visible);
-                loadingEl.classList.toggle('jp-monitor-loading--subtle', visible);
                 loadingEl.setAttribute('aria-busy', visible ? 'true' : 'false');
             }
+            document.body.classList.toggle('jp-monitor-modal-open', visible);
         }
 
         function syncButton() {
@@ -27,7 +27,6 @@
         }
 
         return {
-            /** Overlay nhẹ — chỉ lần đầu vào trang, không chặn thao tác. */
             showInitial: function () {
                 if (initialDone) return;
                 initialPending += 1;
@@ -40,7 +39,6 @@
                 }
                 syncInitial();
             },
-            /** Chỉ quay icon nút Làm mới. */
             showButtonBusy: function () {
                 buttonPending += 1;
                 syncButton();

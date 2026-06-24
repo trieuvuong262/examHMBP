@@ -72,7 +72,30 @@ class NasMonitorServiceTests(TestCase):
     def test_share_row_with_quota(self):
         row = _share_row(name='backup', total_b=10 * 1024 ** 3, used_b=2 * 1024 ** 3)
         self.assertEqual(row['used_percent'], 20.0)
-        self.assertIn('/', row['display'])
+        self.assertEqual(row['free_bytes'], 8 * 1024 ** 3)
+        self.assertIn('còn lại', row['display'])
+
+    def test_parse_dsm_share_quota_blocks(self):
+        from audit.services.nas_monitor import _parse_dsm_share_quota
+
+        quota = _parse_dsm_share_quota({
+            'name': 'backup',
+            'share_quota_status': 'v2',
+            'quota_value': 1048576,
+            'share_quota_used': 249736.375,
+        })
+        self.assertIsNotNone(quota)
+        assert quota is not None
+        self.assertEqual(quota['quota_size'], 512 * 1024 ** 3)
+        self.assertAlmostEqual(quota['used_space'] / (1024 ** 3), 122.0, delta=2.0)
+        self.assertGreater(quota['free_space'], 350 * 1024 ** 3)
+
+    def test_parse_process_memory_percent_from_mem_kb(self):
+        from audit.services.nas_monitor import _parse_process_memory_percent
+
+        mem_bytes, mem_pct = _parse_process_memory_percent({'mem': 19796}, 8 * 1024 ** 3)
+        self.assertEqual(mem_bytes, 19796 * 1024)
+        self.assertAlmostEqual(mem_pct, 0.2, delta=0.1)
 
     def test_parse_dsm_cpu_percent_from_load_parts(self):
         from audit.services.nas_monitor import _parse_dsm_cpu_percent
@@ -128,7 +151,7 @@ class NasMonitorServiceTests(TestCase):
         )
         self.assertEqual(rows[0]['total_bytes'], 512 * 1024 ** 3)
         self.assertEqual(rows[0]['used_bytes'], 130 * 1024 ** 3)
-        self.assertIn('512.0 GB', rows[0]['display'])
+        self.assertIn('còn lại', rows[0]['display'])
 
     @patch('audit.services.nas_monitor._rclone_size')
     @patch('audit.services.nas_monitor._rclone_about')

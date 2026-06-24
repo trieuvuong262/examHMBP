@@ -40,13 +40,18 @@
         </li>
     </ul>
 
-    <div class="jp-monitor-tab-wrap">
-        <div id="jp-vps-loading" class="jp-monitor-loading" hidden aria-live="polite" aria-busy="false">
-            <div class="jp-monitor-loading-box">
-                <div class="spinner-border text-primary mb-2" role="status" aria-hidden="true"></div>
-                <div class="jp-monitor-loading-text text-muted small">Đang tải dữ liệu giám sát...</div>
+    <div id="jp-vps-loading" class="jp-monitor-modal" hidden aria-live="polite" aria-busy="false" role="dialog" aria-modal="true" aria-label="Đang tải dữ liệu giám sát">
+        <div class="jp-monitor-modal-backdrop"></div>
+        <div class="jp-monitor-modal-dialog">
+            <div class="jp-monitor-modal-content">
+                <div class="spinner-border text-primary mb-3" role="status" aria-hidden="true"></div>
+                <div class="jp-monitor-loading-text fw-semibold text-dark mb-1">Đang tải dữ liệu giám sát</div>
+                <div class="text-muted small">Vui lòng chờ trong giây lát...</div>
             </div>
         </div>
+    </div>
+
+    <div class="jp-monitor-tab-wrap">
     <div class="tab-content" id="jp-vps-tab-content">
     <div class="tab-pane fade show active" id="jp-vps-tab-overview" role="tabpanel"
          aria-labelledby="jp-vps-tab-overview-btn" tabindex="0">

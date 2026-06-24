@@ -324,10 +324,63 @@ def _parse_byte_value(value) -> int | None:
         return None
 
 
-def _share_row(*, name: str, total_b: int | None, used_b: int | None, remote: str = '') -> dict:
+def _dsm_share_quota_blocks_to_bytes(value) -> int | None:
+    """Synology share_quota_* / quota_value thường tính theo block 512 KB."""
+    if value in (None, '', 0, '0'):
+        return None
+    try:
+        blocks = float(value)
+    except (TypeError, ValueError):
+        return None
+    if blocks <= 0:
+        return None
+    return int(blocks * 512 * 1024)
+
+
+def _parse_dsm_share_quota(share: dict) -> dict | None:
+    if not isinstance(share, dict):
+        return None
+    status = share.get('share_quota_status')
+    if status in (None, '', 0, '0', False):
+        extra = share.get('additional') or {}
+        quota = extra.get('share_quota')
+        if isinstance(quota, dict) and quota:
+            total_b = _quota_total_bytes(quota)
+            used_b = _quota_used_bytes(quota)
+            if total_b:
+                return {
+                    'quota_size': total_b,
+                    'used_space': used_b,
+                    'free_space': max(0, total_b - used_b) if used_b is not None else None,
+                }
+        return None
+    total_b = _dsm_share_quota_blocks_to_bytes(share.get('quota_value'))
+    used_b = _dsm_share_quota_blocks_to_bytes(share.get('share_quota_used'))
+    if total_b is None:
+        return None
+    free_b = max(0, total_b - used_b) if used_b is not None else None
+    return {
+        'quota_size': total_b,
+        'used_space': used_b,
+        'free_space': free_b,
+    }
+
+
+def _share_row(
+    *,
+    name: str,
+    total_b: int | None,
+    used_b: int | None,
+    free_b: int | None = None,
+    remote: str = '',
+) -> dict:
+    if free_b is None and total_b is not None and used_b is not None:
+        free_b = max(0, total_b - used_b)
     pct = round(used_b / total_b * 100, 1) if total_b and used_b is not None and total_b > 0 else None
-    if used_b is not None and total_b:
-        display = f'{_format_bytes(used_b)} / {_format_bytes(total_b)}'
+    if used_b is not None and free_b is not None:
+        display = f'{_format_bytes(used_b)} · còn lại {_format_bytes(free_b)}'
+    elif used_b is not None and total_b:
+        display = f'{_format_bytes(used_b)} · còn lại {_format_bytes(max(0, total_b - used_b))}'
     elif used_b is not None:
         display = f'{_format_bytes(used_b)} đã dùng'
     elif total_b:
@@ -339,8 +392,11 @@ def _share_row(*, name: str, total_b: int | None, used_b: int | None, remote: st
         'remote': remote,
         'total_bytes': total_b,
         'used_bytes': used_b,
+        'free_bytes': free_b,
         'used_percent': pct,
         'display': display,
+        'used_display': _format_bytes(used_b) if used_b is not None else '—',
+        'free_display': _format_bytes(free_b) if free_b is not None else '—',
     }
 
 
@@ -360,11 +416,15 @@ def _read_dsm_share_quotas() -> dict[str, dict]:
         name = share.get('name')
         if not name:
             continue
-        quota = (share.get('additional') or {}).get('share_quota')
-        if isinstance(quota, dict):
+        quota = _parse_dsm_share_quota(share)
+        if quota:
             quotas[name] = quota
-        elif share.get('share_quota') not in (None, '', 0):
-            quotas[name] = {'quota_size': share.get('share_quota')}
+        else:
+            extra_quota = (share.get('additional') or {}).get('share_quota')
+            if isinstance(extra_quota, dict):
+                quotas[name] = extra_quota
+            elif share.get('share_quota') not in (None, '', 0):
+                quotas[name] = {'quota_size': share.get('share_quota')}
     return quotas
 
 
@@ -375,6 +435,20 @@ def _quota_total_bytes(quota: dict | None) -> int | None:
         val = _parse_byte_value(quota.get(key))
         if val is not None and val > 0:
             return val
+    return None
+
+
+def _quota_free_bytes(quota: dict | None) -> int | None:
+    if not isinstance(quota, dict):
+        return None
+    for key in ('free_space', 'free', 'available', 'avail'):
+        val = _parse_byte_value(quota.get(key))
+        if val is not None:
+            return val
+    total_b = _quota_total_bytes(quota)
+    used_b = _quota_used_bytes(quota)
+    if total_b is not None and used_b is not None:
+        return max(0, total_b - used_b)
     return None
 
 
@@ -416,11 +490,13 @@ def _read_dsm_filestation_shares(quota_map: dict[str, dict] | None = None) -> li
         if used_b is None:
             used_b = _quota_used_bytes(quota)
         total_b = _quota_total_bytes(quota)
+        free_b = _quota_free_bytes(quota)
         real_path = extra.get('real_path') or ''
         rows.append(_share_row(
             name=name,
             total_b=total_b,
             used_b=used_b,
+            free_b=free_b,
             remote=share.get('path') or real_path or f'/{name}',
         ))
     rows.sort(key=lambda item: item['name'].lower())
@@ -447,10 +523,12 @@ def _read_dsm_core_shares(quota_map: dict[str, dict] | None = None) -> list[dict
             quota = {}
         used_b = _quota_used_bytes(quota)
         total_b = _quota_total_bytes(quota)
+        free_b = _quota_free_bytes(quota)
         rows.append(_share_row(
             name=name,
             total_b=total_b,
             used_b=used_b,
+            free_b=free_b,
             remote=extra.get('real_path') or share.get('vol_path') or '',
         ))
     rows.sort(key=lambda row: row['name'].lower())
@@ -509,6 +587,7 @@ def _enrich_shares_from_rclone(
     rows: list[dict],
     *,
     volumes: list[dict] | None = None,
+    quota_map: dict[str, dict] | None = None,
     timeout_about: int = 8,
     timeout_size: int = 25,
     deadline: float | None = None,
@@ -516,40 +595,55 @@ def _enrich_shares_from_rclone(
     if not rclone_listing_available():
         return rows
     volume_totals = _volume_total_bytes_set(volumes)
+    quota_map = quota_map or {}
     for row in rows:
         if deadline is not None and time.monotonic() >= deadline:
             break
         name = row.get('name')
         if not name:
             continue
+        dsm_quota = quota_map.get(name) or {}
+        dsm_total = _quota_total_bytes(dsm_quota)
+        dsm_used = _quota_used_bytes(dsm_quota)
+        dsm_free = _quota_free_bytes(dsm_quota)
+
         share_remote = _share_rclone_remote(name, row.get('remote') or '')
-        quota_total = row.get('total_bytes')
         about = _rclone_about(share_remote, timeout=timeout_about)
         about_total = about.get('total_bytes') if about else None
         about_quota = _share_quota_from_about(about_total, volume_totals)
-        has_share_quota = bool(quota_total or about_quota)
-        total_b = quota_total or about_quota
 
-        used_b = row.get('used_bytes')
-        if has_share_quota and about:
-            used_b = about.get('used_bytes') or used_b
-        elif used_b is None or _is_volume_capacity(total_b, volume_totals):
-            remaining = None
-            if deadline is not None:
-                remaining = max(3, int(deadline - time.monotonic()))
-            if remaining is None or remaining > 3:
-                size_timeout = min(timeout_size, remaining) if remaining else timeout_size
-                used_b = _rclone_size(share_remote, timeout=size_timeout) or used_b
-            if used_b is None and about:
-                used_b = about.get('used_bytes')
-
-        if not has_share_quota:
-            total_b = None
+        if dsm_total:
+            total_b = dsm_total
+            used_b = dsm_used
+            free_b = dsm_free
+        else:
+            quota_total = row.get('total_bytes')
+            has_share_quota = bool(quota_total or about_quota)
+            total_b = quota_total or about_quota
+            used_b = row.get('used_bytes')
+            free_b = row.get('free_bytes')
+            if has_share_quota and about:
+                used_b = about.get('used_bytes') or used_b
+                if total_b and used_b is not None:
+                    free_b = max(0, total_b - used_b)
+            elif used_b is None or _is_volume_capacity(total_b, volume_totals):
+                remaining = None
+                if deadline is not None:
+                    remaining = max(3, int(deadline - time.monotonic()))
+                if remaining is None or remaining > 3:
+                    size_timeout = min(timeout_size, remaining) if remaining else timeout_size
+                    used_b = _rclone_size(share_remote, timeout=size_timeout) or used_b
+                if used_b is None and about:
+                    used_b = about.get('used_bytes')
+            if not has_share_quota:
+                total_b = None
+                free_b = None
 
         row.update(_share_row(
             name=name,
             total_b=total_b,
             used_b=used_b,
+            free_b=free_b,
             remote=share_remote,
         ))
     return rows
@@ -608,13 +702,13 @@ def _collect_shares(*, volumes: list[dict] | None = None) -> list[dict]:
             try:
                 rows = loader()
                 if rows:
-                    return _enrich_shares_from_rclone(rows, volumes=volumes, deadline=deadline)
+                    return _enrich_shares_from_rclone(rows, volumes=volumes, quota_map=quota_map, deadline=deadline)
             except NasMonitorError:
                 continue
 
     rows = _list_shares_from_rclone()
     if rows:
-        return _enrich_shares_from_rclone(rows, volumes=volumes, deadline=deadline)
+        return _enrich_shares_from_rclone(rows, volumes=volumes, quota_map={}, deadline=deadline)
     return _list_shares_from_mount()
 
 
@@ -1182,13 +1276,51 @@ def collect_dsm_widgets(
     }
 
 
-def collect_nas_processes(*, limit: int = 25) -> list[dict]:
+def _parse_process_memory_percent(proc: dict, ram_total_b: int | None) -> tuple[int | None, float | None]:
+    """DSM Process API: mem thường là KB, không phải %."""
+    mem_pct_raw = proc.get('memory_percent')
+    if mem_pct_raw is not None:
+        try:
+            pct = float(mem_pct_raw)
+            if 0 <= pct <= 100:
+                return None, round(pct, 1)
+        except (TypeError, ValueError):
+            pass
+
+    mem_raw = proc.get('memory') or proc.get('memory_usage') or proc.get('rss') or proc.get('mem')
+    mem_bytes = None
+    if mem_raw is not None:
+        try:
+            n = float(mem_raw)
+            if n <= 0:
+                mem_bytes = None
+            elif n < 10_000_000:
+                mem_bytes = int(n * 1024)
+            else:
+                mem_bytes = int(n)
+        except (TypeError, ValueError):
+            mem_bytes = None
+
+    mem_pct = None
+    if mem_bytes is not None and ram_total_b:
+        mem_pct = round(mem_bytes / ram_total_b * 100, 1)
+    return mem_bytes, mem_pct
+
+
+def collect_nas_processes(*, limit: int = 25, ram_total_b: int | None = None) -> list[dict]:
     if not dsm_configured():
         return []
     try:
         data = _dsm_request('SYNO.Core.System.Process', 'list', version=1, timeout=15)
     except NasMonitorError:
         return []
+
+    if ram_total_b is None:
+        try:
+            util = _read_dsm_utilization()
+            ram_total_b = (util.get('ram') or {}).get('total_bytes')
+        except NasMonitorError:
+            ram_total_b = None
 
     rows: list[dict] = []
     for proc in data.get('process') or data.get('processes') or []:
@@ -1198,20 +1330,13 @@ def collect_nas_processes(*, limit: int = 25) -> list[dict]:
                 pid = int(proc.get('pid') or 0)
             except (TypeError, ValueError):
                 pid = 0
-            mem_bytes = proc.get('memory') or proc.get('memory_usage') or proc.get('rss')
-            if isinstance(mem_bytes, (int, float)) and mem_bytes < 10_000_000:
-                mem_bytes = _kb_to_bytes(mem_bytes)
-            try:
-                mem_bytes = int(mem_bytes) if mem_bytes is not None else None
-            except (TypeError, ValueError):
-                mem_bytes = None
+            mem_bytes, mem_pct = _parse_process_memory_percent(proc, ram_total_b)
             cpu_pct = proc.get('cpu') or proc.get('cpu_usage')
-            mem_pct = proc.get('memory_percent') or proc.get('mem')
             rows.append({
                 'pid': pid,
                 'name': str(name)[:64],
                 'cpu_percent': round(float(cpu_pct), 1) if cpu_pct is not None else None,
-                'memory_percent': round(float(mem_pct), 1) if mem_pct is not None else None,
+                'memory_percent': mem_pct,
                 'memory_bytes': mem_bytes,
             })
     rows.sort(key=lambda row: row.get('memory_bytes') or 0, reverse=True)
@@ -1312,7 +1437,9 @@ def collect_nas_metrics(*, scope: str = 'full') -> dict:
             metrics['volumes'] = []
 
         try:
-            metrics['processes'] = collect_nas_processes()
+            metrics['processes'] = collect_nas_processes(
+                ram_total_b=(metrics.get('ram') or {}).get('total_bytes'),
+            )
         except NasMonitorError:
             metrics['processes'] = []
 

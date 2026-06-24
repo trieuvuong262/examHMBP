@@ -149,16 +149,18 @@
         const tbody = document.getElementById(tbodyId);
         if (!tbody) return;
         if (!rows || !rows.length) {
-            tbody.innerHTML = '<tr><td colspan="3" class="text-muted small p-3">Chưa có dữ liệu share.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" class="text-muted small p-3">Chưa có dữ liệu share.</td></tr>';
             return;
         }
-        const sorted = rows;
-        tbody.innerHTML = sorted.map(function (row) {
+        tbody.innerHTML = rows.map(function (row) {
             const pct = row.used_percent != null ? row.used_percent + '%' : '—';
+            const used = row.used_display || (row.used_bytes != null ? formatBytes(row.used_bytes) : '—');
+            const free = row.free_display || (row.free_bytes != null ? formatBytes(row.free_bytes) : '—');
             return (
                 '<tr>' +
                 '<td class="font-monospace small">' + escapeHtml(row.name) + '</td>' +
-                '<td class="text-end">' + escapeHtml(row.display || formatBytes(row.used_bytes)) + '</td>' +
+                '<td class="text-end">' + escapeHtml(used) + '</td>' +
+                '<td class="text-end">' + escapeHtml(free) + '</td>' +
                 '<td class="text-end">' + pct + '</td>' +
                 '</tr>'
             );
@@ -405,7 +407,8 @@
             '',
             function (share) {
                 return '<tr><td>' + escapeHtml(share.name) + '</td><td class="text-end small">' +
-                    escapeHtml(share.display || '—') + '</td></tr>';
+                    escapeHtml(share.used_display || share.display || '—') + '</td><td class="text-end small">' +
+                    escapeHtml(share.free_display || '—') + '</td></tr>';
             }
         );
     }

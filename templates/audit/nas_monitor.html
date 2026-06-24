@@ -77,13 +77,18 @@
         </li>
     </ul>
 
-    <div class="jp-monitor-tab-wrap">
-        <div id="jp-nas-loading" class="jp-monitor-loading" hidden aria-live="polite" aria-busy="false">
-            <div class="jp-monitor-loading-box">
-                <div class="spinner-border text-primary mb-2" role="status" aria-hidden="true"></div>
-                <div class="jp-monitor-loading-text text-muted small">Đang tải dữ liệu giám sát...</div>
+    <div id="jp-nas-loading" class="jp-monitor-modal" hidden aria-live="polite" aria-busy="false" role="dialog" aria-modal="true" aria-label="Đang tải dữ liệu giám sát">
+        <div class="jp-monitor-modal-backdrop"></div>
+        <div class="jp-monitor-modal-dialog">
+            <div class="jp-monitor-modal-content">
+                <div class="spinner-border text-primary mb-3" role="status" aria-hidden="true"></div>
+                <div class="jp-monitor-loading-text fw-semibold text-dark mb-1">Đang tải dữ liệu giám sát</div>
+                <div class="text-muted small">Vui lòng chờ trong giây lát...</div>
             </div>
         </div>
+    </div>
+
+    <div class="jp-monitor-tab-wrap">
     <div class="tab-content" id="jp-nas-tab-content">
     <div class="tab-pane fade show active" id="jp-nas-tab-overview" role="tabpanel"
          aria-labelledby="jp-nas-tab-overview-btn" tabindex="0">
@@ -143,20 +148,22 @@
                     <thead class="table-light">
                         <tr>
                             <th>Share</th>
-                            <th class="text-end">Dung lượng</th>
-                            <th class="text-end">Đã dùng %</th>
+                            <th class="text-end">Đã dùng</th>
+                            <th class="text-end">Còn lại</th>
+                            <th class="text-end">%</th>
                         </tr>
                     </thead>
                     <tbody id="jp-nas-shares">
                         {% for row in metrics.shares %}
                         <tr>
                             <td class="font-monospace small">{{ row.name }}</td>
-                            <td class="text-end">{{ row.display }}</td>
+                            <td class="text-end">{{ row.used_display|default:row.display }}</td>
+                            <td class="text-end">{{ row.free_display|default:"—" }}</td>
                             <td class="text-end">{% if row.used_percent is not None %}{{ row.used_percent }}%{% else %}—{% endif %}</td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="3" class="text-muted small p-3">Chưa có dữ liệu share.</td>
+                            <td colspan="4" class="text-muted small p-3">Chưa có dữ liệu share.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
