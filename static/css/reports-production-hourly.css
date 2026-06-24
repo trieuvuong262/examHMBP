@@ -1626,3 +1626,17 @@ body .modal-backdrop.show {
     font-size: 1rem;
     color: var(--hm-primary) !important;
 }
+
+.jp-prod-shift-picker .jp-prod-shift-card {
+    border: 1px solid rgba(0, 0, 0, 0.06) !important;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.jp-prod-shift-picker .jp-prod-shift-card:not(.is-disabled):hover {
+    box-shadow: 0 0.35rem 1rem rgba(0, 0, 0, 0.08) !important;
+    border-color: var(--hm-primary-subtle) !important;
+}
+
+.jp-prod-shift-picker .jp-prod-shift-card.is-disabled {
+    opacity: 0.72;
+}

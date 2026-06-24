@@ -116,6 +116,17 @@ from .team_sort import (
     resolve_team_sort,
     sort_team_department_groups,
 )
+from .production_team import (
+    build_production_reports_by_employee,
+    build_production_team_department_groups,
+    build_production_week_rollup,
+    parse_team_shift_filter,
+    production_shift_filter_choices,
+    production_shift_stats,
+    production_team_row_is_submitted,
+    production_team_submitted_count,
+    query_production_team_reports,
+)
 from .team_utils import (
     build_report_team_department_groups,
     build_vp_team_department_groups,
@@ -282,7 +293,14 @@ def _daily_report_defaults(report_profile: str, report_period: str = PERIOD_DAY)
     }
 
 
-def _load_daily_report(user, report_date, *, report_profile: str, report_period: str = PERIOD_DAY):
+def _load_daily_report(
+    user,
+    report_date,
+    *,
+    report_profile: str,
+    report_period: str = PERIOD_DAY,
+    shift: str = '',
+):
     """Chỉ lấy bản ghi đã lưu; loại báo cáo theo trang SX/VP, không theo phòng ban."""
     try:
         return DailyWorkReport.objects.get(
@@ -290,12 +308,16 @@ def _load_daily_report(user, report_date, *, report_profile: str, report_period:
             report_date=report_date,
             report_profile=report_profile,
             report_period=report_period,
+            shift=shift,
         )
     except DailyWorkReport.DoesNotExist:
+        defaults = _daily_report_defaults(report_profile, report_period)
+        if report_profile == REPORT_PROFILE_PRODUCTION and shift:
+            defaults['shift'] = shift
         return DailyWorkReport(
             employee=user,
             report_date=report_date,
-            **_daily_report_defaults(report_profile, report_period),
+            **defaults,
         )
 
 
@@ -792,6 +814,7 @@ def copy_yesterday(request, *, report_profile: str):
         report_date=yesterday,
         report_profile=report_profile,
         report_period=PERIOD_DAY,
+        shift=DailyWorkReport.SHIFT_MORNING if report_profile == REPORT_PROFILE_PRODUCTION else '',
     ).prefetch_related('lines', 'attachments').first()
     if not source:
         messages.warning(request, 'Không có báo cáo hôm qua để sao chép.')
@@ -802,10 +825,14 @@ def copy_yesterday(request, *, report_profile: str):
         report_date=today,
         report_profile=report_profile,
         report_period=PERIOD_DAY,
+        shift=DailyWorkReport.SHIFT_MORNING if report_profile == REPORT_PROFILE_PRODUCTION else '',
         defaults=_daily_report_defaults(report_profile, PERIOD_DAY),
     )
     report.report_profile = report_profile
-    report.shift = ''
+    if report_profile == REPORT_PROFILE_PRODUCTION:
+        report.shift = DailyWorkReport.SHIFT_MORNING
+    else:
+        report.shift = ''
     report.status = DailyWorkReport.STATUS_DRAFT
     report.submitted_at = None
     report.draft_saved_at = None
@@ -834,7 +861,9 @@ def copy_yesterday(request, *, report_profile: str):
             )
     messages.success(request, 'Đã sao chép báo cáo hôm qua. Kiểm tra và nộp lại.')
     if report_profile == REPORT_PROFILE_PRODUCTION:
-        return redirect(f'{reverse("reports:today_cn")}?date={today.isoformat()}')
+        return redirect(
+            f'{reverse("reports:today_cn")}?date={today.isoformat()}&shift={DailyWorkReport.SHIFT_MORNING}'
+        )
     return redirect(f'{reverse("reports:today_vp")}?date={today.isoformat()}')
 
 
@@ -1041,22 +1070,38 @@ def _team_row_is_submitted(row, *, submitted_status: str) -> bool:
     return bool(report and report.status == submitted_status)
 
 
-def _filter_team_department_groups(department_groups, status_filter: str, *, submitted_status: str):
+def _filter_team_department_groups(
+    department_groups,
+    status_filter: str,
+    *,
+    submitted_status: str,
+    row_is_submitted=None,
+):
     if not status_filter:
         return department_groups
+    is_submitted = row_is_submitted or _team_row_is_submitted
     filtered = []
     for group in department_groups:
         rows = [
             row for row in group['rows']
             if (
-                _team_row_is_submitted(row, submitted_status=submitted_status)
+                is_submitted(row, submitted_status=submitted_status)
                 if status_filter == TEAM_STATUS_SUBMITTED
-                else not _team_row_is_submitted(row, submitted_status=submitted_status)
+                else not is_submitted(row, submitted_status=submitted_status)
             )
         ]
         if rows:
             filtered.append({**group, 'rows': rows})
     return filtered
+
+
+def _production_team_row_is_submitted(row, *, submitted_status: str):
+    shift_filter = row.get('_shift_filter', '')
+    return production_team_row_is_submitted(
+        row,
+        submitted_status=submitted_status,
+        shift_filter=shift_filter,
+    )
 
 
 def _team_stat_urls(base_params: dict) -> dict:
@@ -1117,6 +1162,7 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
     team = _team_queryset(request.user, search_query)
     all_team_ids = list(team.values_list('id', flat=True))
     team_count = team.count()
+    production_shift_stat_cards = []
 
     if report_profile == REPORT_PROFILE_OFFICE:
         reports_in_range = query_team_office_reports_in_range(
@@ -1135,31 +1181,50 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         submitted = len(submitted_employee_ids)
         missing = team_count - submitted
     else:
-        all_reports = meaningful_daily_reports_qs().filter(
-            employee_id__in=all_team_ids,
-            report_date=report_date,
-            report_profile=report_profile,
-            report_period=report_period,
+        shift_filter = parse_team_shift_filter(request)
+        reports = query_production_team_reports(all_team_ids, report_date)
+        reports_by_employee = build_production_reports_by_employee(reports)
+        submitted, missing = production_team_submitted_count(
+            reports_by_employee,
+            daily_report_visible_to_team,
+            shift_filter=shift_filter,
+            team_count=team_count,
         )
-        submitted = all_reports.filter(status=DailyWorkReport.STATUS_SUBMITTED).count()
-        missing = team_count - submitted
-        reports = all_reports.select_related('employee', 'employee__profile').annotate(
-            line_count=Count('lines'),
-            total_qty=Sum('lines__quantity'),
-        )
-        report_map = {r.employee_id: r for r in reports}
-        department_groups, dept_choices = _build_department_group_rows(
+        department_groups, dept_choices = build_production_team_department_groups(
             request.user,
             team,
-            report_map,
+            reports_by_employee,
             daily_report_visible_to_team,
+            shift_filter=shift_filter,
             dept_filter=dept_filter,
+        )
+        for group in department_groups:
+            for row in group['rows']:
+                row['_shift_filter'] = shift_filter
+                row['week_rollup'] = None
+        week_rollup = build_production_week_rollup(
+            all_team_ids,
+            report_date,
+            daily_report_visible_to_team,
+        )
+        for group in department_groups:
+            for row in group['rows']:
+                row['week_rollup'] = week_rollup.get(row['member'].id)
+        production_shift_stat_cards = production_shift_stats(
+            team_count,
+            reports_by_employee,
+            daily_report_visible_to_team,
         )
 
     department_groups = _filter_team_department_groups(
         department_groups,
         status_filter,
         submitted_status=DailyWorkReport.STATUS_SUBMITTED,
+        row_is_submitted=(
+            _production_team_row_is_submitted
+            if report_profile == REPORT_PROFILE_PRODUCTION
+            else None
+        ),
     )
 
     sort_key, sort_dir = resolve_team_sort(request.GET.get('sort'), request.GET.get('dir'))
@@ -1169,6 +1234,10 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         base_params = team_date_range_query_params(date_from, date_to, period=period_filter)
     else:
         base_params = {'date': report_date.isoformat()}
+        if report_profile == REPORT_PROFILE_PRODUCTION:
+            shift_filter = parse_team_shift_filter(request)
+            if shift_filter:
+                base_params['shift'] = shift_filter
     if search_query:
         base_params['q'] = search_query
     if dept_filter:
@@ -1181,6 +1250,11 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
 
     table_columns = build_team_table_columns(
         is_vp=report_profile == REPORT_PROFILE_OFFICE,
+        is_production=report_profile == REPORT_PROFILE_PRODUCTION,
+        production_multi_shift=(
+            report_profile == REPORT_PROFILE_PRODUCTION
+            and not parse_team_shift_filter(request)
+        ),
         base_params=base_params,
         sort_key=sort_key,
         sort_dir=sort_dir,
@@ -1225,6 +1299,18 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         'team_sort_dir': sort_dir,
         'team_sort_active': bool(request.GET.get('sort')),
         'team_list_query': urlencode(base_params),
+        'production_shift_filter': (
+            parse_team_shift_filter(request)
+            if report_profile == REPORT_PROFILE_PRODUCTION else ''
+        ),
+        'production_shift_choices': (
+            production_shift_filter_choices()
+            if report_profile == REPORT_PROFILE_PRODUCTION else []
+        ),
+        'production_shift_stat_cards': (
+            production_shift_stat_cards
+            if report_profile == REPORT_PROFILE_PRODUCTION else []
+        ),
     })
 
 
@@ -1467,7 +1553,10 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
     can_submit = can_submit_daily_report(request.user)
     if can_edit_own_daily_report(request.user, report, can_submit=can_submit):
         if report.is_production_report:
-            edit_report_url = f"{reverse('reports:today_cn')}?date={report.report_date.isoformat()}"
+            edit_report_url = (
+                f"{reverse('reports:today_cn')}?date={report.report_date.isoformat()}"
+                f"&shift={report.shift}"
+            )
         else:
             edit_report_url = (
                 f"{reverse('reports:today_vp')}"
@@ -1488,6 +1577,7 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         )
         edit_report_url = (
             f"{reverse(today_name)}?date={report.report_date.isoformat()}"
+            f"&shift={report.shift}"
             f"&for_user={report.employee_id}"
         )
     return render(request, 'reports/detail.html', {

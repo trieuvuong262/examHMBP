@@ -1,0 +1,14 @@
+{% if production_shift_stat_cards %}
+<div class="jp-stat-grid mb-3 jp-team-shift-stat-grid">
+    {% for card in production_shift_stat_cards %}
+    <a href="?date={{ report_date|date:'Y-m-d' }}&shift={{ card.shift }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if selected_dept %}&dept={{ selected_dept|urlencode }}{% endif %}"
+       class="jp-team-stat-card card border-0 shadow-sm text-center p-2 text-decoration-none{% if production_shift_filter == card.shift %} is-active{% endif %}">
+        <div class="fw-bold text-hm small">{{ card.label }}</div>
+        <div class="d-flex justify-content-center gap-3 mt-1">
+            <span class="text-success small"><strong>{{ card.submitted }}</strong> nộp</span>
+            <span class="text-danger small"><strong>{{ card.missing }}</strong> thiếu</span>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}

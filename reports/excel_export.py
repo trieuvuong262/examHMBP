@@ -8,7 +8,7 @@ import pandas as pd
 from django.http import HttpResponse
 from django.utils.html import strip_tags
 
-from reports.models import DailyWorkReport
+from reports.production_shift_policy import shift_display_label
 from reports.office_content import normalize_spreadsheet_json, office_report_has_content
 from reports.production_hourly import build_hourly_grid, build_productivity_report
 
@@ -25,15 +25,20 @@ def _meta_rows(report: DailyWorkReport) -> list[list]:
     status = report.get_status_display()
     reviewed = 'Có' if report.hod_reviewed else 'Không'
     submitted = report.submitted_at.strftime('%d/%m/%Y %H:%M') if report.submitted_at else '—'
-    return [
+    rows = [
         ['Nhân viên', employee_name],
         ['Bộ phận', department],
         ['Ngày báo cáo', report.report_date.strftime('%d/%m/%Y')],
+    ]
+    if report.is_production_report and report.shift:
+        rows.append(['Ca làm', shift_display_label(report.shift)])
+    rows.extend([
         ['Trạng thái', status],
         ['Đã xem (cấp trên)', reviewed],
         ['Thời gian nộp', submitted],
         ['Ghi chú cấp trên', report.hod_note or ''],
-    ]
+    ])
+    return rows
 
 
 def _grid_cell_display(cell: dict) -> str:
@@ -84,7 +89,10 @@ def export_daily_report_xlsx(report: DailyWorkReport) -> HttpResponse:
     profile = getattr(report.employee, 'profile', None)
     employee_name = profile.full_name if profile and profile.full_name else report.employee.username
     date_part = report.report_date.strftime('%Y%m%d')
-    filename_prefix = f'Bao_cao_{_safe_filename_part(employee_name)}_{date_part}'
+    shift_part = ''
+    if report.is_production_report and report.shift:
+        shift_part = f'_{report.shift}'
+    filename_prefix = f'Bao_cao_{_safe_filename_part(employee_name)}_{date_part}{shift_part}'
 
     if report.is_production_report:
         return _export_production_report(report, filename_prefix)

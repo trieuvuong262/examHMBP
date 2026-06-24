@@ -60,8 +60,10 @@ class ReportExcelExportTests(TestCase):
             employee=self.worker,
             report_date=self.report_date,
             report_profile=REPORT_PROFILE_PRODUCTION,
+            shift=DailyWorkReport.SHIFT_MORNING,
             status=DailyWorkReport.STATUS_SUBMITTED,
         )
+        self.report.shift = DailyWorkReport.SHIFT_MORNING
         ensure_work_day_started(self.report)
         product = self.report.production_products.filter(
             status=ProductionShiftProduct.STATUS_ACTIVE,

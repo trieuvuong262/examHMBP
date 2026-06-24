@@ -1,10 +1,11 @@
 """Tests for production hourly report logic."""
 
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import Client, TestCase
+from django.urls import reverse
 from django.utils import timezone
 
 from hrm.models import Department, DepartmentMenuPermission, Profile
@@ -27,10 +28,14 @@ from reports.production_hourly import (
     update_product_norms,
 )
 from reports.production_slots import (
+    MORNING_SLOTS,
+    OVERTIME_SLOTS,
+    NIGHT_SLOTS,
     PRODUCTION_HOURLY_SLOTS,
     SLOT_COUNT,
     current_slot_index,
     due_slot_indices,
+    slot_count_for_shift,
 )
 from reports.report_profile import REPORT_PROFILE_PRODUCTION
 
@@ -61,13 +66,15 @@ class ProductionHourlyTests(TestCase):
             employee=self.user,
             report_date=self.report_date,
             report_profile=REPORT_PROFILE_PRODUCTION,
+            shift=DailyWorkReport.SHIFT_MORNING,
         )
 
     def test_auto_start_and_active_block(self):
+        self.report.shift = DailyWorkReport.SHIFT_MORNING
         ensure_work_day_started(self.report)
         self.report.refresh_from_db()
         self.assertIsNotNone(self.report.shift_started_at)
-        self.assertEqual(self.report.shift, '')
+        self.assertEqual(self.report.shift, DailyWorkReport.SHIFT_MORNING)
         active = ensure_active_work_block(self.report)
         self.assertEqual(active.status, ProductionShiftProduct.STATUS_ACTIVE)
         self.assertEqual(active.product_code, '')
@@ -184,16 +191,70 @@ class ProductionHourlyTests(TestCase):
         pending2 = pending_slots_for_report(self.report, now=fake_now)
         self.assertEqual(pending2[0]['slot_index'], 1)
 
-    def test_slot_helpers(self):
-        self.assertEqual(SLOT_COUNT, 13)
+    def test_slot_helpers_morning(self):
+        self.assertEqual(SLOT_COUNT, 9)
+        self.assertEqual(len(MORNING_SLOTS), 9)
         self.assertEqual(PRODUCTION_HOURLY_SLOTS[0].start, time(7, 30))
-        self.assertEqual(PRODUCTION_HOURLY_SLOTS[-1].end, time(22, 30))
+        self.assertEqual(MORNING_SLOTS[-1].end, time(18, 0))
         noon = timezone.make_aware(datetime.combine(self.report_date, time(11, 0)))
-        self.assertEqual(current_slot_index(noon, self.report_date), 3)
-        due = due_slot_indices(noon, self.report_date)
+        self.assertEqual(
+            current_slot_index(noon, self.report_date, DailyWorkReport.SHIFT_MORNING),
+            3,
+        )
+        due = due_slot_indices(noon, self.report_date, DailyWorkReport.SHIFT_MORNING)
         self.assertIn(3, due)
         evening = timezone.make_aware(datetime.combine(self.report_date, time(20, 30)))
-        self.assertEqual(current_slot_index(evening, self.report_date), 11)
+        self.assertIsNone(
+            current_slot_index(evening, self.report_date, DailyWorkReport.SHIFT_MORNING),
+        )
+        self.assertEqual(
+            due_slot_indices(evening, self.report_date, DailyWorkReport.SHIFT_MORNING),
+            list(range(9)),
+        )
+
+    def test_slot_helpers_overtime(self):
+        self.assertEqual(slot_count_for_shift(DailyWorkReport.SHIFT_OVERTIME), 4)
+        self.assertEqual(OVERTIME_SLOTS[-1].end, time(22, 0))
+        at_20 = timezone.make_aware(datetime.combine(self.report_date, time(20, 15)))
+        self.assertEqual(
+            current_slot_index(at_20, self.report_date, DailyWorkReport.SHIFT_OVERTIME),
+            2,
+        )
+
+    def test_slot_helpers_night_crosses_midnight(self):
+        self.assertEqual(slot_count_for_shift(DailyWorkReport.SHIFT_NIGHT), 11)
+        evening = timezone.make_aware(datetime.combine(self.report_date, time(20, 0)))
+        self.assertEqual(
+            current_slot_index(evening, self.report_date, DailyWorkReport.SHIFT_NIGHT),
+            2,
+        )
+        after_midnight = timezone.make_aware(
+            datetime.combine(self.report_date + timedelta(days=1), time(2, 30))
+        )
+        self.assertEqual(
+            current_slot_index(after_midnight, self.report_date, DailyWorkReport.SHIFT_NIGHT),
+            8,
+        )
+        after_shift = timezone.make_aware(
+            datetime.combine(self.report_date + timedelta(days=1), time(6, 0))
+        )
+        self.assertIsNone(
+            current_slot_index(after_shift, self.report_date, DailyWorkReport.SHIFT_NIGHT),
+        )
+        self.assertEqual(
+            due_slot_indices(after_shift, self.report_date, DailyWorkReport.SHIFT_NIGHT),
+            list(range(11)),
+        )
+
+    def test_overtime_grid_has_four_slots(self):
+        self.report.shift = DailyWorkReport.SHIFT_OVERTIME
+        self.report.save(update_fields=['shift'])
+        ensure_work_day_started(self.report)
+        product = ensure_active_work_block(self.report)
+        save_hourly_entry(product, 0, 10)
+        grid = build_hourly_grid(self.report)
+        self.assertEqual(len(grid['slots']), 4)
+        self.assertEqual(grid['slots'][-1]['label'], '21h - 22h')
 
     def test_unfinalized_in_grid_before_finalize(self):
         ensure_work_day_started(self.report)
@@ -337,7 +398,7 @@ class ProductionHourlyTests(TestCase):
         self.assertTrue(grid['proxy_mode'])
         self.assertEqual(len(grid['rows']), 1)
         row = grid['rows'][0]
-        self.assertEqual(len(row['slots']), SLOT_COUNT)
+        self.assertEqual(len(row['slots']), slot_count_for_shift(DailyWorkReport.SHIFT_MORNING))
         self.assertTrue(all(not cell['is_na'] for cell in row['slots']))
 
     def test_proxy_save_relaxes_slot_scope(self):
@@ -364,4 +425,79 @@ class ProductionHourlyTests(TestCase):
                 self.report,
                 ignore_time_constraints=True,
             )
-            self.assertEqual(len(pending_proxy), SLOT_COUNT)
+            self.assertEqual(
+                len(pending_proxy),
+                slot_count_for_shift(DailyWorkReport.SHIFT_MORNING),
+            )
+
+
+class ProductionShiftPolicyTests(TestCase):
+    def setUp(self):
+        from hrm.models import DepartmentMenuPermission
+        from hrm.models import RoleModulePermission
+        from hrm.permissions import ROLE_EMPLOYEE
+
+        self.dept, _ = Department.objects.get_or_create(
+            name='SX Shift Policy',
+            defaults={'report_profile': REPORT_PROFILE_PRODUCTION},
+        )
+        DepartmentMenuPermission.objects.get_or_create(
+            department=self.dept,
+            defaults={'modules': ['reports']},
+        )
+        RoleModulePermission.objects.update_or_create(
+            role=ROLE_EMPLOYEE,
+            defaults={'module_permissions': {'reports': {'view': True, 'create': True}}},
+        )
+        self.user = User.objects.create_user(username='shift_worker', password='x')
+        Profile.objects.filter(user=self.user).update(
+            full_name='Shift Worker',
+            department=self.dept,
+            role=ROLE_EMPLOYEE,
+            is_employed=True,
+        )
+        self.client = Client()
+        self.report_date = timezone.localdate()
+
+    def test_overtime_requires_morning(self):
+        from reports.production_shift_policy import can_start_production_shift
+
+        ok, reason = can_start_production_shift(
+            self.user, self.report_date, DailyWorkReport.SHIFT_OVERTIME,
+        )
+        self.assertFalse(ok)
+        self.assertIn('ca sáng', reason.lower())
+
+        DailyWorkReport.objects.create(
+            employee=self.user,
+            report_date=self.report_date,
+            report_profile=REPORT_PROFILE_PRODUCTION,
+            shift=DailyWorkReport.SHIFT_MORNING,
+        )
+        ok, _ = can_start_production_shift(
+            self.user, self.report_date, DailyWorkReport.SHIFT_OVERTIME,
+        )
+        self.assertTrue(ok)
+
+    def test_night_excludes_morning_same_day(self):
+        from reports.production_shift_policy import can_start_production_shift
+
+        DailyWorkReport.objects.create(
+            employee=self.user,
+            report_date=self.report_date,
+            report_profile=REPORT_PROFILE_PRODUCTION,
+            shift=DailyWorkReport.SHIFT_MORNING,
+        )
+        ok, reason = can_start_production_shift(
+            self.user, self.report_date, DailyWorkReport.SHIFT_NIGHT,
+        )
+        self.assertFalse(ok)
+        self.assertIn('ca tối', reason.lower())
+
+    def test_shift_picker_overtime_blocked_without_morning(self):
+        from reports.production_shift_policy import build_shift_picker_options
+
+        options = build_shift_picker_options(self.user, self.report_date, can_edit=True)
+        overtime = next(o for o in options if o['shift'] == DailyWorkReport.SHIFT_OVERTIME)
+        self.assertEqual(overtime['action'], 'blocked')
+        self.assertFalse(overtime['enabled'])

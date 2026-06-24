@@ -1,0 +1,11 @@
+<div class="d-flex flex-wrap gap-2">
+    {% for cell in row.shift_cell_list %}
+    <div class="jp-team-shift-cell text-center" style="min-width: 5.5rem;">
+        <div class="text-muted small text-nowrap">{{ cell.label }}</div>
+        <span class="badge {{ cell.badge_class }}">{{ cell.status_label }}</span>
+        {% if cell.slot_label %}
+        <div class="text-muted small">{{ cell.slot_label }} khung</div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>

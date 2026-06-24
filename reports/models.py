@@ -15,12 +15,12 @@ from reports.weekly_nas_storage import WeeklyReportNasStorage, weekly_attachment
 
 class DailyWorkReport(models.Model):
     SHIFT_MORNING = 'MORNING'
-    SHIFT_AFTERNOON = 'AFTERNOON'
+    SHIFT_OVERTIME = 'OVERTIME'
     SHIFT_NIGHT = 'NIGHT'
     SHIFT_CHOICES = [
         (SHIFT_MORNING, 'Ca sáng'),
-        (SHIFT_AFTERNOON, 'Ca chiều'),
-        (SHIFT_NIGHT, 'Ca đêm'),
+        (SHIFT_OVERTIME, 'Tăng ca'),
+        (SHIFT_NIGHT, 'Ca tối'),
     ]
 
     STATUS_DRAFT = 'DRAFT'
@@ -64,7 +64,7 @@ class DailyWorkReport(models.Model):
 
     class Meta:
         ordering = ['-report_date', '-updated_at']
-        unique_together = ('employee', 'report_date', 'report_profile', 'report_period')
+        unique_together = ('employee', 'report_date', 'report_profile', 'report_period', 'shift')
         verbose_name = 'Báo cáo công việc ngày'
         verbose_name_plural = 'Báo cáo công việc ngày'
 

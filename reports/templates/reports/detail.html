@@ -15,7 +15,12 @@
         <div class="jp-report-detail-hero-top">
             <div class="jp-report-detail-hero-text">
                 <div class="d-flex flex-wrap align-items-center gap-2">
-                    <h2 class="fw-bold text-hm mb-0 jp-page-title">Báo cáo {{ report.report_date|date:"d/m/Y" }}</h2>
+                    <h2 class="fw-bold text-hm mb-0 jp-page-title">
+                        Báo cáo {{ report.report_date|date:"d/m/Y" }}
+                        {% if report.is_production_report and report.shift %}
+                        <span class="text-muted fs-5 fw-normal">· {{ report.get_shift_display }}</span>
+                        {% endif %}
+                    </h2>
                     {% if report.status == 'SUBMITTED' %}
                     <span class="badge jp-report-badge jp-report-badge--submitted">Đã nộp</span>
                     {% else %}

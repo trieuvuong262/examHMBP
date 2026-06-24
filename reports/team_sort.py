@@ -12,10 +12,13 @@ TEAM_SORT_STATUS = 'status'
 TEAM_SORT_REVIEWED = 'reviewed'
 TEAM_SORT_SUMMARY = 'summary'
 
+TEAM_SORT_SHIFT = 'shift'
+
 TEAM_SORT_KEYS = frozenset({
     TEAM_SORT_MEMBER,
     TEAM_SORT_ANCHOR,
     TEAM_SORT_PERIOD,
+    TEAM_SORT_SHIFT,
     TEAM_SORT_STATUS,
     TEAM_SORT_REVIEWED,
     TEAM_SORT_SUMMARY,
@@ -49,6 +52,8 @@ def team_sort_href(base_params: dict, column_key: str, current_sort: str, curren
 def build_team_table_columns(
     *,
     is_vp: bool,
+    is_production: bool = False,
+    production_multi_shift: bool = False,
     base_params: dict,
     sort_key: str,
     sort_dir: str,
@@ -56,7 +61,14 @@ def build_team_table_columns(
     specs = [
         {'key': TEAM_SORT_MEMBER, 'label': 'Nhân viên', 'align': 'start'},
         {'key': TEAM_SORT_ANCHOR, 'label': 'Mốc', 'align': 'start', 'vp_only': True},
-        {'key': TEAM_SORT_PERIOD, 'label': 'Loại', 'align': 'start'},
+        {
+            'key': TEAM_SORT_SHIFT if production_multi_shift else TEAM_SORT_PERIOD,
+            'label': 'Theo ca' if production_multi_shift else ('Ca' if is_production else 'Loại'),
+            'align': 'start',
+            'production_only': is_production or production_multi_shift,
+            'office_skip': production_multi_shift,
+        },
+        {'key': TEAM_SORT_PERIOD, 'label': 'Loại', 'align': 'start', 'office_only': True},
         {'key': TEAM_SORT_STATUS, 'label': 'Trạng thái', 'align': 'start'},
         {'key': TEAM_SORT_REVIEWED, 'label': 'Đã xem', 'align': 'center'},
         {'key': TEAM_SORT_SUMMARY, 'label': 'Tóm tắt', 'align': 'end'},
@@ -65,6 +77,18 @@ def build_team_table_columns(
     columns = []
     for spec in specs:
         if spec.get('vp_only') and not is_vp:
+            continue
+        if spec.get('office_only') and not is_vp:
+            continue
+        if spec.get('production_only') and not is_production and not production_multi_shift:
+            continue
+        if spec.get('office_skip') and is_vp:
+            continue
+        if (
+            spec.get('key') == TEAM_SORT_PERIOD
+            and is_production
+            and not is_vp
+        ):
             continue
         col = dict(spec)
         sortable = spec.get('sortable', spec['key'] is not None)
@@ -101,6 +125,14 @@ def _row_sort_tuple(row, sort_key: str) -> tuple:
         if report.is_production_report:
             return (0,)
         return (PERIOD_ORDER.get(report.report_period, 99),)
+    if sort_key == TEAM_SORT_SHIFT:
+        if not report:
+            return (-1,)
+        from reports.production_shift_policy import PRODUCTION_SHIFT_ORDER
+        try:
+            return (PRODUCTION_SHIFT_ORDER.index(report.shift),)
+        except ValueError:
+            return (99,)
     if sort_key == TEAM_SORT_STATUS:
         status = report.status if report else None
         return (STATUS_ORDER.get(status, 0),)
