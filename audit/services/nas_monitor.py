@@ -348,21 +348,8 @@ def collect_nas_metrics() -> dict:
         'shares': [],
         'backup': {},
         'processes': [],
-        'tips': [],
         'error': None,
     }
-
-    if mount_ok:
-        metrics['tips'].append(f'Mount NAS: {nas_mount_root()}')
-
-    if not rclone_ok:
-        metrics['tips'].append('Chưa có rclone hoặc file cấu hình — không liệt kê được share/volume qua SMB.')
-
-    if not dsm_ok:
-        metrics['tips'].append(
-            'Chưa cấu hình NAS_DSM_URL / NAS_DSM_ACCOUNT / NAS_DSM_PASSWORD — '
-            'chỉ hiển thị dung lượng qua rclone, không có CPU/RAM/tiến trình realtime.',
-        )
 
     if dsm_ok:
         try:

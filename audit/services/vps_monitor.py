@@ -479,13 +479,7 @@ def collect_vps_metrics() -> dict:
             'summary': {},
         },
         'processes': [],
-        'tips': [],
     }
-
-    if not host_ok:
-        metrics['tips'].append(
-            'Chưa mount /proc và / của host vào container web — chỉ hiển thị số liệu trong container.',
-        )
 
     if docker_ok:
         try:
@@ -496,22 +490,12 @@ def collect_vps_metrics() -> dict:
             metrics['docker']['summary'] = _docker_disk_summary()
         except VpsMonitorError as exc:
             metrics['docker']['summary_error'] = str(exc)
-    else:
-        metrics['tips'].append('Chưa mount Docker socket — không xem được container và không chạy tối ưu Docker.')
 
     if host_ok:
         try:
             metrics['processes'] = collect_host_processes()
         except OSError:
             metrics['processes'] = []
-
-    summary = metrics['docker'].get('summary') or {}
-    if summary.get('containerd_bytes', 0) and summary['containerd_bytes'] > 5 * 1024 ** 3:
-        metrics['tips'].append('Docker build cache / containerd > 5 GB — nên dọn build cache.')
-
-    if summary.get('orphan_volumes'):
-        names = ', '.join(v['name'] for v in summary['orphan_volumes'][:3])
-        metrics['tips'].append(f'Có volume Docker không dùng: {names}')
 
     return metrics
 

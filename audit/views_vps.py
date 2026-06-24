@@ -35,7 +35,6 @@ def vps_monitor_page(request):
             'cpu': {},
             'disk': None,
             'docker': {'containers': [], 'summary': {}},
-            'tips': [],
         }
     return render(request, 'audit/vps_monitor.html', {
         'metrics': metrics,

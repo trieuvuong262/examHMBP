@@ -6656,6 +6656,33 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     font-weight: 700;
 }
 
+/* Tab Giám sát VPS/NAS — override .nav-link navbar (chữ trắng trên nền sáng) */
+.jp-monitor-tabs .nav-link {
+    color: #475569 !important;
+    background: #fff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: var(--jp-btn-radius) !important;
+    padding: 0.5rem 1.25rem !important;
+    min-height: auto;
+    margin: 0 0.25rem 0 0;
+    box-shadow: none !important;
+    font-size: 0.875rem;
+}
+
+.jp-monitor-tabs .nav-link:hover {
+    color: var(--hm-primary) !important;
+    background: var(--hm-primary-soft) !important;
+    border-color: rgba(220, 38, 38, 0.25) !important;
+}
+
+.jp-monitor-tabs .nav-link.active,
+.jp-monitor-tabs .nav-link.active:hover {
+    background: var(--hm-primary) !important;
+    border-color: var(--hm-primary) !important;
+    color: #fff !important;
+    font-weight: 700;
+}
+
 /* Tab trong vùng nội dung sáng — override navbar .nav-link (hover/active chữ trắng).
    Luôn bọc nav-pills bằng .jp-portal-pills (xem .cursor/rules/portal-content-tabs.mdc). */
 .jp-portal-pills .nav-link,
