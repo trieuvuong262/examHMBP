@@ -7,9 +7,8 @@
     Bật <strong>thông báo portal</strong> trên trình duyệt (popup khi vào trang chủ) để nhận nhắc đúng giờ.
 </div>
 {% elif push_ready and push_subscribed %}
-<div class="alert alert-success border-0 shadow-sm mb-3 py-2 small d-flex flex-wrap align-items-center justify-content-between gap-2">
-    <span><i class="bi bi-bell-fill me-1"></i> Đã đăng ký push — nhắc sẽ hiện đúng giờ đã chọn.</span>
-    <button type="button" class="btn btn-sm btn-outline-success fw-bold" id="jpSchedulePushTest">Gửi thử ngay</button>
+<div class="alert alert-success border-0 shadow-sm mb-3 py-2 small">
+    <i class="bi bi-bell-fill me-1"></i> Đã đăng ký push — nhắc sẽ hiện đúng giờ đã chọn.
 </div>
 {% endif %}
 
@@ -144,40 +143,6 @@
         radios.forEach(function (r) { r.addEventListener('change', syncRepeatMode); });
         syncRepeatMode();
     }
-
-    var testBtn = document.getElementById('jpSchedulePushTest');
-    var cfg = window.JP_PORTAL_PUSH || window.JP_MEAL_PUSH;
-    var testUrl = cfg && cfg.scheduleTestUrl;
-    if (!testBtn || !testUrl) return;
-
-    function getCsrfToken() {
-        var meta = document.querySelector('meta[name="csrf-token"]');
-        return meta ? meta.getAttribute('content') : '';
-    }
-
-    testBtn.addEventListener('click', function () {
-        testBtn.disabled = true;
-        fetch(testUrl, {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCsrfToken(),
-            },
-            body: '{}',
-        }).then(function (resp) {
-            return resp.json().then(function (data) {
-                if (!resp.ok || !data.ok) {
-                    throw new Error((data && data.message) || 'Gửi thử thất bại.');
-                }
-                window.alert(data.message || 'Đã gửi thử — kiểm tra thông báo góc màn hình.');
-            });
-        }).catch(function (err) {
-            window.alert(err.message || 'Không gửi được thông báo thử.');
-        }).finally(function () {
-            testBtn.disabled = false;
-        });
-    });
 })();
 </script>
 {% endblock %}

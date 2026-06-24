@@ -146,31 +146,6 @@ def send_test_meal_push(user) -> dict:
     return {'sent': sent, 'failed': failed}
 
 
-def _test_schedule_push_payload() -> str:
-    schedule_url = f'{_portal_base_url()}{reverse("tools:schedule_reminder")}'
-    return json.dumps(
-        {
-            'title': 'Thử nhắc lịch',
-            'body': 'Đây là thông báo thử — nhắc lịch đang hoạt động.',
-            'url': schedule_url,
-            'tag': 'schedule-reminder-test',
-        },
-        ensure_ascii=False,
-    )
-
-
-def send_test_schedule_push(user) -> dict:
-    """Gửi push thử nhắc lịch — cùng pipeline đặt cơm."""
-    if not webpush_configured():
-        return {'sent': 0, 'failed': 0, 'reason': 'webpush_not_configured'}
-
-    payload = _test_schedule_push_payload()
-    delivered, _count, failed = _deliver_payload_to_user(user, payload)
-    if not delivered and failed == 0:
-        return {'sent': 0, 'failed': 0, 'reason': 'no_subscription'}
-    return {'sent': 1 if delivered else 0, 'failed': failed}
-
-
 def _schedule_push_payload(reminder) -> str:
     schedule_url = f'{_portal_base_url()}{reverse("tools:schedule_reminder")}'
     body = (reminder.body or '').strip()

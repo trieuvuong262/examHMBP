@@ -125,32 +125,6 @@ def push_test(request):
         'sent': stats['sent'],
     })
 
-
-@login_required
-@require_http_methods(['POST'])
-def push_test_schedule(request):
-    if not webpush_configured():
-        return _json_error('Web push chưa được cấu hình trên server.', status=503)
-    if not user_portal_push_eligible(request.user):
-        return _json_error('Tài khoản không đủ điều kiện nhận thông báo đẩy.', status=403)
-
-    from utilities.push_service import send_test_schedule_push
-
-    stats = send_test_schedule_push(request.user)
-    if stats.get('reason') == 'no_subscription':
-        return _json_error('Chưa đăng ký thông báo portal trên thiết bị này — bật Allow khi vào trang chủ.')
-    if stats.get('sent', 0) < 1:
-        remaining = MealPushSubscription.objects.filter(user=request.user).count()
-        if remaining == 0 and stats.get('failed', 0) > 0:
-            return _json_error('Đăng ký cũ đã hết hạn. Bật lại thông báo portal trên trình duyệt này.')
-        return _json_error('Không gửi được thông báo thử. Thử bật lại thông báo portal.')
-    return JsonResponse({
-        'ok': True,
-        'message': 'Đã gửi thử nhắc lịch — kiểm tra góc màn hình.',
-        'sent': stats['sent'],
-    })
-
-
 @require_GET
 @login_required
 def schedule_push_poll(request):

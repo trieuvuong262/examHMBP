@@ -189,21 +189,3 @@ class ScheduleReminderTests(TestCase):
             stats = send_schedule_reminder_pushes(now=now)
         self.assertEqual(stats['sent'], 1, stats)
         mock_push.assert_called()
-
-    @override_settings(
-        WEBPUSH_VAPID_PUBLIC_KEY='test-public',
-        WEBPUSH_VAPID_PRIVATE_KEY='test-private',
-        WEBPUSH_VAPID_CLAIMS_EMAIL='mailto:test@example.com',
-    )
-    def test_schedule_test_push_endpoint(self):
-        MealPushSubscription.objects.create(
-            user=self.user,
-            endpoint='https://push.example/sub-test',
-            p256dh='key',
-            auth='auth',
-        )
-        self.client.force_login(self.user)
-        with patch('utilities.push_service.send_test_schedule_push', return_value={'sent': 1}):
-            resp = self.client.post(reverse('utilities:push_test_schedule'))
-        self.assertEqual(resp.status_code, 200)
-        self.assertTrue(resp.json()['ok'])
