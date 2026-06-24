@@ -48,6 +48,7 @@ from reports.period_utils import (
     period_date_input_value,
     period_intro_title,
     period_date_label,
+    period_nav_date,
     period_query_param,
     parse_team_date_range,
     parse_team_period_filter,
@@ -466,6 +467,7 @@ def _today_office_report(request, report_date, *, report_period: str = PERIOD_DA
     can_edit = can_edit_own_daily_report(request.user, report, can_submit=can_submit)
     is_locked = is_report_locked(report)
     is_edit_expired = is_report_edit_expired(report)
+    show_edit_expired = is_edit_expired and bool(report.pk)
     period_params = period_query_param(report_period, report_date)
     redirect_qs = urlencode(period_params)
 
@@ -527,6 +529,7 @@ def _today_office_report(request, report_date, *, report_period: str = PERIOD_DA
         'can_edit': can_edit,
         'is_locked': is_locked,
         'is_edit_expired': is_edit_expired,
+        'show_edit_expired': show_edit_expired,
         'last_editable_on': last_editable_date(report),
         'office_period': report_period,
         'period_date_label': period_date_label(report_period),
@@ -534,6 +537,7 @@ def _today_office_report(request, report_date, *, report_period: str = PERIOD_DA
         'period_date_input_value': period_date_input_value(report_period, report_date),
         'period_intro_title': period_intro_title(report_period),
         'period_query': period_params,
+        'period_nav_date': period_nav_date(request, report_period, report_date),
     })
     return render(request, 'reports/today_office.html', ctx)
 
@@ -985,6 +989,10 @@ def _my_reports(request, daily_report_profile=None):
         'office_period': period if is_office else None,
         'is_office_history': is_office,
         'history_anchor_date': history_anchor,
+        'period_nav_date': (
+            period_nav_date(request, period, history_anchor)
+            if is_office and history_anchor else None
+        ),
         'office_tab_extra_query': office_tab_extra_query,
     })
 

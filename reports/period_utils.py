@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import calendar
 from datetime import date, datetime, timedelta
 
 from django.utils import timezone
@@ -100,6 +101,51 @@ def parse_period_anchor_date(request, period: str) -> date:
     )
     parsed = _parse_iso_date(raw)
     return parsed or today
+
+
+def period_nav_date(request, period: str, anchor: date) -> date:
+    """
+    Ngày lịch dùng khi chuyển tab Ngày/Tuần/Tháng.
+
+    Anchor lưu DB là đầu tuần/đầu tháng; nếu dùng trực tiếp cho tab Ngày sẽ nhảy
+    sang kỳ cũ và báo nhầm «đã quá hạn chỉnh sửa».
+    """
+    today = timezone.localdate()
+    explicit = _parse_iso_date(request.GET.get('date'))
+
+    if period == PERIOD_WEEK:
+        week_end = anchor + timedelta(days=6)
+        if (
+            explicit
+            and explicit != anchor
+            and anchor <= explicit <= week_end
+        ):
+            return explicit
+        if anchor <= today <= week_end:
+            return today
+        if today < anchor:
+            return anchor
+        return week_end
+
+    if period == PERIOD_MONTH:
+        month_start = first_day_of_month(anchor)
+        last_day = calendar.monthrange(month_start.year, month_start.month)[1]
+        month_end = month_start.replace(day=last_day)
+        if (
+            explicit
+            and explicit != month_start
+            and month_start <= explicit <= month_end
+        ):
+            return explicit
+        if month_start <= today <= month_end:
+            return today
+        if today < month_start:
+            return month_start
+        return month_end
+
+    if explicit:
+        return explicit
+    return anchor
 
 
 def period_query_param(period: str, anchor: date) -> dict[str, str]:

@@ -27,7 +27,7 @@
             </div>
         </div>
         <div class="jp-office-page-hero-tabs">
-            {% include 'reports/includes/vp_period_tabs.html' with base_url_name='reports:today_vp' office_period=office_period report_date=report_date %}
+            {% include 'reports/includes/vp_period_tabs.html' with base_url_name='reports:today_vp' office_period=office_period report_date=report_date period_nav_date=period_nav_date %}
         </div>
     </div>
 
@@ -35,7 +35,7 @@
     <div class="alert alert-secondary border-0 shadow-sm py-2 mb-3">
         Cấp trên đã xem báo cáo — không thể chỉnh sửa.
     </div>
-    {% elif is_edit_expired %}
+    {% elif show_edit_expired %}
     <div class="alert alert-secondary border-0 shadow-sm py-2 mb-3">
         Đã quá hạn chỉnh sửa — chỉ được sửa đến hết ngày {{ last_editable_on|date:"d/m/Y" }}.
     </div>
