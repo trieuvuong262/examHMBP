@@ -1,6 +1,7 @@
 from django import forms
 
 from audit.models import RustDeskHost
+from audit.services.rustdesk_device_sync import sync_host_from_device
 from audit.services.wake_on_lan import normalize_mac
 
 
@@ -84,3 +85,15 @@ class RustDeskHostForm(forms.ModelForm):
 
     def clean_rustdesk_password(self):
         return (self.cleaned_data.get('rustdesk_password') or '').strip()[:128]
+
+    def save(self, commit=True):
+        host = super().save(commit=False)
+        device = self.cleaned_data.get('device')
+        if device and (device.mac_address or '').strip():
+            if not (host.mac_address or '').strip():
+                host.mac_address = device.mac_address.strip()
+        if commit:
+            host.save()
+            self.save_m2m()
+            sync_host_from_device(host, save=True)
+        return host

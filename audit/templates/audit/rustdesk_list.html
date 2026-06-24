@@ -19,6 +19,15 @@
         </div>
         {% if can_edit_rustdesk %}
         <div class="d-flex flex-wrap jp-rd-toolbar">
+            <form method="post"
+                  action="{% url 'audit:rustdesk_sync_devices' %}"
+                  class="d-inline jp-rd-sync-form"
+                  id="jpRdSyncDevicesForm">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-secondary btn-sm" title="Ghép hostname/IP với thiết bị IT và lấy MAC">
+                    <i class="bi bi-arrow-repeat me-1"></i>Lấy MAC từ thiết bị IT
+                </button>
+            </form>
             <a href="{% url 'audit:rustdesk_download_setup' %}?os=it"
                class="btn btn-outline-primary btn-sm">
                 <i class="bi bi-gear me-1"></i>Cấu hình máy IT
@@ -228,13 +237,6 @@
         setTimeout(refreshOnlineStatus, 1500);
     }
 
-    function csrfToken() {
-        var meta = document.querySelector('meta[name="csrf-token"]');
-        if (meta && meta.content) return meta.content;
-        var input = document.querySelector('[name=csrfmiddlewaretoken]');
-        return input ? input.value : '';
-    }
-
     document.querySelectorAll('.jp-rd-wake-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
             var url = btn.getAttribute('data-wake-url');
@@ -265,6 +267,40 @@
                 });
         });
     });
+
+    var syncForm = document.getElementById('jpRdSyncDevicesForm');
+    if (syncForm) {
+        syncForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+            var btn = syncForm.querySelector('button[type="submit"]');
+            if (btn) btn.disabled = true;
+            fetch(syncForm.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken(),
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+                body: new FormData(syncForm),
+            })
+                .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
+                .then(function (result) {
+                    var msg = (result.data && result.data.message) || 'Không đồng bộ được.';
+                    if (window.jpToast) {
+                        window.jpToast(msg, result.ok ? 'success' : 'error');
+                    } else {
+                        alert(msg);
+                    }
+                    if (result.ok) window.location.reload();
+                })
+                .catch(function () {
+                    syncForm.submit();
+                })
+                .finally(function () {
+                    if (btn) btn.disabled = false;
+                });
+        });
+    }
 })();
 </script>
 {% endblock %}

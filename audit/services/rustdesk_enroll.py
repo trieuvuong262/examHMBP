@@ -73,23 +73,17 @@ def upsert_rustdesk_host(*, data: dict) -> tuple[object, bool]:
         defaults=defaults,
     )
 
-    device = _try_link_device(host, hostname=hostname)
-    if device and host.device_id != device.pk:
-        host.device = device
-        host.save(update_fields=['device', 'updated_at'])
-    elif device and not host.mac_address and device.mac_address:
-        host.mac_address = device.mac_address
-        host.save(update_fields=['mac_address', 'updated_at'])
+    from audit.services.rustdesk_device_sync import sync_host_from_device
+
+    sync_host_from_device(host, save=True)
 
     return host, created
 
 
 def _try_link_device(host, *, hostname: str):
-    if host.device_id or not hostname:
-        return None
-    from equipment.models import Device
+    from audit.services.rustdesk_device_sync import find_device_for_host
 
-    return Device.objects.filter(hostname__iexact=hostname).order_by('-updated_at').first()
+    return find_device_for_host(host)
 
 
 def downloader_script_fields(user) -> dict:

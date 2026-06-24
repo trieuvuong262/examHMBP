@@ -33,6 +33,7 @@ urlpatterns = [
     path('rustdesk/', views_rustdesk.rustdesk_list, name='rustdesk_list'),
     path('rustdesk/trang-thai/', views_rustdesk.rustdesk_online_status, name='rustdesk_online_status'),
     path('rustdesk/them/', views_rustdesk.rustdesk_add, name='rustdesk_add'),
+    path('rustdesk/dong-bo-thiet-bi/', views_rustdesk.rustdesk_sync_devices, name='rustdesk_sync_devices'),
     path('rustdesk/<int:pk>/wake/', views_rustdesk.rustdesk_wake, name='rustdesk_wake'),
     path('rustdesk/<int:pk>/sua/', views_rustdesk.rustdesk_edit, name='rustdesk_edit'),
     path('rustdesk/<int:pk>/xoa/', views_rustdesk.rustdesk_delete, name='rustdesk_delete'),

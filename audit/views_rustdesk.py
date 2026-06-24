@@ -9,6 +9,7 @@ from django.views.decorators.http import require_GET, require_POST
 from assessment.decorators import module_perm_required
 from audit.forms_rustdesk import RustDeskHostForm
 from audit.models import RustDeskHost
+from audit.services.rustdesk_device_sync import sync_all_rustdesk_hosts_from_devices
 from audit.services.rustdesk_connect import effective_rustdesk_password
 from audit.services.rustdesk_online import get_peers_online_map, normalize_rustdesk_id
 from audit.services.wake_on_lan import send_wake_on_lan
@@ -92,6 +93,29 @@ def rustdesk_online_status(request):
         'status': 'ok',
         'online': {peer_id: bool(online_map.get(peer_id)) for peer_id in peer_ids},
     })
+
+
+@module_perm_required(MODULE_AUDIT, 'view')
+@require_POST
+def rustdesk_sync_devices(request):
+    if not _can_connect(request.user):
+        return JsonResponse({'status': 'error', 'message': 'Không có quyền.'}, status=403)
+
+    overwrite = request.POST.get('overwrite') == '1'
+    result = sync_all_rustdesk_hosts_from_devices(overwrite_mac=overwrite)
+    message = (
+        f'Đã liên kết {result.linked} thiết bị, cập nhật MAC {result.mac_updated} máy.'
+    )
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({
+            'status': 'ok',
+            'message': message,
+            'linked': result.linked,
+            'mac_updated': result.mac_updated,
+            'skipped': result.skipped,
+        })
+    messages.success(request, message)
+    return redirect('audit:rustdesk_list')
 
 
 @module_perm_required(MODULE_AUDIT, 'view')

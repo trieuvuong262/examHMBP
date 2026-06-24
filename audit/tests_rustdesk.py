@@ -320,6 +320,73 @@ class RustdeskHostTests(TestCase):
         self.assertEqual(get_menu_label('audit', 'rustdesk'), 'Quản lý RustDesk')
 
 
+class RustDeskDeviceSyncTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        from equipment.models import Device
+
+        cls.device = Device.objects.create(
+            device_code='IT-PC-001',
+            name='PC Test',
+            category='PC',
+            hostname='PC-TEST',
+            ip_address='192.168.74.50',
+            mac_address='AA:BB:CC:DD:EE:FF',
+        )
+        cls.host = RustDeskHost.objects.create(
+            name='PC Test RD',
+            hostname='PC-TEST',
+            rustdesk_id='111222333',
+        )
+
+    def test_sync_links_device_and_copies_mac(self):
+        from audit.services.rustdesk_device_sync import sync_host_from_device
+
+        linked, mac_updated = sync_host_from_device(self.host, save=True)
+        self.host.refresh_from_db()
+        self.assertTrue(linked)
+        self.assertTrue(mac_updated)
+        self.assertEqual(self.host.device_id, self.device.pk)
+        self.assertEqual(self.host.mac_address, 'AA:BB:CC:DD:EE:FF')
+
+    def test_sync_all_hosts(self):
+        from audit.services.rustdesk_device_sync import sync_all_rustdesk_hosts_from_devices
+
+        result = sync_all_rustdesk_hosts_from_devices()
+        self.host.refresh_from_db()
+        self.assertEqual(result.linked, 1)
+        self.assertEqual(result.mac_updated, 1)
+        self.assertEqual(self.host.mac_address, 'AA:BB:CC:DD:EE:FF')
+
+    def test_form_save_fills_mac_from_selected_device(self):
+        from equipment.models import Device
+
+        device = Device.objects.create(
+            device_code='IT-PC-002',
+            name='PC Form',
+            category='PC',
+            hostname='PC-FORM',
+            mac_address='11:22:33:44:55:66',
+        )
+        form = RustDeskHostForm(data={
+            'name': 'PC Form RD',
+            'hostname': 'PC-FORM',
+            'ip_address': '',
+            'mac_address': '',
+            'rustdesk_id': '999888777',
+            'rustdesk_password': '',
+            'department_text': '',
+            'assigned_user_text': '',
+            'notes': '',
+            'device': str(device.pk),
+            'is_active': True,
+        })
+        self.assertTrue(form.is_valid(), form.errors)
+        host = form.save()
+        self.assertEqual(host.mac_address, '11:22:33:44:55:66')
+        self.assertEqual(host.device_id, device.pk)
+
+
 class RustdeskEnrollApiTests(TestCase):
     @override_settings(
         RUSTDESK_ENROLL_SECRET='test-enroll-secret',
