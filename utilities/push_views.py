@@ -149,3 +149,25 @@ def push_test_schedule(request):
         'message': 'Đã gửi thử nhắc lịch — kiểm tra góc màn hình.',
         'sent': stats['sent'],
     })
+
+
+@require_GET
+@login_required
+def schedule_push_poll(request):
+    """Poll nhắc lịch đến giờ — hiện notification khi user đang mở portal."""
+    if not webpush_configured():
+        return _json_error('Web push chưa được cấu hình trên server.', status=503)
+    if not user_portal_push_eligible(request.user):
+        return _json_error('Tài khoản không đủ điều kiện nhận thông báo đẩy.', status=403)
+
+    from utilities.push_service import get_due_schedule_reminder_for_user
+
+    due = get_due_schedule_reminder_for_user(request.user)
+    if not due:
+        return JsonResponse({'ok': True, 'has_due': False})
+
+    return JsonResponse({
+        'ok': True,
+        'has_due': True,
+        **due,
+    })

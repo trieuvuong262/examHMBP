@@ -380,7 +380,6 @@ def schedule_reminder_page(request):
         reminders=reminders,
         push_ready=push_ready,
         push_subscribed=push_subscribed,
-        push_test_schedule_url=reverse('utilities:push_test_schedule') if push_ready else '',
     ))
 
 

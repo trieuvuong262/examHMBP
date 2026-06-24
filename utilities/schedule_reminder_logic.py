@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from django.utils import timezone
 
@@ -25,6 +25,8 @@ WEEKDAY_LABELS = {
 }
 
 WEEKDAY_CHOICES = [(str(k), v) for k, v in WEEKDAY_LABELS.items()]
+
+SCHEDULE_PUSH_GRACE_MINUTES = 2
 
 
 def normalize_weekdays(raw) -> list[int]:
@@ -58,29 +60,57 @@ def reminder_schedule_summary(reminder) -> str:
     return f'Hàng tuần · {time_str} · {format_weekdays(reminder.weekdays)}'
 
 
-def _same_minute(now_time, remind_time) -> bool:
-    return now_time.hour == remind_time.hour and now_time.minute == remind_time.minute
+def _matches_schedule_day(reminder, today, weekday: int) -> bool:
+    if reminder.repeat_mode == REPEAT_ONCE:
+        return reminder.once_date == today
+    return weekday in normalize_weekdays(reminder.weekdays)
 
 
-def should_fire_reminder(reminder, now=None) -> bool:
-    """True khi đúng phút nhắc (theo giờ địa phương)."""
+def _time_on_date(day, hour: int, minute: int):
+    return datetime.combine(day, datetime.min.time().replace(hour=hour, minute=minute))
+
+
+def is_reminder_due(reminder, now=None, *, grace_minutes: int = 0) -> bool:
+    """True khi đến giờ nhắc (theo giờ VN). grace_minutes: cron bù trễ vài phút."""
     now = now or timezone.now()
     local_now = timezone.localtime(now)
     today = local_now.date()
-    current_time = local_now.time().replace(second=0, microsecond=0)
-    remind_time = reminder.remind_time.replace(second=0, microsecond=0)
+    weekday = local_now.isoweekday()
 
-    if not _same_minute(current_time, remind_time):
+    if not _matches_schedule_day(reminder, today, weekday):
         return False
 
-    if reminder.repeat_mode == REPEAT_ONCE:
-        return reminder.once_date == today
+    target = reminder.remind_time.replace(second=0, microsecond=0)
+    current = local_now.time().replace(second=0, microsecond=0)
 
-    return local_now.isoweekday() in normalize_weekdays(reminder.weekdays)
+    if current.hour == target.hour and current.minute == target.minute:
+        return True
+
+    if grace_minutes <= 0:
+        return False
+
+    target_dt = _time_on_date(today, target.hour, target.minute)
+    now_dt = _time_on_date(today, current.hour, current.minute)
+    if now_dt <= target_dt:
+        return False
+    return (now_dt - target_dt) <= timedelta(minutes=grace_minutes)
+
+
+def should_fire_reminder(reminder, now=None) -> bool:
+    """Giữ tên cũ — cron dùng grace window như đặt cơm (không lỡ phút)."""
+    return is_reminder_due(reminder, now, grace_minutes=SCHEDULE_PUSH_GRACE_MINUTES)
+
+
+def reminder_fire_key(reminder, now=None) -> str:
+    local_now = timezone.localtime(now or timezone.now())
+    return (
+        f'{reminder.pk}-{local_now.date().isoformat()}-'
+        f'{reminder.remind_time.strftime("%H:%M")}'
+    )
 
 
 def validate_once_datetime(once_date, remind_time, *, now=None) -> None:
-    """Raise ValueError nếu thời điểm nhắc một lần đã qua."""
+    """Raise ValidationError nếu thời điểm nhắc một lần đã qua."""
     from django.core.exceptions import ValidationError
 
     now = now or timezone.now()

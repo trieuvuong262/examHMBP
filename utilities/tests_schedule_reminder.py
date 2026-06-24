@@ -37,7 +37,7 @@ class ScheduleReminderTests(TestCase):
             auth='auth',
         )
 
-        with patch('utilities.schedule_push_service.send_push_to_subscription') as mock_push:
+        with patch('utilities.push_service.send_push_to_subscription') as mock_push:
             stats = send_schedule_reminder_pushes(now=now)
         self.assertEqual(stats['sent'], 1)
         mock_push.assert_called_once()
@@ -74,7 +74,7 @@ class ScheduleReminderTests(TestCase):
             auth='auth',
         )
 
-        with patch('utilities.schedule_push_service.send_push_to_subscription'):
+        with patch('utilities.push_service.send_push_to_subscription'):
             stats = send_schedule_reminder_pushes(now=fire_at)
         self.assertEqual(stats['sent'], 1)
         reminder.refresh_from_db()
@@ -138,6 +138,57 @@ class ScheduleReminderTests(TestCase):
         resp = self.client.get(reverse('home_portal'))
         self.assertContains(resp, 'Nhắc lịch')
         self.assertContains(resp, reverse('tools:schedule_reminder'))
+
+    @override_settings(
+        WEBPUSH_VAPID_PUBLIC_KEY='test-public',
+        WEBPUSH_VAPID_PRIVATE_KEY='test-private',
+        WEBPUSH_VAPID_CLAIMS_EMAIL='mailto:test@example.com',
+    )
+    def test_schedule_push_poll(self):
+        now = timezone.localtime(timezone.now())
+        ScheduleReminder.objects.create(
+            user=self.user,
+            title='Poll nhắc',
+            repeat_mode=ScheduleReminder.REPEAT_WEEKLY,
+            weekdays=[now.isoweekday()],
+            remind_time=now.time().replace(second=0, microsecond=0),
+        )
+        self.client.force_login(self.user)
+        resp = self.client.get(reverse('utilities:schedule_push_poll'))
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertTrue(data['ok'])
+        self.assertTrue(data['has_due'])
+        self.assertEqual(data['title'], 'Poll nhắc')
+
+    @override_settings(
+        WEBPUSH_VAPID_PUBLIC_KEY='test-public',
+        WEBPUSH_VAPID_PRIVATE_KEY='test-private',
+        WEBPUSH_VAPID_CLAIMS_EMAIL='mailto:test@example.com',
+    )
+    def test_grace_window_fires_after_minute(self):
+        from utilities.schedule_reminder_logic import should_fire_reminder
+
+        now = timezone.localtime(timezone.now()).replace(second=0, microsecond=0)
+        remind_time = (now - timedelta(minutes=1)).time()
+        reminder = ScheduleReminder.objects.create(
+            user=self.user,
+            title='Grace',
+            repeat_mode=ScheduleReminder.REPEAT_WEEKLY,
+            weekdays=[now.isoweekday()],
+            remind_time=remind_time,
+        )
+        MealPushSubscription.objects.create(
+            user=self.user,
+            endpoint='https://push.example/sub-grace',
+            p256dh='key',
+            auth='auth',
+        )
+        self.assertTrue(should_fire_reminder(reminder, now))
+        with patch('utilities.push_service.send_push_to_subscription') as mock_push:
+            stats = send_schedule_reminder_pushes(now=now)
+        self.assertEqual(stats['sent'], 1, stats)
+        mock_push.assert_called()
 
     @override_settings(
         WEBPUSH_VAPID_PUBLIC_KEY='test-public',

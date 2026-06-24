@@ -223,6 +223,8 @@ window.JP_PORTAL_PUSH = {
     subscribeUrl: "{% url 'utilities:push_subscribe' %}",
     unsubscribeUrl: "{% url 'utilities:push_unsubscribe' %}",
     statusUrl: "{% url 'utilities:push_status' %}",
+    schedulePollUrl: "{% url 'utilities:schedule_push_poll' %}",
+    scheduleTestUrl: "{% url 'utilities:push_test_schedule' %}",
     {% if jp_portal_push_debug %}
     testUrl: "{% url 'utilities:push_test' %}",
     {% if jp_can_announcements %}
@@ -236,6 +238,7 @@ window.JP_PORTAL_PUSH = {
 window.JP_MEAL_PUSH = window.JP_PORTAL_PUSH;
 </script>
 <script src="{% static 'js/portal-push-meal.js' %}?v=20260628e"></script>
+<script src="{% static 'js/portal-push-schedule.js' %}?v=20260624a"></script>
 {% if jp_can_announcements %}
 <script src="{% static 'js/portal-push-announcements.js' %}?v=20260628a"></script>
 {% endif %}
