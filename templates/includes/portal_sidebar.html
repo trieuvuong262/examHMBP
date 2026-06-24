@@ -833,6 +833,15 @@
                     </a>
                 </li>
                 {% endif %}
+                {% jp_can_menu 'audit' 'vps_monitor' as jp_can_audit_vps_monitor %}
+                {% if jp_can_audit_vps_monitor %}
+                <li>
+                    <a href="{% url 'audit:vps_monitor' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'vps_monitor' or request.resolver_match.url_name == 'vps_monitor_metrics' or request.resolver_match.url_name == 'vps_monitor_optimize' %}active{% endif %}">
+                        <i class="bi bi-speedometer2"></i><span>Giám sát VPS</span>
+                    </a>
+                </li>
+                {% endif %}
                 {% jp_can_menu 'audit' 'kiotviet_sync' as jp_can_audit_kiotviet_sync %}
                 {% if jp_can_audit_kiotviet_sync %}
                 <li>

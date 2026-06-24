@@ -433,6 +433,10 @@ NAS_BACKGROUND_SYNC_DEFAULT = env_bool('NAS_BACKGROUND_SYNC_DEFAULT', False)
 NAS_BACKUP_RCLONE_REMOTE = os.getenv('NAS_BACKUP_RCLONE_REMOTE', 'synology:backup').strip()
 NAS_BACKUP_REL_PATH = os.getenv('NAS_BACKUP_REL_PATH', '').strip()
 NAS_BACKUP_RETENTION_DAYS = int(os.getenv('NAS_BACKUP_RETENTION_DAYS', '30'))
+# Giám sát VPS (mount /host/proc, /host/root, docker.sock vào container web)
+VPS_HOST_PROC = os.getenv('VPS_HOST_PROC', '/host/proc')
+VPS_HOST_ROOT = os.getenv('VPS_HOST_ROOT', '/host/root')
+VPS_DOCKER_SOCKET = os.getenv('VPS_DOCKER_SOCKET', '/var/run/docker.sock')
 # Báo cáo tuần — đính kèm lưu trên NAS, không lưu media VPS
 NAS_WEEKLY_REPORT_REL_PATH = os.getenv(
     'NAS_WEEKLY_REPORT_REL_PATH',

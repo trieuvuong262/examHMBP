@@ -373,6 +373,11 @@ NAMESPACE_URL_DESCRIPTIONS: dict[str, dict[str, str] | str] = {
     # Audit / quản trị hệ thống
     'audit:backup_page': 'xem trang backup Portal lên NAS',
     'audit:backup_run': 'bấm chạy backup Portal lên NAS',
+    'audit:vps_monitor': 'xem trang giám sát VPS',
+    'audit:vps_monitor_metrics': 'tải số liệu RAM/CPU/SSD VPS',
+    'audit:vps_monitor_optimize': {
+        'POST': 'chạy tối ưu VPS (dọn Docker)',
+    },
     'audit:kiotviet_sync': 'xem trang đồng bộ KiotViet',
     'audit:kiotviet_sync_save': {
         'POST': 'lưu cấu hình lịch đồng bộ KiotViet',

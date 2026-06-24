@@ -8,6 +8,7 @@ from . import views
 from . import views_login_security
 from . import views_rustdesk
 from . import views_rustdesk_setup
+from . import views_vps
 
 app_name = 'audit'
 
@@ -30,6 +31,9 @@ urlpatterns = [
     path('kiotviet-sync/run/', kiotviet_sync_views.kiotviet_sync_run, name='kiotviet_sync_run'),
     path('kiotviet-sync/status/<int:job_id>/', kiotviet_sync_views.kiotviet_sync_status, name='kiotviet_sync_status'),
     path('nas-links/', views.nas_links_index, name='nas_links'),
+    path('vps/', views_vps.vps_monitor_page, name='vps_monitor'),
+    path('vps/metrics/', views_vps.vps_monitor_metrics_api, name='vps_monitor_metrics'),
+    path('vps/toi-uu/', views_vps.vps_monitor_optimize, name='vps_monitor_optimize'),
     path('rustdesk/', views_rustdesk.rustdesk_list, name='rustdesk_list'),
     path('rustdesk/trang-thai/', views_rustdesk.rustdesk_online_status, name='rustdesk_online_status'),
     path('rustdesk/them/', views_rustdesk.rustdesk_add, name='rustdesk_add'),
