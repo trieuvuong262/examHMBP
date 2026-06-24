@@ -577,7 +577,10 @@ def _is_volume_capacity(total_b: int | None, volume_totals: set[int]) -> bool:
 def _rclone_size(remote: str, *, timeout: int = 45) -> int | None:
     if not rclone_listing_available():
         return None
-    proc = _run_rclone(['size', remote, '--json'], timeout=timeout)
+    try:
+        proc = _run_rclone(['size', remote, '--json'], timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return None
     if proc.returncode != 0 or not proc.stdout.strip():
         return None
     try:
@@ -622,8 +625,8 @@ def _enrich_shares_from_rclone(
             remaining = None
             if deadline is not None:
                 remaining = max(3, int(deadline - time.monotonic()))
-            if remaining is None or remaining > 3:
-                size_timeout = min(timeout_size, remaining) if remaining else timeout_size
+            if remaining is not None and remaining > 8:
+                size_timeout = min(12, remaining - 2)
                 folder_size = _rclone_size(share_remote, timeout=size_timeout)
                 if folder_size is not None:
                     used_b = folder_size
