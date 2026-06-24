@@ -107,6 +107,7 @@ class ToolsViewTests(TestCase):
         self.assertContains(response, 'Watermark ảnh')
         self.assertContains(response, 'Ghi chú')
         self.assertContains(response, 'Nhắc lịch')
+        self.assertContains(response, 'Nhắc việc cá nhân')
 
     def test_tool_pages_require_login(self):
         self.client.logout()

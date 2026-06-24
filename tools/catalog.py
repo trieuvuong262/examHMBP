@@ -85,7 +85,7 @@ PORTAL_TOOLS = (
     {
         'slug': 'schedule-reminder',
         'name': 'Nhắc lịch',
-        'description': '',
+        'description': 'Nhắc việc cá nhân — thông báo đúng giờ (hàng tuần hoặc một lần).',
         'icon': 'bi-alarm',
         'accent': 'red',
         'url_name': 'tools:schedule_reminder',
