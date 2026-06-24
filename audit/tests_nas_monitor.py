@@ -329,8 +329,10 @@ class NasMonitorViewTests(TestCase):
         self.assertEqual(resp.status_code, 302)
 
     def test_page_loads(self):
-        resp = self.client.get(reverse('audit:nas_monitor'))
+        with patch('audit.views_nas.collect_nas_metrics') as mock_collect:
+            resp = self.client.get(reverse('audit:nas_monitor'))
         self.assertEqual(resp.status_code, 200)
+        mock_collect.assert_not_called()
         self.assertContains(resp, 'Giám sát NAS')
         self.assertContains(resp, 'Performance')
         self.assertContains(resp, 'jp-nas-tab-performance')

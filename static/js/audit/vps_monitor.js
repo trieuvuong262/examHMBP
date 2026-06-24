@@ -306,6 +306,25 @@
         }
     }
 
+    const overviewTabBtn = document.getElementById('jp-vps-tab-overview-btn');
+
+    let activeScope = 'full';
+
+    function setActiveScope(scope) {
+        activeScope = scope || 'full';
+    }
+
+    function applyMetricsForScope(metrics, scope) {
+        if (scope === 'performance') {
+            applyPerformanceMetrics(metrics);
+        } else {
+            applyMetrics(metrics);
+        }
+        if (updatedEl) {
+            updatedEl.textContent = 'Cập nhật ' + new Date().toLocaleTimeString('vi-VN');
+        }
+    }
+
     function applyMetrics(metrics) {
         const ram = metrics.ram || {};
         const cpu = metrics.cpu || {};
@@ -355,16 +374,18 @@
         if (!metricsUrl) return;
         const initial = options && options.initial === true;
         const manual = options && options.manual === true;
+        const scope = (options && options.scope) || activeScope;
         if (initial) loading.showInitial();
         else if (manual) loading.showButtonBusy();
         try {
-            const resp = await fetch(metricsUrl, {
+            const url = metricsUrl + (metricsUrl.indexOf('?') >= 0 ? '&' : '?') + 'scope=' + encodeURIComponent(scope);
+            const resp = await fetch(url, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' },
                 credentials: 'same-origin',
             });
             const data = await resp.json();
             if (data.status === 'success' && data.metrics) {
-                applyMetrics(data.metrics);
+                applyMetricsForScope(data.metrics, scope);
             }
         } catch (err) {
             console.warn('VPS metrics refresh failed', err);
@@ -374,49 +395,58 @@
         }
     }
 
+    function bindTabScope(btn, scope) {
+        if (!btn) return;
+        btn.addEventListener('shown.bs.tab', function () {
+            setActiveScope(scope);
+            if (scope === 'performance') {
+                performanceTabActive = true;
+                initPerformanceCharts();
+            } else {
+                performanceTabActive = false;
+            }
+            scheduleRefresh();
+            refreshMetrics({ manual: false, scope: scope });
+        });
+        if (scope === 'performance') {
+            btn.addEventListener('hidden.bs.tab', function () {
+                performanceTabActive = false;
+                scheduleRefresh();
+            });
+        }
+    }
+
     function scheduleRefresh() {
         if (refreshTimer) clearInterval(refreshTimer);
         const sec = performanceTabActive ? performanceRefreshSec : refreshSec;
         if (sec > 0) {
             refreshTimer = setInterval(function () {
-                refreshMetrics({ manual: false });
+                refreshMetrics({ manual: false, scope: activeScope });
             }, sec * 1000);
         }
     }
 
-    function onPerformanceTabShown() {
-        performanceTabActive = true;
-        initPerformanceCharts();
-        scheduleRefresh();
-        refreshMetrics({ manual: false });
-    }
-
-    function onPerformanceTabHidden() {
-        performanceTabActive = false;
-        scheduleRefresh();
-    }
+    bindTabScope(overviewTabBtn, 'full');
+    bindTabScope(performanceTabBtn, 'performance');
 
     bindContainerToggles(root);
 
-    if (performanceTabBtn) {
-        performanceTabBtn.addEventListener('shown.bs.tab', onPerformanceTabShown);
-        performanceTabBtn.addEventListener('hidden.bs.tab', onPerformanceTabHidden);
-    }
     if (performanceTab && performanceTab.classList.contains('active')) {
         performanceTabActive = true;
+        setActiveScope('performance');
     }
 
     if (refreshBtn) {
         refreshBtn.addEventListener('click', function () {
-            refreshMetrics({ manual: true });
+            refreshMetrics({ manual: true, scope: activeScope });
         });
     }
 
     if (updatedEl) {
         const now = new Date();
-        updatedEl.textContent = 'Cập nhật ' + now.toLocaleTimeString('vi-VN');
+        updatedEl.textContent = '—';
     }
 
     scheduleRefresh();
-    refreshMetrics({ initial: true });
+    refreshMetrics({ initial: true, scope: activeScope });
 })();

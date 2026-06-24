@@ -433,7 +433,32 @@ def collect_host_processes(*, limit: int = 25) -> list[dict]:
     return _collect_host_processes_from_proc(limit=limit)
 
 
-def collect_vps_metrics() -> dict:
+def empty_vps_metrics() -> dict:
+    """Khung metrics nhẹ cho render trang — dữ liệu thật tải qua API."""
+    host_ok = host_monitoring_available()
+    return {
+        'scope': 'shell',
+        'hostname': None,
+        'host_monitoring': host_ok,
+        'docker_available': docker_available(),
+        'collected_at': None,
+        'ram': {},
+        'cpu': {'percent': None, 'cores': os.cpu_count() or 1, 'loadavg': {}},
+        'disk': None,
+        'docker': {'containers': [], 'summary': {}},
+        'processes': [],
+        'error': None,
+    }
+
+
+def collect_vps_metrics(*, scope: str = 'full') -> dict:
+    """scope: performance (CPU/RAM/ổ đĩa) | full (+ Docker, tiến trình)."""
+    scope = (scope or 'full').strip().lower()
+    if scope not in ('performance', 'full'):
+        scope = 'full'
+    include_docker = scope == 'full'
+    include_processes = scope == 'full'
+
     host_ok = host_monitoring_available()
     docker_ok = docker_available()
     scope = 'host' if host_ok else 'container'
@@ -481,7 +506,7 @@ def collect_vps_metrics() -> dict:
         'processes': [],
     }
 
-    if docker_ok:
+    if include_docker and docker_ok:
         try:
             metrics['docker']['containers'] = _container_stats()
         except VpsMonitorError as exc:
@@ -491,12 +516,13 @@ def collect_vps_metrics() -> dict:
         except VpsMonitorError as exc:
             metrics['docker']['summary_error'] = str(exc)
 
-    if host_ok:
+    if include_processes and host_ok:
         try:
             metrics['processes'] = collect_host_processes()
         except OSError:
             metrics['processes'] = []
 
+    metrics['scope'] = scope
     return metrics
 
 

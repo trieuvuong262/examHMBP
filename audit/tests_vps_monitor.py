@@ -72,12 +72,21 @@ class VpsMonitorViewTests(TestCase):
         self.assertEqual(resp.status_code, 302)
 
     def test_page_loads(self):
-        resp = self.client.get(reverse('audit:vps_monitor'))
+        with patch('audit.views_vps.collect_vps_metrics') as mock_collect:
+            resp = self.client.get(reverse('audit:vps_monitor'))
         self.assertEqual(resp.status_code, 200)
+        mock_collect.assert_not_called()
         self.assertContains(resp, 'Giám sát VPS')
         self.assertContains(resp, 'Performance')
         self.assertContains(resp, 'jp-vps-tab-performance')
         self.assertContains(resp, 'jp-vps-loading')
+
+    @patch('audit.views_vps.collect_vps_metrics')
+    def test_metrics_api_performance_scope(self, mock_collect):
+        mock_collect.return_value = {'ram': {}, 'cpu': {}, 'disk': None, 'scope': 'performance'}
+        resp = self.client.get(reverse('audit:vps_monitor_metrics') + '?scope=performance')
+        self.assertEqual(resp.status_code, 200)
+        mock_collect.assert_called_once_with(scope='performance')
 
     @patch('audit.views_vps.collect_vps_metrics')
     def test_metrics_api(self, mock_collect):

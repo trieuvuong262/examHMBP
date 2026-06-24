@@ -9,6 +9,7 @@ from assessment.decorators import module_perm_required
 from audit.services.vps_monitor import (
     VpsMonitorError,
     collect_vps_metrics,
+    empty_vps_metrics,
     list_optimize_actions,
     run_optimize_action,
 )
@@ -23,19 +24,7 @@ def _can_optimize(user) -> bool:
 @module_perm_required(MODULE_AUDIT, 'view')
 @require_GET
 def vps_monitor_page(request):
-    try:
-        metrics = collect_vps_metrics()
-    except Exception as exc:
-        metrics = {
-            'scope': 'unknown',
-            'host_monitoring': False,
-            'docker_available': False,
-            'error': str(exc),
-            'ram': {},
-            'cpu': {},
-            'disk': None,
-            'docker': {'containers': [], 'summary': {}},
-        }
+    metrics = empty_vps_metrics()
     return render(request, 'audit/vps_monitor.html', {
         'metrics': metrics,
         'metrics_json': json.dumps(metrics, ensure_ascii=False),
@@ -47,8 +36,11 @@ def vps_monitor_page(request):
 @module_perm_required(MODULE_AUDIT, 'view')
 @require_GET
 def vps_monitor_metrics_api(request):
+    scope = (request.GET.get('scope') or 'full').strip().lower()
+    if scope not in ('performance', 'full'):
+        scope = 'full'
     try:
-        metrics = collect_vps_metrics()
+        metrics = collect_vps_metrics(scope=scope)
     except Exception as exc:
         return JsonResponse({'status': 'error', 'message': str(exc)}, status=500)
     return JsonResponse({'status': 'success', 'metrics': metrics})

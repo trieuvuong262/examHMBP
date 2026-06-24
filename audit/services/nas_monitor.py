@@ -613,46 +613,44 @@ def _enrich_shares_from_rclone(
         dsm_total = _quota_total_bytes(dsm_quota)
         dsm_used = _quota_used_bytes(dsm_quota)
         dsm_free = _quota_free_bytes(dsm_quota)
-
         share_remote = _share_rclone_remote(name, row.get('remote') or '')
+
+        if dsm_total:
+            used_b = dsm_used
+            free_b = max(0, dsm_total - used_b) if used_b is not None else dsm_free
+            row.update(_share_row(
+                name=name,
+                total_b=dsm_total,
+                used_b=used_b,
+                free_b=free_b,
+                remote=share_remote,
+            ))
+            continue
+
         about = _rclone_about(share_remote, timeout=timeout_about)
         about_total = about.get('total_bytes') if about else None
         about_quota = _share_quota_from_about(about_total, volume_totals)
-
-        if dsm_total:
-            total_b = dsm_total
-            used_b = dsm_used
+        quota_total = row.get('total_bytes')
+        has_share_quota = bool(quota_total or about_quota)
+        total_b = quota_total or about_quota
+        used_b = row.get('used_bytes')
+        free_b = row.get('free_bytes')
+        if has_share_quota and about:
+            used_b = about.get('used_bytes') or used_b
+            if total_b and used_b is not None:
+                free_b = max(0, total_b - used_b)
+        elif used_b is None or _is_volume_capacity(total_b, volume_totals):
             remaining = None
             if deadline is not None:
                 remaining = max(3, int(deadline - time.monotonic()))
-            if remaining is not None and remaining > 8:
-                size_timeout = min(12, remaining - 2)
-                folder_size = _rclone_size(share_remote, timeout=size_timeout)
-                if folder_size is not None:
-                    used_b = folder_size
-            free_b = max(0, total_b - used_b) if used_b is not None else dsm_free
-        else:
-            quota_total = row.get('total_bytes')
-            has_share_quota = bool(quota_total or about_quota)
-            total_b = quota_total or about_quota
-            used_b = row.get('used_bytes')
-            free_b = row.get('free_bytes')
-            if has_share_quota and about:
-                used_b = about.get('used_bytes') or used_b
-                if total_b and used_b is not None:
-                    free_b = max(0, total_b - used_b)
-            elif used_b is None or _is_volume_capacity(total_b, volume_totals):
-                remaining = None
-                if deadline is not None:
-                    remaining = max(3, int(deadline - time.monotonic()))
-                if remaining is None or remaining > 3:
-                    size_timeout = min(timeout_size, remaining) if remaining else timeout_size
-                    used_b = _rclone_size(share_remote, timeout=size_timeout) or used_b
-                if used_b is None and about:
-                    used_b = about.get('used_bytes')
-            if not has_share_quota:
-                total_b = None
-                free_b = None
+            if remaining is None or remaining > 3:
+                size_timeout = min(timeout_size, remaining) if remaining else timeout_size
+                used_b = _rclone_size(share_remote, timeout=size_timeout) or used_b
+            if used_b is None and about:
+                used_b = about.get('used_bytes')
+        if not has_share_quota:
+            total_b = None
+            free_b = None
 
         row.update(_share_row(
             name=name,
@@ -1381,6 +1379,29 @@ def _rclone_about(remote: str, *, timeout: int = 45) -> dict | None:
         'free_bytes': int(free) if free is not None else None,
         'used_percent': pct,
         'display': f'{_format_bytes(used)} / {_format_bytes(total)}',
+    }
+
+
+def empty_nas_metrics() -> dict:
+    """Khung metrics nhẹ cho render trang — dữ liệu thật tải qua API."""
+    return {
+        'hostname': None,
+        'model': None,
+        'version': None,
+        'rclone_available': rclone_listing_available(),
+        'mount_available': nas_is_available(),
+        'dsm_available': dsm_configured(),
+        'collected_at': None,
+        'ram': {},
+        'cpu': {'percent': None, 'cores': None, 'loadavg': {}},
+        'disk': None,
+        'volumes': [],
+        'shares': [],
+        'backup': {},
+        'processes': [],
+        'widgets': _empty_dsm_widgets(),
+        'error': None,
+        'scope': 'shell',
     }
 
 
