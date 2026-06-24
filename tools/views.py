@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from .catalog import PORTAL_TOOLS
@@ -379,6 +380,7 @@ def schedule_reminder_page(request):
         reminders=reminders,
         push_ready=push_ready,
         push_subscribed=push_subscribed,
+        push_test_schedule_url=reverse('utilities:push_test_schedule') if push_ready else '',
     ))
 
 

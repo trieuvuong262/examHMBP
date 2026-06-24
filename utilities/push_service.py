@@ -146,6 +146,43 @@ def send_test_meal_push(user) -> dict:
     return {'sent': sent, 'failed': failed}
 
 
+def _test_schedule_push_payload() -> str:
+    schedule_url = f'{_portal_base_url()}{reverse("tools:schedule_reminder")}'
+    return json.dumps(
+        {
+            'title': 'Thử nhắc lịch',
+            'body': 'Đây là thông báo thử — nhắc lịch đang hoạt động.',
+            'url': schedule_url,
+            'tag': 'schedule-reminder-test',
+        },
+        ensure_ascii=False,
+    )
+
+
+def send_test_schedule_push(user) -> dict:
+    """Gửi push thử nhắc lịch — xác nhận đăng ký thiết bị."""
+    if not webpush_configured():
+        return {'sent': 0, 'failed': 0, 'reason': 'webpush_not_configured'}
+
+    subscriptions = list(MealPushSubscription.objects.filter(user=user))
+    if not subscriptions:
+        return {'sent': 0, 'failed': 0, 'reason': 'no_subscription'}
+
+    payload = _test_schedule_push_payload()
+    sent = failed = 0
+    for subscription in subscriptions:
+        try:
+            send_push_to_subscription(subscription, payload)
+            sent += 1
+        except Exception as exc:
+            failed += 1
+            if _is_expired_push_subscription(exc):
+                subscription.delete()
+            logger.warning('Schedule test push failed for user %s: %s', user.pk, exc)
+
+    return {'sent': sent, 'failed': failed}
+
+
 def send_meal_reminder_pushes(*, now=None, dry_run: bool = False) -> dict:
     """
     Gửi push cho NV sản xuất đã đăng ký, trong khung 16h–20h, chưa đặc/từ chối.

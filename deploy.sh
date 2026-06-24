@@ -344,6 +344,13 @@ fi
 echo "==> 12) Show status"
 compose ps
 
+echo "==> 12a) Cron web push nhắc lịch (mỗi phút)"
+if [[ -f scripts/setup-schedule-reminder-cron.sh ]]; then
+  bash scripts/setup-schedule-reminder-cron.sh || echo "    WARNING: setup-schedule-reminder-cron.sh failed"
+else
+  echo "    WARNING: scripts/setup-schedule-reminder-cron.sh not found"
+fi
+
 verify_nas_rclone
 
 echo "==> 13) Cleanup Docker build cache and unused images"

@@ -11,6 +11,7 @@ urlpatterns = [
     path('push/unsubscribe/', push_views.push_unsubscribe, name='push_unsubscribe'),
     path('push/status/', push_views.push_status, name='push_status'),
     path('push/test/', push_views.push_test, name='push_test'),
+    path('push/test-schedule/', push_views.push_test_schedule, name='push_test_schedule'),
     path('dat-com/tu-choi/', portal_actions.meal_decline, name='meal_decline'),
     # Đặt cơm
     path('dat-com/', views.meal_home, name='meal_home'),
