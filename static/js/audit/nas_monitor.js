@@ -15,7 +15,14 @@
 
     const loading = window.jpCreateMonitorLoading
         ? window.jpCreateMonitorLoading({ loadingEl: loadingEl, refreshBtn: refreshBtn })
-        : { showInitial: function () {}, hideInitial: function () {}, showButtonBusy: function () {}, hideButtonBusy: function () {} };
+        : {
+            showInitial: function () {},
+            hideInitial: function () {},
+            showTab: function () {},
+            hideTab: function () {},
+            showButtonBusy: function () {},
+            hideButtonBusy: function () {},
+        };
 
     const HISTORY_MAX = 60;
     const chartHistory = { labels: [], cpu: [], ram: [], disk: [] };
@@ -524,8 +531,10 @@
         const initial = options && options.initial === true;
         const manual = options && options.manual === true;
         const quiet = options && options.quiet === true;
+        const tabSwitch = options && options.tabSwitch === true;
         const scope = (options && options.scope) || activeScope;
         if (initial) loading.showInitial();
+        else if (tabSwitch) loading.showTab();
         else if (manual) loading.showButtonBusy();
         let ok = false;
         try {
@@ -546,6 +555,7 @@
             if (!quiet && updatedEl) updatedEl.textContent = 'Lỗi kết nối metrics';
         } finally {
             if (initial) loading.hideInitial();
+            else if (tabSwitch) loading.hideTab();
             else if (manual) loading.hideButtonBusy();
         }
         return ok;
@@ -565,7 +575,8 @@
         await refreshMetrics({ scope: activeScope, quiet: true });
     }
 
-    function bindTabScope(btn, scope) {
+    function bindTabScope(btn, scope, options) {
+        const showTabLoading = options && options.showTabLoading === true;
         if (!btn) return;
         btn.addEventListener('shown.bs.tab', function () {
             setActiveScope(scope);
@@ -576,7 +587,7 @@
                 performanceTabActive = false;
             }
             scheduleRefresh();
-            refreshMetrics({ manual: false, scope: scope });
+            refreshMetrics({ tabSwitch: showTabLoading, scope: scope });
         });
         if (scope === 'performance') {
             btn.addEventListener('hidden.bs.tab', function () {
@@ -597,8 +608,8 @@
     }
 
     bindTabScope(overviewTabBtn, 'overview');
-    bindTabScope(performanceTabBtn, 'performance');
-    bindTabScope(dsmTabBtn, 'full');
+    bindTabScope(performanceTabBtn, 'performance', { showTabLoading: true });
+    bindTabScope(dsmTabBtn, 'full', { showTabLoading: true });
 
     if (performanceTab && performanceTab.classList.contains('active')) {
         performanceTabActive = true;

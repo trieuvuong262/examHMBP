@@ -6,10 +6,11 @@
         const refreshBtn = options.refreshBtn;
         let initialPending = 0;
         let buttonPending = 0;
+        let tabPending = 0;
         let initialDone = false;
 
-        function syncInitial() {
-            const visible = initialPending > 0 && !initialDone;
+        function syncOverlay() {
+            const visible = (initialPending > 0 && !initialDone) || tabPending > 0;
             if (loadingEl) {
                 loadingEl.hidden = !visible;
                 loadingEl.classList.toggle('is-visible', visible);
@@ -30,14 +31,22 @@
             showInitial: function () {
                 if (initialDone) return;
                 initialPending += 1;
-                syncInitial();
+                syncOverlay();
             },
             hideInitial: function () {
                 initialPending = Math.max(0, initialPending - 1);
                 if (initialPending === 0) {
                     initialDone = true;
                 }
-                syncInitial();
+                syncOverlay();
+            },
+            showTab: function () {
+                tabPending += 1;
+                syncOverlay();
+            },
+            hideTab: function () {
+                tabPending = Math.max(0, tabPending - 1);
+                syncOverlay();
             },
             showButtonBusy: function () {
                 buttonPending += 1;
