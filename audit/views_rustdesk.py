@@ -106,6 +106,8 @@ def rustdesk_sync_devices(request):
     message = (
         f'Đã liên kết {result.linked} thiết bị, cập nhật MAC {result.mac_updated} máy.'
     )
+    if result.missing_mac:
+        message += f' {result.missing_mac} máy thiết bị IT chưa có MAC (cần quét lại).'
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({
             'status': 'ok',
@@ -113,6 +115,7 @@ def rustdesk_sync_devices(request):
             'linked': result.linked,
             'mac_updated': result.mac_updated,
             'skipped': result.skipped,
+            'missing_mac': result.missing_mac,
         })
     messages.success(request, message)
     return redirect('audit:rustdesk_list')

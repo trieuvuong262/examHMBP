@@ -315,7 +315,9 @@ class RustDeskHost(models.Model):
             return mac
         device = getattr(self, 'device', None)
         if device:
-            return (device.mac_address or '').strip()
+            from equipment.services.device_mac import resolve_device_mac
+
+            return resolve_device_mac(device)
         return ''
 
     @property

@@ -14,6 +14,7 @@ class RustDeskDeviceSyncResult:
     linked: int = 0
     mac_updated: int = 0
     skipped: int = 0
+    missing_mac: int = 0
 
     @property
     def changed(self) -> int:
@@ -47,6 +48,8 @@ def find_device_for_host(host: RustDeskHost):
 
 def apply_device_to_host(host: RustDeskHost, device, *, overwrite_mac: bool = False) -> tuple[bool, bool, bool]:
     """Gắn thiết bị và copy MAC. Trả về (linked_changed, mac_changed, meta_changed)."""
+    from equipment.services.device_mac import resolve_device_mac
+
     linked_changed = False
     mac_changed = False
     meta_changed = False
@@ -55,11 +58,15 @@ def apply_device_to_host(host: RustDeskHost, device, *, overwrite_mac: bool = Fa
         host.device = device
         linked_changed = True
 
-    device_mac = (device.mac_address or '').strip()
+    device_mac = resolve_device_mac(device)
     if device_mac and (overwrite_mac or not (host.mac_address or '').strip()):
         if host.mac_address != device_mac:
             host.mac_address = device_mac
             mac_changed = True
+
+    if device_mac and not (device.mac_address or '').strip():
+        device.mac_address = device_mac
+        device.save(update_fields=['mac_address', 'updated_at'])
 
     if not host.hostname and device.hostname:
         host.hostname = device.hostname[:128]
@@ -111,6 +118,10 @@ def sync_all_rustdesk_hosts_from_devices(*, overwrite_mac: bool = False) -> Rust
         if not device:
             result.skipped += 1
             continue
+        from equipment.services.device_mac import resolve_device_mac
+
+        if not resolve_device_mac(device):
+            result.missing_mac += 1
         linked_changed, mac_changed, meta_changed = apply_device_to_host(
             host,
             device,
