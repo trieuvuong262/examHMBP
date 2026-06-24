@@ -66,7 +66,7 @@ class Command(BaseCommand):
     def _check_catalog(self):
         groups = get_portal_tool_groups()
         total = sum(len(g['tools']) for g in groups)
-        ok = total == len(PORTAL_TOOLS) == 9 and len(groups) == 3
+        ok = total == len(PORTAL_TOOLS) == 10 and len(groups) == 3
         return ok, f'catalog: {len(groups)} groups, {total} tools'
 
     def _check_services(self, *, skip_rmbg: bool):

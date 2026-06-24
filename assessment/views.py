@@ -2,7 +2,6 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
 from django.utils import timezone
-from django.views.decorators.http import require_POST
 from .models import Exam, ExamSubmission, Question, UserAnswer, Choice, ExamQuestion
 from .forms import ExamForm, QuestionForm, ChoiceFormSet, UserForm, save_choice_formset_in_order
 from django.contrib import messages
@@ -52,57 +51,10 @@ def login_redirect_view(request):
 
 @login_required
 def home_portal(request):
-    from utilities.forms import ScheduleReminderForm
-    from utilities.models import MealPushSubscription, ScheduleReminder
-    from utilities.portal_push_eligibility import user_portal_push_eligible
-    from utilities.push_service import webpush_configured
-    from utilities.schedule_reminder_logic import reminder_schedule_summary
-
-    schedule_form = None
-    if request.method == 'POST' and request.POST.get('form_id') == 'schedule_reminder':
-        schedule_form = ScheduleReminderForm(request.POST)
-        if schedule_form.is_valid():
-            reminder = schedule_form.save(commit=False)
-            reminder.user = request.user
-            reminder.save()
-            messages.success(
-                request,
-                f'Đã tạo nhắc «{reminder.title}» — {reminder_schedule_summary(reminder)}.',
-            )
-            return redirect(f'{reverse("home_portal")}#nhac-lich')
-    else:
-        schedule_form = ScheduleReminderForm()
-
-    push_ready = webpush_configured() and user_portal_push_eligible(request.user)
-    push_subscribed = (
-        push_ready
-        and MealPushSubscription.objects.filter(user=request.user).exists()
-    )
-    schedule_reminders = list(
-        ScheduleReminder.objects.filter(user=request.user, is_active=True)
-        .order_by('remind_time', '-created_at')[:30],
-    )
-
     return render(request, 'portal.html', {
         'portal_tool_groups': get_portal_tool_groups(),
         'dashboard_widgets': get_portal_dashboard(request.user),
-        'schedule_reminder_form': schedule_form,
-        'schedule_reminders': schedule_reminders,
-        'schedule_push_ready': push_ready,
-        'schedule_push_subscribed': push_subscribed,
     })
-
-
-@login_required
-@require_POST
-def schedule_reminder_delete(request, pk):
-    from utilities.models import ScheduleReminder
-
-    reminder = get_object_or_404(ScheduleReminder, pk=pk, user=request.user)
-    reminder.is_active = False
-    reminder.save(update_fields=['is_active', 'updated_at'])
-    messages.success(request, 'Đã xóa nhắc lịch.')
-    return redirect(f'{reverse("home_portal")}#nhac-lich')
 
 def _assessment_perm_context(user):
     return {

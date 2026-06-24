@@ -1,5 +1,6 @@
 import json
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse, JsonResponse
@@ -339,3 +340,55 @@ def note_quick_add(request):
         color = 'yellow'
     UserNote.objects.create(user=request.user, title=title, content=content, color=color)
     return redirect('tools:notes')
+
+
+@login_required
+def schedule_reminder_page(request):
+    from utilities.forms import ScheduleReminderForm
+    from utilities.models import MealPushSubscription, ScheduleReminder
+    from utilities.portal_push_eligibility import user_portal_push_eligible
+    from utilities.push_service import webpush_configured
+    from utilities.schedule_reminder_logic import reminder_schedule_summary
+
+    form = ScheduleReminderForm()
+    if request.method == 'POST':
+        form = ScheduleReminderForm(request.POST)
+        if form.is_valid():
+            reminder = form.save(commit=False)
+            reminder.user = request.user
+            reminder.save()
+            messages.success(
+                request,
+                f'Đã tạo nhắc «{reminder.title}» — {reminder_schedule_summary(reminder)}.',
+            )
+            return redirect('tools:schedule_reminder')
+
+    push_ready = webpush_configured() and user_portal_push_eligible(request.user)
+    push_subscribed = (
+        push_ready
+        and MealPushSubscription.objects.filter(user=request.user).exists()
+    )
+    reminders = list(
+        ScheduleReminder.objects.filter(user=request.user, is_active=True)
+        .order_by('remind_time', '-created_at')[:30],
+    )
+
+    return render(request, 'tools/schedule_reminder.html', _tool_context(
+        'schedule-reminder',
+        form=form,
+        reminders=reminders,
+        push_ready=push_ready,
+        push_subscribed=push_subscribed,
+    ))
+
+
+@login_required
+@require_POST
+def schedule_reminder_delete(request, pk):
+    from utilities.models import ScheduleReminder
+
+    reminder = get_object_or_404(ScheduleReminder, pk=pk, user=request.user)
+    reminder.is_active = False
+    reminder.save(update_fields=['is_active', 'updated_at'])
+    messages.success(request, 'Đã xóa nhắc lịch.')
+    return redirect('tools:schedule_reminder')

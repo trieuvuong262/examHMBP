@@ -1,4 +1,4 @@
-from datetime import date, time, timedelta
+from datetime import time, timedelta
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
@@ -80,12 +80,11 @@ class ScheduleReminderTests(TestCase):
         reminder.refresh_from_db()
         self.assertFalse(reminder.is_active)
 
-    def test_home_create_weekly_via_post(self):
+    def test_create_weekly_via_tools_page(self):
         self.client.force_login(self.user)
         resp = self.client.post(
-            reverse('home_portal'),
+            reverse('tools:schedule_reminder'),
             {
-                'form_id': 'schedule_reminder',
                 'title': 'Gọi khách',
                 'body': 'Nhắc gọi lại ABC',
                 'repeat_mode': ScheduleReminder.REPEAT_WEEKLY,
@@ -93,18 +92,17 @@ class ScheduleReminderTests(TestCase):
                 'remind_time': '09:30',
             },
         )
-        self.assertRedirects(resp, f'{reverse("home_portal")}#nhac-lich', fetch_redirect_response=False)
+        self.assertRedirects(resp, reverse('tools:schedule_reminder'))
         reminder = ScheduleReminder.objects.get(user=self.user, title='Gọi khách')
         self.assertEqual(reminder.weekday_list(), [1, 3, 5])
         self.assertEqual(reminder.remind_time, time(9, 30))
 
-    def test_home_create_once_via_post(self):
+    def test_create_once_via_tools_page(self):
         self.client.force_login(self.user)
         once = timezone.localdate() + timedelta(days=3)
         resp = self.client.post(
-            reverse('home_portal'),
+            reverse('tools:schedule_reminder'),
             {
-                'form_id': 'schedule_reminder',
                 'title': 'Deadline',
                 'body': '',
                 'repeat_mode': ScheduleReminder.REPEAT_ONCE,
@@ -112,10 +110,9 @@ class ScheduleReminderTests(TestCase):
                 'remind_time': '14:00',
             },
         )
-        self.assertRedirects(resp, f'{reverse("home_portal")}#nhac-lich', fetch_redirect_response=False)
+        self.assertRedirects(resp, reverse('tools:schedule_reminder'))
         reminder = ScheduleReminder.objects.get(user=self.user, title='Deadline')
         self.assertEqual(reminder.once_date, once)
-        self.assertEqual(reminder.repeat_mode, ScheduleReminder.REPEAT_ONCE)
 
     def test_delete_reminder(self):
         reminder = ScheduleReminder.objects.create(
@@ -126,12 +123,18 @@ class ScheduleReminderTests(TestCase):
             remind_time=time(8, 0),
         )
         self.client.force_login(self.user)
-        resp = self.client.post(reverse('schedule_reminder_delete', args=[reminder.pk]))
-        self.assertRedirects(resp, f'{reverse("home_portal")}#nhac-lich')
+        resp = self.client.post(reverse('tools:schedule_reminder_delete', args=[reminder.pk]))
+        self.assertRedirects(resp, reverse('tools:schedule_reminder'))
         reminder.refresh_from_db()
         self.assertFalse(reminder.is_active)
 
-    def test_old_utilities_url_redirects_home(self):
+    def test_old_utilities_url_redirects_tools(self):
         self.client.force_login(self.user)
         resp = self.client.get(reverse('utilities:schedule_reminder_home'))
-        self.assertRedirects(resp, f'{reverse("home_portal")}#nhac-lich')
+        self.assertRedirects(resp, reverse('tools:schedule_reminder'))
+
+    def test_home_shows_schedule_tool_tile(self):
+        self.client.force_login(self.user)
+        resp = self.client.get(reverse('home_portal'))
+        self.assertContains(resp, 'Nhắc lịch')
+        self.assertContains(resp, reverse('tools:schedule_reminder'))

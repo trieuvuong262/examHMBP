@@ -4,7 +4,6 @@ from hrm import views as hrm_views
 urlpatterns = [
      
     path('', views.home_portal, name='home_portal'),
-    path('nhac-lich/<int:pk>/xoa/', views.schedule_reminder_delete, name='schedule_reminder_delete'),
     path('exams/', views.exam_list, name='exam_list'),
     path('exams/<int:exam_id>/take/', views.take_exam, name='take_exam'),
     path('exams/<int:exam_id>/result/', views.exam_result, name='exam_result'),

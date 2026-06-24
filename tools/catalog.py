@@ -82,6 +82,15 @@ PORTAL_TOOLS = (
         'url_name': 'tools:notes',
         'group': 'utility',
     },
+    {
+        'slug': 'schedule-reminder',
+        'name': 'Nhắc lịch',
+        'description': 'Chọn thứ trong tuần — nhắc push một lần hoặc lặp hàng tuần.',
+        'icon': 'bi-alarm',
+        'accent': 'red',
+        'url_name': 'tools:schedule_reminder',
+        'group': 'utility',
+    },
 )
 
 PORTAL_TOOL_GROUPS = (
@@ -102,7 +111,7 @@ PORTAL_TOOL_GROUPS = (
     {
         'key': 'utility',
         'title': 'Tiện ích',
-        'subtitle': 'QR, ghi chú cá nhân',
+        'subtitle': 'QR, ghi chú, nhắc lịch',
         'icon': 'bi-lightning-charge',
         'accent': 'amber',
     },

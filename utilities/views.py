@@ -488,7 +488,7 @@ def salary_stats_export(request):
 
 @login_required
 def schedule_reminder_home(request):
-    return redirect(f'{reverse("home_portal")}#nhac-lich')
+    return redirect('tools:schedule_reminder')
 
 
 @login_required
@@ -498,4 +498,4 @@ def schedule_reminder_delete(request, pk):
     reminder.is_active = False
     reminder.save(update_fields=['is_active', 'updated_at'])
     messages.success(request, 'Đã xóa nhắc lịch.')
-    return redirect(f'{reverse("home_portal")}#nhac-lich')
+    return redirect('tools:schedule_reminder')

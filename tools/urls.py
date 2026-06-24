@@ -18,4 +18,6 @@ urlpatterns = [
     path('ghi-chu/them/', views.note_quick_add, name='note_quick_add'),
     path('api/ghi-chu/', views.notes_api, name='notes_api'),
     path('api/ghi-chu/<int:pk>/', views.note_detail_api, name='note_detail_api'),
+    path('nhac-lich/', views.schedule_reminder_page, name='schedule_reminder'),
+    path('nhac-lich/<int:pk>/xoa/', views.schedule_reminder_delete, name='schedule_reminder_delete'),
 ]

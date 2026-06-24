@@ -1,0 +1,143 @@
+{% extends "tools/tool_base.html" %}
+
+{% block tool_content %}
+{% if push_ready and not push_subscribed %}
+<div class="alert alert-warning border-0 shadow-sm mb-3 py-2 small">
+    <i class="bi bi-bell me-1"></i>
+    Bật <strong>thông báo portal</strong> trên trình duyệt để nhận nhắc đúng giờ.
+</div>
+{% endif %}
+
+<div class="row g-3">
+    <div class="col-12 col-xl-5">
+        <div class="jp-tool-card card border-0 shadow-sm">
+            <div class="card-body p-3 p-md-4">
+                <h2 class="h6 fw-bold mb-3">Thêm nhắc mới</h2>
+                <form method="post" class="jp-schedule-form" id="jpScheduleForm">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger py-2 small">{{ form.non_field_errors }}</div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small" for="{{ form.title.id_for_label }}">Tiêu đề</label>
+                        {{ form.title }}
+                        {% if form.title.errors %}<div class="text-danger small mt-1">{{ form.title.errors }}</div>{% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small" for="{{ form.remind_time.id_for_label }}">Giờ nhắc</label>
+                        {{ form.remind_time }}
+                        {% if form.remind_time.errors %}<div class="text-danger small mt-1">{{ form.remind_time.errors }}</div>{% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <span class="form-label fw-semibold small d-block">Kiểu nhắc</span>
+                        <div class="jp-schedule-repeat-options">
+                            {% for radio in form.repeat_mode %}
+                            <label class="jp-schedule-repeat-label">
+                                {{ radio.tag }}
+                                <span>{{ radio.choice_label }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                        {% if form.repeat_mode.errors %}<div class="text-danger small mt-1">{{ form.repeat_mode.errors }}</div>{% endif %}
+                    </div>
+
+                    <div class="mb-3" id="jpScheduleWeekdays" data-schedule-weekly>
+                        <span class="form-label fw-semibold small d-block mb-2">Các thứ trong tuần</span>
+                        <div class="jp-schedule-weekdays">
+                            {% for checkbox in form.weekdays %}
+                            <label class="jp-schedule-weekday">
+                                {{ checkbox.tag }}
+                                <span>{{ checkbox.choice_label }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                        {% if form.weekdays.errors %}<div class="text-danger small mt-1">{{ form.weekdays.errors }}</div>{% endif %}
+                    </div>
+
+                    <div class="mb-3" id="jpScheduleOnceDate" data-schedule-once hidden>
+                        <label class="form-label fw-semibold small" for="{{ form.once_date.id_for_label }}">Ngày nhắc (một lần)</label>
+                        {{ form.once_date }}
+                        {% if form.once_date.errors %}<div class="text-danger small mt-1">{{ form.once_date.errors }}</div>{% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small" for="{{ form.body.id_for_label }}">Nội dung thông báo</label>
+                        {{ form.body }}
+                        {% if form.body.errors %}<div class="text-danger small mt-1">{{ form.body.errors }}</div>{% endif %}
+                    </div>
+
+                    <button type="submit" class="btn btn-hm btn-sm w-100 fw-bold">
+                        <i class="bi bi-alarm me-1"></i>Lưu nhắc
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-7">
+        <div class="jp-tool-card card border-0 shadow-sm h-100">
+            <div class="card-body p-3 p-md-4">
+                <h2 class="h6 fw-bold mb-3">Đang bật{% if reminders %} <span class="badge bg-hm rounded-pill">{{ reminders|length }}</span>{% endif %}</h2>
+                {% if reminders %}
+                <ul class="jp-schedule-items list-unstyled mb-0">
+                    {% for item in reminders %}
+                    <li class="jp-schedule-item">
+                        <div class="jp-schedule-item-main">
+                            <div class="jp-schedule-item-title">{{ item.title }}</div>
+                            {% if item.body %}<div class="jp-schedule-item-body">{{ item.body|truncatechars:120 }}</div>{% endif %}
+                            <div class="jp-schedule-item-meta">
+                                {% if item.repeat_mode == 'weekly' %}
+                                <span class="badge bg-light text-dark border">Hàng tuần</span>
+                                {% else %}
+                                <span class="badge bg-light text-dark border">Một lần</span>
+                                {% endif %}
+                                <span><i class="bi bi-clock me-1"></i>{{ item.remind_time|time:"H:i" }}</span>
+                                {% if item.repeat_mode == 'weekly' %}
+                                <span>{{ item.weekdays_label }}</span>
+                                {% elif item.once_date %}
+                                <span>{{ item.once_date|date:"d/m/Y" }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <form method="post" action="{% url 'tools:schedule_reminder_delete' item.pk %}" class="m-0" onsubmit="return confirm('Xóa nhắc này?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Xóa</button>
+                        </form>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted small mb-0">Chưa có nhắc nào — tạo bên trái hoặc quay lại <a href="{% url 'home_portal' %}">trang chủ</a>.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block tool_js %}
+<script>
+(function () {
+    var form = document.getElementById('jpScheduleForm');
+    if (!form) return;
+    var weeklyBlock = document.getElementById('jpScheduleWeekdays');
+    var onceBlock = document.getElementById('jpScheduleOnceDate');
+    var radios = form.querySelectorAll('input[name="repeat_mode"]');
+
+    function syncRepeatMode() {
+        var mode = 'weekly';
+        radios.forEach(function (r) { if (r.checked) mode = r.value; });
+        var isOnce = mode === 'once';
+        if (weeklyBlock) weeklyBlock.hidden = isOnce;
+        if (onceBlock) onceBlock.hidden = !isOnce;
+    }
+
+    radios.forEach(function (r) { r.addEventListener('change', syncRepeatMode); });
+    syncRepeatMode();
+})();
+</script>
+{% endblock %}

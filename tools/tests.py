@@ -22,8 +22,8 @@ from tools.services import (
 
 
 class ToolsCatalogTests(TestCase):
-    def test_portal_has_nine_tools(self):
-        self.assertEqual(len(PORTAL_TOOLS), 9)
+    def test_portal_has_ten_tools(self):
+        self.assertEqual(len(PORTAL_TOOLS), 10)
         slugs = {tool['slug'] for tool in PORTAL_TOOLS}
         self.assertEqual(slugs, {
             'pdf-word',
@@ -35,6 +35,7 @@ class ToolsCatalogTests(TestCase):
             'remove-bg',
             'qr',
             'notes',
+            'schedule-reminder',
         })
 
     def test_portal_tool_groups_cover_all_tools(self):
@@ -105,6 +106,7 @@ class ToolsViewTests(TestCase):
         self.assertContains(response, 'PDF → Word')
         self.assertContains(response, 'Watermark ảnh')
         self.assertContains(response, 'Ghi chú')
+        self.assertContains(response, 'Nhắc lịch')
 
     def test_tool_pages_require_login(self):
         self.client.logout()
@@ -154,6 +156,7 @@ class ToolsIntegrationTests(TestCase):
             'tools:remove_background',
             'tools:qr_generator',
             'tools:notes',
+            'tools:schedule_reminder',
         ]:
             with self.subTest(url_name=url_name):
                 response = self.client.get(reverse(url_name))

@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 def _schedule_push_payload(reminder: ScheduleReminder) -> str:
-    url = f'{_portal_base_url()}{reverse("home_portal")}#nhac-lich'
+    url = f'{_portal_base_url()}{reverse("tools:schedule_reminder")}'
     body = (reminder.body or '').strip()
     if not body:
         body = reminder.title
