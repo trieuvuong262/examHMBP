@@ -66,16 +66,16 @@ class NasMonitorServiceTests(TestCase):
 
     def test_share_row_used_only_display(self):
         row = _share_row(name='backup', total_b=None, used_b=5 * 1024 ** 3)
-        self.assertIn('đã dùng', row['display'])
+        self.assertIn('Size:', row['display'])
         self.assertIsNone(row['used_percent'])
 
     def test_share_row_with_quota(self):
         row = _share_row(name='backup', total_b=10 * 1024 ** 3, used_b=2 * 1024 ** 3)
         self.assertEqual(row['used_percent'], 20.0)
         self.assertEqual(row['free_bytes'], 8 * 1024 ** 3)
-        self.assertIn('còn lại', row['display'])
+        self.assertIn('Quota:', row['display'])
 
-    def test_parse_dsm_share_quota_blocks(self):
+    def test_parse_dsm_share_quota_mb(self):
         from audit.services.nas_monitor import _parse_dsm_share_quota
 
         quota = _parse_dsm_share_quota({
@@ -86,9 +86,19 @@ class NasMonitorServiceTests(TestCase):
         })
         self.assertIsNotNone(quota)
         assert quota is not None
-        self.assertEqual(quota['quota_size'], 512 * 1024 ** 3)
-        self.assertAlmostEqual(quota['used_space'] / (1024 ** 3), 122.0, delta=2.0)
-        self.assertGreater(quota['free_space'], 350 * 1024 ** 3)
+        self.assertEqual(quota['quota_size'], 1024 ** 4)
+        self.assertAlmostEqual(quota['used_space'] / (1024 ** 3), 243.9, delta=1.0)
+        self.assertGreater(quota['free_space'], 750 * 1024 ** 3)
+
+        small = _parse_dsm_share_quota({
+            'name': '90_MAU_BIEU_FORM_CHUAN',
+            'share_quota_status': 'v2',
+            'quota_value': 65536,
+            'share_quota_used': 0.03125,
+        })
+        assert small is not None
+        self.assertEqual(small['quota_size'], 64 * 1024 ** 3)
+        self.assertLess(small['used_space'], 1024 * 100)
 
     def test_parse_process_memory_percent_from_mem_kb(self):
         from audit.services.nas_monitor import _parse_process_memory_percent
@@ -151,7 +161,7 @@ class NasMonitorServiceTests(TestCase):
         )
         self.assertEqual(rows[0]['total_bytes'], 512 * 1024 ** 3)
         self.assertEqual(rows[0]['used_bytes'], 130 * 1024 ** 3)
-        self.assertIn('còn lại', rows[0]['display'])
+        self.assertIn('Quota:', rows[0]['display'])
 
     @patch('audit.services.nas_monitor._rclone_size')
     @patch('audit.services.nas_monitor._rclone_about')
@@ -174,7 +184,7 @@ class NasMonitorServiceTests(TestCase):
         )
         self.assertIsNone(rows[0]['total_bytes'])
         self.assertEqual(rows[0]['used_bytes'], 80 * 1024 ** 3)
-        self.assertIn('đã dùng', rows[0]['display'])
+        self.assertIn('Size:', rows[0]['display'])
         mock_size.assert_called_once()
 
     def test_parse_byte_value_nested(self):

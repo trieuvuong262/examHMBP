@@ -148,7 +148,8 @@
                     <thead class="table-light">
                         <tr>
                             <th>Share</th>
-                            <th class="text-end">Đã dùng</th>
+                            <th class="text-end">Size</th>
+                            <th class="text-end">Quota</th>
                             <th class="text-end">Còn lại</th>
                             <th class="text-end">%</th>
                         </tr>
@@ -157,13 +158,14 @@
                         {% for row in metrics.shares %}
                         <tr>
                             <td class="font-monospace small">{{ row.name }}</td>
-                            <td class="text-end">{{ row.used_display|default:row.display }}</td>
+                            <td class="text-end">{{ row.size_display|default:row.used_display|default:"—" }}</td>
+                            <td class="text-end">{{ row.quota_display|default:"—" }}</td>
                             <td class="text-end">{{ row.free_display|default:"—" }}</td>
                             <td class="text-end">{% if row.used_percent is not None %}{{ row.used_percent }}%{% else %}—{% endif %}</td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="4" class="text-muted small p-3">Chưa có dữ liệu share.</td>
+                            <td colspan="5" class="text-muted small p-3">Chưa có dữ liệu share.</td>
                         </tr>
                         {% endfor %}
                     </tbody>

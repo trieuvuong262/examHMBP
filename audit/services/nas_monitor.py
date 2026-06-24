@@ -324,17 +324,17 @@ def _parse_byte_value(value) -> int | None:
         return None
 
 
-def _dsm_share_quota_blocks_to_bytes(value) -> int | None:
-    """Synology share_quota_* / quota_value thường tính theo block 512 KB."""
+def _dsm_share_quota_mb_to_bytes(value) -> int | None:
+    """DSM share_quota_status v2: quota_value / share_quota_used tính theo MB."""
     if value in (None, '', 0, '0'):
         return None
     try:
-        blocks = float(value)
+        megabytes = float(value)
     except (TypeError, ValueError):
         return None
-    if blocks <= 0:
+    if megabytes <= 0:
         return None
-    return int(blocks * 512 * 1024)
+    return int(megabytes * 1024 * 1024)
 
 
 def _parse_dsm_share_quota(share: dict) -> dict | None:
@@ -354,14 +354,14 @@ def _parse_dsm_share_quota(share: dict) -> dict | None:
                     'free_space': max(0, total_b - used_b) if used_b is not None else None,
                 }
         return None
-    total_b = _dsm_share_quota_blocks_to_bytes(share.get('quota_value'))
-    used_b = _dsm_share_quota_blocks_to_bytes(share.get('share_quota_used'))
+    total_b = _dsm_share_quota_mb_to_bytes(share.get('quota_value'))
+    size_b = _dsm_share_quota_mb_to_bytes(share.get('share_quota_used'))
     if total_b is None:
         return None
-    free_b = max(0, total_b - used_b) if used_b is not None else None
+    free_b = max(0, total_b - size_b) if size_b is not None else None
     return {
         'quota_size': total_b,
-        'used_space': used_b,
+        'used_space': size_b,
         'free_space': free_b,
     }
 
@@ -374,17 +374,19 @@ def _share_row(
     free_b: int | None = None,
     remote: str = '',
 ) -> dict:
+    """used_b = Shared Folder Size; total_b = Shared Folder Quota."""
     if free_b is None and total_b is not None and used_b is not None:
         free_b = max(0, total_b - used_b)
     pct = round(used_b / total_b * 100, 1) if total_b and used_b is not None and total_b > 0 else None
-    if used_b is not None and free_b is not None:
-        display = f'{_format_bytes(used_b)} · còn lại {_format_bytes(free_b)}'
-    elif used_b is not None and total_b:
-        display = f'{_format_bytes(used_b)} · còn lại {_format_bytes(max(0, total_b - used_b))}'
+    size_display = _format_bytes(used_b) if used_b is not None else '—'
+    quota_display = _format_bytes(total_b) if total_b else '—'
+    free_display = _format_bytes(free_b) if free_b is not None else '—'
+    if used_b is not None and total_b:
+        display = f'Size: {size_display} · Quota: {quota_display}'
     elif used_b is not None:
-        display = f'{_format_bytes(used_b)} đã dùng'
+        display = f'Size: {size_display}'
     elif total_b:
-        display = f'— / {_format_bytes(total_b)}'
+        display = f'Quota: {quota_display}'
     else:
         display = '—'
     return {
@@ -395,8 +397,10 @@ def _share_row(
         'free_bytes': free_b,
         'used_percent': pct,
         'display': display,
-        'used_display': _format_bytes(used_b) if used_b is not None else '—',
-        'free_display': _format_bytes(free_b) if free_b is not None else '—',
+        'size_display': size_display,
+        'quota_display': quota_display,
+        'used_display': size_display,
+        'free_display': free_display,
     }
 
 
@@ -615,7 +619,15 @@ def _enrich_shares_from_rclone(
         if dsm_total:
             total_b = dsm_total
             used_b = dsm_used
-            free_b = dsm_free
+            remaining = None
+            if deadline is not None:
+                remaining = max(3, int(deadline - time.monotonic()))
+            if remaining is None or remaining > 3:
+                size_timeout = min(timeout_size, remaining) if remaining else timeout_size
+                folder_size = _rclone_size(share_remote, timeout=size_timeout)
+                if folder_size is not None:
+                    used_b = folder_size
+            free_b = max(0, total_b - used_b) if used_b is not None else dsm_free
         else:
             quota_total = row.get('total_bytes')
             has_share_quota = bool(quota_total or about_quota)

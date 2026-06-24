@@ -149,17 +149,19 @@
         const tbody = document.getElementById(tbodyId);
         if (!tbody) return;
         if (!rows || !rows.length) {
-            tbody.innerHTML = '<tr><td colspan="4" class="text-muted small p-3">Chưa có dữ liệu share.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" class="text-muted small p-3">Chưa có dữ liệu share.</td></tr>';
             return;
         }
         tbody.innerHTML = rows.map(function (row) {
             const pct = row.used_percent != null ? row.used_percent + '%' : '—';
-            const used = row.used_display || (row.used_bytes != null ? formatBytes(row.used_bytes) : '—');
+            const size = row.size_display || row.used_display || (row.used_bytes != null ? formatBytes(row.used_bytes) : '—');
+            const quota = row.quota_display || (row.total_bytes != null ? formatBytes(row.total_bytes) : '—');
             const free = row.free_display || (row.free_bytes != null ? formatBytes(row.free_bytes) : '—');
             return (
                 '<tr>' +
                 '<td class="font-monospace small">' + escapeHtml(row.name) + '</td>' +
-                '<td class="text-end">' + escapeHtml(used) + '</td>' +
+                '<td class="text-end">' + escapeHtml(size) + '</td>' +
+                '<td class="text-end">' + escapeHtml(quota) + '</td>' +
                 '<td class="text-end">' + escapeHtml(free) + '</td>' +
                 '<td class="text-end">' + pct + '</td>' +
                 '</tr>'
@@ -407,8 +409,8 @@
             '',
             function (share) {
                 return '<tr><td>' + escapeHtml(share.name) + '</td><td class="text-end small">' +
-                    escapeHtml(share.used_display || share.display || '—') + '</td><td class="text-end small">' +
-                    escapeHtml(share.free_display || '—') + '</td></tr>';
+                    escapeHtml(share.size_display || share.used_display || '—') + '</td><td class="text-end small">' +
+                    escapeHtml(share.quota_display || '—') + '</td></tr>';
             }
         );
     }
