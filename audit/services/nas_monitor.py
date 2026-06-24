@@ -104,6 +104,46 @@ def _dsm_verify_ssl() -> bool:
     return bool(getattr(settings, 'NAS_DSM_VERIFY_SSL', False))
 
 
+def _sanitize_dsm_error(exc: Exception) -> str:
+    msg = str(exc)
+    if 'passwd=' in msg:
+        import re
+        msg = re.sub(r'passwd=[^&\s\'"]+', 'passwd=***', msg)
+    if 'Connection refused' in msg or 'Errno 111' in msg:
+        base = _dsm_base_url() if (getattr(settings, 'NAS_DSM_URL', '') or '').strip() else 'https://NAS:5556'
+        return (
+            f'Không kết nối được DSM tại {base} (connection refused). '
+            'SMB/rclone vẫn chạy được nhưng cổng HTTPS DSM có thể chưa mở trên IP Tailscale. '
+            'Trên Synology: Control Panel → Login Portal → DSM (ghi cổng HTTPS), '
+            'Security → Firewall → cho phép cổng đó từ dải Tailscale 100.64.0.0/10.'
+        )
+    if 'Failed to establish a new connection' in msg or 'Max retries exceeded' in msg:
+        return (
+            'Không kết nối được NAS qua DSM API từ container Portal. '
+            'Kiểm tra NAS_DSM_URL, Tailscale và firewall Synology.'
+        )
+    return f'Không đăng nhập được DSM: {msg}'
+
+
+def _dsm_login(*, account: str, password: str, version: str, timeout: int) -> dict:
+    login_params = {
+        'api': 'SYNO.API.Auth',
+        'version': version,
+        'method': 'login',
+        'account': account,
+        'passwd': password,
+        'session': 'PortalNasMonitor',
+        'format': 'sid',
+    }
+    resp = requests.post(
+        f'{_dsm_base_url()}/webapi/auth.cgi',
+        data=login_params,
+        timeout=timeout,
+        verify=_dsm_verify_ssl(),
+    )
+    return resp.json()
+
+
 def _dsm_request(api: str, method: str, *, version: int = 1, params: dict | None = None, timeout: int = 10) -> dict:
     global _dsm_sid, _dsm_sid_expires_at
 
@@ -113,38 +153,16 @@ def _dsm_request(api: str, method: str, *, version: int = 1, params: dict | None
     account, password = _dsm_credentials()
     now = time.time()
     if not _dsm_sid or now >= _dsm_sid_expires_at:
-        login_params = {
-            'api': 'SYNO.API.Auth',
-            'version': '7',
-            'method': 'login',
-            'account': account,
-            'passwd': password,
-            'session': 'PortalNasMonitor',
-            'format': 'sid',
-        }
         try:
-            resp = requests.get(
-                f'{_dsm_base_url()}/webapi/auth.cgi',
-                params=login_params,
-                timeout=timeout,
-                verify=_dsm_verify_ssl(),
-            )
-            payload = resp.json()
+            payload = _dsm_login(account=account, password=password, version='7', timeout=timeout)
         except (requests.RequestException, ValueError) as exc:
-            raise NasMonitorError(f'Không đăng nhập được DSM: {exc}') from exc
+            raise NasMonitorError(_sanitize_dsm_error(exc)) from exc
 
         if not payload.get('success'):
-            login_params['version'] = '6'
             try:
-                resp = requests.get(
-                    f'{_dsm_base_url()}/webapi/auth.cgi',
-                    params=login_params,
-                    timeout=timeout,
-                    verify=_dsm_verify_ssl(),
-                )
-                payload = resp.json()
+                payload = _dsm_login(account=account, password=password, version='6', timeout=timeout)
             except (requests.RequestException, ValueError) as exc:
-                raise NasMonitorError(f'Không đăng nhập được DSM: {exc}') from exc
+                raise NasMonitorError(_sanitize_dsm_error(exc)) from exc
 
         if not payload.get('success'):
             code = (payload.get('error') or {}).get('code')
@@ -171,7 +189,7 @@ def _dsm_request(api: str, method: str, *, version: int = 1, params: dict | None
         )
         payload = resp.json()
     except (requests.RequestException, ValueError) as exc:
-        raise NasMonitorError(f'Lỗi gọi DSM API ({api}): {exc}') from exc
+        raise NasMonitorError(_sanitize_dsm_error(exc)) from exc
 
     if not payload.get('success'):
         code = (payload.get('error') or {}).get('code')

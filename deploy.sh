@@ -296,6 +296,27 @@ verify_nas_rclone() {
   fi
 }
 
+verify_nas_dsm() {
+  echo "==> Verify NAS DSM API in web container"
+  if compose exec -T web python -c "
+from audit.services.nas_monitor import dsm_configured, collect_nas_metrics
+if not dsm_configured():
+    raise SystemExit('not configured')
+m = collect_nas_metrics()
+if m.get('error'):
+    raise SystemExit(m['error'])
+if m.get('cpu', {}).get('percent') is None and not m.get('processes'):
+    raise SystemExit('no cpu/process data')
+" >/dev/null 2>&1; then
+    echo "    NAS DSM API OK (tailscale-justplay)"
+  else
+    echo "    WARNING: DSM API chưa kết nối được (CPU/RAM/tiến trình)."
+    echo "             rclone SMB có thể OK trong khi cổng HTTPS DSM bị chặn."
+    echo "             Synology: Login Portal → Web Services (cổng HTTPS), Firewall → mở cổng cho Tailscale."
+    echo "             Test: docker compose exec web curl -k \"\${NAS_DSM_URL:-https://100.93.5.42:5556}/webapi/entry.cgi?api=SYNO.API.Info&version=1&method=query\""
+  fi
+}
+
 echo "==> 9) PWA icons from static/images/logo/logo.png"
 if [ -f "static/images/logo/logo.png" ]; then
   set +e
@@ -336,6 +357,7 @@ else
 fi
 
 verify_nas_rclone
+verify_nas_dsm
 
 echo "==> 13) Cleanup Docker build cache and unused images"
 docker builder prune -af --filter "until=72h" 2>/dev/null || docker builder prune -af 2>/dev/null || true
