@@ -5,6 +5,7 @@ services:
       - "443:443"
     volumes:
       - ./PortalJustPlay/nginx/ssl.conf:/etc/nginx/conf.d/ssl.conf:ro
+      - ./PortalJustPlay/nginx/erp-ssl.conf:/etc/nginx/conf.d/erp-ssl.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - certbot_webroot:/var/www/certbot
 

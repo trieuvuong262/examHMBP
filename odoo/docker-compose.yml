@@ -1,0 +1,63 @@
+# Odoo Community — tách hoàn toàn khỏi Portal (/opt/portaljustplay).
+# Domain: erp.justplay.vn — reverse proxy qua nginx Portal (80/443).
+# Chỉ bind localhost — không expose 8069 ra internet trực tiếp.
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: odoo-db
+    environment:
+      POSTGRES_DB: ${ODOO_DB_NAME:-postgres}
+      POSTGRES_USER: ${ODOO_DB_USER:-odoo}
+      POSTGRES_PASSWORD: ${ODOO_DB_PASSWORD:?Set ODOO_DB_PASSWORD in .env}
+    volumes:
+      - odoo_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ODOO_DB_USER:-odoo} -d ${ODOO_DB_NAME:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  odoo:
+    image: ${ODOO_IMAGE:-odoo:18.0}
+    container_name: odoo-web
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8069:8069"
+      - "127.0.0.1:8072:8072"
+    environment:
+      HOST: db
+      PORT: "5432"
+      USER: ${ODOO_DB_USER:-odoo}
+      PASSWORD: ${ODOO_DB_PASSWORD}
+    volumes:
+      - odoo_web_data:/var/lib/odoo
+      - ./config/odoo.conf:/etc/odoo/odoo.conf:ro
+    networks:
+      - default
+      - justplay_edge
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+volumes:
+  odoo_db_data:
+  odoo_web_data:
+
+networks:
+  justplay_edge:
+    external: true
