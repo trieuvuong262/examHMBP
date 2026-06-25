@@ -1,3 +1,4 @@
+import logging
 import os
 import uuid
 from datetime import datetime, timedelta
@@ -16,6 +17,8 @@ from django.contrib import messages
 from django.db.models import Count, Sum, Q
 
 from assessment.decorators import module_perm_required
+
+logger = logging.getLogger(__name__)
 from hrm.module_permissions import MODULE_REPORTS
 from hrm.permissions import (
     can_review_user_report,
@@ -150,7 +153,10 @@ from .weekly_uploads import copy_weekly_attachments, save_weekly_uploads, weekly
 User = get_user_model()
 
 
-_CK5_IMAGE_TYPES = frozenset({'image/jpeg', 'image/png', 'image/gif', 'image/webp'})
+_CK5_IMAGE_TYPES = frozenset({
+    'image/jpeg', 'image/jpg', 'image/pjpeg', 'image/png', 'image/gif', 'image/webp',
+    'image/bmp', 'image/x-ms-bmp', 'image/x-png',
+})
 _CK5_IMAGE_EXTS = frozenset({'.jpg', '.jpeg', '.png', '.gif', '.webp'})
 _CK5_MAX_BYTES = 5 * 1024 * 1024
 
@@ -514,11 +520,21 @@ def _today_office_report(request, report_date, *, report_period: str = PERIOD_DA
             messages.success(request, _finalize_report_submission(report, action))
             report.save()
             ensure_daily_report_nas_dir()
-            save_daily_uploads(
-                report,
-                link_images=request.FILES.getlist('link_images'),
-                link_files=request.FILES.getlist('link_files'),
-            )
+            try:
+                save_daily_uploads(
+                    report,
+                    link_images=request.FILES.getlist('link_images'),
+                    link_files=request.FILES.getlist('link_files'),
+                )
+            except OSError as exc:
+                logger.exception('Daily report attachment save failed: %s', exc)
+                messages.error(
+                    request,
+                    'Báo cáo đã lưu nhưng không ghi được file/ảnh đính kèm. Thử tải lại hoặc liên hệ IT.',
+                )
+                return redirect(
+                    f'{reverse("reports:today_vp")}?{urlencode(period_query_param(report_period, report.report_date))}',
+                )
             return redirect(
                 f'{reverse("reports:today_vp")}?{urlencode(period_query_param(report_period, report.report_date))}',
             )
@@ -733,23 +749,35 @@ def ckeditor5_upload(request):
     if not _is_allowed_ckeditor_image(upload):
         return _ckeditor_upload_error('File không hợp lệ.')
     if upload.size > _CK5_MAX_BYTES:
-        return _ckeditor_upload_error('File không hợp lệ.')
+        return _ckeditor_upload_error('Ảnh quá lớn (tối đa 5MB).')
 
     ext = os.path.splitext(upload.name or '')[1].lower()
     if ext not in _CK5_IMAGE_EXTS:
         content_type = (upload.content_type or '').split(';')[0].strip().lower()
         ext = {
             'image/jpeg': '.jpg',
+            'image/jpg': '.jpg',
+            'image/pjpeg': '.jpg',
             'image/png': '.png',
+            'image/x-png': '.png',
             'image/gif': '.gif',
             'image/webp': '.webp',
+            'image/bmp': '.bmp',
+            'image/x-ms-bmp': '.bmp',
         }.get(content_type, '.png')
-    rel_path = save_inline_image(
-        upload,
-        username=request.user.username,
-        report_date=parse_upload_report_date(request),
-        ext=ext,
-    )
+    try:
+        rel_path = save_inline_image(
+            upload,
+            username=request.user.username,
+            report_date=parse_upload_report_date(request),
+            ext=ext,
+        )
+    except OSError as exc:
+        logger.exception('CKEditor upload failed for %s: %s', request.user.username, exc)
+        return _ckeditor_upload_error(
+            'Không lưu được ảnh lên máy chủ. Thử lại hoặc liên hệ IT.',
+            status=503,
+        )
     url = request.build_absolute_uri(
         reverse('reports:inline_image', kwargs={'relpath': rel_path}),
     )

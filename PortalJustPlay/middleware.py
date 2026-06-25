@@ -1,5 +1,14 @@
+from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.urls import reverse
+
+
+def _ajax_password_change_required(request):
+    return (
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        or request.headers.get('X-CSRFToken')
+        or 'application/json' in (request.headers.get('Accept') or '')
+    )
 
 
 class ForcePasswordChangeMiddleware:
@@ -31,6 +40,16 @@ class ForcePasswordChangeMiddleware:
                     path in allowed_exact
                     or any(path.startswith(prefix) for prefix in self._ALLOWED_PREFIXES)
                 ):
+                    if _ajax_password_change_required(request):
+                        return JsonResponse(
+                            {
+                                'uploaded': 0,
+                                'error': {
+                                    'message': 'Vui lòng đổi mật khẩu trước khi tiếp tục.',
+                                },
+                            },
+                            status=403,
+                        )
                     return redirect('password_change')
 
         return self.get_response(request)

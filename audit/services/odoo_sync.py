@@ -144,6 +144,96 @@ def _portal_email(user) -> str:
     return (user.email or '').strip() or f'{user.username}@justplay.local'
 
 
+def _upsert_odoo_user_record(user, profile, *, password: str | None = None) -> dict:
+    """Tạo/cập nhật res.users trên Odoo (không kiểm tra quyền menu Portal)."""
+    login = _portal_login(user)
+    if not login:
+        return {'status': 'error', 'error': 'Thiếu username để đồng bộ Odoo.'}
+
+    vals = {
+        'name': _portal_display_name(user),
+        'login': login,
+        'email': _portal_email(user),
+        'active': True,
+    }
+    group_ids = _group_ids_for_user(user)
+    if group_ids:
+        vals['groups_id'] = [(6, 0, group_ids)]
+
+    created = False
+    temp_password = None
+    if profile.odoo_user_id:
+        user_ids = _execute('res.users', 'search', [('id', '=', profile.odoo_user_id)], limit=1)
+        if not user_ids:
+            profile.odoo_user_id = None
+            profile.save(update_fields=['odoo_user_id'])
+
+    if profile.odoo_user_id:
+        write_vals = dict(vals)
+        if password:
+            write_vals['password'] = password
+        _execute('res.users', 'write', [profile.odoo_user_id], write_vals)
+        odoo_id = profile.odoo_user_id
+        if password:
+            profile.odoo_password_synced = True
+            profile.save(update_fields=['odoo_password_synced'])
+    else:
+        existing = _execute('res.users', 'search', [('login', '=', login)], limit=1)
+        if existing:
+            odoo_id = int(existing[0])
+            write_vals = dict(vals)
+            if password:
+                write_vals['password'] = password
+            _execute('res.users', 'write', [odoo_id], write_vals)
+            if password:
+                profile.odoo_password_synced = True
+                profile.save(update_fields=['odoo_password_synced'])
+        else:
+            if password:
+                vals['password'] = password
+            else:
+                temp_password = secrets.token_urlsafe(10)
+                vals['password'] = temp_password
+            odoo_id = int(_execute('res.users', 'create', vals))
+            created = True
+            profile.odoo_password_synced = bool(password)
+        profile.odoo_user_id = odoo_id
+        profile.save(update_fields=['odoo_user_id', 'odoo_password_synced'])
+
+    result = {
+        'status': 'ok',
+        'odoo_user_id': odoo_id,
+        'created': created,
+        'login': login,
+        'password_synced': bool(profile.odoo_password_synced),
+    }
+    if temp_password:
+        result['temp_password'] = temp_password
+    return result
+
+
+def provision_erp_user(user, *, password: str | None = None) -> dict:
+    """Tạo/cập nhật Odoo cho NV đang làm việc (bulk reset — không cần menu Odoo)."""
+    if not isinstance(user, User):
+        raise OdooSyncError('User không hợp lệ')
+
+    profile = getattr(user, 'profile', None)
+    if profile is None:
+        return {'status': 'skipped', 'reason': 'no_profile'}
+    if not profile.is_employed:
+        return {'status': 'skipped', 'reason': 'not_employed'}
+    if not odoo_configured():
+        return {'status': 'skipped', 'reason': 'not_configured'}
+
+    try:
+        return _upsert_odoo_user_record(user, profile, password=password)
+    except OdooSyncError:
+        raise
+    except Exception as exc:
+        logger.exception('Odoo provision failed for user %s', user.pk)
+        raise OdooSyncError(str(exc)) from exc
+
+
 def sync_user_to_odoo(user, *, password: str | None = None) -> dict:
     """Tạo/cập nhật/vô hiệu hóa res.users trên Odoo theo quyền menu Odoo trên Portal."""
     if not isinstance(user, User):
@@ -170,66 +260,7 @@ def sync_user_to_odoo(user, *, password: str | None = None) -> dict:
         if not login:
             return {'status': 'error', 'error': 'Thiếu username để đồng bộ Odoo.'}
 
-        vals = {
-            'name': _portal_display_name(user),
-            'login': login,
-            'email': _portal_email(user),
-            'active': True,
-        }
-        group_ids = _group_ids_for_user(user)
-        if group_ids:
-            vals['groups_id'] = [(6, 0, group_ids)]
-
-        created = False
-        temp_password = None
-        if profile.odoo_user_id:
-            user_ids = _execute('res.users', 'search', [('id', '=', profile.odoo_user_id)], limit=1)
-            if not user_ids:
-                profile.odoo_user_id = None
-                profile.save(update_fields=['odoo_user_id'])
-
-        if profile.odoo_user_id:
-            write_vals = dict(vals)
-            if password:
-                write_vals['password'] = password
-            _execute('res.users', 'write', [profile.odoo_user_id], write_vals)
-            odoo_id = profile.odoo_user_id
-            if password:
-                profile.odoo_password_synced = True
-                profile.save(update_fields=['odoo_password_synced'])
-        else:
-            existing = _execute('res.users', 'search', [('login', '=', login)], limit=1)
-            if existing:
-                odoo_id = int(existing[0])
-                write_vals = dict(vals)
-                if password:
-                    write_vals['password'] = password
-                _execute('res.users', 'write', [odoo_id], write_vals)
-                if password:
-                    profile.odoo_password_synced = True
-                    profile.save(update_fields=['odoo_password_synced'])
-            else:
-                if password:
-                    vals['password'] = password
-                else:
-                    temp_password = secrets.token_urlsafe(10)
-                    vals['password'] = temp_password
-                odoo_id = int(_execute('res.users', 'create', vals))
-                created = True
-                profile.odoo_password_synced = bool(password)
-            profile.odoo_user_id = odoo_id
-            profile.save(update_fields=['odoo_user_id', 'odoo_password_synced'])
-
-        result = {
-            'status': 'ok',
-            'odoo_user_id': odoo_id,
-            'created': created,
-            'login': login,
-            'password_synced': bool(profile.odoo_password_synced),
-        }
-        if temp_password:
-            result['temp_password'] = temp_password
-        return result
+        return _upsert_odoo_user_record(user, profile, password=password)
     except OdooSyncError:
         raise
     except Exception as exc:

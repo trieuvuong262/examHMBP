@@ -6,7 +6,6 @@ import ipaddress
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.db.models import Q
 from django.utils import timezone
 
 from audit.models import IpLoginBlock, LoginSecurityConfig, UserLoginLock
@@ -122,17 +121,11 @@ def blacklist_suggestions(*, limit: int = 25) -> list[str]:
 
 
 def resolve_user_by_login_identifier(identifier: str):
+    """Tra cứu user theo username (không hỗ trợ đăng nhập bằng email)."""
     text = (identifier or '').strip()
     if not text:
         return None
-    try:
-        return User.objects.get(Q(username__iexact=text) | Q(email__iexact=text))
-    except User.DoesNotExist:
-        return None
-    except User.MultipleObjectsReturned:
-        return User.objects.filter(
-            Q(username__iexact=text) | Q(email__iexact=text),
-        ).order_by('id').first()
+    return User.objects.filter(username__iexact=text).order_by('id').first()
 
 
 def get_user_lock(user) -> UserLoginLock | None:

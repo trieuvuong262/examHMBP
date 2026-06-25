@@ -1,0 +1,418 @@
+// Sidebar ERP giống Portal — app + submenu accordion, desktop ≥992px
+
+$jp-sidebar-w: 260px;
+$jp-sidebar-bg: linear-gradient(180deg, #111111 0%, #1a1a1a 100%);
+$jp-sidebar-border: rgba(255, 255, 255, 0.08);
+$jp-sidebar-hover: rgba(255, 255, 255, 0.08);
+$jp-sidebar-active: rgba(220, 38, 38, 0.28);
+$jp-radius-sm: 6px;
+
+@media (min-width: 992px) {
+    body.o_web_client {
+        flex-flow: row nowrap !important;
+
+        > .o_navbar {
+            flex: 0 0 $jp-sidebar-w;
+            width: $jp-sidebar-w;
+            max-width: $jp-sidebar-w;
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            z-index: 1001;
+        }
+
+        > .o_action_manager {
+            margin-left: $jp-sidebar-w;
+            width: calc(100% - #{$jp-sidebar-w});
+            max-width: calc(100% - #{$jp-sidebar-w});
+            height: 100vh;
+            flex: 1 1 auto;
+        }
+    }
+
+    body.o_web_client .o_main_navbar.jp-erp-nav-with-sidebar {
+        --o-navbar-height: auto;
+
+        flex-direction: column;
+        align-items: stretch;
+        width: $jp-sidebar-w;
+        height: 100vh;
+        max-height: 100vh;
+        padding: 0;
+        overflow: hidden;
+        background: $jp-sidebar-bg !important;
+        border-bottom: 0 !important;
+        border-right: 1px solid $jp-sidebar-border;
+
+        // Ẩn menu ngang / dropdown mặc định Odoo
+        .o_navbar_apps_menu,
+        .o_menu_brand,
+        .o_menu_sections,
+        .o_navbar_breadcrumbs {
+            display: none !important;
+        }
+    }
+
+    // --- Custom sidebar component ---
+    .jp-erp-sidebar {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+        width: 100%;
+        color: #fff;
+    }
+
+    .jp-erp-sidebar-brand {
+        flex-shrink: 0;
+        padding: 0.85rem 0.75rem 0.5rem;
+        border-bottom: 1px solid $jp-sidebar-border;
+    }
+
+    // --- Profile card (giống Portal) ---
+    .jp-erp-sidebar-profile {
+        flex-shrink: 0;
+        padding: 0 0.45rem 0.65rem;
+        border-bottom: 1px solid $jp-sidebar-border;
+        margin-bottom: 0.35rem;
+
+        .dropdown {
+            width: 100%;
+        }
+
+        .dropdown-toggle {
+            width: 100%;
+            padding: 0;
+            border: none;
+            background: transparent;
+            text-align: left;
+
+            &::after {
+                display: none;
+            }
+        }
+    }
+
+    .jp-erp-sidebar-profile-card {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        width: 100%;
+        padding: 0.85rem 0.65rem;
+        border-radius: $jp-radius-sm;
+        background: linear-gradient(145deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.03) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        color: #fff;
+        cursor: pointer;
+        transition: background 0.15s ease, border-color 0.15s ease;
+
+        &:hover {
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.05) 100%);
+            border-color: rgba(255, 255, 255, 0.16);
+        }
+    }
+
+    .jp-erp-profile-avatar-wrap {
+        position: relative;
+        flex-shrink: 0;
+    }
+
+    .jp-erp-profile-avatar {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.9375rem;
+        color: #fff;
+        background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+        box-shadow:
+            0 0 0 2px rgba(255, 255, 255, 0.14),
+            0 4px 12px rgba(220, 38, 38, 0.35);
+    }
+
+    .jp-erp-profile-avatar-img {
+        display: block;
+        object-fit: cover;
+        padding: 0;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .jp-erp-profile-status {
+        position: absolute;
+        right: 1px;
+        bottom: 1px;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #22c55e;
+        border: 2px solid #1a1a1a;
+        box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.35);
+    }
+
+    .jp-erp-profile-body {
+        min-width: 0;
+        flex: 1;
+        padding-top: 0.1rem;
+    }
+
+    .jp-erp-profile-name {
+        font-weight: 700;
+        font-size: 0.8125rem;
+        line-height: 1.3;
+        color: #fff;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        margin-bottom: 0.35rem;
+    }
+
+    .jp-erp-profile-meta {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.3rem;
+    }
+
+    .jp-erp-profile-role {
+        display: inline-flex;
+        max-width: 100%;
+        padding: 0.12rem 0.45rem;
+        border-radius: 4px;
+        font-size: 0.625rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        color: #fecaca;
+        background: rgba(220, 38, 38, 0.22);
+        border: 1px solid rgba(252, 165, 165, 0.25);
+    }
+
+    .jp-erp-profile-dept {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        max-width: 100%;
+        font-size: 0.6875rem;
+        color: rgba(255, 255, 255, 0.62);
+
+        span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+    }
+
+    .jp-erp-profile-code {
+        margin-top: 0.35rem;
+        font-size: 0.6875rem;
+        color: rgba(255, 255, 255, 0.5);
+        letter-spacing: 0.02em;
+    }
+
+    .jp-erp-profile-menu-hint {
+        flex-shrink: 0;
+        margin-top: 0.35rem;
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.35);
+    }
+
+    .jp-erp-menu-icon {
+        width: 1.1rem;
+        text-align: center;
+        flex-shrink: 0;
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.82);
+        opacity: 0.95;
+    }
+
+    .jp-erp-sidebar-group.is-active .jp-erp-menu-icon {
+        color: #fff;
+    }
+
+    .jp-erp-sidebar-brand-link {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        text-decoration: none;
+        color: #fff;
+        min-width: 0;
+    }
+
+    .jp-erp-sidebar-logo {
+        width: 32px;
+        height: 32px;
+        object-fit: contain;
+        flex-shrink: 0;
+    }
+
+    .jp-erp-sidebar-brand-text {
+        font-weight: 700;
+        font-size: 0.92rem;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .jp-erp-sidebar-scroll {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
+        padding: 0.5rem 0.45rem 0.75rem;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+
+        &::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        &::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.22);
+            border-radius: 999px;
+        }
+    }
+
+    .jp-erp-sidebar-menu {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .jp-erp-sidebar-group {
+        margin-bottom: 0.15rem;
+    }
+
+    .jp-erp-sidebar-group-toggle,
+    .jp-erp-sidebar-nested-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        width: 100%;
+        padding: 0.58rem 0.7rem;
+        border: none;
+        border-radius: $jp-radius-sm;
+        background: transparent;
+        color: rgba(255, 255, 255, 0.88);
+        font-size: 0.8125rem;
+        font-weight: 500;
+        line-height: 1.3;
+        cursor: pointer;
+        text-align: left;
+        transition: background 0.15s ease, color 0.15s ease;
+
+        &:hover {
+            background: $jp-sidebar-hover;
+            color: #fff;
+        }
+    }
+
+    .jp-erp-sidebar-group.is-active > .jp-erp-sidebar-group-toggle {
+        background: $jp-sidebar-active;
+        color: #fff;
+        font-weight: 600;
+    }
+
+    .jp-erp-sidebar-group-main {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        min-width: 0;
+        flex: 1;
+
+        > span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+    }
+
+    .jp-erp-chevron {
+        font-size: 0.7rem;
+        opacity: 0.75;
+        transition: transform 0.2s ease;
+        flex-shrink: 0;
+    }
+
+    .jp-erp-chevron-sm {
+        font-size: 0.62rem;
+        opacity: 0.7;
+        transition: transform 0.2s ease;
+        flex-shrink: 0;
+    }
+
+    .jp-erp-sidebar-group.is-open .jp-erp-chevron,
+    .jp-erp-sidebar-nested-group.is-open .jp-erp-chevron-sm {
+        transform: rotate(180deg);
+    }
+
+    .jp-erp-sidebar-submenu {
+        list-style: none;
+        margin: 0.15rem 0 0.35rem;
+        padding: 0 0 0 0.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.08rem;
+
+        &--nested {
+            margin-left: 0.5rem;
+            padding-left: 0.35rem;
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    }
+
+    .jp-erp-sidebar-link {
+        display: block;
+        padding: 0.5rem 0.7rem 0.5rem 1.85rem;
+        border-radius: $jp-radius-sm;
+        color: rgba(255, 255, 255, 0.82);
+        text-decoration: none;
+        font-size: 0.84rem;
+        line-height: 1.35;
+        transition: background 0.15s ease, color 0.15s ease;
+
+        &:hover {
+            background: $jp-sidebar-hover;
+            color: #fff;
+            text-decoration: none;
+        }
+    }
+
+    .jp-erp-sidebar-nested-toggle {
+        padding-left: 1.35rem;
+        font-size: 0.84rem;
+    }
+
+    .jp-erp-sidebar-nested-group {
+        list-style: none;
+    }
+
+    body.o_web_client .o_main_navbar.jp-erp-nav-with-sidebar .o_menu_systray .o_user_menu {
+        display: none !important;
+    }
+
+    // Systray đáy sidebar
+    body.o_web_client .o_main_navbar.jp-erp-nav-with-sidebar .o_menu_systray {
+        flex-shrink: 0;
+        margin-top: auto;
+        margin-left: 0 !important;
+        width: 100%;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.15rem;
+        padding: 0.5rem 0.35rem 0.75rem;
+        border-top: 1px solid $jp-sidebar-border;
+        background: rgba(0, 0, 0, 0.18);
+
+        > * {
+            color: #f5f5f5 !important;
+        }
+    }
+}

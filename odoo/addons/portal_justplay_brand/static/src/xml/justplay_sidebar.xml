@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="portal_justplay_brand.JustPlaySidebar">
+        <div class="jp-erp-sidebar">
+            <div class="jp-erp-sidebar-brand">
+                <a href="https://portal.justplay.vn/" class="jp-erp-sidebar-brand-link" target="_blank" rel="noopener noreferrer">
+                    <img src="/portal_justplay_brand/static/img/logo.png" alt="JustPlay" class="jp-erp-sidebar-logo"/>
+                    <span class="jp-erp-sidebar-brand-text">JustPlay ERP</span>
+                </a>
+            </div>
+            <JustPlayProfileCard/>
+            <div class="jp-erp-sidebar-scroll">
+                <ul class="jp-erp-sidebar-menu">
+                    <t t-foreach="apps" t-as="app" t-key="app.id">
+                        <li t-attf-class="jp-erp-sidebar-group {{ isAppOpen(app) ? 'is-open' : '' }} {{ isAppActive(app) ? 'is-active' : '' }}">
+                            <button type="button"
+                                    class="jp-erp-sidebar-group-toggle"
+                                    t-att-aria-expanded="isAppOpen(app) ? 'true' : 'false'"
+                                    t-on-click="() => this.toggleApp(app)">
+                                <span class="jp-erp-sidebar-group-main">
+                                    <i t-attf-class="fa {{ getAppIconClass(app) }} jp-erp-menu-icon" aria-hidden="true"/>
+                                    <span t-esc="app.name"/>
+                                </span>
+                                <i t-if="getAppSections(app).length" class="fa fa-chevron-down jp-erp-chevron" aria-hidden="true"/>
+                            </button>
+                            <ul t-if="getAppSections(app).length and isAppOpen(app)" class="jp-erp-sidebar-submenu">
+                                <t t-call="portal_justplay_brand.SidebarMenuTree">
+                                    <t t-set="items" t-value="getAppSections(app)"/>
+                                </t>
+                            </ul>
+                        </li>
+                    </t>
+                </ul>
+            </div>
+        </div>
+    </t>
+
+    <t t-name="portal_justplay_brand.JustPlayProfileCard">
+        <div class="jp-erp-sidebar-profile">
+            <Dropdown>
+                <button type="button" class="jp-erp-sidebar-profile-card">
+                    <div class="jp-erp-profile-avatar-wrap">
+                        <img t-if="!state.avatarError"
+                             t-att-src="avatarUrl"
+                             t-att-alt="userName"
+                             class="jp-erp-profile-avatar jp-erp-profile-avatar-img"
+                             t-on-error="onAvatarError"/>
+                        <span t-else="" class="jp-erp-profile-avatar" t-esc="userInitial"/>
+                        <span class="jp-erp-profile-status" title="Đang hoạt động"/>
+                    </div>
+                    <div class="jp-erp-profile-body">
+                        <div class="jp-erp-profile-name" t-esc="userName"/>
+                        <div class="jp-erp-profile-meta">
+                            <span class="jp-erp-profile-role" t-esc="roleLabel"/>
+                            <span t-if="state.department" class="jp-erp-profile-dept">
+                                <i class="fa fa-building" aria-hidden="true"/>
+                                <span t-esc="state.department"/>
+                            </span>
+                        </div>
+                        <div t-if="userLogin" class="jp-erp-profile-code">Mã NS · <t t-esc="userLogin"/></div>
+                    </div>
+                    <i class="fa fa-ellipsis-v jp-erp-profile-menu-hint" aria-hidden="true"/>
+                </button>
+                <t t-set-slot="content">
+                    <t t-foreach="getElements()" t-as="element" t-key="element_index">
+                        <t t-if="!element.hide">
+                            <DropdownItem
+                                t-if="element.type == 'item' || element.type == 'switch'"
+                                attrs="{ href: element.href, 'data-menu': element.id }"
+                                onSelected="element.callback"
+                            >
+                                <div class="d-flex justify-content-between p-0 w-100">
+                                    <t t-out="element.description"/>
+                                    <CheckBox
+                                        t-if="element.type == 'switch'"
+                                        value="element.isChecked"
+                                        className="'form-switch ms-2'"
+                                        onChange="element.callback"
+                                    />
+                                </div>
+                            </DropdownItem>
+                            <div t-if="element.type == 'separator'" role="separator" class="dropdown-divider"/>
+                        </t>
+                    </t>
+                </t>
+            </Dropdown>
+        </div>
+    </t>
+
+    <t t-name="portal_justplay_brand.SidebarMenuTree">
+        <t t-foreach="items" t-as="item" t-key="item.id">
+            <li t-if="item.childrenTree.length"
+                t-attf-class="jp-erp-sidebar-nested-group {{ isNestedOpen(item) ? 'is-open' : '' }}">
+                <button type="button"
+                        class="jp-erp-sidebar-nested-toggle jp-erp-sidebar-sublink"
+                        t-att-aria-expanded="isNestedOpen(item) ? 'true' : 'false'"
+                        t-on-click="(ev) => this.toggleNested(item, ev)">
+                    <span t-esc="item.name"/>
+                    <i class="fa fa-chevron-down jp-erp-chevron-sm" aria-hidden="true"/>
+                </button>
+                <ul t-if="isNestedOpen(item)" class="jp-erp-sidebar-submenu jp-erp-sidebar-submenu--nested">
+                    <t t-call="portal_justplay_brand.SidebarMenuTree">
+                        <t t-set="items" t-value="item.childrenTree"/>
+                    </t>
+                </ul>
+            </li>
+            <li t-else="">
+                <a t-att-href="getMenuHref(item)"
+                   class="jp-erp-sidebar-link jp-erp-sidebar-sublink"
+                   t-on-click.prevent="(ev) => this.onMenuClick(item, ev)"
+                   t-esc="item.name"/>
+            </li>
+        </t>
+    </t>
+
+    <t t-inherit="web.NavBar" t-inherit-mode="extension">
+        <xpath expr="//nav[hasclass('o_main_navbar')]" position="attributes">
+            <attribute name="class" add="jp-erp-nav-with-sidebar" separator=" "/>
+        </xpath>
+        <xpath expr="//t[@t-call='web.NavBar.AppsMenu']" position="before">
+            <JustPlaySidebar t-if="!ui.isSmall"/>
+        </xpath>
+    </t>
+
+</templates>

@@ -529,5 +529,5 @@ if not DEBUG:
         SECURE_CROSS_ORIGIN_EMBEDDER_POLICY = None
     
 AUTHENTICATION_BACKENDS = [
-    'assessment.backends.EmailOrUsernameModelBackend',
+    'assessment.backends.UsernameModelBackend',
 ]

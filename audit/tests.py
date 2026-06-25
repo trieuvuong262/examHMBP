@@ -747,3 +747,25 @@ class FormSpamDetectionTests(TestCase):
         block_ip_for_form_spam('45.198.224.22', sample_fields=['0', '1'])
         response = self.client.get('/', REMOTE_ADDR='45.198.224.22')
         self.assertEqual(response.status_code, 403)
+
+
+class LoginIdentifierTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='an.lp',
+            email='an.lp@justplay.vn',
+            password='secret',
+        )
+
+    def test_resolve_by_username(self):
+        from audit.login_security import resolve_user_by_login_identifier
+
+        self.assertEqual(resolve_user_by_login_identifier('an.lp'), self.user)
+        self.assertEqual(resolve_user_by_login_identifier('AN.LP'), self.user)
+
+    def test_email_not_accepted(self):
+        from audit.login_security import resolve_user_by_login_identifier
+        from django.contrib.auth import authenticate
+
+        self.assertIsNone(resolve_user_by_login_identifier('an.lp@justplay.vn'))
+        self.assertIsNone(authenticate(username='an.lp@justplay.vn', password='secret'))

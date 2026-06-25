@@ -535,6 +535,7 @@ def user_edit(request, user_id):
             if new_password:
                 user_obj.set_password(new_password)
                 notify_portal_password_changed(user_obj, new_password)
+                Profile.require_password_change(user_obj)
             
             user_obj.save()
 

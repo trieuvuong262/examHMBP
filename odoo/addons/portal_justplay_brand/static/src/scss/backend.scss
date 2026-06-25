@@ -1,26 +1,4 @@
-// Backend ERP — navbar tối + accent đỏ như Portal sidebar
-// Font Inter: $o-font-family-sans-serif + <link> trong web.layout
-
-.o_main_navbar {
-    background: linear-gradient(180deg, #111111 0%, #1a1a1a 100%) !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-
-.o_main_navbar .o_menu_brand,
-.o_main_navbar .o_navbar_apps_menu .dropdown-toggle,
-.o_main_navbar .o_menu_sections .o_nav_entry,
-.o_main_navbar .o_menu_systray > *,
-.o_main_navbar .o_nav_entry,
-.o_main_navbar .dropdown-toggle {
-    color: #f5f5f5 !important;
-}
-
-.o_main_navbar .o_menu_sections .o_nav_entry.active,
-.o_main_navbar .o_menu_sections .o_nav_entry:hover,
-.o_main_navbar .o_navbar_apps_menu .dropdown-toggle:hover {
-    background-color: rgba(220, 38, 38, 0.22) !important;
-    color: #fff !important;
-}
+// Backend ERP — accent đỏ; navbar/sidebar chi tiết trong sidebar.scss
 
 .o_action_manager,
 .o_web_client {

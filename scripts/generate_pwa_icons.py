@@ -11,6 +11,7 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
 LOGO_DIR = ROOT / "static" / "images" / "logo"
+ODOO_FAVICON_DIR = ROOT / "odoo" / "addons" / "portal_justplay_brand" / "static" / "img"
 SOURCE = LOGO_DIR / "logo.png"
 
 # Kích thước chuẩn (W3C / Apple / Google)
@@ -72,6 +73,18 @@ def main() -> None:
         save_png(fit_square(source, size), LOGO_DIR / filename)
 
     save_png(fit_maskable(source, 512), LOGO_DIR / "icon-512-maskable.png")
+
+    ODOO_FAVICON_DIR.mkdir(parents=True, exist_ok=True)
+    print("Sync Odoo ERP favicons:")
+    for src_name, dest_name in (
+        ("favicon-16.png", "favicon-16.png"),
+        ("favicon-32.png", "favicon-32.png"),
+        ("favicon-32.png", "favicon.png"),
+    ):
+        src = LOGO_DIR / src_name
+        dest = ODOO_FAVICON_DIR / dest_name
+        dest.write_bytes(src.read_bytes())
+        print(f"  -> {dest.relative_to(ROOT)}")
     print("Done (logo.png unchanged).")
 
 

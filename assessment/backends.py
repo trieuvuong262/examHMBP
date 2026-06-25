@@ -7,11 +7,8 @@ from audit.login_security import is_user_locked, resolve_user_by_login_identifie
 UserModel = get_user_model()
 
 
-class EmailOrUsernameModelBackend(ModelBackend):
-    """
-    Bộ kiểm duyệt tự tạo: Cho phép đăng nhập bằng cả Email hoặc Username.
-    Hệ thống sẽ quét xem chuỗi người dùng nhập vào khớp với cái nào thì lấy cái đó.
-    """
+class UsernameModelBackend(ModelBackend):
+    """Đăng nhập Portal chỉ bằng username (có kiểm tra khóa tài khoản)."""
     def authenticate(self, request, username=None, password=None, **kwargs):
         if username is None:
             username = kwargs.get(UserModel.USERNAME_FIELD)
