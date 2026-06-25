@@ -14,6 +14,7 @@ from hrm.module_permissions import (
     MODULE_HO_TRO,
     MODULE_KHO_NPL,
     MODULE_KIOTVIET,
+    MODULE_NAS_STORAGE,
     MODULE_REPORTS,
     MODULE_TASKS,
     MODULE_TRAINING,
@@ -85,6 +86,15 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'products', 'label': 'Hàng hoá', 'icon': 'bi-box-seam'},
         {'key': 'stock', 'label': 'Tồn kho', 'icon': 'bi-boxes'},
         {'key': 'purchases', 'label': 'Phiếu nhập', 'icon': 'bi-box-arrow-in-down'},
+    ],
+    MODULE_NAS_STORAGE: [
+        {'key': 'browse', 'label': 'Duyệt thư mục', 'icon': 'bi-folder2-open'},
+        {
+            'key': 'permissions',
+            'label': 'Phân quyền thư mục NAS',
+            'icon': 'bi-shield-lock',
+            'perm_manage': True,
+        },
     ],
     MODULE_DOCUMENTS: [
         {'key': 'browse', 'label': 'Tài liệu', 'icon': 'bi-folder2-open'},
@@ -200,6 +210,9 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/kiotviet/hoa-don', MODULE_KIOTVIET, 'invoices'),
     ('/kiotviet/don-dat-hang', MODULE_KIOTVIET, 'orders'),
     ('/kiotviet/khach-hang', MODULE_KIOTVIET, 'customers'),
+    # NAS
+    ('/thu-muc-nas/phan-quyen', MODULE_NAS_STORAGE, 'permissions'),
+    ('/thu-muc-nas/', MODULE_NAS_STORAGE, 'browse'),
     # Tiện ích
     ('/tien-ich/ung-luong', MODULE_UTILITIES, 'salary_advance'),
     ('/tien-ich/dat-com', MODULE_UTILITIES, 'meal_ordering'),

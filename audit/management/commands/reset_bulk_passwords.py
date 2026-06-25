@@ -3,6 +3,7 @@
 from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
 
+from audit.services.nas_ldap_sync import NasLdapSyncError, provision_ldap_user
 from audit.services.odoo_sync import OdooSyncError, provision_erp_user
 from hrm.models import Profile
 
@@ -60,6 +61,8 @@ class Command(BaseCommand):
         portal_ok = 0
         odoo_ok = 0
         odoo_skip = 0
+        ldap_ok = 0
+        ldap_skip = 0
         errors = []
 
         for user in targets:
@@ -73,13 +76,24 @@ class Command(BaseCommand):
                 status = result.get('status')
                 if status == 'ok':
                     odoo_ok += 1
-                    tag = 'created' if result.get('created') else 'updated'
-                    self.stdout.write(f'  OK {user.username} (portal + odoo {tag})')
+                    odoo_tag = 'created' if result.get('created') else 'updated'
                 else:
                     odoo_skip += 1
-                    reason = result.get('reason', status)
-                    self.stdout.write(f'  OK {user.username} (portal only — odoo: {reason})')
-            except OdooSyncError as exc:
+                    odoo_tag = result.get('reason', status)
+
+                ldap_result = provision_ldap_user(user, password=password)
+                ldap_status = ldap_result.get('status')
+                if ldap_status == 'ok':
+                    ldap_ok += 1
+                    ldap_tag = 'created' if ldap_result.get('created') else 'updated'
+                else:
+                    ldap_skip += 1
+                    ldap_tag = ldap_result.get('reason', ldap_status)
+
+                self.stdout.write(
+                    f'  OK {user.username} (portal + odoo:{odoo_tag} + ldap:{ldap_tag})'
+                )
+            except (OdooSyncError, NasLdapSyncError) as exc:
                 errors.append(f'{user.username}: {exc}')
                 self.stderr.write(self.style.ERROR(f'  LỖI {user.username}: {exc}'))
             except Exception as exc:
@@ -87,7 +101,8 @@ class Command(BaseCommand):
                 self.stderr.write(self.style.ERROR(f'  LỖI {user.username}: {exc}'))
 
         self.stdout.write(self.style.SUCCESS(
-            f'Hoàn tất: {portal_ok} Portal, {odoo_ok} Odoo, {odoo_skip} bỏ qua Odoo.'
+            f'Hoàn tất: {portal_ok} Portal, {odoo_ok} Odoo, {odoo_skip} bỏ qua Odoo, '
+            f'{ldap_ok} LDAP, {ldap_skip} bỏ qua LDAP.'
         ))
         for err in errors:
             self.stderr.write(self.style.WARNING(err))

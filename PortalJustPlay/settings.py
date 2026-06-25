@@ -469,6 +469,23 @@ NAS_DSM_ACCOUNT = os.getenv('NAS_DSM_ACCOUNT', 'tailscale-justplay').strip()
 NAS_DSM_PASSWORD = os.getenv('NAS_DSM_PASSWORD', '').strip()
 NAS_DSM_CRED_FILE = os.getenv('NAS_DSM_CRED_FILE', '/root/.nas-cred').strip()
 NAS_DSM_VERIFY_SSL = env_bool('NAS_DSM_VERIFY_SSL', False)
+# Đồng bộ user Portal → Synology LDAP (Directory Server)
+NAS_LDAP_SYNC_ENABLED = env_bool('NAS_LDAP_SYNC_ENABLED', False)
+NAS_LDAP_HOST = os.getenv('NAS_LDAP_HOST', '').strip()
+NAS_LDAP_PORT = int(os.getenv('NAS_LDAP_PORT', '636'))
+NAS_LDAP_USE_SSL = env_bool('NAS_LDAP_USE_SSL', True)
+NAS_LDAP_VERIFY_SSL = env_bool('NAS_LDAP_VERIFY_SSL', False)
+NAS_LDAP_BASE_DN = os.getenv('NAS_LDAP_BASE_DN', 'dc=ldap,dc=justplay,dc=local').strip()
+NAS_LDAP_BIND_DN = os.getenv(
+    'NAS_LDAP_BIND_DN',
+    'uid=root,cn=users,dc=ldap,dc=justplay,dc=local',
+).strip()
+NAS_LDAP_BIND_PASSWORD = os.getenv('NAS_LDAP_BIND_PASSWORD', '').strip()
+NAS_LDAP_SYNC_SKIP_USERNAMES = os.getenv('NAS_LDAP_SYNC_SKIP_USERNAMES', 'admin,ductn,vuonglnt').strip()
+NAS_LDAP_DOMAIN = os.getenv('NAS_LDAP_DOMAIN', 'ldap.justplay.local').strip()
+NAS_SSH_HOST = os.getenv('NAS_SSH_HOST', '').strip()
+NAS_SSH_ADMIN_USER = os.getenv('NAS_SSH_ADMIN_USER', 'admin').strip()
+NAS_SSH_ADMIN_PASSWORD = os.getenv('NAS_SSH_ADMIN_PASSWORD', '').strip()
 # Báo cáo tuần — đính kèm lưu trên NAS, không lưu media VPS
 NAS_WEEKLY_REPORT_REL_PATH = os.getenv(
     'NAS_WEEKLY_REPORT_REL_PATH',

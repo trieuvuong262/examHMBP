@@ -77,3 +77,103 @@ NasUserFolderAccessFormSet = modelformset_factory(
     extra=1,
     can_delete=True,
 )
+
+
+class NasAccessGroupForm(forms.ModelForm):
+    class Meta:
+        from nas_storage.models import NasAccessGroup
+
+        model = NasAccessGroup
+        fields = ['name', 'nas_principal', 'description', 'sort_order', 'is_active']
+        widgets = {
+            'name': forms.TextInput(attrs={**INPUT, 'placeholder': 'SX'}),
+            'nas_principal': forms.TextInput(attrs={**INPUT, 'placeholder': '@SX@ldap.justplay.local'}),
+            'description': forms.TextInput(attrs={**INPUT}),
+            'sort_order': forms.NumberInput(attrs={**INPUT, 'min': 0}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+
+class NasShareFolderForm(forms.ModelForm):
+    class Meta:
+        from nas_storage.models import NasShareFolder
+
+        model = NasShareFolder
+        fields = ['share_name', 'display_name', 'volume_path', 'description', 'sort_order', 'is_active']
+        widgets = {
+            'share_name': forms.TextInput(attrs={**INPUT, 'placeholder': '07_SAN_XUAT'}),
+            'display_name': forms.TextInput(attrs={**INPUT}),
+            'volume_path': forms.TextInput(attrs={**INPUT, 'placeholder': '/volume1/07_SAN_XUAT'}),
+            'description': forms.TextInput(attrs={**INPUT}),
+            'sort_order': forms.NumberInput(attrs={**INPUT, 'min': 0}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+
+class NasFolderPermissionForm(forms.ModelForm):
+    preset = forms.ChoiceField(
+        required=False,
+        choices=(
+            ('', 'Tuỳ chỉnh'),
+            ('read', 'Chỉ đọc'),
+            ('read_write', 'Đọc + Ghi (mặc định)'),
+            ('full', 'Đầy đủ (gồm Administration)'),
+        ),
+        label='Mẫu nhanh',
+        widget=forms.Select(attrs=SELECT),
+    )
+
+    class Meta:
+        from nas_storage.models import NasFolderPermission
+
+        model = NasFolderPermission
+        fields = [
+            'group',
+            'permission_type',
+            'apply_to',
+            'inherit_from_parent',
+            'perm_traverse',
+            'perm_list_read',
+            'perm_read_attr',
+            'perm_read_ext_attr',
+            'perm_read_acl',
+            'perm_create_files',
+            'perm_create_folders',
+            'perm_write_attr',
+            'perm_write_ext_attr',
+            'perm_delete_children',
+            'perm_delete',
+            'perm_change_acl',
+            'perm_take_ownership',
+        ]
+        widgets = {
+            'group': forms.Select(attrs=SELECT),
+            'permission_type': forms.Select(attrs=SELECT),
+            'apply_to': forms.Select(attrs=SELECT),
+            'inherit_from_parent': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+    def __init__(self, *args, folder=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        from nas_storage.models import NasAccessGroup
+
+        self.fields['group'].queryset = NasAccessGroup.objects.filter(is_active=True).order_by(
+            'sort_order', 'name',
+        )
+        for name in (
+            'perm_traverse', 'perm_list_read', 'perm_read_attr', 'perm_read_ext_attr', 'perm_read_acl',
+            'perm_create_files', 'perm_create_folders', 'perm_write_attr', 'perm_write_ext_attr',
+            'perm_delete_children', 'perm_delete', 'perm_change_acl', 'perm_take_ownership',
+        ):
+            self.fields[name].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
+
+    def clean(self):
+        cleaned = super().clean()
+        preset = (cleaned.get('preset') or '').strip()
+        if preset:
+            from nas_storage.permission_defs import flags_from_preset
+
+            for name, value in flags_from_preset(preset).items():
+                cleaned[name] = value
+        return cleaned
+

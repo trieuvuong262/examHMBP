@@ -716,10 +716,37 @@
         </li>
         {% endif %}
         {% if jp_can_nas_storage %}
-        <li>
-            <a href="{% url 'nas_storage:browse' %}" class="jp-sidebar-link {% if 'thu-muc-nas' in request.path %}active{% endif %}">
-                <i class="bi bi-hdd-network"></i><span>Thư mục NAS</span>
-            </a>
+        <li class="jp-sidebar-group{% if 'thu-muc-nas' in request.path %} is-open{% endif %}">
+            <button type="button"
+                    class="jp-sidebar-group-toggle"
+                    data-jp-sidebar-group-toggle
+                    aria-expanded="{% if 'thu-muc-nas' in request.path %}true{% else %}false{% endif %}"
+                    aria-controls="jp-sidebar-nas-submenu">
+                <span class="jp-sidebar-group-toggle-main">
+                    <i class="bi bi-hdd-network"></i><span>NAS</span>
+                </span>
+                <i class="bi bi-chevron-down jp-sidebar-group-chevron" aria-hidden="true"></i>
+            </button>
+            <ul class="jp-sidebar-submenu" id="jp-sidebar-nas-submenu">
+                {% jp_can_menu 'nas_storage' 'browse' as jp_can_nas_browse %}
+                {% if jp_can_nas_browse %}
+                <li>
+                    <a href="{% url 'nas_storage:browse' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'browse' or request.resolver_match.url_name == 'preview' or request.resolver_match.url_name == 'download' %}active{% endif %}">
+                        <i class="bi bi-folder2-open"></i><span>Duyệt thư mục</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% jp_can_menu 'nas_storage' 'permissions' as jp_can_nas_permissions %}
+                {% if jp_can_nas_permissions %}
+                <li>
+                    <a href="{% url 'nas_storage:permissions_hub' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if 'phan-quyen' in request.path %}active{% endif %}">
+                        <i class="bi bi-shield-lock"></i><span>Phân quyền thư mục NAS</span>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
         </li>
         {% endif %}
         {% if jp_can_documents or jp_can_guide %}

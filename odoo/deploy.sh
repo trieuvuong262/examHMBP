@@ -68,6 +68,11 @@ for mod in portal_justplay_sso portal_justplay_brand; do
 done
 compose up -d odoo
 
+if [[ "${ODOO_LDAP_ENABLE:-0}" == "1" ]]; then
+  echo "==> Cấu hình LDAP (auth_ldap)..."
+  bash "$ODOO_DIR/scripts/configure_ldap.sh"
+fi
+
 echo "==> Trạng thái:"
 compose ps
 

@@ -59,7 +59,7 @@ _ALL_MODULE_CHOICES = [
     (MODULE_KIOTVIET, 'KiotViet'),
     (MODULE_ODOO, 'Odoo'),
     (MODULE_KHO_NPL, 'Kho Nguyên Phụ Liệu'),
-    (MODULE_NAS_STORAGE, 'Thư mục NAS'),
+    (MODULE_NAS_STORAGE, 'NAS'),
     (MODULE_DOCUMENTS, 'Tài liệu & Hỏi đáp'),
     (MODULE_GUIDE, 'Hướng dẫn'),
     (MODULE_PERMISSIONS, 'Phân quyền'),

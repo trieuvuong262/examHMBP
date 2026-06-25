@@ -7,10 +7,10 @@ from audit.services.odoo_sync import (
     OdooSyncError,
     _execute,
     _portal_login,
-    notify_portal_password_changed,
     odoo_configured,
     user_has_odoo_portal_access,
 )
+from audit.services.password_sync import notify_external_password_changed
 from hrm.models import Profile
 
 DEFAULT_PASSWORD = 'justplay@123'
@@ -84,7 +84,7 @@ class Command(BaseCommand):
 
                 profile = getattr(user, 'profile', None)
                 if user_has_odoo_portal_access(user):
-                    notify_portal_password_changed(user, password)
+                    notify_external_password_changed(user, password)
                     if profile:
                         profile.odoo_password_synced = True
                         profile.save(update_fields=['odoo_password_synced'])

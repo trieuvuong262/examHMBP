@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
+    <h2 class="jp-page-title fw-bold text-dark mb-1">Permission Editor</h2>
+    <p class="text-muted small mb-3">{{ folder.display_name }} · <code>{{ folder.share_name }}</code></p>
+    {% include "nas_storage/_nas_nav.html" %}
+
+    <form method="post" class="card border-0 shadow-sm p-4">
+        {% csrf_token %}
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <label class="form-label fw-semibold">User or group</label>
+                {{ form.group }}
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Type</label>
+                {{ form.permission_type }}
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Apply to</label>
+                {{ form.apply_to }}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">Mẫu nhanh</label>
+                {{ form.preset }}
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <div class="form-check">
+                    {{ form.inherit_from_parent }}
+                    <label class="form-check-label" for="{{ form.inherit_from_parent.id_for_label }}">Kế thừa từ thư mục cha</label>
+                </div>
+            </div>
+        </div>
+
+        <h5 class="fw-bold border-bottom pb-2 mb-3">Permission</h5>
+
+        <div class="row g-4">
+            <div class="col-lg-4">
+                <div class="fw-semibold mb-2">Read</div>
+                {% for field_name, label in read_fields %}
+                <div class="form-check mb-1">
+                    {% with bf=form[field_name] %}{{ bf }}{% endwith %}
+                    <label class="form-check-label" for="id_{{ field_name }}">{{ label }}</label>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="col-lg-4">
+                <div class="fw-semibold mb-2">Write</div>
+                {% for field_name, label in write_fields %}
+                <div class="form-check mb-1">
+                    {% with bf=form[field_name] %}{{ bf }}{% endwith %}
+                    <label class="form-check-label" for="id_{{ field_name }}">{{ label }}</label>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="col-lg-4">
+                <div class="fw-semibold mb-2">Administration</div>
+                {% for field_name, label in admin_fields %}
+                <div class="form-check mb-1">
+                    {% with bf=form[field_name] %}{{ bf }}{% endwith %}
+                    <label class="form-check-label" for="id_{{ field_name }}">{{ label }}</label>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="mt-4 d-flex gap-2">
+            <button type="submit" class="btn btn-hm">Done</button>
+            <a href="{% url 'nas_storage:folder_permissions' folder.pk %}" class="btn btn-light border">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

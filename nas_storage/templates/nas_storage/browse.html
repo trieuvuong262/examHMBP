@@ -6,10 +6,12 @@
     <div class="jp-page-header mb-3 mb-md-4">
         <div class="jp-page-header-main">
             <h2 class="jp-page-title fw-bold text-dark mb-1">
-                Thư mục NAS
+                NAS
             </h2>
         </div>
     </div>
+
+    {% include "nas_storage/_nas_nav.html" %}
 
     {% if nas_unavailable %}
     <div class="alert alert-warning border-0 shadow-sm">

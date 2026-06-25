@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
+    <div class="jp-page-header mb-3">
+        <h2 class="jp-page-title fw-bold text-dark mb-1">NAS · Phân quyền thư mục</h2>
+        <p class="text-muted small mb-0">Cấu hình nhóm, shared folder và quyền chi tiết — áp dụng lên Synology DSM.</p>
+    </div>
+
+    {% include "nas_storage/_nas_nav.html" %}
+
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        <a href="{% url 'nas_storage:group_list' %}" class="btn btn-outline-secondary btn-sm">Quản lý nhóm</a>
+        <a href="{% url 'nas_storage:folder_list' %}" class="btn btn-outline-secondary btn-sm">Quản lý thư mục</a>
+        {% if can_update %}
+        <form method="post" action="{% url 'nas_storage:apply_all_acl' %}" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-hm btn-sm" {% if not ssh_configured %}disabled title="Chưa cấu hình SSH NAS"{% endif %}>
+                Áp dụng tất cả lên NAS
+            </button>
+        </form>
+        {% endif %}
+    </div>
+
+    {% if not ssh_configured %}
+    <div class="alert alert-warning border-0 shadow-sm small">
+        Chưa cấu hình <code>NAS_SSH_HOST</code> / <code>NAS_SSH_ADMIN_PASSWORD</code> — chỉ lưu cấu hình trên Portal, chưa đẩy ACL sang NAS.
+    </div>
+    {% endif %}
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Thư mục NAS</th>
+                            <th>Share</th>
+                            <th class="text-center">Số quyền</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for folder in folders %}
+                        <tr>
+                            <td class="fw-semibold">{{ folder.display_name }}</td>
+                            <td><code>{{ folder.share_name }}</code></td>
+                            <td class="text-center">{{ folder.permissions.count }}</td>
+                            <td class="text-end">
+                                <a href="{% url 'nas_storage:folder_permissions' folder.pk %}" class="btn btn-sm btn-outline-primary">Phân quyền</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-muted p-4">Chưa có thư mục — thêm trong <a href="{% url 'nas_storage:folder_list' %}">Quản lý thư mục</a>.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <h5 class="fw-bold">Nhóm quyền ({{ groups.count }})</h5>
+        <ul class="list-group list-group-flush shadow-sm rounded border">
+            {% for g in groups %}
+            <li class="list-group-item d-flex justify-content-between">
+                <span><strong>{{ g.name }}</strong> <code class="small">{{ g.resolved_nas_principal }}</code></span>
+            </li>
+            {% empty %}
+            <li class="list-group-item text-muted">Chưa có nhóm — <a href="{% url 'nas_storage:group_create' %}">tạo nhóm</a>.</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}

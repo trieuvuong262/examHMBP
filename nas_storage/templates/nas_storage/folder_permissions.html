@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
+    <div class="jp-page-header mb-3 d-flex justify-content-between flex-wrap gap-2 align-items-start">
+        <div>
+            <h2 class="jp-page-title fw-bold text-dark mb-1">{{ folder.display_name }}</h2>
+            <code class="small">{{ folder.share_name }}</code>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'nas_storage:permission_create' folder.pk %}" class="btn btn-hm btn-sm">Thêm quyền</a>
+            {% if can_update %}
+            <form method="post" action="{% url 'nas_storage:apply_folder_acl' folder.pk %}">{% csrf_token %}
+                <button class="btn btn-outline-primary btn-sm" {% if not ssh_configured %}disabled{% endif %}>Áp dụng lên NAS</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    {% include "nas_storage/_nas_nav.html" %}
+
+    <div class="card border-0 shadow-sm">
+        <table class="table mb-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Nhóm</th>
+                    <th>Loại</th>
+                    <th>Áp dụng</th>
+                    <th>Tóm tắt</th>
+                    <th>NAS</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for p in permissions %}
+            <tr>
+                <td>
+                    <strong>{{ p.group.name }}</strong><br>
+                    <code class="small">{{ p.group.resolved_nas_principal }}</code>
+                </td>
+                <td>{{ p.get_permission_type_display }}</td>
+                <td>{{ p.get_apply_to_display }}</td>
+                <td class="small text-muted">
+                    {% if p.perm_create_files or p.perm_delete %}Đọc + Ghi{% elif p.perm_list_read %}Chỉ đọc{% else %}Tuỳ chỉnh{% endif %}
+                </td>
+                <td class="small">
+                    {% if p.last_applied_at %}{{ p.last_applied_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}
+                </td>
+                <td class="text-end text-nowrap">
+                    <a href="{% url 'nas_storage:permission_edit' folder.pk p.pk %}" class="btn btn-sm btn-outline-secondary">Sửa</a>
+                    <form method="post" action="{% url 'nas_storage:permission_delete' folder.pk p.pk %}" class="d-inline" onsubmit="return confirm('Xóa quyền này?');">
+                        {% csrf_token %}
+                        <button class="btn btn-sm btn-outline-danger">Xóa</button>
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-muted p-4">Chưa có quyền — bấm <strong>Thêm quyền</strong>.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

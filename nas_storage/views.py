@@ -9,6 +9,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
+from hrm.menu_permissions import menu_perm_context, user_can_access_menu
 from hrm.module_permissions import (
     MODULE_NAS_STORAGE,
     user_can_access_module,
@@ -50,7 +51,7 @@ def _access_required(view_func):
     @login_required
     def wrapper(request, *args, **kwargs):
         if not user_can_access_module(request.user, MODULE_NAS_STORAGE):
-            messages.error(request, 'Bạn không có quyền truy cập Thư mục NAS.')
+            messages.error(request, 'Bạn không có quyền truy cập NAS.')
             return redirect('home_portal')
         return view_func(request, *args, **kwargs)
     return wrapper
@@ -115,6 +116,23 @@ def _browse_url(rel_path: str, *, refresh: bool = False, share_token: str = '') 
     return url
 
 
+def _browse_nav_context(request) -> dict:
+    items = []
+    if user_can_access_menu(request.user, MODULE_NAS_STORAGE, 'browse'):
+        items.append({'key': 'browse', 'label': 'Duyệt thư mục', 'url': reverse('nas_storage:browse')})
+    if user_can_access_menu(request.user, MODULE_NAS_STORAGE, 'permissions'):
+        items.append({
+            'key': 'permissions',
+            'label': 'Phân quyền thư mục',
+            'url': reverse('nas_storage:permissions_hub'),
+        })
+    return {
+        'nas_nav_items': items,
+        'nas_nav_active': 'browse',
+        **menu_perm_context(request.user, MODULE_NAS_STORAGE, 'browse'),
+    }
+
+
 @_access_required
 def browse(request):
     rel_path = _rel_from_request(request)
@@ -124,12 +142,14 @@ def browse(request):
 
     if not nas_is_available():
         return render(request, 'nas_storage/browse.html', {
+            **_browse_nav_context(request),
             'nas_unavailable': True,
             'roots': roots,
         })
 
     if not roots and not share:
         return render(request, 'nas_storage/browse.html', {
+            **_browse_nav_context(request),
             'nas_not_configured': True,
         })
 
@@ -141,9 +161,10 @@ def browse(request):
                 'exists': True,
             })
         return render(request, 'nas_storage/browse.html', {
+            **_browse_nav_context(request),
             'root_entries': root_entries,
             'rel_path': '',
-            'breadcrumbs': [{'label': 'Thư mục NAS', 'rel_path': ''}],
+            'breadcrumbs': [{'label': 'NAS', 'rel_path': ''}],
         })
 
     if share and not is_path_under_share(rel_path, share.rel_path):
@@ -172,7 +193,7 @@ def browse(request):
                 'Chưa đồng bộ trực tiếp từ NAS — danh sách có thể cũ. Liên hệ IT kiểm tra rclone.',
             )
 
-    return render(request, 'nas_storage/browse.html', ctx)
+    return render(request, 'nas_storage/browse.html', {**_browse_nav_context(request), **ctx})
 
 
 @login_required

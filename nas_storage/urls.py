@@ -1,6 +1,7 @@
 from django.urls import path
 
 from nas_storage import views
+from nas_storage import views_permissions as perm_views
 
 app_name = 'nas_storage'
 
@@ -11,4 +12,19 @@ urlpatterns = [
     path('xem-truoc/', views.preview_file, name='preview'),
     path('tai-xuong/', views.download, name='download'),
     path('xoa/', views.delete_entry, name='delete'),
+    # Phân quyền thư mục NAS
+    path('phan-quyen/', perm_views.permissions_hub, name='permissions_hub'),
+    path('phan-quyen/ap-dung-tat-ca/', perm_views.apply_all_acl, name='apply_all_acl'),
+    path('phan-quyen/nhom/', perm_views.group_list, name='group_list'),
+    path('phan-quyen/nhom/them/', perm_views.group_edit, name='group_create'),
+    path('phan-quyen/nhom/<int:pk>/', perm_views.group_edit, name='group_edit'),
+    path('phan-quyen/thu-muc/', perm_views.folder_list, name='folder_list'),
+    path('phan-quyen/thu-muc/quet/', perm_views.import_shares_from_nas, name='import_shares'),
+    path('phan-quyen/thu-muc/them/', perm_views.folder_edit, name='folder_create'),
+    path('phan-quyen/thu-muc/<int:pk>/', perm_views.folder_edit, name='folder_edit'),
+    path('phan-quyen/thu-muc/<int:pk>/quyen/', perm_views.folder_permissions, name='folder_permissions'),
+    path('phan-quyen/thu-muc/<int:folder_pk>/quyen/them/', perm_views.permission_edit, name='permission_create'),
+    path('phan-quyen/thu-muc/<int:folder_pk>/quyen/<int:pk>/', perm_views.permission_edit, name='permission_edit'),
+    path('phan-quyen/thu-muc/<int:folder_pk>/quyen/<int:pk>/xoa/', perm_views.permission_delete, name='permission_delete'),
+    path('phan-quyen/thu-muc/<int:pk>/ap-dung/', perm_views.apply_folder_acl, name='apply_folder_acl'),
 ]
