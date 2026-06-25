@@ -37,6 +37,11 @@ urlpatterns = [
     path('vps/toi-uu/', views_vps.vps_monitor_optimize, name='vps_monitor_optimize'),
     path('nas/', views_nas.nas_monitor_page, name='nas_monitor'),
     path('nas/metrics/', views_nas.nas_monitor_metrics_api, name='nas_monitor_metrics'),
+    path(
+        'odoo/',
+        RedirectView.as_view(pattern_name='odoo:redirect', permanent=False),
+        name='odoo_redirect_legacy',
+    ),
     path('rustdesk/', views_rustdesk.rustdesk_list, name='rustdesk_list'),
     path('rustdesk/trang-thai/', views_rustdesk.rustdesk_online_status, name='rustdesk_online_status'),
     path('rustdesk/them/', views_rustdesk.rustdesk_add, name='rustdesk_add'),

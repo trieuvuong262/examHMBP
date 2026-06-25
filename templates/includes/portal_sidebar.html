@@ -708,6 +708,13 @@
             </ul>
         </li>
         {% endif %}
+        {% if jp_can_odoo %}
+        <li>
+            <a href="{% url 'odoo:redirect' %}" class="jp-sidebar-link {% if '/odoo' in request.path %}active{% endif %}">
+                <i class="bi bi-boxes"></i><span>Odoo</span>
+            </a>
+        </li>
+        {% endif %}
         {% if jp_can_nas_storage %}
         <li>
             <a href="{% url 'nas_storage:browse' %}" class="jp-sidebar-link {% if 'thu-muc-nas' in request.path %}active{% endif %}">

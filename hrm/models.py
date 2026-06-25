@@ -373,6 +373,13 @@ class Profile(models.Model):
         db_index=True,
     )
 
+    odoo_user_id = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name='Odoo res.users ID',
+        help_text='Đồng bộ từ Portal khi có quyền menu Odoo.',
+    )
+
     class Meta:
         db_table = 'assessment_profile' # Giữ nguyên để khớp với database cũ
 

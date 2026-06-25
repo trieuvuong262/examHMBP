@@ -36,6 +36,7 @@ urlpatterns = [
     path('announcements/', include('announcements.urls')),
     path('tai-lieu/', include('documents.urls')),
     path('thu-muc-nas/', include('nas_storage.urls')),
+    path('odoo/', include('odoo.urls')),
     path('nhat-ky/', include('audit.urls')),
     path('kiotviet/', include('kiotviet.urls')),
     path('kho-npl/', include('kho_npl.urls')),

@@ -32,6 +32,7 @@ M = {
     'de_xuat': 'de_xuat',
     'ho_tro': 'ho_tro',
     'nas_storage': 'nas_storage',
+    'odoo': 'odoo',
 }
 
 
@@ -240,6 +241,7 @@ DEPARTMENT_PERMISSION_TEMPLATES = [
             {
                 M['guide']: MGR,
                 M['permissions']: VIEW,
+                M['odoo']: VIEW,
             },
             _module_with_menus(M['audit'], _it_audit_menus(manager=False)),
             _module_with_menus(M['documents'], _it_documents_menus(manager=False)),
@@ -249,6 +251,7 @@ DEPARTMENT_PERMISSION_TEMPLATES = [
             {
                 M['guide']: FULL,
                 M['permissions']: FULL,
+                M['odoo']: FULL,
             },
             _module_with_menus(M['audit'], _it_audit_menus(manager=True), module_perm=_f(view=True, export=True)),
             _module_with_menus(M['documents'], _it_documents_menus(manager=True), module_perm=MGR),

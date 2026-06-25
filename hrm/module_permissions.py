@@ -34,6 +34,7 @@ MODULE_FEEDBACK = 'feedback'
 MODULE_UTILITIES = 'utilities'
 MODULE_KIOTVIET = 'kiotviet'
 MODULE_KHO_NPL = 'kho_npl'
+MODULE_ODOO = 'odoo'
 
 # Tạm ẩn khỏi sidebar + màn hình phân quyền — gỡ khỏi set khi bật lại.
 HIDDEN_PORTAL_MODULES = frozenset({
@@ -56,6 +57,7 @@ _ALL_MODULE_CHOICES = [
     (MODULE_FEEDBACK, 'Góp ý'),
     (MODULE_UTILITIES, 'Tiện ích'),
     (MODULE_KIOTVIET, 'KiotViet'),
+    (MODULE_ODOO, 'Odoo'),
     (MODULE_KHO_NPL, 'Kho Nguyên Phụ Liệu'),
     (MODULE_NAS_STORAGE, 'Thư mục NAS'),
     (MODULE_DOCUMENTS, 'Tài liệu & Hỏi đáp'),
@@ -125,6 +127,7 @@ DEPARTMENT_MENU_SECTIONS = [
             MODULE_FEEDBACK,
             MODULE_UTILITIES,
             MODULE_KIOTVIET,
+            MODULE_ODOO,
             MODULE_KHO_NPL,
             MODULE_NAS_STORAGE,
         ]),
@@ -185,6 +188,7 @@ PATH_MODULE_RULES = [
     ('/gop-y/', MODULE_FEEDBACK),
     ('/tien-ich/', MODULE_UTILITIES),
     ('/kiotviet/', MODULE_KIOTVIET),
+    ('/odoo/', MODULE_ODOO),
     ('/kho-npl/', MODULE_KHO_NPL),
 ]
 

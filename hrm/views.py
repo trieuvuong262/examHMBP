@@ -18,6 +18,7 @@ from django.db.models import Count, Prefetch, Q
 from hrm.module_permissions import ALL_MODULE_KEYS, MODULE_CHOICES, MODULE_HRM, MODULE_LABELS, MODULE_PERMISSIONS
 from assessment.decorators import module_perm_required, module_perm_required_methods
 from assessment.forms import UserForm # Tạm thời Form vẫn để ở nhà cũ, mốt mình dời sau
+from audit.services.odoo_sync import ensure_portal_user_in_odoo, notify_portal_password_changed
 from django.utils.text import slugify
 from hrm.models import (
     Profile,
@@ -323,6 +324,7 @@ def user_add(request):
                 messages.warning(request, 'Đã thêm nhân viên nhưng không lưu được avatar — kiểm tra lại file ảnh.')
             concurrent_formset.instance = profile
             concurrent_formset.save()
+            notify_portal_password_changed(user, p)
             messages.success(
                 request,
                 f'Thành công: Đã thêm {f}. Tài khoản: {u} | Mật khẩu: {p}',
@@ -532,6 +534,7 @@ def user_edit(request, user_id):
             new_password = form.cleaned_data.get('password')
             if new_password:
                 user_obj.set_password(new_password)
+                notify_portal_password_changed(user_obj, new_password)
             
             user_obj.save()
 
@@ -555,6 +558,7 @@ def user_edit(request, user_id):
             
             # Hàm save() của profile sẽ tự xử lý quyền nếu role là Giám đốc
             profile.save()
+            ensure_portal_user_in_odoo(user_obj)
 
             avatar_upload = request.FILES.get('avatar')
             if avatar_upload:
@@ -772,6 +776,7 @@ def user_import_excel(request):
                         password = data.get('password', '').strip()
                         if password:
                             existing_user.set_password(password)
+                            notify_portal_password_changed(existing_user, password)
                         existing_user.save()
 
                         Profile.objects.update_or_create(
@@ -811,6 +816,7 @@ def user_import_excel(request):
                             'must_change_password': True,
                         },
                     )
+                    notify_portal_password_changed(user, password)
                     success_count += 1
             
             messages.success(
@@ -1519,6 +1525,7 @@ def user_password_reset(request, user_id):
         new_password = ''.join(random.choice(characters) for i in range(8))
         
         user.set_password(new_password)
+        notify_portal_password_changed(user, new_password)
         user.save()
 
         Profile.require_password_change(user)

@@ -272,6 +272,7 @@ MODULE_LIST_META = {
     'equipment': {'icon': 'bi-pc-display', 'short': 'TB'},
     'feedback': {'icon': 'bi-chat-square-text', 'short': 'GY'},
     'kiotviet': {'icon': 'bi-shop', 'short': 'KV'},
+    'odoo': {'icon': 'bi-boxes', 'short': 'ERP'},
     'kho_npl': {'icon': 'bi-boxes', 'short': 'NPL'},
 }
 

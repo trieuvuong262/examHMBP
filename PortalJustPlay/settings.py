@@ -415,6 +415,30 @@ KIOTVIET_DETAIL_STOCK_BRANCHES = os.getenv(
     'Chi nhánh trung tâm,Xưởng sản xuất,Đơn sản xuất',
 ).strip()
 
+# Odoo ERP — đồng bộ user / menu Odoo (Phase 1)
+ODOO_URL = os.getenv('ODOO_URL', 'https://erp.justplay.vn').strip().rstrip('/')
+ODOO_PUBLIC_URL = os.getenv('ODOO_PUBLIC_URL', ODOO_URL or 'https://erp.justplay.vn').strip().rstrip('/')
+ODOO_DB = os.getenv('ODOO_DB', 'justplay_pilot').strip()
+ODOO_API_USER = os.getenv('ODOO_API_USER', '').strip()
+ODOO_API_PASSWORD = os.getenv('ODOO_API_PASSWORD', '')
+ODOO_VERIFY_SSL = env_bool('ODOO_VERIFY_SSL', True)
+ODOO_DEFAULT_GROUPS = [
+    g.strip()
+    for g in os.getenv(
+        'ODOO_DEFAULT_GROUPS',
+        'base.group_user,stock.group_stock_user,mrp.group_mrp_user',
+    ).split(',')
+    if g.strip()
+]
+ODOO_MANAGER_GROUPS = [
+    g.strip()
+    for g in os.getenv(
+        'ODOO_MANAGER_GROUPS',
+        'stock.group_stock_manager,mrp.group_mrp_manager',
+    ).split(',')
+    if g.strip()
+]
+
 # NAS (Synology qua Tailscale + rclone mount trên VPS)
 NAS_MOUNT_ROOT = os.getenv('NAS_MOUNT_ROOT', '/mnt/nas-portal')
 NAS_RCLONE_REMOTE = os.getenv('NAS_RCLONE_REMOTE', 'synology:')

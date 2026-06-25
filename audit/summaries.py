@@ -380,6 +380,7 @@ NAMESPACE_URL_DESCRIPTIONS: dict[str, dict[str, str] | str] = {
     },
     'audit:nas_monitor': 'xem trang giám sát NAS',
     'audit:nas_monitor_metrics': 'tải số liệu RAM/CPU/ổ đĩa NAS',
+    'odoo:redirect': 'mở Odoo ERP (đồng bộ tài khoản)',
     'audit:kiotviet_sync': 'xem trang đồng bộ KiotViet',
     'audit:kiotviet_sync_save': {
         'POST': 'lưu cấu hình lịch đồng bộ KiotViet',
