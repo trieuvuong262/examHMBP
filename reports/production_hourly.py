@@ -62,10 +62,10 @@ def can_edit_production_report(viewer, report, *, can_submit, is_proxy=False) ->
 
 def can_proxy_enter_daily_report(viewer, employee) -> bool:
     """Tổ trưởng / cấp trên nhập báo cáo hộ nhân viên (điện thoại hỏng)."""
-    from hrm.permissions import can_view_team_reports, get_report_team_users
+    from hrm.permissions import can_view_team_reports, get_team_report_members
     if not can_view_team_reports(viewer):
         return False
-    return get_report_team_users(viewer).filter(pk=employee.pk).exists()
+    return get_team_report_members(viewer).filter(pk=employee.pk).exists()
 
 
 @transaction.atomic

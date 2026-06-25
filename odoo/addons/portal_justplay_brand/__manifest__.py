@@ -1,6 +1,6 @@
 {
     'name': 'JustPlay Brand',
-    'version': '18.0.1.0.1',
+    'version': '18.0.1.0.4',
     'category': 'Hidden',
     'summary': 'Giao diện Odoo ERP đồng bộ JustPlay Portal (đỏ/đen, Inter)',
     'depends': ['web'],
@@ -11,9 +11,15 @@
     ],
     'assets': {
         'web._assets_primary_variables': [
-            'portal_justplay_brand/static/src/scss/primary_variables.scss',
+            ('prepend', 'portal_justplay_brand/static/src/scss/primary_variables.scss'),
+        ],
+        'web._assets_backend_helpers': [
+            'portal_justplay_brand/static/src/scss/bootstrap_overridden.scss',
         ],
         'web.assets_backend': [
+            'portal_justplay_brand/static/src/scss/backend.scss',
+        ],
+        'web.assets_web': [
             'portal_justplay_brand/static/src/scss/backend.scss',
         ],
         'web.assets_frontend': [

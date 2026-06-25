@@ -60,8 +60,11 @@ def _can_supervisor_view_report(viewer, report) -> bool:
 
 def lock_report_on_supervisor_view(report, viewer) -> bool:
     """Tự khóa khi cấp trên mở xem báo cáo đã gửi (lần đầu)."""
+    from hrm.permissions import is_global_report_viewer
+
     if (
-        report.employee_id == viewer.id
+        is_global_report_viewer(viewer)
+        or report.employee_id == viewer.id
         or not _can_supervisor_view_report(viewer, report)
         or report.status != DailyWorkReport.STATUS_SUBMITTED
         or report.hod_reviewed

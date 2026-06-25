@@ -12,6 +12,7 @@ from hrm.permissions import (
     can_submit_daily_report,
     can_view_team_reports,
     get_report_team_users,
+    get_team_report_members,
 )
 from hrm.module_permissions import (
     MODULE_ASSESSMENT,
@@ -434,7 +435,7 @@ def get_portal_dashboard(user):
 
     # --- HOD / GM: team chưa nộp BC ---
     if can_view_team_reports(user):
-        team_users = get_report_team_users(user)
+        team_users = get_team_report_members(user)
         if team_users.exists():
             submitted_ids = DailyWorkReport.objects.filter(
                 report_date=today,

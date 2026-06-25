@@ -24,7 +24,7 @@ from hrm.permissions import (
     can_view_team_reports,
     can_view_user_report,
     can_view_user_weekly_report,
-    get_report_team_users,
+    get_team_report_members,
     is_director,
 )
 from PortalJustPlay.list_search import apply_combined_search, apply_term_search, apply_user_search, get_search_query
@@ -192,7 +192,7 @@ def _is_supervisor_entry_request(request):
     if not for_user_id:
         return False
     try:
-        target = get_report_team_users(request.user).get(pk=int(for_user_id))
+        target = get_team_report_members(request.user).get(pk=int(for_user_id))
     except (ValueError, TypeError, User.DoesNotExist):
         return False
     return can_proxy_enter_daily_report(request.user, target)
@@ -709,7 +709,7 @@ def _resolve_today_subject(request):
     for_user_id = request.GET.get('for_user') or request.POST.get('for_user')
     if for_user_id:
         try:
-            subject = get_report_team_users(request.user).get(pk=int(for_user_id))
+            subject = get_team_report_members(request.user).get(pk=int(for_user_id))
         except (ValueError, TypeError, User.DoesNotExist):
             subject = request.user
     return subject
@@ -911,7 +911,7 @@ def _my_reports(request, daily_report_profile=None):
     for_user_id = request.GET.get('for_user')
     if for_user_id:
         try:
-            subject = get_report_team_users(request.user).get(pk=int(for_user_id))
+            subject = get_team_report_members(request.user).get(pk=int(for_user_id))
             profile = getattr(subject, 'profile', None)
             history_employee_name = profile.full_name if profile and profile.full_name else subject.username
         except (ValueError, TypeError, User.DoesNotExist):
@@ -1027,7 +1027,7 @@ def _my_reports(request, daily_report_profile=None):
 
 
 def _team_queryset(viewer, search_query):
-    team = get_report_team_users(viewer).select_related(
+    team = get_team_report_members(viewer).select_related(
         'profile',
         'profile__department',
     ).order_by('profile__department__sort_order', 'profile__full_name', 'username')

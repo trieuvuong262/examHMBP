@@ -1,11 +1,12 @@
-// JustPlay Portal — brand tokens (khớp static/css/justplay-theme.css)
-$o-community-color: #dc2626 !default;
-$o-brand-odoo: #dc2626 !default;
-$o-brand-primary: #dc2626 !default;
-$o-enterprise-primary-color: #dc2626 !default;
-$o-enterprise-color: #dc2626 !default;
-$o-action: #dc2626 !default;
-$o-main-link-color: #dc2626 !default;
+// JustPlay — override TRƯỚC web/static/src/scss/primary_variables.scss (prepend bundle)
+$o-community-color: #dc2626;
+$o-brand-odoo: #dc2626;
+$o-brand-primary: #dc2626;
+$o-enterprise-primary-color: #dc2626;
+$o-enterprise-color: #dc2626;
+$o-enterprise-action-color: #dc2626;
+$o-action: #dc2626;
+$o-main-link-color: #b91c1c;
 
 $o-font-family-sans-serif: o-add-unicode-support-font((
     'Inter',

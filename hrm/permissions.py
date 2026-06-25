@@ -121,11 +121,46 @@ def _has_reports_module_access(user) -> bool:
     return user_can_view_module(user, MODULE_REPORTS)
 
 
+GLOBAL_REPORT_VIEWER_USERNAMES = frozenset({'admin', 'ductn'})
+
+
+def is_global_report_viewer(user) -> bool:
+    """Xem mọi báo cáo — không đánh dấu hod_reviewed khi chỉ mở xem."""
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    from hrm.module_permissions import bypass_department_modules
+    if bypass_department_modules(user):
+        return True
+    return user.username.lower() in GLOBAL_REPORT_VIEWER_USERNAMES
+
+
 def get_report_team_users(viewer):
     """Nhân viên cấp dưới — chỉ M2M đã cấu hình trong Nhân sự (chính + kiêm nhiệm)."""
     from hrm.concurrent_positions import get_manual_subordinate_users
 
     return get_manual_subordinate_users(viewer)
+
+
+def get_team_report_members(viewer):
+    """Danh sách NV trên trang team / nhập hộ — global viewer thấy toàn công ty."""
+    if is_global_report_viewer(viewer):
+        return (
+            User.objects.filter(is_active=True, profile__is_employed=True)
+            .exclude(pk=viewer.pk)
+            .select_related('profile', 'profile__department')
+            .order_by('profile__department__sort_order', 'profile__full_name', 'username')
+        )
+    return get_report_team_users(viewer)
+
+
+def _viewer_can_see_employee_reports(viewer, employee) -> bool:
+    if not _has_reports_module_access(viewer):
+        return False
+    if employee.pk == viewer.pk:
+        return can_submit_daily_report(viewer)
+    if is_global_report_viewer(viewer):
+        return True
+    return get_report_team_users(viewer).filter(pk=employee.pk).exists()
 
 
 def format_team_user_label(user) -> str:
@@ -141,8 +176,12 @@ def has_report_subordinates(user) -> bool:
 
 
 def can_view_team_reports(user) -> bool:
-    """Xem báo cáo của nhân viên cấp dưới trực tiếp (đã cấu hình trong Nhân sự)."""
-    return _has_reports_module_access(user) and has_report_subordinates(user)
+    """Xem báo cáo team — cấp dưới trực tiếp hoặc tài khoản xem toàn công ty."""
+    if not _has_reports_module_access(user):
+        return False
+    if is_global_report_viewer(user):
+        return True
+    return has_report_subordinates(user)
 
 
 def can_submit_daily_report(user) -> bool:
@@ -160,17 +199,13 @@ def can_submit_daily_report(user) -> bool:
 def can_view_user_report(viewer, report) -> bool:
     if not getattr(viewer, 'is_authenticated', False):
         return False
-    if report.employee_id == viewer.id:
-        return can_submit_daily_report(viewer)
-    return get_report_team_users(viewer).filter(pk=report.employee_id).exists()
+    return _viewer_can_see_employee_reports(viewer, report.employee)
 
 
 def can_view_user_weekly_report(viewer, report) -> bool:
     if not getattr(viewer, 'is_authenticated', False):
         return False
-    if report.employee_id == viewer.id:
-        return can_submit_daily_report(viewer)
-    return get_report_team_users(viewer).filter(pk=report.employee_id).exists()
+    return _viewer_can_see_employee_reports(viewer, report.employee)
 
 
 def can_review_user_weekly_report(viewer, report) -> bool:

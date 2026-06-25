@@ -11,7 +11,7 @@ from django.utils import timezone
 from hrm.permissions import (
     can_submit_daily_report,
     get_profile,
-    get_report_team_users,
+    get_team_report_members,
 )
 from reports.report_lock import is_report_edit_expired, report_edit_denied_message
 from reports.models import DailyWorkReport, ProductionHourlyQuantity, ProductionShiftProduct
@@ -113,7 +113,7 @@ def _resolve_production_subject(request, report_date):
     editing_for_other = False
     if for_user_id:
         try:
-            target = get_report_team_users(request.user).get(pk=int(for_user_id))
+            target = get_team_report_members(request.user).get(pk=int(for_user_id))
         except (User.DoesNotExist, ValueError, TypeError):
             messages.error(request, 'Không tìm thấy nhân viên cấp dưới.')
             return None, None, redirect('reports:team_cn')
@@ -456,7 +456,7 @@ def today_production_hourly(request, report_date, report_context_common):
     team_members = []
     if editing_for_other:
         team_members = list(
-            get_report_team_users(request.user).select_related('profile').order_by('profile__full_name', 'username')
+            get_team_report_members(request.user).select_related('profile').order_by('profile__full_name', 'username')
         )
 
     ctx = report_context_common(request, report_date)
