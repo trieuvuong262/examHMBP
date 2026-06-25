@@ -45,12 +45,26 @@ CONF="$ODOO_DIR/config/odoo.conf"
 sed -i "s/^admin_passwd = .*/admin_passwd = ${ODOO_ADMIN_PASSWORD}/" "$CONF"
 sed -i "s/^db_password = .*/db_password = ${ODOO_DB_PASSWORD}/" "$CONF"
 sed -i "s/^db_user = .*/db_user = ${ODOO_DB_USER:-odoo}/" "$CONF"
+if [[ -n "${PORTAL_SSO_SECRET:-}" ]]; then
+  if grep -q '^portal_sso_secret' "$CONF"; then
+    sed -i "s|^portal_sso_secret =.*|portal_sso_secret = ${PORTAL_SSO_SECRET}|" "$CONF"
+  else
+    echo "portal_sso_secret = ${PORTAL_SSO_SECRET}" >> "$CONF"
+  fi
+fi
 
 echo "==> Pull images..."
 compose pull
 
 echo "==> Khởi động PostgreSQL + Odoo..."
 compose up -d
+
+DB_NAME="${ODOO_PILOT_DB:-justplay_pilot}"
+if [[ -d addons/portal_justplay_sso ]]; then
+  echo "==> Cài addon portal_justplay_sso trên DB ${DB_NAME}..."
+  compose run --rm odoo odoo -d "$DB_NAME" -i portal_justplay_sso --stop-after-init --no-http || true
+  compose up -d odoo
+fi
 
 echo "==> Trạng thái:"
 compose ps

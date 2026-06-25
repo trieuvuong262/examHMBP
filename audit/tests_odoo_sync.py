@@ -4,6 +4,12 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
+from audit.services.odoo_sso import (
+    build_odoo_sso_token,
+    ensure_odoo_account_for_redirect,
+    odoo_entry_url,
+    odoo_sso_configured,
+)
 from audit.services.odoo_sync import (
     odoo_configured,
     sync_user_to_odoo,
@@ -18,6 +24,8 @@ from hrm.module_permissions import MODULE_ODOO
     ODOO_DB='test_db',
     ODOO_API_USER='admin',
     ODOO_API_PASSWORD='secret',
+    ODOO_SSO_SECRET='test-sso-secret-key',
+    ODOO_SSO_TTL_SECONDS=120,
 )
 class OdooSyncServiceTests(TestCase):
     @classmethod
@@ -49,8 +57,29 @@ class OdooSyncServiceTests(TestCase):
     def test_odoo_configured(self):
         self.assertTrue(odoo_configured())
 
+    def test_odoo_sso_configured(self):
+        self.assertTrue(odoo_sso_configured())
+
+    def test_sso_token_and_url(self):
+        token = build_odoo_sso_token(self.user)
+        self.assertTrue(token and '.' in token)
+        url = odoo_entry_url(self.user)
+        self.assertIn('/portal/sso', url)
+        self.assertIn('token=', url)
+
     def test_user_has_odoo_portal_access(self):
         self.assertTrue(user_has_odoo_portal_access(self.user))
+
+    def test_fast_redirect_skips_sync_when_odoo_id_exists(self):
+        profile = self.user.profile
+        profile.odoo_user_id = 99
+        profile.odoo_password_synced = True
+        profile.save()
+        with patch('audit.services.odoo_sync.ensure_portal_user_in_odoo') as mock_sync:
+            result = ensure_odoo_account_for_redirect(self.user)
+        mock_sync.assert_not_called()
+        self.assertTrue(result.get('skipped_sync'))
+        self.assertEqual(result['odoo_user_id'], 99)
 
     @patch('audit.services.odoo_sync._execute')
     @patch('audit.services.odoo_sync._odoo_uid', return_value=1)
@@ -90,6 +119,8 @@ class OdooRedirectViewTests(TestCase):
         profile.department = cls.dept
         profile.permission_group = cls.group
         profile.is_employed = True
+        profile.odoo_user_id = 5
+        profile.odoo_password_synced = True
         profile.save()
 
         cls.denied = User.objects.create_user(username='noodoo', password='pass12345')
@@ -104,15 +135,28 @@ class OdooRedirectViewTests(TestCase):
     def setUp(self):
         self.client = Client()
 
+    @override_settings(
+        ODOO_URL='https://erp.example.com',
+        ODOO_DB='test_db',
+        ODOO_API_USER='admin',
+        ODOO_API_PASSWORD='secret',
+        ODOO_SSO_SECRET='test-sso-secret-key',
+    )
     def test_redirect_requires_odoo_module_perm(self):
         self.client.login(username='noodoo', password='pass12345')
         resp = self.client.get(reverse('odoo:redirect'))
         self.assertEqual(resp.status_code, 302)
         self.assertNotIn('erp', resp['Location'].lower())
 
-    @patch('audit.views_odoo.ensure_portal_user_in_odoo', return_value={'status': 'ok'})
-    def test_redirect_allowed(self, _mock):
+    @override_settings(
+        ODOO_URL='https://erp.example.com',
+        ODOO_DB='test_db',
+        ODOO_API_USER='admin',
+        ODOO_API_PASSWORD='secret',
+        ODOO_SSO_SECRET='test-sso-secret-key',
+    )
+    def test_redirect_sso_url(self):
         self.client.login(username='odooview', password='pass12345')
         resp = self.client.get(reverse('odoo:redirect'))
         self.assertEqual(resp.status_code, 302)
-        self.assertIn('erp', resp['Location'].lower())
+        self.assertIn('/portal/sso', resp['Location'])

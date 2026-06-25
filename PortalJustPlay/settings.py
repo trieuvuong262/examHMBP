@@ -438,6 +438,8 @@ ODOO_MANAGER_GROUPS = [
     ).split(',')
     if g.strip()
 ]
+ODOO_SSO_SECRET = os.getenv('ODOO_SSO_SECRET', '').strip()
+ODOO_SSO_TTL_SECONDS = int(os.getenv('ODOO_SSO_TTL_SECONDS', '120') or '120')
 
 # NAS (Synology qua Tailscale + rclone mount trên VPS)
 NAS_MOUNT_ROOT = os.getenv('NAS_MOUNT_ROOT', '/mnt/nas-portal')
