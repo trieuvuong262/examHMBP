@@ -183,7 +183,7 @@ def sync_user_to_odoo(user, *, password: str | None = None) -> dict:
         created = False
         temp_password = None
         if profile.odoo_user_id:
-            user_ids = _execute('res.users', 'search', [[('id', '=', profile.odoo_user_id)]], limit=1)
+            user_ids = _execute('res.users', 'search', [('id', '=', profile.odoo_user_id)], limit=1)
             if not user_ids:
                 profile.odoo_user_id = None
                 profile.save(update_fields=['odoo_user_id'])
@@ -194,30 +194,38 @@ def sync_user_to_odoo(user, *, password: str | None = None) -> dict:
                 write_vals['password'] = password
             _execute('res.users', 'write', [profile.odoo_user_id], write_vals)
             odoo_id = profile.odoo_user_id
+            if password:
+                profile.odoo_password_synced = True
+                profile.save(update_fields=['odoo_password_synced'])
         else:
-            existing = _execute('res.users', 'search', [[('login', '=', login)]], limit=1)
+            existing = _execute('res.users', 'search', [('login', '=', login)], limit=1)
             if existing:
                 odoo_id = int(existing[0])
                 write_vals = dict(vals)
                 if password:
                     write_vals['password'] = password
                 _execute('res.users', 'write', [odoo_id], write_vals)
+                if password:
+                    profile.odoo_password_synced = True
+                    profile.save(update_fields=['odoo_password_synced'])
             else:
                 if password:
                     vals['password'] = password
                 else:
                     temp_password = secrets.token_urlsafe(10)
                     vals['password'] = temp_password
-                odoo_id = int(_execute('res.users', 'create', [vals]))
+                odoo_id = int(_execute('res.users', 'create', vals))
                 created = True
+                profile.odoo_password_synced = bool(password)
             profile.odoo_user_id = odoo_id
-            profile.save(update_fields=['odoo_user_id'])
+            profile.save(update_fields=['odoo_user_id', 'odoo_password_synced'])
 
         result = {
             'status': 'ok',
             'odoo_user_id': odoo_id,
             'created': created,
             'login': login,
+            'password_synced': bool(profile.odoo_password_synced),
         }
         if temp_password:
             result['temp_password'] = temp_password

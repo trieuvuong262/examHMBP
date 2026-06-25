@@ -379,6 +379,11 @@ class Profile(models.Model):
         verbose_name='Odoo res.users ID',
         help_text='Đồng bộ từ Portal khi có quyền menu Odoo.',
     )
+    odoo_password_synced = models.BooleanField(
+        default=False,
+        verbose_name='Mật khẩu Odoo đã khớp Portal',
+        help_text='True sau khi đổi/reset mật khẩu Portal và đồng bộ sang Odoo.',
+    )
 
     class Meta:
         db_table = 'assessment_profile' # Giữ nguyên để khớp với database cũ

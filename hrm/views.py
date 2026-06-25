@@ -1555,7 +1555,9 @@ class MyPasswordChangeView(PasswordChangeView):
         return context
 
     def form_valid(self, form):
+        new_password = form.cleaned_data['new_password1']
         response = super().form_valid(form)
+        notify_portal_password_changed(self.request.user, new_password)
         profile = getattr(self.request.user, 'profile', None)
         if profile and profile.must_change_password:
             profile.must_change_password = False

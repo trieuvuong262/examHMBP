@@ -25,6 +25,13 @@ def odoo_redirect(request):
             'Đã tạo tài khoản Odoo. Mật khẩu tạm: '
             f'{result["temp_password"]} — đăng nhập ERP và đổi mật khẩu, hoặc đổi mật khẩu Portal để đồng bộ.',
         )
+    elif result.get('status') == 'ok' and not result.get('password_synced', True):
+        login = result.get('login') or request.user.username
+        messages.warning(
+            request,
+            f'Tài khoản ERP: {login}. Mật khẩu ERP chưa khớp Portal — '
+            'vào Đổi mật khẩu trên Portal (hoặc nhờ HR reset), rồi dùng mật khẩu Portal đăng nhập ERP.',
+        )
     elif result.get('status') == 'ok':
         messages.success(request, 'Đã đồng bộ tài khoản Odoo.')
 
