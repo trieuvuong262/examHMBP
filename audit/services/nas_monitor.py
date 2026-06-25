@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import time
 from pathlib import Path
@@ -1201,12 +1202,119 @@ def _read_dsm_widget_backup_tasks() -> list[dict]:
 
 def _parse_file_change(item: dict) -> dict:
     return {
-        'time': _format_dsm_time(_pick_dict(item, 'time', 'mtime', 'datetime', 'logtime')),
-        'user': _pick_dict(item, 'user', 'username', 'who', default='—'),
+        'time': _format_dsm_time(_pick_dict(item, 'time', 'mtime', 'datetime', 'logtime', 'ldate')),
+        'user': _pick_dict(item, 'user', 'username', 'who', 'fac', default='—'),
         'path': str(_pick_dict(item, 'path', 'file', 'filepath', 'name', default='—'))[:160],
         'action': _pick_dict(item, 'action', 'type', 'event', 'operation', default='—'),
         'ip': _pick_dict(item, 'ip', 'from', default=''),
+        'source': _pick_dict(item, 'source', default='dsm'),
     }
+
+
+_FILE_SYSLOG_SKIP_RE = re.compile(
+    r'signed in to \[DSM\]|signed out from \[DSM\]|logged out|password changed|2FA',
+    re.I,
+)
+_FILE_SYSLOG_HINT_RE = re.compile(
+    r'shared folder|filestation|file station|\bfile\b|\bfolder\b|cifs|smb|ftp|sftp|afp|nfs|'
+    r'upload|download|delete|deleted|rename|renamed|move|moved|copy|copied|write|written|read|chmod|create|created',
+    re.I,
+)
+_FILE_SYSLOG_USER_RE = re.compile(r'User \[([^\]]+)\]', re.I)
+_FILE_SYSLOG_IP_RE = re.compile(r'from \[\(?([^\])]+)\)?\]', re.I)
+_FILE_SYSLOG_SHARE_RE = re.compile(r'shared folder \[([^\]]+)\]', re.I)
+_FILE_SYSLOG_VIA_RE = re.compile(r'via \[([^\]]+)\]', re.I)
+_FILE_SYSLOG_ACTION_LABELS = (
+    (re.compile(r'accessed shared folder', re.I), 'Truy cập share'),
+    (re.compile(r'deleted?', re.I), 'Xóa'),
+    (re.compile(r'created?', re.I), 'Tạo'),
+    (re.compile(r'renamed?', re.I), 'Đổi tên'),
+    (re.compile(r'moved?', re.I), 'Di chuyển'),
+    (re.compile(r'uploaded?', re.I), 'Upload'),
+    (re.compile(r'downloaded?', re.I), 'Download'),
+    (re.compile(r'modified?|written?', re.I), 'Sửa'),
+    (re.compile(r'copied?', re.I), 'Sao chép'),
+    (re.compile(r'read', re.I), 'Đọc'),
+)
+
+
+def _parse_syslog_file_change(log: dict) -> dict | None:
+    if not isinstance(log, dict):
+        return None
+    msg = str(log.get('msg') or '').strip()
+    if not msg or _FILE_SYSLOG_SKIP_RE.search(msg):
+        return None
+    if not _FILE_SYSLOG_HINT_RE.search(msg):
+        return None
+
+    user = str(log.get('fac') or '').strip()
+    m_user = _FILE_SYSLOG_USER_RE.search(msg)
+    if m_user:
+        user = m_user.group(1).strip()
+
+    ip = ''
+    m_ip = _FILE_SYSLOG_IP_RE.search(msg)
+    if m_ip:
+        ip = m_ip.group(1).strip()
+
+    path = '—'
+    m_share = _FILE_SYSLOG_SHARE_RE.search(msg)
+    if m_share:
+        path = f"share:{m_share.group(1).strip()}"
+    else:
+        bracketed = re.findall(r'\[([^\]]+)\]', msg)
+        if bracketed:
+            path = bracketed[-1].strip()[:160]
+
+    action = msg[:120]
+    for pattern, label in _FILE_SYSLOG_ACTION_LABELS:
+        if pattern.search(msg):
+            action = label
+            via = _FILE_SYSLOG_VIA_RE.search(msg)
+            if via:
+                action = f'{label} ({via.group(1)})'
+            break
+
+    ldate = str(log.get('ldate') or '').strip()
+    ltime = str(log.get('ltime') or '').strip()
+    time_display = f'{ldate} {ltime}'.strip() if ldate and ltime else _format_dsm_time(ldate or ltime)
+
+    return {
+        'time': time_display or '—',
+        'user': user or '—',
+        'path': path,
+        'action': action,
+        'ip': ip,
+        'source': 'syslog',
+    }
+
+
+def _read_dsm_widget_file_changes_from_syslog(*, limit: int = 20) -> list[dict]:
+    try:
+        data = _dsm_request(
+            'SYNO.Core.SyslogClient.Status',
+            'latestlog_get',
+            version=1,
+            params={'limit': str(max(limit * 4, 80))},
+            timeout=15,
+        )
+    except NasMonitorError:
+        return []
+
+    rows: list[dict] = []
+    seen: set[tuple] = set()
+    for log in data.get('logs') or []:
+        parsed = _parse_syslog_file_change(log)
+        if not parsed:
+            continue
+        uid = (parsed['time'], parsed['user'], parsed['path'], parsed['action'], parsed['ip'])
+        if uid in seen:
+            continue
+        seen.add(uid)
+        rows.append(parsed)
+        if len(rows) >= limit:
+            break
+    return rows
 
 
 def _read_dsm_widget_file_changes(*, limit: int = 20) -> list[dict]:
@@ -1216,7 +1324,10 @@ def _read_dsm_widget_file_changes(*, limit: int = 20) -> list[dict]:
         ('SYNO.LogCenter.History', 'list', 1, {'limit': str(limit), 'logtype': 'file'}),
         ('SYNO.SynologyDrive.Log', 'list', 1, {'limit': str(limit)}),
     ], 'items', 'logs', 'changelog', 'history')
-    return [_parse_file_change(item) for item in items[:limit]]
+    rows = [_parse_file_change(item) for item in items[:limit]]
+    if rows:
+        return rows
+    return _read_dsm_widget_file_changes_from_syslog(limit=limit)
 
 
 def _resource_from_utilization(util: dict | None) -> dict:

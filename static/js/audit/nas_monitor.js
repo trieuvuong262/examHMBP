@@ -410,7 +410,7 @@
         fillTable(
             'jp-nas-widget-changes',
             widgets.file_changes,
-            '<tr><td colspan="5" class="text-muted small p-3">Chưa lấy được nhật ký thay đổi file.</td></tr>',
+            '<tr><td colspan="5" class="text-muted small p-3">Chưa có log file/share gần đây (bật ghi log SMB/File Station trên DSM Log Center).</td></tr>',
             function (row) {
                 return '<tr><td class="small text-nowrap">' + escapeHtml(row.time) + '</td><td class="small">' +
                     escapeHtml(row.user) + '</td><td class="small font-monospace">' + escapeHtml(row.ip || '—') +

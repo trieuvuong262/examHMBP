@@ -11,6 +11,8 @@ from audit.services.nas_monitor import (
     _parse_byte_value,
     _parse_connected_user,
     _parse_log_row,
+    _parse_syslog_file_change,
+    _read_dsm_widget_file_changes_from_syslog,
     _share_row,
     _volume_from_storage_api,
     collect_dsm_widgets,
@@ -268,6 +270,41 @@ class NasMonitorServiceTests(TestCase):
         self.assertEqual(row['level'], 'warn')
         self.assertEqual(row['source'], 'System')
         self.assertIn('disk event', row['message'])
+
+    def test_parse_syslog_file_change_smb_share(self):
+        row = _parse_syslog_file_change({
+            'fac': 'tailscale-justplay',
+            'ldate': '2026-06-25',
+            'ltime': '08:10:09',
+            'msg': 'User [tailscale-justplay] from [(127.0.0.1)] via [CIFS(SMB3)] accessed shared folder [backup].',
+        })
+        self.assertIsNotNone(row)
+        self.assertEqual(row['user'], 'tailscale-justplay')
+        self.assertEqual(row['ip'], '127.0.0.1')
+        self.assertEqual(row['path'], 'share:backup')
+        self.assertIn('Truy cập share', row['action'])
+        self.assertEqual(row['source'], 'syslog')
+
+    def test_parse_syslog_file_change_skips_dsm_login(self):
+        self.assertIsNone(_parse_syslog_file_change({
+            'msg': 'User [admin] from [127.0.0.1] signed in to [DSM] successfully via [password].',
+        }))
+
+    @patch('audit.services.nas_monitor._dsm_request')
+    def test_read_file_changes_from_syslog_fallback(self, mock_request):
+        mock_request.return_value = {
+            'logs': [
+                {
+                    'fac': 'user1',
+                    'ldate': '2026-06-25',
+                    'ltime': '09:00:00',
+                    'msg': 'User [user1] from [(10.0.0.2)] via [CIFS(SMB3)] accessed shared folder [backup].',
+                },
+            ],
+        }
+        rows = _read_dsm_widget_file_changes_from_syslog(limit=5)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['path'], 'share:backup')
 
     @override_settings(
         NAS_DSM_URL='https://nas.example:5556',
