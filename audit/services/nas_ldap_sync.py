@@ -10,7 +10,10 @@ from urllib.parse import urlparse
 from django.conf import settings
 from django.contrib.auth.models import User
 
-from hrm.department_permission_templates import department_name_to_code
+from nas_storage.dept_nas_config import (
+    DEPARTMENT_NAS_GROUPS,
+    nas_group_for_portal_department,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,20 +26,7 @@ USER_OBJECT_CLASSES = [
     'posixAccount',
 ]
 
-# Portal department code → tên group LDAP (khớp group DSM đã tạo trên NAS).
-PORTAL_CODE_TO_LDAP_GROUP: dict[str, str] = {
-    'hcns': 'HCNS',
-    'it': 'IT',
-    'kd-mkt': 'MKT',
-    'rd': 'RnD',
-    'sx': 'SX',
-    'tckt': 'TCKT',
-    'tgd': 'TGD',
-    'dbcl': 'DBCL',
-    'khsx': 'KHSX',
-}
-
-DEPARTMENT_LDAP_GROUPS = frozenset(PORTAL_CODE_TO_LDAP_GROUP.values())
+DEPARTMENT_LDAP_GROUPS = DEPARTMENT_NAS_GROUPS
 DEFAULT_LDAP_GROUP = 'users'
 
 
@@ -126,10 +116,7 @@ def _user_dn(uid: str) -> str:
 
 
 def nas_ldap_group_for_department(department_name: str | None) -> str | None:
-    code = department_name_to_code(department_name or '')
-    if not code:
-        return None
-    return PORTAL_CODE_TO_LDAP_GROUP.get(code, code.upper())
+    return nas_group_for_portal_department(department_name)
 
 
 def _portal_login(user: User) -> str:

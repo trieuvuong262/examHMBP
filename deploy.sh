@@ -298,7 +298,7 @@ verify_nas_rclone() {
 
 verify_nas_dsm() {
   echo "==> Verify NAS DSM API in web container"
-  if compose exec -T web python -c "
+  if compose exec -T web python manage.py shell -c "
 from audit.services.nas_monitor import dsm_configured, collect_nas_metrics
 if not dsm_configured():
     raise SystemExit('not configured')
