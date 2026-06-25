@@ -1,10 +1,5 @@
 // Backend ERP — navbar tối + accent đỏ như Portal sidebar
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
-body.o_web_client {
-    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif !important;
-}
+// Font Inter: $o-font-family-sans-serif + <link> trong web.layout
 
 .o_main_navbar {
     background: linear-gradient(180deg, #111111 0%, #1a1a1a 100%) !important;

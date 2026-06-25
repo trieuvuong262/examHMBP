@@ -1,91 +1,164 @@
-// Trang đăng nhập / frontend — khớp Portal .jp-guest + .jp-auth-card
+// Trang đăng nhập Odoo — khớp Portal (.jp-guest, .jp-auth-card, .jp-auth-header)
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
-body {
-    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif !important;
+:root {
+    --hm-primary: #dc2626;
+    --hm-primary-dark: #b91c1c;
+    --hm-primary-soft: rgba(220, 38, 38, 0.08);
+    --jp-black-900: #111111;
+    --jp-black-600: #404040;
+    --jp-black-100: #f5f5f5;
+    --jp-btn-radius: 6px;
+    --jp-radius-xl: 8px;
+    --jp-touch: 44px;
 }
 
 body.bg-100,
 .o_database_manager {
-    background: linear-gradient(160deg, #f5f5f5 0%, #ffffff 45%, rgba(220, 38, 38, 0.08) 100%) !important;
+    background: linear-gradient(160deg, var(--jp-black-100) 0%, #ffffff 45%, var(--hm-primary-soft) 100%) !important;
     min-height: 100vh;
 }
 
-.o_database_manager .card,
-.oe_login_form,
-.o_login_auth {
+.jp-auth-card,
+.o_database_list.card {
     border: none !important;
-    border-radius: 8px !important;
+    border-radius: var(--jp-radius-xl) !important;
     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.12) !important;
-    overflow: hidden;
+    overflow: hidden !important;
+    background: #ffffff !important;
+    max-width: 420px !important;
 }
 
-.o_database_list {
-    max-width: 400px !important;
+.jp-auth-card .card-body,
+.o_database_list .card-body {
+    background: #ffffff !important;
+    padding: 1.5rem !important;
 }
 
-.jp-erp-login-header {
-    background: linear-gradient(135deg, #111111 0%, #b91c1c 100%);
-    color: #fff;
+@media (min-width: 768px) {
+    .jp-auth-card .card-body,
+    .o_database_list .card-body {
+        padding: 2rem 2.5rem !important;
+    }
+}
+
+.jp-auth-header {
+    background: linear-gradient(135deg, var(--jp-black-900) 0%, var(--hm-primary-dark) 100%);
+    padding: 2rem 1rem;
+    color: #ffffff;
     text-align: center;
-    padding: 1.75rem 1rem 1.5rem;
-    margin: -1rem -1rem 1.25rem;
-    border-radius: 8px 8px 0 0;
 }
 
-.jp-erp-login-header img {
-    height: 48px;
-    width: auto;
-    margin-bottom: 0.75rem;
-}
-
-.jp-erp-login-header h1 {
+.jp-auth-header h3 {
     font-size: 1.15rem;
     font-weight: 700;
     letter-spacing: 0.04em;
     margin: 0 0 0.25rem;
 }
 
-.jp-erp-login-header p {
+.jp-auth-header p {
     margin: 0;
-    font-size: 0.85rem;
-    opacity: 0.85;
+    font-size: 0.875rem;
 }
 
-.oe_login_form .btn-primary,
-.o_login_auth .btn-primary,
-.o_database_manager .btn-primary {
-    background-color: #dc2626 !important;
-    border-color: #dc2626 !important;
-    border-radius: 6px !important;
-    font-weight: 600 !important;
-    padding: 0.55rem 1rem !important;
+.jp-label-uppercase {
+    color: var(--jp-black-900) !important;
+    text-transform: uppercase;
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.03em;
+    margin-bottom: 0.5rem !important;
 }
 
-.oe_login_form .btn-primary:hover,
-.o_login_auth .btn-primary:hover {
-    background-color: #b91c1c !important;
-    border-color: #b91c1c !important;
-    box-shadow: 0 6px 18px rgba(220, 38, 38, 0.28);
-}
-
-.oe_login_form input.form-control,
-.o_login_auth input.form-control {
-    border-radius: 6px !important;
+.oe_login_form .form-control {
+    border-radius: var(--jp-btn-radius) !important;
     border-color: #ced4da !important;
+    min-height: var(--jp-touch);
+    padding: 0.5rem 0.75rem;
+}
+
+.oe_login_form .form-control:focus {
+    border-color: var(--hm-primary) !important;
+    box-shadow: 0 0 0 0.2rem rgba(220, 38, 38, 0.15) !important;
+}
+
+.oe_login_form .mb-3,
+.oe_login_form .mb-4 {
+    margin-bottom: 1.5rem !important;
+}
+
+.jp-btn-login {
+    background-color: var(--hm-primary) !important;
+    border: none !important;
+    border-radius: var(--jp-btn-radius) !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    min-height: var(--jp-touch);
+    padding: 0.65rem 1rem !important;
+}
+
+.jp-btn-login:hover,
+.jp-btn-login:focus {
+    background-color: var(--hm-primary-dark) !important;
+    color: #ffffff !important;
+    box-shadow: 0 6px 18px rgba(220, 38, 38, 0.28) !important;
+}
+
+.oe_login_buttons {
+    padding-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+.oe_login_form .alert-danger {
+    border: 0 !important;
+    font-size: 0.875rem;
+    padding: 0.5rem 0.75rem !important;
+    text-align: center;
+    margin-bottom: 1.5rem !important;
+    border-radius: var(--jp-btn-radius) !important;
+}
+
+.jp-auth-footer {
+    border-color: #e2e8f0 !important;
+    margin-top: 0.5rem !important;
+    padding-top: 1rem !important;
 }
 
 .jp-erp-portal-link {
-    display: block;
-    text-align: center;
-    margin-top: 1rem;
+    display: inline-block;
     font-size: 0.875rem;
-    color: #525252;
+    color: var(--jp-black-600);
     text-decoration: none;
 }
 
 .jp-erp-portal-link:hover {
-    color: #dc2626;
+    color: var(--hm-primary);
     text-decoration: underline;
+}
+
+/* Ẩn link Odoo mặc định — Portal không có */
+.oe_login_form p.mt-2.text-center,
+.o_database_list a[href*='signup'],
+.o_database_list a[href*='reset_password'],
+.oe_login_form a[href*='signup'],
+.oe_login_form a[href*='reset_password'],
+.o_login_auth a[href*='signup'] {
+    display: none !important;
+}
+
+.o_database_manager .card {
+    border: none !important;
+    border-radius: var(--jp-radius-xl) !important;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.12) !important;
+}
+
+.o_database_manager .btn-primary {
+    background-color: var(--hm-primary) !important;
+    border-color: var(--hm-primary) !important;
+    border-radius: var(--jp-btn-radius) !important;
+    font-weight: 700 !important;
+}
+
+.o_database_manager .btn-primary:hover {
+    background-color: var(--hm-primary-dark) !important;
+    border-color: var(--hm-primary-dark) !important;
 }

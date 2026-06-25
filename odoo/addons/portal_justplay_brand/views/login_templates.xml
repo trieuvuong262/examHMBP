@@ -1,23 +1,51 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <template id="justplay_login_layout" inherit_id="web.login_layout" name="JustPlay Login Layout">
-        <xpath expr="//div[hasclass('text-center') and hasclass('border-bottom') and hasclass('mb-4')]" position="replace">
-            <div class="jp-erp-login-header">
-                <img src="/portal_justplay_brand/static/img/logo.png" alt="JustPlay"/>
-                <h1>JUSTPLAY ERP</h1>
-                <p>Vui lòng đăng nhập để tiếp tục</p>
+        <xpath expr="//div[contains(@t-attf-class, 'o_database_list')]" position="attributes">
+            <attribute name="t-attf-class">card border-0 mx-auto jp-auth-card o_database_list {{login_card_classes}}</attribute>
+            <attribute name="style">max-width: 420px;</attribute>
+        </xpath>
+        <xpath expr="//div[hasclass('card-body')]" position="before">
+            <div class="jp-auth-header">
+                <h3 class="fw-bold mb-1">JUSTPLAY ERP</h3>
+                <p class="small opacity-75 mb-0">Vui lòng đăng nhập để tiếp tục</p>
             </div>
         </xpath>
+        <xpath expr="//div[hasclass('text-center') and hasclass('border-bottom') and hasclass('mb-4')]" position="replace"/>
+        <xpath expr="//div[hasclass('card-body')]" position="attributes">
+            <attribute name="class" add="p-4 p-md-5" separator=" "/>
+        </xpath>
         <xpath expr="//a[contains(@href,'odoo.com')]/.." position="replace">
-            <div class="text-center small mt-4 pt-3 border-top">
+            <div class="text-center small mt-3 pt-3 border-top jp-auth-footer">
                 <a class="jp-erp-portal-link" href="https://portal.justplay.vn/">← Quay lại Portal JustPlay</a>
             </div>
         </xpath>
     </template>
 
-    <template id="justplay_login_button" inherit_id="web.login" name="JustPlay Login Button">
+    <template id="justplay_login_form" inherit_id="web.login" name="JustPlay Login Form">
+        <xpath expr="//label[@for='login']" position="replace">
+            <label for="login" class="form-label small fw-bold jp-label-uppercase">Tên đăng nhập</label>
+        </xpath>
+        <xpath expr="//input[@id='login']" position="attributes">
+            <attribute name="placeholder">Mã nhân viên</attribute>
+        </xpath>
+        <xpath expr="//label[@for='password']" position="replace">
+            <label for="password" class="form-label small fw-bold jp-label-uppercase">Mật khẩu</label>
+        </xpath>
+        <xpath expr="//input[@id='password']" position="attributes">
+            <attribute name="placeholder">••••••••</attribute>
+        </xpath>
+        <xpath expr="//div[hasclass('field-login')]" position="attributes">
+            <attribute name="class" add="mb-4" separator=" "/>
+        </xpath>
+        <xpath expr="//div[hasclass('mb-3')][.//input[@id='password']]" position="attributes">
+            <attribute name="class" add="mb-4" separator=" "/>
+        </xpath>
         <xpath expr="//button[@type='submit' and hasclass('btn-primary')]" position="replace">
-            <button type="submit" class="btn btn-primary">Đăng nhập</button>
+            <button type="submit" class="btn btn-primary jp-btn-login w-100 shadow-sm fw-bold">Đăng nhập</button>
+        </xpath>
+        <xpath expr="//p[hasclass('alert-danger')]" position="attributes">
+            <attribute name="class" add="border-0 small py-2 px-3 text-center mb-4" separator=" "/>
         </xpath>
     </template>
 </odoo>

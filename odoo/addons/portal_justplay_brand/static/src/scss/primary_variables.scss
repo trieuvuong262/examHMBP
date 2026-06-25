@@ -7,6 +7,17 @@ $o-enterprise-color: #dc2626 !default;
 $o-action: #dc2626 !default;
 $o-main-link-color: #dc2626 !default;
 
+$o-font-family-sans-serif: o-add-unicode-support-font((
+    'Inter',
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif,
+)) !default;
+
 $o-gray-900: #111111 !default;
 $o-gray-800: #1a1a1a !default;
 $o-gray-700: #262626 !default;

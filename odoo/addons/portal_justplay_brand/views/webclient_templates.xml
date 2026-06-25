@@ -3,6 +3,17 @@
     <template id="justplay_web_favicon" inherit_id="web.layout" name="JustPlay Favicon">
         <xpath expr="//head" position="inside">
             <link type="image/png" rel="shortcut icon" href="/portal_justplay_brand/static/img/favicon.png"/>
+            <link rel="preconnect" href="https://fonts.googleapis.com"/>
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous"/>
+            <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap"/>
+        </xpath>
+    </template>
+
+    <template id="justplay_frontend_fonts" inherit_id="web.frontend_layout" name="JustPlay Frontend Fonts">
+        <xpath expr="//head" position="inside">
+            <link rel="preconnect" href="https://fonts.googleapis.com"/>
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous"/>
+            <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap"/>
         </xpath>
     </template>
 </odoo>
