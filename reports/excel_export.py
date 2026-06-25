@@ -1,5 +1,7 @@
 """Xuất báo cáo ngày ra Excel."""
 
+from __future__ import annotations
+
 import io
 import re
 from datetime import datetime
@@ -7,6 +9,8 @@ from datetime import datetime
 import pandas as pd
 from django.http import HttpResponse
 from django.utils.html import strip_tags
+
+from reports.models import DailyWorkReport
 
 from reports.production_shift_policy import shift_display_label
 from reports.office_content import normalize_spreadsheet_json, office_report_has_content

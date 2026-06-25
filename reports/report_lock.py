@@ -60,15 +60,19 @@ def _can_supervisor_view_report(viewer, report) -> bool:
 
 def lock_report_on_supervisor_view(report, viewer) -> bool:
     """Tự khóa khi cấp trên mở xem báo cáo đã gửi (lần đầu)."""
-    from hrm.permissions import is_global_report_viewer
+    from hrm.permissions import get_report_team_users, is_global_report_viewer
 
     if (
-        is_global_report_viewer(viewer)
-        or report.employee_id == viewer.id
+        report.employee_id == viewer.id
         or not _can_supervisor_view_report(viewer, report)
         or report.status != DailyWorkReport.STATUS_SUBMITTED
         or report.hod_reviewed
     ):
+        return False
+    # ductn/admin xem toàn công ty — không đánh dấu đã xem, trừ cấp dưới M2M/kiêm nhiệm.
+    if is_global_report_viewer(viewer) and not get_report_team_users(viewer).filter(
+        pk=report.employee_id,
+    ).exists():
         return False
     report.hod_reviewed = True
     report.save(update_fields=['hod_reviewed', 'updated_at'])

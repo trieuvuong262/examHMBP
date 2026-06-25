@@ -318,3 +318,22 @@ class GlobalReportViewerTests(TestCase):
 
     def test_global_viewer_can_open_team_reports(self):
         self.assertTrue(can_view_team_reports(self.overseer))
+
+    def test_global_viewer_locks_direct_subordinate_report(self):
+        self.overseer.profile.subordinates.add(self.member)
+        report = DailyWorkReport.objects.create(
+            employee=self.member,
+            report_date=date.today(),
+            report_profile=REPORT_PROFILE_OFFICE,
+            status=DailyWorkReport.STATUS_SUBMITTED,
+            submitted_at=timezone.now(),
+        )
+        self.assertTrue(lock_report_on_supervisor_view(report, self.overseer))
+        report.refresh_from_db()
+        self.assertTrue(report.hod_reviewed)
+        self.client.force_login(self.overseer)
+        report.hod_reviewed = False
+        report.save(update_fields=['hod_reviewed'])
+        self.client.get(reverse('reports:detail_vp', args=[report.pk]))
+        report.refresh_from_db()
+        self.assertTrue(report.hod_reviewed)

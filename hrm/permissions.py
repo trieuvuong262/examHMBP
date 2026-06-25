@@ -125,7 +125,7 @@ GLOBAL_REPORT_VIEWER_USERNAMES = frozenset({'admin', 'ductn'})
 
 
 def is_global_report_viewer(user) -> bool:
-    """Xem mọi báo cáo — không đánh dấu hod_reviewed khi chỉ mở xem."""
+    """Xem mọi báo cáo — không đánh dấu hod_reviewed khi xem NV ngoài cấp dưới."""
     if not getattr(user, 'is_authenticated', False):
         return False
     from hrm.module_permissions import bypass_department_modules
