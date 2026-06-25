@@ -60,11 +60,13 @@ echo "==> Khởi động PostgreSQL + Odoo..."
 compose up -d
 
 DB_NAME="${ODOO_PILOT_DB:-justplay_pilot}"
-if [[ -d addons/portal_justplay_sso ]]; then
-  echo "==> Cài addon portal_justplay_sso trên DB ${DB_NAME}..."
-  compose run --rm odoo odoo -d "$DB_NAME" -i portal_justplay_sso --stop-after-init --no-http || true
-  compose up -d odoo
-fi
+for mod in portal_justplay_sso portal_justplay_brand; do
+  if [[ -d "addons/${mod}" ]]; then
+    echo "==> Cài addon ${mod} trên DB ${DB_NAME}..."
+    compose run --rm odoo odoo -d "$DB_NAME" -i "$mod" --stop-after-init --no-http || true
+  fi
+done
+compose up -d odoo
 
 echo "==> Trạng thái:"
 compose ps

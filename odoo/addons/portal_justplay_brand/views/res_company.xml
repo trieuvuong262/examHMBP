@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="base.main_company" model="res.company">
+        <field name="name">JustPlay</field>
+        <field name="logo" type="base64" file="portal_justplay_brand/static/img/logo.png"/>
+    </record>
+</odoo>

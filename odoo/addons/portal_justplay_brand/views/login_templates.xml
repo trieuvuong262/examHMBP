@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="justplay_login_layout" inherit_id="web.login_layout" name="JustPlay Login Layout">
+        <xpath expr="//div[hasclass('text-center') and hasclass('border-bottom') and hasclass('mb-4')]" position="replace">
+            <div class="jp-erp-login-header">
+                <img src="/portal_justplay_brand/static/img/logo.png" alt="JustPlay"/>
+                <h1>JUSTPLAY ERP</h1>
+                <p>Vui lòng đăng nhập để tiếp tục</p>
+            </div>
+        </xpath>
+        <xpath expr="//a[contains(@href,'odoo.com')]/.." position="replace">
+            <div class="text-center small mt-4 pt-3 border-top">
+                <a class="jp-erp-portal-link" href="https://portal.justplay.vn/">← Quay lại Portal JustPlay</a>
+            </div>
+        </xpath>
+    </template>
+
+    <template id="justplay_login_button" inherit_id="web.login" name="JustPlay Login Button">
+        <xpath expr="//button[@type='submit' and hasclass('btn-primary')]" position="replace">
+            <button type="submit" class="btn btn-primary">Đăng nhập</button>
+        </xpath>
+    </template>
+</odoo>

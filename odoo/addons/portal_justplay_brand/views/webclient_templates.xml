@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="justplay_web_favicon" inherit_id="web.layout" name="JustPlay Favicon">
+        <xpath expr="//head" position="inside">
+            <link type="image/png" rel="shortcut icon" href="/portal_justplay_brand/static/img/favicon.png"/>
+        </xpath>
+    </template>
+</odoo>
