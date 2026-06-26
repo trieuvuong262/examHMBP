@@ -101,11 +101,6 @@ def permissions_hub(request):
         .order_by('sort_order', 'share_name')
     )
     groups = NasAccessGroup.objects.filter(is_active=True).order_by('sort_order', 'name')
-    browse_all_groups = (
-        NasAccessGroup.objects.filter(is_active=True, portal_browse_all=True)
-        .annotate(portal_members_count=Count('portal_members'))
-        .order_by('sort_order', 'name')
-    )
     pending_apply_count = sum(
         1 for f in folders if f.perm_count and f.applied_count < f.perm_count
     )
@@ -116,7 +111,6 @@ def permissions_hub(request):
             **_perm_page_ctx(request, 'shares'),
             'folders': folders,
             'groups': groups,
-            'browse_all_groups': browse_all_groups,
             'pending_apply_count': pending_apply_count,
             'ssh_configured': nas_acl_ssh_configured(),
             'breadcrumbs': _perm_breadcrumbs(('Phân quyền NAS', None)),
