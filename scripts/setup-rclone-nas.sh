@@ -1,22 +1,33 @@
 #!/bin/bash
 set -euo pipefail
 
-apt-get update -qq
-apt-get install -y -qq rclone fuse3
+# Cài rclone mới (SMB Synology cần >= 1.6x; Ubuntu repo thường quá cũ)
+RCLONE_BIN="${RCLONE_BIN:-/usr/local/bin/rclone}"
+if ! [[ -x "$RCLONE_BIN" ]] || ! "$RCLONE_BIN" version 2>/dev/null | grep -q 'v1.7'; then
+  apt-get update -qq
+  apt-get install -y -qq unzip curl
+  tmpdir=$(mktemp -d)
+  curl -fsSL https://downloads.rclone.org/rclone-current-linux-amd64.zip -o "$tmpdir/rclone.zip"
+  unzip -o -q "$tmpdir/rclone.zip" -d "$tmpdir"
+  install -m 755 "$tmpdir"/rclone-*-linux-amd64/rclone "$RCLONE_BIN"
+  rm -rf "$tmpdir"
+fi
+
+apt-get install -y -qq fuse3 2>/dev/null || apt-get install -y -qq rclone fuse3
 
 NAS_USER=$(grep '^username=' /root/.nas-cred | cut -d= -f2-)
 NAS_PASS=$(grep '^password=' /root/.nas-cred | cut -d= -f2-)
-OBSCURED=$(rclone obscure "$NAS_PASS")
+OBSCURED=$("$RCLONE_BIN" obscure "$NAS_PASS")
 
-rclone config delete synology 2>/dev/null || true
-rclone config create synology smb host 100.93.5.42 user "$NAS_USER" pass "$OBSCURED"
+"$RCLONE_BIN" config delete synology 2>/dev/null || true
+"$RCLONE_BIN" config create synology smb host 100.93.5.42 user "$NAS_USER" pass "$OBSCURED"
 
 echo "=== rclone lsd ==="
-rclone lsd synology:
+"$RCLONE_BIN" lsd synology:
 
 fusermount -u /mnt/nas-portal 2>/dev/null || true
 mkdir -p /mnt/nas-portal
-rclone mount synology: /mnt/nas-portal \
+"$RCLONE_BIN" mount synology: /mnt/nas-portal \
   --daemon --allow-other --vfs-cache-mode writes \
   --dir-cache-time 5s --poll-interval 5s --attr-timeout 1s
 
@@ -24,7 +35,7 @@ sleep 2
 echo "=== ls /mnt/nas-portal ==="
 ls -la /mnt/nas-portal
 
-cat > /etc/systemd/system/rclone-nas.service << 'UNIT'
+cat > /etc/systemd/system/rclone-nas.service << UNIT
 [Unit]
 Description=Rclone mount NAS (tailscale-justplay)
 After=network-online.target tailscaled.service
@@ -32,8 +43,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/rclone mount synology: /mnt/nas-portal \
-  --allow-other --vfs-cache-mode writes \
+ExecStart=${RCLONE_BIN} mount synology: /mnt/nas-portal \\
+  --allow-other --vfs-cache-mode writes \\
   --dir-cache-time 5s --poll-interval 5s --attr-timeout 1s
 ExecStop=/bin/fusermount -u /mnt/nas-portal
 Restart=on-failure
