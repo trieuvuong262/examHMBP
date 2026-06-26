@@ -1,7 +1,7 @@
 {% with f=node.folder %}
 <div class="jp-folder-tree-node border-bottom">
-    <div class="row g-0 align-items-center py-2 jp-folder-tree-row{% if node.depth == 0 %} bg-light bg-opacity-50{% endif %}">
-        <div class="col min-w-0" style="padding-left: calc(1rem + {{ node.depth }} * 1.25rem);">
+    <div class="row g-0 align-items-center py-2 jp-folder-tree-row{% if f.is_root %} jp-folder-tree-row--root{% else %} jp-folder-tree-row--child{% endif %}">
+        <div class="col min-w-0 jp-folder-tree-name" style="padding-left: calc(1rem + {{ node.depth }} * 1.25rem);">
             {% if node.has_children %}
             <button type="button"
                     class="btn btn-sm btn-link p-0 me-1 text-secondary jp-folder-tree-toggle align-baseline"
@@ -16,37 +16,38 @@
             <span class="d-inline-block me-1" style="width:1.35rem"></span>
             {% endif %}
             {% if f.is_root %}
-            <span class="badge bg-secondary me-1">Gốc</span>
-            <code>{{ f.share_name }}</code>
+            <i class="bi bi-hdd-stack jp-folder-icon jp-folder-icon--root me-1"></i>
+            <code class="jp-folder-code jp-folder-code--root">{{ f.share_name }}</code>
             {% else %}
-            <code>{{ f.sub_path }}</code>
-            {% if f.inherits_permissions %}
-            <span class="badge bg-light text-muted border ms-1">Kế thừa</span>
-            {% endif %}
+            <i class="bi bi-folder jp-folder-icon jp-folder-icon--child me-1"></i>
+            <code class="jp-folder-code jp-folder-code--child">{{ f.sub_path }}</code>
             {% endif %}
             <div class="small text-muted d-md-none mt-1">{{ f.portal_path_label }}</div>
         </div>
-        <div class="col-md-2 d-none d-md-block text-truncate pe-2{% if not f.is_root %} small{% else %} fw-semibold{% endif %}">
+        <div class="col-md-2 d-none d-md-block text-truncate pe-2{% if f.is_root %} fw-semibold{% else %} small{% endif %}">
             {{ f.display_name }}
         </div>
         <div class="col-md-3 d-none d-lg-block small text-muted text-truncate pe-2">
             {{ f.resolved_volume_path }}
         </div>
-        <div class="col-md-auto text-end pe-3 ps-2 text-nowrap ms-auto">
-            <a href="{% url 'nas_storage:folder_child_create' f.pk %}" class="btn btn-sm btn-outline-success" title="Thêm thư mục con">+ Con</a>
-            <a href="{% url 'nas_storage:folder_permissions' f.pk %}" class="btn btn-sm btn-outline-primary">Phân quyền</a>
-            <a href="{% url 'nas_storage:folder_edit' f.pk %}" class="btn btn-sm btn-outline-secondary">Sửa</a>
-            {% if can_update and ssh_configured %}
-            <form method="post" action="{% url 'nas_storage:folder_provision_nas' f.pk %}" class="d-inline">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-sm btn-outline-hm" title="Tạo/đồng bộ lên NAS">NAS</button>
-            </form>
-            {% endif %}
-            <form method="post" action="{% url 'nas_storage:folder_delete' f.pk %}" class="d-inline"
-                  onsubmit="return confirm('Gỡ «{{ f.portal_path_label }}» khỏi Portal?\n\nThư mục trên NAS không bị xóa.');">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-sm btn-outline-danger">Gỡ</button>
-            </form>
+        <div class="col-md-auto pe-3 ps-2 ms-auto">
+            <div class="btn-group btn-group-sm jp-folder-actions" role="group" aria-label="Thao tác thư mục">
+                <a href="{% url 'nas_storage:folder_child_create' f.pk %}"
+                   class="btn btn-outline-secondary"
+                   title="Thêm thư mục con">
+                    <i class="bi bi-folder-plus"></i>
+                </a>
+                <a href="{% url 'nas_storage:folder_permissions' f.pk %}"
+                   class="btn btn-outline-primary"
+                   title="Phân quyền">
+                    Phân quyền
+                </a>
+                <form method="post" action="{% url 'nas_storage:folder_delete' f.pk %}" class="d-inline"
+                      onsubmit="return confirm('Gỡ «{{ f.portal_path_label }}» khỏi Portal?\n\nThư mục trên NAS không bị xóa.');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger" title="Gỡ khỏi Portal">Gỡ</button>
+                </form>
+            </div>
         </div>
     </div>
     {% if node.has_children %}

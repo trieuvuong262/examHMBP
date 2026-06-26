@@ -46,9 +46,24 @@
 </div>
 
 <style>
-.jp-folder-tree-row:hover { background: rgba(0,0,0,.02); }
+.jp-folder-tree-row { transition: background-color .12s ease; }
+.jp-folder-tree-row:hover { background-color: rgba(0, 0, 0, .03) !important; }
+.jp-folder-tree-row--root {
+    background: var(--hm-primary-soft, rgba(220, 38, 38, .08));
+    border-left: 3px solid var(--hm-primary, #dc2626);
+}
+.jp-folder-tree-row--child {
+    background: #fff;
+    border-left: 3px solid transparent;
+}
+.jp-folder-icon--root { color: var(--hm-primary, #dc2626); }
+.jp-folder-icon--child { color: #6c757d; }
+.jp-folder-code--root { color: var(--hm-primary-dark, #b91c1c); font-weight: 600; }
+.jp-folder-code--child { color: #495057; }
 .jp-folder-tree-toggle .jp-folder-chevron { transition: transform .15s ease; }
 .jp-folder-tree-toggle.collapsed .jp-folder-chevron { transform: rotate(-90deg); }
+.jp-folder-actions .btn { min-width: 2rem; }
+.jp-folder-actions form { display: contents; }
 </style>
 <script>
 document.querySelectorAll('.jp-folder-tree-toggle').forEach(function (btn) {
