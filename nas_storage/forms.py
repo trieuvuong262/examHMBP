@@ -217,13 +217,16 @@ class NasFolderPermissionForm(forms.ModelForm):
         }
 
     def __init__(self, *args, folder=None, **kwargs):
+        self.folder = folder
         super().__init__(*args, **kwargs)
-        from nas_storage.models import NasAccessGroup
+        from nas_storage.models import NasAccessGroup, NasFolderPermission
         from nas_storage.permission_defs import detect_preset_from_flags
 
-        self.fields['group'].queryset = NasAccessGroup.objects.filter(is_active=True).order_by(
-            'sort_order', 'name',
-        )
+        group_qs = NasAccessGroup.objects.filter(is_active=True).order_by('sort_order', 'name')
+        if folder and not (self.instance and self.instance.pk):
+            used_ids = NasFolderPermission.objects.filter(folder=folder).values_list('group_id', flat=True)
+            group_qs = group_qs.exclude(pk__in=used_ids)
+        self.fields['group'].queryset = group_qs
         for name in (
             'perm_traverse', 'perm_list_read', 'perm_read_attr', 'perm_read_ext_attr', 'perm_read_acl',
             'perm_create_files', 'perm_create_folders', 'perm_write_attr', 'perm_write_ext_attr',
@@ -246,6 +249,20 @@ class NasFolderPermissionForm(forms.ModelForm):
 
             for name, value in flags_from_preset(preset).items():
                 cleaned[name] = value
+
+        folder = self.folder
+        group = cleaned.get('group')
+        if folder and group:
+            from nas_storage.models import NasFolderPermission
+
+            qs = NasFolderPermission.objects.filter(folder=folder, group=group)
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                self.add_error(
+                    'group',
+                    f'Nhóm «{group.name}» đã có quyền trên thư mục này. Hãy sửa bản ghi hiện có.',
+                )
         return cleaned
 
 
