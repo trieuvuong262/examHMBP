@@ -18,6 +18,9 @@
 
     <form method="post">
         {% csrf_token %}
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger small">{{ form.non_field_errors }}</div>
+        {% endif %}
         <div class="row g-4">
             <div class="col-lg-8">
                 {# —— Thông tin nhóm —— #}
@@ -79,12 +82,41 @@
                             </div>
                             {% else %}
                             <p class="small text-muted mb-0">
-                                {% if group_instance %}
-                                Chưa có nhân viên nào thuộc phòng ban map sang nhóm <strong>{{ group_instance.name }}</strong>.
+                                {% if group_name %}
+                                    {% if dept_excluded_members %}
+                                    Tất cả NV phòng ban map sang <strong>{{ group_name }}</strong> đã bị loại trừ (xem bên dưới).
+                                    {% else %}
+                                    Chưa có nhân viên nào thuộc phòng ban map sang nhóm <strong>{{ group_name }}</strong>.
+                                    {% endif %}
                                 {% else %}
-                                Lưu tên nhóm (vd. <code>TGD</code>, <code>SX</code>) — nhân viên được tính theo phòng ban trên hồ sơ Portal.
+                                Nhập tên nhóm (vd. <code>TGD</code>) để hiện danh sách theo phòng ban.
                                 {% endif %}
                             </p>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-4">
+                            <h6 class="fw-bold small text-uppercase text-muted mb-2">
+                                <i class="bi bi-person-dash"></i> Loại trừ khỏi nhóm
+                            </h6>
+                            <p class="small text-muted mb-2">
+                                NV <strong>cùng phòng ban</strong> nhóm nhưng <strong>không</strong> được tính vào nhóm
+                                (không xem tất cả share). Chỉ chọn được user thuộc phòng ban map sang nhóm này.
+                            </p>
+                            {% if group_name %}
+                            {% user_picker field=form.portal_excluded_members placeholder='Chọn NV cần loại trừ...' show_org_meta=True show_bulk_actions=False picker_class='jp-user-picker--wide jp-nas-group-exclude-picker' %}
+                            {% else %}
+                            <p class="small text-muted mb-0">Lưu tên nhóm trước để chọn người loại trừ.</p>
+                            {% endif %}
+                            {% for e in form.portal_excluded_members.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+                            {% if dept_excluded_members %}
+                            <div class="mt-2 d-flex flex-wrap gap-2">
+                                {% for u in dept_excluded_members %}
+                                <span class="badge bg-secondary-subtle text-secondary border px-2 py-1 fw-normal text-decoration-line-through">
+                                    {{ u.profile.full_name|default:u.username }}
+                                </span>
+                                {% endfor %}
+                            </div>
                             {% endif %}
                         </div>
 
@@ -143,6 +175,10 @@
                             <li class="mb-1">
                                 <i class="bi bi-person-plus text-muted me-1"></i>
                                 {{ extra_member_ids|length }} bổ sung
+                            </li>
+                            <li class="mb-1">
+                                <i class="bi bi-person-dash text-muted me-1"></i>
+                                {{ excluded_user_ids|length }} loại trừ
                             </li>
                             <li>
                                 <i class="bi bi-hdd-network text-muted me-1"></i>

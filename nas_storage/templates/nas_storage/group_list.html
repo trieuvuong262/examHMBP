@@ -47,6 +47,9 @@
                         {% if g.portal_members.count %}
                         <div class="text-muted mt-1">+{{ g.portal_members.count }} thành viên bổ sung</div>
                         {% endif %}
+                        {% if g.portal_excluded_members.count %}
+                        <div class="text-muted mt-1">{{ g.portal_excluded_members.count }} loại trừ</div>
+                        {% endif %}
                     </td>
                     <td class="text-end pe-4">
                         <a href="{% url 'nas_storage:group_edit' g.pk %}" class="btn btn-sm btn-outline-primary">Sửa</a>

@@ -28,7 +28,11 @@ from nas_storage.nas_acl_apply import (
     discover_shares_from_nas,
     nas_acl_ssh_configured,
 )
-from nas_storage.portal_access import sync_browse_all_share_permissions, users_auto_in_nas_group
+from nas_storage.portal_access import (
+    sync_browse_all_share_permissions,
+    users_auto_in_nas_group,
+    users_excluded_from_nas_group,
+)
 from nas_storage.permission_defs import ADMIN_FIELDS, READ_FIELDS, WRITE_FIELDS
 from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
@@ -120,7 +124,7 @@ def permissions_hub(request):
 
 @_perm_menu_required
 def group_list(request):
-    groups = NasAccessGroup.objects.prefetch_related('portal_members').all()
+    groups = NasAccessGroup.objects.prefetch_related('portal_members', 'portal_excluded_members').all()
     return render(
         request,
         'nas_storage/group_list.html',
@@ -314,8 +318,18 @@ def group_edit(request, pk=None):
     group_name = instance.name if instance else ''
     if request.method == 'POST' and not group_name:
         group_name = (request.POST.get('name') or '').strip()
-    dept_auto_members = users_auto_in_nas_group(group_name)
-    extra_member_ids = set()
+    excluded_user_ids: set[int] = set()
+    if request.method == 'POST':
+        excluded_user_ids = {
+            int(x) for x in request.POST.getlist('portal_excluded_members') if str(x).isdigit()
+        }
+    elif instance:
+        excluded_user_ids = set(instance.portal_excluded_members.values_list('pk', flat=True))
+    dept_auto_members = users_auto_in_nas_group(group_name, excluded_user_ids=excluded_user_ids)
+    dept_excluded_members = users_excluded_from_nas_group(
+        group_name, excluded_user_ids=excluded_user_ids,
+    )
+    extra_member_ids: set[int] = set()
     if request.method == 'POST':
         extra_member_ids = {int(x) for x in request.POST.getlist('portal_members') if str(x).isdigit()}
     elif instance:
@@ -328,7 +342,10 @@ def group_edit(request, pk=None):
             'form': form,
             'editing': bool(instance),
             'group_instance': instance,
+            'group_name': group_name,
             'dept_auto_members': dept_auto_members,
+            'dept_excluded_members': dept_excluded_members,
+            'excluded_user_ids': excluded_user_ids,
             'extra_member_ids': extra_member_ids,
         },
     )

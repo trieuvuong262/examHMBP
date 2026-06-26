@@ -22,26 +22,26 @@ def _department_nas_group_name(user: User) -> str | None:
 
 
 def user_nas_access_groups(user: User):
-    """Nhóm NAS áp dụng cho user: map phòng ban + thành viên bổ sung."""
+    """Nhóm NAS áp dụng cho user: map phòng ban + thành viên bổ sung, trừ loại trừ."""
     from nas_storage.models import NasAccessGroup
 
     if not getattr(user, 'is_authenticated', False):
         return NasAccessGroup.objects.none()
 
     dept_group = _department_nas_group_name(user)
+    qs = NasAccessGroup.objects.filter(is_active=True).exclude(portal_excluded_members=user)
     filters = Q(portal_members=user)
     if dept_group:
         filters |= Q(name=dept_group)
-    return NasAccessGroup.objects.filter(filters, is_active=True).distinct()
+    return qs.filter(filters).distinct()
 
 
-def users_auto_in_nas_group(group_name: str) -> list[User]:
-    """User thuộc nhóm NAS qua map phòng ban Portal (không tính thành viên bổ sung)."""
+def _users_for_department_nas_group(group_name: str) -> list[User]:
     group_name = (group_name or '').strip()
     if not group_name:
         return []
 
-    rows: list[User] = []
+    users: list[User] = []
     qs = (
         Profile.objects.filter(is_employed=True, user__is_active=True)
         .select_related('user', 'department')
@@ -50,8 +50,30 @@ def users_auto_in_nas_group(group_name: str) -> list[User]:
     for profile in qs:
         dept_name = profile.department.name if profile.department_id else None
         if nas_group_for_portal_department(dept_name) == group_name:
-            rows.append(profile.user)
-    return rows
+            users.append(profile.user)
+    return users
+
+
+def users_auto_in_nas_group(
+    group_name: str,
+    *,
+    excluded_user_ids: set[int] | None = None,
+) -> list[User]:
+    """User thuộc nhóm NAS qua map phòng ban, không nằm trong danh sách loại trừ."""
+    excluded_user_ids = excluded_user_ids or set()
+    return [u for u in _users_for_department_nas_group(group_name) if u.pk not in excluded_user_ids]
+
+
+def users_excluded_from_nas_group(group_name: str, *, excluded_user_ids: set[int] | None = None) -> list[User]:
+    """User thuộc phòng ban map sang nhóm nhưng bị loại trừ."""
+    excluded_user_ids = excluded_user_ids or set()
+    if not excluded_user_ids:
+        return []
+    return [u for u in _users_for_department_nas_group(group_name) if u.pk in excluded_user_ids]
+
+
+def department_user_ids_for_nas_group(group_name: str) -> set[int]:
+    return {u.pk for u in _users_for_department_nas_group(group_name)}
 
 
 def user_has_portal_browse_all(user: User) -> bool:

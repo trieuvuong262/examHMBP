@@ -95,6 +95,7 @@ class NasAccessGroupForm(forms.ModelForm):
             'is_active',
             'portal_browse_all',
             'portal_members',
+            'portal_excluded_members',
         ]
         widgets = {
             'name': forms.TextInput(attrs={**INPUT, 'placeholder': 'SX'}),
@@ -104,6 +105,7 @@ class NasAccessGroupForm(forms.ModelForm):
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'portal_browse_all': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'portal_members': forms.SelectMultiple(attrs={'class': 'd-none jp-user-picker-native'}),
+            'portal_excluded_members': forms.SelectMultiple(attrs={'class': 'd-none jp-user-picker-native'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -111,18 +113,47 @@ class NasAccessGroupForm(forms.ModelForm):
         from django.contrib.auth.models import User
 
         from hrm.user_search import exclude_hidden_hrm_users
+        from nas_storage.portal_access import department_user_ids_for_nas_group
 
-        self.fields['portal_members'].queryset = (
+        base_qs = (
             exclude_hidden_hrm_users(User.objects.filter(is_active=True))
             .select_related('profile', 'profile__department', 'profile__division')
             .order_by('profile__full_name', 'username')
         )
+        self.fields['portal_members'].queryset = base_qs
         self.fields['portal_members'].label = 'Thành viên bổ sung'
         self.fields['portal_members'].required = False
+
+        group_name = ''
+        if self.instance and self.instance.pk:
+            group_name = self.instance.name
+        elif self.data:
+            group_name = (self.data.get('name') or '').strip()
+
+        dept_ids = department_user_ids_for_nas_group(group_name)
+        if dept_ids:
+            self.fields['portal_excluded_members'].queryset = base_qs.filter(pk__in=dept_ids)
+        else:
+            self.fields['portal_excluded_members'].queryset = base_qs.none()
+        self.fields['portal_excluded_members'].label = 'Loại trừ khỏi nhóm'
+        self.fields['portal_excluded_members'].required = False
+
         self.fields['portal_browse_all'].help_text = (
             'Bật cho Ban Giám đốc (TGD): mọi thành viên nhóm xem tất cả share trên Portal. '
             'Tự gán quyền đọc trên mọi share khi lưu.'
         )
+
+    def clean(self):
+        cleaned = super().clean()
+        members = set(cleaned.get('portal_members') or [])
+        excluded = set(cleaned.get('portal_excluded_members') or [])
+        overlap = members & excluded
+        if overlap:
+            names = ', '.join(sorted(u.username for u in overlap))
+            raise ValidationError(
+                f'Không thể vừa bổ sung vừa loại trừ cùng user: {names}.',
+            )
+        return cleaned
 
 
 class NasShareFolderForm(forms.ModelForm):

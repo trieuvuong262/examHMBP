@@ -111,6 +111,13 @@ class NasAccessGroup(models.Model):
         verbose_name='Thành viên bổ sung (Portal)',
         help_text='User được tính vào nhóm dù phòng ban khác (vd. ductn vào Ban Giám đốc).',
     )
+    portal_excluded_members = models.ManyToManyField(
+        User,
+        blank=True,
+        related_name='nas_portal_excluded_groups',
+        verbose_name='Loại trừ khỏi nhóm (Portal)',
+        help_text='User thuộc phòng ban nhóm nhưng không được tính vào nhóm.',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
