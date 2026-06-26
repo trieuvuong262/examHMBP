@@ -16,7 +16,7 @@
     <div class="card border-0 shadow-sm overflow-hidden jp-nas-browse-card">
         <div class="jp-folder-tree-head row g-0 bg-light text-uppercase small text-muted border-bottom">
             <div class="col py-3 ps-4">Thư mục</div>
-            <div class="col-md-2 py-3 d-none d-md-block">Tên hiển thị</div>
+            <div class="col-md-2 py-3 d-none d-md-block jp-folder-tree-display">Tên hiển thị</div>
             <div class="col-md-3 py-3 d-none d-lg-block">Đường dẫn NAS</div>
             <div class="col-md-auto py-3 pe-4 text-end ms-auto">Thao tác</div>
         </div>
@@ -34,55 +34,130 @@
 </div>
 
 <style>
-.jp-folder-tree-row { transition: background-color .12s ease; }
-.jp-folder-tree-row:hover { background-color: rgba(0, 0, 0, .03) !important; }
-.jp-folder-tree-row--root {
-    background: var(--hm-primary-soft, rgba(220, 38, 38, .08));
-    border-left: 3px solid var(--hm-primary, #dc2626);
-}
-.jp-folder-tree-row--child {
+.jp-folder-tree-row {
+    transition: background-color .12s ease;
     background: #fff;
-    border-left: 3px solid transparent;
 }
-.jp-folder-icon--root { color: var(--hm-primary, #dc2626); }
+.jp-folder-tree-hit--expandable {
+    cursor: pointer;
+    flex: 1 1 0%;
+    min-width: 0;
+}
+.jp-folder-tree-inner {
+    width: 100%;
+    min-height: 2.5rem;
+}
+.jp-folder-tree-name {
+    position: relative;
+    z-index: 2;
+}
+.jp-folder-tree-hit--expandable:focus-visible {
+    outline: 2px solid #6c757d;
+    outline-offset: -2px;
+}
+.jp-folder-tree-row:hover .jp-folder-tree-hit {
+    background-color: rgba(0, 0, 0, .03);
+}
+.jp-folder-tree-name .jp-folder-code {
+    font-size: 1.125rem;
+    line-height: 1.4;
+}
+.jp-folder-tree-name .jp-folder-icon {
+    font-size: 1.125rem;
+    vertical-align: -0.1em;
+}
+@media (min-width: 768px) {
+    .jp-folder-tree-inner > .jp-folder-tree-name {
+        flex: 0 0 35%;
+        max-width: 35%;
+    }
+    .jp-folder-tree-inner > .jp-folder-tree-display {
+        flex: 0 0 16.666667%;
+        max-width: 16.666667%;
+        margin-left: -3.5%;
+    }
+    .jp-folder-tree-inner > .jp-folder-tree-path {
+        flex: 0 0 25%;
+        max-width: 25%;
+    }
+    .jp-folder-tree-head .jp-folder-tree-display {
+        margin-left: -3.5%;
+    }
+}
+.jp-folder-icon--root,
 .jp-folder-icon--child { color: #6c757d; }
-.jp-folder-code--root { color: var(--hm-primary-dark, #b91c1c); font-weight: 600; }
+.jp-folder-code--root { color: #212529; font-weight: 600; }
 .jp-folder-code--child { color: #495057; }
-.jp-folder-tree-row--expandable { cursor: pointer; }
-.jp-folder-tree-row--expandable:focus-visible { outline: 2px solid var(--hm-primary, #dc2626); outline-offset: -2px; }
 .jp-folder-chevron { transition: transform .15s ease; display: inline-block; width: 1.35rem; text-align: center; }
-.jp-folder-tree-row--expandable.collapsed .jp-folder-chevron { transform: rotate(-90deg); }
+.jp-folder-tree-hit--expandable.collapsed .jp-folder-chevron { transform: rotate(-90deg); }
 .jp-folder-actions .btn {
     min-width: 2rem;
     padding-left: .45rem;
     padding-right: .45rem;
 }
+.jp-folder-actions .btn-outline-secondary:hover,
+.jp-folder-actions .btn-outline-secondary:focus {
+    background-color: var(--hm-primary, #dc2626) !important;
+    border-color: var(--hm-primary, #dc2626) !important;
+    color: #fff !important;
+}
 .jp-folder-actions form { display: contents; }
 .jp-folder-actions .btn:focus-visible { z-index: 2; }
 </style>
 <script>
-document.querySelectorAll('.jp-folder-tree-row--expandable').forEach(function (row) {
-    var target = document.querySelector(row.getAttribute('data-folder-target'));
-    if (!target || typeof bootstrap === 'undefined') return;
-    var collapse = bootstrap.Collapse.getOrCreateInstance(target, { toggle: false });
-    row.addEventListener('click', function (e) {
-        if (e.target.closest('.jp-folder-actions')) return;
-        collapse.toggle();
+(function () {
+    var body = document.querySelector('.jp-folder-tree-body');
+    if (!body || typeof bootstrap === 'undefined') return;
+
+    var collapseByTarget = new Map();
+
+    function getCollapse(hit) {
+        var sel = hit.getAttribute('data-folder-target');
+        if (!sel) return null;
+        if (!collapseByTarget.has(sel)) {
+            var target = document.querySelector(sel);
+            if (!target) return null;
+            collapseByTarget.set(sel, {
+                target: target,
+                collapse: bootstrap.Collapse.getOrCreateInstance(target, { toggle: false }),
+            });
+        }
+        return collapseByTarget.get(sel);
+    }
+
+    body.querySelectorAll('.jp-folder-tree-hit--expandable').forEach(function (hit) {
+        var item = getCollapse(hit);
+        if (!item) return;
+        item.target.addEventListener('show.bs.collapse', function () {
+            hit.classList.remove('collapsed');
+            hit.setAttribute('aria-expanded', 'true');
+        });
+        item.target.addEventListener('hide.bs.collapse', function () {
+            hit.classList.add('collapsed');
+            hit.setAttribute('aria-expanded', 'false');
+        });
     });
-    row.addEventListener('keydown', function (e) {
+
+    body.addEventListener('click', function (e) {
+        var hit = e.target.closest('.jp-folder-tree-hit--expandable');
+        if (!hit || !body.contains(hit)) return;
+        if (e.target.closest('.jp-folder-actions')) return;
+        var item = getCollapse(hit);
+        if (!item) return;
+        e.stopPropagation();
+        item.collapse.toggle();
+    });
+
+    body.addEventListener('keydown', function (e) {
         if (e.key !== 'Enter' && e.key !== ' ') return;
+        var hit = e.target.closest('.jp-folder-tree-hit--expandable');
+        if (!hit || !body.contains(hit)) return;
         if (e.target.closest('.jp-folder-actions')) return;
+        var item = getCollapse(hit);
+        if (!item) return;
         e.preventDefault();
-        collapse.toggle();
+        item.collapse.toggle();
     });
-    target.addEventListener('show.bs.collapse', function () {
-        row.classList.remove('collapsed');
-        row.setAttribute('aria-expanded', 'true');
-    });
-    target.addEventListener('hide.bs.collapse', function () {
-        row.classList.add('collapsed');
-        row.setAttribute('aria-expanded', 'false');
-    });
-});
+})();
 </script>
 {% endblock %}

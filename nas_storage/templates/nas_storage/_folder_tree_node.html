@@ -1,29 +1,33 @@
 {% with f=node.folder %}
 <div class="jp-folder-tree-node border-bottom">
-    <div class="row g-0 align-items-center py-2 jp-folder-tree-row{% if f.is_root %} jp-folder-tree-row--root{% else %} jp-folder-tree-row--child{% endif %}{% if node.has_children %} jp-folder-tree-row--expandable collapsed{% endif %}"
-         {% if node.has_children %}data-folder-target="#jp-folder-kids-{{ f.pk }}" tabindex="0" aria-expanded="false"{% endif %}>
-        <div class="col min-w-0 jp-folder-tree-name" style="padding-left: calc(1rem + {{ node.depth }} * 1.25rem);">
-            {% if node.has_children %}
-            <i class="bi bi-chevron-down jp-folder-chevron me-1 text-secondary" aria-hidden="true"></i>
-            {% else %}
-            <span class="d-inline-block me-1" style="width:1.35rem"></span>
-            {% endif %}
-            {% if f.is_root %}
-            <i class="bi bi-hdd-stack jp-folder-icon jp-folder-icon--root me-1"></i>
-            <code class="jp-folder-code jp-folder-code--root">{{ f.share_name }}</code>
-            {% else %}
-            <i class="bi bi-folder jp-folder-icon jp-folder-icon--child me-1"></i>
-            <code class="jp-folder-code jp-folder-code--child">{{ f.sub_path }}</code>
-            {% endif %}
-            <div class="small text-muted d-md-none mt-1">{{ f.portal_path_label }}</div>
+    <div class="row g-0 align-items-center py-2 jp-folder-tree-row{% if f.is_root %} jp-folder-tree-row--root{% else %} jp-folder-tree-row--child{% endif %}">
+        <div class="col min-w-0 jp-folder-tree-hit{% if node.has_children %} jp-folder-tree-hit--expandable collapsed{% endif %}"
+             {% if node.has_children %}data-folder-target="#jp-folder-kids-{{ f.pk }}" tabindex="0" aria-expanded="false"{% endif %}>
+            <div class="row g-0 align-items-center jp-folder-tree-inner w-100">
+                <div class="col min-w-0 jp-folder-tree-name" style="padding-left: calc(1rem + {{ node.depth }} * 1.25rem);">
+                    {% if node.has_children %}
+                    <i class="bi bi-chevron-down jp-folder-chevron me-1 text-secondary" aria-hidden="true"></i>
+                    {% else %}
+                    <span class="d-inline-block me-1" style="width:1.35rem"></span>
+                    {% endif %}
+                    {% if f.is_root %}
+                    <i class="bi bi-hdd-stack jp-folder-icon jp-folder-icon--root me-1"></i>
+                    <code class="jp-folder-code jp-folder-code--root">{{ f.share_name }}</code>
+                    {% else %}
+                    <i class="bi bi-folder jp-folder-icon jp-folder-icon--child me-1"></i>
+                    <code class="jp-folder-code jp-folder-code--child">{{ f.sub_path }}</code>
+                    {% endif %}
+                    <div class="small text-muted d-md-none mt-1">{{ f.portal_path_label }}</div>
+                </div>
+                <div class="col-md-2 d-none d-md-block text-truncate pe-2 jp-folder-tree-display{% if f.is_root %} fw-semibold{% else %} small{% endif %}">
+                    {{ f.display_name }}
+                </div>
+                <div class="col-md-3 d-none d-lg-block small text-muted text-truncate pe-2 jp-folder-tree-path">
+                    {{ f.resolved_volume_path }}
+                </div>
+            </div>
         </div>
-        <div class="col-md-2 d-none d-md-block text-truncate pe-2{% if f.is_root %} fw-semibold{% else %} small{% endif %}">
-            {{ f.display_name }}
-        </div>
-        <div class="col-md-3 d-none d-lg-block small text-muted text-truncate pe-2">
-            {{ f.resolved_volume_path }}
-        </div>
-        <div class="col-md-auto pe-3 ps-2 ms-auto jp-folder-actions">
+        <div class="col-md-auto pe-3 ps-2 jp-folder-actions">
             <div class="btn-group btn-group-sm" role="group" aria-label="Thao tác thư mục">
                 <a href="{% url 'nas_storage:folder_child_create' f.pk %}"
                    class="btn btn-outline-secondary"
