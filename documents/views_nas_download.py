@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import json
 import zipfile
 from pathlib import Path
 
@@ -15,6 +16,12 @@ from django.views.decorators.http import require_GET
 from assessment.decorators import module_perm_required
 from hrm.menu_permissions import user_can_access_menu
 from hrm.module_permissions import MODULE_DOCUMENTS
+from nas_storage.download_shares import nas_mount_shares_for_user
+from nas_storage.nas_paths import user_department_folder_code
+
+
+def nas_shares_for_user(user) -> list[str]:
+    return nas_mount_shares_for_user(user)
 
 
 def nas_download_config() -> dict:
@@ -40,7 +47,37 @@ def nas_download_page(request):
     if not user_can_access_menu(request.user, MODULE_DOCUMENTS, 'nas_download'):
         return _download_forbidden(request)
     cfg = nas_download_config()
-    return render(request, 'documents/nas_download_config.html', {'config': cfg})
+    return render(request, 'documents/nas_download_config.html', {
+        'config': cfg,
+        'user_shares': nas_shares_for_user(request.user),
+    })
+
+
+def _prepare_ps1(body: str) -> bytes:
+    """UTF-8 BOM + CRLF — PowerShell 5.1 tren Windows."""
+    if not body.startswith('\ufeff'):
+        body = '\ufeff' + body
+    body = body.replace('\r\n', '\n').replace('\n', '\r\n')
+    return body.encode('utf-8')
+
+
+def _prepare_bat(body: str) -> bytes:
+    return body.replace('\r\n', '\n').replace('\n', '\r\n').encode('utf-8')
+
+
+def nas_user_bundle_config(request, user, cfg: dict) -> dict:
+    portal_base = request.build_absolute_uri('/').rstrip('/')
+    return {
+        'bundle_version': 1,
+        'server': cfg['server'],
+        'port': cfg['port'],
+        'ldap_domain': cfg['ldap_domain'],
+        'portal_password_url': f'{portal_base}/accounts/password/change/',
+        'portal_username': user.username,
+        'shares': nas_shares_for_user(user),
+        'dept_folder_code': user_department_folder_code(user) or '',
+        'drive_letter': 'Z',
+    }
 
 
 @login_required
@@ -59,22 +96,34 @@ def nas_download_setup(request):
             content_type='text/plain; charset=utf-8',
         )
 
+    cfg = nas_download_config()
+    bundle = nas_user_bundle_config(request, request.user, cfg)
+    ps1_body = ps1_path.read_text(encoding='utf-8')
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as archive:
-        archive.writestr('JustPlay-NAS-RaiDrive-Setup.bat', bat_path.read_bytes())
         archive.writestr(
-            'JustPlay-NAS-RaiDrive-Setup.ps1',
-            ps1_path.read_text(encoding='utf-8').replace('\r\n', '\n').encode('utf-8'),
+            'JustPlay-NAS-RaiDrive-Setup.bat',
+            _prepare_bat(bat_path.read_text(encoding='utf-8')),
         )
         archive.writestr(
+            'JustPlay-NAS-RaiDrive-Setup.ps1',
+            _prepare_ps1(ps1_body),
+        )
+        archive.writestr(
+            'JustPlay-NAS-Config.json',
+            json.dumps(bundle, ensure_ascii=False, indent=2).encode('utf-8'),
+        )
+        share_line = bundle['shares'][0] if bundle['shares'] else '(chua xac dinh phong ban)'
+        archive.writestr(
             'HUONG-DAN.txt',
-            (
-                'JustPlay NAS — RaiDrive\r\n'
-                '1. Giai nen zip\r\n'
+            _prepare_bat(
+                'JustPlay NAS - ket noi SMB tu dong\r\n'
+                '1. Giai nen zip (giu ca JustPlay-NAS-Config.json)\r\n'
                 '2. Chay JustPlay-NAS-RaiDrive-Setup.bat\r\n'
-                '3. Nhap tai khoan / mat khau Portal khi duoc hoi\r\n'
-                f'4. Server: {nas_download_config()["server"]}  Port: {nas_download_config()["port"]}\r\n'
-            ).encode('utf-8'),
+                '3. Nhap ten dang nhap va mat khau Portal\r\n'
+                f'4. He thong tu gan o Z: (share {share_line}) - khong can RaiDrive\r\n'
+                f'5. Server: {cfg["server"]}  Port: {cfg["port"]}\r\n'
+            ),
         )
 
     response = HttpResponse(buf.getvalue(), content_type='application/zip')

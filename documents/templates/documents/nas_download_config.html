@@ -3,24 +3,27 @@
 {% block content %}
 <div class="container jp-page py-3 py-md-4 mb-5">
     <div class="jp-page-header mb-4">
-        <h2 class="fw-bold text-hm mb-0">Tải NAS (RaiDrive)</h2>
+        <h2 class="fw-bold text-hm mb-0">Tải NAS (Windows)</h2>
         <p class="text-muted small mb-0 mt-2">
-            Cài RaiDrive và kết nối Synology SMB — dùng <strong>cùng tài khoản / mật khẩu Portal</strong>
+            Tự động gắn ổ NAS qua SMB — dùng <strong>cùng tài khoản / mật khẩu Portal</strong>
             (<code>{{ request.user.username }}@{{ config.ldap_domain }}</code>).
         </p>
     </div>
 
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-body">
-            <h3 class="h6 fw-bold text-muted text-uppercase mb-3">Thông tin máy chủ (đã điền sẵn trong script)</h3>
-            <dl class="row mb-0 small">
-                <dt class="col-sm-3">Máy chủ</dt>
-                <dd class="col-sm-9"><code>{{ config.server }}</code></dd>
-                <dt class="col-sm-3">Cổng</dt>
-                <dd class="col-sm-9"><code>{{ config.port }}</code></dd>
-                <dt class="col-sm-3">Domain LDAP</dt>
-                <dd class="col-sm-9"><code>{{ config.ldap_domain }}</code></dd>
-            </dl>
+            <h3 class="h6 fw-bold text-muted text-uppercase mb-3">Cửa sổ cài đặt</h3>
+            <p class="mb-0 small text-muted">
+                Script chỉ hỏi <strong>tên đăng nhập</strong> và <strong>mật khẩu Portal</strong>,
+                sau đó <strong>tự gắn ổ Z:</strong> và mở File Explorer — không cần cài hay cấu hình RaiDrive.
+                Share phòng ban được điền sẵn từ Portal
+                {% if user_shares %}
+                (<code>{{ user_shares.0 }}</code>{% if user_shares|length > 1 %}, …{% endif %}).
+                {% else %}
+                (liên hệ IT nếu chưa gán phòng ban).
+                {% endif %}
+                Nếu vẫn dùng mật khẩu mặc định <code>justplay@123</code>, cần đổi mật khẩu trên Portal trước.
+            </p>
         </div>
     </div>
 
@@ -28,7 +31,6 @@
         <div class="card-body">
             <p class="mb-3">
                 Tải file ZIP, giải nén và chạy <code>JustPlay-NAS-RaiDrive-Setup.bat</code>.
-                Cửa sổ sẽ hướng dẫn nhập <strong>tên đăng nhập</strong> và <strong>mật khẩu Portal</strong>.
             </p>
             <a href="{% url 'documents:nas_download_setup' %}"
                class="btn btn-hm">
