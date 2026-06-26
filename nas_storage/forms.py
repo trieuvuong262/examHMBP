@@ -138,11 +138,6 @@ class NasAccessGroupForm(forms.ModelForm):
         self.fields['portal_excluded_members'].label = 'Loại trừ khỏi nhóm'
         self.fields['portal_excluded_members'].required = False
 
-        self.fields['portal_browse_all'].help_text = (
-            'Bật cho Ban Giám đốc (TGD): mọi thành viên nhóm xem tất cả share trên Portal. '
-            'Tự gán quyền đọc trên mọi share khi lưu.'
-        )
-
     def clean(self):
         cleaned = super().clean()
         members = set(cleaned.get('portal_members') or [])

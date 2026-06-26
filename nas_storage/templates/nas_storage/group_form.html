@@ -3,7 +3,7 @@
 
 {% block content %}
 <div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
-    {% include "nas_storage/_perm_page_header.html" with perm_page_title=editing|yesno:"Sửa nhóm quyền,Thêm nhóm quyền" perm_page_subtitle="Cấu hình nhóm NAS, quyền duyệt Portal và thành viên." %}
+    {% include "nas_storage/_perm_page_header.html" with perm_page_title=editing|yesno:"Sửa nhóm quyền,Thêm nhóm quyền" %}
 
     {% include "nas_storage/_nas_nav.html" %}
     {% include "nas_storage/_perm_subnav.html" %}
@@ -38,7 +38,6 @@
                             <div class="col-md-8">
                                 <label class="form-label fw-semibold small" for="{{ form.nas_principal.id_for_label }}">{{ form.nas_principal.label }}</label>
                                 {{ form.nas_principal }}
-                                <div class="form-text">VD: <code>@TGD@ldap.justplay.local</code> — để trống sẽ tự sinh từ tên nhóm.</div>
                                 {% for e in form.nas_principal.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
                             </div>
                             <div class="col-12">
@@ -59,11 +58,6 @@
                         <span class="fw-semibold"><i class="bi bi-people text-hm me-1"></i> Thành viên trên Portal</span>
                     </div>
                     <div class="card-body p-3 p-md-4">
-                        <p class="small text-muted mb-3">
-                            Ai thuộc nhóm này sẽ được tính khi cấp quyền <strong>Duyệt tất cả share</strong> (nếu bật bên phải).
-                            User đã có <a href="{% url 'audit:nas_links' %}">link NAS riêng</a> thì vẫn ưu tiên link riêng.
-                        </p>
-
                         <div class="mb-4">
                             <h6 class="fw-bold small text-uppercase text-muted mb-2">
                                 <i class="bi bi-building"></i> Tự động theo phòng ban
@@ -81,17 +75,7 @@
                                 {% endfor %}
                             </div>
                             {% else %}
-                            <p class="small text-muted mb-0">
-                                {% if group_name %}
-                                    {% if dept_excluded_members %}
-                                    Tất cả NV phòng ban map sang <strong>{{ group_name }}</strong> đã bị loại trừ (xem bên dưới).
-                                    {% else %}
-                                    Chưa có nhân viên nào thuộc phòng ban map sang nhóm <strong>{{ group_name }}</strong>.
-                                    {% endif %}
-                                {% else %}
-                                Nhập tên nhóm (vd. <code>TGD</code>) để hiện danh sách theo phòng ban.
-                                {% endif %}
-                            </p>
+                            <p class="small text-muted mb-0">—</p>
                             {% endif %}
                         </div>
 
@@ -99,14 +83,8 @@
                             <h6 class="fw-bold small text-uppercase text-muted mb-2">
                                 <i class="bi bi-person-dash"></i> Loại trừ khỏi nhóm
                             </h6>
-                            <p class="small text-muted mb-2">
-                                NV <strong>cùng phòng ban</strong> nhóm nhưng <strong>không</strong> được tính vào nhóm
-                                (không xem tất cả share). Chỉ chọn được user thuộc phòng ban map sang nhóm này.
-                            </p>
                             {% if group_name %}
                             {% user_picker field=form.portal_excluded_members placeholder='Chọn NV cần loại trừ...' show_org_meta=True show_bulk_actions=False picker_class='jp-user-picker--wide jp-nas-group-exclude-picker' %}
-                            {% else %}
-                            <p class="small text-muted mb-0">Lưu tên nhóm trước để chọn người loại trừ.</p>
                             {% endif %}
                             {% for e in form.portal_excluded_members.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
                             {% if dept_excluded_members %}
@@ -124,9 +102,6 @@
                             <h6 class="fw-bold small text-uppercase text-muted mb-2">
                                 <i class="bi bi-person-plus"></i> Thành viên bổ sung
                             </h6>
-                            <p class="small text-muted mb-2">
-                                Thêm user không thuộc phòng ban nhóm — vd. <code>Ductn</code> vào nhóm <code>TGD</code>.
-                            </p>
                             {% user_picker field=form.portal_members placeholder='Tìm account, họ tên, mã NS...' show_org_meta=True picker_class='jp-user-picker--wide jp-nas-group-member-picker' %}
                             {% for e in form.portal_members.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
                         </div>
@@ -149,16 +124,12 @@
                         </div>
 
                         <div class="p-3 rounded bg-light border mb-0">
-                            <div class="form-check form-switch mb-2">
+                            <div class="form-check form-switch">
                                 {{ form.portal_browse_all }}
                                 <label class="form-check-label fw-bold" for="{{ form.portal_browse_all.id_for_label }}">
                                     Duyệt tất cả share
                                 </label>
                             </div>
-                            <p class="small text-muted mb-0">
-                                Bật cho <strong>Ban Giám đốc (TGD)</strong>: mọi thành viên nhóm xem hết share trên menu
-                                <em>Thư mục NAS</em>. Khi lưu sẽ tự gán quyền <strong>đọc</strong> trên mọi share (tầng NAS).
-                            </p>
                         </div>
                     </div>
                 </div>
