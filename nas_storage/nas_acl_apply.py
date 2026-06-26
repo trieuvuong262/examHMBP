@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+import shlex
 from urllib.parse import urlparse
 
 from django.conf import settings
@@ -61,7 +62,7 @@ def _run_ssh_commands(commands: list[str], *, timeout: int = 180) -> str:
         client.connect(host, username=user, password=password, timeout=20)
         outputs: list[str] = []
         for cmd in commands:
-            full = f"echo '{password}' | sudo -S {cmd} 2>&1"
+            full = f"echo {shlex.quote(password)} | sudo -S sh -c {shlex.quote(cmd)} 2>&1"
             _, stdout, stderr = client.exec_command(full, timeout=timeout)
             out = (stdout.read() + stderr.read()).decode(errors='replace')
             outputs.append(out)
@@ -228,7 +229,7 @@ def lock_hidden_share_acl(share_name: str) -> dict:
     share = (share_name or '').strip()
     if not share:
         raise NasAclApplyError('Thiếu tên share.')
-    na_principals = ','.join(f'@{g}' for g in sorted(DEPARTMENT_NAS_GROUPS))
+    na_principals = ','.join(f'@{g}' for g in sorted(DEPARTMENT_NAS_GROUPS) if g != 'IT')
     extra_na = '@users,guest,#everyone'
     commands = [
         f'/usr/syno/sbin/synoshare --list_acl {share}',
