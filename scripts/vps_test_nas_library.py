@@ -84,19 +84,19 @@ def main():
             else:
                 print("OK: ps1 UTF-8 BOM")
             ps1_text = ps1.decode("utf-8-sig", errors="replace")
-            if "Import-JustPlayNasConfig" not in ps1_text:
-                failed.append("ps1 missing config loader")
+            if "__NAS_SHARES__" in ps1_text:
+                failed.append("ps1 still has __NAS_SHARES__ placeholder")
+            elif "Connect-JustPlayNasShare" not in ps1_text:
+                failed.append("ps1 missing SMB mount function")
             else:
-                print("OK: ps1 config loader")
-            cfg_raw = zf.read("JustPlay-NAS-Config.json")
-            import json as _json
-            bundle = _json.loads(cfg_raw.decode("utf-8"))
-            if not bundle.get("shares"):
-                failed.append("config.json missing shares")
-            elif bundle.get("portal_username") in (None, ""):
-                failed.append("config.json missing portal_username")
-            else:
+                print("OK: ps1 personalized inline")
+            if "JustPlay-NAS-Config.json" in names:
+                cfg_raw = zf.read("JustPlay-NAS-Config.json")
+                import json as _json
+                bundle = _json.loads(cfg_raw.decode("utf-8"))
                 print("OK: config.json", bundle.get("portal_username"), bundle.get("shares"))
+            else:
+                print("WARN: zip without config.json (ps1 inline only)")
 
     folder_resp = client.get(reverse("nas_storage:folder_list"), HTTP_HOST=host)
     if folder_resp.status_code != 200:

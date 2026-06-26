@@ -61,24 +61,23 @@ $NasShareNames = @(
 )
 
 function Test-JustPlayNasBundleReady {
-    if (-not $ConfigLoadedFromJson) { return $false }
     if ($NasShareNames.Count -lt 1) { return $false }
     if ($Server -match '^__.+__$') { return $false }
+    if ($NasSharesCsv -match '^__.+__$') { return $false }
     return $true
 }
 
 function Show-JustPlayNasBundleError {
     Add-Type -AssemblyName System.Windows.Forms
     $msg = @"
-Bo cai chua duoc dong goi tu Portal (thieu JustPlay-NAS-Config.json hoac chua co share NAS).
+Bo cai chua duoc dong goi tu Portal (file .ps1 chua co share NAS).
 
 Vui long:
 1. Dang nhap Portal -> Thu vien -> Tai NAS
-2. Tai file ZIP moi
-3. Giai nen TOAN BO (khong chi copy file .ps1)
-4. Chay JustPlay-NAS-RaiDrive-Setup.bat trong thu muc vua giai nen
+2. Tai lai file ZIP (Ctrl+F5 hoac xoa ban cu)
+3. Giai nen va chay JustPlay-NAS-RaiDrive-Setup.bat
 
-Neu da lam dung ma van loi, lien he IT de gan phong ban / thu muc NAS.
+Neu da tai ZIP moi ma van loi, lien he IT de gan phong ban / thu muc NAS.
 "@
     [System.Windows.Forms.MessageBox]::Show($msg, 'JustPlay NAS', 'OK', 'Error') | Out-Null
 }

@@ -80,6 +80,22 @@ def nas_user_bundle_config(request, user, cfg: dict) -> dict:
     }
 
 
+def _personalize_ps1(body: str, bundle: dict) -> str:
+    replacements = {
+        '__NAS_SERVER__': str(bundle['server']),
+        '__NAS_PORT__': str(bundle['port']),
+        '__NAS_LDAP_DOMAIN__': str(bundle['ldap_domain']),
+        '__PORTAL_PASSWORD_URL__': str(bundle['portal_password_url']),
+        '__PORTAL_USERNAME__': str(bundle['portal_username']),
+        '__NAS_SHARES__': ','.join(bundle['shares']),
+        '__NAS_DEPT_CODE__': str(bundle['dept_folder_code']),
+        '__NAS_DRIVE_LETTER__': str(bundle['drive_letter']),
+    }
+    for key, value in replacements.items():
+        body = body.replace(key, value)
+    return body
+
+
 @login_required
 @require_GET
 def nas_download_setup(request):
@@ -98,7 +114,7 @@ def nas_download_setup(request):
 
     cfg = nas_download_config()
     bundle = nas_user_bundle_config(request, request.user, cfg)
-    ps1_body = ps1_path.read_text(encoding='utf-8')
+    ps1_body = _personalize_ps1(ps1_path.read_text(encoding='utf-8'), bundle)
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as archive:
         archive.writestr(
@@ -118,7 +134,7 @@ def nas_download_setup(request):
             'HUONG-DAN.txt',
             _prepare_bat(
                 'JustPlay NAS - ket noi SMB tu dong\r\n'
-                '1. Giai nen zip (giu ca JustPlay-NAS-Config.json)\r\n'
+                '1. Giai nen zip\r\n'
                 '2. Chay JustPlay-NAS-RaiDrive-Setup.bat\r\n'
                 '3. Nhap ten dang nhap va mat khau Portal\r\n'
                 f'4. He thong tu gan o Z: (share {share_line}) - khong can RaiDrive\r\n'
