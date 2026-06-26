@@ -28,10 +28,14 @@ REQUIRED_ZIP = frozenset({
 })
 PS1_MARKERS = (
     "Get-ShareNameList",
+    "Get-PrimaryNasShareName",
     "Import-JustPlayNasConfig",
     "Merge-ShareNameLists",
     "Connect-JustPlayNasShare",
     "Test-JustPlayNasBundleReady",
+    "NasScriptVersion = '2026.06.25.6'",
+    "New-NasShareNameList",
+    "ConnectHost",
 )
 
 
@@ -156,7 +160,8 @@ def main():
             print("OK: folder_list expand JS present")
 
     print(f"NAS_RDRIVE_SERVER={getattr(settings, 'NAS_RDRIVE_SERVER', '?')}")
-    print(f"NAS_RDRIVE_PORT={getattr(settings, 'NAS_RDRIVE_PORT', '?')}")
+    print(f"NAS_WEBDAV_PORT={getattr(settings, 'NAS_WEBDAV_PORT', '?')}")
+    print(f"NAS_SMB_PORT={getattr(settings, 'NAS_SMB_PORT', '?')}")
 
     if failed:
         print("--- FAILURES ---")

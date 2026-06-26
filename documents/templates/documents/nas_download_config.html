@@ -5,7 +5,8 @@
     <div class="jp-page-header mb-4">
         <h2 class="fw-bold text-hm mb-0">Tải NAS (Windows)</h2>
         <p class="text-muted small mb-0 mt-2">
-            Tự động gắn ổ NAS qua SMB — dùng <strong>cùng tài khoản / mật khẩu Portal</strong>
+            Tự động gắn ổ NAS qua <strong>WebDAV</strong> (cổng <strong>{{ config.webdav_port }}</strong>)
+            — dùng <strong>cùng tài khoản / mật khẩu Portal</strong>
             (<code>{{ request.user.username }}@{{ config.ldap_domain }}</code>).
         </p>
     </div>
@@ -23,8 +24,9 @@
                 (liên hệ IT nếu chưa gán phòng ban).
                 {% endif %}
                 Nếu vẫn dùng mật khẩu mặc định <code>justplay@123</code>, cần đổi mật khẩu trên Portal trước.
-                Script tự map SMB cổng <strong>445</strong> (giống File Explorer).
-                Cổng <strong>5678</strong> trên NAS là <strong>WebDAV</strong> — không dùng để gắn ổ mạng SMB.
+                Script map <strong>WebDAV</strong> cổng <strong>{{ config.webdav_port }}</strong>
+                (<code>https://{{ config.server }}:{{ config.webdav_port }}/&lt;share&gt;</code>).
+                SMB cổng {{ config.smb_port }} chỉ dự phòng trong mạng nội bộ.
             </p>
         </div>
     </div>

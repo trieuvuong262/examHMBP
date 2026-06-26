@@ -78,6 +78,13 @@ try {
     $merged2 = Merge-ShareNameLists @( @(), $inline )
     Assert-EqualList 'inline-only-merge' @('02_HANH_CHINH_NHAN_SU') $merged2
 
+  # PowerShell unwrap: 1 phan tu phai giu [0] la ten share, khong phai ky tu dau
+    $scalarBug = Merge-ShareNameLists @(,(Get-ShareNameList '02_HANH_CHINH_NHAN_SU'))
+    $forced = [string[]]@($scalarBug)
+    if ($forced.Count -ne 1) { throw "FAIL scalar-unwrap count=$($forced.Count)" }
+    if ($forced[0] -ne '02_HANH_CHINH_NHAN_SU') { throw "FAIL scalar-unwrap [0]=$($forced[0])" }
+    Write-Host 'OK: scalar-unwrap single share'
+
     Write-Host '--- ALL PS1 CONFIG TESTS PASSED ---'
     exit 0
 } catch {
