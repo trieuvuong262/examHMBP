@@ -8,8 +8,9 @@
                 Cập nhật link NAS
             </h2>
             <p class="text-muted small mb-0 mt-1">
-                Gán đường dẫn thư mục NAS riêng cho từng tài khoản.
-                <a href="{% url 'nas_storage:special_access_list' %}">Mở trong NAS → Phân quyền → Truy cập riêng</a>
+                Gán đường dẫn thư mục NAS để user xem trên Portal (menu <strong>Duyệt thư mục</strong>).
+                Quyền RaiDrive/SMB đặc biệt cấu hình tại
+                <a href="{% url 'nas_storage:special_access_list' %}">NAS → Phân quyền → Truy cập riêng</a>.
             </p>
         </div>
     </div>
@@ -57,7 +58,7 @@
                         <td>{{ u.profile.employee_code|default:"—" }}</td>
                         <td>{{ u.profile.department.name|default:"—" }}</td>
                         <td class="text-end">
-                            <a href="{% url 'nas_storage:special_access_edit' u.id %}" class="btn btn-sm btn-outline-primary fw-bold">
+                            <a href="{% url 'user_nas_folders' u.id %}" class="btn btn-sm btn-outline-primary fw-bold">
                                 <i class="bi bi-hdd-network me-1"></i>Cấu hình
                             </a>
                         </td>

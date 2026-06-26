@@ -1,0 +1,73 @@
+<div class="alert alert-light border small py-2 mb-3">
+    Cấp thêm <strong>thư mục con</strong> trong share NAS cho user đặc biệt qua ACL Synology
+    (<code>synoacltool</code>) — dùng khi kết nối <strong>RaiDrive / SMB</strong>.
+    Không liên quan menu <strong>Duyệt thư mục</strong> trên Portal.
+</div>
+{% if dept_group %}
+<div class="alert alert-info border-0 small py-2 mb-3">
+    Phòng ban → nhóm <strong>{{ dept_group }}</strong>
+    {% if dept_shares %}
+    · share mặc định: {% for s in dept_shares %}<code>{{ s }}</code>{% if not forloop.last %}, {% endif %}{% endfor %}
+    {% endif %}
+</div>
+{% endif %}
+{{ acl_formset.management_form }}
+{% if acl_formset.non_form_errors %}
+<div class="alert alert-danger small">{{ acl_formset.non_form_errors }}</div>
+{% endif %}
+<div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+        <thead class="table-light">
+            <tr>
+                <th>Share NAS</th>
+                <th>Thư mục con</th>
+                <th>Quyền</th>
+                <th>Ghi chú</th>
+                <th class="text-center" style="width:4rem">Bật</th>
+                <th class="text-center" style="width:4rem">Xóa</th>
+                {% if ssh_configured %}
+                <th class="text-end" style="width:7rem">NAS</th>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in acl_formset %}
+            <tr>
+                <td>
+                    {{ row.folder }}
+                    {% for e in row.folder.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                    {{ row.id }}
+                </td>
+                <td>
+                    {{ row.sub_path }}
+                    {% for e in row.sub_path.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                    {% if row.instance.pk and row.instance.sub_path %}
+                    <div class="text-muted small font-monospace">{{ row.instance.volume_target_path }}</div>
+                    {% endif %}
+                </td>
+                <td>{{ row.access_level }}</td>
+                <td>{{ row.label }}</td>
+                <td class="text-center">{{ row.is_active }}</td>
+                <td class="text-center">{% if row.DELETE %}{{ row.DELETE }}{% endif %}</td>
+                {% if ssh_configured %}
+                <td class="text-end">
+                    {% if row.instance.pk and row.instance.is_active %}
+                    <form method="post" action="{% url 'nas_storage:apply_user_acl' row.instance.pk %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-hm btn-sm" title="Áp dụng ACL lên NAS">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+                    </form>
+                    {% if row.instance.last_applied_at %}
+                    <div class="text-success small" title="{{ row.instance.last_apply_status }}">
+                        {{ row.instance.last_applied_at|date:"d/m H:i" }}
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                </td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

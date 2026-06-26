@@ -28,5 +28,7 @@ urlpatterns = [
     path('phan-quyen/thu-muc/<int:folder_pk>/quyen/<int:pk>/xoa/', perm_views.permission_delete, name='permission_delete'),
     path('phan-quyen/thu-muc/<int:pk>/ap-dung/', perm_views.apply_folder_acl, name='apply_folder_acl'),
     path('phan-quyen/truy-cap-rieng/', perm_views.special_access_list, name='special_access_list'),
+    path('phan-quyen/truy-cap-rieng/ap-dung-tat-ca/', perm_views.apply_all_user_acl, name='apply_all_user_acl'),
+    path('phan-quyen/truy-cap-rieng/acl/<int:pk>/ap-dung/', perm_views.apply_user_acl, name='apply_user_acl'),
     path('phan-quyen/truy-cap-rieng/<int:user_id>/', perm_views.special_access_edit, name='special_access_edit'),
 ]

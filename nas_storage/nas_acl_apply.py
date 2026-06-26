@@ -131,6 +131,57 @@ def apply_folder_permissions(folder) -> dict:
     return {'status': 'ok', 'share': share, 'output': output[-2000:]}
 
 
+def _synoacl_mask(access_level: str) -> str:
+    if access_level == 'RO':
+        return 'r-x---a-R-c--:fd--'
+    return 'rwxpdDaARWc--:fd--'
+
+
+def apply_user_folder_acl(grant) -> dict:
+    """Áp dụng ACL thư mục con cho một user (RaiDrive / SMB / synoacltool)."""
+    if not grant.is_active:
+        return {'status': 'skipped', 'reason': 'inactive'}
+
+    target = grant.volume_target_path()
+    principal = grant.resolved_user_principal()
+    mask = _synoacl_mask(grant.access_level)
+    ace = f'user:{principal}:allow:{mask}'
+
+    commands = [
+        f'/usr/syno/bin/synoacltool -get "{target}"',
+        f'/usr/syno/bin/synoacltool -add "{target}" {ace}',
+        f'/usr/syno/bin/synoacltool -get "{target}"',
+    ]
+    output = _run_ssh_commands(commands)
+    now = timezone.now()
+    grant.last_applied_at = now
+    grant.last_apply_status = 'ok'
+    grant.save(update_fields=['last_applied_at', 'last_apply_status', 'updated_at'])
+
+    return {
+        'status': 'ok',
+        'path': target,
+        'principal': principal,
+        'output': output[-2000:],
+    }
+
+
+def apply_all_user_folder_acls() -> dict:
+    from nas_storage.models import NasUserFolderAcl
+
+    stats = {'ok': 0, 'skipped': 0, 'errors': []}
+    for grant in NasUserFolderAcl.objects.filter(is_active=True).select_related('user', 'folder'):
+        try:
+            result = apply_user_folder_acl(grant)
+            if result.get('status') == 'ok':
+                stats['ok'] += 1
+            else:
+                stats['skipped'] += 1
+        except NasAclApplyError as exc:
+            stats['errors'].append(f'{grant}: {exc}')
+    return stats
+
+
 def apply_all_folder_permissions() -> dict:
     from nas_storage.models import NasShareFolder
 

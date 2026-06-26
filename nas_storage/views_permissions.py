@@ -12,23 +12,26 @@ from hrm.menu_permissions import menu_perm_context, user_can_access_menu, user_c
 from hrm.models import Profile
 from hrm.module_permissions import MODULE_NAS_STORAGE
 from hrm.user_search import exclude_hidden_hrm_users, filter_users_by_search
-from nas_storage.forms import NasAccessGroupForm, NasFolderPermissionForm, NasShareFolderForm
-from nas_storage.models import NasAccessGroup, NasFolderPermission, NasShareFolder, NasUserFolderAccess
+from nas_storage.forms import (
+    NasAccessGroupForm,
+    NasFolderPermissionForm,
+    NasShareFolderForm,
+    NasUserFolderAclFormSet,
+)
+from nas_storage.models import NasAccessGroup, NasFolderPermission, NasShareFolder, NasUserFolderAcl
 from nas_storage.nas_acl_apply import (
     NasAclApplyError,
     apply_all_folder_permissions,
+    apply_all_user_folder_acls,
     apply_folder_permissions,
+    apply_user_folder_acl,
     discover_shares_from_nas,
     nas_acl_ssh_configured,
 )
 from nas_storage.permission_defs import ADMIN_FIELDS, READ_FIELDS, WRITE_FIELDS
-from nas_storage.user_folders import (
-    nas_folders_feature_available,
-    nas_folders_page_context,
-    save_user_nas_folder_formset,
-)
 from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
+from nas_storage.dept_nas_config import DEPT_NAS_SPECS, nas_group_for_portal_department
 
 
 def _perm_menu_required(view_func):
@@ -75,7 +78,7 @@ def _perm_subnav_context(perm_subnav_active: str) -> dict:
             },
             {
                 'key': 'special',
-                'label': 'Truy cập riêng',
+                'label': 'Truy cập riêng (RaiDrive)',
                 'url': reverse('nas_storage:special_access_list'),
             },
         ],
@@ -124,6 +127,36 @@ def group_list(request):
     )
 
 
+def _dept_share_hint(user) -> tuple[str | None, list[str]]:
+    profile = getattr(user, 'profile', None)
+    dept_name = profile.department.name if profile and profile.department_id else None
+    group = nas_group_for_portal_department(dept_name)
+    shares = sorted({
+        spec.share_name
+        for spec in DEPT_NAS_SPECS
+        if spec.nas_group == group and spec.share_name
+    })
+    return group, shares
+
+
+def _user_acl_formset(*, user: User, data=None):
+    qs = NasUserFolderAcl.objects.filter(user=user).select_related('folder').order_by(
+        'folder__sort_order', 'sub_path',
+    )
+    if data is None:
+        return NasUserFolderAclFormSet(queryset=qs, prefix='user_acl')
+    return NasUserFolderAclFormSet(data, queryset=qs, prefix='user_acl')
+
+
+def _save_user_acl_formset(user: User, formset) -> None:
+    instances = formset.save(commit=False)
+    for obj in instances:
+        obj.user = user
+        obj.save()
+    for obj in formset.deleted_objects:
+        obj.delete()
+
+
 @_perm_menu_required
 def special_access_list(request):
     hub_url = reverse('nas_storage:permissions_hub')
@@ -136,18 +169,8 @@ def special_access_list(request):
             ('Phân quyền', hub_url),
             ('Truy cập riêng', special_url),
         ),
-        nas_folders_available=nas_folders_feature_available(),
+        ssh_configured=nas_acl_ssh_configured(),
     )
-
-    if not nas_folders_feature_available():
-        return render(request, 'nas_storage/special_access_list.html', {
-            **base_ctx,
-            'users': [],
-            'page_obj': None,
-            'query_string': '',
-            'search_query': '',
-            'only_special': True,
-        })
 
     only_special = request.GET.get('only_special', '1') != '0'
     search_query = get_search_query(request)
@@ -155,20 +178,20 @@ def special_access_list(request):
     users_qs = exclude_hidden_hrm_users(users_qs)
     users_qs = filter_users_by_search(users_qs, search_query)
     users_qs = users_qs.annotate(
-        nas_folder_count=Count(
-            'nas_folder_accesses',
-            filter=Q(nas_folder_accesses__is_active=True),
+        acl_count=Count(
+            'nas_folder_acls',
+            filter=Q(nas_folder_acls__is_active=True),
         ),
     )
     if only_special:
-        users_qs = users_qs.filter(nas_folder_count__gt=0)
+        users_qs = users_qs.filter(acl_count__gt=0)
     users_qs = users_qs.prefetch_related(
         Prefetch(
-            'nas_folder_accesses',
-            queryset=NasUserFolderAccess.objects.filter(is_active=True).order_by('sort_order', 'id'),
-            to_attr='active_nas_folders',
+            'nas_folder_acls',
+            queryset=NasUserFolderAcl.objects.filter(is_active=True).select_related('folder'),
+            to_attr='active_user_acls',
         ),
-    ).order_by('-nas_folder_count', 'profile__full_name', 'username')
+    ).order_by('-acl_count', 'profile__full_name', 'username')
     page_obj, query_string = paginate_queryset(request, users_qs)
 
     return render(
@@ -192,6 +215,7 @@ def special_access_edit(request, user_id):
     hub_url = reverse('nas_storage:permissions_hub')
     special_url = reverse('nas_storage:special_access_list')
     edit_url = reverse('nas_storage:special_access_edit', kwargs={'user_id': user_obj.pk})
+    dept_group, dept_shares = _dept_share_hint(user_obj)
     page_ctx = _perm_page_ctx(
         request,
         'special',
@@ -201,30 +225,66 @@ def special_access_edit(request, user_id):
             ('Truy cập riêng', special_url),
             (user_obj.username, edit_url),
         ),
+        ssh_configured=nas_acl_ssh_configured(),
+        dept_group=dept_group,
+        dept_shares=dept_shares,
     )
 
     if request.method == 'POST':
-        ctx = nas_folders_page_context(user_obj, post_data=request.POST)
-        if ctx['nas_migration_missing']:
-            messages.error(request, 'Chưa migrate bảng NAS trên server.')
-        elif ctx['nas_formset'].is_valid():
-            save_user_nas_folder_formset(user_obj, ctx['nas_formset'])
-            messages.success(request, f'Đã lưu thư mục NAS riêng cho {user_obj.username}.')
+        formset = _user_acl_formset(user=user_obj, data=request.POST)
+        if formset.is_valid():
+            _save_user_acl_formset(user_obj, formset)
+            messages.success(request, f'Đã lưu quyền RaiDrive/SMB cho {user_obj.username}.')
             return redirect('nas_storage:special_access_edit', user_id=user_obj.pk)
-        else:
-            messages.error(request, 'Kiểm tra lại bảng đường dẫn NAS.')
+        messages.error(request, 'Kiểm tra lại bảng quyền thư mục riêng.')
         return render(
             request,
             'nas_storage/special_access_edit.html',
-            {'user_instance': user_obj, 'profile': profile, **page_ctx, **ctx},
+            {'user_instance': user_obj, 'profile': profile, 'acl_formset': formset, **page_ctx},
         )
 
-    ctx = nas_folders_page_context(user_obj)
     return render(
         request,
         'nas_storage/special_access_edit.html',
-        {'user_instance': user_obj, 'profile': profile, **page_ctx, **ctx},
+        {
+            'user_instance': user_obj,
+            'profile': profile,
+            'acl_formset': _user_acl_formset(user=user_obj),
+            **page_ctx,
+        },
     )
+
+
+@_perm_menu_required
+@require_POST
+def apply_user_acl(request, pk):
+    grant = get_object_or_404(NasUserFolderAcl, pk=pk)
+    try:
+        apply_user_folder_acl(grant)
+        messages.success(
+            request,
+            f'Đã áp dụng ACL lên NAS: {grant.volume_target_path()} → {grant.resolved_user_principal()}',
+        )
+    except NasAclApplyError as exc:
+        messages.error(request, str(exc))
+    return redirect('nas_storage:special_access_edit', user_id=grant.user_id)
+
+
+@_perm_menu_required
+@require_POST
+def apply_all_user_acl(request):
+    try:
+        stats = apply_all_user_folder_acls()
+        if stats['errors']:
+            messages.warning(
+                request,
+                f"Áp dụng xong: {stats['ok']} OK. Lỗi: {'; '.join(stats['errors'][:3])}",
+            )
+        else:
+            messages.success(request, f'Đã áp dụng {stats["ok"]} quyền user lên NAS.')
+    except NasAclApplyError as exc:
+        messages.error(request, str(exc))
+    return redirect('nas_storage:special_access_list')
 
 
 @_perm_menu_required

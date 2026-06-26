@@ -6,7 +6,7 @@ from django.urls import reverse
 
 from hrm.menu_permissions import resolve_menu_from_request
 from hrm.module_permissions import MODULE_NAS_STORAGE
-from nas_storage.models import NasAccessGroup, NasFolderPermission, NasShareFolder
+from nas_storage.models import NasAccessGroup, NasFolderPermission, NasShareFolder, NasUserFolderAcl
 from nas_storage.nas_acl_apply import _share_access_level
 from nas_storage.permission_defs import flags_from_preset, has_write_access
 
@@ -45,6 +45,32 @@ class NasPermissionModelTests(TestCase):
         self.assertFalse(has_write_access(flags))
 
 
+class NasUserFolderAclModelTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user('lvanhthu', 'lv@test.local', 'pass')
+        self.folder = NasShareFolder.objects.create(
+            share_name='05_MARKETING',
+            volume_path='/volume1/05_MARKETING',
+        )
+
+    def test_volume_target_path(self):
+        acl = NasUserFolderAcl.objects.create(
+            user=self.user,
+            folder=self.folder,
+            sub_path='lvanhthu',
+        )
+        self.assertEqual(acl.volume_target_path(), '/volume1/05_MARKETING/lvanhthu')
+
+    def test_resolved_user_principal(self):
+        with override_settings(NAS_LDAP_DOMAIN='ldap.justplay.local'):
+            acl = NasUserFolderAcl.objects.create(
+                user=self.user,
+                folder=self.folder,
+                sub_path='lvanhthu',
+            )
+            self.assertEqual(acl.resolved_user_principal(), 'lvanhthu@ldap.justplay.local')
+
+
 class SpecialAccessViewTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_superuser('nasperm', 'nasperm@test.local', 'pass')
@@ -67,7 +93,8 @@ class SpecialAccessViewTests(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'special1')
-        self.assertContains(response, 'nas_folders-0-rel_path')
+        self.assertContains(response, 'user_acl-0-sub_path')
+        self.assertContains(response, 'RaiDrive')
 
 
 class PermissionEditorViewTests(TestCase):

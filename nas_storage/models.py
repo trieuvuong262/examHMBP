@@ -241,3 +241,69 @@ class NasFolderPermission(models.Model):
     @property
     def is_applied_on_nas(self) -> bool:
         return self.last_applied_at is not None
+
+
+class NasUserFolderAcl(models.Model):
+    """Ngoại lệ ACL thư mục con trên NAS — cho RaiDrive/SMB (synoacltool), không phải Duyệt thư mục Portal."""
+
+    ACCESS_RW = 'RW'
+    ACCESS_RO = 'RO'
+    ACCESS_LEVEL_CHOICES = (
+        (ACCESS_RW, 'Đọc + Ghi'),
+        (ACCESS_RO, 'Chỉ đọc'),
+    )
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='nas_folder_acls',
+        verbose_name='Tài khoản Portal',
+    )
+    folder = models.ForeignKey(
+        NasShareFolder,
+        on_delete=models.CASCADE,
+        related_name='user_folder_acls',
+        verbose_name='Share NAS',
+    )
+    sub_path = models.CharField(
+        max_length=500,
+        verbose_name='Thư mục con trong share',
+        help_text='VD: lvanhthu (→ /volume1/05_MARKETING/lvanhthu)',
+    )
+    access_level = models.CharField(
+        max_length=4,
+        choices=ACCESS_LEVEL_CHOICES,
+        default=ACCESS_RW,
+        verbose_name='Mức quyền',
+    )
+    label = models.CharField(max_length=120, blank=True, verbose_name='Ghi chú')
+    is_active = models.BooleanField(default=True, verbose_name='Đang dùng')
+    last_applied_at = models.DateTimeField(null=True, blank=True, verbose_name='Áp dụng NAS lần cuối')
+    last_apply_status = models.CharField(max_length=500, blank=True, verbose_name='Trạng thái áp dụng')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['user__username', 'folder__sort_order', 'sub_path']
+        verbose_name = 'ACL thư mục riêng (user)'
+        verbose_name_plural = 'ACL thư mục riêng (user)'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'folder', 'sub_path'],
+                name='nas_storage_user_folder_acl_uniq',
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f'{self.user.username} · {self.folder.share_name}/{self.sub_path}'
+
+    def resolved_user_principal(self) -> str:
+        from django.conf import settings
+
+        domain = getattr(settings, 'NAS_LDAP_DOMAIN', 'ldap.justplay.local')
+        return f'{self.user.username}@{domain}'
+
+    def volume_target_path(self) -> str:
+        base = (self.folder.volume_path or '').strip() or f'/volume1/{self.folder.share_name}'
+        sub = (self.sub_path or '').strip().strip('/')
+        return f'{base.rstrip("/")}/{sub}' if sub else base.rstrip('/')

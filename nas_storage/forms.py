@@ -2,7 +2,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.forms import BaseModelFormSet, modelformset_factory
 
-from nas_storage.models import NasUserFolderAccess
+from nas_storage.models import NasUserFolderAccess, NasUserFolderAcl
 from nas_storage.nas_paths import NasPathError, normalize_rel_path
 
 INPUT = {'class': 'form-control form-control-sm'}
@@ -193,4 +193,70 @@ class NasFolderPermissionForm(forms.ModelForm):
             for name, value in flags_from_preset(preset).items():
                 cleaned[name] = value
         return cleaned
+
+
+class NasUserFolderAclForm(forms.ModelForm):
+    class Meta:
+        model = NasUserFolderAcl
+        fields = ['folder', 'sub_path', 'access_level', 'label', 'is_active']
+        labels = {
+            'folder': 'Share NAS',
+            'sub_path': 'Thư mục con',
+            'access_level': 'Quyền RaiDrive',
+            'label': 'Ghi chú',
+            'is_active': 'Bật',
+        }
+        widgets = {
+            'folder': forms.Select(attrs=SELECT),
+            'sub_path': forms.TextInput(attrs={**INPUT, 'placeholder': 'lvanhthu'}),
+            'access_level': forms.Select(attrs=SELECT),
+            'label': forms.TextInput(attrs={**INPUT, 'placeholder': 'Tuỳ chọn'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from nas_storage.models import NasShareFolder
+
+        self.fields['folder'].queryset = NasShareFolder.objects.filter(is_active=True).order_by(
+            'sort_order', 'share_name',
+        )
+        self.empty_permitted = True
+
+    def clean_sub_path(self):
+        raw = (self.cleaned_data.get('sub_path') or '').strip()
+        if not raw:
+            return ''
+        try:
+            return normalize_rel_path(raw)
+        except NasPathError as exc:
+            raise ValidationError(str(exc)) from exc
+
+
+class NasUserFolderAclFormSet(BaseModelFormSet):
+    def clean(self):
+        super().clean()
+        keys = []
+        for form in self.forms:
+            if not hasattr(form, 'cleaned_data') or not form.cleaned_data:
+                continue
+            if form.cleaned_data.get('DELETE'):
+                continue
+            sub = form.cleaned_data.get('sub_path')
+            folder = form.cleaned_data.get('folder')
+            if not sub or not folder or not form.cleaned_data.get('is_active', True):
+                continue
+            key = (folder.pk, sub)
+            if key in keys:
+                raise ValidationError(f'Trùng thư mục: {folder.share_name}/{sub}')
+            keys.append(key)
+
+
+NasUserFolderAclFormSet = modelformset_factory(
+    NasUserFolderAcl,
+    form=NasUserFolderAclForm,
+    formset=NasUserFolderAclFormSet,
+    extra=1,
+    can_delete=True,
+)
 

@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from nas_storage.models import NasAccessGroup, NasFolderPermission, NasShareFolder, NasShareLink, NasUserFolderAccess
+from nas_storage.models import (
+    NasAccessGroup,
+    NasFolderPermission,
+    NasShareFolder,
+    NasShareLink,
+    NasUserFolderAccess,
+    NasUserFolderAcl,
+)
 
 
 @admin.register(NasShareLink)
@@ -36,3 +43,11 @@ class NasFolderPermissionAdmin(admin.ModelAdmin):
     list_display = ('folder', 'group', 'permission_type', 'last_applied_at')
     list_filter = ('permission_type',)
     search_fields = ('folder__share_name', 'group__name')
+
+
+@admin.register(NasUserFolderAcl)
+class NasUserFolderAclAdmin(admin.ModelAdmin):
+    list_display = ('user', 'folder', 'sub_path', 'access_level', 'is_active', 'last_applied_at')
+    list_filter = ('is_active', 'access_level')
+    search_fields = ('user__username', 'sub_path', 'folder__share_name')
+    ordering = ('user__username', 'folder__share_name', 'sub_path')
