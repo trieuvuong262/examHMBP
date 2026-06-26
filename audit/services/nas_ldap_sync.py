@@ -334,11 +334,23 @@ def _samba_nt_password(raw_password: str) -> str:
     return nthash_algo.hash(raw_password).upper()
 
 
-def _samba_account_attrs(*, uid_number: int, password: str, domain_sid: str) -> dict:
+def _next_samba_rid(conn) -> int:
+    from ldap3 import SUBTREE
+
+    conn.search(_users_dn(), '(sambaSID=*)', search_scope=SUBTREE, attributes=['sambaSID'])
+    rids: list[int] = []
+    for entry in conn.entries:
+        sid = entry.sambaSID.value
+        raw = str(sid[0] if isinstance(sid, list) else sid)
+        rids.append(int(raw.rsplit('-', 1)[-1]))
+    return max(rids or [1004]) + 1
+
+
+def _samba_account_attrs(*, rid: int, password: str, domain_sid: str) -> dict:
     import time
 
     return {
-        'sambaSID': f'{domain_sid}-{uid_number}',
+        'sambaSID': f'{domain_sid}-{rid}',
         'sambaNTPassword': _samba_nt_password(password),
         'sambaLMPassword': 'X' * 32,
         'sambaAcctFlags': '[U          ]',
@@ -363,11 +375,19 @@ def _user_has_samba_account(conn, uid: str) -> bool:
     return bool(conn.entries)
 
 
-def _apply_samba_account(conn, *, uid: str, uid_number: int, password: str) -> None:
+def _apply_samba_account(conn, *, uid: str, password: str, rid: int | None = None) -> None:
     from ldap3 import MODIFY_ADD, MODIFY_REPLACE
 
     domain_sid = _read_domain_sid(conn)
-    samba_attrs = _samba_account_attrs(uid_number=uid_number, password=password, domain_sid=domain_sid)
+    if rid is None:
+        if _user_has_samba_account(conn, uid):
+            conn.search(_user_dn(uid), '(sambaSID=*)', attributes=['sambaSID'])
+            sid = conn.entries[0].sambaSID.value
+            raw = str(sid[0] if isinstance(sid, list) else sid)
+            rid = int(raw.rsplit('-', 1)[-1])
+        else:
+            rid = _next_samba_rid(conn)
+    samba_attrs = _samba_account_attrs(rid=rid, password=password, domain_sid=domain_sid)
     user_dn = _user_dn(uid)
 
     if _user_has_samba_account(conn, uid):
@@ -412,6 +432,7 @@ def _upsert_ldap_user(
     if created:
         uid_number = _next_uid_number(conn)
         domain_sid = _read_domain_sid(conn)
+        samba_rid = _next_samba_rid(conn)
         attrs = {
             'uid': uid,
             'cn': display_name,
@@ -425,7 +446,7 @@ def _upsert_ldap_user(
             'loginShell': '/sbin/nologin',
             'userPassword': _ldap_password_hash(effective_password),
             **_samba_account_attrs(
-                uid_number=uid_number,
+                rid=samba_rid,
                 password=effective_password,
                 domain_sid=domain_sid,
             ),
@@ -449,7 +470,7 @@ def _upsert_ldap_user(
         if conn.result['result'] != 0:
             raise NasLdapSyncError(f'Không cập nhật LDAP user {uid}: {conn.result}')
         if effective_password:
-            _apply_samba_account(conn, uid=uid, uid_number=uid_number, password=effective_password)
+            _apply_samba_account(conn, uid=uid, password=effective_password)
 
     _sync_group_membership(conn, uid, department_group)
     return {
