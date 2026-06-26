@@ -683,12 +683,22 @@ def import_shares_from_nas(request):
         return redirect('nas_storage:folder_list')
 
     created = 0
+    updated = 0
     for item in discovered:
-        _, was_created = NasShareFolder.objects.get_or_create(
-            share_name=item['share_name'],
+        share_name = item['share_name']
+        folder, was_created = NasShareFolder.objects.get_or_create(
+            share_name=share_name,
+            parent=None,
             defaults={'display_name': item['display_name']},
         )
         if was_created:
             created += 1
-    messages.success(request, f'Đã quét NAS: {len(discovered)} share, thêm mới {created}.')
+        elif not (folder.display_name or '').strip():
+            folder.display_name = item['display_name']
+            folder.save(update_fields=['display_name', 'updated_at'])
+            updated += 1
+    msg = f'Đã quét NAS: {len(discovered)} share, thêm mới {created}.'
+    if updated:
+        msg += f' Cập nhật {updated}.'
+    messages.success(request, msg)
     return redirect('nas_storage:folder_list')

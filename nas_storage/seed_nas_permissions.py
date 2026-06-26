@@ -61,6 +61,7 @@ def seed_nas_permissions(*, dry_run: bool = False) -> dict:
             }
             folder, folder_created = NasShareFolder.objects.update_or_create(
                 share_name=spec.share_name,
+                parent=None,
                 defaults=folder_defaults,
             )
             if folder_created:
@@ -95,6 +96,7 @@ def seed_nas_permissions(*, dry_run: bool = False) -> dict:
 
             folder, folder_created = NasShareFolder.objects.get_or_create(
                 share_name=share_name,
+                parent=None,
                 defaults={
                     'display_name': share_name,
                     'sort_order': group.sort_order,
