@@ -2,7 +2,7 @@
 <div class="jp-folder-tree-node border-bottom">
     <div class="row g-0 align-items-center py-2 jp-folder-tree-row{% if f.is_root %} jp-folder-tree-row--root{% else %} jp-folder-tree-row--child{% endif %}">
         <div class="col min-w-0 jp-folder-tree-hit{% if node.has_children %} jp-folder-tree-hit--expandable collapsed{% endif %}"
-             {% if node.has_children %}data-folder-target="#jp-folder-kids-{{ f.pk }}" tabindex="0" aria-expanded="false"{% endif %}>
+             {% if node.has_children %}data-folder-target="#jp-folder-kids-{{ f.pk }}" aria-expanded="false" role="button" tabindex="0"{% endif %}>
             <div class="row g-0 align-items-center jp-folder-tree-inner w-100">
                 <div class="col min-w-0 jp-folder-tree-name" style="padding-left: calc(1rem + {{ node.depth }} * 1.25rem);">
                     {% if node.has_children %}
@@ -50,7 +50,7 @@
         </div>
     </div>
     {% if node.has_children %}
-    <div id="jp-folder-kids-{{ f.pk }}" class="collapse jp-folder-tree-kids">
+    <div id="jp-folder-kids-{{ f.pk }}" class="jp-folder-tree-kids d-none">
         {% for child in node.children %}
         {% include "nas_storage/_folder_tree_node.html" with node=child %}
         {% endfor %}

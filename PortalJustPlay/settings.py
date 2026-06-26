@@ -483,6 +483,9 @@ NAS_LDAP_BIND_DN = os.getenv(
 NAS_LDAP_BIND_PASSWORD = os.getenv('NAS_LDAP_BIND_PASSWORD', '').strip()
 NAS_LDAP_SYNC_SKIP_USERNAMES = os.getenv('NAS_LDAP_SYNC_SKIP_USERNAMES', 'admin,ductn').strip()
 NAS_LDAP_DOMAIN = os.getenv('NAS_LDAP_DOMAIN', 'ldap.justplay.local').strip()
+# RaiDrive / SMB ngoài (Thư viện → Tải NAS)
+NAS_RDRIVE_SERVER = os.getenv('NAS_RDRIVE_SERVER', 'justplay.synology.me').strip()
+NAS_RDRIVE_PORT = int(os.getenv('NAS_RDRIVE_PORT', '5678') or '5678')
 # Share ẩn khỏi Duyệt thư mục Portal + Quét từ NAS (share hệ thống: docker, backup, log…)
 NAS_PORTAL_BROWSE_HIDDEN_SHARES = os.getenv(
     'NAS_PORTAL_BROWSE_HIDDEN_SHARES', 'docker,backup,log',

@@ -13,7 +13,7 @@
         </ol>
     </nav>
 
-    <div class="card border-0 shadow-sm overflow-hidden jp-nas-browse-card">
+    <div class="card border-0 shadow-sm jp-nas-browse-card">
         <div class="jp-folder-tree-head row g-0 bg-light text-uppercase small text-muted border-bottom">
             <div class="col py-3 ps-4">Thư mục</div>
             <div class="col-md-2 py-3 d-none d-md-block jp-folder-tree-display">Tên hiển thị</div>
@@ -104,60 +104,55 @@
 .jp-folder-actions form { display: contents; }
 .jp-folder-actions .btn:focus-visible { z-index: 2; }
 </style>
+{% endblock %}
+
+{% block scripts %}
 <script>
 (function () {
-    var body = document.querySelector('.jp-folder-tree-body');
-    if (!body || typeof bootstrap === 'undefined') return;
-
-    var collapseByTarget = new Map();
-
-    function getCollapse(hit) {
+    function toggleFolderHit(hit) {
         var sel = hit.getAttribute('data-folder-target');
-        if (!sel) return null;
-        if (!collapseByTarget.has(sel)) {
-            var target = document.querySelector(sel);
-            if (!target) return null;
-            collapseByTarget.set(sel, {
-                target: target,
-                collapse: bootstrap.Collapse.getOrCreateInstance(target, { toggle: false }),
-            });
-        }
-        return collapseByTarget.get(sel);
-    }
-
-    body.querySelectorAll('.jp-folder-tree-hit--expandable').forEach(function (hit) {
-        var item = getCollapse(hit);
-        if (!item) return;
-        item.target.addEventListener('show.bs.collapse', function () {
-            hit.classList.remove('collapsed');
-            hit.setAttribute('aria-expanded', 'true');
-        });
-        item.target.addEventListener('hide.bs.collapse', function () {
+        var target = sel ? document.querySelector(sel) : null;
+        if (!target) return;
+        var open = !target.classList.contains('d-none');
+        if (open) {
+            target.classList.add('d-none');
             hit.classList.add('collapsed');
             hit.setAttribute('aria-expanded', 'false');
+        } else {
+            target.classList.remove('d-none');
+            hit.classList.remove('collapsed');
+            hit.setAttribute('aria-expanded', 'true');
+        }
+    }
+
+    function initFolderTree() {
+        var body = document.querySelector('.jp-folder-tree-body');
+        if (!body) return;
+
+        body.addEventListener('click', function (e) {
+            if (e.target.closest('.jp-folder-actions')) return;
+            var hit = e.target.closest('.jp-folder-tree-hit--expandable');
+            if (!hit || !body.contains(hit)) return;
+            e.preventDefault();
+            e.stopPropagation();
+            toggleFolderHit(hit);
         });
-    });
 
-    body.addEventListener('click', function (e) {
-        var hit = e.target.closest('.jp-folder-tree-hit--expandable');
-        if (!hit || !body.contains(hit)) return;
-        if (e.target.closest('.jp-folder-actions')) return;
-        var item = getCollapse(hit);
-        if (!item) return;
-        e.stopPropagation();
-        item.collapse.toggle();
-    });
+        body.addEventListener('keydown', function (e) {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            var hit = e.target.closest('.jp-folder-tree-hit--expandable');
+            if (!hit || !body.contains(hit)) return;
+            if (e.target.closest('.jp-folder-actions')) return;
+            e.preventDefault();
+            toggleFolderHit(hit);
+        });
+    }
 
-    body.addEventListener('keydown', function (e) {
-        if (e.key !== 'Enter' && e.key !== ' ') return;
-        var hit = e.target.closest('.jp-folder-tree-hit--expandable');
-        if (!hit || !body.contains(hit)) return;
-        if (e.target.closest('.jp-folder-actions')) return;
-        var item = getCollapse(hit);
-        if (!item) return;
-        e.preventDefault();
-        item.collapse.toggle();
-    });
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initFolderTree);
+    } else {
+        initFolderTree();
+    }
 })();
 </script>
 {% endblock %}

@@ -781,6 +781,15 @@
                     </a>
                 </li>
                 {% endif %}
+                {% jp_can_menu 'documents' 'nas_download' as jp_can_documents_nas_download %}
+                {% if jp_can_documents_nas_download %}
+                <li>
+                    <a href="{% url 'documents:nas_download' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'nas_download' %}active{% endif %}">
+                        <i class="bi bi-hdd-network"></i><span>Tải NAS</span>
+                    </a>
+                </li>
+                {% endif %}
                 {% jp_can_menu 'documents' 'rustdesk_config' as jp_can_documents_rustdesk_config %}
                 {% if jp_can_documents_rustdesk_config %}
                 <li>
