@@ -1,0 +1,50 @@
+{# Dropdown chọn nhóm NAS — dùng chung JS/CSS với jp-user-picker #}
+<div class="jp-user-picker jp-nas-group-picker{% if picker_class %} {{ picker_class }}{% endif %}"
+     data-field-name="{{ field.html_name }}"
+     data-mode="single">
+    <button type="button"
+            class="jp-user-picker-toggle form-control text-start d-flex align-items-center justify-content-between"
+            aria-haspopup="listbox"
+            aria-expanded="false">
+        <span class="jp-user-picker-label text-muted">{{ placeholder }}</span>
+        <i class="bi bi-chevron-down ms-2 flex-shrink-0"></i>
+    </button>
+
+    <div class="jp-user-picker-menu shadow-sm border rounded-3" hidden>
+        <div class="p-2 border-bottom">
+            <input type="search"
+                   class="form-control form-control-sm jp-user-picker-search"
+                   placeholder="Tìm theo tên nhóm, principal LDAP..."
+                   autocomplete="off">
+        </div>
+        <div class="jp-user-picker-list" role="listbox">
+            {% for group in groups %}
+            <label class="jp-user-picker-option d-flex align-items-start gap-2"
+                   data-group-id="{{ group.pk }}"
+                   data-search="{{ group.name|lower }} {{ group.resolved_nas_principal|lower }} {{ group.description|default:''|lower }}">
+                <input type="radio"
+                       class="form-check-input mt-1 flex-shrink-0"
+                       name="{{ field.html_name }}"
+                       value="{{ group.pk }}"
+                       {% if group.pk|stringformat:"s" in selected_ids %}checked{% endif %}>
+                <span class="flex-grow-1 min-w-0">
+                    <strong class="jp-text-clamp-1">{{ group.name }}</strong>
+                    <span class="d-block small text-muted jp-text-clamp-2">
+                        <code class="small">{{ group.resolved_nas_principal }}</code>
+                        {% if group.description %}
+                        <span class="d-block">{{ group.description }}</span>
+                        {% endif %}
+                        {% if group.portal_browse_all %}
+                        <span class="d-block text-success">Duyệt tất cả share trên Portal</span>
+                        {% endif %}
+                    </span>
+                </span>
+            </label>
+            {% empty %}
+            <p class="text-muted small mb-0 p-3 jp-user-picker-empty">Không còn nhóm nào để thêm trên thư mục này.</p>
+            {% endfor %}
+            <p class="text-muted small mb-0 p-3 jp-user-picker-filter-empty" hidden>Không có kết quả phù hợp.</p>
+        </div>
+        <div class="px-2 py-1 border-top small text-muted jp-user-picker-footer" hidden></div>
+    </div>
+</div>

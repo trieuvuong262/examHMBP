@@ -74,6 +74,11 @@ def _perm_subnav_context(perm_subnav_active: str) -> dict:
                 'url': reverse('nas_storage:permissions_hub'),
             },
             {
+                'key': 'groups',
+                'label': 'Nhóm quyền',
+                'url': reverse('nas_storage:group_list'),
+            },
+            {
                 'key': 'special',
                 'label': 'Truy cập riêng',
                 'url': reverse('nas_storage:special_access_list'),
@@ -100,11 +105,6 @@ def permissions_hub(request):
         )
         .order_by('sort_order', 'share_name')
     )
-    groups = (
-        NasAccessGroup.objects.filter(is_active=True)
-        .prefetch_related('portal_members', 'portal_excluded_members')
-        .order_by('sort_order', 'name')
-    )
     pending_apply_count = sum(
         1 for f in folders if f.perm_count and f.applied_count < f.perm_count
     )
@@ -114,7 +114,6 @@ def permissions_hub(request):
         {
             **_perm_page_ctx(request, 'shares'),
             'folders': folders,
-            'groups': groups,
             'pending_apply_count': pending_apply_count,
             'ssh_configured': nas_acl_ssh_configured(),
             'breadcrumbs': _perm_breadcrumbs(('Phân quyền NAS', None)),
@@ -124,7 +123,24 @@ def permissions_hub(request):
 
 @_perm_menu_required
 def group_list(request):
-    return redirect(reverse('nas_storage:permissions_hub') + '#nas-groups')
+    groups = (
+        NasAccessGroup.objects.filter(is_active=True)
+        .prefetch_related('portal_members', 'portal_excluded_members')
+        .order_by('sort_order', 'name')
+    )
+    hub_url = reverse('nas_storage:permissions_hub')
+    return render(
+        request,
+        'nas_storage/group_list.html',
+        {
+            **_perm_page_ctx(request, 'groups'),
+            'groups': groups,
+            'breadcrumbs': _perm_breadcrumbs(
+                ('Phân quyền NAS', hub_url),
+                ('Nhóm quyền', None),
+            ),
+        },
+    )
 
 
 def _dept_share_hint(user) -> tuple[str | None, list[str]]:
@@ -331,7 +347,7 @@ def group_edit(request, pk=None):
                     f'cặp nhóm–share cho nhóm xem tất cả.',
                 )
             messages.success(request, 'Đã lưu nhóm quyền NAS.')
-            return redirect('nas_storage:permissions_hub')
+            return redirect('nas_storage:group_list')
     else:
         form = NasAccessGroupForm(instance=instance)
     group_name = instance.name if instance else ''
@@ -357,7 +373,7 @@ def group_edit(request, pk=None):
         request,
         'nas_storage/group_form.html',
         {
-            **_perm_page_ctx(request, 'shares'),
+            **_perm_page_ctx(request, 'groups'),
             'form': form,
             'editing': bool(instance),
             'group_instance': instance,
@@ -372,7 +388,7 @@ def group_edit(request, pk=None):
 
 @_perm_menu_required
 def folder_list(request):
-    folders = NasShareFolder.objects.all()
+    folders = NasShareFolder.objects.order_by('sort_order', 'share_name')
     return render(
         request,
         'nas_storage/folder_list.html',
@@ -404,6 +420,19 @@ def folder_edit(request, pk=None):
             'editing': bool(instance),
         },
     )
+
+
+@_perm_menu_required
+@require_POST
+def folder_delete(request, pk):
+    folder = get_object_or_404(NasShareFolder, pk=pk)
+    share_name = folder.share_name
+    folder.delete()
+    messages.success(
+        request,
+        f'Đã gỡ «{share_name}» khỏi Portal. Share trên NAS không bị xóa — có thể quét lại để đăng ký.',
+    )
+    return redirect('nas_storage:folder_list')
 
 
 @_perm_menu_required

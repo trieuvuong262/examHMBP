@@ -22,6 +22,7 @@ urlpatterns = [
     path('phan-quyen/thu-muc/quet/', perm_views.import_shares_from_nas, name='import_shares'),
     path('phan-quyen/thu-muc/them/', perm_views.folder_edit, name='folder_create'),
     path('phan-quyen/thu-muc/<int:pk>/', perm_views.folder_edit, name='folder_edit'),
+    path('phan-quyen/thu-muc/<int:pk>/xoa/', perm_views.folder_delete, name='folder_delete'),
     path('phan-quyen/thu-muc/<int:pk>/quyen/', perm_views.folder_permissions, name='folder_permissions'),
     path('phan-quyen/thu-muc/<int:folder_pk>/quyen/them/', perm_views.permission_edit, name='permission_create'),
     path('phan-quyen/thu-muc/<int:folder_pk>/quyen/<int:pk>/', perm_views.permission_edit, name='permission_edit'),

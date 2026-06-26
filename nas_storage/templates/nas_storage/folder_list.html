@@ -50,6 +50,11 @@
                     <td class="text-end pe-4 text-nowrap">
                         <a href="{% url 'nas_storage:folder_permissions' f.pk %}" class="btn btn-sm btn-outline-primary">Phân quyền</a>
                         <a href="{% url 'nas_storage:folder_edit' f.pk %}" class="btn btn-sm btn-outline-secondary">Sửa</a>
+                        <form method="post" action="{% url 'nas_storage:folder_delete' f.pk %}" class="d-inline"
+                              onsubmit="return confirm('Gỡ share «{{ f.share_name }}» khỏi Portal?\n\nThư mục trên NAS KHÔNG bị xóa. Cấu hình phân quyền Portal của share này sẽ mất.');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Gỡ</button>
+                        </form>
                     </td>
                 </tr>
                 {% empty %}

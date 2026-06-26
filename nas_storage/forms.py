@@ -267,7 +267,9 @@ class NasFolderPermissionForm(forms.ModelForm):
             else:
                 self.fields['assignee_type'].initial = self.ASSIGNEE_GROUP
             preset = detect_preset_from_flags(self.instance.permission_flags())
-            if preset != 'custom':
+            if preset == 'custom':
+                self.fields['preset'].initial = ''
+            else:
                 self.fields['preset'].initial = preset
         else:
             self.fields['preset'].initial = 'read_write'

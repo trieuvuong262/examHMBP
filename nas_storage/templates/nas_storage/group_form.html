@@ -11,6 +11,7 @@
     <nav aria-label="breadcrumb" class="mb-3">
         <ol class="breadcrumb mb-0 small bg-white px-3 py-2 rounded shadow-sm">
             <li class="breadcrumb-item"><a href="{% url 'nas_storage:permissions_hub' %}" class="text-decoration-none">Phân quyền NAS</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'nas_storage:group_list' %}" class="text-decoration-none">Nhóm quyền</a></li>
             <li class="breadcrumb-item active fw-semibold">{% if editing %}{{ group_instance.name }}{% else %}Thêm nhóm{% endif %}</li>
         </ol>
     </nav>
@@ -163,7 +164,7 @@
                     <button type="submit" class="btn btn-hm fw-bold py-2">
                         <i class="bi bi-check-circle me-1"></i> Lưu nhóm
                     </button>
-                    <a href="{% url 'nas_storage:permissions_hub' %}#nas-groups" class="btn btn-light border">Huỷ</a>
+                    <a href="{% url 'nas_storage:group_list' %}" class="btn btn-light border">Huỷ</a>
                 </div>
             </div>
         </div>

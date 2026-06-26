@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load user_picker nas_group_picker %}
 
 {% block content %}
 <div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
@@ -21,27 +22,28 @@
         <div class="card-body p-4">
             <div class="mb-4">
                 <div class="fw-semibold mb-2">{{ form.assignee_type.label }}</div>
-                <div class="d-flex flex-wrap gap-3">
+                <div class="row g-2">
                     {% for radio in form.assignee_type %}
-                    <div class="form-check">
-                        {{ radio.tag }}
-                        <label class="form-check-label" for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
+                    <div class="col-md-6">
+                        <label class="form-check border rounded p-3 h-100 bg-light d-flex align-items-center gap-2 mb-0" for="{{ radio.id_for_label }}">
+                            {{ radio.tag }}
+                            <span class="fw-semibold">{{ radio.choice_label }}</span>
+                        </label>
                     </div>
                     {% endfor %}
                 </div>
-                {% for e in form.assignee_type.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                {% for e in form.assignee_type.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
             </div>
 
             <div class="row g-4 mb-4">
-                <div class="col-md-6" id="jp-nas-perm-group-wrap">
-                    <label class="form-label fw-semibold" for="{{ form.group.id_for_label }}">{{ form.group.label }}</label>
-                    {{ form.group }}
+                <div class="col-lg-8" id="jp-nas-perm-group-wrap">
+                    <label class="form-label fw-semibold">{{ form.group.label }}</label>
+                    {% nas_group_picker field=form.group placeholder='Tìm và chọn nhóm quyền...' picker_class='jp-user-picker--wide' %}
                     {% for e in form.group.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
                 </div>
-                <div class="col-md-6 d-none" id="jp-nas-perm-user-wrap">
-                    <label class="form-label fw-semibold" for="{{ form.user.id_for_label }}">{{ form.user.label }}</label>
-                    {{ form.user }}
-                    <div class="form-text small">Account Portal / LDAP — quyền áp trực tiếp lên share SMB.</div>
+                <div class="col-lg-8 d-none" id="jp-nas-perm-user-wrap">
+                    <label class="form-label fw-semibold">{{ form.user.label }}</label>
+                    {% user_picker field=form.user mode='single' placeholder='Tìm account, họ tên, mã NS...' show_org_meta=True show_bulk_actions=False picker_class='jp-user-picker--wide' %}
                     {% for e in form.user.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
                 </div>
                 <div class="col-md-3">
@@ -68,23 +70,12 @@
                 </div>
             </div>
 
-            <div class="alert alert-warning border-0 small mb-4" id="jp-nas-raidrive-ro-hint">
-                <strong>RaiDrive / File Explorer (PC):</strong>
-                Nếu cấp quyền <em>Chỉ đọc</em> mà user vẫn map ổ như ổ ghi được, thao tác
-                <strong>Tạo thư mục mới</strong> trong Explorer có thể <strong>làm treo máy</strong>
-                thay vì hiện thông báo ngay — đây là hành vi client Windows/RaiDrive, Portal không chặn được.
-                <ul class="mb-0 mt-2 ps-3">
-                    <li>Khuyến nghị IT: map share chỉ đọc phía Windows
-                        (<code>net use Z: \\NAS\share /readonly</code> hoặc RaiDrive giao thức <strong>SMB</strong>).</li>
-                    <li>User chỉ xem file: dùng <strong>Duyệt thư mục</strong> trên Portal — có thông báo lỗi rõ ràng.</li>
-                </ul>
-            </div>
-
             <div class="form-check mb-4">
                 {{ form.inherit_from_parent }}
                 <label class="form-check-label" for="{{ form.inherit_from_parent.id_for_label }}">Kế thừa từ thư mục cha</label>
             </div>
 
+            <div id="jp-nas-advanced-perms-wrap" class="d-none">
             <div class="accordion" id="jp-nas-advanced-perms">
                 <div class="accordion-item border-0 shadow-sm">
                     <h2 class="accordion-header">
@@ -130,6 +121,7 @@
                     </div>
                 </div>
             </div>
+            </div>
         </div>
         <div class="card-footer bg-white border-top py-3 d-flex gap-2">
             <button type="submit" class="btn btn-hm">Lưu</button>
@@ -143,19 +135,49 @@
     const typeInputs = document.querySelectorAll('input[name="assignee_type"]');
     const groupWrap = document.getElementById('jp-nas-perm-group-wrap');
     const userWrap = document.getElementById('jp-nas-perm-user-wrap');
-    if (!typeInputs.length || !groupWrap || !userWrap) return;
+    const advancedWrap = document.getElementById('jp-nas-advanced-perms-wrap');
+    const presetInputs = document.querySelectorAll('input[name="preset"]');
+    const advancedBody = document.getElementById('jp-nas-advanced-body');
 
     function syncAssigneeFields() {
+        if (!typeInputs.length || !groupWrap || !userWrap) return;
         const selected = document.querySelector('input[name="assignee_type"]:checked');
         const isUser = selected && selected.value === 'user';
         groupWrap.classList.toggle('d-none', isUser);
         userWrap.classList.toggle('d-none', !isUser);
+        groupWrap.querySelectorAll('input[name="{{ form.group.html_name }}"]').forEach(function (input) {
+            input.disabled = isUser;
+        });
+        userWrap.querySelectorAll('input[name="{{ form.user.html_name }}"]').forEach(function (input) {
+            input.disabled = !isUser;
+        });
+        if (window.JpUserPicker && typeof window.JpUserPicker.initAll === 'function') {
+            window.JpUserPicker.initAll(true);
+        }
+    }
+
+    function syncAdvancedPanel() {
+        if (!advancedWrap) return;
+        const selected = document.querySelector('input[name="preset"]:checked');
+        const isCustom = selected && selected.value === '';
+        advancedWrap.classList.toggle('d-none', !isCustom);
+        if (!isCustom && advancedBody && window.bootstrap && window.bootstrap.Collapse) {
+            const collapse = window.bootstrap.Collapse.getOrCreateInstance(advancedBody, { toggle: false });
+            collapse.hide();
+        }
+        advancedWrap.querySelectorAll('input[type="checkbox"]').forEach(function (input) {
+            input.disabled = !isCustom;
+        });
     }
 
     typeInputs.forEach(function (el) {
         el.addEventListener('change', syncAssigneeFields);
     });
+    presetInputs.forEach(function (el) {
+        el.addEventListener('change', syncAdvancedPanel);
+    });
     syncAssigneeFields();
+    syncAdvancedPanel();
 })();
 </script>
 {% endblock %}
