@@ -59,3 +59,27 @@ class NasFolderProvisionTests(TestCase):
         result = provision_portal_folder_on_nas(child)
         self.assertEqual(result['action'], 'mkdir')
         _mkdir.assert_called_once()
+
+class NasFolderNestedPathTests(TestCase):
+    def setUp(self):
+        self.root = NasShareFolder.objects.create(share_name='05_MARKETING', display_name='Marketing')
+        self.mid = NasShareFolder.objects.create(
+            parent=self.root, share_name='05_MARKETING', sub_path='KD-MKT', display_name='KD',
+        )
+
+    def test_nested_full_path(self):
+        deep = NasShareFolder.objects.create(
+            parent=self.mid, share_name='05_MARKETING', sub_path='_CHUNG', display_name='Chung',
+        )
+        self.assertEqual(deep.full_sub_path_from_share(), 'KD-MKT/_CHUNG')
+        self.assertEqual(deep.portal_path_label(), '05_MARKETING/KD-MKT/_CHUNG')
+
+    def test_build_tree_nested(self):
+        from nas_storage.folder_tree import build_folder_tree
+        NasShareFolder.objects.create(
+            parent=self.mid, share_name='05_MARKETING', sub_path='_CHUNG', display_name='Chung',
+        )
+        tree = build_folder_tree(list(NasShareFolder.objects.all()))
+        self.assertEqual(len(tree), 1)
+        self.assertEqual(len(tree[0].children), 1)
+        self.assertEqual(len(tree[0].children[0].children), 1)

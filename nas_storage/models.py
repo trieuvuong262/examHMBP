@@ -211,6 +211,22 @@ class NasShareFolder(models.Model):
             node = node.parent
         return node
 
+    def full_sub_path_from_share(self) -> str:
+        """Đường dẫn tương đối từ gốc share — ghép các cấp cha/con."""
+        if self.is_root:
+            return ''
+        parts: list[str] = []
+        node = self
+        while node.parent_id:
+            seg = (node.sub_path or '').strip().strip('/')
+            if seg:
+                if '/' in seg:
+                    return seg
+                parts.append(seg)
+            node = node.parent
+        parts.reverse()
+        return '/'.join(parts)
+
     def resolved_volume_path(self) -> str:
         from nas_storage.nas_paths import NasPathError, normalize_volume_path
 
@@ -230,15 +246,15 @@ class NasShareFolder(models.Model):
         except Exception:
             base = (root.volume_path or '').strip() or f'/volume1/{root.share_name}'
         base = base.rstrip('/')
-        sub = (self.sub_path or '').strip().strip('/')
+        sub = self.full_sub_path_from_share()
         if self.is_root or not sub:
             return base
         return f'{base}/{sub}'
 
     def portal_path_label(self) -> str:
-        sub = (self.sub_path or '').strip().strip('/')
         if self.is_root:
             return self.share_name
+        sub = self.full_sub_path_from_share()
         return f'{self.share_name}/{sub}' if sub else self.share_name
 
     def save(self, *args, **kwargs):

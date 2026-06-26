@@ -15,7 +15,7 @@
 
     <div class="card border-0 shadow-sm overflow-hidden jp-nas-browse-card">
         <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between flex-wrap gap-2">
-            <span class="text-muted small">Tạo thư mục gốc/con trên Portal — tự tạo trên NAS khi lưu (cần SSH)</span>
+            <span class="text-muted small">Cây thư mục — bấm mũi tên để thu gọn/mở rộng, + Con trên mọi cấp</span>
             <div class="d-flex gap-2">
                 {% if ssh_configured %}
                 <form method="post" action="{% url 'nas_storage:import_shares' %}">{% csrf_token %}
@@ -25,76 +25,37 @@
                 <a href="{% url 'nas_storage:folder_create' %}" class="btn btn-hm btn-sm">Thêm thư mục gốc</a>
             </div>
         </div>
-        <div class="table-responsive">
-            <table class="table table-hover mb-0 align-middle">
-                <thead class="bg-light text-uppercase small">
-                    <tr>
-                        <th class="ps-4 py-3 text-muted">Thư mục</th>
-                        <th class="text-muted">Tên hiển thị</th>
-                        <th class="text-muted">Đường dẫn NAS</th>
-                        <th class="text-end pe-4 text-muted">Thao tác</th>
-                    </tr>
-                </thead>
-                <tbody>
-                {% for root in roots %}
-                <tr class="table-light">
-                    <td class="ps-4">
-                        <span class="badge bg-secondary me-1">Gốc</span>
-                        <code>{{ root.share_name }}</code>
-                    </td>
-                    <td class="fw-semibold">{{ root.display_name }}</td>
-                    <td class="small text-muted">{{ root.resolved_volume_path }}</td>
-                    <td class="text-end pe-4 text-nowrap">
-                        <a href="{% url 'nas_storage:folder_child_create' root.pk %}" class="btn btn-sm btn-outline-success">+ Con</a>
-                        <a href="{% url 'nas_storage:folder_permissions' root.pk %}" class="btn btn-sm btn-outline-primary">Phân quyền</a>
-                        <a href="{% url 'nas_storage:folder_edit' root.pk %}" class="btn btn-sm btn-outline-secondary">Sửa</a>
-                        {% if can_update and ssh_configured %}
-                        <form method="post" action="{% url 'nas_storage:folder_provision_nas' root.pk %}" class="d-inline">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-sm btn-outline-hm" title="Tạo/đồng bộ lên NAS">NAS</button>
-                        </form>
-                        {% endif %}
-                        <form method="post" action="{% url 'nas_storage:folder_delete' root.pk %}" class="d-inline"
-                              onsubmit="return confirm('Gỡ share «{{ root.share_name }}» khỏi Portal?\n\nThư mục trên NAS KHÔNG bị xóa. Thư mục con trên Portal cũng bị gỡ.');">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-sm btn-outline-danger">Gỡ</button>
-                        </form>
-                    </td>
-                </tr>
-                {% for child in root.children.all %}
-                <tr>
-                    <td class="ps-4 ps-5">
-                        <span class="text-muted me-1">└</span>
-                        <code>{{ child.sub_path }}</code>
-                        {% if child.inherits_permissions %}
-                        <span class="badge bg-light text-muted border ms-1">Kế thừa</span>
-                        {% endif %}
-                    </td>
-                    <td>{{ child.display_name }}</td>
-                    <td class="small text-muted">{{ child.resolved_volume_path }}</td>
-                    <td class="text-end pe-4 text-nowrap">
-                        <a href="{% url 'nas_storage:folder_permissions' child.pk %}" class="btn btn-sm btn-outline-primary">Phân quyền</a>
-                        <a href="{% url 'nas_storage:folder_edit' child.pk %}" class="btn btn-sm btn-outline-secondary">Sửa</a>
-                        {% if can_update and ssh_configured %}
-                        <form method="post" action="{% url 'nas_storage:folder_provision_nas' child.pk %}" class="d-inline">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-sm btn-outline-hm" title="Tạo/đồng bộ lên NAS">NAS</button>
-                        </form>
-                        {% endif %}
-                        <form method="post" action="{% url 'nas_storage:folder_delete' child.pk %}" class="d-inline"
-                              onsubmit="return confirm('Gỡ thư mục con «{{ child.sub_path }}» khỏi Portal?');">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-sm btn-outline-danger">Gỡ</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-                {% empty %}
-                <tr><td colspan="4" class="text-muted p-4 text-center">Chưa đăng ký thư mục.</td></tr>
-                {% endfor %}
-                </tbody>
-            </table>
+
+        <div class="jp-folder-tree-head row g-0 bg-light text-uppercase small text-muted border-bottom">
+            <div class="col py-3 ps-4">Thư mục</div>
+            <div class="col-md-2 py-3 d-none d-md-block">Tên hiển thị</div>
+            <div class="col-md-3 py-3 d-none d-lg-block">Đường dẫn NAS</div>
+            <div class="col-md-auto py-3 pe-4 text-end ms-auto">Thao tác</div>
         </div>
+
+        {% if folder_tree %}
+        <div class="jp-folder-tree-body">
+            {% for node in folder_tree %}
+            {% include "nas_storage/_folder_tree_node.html" with node=node %}
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-muted p-4 text-center">Chưa đăng ký thư mục.</div>
+        {% endif %}
     </div>
 </div>
+
+<style>
+.jp-folder-tree-row:hover { background: rgba(0,0,0,.02); }
+.jp-folder-tree-toggle .jp-folder-chevron { transition: transform .15s ease; }
+.jp-folder-tree-toggle.collapsed .jp-folder-chevron { transform: rotate(-90deg); }
+</style>
+<script>
+document.querySelectorAll('.jp-folder-tree-toggle').forEach(function (btn) {
+    var target = document.querySelector(btn.getAttribute('data-bs-target'));
+    if (!target) return;
+    target.addEventListener('show.bs.collapse', function () { btn.classList.remove('collapsed'); });
+    target.addEventListener('hide.bs.collapse', function () { btn.classList.add('collapsed'); });
+});
+</script>
 {% endblock %}

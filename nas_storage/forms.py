@@ -225,15 +225,28 @@ class NasShareFolderChildForm(forms.ModelForm):
     def __init__(self, *args, parent=None, **kwargs):
         self.parent_folder = parent
         super().__init__(*args, **kwargs)
+        if parent and not parent.is_root:
+            self.fields['sub_path'].label = 'Tên thư mục (một cấp)'
+            self.fields['sub_path'].help_text = (
+                f'Tạo trong «{parent.display_name}» — chỉ nhập tên cấp này (vd. _CHUNG). Portal tạo trên NAS khi lưu.'
+            )
+            self.fields['sub_path'].widget.attrs['placeholder'] = '_CHUNG'
+        elif parent:
+            self.fields['sub_path'].help_text = (
+                'Portal tạo mới trên NAS khi lưu. Có thể nhập một cấp (KD-MKT) hoặc nhiều cấp (KD-MKT/_CHUNG).'
+            )
 
     def clean_sub_path(self):
         raw = (self.cleaned_data.get('sub_path') or '').strip()
         if not raw:
-            raise ValidationError('Đường dẫn thư mục con không được để trống.')
+            raise ValidationError('Tên thư mục không được để trống.')
         try:
-            return normalize_rel_path(raw)
+            segment = normalize_rel_path(raw)
         except NasPathError as exc:
             raise ValidationError(str(exc)) from exc
+        if self.parent_folder and not self.parent_folder.is_root and '/' in segment:
+            raise ValidationError('Thư mục lồng nhau: chỉ nhập tên một cấp (vd. _CHUNG).')
+        return segment
 
     def save(self, commit=True):
         obj = super().save(commit=False)

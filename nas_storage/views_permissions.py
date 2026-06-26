@@ -44,6 +44,7 @@ from nas_storage.folder_permissions_resolved import (
     effective_folder_permissions,
     local_folder_permissions,
 )
+from nas_storage.folder_tree import build_folder_tree
 
 
 def _perm_menu_required(view_func):
@@ -417,22 +418,16 @@ def group_edit(request, pk=None):
 
 @_perm_menu_required
 def folder_list(request):
-    roots = (
-        NasShareFolder.objects.filter(parent__isnull=True)
-        .prefetch_related(
-            Prefetch(
-                'children',
-                queryset=NasShareFolder.objects.order_by('sort_order', 'sub_path'),
-            ),
-        )
-        .order_by('sort_order', 'share_name')
+    all_folders = list(
+        NasShareFolder.objects.order_by('sort_order', 'share_name', 'sub_path')
     )
+    folder_tree = build_folder_tree(all_folders)
     return render(
         request,
         'nas_storage/folder_list.html',
         {
             **_perm_page_ctx(request, 'folder_manage'),
-            'roots': roots,
+            'folder_tree': folder_tree,
         },
     )
 
@@ -481,7 +476,7 @@ def folder_edit(request, pk=None):
 
 @_perm_menu_required
 def folder_child_create(request, parent_pk):
-    parent = get_object_or_404(NasShareFolder, pk=parent_pk, parent__isnull=True)
+    parent = get_object_or_404(NasShareFolder, pk=parent_pk)
     if request.method == 'POST':
         form = NasShareFolderChildForm(request.POST, parent=parent)
         if form.is_valid():
