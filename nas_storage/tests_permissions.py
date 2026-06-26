@@ -45,6 +45,31 @@ class NasPermissionModelTests(TestCase):
         self.assertFalse(has_write_access(flags))
 
 
+class SpecialAccessViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_superuser('nasperm', 'nasperm@test.local', 'pass')
+        self.target = User.objects.create_user('special1', 'special1@test.local', 'pass')
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    @patch('nas_storage.views_permissions.user_can_update_menu', return_value=True)
+    @patch('nas_storage.views_permissions.user_can_access_menu', return_value=True)
+    def test_special_access_list_renders(self, _mock_access, _mock_perm):
+        response = self.client.get(reverse('nas_storage:special_access_list'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Truy cập riêng')
+        self.assertContains(response, 'Phân quyền share')
+
+    @patch('nas_storage.views_permissions.user_can_update_menu', return_value=True)
+    @patch('nas_storage.views_permissions.user_can_access_menu', return_value=True)
+    def test_special_access_edit_renders(self, _mock_access, _mock_perm):
+        url = reverse('nas_storage:special_access_edit', args=[self.target.id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'special1')
+        self.assertContains(response, 'nas_folders-0-rel_path')
+
+
 class PermissionEditorViewTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_superuser('nasperm', 'nasperm@test.local', 'pass')

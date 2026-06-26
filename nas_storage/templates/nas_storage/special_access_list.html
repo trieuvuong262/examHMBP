@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div class="jp-page-header-main">
+            <h2 class="jp-page-title fw-bold text-dark mb-1">NAS</h2>
+        </div>
+    </div>
+
+    {% include "nas_storage/_nas_nav.html" %}
+    {% include "nas_storage/_perm_subnav.html" %}
+    {% include "nas_storage/_perm_breadcrumb.html" %}
+
+    <div class="alert alert-info border-0 shadow-sm small mb-3">
+        Gán thư mục NAS <strong>riêng</strong> cho user đặc biệt (không theo phòng ban).
+        User có ít nhất một đường dẫn bật mới thấy menu <strong>Duyệt thư mục</strong> trên Portal.
+    </div>
+
+    {% if not nas_folders_available %}
+    <div class="alert alert-warning border-0 shadow-sm">
+        Chưa migrate <code>nas_storage.0003</code> — chạy <code>python manage.py migrate nas_storage</code>.
+    </div>
+    {% else %}
+
+    <div class="card border-0 shadow-sm overflow-hidden jp-nas-browse-card mb-3">
+        <div class="card-body py-3">
+            <form method="get" class="row g-2 g-md-3 align-items-end">
+                <div class="col-md-5 col-lg-4">
+                    <label class="form-label small fw-semibold text-muted mb-1">Tìm kiếm</label>
+                    <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm"
+                           placeholder="Account, họ tên, mã NS…">
+                </div>
+                <div class="col-md-4 col-lg-3">
+                    <label class="form-label small fw-semibold text-muted mb-1">Hiển thị</label>
+                    <select name="only_special" class="form-select form-select-sm">
+                        <option value="1" {% if only_special %}selected{% endif %}>Chỉ user đã cấu hình</option>
+                        <option value="0" {% if not only_special %}selected{% endif %}>Tất cả nhân viên</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-hm btn-sm fw-bold">
+                        <i class="bi bi-search"></i> Lọc
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm overflow-hidden jp-nas-browse-card">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light text-uppercase small">
+                    <tr>
+                        <th class="ps-4 py-3 text-muted">Account</th>
+                        <th class="text-muted">Họ và tên</th>
+                        <th class="text-muted">Phòng ban</th>
+                        <th class="text-muted">Thư mục riêng</th>
+                        <th class="text-end pe-4 text-muted">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for u in users %}
+                <tr>
+                    <td class="ps-4 font-monospace fw-semibold">{{ u.username }}</td>
+                    <td>{{ u.profile.full_name|default:"—" }}</td>
+                    <td class="small text-muted">{{ u.profile.department.name|default:"—" }}</td>
+                    <td class="small">
+                        {% if u.nas_folder_count %}
+                        <span class="badge bg-success">{{ u.nas_folder_count }} thư mục</span>
+                        {% for row in u.active_nas_folders %}
+                        <code class="d-block text-hm">{{ row.rel_path }}</code>
+                        {% endfor %}
+                        {% else %}
+                        <span class="text-muted">Chưa cấu hình</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end pe-4">
+                        <a href="{% url 'nas_storage:special_access_edit' u.id %}" class="btn btn-sm btn-outline-primary">
+                            {% if u.nas_folder_count %}Sửa{% else %}Cấu hình{% endif %}
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-muted text-center py-4">
+                        {% if only_special %}
+                        Chưa có user đặc biệt — bỏ lọc hoặc tìm account để cấu hình.
+                        {% else %}
+                        Không có tài khoản phù hợp.
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if page_obj.paginator.num_pages > 1 %}
+        <div class="card-footer bg-white border-top">
+            {% include "includes/pagination.html" with page_obj=page_obj query_string=query_string %}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

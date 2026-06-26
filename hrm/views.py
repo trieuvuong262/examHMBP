@@ -470,6 +470,12 @@ def _save_profile_avatar(profile, upload, request):
 @module_perm_required(MODULE_HRM, 'update')
 def user_nas_folders(request, user_id):
     """Cấu hình thư mục NAS riêng cho từng tài khoản."""
+    from hrm.menu_permissions import user_can_update_menu
+    from hrm.module_permissions import MODULE_NAS_STORAGE
+
+    if user_can_update_menu(request.user, MODULE_NAS_STORAGE, 'permissions'):
+        return redirect('nas_storage:special_access_edit', user_id=user_id)
+
     from nas_storage.user_folders import (
         nas_folders_feature_available,
         nas_folders_page_context,

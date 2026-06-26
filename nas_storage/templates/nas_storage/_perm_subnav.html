@@ -1,0 +1,10 @@
+{% if perm_subnav_items %}
+<nav class="nav nav-pills jp-portal-pills flex-wrap gap-2 mb-3" aria-label="Phân quyền NAS">
+    {% for item in perm_subnav_items %}
+    <a href="{{ item.url }}"
+       class="nav-link rounded-pill fw-semibold{% if perm_subnav_active == item.key %} active{% endif %}">
+        {{ item.label }}
+    </a>
+    {% endfor %}
+</nav>
+{% endif %}
