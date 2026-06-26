@@ -15,7 +15,7 @@
 
     <div class="card border-0 shadow-sm overflow-hidden jp-nas-browse-card">
         <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between flex-wrap gap-2">
-            <span class="text-muted small">Thư mục gốc (share) và thư mục con — quyền con mặc định kế thừa từ gốc</span>
+            <span class="text-muted small">Tạo thư mục gốc/con trên Portal — tự tạo trên NAS khi lưu (cần SSH)</span>
             <div class="d-flex gap-2">
                 {% if ssh_configured %}
                 <form method="post" action="{% url 'nas_storage:import_shares' %}">{% csrf_token %}

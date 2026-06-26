@@ -256,6 +256,79 @@ def _find_principal_in_bucket(bucket: set[str], principal_key: str) -> str | Non
     return None
 
 
+def ensure_directory_on_nas(path: str) -> str:
+    """Tạo thư mục trên NAS (mkdir -p) nếu chưa có."""
+    target = (path or '').strip().rstrip('/')
+    if not target.startswith('/volume'):
+        raise NasAclApplyError(f'Đường dẫn NAS không hợp lệ: {target}')
+    return _run_ssh_commands([
+        f'mkdir -p {shlex.quote(target)}',
+        f'test -d {shlex.quote(target)} && echo OK',
+    ])
+
+
+def _parse_synoshare_enum(output: str) -> list[str]:
+    names = []
+    for line in (output or '').splitlines():
+        line = line.strip()
+        if not line or line.startswith('Password') or 'Listed' in line:
+            continue
+        if re.match(r'^[A-Za-z0-9_][A-Za-z0-9_.-]*$', line):
+            names.append(line)
+    return names
+
+
+def list_shares_on_nas() -> list[str]:
+    if not nas_acl_ssh_configured():
+        return []
+    output = _run_ssh_commands(['/usr/syno/sbin/synoshare --enum ALL'])
+    return _parse_synoshare_enum(output)
+
+
+def share_exists_on_nas(share_name: str) -> bool:
+    key = (share_name or '').strip().lower()
+    if not key:
+        return False
+    return key in {n.lower() for n in list_shares_on_nas()}
+
+
+def create_share_on_nas(folder) -> dict:
+    """Tạo shared folder mới trên DSM (synoshare --add)."""
+    share = (folder.share_name or '').strip()
+    if not share:
+        raise NasAclApplyError('Thiếu tên share.')
+    path = folder.resolved_volume_path()
+    desc = (folder.display_name or share).replace('"', '\\"')[:64]
+    cmd = (
+        f'/usr/syno/sbin/synoshare --add {share} "{desc}" '
+        f'{shlex.quote(path)} "" "" "" 1 0'
+    )
+    output = _run_ssh_commands([cmd])
+    lower = output.lower()
+    if 'error' in lower and 'exist' not in lower and 'already' not in lower:
+        raise NasAclApplyError(output[-800:])
+    return {'status': 'ok', 'action': 'share_add', 'share': share, 'path': path}
+
+
+def provision_portal_folder_on_nas(folder) -> dict:
+    """
+    Tạo thư mục/share trên NAS khi lưu từ Portal — không chỉ map đường dẫn có sẵn.
+    - Thư mục con: mkdir -p
+    - Share gốc mới: synoshare --add (nếu chưa có trên NAS)
+    """
+    if not nas_acl_ssh_configured():
+        raise NasAclApplyError('Chưa cấu hình SSH NAS.')
+    if folder.parent_id:
+        target = folder.resolved_volume_path()
+        output = ensure_directory_on_nas(target)
+        return {'status': 'ok', 'action': 'mkdir', 'path': target, 'output': output[-500:]}
+    share = (folder.share_name or '').strip()
+    if share_exists_on_nas(share):
+        ensure_directory_on_nas(folder.resolved_volume_path())
+        return {'status': 'skipped', 'reason': 'share_exists', 'share': share}
+    return create_share_on_nas(folder)
+
+
 def _synoacl_ace_for_permission(perm: NasFolderPermission) -> str | None:
     level = _share_access_level(perm)
     if not level or level == 'NA':
@@ -277,10 +350,8 @@ def apply_subfolder_permissions(folder) -> dict:
     effective = effective_folder_permissions(folder)
     local_perms = list(_active_folder_permissions(folder))
 
-    commands = [
-        f'mkdir -p {shlex.quote(target)}',
-        f'/usr/syno/bin/synoacltool -get "{target}"',
-    ]
+    ensure_directory_on_nas(target)
+    commands = [f'/usr/syno/bin/synoacltool -get "{target}"']
     applied = 0
     for item in effective:
         ace = _synoacl_ace_for_permission(item.permission)
@@ -447,13 +518,7 @@ def discover_shares_from_nas() -> list[dict]:
     if not nas_acl_ssh_configured():
         raise NasAclApplyError('Chưa cấu hình SSH NAS.')
     output = _run_ssh_commands(['/usr/syno/sbin/synoshare --enum ALL'])
-    names = []
-    for line in output.splitlines():
-        line = line.strip()
-        if not line or line.startswith('Password') or 'Listed' in line:
-            continue
-        if re.match(r'^[A-Za-z0-9_][A-Za-z0-9_.-]*$', line):
-            names.append(line)
+    names = _parse_synoshare_enum(output)
     return [
         {'share_name': n, 'display_name': n}
         for n in names

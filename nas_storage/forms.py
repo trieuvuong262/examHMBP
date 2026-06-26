@@ -172,6 +172,9 @@ class NasShareFolderRootForm(forms.ModelForm):
             'sort_order': forms.NumberInput(attrs={**INPUT, 'min': 0}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
+        help_texts = {
+            'share_name': 'Portal tạo share mới trên NAS khi lưu (nếu chưa có). Hoặc dùng Quét từ NAS.',
+        }
 
     def clean_share_name(self):
         name = (self.cleaned_data.get('share_name') or '').strip()
@@ -194,11 +197,14 @@ class NasShareFolderChildForm(forms.ModelForm):
             'is_active',
         ]
         labels = {
-            'sub_path': 'Đường dẫn trong share',
+            'sub_path': 'Tên thư mục con',
             'inherits_permissions': 'Kế thừa phân quyền từ thư mục cha',
         }
+        help_texts = {
+            'sub_path': 'Portal tạo mới trên NAS khi lưu (vd. KD-MKT hoặc KD-MKT/_CHUNG).',
+        }
         widgets = {
-            'sub_path': forms.TextInput(attrs={**INPUT, 'placeholder': 'KD-MKT/_CHUNG'}),
+            'sub_path': forms.TextInput(attrs={**INPUT, 'placeholder': 'KD-MKT'}),
             'display_name': forms.TextInput(attrs={**INPUT}),
             'description': forms.TextInput(attrs={**INPUT}),
             'sort_order': forms.NumberInput(attrs={**INPUT, 'min': 0}),

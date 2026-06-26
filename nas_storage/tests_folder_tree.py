@@ -34,3 +34,28 @@ class NasFolderTreeTests(TestCase):
 
     def test_portal_path_label(self):
         self.assertEqual(self.child.portal_path_label(), '05_MARKETING/KD-MKT')
+
+from unittest.mock import patch
+
+from django.test import TestCase
+
+from nas_storage.models import NasShareFolder
+from nas_storage.nas_acl_apply import provision_portal_folder_on_nas
+
+
+class NasFolderProvisionTests(TestCase):
+    def setUp(self):
+        self.root = NasShareFolder.objects.create(share_name='05_MARKETING', display_name='Marketing')
+
+    @patch('nas_storage.nas_acl_apply.nas_acl_ssh_configured', return_value=True)
+    @patch('nas_storage.nas_acl_apply.ensure_directory_on_nas', return_value='OK')
+    def test_provision_child_mkdir(self, _mkdir, _ssh):
+        child = NasShareFolder.objects.create(
+            parent=self.root,
+            share_name='05_MARKETING',
+            sub_path='KD-MKT',
+            display_name='KD',
+        )
+        result = provision_portal_folder_on_nas(child)
+        self.assertEqual(result['action'], 'mkdir')
+        _mkdir.assert_called_once()

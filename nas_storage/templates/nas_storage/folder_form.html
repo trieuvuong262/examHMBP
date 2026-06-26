@@ -17,7 +17,13 @@
 
     {% if is_child and parent %}
     <div class="alert alert-light border small mb-3">
-        Thư mục con trong share <code>{{ parent.share_name }}</code> — mặc định <strong>kế thừa phân quyền</strong> từ gốc, có thể thêm quyền riêng sau khi lưu.
+        Thư mục con trong share <code>{{ parent.share_name }}</code> —
+        Portal sẽ <strong>tạo thư mục trên NAS</strong> khi bấm Lưu (cần SSH).
+        Mặc định kế thừa phân quyền từ gốc; có thể chỉnh riêng sau.
+    </div>
+    {% elif not is_child and not editing %}
+    <div class="alert alert-light border small mb-3">
+        Thư mục gốc = shared folder NAS. Portal tạo share mới trên DSM nếu chưa tồn tại, hoặc dùng <strong>Quét từ NAS</strong> để đăng ký share có sẵn.
     </div>
     {% endif %}
 
