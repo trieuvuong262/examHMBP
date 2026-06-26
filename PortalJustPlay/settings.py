@@ -483,6 +483,8 @@ NAS_LDAP_BIND_DN = os.getenv(
 NAS_LDAP_BIND_PASSWORD = os.getenv('NAS_LDAP_BIND_PASSWORD', '').strip()
 NAS_LDAP_SYNC_SKIP_USERNAMES = os.getenv('NAS_LDAP_SYNC_SKIP_USERNAMES', 'admin,ductn').strip()
 NAS_LDAP_DOMAIN = os.getenv('NAS_LDAP_DOMAIN', 'ldap.justplay.local').strip()
+# Share ẩn khỏi menu Duyệt thư mục Portal (share hệ thống DSM, vd. docker)
+NAS_PORTAL_BROWSE_HIDDEN_SHARES = os.getenv('NAS_PORTAL_BROWSE_HIDDEN_SHARES', 'docker').strip()
 NAS_SSH_HOST = os.getenv('NAS_SSH_HOST', '').strip()
 NAS_SSH_ADMIN_USER = os.getenv('NAS_SSH_ADMIN_USER', 'admin').strip()
 NAS_SSH_ADMIN_PASSWORD = os.getenv('NAS_SSH_ADMIN_PASSWORD', '').strip()

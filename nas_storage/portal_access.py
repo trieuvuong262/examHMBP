@@ -8,7 +8,7 @@ from django.contrib.auth.models import User
 from django.db.models import Q
 
 from hrm.models import Profile
-from nas_storage.dept_nas_config import nas_group_for_portal_department
+from nas_storage.dept_nas_config import is_portal_browse_hidden_share
 from nas_storage.nas_paths import NasRootEntry, nas_is_available, nas_mount_root
 
 
@@ -88,6 +88,8 @@ def all_share_portal_roots() -> list[NasRootEntry]:
     seen: set[str] = set()
 
     for folder in NasShareFolder.objects.filter(is_active=True).order_by('sort_order', 'share_name'):
+        if is_portal_browse_hidden_share(folder.share_name):
+            continue
         seen.add(folder.share_name)
         entries.append(
             NasRootEntry(
@@ -101,7 +103,7 @@ def all_share_portal_roots() -> list[NasRootEntry]:
     if nas_is_available():
         try:
             for name in sorted(os.listdir(nas_mount_root())):
-                if name.startswith('.') or name in seen:
+                if name.startswith('.') or name in seen or is_portal_browse_hidden_share(name):
                     continue
                 path = nas_mount_root() / name
                 if not path.is_dir():
@@ -132,7 +134,10 @@ def sync_browse_all_share_permissions(*, apply_to_nas: bool = False) -> dict:
 
     stats = {'permissions_created': 0, 'permissions_updated': 0, 'folders_applied': 0}
     groups = NasAccessGroup.objects.filter(is_active=True, portal_browse_all=True)
-    folders = list(NasShareFolder.objects.filter(is_active=True))
+    folders = [
+        f for f in NasShareFolder.objects.filter(is_active=True)
+        if not is_portal_browse_hidden_share(f.share_name)
+    ]
     perm_defaults = {
         'permission_type': 'allow',
         'apply_to': 'all',

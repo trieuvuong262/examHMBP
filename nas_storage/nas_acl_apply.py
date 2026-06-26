@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 from django.conf import settings
 from django.utils import timezone
 
+from nas_storage.dept_nas_config import is_portal_browse_hidden_share
 from nas_storage.models import NasFolderPermission
 from nas_storage.permission_defs import PERM_TYPE_ALLOW, has_read_access, has_write_access
 
@@ -210,4 +211,8 @@ def discover_shares_from_nas() -> list[dict]:
             continue
         if re.match(r'^[A-Za-z0-9_][A-Za-z0-9_.-]*$', line):
             names.append(line)
-    return [{'share_name': n, 'display_name': n} for n in names]
+    return [
+        {'share_name': n, 'display_name': n}
+        for n in names
+        if not is_portal_browse_hidden_share(n)
+    ]

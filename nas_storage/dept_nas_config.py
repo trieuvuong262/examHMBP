@@ -100,3 +100,17 @@ def known_nas_share_names() -> frozenset[str]:
     for share_name, _ in EXTRA_SHARE_GROUP_LINKS:
         names.add(share_name)
     return frozenset(names)
+
+
+def portal_browse_hidden_shares() -> frozenset[str]:
+    """Share hệ thống không hiện trong Duyệt thư mục Portal (vd. docker của DSM)."""
+    raw = getattr(settings, 'NAS_PORTAL_BROWSE_HIDDEN_SHARES', 'docker')
+    if isinstance(raw, (frozenset, set, list, tuple)):
+        items = raw
+    else:
+        items = str(raw or '').split(',')
+    return frozenset(x.strip().lower() for x in items if str(x).strip())
+
+
+def is_portal_browse_hidden_share(name: str) -> bool:
+    return (name or '').strip().lower() in portal_browse_hidden_shares()
