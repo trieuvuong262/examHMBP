@@ -19,9 +19,6 @@
         <div class="card-header bg-white border-bottom py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
             <span class="fw-semibold">Shared folder trên NAS</span>
             <div class="d-flex flex-wrap gap-2">
-                <a href="{% url 'nas_storage:group_list' %}" class="btn btn-outline-secondary btn-sm">
-                    <i class="bi bi-people"></i> Nhóm quyền
-                </a>
                 <a href="{% url 'nas_storage:folder_list' %}" class="btn btn-outline-secondary btn-sm">
                     <i class="bi bi-folder-plus"></i> Quản lý share
                 </a>
@@ -82,24 +79,56 @@
         </div>
     </div>
 
-    {% if groups %}
-    <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white border-bottom py-2 d-flex justify-content-between align-items-center">
-            <span class="small fw-semibold text-muted text-uppercase">Nhóm phòng ban ({{ groups.count }})</span>
-            <a href="{% url 'nas_storage:group_list' %}" class="btn btn-link btn-sm">Sửa nhóm</a>
-        </div>
-        <div class="card-body p-3">
-            <div class="d-flex flex-wrap gap-2">
-                {% for g in groups %}
-                <a href="{% url 'nas_storage:group_edit' g.pk %}"
-                   class="badge bg-white text-dark border px-3 py-2 fw-normal text-decoration-none">
-                    <strong>{{ g.name }}</strong>
-                    <code class="small ms-1">{{ g.resolved_nas_principal }}</code>
-                </a>
-                {% endfor %}
+    <div class="card border-0 shadow-sm overflow-hidden jp-nas-browse-card" id="nas-groups">
+        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <span class="fw-semibold">Nhóm quyền NAS</span>
+                <span class="text-muted small ms-2">{{ groups.count }} nhóm</span>
             </div>
+            <a href="{% url 'nas_storage:group_create' %}" class="btn btn-hm btn-sm">
+                <i class="bi bi-plus-lg"></i> Thêm nhóm
+            </a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="bg-light text-uppercase small">
+                    <tr>
+                        <th class="ps-4 py-3 text-muted">Tên nhóm</th>
+                        <th class="text-muted">Principal NAS / LDAP</th>
+                        <th class="text-muted">Mô tả</th>
+                        <th class="text-muted">Duyệt Portal</th>
+                        <th class="text-end pe-4 text-muted">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for g in groups %}
+                <tr>
+                    <td class="ps-4 fw-semibold">{{ g.name }}</td>
+                    <td><code class="small">{{ g.resolved_nas_principal }}</code></td>
+                    <td class="text-muted small">{{ g.description|default:"—" }}</td>
+                    <td class="small">
+                        {% if g.portal_browse_all %}
+                        <span class="badge bg-success">Xem tất cả share</span>
+                        {% else %}
+                        <span class="text-muted">Theo share / link riêng</span>
+                        {% endif %}
+                        {% if g.portal_members.count %}
+                        <div class="text-muted mt-1">+{{ g.portal_members.count }} thành viên bổ sung</div>
+                        {% endif %}
+                        {% if g.portal_excluded_members.count %}
+                        <div class="text-muted mt-1">{{ g.portal_excluded_members.count }} loại trừ</div>
+                        {% endif %}
+                    </td>
+                    <td class="text-end pe-4">
+                        <a href="{% url 'nas_storage:group_edit' g.pk %}" class="btn btn-sm btn-outline-primary">Sửa</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-muted p-4 text-center">Chưa có nhóm.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
-    {% endif %}
 </div>
 {% endblock %}

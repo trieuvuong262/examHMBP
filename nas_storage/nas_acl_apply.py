@@ -155,30 +155,55 @@ def portal_managed_group_keys() -> set[str]:
     return keys
 
 
+def portal_managed_user_keys() -> set[str]:
+    from nas_storage.models import NasFolderPermission
+
+    keys: set[str] = set()
+    for username in NasFolderPermission.objects.filter(user__isnull=False).values_list(
+        'user__username',
+        flat=True,
+    ):
+        if username:
+            keys.add(username.lower())
+    return keys
+
+
+def portal_managed_share_keys() -> set[str]:
+    return portal_managed_group_keys() | portal_managed_user_keys()
+
+
 def is_portal_managed_share_principal(principal: str) -> bool:
     if (principal or '').strip() == '#everyone':
         return False
     key = principal_group_key(principal)
     if not key or key in PRESERVED_SHARE_PRINCIPAL_KEYS:
         return False
-    return key in portal_managed_group_keys()
+    return key in portal_managed_share_keys()
 
 
-def _find_principal_in_bucket(bucket: set[str], group_key: str) -> str | None:
-    for principal in bucket:
-        if principal_group_key(principal) == group_key:
-            return principal
-    return None
+def _active_folder_permissions(folder):
+    from django.db.models import Q
+
+    from nas_storage.models import NasFolderPermission
+
+    return (
+        NasFolderPermission.objects.filter(folder=folder)
+        .select_related('group', 'user')
+        .filter(
+            Q(group__isnull=False, group__is_active=True)
+            | Q(user__isnull=False, user__is_active=True),
+        )
+        .order_by('id')
+    )
 
 
 def _desired_share_acl_buckets(folder) -> dict[str, set[str]]:
     buckets: dict[str, set[str]] = {'RW': set(), 'RO': set(), 'NA': set()}
-    perms = folder.permissions.select_related('group').filter(group__is_active=True).order_by('id')
-    for perm in perms:
+    for perm in _active_folder_permissions(folder):
         level = _share_access_level(perm)
         if not level:
             continue
-        principal = _normalize_principal(perm.group.resolved_nas_principal())
+        principal = perm.resolved_nas_principal()
         if principal:
             buckets[level].add(principal)
     return buckets
@@ -190,16 +215,16 @@ def build_share_acl_sync_commands(
     desired: dict[str, set[str]],
     current: dict[str, set[str]],
 ) -> list[str]:
-    """Sinh lệnh synoshare: gỡ nhóm Portal không còn cấu hình, thêm/cập nhật nhóm còn lại."""
+    """Sinh lệnh synoshare: gỡ principal Portal không còn cấu hình, thêm/cập nhật còn lại."""
     commands: list[str] = []
-    managed_keys = portal_managed_group_keys()
+    managed_keys = portal_managed_share_keys()
 
-    for group_key in sorted(managed_keys):
+    for principal_key in sorted(managed_keys):
         desired_level: str | None = None
         desired_principal: str | None = None
         for level in ('RW', 'RO', 'NA'):
             for principal in desired.get(level, set()):
-                if principal_group_key(principal) == group_key:
+                if principal_group_key(principal) == principal_key:
                     desired_level = level
                     desired_principal = principal
                     break
@@ -207,14 +232,14 @@ def build_share_acl_sync_commands(
                 break
 
         for level in ('RW', 'RO', 'NA'):
-            existing = _find_principal_in_bucket(current.get(level, set()), group_key)
+            existing = _find_principal_in_bucket(current.get(level, set()), principal_key)
             if existing and (desired_level is None or level != desired_level):
                 commands.append(_synoshare_setuser_cmd(share, level, '-', existing))
 
         if desired_level and desired_principal:
             existing_desired = _find_principal_in_bucket(
                 current.get(desired_level, set()),
-                group_key,
+                principal_key,
             )
             if not existing_desired:
                 commands.append(
@@ -224,12 +249,17 @@ def build_share_acl_sync_commands(
     return commands
 
 
+def _find_principal_in_bucket(bucket: set[str], principal_key: str) -> str | None:
+    for principal in bucket:
+        if principal_group_key(principal) == principal_key:
+            return principal
+    return None
+
+
 def apply_folder_permissions(folder) -> dict:
     """Đồng bộ ACL share NAS theo cấu hình Portal cho một folder."""
     share = folder.share_name
-    perms = list(
-        folder.permissions.select_related('group').filter(group__is_active=True).order_by('id')
-    )
+    perms = list(_active_folder_permissions(folder))
     desired = _desired_share_acl_buckets(folder)
 
     list_output = _run_ssh_commands([f'/usr/syno/sbin/synoshare --list_acl {share}'])

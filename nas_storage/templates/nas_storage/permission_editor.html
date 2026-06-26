@@ -19,11 +19,30 @@
             <p class="text-muted small mb-0">{{ folder.display_name }} · <code>{{ folder.share_name }}</code></p>
         </div>
         <div class="card-body p-4">
+            <div class="mb-4">
+                <div class="fw-semibold mb-2">{{ form.assignee_type.label }}</div>
+                <div class="d-flex flex-wrap gap-3">
+                    {% for radio in form.assignee_type %}
+                    <div class="form-check">
+                        {{ radio.tag }}
+                        <label class="form-check-label" for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% for e in form.assignee_type.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+
             <div class="row g-4 mb-4">
-                <div class="col-md-6">
-                    <label class="form-label fw-semibold" for="{{ form.group.id_for_label }}">Nhóm</label>
+                <div class="col-md-6" id="jp-nas-perm-group-wrap">
+                    <label class="form-label fw-semibold" for="{{ form.group.id_for_label }}">{{ form.group.label }}</label>
                     {{ form.group }}
                     {% for e in form.group.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                </div>
+                <div class="col-md-6 d-none" id="jp-nas-perm-user-wrap">
+                    <label class="form-label fw-semibold" for="{{ form.user.id_for_label }}">{{ form.user.label }}</label>
+                    {{ form.user }}
+                    <div class="form-text small">Account Portal / LDAP — quyền áp trực tiếp lên share SMB.</div>
+                    {% for e in form.user.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
                 </div>
                 <div class="col-md-3">
                     <label class="form-label fw-semibold" for="{{ form.permission_type.id_for_label }}">Hành động</label>
@@ -47,6 +66,18 @@
                     </div>
                     {% endfor %}
                 </div>
+            </div>
+
+            <div class="alert alert-warning border-0 small mb-4" id="jp-nas-raidrive-ro-hint">
+                <strong>RaiDrive / File Explorer (PC):</strong>
+                Nếu cấp quyền <em>Chỉ đọc</em> mà user vẫn map ổ như ổ ghi được, thao tác
+                <strong>Tạo thư mục mới</strong> trong Explorer có thể <strong>làm treo máy</strong>
+                thay vì hiện thông báo ngay — đây là hành vi client Windows/RaiDrive, Portal không chặn được.
+                <ul class="mb-0 mt-2 ps-3">
+                    <li>Khuyến nghị IT: map share chỉ đọc phía Windows
+                        (<code>net use Z: \\NAS\share /readonly</code> hoặc RaiDrive giao thức <strong>SMB</strong>).</li>
+                    <li>User chỉ xem file: dùng <strong>Duyệt thư mục</strong> trên Portal — có thông báo lỗi rõ ràng.</li>
+                </ul>
             </div>
 
             <div class="form-check mb-4">
@@ -106,4 +137,25 @@
         </div>
     </form>
 </div>
+
+<script>
+(function () {
+    const typeInputs = document.querySelectorAll('input[name="assignee_type"]');
+    const groupWrap = document.getElementById('jp-nas-perm-group-wrap');
+    const userWrap = document.getElementById('jp-nas-perm-user-wrap');
+    if (!typeInputs.length || !groupWrap || !userWrap) return;
+
+    function syncAssigneeFields() {
+        const selected = document.querySelector('input[name="assignee_type"]:checked');
+        const isUser = selected && selected.value === 'user';
+        groupWrap.classList.toggle('d-none', isUser);
+        userWrap.classList.toggle('d-none', !isUser);
+    }
+
+    typeInputs.forEach(function (el) {
+        el.addEventListener('change', syncAssigneeFields);
+    });
+    syncAssigneeFields();
+})();
+</script>
 {% endblock %}

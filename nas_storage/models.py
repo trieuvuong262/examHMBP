@@ -178,7 +178,7 @@ class NasShareFolder(models.Model):
 
 
 class NasFolderPermission(models.Model):
-    """Quyền chi tiết nhóm ↔ share — khớp Permission Editor DSM."""
+    """Quyền chi tiết nhóm hoặc user ↔ share — khớp Permission Editor DSM."""
 
     folder = models.ForeignKey(
         NasShareFolder,
@@ -191,6 +191,16 @@ class NasFolderPermission(models.Model):
         on_delete=models.CASCADE,
         related_name='folder_permissions',
         verbose_name='Nhóm',
+        null=True,
+        blank=True,
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='nas_folder_permissions',
+        verbose_name='Nhân viên',
+        null=True,
+        blank=True,
     )
     permission_type = models.CharField(
         max_length=8,
@@ -234,18 +244,53 @@ class NasFolderPermission(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['folder__sort_order', 'group__sort_order', 'id']
+        ordering = ['folder__sort_order', 'group__sort_order', 'user__username', 'id']
         verbose_name = 'Phân quyền thư mục NAS'
         verbose_name_plural = 'Phân quyền thư mục NAS'
         constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(group__isnull=False, user__isnull=True)
+                    | models.Q(group__isnull=True, user__isnull=False)
+                ),
+                name='nas_folder_perm_group_xor_user',
+            ),
             models.UniqueConstraint(
                 fields=['folder', 'group'],
+                condition=models.Q(group__isnull=False),
                 name='nas_storage_folder_group_perm_uniq',
+            ),
+            models.UniqueConstraint(
+                fields=['folder', 'user'],
+                condition=models.Q(user__isnull=False),
+                name='nas_storage_folder_user_perm_uniq',
             ),
         ]
 
     def __str__(self) -> str:
-        return f'{self.folder.share_name} · {self.group.name}'
+        target = self.assignee_label
+        return f'{self.folder.share_name} · {target}'
+
+    @property
+    def assignee_label(self) -> str:
+        if self.user_id:
+            profile = getattr(self.user, 'profile', None)
+            name = (profile.full_name if profile and profile.full_name else '') or self.user.username
+            return f'{name} ({self.user.username})'
+        if self.group_id:
+            return self.group.name
+        return '—'
+
+    def resolved_nas_principal(self) -> str:
+        from django.conf import settings
+
+        if self.user_id:
+            domain = getattr(settings, 'NAS_LDAP_DOMAIN', 'ldap.justplay.local')
+            return f'{self.user.username}@{domain}'
+        if self.group_id:
+            raw = self.group.resolved_nas_principal()
+            return raw if raw.startswith('@') else f'@{raw}'
+        return ''
 
     def permission_flags(self) -> dict[str, bool]:
         from nas_storage.permission_defs import ALL_PERM_FIELD_NAMES

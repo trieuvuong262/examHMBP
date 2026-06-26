@@ -168,6 +168,18 @@ class NasShareFolderForm(forms.ModelForm):
 
 
 class NasFolderPermissionForm(forms.ModelForm):
+    ASSIGNEE_GROUP = 'group'
+    ASSIGNEE_USER = 'user'
+
+    assignee_type = forms.ChoiceField(
+        choices=(
+            (ASSIGNEE_GROUP, 'Nhóm quyền'),
+            (ASSIGNEE_USER, 'Nhân viên cụ thể'),
+        ),
+        label='Áp dụng cho',
+        widget=forms.RadioSelect(attrs={'class': 'form-check-input'}),
+        initial=ASSIGNEE_GROUP,
+    )
     preset = forms.ChoiceField(
         required=False,
         choices=(
@@ -186,6 +198,7 @@ class NasFolderPermissionForm(forms.ModelForm):
         model = NasFolderPermission
         fields = [
             'group',
+            'user',
             'permission_type',
             'apply_to',
             'inherit_from_parent',
@@ -205,12 +218,14 @@ class NasFolderPermissionForm(forms.ModelForm):
         ]
         labels = {
             'group': 'Nhóm',
+            'user': 'Nhân viên',
             'permission_type': 'Hành động',
             'apply_to': 'Phạm vi áp dụng',
             'inherit_from_parent': 'Kế thừa từ thư mục cha',
         }
         widgets = {
             'group': forms.Select(attrs=SELECT),
+            'user': forms.Select(attrs={**SELECT, 'data-placeholder': 'Chọn account...'}),
             'permission_type': forms.Select(attrs=SELECT),
             'apply_to': forms.Select(attrs=SELECT),
             'inherit_from_parent': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -219,14 +234,44 @@ class NasFolderPermissionForm(forms.ModelForm):
     def __init__(self, *args, folder=None, **kwargs):
         self.folder = folder
         super().__init__(*args, **kwargs)
+        from django.contrib.auth.models import User
+
+        from hrm.user_search import exclude_hidden_hrm_users
         from nas_storage.models import NasAccessGroup, NasFolderPermission
         from nas_storage.permission_defs import detect_preset_from_flags
 
         group_qs = NasAccessGroup.objects.filter(is_active=True).order_by('sort_order', 'name')
+        user_qs = exclude_hidden_hrm_users(
+            User.objects.filter(is_active=True).select_related('profile'),
+        ).order_by('profile__full_name', 'username')
         if folder and not (self.instance and self.instance.pk):
-            used_ids = NasFolderPermission.objects.filter(folder=folder).values_list('group_id', flat=True)
-            group_qs = group_qs.exclude(pk__in=used_ids)
+            used_group_ids = NasFolderPermission.objects.filter(
+                folder=folder,
+                group__isnull=False,
+            ).values_list('group_id', flat=True)
+            used_user_ids = NasFolderPermission.objects.filter(
+                folder=folder,
+                user__isnull=False,
+            ).values_list('user_id', flat=True)
+            group_qs = group_qs.exclude(pk__in=used_group_ids)
+            user_qs = user_qs.exclude(pk__in=used_user_ids)
         self.fields['group'].queryset = group_qs
+        self.fields['group'].required = False
+        self.fields['user'].queryset = user_qs
+        self.fields['user'].required = False
+        self.fields['user'].label_from_instance = self._user_label
+
+        if self.instance and self.instance.pk:
+            if self.instance.user_id:
+                self.fields['assignee_type'].initial = self.ASSIGNEE_USER
+            else:
+                self.fields['assignee_type'].initial = self.ASSIGNEE_GROUP
+            preset = detect_preset_from_flags(self.instance.permission_flags())
+            if preset != 'custom':
+                self.fields['preset'].initial = preset
+        else:
+            self.fields['preset'].initial = 'read_write'
+
         for name in (
             'perm_traverse', 'perm_list_read', 'perm_read_attr', 'perm_read_ext_attr', 'perm_read_acl',
             'perm_create_files', 'perm_create_folders', 'perm_write_attr', 'perm_write_ext_attr',
@@ -234,12 +279,13 @@ class NasFolderPermissionForm(forms.ModelForm):
         ):
             self.fields[name].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
 
-        if self.instance and self.instance.pk:
-            preset = detect_preset_from_flags(self.instance.permission_flags())
-            if preset != 'custom':
-                self.fields['preset'].initial = preset
-        else:
-            self.fields['preset'].initial = 'read_write'
+    @staticmethod
+    def _user_label(user) -> str:
+        profile = getattr(user, 'profile', None)
+        full_name = (profile.full_name if profile and profile.full_name else '').strip()
+        if full_name:
+            return f'{full_name} ({user.username})'
+        return user.username
 
     def clean(self):
         cleaned = super().clean()
@@ -250,8 +296,22 @@ class NasFolderPermissionForm(forms.ModelForm):
             for name, value in flags_from_preset(preset).items():
                 cleaned[name] = value
 
-        folder = self.folder
+        assignee_type = cleaned.get('assignee_type') or self.ASSIGNEE_GROUP
         group = cleaned.get('group')
+        user = cleaned.get('user')
+        folder = self.folder
+
+        if assignee_type == self.ASSIGNEE_USER:
+            cleaned['group'] = None
+            if not user:
+                self.add_error('user', 'Chọn nhân viên cần cấp quyền.')
+        else:
+            cleaned['user'] = None
+            if not group:
+                self.add_error('group', 'Chọn nhóm quyền.')
+
+        group = cleaned.get('group')
+        user = cleaned.get('user')
         if folder and group:
             from nas_storage.models import NasFolderPermission
 
@@ -262,6 +322,17 @@ class NasFolderPermissionForm(forms.ModelForm):
                 self.add_error(
                     'group',
                     f'Nhóm «{group.name}» đã có quyền trên thư mục này. Hãy sửa bản ghi hiện có.',
+                )
+        if folder and user:
+            from nas_storage.models import NasFolderPermission
+
+            qs = NasFolderPermission.objects.filter(folder=folder, user=user)
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                self.add_error(
+                    'user',
+                    f'Nhân viên «{user.username}» đã có quyền trên thư mục này. Hãy sửa bản ghi hiện có.',
                 )
         return cleaned
 

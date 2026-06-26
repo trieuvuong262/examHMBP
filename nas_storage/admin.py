@@ -41,9 +41,9 @@ class NasShareFolderAdmin(admin.ModelAdmin):
 
 @admin.register(NasFolderPermission)
 class NasFolderPermissionAdmin(admin.ModelAdmin):
-    list_display = ('folder', 'group', 'permission_type', 'last_applied_at')
+    list_display = ('folder', 'group', 'user', 'permission_type', 'last_applied_at')
     list_filter = ('permission_type',)
-    search_fields = ('folder__share_name', 'group__name')
+    search_fields = ('folder__share_name', 'group__name', 'user__username')
 
 
 @admin.register(NasUserFolderAcl)

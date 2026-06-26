@@ -74,11 +74,6 @@ def _perm_subnav_context(perm_subnav_active: str) -> dict:
                 'url': reverse('nas_storage:permissions_hub'),
             },
             {
-                'key': 'groups',
-                'label': 'Nhóm quyền',
-                'url': reverse('nas_storage:group_list'),
-            },
-            {
                 'key': 'special',
                 'label': 'Truy cập riêng',
                 'url': reverse('nas_storage:special_access_list'),
@@ -105,7 +100,11 @@ def permissions_hub(request):
         )
         .order_by('sort_order', 'share_name')
     )
-    groups = NasAccessGroup.objects.filter(is_active=True).order_by('sort_order', 'name')
+    groups = (
+        NasAccessGroup.objects.filter(is_active=True)
+        .prefetch_related('portal_members', 'portal_excluded_members')
+        .order_by('sort_order', 'name')
+    )
     pending_apply_count = sum(
         1 for f in folders if f.perm_count and f.applied_count < f.perm_count
     )
@@ -125,19 +124,7 @@ def permissions_hub(request):
 
 @_perm_menu_required
 def group_list(request):
-    groups = NasAccessGroup.objects.prefetch_related('portal_members', 'portal_excluded_members').all()
-    return render(
-        request,
-        'nas_storage/group_list.html',
-        {
-            **_perm_page_ctx(request, 'groups'),
-            'groups': groups,
-            'breadcrumbs': _perm_breadcrumbs(
-                ('Phân quyền NAS', reverse('nas_storage:permissions_hub')),
-                ('Nhóm quyền', None),
-            ),
-        },
-    )
+    return redirect(reverse('nas_storage:permissions_hub') + '#nas-groups')
 
 
 def _dept_share_hint(user) -> tuple[str | None, list[str]]:
@@ -344,7 +331,7 @@ def group_edit(request, pk=None):
                     f'cặp nhóm–share cho nhóm xem tất cả.',
                 )
             messages.success(request, 'Đã lưu nhóm quyền NAS.')
-            return redirect('nas_storage:group_list')
+            return redirect('nas_storage:permissions_hub')
     else:
         form = NasAccessGroupForm(instance=instance)
     group_name = instance.name if instance else ''
@@ -370,7 +357,7 @@ def group_edit(request, pk=None):
         request,
         'nas_storage/group_form.html',
         {
-            **_perm_page_ctx(request, 'groups'),
+            **_perm_page_ctx(request, 'shares'),
             'form': form,
             'editing': bool(instance),
             'group_instance': instance,
@@ -422,7 +409,11 @@ def folder_edit(request, pk=None):
 @_perm_menu_required
 def folder_permissions(request, pk):
     folder = get_object_or_404(NasShareFolder, pk=pk)
-    permissions = folder.permissions.select_related('group').order_by('group__sort_order', 'group__name')
+    permissions = folder.permissions.select_related('group', 'user', 'user__profile').order_by(
+        'group__sort_order',
+        'user__username',
+        'id',
+    )
     hub_url = reverse('nas_storage:permissions_hub')
     folder_url = reverse('nas_storage:folder_permissions', kwargs={'pk': folder.pk})
     return render(
