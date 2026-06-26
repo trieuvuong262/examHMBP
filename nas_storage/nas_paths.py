@@ -53,6 +53,18 @@ def default_nas_rclone_remote() -> str:
     return getattr(settings, 'NAS_RCLONE_REMOTE', 'synology:').strip() or 'synology:'
 
 
+def app_storage_rclone_target(folder_rel_base: str, file_rel: str) -> str:
+    """rclone copyto target cho lưu trữ app (báo cáo, thông báo) trên share 99_LUU_TRU."""
+    remote = default_nas_rclone_remote()
+    folder = (folder_rel_base or '').strip('/')
+    rel = (file_rel or '').strip('/')
+    if folder and rel:
+        return nas_rclone_remote_path(remote, f'{folder}/{rel}')
+    if folder:
+        return nas_rclone_remote_path(remote, folder)
+    return nas_rclone_remote_path(remote, rel)
+
+
 def nas_is_available() -> bool:
     root = nas_mount_root()
     return root.is_dir() and os.access(root, os.R_OK)

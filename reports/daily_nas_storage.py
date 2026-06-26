@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import shutil
 import subprocess
 import tempfile
 import uuid
@@ -86,11 +85,14 @@ class DailyReportNasStorage(FileSystemStorage):
                     tmp_file.write(content.read())
 
             dest = Path(self.path(name))
-            try:
-                dest.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copyfile(tmp_path, dest)
-            except OSError:
-                _rclone_upload_file(tmp_path, name)
+            from nas_storage.app_nas_storage import persist_app_nas_file
+
+            persist_app_nas_file(
+                tmp_path=tmp_path,
+                mount_dest=dest,
+                folder_rel_base=daily_report_nas_rel_base(),
+                file_rel=name,
+            )
             return name
         finally:
             try:
@@ -110,14 +112,29 @@ def daily_nas_abs_path(rel_name: str) -> Path | None:
     if not rel_name:
         return None
     path = Path(DailyReportNasStorage().path(rel_name))
-    if path.is_file():
-        return path
+    try:
+        if path.is_file():
+            return path
+    except OSError:
+        pass
     cached = _rclone_cache_path(rel_name)
     if cached.is_file():
         return cached
     try:
         return _rclone_download_to_cache(rel_name)
     except OSError:
+        pass
+    return _dsm_download_to_cache(rel_name)
+
+
+def _dsm_download_to_cache(rel_name: str) -> Path | None:
+    from nas_storage.dsm_upload import DsmUploadError, dsm_download_nas_rel
+
+    cached = _rclone_cache_path(rel_name)
+    full_rel = f'{daily_report_nas_rel_base()}/{rel_name.lstrip("/")}'
+    try:
+        return dsm_download_nas_rel(full_rel, cached)
+    except DsmUploadError:
         return None
 
 
@@ -159,24 +176,20 @@ def _rclone_download_to_cache(rel_name: str) -> Path:
 
 
 def ensure_daily_report_nas_dir() -> Path:
+    from nas_storage.app_nas_storage import persist_app_nas_mkdir
+
     root = daily_report_nas_abs_root()
     try:
         root.mkdir(parents=True, exist_ok=True)
     except OSError:
-        _rclone_mkdir_daily_root()
+        persist_app_nas_mkdir(daily_report_nas_rel_base())
     return root
 
 
 def _daily_rclone_target(rel_name: str) -> str:
-    from nas_storage.nas_paths import default_nas_rclone_remote, nas_rclone_remote_path
+    from nas_storage.nas_paths import app_storage_rclone_target
 
-    folder = daily_report_nas_rel_base()
-    rel = rel_name.lstrip('/')
-    if folder and rel:
-        return nas_rclone_remote_path(default_nas_rclone_remote(), f'{folder}/{rel}')
-    if folder:
-        return nas_rclone_remote_path(default_nas_rclone_remote(), folder)
-    return nas_rclone_remote_path(default_nas_rclone_remote(), rel)
+    return app_storage_rclone_target(daily_report_nas_rel_base(), rel_name.lstrip('/'))
 
 
 def _rclone_env() -> dict:
@@ -200,15 +213,12 @@ def _rclone_mkdir_daily_root() -> None:
 
 
 def _rclone_upload_file(local_path: Path, rel_name: str) -> None:
-    target = _daily_rclone_target(rel_name)
-    proc = subprocess.run(
-        ['rclone', 'copyto', str(local_path), target],
-        capture_output=True,
-        text=True,
-        timeout=600,
-        check=False,
-        env=_rclone_env(),
+    """Giữ cho tương thích cũ — ưu tiên persist_app_nas_file."""
+    from nas_storage.app_nas_storage import persist_app_nas_file
+
+    persist_app_nas_file(
+        tmp_path=local_path,
+        mount_dest=daily_report_nas_abs_root() / rel_name.lstrip('/'),
+        folder_rel_base=daily_report_nas_rel_base(),
+        file_rel=rel_name.lstrip('/'),
     )
-    if proc.returncode != 0:
-        err = (proc.stderr or proc.stdout or '').strip()
-        raise OSError(f'Không ghi được file lên NAS: {err[:200]}')
