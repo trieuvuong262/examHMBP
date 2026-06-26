@@ -14,18 +14,6 @@
     </nav>
 
     <div class="card border-0 shadow-sm overflow-hidden jp-nas-browse-card">
-        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between flex-wrap gap-2">
-            <span class="text-muted small">Quét share + thư mục con tối đa 2 cấp từ NAS (cần SSH)</span>
-            <div class="d-flex gap-2">
-                {% if ssh_configured %}
-                <form method="post" action="{% url 'nas_storage:import_shares' %}">{% csrf_token %}
-                    <button class="btn btn-outline-secondary btn-sm">Quét từ NAS</button>
-                </form>
-                {% endif %}
-                <a href="{% url 'nas_storage:folder_create' %}" class="btn btn-hm btn-sm">Thêm thư mục gốc</a>
-            </div>
-        </div>
-
         <div class="jp-folder-tree-head row g-0 bg-light text-uppercase small text-muted border-bottom">
             <div class="col py-3 ps-4">Thư mục</div>
             <div class="col-md-2 py-3 d-none d-md-block">Tên hiển thị</div>
@@ -60,17 +48,41 @@
 .jp-folder-icon--child { color: #6c757d; }
 .jp-folder-code--root { color: var(--hm-primary-dark, #b91c1c); font-weight: 600; }
 .jp-folder-code--child { color: #495057; }
-.jp-folder-tree-toggle .jp-folder-chevron { transition: transform .15s ease; }
-.jp-folder-tree-toggle.collapsed .jp-folder-chevron { transform: rotate(-90deg); }
-.jp-folder-actions .btn { min-width: 2rem; }
+.jp-folder-tree-row--expandable { cursor: pointer; }
+.jp-folder-tree-row--expandable:focus-visible { outline: 2px solid var(--hm-primary, #dc2626); outline-offset: -2px; }
+.jp-folder-chevron { transition: transform .15s ease; display: inline-block; width: 1.35rem; text-align: center; }
+.jp-folder-tree-row--expandable.collapsed .jp-folder-chevron { transform: rotate(-90deg); }
+.jp-folder-actions .btn {
+    min-width: 2rem;
+    padding-left: .45rem;
+    padding-right: .45rem;
+}
 .jp-folder-actions form { display: contents; }
+.jp-folder-actions .btn:focus-visible { z-index: 2; }
 </style>
 <script>
-document.querySelectorAll('.jp-folder-tree-toggle').forEach(function (btn) {
-    var target = document.querySelector(btn.getAttribute('data-bs-target'));
-    if (!target) return;
-    target.addEventListener('show.bs.collapse', function () { btn.classList.remove('collapsed'); });
-    target.addEventListener('hide.bs.collapse', function () { btn.classList.add('collapsed'); });
+document.querySelectorAll('.jp-folder-tree-row--expandable').forEach(function (row) {
+    var target = document.querySelector(row.getAttribute('data-folder-target'));
+    if (!target || typeof bootstrap === 'undefined') return;
+    var collapse = bootstrap.Collapse.getOrCreateInstance(target, { toggle: false });
+    row.addEventListener('click', function (e) {
+        if (e.target.closest('.jp-folder-actions')) return;
+        collapse.toggle();
+    });
+    row.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        if (e.target.closest('.jp-folder-actions')) return;
+        e.preventDefault();
+        collapse.toggle();
+    });
+    target.addEventListener('show.bs.collapse', function () {
+        row.classList.remove('collapsed');
+        row.setAttribute('aria-expanded', 'true');
+    });
+    target.addEventListener('hide.bs.collapse', function () {
+        row.classList.add('collapsed');
+        row.setAttribute('aria-expanded', 'false');
+    });
 });
 </script>
 {% endblock %}

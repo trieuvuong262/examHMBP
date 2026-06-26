@@ -1,19 +1,31 @@
 {% if perm_subnav_items %}
-<nav class="nav nav-pills jp-portal-pills flex-wrap gap-2 mb-3 align-items-center" aria-label="Phân quyền NAS">
-    {% for item in perm_subnav_items %}
-    <a href="{{ item.url }}"
-       class="nav-link rounded-pill fw-semibold{% if perm_subnav_active == item.key %} active{% endif %}">
-        {{ item.label }}
-    </a>
-    {% endfor %}
-    {% if can_update %}
-    <form method="post" action="{% url 'nas_storage:apply_all_acl' %}" class="d-inline">
-        {% csrf_token %}
-        <button type="submit" class="btn btn-hm btn-sm rounded-pill fw-semibold"
-                {% if not ssh_configured %}disabled title="Chưa cấu hình SSH NAS"{% endif %}>
-            <i class="bi bi-arrow-clockwise"></i> Áp dụng
-        </button>
-    </form>
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <nav class="nav nav-pills jp-portal-pills flex-wrap gap-2 align-items-center" aria-label="Phân quyền NAS">
+        {% for item in perm_subnav_items %}
+        <a href="{{ item.url }}"
+           class="nav-link rounded-pill fw-semibold{% if perm_subnav_active == item.key %} active{% endif %}">
+            {{ item.label }}
+        </a>
+        {% endfor %}
+        {% if can_update %}
+        <form method="post" action="{% url 'nas_storage:apply_all_acl' %}" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-hm btn-sm rounded-pill fw-semibold"
+                    {% if not ssh_configured %}disabled title="Chưa cấu hình SSH NAS"{% endif %}>
+                <i class="bi bi-arrow-clockwise"></i> Áp dụng
+            </button>
+        </form>
+        {% endif %}
+    </nav>
+    {% if perm_subnav_active == 'folder_manage' %}
+    <div class="d-flex flex-wrap gap-2 ms-md-auto">
+        {% if ssh_configured %}
+        <form method="post" action="{% url 'nas_storage:import_shares' %}">{% csrf_token %}
+            <button type="submit" class="btn btn-outline-secondary btn-sm">Quét từ NAS</button>
+        </form>
+        {% endif %}
+        <a href="{% url 'nas_storage:folder_create' %}" class="btn btn-hm btn-sm">Thêm thư mục gốc</a>
+    </div>
     {% endif %}
-</nav>
+</div>
 {% endif %}

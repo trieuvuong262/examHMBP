@@ -1,17 +1,10 @@
 {% with f=node.folder %}
 <div class="jp-folder-tree-node border-bottom">
-    <div class="row g-0 align-items-center py-2 jp-folder-tree-row{% if f.is_root %} jp-folder-tree-row--root{% else %} jp-folder-tree-row--child{% endif %}">
+    <div class="row g-0 align-items-center py-2 jp-folder-tree-row{% if f.is_root %} jp-folder-tree-row--root{% else %} jp-folder-tree-row--child{% endif %}{% if node.has_children %} jp-folder-tree-row--expandable collapsed{% endif %}"
+         {% if node.has_children %}data-folder-target="#jp-folder-kids-{{ f.pk }}" tabindex="0" aria-expanded="false"{% endif %}>
         <div class="col min-w-0 jp-folder-tree-name" style="padding-left: calc(1rem + {{ node.depth }} * 1.25rem);">
             {% if node.has_children %}
-            <button type="button"
-                    class="btn btn-sm btn-link p-0 me-1 text-secondary jp-folder-tree-toggle align-baseline"
-                    data-bs-toggle="collapse"
-                    data-bs-target="#jp-folder-kids-{{ f.pk }}"
-                    aria-expanded="true"
-                    aria-controls="jp-folder-kids-{{ f.pk }}"
-                    aria-label="Thu gọn">
-                <i class="bi bi-chevron-down jp-folder-chevron"></i>
-            </button>
+            <i class="bi bi-chevron-down jp-folder-chevron me-1 text-secondary" aria-hidden="true"></i>
             {% else %}
             <span class="d-inline-block me-1" style="width:1.35rem"></span>
             {% endif %}
@@ -30,28 +23,30 @@
         <div class="col-md-3 d-none d-lg-block small text-muted text-truncate pe-2">
             {{ f.resolved_volume_path }}
         </div>
-        <div class="col-md-auto pe-3 ps-2 ms-auto">
-            <div class="btn-group btn-group-sm jp-folder-actions" role="group" aria-label="Thao tác thư mục">
+        <div class="col-md-auto pe-3 ps-2 ms-auto jp-folder-actions">
+            <div class="btn-group btn-group-sm" role="group" aria-label="Thao tác thư mục">
                 <a href="{% url 'nas_storage:folder_child_create' f.pk %}"
                    class="btn btn-outline-secondary"
                    title="Thêm thư mục con">
-                    <i class="bi bi-folder-plus"></i>
+                    <i class="bi bi-folder-plus" aria-hidden="true"></i>
                 </a>
                 <a href="{% url 'nas_storage:folder_permissions' f.pk %}"
-                   class="btn btn-outline-primary"
+                   class="btn btn-outline-secondary"
                    title="Phân quyền">
-                    Phân quyền
+                    <i class="bi bi-shield-lock" aria-hidden="true"></i>
                 </a>
-                <form method="post" action="{% url 'nas_storage:folder_delete' f.pk %}" class="d-inline"
+                <form method="post" action="{% url 'nas_storage:folder_delete' f.pk %}"
                       onsubmit="return confirm('Gỡ «{{ f.portal_path_label }}» khỏi Portal?\n\nThư mục trên NAS không bị xóa.');">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-outline-danger" title="Gỡ khỏi Portal">Gỡ</button>
+                    <button type="submit" class="btn btn-outline-secondary" title="Gỡ khỏi Portal">
+                        <i class="bi bi-trash" aria-hidden="true"></i>
+                    </button>
                 </form>
             </div>
         </div>
     </div>
     {% if node.has_children %}
-    <div id="jp-folder-kids-{{ f.pk }}" class="collapse show jp-folder-tree-kids">
+    <div id="jp-folder-kids-{{ f.pk }}" class="collapse jp-folder-tree-kids">
         {% for child in node.children %}
         {% include "nas_storage/_folder_tree_node.html" with node=child %}
         {% endfor %}
