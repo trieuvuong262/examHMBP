@@ -238,10 +238,12 @@ def lock_hidden_share_acl(share_name: str) -> dict:
     if not share:
         raise NasAclApplyError('Thiếu tên share.')
     na_principals = ','.join(f'@{g}' for g in sorted(DEPARTMENT_NAS_GROUPS) if g != 'IT')
-    extra_na = '@users,guest,#everyone'
+    extra_na = '@users,guest'
+    rw_keep = '@IT,admin,tailscale-justplay,justplay-it,ContainerManager,@administrators'
     commands = [
         f'/usr/syno/sbin/synoshare --list_acl {share}',
-        _synoshare_setuser_cmd(share, 'RO', '-', '#everyone'),
+        f'/usr/syno/sbin/synoshare --set_share_default_acl {share}',
+        _synoshare_setuser_cmd(share, 'RW', '+', rw_keep),
         _synoshare_setuser_cmd(share, 'NA', '+', f'{na_principals},{extra_na}'),
         f'/usr/syno/sbin/synoshare --setbrowse {share} 0',
         f'/usr/syno/sbin/synoshare --list_acl {share}',
