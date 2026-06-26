@@ -1,6 +1,7 @@
 ﻿# --- Runtime / local (khong can AI doc) ---
 .env
 .env.local
+deploy.local.env
 scan_relay.env
 cookies*.txt
 db.sqlite3
@@ -33,3 +34,25 @@ static/equipment/JustPlayAgent.exe
 
 # --- Migrations bytecode ---
 **/migrations/__pycache__/
+
+# --- Django unit tests (van chay manage.py test; AI khong index/quet) ---
+**/tests.py
+**/tests_*.py
+**/test_*.py
+
+# --- Script debug tam / probe mot lan ---
+tmp_*.py
+scripts/equipment_import_cache/
+scripts/equipment_image_analysis.json
+scripts/_excel_*.json
+scripts/stress/
+
+# --- Script VPS chan doan cu ---
+scripts/vps_debug_*.py
+scripts/vps_diag_*.py
+scripts/vps_check_*.py
+scripts/vps_fix_*.py
+scripts/vps_list_*.py
+scripts/vps_cleanup_*.py
+scripts/audit_*.py
+scripts/diag_*.py
