@@ -1,4 +1,4 @@
-# Map Synology SMB từ Windows (tương đương RaiDrive: justplay.synology.me:5678).
+# Map Synology SMB từ Windows (cổng 445). Cổng 5678 là WebDAV, không phải SMB.
 # Tài khoản LDAP đồng bộ từ Portal — cùng username/mật khẩu đăng nhập Portal.
 #
 # Ví dụ (chạy PowerShell, không cần Admin trừ khi dùng portproxy):
@@ -22,7 +22,7 @@ param(
     [string]$DriveLetter,
 
     [string]$Server = 'justplay.synology.me',
-    [int]$Port = 5678,
+    [int]$Port = 445,
     [string]$Domain = 'ldap.justplay.local',
 
     [string]$Password,

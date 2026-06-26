@@ -483,9 +483,14 @@ NAS_LDAP_BIND_DN = os.getenv(
 NAS_LDAP_BIND_PASSWORD = os.getenv('NAS_LDAP_BIND_PASSWORD', '').strip()
 NAS_LDAP_SYNC_SKIP_USERNAMES = os.getenv('NAS_LDAP_SYNC_SKIP_USERNAMES', 'admin,ductn').strip()
 NAS_LDAP_DOMAIN = os.getenv('NAS_LDAP_DOMAIN', 'ldap.justplay.local').strip()
-# RaiDrive / SMB ngoài (Thư viện → Tải NAS)
+# RaiDrive / SMB ngoài (Thư viện → Tải NAS). 5678 trên Synology là WebDAV, không dùng cho SMB.
+NAS_SMB_PORT = int(os.getenv('NAS_SMB_PORT', os.getenv('NAS_RDRIVE_PORT', '445')) or '445')
+if NAS_SMB_PORT == 5678:
+    NAS_SMB_PORT = 445
+NAS_WEBDAV_PORT = int(os.getenv('NAS_WEBDAV_PORT', '5678') or '5678')
 NAS_RDRIVE_SERVER = os.getenv('NAS_RDRIVE_SERVER', 'justplay.synology.me').strip()
-NAS_RDRIVE_PORT = int(os.getenv('NAS_RDRIVE_PORT', '5678') or '5678')
+NAS_RDRIVE_PORT = NAS_SMB_PORT  # giữ tên cũ cho tương thích; giá trị = cổng SMB
+NAS_RDRIVE_FALLBACK_SERVER = os.getenv('NAS_RDRIVE_FALLBACK_SERVER', '').strip()
 # Share ẩn khỏi Duyệt thư mục Portal + Quét từ NAS (share hệ thống: docker, backup, log…)
 NAS_PORTAL_BROWSE_HIDDEN_SHARES = os.getenv(
     'NAS_PORTAL_BROWSE_HIDDEN_SHARES', 'docker,backup,log',

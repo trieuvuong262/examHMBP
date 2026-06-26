@@ -1,4 +1,4 @@
-# JustPlay - tu dong gan o NAS qua SMB (justplay.synology.me:5678).
+# JustPlay - tu dong gan o NAS qua SMB (cong 445). Cong 5678 tren Synology la WebDAV, khong phai SMB.
 # User/pass = tai khoan Portal (LDAP). Khong can cau hinh RaiDrive thu cong.
 #
 # Chay: double-click JustPlay-NAS-RaiDrive-Setup.bat
@@ -6,9 +6,11 @@
 $ErrorActionPreference = 'Stop'
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$Script:Ps1Path = $MyInvocation.MyCommand.Path
 
 $Server = '__NAS_SERVER__'
 $PortRaw = '__NAS_PORT__'
+$NasFallbackServer = '__NAS_FALLBACK_SERVER__'
 $LdapDomain = '__NAS_LDAP_DOMAIN__'
 $PortalPasswordUrl = '__PORTAL_PASSWORD_URL__'
 $PortalUsernameHint = '__PORTAL_USERNAME__'
@@ -16,74 +18,282 @@ $NasSharesCsv = '__NAS_SHARES__'
 $DeptFolderCode = '__NAS_DEPT_CODE__'
 $DriveLetterRaw = '__NAS_DRIVE_LETTER__'
 $BlockedDefaultPassword = 'justplay@123'
-$ConfigLoadedFromJson = $false
+
+function Get-ShareNameList {
+    param([object]$Raw)
+    if ($null -eq $Raw) { return @() }
+    if ($Raw -is [string]) {
+        return @(
+            $Raw -split ',' |
+            ForEach-Object { $_.Trim() } |
+            Where-Object { $_ }
+        )
+    }
+    return @(
+        @($Raw) |
+        ForEach-Object { [string]$_ } |
+        ForEach-Object { $_.Trim() } |
+        Where-Object { $_ }
+    )
+}
+
+function Read-InlineNasShares {
+    if (-not $NasSharesCsv -or $NasSharesCsv -match '^__.+__$') { return @() }
+    return Get-ShareNameList $NasSharesCsv
+}
 
 function Import-JustPlayNasConfig {
     $path = Join-Path $ScriptDir 'JustPlay-NAS-Config.json'
-    if (-not (Test-Path $path)) { return $false }
+    if (-not (Test-Path -LiteralPath $path)) { return $null }
     try {
-        $cfg = Get-Content -Path $path -Raw -Encoding UTF8 | ConvertFrom-Json
+        $bytes = [System.IO.File]::ReadAllBytes($path)
+        $raw = [System.Text.Encoding]::UTF8.GetString($bytes)
+        if ($raw.StartsWith([char]0xFEFF)) {
+            $raw = $raw.Substring(1)
+        }
+        return ($raw | ConvertFrom-Json)
     } catch {
-        return $false
+        return $null
     }
-    if ($cfg.server) { $script:Server = [string]$cfg.server }
-    if ($null -ne $cfg.port) { $script:PortRaw = [string]$cfg.port }
-    if ($cfg.ldap_domain) { $script:LdapDomain = [string]$cfg.ldap_domain }
-    if ($cfg.portal_password_url) { $script:PortalPasswordUrl = [string]$cfg.portal_password_url }
-    if ($cfg.portal_username) { $script:PortalUsernameHint = [string]$cfg.portal_username }
-    if ($cfg.dept_folder_code) { $script:DeptFolderCode = [string]$cfg.dept_folder_code }
-    if ($cfg.drive_letter) { $script:DriveLetterRaw = [string]$cfg.drive_letter }
-    if ($cfg.shares) {
-        $list = @($cfg.shares | ForEach-Object { [string]$_ } | Where-Object { $_.Trim() })
-        $script:NasSharesCsv = ($list -join ',')
-    }
-    $script:ConfigLoadedFromJson = $true
-    return $true
 }
 
-[void](Import-JustPlayNasConfig)
+function Merge-ShareNameLists {
+    param([object[]]$Lists)
+    $merged = New-Object System.Collections.Generic.List[string]
+    $seen = @{}
+    foreach ($list in $Lists) {
+        if (-not $list) { continue }
+        foreach ($name in $list) {
+            $n = [string]$name
+            if (-not $n -or $seen.ContainsKey($n)) { continue }
+            $seen[$n] = $true
+            [void]$merged.Add($n)
+        }
+    }
+    return @($merged.ToArray())
+}
+
+$inlineShares = Read-InlineNasShares
+$jsonConfig = Import-JustPlayNasConfig
+if ($jsonConfig) {
+    if ($jsonConfig.server) { $Server = [string]$jsonConfig.server }
+    if ($null -ne $jsonConfig.port) { $PortRaw = [string]$jsonConfig.port }
+    if ($jsonConfig.fallback_server) { $NasFallbackServer = [string]$jsonConfig.fallback_server }
+    if ($jsonConfig.ldap_domain) { $LdapDomain = [string]$jsonConfig.ldap_domain }
+    if ($jsonConfig.portal_password_url) { $PortalPasswordUrl = [string]$jsonConfig.portal_password_url }
+    if ($jsonConfig.portal_username) { $PortalUsernameHint = [string]$jsonConfig.portal_username }
+    if ($null -ne $jsonConfig.dept_folder_code) { $DeptFolderCode = [string]$jsonConfig.dept_folder_code }
+    if ($jsonConfig.drive_letter) { $DriveLetterRaw = [string]$jsonConfig.drive_letter }
+    $jsonShares = Get-ShareNameList $jsonConfig.shares
+} else {
+    $jsonShares = @()
+}
+
+$NasShareNames = Merge-ShareNameLists @($jsonShares, $inlineShares)
+if ($NasShareNames.Count -gt 0) {
+    $NasSharesCsv = ($NasShareNames -join ',')
+}
 
 if ($Server -eq '__NAS_SERVER__') { $Server = 'justplay.synology.me' }
-if ($PortRaw -eq '__NAS_PORT__') { $Port = 5678 } else { $Port = [int]$PortRaw }
+if ($NasFallbackServer -eq '__NAS_FALLBACK_SERVER__' -or -not $NasFallbackServer) {
+    $NasFallbackServer = '100.93.5.42'
+}
+if ($PortRaw -eq '__NAS_PORT__') { $Port = 445 } else { $Port = [int]$PortRaw }
+# 5678 = WebDAV (Synology) — bo qua neu ZIP cu con ghi nham
+if ($Port -eq 5678) { $Port = 445 }
 if ($LdapDomain -eq '__NAS_LDAP_DOMAIN__') { $LdapDomain = 'ldap.justplay.local' }
 if ($PortalPasswordUrl -eq '__PORTAL_PASSWORD_URL__') {
     $PortalPasswordUrl = 'https://portal.justplay.vn/accounts/password/change/'
 }
 if ($PortalUsernameHint -eq '__PORTAL_USERNAME__') { $PortalUsernameHint = '' }
-if ($NasSharesCsv -eq '__NAS_SHARES__') { $NasSharesCsv = '' }
 if ($DeptFolderCode -eq '__NAS_DEPT_CODE__') { $DeptFolderCode = '' }
 if ($DriveLetterRaw -eq '__NAS_DRIVE_LETTER__') { $DriveLetter = 'Z' } else { $DriveLetter = $DriveLetterRaw.Trim().ToUpperInvariant() }
 
-$NasShareNames = @(
-    $NasSharesCsv -split ',' |
-    ForEach-Object { $_.Trim() } |
-    Where-Object { $_ }
-)
-
 function Test-JustPlayNasBundleReady {
-    if ($NasShareNames.Count -lt 1) { return $false }
+    if ($NasShareNames.Count -ge 1) { return $true }
     if ($Server -match '^__.+__$') { return $false }
     if ($NasSharesCsv -match '^__.+__$') { return $false }
-    return $true
+    return $false
 }
 
 function Show-JustPlayNasBundleError {
     Add-Type -AssemblyName System.Windows.Forms
-    $msg = @"
-Bo cai chua duoc dong goi tu Portal (file .ps1 chua co share NAS).
+    $configPath = Join-Path $ScriptDir 'JustPlay-NAS-Config.json'
+    $hasConfig = Test-Path -LiteralPath $configPath
+    $hasPlaceholder = ($Server -match '^__.+__$') -or ($NasSharesCsv -match '^__.+__$')
 
-Vui long:
-1. Dang nhap Portal -> Thu vien -> Tai NAS
-2. Tai lai file ZIP (Ctrl+F5 hoac xoa ban cu)
-3. Giai nen va chay JustPlay-NAS-RaiDrive-Setup.bat
+    if ($hasPlaceholder) {
+        $msg = @"
+Bo cai chua duoc dong goi tu Portal (file .ps1 van con __NAS_...__).
 
-Neu da tai ZIP moi ma van loi, lien he IT de gan phong ban / thu muc NAS.
+Vui long tai lai ZIP tu Thu vien -> Tai NAS (Ctrl+F5), giai nen va chay .bat trong thu muc do.
 "@
+    } elseif (-not $hasConfig) {
+        $msg = @"
+Thieu file JustPlay-NAS-Config.json trong thu muc cai dat.
+
+Giai nen DAY DU file ZIP (4 file) roi chay JustPlay-NAS-RaiDrive-Setup.bat.
+"@
+    } else {
+        $msg = @"
+Tai khoan chua duoc gan share NAS tren Portal (danh sach share trong ZIP rong).
+
+Lien he IT de gan phong ban hoac thu muc NAS, sau do tai lai ZIP.
+"@
+    }
     [System.Windows.Forms.MessageBox]::Show($msg, 'JustPlay NAS', 'OK', 'Error') | Out-Null
 }
 
 function Write-Log([string]$Message) {
     Write-Host "[JustPlay] $Message"
+}
+
+$NasConnectTimeoutSec = 25
+$NasPortCheckTimeoutMs = 10000
+
+function Get-NasServerCandidates {
+    $merged = New-Object System.Collections.Generic.List[string]
+    $seen = @{}
+    foreach ($hostName in @($Server, $NasFallbackServer)) {
+        $n = [string]$hostName
+        if (-not $n -or $seen.ContainsKey($n)) { continue }
+        $seen[$n] = $true
+        [void]$merged.Add($n)
+    }
+    return @($merged.ToArray())
+}
+
+function Test-NasServerPort {
+    param(
+        [string]$HostName,
+        [int]$NasPort,
+        [int]$TimeoutMs = $NasPortCheckTimeoutMs
+    )
+    $targets = New-Object System.Collections.Generic.List[string]
+    try {
+        foreach ($addr in [System.Net.Dns]::GetHostAddresses($HostName)) {
+            if ($addr.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetwork) {
+                [void]$targets.Add($addr.ToString())
+            }
+        }
+    } catch {}
+    if ($targets.Count -lt 1) {
+        [void]$targets.Add($HostName)
+    }
+
+    foreach ($target in $targets) {
+        $client = New-Object System.Net.Sockets.TcpClient
+        try {
+            $connect = $client.BeginConnect($target, $NasPort, $null, $null)
+            if (-not $connect.AsyncWaitHandle.WaitOne($TimeoutMs, $false)) {
+                continue
+            }
+            $client.EndConnect($connect)
+            if ($target -ne $HostName) {
+                return $target
+            }
+            return $HostName
+        } catch {
+            continue
+        } finally {
+            $client.Close()
+        }
+    }
+    throw "Khong mo duoc cong $NasPort toi $HostName (timeout ${TimeoutMs}ms)."
+}
+
+function Get-NasPortCandidates {
+    # SMB chuan: 445. Khong thu 5678 (WebDAV).
+    $ports = New-Object System.Collections.Generic.List[int]
+    [void]$ports.Add(445)
+    if ($Port -ne 445) {
+        [void]$ports.Add($Port)
+    }
+    return @($ports.ToArray())
+}
+
+function Resolve-NasConnectPlans {
+    $plans = New-Object System.Collections.Generic.List[object]
+    $failures = New-Object System.Collections.Generic.List[string]
+    foreach ($candidate in (Get-NasServerCandidates)) {
+        foreach ($nasPort in (Get-NasPortCandidates)) {
+            try {
+                $hostReach = Test-NasServerPort -HostName $candidate -NasPort $nasPort
+                [void]$plans.Add([pscustomobject]@{ Host = [string]$hostReach; Port = [int]$nasPort })
+            } catch {
+                [void]$failures.Add("${candidate}:${nasPort} - $($_.Exception.Message)")
+            }
+        }
+    }
+    if ($plans.Count -lt 1) {
+        $shareHint = if ($NasShareNames.Count -gt 0) { $NasShareNames[0] } else { 'TEN_SHARE' }
+        throw @"
+Khong ket noi duoc SMB toi NAS.
+$($failures -join "`n")
+
+Thu map thu cong trong Explorer: \\$Server\$shareHint (cua SMB 445).
+"@
+    }
+    return @($plans.ToArray())
+}
+
+function Invoke-ProcessWithTimeout {
+    param(
+        [string]$FilePath,
+        [string]$ArgumentList,
+        [int]$TimeoutSec = $NasConnectTimeoutSec,
+        [string]$Label = 'process'
+    )
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $FilePath
+    $psi.Arguments = $ArgumentList
+    $psi.UseShellExecute = $false
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.CreateNoWindow = $true
+    $proc = [System.Diagnostics.Process]::Start($psi)
+    if (-not $proc.WaitForExit($TimeoutSec * 1000)) {
+        try { $proc.Kill() } catch {}
+        throw "${Label} timeout (${TimeoutSec}s)"
+    }
+    $output = ($proc.StandardOutput.ReadToEnd() + $proc.StandardError.ReadToEnd()).Trim()
+    if ($proc.ExitCode -ne 0) {
+        if ($output) { throw $output }
+        throw "${Label} failed (exit $($proc.ExitCode))"
+    }
+    return $output
+}
+
+function Format-NetArguments {
+    param([string[]]$Args)
+    ($Args | ForEach-Object {
+        if ($_ -match '\s') { "`"$_`"" } else { $_ }
+    }) -join ' '
+}
+
+function Get-JobFailureMessage {
+    param($Job)
+    if (-not $Job) { return 'Ket noi NAS that bai.' }
+    $chunks = New-Object System.Collections.Generic.List[string]
+    $reason = $Job.ChildJobs[0].JobStateInfo.Reason
+    if ($reason) {
+        $base = $reason
+        if ($base.InnerException) { $base = $base.InnerException }
+        [void]$chunks.Add([string]$base.Message)
+    }
+    $received = Receive-Job -Job $Job -ErrorAction SilentlyContinue 2>&1
+    foreach ($item in @($received)) {
+        if ($null -eq $item) { continue }
+        if ($item -is [System.Management.Automation.ErrorRecord]) {
+            [void]$chunks.Add([string]$item.Exception.Message)
+        } else {
+            $text = [string]$item
+            if ($text) { [void]$chunks.Add($text) }
+        }
+    }
+    $msg = ($chunks | Where-Object { $_ } | Select-Object -Unique) -join ' | '
+    if ($msg) { return $msg }
+    return 'Ket noi NAS that bai.'
 }
 
 function Remove-NasDriveMap {
@@ -100,6 +310,51 @@ function Save-NasCredential {
     $null = & cmdkey /add:$Target /user:$WinUser /pass:$PlainPassword
 }
 
+function Invoke-NasNetUseTimed {
+    param(
+        [string]$Letter,
+        [string]$RemotePath,
+        [string]$WinUser,
+        [string]$PlainPassword,
+        [switch]$UseTcpPort,
+        [int]$NasPort,
+        [int]$TimeoutSec = $NasConnectTimeoutSec
+    )
+    $label = if ($UseTcpPort) { "net use /TCPPORT:$NasPort" } else { 'net use' }
+    $localPath = "${Letter}:"
+    if (Test-Path $localPath) {
+        & net use $localPath /delete /y 2>$null | Out-Null
+    }
+    $netArgs = @('use', $localPath, $RemotePath, "/user:$WinUser", $PlainPassword, '/persistent:yes')
+    if ($UseTcpPort) { $netArgs += "/TCPPORT:$NasPort" }
+    $null = Invoke-ProcessWithTimeout -FilePath 'net.exe' `
+        -ArgumentList (Format-NetArguments $netArgs) `
+        -TimeoutSec $TimeoutSec -Label $label
+}
+
+function Invoke-NasSmbMappingTimed {
+    param(
+        [string]$Letter,
+        [string]$RemotePath,
+        [string]$WinUser,
+        [string]$PlainPassword,
+        [int]$NasPort,
+        [int]$TimeoutSec = $NasConnectTimeoutSec
+    )
+    if (-not (Get-Command New-SmbMapping -ErrorAction SilentlyContinue)) {
+        throw 'New-SmbMapping khong co (can Windows 10/11 ban moi)'
+    }
+    $secure = ConvertTo-SecureString $PlainPassword -AsPlainText -Force
+    $cred = New-Object System.Management.Automation.PSCredential($WinUser, $secure)
+    if ($NasPort -eq 445) {
+        New-SmbMapping -LocalPath "${Letter}:" -RemotePath $RemotePath `
+            -Credential $cred -Persistent $true -ErrorAction Stop | Out-Null
+    } else {
+        New-SmbMapping -LocalPath "${Letter}:" -RemotePath $RemotePath -TcpPort ([uint16]$NasPort) `
+            -Credential $cred -Persistent $true -ErrorAction Stop | Out-Null
+    }
+}
+
 function Invoke-NasNetUse {
     param(
         [string]$Letter,
@@ -108,13 +363,8 @@ function Invoke-NasNetUse {
         [string]$PlainPassword,
         [switch]$UseTcpPort
     )
-    $localPath = "${Letter}:"
-    $args = @('use', $localPath, $RemotePath, "/user:$WinUser", $PlainPassword, '/persistent:yes')
-    if ($UseTcpPort) { $args += "/TCPPORT:$Port" }
-    $output = & net @args 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        throw "net use: $output"
-    }
+    Invoke-NasNetUseTimed -Letter $Letter -RemotePath $RemotePath -WinUser $WinUser `
+        -PlainPassword $PlainPassword -UseTcpPort:$UseTcpPort -NasPort $Port
 }
 
 function Invoke-NasSmbMapping {
@@ -124,9 +374,14 @@ function Invoke-NasSmbMapping {
         [string]$WinUser,
         [securestring]$SecurePassword
     )
-    $cred = New-Object System.Management.Automation.PSCredential($WinUser, $SecurePassword)
-    New-SmbMapping -LocalPath "${Letter}:" -RemotePath $RemotePath -TcpPort ([uint16]$Port) `
-        -Credential $cred -Persistent $true -ErrorAction Stop | Out-Null
+    $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($SecurePassword)
+    try {
+        $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
+    } finally {
+        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)
+    }
+    Invoke-NasSmbMappingTimed -Letter $Letter -RemotePath $RemotePath -WinUser $WinUser `
+        -PlainPassword $plain -NasPort $Port
 }
 
 function Connect-JustPlayNasShare {
@@ -144,63 +399,59 @@ Chua co share NAS trong bo cai.
 Neu van loi, lien he IT.
 "@
     }
-    $remotePath = "\\$Server\$ShareName"
+    $plans = Resolve-NasConnectPlans
     $winUsers = @(
         "$LdapDomain\$Username",
         "$Username@$LdapDomain"
     )
     Remove-NasDriveMap -Letter $Letter
-    $secure = ConvertTo-SecureString $Password -AsPlainText -Force
     $errors = New-Object System.Collections.Generic.List[string]
 
-    foreach ($winUser in $winUsers) {
-        Save-NasCredential -Target $Server -WinUser $winUser -PlainPassword $Password
-        try {
-            Invoke-NasSmbMapping -Letter $Letter -RemotePath $remotePath -WinUser $winUser -SecurePassword $secure
-            return @{
-                Letter = $Letter
-                RemotePath = $remotePath
-                WinUser = $winUser
-                Method = 'New-SmbMapping'
+    foreach ($plan in $plans) {
+        $resolvedServer = $plan.Host
+        $connectPort = $plan.Port
+        $remotePath = "\\$resolvedServer\$ShareName"
+        $useTcpPort = ($connectPort -ne 445)
+
+        foreach ($winUser in $winUsers) {
+            Save-NasCredential -Target $resolvedServer -WinUser $winUser -PlainPassword $Password
+            try {
+                Invoke-NasSmbMappingTimed -Letter $Letter -RemotePath $remotePath -WinUser $winUser `
+                    -PlainPassword $Password -NasPort $connectPort
+                return @{
+                    Letter = $Letter
+                    RemotePath = $remotePath
+                    WinUser = $winUser
+                    Method = if ($connectPort -eq 445) { 'New-SmbMapping (445)' } else { "New-SmbMapping ($connectPort)" }
+                }
+            } catch {
+                $errors.Add("New-SmbMapping ${resolvedServer}:${connectPort} ($winUser): $($_.Exception.Message)")
             }
-        } catch {
-            $errors.Add("New-SmbMapping ($winUser): $($_.Exception.Message)")
-        }
-        try {
-            Invoke-NasNetUse -Letter $Letter -RemotePath $remotePath -WinUser $winUser `
-                -PlainPassword $Password -UseTcpPort
-            return @{
-                Letter = $Letter
-                RemotePath = $remotePath
-                WinUser = $winUser
-                Method = 'net use /TCPPORT'
+            try {
+                Invoke-NasNetUseTimed -Letter $Letter -RemotePath $remotePath -WinUser $winUser `
+                    -PlainPassword $Password -UseTcpPort:$useTcpPort -NasPort $connectPort
+                return @{
+                    Letter = $Letter
+                    RemotePath = $remotePath
+                    WinUser = $winUser
+                    Method = if ($useTcpPort) { "net use /TCPPORT:$connectPort" } else { 'net use (445)' }
+                }
+            } catch {
+                $label = if ($useTcpPort) { "net use /TCPPORT:$connectPort" } else { 'net use (445)' }
+                $errors.Add("${label} ${resolvedServer} ($winUser): $($_.Exception.Message)")
             }
-        } catch {
-            $errors.Add("net use /TCPPORT ($winUser): $($_.Exception.Message)")
-        }
-        try {
-            Invoke-NasNetUse -Letter $Letter -RemotePath $remotePath -WinUser $winUser `
-                -PlainPassword $Password
-            return @{
-                Letter = $Letter
-                RemotePath = $remotePath
-                WinUser = $winUser
-                Method = 'net use'
-            }
-        } catch {
-            $errors.Add("net use ($winUser): $($_.Exception.Message)")
         }
     }
 
     throw (@"
 Khong ket noi duoc NAS.
 Share: $ShareName
-Server: $Server port $Port
 User: $Username
 $($errors -join "`n")
 
-Goi y: cap nhat Windows 11 24H2+ hoac kiem tra mat khau Portal.
-"@)
+Goi y: kiem tra mat khau Portal; thu map thu cong \server\share trong Explorer.
+"@
+    )
 }
 
 function Open-NasExplorerPath {
@@ -367,8 +618,12 @@ function Show-JustPlayNasDialog {
     })
     $form.Controls.Add($linkChange)
 
+    $script:connectUser = ''
+    $script:connectShare = ''
+
     function Set-Status([string]$Text) {
         $lblStatus.Text = $Text
+        [System.Windows.Forms.Application]::DoEvents()
     }
 
     function Test-DefaultPasswordBlocked {
@@ -406,8 +661,15 @@ function Show-JustPlayNasDialog {
         if (Test-DefaultPasswordBlocked) { return }
 
         $shareName = if ($NasShareNames.Count -gt 0) { $NasShareNames[0] } else { '' }
+        if (-not $shareName) {
+            Set-Status 'Chua co share trong ZIP. Tai lai tu Portal (Thu vien -> Tai NAS).'
+            return
+        }
+
         $btnConnect.Enabled = $false
-        Set-Status 'Dang ket noi NAS...'
+        $script:connectUser = $user
+        $script:connectShare = $shareName
+        Set-Status 'Dang ket noi NAS (toi da ~60s)...'
         [System.Windows.Forms.Application]::DoEvents()
 
         try {
@@ -424,7 +686,9 @@ function Show-JustPlayNasDialog {
             $form.DialogResult = [System.Windows.Forms.DialogResult]::OK
             $form.Close()
         } catch {
-            Set-Status $_.Exception.Message
+            $msg = $_.Exception.Message
+            if (-not $msg) { $msg = [string]$_ }
+            Set-Status $msg
             $btnConnect.Enabled = $true
         }
     })
@@ -454,22 +718,28 @@ function Show-JustPlayNasDialog {
     [void]$form.ShowDialog()
 }
 
-try {
-    if (-not (Test-JustPlayNasBundleReady)) {
-        Show-JustPlayNasBundleError
+function Start-JustPlayNasMain {
+    try {
+        if (-not (Test-JustPlayNasBundleReady)) {
+            Show-JustPlayNasBundleError
+            exit 1
+        }
+        Show-JustPlayNasDialog
+        Write-Log 'Hoan tat.'
+        exit 0
+    } catch {
+        [System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms') | Out-Null
+        [System.Windows.Forms.MessageBox]::Show(
+            $_.Exception.Message,
+            'JustPlay NAS - loi',
+            'OK',
+            'Error'
+        ) | Out-Null
+        Write-Error $_
         exit 1
     }
-    Show-JustPlayNasDialog
-    Write-Log 'Hoan tat.'
-    exit 0
-} catch {
-    [System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms') | Out-Null
-    [System.Windows.Forms.MessageBox]::Show(
-        $_.Exception.Message,
-        'JustPlay NAS - loi',
-        'OK',
-        'Error'
-    ) | Out-Null
-    Write-Error $_
-    exit 1
+}
+
+if ($MyInvocation.InvocationName -ne '.') {
+    Start-JustPlayNasMain
 }

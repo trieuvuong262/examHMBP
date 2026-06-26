@@ -25,10 +25,18 @@ def nas_shares_for_user(user) -> list[str]:
 
 
 def nas_download_config() -> dict:
+    fallback = getattr(settings, 'NAS_RDRIVE_FALLBACK_SERVER', '').strip()
+    if not fallback:
+        fallback = getattr(settings, 'NAS_SSH_HOST', '').strip()
+    smb_port = int(getattr(settings, 'NAS_SMB_PORT', 445) or 445)
+    if smb_port == 5678:
+        smb_port = 445
     return {
         'server': getattr(settings, 'NAS_RDRIVE_SERVER', 'justplay.synology.me').strip(),
-        'port': int(getattr(settings, 'NAS_RDRIVE_PORT', 5678) or 5678),
+        'port': smb_port,
+        'webdav_port': int(getattr(settings, 'NAS_WEBDAV_PORT', 5678) or 5678),
         'ldap_domain': getattr(settings, 'NAS_LDAP_DOMAIN', 'ldap.justplay.local').strip(),
+        'fallback_server': fallback,
     }
 
 
@@ -71,6 +79,8 @@ def nas_user_bundle_config(request, user, cfg: dict) -> dict:
         'bundle_version': 1,
         'server': cfg['server'],
         'port': cfg['port'],
+        'webdav_port': cfg.get('webdav_port', 5678),
+        'fallback_server': cfg.get('fallback_server', ''),
         'ldap_domain': cfg['ldap_domain'],
         'portal_password_url': f'{portal_base}/accounts/password/change/',
         'portal_username': user.username,
@@ -84,6 +94,7 @@ def _personalize_ps1(body: str, bundle: dict) -> str:
     replacements = {
         '__NAS_SERVER__': str(bundle['server']),
         '__NAS_PORT__': str(bundle['port']),
+        '__NAS_FALLBACK_SERVER__': str(bundle.get('fallback_server', '')),
         '__NAS_LDAP_DOMAIN__': str(bundle['ldap_domain']),
         '__PORTAL_PASSWORD_URL__': str(bundle['portal_password_url']),
         '__PORTAL_USERNAME__': str(bundle['portal_username']),
@@ -138,7 +149,11 @@ def nas_download_setup(request):
                 '2. Chay JustPlay-NAS-RaiDrive-Setup.bat\r\n'
                 '3. Nhap ten dang nhap va mat khau Portal\r\n'
                 f'4. He thong tu gan o Z: (share {share_line}) - khong can RaiDrive\r\n'
-                f'5. Server: {cfg["server"]}  Port: {cfg["port"]}\r\n'
+                f'5. SMB cong {cfg["port"]} (5678 la WebDAV, khong dung cho map o)\r\n'
+                + (
+                    f'6. Server du phong: {cfg.get("fallback_server")}\r\n'
+                    if cfg.get('fallback_server') else ''
+                )
             ),
         )
 
