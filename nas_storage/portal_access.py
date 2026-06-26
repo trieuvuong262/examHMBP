@@ -35,6 +35,25 @@ def user_nas_access_groups(user: User):
     return NasAccessGroup.objects.filter(filters, is_active=True).distinct()
 
 
+def users_auto_in_nas_group(group_name: str) -> list[User]:
+    """User thuộc nhóm NAS qua map phòng ban Portal (không tính thành viên bổ sung)."""
+    group_name = (group_name or '').strip()
+    if not group_name:
+        return []
+
+    rows: list[User] = []
+    qs = (
+        Profile.objects.filter(is_employed=True, user__is_active=True)
+        .select_related('user', 'department')
+        .order_by('full_name', 'user__username')
+    )
+    for profile in qs:
+        dept_name = profile.department.name if profile.department_id else None
+        if nas_group_for_portal_department(dept_name) == group_name:
+            rows.append(profile.user)
+    return rows
+
+
 def user_has_portal_browse_all(user: User) -> bool:
     return user_nas_access_groups(user).filter(portal_browse_all=True).exists()
 

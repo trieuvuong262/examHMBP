@@ -28,7 +28,7 @@ from nas_storage.nas_acl_apply import (
     discover_shares_from_nas,
     nas_acl_ssh_configured,
 )
-from nas_storage.portal_access import sync_browse_all_share_permissions
+from nas_storage.portal_access import sync_browse_all_share_permissions, users_auto_in_nas_group
 from nas_storage.permission_defs import ADMIN_FIELDS, READ_FIELDS, WRITE_FIELDS
 from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
@@ -317,6 +317,15 @@ def group_edit(request, pk=None):
             return redirect('nas_storage:group_list')
     else:
         form = NasAccessGroupForm(instance=instance)
+    group_name = instance.name if instance else ''
+    if request.method == 'POST' and not group_name:
+        group_name = (request.POST.get('name') or '').strip()
+    dept_auto_members = users_auto_in_nas_group(group_name)
+    extra_member_ids = set()
+    if request.method == 'POST':
+        extra_member_ids = {int(x) for x in request.POST.getlist('portal_members') if str(x).isdigit()}
+    elif instance:
+        extra_member_ids = set(instance.portal_members.values_list('pk', flat=True))
     return render(
         request,
         'nas_storage/group_form.html',
@@ -324,6 +333,9 @@ def group_edit(request, pk=None):
             **_perm_page_ctx(request, 'groups'),
             'form': form,
             'editing': bool(instance),
+            'group_instance': instance,
+            'dept_auto_members': dept_auto_members,
+            'extra_member_ids': extra_member_ids,
         },
     )
 

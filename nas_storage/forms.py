@@ -103,7 +103,7 @@ class NasAccessGroupForm(forms.ModelForm):
             'sort_order': forms.NumberInput(attrs={**INPUT, 'min': 0}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'portal_browse_all': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'portal_members': forms.SelectMultiple(attrs={**SELECT, 'size': 8}),
+            'portal_members': forms.SelectMultiple(attrs={'class': 'd-none jp-user-picker-native'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -114,8 +114,10 @@ class NasAccessGroupForm(forms.ModelForm):
 
         self.fields['portal_members'].queryset = (
             exclude_hidden_hrm_users(User.objects.filter(is_active=True))
-            .order_by('username')
+            .select_related('profile', 'profile__department', 'profile__division')
+            .order_by('profile__full_name', 'username')
         )
+        self.fields['portal_members'].label = 'Thành viên bổ sung'
         self.fields['portal_members'].required = False
         self.fields['portal_browse_all'].help_text = (
             'Bật cho Ban Giám đốc (TGD): mọi thành viên nhóm xem tất cả share trên Portal. '
