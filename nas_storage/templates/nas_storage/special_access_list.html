@@ -2,21 +2,18 @@
 
 {% block content %}
 <div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
-    <div class="jp-page-header mb-3 mb-md-4">
-        <div class="jp-page-header-main">
-            <h2 class="jp-page-title fw-bold text-dark mb-1">NAS</h2>
-        </div>
-    </div>
+    {% include "nas_storage/_perm_page_header.html" with perm_page_subtitle="Tầng 3 — Ngoại lệ ACL RaiDrive/SMB cho thư mục con trong share." %}
 
     {% include "nas_storage/_nas_nav.html" %}
     {% include "nas_storage/_perm_subnav.html" %}
     {% include "nas_storage/_perm_breadcrumb.html" %}
 
-    <div class="alert alert-info border-0 shadow-sm small mb-3">
-        Ngoại lệ ACL cho user đặc biệt khi kết nối NAS qua <strong>RaiDrive / Synology SMB</strong>.
-        Ví dụ: nhóm Marketing chỉ thấy share <code>05_MARKETING</code>, nhưng <code>lvanhthu</code>
-        được thêm quyền thư mục con <code>lvanhthu</code> trong share đó.
-        Cấu hình <strong>Duyệt thư mục Portal</strong> nằm ở mục <a href="{% url 'audit:nas_links' %}">Cập nhật link NAS</a>.
+    <div class="alert alert-light border small mb-3">
+        <span class="badge bg-warning text-dark me-1">Tầng 3</span>
+        Chỉ dùng khi user cần quyền <strong>đặc biệt</strong> trên ổ map RaiDrive — không thay thế quyền share (tầng 2)
+        hay link duyệt Portal (tầng 1).
+        Ví dụ: <code>lvanhthu</code> trong share <code>05_MARKETING</code>.
+        <a href="{% url 'nas_storage:permissions_hub' %}" class="ms-1">← Về tổng quan</a>
     </div>
 
     {% if not ssh_configured %}

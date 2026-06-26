@@ -2,36 +2,33 @@
 
 {% block content %}
 <div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
-    <div class="jp-page-header mb-3 mb-md-4">
-        <div class="jp-page-header-main">
-            <h2 class="jp-page-title fw-bold text-dark mb-1">NAS</h2>
-        </div>
-    </div>
+    {% include "nas_storage/_perm_page_header.html" with perm_page_subtitle="Nhóm phòng ban trên NAS (SX, IT, TGD…) — dùng cho quyền share và duyệt Portal." %}
 
     {% include "nas_storage/_nas_nav.html" %}
     {% include "nas_storage/_perm_subnav.html" %}
+    {% include "nas_storage/_perm_breadcrumb.html" %}
 
-    <nav aria-label="breadcrumb" class="mb-3">
-        <ol class="breadcrumb mb-0 small bg-white px-3 py-2 rounded shadow-sm">
-            <li class="breadcrumb-item"><a href="{% url 'nas_storage:permissions_hub' %}" class="text-decoration-none">NAS</a></li>
-            <li class="breadcrumb-item"><a href="{% url 'nas_storage:permissions_hub' %}" class="text-decoration-none">Phân quyền</a></li>
-            <li class="breadcrumb-item active fw-semibold">Nhóm quyền</li>
-        </ol>
-    </nav>
+    <div class="alert alert-light border small mb-3">
+        <strong>Tầng 1 (Portal):</strong> bật <em>Duyệt tất cả share</em> cho BGD/TGD, hoặc thêm user vào <em>Thành viên bổ sung</em>.
+        <strong class="ms-md-2">Tầng 2 (NAS):</strong> principal LDAP bên dưới dùng khi gán quyền share.
+        <a href="{% url 'nas_storage:permissions_hub' %}" class="ms-1">← Về tổng quan</a>
+    </div>
 
     <div class="card border-0 shadow-sm overflow-hidden jp-nas-browse-card">
         <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <span class="text-muted small">Nhóm phòng ban trên NAS (SX, IT, HCNS…)</span>
-            <a href="{% url 'nas_storage:group_create' %}" class="btn btn-hm btn-sm">Thêm nhóm</a>
+            <span class="text-muted small">{{ groups.count }} nhóm</span>
+            <a href="{% url 'nas_storage:group_create' %}" class="btn btn-hm btn-sm">
+                <i class="bi bi-plus-lg"></i> Thêm nhóm
+            </a>
         </div>
         <div class="table-responsive">
             <table class="table table-hover mb-0 align-middle">
                 <thead class="bg-light text-uppercase small">
                     <tr>
-                        <th class="ps-4 py-3 text-muted">Tên</th>
-                        <th class="text-muted">Tài khoản NAS</th>
+                        <th class="ps-4 py-3 text-muted">Tên nhóm</th>
+                        <th class="text-muted">Principal NAS / LDAP</th>
                         <th class="text-muted">Mô tả</th>
-                        <th class="text-muted">Portal</th>
+                        <th class="text-muted">Duyệt Portal</th>
                         <th class="text-end pe-4 text-muted">Thao tác</th>
                     </tr>
                 </thead>
@@ -39,20 +36,20 @@
                 {% for g in groups %}
                 <tr>
                     <td class="ps-4 fw-semibold">{{ g.name }}</td>
-                    <td><code>{{ g.resolved_nas_principal }}</code></td>
-                    <td class="text-muted small">{{ g.description }}</td>
+                    <td><code class="small">{{ g.resolved_nas_principal }}</code></td>
+                    <td class="text-muted small">{{ g.description|default:"—" }}</td>
                     <td class="small">
                         {% if g.portal_browse_all %}
                         <span class="badge bg-success">Xem tất cả share</span>
                         {% else %}
-                        <span class="text-muted">—</span>
+                        <span class="text-muted">Theo share / link riêng</span>
                         {% endif %}
                         {% if g.portal_members.count %}
-                        <span class="badge bg-light text-dark border">+{{ g.portal_members.count }} user</span>
+                        <div class="text-muted mt-1">+{{ g.portal_members.count }} thành viên bổ sung</div>
                         {% endif %}
                     </td>
                     <td class="text-end pe-4">
-                        <a href="{% url 'nas_storage:group_edit' g.pk %}" class="btn btn-sm btn-outline-secondary">Sửa</a>
+                        <a href="{% url 'nas_storage:group_edit' g.pk %}" class="btn btn-sm btn-outline-primary">Sửa</a>
                     </td>
                 </tr>
                 {% empty %}

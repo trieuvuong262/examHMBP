@@ -65,12 +65,17 @@ def _perm_subnav_context(perm_subnav_active: str) -> dict:
         'perm_subnav_items': [
             {
                 'key': 'shares',
-                'label': 'Phân quyền share',
+                'label': 'Tổng quan',
                 'url': reverse('nas_storage:permissions_hub'),
             },
             {
+                'key': 'groups',
+                'label': 'Nhóm quyền',
+                'url': reverse('nas_storage:group_list'),
+            },
+            {
                 'key': 'special',
-                'label': 'Truy cập riêng (RaiDrive)',
+                'label': 'Truy cập riêng',
                 'url': reverse('nas_storage:special_access_list'),
             },
         ],
@@ -95,7 +100,15 @@ def permissions_hub(request):
         )
         .order_by('sort_order', 'share_name')
     )
-    groups = NasAccessGroup.objects.filter(is_active=True)
+    groups = NasAccessGroup.objects.filter(is_active=True).order_by('sort_order', 'name')
+    browse_all_groups = (
+        NasAccessGroup.objects.filter(is_active=True, portal_browse_all=True)
+        .annotate(portal_members_count=Count('portal_members'))
+        .order_by('sort_order', 'name')
+    )
+    pending_apply_count = sum(
+        1 for f in folders if f.perm_count and f.applied_count < f.perm_count
+    )
     return render(
         request,
         'nas_storage/permissions_hub.html',
@@ -103,8 +116,10 @@ def permissions_hub(request):
             **_perm_page_ctx(request, 'shares'),
             'folders': folders,
             'groups': groups,
+            'browse_all_groups': browse_all_groups,
+            'pending_apply_count': pending_apply_count,
             'ssh_configured': nas_acl_ssh_configured(),
-            'breadcrumbs': _perm_breadcrumbs(('NAS', reverse('nas_storage:permissions_hub'))),
+            'breadcrumbs': _perm_breadcrumbs(('Phân quyền NAS', None)),
         },
     )
 
@@ -115,7 +130,14 @@ def group_list(request):
     return render(
         request,
         'nas_storage/group_list.html',
-        {**_perm_page_ctx(request, 'shares'), 'groups': groups},
+        {
+            **_perm_page_ctx(request, 'groups'),
+            'groups': groups,
+            'breadcrumbs': _perm_breadcrumbs(
+                ('Phân quyền NAS', reverse('nas_storage:permissions_hub')),
+                ('Nhóm quyền', None),
+            ),
+        },
     )
 
 
@@ -157,9 +179,8 @@ def special_access_list(request):
         request,
         'special',
         breadcrumbs=_perm_breadcrumbs(
-            ('NAS', hub_url),
-            ('Phân quyền', hub_url),
-            ('Truy cập riêng', special_url),
+            ('Phân quyền NAS', hub_url),
+            ('Truy cập riêng', None),
         ),
         ssh_configured=nas_acl_ssh_configured(),
     )
@@ -212,10 +233,9 @@ def special_access_edit(request, user_id):
         request,
         'special',
         breadcrumbs=_perm_breadcrumbs(
-            ('NAS', hub_url),
-            ('Phân quyền', hub_url),
+            ('Phân quyền NAS', hub_url),
             ('Truy cập riêng', special_url),
-            (user_obj.username, edit_url),
+            (user_obj.username, None),
         ),
         ssh_configured=nas_acl_ssh_configured(),
         dept_group=dept_group,
@@ -301,7 +321,7 @@ def group_edit(request, pk=None):
         request,
         'nas_storage/group_form.html',
         {
-            **_perm_page_ctx(request, 'shares'),
+            **_perm_page_ctx(request, 'groups'),
             'form': form,
             'editing': bool(instance),
         },
