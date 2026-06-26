@@ -74,3 +74,31 @@ def has_write_access(flags: dict[str, bool]) -> bool:
 
 def has_read_access(flags: dict[str, bool]) -> bool:
     return any(flags.get(name) for name, _ in READ_FIELDS)
+
+
+PRESET_LABELS = {
+    'read': 'Chỉ đọc',
+    'read_write': 'Đọc + Ghi',
+    'full': 'Đầy đủ',
+    'custom': 'Tuỳ chỉnh',
+}
+
+
+def detect_preset_from_flags(flags: dict[str, bool]) -> str:
+    if all(flags.get(name) for name in ALL_PERM_FIELD_NAMES):
+        return 'full'
+    rw = default_read_write_flags()
+    if all(flags.get(name) == value for name, value in rw.items()):
+        return 'read_write'
+    read_only = (
+        all(flags.get(name) for name, _ in READ_FIELDS)
+        and not any(flags.get(name) for name, _ in WRITE_FIELDS)
+        and not any(flags.get(name) for name, _ in ADMIN_FIELDS)
+    )
+    if read_only:
+        return 'read'
+    return 'custom'
+
+
+def access_level_label(flags: dict[str, bool]) -> str:
+    return PRESET_LABELS.get(detect_preset_from_flags(flags), PRESET_LABELS['custom'])

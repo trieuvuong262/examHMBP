@@ -2,11 +2,12 @@
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
-from hrm.menu_permissions import menu_perm_context, user_can_update_menu
+from hrm.menu_permissions import menu_perm_context, user_can_access_menu, user_can_update_menu
 from hrm.module_permissions import MODULE_NAS_STORAGE
 from nas_storage.forms import NasAccessGroupForm, NasFolderPermissionForm, NasShareFolderForm
 from nas_storage.models import NasAccessGroup, NasFolderPermission, NasShareFolder
@@ -32,8 +33,6 @@ def _perm_menu_required(view_func):
 
 
 def _nav_context(request, active: str) -> dict:
-    from hrm.menu_permissions import user_can_access_menu
-
     items = []
     if user_can_access_menu(request.user, MODULE_NAS_STORAGE, 'browse'):
         items.append({'key': 'browse', 'label': 'Duyệt thư mục', 'url': reverse('nas_storage:browse')})
@@ -46,13 +45,25 @@ def _nav_context(request, active: str) -> dict:
     return {
         'nas_nav_items': items,
         'nas_nav_active': active,
-        **menu_perm_context(request.user, MODULE_NAS_STORAGE, 'permissions'),
+        **menu_perm_context(request.user, MODULE_NAS_STORAGE, active),
     }
+
+
+def _perm_breadcrumbs(*crumbs: tuple[str, str | None]) -> list[dict]:
+    """crumbs: (label, url_or_none) — None = trang hiện tại."""
+    return [{'label': label, 'url': url} for label, url in crumbs]
 
 
 @_perm_menu_required
 def permissions_hub(request):
-    folders = NasShareFolder.objects.filter(is_active=True).prefetch_related('permissions__group')
+    folders = (
+        NasShareFolder.objects.filter(is_active=True)
+        .annotate(
+            perm_count=Count('permissions'),
+            applied_count=Count('permissions', filter=Q(permissions__last_applied_at__isnull=False)),
+        )
+        .order_by('sort_order', 'share_name')
+    )
     groups = NasAccessGroup.objects.filter(is_active=True)
     return render(
         request,
@@ -62,6 +73,7 @@ def permissions_hub(request):
             'folders': folders,
             'groups': groups,
             'ssh_configured': nas_acl_ssh_configured(),
+            'breadcrumbs': _perm_breadcrumbs(('NAS', reverse('nas_storage:permissions_hub'))),
         },
     )
 
@@ -138,6 +150,8 @@ def folder_edit(request, pk=None):
 def folder_permissions(request, pk):
     folder = get_object_or_404(NasShareFolder, pk=pk)
     permissions = folder.permissions.select_related('group').order_by('group__sort_order', 'group__name')
+    hub_url = reverse('nas_storage:permissions_hub')
+    folder_url = reverse('nas_storage:folder_permissions', kwargs={'pk': folder.pk})
     return render(
         request,
         'nas_storage/folder_permissions.html',
@@ -149,8 +163,17 @@ def folder_permissions(request, pk):
             'write_fields': WRITE_FIELDS,
             'admin_fields': ADMIN_FIELDS,
             'ssh_configured': nas_acl_ssh_configured(),
+            'breadcrumbs': _perm_breadcrumbs(
+                ('NAS', hub_url),
+                ('Phân quyền', hub_url),
+                (folder.display_name, folder_url),
+            ),
         },
     )
+
+
+def _form_fields_by_defs(form, field_defs):
+    return [{'name': name, 'label': label, 'field': form[name]} for name, label in field_defs]
 
 
 @_perm_menu_required
@@ -167,6 +190,9 @@ def permission_edit(request, folder_pk, pk=None):
             return redirect('nas_storage:folder_permissions', pk=folder.pk)
     else:
         form = NasFolderPermissionForm(instance=instance, folder=folder)
+    hub_url = reverse('nas_storage:permissions_hub')
+    folder_url = reverse('nas_storage:folder_permissions', kwargs={'pk': folder.pk})
+    edit_label = 'Sửa quyền' if instance else 'Thêm quyền'
     return render(
         request,
         'nas_storage/permission_editor.html',
@@ -175,9 +201,16 @@ def permission_edit(request, folder_pk, pk=None):
             'folder': folder,
             'form': form,
             'editing': bool(instance),
-            'read_fields': READ_FIELDS,
-            'write_fields': WRITE_FIELDS,
-            'admin_fields': ADMIN_FIELDS,
+            'read_form_fields': _form_fields_by_defs(form, READ_FIELDS),
+            'write_form_fields': _form_fields_by_defs(form, WRITE_FIELDS),
+            'admin_form_fields': _form_fields_by_defs(form, ADMIN_FIELDS),
+            'ssh_configured': nas_acl_ssh_configured(),
+            'breadcrumbs': _perm_breadcrumbs(
+                ('NAS', hub_url),
+                ('Phân quyền', hub_url),
+                (folder.display_name, folder_url),
+                (edit_label, None),
+            ),
         },
     )
 

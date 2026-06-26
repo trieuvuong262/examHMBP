@@ -114,13 +114,13 @@ class NasFolderPermissionForm(forms.ModelForm):
     preset = forms.ChoiceField(
         required=False,
         choices=(
-            ('', 'Tuỳ chỉnh'),
+            ('read_write', 'Đọc + Ghi'),
             ('read', 'Chỉ đọc'),
-            ('read_write', 'Đọc + Ghi (mặc định)'),
-            ('full', 'Đầy đủ (gồm Administration)'),
+            ('full', 'Đầy đủ (quản trị)'),
+            ('', 'Tuỳ chỉnh nâng cao'),
         ),
-        label='Mẫu nhanh',
-        widget=forms.Select(attrs=SELECT),
+        label='Mức quyền',
+        widget=forms.RadioSelect(attrs={'class': 'form-check-input'}),
     )
 
     class Meta:
@@ -146,6 +146,12 @@ class NasFolderPermissionForm(forms.ModelForm):
             'perm_change_acl',
             'perm_take_ownership',
         ]
+        labels = {
+            'group': 'Nhóm',
+            'permission_type': 'Hành động',
+            'apply_to': 'Phạm vi áp dụng',
+            'inherit_from_parent': 'Kế thừa từ thư mục cha',
+        }
         widgets = {
             'group': forms.Select(attrs=SELECT),
             'permission_type': forms.Select(attrs=SELECT),
@@ -156,6 +162,7 @@ class NasFolderPermissionForm(forms.ModelForm):
     def __init__(self, *args, folder=None, **kwargs):
         super().__init__(*args, **kwargs)
         from nas_storage.models import NasAccessGroup
+        from nas_storage.permission_defs import detect_preset_from_flags
 
         self.fields['group'].queryset = NasAccessGroup.objects.filter(is_active=True).order_by(
             'sort_order', 'name',
@@ -166,6 +173,13 @@ class NasFolderPermissionForm(forms.ModelForm):
             'perm_delete_children', 'perm_delete', 'perm_change_acl', 'perm_take_ownership',
         ):
             self.fields[name].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
+
+        if self.instance and self.instance.pk:
+            preset = detect_preset_from_flags(self.instance.permission_flags())
+            if preset != 'custom':
+                self.fields['preset'].initial = preset
+        else:
+            self.fields['preset'].initial = 'read_write'
 
     def clean(self):
         cleaned = super().clean()

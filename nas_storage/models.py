@@ -232,3 +232,12 @@ class NasFolderPermission(models.Model):
         from nas_storage.permission_defs import ALL_PERM_FIELD_NAMES
 
         return {name: bool(getattr(self, name)) for name in ALL_PERM_FIELD_NAMES}
+
+    def access_level_label(self) -> str:
+        from nas_storage.permission_defs import access_level_label
+
+        return access_level_label(self.permission_flags())
+
+    @property
+    def is_applied_on_nas(self) -> bool:
+        return self.last_applied_at is not None

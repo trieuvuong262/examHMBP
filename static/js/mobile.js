@@ -76,11 +76,14 @@
     function setBottomNavActive() {
         var path = window.location.pathname;
         document.querySelectorAll('.jp-bottom-nav a[data-nav]').forEach(function (a) {
+            a.classList.remove('active');
             var match = a.getAttribute('data-nav');
             if (!match) return;
-            if (match === '/' && path === '/') {
-                a.classList.add('active');
-            } else if (match !== '/' && path.indexOf(match) === 0) {
+            if (match === '/') {
+                if (path === '/' || path === '') {
+                    a.classList.add('active');
+                }
+            } else if (path.indexOf(match) === 0) {
                 a.classList.add('active');
             }
         });

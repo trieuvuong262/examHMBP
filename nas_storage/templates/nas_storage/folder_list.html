@@ -2,37 +2,61 @@
 
 {% block content %}
 <div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
-    <div class="jp-page-header mb-3 d-flex justify-content-between flex-wrap gap-2">
-        <h2 class="jp-page-title fw-bold text-dark mb-0">Thư mục share NAS</h2>
-        <div class="d-flex gap-2">
-            {% if ssh_configured %}
-            <form method="post" action="{% url 'nas_storage:import_shares' %}">{% csrf_token %}
-                <button class="btn btn-outline-secondary btn-sm">Quét từ NAS</button>
-            </form>
-            {% endif %}
-            <a href="{% url 'nas_storage:folder_create' %}" class="btn btn-hm btn-sm">Thêm thủ công</a>
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div class="jp-page-header-main">
+            <h2 class="jp-page-title fw-bold text-dark mb-1">NAS</h2>
         </div>
     </div>
+
     {% include "nas_storage/_nas_nav.html" %}
-    <div class="card border-0 shadow-sm">
-        <table class="table mb-0">
-            <thead class="table-light"><tr><th>Share</th><th>Hiển thị</th><th>Đường dẫn</th><th></th></tr></thead>
-            <tbody>
-            {% for f in folders %}
-            <tr>
-                <td><code>{{ f.share_name }}</code></td>
-                <td>{{ f.display_name }}</td>
-                <td class="small text-muted">{{ f.volume_path }}</td>
-                <td class="text-end">
-                    <a href="{% url 'nas_storage:folder_permissions' f.pk %}" class="btn btn-sm btn-outline-primary">Quyền</a>
-                    <a href="{% url 'nas_storage:folder_edit' f.pk %}" class="btn btn-sm btn-outline-secondary">Sửa</a>
-                </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="4" class="text-muted p-4">Chưa đăng ký thư mục.</td></tr>
-            {% endfor %}
-            </tbody>
-        </table>
+
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb mb-0 small bg-white px-3 py-2 rounded shadow-sm">
+            <li class="breadcrumb-item"><a href="{% url 'nas_storage:permissions_hub' %}" class="text-decoration-none">NAS</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'nas_storage:permissions_hub' %}" class="text-decoration-none">Phân quyền</a></li>
+            <li class="breadcrumb-item active fw-semibold">Quản lý share</li>
+        </ol>
+    </nav>
+
+    <div class="card border-0 shadow-sm overflow-hidden jp-nas-browse-card">
+        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between flex-wrap gap-2">
+            <span class="text-muted small">Danh sách shared folder trên NAS</span>
+            <div class="d-flex gap-2">
+                {% if ssh_configured %}
+                <form method="post" action="{% url 'nas_storage:import_shares' %}">{% csrf_token %}
+                    <button class="btn btn-outline-secondary btn-sm">Quét từ NAS</button>
+                </form>
+                {% endif %}
+                <a href="{% url 'nas_storage:folder_create' %}" class="btn btn-hm btn-sm">Thêm thủ công</a>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="bg-light text-uppercase small">
+                    <tr>
+                        <th class="ps-4 py-3 text-muted">Share NAS</th>
+                        <th class="text-muted">Tên hiển thị</th>
+                        <th class="text-muted">Đường dẫn</th>
+                        <th class="text-end pe-4 text-muted">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for f in folders %}
+                <tr>
+                    <td class="ps-4"><code>{{ f.share_name }}</code></td>
+                    <td class="fw-semibold">{{ f.display_name }}</td>
+                    <td class="small text-muted">{{ f.volume_path }}</td>
+                    <td class="text-end pe-4 text-nowrap">
+                        <a href="{% url 'nas_storage:folder_permissions' f.pk %}" class="btn btn-sm btn-outline-primary">Phân quyền</a>
+                        <a href="{% url 'nas_storage:folder_edit' f.pk %}" class="btn btn-sm btn-outline-secondary">Sửa</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="text-muted p-4 text-center">Chưa đăng ký thư mục.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 {% endblock %}

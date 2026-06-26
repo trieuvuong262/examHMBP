@@ -1,8 +1,8 @@
 {% if nas_nav_items %}
-<nav class="nav nav-pills flex-wrap gap-2 mb-3">
+<nav class="nav nav-pills jp-portal-pills flex-wrap gap-2 mb-3" aria-label="NAS">
     {% for item in nas_nav_items %}
     <a href="{{ item.url }}"
-       class="nav-link {% if nas_nav_active == item.key %}active{% else %}text-dark{% endif %}">
+       class="nav-link rounded-pill fw-semibold{% if nas_nav_active == item.key %} active{% endif %}">
         {{ item.label }}
     </a>
     {% endfor %}

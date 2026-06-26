@@ -46,6 +46,7 @@ _MENU_DEFER_PATH_PATTERNS = (
     re.compile(r'^/reports/vp/my/?'),
     re.compile(r'^/reports/cn/my/?'),
     re.compile(r'^/reports/my/?'),
+    re.compile(r'^/thu-muc-nas/phan-quyen(/|$)'),
 )
 
 _MENU_REGEX_RULES: list[tuple[re.Pattern, str, str]] = [

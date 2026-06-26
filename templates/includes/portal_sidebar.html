@@ -52,7 +52,7 @@
     <div class="jp-sidebar-menu-scroll">
     <ul class="jp-sidebar-menu">
         <li>
-            <a href="{% url 'home_portal' %}" class="jp-sidebar-link {% if request.path == '/' %}active{% endif %}">
+            <a href="{% url 'home_portal' %}" class="jp-sidebar-link {% if request.resolver_match.url_name == 'home_portal' %}active{% endif %}">
                 <i class="bi bi-house-fill"></i><span>Trang chủ</span>
             </a>
         </li>

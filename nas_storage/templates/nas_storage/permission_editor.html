@@ -2,73 +2,106 @@
 
 {% block content %}
 <div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
-    <h2 class="jp-page-title fw-bold text-dark mb-1">Permission Editor</h2>
-    <p class="text-muted small mb-3">{{ folder.display_name }} · <code>{{ folder.share_name }}</code></p>
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div class="jp-page-header-main">
+            <h2 class="jp-page-title fw-bold text-dark mb-1">NAS</h2>
+        </div>
+    </div>
+
     {% include "nas_storage/_nas_nav.html" %}
+    {% include "nas_storage/_perm_breadcrumb.html" %}
 
-    <form method="post" class="card border-0 shadow-sm p-4">
+    <form method="post" class="card border-0 shadow-sm overflow-hidden jp-nas-browse-card">
         {% csrf_token %}
+        <div class="card-header bg-white border-bottom py-3">
+            <h5 class="fw-bold text-dark mb-0">{% if editing %}Sửa quyền{% else %}Thêm quyền{% endif %}</h5>
+            <p class="text-muted small mb-0">{{ folder.display_name }} · <code>{{ folder.share_name }}</code></p>
+        </div>
+        <div class="card-body p-4">
+            <div class="row g-4 mb-4">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold" for="{{ form.group.id_for_label }}">Nhóm</label>
+                    {{ form.group }}
+                    {% for e in form.group.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold" for="{{ form.permission_type.id_for_label }}">Hành động</label>
+                    {{ form.permission_type }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold" for="{{ form.apply_to.id_for_label }}">Phạm vi áp dụng</label>
+                    {{ form.apply_to }}
+                </div>
+            </div>
 
-        <div class="row g-3 mb-4">
-            <div class="col-md-6">
-                <label class="form-label fw-semibold">User or group</label>
-                {{ form.group }}
+            <div class="mb-4">
+                <div class="fw-semibold mb-2">Mức quyền</div>
+                <div class="row g-2">
+                    {% for radio in form.preset %}
+                    <div class="col-md-6 col-xl-3">
+                        <div class="form-check border rounded p-3 h-100 bg-light">
+                            {{ radio.tag }}
+                            <label class="form-check-label fw-semibold" for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
-            <div class="col-md-3">
-                <label class="form-label fw-semibold">Type</label>
-                {{ form.permission_type }}
+
+            <div class="form-check mb-4">
+                {{ form.inherit_from_parent }}
+                <label class="form-check-label" for="{{ form.inherit_from_parent.id_for_label }}">Kế thừa từ thư mục cha</label>
             </div>
-            <div class="col-md-3">
-                <label class="form-label fw-semibold">Apply to</label>
-                {{ form.apply_to }}
-            </div>
-            <div class="col-md-4">
-                <label class="form-label fw-semibold">Mẫu nhanh</label>
-                {{ form.preset }}
-            </div>
-            <div class="col-md-4 d-flex align-items-end">
-                <div class="form-check">
-                    {{ form.inherit_from_parent }}
-                    <label class="form-check-label" for="{{ form.inherit_from_parent.id_for_label }}">Kế thừa từ thư mục cha</label>
+
+            <div class="accordion" id="jp-nas-advanced-perms">
+                <div class="accordion-item border-0 shadow-sm">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-semibold" type="button"
+                                data-bs-toggle="collapse" data-bs-target="#jp-nas-advanced-body"
+                                aria-expanded="false" aria-controls="jp-nas-advanced-body">
+                            Tuỳ chỉnh nâng cao (Synology DSM)
+                        </button>
+                    </h2>
+                    <div id="jp-nas-advanced-body" class="accordion-collapse collapse" data-bs-parent="#jp-nas-advanced-perms">
+                        <div class="accordion-body">
+                            <p class="text-muted small">Chỉ cần khi mức quyền chuẩn không đủ. Chọn <strong>Tuỳ chỉnh nâng cao</strong> ở trên rồi bật từng quyền chi tiết.</p>
+                            <div class="row g-4">
+                                <div class="col-lg-4">
+                                    <div class="fw-semibold mb-2">Đọc</div>
+                                    {% for item in read_form_fields %}
+                                    <div class="form-check mb-1">
+                                        {{ item.field }}
+                                        <label class="form-check-label" for="id_{{ item.name }}">{{ item.label }}</label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                <div class="col-lg-4">
+                                    <div class="fw-semibold mb-2">Ghi</div>
+                                    {% for item in write_form_fields %}
+                                    <div class="form-check mb-1">
+                                        {{ item.field }}
+                                        <label class="form-check-label" for="id_{{ item.name }}">{{ item.label }}</label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                <div class="col-lg-4">
+                                    <div class="fw-semibold mb-2">Quản trị</div>
+                                    {% for item in admin_form_fields %}
+                                    <div class="form-check mb-1">
+                                        {{ item.field }}
+                                        <label class="form-check-label" for="id_{{ item.name }}">{{ item.label }}</label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-
-        <h5 class="fw-bold border-bottom pb-2 mb-3">Permission</h5>
-
-        <div class="row g-4">
-            <div class="col-lg-4">
-                <div class="fw-semibold mb-2">Read</div>
-                {% for field_name, label in read_fields %}
-                <div class="form-check mb-1">
-                    {% with bf=form[field_name] %}{{ bf }}{% endwith %}
-                    <label class="form-check-label" for="id_{{ field_name }}">{{ label }}</label>
-                </div>
-                {% endfor %}
-            </div>
-            <div class="col-lg-4">
-                <div class="fw-semibold mb-2">Write</div>
-                {% for field_name, label in write_fields %}
-                <div class="form-check mb-1">
-                    {% with bf=form[field_name] %}{{ bf }}{% endwith %}
-                    <label class="form-check-label" for="id_{{ field_name }}">{{ label }}</label>
-                </div>
-                {% endfor %}
-            </div>
-            <div class="col-lg-4">
-                <div class="fw-semibold mb-2">Administration</div>
-                {% for field_name, label in admin_fields %}
-                <div class="form-check mb-1">
-                    {% with bf=form[field_name] %}{{ bf }}{% endwith %}
-                    <label class="form-check-label" for="id_{{ field_name }}">{{ label }}</label>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-
-        <div class="mt-4 d-flex gap-2">
-            <button type="submit" class="btn btn-hm">Done</button>
-            <a href="{% url 'nas_storage:folder_permissions' folder.pk %}" class="btn btn-light border">Cancel</a>
+        <div class="card-footer bg-white border-top py-3 d-flex gap-2">
+            <button type="submit" class="btn btn-hm">Lưu</button>
+            <a href="{% url 'nas_storage:folder_permissions' folder.pk %}" class="btn btn-light border">Huỷ</a>
         </div>
     </form>
 </div>

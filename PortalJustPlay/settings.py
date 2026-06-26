@@ -486,6 +486,10 @@ NAS_LDAP_DOMAIN = os.getenv('NAS_LDAP_DOMAIN', 'ldap.justplay.local').strip()
 NAS_SSH_HOST = os.getenv('NAS_SSH_HOST', '').strip()
 NAS_SSH_ADMIN_USER = os.getenv('NAS_SSH_ADMIN_USER', 'admin').strip()
 NAS_SSH_ADMIN_PASSWORD = os.getenv('NAS_SSH_ADMIN_PASSWORD', '').strip()
+if not NAS_SSH_HOST and NAS_DSM_URL:
+    from urllib.parse import urlparse
+
+    NAS_SSH_HOST = (urlparse(NAS_DSM_URL).hostname or '').strip()
 # Báo cáo tuần — đính kèm lưu trên NAS, không lưu media VPS
 NAS_WEEKLY_REPORT_REL_PATH = os.getenv(
     'NAS_WEEKLY_REPORT_REL_PATH',
