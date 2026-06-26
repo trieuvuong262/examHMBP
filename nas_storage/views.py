@@ -158,7 +158,7 @@ def browse(request):
         for entry in roots:
             root_entries.append({
                 'entry': entry,
-                'exists': True,
+                'exists': nas_path_exists(entry.rel_path, user=request.user),
             })
         return render(request, 'nas_storage/browse.html', {
             **_browse_nav_context(request),

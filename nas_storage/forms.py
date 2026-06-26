@@ -15,7 +15,10 @@ class NasUserFolderAccessForm(forms.ModelForm):
         fields = ['label', 'rel_path', 'description', 'sort_order', 'is_active']
         widgets = {
             'label': forms.TextInput(attrs={**INPUT, 'placeholder': 'Thư mục cá nhân'}),
-            'rel_path': forms.TextInput(attrs={**INPUT, 'placeholder': 'HCNS/Annt'}),
+            'rel_path': forms.TextInput(attrs={
+                **INPUT,
+                'placeholder': '05_MARKETING/lvanhthu hoặc KD-MKT/_CHUNG',
+            }),
             'description': forms.TextInput(attrs={**INPUT, 'placeholder': 'Tuỳ chọn'}),
             'sort_order': forms.NumberInput(attrs={**INPUT, 'min': 0}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),

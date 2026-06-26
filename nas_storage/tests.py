@@ -57,6 +57,47 @@ class NasPathTests(TestCase):
         Profile.objects.filter(user=user).update(full_name='MKT', department=dept)
         self.assertEqual(get_user_nas_roots(user), [])
 
+    @override_settings(
+        NAS_MOUNT_ROOT='/tmp/nas-test',
+        NAS_DEPT_MOUNT_ROOTS='KD-MKT:/tmp/nas-kd-mkt',
+        NAS_DEPT_ROOT_REMOTES='KD-MKT:synology:KD-MKT',
+    )
+    def test_cross_share_custom_path_uses_portal_mount(self):
+        import os
+        from hrm.models import Department, Profile
+
+        dept, _ = Department.objects.get_or_create(
+            name='KINH DOANH - MARKETING',
+            defaults={'sort_order': 2},
+        )
+        user = User.objects.create_user(username='lvanhthu', password='test')
+        Profile.objects.filter(user=user).update(full_name='Thu', department=dept)
+        NasUserFolderAccess.objects.create(
+            user=user,
+            label='Marketing',
+            rel_path='05_MARKETING/lvanhthu',
+            sort_order=0,
+        )
+        os.makedirs('/tmp/nas-test/05_MARKETING/lvanhthu', exist_ok=True)
+        path = resolve_nas_path(user, '05_MARKETING/lvanhthu')
+        self.assertTrue(path.as_posix().endswith('05_MARKETING/lvanhthu'))
+
+    @override_settings(NAS_DEPT_ROOT_REMOTES='KD-MKT:synology:KD-MKT')
+    def test_rclone_path_cross_share_marketing(self):
+        from hrm.models import Department, Profile
+        from nas_storage.nas_paths import _rclone_remote_path
+
+        dept, _ = Department.objects.get_or_create(
+            name='KINH DOANH - MARKETING',
+            defaults={'sort_order': 2},
+        )
+        user = User.objects.create_user(username='mkt3', password='test')
+        Profile.objects.filter(user=user).update(full_name='MKT3', department=dept)
+        self.assertEqual(
+            _rclone_remote_path('05_MARKETING/lvanhthu', user=user),
+            'synology:05_MARKETING/lvanhthu',
+        )
+
     @override_settings(NAS_DEPT_ROOT_REMOTES='KD-MKT:synology:KD-MKT')
     def test_kd_mkt_rclone_path_not_under_datachung(self):
         from nas_storage.nas_paths import _rclone_remote_path

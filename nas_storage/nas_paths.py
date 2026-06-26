@@ -105,6 +105,40 @@ def nas_local_mount_root(user) -> Path:
     return nas_mount_root()
 
 
+def split_share_prefixed_path(rel_path: str) -> tuple[str | None, str]:
+    """
+    Tách share NAS ở segment đầu (vd. 05_MARKETING/lvanhthu).
+    Trả về (share_name, path_inside_share) hoặc (None, rel_path đầy đủ).
+    """
+    rel = normalize_rel_path(rel_path)
+    if not rel:
+        return None, ''
+    first, _, rest = rel.partition('/')
+    if first in known_nas_share_names():
+        return first, rest
+    return None, rel
+
+
+def nas_mount_base_and_rel(user, rel_path: str) -> tuple[Path, str]:
+    """
+    Chọn mount + đường dẫn tương đối.
+    Share chéo (05_MARKETING/…) → gốc /mnt/nas-portal, không gắn vào mount phòng ban.
+    """
+    dept_code = user_department_folder_code(user)
+    rel = strip_legacy_dept_prefix(rel_path, dept_code)
+    share_name, inner = split_share_prefixed_path(rel)
+    if share_name:
+        full_rel = share_name if not inner else f'{share_name}/{inner}'
+        return nas_mount_root(), full_rel
+    return nas_local_mount_root(user), rel
+
+
+def known_nas_share_names() -> frozenset[str]:
+    from nas_storage.dept_nas_config import known_nas_share_names as _names
+
+    return _names()
+
+
 def dept_nas_root_remotes() -> dict[str, str]:
     """Mã phòng ban → rclone remote gốc (vd. synology:KD-MKT)."""
     remotes = dict(_DEFAULT_DEPT_ROOT_REMOTES)
@@ -229,8 +263,8 @@ def resolve_nas_path(user, rel_path: str) -> Path:
     if not any(rel == prefix or rel.startswith(prefix + '/') for prefix in allowed):
         raise NasPathError('Bạn không có quyền truy cập thư mục này.')
 
-    mount = nas_local_mount_root(user)
-    candidate = (mount / rel).resolve()
+    mount, rel = nas_mount_base_and_rel(user, rel_path)
+    candidate = (mount / rel).resolve() if rel else mount.resolve()
     mount_resolved = mount.resolve()
     try:
         candidate.relative_to(mount_resolved)
@@ -279,7 +313,7 @@ def nas_path_exists(rel_path: str, *, user=None) -> bool:
     if not rel:
         return False
 
-    mount = nas_local_mount_root(user) if user else nas_mount_root()
+    mount, rel = nas_mount_base_and_rel(user, rel_path) if user else (nas_mount_root(), rel)
     candidate = mount / rel
     try:
         return candidate.exists()
@@ -363,6 +397,10 @@ def _list_directory_local(path: Path) -> dict:
 def _rclone_remote_path(rel_path: str, *, user=None) -> str:
     dept_code = user_department_folder_code(user) if user else None
     rel = strip_legacy_dept_prefix(rel_path, dept_code)
+    share_name, inner = split_share_prefixed_path(rel)
+    if share_name:
+        return nas_rclone_remote_path(f'synology:{share_name}', inner)
+
     remotes = dept_nas_root_remotes()
 
     if dept_code and dept_code in remotes:
@@ -489,8 +527,8 @@ def nas_item_kind(rel_path: str, *, user=None) -> str | None:
     if not rel:
         return None
 
-    local_root = nas_local_mount_root(user) if user else nas_mount_root()
-    local = local_root / rel
+    local_root, rel = nas_mount_base_and_rel(user, rel_path) if user else (nas_mount_root(), rel)
+    local = local_root / rel if rel else local_root
     try:
         if local.is_file():
             return 'file'
@@ -544,33 +582,34 @@ def delete_nas_item(user, rel_path: str) -> str:
     if kind is None:
         raise NasPathError('Không tìm thấy file hoặc thư mục trên NAS.')
 
-    local = nas_local_mount_root(user) / rel
+    local_root, rel_inner = nas_mount_base_and_rel(user, rel_path)
+    local_path = local_root / rel_inner if rel_inner else local_root
 
     if kind == 'file':
         try:
-            if local.is_file():
-                local.unlink()
+            if local_path.is_file():
+                local_path.unlink()
                 return name
         except OSError:
             pass
-        delete_via_rclone(rel, user=user)
+        delete_via_rclone(rel_path, user=user)
         return name
 
     if kind == 'dir':
         try:
-            if local.is_dir():
-                if any(local.iterdir()):
+            if local_path.is_dir():
+                if any(local_path.iterdir()):
                     raise NasPathError('Chỉ xóa được thư mục rỗng.')
-                local.rmdir()
+                local_path.rmdir()
                 return name
         except NasPathError:
             raise
         except OSError:
             pass
-        listing = list_directory_via_rclone(rel, user=user, fresh=True)
+        listing = list_directory_via_rclone(rel_path, user=user, fresh=True)
         if listing['folders'] or listing['files']:
             raise NasPathError('Chỉ xóa được thư mục rỗng.')
-        delete_dir_via_rclone(rel, user=user)
+        delete_dir_via_rclone(rel_path, user=user)
         return name
 
     raise NasPathError('Không tìm thấy file hoặc thư mục trên NAS.')

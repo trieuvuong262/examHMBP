@@ -89,3 +89,14 @@ def nas_group_for_user_description(description: str | None) -> str | None:
     if not key:
         return None
     return NAS_USER_DESCRIPTION_TO_GROUP.get(key)
+
+
+def known_nas_share_names() -> frozenset[str]:
+    """Tên shared folder trên Synology — dùng nhận diện đường dẫn đa share."""
+    names: set[str] = set()
+    for spec in DEPT_NAS_SPECS:
+        if spec.share_name:
+            names.add(spec.share_name)
+    for share_name, _ in EXTRA_SHARE_GROUP_LINKS:
+        names.add(share_name)
+    return frozenset(names)

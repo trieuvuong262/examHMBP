@@ -1,10 +1,14 @@
+<div class="alert alert-light border small py-2 mb-3">
+    Đường dẫn tương đối từ gốc NAS. Share khác phòng ban: ghi đủ tên share,
+    vd. <code>05_MARKETING/lvanhthu</code>.
+</div>
 {% if nas_using_custom %}
 <div class="alert alert-info border-0 small py-2 mb-3">
     Đang có <strong>{{ nas_active_count }}</strong> thư mục được bật.
 </div>
 {% else %}
-<div class="alert alert-light border small py-2 mb-3">
-    Chưa có thư mục nào được bật — user này <strong>chưa truy cập</strong> được menu Thư mục NAS. Liên hệ IT để được gán quyền.
+<div class="alert alert-warning border-0 small py-2 mb-3">
+    Chưa có thư mục nào được bật — user này <strong>chưa truy cập</strong> được menu Thư mục NAS.
 </div>
 {% endif %}
 {{ nas_formset.management_form }}
