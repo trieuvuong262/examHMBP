@@ -84,26 +84,33 @@ class NasFolderNestedPathTests(TestCase):
         self.assertEqual(len(tree[0].children), 1)
         self.assertEqual(len(tree[0].children[0].children), 1)
 
+
 class ImportSharesFromNasTests(TestCase):
     def test_import_skips_child_with_same_share_name(self):
         from unittest.mock import patch
+        from django.contrib.auth.models import User
         from django.test import Client
         from django.urls import reverse
         from nas_storage.models import NasShareFolder
-        from nas_storage.views_permissions import import_shares_from_nas
 
         root = NasShareFolder.objects.create(share_name='test', display_name='Test')
         NasShareFolder.objects.create(
             parent=root, share_name='test', sub_path='sub1', display_name='Sub',
         )
+        user = User.objects.create_superuser('admimport', '', 'x')
         with patch('nas_storage.views_permissions.user_can_update_menu', return_value=True):
-            with patch('nas_storage.views_permissions.discover_shares_from_nas', return_value=[
-                {'share_name': 'test', 'display_name': 'Test'},
-                {'share_name': 'NEW_SHARE', 'display_name': 'NEW_SHARE'},
-            ]):
+            with patch(
+                'nas_storage.views_permissions.discover_share_tree_from_nas',
+                return_value=[
+                    {'share_name': 'test', 'display_name': 'Test', 'children': []},
+                    {'share_name': 'NEW_SHARE', 'display_name': 'NEW_SHARE', 'children': []},
+                ],
+            ):
                 client = Client()
-                client.force_login(self.user if hasattr(self, 'user') else __import__('django.contrib.auth.models', fromlist=['User']).User.objects.create_superuser('adm', '', 'x'))
-                url = reverse('nas_storage:import_shares')
-                r = client.post(url)
+                client.force_login(user)
+                r = client.post(reverse('nas_storage:import_shares'))
         self.assertEqual(r.status_code, 302)
-        self.assertEqual(NasShareFolder.objects.filter(share_name='NEW_SHARE', parent__isnull=True).count(), 1)
+        self.assertEqual(
+            NasShareFolder.objects.filter(share_name='NEW_SHARE', parent__isnull=True).count(),
+            1,
+        )

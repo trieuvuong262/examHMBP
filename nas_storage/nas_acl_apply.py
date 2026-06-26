@@ -538,6 +538,129 @@ def discover_shares_from_nas() -> list[dict]:
     ]
 
 
+def _should_skip_import_dir_segment(name: str) -> bool:
+    n = (name or '').strip()
+    if not n or n.startswith('.'):
+        return True
+    if n.startswith('@') or n in {'#recycle', '#snapshot'}:
+        return True
+    return is_portal_browse_hidden_share(n)
+
+
+def _insert_path_into_import_tree(tree: dict[str, dict], parts: list[str]) -> None:
+    if not parts:
+        return
+    seg = parts[0]
+    if seg not in tree:
+        tree[seg] = {'sub_path': seg, 'display_name': seg, '_kids': {}}
+    if len(parts) > 1:
+        _insert_path_into_import_tree(tree[seg]['_kids'], parts[1:])
+
+
+def _import_tree_dict_to_list(tree: dict[str, dict]) -> list[dict]:
+    result: list[dict] = []
+    for seg in sorted(tree.keys()):
+        node = tree[seg]
+        result.append({
+            'sub_path': node['sub_path'],
+            'display_name': node['display_name'],
+            'children': _import_tree_dict_to_list(node['_kids']),
+        })
+    return result
+
+
+def _parse_find_dirs_to_tree(base_path: str, output: str, *, max_depth: int) -> list[dict]:
+    base = base_path.rstrip('/')
+    tree: dict[str, dict] = {}
+    for line in (output or '').splitlines():
+        path = line.strip()
+        if not path or not path.startswith(base):
+            continue
+        rel = path[len(base):].strip('/')
+        if not rel:
+            continue
+        parts = [p for p in rel.split('/') if p]
+        if not parts or len(parts) > max_depth:
+            continue
+        if any(_should_skip_import_dir_segment(p) for p in parts):
+            continue
+        _insert_path_into_import_tree(tree, parts)
+    return _import_tree_dict_to_list(tree)
+
+
+def discover_share_tree_from_nas(*, max_child_depth: int = 2) -> list[dict]:
+    """Liệt kê share gốc + thư mục con trên NAS (tối đa max_child_depth cấp dưới share)."""
+    roots = discover_shares_from_nas()
+    if max_child_depth <= 0:
+        return [{**item, 'children': []} for item in roots]
+
+    result: list[dict] = []
+    for item in roots:
+        share_name = item['share_name']
+        base = f'/volume1/{share_name}'
+        children: list[dict] = []
+        try:
+            cmd = (
+                f'find {shlex.quote(base)} -mindepth 1 -maxdepth {max_child_depth} '
+                f'-type d 2>/dev/null'
+            )
+            output = _run_ssh_commands([cmd])
+            children = _parse_find_dirs_to_tree(base, output, max_depth=max_child_depth)
+        except NasAclApplyError:
+            children = []
+        result.append({
+            'share_name': share_name,
+            'display_name': item['display_name'],
+            'children': children,
+        })
+    return result
+
+
+def _count_tree_children(nodes: list[dict]) -> int:
+    total = 0
+    for node in nodes:
+        total += 1
+        total += _count_tree_children(node.get('children') or [])
+    return total
+
+
+def import_folder_tree_from_nas(trees: list[dict]) -> dict:
+    """Đăng ký share gốc + cây thư mục con lên Portal (không xóa / không tạo trên NAS)."""
+    from nas_storage.models import NasShareFolder
+
+    stats = {'roots_created': 0, 'children_created': 0, 'roots_updated': 0}
+
+    def walk_children(parent: NasShareFolder, children: list[dict]) -> None:
+        for child in children:
+            folder, created = NasShareFolder.objects.get_or_create(
+                parent=parent,
+                sub_path=child['sub_path'],
+                defaults={
+                    'display_name': child.get('display_name') or child['sub_path'],
+                    'inherits_permissions': True,
+                },
+            )
+            if created:
+                stats['children_created'] += 1
+            walk_children(folder, child.get('children') or [])
+
+    for tree in trees:
+        root, created = NasShareFolder.objects.get_or_create(
+            share_name=tree['share_name'],
+            parent=None,
+            defaults={'display_name': tree.get('display_name') or tree['share_name']},
+        )
+        if created:
+            stats['roots_created'] += 1
+        elif not (root.display_name or '').strip():
+            root.display_name = tree.get('display_name') or tree['share_name']
+            root.save(update_fields=['display_name', 'updated_at'])
+            stats['roots_updated'] += 1
+        walk_children(root, tree.get('children') or [])
+
+    return stats
+
+
 def lock_hidden_share_acl(share_name: str) -> dict:
     """
     Khóa share hệ thống trên DSM (vd. docker): bỏ #everyone, chặn nhóm LDAP, ẩn browse.

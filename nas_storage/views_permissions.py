@@ -27,6 +27,9 @@ from nas_storage.nas_acl_apply import (
     apply_folder_permissions,
     apply_user_folder_acl,
     discover_shares_from_nas,
+    discover_share_tree_from_nas,
+    import_folder_tree_from_nas,
+    _count_tree_children,
     nas_acl_ssh_configured,
     provision_portal_folder_on_nas,
     revoke_user_folder_acl,
@@ -677,28 +680,18 @@ def apply_all_acl(request):
 @require_POST
 def import_shares_from_nas(request):
     try:
-        discovered = discover_shares_from_nas()
+        discovered = discover_share_tree_from_nas(max_child_depth=2)
     except NasAclApplyError as exc:
         messages.error(request, str(exc))
         return redirect('nas_storage:folder_list')
 
-    created = 0
-    updated = 0
-    for item in discovered:
-        share_name = item['share_name']
-        folder, was_created = NasShareFolder.objects.get_or_create(
-            share_name=share_name,
-            parent=None,
-            defaults={'display_name': item['display_name']},
-        )
-        if was_created:
-            created += 1
-        elif not (folder.display_name or '').strip():
-            folder.display_name = item['display_name']
-            folder.save(update_fields=['display_name', 'updated_at'])
-            updated += 1
-    msg = f'Đã quét NAS: {len(discovered)} share, thêm mới {created}.'
-    if updated:
-        msg += f' Cập nhật {updated}.'
+    child_total = sum(_count_tree_children(t.get('children') or []) for t in discovered)
+    stats = import_folder_tree_from_nas(discovered)
+    msg = (
+        f'Đã quét NAS: {len(discovered)} share, {child_total} thư mục con (tối đa 2 cấp). '
+        f'Thêm mới {stats["roots_created"]} share, {stats["children_created"]} thư mục con.'
+    )
+    if stats['roots_updated']:
+        msg += f' Cập nhật {stats["roots_updated"]} share.'
     messages.success(request, msg)
     return redirect('nas_storage:folder_list')
