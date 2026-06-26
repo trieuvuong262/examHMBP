@@ -31,6 +31,7 @@
                         <th class="ps-4 py-3 text-muted">Tên</th>
                         <th class="text-muted">Tài khoản NAS</th>
                         <th class="text-muted">Mô tả</th>
+                        <th class="text-muted">Portal</th>
                         <th class="text-end pe-4 text-muted">Thao tác</th>
                     </tr>
                 </thead>
@@ -40,12 +41,22 @@
                     <td class="ps-4 fw-semibold">{{ g.name }}</td>
                     <td><code>{{ g.resolved_nas_principal }}</code></td>
                     <td class="text-muted small">{{ g.description }}</td>
+                    <td class="small">
+                        {% if g.portal_browse_all %}
+                        <span class="badge bg-success">Xem tất cả share</span>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                        {% if g.portal_members.count %}
+                        <span class="badge bg-light text-dark border">+{{ g.portal_members.count }} user</span>
+                        {% endif %}
+                    </td>
                     <td class="text-end pe-4">
                         <a href="{% url 'nas_storage:group_edit' g.pk %}" class="btn btn-sm btn-outline-secondary">Sửa</a>
                     </td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="4" class="text-muted p-4 text-center">Chưa có nhóm.</td></tr>
+                <tr><td colspan="5" class="text-muted p-4 text-center">Chưa có nhóm.</td></tr>
                 {% endfor %}
                 </tbody>
             </table>

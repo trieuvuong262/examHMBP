@@ -87,14 +87,40 @@ class NasAccessGroupForm(forms.ModelForm):
         from nas_storage.models import NasAccessGroup
 
         model = NasAccessGroup
-        fields = ['name', 'nas_principal', 'description', 'sort_order', 'is_active']
+        fields = [
+            'name',
+            'nas_principal',
+            'description',
+            'sort_order',
+            'is_active',
+            'portal_browse_all',
+            'portal_members',
+        ]
         widgets = {
             'name': forms.TextInput(attrs={**INPUT, 'placeholder': 'SX'}),
             'nas_principal': forms.TextInput(attrs={**INPUT, 'placeholder': '@SX@ldap.justplay.local'}),
             'description': forms.TextInput(attrs={**INPUT}),
             'sort_order': forms.NumberInput(attrs={**INPUT, 'min': 0}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'portal_browse_all': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'portal_members': forms.SelectMultiple(attrs={**SELECT, 'size': 8}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from django.contrib.auth.models import User
+
+        from hrm.user_search import exclude_hidden_hrm_users
+
+        self.fields['portal_members'].queryset = (
+            exclude_hidden_hrm_users(User.objects.filter(is_active=True))
+            .order_by('username')
+        )
+        self.fields['portal_members'].required = False
+        self.fields['portal_browse_all'].help_text = (
+            'Bật cho Ban Giám đốc (TGD): mọi thành viên nhóm xem tất cả share trên Portal. '
+            'Tự gán quyền đọc trên mọi share khi lưu.'
+        )
 
 
 class NasShareFolderForm(forms.ModelForm):

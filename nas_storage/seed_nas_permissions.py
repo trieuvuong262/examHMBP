@@ -34,6 +34,7 @@ def seed_nas_permissions(*, dry_run: bool = False) -> dict:
                 'description': spec.label,
                 'sort_order': spec.sort_order,
                 'is_active': True,
+                'portal_browse_all': spec.nas_group == 'TGD',
             }
             if dry_run:
                 group_by_name[spec.nas_group] = NasAccessGroup(name=spec.nas_group, **defaults)

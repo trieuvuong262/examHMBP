@@ -99,6 +99,18 @@ class NasAccessGroup(models.Model):
     description = models.CharField(max_length=255, blank=True, verbose_name='Mô tả')
     sort_order = models.PositiveSmallIntegerField(default=0, verbose_name='Thứ tự')
     is_active = models.BooleanField(default=True, verbose_name='Đang dùng')
+    portal_browse_all = models.BooleanField(
+        default=False,
+        verbose_name='Duyệt tất cả share (Portal)',
+        help_text='Thành viên nhóm xem được mọi share trên menu Duyệt thư mục.',
+    )
+    portal_members = models.ManyToManyField(
+        User,
+        blank=True,
+        related_name='nas_portal_access_groups',
+        verbose_name='Thành viên bổ sung (Portal)',
+        help_text='User được tính vào nhóm dù phòng ban khác (vd. ductn vào Ban Giám đốc).',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

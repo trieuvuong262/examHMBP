@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
-from hrm.menu_permissions import menu_perm_context, user_can_access_menu, user_can_update_menu
+from hrm.menu_permissions import menu_perm_context, user_can_update_menu
 from hrm.models import Profile
 from hrm.module_permissions import MODULE_NAS_STORAGE
 from hrm.user_search import exclude_hidden_hrm_users, filter_users_by_search
@@ -28,6 +28,7 @@ from nas_storage.nas_acl_apply import (
     discover_shares_from_nas,
     nas_acl_ssh_configured,
 )
+from nas_storage.portal_access import sync_browse_all_share_permissions
 from nas_storage.permission_defs import ADMIN_FIELDS, READ_FIELDS, WRITE_FIELDS
 from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
@@ -46,17 +47,8 @@ def _perm_menu_required(view_func):
 
 
 def _nav_context(request, active: str) -> dict:
-    items = []
-    if user_can_access_menu(request.user, MODULE_NAS_STORAGE, 'browse'):
-        items.append({'key': 'browse', 'label': 'Duyệt thư mục', 'url': reverse('nas_storage:browse')})
-    if user_can_access_menu(request.user, MODULE_NAS_STORAGE, 'permissions'):
-        items.append({
-            'key': 'permissions',
-            'label': 'Phân quyền thư mục',
-            'url': reverse('nas_storage:permissions_hub'),
-        })
     return {
-        'nas_nav_items': items,
+        'nas_nav_items': [],
         'nas_nav_active': active,
         **menu_perm_context(request.user, MODULE_NAS_STORAGE, active),
     }
@@ -119,7 +111,7 @@ def permissions_hub(request):
 
 @_perm_menu_required
 def group_list(request):
-    groups = NasAccessGroup.objects.all()
+    groups = NasAccessGroup.objects.prefetch_related('portal_members').all()
     return render(
         request,
         'nas_storage/group_list.html',
@@ -293,7 +285,14 @@ def group_edit(request, pk=None):
     if request.method == 'POST':
         form = NasAccessGroupForm(request.POST, instance=instance)
         if form.is_valid():
-            form.save()
+            group = form.save()
+            if group.portal_browse_all:
+                stats = sync_browse_all_share_permissions()
+                messages.info(
+                    request,
+                    f'Đã gán quyền đọc {stats["permissions_created"] + stats["permissions_updated"]} '
+                    f'cặp nhóm–share cho nhóm xem tất cả.',
+                )
             messages.success(request, 'Đã lưu nhóm quyền NAS.')
             return redirect('nas_storage:group_list')
     else:
@@ -443,6 +442,7 @@ def apply_folder_acl(request, pk):
 @require_POST
 def apply_all_acl(request):
     try:
+        sync_browse_all_share_permissions()
         stats = apply_all_folder_permissions()
         if stats['errors']:
             messages.warning(

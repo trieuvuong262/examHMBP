@@ -28,8 +28,9 @@ class NasUserFolderAccessAdmin(admin.ModelAdmin):
 
 @admin.register(NasAccessGroup)
 class NasAccessGroupAdmin(admin.ModelAdmin):
-    list_display = ('name', 'nas_principal', 'is_active', 'sort_order')
+    list_display = ('name', 'nas_principal', 'portal_browse_all', 'is_active', 'sort_order')
     search_fields = ('name', 'nas_principal')
+    filter_horizontal = ('portal_members',)
 
 
 @admin.register(NasShareFolder)

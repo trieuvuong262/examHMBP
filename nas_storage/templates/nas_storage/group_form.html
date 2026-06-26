@@ -19,8 +19,13 @@
         </ol>
     </nav>
 
-    <form method="post" class="card border-0 shadow-sm p-4" style="max-width: 640px;">
+    <form method="post" class="card border-0 shadow-sm p-4" style="max-width: 720px;">
         {% csrf_token %}
+        <div class="alert alert-light border small mb-3">
+            <strong>Ban Giám đốc xem tất cả:</strong> bật <em>Duyệt tất cả share (Portal)</em> cho nhóm
+            <code>TGD</code>, thêm user (vd. <code>ductn</code>) vào <em>Thành viên bổ sung</em> nếu phòng ban khác TGD.
+            User đã có link NAS riêng tại Cập nhật link NAS thì vẫn ưu tiên link riêng.
+        </div>
         {% for field in form %}
         <div class="mb-3">
             <label class="form-label fw-semibold">{{ field.label }}</label>

@@ -232,10 +232,13 @@ def department_default_nas_roots(user) -> list[NasRootEntry]:
 
 
 def get_user_nas_roots(user) -> list[NasRootEntry]:
+    from nas_storage.portal_access import all_share_portal_roots, user_has_portal_browse_all
     from nas_storage.user_folders import custom_roots_from_db, user_has_custom_nas_folders
 
     if user_has_custom_nas_folders(user):
         return custom_roots_from_db(user)
+    if user_has_portal_browse_all(user):
+        return all_share_portal_roots()
     return []
 
 
