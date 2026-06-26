@@ -27,6 +27,7 @@ from nas_storage.nas_acl_apply import (
     apply_user_folder_acl,
     discover_shares_from_nas,
     nas_acl_ssh_configured,
+    revoke_user_folder_acl,
 )
 from nas_storage.portal_access import (
     sync_browse_all_share_permissions,
@@ -160,13 +161,25 @@ def _user_acl_formset(*, user: User, data=None):
     return NasUserFolderAclFormSet(data, queryset=qs, prefix='user_acl')
 
 
-def _save_user_acl_formset(user: User, formset) -> None:
+def _save_user_acl_formset(user: User, formset) -> list:
+    from nas_storage.user_folders import ensure_portal_link_for_acl
+
+    saved: list = []
     instances = formset.save(commit=False)
     for obj in instances:
         obj.user = user
         obj.save()
+        if obj.is_active:
+            ensure_portal_link_for_acl(obj)
+        saved.append(obj)
     for obj in formset.deleted_objects:
+        if obj.pk and nas_acl_ssh_configured():
+            try:
+                revoke_user_folder_acl(obj)
+            except NasAclApplyError:
+                pass
         obj.delete()
+    return saved
 
 
 @_perm_menu_required
@@ -243,8 +256,27 @@ def special_access_edit(request, user_id):
     if request.method == 'POST':
         formset = _user_acl_formset(user=user_obj, data=request.POST)
         if formset.is_valid():
-            _save_user_acl_formset(user_obj, formset)
-            messages.success(request, f'Đã lưu quyền RaiDrive/SMB cho {user_obj.username}.')
+            saved_grants = _save_user_acl_formset(user_obj, formset)
+            msg = f'Đã lưu quyền RaiDrive/SMB cho {user_obj.username}.'
+            if nas_acl_ssh_configured() and saved_grants:
+                applied = 0
+                apply_errors: list[str] = []
+                for grant in saved_grants:
+                    if not grant.is_active:
+                        continue
+                    try:
+                        apply_user_folder_acl(grant)
+                        applied += 1
+                    except NasAclApplyError as exc:
+                        apply_errors.append(str(exc))
+                if applied:
+                    msg += f' Đã áp dụng {applied} ACL lên NAS.'
+                if apply_errors:
+                    messages.warning(
+                        request,
+                        'Một số ACL chưa áp dụng được lên NAS: ' + '; '.join(apply_errors[:2]),
+                    )
+            messages.success(request, msg)
             return redirect('nas_storage:special_access_edit', user_id=user_obj.pk)
         messages.error(request, 'Kiểm tra lại bảng quyền thư mục riêng.')
         return render(
@@ -427,7 +459,15 @@ def permission_edit(request, folder_pk, pk=None):
             perm = form.save(commit=False)
             perm.folder = folder
             perm.save()
-            messages.success(request, 'Đã lưu quyền chi tiết.')
+            msg = 'Đã lưu quyền chi tiết.'
+            if nas_acl_ssh_configured():
+                try:
+                    result = apply_folder_permissions(folder)
+                    if result.get('status') == 'ok':
+                        msg += f' Đã đồng bộ ACL lên NAS ({folder.share_name}).'
+                except NasAclApplyError as exc:
+                    messages.warning(request, f'Đã lưu trên Portal nhưng chưa đẩy NAS: {exc}')
+            messages.success(request, msg)
             return redirect('nas_storage:folder_permissions', pk=folder.pk)
     else:
         form = NasFolderPermissionForm(instance=instance, folder=folder)
@@ -462,7 +502,15 @@ def permission_delete(request, folder_pk, pk):
     folder = get_object_or_404(NasShareFolder, pk=folder_pk)
     perm = get_object_or_404(NasFolderPermission, pk=pk, folder=folder)
     perm.delete()
-    messages.success(request, 'Đã xóa quyền.')
+    msg = 'Đã xóa quyền.'
+    if nas_acl_ssh_configured():
+        try:
+            result = apply_folder_permissions(folder)
+            if result.get('status') == 'ok':
+                msg += f' Đã gỡ/đồng bộ ACL lên NAS ({folder.share_name}).'
+        except NasAclApplyError as exc:
+            messages.warning(request, f'Đã xóa trên Portal nhưng chưa đẩy NAS: {exc}')
+    messages.success(request, msg)
     return redirect('nas_storage:folder_permissions', pk=folder.pk)
 
 
@@ -474,6 +522,8 @@ def apply_folder_acl(request, pk):
         result = apply_folder_permissions(folder)
         if result.get('status') == 'ok':
             messages.success(request, f'Đã áp dụng quyền lên NAS cho {folder.share_name}.')
+        elif result.get('reason') == 'no_changes':
+            messages.info(request, f'ACL NAS đã khớp Portal cho {folder.share_name}.')
         else:
             messages.warning(request, 'Không có quyền nào để áp dụng.')
     except NasAclApplyError as exc:

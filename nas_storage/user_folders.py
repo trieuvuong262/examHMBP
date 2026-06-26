@@ -6,7 +6,42 @@ from django.contrib.auth.models import User
 from django.db import connection
 
 from nas_storage.models import NasUserFolderAccess
-from nas_storage.nas_paths import NasRootEntry
+from nas_storage.nas_paths import NasRootEntry, normalize_rel_path
+
+
+def portal_rel_path_for_acl(*, share_name: str, sub_path: str) -> str:
+    share = (share_name or '').strip().strip('/')
+    sub = (sub_path or '').strip().strip('/')
+    if not share:
+        return ''
+    return normalize_rel_path(f'{share}/{sub}' if sub else share)
+
+
+def ensure_portal_link_for_acl(grant) -> tuple[NasUserFolderAccess, bool]:
+    """
+    Tạo/cập nhật link Duyệt thư mục Portal khớp ACL truy cập riêng (share/sub_path).
+    Trả về (bản ghi, created).
+    """
+    from nas_storage.models import NasUserFolderAcl
+
+    if not isinstance(grant, NasUserFolderAcl) or not grant.is_active:
+        raise ValueError('grant không hợp lệ')
+    rel_path = portal_rel_path_for_acl(
+        share_name=grant.folder.share_name,
+        sub_path=grant.sub_path,
+    )
+    if not rel_path:
+        raise ValueError('Thiếu share/thư mục con')
+    label = (grant.label or '').strip() or f'/{rel_path}'
+    return NasUserFolderAccess.objects.update_or_create(
+        user=grant.user,
+        rel_path=rel_path,
+        defaults={
+            'label': label[:120],
+            'description': rel_path,
+            'is_active': True,
+        },
+    )
 
 
 def nas_folders_feature_available() -> bool:

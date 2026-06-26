@@ -104,17 +104,76 @@ def _normalize_principal(principal: str) -> str:
     return p if p.startswith('@') else f'@{p}'
 
 
-def apply_folder_permissions(folder) -> dict:
-    """Đồng bộ ACL share NAS theo cấu hình Portal cho một folder."""
-    share = folder.share_name
-    perms = list(
-        folder.permissions.select_related('group').filter(group__is_active=True).order_by('id')
-    )
-    if not perms:
-        return {'status': 'skipped', 'reason': 'no_permissions'}
+_SHARE_ACL_LINE_RE = re.compile(
+    r'ACL\s+(RW|RO|NA)\s+List\s+\.+?\[(.*)\]',
+    re.IGNORECASE,
+)
 
-  # Gom theo mức quyền share (RW/RO/NA)
+PRESERVED_SHARE_PRINCIPAL_KEYS = frozenset({
+    'administrators',
+    'admin',
+    'guest',
+    'users',
+    'everyone',
+    'containermanager',
+    'tailscale-justplay',
+    'justplay-it',
+})
+
+
+def principal_group_key(principal: str) -> str:
+    p = (principal or '').strip().lstrip('@')
+    if '@' in p:
+        return p.split('@', 1)[0].lower()
+    return p.lower()
+
+
+def parse_synoshare_list_acl(output: str) -> dict[str, set[str]]:
     buckets: dict[str, set[str]] = {'RW': set(), 'RO': set(), 'NA': set()}
+    for line in (output or '').splitlines():
+        match = _SHARE_ACL_LINE_RE.search(line)
+        if not match:
+            continue
+        level = match.group(1).upper()
+        raw = (match.group(2) or '').strip()
+        if not raw:
+            continue
+        for item in raw.split(','):
+            principal = item.strip()
+            if principal:
+                buckets[level].add(principal)
+    return buckets
+
+
+def portal_managed_group_keys() -> set[str]:
+    from nas_storage.dept_nas_config import DEPARTMENT_NAS_GROUPS
+    from nas_storage.models import NasAccessGroup
+
+    keys = {name.lower() for name in DEPARTMENT_NAS_GROUPS}
+    for name in NasAccessGroup.objects.filter(is_active=True).values_list('name', flat=True):
+        keys.add((name or '').strip().lower())
+    return keys
+
+
+def is_portal_managed_share_principal(principal: str) -> bool:
+    if (principal or '').strip() == '#everyone':
+        return False
+    key = principal_group_key(principal)
+    if not key or key in PRESERVED_SHARE_PRINCIPAL_KEYS:
+        return False
+    return key in portal_managed_group_keys()
+
+
+def _find_principal_in_bucket(bucket: set[str], group_key: str) -> str | None:
+    for principal in bucket:
+        if principal_group_key(principal) == group_key:
+            return principal
+    return None
+
+
+def _desired_share_acl_buckets(folder) -> dict[str, set[str]]:
+    buckets: dict[str, set[str]] = {'RW': set(), 'RO': set(), 'NA': set()}
+    perms = folder.permissions.select_related('group').filter(group__is_active=True).order_by('id')
     for perm in perms:
         level = _share_access_level(perm)
         if not level:
@@ -122,29 +181,115 @@ def apply_folder_permissions(folder) -> dict:
         principal = _normalize_principal(perm.group.resolved_nas_principal())
         if principal:
             buckets[level].add(principal)
+    return buckets
 
-    commands = [f'/usr/syno/sbin/synoshare --list_acl {share}']
-    for level, principals in buckets.items():
-        for principal in sorted(principals):
-            commands.append(
-                f'/usr/syno/sbin/synoshare --setuser {share} {level} + {principal}'
+
+def build_share_acl_sync_commands(
+    *,
+    share: str,
+    desired: dict[str, set[str]],
+    current: dict[str, set[str]],
+) -> list[str]:
+    """Sinh lệnh synoshare: gỡ nhóm Portal không còn cấu hình, thêm/cập nhật nhóm còn lại."""
+    commands: list[str] = []
+    managed_keys = portal_managed_group_keys()
+
+    for group_key in sorted(managed_keys):
+        desired_level: str | None = None
+        desired_principal: str | None = None
+        for level in ('RW', 'RO', 'NA'):
+            for principal in desired.get(level, set()):
+                if principal_group_key(principal) == group_key:
+                    desired_level = level
+                    desired_principal = principal
+                    break
+            if desired_level:
+                break
+
+        for level in ('RW', 'RO', 'NA'):
+            existing = _find_principal_in_bucket(current.get(level, set()), group_key)
+            if existing and (desired_level is None or level != desired_level):
+                commands.append(_synoshare_setuser_cmd(share, level, '-', existing))
+
+        if desired_level and desired_principal:
+            existing_desired = _find_principal_in_bucket(
+                current.get(desired_level, set()),
+                group_key,
             )
-    commands.append(f'/usr/syno/sbin/synoshare --list_acl {share}')
+            if not existing_desired:
+                commands.append(
+                    f'/usr/syno/sbin/synoshare --setuser {share} {desired_level} + {desired_principal}'
+                )
 
-    output = _run_ssh_commands(commands)
+    return commands
+
+
+def apply_folder_permissions(folder) -> dict:
+    """Đồng bộ ACL share NAS theo cấu hình Portal cho một folder."""
+    share = folder.share_name
+    perms = list(
+        folder.permissions.select_related('group').filter(group__is_active=True).order_by('id')
+    )
+    desired = _desired_share_acl_buckets(folder)
+
+    list_output = _run_ssh_commands([f'/usr/syno/sbin/synoshare --list_acl {share}'])
+    current = parse_synoshare_list_acl(list_output)
+    sync_commands = build_share_acl_sync_commands(
+        share=share,
+        desired=desired,
+        current=current,
+    )
+
+    commands = [f'/usr/syno/sbin/synoshare --list_acl {share}', *sync_commands]
+    if sync_commands:
+        commands.append(f'/usr/syno/sbin/synoshare --list_acl {share}')
+    output = _run_ssh_commands(commands) if sync_commands else list_output
+
     now = timezone.now()
     for perm in perms:
         perm.last_applied_at = now
         perm.last_apply_status = 'ok'
         perm.save(update_fields=['last_applied_at', 'last_apply_status', 'updated_at'])
 
-    return {'status': 'ok', 'share': share, 'output': output[-2000:]}
+    if not perms and not sync_commands:
+        return {'status': 'skipped', 'reason': 'no_changes'}
+
+    return {
+        'status': 'ok',
+        'share': share,
+        'removed': sum(1 for cmd in sync_commands if ' - ' in cmd),
+        'added': sum(1 for cmd in sync_commands if ' + ' in cmd),
+        'output': output[-2000:],
+    }
 
 
 def _synoacl_mask(access_level: str) -> str:
     if access_level == 'RO':
         return 'r-x---a-R-c--:fd--'
     return 'rwxpdDaARWc--:fd--'
+
+
+def revoke_user_folder_acl(grant) -> dict:
+    """Gỡ ACL thư mục con của user trên NAS (khi xóa / tắt truy cập riêng)."""
+    target = grant.volume_target_path()
+    principal = grant.resolved_user_principal()
+    ace_prefix = f'user:{principal}:allow'
+    commands = [
+        f'/usr/syno/bin/synoacltool -get "{target}"',
+        f'/usr/syno/bin/synoacltool -del "{target}" {ace_prefix}',
+        f'/usr/syno/bin/synoacltool -get "{target}"',
+    ]
+    output = _run_ssh_commands(commands)
+    now = timezone.now()
+    grant.last_applied_at = now
+    grant.last_apply_status = 'revoked'
+    grant.save(update_fields=['last_applied_at', 'last_apply_status', 'updated_at'])
+    return {
+        'status': 'ok',
+        'path': target,
+        'principal': principal,
+        'output': output[-2000:],
+    }
 
 
 def apply_user_folder_acl(grant) -> dict:
