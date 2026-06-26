@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from django.forms import BaseModelFormSet, modelformset_factory
 
 from nas_storage.models import NasUserFolderAccess, NasUserFolderAcl
-from nas_storage.nas_paths import NasPathError, normalize_rel_path
+from nas_storage.nas_paths import NasPathError, normalize_rel_path, normalize_volume_path
 
 INPUT = {'class': 'form-control form-control-sm'}
 SELECT = {'class': 'form-select form-select-sm'}
@@ -181,6 +181,16 @@ class NasShareFolderRootForm(forms.ModelForm):
         if not name:
             raise ValidationError('Tên share NAS không được để trống.')
         return name
+
+    def clean_volume_path(self):
+        raw = self.cleaned_data.get('volume_path') or ''
+        share = (self.cleaned_data.get('share_name') or '').strip()
+        if not share and self.instance:
+            share = (self.instance.share_name or '').strip()
+        try:
+            return normalize_volume_path(raw, share_name=share)
+        except NasPathError as exc:
+            raise ValidationError(str(exc)) from exc
 
 
 class NasShareFolderChildForm(forms.ModelForm):

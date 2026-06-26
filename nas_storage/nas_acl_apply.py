@@ -258,7 +258,12 @@ def _find_principal_in_bucket(bucket: set[str], principal_key: str) -> str | Non
 
 def ensure_directory_on_nas(path: str) -> str:
     """Tạo thư mục trên NAS (mkdir -p) nếu chưa có."""
-    target = (path or '').strip().rstrip('/')
+    from nas_storage.nas_paths import normalize_volume_path
+
+    try:
+        target = normalize_volume_path(path)
+    except NasPathError as exc:
+        raise NasAclApplyError(str(exc)) from exc
     if not target.startswith('/volume'):
         raise NasAclApplyError(f'Đường dẫn NAS không hợp lệ: {target}')
     return _run_ssh_commands([
@@ -294,10 +299,12 @@ def share_exists_on_nas(share_name: str) -> bool:
 
 def create_share_on_nas(folder) -> dict:
     """Tạo shared folder mới trên DSM (synoshare --add)."""
+    from nas_storage.nas_paths import normalize_volume_path
+
     share = (folder.share_name or '').strip()
     if not share:
         raise NasAclApplyError('Thiếu tên share.')
-    path = folder.resolved_volume_path()
+    path = normalize_volume_path(folder.volume_path, share_name=share)
     desc = (folder.display_name or share).replace('"', '\\"')[:64]
     cmd = (
         f'/usr/syno/sbin/synoshare --add {share} "{desc}" '
@@ -307,6 +314,11 @@ def create_share_on_nas(folder) -> dict:
     lower = output.lower()
     if 'error' in lower and 'exist' not in lower and 'already' not in lower:
         raise NasAclApplyError(output[-800:])
+    if not share_exists_on_nas(share):
+        raise NasAclApplyError(
+            f'synoshare không tạo được share «{share}». Kiểm tra đường dẫn {path}. '
+            f'Output: {output[-400:]}'
+        )
     return {'status': 'ok', 'action': 'share_add', 'share': share, 'path': path}
 
 

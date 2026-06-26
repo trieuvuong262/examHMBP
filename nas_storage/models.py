@@ -212,10 +212,23 @@ class NasShareFolder(models.Model):
         return node
 
     def resolved_volume_path(self) -> str:
-        if (self.volume_path or '').strip():
+        from nas_storage.nas_paths import NasPathError, normalize_volume_path
+
+        if self.is_root:
+            try:
+                return normalize_volume_path(
+                    self.volume_path,
+                    share_name=self.share_name,
+                )
+            except NasPathError:
+                pass
+        if (self.volume_path or '').strip() and not self.is_root:
             return self.volume_path.strip().rstrip('/')
         root = self.root_folder
-        base = (root.volume_path or '').strip() or f'/volume1/{root.share_name}'
+        try:
+            base = root.resolved_volume_path()
+        except Exception:
+            base = (root.volume_path or '').strip() or f'/volume1/{root.share_name}'
         base = base.rstrip('/')
         sub = (self.sub_path or '').strip().strip('/')
         if self.is_root or not sub:
@@ -240,8 +253,16 @@ class NasShareFolder(models.Model):
                 parts = self.sub_path.strip('/').split('/')
                 self.display_name = parts[-1] if parts else self.sub_path
         else:
-            if not (self.volume_path or '').strip():
-                self.volume_path = f'/volume1/{self.share_name}'
+            from nas_storage.nas_paths import NasPathError, normalize_volume_path
+
+            try:
+                self.volume_path = normalize_volume_path(
+                    self.volume_path,
+                    share_name=self.share_name,
+                )
+            except NasPathError:
+                if not (self.volume_path or '').strip():
+                    self.volume_path = f'/volume1/{self.share_name}'
             if not (self.display_name or '').strip():
                 self.display_name = self.share_name
         super().save(*args, **kwargs)

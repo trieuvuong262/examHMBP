@@ -6,6 +6,7 @@ import hashlib
 import json
 import mimetypes
 import os
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -263,6 +264,27 @@ def normalize_rel_path(raw: str) -> str:
             raise NasPathError('Đường dẫn không hợp lệ.')
         parts.append(part)
     return '/'.join(parts)
+
+
+_VOLUME_PATH_RE = re.compile(r'(/volume\d+/[A-Za-z0-9_./-]+)', re.I)
+
+
+def normalize_volume_path(raw: str, *, share_name: str = '') -> str:
+    """Chuẩn hoá đường dẫn volume DSM — bỏ tiền tố thừa (vd. «VD:»)."""
+    text = (raw or '').strip()
+    share = (share_name or '').strip()
+    if not text:
+        if not share:
+            return ''
+        return f'/volume1/{share}'
+    match = _VOLUME_PATH_RE.search(text.replace('\\', '/'))
+    if match:
+        return match.group(1).rstrip('/')
+    if text.startswith('/volume'):
+        return text.rstrip('/')
+    if share:
+        return f'/volume1/{share}'
+    raise NasPathError(f'Đường dẫn volume không hợp lệ: {raw}')
 
 
 def resolve_nas_path(user, rel_path: str) -> Path:

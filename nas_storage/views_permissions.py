@@ -505,6 +505,36 @@ def folder_child_create(request, parent_pk):
 
 @_perm_menu_required
 @require_POST
+def folder_provision_nas(request, pk):
+    folder = get_object_or_404(NasShareFolder, pk=pk)
+    if not nas_acl_ssh_configured():
+        messages.error(request, 'Chưa cấu hình SSH NAS.')
+        return redirect('nas_storage:folder_list')
+    try:
+        from nas_storage.nas_paths import normalize_volume_path
+
+        if folder.is_root:
+            folder.volume_path = normalize_volume_path(
+                folder.volume_path,
+                share_name=folder.share_name,
+            )
+            folder.save(update_fields=['volume_path', 'updated_at'])
+        result = provision_portal_folder_on_nas(folder)
+        apply_folder_permissions(folder)
+        label = folder.portal_path_label()
+        if result.get('action') == 'mkdir':
+            messages.success(request, f'Đã tạo thư mục {result["path"]} trên NAS.')
+        elif result.get('action') == 'share_add':
+            messages.success(request, f'Đã tạo share {result["share"]} trên NAS.')
+        else:
+            messages.success(request, f'Đã đồng bộ «{label}» lên NAS.')
+    except NasAclApplyError as exc:
+        messages.error(request, str(exc))
+    return redirect('nas_storage:folder_list')
+
+
+@_perm_menu_required
+@require_POST
 def folder_delete(request, pk):
     folder = get_object_or_404(NasShareFolder, pk=pk)
     label = folder.portal_path_label()

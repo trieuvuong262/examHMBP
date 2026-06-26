@@ -48,6 +48,12 @@
                         <a href="{% url 'nas_storage:folder_child_create' root.pk %}" class="btn btn-sm btn-outline-success">+ Con</a>
                         <a href="{% url 'nas_storage:folder_permissions' root.pk %}" class="btn btn-sm btn-outline-primary">Phân quyền</a>
                         <a href="{% url 'nas_storage:folder_edit' root.pk %}" class="btn btn-sm btn-outline-secondary">Sửa</a>
+                        {% if can_update and ssh_configured %}
+                        <form method="post" action="{% url 'nas_storage:folder_provision_nas' root.pk %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-hm" title="Tạo/đồng bộ lên NAS">NAS</button>
+                        </form>
+                        {% endif %}
                         <form method="post" action="{% url 'nas_storage:folder_delete' root.pk %}" class="d-inline"
                               onsubmit="return confirm('Gỡ share «{{ root.share_name }}» khỏi Portal?\n\nThư mục trên NAS KHÔNG bị xóa. Thư mục con trên Portal cũng bị gỡ.');">
                             {% csrf_token %}
@@ -69,6 +75,12 @@
                     <td class="text-end pe-4 text-nowrap">
                         <a href="{% url 'nas_storage:folder_permissions' child.pk %}" class="btn btn-sm btn-outline-primary">Phân quyền</a>
                         <a href="{% url 'nas_storage:folder_edit' child.pk %}" class="btn btn-sm btn-outline-secondary">Sửa</a>
+                        {% if can_update and ssh_configured %}
+                        <form method="post" action="{% url 'nas_storage:folder_provision_nas' child.pk %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-hm" title="Tạo/đồng bộ lên NAS">NAS</button>
+                        </form>
+                        {% endif %}
                         <form method="post" action="{% url 'nas_storage:folder_delete' child.pk %}" class="d-inline"
                               onsubmit="return confirm('Gỡ thư mục con «{{ child.sub_path }}» khỏi Portal?');">
                             {% csrf_token %}
