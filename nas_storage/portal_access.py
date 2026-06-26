@@ -8,7 +8,11 @@ from django.contrib.auth.models import User
 from django.db.models import Q
 
 from hrm.models import Profile
-from nas_storage.dept_nas_config import is_portal_browse_hidden_share
+from nas_storage.dept_nas_config import (
+    DEPARTMENT_NAS_GROUPS,
+    is_portal_browse_hidden_share,
+    nas_group_for_portal_department,
+)
 from nas_storage.nas_paths import NasRootEntry, nas_is_available, nas_mount_root
 
 

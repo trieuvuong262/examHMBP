@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 from django.conf import settings
 from django.utils import timezone
 
-from nas_storage.dept_nas_config import is_portal_browse_hidden_share
+from nas_storage.dept_nas_config import is_portal_browse_hidden_share, portal_browse_hidden_shares
 from nas_storage.models import NasFolderPermission
 from nas_storage.permission_defs import PERM_TYPE_ALLOW, has_read_access, has_write_access
 
@@ -216,3 +216,36 @@ def discover_shares_from_nas() -> list[dict]:
         for n in names
         if not is_portal_browse_hidden_share(n)
     ]
+
+
+def lock_hidden_share_acl(share_name: str) -> dict:
+    """
+    Khóa share hệ thống trên DSM (vd. docker): bỏ #everyone, chặn nhóm LDAP, ẩn browse.
+    Giữ quyền RW hiện có cho IT/admin (không ghi đè RW list).
+    """
+    from nas_storage.dept_nas_config import DEPARTMENT_NAS_GROUPS
+
+    share = (share_name or '').strip()
+    if not share:
+        raise NasAclApplyError('Thiếu tên share.')
+    na_principals = ','.join(f'@{g}' for g in sorted(DEPARTMENT_NAS_GROUPS))
+    extra_na = '@users,guest,#everyone'
+    commands = [
+        f'/usr/syno/sbin/synoshare --list_acl {share}',
+        f'/usr/syno/sbin/synoshare --setuser {share} RO - #everyone',
+        f'/usr/syno/sbin/synoshare --setuser {share} NA + {na_principals},{extra_na}',
+        f'/usr/syno/sbin/synoshare --setbrowse {share} 0',
+        f'/usr/syno/sbin/synoshare --list_acl {share}',
+    ]
+    output = _run_ssh_commands(commands)
+    return {'status': 'ok', 'share': share, 'output': output[-2000:]}
+
+
+def lock_all_hidden_shares_acl() -> list[dict]:
+    results = []
+    for share in sorted(portal_browse_hidden_shares()):
+        try:
+            results.append(lock_hidden_share_acl(share))
+        except NasAclApplyError as exc:
+            results.append({'status': 'error', 'share': share, 'error': str(exc)})
+    return results

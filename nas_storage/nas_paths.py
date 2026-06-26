@@ -266,10 +266,16 @@ def normalize_rel_path(raw: str) -> str:
 
 
 def resolve_nas_path(user, rel_path: str) -> Path:
+    from nas_storage.dept_nas_config import is_portal_browse_hidden_share
+
     dept_code = user_department_folder_code(user)
     rel = strip_legacy_dept_prefix(rel_path, dept_code)
     if not rel:
         raise NasPathError('Chưa chọn thư mục.')
+
+    first_seg = rel.split('/', 1)[0]
+    if is_portal_browse_hidden_share(first_seg):
+        raise NasPathError('Bạn không có quyền truy cập thư mục này.')
 
     allowed = _allowed_rel_prefixes(user)
     if not allowed:
