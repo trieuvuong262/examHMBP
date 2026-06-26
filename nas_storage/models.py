@@ -140,13 +140,26 @@ class NasAccessGroup(models.Model):
 
 
 class NasShareFolder(models.Model):
-    """Shared folder đã đăng ký trên NAS (vd. 07_SAN_XUAT)."""
+    """Thư mục NAS đăng ký trên Portal — gốc (share) hoặc thư mục con trong share."""
 
+    parent = models.ForeignKey(
+        'self',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='children',
+        verbose_name='Thư mục cha',
+    )
     share_name = models.CharField(
         max_length=120,
-        unique=True,
         verbose_name='Tên share NAS',
-        help_text='VD: 07_SAN_XUAT',
+        help_text='VD: 07_SAN_XUAT — chỉ nhập với thư mục gốc (share).',
+    )
+    sub_path = models.CharField(
+        max_length=500,
+        blank=True,
+        verbose_name='Đường dẫn trong share',
+        help_text='VD: KD-MKT/_CHUNG — chỉ với thư mục con.',
     )
     display_name = models.CharField(max_length=200, blank=True, verbose_name='Tên hiển thị')
     volume_path = models.CharField(
@@ -157,23 +170,80 @@ class NasShareFolder(models.Model):
     )
     description = models.CharField(max_length=255, blank=True, verbose_name='Mô tả')
     sort_order = models.PositiveSmallIntegerField(default=0, verbose_name='Thứ tự')
+    inherits_permissions = models.BooleanField(
+        default=True,
+        verbose_name='Kế thừa phân quyền từ cha',
+    )
     is_active = models.BooleanField(default=True, verbose_name='Đang dùng')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['sort_order', 'share_name']
-        verbose_name = 'Thư mục share NAS'
-        verbose_name_plural = 'Thư mục share NAS'
+        ordering = ['sort_order', 'share_name', 'sub_path']
+        verbose_name = 'Thư mục NAS'
+        verbose_name_plural = 'Thư mục NAS'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['share_name'],
+                condition=models.Q(parent__isnull=True),
+                name='nas_storage_share_root_name_uniq',
+            ),
+            models.UniqueConstraint(
+                fields=['parent', 'sub_path'],
+                condition=models.Q(parent__isnull=False),
+                name='nas_storage_share_child_path_uniq',
+            ),
+        ]
 
     def __str__(self) -> str:
+        if self.parent_id:
+            return self.display_name or f'{self.share_name}/{self.sub_path}'
         return self.display_name or self.share_name
 
+    @property
+    def is_root(self) -> bool:
+        return self.parent_id is None
+
+    @property
+    def root_folder(self) -> 'NasShareFolder':
+        node = self
+        while node.parent_id:
+            node = node.parent
+        return node
+
+    def resolved_volume_path(self) -> str:
+        if (self.volume_path or '').strip():
+            return self.volume_path.strip().rstrip('/')
+        root = self.root_folder
+        base = (root.volume_path or '').strip() or f'/volume1/{root.share_name}'
+        base = base.rstrip('/')
+        sub = (self.sub_path or '').strip().strip('/')
+        if self.is_root or not sub:
+            return base
+        return f'{base}/{sub}'
+
+    def portal_path_label(self) -> str:
+        sub = (self.sub_path or '').strip().strip('/')
+        if self.is_root:
+            return self.share_name
+        return f'{self.share_name}/{sub}' if sub else self.share_name
+
     def save(self, *args, **kwargs):
-        if not (self.volume_path or '').strip():
-            self.volume_path = f'/volume1/{self.share_name}'
-        if not (self.display_name or '').strip():
-            self.display_name = self.share_name
+        if self.parent_id:
+            root = self.parent.root_folder
+            self.share_name = root.share_name
+            if not (self.sub_path or '').strip():
+                raise ValueError('sub_path required for child folder')
+            if not (self.volume_path or '').strip():
+                self.volume_path = self.resolved_volume_path()
+            if not (self.display_name or '').strip():
+                parts = self.sub_path.strip('/').split('/')
+                self.display_name = parts[-1] if parts else self.sub_path
+        else:
+            if not (self.volume_path or '').strip():
+                self.volume_path = f'/volume1/{self.share_name}'
+            if not (self.display_name or '').strip():
+                self.display_name = self.share_name
         super().save(*args, **kwargs)
 
 

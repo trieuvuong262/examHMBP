@@ -15,7 +15,8 @@ from hrm.user_search import exclude_hidden_hrm_users, filter_users_by_search
 from nas_storage.forms import (
     NasAccessGroupForm,
     NasFolderPermissionForm,
-    NasShareFolderForm,
+    NasShareFolderChildForm,
+    NasShareFolderRootForm,
     NasUserFolderAclFormSet,
 )
 from nas_storage.models import NasAccessGroup, NasFolderPermission, NasShareFolder, NasUserFolderAcl
@@ -38,6 +39,10 @@ from nas_storage.permission_defs import ADMIN_FIELDS, READ_FIELDS, WRITE_FIELDS
 from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 from nas_storage.dept_nas_config import DEPT_NAS_SPECS, nas_group_for_portal_department
+from nas_storage.folder_permissions_resolved import (
+    effective_folder_permissions,
+    local_folder_permissions,
+)
 
 
 def _perm_menu_required(view_func):
@@ -80,12 +85,12 @@ def _perm_subnav_context(perm_subnav_active: str) -> dict:
             },
             {
                 'key': 'special',
-                'label': 'Truy cập riêng',
+                'label': 'Truy cập theo User',
                 'url': reverse('nas_storage:special_access_list'),
             },
             {
                 'key': 'folder_manage',
-                'label': 'Quản lý share',
+                'label': 'Quản lý Folder',
                 'url': reverse('nas_storage:folder_list'),
             },
         ],
@@ -104,7 +109,7 @@ def _perm_page_ctx(request, perm_subnav: str, **extra) -> dict:
 @_perm_menu_required
 def permissions_hub(request):
     folders = (
-        NasShareFolder.objects.filter(is_active=True)
+        NasShareFolder.objects.filter(is_active=True, parent__isnull=True)
         .annotate(
             perm_count=Count('permissions'),
             applied_count=Count('permissions', filter=Q(permissions__last_applied_at__isnull=False)),
@@ -241,7 +246,7 @@ def special_access_edit(request, user_id):
         'special',
         breadcrumbs=_perm_breadcrumbs(
             ('Phân quyền', hub_url),
-            ('Truy cập riêng', special_url),
+            ('Truy cập theo User', special_url),
             (user_obj.username, None),
         ),
         ssh_configured=nas_acl_ssh_configured(),
@@ -381,13 +386,22 @@ def group_edit(request, pk=None):
 
 @_perm_menu_required
 def folder_list(request):
-    folders = NasShareFolder.objects.order_by('sort_order', 'share_name')
+    roots = (
+        NasShareFolder.objects.filter(parent__isnull=True)
+        .prefetch_related(
+            Prefetch(
+                'children',
+                queryset=NasShareFolder.objects.order_by('sort_order', 'sub_path'),
+            ),
+        )
+        .order_by('sort_order', 'share_name')
+    )
     return render(
         request,
         'nas_storage/folder_list.html',
         {
             **_perm_page_ctx(request, 'folder_manage'),
-            'folders': folders,
+            'roots': roots,
         },
     )
 
@@ -395,14 +409,23 @@ def folder_list(request):
 @_perm_menu_required
 def folder_edit(request, pk=None):
     instance = get_object_or_404(NasShareFolder, pk=pk) if pk else None
+    is_child = bool(instance and instance.parent_id)
+    parent = instance.parent if is_child else None
+
     if request.method == 'POST':
-        form = NasShareFolderForm(request.POST, instance=instance)
+        if is_child:
+            form = NasShareFolderChildForm(request.POST, instance=instance, parent=parent)
+        else:
+            form = NasShareFolderRootForm(request.POST, instance=instance)
         if form.is_valid():
             form.save()
             messages.success(request, 'Đã lưu thư mục NAS.')
             return redirect('nas_storage:folder_list')
     else:
-        form = NasShareFolderForm(instance=instance)
+        if is_child:
+            form = NasShareFolderChildForm(instance=instance, parent=parent)
+        else:
+            form = NasShareFolderRootForm(instance=instance)
     return render(
         request,
         'nas_storage/folder_form.html',
@@ -410,6 +433,32 @@ def folder_edit(request, pk=None):
             **_perm_page_ctx(request, 'folder_manage'),
             'form': form,
             'editing': bool(instance),
+            'is_child': is_child,
+            'parent': parent,
+        },
+    )
+
+
+@_perm_menu_required
+def folder_child_create(request, parent_pk):
+    parent = get_object_or_404(NasShareFolder, pk=parent_pk, parent__isnull=True)
+    if request.method == 'POST':
+        form = NasShareFolderChildForm(request.POST, parent=parent)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Đã thêm thư mục con trong {parent.share_name}.')
+            return redirect('nas_storage:folder_list')
+    else:
+        form = NasShareFolderChildForm(parent=parent)
+    return render(
+        request,
+        'nas_storage/folder_form.html',
+        {
+            **_perm_page_ctx(request, 'folder_manage'),
+            'form': form,
+            'editing': False,
+            'is_child': True,
+            'parent': parent,
         },
     )
 
@@ -418,11 +467,11 @@ def folder_edit(request, pk=None):
 @require_POST
 def folder_delete(request, pk):
     folder = get_object_or_404(NasShareFolder, pk=pk)
-    share_name = folder.share_name
+    label = folder.portal_path_label()
     folder.delete()
     messages.success(
         request,
-        f'Đã gỡ «{share_name}» khỏi Portal. Share trên NAS không bị xóa — có thể quét lại để đăng ký.',
+        f'Đã gỡ «{label}» khỏi Portal. Thư mục trên NAS không bị xóa — có thể quét lại để đăng ký.',
     )
     return redirect('nas_storage:folder_list')
 
@@ -430,11 +479,8 @@ def folder_delete(request, pk):
 @_perm_menu_required
 def folder_permissions(request, pk):
     folder = get_object_or_404(NasShareFolder, pk=pk)
-    permissions = folder.permissions.select_related('group', 'user', 'user__profile').order_by(
-        'group__sort_order',
-        'user__username',
-        'id',
-    )
+    effective = effective_folder_permissions(folder)
+    local_permissions = local_folder_permissions(folder)
     hub_url = reverse('nas_storage:permissions_hub')
     folder_url = reverse('nas_storage:folder_permissions', kwargs={'pk': folder.pk})
     return render(
@@ -443,11 +489,11 @@ def folder_permissions(request, pk):
         {
             **_perm_page_ctx(request, 'shares'),
             'folder': folder,
-            'permissions': permissions,
+            'effective_permissions': effective,
+            'local_permissions': local_permissions,
             'read_fields': READ_FIELDS,
             'write_fields': WRITE_FIELDS,
             'admin_fields': ADMIN_FIELDS,
-            'ssh_configured': nas_acl_ssh_configured(),
             'breadcrumbs': _perm_breadcrumbs(
                 ('NAS', hub_url),
                 ('Phân quyền', hub_url),
@@ -476,7 +522,7 @@ def permission_edit(request, folder_pk, pk=None):
                 try:
                     result = apply_folder_permissions(folder)
                     if result.get('status') == 'ok':
-                        msg += f' Đã đồng bộ ACL lên NAS ({folder.share_name}).'
+                        msg += f' Đã đồng bộ ACL lên NAS ({folder.portal_path_label()}).'
                 except NasAclApplyError as exc:
                     messages.warning(request, f'Đã lưu trên Portal nhưng chưa đẩy NAS: {exc}')
             messages.success(request, msg)
@@ -519,7 +565,7 @@ def permission_delete(request, folder_pk, pk):
         try:
             result = apply_folder_permissions(folder)
             if result.get('status') == 'ok':
-                msg += f' Đã gỡ/đồng bộ ACL lên NAS ({folder.share_name}).'
+                msg += f' Đã gỡ/đồng bộ ACL lên NAS ({folder.portal_path_label()}).'
         except NasAclApplyError as exc:
             messages.warning(request, f'Đã xóa trên Portal nhưng chưa đẩy NAS: {exc}')
     messages.success(request, msg)
@@ -533,9 +579,9 @@ def apply_folder_acl(request, pk):
     try:
         result = apply_folder_permissions(folder)
         if result.get('status') == 'ok':
-            messages.success(request, f'Đã áp dụng quyền lên NAS cho {folder.share_name}.')
+            messages.success(request, f'Đã áp dụng quyền lên NAS cho {folder.portal_path_label()}.')
         elif result.get('reason') == 'no_changes':
-            messages.info(request, f'ACL NAS đã khớp Portal cho {folder.share_name}.')
+            messages.info(request, f'ACL NAS đã khớp Portal cho {folder.portal_path_label()}.')
         else:
             messages.warning(request, 'Không có quyền nào để áp dụng.')
     except NasAclApplyError as exc:

@@ -2,12 +2,6 @@
 
 {% block content %}
 <div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
-    <div class="jp-page-header mb-3 mb-md-4">
-        <div class="jp-page-header-main">
-            <h2 class="jp-page-title fw-bold text-dark mb-1">NAS</h2>
-        </div>
-    </div>
-
     {% include "nas_storage/_nas_nav.html" %}
     {% include "nas_storage/_perm_subnav.html" %}
     {% include "nas_storage/_perm_breadcrumb.html" %}
@@ -16,11 +10,14 @@
         <div class="card-header bg-white border-bottom py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
             <div>
                 <h5 class="fw-bold text-dark mb-0">{{ folder.display_name }}</h5>
-                <code class="small text-muted">{{ folder.share_name }}</code>
+                <code class="small text-muted">{{ folder.portal_path_label }}</code>
+                {% if folder.parent_id and folder.inherits_permissions %}
+                <div class="small text-muted mt-1">Kế thừa phân quyền từ <code>{{ folder.parent.display_name }}</code></div>
+                {% endif %}
             </div>
             <div class="d-flex flex-wrap gap-2">
-                <a href="{% url 'nas_storage:permissions_hub' %}" class="btn btn-light border btn-sm fw-bold">
-                    <i class="bi bi-arrow-up"></i> Lên
+                <a href="{% url 'nas_storage:folder_list' %}" class="btn btn-light border btn-sm fw-bold">
+                    <i class="bi bi-arrow-up"></i> Quản lý Folder
                 </a>
                 <a href="{% url 'nas_storage:permission_create' folder.pk %}" class="btn btn-hm btn-sm fw-bold">
                     <i class="bi bi-plus-lg"></i> Thêm quyền
@@ -41,14 +38,15 @@
                     <tr>
                         <th class="ps-4 py-3 text-muted">Đối tượng</th>
                         <th class="text-muted">Mức quyền</th>
-                        <th class="text-muted">Phạm vi</th>
+                        <th class="text-muted">Nguồn</th>
                         <th class="text-muted">Trạng thái NAS</th>
                         <th class="text-end pe-4 text-muted">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
-                {% for p in permissions %}
-                <tr>
+                {% for item in effective_permissions %}
+                {% with p=item.permission %}
+                <tr class="{% if item.source == 'inherited' %}table-light{% endif %}">
                     <td class="ps-4">
                         {% if p.user_id %}
                         <span class="badge bg-info text-dark me-1">NV</span>
@@ -65,26 +63,44 @@
                         <span class="badge bg-danger ms-1">Từ chối</span>
                         {% endif %}
                     </td>
-                    <td class="small">{{ p.get_apply_to_display }}</td>
                     <td class="small">
-                        {% if p.last_applied_at %}
-                        <span class="text-success"><i class="bi bi-check-circle-fill"></i> {{ p.last_applied_at|date:"d/m/Y H:i" }}</span>
+                        {% if item.source == 'local' %}
+                        <span class="badge bg-primary">Riêng</span>
                         {% else %}
+                        <span class="badge bg-light text-muted border">Kế thừa</span>
+                        <span class="text-muted d-block">{{ item.source_folder.display_name }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="small">
+                        {% if item.source == 'local' and p.last_applied_at %}
+                        <span class="text-success"><i class="bi bi-check-circle-fill"></i> {{ p.last_applied_at|date:"d/m/Y H:i" }}</span>
+                        {% elif item.source == 'local' %}
                         <span class="text-warning"><i class="bi bi-clock"></i> Chưa áp dụng</span>
+                        {% else %}
+                        <span class="text-muted">—</span>
                         {% endif %}
                     </td>
                     <td class="text-end pe-4 text-nowrap">
+                        {% if item.source == 'local' %}
                         <a href="{% url 'nas_storage:permission_edit' folder.pk p.pk %}" class="btn btn-sm btn-outline-secondary">Sửa</a>
                         <form method="post" action="{% url 'nas_storage:permission_delete' folder.pk p.pk %}" class="d-inline" onsubmit="return confirm('Xóa quyền này?');">
                             {% csrf_token %}
                             <button class="btn btn-sm btn-outline-danger">Xóa</button>
                         </form>
+                        {% else %}
+                        <a href="{% url 'nas_storage:permission_create' folder.pk %}" class="btn btn-sm btn-outline-hm" title="Thêm quyền riêng ghi đè kế thừa">Ghi đè</a>
+                        {% endif %}
                     </td>
                 </tr>
+                {% endwith %}
                 {% empty %}
                 <tr>
                     <td colspan="5" class="text-muted p-4 text-center">
-                        Chưa gán quyền cho thư mục này — bấm <strong>Thêm quyền</strong> để chọn nhóm hoặc nhân viên cụ thể.
+                        {% if folder.inherits_permissions and folder.parent_id %}
+                        Chưa có quyền hiệu lực — thêm quyền riêng hoặc cấu hình thư mục cha.
+                        {% else %}
+                        Chưa gán quyền — bấm <strong>Thêm quyền</strong>.
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}

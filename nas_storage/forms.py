@@ -151,12 +151,19 @@ class NasAccessGroupForm(forms.ModelForm):
         return cleaned
 
 
-class NasShareFolderForm(forms.ModelForm):
+class NasShareFolderRootForm(forms.ModelForm):
     class Meta:
         from nas_storage.models import NasShareFolder
 
         model = NasShareFolder
-        fields = ['share_name', 'display_name', 'volume_path', 'description', 'sort_order', 'is_active']
+        fields = [
+            'share_name',
+            'display_name',
+            'volume_path',
+            'description',
+            'sort_order',
+            'is_active',
+        ]
         widgets = {
             'share_name': forms.TextInput(attrs={**INPUT, 'placeholder': '07_SAN_XUAT'}),
             'display_name': forms.TextInput(attrs={**INPUT}),
@@ -165,6 +172,63 @@ class NasShareFolderForm(forms.ModelForm):
             'sort_order': forms.NumberInput(attrs={**INPUT, 'min': 0}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
+
+    def clean_share_name(self):
+        name = (self.cleaned_data.get('share_name') or '').strip()
+        if not name:
+            raise ValidationError('Tên share NAS không được để trống.')
+        return name
+
+
+class NasShareFolderChildForm(forms.ModelForm):
+    class Meta:
+        from nas_storage.models import NasShareFolder
+
+        model = NasShareFolder
+        fields = [
+            'sub_path',
+            'display_name',
+            'description',
+            'sort_order',
+            'inherits_permissions',
+            'is_active',
+        ]
+        labels = {
+            'sub_path': 'Đường dẫn trong share',
+            'inherits_permissions': 'Kế thừa phân quyền từ thư mục cha',
+        }
+        widgets = {
+            'sub_path': forms.TextInput(attrs={**INPUT, 'placeholder': 'KD-MKT/_CHUNG'}),
+            'display_name': forms.TextInput(attrs={**INPUT}),
+            'description': forms.TextInput(attrs={**INPUT}),
+            'sort_order': forms.NumberInput(attrs={**INPUT, 'min': 0}),
+            'inherits_permissions': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+    def __init__(self, *args, parent=None, **kwargs):
+        self.parent_folder = parent
+        super().__init__(*args, **kwargs)
+
+    def clean_sub_path(self):
+        raw = (self.cleaned_data.get('sub_path') or '').strip()
+        if not raw:
+            raise ValidationError('Đường dẫn thư mục con không được để trống.')
+        try:
+            return normalize_rel_path(raw)
+        except NasPathError as exc:
+            raise ValidationError(str(exc)) from exc
+
+    def save(self, commit=True):
+        obj = super().save(commit=False)
+        if self.parent_folder:
+            obj.parent = self.parent_folder
+        if commit:
+            obj.save()
+        return obj
+
+
+NasShareFolderForm = NasShareFolderRootForm
 
 
 class NasFolderPermissionForm(forms.ModelForm):

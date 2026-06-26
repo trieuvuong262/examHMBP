@@ -256,8 +256,63 @@ def _find_principal_in_bucket(bucket: set[str], principal_key: str) -> str | Non
     return None
 
 
+def _synoacl_ace_for_permission(perm: NasFolderPermission) -> str | None:
+    level = _share_access_level(perm)
+    if not level or level == 'NA':
+        return None
+    mask = _synoacl_mask('RO' if level == 'RO' else 'RW')
+    principal = perm.resolved_nas_principal()
+    if perm.user_id:
+        return f'user:{principal}:allow:{mask}'
+    if perm.group_id:
+        return f'group:{principal.lstrip("@")}:allow:{mask}'
+    return None
+
+
+def apply_subfolder_permissions(folder) -> dict:
+    """Đồng bộ ACL thư mục con (synoacltool) theo quyền hiệu lực (kế thừa + local)."""
+    from nas_storage.folder_permissions_resolved import effective_folder_permissions
+
+    target = folder.resolved_volume_path()
+    effective = effective_folder_permissions(folder)
+    local_perms = list(_active_folder_permissions(folder))
+
+    commands = [
+        f'mkdir -p {shlex.quote(target)}',
+        f'/usr/syno/bin/synoacltool -get "{target}"',
+    ]
+    applied = 0
+    for item in effective:
+        ace = _synoacl_ace_for_permission(item.permission)
+        if not ace:
+            continue
+        commands.append(f'/usr/syno/bin/synoacltool -add "{target}" {ace}')
+        applied += 1
+    commands.append(f'/usr/syno/bin/synoacltool -get "{target}"')
+
+    output = _run_ssh_commands(commands) if applied else ''
+    now = timezone.now()
+    for perm in local_perms:
+        perm.last_applied_at = now
+        perm.last_apply_status = 'ok'
+        perm.save(update_fields=['last_applied_at', 'last_apply_status', 'updated_at'])
+
+    if not applied:
+        return {'status': 'skipped', 'reason': 'no_effective_permissions'}
+
+    return {
+        'status': 'ok',
+        'path': target,
+        'applied': applied,
+        'output': output[-2000:] if output else '',
+    }
+
+
 def apply_folder_permissions(folder) -> dict:
-    """Đồng bộ ACL share NAS theo cấu hình Portal cho một folder."""
+    """Đồng bộ ACL NAS theo cấu hình Portal cho một thư mục (share gốc hoặc thư mục con)."""
+    if folder.parent_id:
+        return apply_subfolder_permissions(folder)
+
     share = folder.share_name
     perms = list(_active_folder_permissions(folder))
     desired = _desired_share_acl_buckets(folder)
@@ -371,15 +426,19 @@ def apply_all_folder_permissions() -> dict:
     from nas_storage.models import NasShareFolder
 
     stats = {'ok': 0, 'skipped': 0, 'errors': []}
-    for folder in NasShareFolder.objects.filter(is_active=True).order_by('sort_order', 'share_name'):
+    for folder in (
+        NasShareFolder.objects.filter(is_active=True)
+        .order_by('parent_id', 'sort_order', 'share_name', 'sub_path')
+    ):
         try:
+            label = folder.portal_path_label()
             result = apply_folder_permissions(folder)
             if result.get('status') == 'ok':
                 stats['ok'] += 1
             else:
                 stats['skipped'] += 1
         except NasAclApplyError as exc:
-            stats['errors'].append(f'{folder.share_name}: {exc}')
+            stats['errors'].append(f'{label}: {exc}')
     return stats
 
 

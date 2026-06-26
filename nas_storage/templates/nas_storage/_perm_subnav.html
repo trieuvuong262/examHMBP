@@ -11,7 +11,7 @@
         {% csrf_token %}
         <button type="submit" class="btn btn-hm btn-sm rounded-pill fw-semibold"
                 {% if not ssh_configured %}disabled title="Chưa cấu hình SSH NAS"{% endif %}>
-            <i class="bi bi-arrow-clockwise"></i> Áp dụng tất cả lên NAS
+            <i class="bi bi-arrow-clockwise"></i> Áp dụng
         </button>
     </form>
     {% endif %}

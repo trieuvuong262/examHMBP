@@ -104,7 +104,7 @@ def known_nas_share_names() -> frozenset[str]:
 
 def portal_browse_hidden_shares() -> frozenset[str]:
     """Share hệ thống không hiện trong Duyệt thư mục Portal (vd. docker của DSM)."""
-    raw = getattr(settings, 'NAS_PORTAL_BROWSE_HIDDEN_SHARES', 'docker')
+    raw = getattr(settings, 'NAS_PORTAL_BROWSE_HIDDEN_SHARES', 'docker,backup,log')
     if isinstance(raw, (frozenset, set, list, tuple)):
         items = raw
     else:

@@ -2,22 +2,24 @@
 
 {% block content %}
 <div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
-    <div class="jp-page-header mb-3 mb-md-4">
-        <div class="jp-page-header-main">
-            <h2 class="jp-page-title fw-bold text-dark mb-1">NAS</h2>
-        </div>
-    </div>
-
     {% include "nas_storage/_nas_nav.html" %}
     {% include "nas_storage/_perm_subnav.html" %}
 
     <nav aria-label="breadcrumb" class="mb-3">
         <ol class="breadcrumb mb-0 small bg-white px-3 py-2 rounded shadow-sm">
             <li class="breadcrumb-item"><a href="{% url 'nas_storage:permissions_hub' %}" class="text-decoration-none">NAS</a></li>
-            <li class="breadcrumb-item"><a href="{% url 'nas_storage:folder_list' %}" class="text-decoration-none">Quản lý share</a></li>
-            <li class="breadcrumb-item active fw-semibold">{% if editing %}Sửa share{% else %}Thêm share{% endif %}</li>
+            <li class="breadcrumb-item"><a href="{% url 'nas_storage:folder_list' %}" class="text-decoration-none">Quản lý Folder</a></li>
+            <li class="breadcrumb-item active fw-semibold">
+                {% if is_child %}{% if editing %}Sửa thư mục con{% else %}Thêm thư mục con{% endif %}{% else %}{% if editing %}Sửa thư mục gốc{% else %}Thêm thư mục gốc{% endif %}{% endif %}
+            </li>
         </ol>
     </nav>
+
+    {% if is_child and parent %}
+    <div class="alert alert-light border small mb-3">
+        Thư mục con trong share <code>{{ parent.share_name }}</code> — mặc định <strong>kế thừa phân quyền</strong> từ gốc, có thể thêm quyền riêng sau khi lưu.
+    </div>
+    {% endif %}
 
     <form method="post" class="card border-0 shadow-sm p-4" style="max-width: 720px;">
         {% csrf_token %}
