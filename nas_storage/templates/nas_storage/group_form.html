@@ -10,7 +10,7 @@
 
     <nav aria-label="breadcrumb" class="mb-3">
         <ol class="breadcrumb mb-0 small bg-white px-3 py-2 rounded shadow-sm">
-            <li class="breadcrumb-item"><a href="{% url 'nas_storage:permissions_hub' %}" class="text-decoration-none">Phân quyền NAS</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'nas_storage:permissions_hub' %}" class="text-decoration-none">Phân quyền</a></li>
             <li class="breadcrumb-item"><a href="{% url 'nas_storage:group_list' %}" class="text-decoration-none">Nhóm quyền</a></li>
             <li class="breadcrumb-item active fw-semibold">{% if editing %}{{ group_instance.name }}{% else %}Thêm nhóm{% endif %}</li>
         </ol>

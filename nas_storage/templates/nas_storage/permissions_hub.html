@@ -2,11 +2,8 @@
 
 {% block content %}
 <div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
-    {% include "nas_storage/_perm_page_header.html" with perm_page_subtitle="Gán nhóm phòng ban vào từng shared folder trên NAS." %}
-
     {% include "nas_storage/_nas_nav.html" %}
     {% include "nas_storage/_perm_subnav.html" %}
-    {% include "nas_storage/_perm_breadcrumb.html" %}
 
     {% if not ssh_configured %}
     <div class="alert alert-warning border-0 shadow-sm small mb-3">
@@ -16,21 +13,8 @@
     {% endif %}
 
     <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white border-bottom py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="card-header bg-white border-bottom py-3">
             <span class="fw-semibold">Shared folder trên NAS</span>
-            <div class="d-flex flex-wrap gap-2">
-                <a href="{% url 'nas_storage:folder_list' %}" class="btn btn-outline-secondary btn-sm">
-                    <i class="bi bi-folder-plus"></i> Quản lý share
-                </a>
-                {% if can_update %}
-                <form method="post" action="{% url 'nas_storage:apply_all_acl' %}" class="d-inline">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-hm btn-sm" {% if not ssh_configured %}disabled title="Chưa cấu hình SSH NAS"{% endif %}>
-                        <i class="bi bi-arrow-clockwise"></i> Áp dụng tất cả lên NAS
-                    </button>
-                </form>
-                {% endif %}
-            </div>
         </div>
         <div class="card-body p-3 p-md-4">
             {% if pending_apply_count %}

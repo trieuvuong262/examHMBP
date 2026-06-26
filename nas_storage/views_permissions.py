@@ -83,6 +83,11 @@ def _perm_subnav_context(perm_subnav_active: str) -> dict:
                 'label': 'Truy cập riêng',
                 'url': reverse('nas_storage:special_access_list'),
             },
+            {
+                'key': 'folder_manage',
+                'label': 'Quản lý share',
+                'url': reverse('nas_storage:folder_list'),
+            },
         ],
     }
 
@@ -91,6 +96,7 @@ def _perm_page_ctx(request, perm_subnav: str, **extra) -> dict:
     return {
         **_nav_context(request, 'permissions'),
         **_perm_subnav_context(perm_subnav),
+        'ssh_configured': nas_acl_ssh_configured(),
         **extra,
     }
 
@@ -115,8 +121,6 @@ def permissions_hub(request):
             **_perm_page_ctx(request, 'shares'),
             'folders': folders,
             'pending_apply_count': pending_apply_count,
-            'ssh_configured': nas_acl_ssh_configured(),
-            'breadcrumbs': _perm_breadcrumbs(('Phân quyền NAS', None)),
         },
     )
 
@@ -128,17 +132,12 @@ def group_list(request):
         .prefetch_related('portal_members', 'portal_excluded_members')
         .order_by('sort_order', 'name')
     )
-    hub_url = reverse('nas_storage:permissions_hub')
     return render(
         request,
         'nas_storage/group_list.html',
         {
             **_perm_page_ctx(request, 'groups'),
             'groups': groups,
-            'breadcrumbs': _perm_breadcrumbs(
-                ('Phân quyền NAS', hub_url),
-                ('Nhóm quyền', None),
-            ),
         },
     )
 
@@ -187,15 +186,9 @@ def _save_user_acl_formset(user: User, formset) -> list:
 
 @_perm_menu_required
 def special_access_list(request):
-    hub_url = reverse('nas_storage:permissions_hub')
-    special_url = reverse('nas_storage:special_access_list')
     base_ctx = _perm_page_ctx(
         request,
         'special',
-        breadcrumbs=_perm_breadcrumbs(
-            ('Phân quyền NAS', hub_url),
-            ('Truy cập riêng', None),
-        ),
         ssh_configured=nas_acl_ssh_configured(),
     )
 
@@ -247,7 +240,7 @@ def special_access_edit(request, user_id):
         request,
         'special',
         breadcrumbs=_perm_breadcrumbs(
-            ('Phân quyền NAS', hub_url),
+            ('Phân quyền', hub_url),
             ('Truy cập riêng', special_url),
             (user_obj.username, None),
         ),
@@ -393,9 +386,8 @@ def folder_list(request):
         request,
         'nas_storage/folder_list.html',
         {
-            **_perm_page_ctx(request, 'shares'),
+            **_perm_page_ctx(request, 'folder_manage'),
             'folders': folders,
-            'ssh_configured': nas_acl_ssh_configured(),
         },
     )
 
@@ -415,7 +407,7 @@ def folder_edit(request, pk=None):
         request,
         'nas_storage/folder_form.html',
         {
-            **_perm_page_ctx(request, 'shares'),
+            **_perm_page_ctx(request, 'folder_manage'),
             'form': form,
             'editing': bool(instance),
         },

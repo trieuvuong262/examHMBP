@@ -2,19 +2,8 @@
 
 {% block content %}
 <div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
-    {% include "nas_storage/_perm_page_header.html" with perm_page_subtitle="Tầng 3 — Ngoại lệ ACL RaiDrive/SMB cho thư mục con trong share." %}
-
     {% include "nas_storage/_nas_nav.html" %}
     {% include "nas_storage/_perm_subnav.html" %}
-    {% include "nas_storage/_perm_breadcrumb.html" %}
-
-    <div class="alert alert-light border small mb-3">
-        <span class="badge bg-warning text-dark me-1">Tầng 3</span>
-        Chỉ dùng khi user cần quyền <strong>đặc biệt</strong> trên ổ map RaiDrive — không thay thế quyền share (tầng 2)
-        hay link duyệt Portal (tầng 1).
-        Ví dụ: <code>lvanhthu</code> trong share <code>05_MARKETING</code>.
-        <a href="{% url 'nas_storage:permissions_hub' %}" class="ms-1">← Về tổng quan</a>
-    </div>
 
     {% if not ssh_configured %}
     <div class="alert alert-warning border-0 shadow-sm small mb-3">
