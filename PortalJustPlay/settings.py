@@ -481,7 +481,7 @@ NAS_LDAP_BIND_DN = os.getenv(
     'uid=root,cn=users,dc=ldap,dc=justplay,dc=local',
 ).strip()
 NAS_LDAP_BIND_PASSWORD = os.getenv('NAS_LDAP_BIND_PASSWORD', '').strip()
-NAS_LDAP_SYNC_SKIP_USERNAMES = os.getenv('NAS_LDAP_SYNC_SKIP_USERNAMES', 'admin,ductn,vuonglnt').strip()
+NAS_LDAP_SYNC_SKIP_USERNAMES = os.getenv('NAS_LDAP_SYNC_SKIP_USERNAMES', 'admin,ductn').strip()
 NAS_LDAP_DOMAIN = os.getenv('NAS_LDAP_DOMAIN', 'ldap.justplay.local').strip()
 NAS_SSH_HOST = os.getenv('NAS_SSH_HOST', '').strip()
 NAS_SSH_ADMIN_USER = os.getenv('NAS_SSH_ADMIN_USER', 'admin').strip()

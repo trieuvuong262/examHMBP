@@ -24,6 +24,8 @@ USER_OBJECT_CLASSES = [
     'organizationalPerson',
     'inetOrgPerson',
     'posixAccount',
+    'sambaSamAccount',
+    'sambaIdmapEntry',
 ]
 
 DEPARTMENT_LDAP_GROUPS = DEPARTMENT_NAS_GROUPS
@@ -39,7 +41,7 @@ def nas_ldap_sync_enabled() -> bool:
 
 
 def _skip_usernames() -> frozenset[str]:
-    raw = getattr(settings, 'NAS_LDAP_SYNC_SKIP_USERNAMES', 'admin,ductn,vuonglnt')
+    raw = getattr(settings, 'NAS_LDAP_SYNC_SKIP_USERNAMES', 'admin,ductn')
     if isinstance(raw, (list, tuple, frozenset, set)):
         items = raw
     else:
@@ -307,6 +309,80 @@ def _sync_group_membership(conn, uid: str, department_group: str | None) -> None
         _set_member_uid(conn, group_name, uid, add=(group_name == target))
 
 
+def _read_domain_sid(conn) -> str:
+    from ldap3 import SUBTREE
+
+    conn.search(_ldap_base_dn(), '(objectClass=sambaDomain)', search_scope=SUBTREE, attributes=['sambaSID'])
+    if not conn.entries:
+        raise NasLdapSyncError('Không tìm thấy sambaDomain trên LDAP.')
+    sid = conn.entries[0].sambaSID.value
+    return str(sid[0] if isinstance(sid, list) else sid)
+
+
+def _ldap_password_hash(raw_password: str) -> str:
+    import subprocess
+
+    hashed = subprocess.check_output(['openssl', 'passwd', '-6', raw_password], text=True).strip()
+    if not hashed.startswith('$6$'):
+        raise NasLdapSyncError('Không hash được mật khẩu LDAP (openssl passwd).')
+    return '{CRYPT}' + hashed
+
+
+def _samba_nt_password(raw_password: str) -> str:
+    from passlib.hash import nthash as nthash_algo
+
+    return nthash_algo.hash(raw_password).upper()
+
+
+def _samba_account_attrs(*, uid_number: int, password: str, domain_sid: str) -> dict:
+    import time
+
+    return {
+        'sambaSID': f'{domain_sid}-{uid_number}',
+        'sambaNTPassword': _samba_nt_password(password),
+        'sambaLMPassword': 'X' * 32,
+        'sambaAcctFlags': '[U          ]',
+        'sambaPwdLastSet': int(time.time()),
+        'sambaPasswordHistory': '0' * 64,
+    }
+
+
+def _user_uid_number(conn, uid: str) -> int:
+    from ldap3 import SUBTREE
+
+    conn.search(_users_dn(), f'(uid={uid})', search_scope=SUBTREE, attributes=['uidNumber'])
+    if not conn.entries:
+        raise NasLdapSyncError(f'Không tìm thấy uidNumber cho {uid}.')
+    return int(conn.entries[0].uidNumber.value)
+
+
+def _user_has_samba_account(conn, uid: str) -> bool:
+    from ldap3 import SUBTREE
+
+    conn.search(_user_dn(uid), '(objectClass=sambaSamAccount)', search_scope=SUBTREE, attributes=['uid'])
+    return bool(conn.entries)
+
+
+def _apply_samba_account(conn, *, uid: str, uid_number: int, password: str) -> None:
+    from ldap3 import MODIFY_ADD, MODIFY_REPLACE
+
+    domain_sid = _read_domain_sid(conn)
+    samba_attrs = _samba_account_attrs(uid_number=uid_number, password=password, domain_sid=domain_sid)
+    user_dn = _user_dn(uid)
+
+    if _user_has_samba_account(conn, uid):
+        changes = {name: [(MODIFY_REPLACE, [value])] for name, value in samba_attrs.items()}
+        conn.modify(user_dn, changes)
+    else:
+        changes = {
+            'objectClass': [(MODIFY_ADD, ['sambaSamAccount', 'sambaIdmapEntry'])],
+        }
+        changes.update({name: [(MODIFY_ADD, [value])] for name, value in samba_attrs.items()})
+        conn.modify(user_dn, changes)
+    if conn.result['result'] != 0:
+        raise NasLdapSyncError(f'Không cập nhật sambaSamAccount {uid}: {conn.result}')
+
+
 def _upsert_ldap_user(
     conn,
     user: User,
@@ -329,9 +405,13 @@ def _upsert_ldap_user(
 
     user_dn = _user_dn(uid)
     created = not _user_exists(conn, uid)
+    effective_password = (password or '').strip() or None
+    if created and not effective_password:
+        effective_password = _ldap_bind_password()
 
     if created:
         uid_number = _next_uid_number(conn)
+        domain_sid = _read_domain_sid(conn)
         attrs = {
             'uid': uid,
             'cn': display_name,
@@ -343,12 +423,18 @@ def _upsert_ldap_user(
             'gidNumber': gid_number,
             'homeDirectory': f'/home/{uid}',
             'loginShell': '/sbin/nologin',
-            'userPassword': password or _ldap_bind_password(),
+            'userPassword': _ldap_password_hash(effective_password),
+            **_samba_account_attrs(
+                uid_number=uid_number,
+                password=effective_password,
+                domain_sid=domain_sid,
+            ),
         }
         conn.add(user_dn, USER_OBJECT_CLASSES, attrs)
         if conn.result['result'] != 0:
             raise NasLdapSyncError(f'Không tạo LDAP user {uid}: {conn.result}')
     else:
+        uid_number = _user_uid_number(conn, uid)
         changes = {
             'cn': [(MODIFY_REPLACE, [display_name])],
             'sn': [(MODIFY_REPLACE, [sn])],
@@ -357,11 +443,13 @@ def _upsert_ldap_user(
             'gecos': [(MODIFY_REPLACE, [display_name])],
             'gidNumber': [(MODIFY_REPLACE, [gid_number])],
         }
-        if password:
-            changes['userPassword'] = [(MODIFY_REPLACE, [password])]
+        if effective_password:
+            changes['userPassword'] = [(MODIFY_REPLACE, [_ldap_password_hash(effective_password)])]
         conn.modify(user_dn, changes)
         if conn.result['result'] != 0:
             raise NasLdapSyncError(f'Không cập nhật LDAP user {uid}: {conn.result}')
+        if effective_password:
+            _apply_samba_account(conn, uid=uid, uid_number=uid_number, password=effective_password)
 
     _sync_group_membership(conn, uid, department_group)
     return {
