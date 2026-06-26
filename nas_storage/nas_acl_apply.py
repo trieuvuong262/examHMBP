@@ -45,6 +45,14 @@ def nas_acl_ssh_configured() -> bool:
     return bool(_ssh_host() and user and password)
 
 
+def _synoshare_setuser_cmd(share: str, auth: str, operator: str, principals_csv: str) -> str:
+    """principals_csv có thể chứa #everyone — bọc trong double quotes cho bash."""
+    principals = (principals_csv or '').strip()
+    if not principals:
+        raise NasAclApplyError('Thiếu principal synoshare.')
+    return f'/usr/syno/sbin/synoshare --setuser {share} {auth} {operator} "{principals}"'
+
+
 def _run_ssh_commands(commands: list[str], *, timeout: int = 180) -> str:
     if not nas_acl_ssh_configured():
         raise NasAclApplyError('Chưa cấu hình NAS_SSH_HOST và mật khẩu admin SSH.')
@@ -62,7 +70,7 @@ def _run_ssh_commands(commands: list[str], *, timeout: int = 180) -> str:
         client.connect(host, username=user, password=password, timeout=20)
         outputs: list[str] = []
         for cmd in commands:
-            full = f"echo {shlex.quote(password)} | sudo -S sh -c {shlex.quote(cmd)} 2>&1"
+            full = f"echo {shlex.quote(password)} | sudo -S bash -c {shlex.quote(cmd)} 2>&1"
             _, stdout, stderr = client.exec_command(full, timeout=timeout)
             out = (stdout.read() + stderr.read()).decode(errors='replace')
             outputs.append(out)
@@ -233,8 +241,8 @@ def lock_hidden_share_acl(share_name: str) -> dict:
     extra_na = '@users,guest,#everyone'
     commands = [
         f'/usr/syno/sbin/synoshare --list_acl {share}',
-        f'/usr/syno/sbin/synoshare --setuser {share} RO - #everyone',
-        f'/usr/syno/sbin/synoshare --setuser {share} NA + {na_principals},{extra_na}',
+        _synoshare_setuser_cmd(share, 'RO', '-', '#everyone'),
+        _synoshare_setuser_cmd(share, 'NA', '+', f'{na_principals},{extra_na}'),
         f'/usr/syno/sbin/synoshare --setbrowse {share} 0',
         f'/usr/syno/sbin/synoshare --list_acl {share}',
     ]
