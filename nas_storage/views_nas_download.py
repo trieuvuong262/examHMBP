@@ -128,7 +128,8 @@ def nas_download_setup(request):
     base = Path(settings.BASE_DIR) / 'scripts'
     bat_path = base / 'JustPlay-NAS-RaiDrive-Setup.bat'
     ps1_path = base / 'JustPlay-NAS-RaiDrive-Setup.ps1'
-    if not bat_path.is_file() or not ps1_path.is_file():
+    prep_path = base / 'Prepare-JustPlay-WebClient.ps1'
+    if not bat_path.is_file() or not ps1_path.is_file() or not prep_path.is_file():
         return HttpResponse(
             'Không tìm thấy script cài NAS trên server.',
             status=404,
@@ -147,6 +148,10 @@ def nas_download_setup(request):
         archive.writestr(
             'JustPlay-NAS-RaiDrive-Setup.ps1',
             _prepare_ps1(ps1_body),
+        )
+        archive.writestr(
+            'Prepare-JustPlay-WebClient.ps1',
+            _prepare_ps1(prep_path.read_text(encoding='utf-8-sig')),
         )
         archive.writestr(
             'JustPlay-NAS-Config.json',

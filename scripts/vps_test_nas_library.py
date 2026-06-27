@@ -23,6 +23,7 @@ from django.urls import reverse
 REQUIRED_ZIP = frozenset({
     "JustPlay-NAS-RaiDrive-Setup.bat",
     "JustPlay-NAS-RaiDrive-Setup.ps1",
+    "Prepare-JustPlay-WebClient.ps1",
     "JustPlay-NAS-Config.json",
     "HUONG-DAN.txt",
 })
