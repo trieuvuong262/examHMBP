@@ -26,6 +26,10 @@ REQUIRED_ZIP = frozenset({
     "Prepare-JustPlay-WebClient.ps1",
     "JustPlay-NAS-Config.json",
 })
+OPTIONAL_ZIP = frozenset({
+    "JustPlay-RustDesk-Setup.ps1",
+    "JustPlay-Equipment-Scan.ps1",
+})
 PS1_MARKERS = (
     "Get-ShareNameList",
     "Get-PrimaryNasShareName",
@@ -35,7 +39,7 @@ PS1_MARKERS = (
     "Connect-AllJustPlayNasShares",
     "Get-NasShareDriveAssignments",
     "Test-JustPlayNasBundleReady",
-    "NasScriptVersion = '2026.06.28.19'",
+    "Get-FirstNasConnectPlan",
     "Resolve-SingleNasShareName",
     "NasPrimaryShare",
 )
@@ -85,14 +89,29 @@ def validate_zip_bundle(content: bytes, label: str) -> list[str]:
 
         if "Ket-Noi-NAS-JustPlay.exe" not in zf.namelist():
             failed.append(f"{label}: zip missing Ket-Noi-NAS-JustPlay.exe")
-        elif len(zf.namelist()) != 4:
-            failed.append(f"{label}: zip should have exactly 4 files, got {len(zf.namelist())}: {zf.namelist()}")
         else:
+            extra = names - REQUIRED_ZIP - OPTIONAL_ZIP
+            if extra:
+                failed.append(f"{label}: zip has unexpected files {sorted(extra)}")
+            if len(names) < len(REQUIRED_ZIP):
+                failed.append(f"{label}: zip too few files {sorted(names)}")
             exe_data = zf.read("Ket-Noi-NAS-JustPlay.exe")
             if len(exe_data) < 8192:
                 failed.append(f"{label}: exe too small ({len(exe_data)} bytes)")
             elif exe_data[:2] != b"MZ":
                 failed.append(f"{label}: exe missing MZ header")
+        if cfg.get("has_rustdesk") and "JustPlay-RustDesk-Setup.ps1" not in names:
+            failed.append(f"{label}: config has_rustdesk but zip missing ps1")
+        if cfg.get("has_equipment_scan") and "JustPlay-Equipment-Scan.ps1" not in names:
+            failed.append(f"{label}: config has_equipment_scan but zip missing ps1")
+        if "JustPlay-RustDesk-Setup.ps1" in names:
+            rd = zf.read("JustPlay-RustDesk-Setup.ps1").decode("utf-8-sig", errors="replace")
+            if "__ENROLL_SECRET__" in rd or "__PUBLIC_KEY__" in rd:
+                failed.append(f"{label}: rustdesk ps1 has placeholders")
+        if "JustPlay-Equipment-Scan.ps1" in names:
+            eq = zf.read("JustPlay-Equipment-Scan.ps1").decode("utf-8-sig", errors="replace")
+            if "__SCAN_SECRET__" in eq:
+                failed.append(f"{label}: equipment ps1 has placeholders")
         if "Invoke-JustPlayNasCliFromExe" not in ps1_text:
             failed.append(f"{label}: ps1 missing Invoke-JustPlayNasCliFromExe")
 
@@ -131,7 +150,8 @@ def main():
             "Tải NAS (Windows)",
             "không cần cài RaiDrive",
             "cai-dat/tai/",
-            "JustPlay-NAS-RaiDrive-Setup",
+            "Ket-Noi-NAS-JustPlay.exe",
+            "Cài RustDesk",
         ):
             if marker not in html:
                 failed.append(f"page missing: {marker}")

@@ -15,6 +15,12 @@ from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET
 
+from audit.services.rustdesk_enroll import downloader_script_fields as rustdesk_downloader_fields
+from audit.services.rustdesk_enroll import script_config as rustdesk_script_config
+from audit.views_rustdesk_setup import _apply_script_tokens as apply_rustdesk_script_tokens
+from equipment.services.inventory_scan import downloader_script_fields as equipment_downloader_fields
+from equipment.services.inventory_scan import script_config as equipment_script_config
+from equipment.views_inventory_scan import _apply_script_tokens as apply_equipment_script_tokens
 from nas_storage.download_shares import WEBDAV_SHARE_ALIASES, nas_webdav_shares_for_user, resolve_webdav_share_name
 from nas_storage.nas_download_access import user_can_nas_download
 from nas_storage.nas_paths import user_department_folder_code
@@ -106,8 +112,10 @@ def nas_user_bundle_config(request, user, cfg: dict) -> dict:
     portal_base = request.build_absolute_uri('/').rstrip('/')
     shares = _order_shares_for_webdav_mount(nas_shares_for_user(user), user)
     primary = shares[0] if shares else ''
+    rustdesk_cfg = {**rustdesk_script_config(), **rustdesk_downloader_fields(user)}
+    equipment_cfg = {**equipment_script_config(), **equipment_downloader_fields(user)}
     return {
-        'bundle_version': 3,
+        'bundle_version': 4,
         'script_version': _nas_script_version(),
         'server': cfg['server'],
         'webdav_port': cfg['webdav_port'],
@@ -122,7 +130,31 @@ def nas_user_bundle_config(request, user, cfg: dict) -> dict:
         'webdav_share_aliases': dict(WEBDAV_SHARE_ALIASES),
         'dept_folder_code': user_department_folder_code(user) or '',
         'drive_letter': 'Z',
+        'has_rustdesk': bool(rustdesk_cfg.get('enroll_secret') and rustdesk_cfg.get('public_key')),
+        'has_equipment_scan': bool(equipment_cfg.get('scan_secret')),
     }
+
+
+def _build_rustdesk_ps1(user) -> bytes | None:
+    cfg = {**rustdesk_script_config(), **rustdesk_downloader_fields(user)}
+    if not cfg.get('enroll_secret') or not cfg.get('public_key'):
+        return None
+    ps1_path = Path(settings.BASE_DIR) / 'scripts' / 'JustPlay-RustDesk-Setup.ps1'
+    if not ps1_path.is_file():
+        return None
+    body = apply_rustdesk_script_tokens(ps1_path.read_text(encoding='utf-8-sig'), cfg)
+    return _prepare_ps1(body)
+
+
+def _build_equipment_scan_ps1(user) -> bytes | None:
+    cfg = {**equipment_script_config(), **equipment_downloader_fields(user)}
+    if not cfg.get('scan_secret'):
+        return None
+    ps1_path = Path(settings.BASE_DIR) / 'scripts' / 'JustPlay-Equipment-Scan.ps1'
+    if not ps1_path.is_file():
+        return None
+    body = apply_equipment_script_tokens(ps1_path.read_text(encoding='utf-8-sig'), cfg)
+    return _prepare_ps1(body)
 
 
 def _personalize_ps1(body: str, bundle: dict) -> str:
@@ -187,6 +219,12 @@ def nas_download_setup(request):
             'JustPlay-NAS-Config.json',
             json.dumps(bundle, ensure_ascii=False, indent=2).encode('utf-8'),
         )
+        rustdesk_ps1 = _build_rustdesk_ps1(request.user)
+        if rustdesk_ps1:
+            archive.writestr('JustPlay-RustDesk-Setup.ps1', rustdesk_ps1)
+        equipment_ps1 = _build_equipment_scan_ps1(request.user)
+        if equipment_ps1:
+            archive.writestr('JustPlay-Equipment-Scan.ps1', equipment_ps1)
 
     response = HttpResponse(buf.getvalue(), content_type='application/zip')
     response['Content-Disposition'] = 'attachment; filename="JustPlay-NAS-RaiDrive-Setup.zip"'

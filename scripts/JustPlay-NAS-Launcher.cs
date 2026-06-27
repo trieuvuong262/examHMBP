@@ -1,7 +1,6 @@
 using System;
 using System.Diagnostics;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -11,11 +10,14 @@ namespace JustPlay.NasLauncher
 {
     internal sealed class NasMainForm : Form
     {
+        private readonly string _sourceDir;
         private readonly string _workDir;
         private readonly string _mainPs1;
         private readonly string _prepPs1;
         private readonly string _version;
         private readonly int _shareCount;
+        private readonly bool _hasRustdesk;
+        private readonly bool _hasEquipmentScan;
 
         private TextBox _tbUser;
         private TextBox _tbPass;
@@ -23,18 +25,32 @@ namespace JustPlay.NasLauncher
         private Button _btnMount;
         private Button _btnUnmount;
         private Button _btnRefresh;
+        private Button _btnRustdesk;
+        private Button _btnEquipment;
 
-        internal NasMainForm(string workDir, string mainPs1, string prepPs1, string version, int shareCount, string userHint)
+        internal NasMainForm(
+            string sourceDir,
+            string workDir,
+            string mainPs1,
+            string prepPs1,
+            string version,
+            int shareCount,
+            string userHint,
+            bool hasRustdesk,
+            bool hasEquipmentScan)
         {
+            _sourceDir = sourceDir;
             _workDir = workDir;
             _mainPs1 = mainPs1;
             _prepPs1 = prepPs1;
             _version = version ?? "";
             _shareCount = shareCount;
+            _hasRustdesk = hasRustdesk;
+            _hasEquipmentScan = hasEquipmentScan;
 
             Text = "JustPlay NAS";
             Font = new Font("Segoe UI", 10F);
-            ClientSize = new Size(460, 400);
+            ClientSize = new Size(460, 468);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             MinimizeBox = false;
@@ -76,7 +92,7 @@ namespace JustPlay.NasLauncher
             var card = new Panel
             {
                 Location = new Point(24, 104),
-                Size = new Size(412, 200),
+                Size = new Size(412, 268),
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle,
             };
@@ -102,9 +118,9 @@ namespace JustPlay.NasLauncher
             };
             card.Controls.Add(_tbPass);
 
-            _btnMount = MakeActionButton("K\u1ebft n\u1ed1i NAS", Color.FromArgb(220, 38, 38), 20, 148);
-            _btnUnmount = MakeActionButton("G\u1ee1 mount", Color.FromArgb(71, 85, 105), 148, 148);
-            _btnRefresh = MakeActionButton("L\u00e0m m\u1edbi Explorer", Color.FromArgb(71, 85, 105), 276, 148);
+            _btnMount = MakeActionButton("K\u1ebft n\u1ed1i NAS", Color.FromArgb(220, 38, 38), 20, 148, 116);
+            _btnUnmount = MakeActionButton("G\u1ee1 mount", Color.FromArgb(71, 85, 105), 148, 148, 116);
+            _btnRefresh = MakeActionButton("L\u00e0m m\u1edbi Explorer", Color.FromArgb(71, 85, 105), 276, 148, 116);
             _btnMount.Click += async (s, e) => await RunMountAsync();
             _btnUnmount.Click += async (s, e) => await RunSimpleActionAsync("unmount", "G\u1ee1 mount...");
             _btnRefresh.Click += async (s, e) => await RunSimpleActionAsync("refresh", "L\u00e0m m\u1edbi Explorer...");
@@ -112,12 +128,30 @@ namespace JustPlay.NasLauncher
             card.Controls.Add(_btnUnmount);
             card.Controls.Add(_btnRefresh);
 
+            card.Controls.Add(MakeLabel("C\u00f4ng c\u1ee5 IT", 20, 196));
+            _btnRustdesk = MakeActionButton("C\u00e0i RustDesk", Color.FromArgb(37, 99, 235), 20, 218, 180);
+            _btnEquipment = MakeActionButton("Th\u00eam C\u1ea5u h\u00ecnh", Color.FromArgb(5, 150, 105), 212, 218, 180);
+            _btnRustdesk.Enabled = _hasRustdesk;
+            _btnEquipment.Enabled = _hasEquipmentScan;
+            _btnRustdesk.Click += async (s, e) => await RunCompanionScriptAsync(
+                "JustPlay-RustDesk-Setup.ps1",
+                "RustDesk-Setup",
+                "\u0110ang c\u00e0i RustDesk...",
+                "Ho\u00e0n t\u1ea5t RustDesk. Ki\u1ec3m tra m\u00e1y trong menu RustDesk tr\u00ean Portal.");
+            _btnEquipment.Click += async (s, e) => await RunCompanionScriptAsync(
+                "JustPlay-Equipment-Scan.ps1",
+                "Equipment-Scan",
+                "\u0110ang qu\u00e9t c\u1ea5u h\u00ecnh m\u00e1y...",
+                "Ho\u00e0n t\u1ea5t. Ki\u1ec3m tra thi\u1ebft b\u1ecb trong Qu\u1ea3n l\u00fd thi\u1ebft b\u1ecb IT tr\u00ean Portal.");
+            card.Controls.Add(_btnRustdesk);
+            card.Controls.Add(_btnEquipment);
+
             _lblStatus = new Label
             {
                 Text = "S\u1eb5n s\u00e0ng.",
                 AutoSize = false,
-                Size = new Size(412, 40),
-                Location = new Point(24, 318),
+                Size = new Size(412, 48),
+                Location = new Point(24, 386),
                 ForeColor = Color.FromArgb(100, 116, 139),
             };
             Controls.Add(_lblStatus);
@@ -149,7 +183,7 @@ namespace JustPlay.NasLauncher
             };
         }
 
-        private Button MakeActionButton(string text, Color bg, int x, int y)
+        private Button MakeActionButton(string text, Color bg, int x, int y, int width)
         {
             var btn = new Button
             {
@@ -158,7 +192,7 @@ namespace JustPlay.NasLauncher
                 BackColor = bg,
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                Size = new Size(116, 36),
+                Size = new Size(width, 36),
                 Location = new Point(x, y),
                 Cursor = Cursors.Hand,
             };
@@ -172,6 +206,8 @@ namespace JustPlay.NasLauncher
             _btnMount.Enabled = !busy;
             _btnUnmount.Enabled = !busy;
             _btnRefresh.Enabled = !busy;
+            _btnRustdesk.Enabled = !busy && _hasRustdesk;
+            _btnEquipment.Enabled = !busy && _hasEquipmentScan;
             _lblStatus.Text = status;
             Cursor = busy ? Cursors.WaitCursor : Cursors.Default;
             Application.DoEvents();
@@ -270,6 +306,77 @@ namespace JustPlay.NasLauncher
             }
         }
 
+        private async Task RunCompanionScriptAsync(string fileName, string workSubDir, string busyText, string successText)
+        {
+            var sourcePs1 = Path.Combine(_sourceDir, fileName);
+            if (!File.Exists(sourcePs1))
+            {
+                MessageBox.Show(this, "Thi\u1ebfu file " + fileName + ".\nT\u1ea3i l\u1ea1i ZIP t\u1eeb Portal.", Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            SetBusy(true, busyText);
+            try
+            {
+                var code = await Task.Run(() => RunCompanionScript(fileName, workSubDir)).ConfigureAwait(true);
+                if (code == 0)
+                {
+                    _lblStatus.Text = successText;
+                    MessageBox.Show(this, successText, Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    MessageBox.Show(this, "Thao t\u00e1c th\u1ea5t b\u1ea1i. M\u00e3 l\u1ed7i: " + code, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    _lblStatus.Text = "Thao t\u00e1c th\u1ea5t b\u1ea1i.";
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, ex.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                _lblStatus.Text = ex.Message;
+            }
+            finally
+            {
+                SetBusy(false, _lblStatus.Text);
+            }
+        }
+
+        private int RunCompanionScript(string fileName, string workSubDir)
+        {
+            var sourcePs1 = Path.Combine(_sourceDir, fileName);
+            var workDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "JustPlay",
+                workSubDir);
+            Directory.CreateDirectory(workDir);
+            var destPs1 = Path.Combine(workDir, fileName);
+            File.Copy(sourcePs1, destPs1, true);
+            try
+            {
+                File.Delete(destPs1 + ":Zone.Identifier");
+            }
+            catch
+            {
+            }
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments = "-NoProfile -ExecutionPolicy Bypass -File \"" + destPs1 + "\"",
+                WorkingDirectory = workDir,
+                UseShellExecute = true,
+            };
+            using (var proc = Process.Start(psi))
+            {
+                if (proc == null)
+                {
+                    return 1;
+                }
+                proc.WaitForExit();
+                return proc.ExitCode;
+            }
+        }
+
         private Task<int> RunPs1Async(string action, string user, string password)
         {
             return Task.Run(() =>
@@ -356,9 +463,20 @@ namespace JustPlay.NasLauncher
                 string userHint;
                 int shareCount;
                 string version;
-                ReadBundleMeta(WorkDir, out userHint, out shareCount, out version);
+                bool hasRustdesk;
+                bool hasEquipmentScan;
+                ReadBundleMeta(WorkDir, out userHint, out shareCount, out version, out hasRustdesk, out hasEquipmentScan);
 
-                Application.Run(new NasMainForm(WorkDir, mainPs1, prepPs1, version, shareCount, userHint));
+                Application.Run(new NasMainForm(
+                    sourceDir,
+                    WorkDir,
+                    mainPs1,
+                    prepPs1,
+                    version,
+                    shareCount,
+                    userHint,
+                    hasRustdesk,
+                    hasEquipmentScan));
                 return 0;
             }
             catch (Exception ex)
@@ -368,11 +486,19 @@ namespace JustPlay.NasLauncher
             }
         }
 
-        private static void ReadBundleMeta(string workDir, out string userHint, out int shareCount, out string version)
+        private static void ReadBundleMeta(
+            string workDir,
+            out string userHint,
+            out int shareCount,
+            out string version,
+            out bool hasRustdesk,
+            out bool hasEquipmentScan)
         {
             userHint = "";
             shareCount = 0;
             version = "";
+            hasRustdesk = File.Exists(Path.Combine(workDir, "JustPlay-RustDesk-Setup.ps1"));
+            hasEquipmentScan = File.Exists(Path.Combine(workDir, "JustPlay-Equipment-Scan.ps1"));
             var cfgPath = Path.Combine(workDir, "JustPlay-NAS-Config.json");
             var ps1Path = Path.Combine(workDir, "JustPlay-NAS-RaiDrive-Setup.ps1");
             if (File.Exists(cfgPath))
@@ -383,13 +509,20 @@ namespace JustPlay.NasLauncher
                 {
                     userHint = um.Groups[1].Value;
                 }
-                shareCount = Regex.Matches(json, "\"shares\"\\s*:\\s*\\[([^\\]]*)\\]").Count > 0
-                    ? Regex.Matches(json, "\"([^\"]+)\"\\s*,?\\s*(?=\\]|$)").Count
-                    : 0;
                 var sm = Regex.Matches(json, "\"shares\"\\s*:\\s*\\[([\\s\\S]*?)\\]");
                 if (sm.Count > 0)
                 {
                     shareCount = Regex.Matches(sm[0].Groups[1].Value, "\"[^\"]+\"").Count;
+                }
+                var rd = Regex.Match(json, "\"has_rustdesk\"\\s*:\\s*(true|false)");
+                if (rd.Success)
+                {
+                    hasRustdesk = rd.Groups[1].Value == "true";
+                }
+                var eq = Regex.Match(json, "\"has_equipment_scan\"\\s*:\\s*(true|false)");
+                if (eq.Success)
+                {
+                    hasEquipmentScan = eq.Groups[1].Value == "true";
                 }
             }
             if (File.Exists(ps1Path))
@@ -410,13 +543,17 @@ namespace JustPlay.NasLauncher
                 "JustPlay-NAS-RaiDrive-Setup.ps1",
                 "Prepare-JustPlay-WebClient.ps1",
                 "JustPlay-NAS-Config.json",
+                "JustPlay-RustDesk-Setup.ps1",
+                "JustPlay-Equipment-Scan.ps1",
             };
             foreach (var name in names)
             {
                 var src = Path.Combine(sourceDir, name);
                 if (!File.Exists(src))
                 {
-                    if (name == "JustPlay-NAS-Config.json")
+                    if (name == "JustPlay-NAS-Config.json"
+                        || name == "JustPlay-RustDesk-Setup.ps1"
+                        || name == "JustPlay-Equipment-Scan.ps1")
                     {
                         continue;
                     }
