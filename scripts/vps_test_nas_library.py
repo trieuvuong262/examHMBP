@@ -22,13 +22,9 @@ from django.urls import reverse
 
 REQUIRED_ZIP = frozenset({
     "Ket-Noi-NAS-JustPlay.exe",
-    "Chay-Ket-Noi-NAS.ps1",
-    "JustPlay-NAS-RaiDrive-Setup.bat",
-    "JustPlay-NAS-RaiDrive-Setup.cmd",
     "JustPlay-NAS-RaiDrive-Setup.ps1",
     "Prepare-JustPlay-WebClient.ps1",
     "JustPlay-NAS-Config.json",
-    "HUONG-DAN.txt",
 })
 PS1_MARKERS = (
     "Get-ShareNameList",
@@ -39,7 +35,7 @@ PS1_MARKERS = (
     "Connect-AllJustPlayNasShares",
     "Get-NasShareDriveAssignments",
     "Test-JustPlayNasBundleReady",
-    "NasScriptVersion = '2026.06.28.17'",
+    "NasScriptVersion = '2026.06.28.18'",
     "Resolve-SingleNasShareName",
     "NasPrimaryShare",
 )
@@ -87,17 +83,18 @@ def validate_zip_bundle(content: bytes, label: str) -> list[str]:
                     f"{label}: share mismatch ps1={ps1_shares!r} json={cfg['shares']!r}"
                 )
 
-        bat = zf.read("JustPlay-NAS-RaiDrive-Setup.bat").decode("utf-8", errors="replace")
-        if "Chay-Ket-Noi-NAS.ps1" not in bat:
-            failed.append(f"{label}: bat must call Chay-Ket-Noi-NAS.ps1")
         if "Ket-Noi-NAS-JustPlay.exe" not in zf.namelist():
             failed.append(f"{label}: zip missing Ket-Noi-NAS-JustPlay.exe")
+        elif len(zf.namelist()) != 4:
+            failed.append(f"{label}: zip should have exactly 4 files, got {len(zf.namelist())}: {zf.namelist()}")
         else:
             exe_data = zf.read("Ket-Noi-NAS-JustPlay.exe")
-            if len(exe_data) < 4096:
+            if len(exe_data) < 8192:
                 failed.append(f"{label}: exe too small ({len(exe_data)} bytes)")
             elif exe_data[:2] != b"MZ":
                 failed.append(f"{label}: exe missing MZ header")
+        if "Invoke-JustPlayNasCliFromExe" not in ps1_text:
+            failed.append(f"{label}: ps1 missing Invoke-JustPlayNasCliFromExe")
 
     if not failed:
         print(f"OK: zip bundle {label} shares={cfg.get('shares')}")

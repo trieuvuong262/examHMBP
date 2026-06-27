@@ -1,7 +1,7 @@
 ﻿# JustPlay - tu dong gan o NAS qua WebDAV (cong 5678). Chi WebDAV, khong SMB.
 # User/pass = tai khoan Portal (LDAP). Khong can cau hinh RaiDrive thu cong.
 #
-# Chay: double-click Chay-Ket-Noi-NAS.ps1 (Run with PowerShell) hoac .bat / .cmd
+# Chay: Ket-Noi-NAS-JustPlay.exe (giao dien chinh)
 
 $ErrorActionPreference = 'Stop'
 
@@ -21,7 +21,7 @@ $NasPrimaryShare = '__NAS_PRIMARY_SHARE__'
 $DeptFolderCode = '__NAS_DEPT_CODE__'
 $DriveLetterRaw = '__NAS_DRIVE_LETTER__'
 $BlockedDefaultPassword = 'justplay@123'
-$NasScriptVersion = '2026.06.28.17'
+$NasScriptVersion = '2026.06.28.18'
 
 $Script:NasWebDavShareAliases = @{
     'KD-MKT' = '05_MARKETING'
@@ -2127,6 +2127,99 @@ function Start-JustPlayNasInInteractiveUserContext {
     return $true
 }
 
+function Invoke-JustPlayNasRefreshExplorer {
+    param([string[]]$Letters = @())
+    if (-not $Letters -or $Letters.Count -lt 1) {
+        $Letters = Get-JustPlayNasPlannedDriveLetters
+    }
+    if (-not $Letters -or $Letters.Count -lt 1) {
+        $Letters = @('Z', 'Y', 'X', 'W')
+    }
+    Update-NasShellDriveNotify -Letters $Letters
+    Start-Sleep -Milliseconds 400
+    Update-NasShellDriveNotify -Letters $Letters
+    Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Milliseconds 600
+    Start-Process explorer.exe
+}
+
+function Invoke-JustPlayNasUnmountAll {
+    Clear-JustPlayNasWebDavSession
+    $planned = Get-JustPlayNasPlannedDriveLetters
+    if (-not $planned -or $planned.Count -lt 1) {
+        $planned = @('Z', 'Y', 'X', 'W')
+    }
+    foreach ($letter in $planned) {
+        Remove-NasDriveMap -Letter $letter
+        $regPath = "HKCU:\Network\$letter"
+        if (Test-Path -LiteralPath $regPath) {
+            Remove-Item -LiteralPath $regPath -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+    Update-NasShellDriveNotify -Letters $planned -Remove
+    Start-Sleep -Milliseconds 300
+}
+
+function Invoke-JustPlayNasCliFromExe {
+    param([string[]]$CliArgs)
+    if (-not $CliArgs -or $CliArgs.Count -lt 1) { return $false }
+    $action = ([string]$CliArgs[0]).Trim().ToLowerInvariant()
+    if (-not $action) { return $false }
+
+    if (-not (Test-JustPlayNasBundleReady)) {
+        Show-JustPlayNasBundleError
+        exit 1
+    }
+
+    switch ($action) {
+        'prep' {
+            $plan = Resolve-NasConnectPlans | Select-Object -First 1
+            if (-not $plan -or -not $plan.ConnectHost) {
+                Write-Error 'Khong co host NAS.'
+                exit 1
+            }
+            Invoke-JustPlayWebClientPrep -HostName ([string]$plan.ConnectHost) -DavPort ([int]$plan.Port)
+            exit 0
+        }
+        'connect' {
+            $user = if ($CliArgs.Count -ge 2) { [string]$CliArgs[1] } else { '' }
+            $pass = [string]$env:JUSTPLAY_NAS_CLI_PASSWORD
+            $env:JUSTPLAY_NAS_CLI_PASSWORD = $null
+            if (-not $user -or -not $pass) {
+                Write-Error 'Thieu user hoac mat khau.'
+                exit 1
+            }
+            if ($pass -eq $BlockedDefaultPassword) {
+                Write-Error "Mat khau mac dinh $BlockedDefaultPassword khong duoc phep."
+                exit 1
+            }
+            try {
+                $result = Connect-AllJustPlayNasShares -Username $user -Password $pass
+                $mapLines = ($result.Mapped | ForEach-Object { "$($_.Letter): $($_.ShareName)" }) -join '; '
+                $opened = Open-NasExplorerForMappedShares -Mapped $result.Mapped
+                Write-Output "OK|$($result.Mapped.Count)|$mapLines|$opened|$($result.WinUser)"
+                exit 0
+            } catch {
+                Write-Error ($_.Exception.Message)
+                exit 1
+            }
+        }
+        'unmount' {
+            Invoke-JustPlayNasUnmountAll
+            Write-Output 'OK|0|Da go mount NAS'
+            exit 0
+        }
+        'refresh' {
+            Invoke-JustPlayNasRefreshExplorer
+            Write-Output 'OK|0|Da lam moi Explorer'
+            exit 0
+        }
+        default {
+            return $false
+        }
+    }
+}
+
 function Start-JustPlayNasMain {
     try {
         if (Test-IsAdministrator) {
@@ -2156,5 +2249,6 @@ function Start-JustPlayNasMain {
 }
 
 if ($MyInvocation.InvocationName -ne '.') {
+    if (Invoke-JustPlayNasCliFromExe -CliArgs $args) { return }
     Start-JustPlayNasMain
 }

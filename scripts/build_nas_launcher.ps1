@@ -9,6 +9,7 @@ if (-not (Test-Path -LiteralPath $csc)) {
 }
 & $csc /nologo /target:winexe /optimize+ `
     /r:System.Windows.Forms.dll `
+    /r:System.Drawing.dll `
     /out:$out `
     $cs
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
