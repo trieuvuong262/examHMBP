@@ -21,7 +21,7 @@ $NasPrimaryShare = '__NAS_PRIMARY_SHARE__'
 $DeptFolderCode = '__NAS_DEPT_CODE__'
 $DriveLetterRaw = '__NAS_DRIVE_LETTER__'
 $BlockedDefaultPassword = 'justplay@123'
-$NasScriptVersion = '2026.06.28.14'
+$NasScriptVersion = '2026.06.28.15'
 
 $Script:NasWebDavShareAliases = @{
     'KD-MKT' = '05_MARKETING'

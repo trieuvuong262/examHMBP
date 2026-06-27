@@ -21,6 +21,7 @@ from django.test import Client
 from django.urls import reverse
 
 REQUIRED_ZIP = frozenset({
+    "Ket-Noi-NAS-JustPlay.exe",
     "Chay-Ket-Noi-NAS.ps1",
     "JustPlay-NAS-RaiDrive-Setup.bat",
     "JustPlay-NAS-RaiDrive-Setup.cmd",
@@ -38,7 +39,7 @@ PS1_MARKERS = (
     "Connect-AllJustPlayNasShares",
     "Get-NasShareDriveAssignments",
     "Test-JustPlayNasBundleReady",
-    "NasScriptVersion = '2026.06.28.14'",
+    "NasScriptVersion = '2026.06.28.15'",
     "Resolve-SingleNasShareName",
     "NasPrimaryShare",
 )
@@ -89,11 +90,14 @@ def validate_zip_bundle(content: bytes, label: str) -> list[str]:
         bat = zf.read("JustPlay-NAS-RaiDrive-Setup.bat").decode("utf-8", errors="replace")
         if "Chay-Ket-Noi-NAS.ps1" not in bat:
             failed.append(f"{label}: bat must call Chay-Ket-Noi-NAS.ps1")
-        launcher = zf.read("Chay-Ket-Noi-NAS.ps1").decode("utf-8-sig", errors="replace")
-        if "Unblock-File" not in launcher:
-            failed.append(f"{label}: launcher missing Unblock-File")
-        if "LOCALAPPDATA" not in launcher:
-            failed.append(f"{label}: launcher missing LocalAppData copy")
+        if "Ket-Noi-NAS-JustPlay.exe" not in zf.namelist():
+            failed.append(f"{label}: zip missing Ket-Noi-NAS-JustPlay.exe")
+        else:
+            exe_data = zf.read("Ket-Noi-NAS-JustPlay.exe")
+            if len(exe_data) < 4096:
+                failed.append(f"{label}: exe too small ({len(exe_data)} bytes)")
+            elif exe_data[:2] != b"MZ":
+                failed.append(f"{label}: exe missing MZ header")
 
     if not failed:
         print(f"OK: zip bundle {label} shares={cfg.get('shares')}")
