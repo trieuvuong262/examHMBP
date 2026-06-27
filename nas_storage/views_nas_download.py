@@ -15,7 +15,7 @@ from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET
 
-from nas_storage.download_shares import WEBDAV_SHARE_ALIASES, nas_webdav_shares_for_user
+from nas_storage.download_shares import WEBDAV_SHARE_ALIASES, nas_webdav_shares_for_user, resolve_webdav_share_name
 from nas_storage.nas_download_access import user_can_nas_download
 from nas_storage.nas_paths import user_department_folder_code
 from nas_storage.views import nas_module_nav_context
@@ -46,6 +46,22 @@ def nas_download_config() -> dict:
 def _download_forbidden(request):
     messages.error(request, 'Bạn không có quyền tải bộ cài NAS.')
     return redirect('nas_storage:browse')
+
+
+def _order_shares_for_webdav_mount(shares: list[str], user) -> list[str]:
+    """
+    Gắn share phòng ban lên Z: trước (vd. KD-MKT → 05_MARKETING).
+    Tránh user MKT map 00_QUY_DINH_CHUNG lên Z: rồi lỗi unavailable.
+    """
+    if not shares:
+        return []
+    dept_code = user_department_folder_code(user)
+    if not dept_code:
+        return list(shares)
+    dept_share = resolve_webdav_share_name(dept_code)
+    if not dept_share or dept_share not in shares:
+        return list(shares)
+    return [dept_share] + [name for name in shares if name != dept_share]
 
 
 @login_required
@@ -88,7 +104,7 @@ def _nas_script_version() -> str:
 
 def nas_user_bundle_config(request, user, cfg: dict) -> dict:
     portal_base = request.build_absolute_uri('/').rstrip('/')
-    shares = nas_shares_for_user(user)
+    shares = _order_shares_for_webdav_mount(nas_shares_for_user(user), user)
     primary = shares[0] if shares else ''
     return {
         'bundle_version': 3,

@@ -21,7 +21,7 @@ $NasPrimaryShare = '__NAS_PRIMARY_SHARE__'
 $DeptFolderCode = '__NAS_DEPT_CODE__'
 $DriveLetterRaw = '__NAS_DRIVE_LETTER__'
 $BlockedDefaultPassword = 'justplay@123'
-$NasScriptVersion = '2026.06.28.18'
+$NasScriptVersion = '2026.06.28.19'
 
 $Script:NasWebDavShareAliases = @{
     'KD-MKT' = '05_MARKETING'
@@ -1678,6 +1678,7 @@ Neu van loi, lien he IT.
                 $msg = $_.Exception.Message
                 if (-not $msg) { $msg = [string]$_ }
                 [void]$errors.Add("Share ${shareName} (${letter}:): WebDAV $davTarget ($winUser): $msg")
+                Remove-NasDriveMap -Letter $letter
             }
         }
 
@@ -1752,25 +1753,15 @@ function Open-NasExplorerForMappedShares {
         $letters = @($Mapped | ForEach-Object { [string]$_.Letter } | Where-Object { $_ })
     }
     Update-NasShellDriveNotify -Letters $letters
-    Start-Sleep -Milliseconds 500
-    Update-NasShellDriveNotify -Letters $letters
+    Start-Sleep -Milliseconds 400
 
     Start-Process explorer.exe 'shell:MyComputerFolder'
-    Start-Sleep -Milliseconds 600
-
-    $opened = @()
-    foreach ($letter in $letters) {
-        if (Test-NasDriveLetterReady -Letter $letter -Retries 10 -DelayMs 400) {
-            Start-Process explorer.exe "${letter}:\"
-            $opened += "${letter}:\"
-            break
-        }
+    $driveList = if ($letters.Count -gt 0) {
+        ($letters | ForEach-Object { "${_}:" }) -join ', '
+    } else {
+        'Z:, Y:, ...'
     }
-    if ($opened.Count -lt 1) {
-        $driveList = if ($letters.Count -gt 0) { ($letters | ForEach-Object { "${_}:" }) -join ', ' } else { 'Z:, Y:, ...' }
-        return "May tinh (This PC) - xem $driveList trong muc O dia mang"
-    }
-    return ($opened -join ', ')
+    return "May tinh (This PC) - $driveList"
 }
 
 function Open-NasExplorerPath {
