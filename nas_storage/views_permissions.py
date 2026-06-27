@@ -1,5 +1,7 @@
 """Quản trị phân quyền shared folder NAS."""
 
+import logging
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
@@ -48,6 +50,8 @@ from nas_storage.folder_permissions_resolved import (
     local_folder_permissions,
 )
 from nas_storage.folder_tree import build_folder_tree
+
+logger = logging.getLogger(__name__)
 
 
 def _perm_menu_required(view_func):
@@ -673,6 +677,9 @@ def apply_all_acl(request):
             messages.success(request, f'Đã áp dụng {stats["ok"]} thư mục lên NAS.')
     except NasAclApplyError as exc:
         messages.error(request, str(exc))
+    except Exception as exc:
+        logger.exception('apply_all_acl failed')
+        messages.error(request, f'Lỗi khi áp dụng ACL lên NAS: {exc}')
     return redirect('nas_storage:permissions_hub')
 
 

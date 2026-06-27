@@ -53,7 +53,7 @@ def _synoshare_setuser_cmd(share: str, auth: str, operator: str, principals_csv:
     return f'/usr/syno/sbin/synoshare --setuser {share} {auth} {operator} "{principals}"'
 
 
-def _run_ssh_commands(commands: list[str], *, timeout: int = 180) -> str:
+def _run_ssh_commands(commands: list[str], *, timeout: int = 180, client=None) -> str:
     if not nas_acl_ssh_configured():
         raise NasAclApplyError('Chưa cấu hình NAS_SSH_HOST và mật khẩu admin SSH.')
 
@@ -64,10 +64,13 @@ def _run_ssh_commands(commands: list[str], *, timeout: int = 180) -> str:
 
     host = _ssh_host()
     user, password = _ssh_admin_credentials()
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    own_client = client is None
+    if own_client:
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
-        client.connect(host, username=user, password=password, timeout=20)
+        if own_client:
+            client.connect(host, username=user, password=password, timeout=20)
         outputs: list[str] = []
         for cmd in commands:
             full = f"echo {shlex.quote(password)} | sudo -S bash -c {shlex.quote(cmd)} 2>&1"
@@ -83,7 +86,8 @@ def _run_ssh_commands(commands: list[str], *, timeout: int = 180) -> str:
         logger.exception('NAS ACL SSH failed')
         raise NasAclApplyError(str(exc)) from exc
     finally:
-        client.close()
+        if own_client:
+            client.close()
 
 
 def _share_access_level(perm: NasFolderPermission) -> str | None:
@@ -256,12 +260,12 @@ def _find_principal_in_bucket(bucket: set[str], principal_key: str) -> str | Non
     return None
 
 
-def ensure_directory_on_nas(path: str) -> str:
+def ensure_directory_on_nas(path: str, *, share_name: str = '', client=None) -> str:
     """Tạo thư mục trên NAS (mkdir -p) nếu chưa có."""
-    from nas_storage.nas_paths import normalize_volume_path
+    from nas_storage.nas_paths import NasPathError, normalize_volume_path
 
     try:
-        target = normalize_volume_path(path)
+        target = normalize_volume_path(path, share_name=share_name)
     except NasPathError as exc:
         raise NasAclApplyError(str(exc)) from exc
     if not target.startswith('/volume'):
@@ -269,7 +273,7 @@ def ensure_directory_on_nas(path: str) -> str:
     return _run_ssh_commands([
         f'mkdir -p {shlex.quote(target)}',
         f'test -d {shlex.quote(target)} && echo OK',
-    ])
+    ], client=client)
 
 
 def _parse_synoshare_enum(output: str) -> list[str]:
@@ -354,7 +358,7 @@ def _synoacl_ace_for_permission(perm: NasFolderPermission) -> str | None:
     return None
 
 
-def apply_subfolder_permissions(folder) -> dict:
+def apply_subfolder_permissions(folder, *, client=None) -> dict:
     """Đồng bộ ACL thư mục con (synoacltool) theo quyền hiệu lực (kế thừa + local)."""
     from nas_storage.folder_permissions_resolved import effective_folder_permissions
 
@@ -362,7 +366,7 @@ def apply_subfolder_permissions(folder) -> dict:
     effective = effective_folder_permissions(folder)
     local_perms = list(_active_folder_permissions(folder))
 
-    ensure_directory_on_nas(target)
+    ensure_directory_on_nas(target, share_name=folder.share_name, client=client)
     commands = [f'/usr/syno/bin/synoacltool -get "{target}"']
     applied = 0
     for item in effective:
@@ -373,7 +377,7 @@ def apply_subfolder_permissions(folder) -> dict:
         applied += 1
     commands.append(f'/usr/syno/bin/synoacltool -get "{target}"')
 
-    output = _run_ssh_commands(commands) if applied else ''
+    output = _run_ssh_commands(commands, client=client) if applied else ''
     now = timezone.now()
     for perm in local_perms:
         perm.last_applied_at = now
@@ -391,16 +395,16 @@ def apply_subfolder_permissions(folder) -> dict:
     }
 
 
-def apply_folder_permissions(folder) -> dict:
+def apply_folder_permissions(folder, *, client=None) -> dict:
     """Đồng bộ ACL NAS theo cấu hình Portal cho một thư mục (share gốc hoặc thư mục con)."""
     if folder.parent_id:
-        return apply_subfolder_permissions(folder)
+        return apply_subfolder_permissions(folder, client=client)
 
     share = folder.share_name
     perms = list(_active_folder_permissions(folder))
     desired = _desired_share_acl_buckets(folder)
 
-    list_output = _run_ssh_commands([f'/usr/syno/sbin/synoshare --list_acl {share}'])
+    list_output = _run_ssh_commands([f'/usr/syno/sbin/synoshare --list_acl {share}'], client=client)
     current = parse_synoshare_list_acl(list_output)
     sync_commands = build_share_acl_sync_commands(
         share=share,
@@ -411,7 +415,7 @@ def apply_folder_permissions(folder) -> dict:
     commands = [f'/usr/syno/sbin/synoshare --list_acl {share}', *sync_commands]
     if sync_commands:
         commands.append(f'/usr/syno/sbin/synoshare --list_acl {share}')
-    output = _run_ssh_commands(commands) if sync_commands else list_output
+    output = _run_ssh_commands(commands, client=client) if sync_commands else list_output
 
     now = timezone.now()
     for perm in perms:
@@ -509,19 +513,46 @@ def apply_all_folder_permissions() -> dict:
     from nas_storage.models import NasShareFolder
 
     stats = {'ok': 0, 'skipped': 0, 'errors': []}
-    for folder in (
+    folders = list(
         NasShareFolder.objects.filter(is_active=True)
         .order_by('parent_id', 'sort_order', 'share_name', 'sub_path')
-    ):
-        try:
+    )
+    if not folders:
+        return stats
+    if not nas_acl_ssh_configured():
+        raise NasAclApplyError('Chưa cấu hình NAS_SSH_HOST và mật khẩu admin SSH.')
+
+    try:
+        import paramiko
+    except ImportError as exc:
+        raise NasAclApplyError('Thiếu package paramiko trên server.') from exc
+
+    host = _ssh_host()
+    user, password = _ssh_admin_credentials()
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    try:
+        client.connect(host, username=user, password=password, timeout=20)
+        for folder in folders:
             label = folder.portal_path_label()
-            result = apply_folder_permissions(folder)
-            if result.get('status') == 'ok':
-                stats['ok'] += 1
-            else:
-                stats['skipped'] += 1
-        except NasAclApplyError as exc:
-            stats['errors'].append(f'{label}: {exc}')
+            try:
+                result = apply_folder_permissions(folder, client=client)
+                if result.get('status') == 'ok':
+                    stats['ok'] += 1
+                else:
+                    stats['skipped'] += 1
+            except NasAclApplyError as exc:
+                stats['errors'].append(f'{label}: {exc}')
+            except Exception as exc:
+                logger.exception('apply_folder_permissions failed for %s', label)
+                stats['errors'].append(f'{label}: {exc}')
+    except NasAclApplyError:
+        raise
+    except Exception as exc:
+        logger.exception('NAS ACL batch SSH failed')
+        raise NasAclApplyError(str(exc)) from exc
+    finally:
+        client.close()
     return stats
 
 
