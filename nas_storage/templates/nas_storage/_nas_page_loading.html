@@ -1,0 +1,30 @@
+<script>
+(function () {
+    try {
+        if (sessionStorage.getItem('jp_nas_page_loading')) {
+            document.documentElement.classList.add('jp-nas-page-pending-load');
+        }
+    } catch (e) {}
+})();
+</script>
+<style>
+body.jp-nas-page-loading-active,
+html.jp-nas-page-pending-load body {
+    overflow: hidden;
+}
+html.jp-nas-page-pending-load .jp-nas-page {
+    visibility: hidden;
+}
+#jpNasPageLoading.jp-tool-loading {
+    z-index: 2000;
+}
+</style>
+<div id="jpNasPageLoading" class="jp-tool-loading d-none"
+     aria-hidden="true"
+     role="alertdialog" aria-labelledby="jpNasPageLoadingMsg" aria-modal="true"
+     data-default-message="Đang tải NAS…">
+    <div class="jp-tool-loading-panel">
+        <div class="jp-tool-loading-spinner" aria-hidden="true"></div>
+        <p id="jpNasPageLoadingMsg" class="jp-tool-loading-msg mb-0">Đang tải NAS…</p>
+    </div>
+</div>

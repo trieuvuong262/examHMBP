@@ -1,0 +1,24 @@
+{
+  "bundle_version": 1,
+  "server": "justplay.synology.me",
+  "webdav_port": 5678,
+  "smb_port": 445,
+  "port": 5678,
+  "fallback_server": "",
+  "ldap_domain": "ldap.justplay.local",
+  "portal_password_url": "http://127.0.0.1:8000/accounts/password/change/",
+  "portal_username": "huuchung",
+  "shares": [
+    "00_QUY_DINH_CHUNG",
+    "05_MARKETING",
+    "08_KHO_VAN_GIAO_HANG",
+    "80_DUNG_CHUNG_LIEN_PHONG_BAN",
+    "90_MAU_BIEU_FORM_CHUAN"
+  ],
+  "primary_share": "00_QUY_DINH_CHUNG",
+  "webdav_share_aliases": {
+    "KD-MKT": "05_MARKETING"
+  },
+  "dept_folder_code": "",
+  "drive_letter": "Z"
+}

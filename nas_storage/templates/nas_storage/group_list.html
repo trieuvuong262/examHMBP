@@ -1,6 +1,8 @@
-{% extends "base.html" %}
+{% extends "nas_storage/base_nas.html" %}
 
-{% block content %}
+{% block nas_loading_message %}Đang tải nhóm NAS…{% endblock %}
+
+{% block nas_content %}
 <div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
     {% include "nas_storage/_nas_nav.html" %}
     {% include "nas_storage/_perm_subnav.html" %}

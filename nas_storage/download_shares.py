@@ -131,8 +131,8 @@ def nas_webdav_shares_from_portal_permissions(user: User) -> list[str]:
 
 
 def nas_mount_shares_for_user(user: User) -> list[str]:
-    """Share legacy (dept spec + truy cập riêng) — fallback khi chưa có phân quyền Portal."""
-    from hrm.models import Profile
+    """Share legacy (nhóm NAS Portal + truy cập riêng) — fallback bổ sung cho phân quyền thư mục."""
+    from nas_storage.portal_access import user_nas_access_groups
 
     names: list[str] = []
     seen: set[str] = set()
@@ -149,19 +149,13 @@ def nas_mount_shares_for_user(user: User) -> list[str]:
     ).values_list('rel_path', flat=True):
         add(share_name_from_folder_rel(rel))
 
-    dept_name = (
-        Profile.objects.filter(user_id=user.pk)
-        .values_list('department__name', flat=True)
-        .first()
-    )
-    group = nas_group_for_portal_department(dept_name)
-    if group:
-        for spec in DEPT_NAS_SPECS:
-            if spec.nas_group == group and spec.share_name:
-                add(spec.share_name)
-        for share_name, link_group in EXTRA_SHARE_GROUP_LINKS:
-            if link_group == group:
-                add(share_name)
+    group_names = set(user_nas_access_groups(user).values_list('name', flat=True))
+    for spec in DEPT_NAS_SPECS:
+        if spec.nas_group in group_names and spec.share_name:
+            add(spec.share_name)
+    for share_name, link_group in EXTRA_SHARE_GROUP_LINKS:
+        if link_group in group_names:
+            add(share_name)
 
     return names
 

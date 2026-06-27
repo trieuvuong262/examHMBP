@@ -184,6 +184,15 @@ if ($listAlias.Count -ne 1 -or $listAlias.Item(0) -ne '05_MARKETING') {
 }
 Ok 'KD-MKT alias dedupe to 05_MARKETING'
 
+$NasSharesCsv = '00_QUY_DINH_CHUNG,05_MARKETING,08_KHO_VAN_GIAO_HANG'
+$NasPrimaryShare = '00_QUY_DINH_CHUNG'
+$assignPrimary = Get-NasShareDriveAssignments
+if ($assignPrimary.Count -ne 3) { Fail "primary-share assignments=$($assignPrimary.Count)" }
+if ($assignPrimary[1].ShareName -ne '05_MARKETING') {
+    Fail "assignment[1]=$($assignPrimary[1].ShareName) expected 05_MARKETING"
+}
+Ok 'drive assignments respect each share name'
+
 $NasSharesCsv = '10_HE_THONG_CNTT 02_HANH_CHINH_NHAN_SU'
 $NasPrimaryShare = '10_HE_THONG_CNTT'
 $p3 = Resolve-SingleNasShareName '10_HE_THONG_CNTT 02_HANH_CHINH_NHAN_SU'

@@ -11,6 +11,7 @@ media/
 scripts/equipment_import_cache/
 scripts/equipment_image_analysis.json
 scripts/_excel_*.json
+scripts/JustPlay-NAS-Config.local.json
 scripts/optimize_equipment_excel.log
 .venv/
 venv/

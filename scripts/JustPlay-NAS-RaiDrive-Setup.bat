@@ -3,12 +3,13 @@ chcp 65001 >nul
 setlocal
 title JustPlay NAS - Ket noi WebDAV
 
-:: Can quyen Admin de sua registry WebClient (BasicAuth / AuthForwardServerList)
-net session >nul 2>&1
-if not "%errorLevel%"=="0" (
-    echo Yeu cau quyen Administrator de cau hinh WebClient...
-    powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
-    exit /b 0
+:: Admin CHI de sua registry WebClient; map o dia chay session user (Explorer thay duoc Z:)
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Prepare-JustPlay-WebClient.ps1"
+if not "%ERRORLEVEL%"=="0" (
+    echo.
+    echo Khong cau hinh duoc WebClient. Thu chay lai va chap nhan UAC.
+    pause
+    exit /b %ERRORLEVEL%
 )
 
 powershell.exe -STA -NoProfile -ExecutionPolicy Bypass -File "%~dp0JustPlay-NAS-RaiDrive-Setup.ps1"

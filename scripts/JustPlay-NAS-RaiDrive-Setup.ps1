@@ -21,7 +21,7 @@ $NasPrimaryShare = '__NAS_PRIMARY_SHARE__'
 $DeptFolderCode = '__NAS_DEPT_CODE__'
 $DriveLetterRaw = '__NAS_DRIVE_LETTER__'
 $BlockedDefaultPassword = 'justplay@123'
-$NasScriptVersion = '2026.06.25.16'
+$NasScriptVersion = '2026.06.27.21'
 
 $Script:NasWebDavShareAliases = @{
     'KD-MKT' = '05_MARKETING'
@@ -50,19 +50,51 @@ function Read-InlineNasShares {
     return Get-ShareNameList $NasSharesCsv
 }
 
-function Import-JustPlayNasConfig {
-    $path = Join-Path $ScriptDir 'JustPlay-NAS-Config.json'
-    if (-not (Test-Path -LiteralPath $path)) { return $null }
+function Read-TextFileAutoEncoding {
+    param([string]$Path)
+    $bytes = [System.IO.File]::ReadAllBytes($Path)
+    if ($bytes.Length -ge 2 -and $bytes[0] -eq 0xFF -and $bytes[1] -eq 0xFE) {
+        return [System.Text.Encoding]::Unicode.GetString($bytes, 2, $bytes.Length - 2)
+    }
+    if ($bytes.Length -ge 2 -and $bytes[0] -eq 0xFE -and $bytes[1] -eq 0xFF) {
+        return [System.Text.Encoding]::BigEndianUnicode.GetString($bytes, 2, $bytes.Length - 2)
+    }
+    if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) {
+        return [System.Text.Encoding]::UTF8.GetString($bytes, 3, $bytes.Length - 3)
+    }
+    return [System.Text.Encoding]::UTF8.GetString($bytes)
+}
+
+function Import-JustPlayNasConfigFile {
+    param([string]$Path)
+    if (-not (Test-Path -LiteralPath $Path)) { return $null }
     try {
-        $bytes = [System.IO.File]::ReadAllBytes($path)
-        $raw = [System.Text.Encoding]::UTF8.GetString($bytes)
-        if ($raw.StartsWith([char]0xFEFF)) {
-            $raw = $raw.Substring(1)
-        }
-        return ($raw | ConvertFrom-Json)
+        $raw = Read-TextFileAutoEncoding -Path $Path
+        return (ConvertFrom-Json -InputObject $raw)
     } catch {
         return $null
     }
+}
+
+function Import-JustPlayNasConfig {
+    $merged = $null
+    $fileNames = New-Object System.Collections.Generic.List[string]
+    [void]$fileNames.Add('JustPlay-NAS-Config.json')
+    if ($env:JUSTPLAY_NAS_LOCAL_DEV -eq '1') {
+        [void]$fileNames.Add('JustPlay-NAS-Config.local.json')
+    }
+    foreach ($fileName in $fileNames) {
+        $cfg = Import-JustPlayNasConfigFile (Join-Path $ScriptDir $fileName)
+        if (-not $cfg) { continue }
+        if (-not $merged) {
+            $merged = $cfg
+            continue
+        }
+        foreach ($prop in $cfg.PSObject.Properties) {
+            $merged | Add-Member -NotePropertyName $prop.Name -NotePropertyValue $prop.Value -Force
+        }
+    }
+    return $merged
 }
 
 function Merge-ShareNameLists {
@@ -183,11 +215,11 @@ function New-NasShareNameList {
 
 function Resolve-SingleNasShareName {
     param([string]$Candidate = '')
-    if ($NasPrimaryShare -and $NasPrimaryShare -notmatch '^__.+__$') {
-        return $NasPrimaryShare.Trim()
-    }
     if ($Candidate -and $Candidate -notmatch '\s' -and $Candidate -notmatch ',') {
-        return $Candidate.Trim()
+        return (Resolve-WebDavShareName $Candidate.Trim())
+    }
+    if ($NasPrimaryShare -and $NasPrimaryShare -notmatch '^__.+__$') {
+        return (Resolve-WebDavShareName $NasPrimaryShare.Trim())
     }
     if ($NasSharesCsv -and $NasSharesCsv -notmatch '^__.+__$') {
         $commaIdx = $NasSharesCsv.IndexOf(',')
@@ -230,10 +262,21 @@ function Show-JustPlayNasBundleError {
     $hasPlaceholder = ($Server -match '^__.+__$') -or ($NasSharesCsv -match '^__.+__$')
 
     if ($hasPlaceholder) {
+        $localPath = Join-Path $ScriptDir 'JustPlay-NAS-Config.local.json'
+        $devHint = if (Test-Path -LiteralPath $localPath) {
+            ''
+        } else {
+            @"
+
+Dev (test tu repo): tao scripts\JustPlay-NAS-Config.local.json
+hoac chay: python scripts/export_nas_local_config.py <username>
+roi: scripts\Run-NAS-Local-Connect.bat
+"@
+        }
         $msg = @"
 Bo cai chua duoc dong goi tu Portal (file .ps1 van con __NAS_...__).
 
-Vui long tai lai ZIP tu Thu vien -> Tai NAS (Ctrl+F5), giai nen va chay .bat trong thu muc do.
+Vui long tai lai ZIP tu Thu vien -> Tai NAS (Ctrl+F5), giai nen va chay .bat trong thu muc do.$devHint
 "@
     } elseif (-not $hasConfig) {
         $msg = @"
@@ -325,10 +368,8 @@ function Set-WebClientAuthForwardHost {
         }
         $cur = (Get-ItemProperty -Path $basicPath -Name AuthForwardServerList -ErrorAction SilentlyContinue).AuthForwardServerList
         $entries = New-Object System.Collections.Generic.List[string]
-        if ($cur) {
-            foreach ($e in @($cur -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ })) {
-                [void]$entries.Add($e)
-            }
+        foreach ($e in (Expand-AuthForwardList $cur)) {
+            [void]$entries.Add($e)
         }
         foreach ($item in $toAdd) {
             if ($entries -notcontains $item) {
@@ -337,7 +378,8 @@ function Set-WebClientAuthForwardHost {
             }
         }
         if ($changed) {
-            Set-ItemProperty -Path $basicPath -Name AuthForwardServerList -Value ($entries.ToArray() -join "`n") -ErrorAction Stop
+            Set-ItemProperty -Path $basicPath -Name AuthForwardServerList -Value $entries.ToArray() `
+                -Type MultiString -ErrorAction Stop
         }
         $curBasic = Get-ItemProperty -Path $basicPath -Name BasicAuthLevel -ErrorAction SilentlyContinue
         if ($null -eq $curBasic -or [int]$curBasic.BasicAuthLevel -lt 2) {
@@ -353,6 +395,94 @@ function Set-WebClientAuthForwardHost {
         return $false
     }
     return $changed
+}
+
+function Expand-AuthForwardList {
+    param($Raw)
+    $list = New-Object System.Collections.Generic.List[string]
+    if (-not $Raw) { return ,$list.ToArray() }
+    foreach ($item in @($Raw)) {
+        foreach ($part in ([string]$item -split "`r?`n")) {
+            $p = $part.Trim()
+            if ($p) { [void]$list.Add($p) }
+        }
+    }
+    return ,$list.ToArray()
+}
+
+function Test-IsAdministrator {
+    return ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+        [Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+function Get-WebClientAuthForwardEntries {
+    param([string]$HostName, [int]$DavPort)
+    $entries = New-Object System.Collections.Generic.List[string]
+    foreach ($h in @($HostName, $Server, $NasFallbackServer)) {
+        $n = [string]$h
+        if (-not $n) { continue }
+        [void]$entries.Add($n)
+        if ($DavPort -gt 0) {
+            [void]$entries.Add("${n}:${DavPort}")
+            [void]$entries.Add("https://${n}:${DavPort}")
+            [void]$entries.Add("https://${n}")
+        }
+    }
+    return ,$entries.ToArray()
+}
+
+function Test-WebClientRegistryReady {
+    param(
+        [string]$HostName,
+        [int]$DavPort
+    )
+    $basicPath = 'HKLM:\SYSTEM\CurrentControlSet\Services\WebClient\Parameters'
+    if (-not (Test-Path -LiteralPath $basicPath)) { return $false }
+    try {
+        $b = Get-ItemProperty -Path $basicPath
+        if ($null -eq $b.BasicAuthLevel -or [int]$b.BasicAuthLevel -lt 2) { return $false }
+        if ($null -ne $b.UseBasicAuth -and [int]$b.UseBasicAuth -ne 1) { return $false }
+        $cur = $b.AuthForwardServerList
+        $list = New-Object System.Collections.Generic.List[string]
+        foreach ($e in (Expand-AuthForwardList $cur)) {
+            [void]$list.Add($e)
+        }
+        foreach ($need in (Get-WebClientAuthForwardEntries -HostName $HostName -DavPort $DavPort)) {
+            if ($list -notcontains $need) { return $false }
+        }
+        $svc = Get-Service WebClient -ErrorAction SilentlyContinue
+        if (-not $svc -or $svc.Status -ne 'Running') { return $false }
+        return $true
+    } catch {
+        return $false
+    }
+}
+
+function Invoke-JustPlayWebClientPrep {
+    param(
+        [string]$HostName,
+        [int]$DavPort
+    )
+    if (Test-WebClientRegistryReady -HostName $HostName -DavPort $DavPort) { return }
+    $prepScript = Join-Path $ScriptDir 'Prepare-JustPlay-WebClient.ps1'
+    if (-not (Test-Path -LiteralPath $prepScript)) {
+        throw "Thieu file $prepScript"
+    }
+    if (Test-IsAdministrator) {
+        Ensure-WebClientReady -HostName $HostName -DavPort $DavPort
+    } else {
+        $argList = @(
+            '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$prepScript`"",
+            '-HostName', $HostName, '-DavPort', [string]$DavPort
+        )
+        $proc = Start-Process -FilePath 'powershell.exe' -Verb RunAs -Wait -PassThru -ArgumentList $argList
+        if ($proc.ExitCode -ne 0) {
+            throw 'Khong cau hinh duoc WebClient (UAC bi huy hoac loi Admin).'
+        }
+    }
+    if (-not (Test-WebClientRegistryReady -HostName $HostName -DavPort $DavPort)) {
+        throw 'WebClient chua san sang sau khi chay Admin. Thu lai Run-NAS-Local-Connect.bat.'
+    }
 }
 
 function Ensure-WebClientReady {
@@ -608,6 +738,41 @@ function Test-NasWebDavAuth {
     }
 }
 
+function Test-NasWebDavTlsTrust {
+    param(
+        [string]$HostName,
+        [int]$DavPort
+    )
+    if (-not $HostName) { return $true }
+    $tcp = $null
+    $ssl = $null
+    try {
+        $tcp = New-Object System.Net.Sockets.TcpClient
+        $tcp.Connect($HostName, $DavPort)
+        $ssl = New-Object System.Net.Security.SslStream($tcp.GetStream(), $false)
+        $ssl.AuthenticateAsClient($HostName)
+        return $true
+    } catch {
+        $certHint = ''
+        try {
+            if ($ssl -and $ssl.RemoteCertificate) {
+                $c = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($ssl.RemoteCertificate)
+                $certHint = " (cert CN=$($c.GetNameInfo('SimpleName', $false)))"
+            }
+        } catch {}
+        throw @"
+Windows khong tin chung chi SSL cua NAS cho hostname $HostName`:$DavPort$certHint.
+WebClient se bao loi 1244 du user/pass dung.
+
+IT: DSM -> Control Panel -> Security -> Certificate -> cap Let's Encrypt cho $HostName (hoac import cert dung ten mien).
+Sau khi sua cert, chay lai Run-NAS-Local-Connect.bat (Admin).
+"@
+    } finally {
+        if ($ssl) { $ssl.Close() }
+        if ($tcp) { $tcp.Close() }
+    }
+}
+
 function Get-WebDavShareUrl {
     param(
         [string]$HostName,
@@ -642,7 +807,7 @@ function Invoke-NasWebDavNetUse {
     }
     $null = Invoke-ProcessWithTimeout -FilePath 'net.exe' `
         -ArgumentList (Format-NetUseArgumentString -LocalPath $localPath -RemotePath $RemoteSpec `
-            -WinUser $WinUser -PlainPassword $PlainPassword -WebDavOrder) `
+            -WinUser $WinUser -PlainPassword $PlainPassword) `
         -TimeoutSec $TimeoutSec -Label $Label
 }
 
@@ -658,7 +823,7 @@ function Invoke-NasWebDavMapTimed {
         [int]$TimeoutSec = $NasConnectTimeoutSec
     )
     if (-not $SkipCredentialPrep) {
-        Ensure-WebClientReady -HostName $HostName -DavPort $DavPort
+        Invoke-JustPlayWebClientPrep -HostName $HostName -DavPort $DavPort
         Save-WebDavCredentials -HostName $HostName -DavPort $DavPort -WinUser $WinUser -PlainPassword $PlainPassword
     }
     Clear-NasWebDavHostConnections -HostName $HostName -DavPort $DavPort -Letter $Letter
@@ -816,6 +981,8 @@ function Save-WebDavCredentials {
         [string]$WinUser,
         [string]$PlainPassword
     )
+    $userArg = Quote-NetArg $WinUser
+    $passArg = Quote-NetArg $PlainPassword
     $targets = @(
         "https://${HostName}:${DavPort}",
         "https://${HostName}",
@@ -823,21 +990,25 @@ function Save-WebDavCredentials {
         $HostName
     )
     foreach ($target in $targets) {
+        $targetArg = Quote-NetArg $target
         & cmdkey /delete:$target 2>$null | Out-Null
         & cmdkey /delete:"MicrosoftOffice16_Data:$target" 2>$null | Out-Null
-        $null = & cmdkey /generic:$target /user:$WinUser /pass:$PlainPassword 2>&1
+        $null = & cmdkey /generic:$targetArg /user:$userArg /pass:$passArg 2>&1
         if ($LASTEXITCODE -ne 0) {
-            $null = & cmdkey /add:$target /user:$WinUser /pass:$PlainPassword 2>&1
+            $null = & cmdkey /add:$targetArg /user:$userArg /pass:$passArg 2>&1
         }
     }
 }
 
 function Save-NasCredential {
     param([string]$Target, [string]$WinUser, [string]$PlainPassword)
+    $targetArg = Quote-NetArg $Target
+    $userArg = Quote-NetArg $WinUser
+    $passArg = Quote-NetArg $PlainPassword
     & cmdkey /delete:$Target 2>$null | Out-Null
-    $null = & cmdkey /generic:$Target /user:$WinUser /pass:$PlainPassword 2>&1
+    $null = & cmdkey /generic:$targetArg /user:$userArg /pass:$passArg 2>&1
     if ($LASTEXITCODE -ne 0) {
-        $null = & cmdkey /add:$Target /user:$WinUser /pass:$PlainPassword
+        $null = & cmdkey /add:$targetArg /user:$userArg /pass:$passArg
     }
 }
 
@@ -932,6 +1103,11 @@ Neu van loi, lien he IT.
     }
 
     $planBag = Resolve-NasConnectPlans
+    $tlsHost = [string]$planBag[0].ConnectHost
+    $tlsPort = [int]$planBag[0].Port
+    if ($tlsHost) {
+        Test-NasWebDavTlsTrust -HostName $tlsHost -DavPort $tlsPort | Out-Null
+    }
     $errors = New-Object System.Collections.Generic.List[string]
     $mapped = New-Object System.Collections.Generic.List[object]
     $winUser = $null
@@ -972,7 +1148,7 @@ Neu van loi, lien he IT.
             }
 
             if (-not $credentialSaved) {
-                Ensure-WebClientReady -HostName $resolvedServer -DavPort $connectPort
+                Invoke-JustPlayWebClientPrep -HostName $resolvedServer -DavPort $connectPort
                 Save-WebDavCredentials -HostName $resolvedServer -DavPort $connectPort `
                     -WinUser $winUser -PlainPassword $Password
                 $prepHost = $resolvedServer
