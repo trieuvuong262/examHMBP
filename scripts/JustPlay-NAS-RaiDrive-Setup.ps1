@@ -21,7 +21,7 @@ $NasPrimaryShare = '__NAS_PRIMARY_SHARE__'
 $DeptFolderCode = '__NAS_DEPT_CODE__'
 $DriveLetterRaw = '__NAS_DRIVE_LETTER__'
 $BlockedDefaultPassword = 'justplay@123'
-$NasScriptVersion = '2026.06.28.21'
+$NasScriptVersion = '2026.06.28.22'
 
 $Script:NasWebDavShareAliases = @{
     'KD-MKT' = '05_MARKETING'
@@ -705,14 +705,89 @@ function Format-NasDriveAssignmentsLabel {
     return (($assignments | ForEach-Object { "$($_.Letter): $($_.ShareName)" }) -join ', ')
 }
 
+function Restart-NasWebClientService {
+    $svc = Get-Service WebClient -ErrorAction SilentlyContinue
+    if (-not $svc) { return }
+    $restarted = $false
+    try {
+        if ($svc.Status -eq 'Running') {
+            Stop-Service WebClient -Force -ErrorAction Stop
+            Start-Sleep -Milliseconds 700
+        }
+        Set-Service WebClient -StartupType Manual -ErrorAction SilentlyContinue
+        Start-Service WebClient -ErrorAction Stop
+        Start-Sleep -Milliseconds 800
+        $restarted = $true
+    } catch {
+        Write-Log "WebClient can restart bang quyen thuong - thu UAC..."
+    }
+    if (-not $restarted) {
+        try {
+            $argList = @(
+                '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command',
+                'Stop-Service WebClient -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 1; Set-Service WebClient -StartupType Manual -ErrorAction SilentlyContinue; Start-Service WebClient -ErrorAction Stop'
+            )
+            $proc = Start-Process -FilePath 'powershell.exe' -Verb RunAs -Wait -PassThru -ArgumentList $argList
+            if ($proc.ExitCode -eq 0) {
+                $restarted = $true
+            }
+        } catch {
+            Write-Log "Canh bao: Khong restart WebClient (UAC bi huy hoac loi)."
+        }
+    }
+    if ($restarted) {
+        Write-Log 'Da restart WebClient (xoa session WebDAV cu).'
+    }
+}
+
 function Clear-NasWebDavHostConnections {
     param(
         [string]$HostName,
         [int]$DavPort,
-        [string]$Letter = ''
+        [string]$Letter = '',
+        [switch]$RestartWebClient,
+        [switch]$ClearCmdKey
     )
     if ($Letter) {
         Remove-NasDriveMap -Letter $Letter
+    }
+    if (-not $HostName) { return }
+
+    Initialize-NasWNetApi
+    $hostLower = $HostName.ToLowerInvariant()
+    foreach ($entry in (Get-NetUseDriveEntries)) {
+        $remote = [string]$entry.Remote
+        if (-not $remote) { continue }
+        $lower = $remote.ToLowerInvariant()
+        if ($lower -notmatch [regex]::Escape($hostLower) -and $lower -notmatch 'justplay|synology|davwwwroot') { continue }
+        Write-Log "Go host connection: $remote"
+        Remove-NetUseRemoteMap -RemotePath $remote
+    }
+
+    foreach ($root in @(
+        "\\${HostName}@SSL@${DavPort}",
+        "\\${HostName}@SSL@${DavPort}\DavWWWRoot",
+        "\\${HostName}@SSL@${DavPort}\*"
+    )) {
+        try {
+            [void][NasWNet]::WNetCancelConnection2($root, 0, $true)
+        } catch {}
+        & net.exe use $root /delete /y 2>$null | Out-Null
+    }
+
+    if ($ClearCmdKey) {
+        foreach ($target in @(
+            "https://${HostName}:${DavPort}",
+            "https://${HostName}",
+            "${HostName}:${DavPort}",
+            $HostName
+        )) {
+            & cmdkey /delete:$target 2>$null | Out-Null
+        }
+    }
+
+    if ($RestartWebClient) {
+        Restart-NasWebClientService
     }
 }
 
@@ -906,24 +981,34 @@ function Invoke-NasWebDavMapTimed {
         Invoke-JustPlayWebClientPrep -HostName $HostName -DavPort $DavPort
         Save-WebDavCredentials -HostName $HostName -DavPort $DavPort -WinUser $WinUser -PlainPassword $PlainPassword
     }
-    Clear-NasWebDavHostConnections -HostName $HostName -DavPort $DavPort -Letter $Letter
+    Remove-NasDriveMap -Letter $Letter
     $davUrl = Get-WebDavShareUrl -HostName $HostName -DavPort $DavPort -ShareName $ShareName
     $davUnc = Get-WebDavUncPath -HostName $HostName -DavPort $DavPort -ShareName $ShareName
     $lastErr = $null
-    foreach ($spec in @($davUnc, $davUrl)) {
-        foreach ($mapFn in @(
-            { param($s) Invoke-NasWebDavPsDriveMap -Letter $Letter -RemoteSpec $s -WinUser $WinUser -PlainPassword $PlainPassword },
-            { param($s) Invoke-NasWebDavWNetMap -Letter $Letter -RemoteSpec $s -WinUser $WinUser -PlainPassword $PlainPassword },
-            { param($s) Invoke-NasWebDavNetUse -Letter $Letter -RemoteSpec $s -WinUser $WinUser -PlainPassword $PlainPassword -Label "WebDAV $s" }
-        )) {
-            try {
-                & $mapFn $spec
-                return $spec
-            } catch {
-                $lastErr = $_.Exception.Message
-                if (-not $lastErr) { $lastErr = [string]$_ }
+    for ($attempt = 1; $attempt -le 2; $attempt++) {
+        if ($attempt -gt 1) {
+            Write-Log 'Loi 1219 - xoa session WebDAV cu va thu lai...'
+            Clear-NasWebDavHostConnections -HostName $HostName -DavPort $DavPort -Letter $Letter -RestartWebClient -ClearCmdKey
+            if (-not $SkipCredentialPrep) {
+                Save-WebDavCredentials -HostName $HostName -DavPort $DavPort -WinUser $WinUser -PlainPassword $PlainPassword
             }
         }
+        foreach ($spec in @($davUnc, $davUrl)) {
+            foreach ($mapFn in @(
+                { param($s) Invoke-NasWebDavNetUse -Letter $Letter -RemoteSpec $s -WinUser $WinUser -PlainPassword $PlainPassword -Label "WebDAV $s" },
+                { param($s) Invoke-NasWebDavWNetMap -Letter $Letter -RemoteSpec $s -WinUser $WinUser -PlainPassword $PlainPassword },
+                { param($s) Invoke-NasWebDavPsDriveMap -Letter $Letter -RemoteSpec $s -WinUser $WinUser -PlainPassword $PlainPassword }
+            )) {
+                try {
+                    & $mapFn $spec
+                    return $spec
+                } catch {
+                    $lastErr = $_.Exception.Message
+                    if (-not $lastErr) { $lastErr = [string]$_ }
+                }
+            }
+        }
+        if ($lastErr -notmatch '1219' -or $attempt -ge 2) { break }
     }
     throw $lastErr
 }
@@ -1610,7 +1695,7 @@ Neu van loi, lien he IT.
 "@
     }
 
-    Clear-JustPlayNasWebDavSession
+    Invoke-JustPlayNasUnmountAll
 
     Ensure-WebClientServiceRunning
 

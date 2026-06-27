@@ -54,17 +54,28 @@ def _download_forbidden(request):
     return redirect('nas_storage:browse')
 
 
+def _dept_webdav_share_for_user(user) -> str | None:
+    """Map mã phòng ban (SX, MKT…) sang tên share DSM (07_SAN_XUAT…)."""
+    from nas_storage.dept_nas_config import DEPT_NAS_SPECS
+
+    dept_code = (user_department_folder_code(user) or '').strip()
+    if not dept_code:
+        return None
+    dept_upper = dept_code.upper()
+    for spec in DEPT_NAS_SPECS:
+        if spec.nas_group.upper() == dept_upper and spec.share_name:
+            return resolve_webdav_share_name(spec.share_name)
+    return resolve_webdav_share_name(dept_code)
+
+
 def _order_shares_for_webdav_mount(shares: list[str], user) -> list[str]:
     """
-    Gắn share phòng ban lên Z: trước (vd. KD-MKT → 05_MARKETING).
-    Tránh user MKT map 00_QUY_DINH_CHUNG lên Z: rồi lỗi unavailable.
+    Gắn share phòng ban lên Z: trước (vd. KD-MKT → 05_MARKETING, SX → 07_SAN_XUAT).
+    Tránh user map share chung lên Z: rồi lỗi unavailable.
     """
     if not shares:
         return []
-    dept_code = user_department_folder_code(user)
-    if not dept_code:
-        return list(shares)
-    dept_share = resolve_webdav_share_name(dept_code)
+    dept_share = _dept_webdav_share_for_user(user)
     if not dept_share or dept_share not in shares:
         return list(shares)
     return [dept_share] + [name for name in shares if name != dept_share]
