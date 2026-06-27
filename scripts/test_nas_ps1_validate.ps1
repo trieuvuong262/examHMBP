@@ -67,7 +67,11 @@ $requiredFns = @(
     'Clear-JustPlayNasWebDavSession',
     'Clear-JustPlayNasCmdKeyByList',
     'Clear-JustPlayNasNetworkRegistry',
-    'Restart-JustPlayExplorerShell',
+    'Test-NasServerPortWithRetry',
+    'Test-NasWebDavReachable',
+    'Clear-JustPlayNasWmiNetworkConnections',
+    'Clear-JustPlayNasSmbMappings',
+    'Clear-JustPlayNasExplorerDriveRemnants',
     'Get-NetUseMappedDriveLetters',
     'Get-NetUseDriveEntries',
     'Show-JustPlayNasDialog'

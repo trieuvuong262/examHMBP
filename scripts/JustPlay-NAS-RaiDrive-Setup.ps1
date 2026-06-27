@@ -21,7 +21,7 @@ $NasPrimaryShare = '__NAS_PRIMARY_SHARE__'
 $DeptFolderCode = '__NAS_DEPT_CODE__'
 $DriveLetterRaw = '__NAS_DRIVE_LETTER__'
 $BlockedDefaultPassword = 'justplay@123'
-$NasScriptVersion = '2026.06.28.08'
+$NasScriptVersion = '2026.06.28.12'
 
 $Script:NasWebDavShareAliases = @{
     'KD-MKT' = '05_MARKETING'
@@ -320,16 +320,17 @@ function Test-NasServerPort {
         [int]$TimeoutMs = $NasPortCheckTimeoutMs
     )
     $targets = New-Object System.Collections.Generic.List[string]
+    [void]$targets.Add($HostName)
     try {
         foreach ($addr in [System.Net.Dns]::GetHostAddresses($HostName)) {
             if ($addr.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetwork) {
-                [void]$targets.Add($addr.ToString())
+                $ip = $addr.ToString()
+                if ($targets -notcontains $ip) {
+                    [void]$targets.Add($ip)
+                }
             }
         }
     } catch {}
-    if ($targets.Count -lt 1) {
-        [void]$targets.Add($HostName)
-    }
 
     foreach ($target in $targets) {
         $client = New-Object System.Net.Sockets.TcpClient
@@ -347,6 +348,65 @@ function Test-NasServerPort {
         }
     }
     throw "Khong mo duoc cong $NasPort toi $HostName (timeout ${TimeoutMs}ms)."
+}
+
+function Test-NasServerPortWithRetry {
+    param(
+        [string]$HostName,
+        [int]$NasPort,
+        [int]$Attempts = 3,
+        [int]$RetryDelaySec = 2,
+        [int]$TimeoutMs = 5000
+    )
+    $lastErr = $null
+    for ($i = 1; $i -le $Attempts; $i++) {
+        try {
+            return (Test-NasServerPort -HostName $HostName -NasPort $NasPort -TimeoutMs $TimeoutMs)
+        } catch {
+            $lastErr = $_.Exception.Message
+            if (-not $lastErr) { $lastErr = [string]$_ }
+            if ($i -lt $Attempts) {
+                Write-Log "Thu lai TCP $HostName`:$NasPort ($i/$Attempts)..."
+                Start-Sleep -Seconds $RetryDelaySec
+            }
+        }
+    }
+    throw $lastErr
+}
+
+function Test-NasWebDavReachable {
+    param(
+        [string]$HostName,
+        [int]$DavPort,
+        [string]$ShareName = '',
+        [int]$TimeoutMs = 8000
+    )
+    if (-not $ShareName) {
+        $ShareName = Get-PrimaryNasShareName
+    }
+    if (-not $ShareName) { $ShareName = '00_QUY_DINH_CHUNG' }
+    $url = Get-WebDavShareUrl -HostName $HostName -DavPort $DavPort -ShareName $ShareName
+    $prevCb = [System.Net.ServicePointManager]::ServerCertificateValidationCallback
+    try {
+        [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
+        $req = [System.Net.HttpWebRequest]::Create($url)
+        $req.Method = 'HEAD'
+        $req.Timeout = $TimeoutMs
+        try {
+            $resp = $req.GetResponse()
+            $resp.Close()
+            return $true
+        } catch [System.Net.WebException] {
+            $resp = $_.Exception.Response
+            if (-not $resp) { throw $_.Exception.Message }
+            $code = [int]$resp.StatusCode
+            $resp.Close()
+            if ($code -eq 401 -or $code -eq 403 -or $code -eq 200) { return $true }
+            throw "WebDAV HEAD HTTP $code"
+        }
+    } finally {
+        [System.Net.ServicePointManager]::ServerCertificateValidationCallback = $prevCb
+    }
 }
 
 function Set-WebClientAuthForwardHost {
@@ -852,17 +912,34 @@ function Resolve-NasConnectPlans {
     foreach ($candidate in (Get-NasServerCandidates)) {
         $hostLabel = [string]$candidate
         if (-not $hostLabel) { continue }
+        $reachable = $false
+        $reachErr = $null
         try {
-            $null = Test-NasServerPort -HostName $hostLabel -NasPort $WebDavPort
-            [void]$plans.Add([pscustomobject]@{
-                Host = $hostLabel
-                ConnectHost = $hostLabel
-                Protocol = 'webdav'
-                Port = [int]$WebDavPort
-            })
+            $null = Test-NasServerPortWithRetry -HostName $hostLabel -NasPort $WebDavPort
+            $reachable = $true
         } catch {
-            [void]$failures.Add("WebDAV ${hostLabel}:${WebDavPort} - $($_.Exception.Message)")
+            $reachErr = $_.Exception.Message
+            if (-not $reachErr) { $reachErr = [string]$_ }
+            try {
+                $null = Test-NasWebDavReachable -HostName $hostLabel -DavPort $WebDavPort
+                Write-Log "TCP chua san sang - WebDAV HEAD OK: $hostLabel"
+                $reachable = $true
+            } catch {
+                $headErr = $_.Exception.Message
+                if (-not $headErr) { $headErr = [string]$_ }
+                $reachErr = "$reachErr | HEAD: $headErr"
+            }
         }
+        if (-not $reachable) {
+            [void]$failures.Add("WebDAV ${hostLabel}:${WebDavPort} - $reachErr")
+            continue
+        }
+        [void]$plans.Add([pscustomobject]@{
+            Host = $hostLabel
+            ConnectHost = $hostLabel
+            Protocol = 'webdav'
+            Port = [int]$WebDavPort
+        })
     }
     if ($plans.Count -lt 1) {
         $shareHint = Get-PrimaryNasShareName
@@ -1061,6 +1138,71 @@ function Test-NetUseRemoteIsJustPlayNas {
     return $false
 }
 
+function Test-NasDriveLetterReady {
+    param(
+        [string]$Letter,
+        [int]$Retries = 8,
+        [int]$DelayMs = 500
+    )
+    $path = "${Letter}:\"
+    for ($i = 1; $i -le $Retries; $i++) {
+        try {
+            if (-not (Test-Path -LiteralPath $path)) {
+                Start-Sleep -Milliseconds $DelayMs
+                continue
+            }
+            $null = [System.IO.Directory]::EnumerateFileSystemEntries($path)
+            return $true
+        } catch {
+            Start-Sleep -Milliseconds $DelayMs
+        }
+    }
+    return $false
+}
+
+function Update-NasShellDriveNotify {
+    try {
+        if (-not ('ShellNotify' -as [type])) {
+            Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class ShellNotify {
+    [DllImport("shell32.dll")]
+    public static extern void SHChangeNotify(int eventId, int flags, IntPtr item1, IntPtr item2);
+}
+"@
+        }
+        [ShellNotify]::SHChangeNotify(0x8000000, 0x1000, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+    } catch {}
+}
+
+function Get-JustPlayNasLettersToClear {
+    param([string[]]$ExtraLetters = @())
+    $lettersToClear = New-Object System.Collections.Generic.List[string]
+    $seen = @{}
+    foreach ($entry in (Get-NetUseDriveEntries)) {
+        $letter = [string]$entry.Letter
+        if (-not $letter) { continue }
+        $remote = [string]$entry.Remote
+        $status = [string]$entry.Status
+        $isNas = Test-NetUseRemoteIsJustPlayNas -RemotePath $remote
+        $isGhost = $status -match '(?i)Unavailable|Error|Disconnected'
+        if (-not $isNas -and -not $isGhost) { continue }
+        if (-not $seen.ContainsKey($letter)) {
+            $seen[$letter] = $true
+            [void]$lettersToClear.Add($letter)
+        }
+    }
+    foreach ($letter in $ExtraLetters) {
+        $l = ([string]$letter).Trim().ToUpperInvariant()
+        if ($l -and -not $seen.ContainsKey($l)) {
+            $seen[$l] = $true
+            [void]$lettersToClear.Add($l)
+        }
+    }
+    return ,$lettersToClear.ToArray()
+}
+
 function Clear-JustPlayNasCmdKeyByList {
     $prevEap = $ErrorActionPreference
     $ErrorActionPreference = 'SilentlyContinue'
@@ -1085,12 +1227,108 @@ function Clear-JustPlayNasCmdKeyByList {
     }
 }
 
+function Clear-JustPlayNasWmiNetworkConnections {
+    param([string[]]$Letters = @())
+    $localNames = @{}
+    foreach ($letter in $Letters) {
+        $l = ([string]$letter).Trim().ToUpperInvariant()
+        if ($l) { $localNames["${l}:"] = $true }
+    }
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = 'SilentlyContinue'
+    try {
+        Get-WmiObject Win32_NetworkConnection -ErrorAction SilentlyContinue | ForEach-Object {
+            $local = [string]$_.LocalName
+            $remote = [string]$_.RemoteName
+            $matchLetter = $local -and $localNames.ContainsKey($local.ToUpperInvariant())
+            $matchNas = Test-NetUseRemoteIsJustPlayNas -RemotePath $remote
+            if (-not $matchLetter -and -not $matchNas) { return }
+            Write-Log "Go WMI: $local -> $remote"
+            try {
+                $null = $_.Delete()
+            } catch {
+                Write-Log "Bo qua WMI Delete: $local ($($_.Exception.Message))"
+            }
+        }
+    } finally {
+        $ErrorActionPreference = $prevEap
+    }
+}
+
+function Clear-JustPlayNasSmbMappings {
+    param([string[]]$Letters = @())
+    if (-not (Get-Command Remove-SmbMapping -ErrorAction SilentlyContinue)) { return }
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = 'SilentlyContinue'
+    try {
+        foreach ($letter in $Letters) {
+            $l = ([string]$letter).Trim().ToUpperInvariant()
+            if (-not $l) { continue }
+            $localPath = "${l}:"
+            Write-Log "Go Remove-SmbMapping: $localPath"
+            Remove-SmbMapping -LocalPath $localPath -Force -ErrorAction SilentlyContinue
+        }
+        if (Get-Command Get-SmbMapping -ErrorAction SilentlyContinue) {
+            Get-SmbMapping -ErrorAction SilentlyContinue | ForEach-Object {
+                $localPath = [string]$_.LocalPath
+                $remotePath = [string]$_.RemotePath
+                if (-not $localPath) { return }
+                $ltr = $localPath.TrimEnd(':').ToUpperInvariant()
+                if ($Letters -contains $ltr -or (Test-NetUseRemoteIsJustPlayNas -RemotePath $remotePath)) {
+                    Write-Log "Go Remove-SmbMapping (scan): $localPath"
+                    Remove-SmbMapping -LocalPath $localPath -Force -ErrorAction SilentlyContinue
+                }
+            }
+        }
+    } finally {
+        $ErrorActionPreference = $prevEap
+    }
+}
+
+function Clear-JustPlayNasExplorerDriveRemnants {
+    param([string[]]$Letters = @())
+    if (-not $Letters -or $Letters.Count -lt 1) {
+        $Letters = Get-JustPlayNasLettersToClear
+    }
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = 'SilentlyContinue'
+    try {
+        $mruPath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Map Network Drive MRU'
+        if (Test-Path -LiteralPath $mruPath) {
+            Write-Log 'Go registry: Map Network Drive MRU'
+            Remove-ItemProperty -Path $mruPath -Name * -ErrorAction SilentlyContinue
+        }
+        $mp2 = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\MountPoints2'
+        if (Test-Path -LiteralPath $mp2) {
+            foreach ($child in (Get-ChildItem -LiteralPath $mp2 -ErrorAction SilentlyContinue)) {
+                $name = [string]$child.Name
+                $remove = $false
+                foreach ($letter in $Letters) {
+                    $l = ([string]$letter).Trim().ToUpperInvariant()
+                    if ($l -and ($name -match [regex]::Escape("${l}:") -or $name -match [regex]::Escape("\${l}:"))) {
+                        $remove = $true
+                        break
+                    }
+                }
+                if (-not $remove) {
+                    if ($name -match 'Synology|justplay|DavWWWRoot') { $remove = $true }
+                }
+                if (-not $remove) { continue }
+                Write-Log "Go MountPoints2: $name"
+                Remove-Item -LiteralPath $child.PSPath -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+    } finally {
+        $ErrorActionPreference = $prevEap
+    }
+}
+
 function Clear-JustPlayNasNetworkRegistry {
     param(
         [string[]]$Letters = @()
     )
     if (-not $Letters -or $Letters.Count -lt 1) {
-        $Letters = Get-NasShareDriveLetterPool
+        $Letters = Get-JustPlayNasLettersToClear
     }
     foreach ($letter in $Letters) {
         $l = ([string]$letter).Trim().ToUpperInvariant()
@@ -1103,25 +1341,12 @@ function Clear-JustPlayNasNetworkRegistry {
     }
 }
 
-function Restart-JustPlayExplorerShell {
-    Write-Log 'Khoi dong lai Explorer (go o ma Z:)'
-    $prevEap = $ErrorActionPreference
-    $ErrorActionPreference = 'SilentlyContinue'
-    try {
-        Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
-        Start-Sleep -Milliseconds 800
-    } finally {
-        $ErrorActionPreference = $prevEap
-    }
-}
-
 function Clear-JustPlayNasWebDavSession {
     param(
         [string[]]$Letters = @()
     )
     Initialize-NasWNetApi
-    $lettersToClear = New-Object System.Collections.Generic.List[string]
-    $seen = @{}
+    $lettersToClear = Get-JustPlayNasLettersToClear -ExtraLetters $Letters
 
     foreach ($entry in (Get-NetUseDriveEntries)) {
         $remote = [string]$entry.Remote
@@ -1132,30 +1357,6 @@ function Clear-JustPlayNasWebDavSession {
             Write-Log "Go ket noi WebDAV [$($entry.Status)]: $remote"
             Remove-NetUseRemoteMap -RemotePath $remote
         }
-        if ($letter -and -not $seen.ContainsKey($letter)) {
-            $seen[$letter] = $true
-            [void]$lettersToClear.Add($letter)
-        }
-    }
-
-    foreach ($letter in (Get-NetUseMappedDriveLetters)) {
-        if (-not $seen.ContainsKey($letter)) {
-            $seen[$letter] = $true
-            [void]$lettersToClear.Add($letter)
-        }
-    }
-    foreach ($letter in (Get-NasShareDriveLetterPool)) {
-        if (-not $seen.ContainsKey($letter)) {
-            $seen[$letter] = $true
-            [void]$lettersToClear.Add($letter)
-        }
-    }
-    foreach ($letter in $Letters) {
-        $l = ([string]$letter).Trim().ToUpperInvariant()
-        if ($l -and -not $seen.ContainsKey($l)) {
-            $seen[$l] = $true
-            [void]$lettersToClear.Add($l)
-        }
     }
 
     foreach ($letter in $lettersToClear) {
@@ -1163,12 +1364,20 @@ function Clear-JustPlayNasWebDavSession {
         Remove-NasDriveMap -Letter $letter
     }
 
-    Write-Log 'Go tat ca ket noi mang: net use * /delete'
+    Clear-JustPlayNasWmiNetworkConnections -Letters $lettersToClear
+    Clear-JustPlayNasSmbMappings -Letters $lettersToClear
+
+    Write-Log 'Go ket noi NAS con lai: net use (chi WebDAV JustPlay)'
     $prevEap = $ErrorActionPreference
     $ErrorActionPreference = 'SilentlyContinue'
     try {
-        & net.exe use * /delete /y *>$null
-        Start-Sleep -Milliseconds 800
+        foreach ($entry in (Get-NetUseDriveEntries)) {
+            $remote = [string]$entry.Remote
+            if (-not (Test-NetUseRemoteIsJustPlayNas -RemotePath $remote)) { continue }
+            Write-Log "Go net use delete: $remote"
+            Remove-NetUseRemoteMap -RemotePath $remote
+        }
+        Start-Sleep -Milliseconds 400
     } finally {
         $ErrorActionPreference = $prevEap
     }
@@ -1191,8 +1400,10 @@ function Clear-JustPlayNasWebDavSession {
         }
     }
 
-    Clear-JustPlayNasNetworkRegistry -Letters ($lettersToClear.ToArray())
-    Restart-JustPlayExplorerShell
+    Clear-JustPlayNasNetworkRegistry -Letters $lettersToClear
+    Clear-JustPlayNasExplorerDriveRemnants -Letters $lettersToClear
+    Update-NasShellDriveNotify
+    Start-Sleep -Milliseconds 400
 }
 
 function Save-WebDavCredentials {
@@ -1341,7 +1552,6 @@ Neu van loi, lien he IT.
     foreach ($item in $assignments) {
         $shareName = [string]$item.ShareName
         $letter = [string]$item.Letter
-        Remove-NasDriveMap -Letter $letter
         $shareConnected = $false
 
         foreach ($plan in $planBag) {
@@ -1425,6 +1635,9 @@ Goi y:
         )
     }
 
+    Update-NasShellDriveNotify
+    Start-Sleep -Milliseconds 300
+
     return @{
         Mapped  = $mapped.ToArray()
         WinUser = $winUser
@@ -1459,16 +1672,15 @@ function Connect-JustPlayNasShare {
 
 function Open-NasExplorerForMappedShares {
     param([object[]]$Mapped)
-    if ($Mapped -and $Mapped.Count -gt 0) {
-        $first = [string]$Mapped[0].Letter
-        if ($first) {
-            $openPath = "${first}:\"
-            Start-Process explorer.exe $openPath
-            return $openPath
-        }
+    Start-Sleep -Milliseconds 800
+    Update-NasShellDriveNotify
+    $driveList = if ($Mapped -and $Mapped.Count -gt 0) {
+        ($Mapped | ForEach-Object { "$($_.Letter):" }) -join ', '
+    } else {
+        'Z:, Y:, ...'
     }
     Start-Process explorer.exe 'shell:MyComputerFolder'
-    return 'May tinh'
+    return "May tinh (This PC) — mo $driveList"
 }
 
 function Open-NasExplorerPath {
