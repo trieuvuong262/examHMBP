@@ -48,6 +48,7 @@ $requiredFns = @(
     'Invoke-NasWebDavMapTimed',
     'Resolve-NasConnectPlans',
     'Connect-JustPlayNasShare',
+    'Connect-AllJustPlayNasShares',
     'Show-JustPlayNasDialog'
 )
 $src = Get-Content -LiteralPath $ps1 -Raw
@@ -152,17 +153,58 @@ if ((Get-PrimaryNasShareName) -ne '02_HANH_CHINH_NHAN_SU') {
 }
 Ok 'scalar-string share name'
 
+$NasSharesCsv = '10_HE_THONG_CNTT,02_HANH_CHINH_NHAN_SU'
 $NasShareNames = [string[]]@('10_HE_THONG_CNTT', '02_HANH_CHINH_NHAN_SU')
 if ((Get-PrimaryNasShareName) -ne '10_HE_THONG_CNTT') {
     Fail "multi-share primary=$(Get-PrimaryNasShareName)"
 }
 Ok 'multi-share primary'
 
+$NasSharesCsv = '10_HE_THONG_CNTT,02_HANH_CHINH_NHAN_SU'
+$NasShareNames = [string[]]@('10_HE_THONG_CNTT', '02_HANH_CHINH_NHAN_SU')
+$p2 = Get-PrimaryNasShareName
+if ($p2 -match '\s') { Fail "primary has space: $p2" }
+if ($p2 -ne '10_HE_THONG_CNTT') { Fail "cached primary=$p2" }
+Ok 'vuonglnt dual-share primary'
+
+$assignments = Get-NasShareDriveAssignments
+if ($assignments.Count -ne 2) { Fail "drive assignments count=$($assignments.Count) expected 2" }
+if ($assignments[0].Letter -ne 'Z' -or $assignments[0].ShareName -ne '10_HE_THONG_CNTT') {
+    Fail "first assignment=$($assignments[0].Letter):$($assignments[0].ShareName)"
+}
+if ($assignments[1].Letter -ne 'Y' -or $assignments[1].ShareName -ne '02_HANH_CHINH_NHAN_SU') {
+    Fail "second assignment=$($assignments[1].Letter):$($assignments[1].ShareName)"
+}
+Ok 'multi-share drive letters Z Y'
+
+$NasSharesCsv = 'KD-MKT,05_MARKETING,KD-MKT'
+$listAlias = New-NasShareNameList
+if ($listAlias.Count -ne 1 -or $listAlias.Item(0) -ne '05_MARKETING') {
+    Fail "alias dedupe=$($listAlias -join '|') expected 05_MARKETING"
+}
+Ok 'KD-MKT alias dedupe to 05_MARKETING'
+
+$NasSharesCsv = '10_HE_THONG_CNTT 02_HANH_CHINH_NHAN_SU'
+$NasPrimaryShare = '10_HE_THONG_CNTT'
+$p3 = Resolve-SingleNasShareName '10_HE_THONG_CNTT 02_HANH_CHINH_NHAN_SU'
+if ($p3 -ne '10_HE_THONG_CNTT') { Fail "space-corrupt csv primary=$p3" }
+Ok 'space-corrupt csv fallback'
+
 $reach = Test-NasServerPort -HostName 'justplay.synology.me' -NasPort 5678
 if ($reach -ne 'justplay.synology.me') {
     Fail "port check returned IP/host $reach expected hostname"
 }
 Ok 'port check keeps hostname'
+
+# 10) Connect plans must stay objects (not unwrap to property values)
+$bag = Resolve-NasConnectPlans
+$planCount = 0
+foreach ($p in $bag) {
+    if ($null -eq $p.ConnectHost -or -not $p.ConnectHost) { Fail "plan missing ConnectHost type=$($p.GetType().Name)" }
+    $planCount++
+}
+if ($planCount -lt 1) { Fail 'no connect plans' }
+Ok "connect plans=$planCount (webdav-only)"
 
 Write-Host '--- ALL NAS PS1 VALIDATION PASSED ---' -ForegroundColor Cyan
 exit 0

@@ -32,10 +32,12 @@ PS1_MARKERS = (
     "Import-JustPlayNasConfig",
     "Merge-ShareNameLists",
     "Connect-JustPlayNasShare",
+    "Connect-AllJustPlayNasShares",
+    "Get-NasShareDriveAssignments",
     "Test-JustPlayNasBundleReady",
-    "NasScriptVersion = '2026.06.25.6'",
-    "New-NasShareNameList",
-    "ConnectHost",
+    "NasScriptVersion = '2026.06.25.16'",
+    "Resolve-SingleNasShareName",
+    "NasPrimaryShare",
 )
 
 
@@ -50,7 +52,7 @@ def validate_zip_bundle(content: bytes, label: str) -> list[str]:
         cfg = json.loads(zf.read("JustPlay-NAS-Config.json").decode("utf-8"))
         if not cfg.get("shares"):
             failed.append(f"{label}: config shares empty for {cfg.get('portal_username')}")
-        for key in ("server", "port", "ldap_domain", "portal_username", "drive_letter"):
+        for key in ("server", "port", "ldap_domain", "portal_username", "drive_letter", "primary_share"):
             if key not in cfg:
                 failed.append(f"{label}: config missing {key}")
 
@@ -60,6 +62,13 @@ def validate_zip_bundle(content: bytes, label: str) -> list[str]:
         ps1_text = ps1.decode("utf-8-sig", errors="replace")
         if "__NAS_SHARES__" in ps1_text:
             failed.append(f"{label}: ps1 has __NAS_SHARES__ placeholder")
+        if "__NAS_PRIMARY_SHARE__" in ps1_text:
+            failed.append(f"{label}: ps1 has __NAS_PRIMARY_SHARE__ placeholder")
+        m2 = re.search(r"\$NasPrimaryShare = '([^']*)'", ps1_text)
+        if cfg.get("primary_share") and m2 and m2.group(1) != cfg["primary_share"]:
+            failed.append(
+                f"{label}: primary_share mismatch ps1={m2.group(1)!r} json={cfg['primary_share']!r}"
+            )
         for marker in PS1_MARKERS:
             if marker not in ps1_text:
                 failed.append(f"{label}: ps1 missing {marker}")
@@ -140,10 +149,12 @@ def main():
             failed.append(f"Vuonglnt zip HTTP {vresp.status_code}")
         else:
             failed.extend(validate_zip_bundle(vresp.content, 'Vuonglnt'))
-            from nas_storage.download_shares import nas_mount_shares_for_user
-            expected = nas_mount_shares_for_user(vuong)
+            from nas_storage.download_shares import nas_webdav_shares_for_user
+            expected = nas_webdav_shares_for_user(vuong)
             if not expected:
-                failed.append('Vuonglnt: nas_mount_shares_for_user empty on server')
+                failed.append('Vuonglnt: nas_webdav_shares_for_user empty on server')
+            elif '10_HE_THONG_CNTT' not in expected:
+                failed.append(f'Vuonglnt: missing IT share in {expected}')
             else:
                 print(f'OK: Vuonglnt server shares={expected}')
     else:

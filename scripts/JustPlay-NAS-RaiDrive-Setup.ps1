@@ -1,4 +1,4 @@
-# JustPlay - tu dong gan o NAS qua WebDAV (cong 5678). SMB 445 chi du phong trong LAN.
+# JustPlay - tu dong gan o NAS qua WebDAV (cong 5678). Chi WebDAV, khong SMB.
 # User/pass = tai khoan Portal (LDAP). Khong can cau hinh RaiDrive thu cong.
 #
 # Chay: double-click JustPlay-NAS-RaiDrive-Setup.bat
@@ -17,10 +17,15 @@ $LdapDomain = '__NAS_LDAP_DOMAIN__'
 $PortalPasswordUrl = '__PORTAL_PASSWORD_URL__'
 $PortalUsernameHint = '__PORTAL_USERNAME__'
 $NasSharesCsv = '__NAS_SHARES__'
+$NasPrimaryShare = '__NAS_PRIMARY_SHARE__'
 $DeptFolderCode = '__NAS_DEPT_CODE__'
 $DriveLetterRaw = '__NAS_DRIVE_LETTER__'
 $BlockedDefaultPassword = 'justplay@123'
-$NasScriptVersion = '2026.06.25.6'
+$NasScriptVersion = '2026.06.25.16'
+
+$Script:NasWebDavShareAliases = @{
+    'KD-MKT' = '05_MARKETING'
+}
 
 function Get-ShareNameList {
     param([object]$Raw)
@@ -77,6 +82,22 @@ function Merge-ShareNameLists {
     return ,$arr
 }
 
+function Import-NasShareListFromMerge {
+    param([object[]]$Lists)
+    $list = New-Object System.Collections.Generic.List[string]
+    $seen = @{}
+    foreach ($rawList in $Lists) {
+        if (-not $rawList) { continue }
+        foreach ($name in (Get-ShareNameList $rawList)) {
+            $n = [string]$name
+            if (-not $n -or $seen.ContainsKey($n)) { continue }
+            $seen[$n] = $true
+            [void]$list.Add($n)
+        }
+    }
+    return ,$list
+}
+
 $inlineShares = Read-InlineNasShares
 $jsonConfig = Import-JustPlayNasConfig
 if ($jsonConfig) {
@@ -90,14 +111,23 @@ if ($jsonConfig) {
     if ($jsonConfig.portal_username) { $PortalUsernameHint = [string]$jsonConfig.portal_username }
     if ($null -ne $jsonConfig.dept_folder_code) { $DeptFolderCode = [string]$jsonConfig.dept_folder_code }
     if ($jsonConfig.drive_letter) { $DriveLetterRaw = [string]$jsonConfig.drive_letter }
+    if ($jsonConfig.primary_share) { $NasPrimaryShare = [string]$jsonConfig.primary_share }
+    if ($jsonConfig.webdav_share_aliases) {
+        foreach ($prop in $jsonConfig.webdav_share_aliases.PSObject.Properties) {
+            $Script:NasWebDavShareAliases[$prop.Name] = [string]$prop.Value
+        }
+    }
     $jsonShares = Get-ShareNameList $jsonConfig.shares
 } else {
     $jsonShares = @()
 }
 
-$NasShareNames = [string[]]@(Merge-ShareNameLists @($jsonShares, $inlineShares))
-if ($NasShareNames.Count -gt 0) {
-    $NasSharesCsv = ($NasShareNames -join ',')
+$shareList = Import-NasShareListFromMerge @($jsonShares, $inlineShares)
+if ($shareList.Count -gt 0) {
+    $NasSharesCsv = ($shareList.ToArray() -join ',')
+    if (-not $NasPrimaryShare -or $NasPrimaryShare -match '^__.+__$') {
+        $NasPrimaryShare = $shareList.Item(0)
+    }
 }
 
 if ($Server -eq '__NAS_SERVER__') { $Server = 'justplay.synology.me' }
@@ -118,20 +148,31 @@ if ($PortalUsernameHint -eq '__PORTAL_USERNAME__') { $PortalUsernameHint = '' }
 if ($DeptFolderCode -eq '__NAS_DEPT_CODE__') { $DeptFolderCode = '' }
 if ($DriveLetterRaw -eq '__NAS_DRIVE_LETTER__') { $DriveLetter = 'Z' } else { $DriveLetter = $DriveLetterRaw.Trim().ToUpperInvariant() }
 
+function Resolve-WebDavShareName {
+    param([string]$Name)
+    $n = ([string]$Name).Trim()
+    if (-not $n) { return '' }
+    if ($Script:NasWebDavShareAliases.ContainsKey($n)) {
+        return [string]$Script:NasWebDavShareAliases[$n]
+    }
+    return $n
+}
+
 function New-NasShareNameList {
     $result = New-Object System.Collections.Generic.List[string]
     $seen = @{}
-    foreach ($item in @($NasShareNames)) {
-        foreach ($name in (Get-ShareNameList $item)) {
-            $n = [string]$name
+    if ($NasSharesCsv -and $NasSharesCsv -notmatch '^__.+__$') {
+        foreach ($name in (Get-ShareNameList $NasSharesCsv)) {
+            $n = Resolve-WebDavShareName ([string]$name)
             if (-not $n -or $seen.ContainsKey($n)) { continue }
             $seen[$n] = $true
             [void]$result.Add($n)
         }
     }
-    if ($result.Count -lt 1 -and $NasSharesCsv -and $NasSharesCsv -notmatch '^__.+__$') {
-        foreach ($name in (Get-ShareNameList $NasSharesCsv)) {
-            $n = [string]$name
+    if ($result.Count -lt 1) {
+        $merged = Import-NasShareListFromMerge @($jsonShares, $inlineShares)
+        foreach ($name in $merged) {
+            $n = Resolve-WebDavShareName ([string]$name)
             if (-not $n -or $seen.ContainsKey($n)) { continue }
             $seen[$n] = $true
             [void]$result.Add($n)
@@ -140,10 +181,39 @@ function New-NasShareNameList {
     return ,$result
 }
 
+function Resolve-SingleNasShareName {
+    param([string]$Candidate = '')
+    if ($NasPrimaryShare -and $NasPrimaryShare -notmatch '^__.+__$') {
+        return $NasPrimaryShare.Trim()
+    }
+    if ($Candidate -and $Candidate -notmatch '\s' -and $Candidate -notmatch ',') {
+        return $Candidate.Trim()
+    }
+    if ($NasSharesCsv -and $NasSharesCsv -notmatch '^__.+__$') {
+        $commaIdx = $NasSharesCsv.IndexOf(',')
+        if ($commaIdx -gt 0) {
+            return $NasSharesCsv.Substring(0, $commaIdx).Trim()
+        }
+        if ($NasSharesCsv -match '\s') {
+            return (($NasSharesCsv -split '\s+')[0]).Trim()
+        }
+        return $NasSharesCsv.Trim()
+    }
+    $list = New-NasShareNameList
+    if ($null -ne $list -and $list.Count -ge 1) {
+        return $list.Item(0)
+    }
+    return ''
+}
+
 function Get-PrimaryNasShareName {
+    return (Resolve-SingleNasShareName '')
+}
+
+function Get-NasShareNamesLabel {
     $list = New-NasShareNameList
     if ($null -eq $list -or $list.Count -lt 1) { return '' }
-    return [string]$list[0]
+    return ($list.ToArray() -join ', ')
 }
 
 function Test-JustPlayNasBundleReady {
@@ -236,7 +306,60 @@ function Test-NasServerPort {
     throw "Khong mo duoc cong $NasPort toi $HostName (timeout ${TimeoutMs}ms)."
 }
 
+function Set-WebClientAuthForwardHost {
+    param(
+        [string]$HostName,
+        [int]$DavPort = 0
+    )
+    $hostName = [string]$HostName
+    if (-not $hostName) { return $false }
+    $basicPath = 'HKLM:\SYSTEM\CurrentControlSet\Services\WebClient\Parameters'
+    if (-not (Test-Path -LiteralPath $basicPath)) { return $false }
+    $changed = $false
+    try {
+        $toAdd = @($hostName)
+        if ($DavPort -gt 0) {
+            $toAdd += "${hostName}:${DavPort}"
+            $toAdd += "https://${hostName}:${DavPort}"
+            $toAdd += "https://${hostName}"
+        }
+        $cur = (Get-ItemProperty -Path $basicPath -Name AuthForwardServerList -ErrorAction SilentlyContinue).AuthForwardServerList
+        $entries = New-Object System.Collections.Generic.List[string]
+        if ($cur) {
+            foreach ($e in @($cur -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ })) {
+                [void]$entries.Add($e)
+            }
+        }
+        foreach ($item in $toAdd) {
+            if ($entries -notcontains $item) {
+                [void]$entries.Add($item)
+                $changed = $true
+            }
+        }
+        if ($changed) {
+            Set-ItemProperty -Path $basicPath -Name AuthForwardServerList -Value ($entries.ToArray() -join "`n") -ErrorAction Stop
+        }
+        $curBasic = Get-ItemProperty -Path $basicPath -Name BasicAuthLevel -ErrorAction SilentlyContinue
+        if ($null -eq $curBasic -or [int]$curBasic.BasicAuthLevel -lt 2) {
+            Set-ItemProperty -Path $basicPath -Name BasicAuthLevel -Value 2 -ErrorAction Stop
+            $changed = $true
+        }
+        $useBasic = Get-ItemProperty -Path $basicPath -Name UseBasicAuth -ErrorAction SilentlyContinue
+        if ($null -eq $useBasic -or [int]$useBasic.UseBasicAuth -ne 1) {
+            Set-ItemProperty -Path $basicPath -Name UseBasicAuth -Value 1 -Type DWord -ErrorAction SilentlyContinue
+            $changed = $true
+        }
+    } catch {
+        return $false
+    }
+    return $changed
+}
+
 function Ensure-WebClientReady {
+    param(
+        [string]$HostName,
+        [int]$DavPort
+    )
     $svc = Get-Service WebClient -ErrorAction SilentlyContinue
     if (-not $svc) {
         throw 'Khong tim thay dich vu WebClient tren Windows.'
@@ -246,17 +369,242 @@ function Ensure-WebClientReady {
             Set-Service WebClient -StartupType Manual -ErrorAction SilentlyContinue
             Start-Service WebClient -ErrorAction Stop
         } catch {
-            throw 'Dich vu WebClient chua chay. Mo services.msc -> WebClient -> Start (co the can Admin).'
+            throw 'Dich vu WebClient chua chay. Mo services.msc -> WebClient -> Start (can quyen Admin).'
         }
     }
-    $basicPath = 'HKLM:\SYSTEM\CurrentControlSet\Services\WebClient\Parameters'
-    if (Test-Path -LiteralPath $basicPath) {
+    $registryChanged = $false
+    foreach ($h in @($HostName, $Server, $NasFallbackServer)) {
+        if ($h) {
+            $registryChanged = (Set-WebClientAuthForwardHost -HostName $h -DavPort $DavPort) -or $registryChanged
+        }
+    }
+    if ($registryChanged) {
         try {
-            $cur = Get-ItemProperty -Path $basicPath -Name BasicAuthLevel -ErrorAction SilentlyContinue
-            if ($null -eq $cur -or [int]$cur.BasicAuthLevel -lt 2) {
-                Set-ItemProperty -Path $basicPath -Name BasicAuthLevel -Value 2 -ErrorAction SilentlyContinue
+            Restart-Service WebClient -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 2
+        } catch {
+            Write-Log 'Khong restart duoc WebClient - chay .bat bang quyen Administrator.'
+        }
+    }
+}
+
+function Get-NasPortalLoginNames {
+    param([string]$Username)
+    $logins = New-Object System.Collections.Generic.List[string]
+    $seen = @{}
+    foreach ($n in @($PortalUsernameHint, $Username)) {
+        $n = ([string]$n).Trim()
+        if (-not $n -or $seen.ContainsKey($n)) { continue }
+        $seen[$n] = $true
+        [void]$logins.Add($n)
+    }
+    return ,$logins.ToArray()
+}
+
+function Get-NasWebDavWinUsers {
+    param([string]$Username)
+    $formats = New-Object System.Collections.Generic.List[string]
+    $seen = @{}
+    foreach ($login in (Get-NasPortalLoginNames $Username)) {
+        foreach ($fmt in @(
+            "$login@$LdapDomain",
+            "$LdapDomain\$login",
+            $login
+        )) {
+            if ($seen.ContainsKey($fmt)) { continue }
+            $seen[$fmt] = $true
+            [void]$formats.Add($fmt)
+        }
+    }
+    return ,$formats.ToArray()
+}
+
+function Initialize-NasWNetApi {
+    if ($script:NasWNetApiReady) { return }
+    $source = @'
+using System;
+using System.Runtime.InteropServices;
+
+public class NasWNet {
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    public class NETRESOURCE {
+        public int dwScope = 0;
+        public int dwType = 1;
+        public int dwDisplayType = 0;
+        public int dwUsage = 0;
+        public string lpLocalName = null;
+        public string lpRemoteName = null;
+        public string lpComment = null;
+        public string lpProvider = null;
+    }
+
+    [DllImport("mpr.dll", CharSet = CharSet.Unicode)]
+    public static extern int WNetAddConnection2(NETRESOURCE lpNetResource, string lpPassword, string lpUsername, int dwFlags);
+
+    [DllImport("mpr.dll", CharSet = CharSet.Unicode)]
+    public static extern int WNetCancelConnection2(string lpName, int dwFlags, bool fForce);
+}
+'@
+    Add-Type -TypeDefinition $source -ErrorAction Stop
+    $script:NasWNetApiReady = $true
+}
+
+function Get-WNetErrorMessage {
+    param([int]$Code)
+    switch ($Code) {
+        1244 { return 'System error 1244 - user has not been authenticated (thu user dang UPN: Ten@ldap.justplay.local, dung hoa thuong Portal)' }
+        1326 { return 'System error 1326 - sai mat khau hoac user' }
+        1219 { return 'System error 1219 - da co ket noi WebDAV khac; thu ngat ket noi cu' }
+        default { return "WNetAddConnection2 error $Code" }
+    }
+}
+
+function Get-NasShareDriveLetterPool {
+    return @('Z', 'Y', 'X', 'W', 'V', 'U', 'T', 'S', 'R', 'Q', 'P', 'O', 'N', 'M', 'L', 'K', 'J', 'I', 'H', 'G', 'F', 'E', 'D', 'C')
+}
+
+function Get-NasShareDriveAssignments {
+    $shares = New-NasShareNameList
+    if ($null -eq $shares -or $shares.Count -lt 1) {
+        return @()
+    }
+    $pool = Get-NasShareDriveLetterPool
+    $start = 0
+    if ($DriveLetter) {
+        $idx = [array]::IndexOf($pool, $DriveLetter)
+        if ($idx -ge 0) { $start = $idx }
+    }
+    $result = New-Object System.Collections.Generic.List[object]
+    for ($i = 0; $i -lt $shares.Count; $i++) {
+        if (($start + $i) -ge $pool.Count) { break }
+        $name = Resolve-SingleNasShareName ([string]$shares.Item($i))
+        if (-not $name) { continue }
+        [void]$result.Add([pscustomobject]@{
+            ShareName = $name
+            Letter    = $pool[$start + $i]
+        })
+    }
+    return ,$result.ToArray()
+}
+
+function Format-NasDriveAssignmentsLabel {
+    $assignments = Get-NasShareDriveAssignments
+    if ($null -eq $assignments -or $assignments.Count -lt 1) { return '' }
+    return (($assignments | ForEach-Object { "$($_.Letter): $($_.ShareName)" }) -join ', ')
+}
+
+function Clear-NasWebDavHostConnections {
+    param(
+        [string]$HostName,
+        [int]$DavPort,
+        [string]$Letter = ''
+    )
+    if ($Letter) {
+        Remove-NasDriveMap -Letter $Letter
+    }
+}
+
+function Invoke-NasWebDavPsDriveMap {
+    param(
+        [string]$Letter,
+        [string]$RemoteSpec,
+        [string]$WinUser,
+        [string]$PlainPassword
+    )
+    if (-not (Get-Command New-PSDrive -ErrorAction SilentlyContinue)) {
+        throw 'New-PSDrive khong co'
+    }
+    if (Get-PSDrive -Name $Letter -ErrorAction SilentlyContinue) {
+        Remove-PSDrive -Name $Letter -Force -ErrorAction SilentlyContinue
+    }
+    $secure = ConvertTo-SecureString $PlainPassword -AsPlainText -Force
+    $cred = New-Object System.Management.Automation.PSCredential($WinUser, $secure)
+    $null = New-PSDrive -Name $Letter -PSProvider FileSystem -Root $RemoteSpec `
+        -Credential $cred -Persist -Scope Global -ErrorAction Stop
+    if (-not (Test-Path "${Letter}:\")) {
+        throw 'PSDrive map xong nhung khong doc duoc o dia'
+    }
+}
+
+function Invoke-NasWebDavWNetMap {
+    param(
+        [string]$Letter,
+        [string]$RemoteSpec,
+        [string]$WinUser,
+        [string]$PlainPassword
+    )
+    Initialize-NasWNetApi
+    $localPath = "${Letter}:"
+    [void][NasWNet]::WNetCancelConnection2($localPath, 0, $true)
+    $nr = New-Object NasWNet+NETRESOURCE
+    $nr.lpLocalName = $localPath
+    $nr.lpRemoteName = $RemoteSpec
+    foreach ($flags in @(0x4, 0x1)) {
+        $rc = [NasWNet]::WNetAddConnection2($nr, $PlainPassword, $WinUser, $flags)
+        if ($rc -eq 0) { return }
+    }
+    throw (Get-WNetErrorMessage $rc)
+}
+
+function Resolve-NasWebDavWinUser {
+    param(
+        [string]$HostName,
+        [int]$DavPort,
+        [string]$ShareName,
+        [string]$Username,
+        [string]$PlainPassword
+    )
+    foreach ($winUser in (Get-NasWebDavWinUsers $Username)) {
+        try {
+            $authOk = Test-NasWebDavAuth -HostName $HostName -DavPort $DavPort -ShareName $ShareName `
+                -WinUser $winUser -PlainPassword $PlainPassword
+            if ($authOk -eq $true) {
+                return $winUser
             }
-        } catch {}
+        } catch {
+            continue
+        }
+    }
+    return $null
+}
+
+function Test-NasWebDavAuth {
+    param(
+        [string]$HostName,
+        [int]$DavPort,
+        [string]$ShareName,
+        [string]$WinUser,
+        [string]$PlainPassword
+    )
+    if (-not $HostName) { throw 'Thieu hostname WebDAV.' }
+    $url = Get-WebDavShareUrl -HostName $HostName -DavPort $DavPort -ShareName $ShareName
+    $prevCb = [System.Net.ServicePointManager]::ServerCertificateValidationCallback
+    try {
+        [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
+        $req = [System.Net.HttpWebRequest]::Create($url)
+        $req.Method = 'HEAD'
+        $req.Timeout = 8000
+        $req.Credentials = New-Object System.Net.NetworkCredential($WinUser, $PlainPassword)
+        $req.PreAuthenticate = $true
+        try {
+            $resp = $req.GetResponse()
+            $code = [int]$resp.StatusCode
+            $resp.Close()
+            return ($code -ge 200 -and $code -lt 400)
+        } catch [System.Net.WebException] {
+            $resp = $_.Exception.Response
+            if (-not $resp) { throw $_.Exception.Message }
+            $code = [int]$resp.StatusCode
+            $resp.Close()
+            if ($code -eq 401) { return $false }
+            if ($code -eq 404) { throw "Share khong ton tai tren WebDAV: $ShareName" }
+            if ($code -eq 403) {
+                return $true
+            }
+            return ($code -ge 200 -and $code -lt 400)
+        }
+    } finally {
+        [System.Net.ServicePointManager]::ServerCertificateValidationCallback = $prevCb
     }
 }
 
@@ -306,20 +654,30 @@ function Invoke-NasWebDavMapTimed {
         [string]$ShareName,
         [string]$WinUser,
         [string]$PlainPassword,
+        [switch]$SkipCredentialPrep,
         [int]$TimeoutSec = $NasConnectTimeoutSec
     )
-    Ensure-WebClientReady
+    if (-not $SkipCredentialPrep) {
+        Ensure-WebClientReady -HostName $HostName -DavPort $DavPort
+        Save-WebDavCredentials -HostName $HostName -DavPort $DavPort -WinUser $WinUser -PlainPassword $PlainPassword
+    }
+    Clear-NasWebDavHostConnections -HostName $HostName -DavPort $DavPort -Letter $Letter
     $davUrl = Get-WebDavShareUrl -HostName $HostName -DavPort $DavPort -ShareName $ShareName
     $davUnc = Get-WebDavUncPath -HostName $HostName -DavPort $DavPort -ShareName $ShareName
     $lastErr = $null
-    foreach ($spec in @($davUrl, $davUnc)) {
-        try {
-            Invoke-NasWebDavNetUse -Letter $Letter -RemoteSpec $spec -WinUser $WinUser `
-                -PlainPassword $PlainPassword -Label "WebDAV $spec"
-            return $spec
-        } catch {
-            $lastErr = $_.Exception.Message
-            if (-not $lastErr) { $lastErr = [string]$_ }
+    foreach ($spec in @($davUnc, $davUrl)) {
+        foreach ($mapFn in @(
+            { param($s) Invoke-NasWebDavPsDriveMap -Letter $Letter -RemoteSpec $s -WinUser $WinUser -PlainPassword $PlainPassword },
+            { param($s) Invoke-NasWebDavWNetMap -Letter $Letter -RemoteSpec $s -WinUser $WinUser -PlainPassword $PlainPassword },
+            { param($s) Invoke-NasWebDavNetUse -Letter $Letter -RemoteSpec $s -WinUser $WinUser -PlainPassword $PlainPassword -Label "WebDAV $s" }
+        )) {
+            try {
+                & $mapFn $spec
+                return $spec
+            } catch {
+                $lastErr = $_.Exception.Message
+                if (-not $lastErr) { $lastErr = [string]$_ }
+            }
         }
     }
     throw $lastErr
@@ -329,29 +687,18 @@ function Resolve-NasConnectPlans {
     $plans = New-Object System.Collections.Generic.List[object]
     $failures = New-Object System.Collections.Generic.List[string]
     foreach ($candidate in (Get-NasServerCandidates)) {
+        $hostLabel = [string]$candidate
+        if (-not $hostLabel) { continue }
         try {
-            $hostReach = Test-NasServerPort -HostName $candidate -NasPort $WebDavPort
+            $null = Test-NasServerPort -HostName $hostLabel -NasPort $WebDavPort
             [void]$plans.Add([pscustomobject]@{
-                Host = [string]$hostReach
-                ConnectHost = [string]$candidate
+                Host = $hostLabel
+                ConnectHost = $hostLabel
                 Protocol = 'webdav'
                 Port = [int]$WebDavPort
             })
         } catch {
-            [void]$failures.Add("WebDAV ${candidate}:${WebDavPort} - $($_.Exception.Message)")
-        }
-    }
-    if ($NasFallbackServer) {
-        try {
-            $hostReach = Test-NasServerPort -HostName $NasFallbackServer -NasPort $SmbPort
-            [void]$plans.Add([pscustomobject]@{
-                Host = [string]$hostReach
-                ConnectHost = [string]$NasFallbackServer
-                Protocol = 'smb'
-                Port = [int]$SmbPort
-            })
-        } catch {
-            [void]$failures.Add("SMB fallback ${NasFallbackServer}:${SmbPort} - $($_.Exception.Message)")
+            [void]$failures.Add("WebDAV ${hostLabel}:${WebDavPort} - $($_.Exception.Message)")
         }
     }
     if ($plans.Count -lt 1) {
@@ -364,7 +711,7 @@ $($failures -join "`n")
 Thu WebDAV: https://${Server}:${WebDavPort}/${shareHint}
 "@
     }
-    return @($plans.ToArray())
+    return ,$plans
 }
 
 function Invoke-ProcessWithTimeout {
@@ -462,10 +809,36 @@ function Remove-NasDriveMap {
     }
 }
 
+function Save-WebDavCredentials {
+    param(
+        [string]$HostName,
+        [int]$DavPort,
+        [string]$WinUser,
+        [string]$PlainPassword
+    )
+    $targets = @(
+        "https://${HostName}:${DavPort}",
+        "https://${HostName}",
+        "${HostName}:${DavPort}",
+        $HostName
+    )
+    foreach ($target in $targets) {
+        & cmdkey /delete:$target 2>$null | Out-Null
+        & cmdkey /delete:"MicrosoftOffice16_Data:$target" 2>$null | Out-Null
+        $null = & cmdkey /generic:$target /user:$WinUser /pass:$PlainPassword 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            $null = & cmdkey /add:$target /user:$WinUser /pass:$PlainPassword 2>&1
+        }
+    }
+}
+
 function Save-NasCredential {
     param([string]$Target, [string]$WinUser, [string]$PlainPassword)
     & cmdkey /delete:$Target 2>$null | Out-Null
-    $null = & cmdkey /add:$Target /user:$WinUser /pass:$PlainPassword
+    $null = & cmdkey /generic:$Target /user:$WinUser /pass:$PlainPassword 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        $null = & cmdkey /add:$Target /user:$WinUser /pass:$PlainPassword
+    }
 }
 
 function Invoke-NasNetUseTimed {
@@ -543,14 +916,13 @@ function Invoke-NasSmbMapping {
         -PlainPassword $plain -NasPort $SmbPort
 }
 
-function Connect-JustPlayNasShare {
+function Connect-AllJustPlayNasShares {
     param(
         [string]$Username,
-        [string]$Password,
-        [string]$ShareName,
-        [string]$Letter
+        [string]$Password
     )
-    if (-not $ShareName) {
+    $assignments = Get-NasShareDriveAssignments
+    if ($null -eq $assignments -or $assignments.Count -lt 1) {
         throw @"
 Chua co share NAS trong bo cai.
 1) Vao Portal -> Thu vien -> Tai NAS -> tai lai ZIP moi
@@ -558,91 +930,147 @@ Chua co share NAS trong bo cai.
 Neu van loi, lien he IT.
 "@
     }
-    $plans = Resolve-NasConnectPlans
-    $winUsers = @(
-        "$Username@$LdapDomain",
-        "$LdapDomain\$Username",
-        $Username
-    )
-    Remove-NasDriveMap -Letter $Letter
+
+    $planBag = Resolve-NasConnectPlans
     $errors = New-Object System.Collections.Generic.List[string]
+    $mapped = New-Object System.Collections.Generic.List[object]
+    $winUser = $null
+    $prepHost = $null
+    $prepPort = 0
+    $credentialSaved = $false
 
-    foreach ($plan in $plans) {
-        $resolvedServer = $plan.Host
-        $connectPort = $plan.Port
-        $protocol = $plan.Protocol
+    foreach ($item in $assignments) {
+        $shareName = [string]$item.ShareName
+        $letter = [string]$item.Letter
+        Remove-NasDriveMap -Letter $letter
+        $shareConnected = $false
 
-        foreach ($winUser in $winUsers) {
-            $credTarget = if ($protocol -eq 'webdav') { $plan.ConnectHost } else { $resolvedServer }
-            Save-NasCredential -Target $credTarget -WinUser $winUser -PlainPassword $Password
-            if ($protocol -eq 'webdav') {
+        foreach ($plan in $planBag) {
+            if (-not $plan -or -not $plan.ConnectHost) { continue }
+            $resolvedServer = [string]$plan.ConnectHost
+            $connectPort = [int]$plan.Port
+
+            if (-not $winUser) {
+                $winUser = Resolve-NasWebDavWinUser -HostName $resolvedServer -DavPort $connectPort `
+                    -ShareName $shareName -Username $Username -PlainPassword $Password
+                if (-not $winUser) {
+                    [void]$errors.Add("Share ${shareName}: mat khau sai hoac share khong ton tai tren WebDAV")
+                    break
+                }
+            } else {
+                $authOk = $null
                 try {
-                    $davUrl = Invoke-NasWebDavMapTimed -Letter $Letter -HostName $plan.ConnectHost `
-                        -DavPort $connectPort -ShareName $ShareName -WinUser $winUser -PlainPassword $Password
-                    return @{
-                        Letter = $Letter
-                        RemotePath = $davUrl
-                        WinUser = $winUser
-                        Method = "WebDAV ($connectPort)"
-                    }
+                    $authOk = Test-NasWebDavAuth -HostName $resolvedServer -DavPort $connectPort `
+                        -ShareName $shareName -WinUser $winUser -PlainPassword $Password
                 } catch {
-                    $errors.Add("WebDAV ${plan.ConnectHost}:${connectPort} ($winUser): $($_.Exception.Message)")
+                    $authOk = $null
                 }
-                continue
+                if ($authOk -eq $false) {
+                    [void]$errors.Add("Share ${shareName}: khong co quyen WebDAV voi user $winUser")
+                    break
+                }
             }
 
-            $remotePath = "\\$resolvedServer\$ShareName"
-            $useTcpPort = ($connectPort -ne 445)
-            try {
-                Invoke-NasSmbMappingTimed -Letter $Letter -RemotePath $remotePath -WinUser $winUser `
-                    -PlainPassword $Password -NasPort $connectPort
-                return @{
-                    Letter = $Letter
-                    RemotePath = $remotePath
-                    WinUser = $winUser
-                    Method = if ($connectPort -eq 445) { 'SMB (445)' } else { "SMB ($connectPort)" }
-                }
-            } catch {
-                $errors.Add("SMB ${resolvedServer}:${connectPort} ($winUser): $($_.Exception.Message)")
+            if (-not $credentialSaved) {
+                Ensure-WebClientReady -HostName $resolvedServer -DavPort $connectPort
+                Save-WebDavCredentials -HostName $resolvedServer -DavPort $connectPort `
+                    -WinUser $winUser -PlainPassword $Password
+                $prepHost = $resolvedServer
+                $prepPort = $connectPort
+                $credentialSaved = $true
             }
+
+            $davTarget = "https://${resolvedServer}:${connectPort}/${shareName}/"
             try {
-                Invoke-NasNetUseTimed -Letter $Letter -RemotePath $remotePath -WinUser $winUser `
-                    -PlainPassword $Password -UseTcpPort:$useTcpPort -NasPort $connectPort
-                return @{
-                    Letter = $Letter
-                    RemotePath = $remotePath
-                    WinUser = $winUser
-                    Method = if ($useTcpPort) { "net use /TCPPORT:$connectPort" } else { 'net use SMB (445)' }
-                }
+                $davUrl = Invoke-NasWebDavMapTimed -Letter $letter -HostName $resolvedServer `
+                    -DavPort $connectPort -ShareName $shareName -WinUser $winUser `
+                    -PlainPassword $Password -SkipCredentialPrep
+                [void]$mapped.Add([pscustomobject]@{
+                    Letter     = $letter
+                    ShareName  = $shareName
+                    RemotePath = $davUrl
+                    Method     = "WebDAV ($resolvedServer`:$connectPort)"
+                })
+                $shareConnected = $true
+                break
             } catch {
-                $label = if ($useTcpPort) { "net use /TCPPORT:$connectPort" } else { 'net use SMB (445)' }
-                $errors.Add("${label} ${resolvedServer} ($winUser): $($_.Exception.Message)")
+                $msg = $_.Exception.Message
+                if (-not $msg) { $msg = [string]$_ }
+                [void]$errors.Add("Share ${shareName} (${letter}:): WebDAV $davTarget ($winUser): $msg")
             }
+        }
+
+        if (-not $shareConnected -and -not $winUser) {
+            break
         }
     }
 
-    throw (@"
-Khong ket noi duoc NAS.
-Share: $ShareName
-User: $Username
+    if ($mapped.Count -lt 1) {
+        $shareLabel = (Format-NasDriveAssignmentsLabel)
+    if (-not $shareLabel) {
+        $shareLabel = (($assignments | ForEach-Object { $_.ShareName }) -join ', ')
+    }
+        $loginHint = if ($winUser) { $winUser } else { "$Username@$LdapDomain" }
+        throw (@"
+Khong ket noi duoc NAS (WebDAV).
+Shares da thu: $shareLabel
+User Portal: $Username
 $($errors -join "`n")
 
-Goi y: kiem tra mat khau Portal; WebDAV https://${Server}:${WebDavPort}/$ShareName
+Goi y:
+- Dung user dang UPN: $loginHint
+- Mat khau = mat khau Portal; doi mat khau Portal de dong bo LDAP NAS
+- URL: https://${Server}:${WebDavPort}/<share>
+- Chay .bat bang quyen Administrator
 "@
+        )
+    }
+
+    return @{
+        Mapped  = $mapped.ToArray()
+        WinUser = $winUser
+        Errors  = @($errors | Where-Object { $_ })
+        PrepHost = $prepHost
+        PrepPort = $prepPort
+    }
+}
+
+function Connect-JustPlayNasShare {
+    param(
+        [string]$Username,
+        [string]$Password,
+        [string]$ShareName,
+        [string]$Letter
     )
+    $result = Connect-AllJustPlayNasShares -Username $Username -Password $Password
+    $first = $result.Mapped | Select-Object -First 1
+    if (-not $first) {
+        throw 'Khong co share NAS nao duoc gan.'
+    }
+    return @{
+        Letter     = $first.Letter
+        RemotePath = $first.RemotePath
+        WinUser    = $result.WinUser
+        ShareName  = $first.ShareName
+        Method     = $first.Method
+        Mapped     = $result.Mapped
+        Errors     = $result.Errors
+    }
+}
+
+function Open-NasExplorerForMappedShares {
+    param([object[]]$Mapped)
+    if ($Mapped -and $Mapped.Count -gt 0) {
+        Start-Process explorer.exe 'shell:MyComputerFolder'
+        return 'May tinh (cac o NAS da gan)'
+    }
+    Start-Process explorer.exe 'shell:MyComputerFolder'
+    return 'May tinh'
 }
 
 function Open-NasExplorerPath {
     param([string]$Letter, [string]$Username)
     $openPath = "${Letter}:\"
-    if ($DeptFolderCode -and $Username) {
-        $personal = Join-Path $openPath "$DeptFolderCode\$Username"
-        if (Test-Path $personal) {
-            $openPath = $personal
-        } elseif (Test-Path (Join-Path $openPath $DeptFolderCode)) {
-            $openPath = Join-Path $openPath $DeptFolderCode
-        }
-    }
     Start-Process explorer.exe $openPath
     return $openPath
 }
@@ -663,8 +1091,11 @@ function Show-JustPlayNasDialog {
     $fontLabel = New-Object System.Drawing.Font('Segoe UI', 9, [System.Drawing.FontStyle]::Bold)
 
     $primaryShare = Get-PrimaryNasShareName
+    $allSharesLabel = Get-NasShareNamesLabel
+    $drivePlanLabel = Format-NasDriveAssignmentsLabel
     $shareLabel = if ($primaryShare) { $primaryShare } else { 'NAS' }
-    $driveHint = "${DriveLetter}:"
+    $assignments = Get-NasShareDriveAssignments
+    $driveCount = if ($assignments) { $assignments.Count } else { 0 }
 
     $form = New-Object System.Windows.Forms.Form
     $form.Text = 'JustPlay NAS'
@@ -693,8 +1124,10 @@ function Show-JustPlayNasDialog {
     $header.Controls.Add($lblBrand)
 
     $lblSub = New-Object System.Windows.Forms.Label
-    $lblSub.Text = if ($primaryShare) {
-        "Tu dong gan o $driveHint ($shareLabel) - script $NasScriptVersion"
+    $lblSub.Text = if ($drivePlanLabel) {
+        "Gan $driveCount o dia: $drivePlanLabel | $NasScriptVersion"
+    } elseif ($primaryShare) {
+        "Chua gan duoc ke hoach o dia - tai lai ZIP [$NasScriptVersion]"
     } else {
         "Chua co share trong ZIP - tai lai tu Portal (Thu vien -> Tai NAS) [$NasScriptVersion]"
     }
@@ -752,7 +1185,11 @@ function Show-JustPlayNasDialog {
     $card.Controls.Add($tbPass)
 
     $lblHint = New-Object System.Windows.Forms.Label
-    $lblHint.Text = "WebDAV cong $WebDavPort - gan o $driveHint, mo Explorer sau khi dang nhap."
+    $lblHint.Text = if ($driveCount -gt 1) {
+        "WebDAV cong $WebDavPort - gan $driveCount share (moi share mot o dia), mo May tinh sau khi dang nhap."
+    } else {
+        "WebDAV cong $WebDavPort - gan share NAS thanh o dia, mo May tinh sau khi dang nhap."
+    }
     $lblHint.Font = New-Object System.Drawing.Font('Segoe UI', 8.5)
     $lblHint.ForeColor = $jpMuted
     $lblHint.AutoSize = $false
@@ -816,7 +1253,11 @@ function Show-JustPlayNasDialog {
     $logPanel.Controls.Add($btnCopyAll)
 
     $btnConnect = New-Object System.Windows.Forms.Button
-    $btnConnect.Text = "Ket noi NAS ($driveHint)"
+    $btnConnect.Text = if ($driveCount -gt 1) {
+        "Ket noi NAS ($driveCount o dia)"
+    } else {
+        "Ket noi NAS"
+    }
     $btnConnect.Font = New-Object System.Drawing.Font('Segoe UI', 10.5, [System.Drawing.FontStyle]::Bold)
     $btnConnect.FlatStyle = 'Flat'
     $btnConnect.FlatAppearance.BorderSize = 0
@@ -932,7 +1373,7 @@ function Show-JustPlayNasDialog {
         }
         if (Test-DefaultPasswordBlocked) { return }
 
-        $shareName = Get-PrimaryNasShareName
+        $shareName = Resolve-SingleNasShareName (Get-PrimaryNasShareName)
         if (-not $shareName) {
             Set-Status 'Chua co share trong ZIP. Tai lai tu Portal (Thu vien -> Tai NAS).'
             return
@@ -941,16 +1382,23 @@ function Show-JustPlayNasDialog {
         $btnConnect.Enabled = $false
         $script:connectUser = $user
         $script:connectShare = $shareName
-        Set-LogText -Text 'Dang ket noi NAS (toi da ~60s)...' -Level info
+        $mapCount = (Get-NasShareDriveAssignments).Count
+        Set-LogText -Text "Dang ket noi $mapCount share NAS (toi da ~$($mapCount * 60)s)..." -Level info
         [System.Windows.Forms.Application]::DoEvents()
 
         try {
-            $result = Connect-JustPlayNasShare -Username $user -Password $tbPass.Text `
-                -ShareName $shareName -Letter $DriveLetter
-            $opened = Open-NasExplorerPath -Letter $DriveLetter -Username $user
-            Write-Log "OK: $($result.Letter): -> $($result.RemotePath) ($($result.Method))"
+            $result = Connect-AllJustPlayNasShares -Username $user -Password $tbPass.Text
+            $opened = Open-NasExplorerForMappedShares -Mapped $result.Mapped
+            $mapLines = ($result.Mapped | ForEach-Object { "$($_.Letter): -> $($_.ShareName)" }) -join "`n"
+            foreach ($m in $result.Mapped) {
+                Write-Log "OK: $($m.Letter): -> $($m.RemotePath) ($($m.Method))"
+            }
+            $warnText = ''
+            if ($result.Errors -and $result.Errors.Count -gt 0) {
+                $warnText = "`n`nCanh bao (mot so share khong gan duoc):`n$($result.Errors -join "`n")"
+            }
             [System.Windows.Forms.MessageBox]::Show(
-                "Da ket noi NAS thanh cong.`n`nO dia: $($result.Letter):`nShare: $shareName`nDa mo: $opened",
+                "Da gan NAS thanh cong.`n`n$mapLines`n`nUser WebDAV: $($result.WinUser)`nDa mo: $opened$warnText",
                 'JustPlay NAS',
                 'OK',
                 'Information'

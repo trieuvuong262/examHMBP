@@ -16,12 +16,12 @@ from django.views.decorators.http import require_GET
 from assessment.decorators import module_perm_required
 from hrm.menu_permissions import user_can_access_menu
 from hrm.module_permissions import MODULE_DOCUMENTS
-from nas_storage.download_shares import nas_mount_shares_for_user
+from nas_storage.download_shares import WEBDAV_SHARE_ALIASES, nas_webdav_shares_for_user
 from nas_storage.nas_paths import user_department_folder_code
 
 
 def nas_shares_for_user(user) -> list[str]:
-    return nas_mount_shares_for_user(user)
+    return nas_webdav_shares_for_user(user)
 
 
 def nas_download_config() -> dict:
@@ -77,6 +77,8 @@ def _prepare_bat(body: str) -> bytes:
 
 def nas_user_bundle_config(request, user, cfg: dict) -> dict:
     portal_base = request.build_absolute_uri('/').rstrip('/')
+    shares = nas_shares_for_user(user)
+    primary = shares[0] if shares else ''
     return {
         'bundle_version': 1,
         'server': cfg['server'],
@@ -87,7 +89,9 @@ def nas_user_bundle_config(request, user, cfg: dict) -> dict:
         'ldap_domain': cfg['ldap_domain'],
         'portal_password_url': f'{portal_base}/accounts/password/change/',
         'portal_username': user.username,
-        'shares': nas_shares_for_user(user),
+        'shares': shares,
+        'primary_share': primary,
+        'webdav_share_aliases': dict(WEBDAV_SHARE_ALIASES),
         'dept_folder_code': user_department_folder_code(user) or '',
         'drive_letter': 'Z',
     }
@@ -104,6 +108,7 @@ def _personalize_ps1(body: str, bundle: dict) -> str:
         '__PORTAL_PASSWORD_URL__': str(bundle['portal_password_url']),
         '__PORTAL_USERNAME__': str(bundle['portal_username']),
         '__NAS_SHARES__': ','.join(bundle['shares']),
+        '__NAS_PRIMARY_SHARE__': str(bundle.get('primary_share', '') or (bundle['shares'][0] if bundle['shares'] else '')),
         '__NAS_DEPT_CODE__': str(bundle['dept_folder_code']),
         '__NAS_DRIVE_LETTER__': str(bundle['drive_letter']),
     }
@@ -145,7 +150,10 @@ def nas_download_setup(request):
             'JustPlay-NAS-Config.json',
             json.dumps(bundle, ensure_ascii=False, indent=2).encode('utf-8'),
         )
-        share_line = bundle['shares'][0] if bundle['shares'] else '(chua xac dinh phong ban)'
+        share_line = ', '.join(
+            f"{chr(ord('Z') - i)}: {name}"
+            for i, name in enumerate(bundle['shares'])
+        ) if bundle['shares'] else '(chua xac dinh phong ban)'
         archive.writestr(
             'HUONG-DAN.txt',
             _prepare_bat(
@@ -153,9 +161,8 @@ def nas_download_setup(request):
                 '1. Giai nen zip\r\n'
                 '2. Chay JustPlay-NAS-RaiDrive-Setup.bat\r\n'
                 '3. Nhap ten dang nhap va mat khau Portal\r\n'
-                f'4. He thong tu gan o Z: (share {share_line}) qua WebDAV\r\n'
+                f'4. He thong tu gan moi share mot o dia: {share_line}\r\n'
                 f'5. WebDAV: https://{cfg["server"]}:{cfg["webdav_port"]}/<share>\r\n'
-                f'6. SMB {cfg.get("smb_port", 445)} chi du phong LAN ({cfg.get("fallback_server") or "IT"})\r\n'
             ),
         )
 
