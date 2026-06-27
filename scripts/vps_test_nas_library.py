@@ -39,7 +39,7 @@ PS1_MARKERS = (
     "Connect-AllJustPlayNasShares",
     "Get-NasShareDriveAssignments",
     "Test-JustPlayNasBundleReady",
-    "NasScriptVersion = '2026.06.28.15'",
+    "NasScriptVersion = '2026.06.28.17'",
     "Resolve-SingleNasShareName",
     "NasPrimaryShare",
 )

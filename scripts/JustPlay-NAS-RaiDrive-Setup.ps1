@@ -21,7 +21,7 @@ $NasPrimaryShare = '__NAS_PRIMARY_SHARE__'
 $DeptFolderCode = '__NAS_DEPT_CODE__'
 $DriveLetterRaw = '__NAS_DRIVE_LETTER__'
 $BlockedDefaultPassword = 'justplay@123'
-$NasScriptVersion = '2026.06.28.15'
+$NasScriptVersion = '2026.06.28.17'
 
 $Script:NasWebDavShareAliases = @{
     'KD-MKT' = '05_MARKETING'
@@ -515,6 +515,28 @@ function Test-WebClientRegistryReady {
         return $true
     } catch {
         return $false
+    }
+}
+
+function Ensure-WebClientServiceRunning {
+    $svc = Get-Service WebClient -ErrorAction SilentlyContinue
+    if (-not $svc) {
+        throw 'Khong tim thay dich vu WebClient tren Windows.'
+    }
+    if ($svc.Status -eq 'Running') { return }
+    try {
+        Set-Service WebClient -StartupType Manual -ErrorAction SilentlyContinue
+        Start-Service WebClient -ErrorAction Stop
+        Start-Sleep -Milliseconds 800
+        return
+    } catch {}
+    $plan = Resolve-NasConnectPlans | Select-Object -First 1
+    if ($plan -and $plan.ConnectHost) {
+        Invoke-JustPlayWebClientPrep -HostName ([string]$plan.ConnectHost) -DavPort ([int]$plan.Port)
+    }
+    $svc = Get-Service WebClient -ErrorAction SilentlyContinue
+    if (-not $svc -or $svc.Status -ne 'Running') {
+        throw 'Dich vu WebClient chua chay. Chap nhan UAC khi duoc hoi (chay lai EXE) hoac Start service WebClient trong services.msc.'
     }
 }
 
@@ -1161,7 +1183,10 @@ function Test-NasDriveLetterReady {
 }
 
 function Update-NasShellDriveNotify {
-    param([string[]]$Letters = @())
+    param(
+        [string[]]$Letters = @(),
+        [switch]$Remove
+    )
     try {
         if (-not ('ShellNotify' -as [type])) {
             Add-Type @"
@@ -1178,19 +1203,32 @@ public class ShellNotify {
 }
 "@
         }
+        $eventId = if ($Remove) { [ShellNotify]::SHCNE_DRIVEREMOVED } else { [ShellNotify]::SHCNE_DRIVEADD }
         foreach ($letter in $Letters) {
             $l = ([string]$letter).Trim().ToUpperInvariant()
             if (-not $l) { continue }
             $path = "${l}:\"
             $ptr = [Runtime.InteropServices.Marshal]::StringToHGlobalUni($path)
             try {
-                [ShellNotify]::SHChangeNotify([ShellNotify]::SHCNE_DRIVEADD, [ShellNotify]::SHCNF_PATH, $ptr, [IntPtr]::Zero) | Out-Null
+                [ShellNotify]::SHChangeNotify($eventId, [ShellNotify]::SHCNF_PATH, $ptr, [IntPtr]::Zero) | Out-Null
             } finally {
                 [Runtime.InteropServices.Marshal]::FreeHGlobal($ptr)
             }
         }
         [ShellNotify]::SHChangeNotify([ShellNotify]::SHCNE_ASSOCCHANGED, [ShellNotify]::SHCNF_FLUSH, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
     } catch {}
+}
+
+function Get-JustPlayNasPlannedDriveLetters {
+    $letters = New-Object System.Collections.Generic.List[string]
+    $seen = @{}
+    foreach ($item in (Get-NasShareDriveAssignments)) {
+        $l = ([string]$item.Letter).Trim().ToUpperInvariant()
+        if (-not $l -or $seen.ContainsKey($l)) { continue }
+        $seen[$l] = $true
+        [void]$letters.Add($l)
+    }
+    return ,$letters.ToArray()
 }
 
 function Get-JustPlayNasLettersToClear {
@@ -1305,6 +1343,9 @@ function Clear-JustPlayNasSmbMappings {
 function Clear-JustPlayNasExplorerDriveRemnants {
     param([string[]]$Letters = @())
     if (-not $Letters -or $Letters.Count -lt 1) {
+        $Letters = Get-JustPlayNasPlannedDriveLetters
+    }
+    if (-not $Letters -or $Letters.Count -lt 1) {
         $Letters = Get-JustPlayNasLettersToClear
     }
     $prevEap = $ErrorActionPreference
@@ -1364,6 +1405,16 @@ function Clear-JustPlayNasWebDavSession {
     )
     Initialize-NasWNetApi
     $lettersToClear = Get-JustPlayNasLettersToClear -ExtraLetters $Letters
+    $plannedLetters = Get-JustPlayNasPlannedDriveLetters
+    $allLetters = New-Object System.Collections.Generic.List[string]
+    $letterSeen = @{}
+    foreach ($l in (@($lettersToClear) + @($plannedLetters))) {
+        $u = ([string]$l).Trim().ToUpperInvariant()
+        if (-not $u -or $letterSeen.ContainsKey($u)) { continue }
+        $letterSeen[$u] = $true
+        [void]$allLetters.Add($u)
+    }
+    $lettersForRegistry = $allLetters.ToArray()
 
     foreach ($entry in (Get-NetUseDriveEntries)) {
         $remote = [string]$entry.Remote
@@ -1417,9 +1468,11 @@ function Clear-JustPlayNasWebDavSession {
         }
     }
 
-    Clear-JustPlayNasNetworkRegistry -Letters $lettersToClear
-    Clear-JustPlayNasExplorerDriveRemnants -Letters $lettersToClear
-    Update-NasShellDriveNotify -Letters $lettersToClear
+    Clear-JustPlayNasNetworkRegistry -Letters $lettersForRegistry
+    Clear-JustPlayNasExplorerDriveRemnants -Letters $lettersForRegistry
+    if ($lettersToClear -and $lettersToClear.Count -gt 0) {
+        Update-NasShellDriveNotify -Letters $lettersToClear -Remove
+    }
     Start-Sleep -Milliseconds 400
 }
 
@@ -1553,6 +1606,8 @@ Neu van loi, lien he IT.
 
     Clear-JustPlayNasWebDavSession
 
+    Ensure-WebClientServiceRunning
+
     $planBag = Resolve-NasConnectPlans
     $tlsHost = [string]$planBag[0].ConnectHost
     $tlsPort = [int]$planBag[0].Port
@@ -1653,6 +1708,8 @@ Goi y:
     }
 
     Update-NasShellDriveNotify -Letters @($mapped | ForEach-Object { [string]$_.Letter })
+    Start-Sleep -Milliseconds 500
+    Update-NasShellDriveNotify -Letters @($mapped | ForEach-Object { [string]$_.Letter })
     Start-Sleep -Milliseconds 300
 
     return @{
@@ -1695,7 +1752,11 @@ function Open-NasExplorerForMappedShares {
         $letters = @($Mapped | ForEach-Object { [string]$_.Letter } | Where-Object { $_ })
     }
     Update-NasShellDriveNotify -Letters $letters
-    Start-Sleep -Milliseconds 400
+    Start-Sleep -Milliseconds 500
+    Update-NasShellDriveNotify -Letters $letters
+
+    Start-Process explorer.exe 'shell:MyComputerFolder'
+    Start-Sleep -Milliseconds 600
 
     $opened = @()
     foreach ($letter in $letters) {
@@ -1706,7 +1767,6 @@ function Open-NasExplorerForMappedShares {
         }
     }
     if ($opened.Count -lt 1) {
-        Start-Process explorer.exe 'shell:MyComputerFolder'
         $driveList = if ($letters.Count -gt 0) { ($letters | ForEach-Object { "${_}:" }) -join ', ' } else { 'Z:, Y:, ...' }
         return "May tinh (This PC) - xem $driveList trong muc O dia mang"
     }
