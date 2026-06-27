@@ -15,8 +15,23 @@ function Ok([string]$Msg) {
 
 if (-not (Test-Path -LiteralPath $ps1)) { Fail "missing $ps1" }
 
-# 0) No Unicode em-dash in strings (PowerShell 5.1 parse bug on some encodings)
+# 0) Bundle files for Portal ZIP
+$bat = Join-Path $root 'JustPlay-NAS-RaiDrive-Setup.bat'
+$prep = Join-Path $root 'Prepare-JustPlay-WebClient.ps1'
+foreach ($f in @($bat, $prep)) {
+    if (-not (Test-Path -LiteralPath $f)) { Fail "missing bundle file $f" }
+}
+if ((Get-Content -LiteralPath $bat -Raw) -notmatch 'Prepare-JustPlay-WebClient\.ps1') {
+    Fail 'bat must call Prepare-JustPlay-WebClient.ps1'
+}
+Ok 'bundle companion files'
+
+# 0b) No Unicode em-dash in strings (PowerShell 5.1 parse bug on some encodings)
 $rawPs1 = Get-Content -LiteralPath $ps1 -Raw
+if ($rawPs1 -match 'Add_Paint\s*\(') { Fail 'GUI uses Add_Paint - unstable on PS 5.1' }
+Ok 'GUI no Add_Paint'
+
+# 0c) em-dash check
 if ($rawPs1 -match [char]0x2014) { Fail 'file contains em-dash U+2014; use ASCII hyphen' }
 
 # 1) Syntax parse
@@ -49,6 +64,12 @@ $requiredFns = @(
     'Resolve-NasConnectPlans',
     'Connect-JustPlayNasShare',
     'Connect-AllJustPlayNasShares',
+    'Clear-JustPlayNasWebDavSession',
+    'Clear-JustPlayNasCmdKeyByList',
+    'Clear-JustPlayNasNetworkRegistry',
+    'Restart-JustPlayExplorerShell',
+    'Get-NetUseMappedDriveLetters',
+    'Get-NetUseDriveEntries',
     'Show-JustPlayNasDialog'
 )
 $src = Get-Content -LiteralPath $ps1 -Raw
@@ -57,7 +78,8 @@ foreach ($fn in $requiredFns) {
 }
 Ok 'required functions present'
 
-# 4) Dot-source + test helpers (khong chay UI)
+# 4) Dot-source + test helpers (khong chay UI, khong load config local dev)
+Remove-Item Env:JUSTPLAY_NAS_LOCAL_DEV -ErrorAction SilentlyContinue
 . $ps1
 if ($WebDavPort -ne 5678) { Fail "default WebDavPort=$WebDavPort expected 5678" }
 if ($SmbPort -ne 445) { Fail "default SmbPort=$SmbPort expected 445" }
@@ -148,6 +170,7 @@ Ok 'net use WebDAV quoting'
 # 9) Scalar string must not become share "0" (pipe char bug)
 $NasShareNames = '02_HANH_CHINH_NHAN_SU'
 $NasSharesCsv = '02_HANH_CHINH_NHAN_SU'
+$NasPrimaryShare = '02_HANH_CHINH_NHAN_SU'
 if ((Get-PrimaryNasShareName) -ne '02_HANH_CHINH_NHAN_SU') {
     Fail "scalar-string share=$(Get-PrimaryNasShareName) expected 02_HANH_CHINH_NHAN_SU"
 }
@@ -155,6 +178,7 @@ Ok 'scalar-string share name'
 
 $NasSharesCsv = '10_HE_THONG_CNTT,02_HANH_CHINH_NHAN_SU'
 $NasShareNames = [string[]]@('10_HE_THONG_CNTT', '02_HANH_CHINH_NHAN_SU')
+$NasPrimaryShare = '10_HE_THONG_CNTT'
 if ((Get-PrimaryNasShareName) -ne '10_HE_THONG_CNTT') {
     Fail "multi-share primary=$(Get-PrimaryNasShareName)"
 }

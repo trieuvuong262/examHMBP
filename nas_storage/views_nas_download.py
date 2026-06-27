@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 import zipfile
 from pathlib import Path
 
@@ -77,12 +78,21 @@ def _prepare_bat(body: str) -> bytes:
     return body.replace('\r\n', '\n').replace('\n', '\r\n').encode('utf-8')
 
 
+def _nas_script_version() -> str:
+    ps1 = Path(settings.BASE_DIR) / 'scripts' / 'JustPlay-NAS-RaiDrive-Setup.ps1'
+    if not ps1.is_file():
+        return ''
+    match = re.search(r"\$NasScriptVersion = '([^']+)'", ps1.read_text(encoding='utf-8-sig'))
+    return match.group(1) if match else ''
+
+
 def nas_user_bundle_config(request, user, cfg: dict) -> dict:
     portal_base = request.build_absolute_uri('/').rstrip('/')
     shares = nas_shares_for_user(user)
     primary = shares[0] if shares else ''
     return {
-        'bundle_version': 2,
+        'bundle_version': 3,
+        'script_version': _nas_script_version(),
         'server': cfg['server'],
         'webdav_port': cfg['webdav_port'],
         'smb_port': cfg.get('smb_port', 445),
@@ -126,9 +136,9 @@ def nas_download_setup(request):
         return _download_forbidden(request)
 
     base = Path(settings.BASE_DIR) / 'scripts'
-    bat_path = base / 'JustPlay-NAS-RaiDrive-Setup.bat'
     ps1_path = base / 'JustPlay-NAS-RaiDrive-Setup.ps1'
     prep_path = base / 'Prepare-JustPlay-WebClient.ps1'
+    bat_path = base / 'JustPlay-NAS-RaiDrive-Setup.bat'
     if not bat_path.is_file() or not ps1_path.is_file() or not prep_path.is_file():
         return HttpResponse(
             'Không tìm thấy script cài NAS trên server.',
@@ -138,7 +148,7 @@ def nas_download_setup(request):
 
     cfg = nas_download_config()
     bundle = nas_user_bundle_config(request, request.user, cfg)
-    ps1_body = _personalize_ps1(ps1_path.read_text(encoding='utf-8'), bundle)
+    ps1_body = _personalize_ps1(ps1_path.read_text(encoding='utf-8-sig'), bundle)
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as archive:
         archive.writestr(
@@ -164,12 +174,19 @@ def nas_download_setup(request):
         archive.writestr(
             'HUONG-DAN.txt',
             _prepare_bat(
-                'JustPlay NAS — Kết nối WebDAV tự động\r\n'
-                '1. Giải nén file ZIP\r\n'
-                '2. Chạy JustPlay-NAS-RaiDrive-Setup.bat\r\n'
-                '3. Nhập tên đăng nhập và mật khẩu Portal\r\n'
-                f'4. Hệ thống tự gắn mỗi share một ổ đĩa: {share_line}\r\n'
+                'JustPlay NAS - Ket noi WebDAV tu dong\r\n'
+                '1. Giai nen file ZIP (giu nguyen 5 file cung thu muc)\r\n'
+                '2. Chuot phai JustPlay-NAS-RaiDrive-Setup.bat -> Run as administrator\r\n'
+                '3. Nhap ten dang nhap va mat khau Portal\r\n'
+                f'4. He thong tu gan moi share mot o dia: {share_line}\r\n'
                 f'5. WebDAV: https://{cfg["server"]}:{cfg["webdav_port"]}/<share>\r\n'
+                '\r\n'
+                'File trong ZIP:\r\n'
+                '- JustPlay-NAS-RaiDrive-Setup.bat\r\n'
+                '- JustPlay-NAS-RaiDrive-Setup.ps1\r\n'
+                '- Prepare-JustPlay-WebClient.ps1\r\n'
+                '- JustPlay-NAS-Config.json\r\n'
+                '- HUONG-DAN.txt\r\n'
             ),
         )
 

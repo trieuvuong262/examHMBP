@@ -1,4 +1,4 @@
-# Cau hinh WebClient registry (can Admin). Map o dia chay o session user thuong.
+﻿# Cau hinh WebClient registry (can Admin). Map o dia chay o session user thuong.
 param(
     [string]$HostName = 'justplay.synology.me',
     [int]$DavPort = 5678
@@ -20,4 +20,8 @@ Ensure-WebClientReady -HostName $HostName -DavPort $DavPort
 if (-not (Test-WebClientRegistryReady -HostName $HostName -DavPort $DavPort)) {
     exit 1
 }
+try {
+    Restart-Service WebClient -Force -ErrorAction Stop
+    Start-Sleep -Seconds 2
+} catch {}
 exit 0

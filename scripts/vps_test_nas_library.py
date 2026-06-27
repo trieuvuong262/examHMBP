@@ -36,7 +36,7 @@ PS1_MARKERS = (
     "Connect-AllJustPlayNasShares",
     "Get-NasShareDriveAssignments",
     "Test-JustPlayNasBundleReady",
-    "NasScriptVersion = '2026.06.28.01'",
+    "NasScriptVersion = '2026.06.28.08'",
     "Resolve-SingleNasShareName",
     "NasPrimaryShare",
 )
@@ -121,7 +121,7 @@ def main():
         html = resp.content.decode("utf-8", errors="replace")
         for marker in (
             "Tải NAS (Windows)",
-            "không cần cài hay cấu hình RaiDrive",
+            "không cần cài RaiDrive",
             "cai-dat/tai/",
             "JustPlay-NAS-RaiDrive-Setup",
         ):

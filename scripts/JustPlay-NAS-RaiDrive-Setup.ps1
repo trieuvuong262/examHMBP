@@ -21,7 +21,7 @@ $NasPrimaryShare = '__NAS_PRIMARY_SHARE__'
 $DeptFolderCode = '__NAS_DEPT_CODE__'
 $DriveLetterRaw = '__NAS_DRIVE_LETTER__'
 $BlockedDefaultPassword = 'justplay@123'
-$NasScriptVersion = '2026.06.28.01'
+$NasScriptVersion = '2026.06.28.08'
 
 $Script:NasWebDavShareAliases = @{
     'KD-MKT' = '05_MARKETING'
@@ -802,9 +802,7 @@ function Invoke-NasWebDavNetUse {
         [int]$TimeoutSec = $NasConnectTimeoutSec
     )
     $localPath = "${Letter}:"
-    if (Test-Path $localPath) {
-        & net use $localPath /delete /y 2>$null | Out-Null
-    }
+    Remove-NasDriveMap -Letter $Letter
     $null = Invoke-ProcessWithTimeout -FilePath 'net.exe' `
         -ArgumentList (Format-NetUseArgumentString -LocalPath $localPath -RemotePath $RemoteSpec `
             -WinUser $WinUser -PlainPassword $PlainPassword) `
@@ -969,9 +967,232 @@ function Get-JobFailureMessage {
 function Remove-NasDriveMap {
     param([string]$Letter)
     $localPath = "${Letter}:"
-    if (Test-Path $localPath) {
-        & net use $localPath /delete /y 2>$null | Out-Null
+    try {
+        Initialize-NasWNetApi
+        [void][NasWNet]::WNetCancelConnection2($localPath, 0, $true)
+    } catch {}
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = 'SilentlyContinue'
+    try {
+        & net.exe use $localPath /delete /y *>$null
+    } finally {
+        $ErrorActionPreference = $prevEap
     }
+}
+
+function Get-NetUseDriveEntries {
+    $entries = New-Object System.Collections.Generic.List[object]
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = 'SilentlyContinue'
+    try {
+        $lines = @(& net.exe use 2>&1)
+    } finally {
+        $ErrorActionPreference = $prevEap
+    }
+    foreach ($line in $lines) {
+        $s = [string]$line
+        if ($s -match '(?i)^\s*(OK|Connected|Reconnecting|Disconnected|Unavailable|Error)\s+([A-Z]):\s+(\S+)') {
+            [void]$entries.Add([pscustomobject]@{
+                Status = $Matches[1]
+                Letter = $Matches[2].ToUpperInvariant()
+                Remote = $Matches[3]
+            })
+            continue
+        }
+        if ($s -match '(?i)^\s*(OK|Connected|Reconnecting|Disconnected|Unavailable|Error)\s+(\\\\\S+)') {
+            [void]$entries.Add([pscustomobject]@{
+                Status = $Matches[1]
+                Letter = ''
+                Remote = $Matches[2]
+            })
+        }
+    }
+    return ,$entries.ToArray()
+}
+
+function Get-NetUseMappedDriveLetters {
+    $letters = New-Object System.Collections.Generic.List[string]
+    $seen = @{}
+    foreach ($entry in (Get-NetUseDriveEntries)) {
+        $letter = [string]$entry.Letter
+        if (-not $letter -or $seen.ContainsKey($letter)) { continue }
+        $seen[$letter] = $true
+        [void]$letters.Add($letter)
+    }
+    return ,$letters.ToArray()
+}
+
+function Remove-NetUseRemoteMap {
+    param([string]$RemotePath)
+    if (-not $RemotePath) { return }
+    try {
+        Initialize-NasWNetApi
+        [void][NasWNet]::WNetCancelConnection2($RemotePath, 0, $true)
+    } catch {}
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = 'SilentlyContinue'
+    try {
+        & net.exe use $RemotePath /delete /y *>$null
+    } finally {
+        $ErrorActionPreference = $prevEap
+    }
+}
+
+function Get-JustPlayNasRemotePathHints {
+    $hints = New-Object System.Collections.Generic.List[string]
+    $seen = @{}
+    foreach ($hostName in @($Server, $NasFallbackServer, 'justplay.synology.me')) {
+        $n = [string]$hostName
+        if (-not $n -or $n -match '^__.+__$' -or $seen.ContainsKey($n)) { continue }
+        $seen[$n] = $true
+        [void]$hints.Add($n.ToLowerInvariant())
+    }
+    [void]$hints.Add('davwwwroot')
+    return ,$hints.ToArray()
+}
+
+function Test-NetUseRemoteIsJustPlayNas {
+    param([string]$RemotePath)
+    $lower = ([string]$RemotePath).ToLowerInvariant()
+    if (-not $lower) { return $false }
+    foreach ($hint in (Get-JustPlayNasRemotePathHints)) {
+        if ($lower.Contains($hint)) { return $true }
+    }
+    return $false
+}
+
+function Clear-JustPlayNasCmdKeyByList {
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = 'SilentlyContinue'
+    try {
+        $lines = @(& cmdkey.exe /list 2>&1)
+    } finally {
+        $ErrorActionPreference = $prevEap
+    }
+    foreach ($line in $lines) {
+        $s = [string]$line
+        if ($s -notmatch '(?i)Target:') { continue }
+        if ($s -notmatch 'Synology' -and $s -notmatch 'Z:' -and $s -notmatch 'justplay' -and $s -notmatch 'DavWWWRoot') {
+            continue
+        }
+        $target = ($s -replace '(?i)^\s*Target:\s*', '').Trim()
+        if (-not $target) {
+            $parts = $s -split '\s+'
+            $target = $parts[-1]
+        }
+        Write-Log "Go cmdkey list: $target"
+        & cmdkey.exe /delete:$target 2>$null | Out-Null
+    }
+}
+
+function Clear-JustPlayNasNetworkRegistry {
+    param(
+        [string[]]$Letters = @()
+    )
+    if (-not $Letters -or $Letters.Count -lt 1) {
+        $Letters = Get-NasShareDriveLetterPool
+    }
+    foreach ($letter in $Letters) {
+        $l = ([string]$letter).Trim().ToUpperInvariant()
+        if (-not $l) { continue }
+        $regPath = "HKCU:\Network\$l"
+        if (Test-Path -LiteralPath $regPath) {
+            Write-Log "Go registry: $regPath"
+            Remove-Item -LiteralPath $regPath -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Restart-JustPlayExplorerShell {
+    Write-Log 'Khoi dong lai Explorer (go o ma Z:)'
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = 'SilentlyContinue'
+    try {
+        Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Milliseconds 800
+    } finally {
+        $ErrorActionPreference = $prevEap
+    }
+}
+
+function Clear-JustPlayNasWebDavSession {
+    param(
+        [string[]]$Letters = @()
+    )
+    Initialize-NasWNetApi
+    $lettersToClear = New-Object System.Collections.Generic.List[string]
+    $seen = @{}
+
+    foreach ($entry in (Get-NetUseDriveEntries)) {
+        $remote = [string]$entry.Remote
+        $letter = [string]$entry.Letter
+        $isNas = Test-NetUseRemoteIsJustPlayNas -RemotePath $remote
+        if (-not $isNas -and -not $letter) { continue }
+        if ($remote) {
+            Write-Log "Go ket noi WebDAV [$($entry.Status)]: $remote"
+            Remove-NetUseRemoteMap -RemotePath $remote
+        }
+        if ($letter -and -not $seen.ContainsKey($letter)) {
+            $seen[$letter] = $true
+            [void]$lettersToClear.Add($letter)
+        }
+    }
+
+    foreach ($letter in (Get-NetUseMappedDriveLetters)) {
+        if (-not $seen.ContainsKey($letter)) {
+            $seen[$letter] = $true
+            [void]$lettersToClear.Add($letter)
+        }
+    }
+    foreach ($letter in (Get-NasShareDriveLetterPool)) {
+        if (-not $seen.ContainsKey($letter)) {
+            $seen[$letter] = $true
+            [void]$lettersToClear.Add($letter)
+        }
+    }
+    foreach ($letter in $Letters) {
+        $l = ([string]$letter).Trim().ToUpperInvariant()
+        if ($l -and -not $seen.ContainsKey($l)) {
+            $seen[$l] = $true
+            [void]$lettersToClear.Add($l)
+        }
+    }
+
+    foreach ($letter in $lettersToClear) {
+        Write-Log "Go map ${letter}: (WNet + net use)"
+        Remove-NasDriveMap -Letter $letter
+    }
+
+    Write-Log 'Go tat ca ket noi mang: net use * /delete'
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = 'SilentlyContinue'
+    try {
+        & net.exe use * /delete /y *>$null
+        Start-Sleep -Milliseconds 800
+    } finally {
+        $ErrorActionPreference = $prevEap
+    }
+
+    foreach ($letter in $lettersToClear) {
+        Remove-NasDriveMap -Letter $letter
+    }
+
+    Clear-JustPlayNasCmdKeyByList
+
+    $hosts = @($Server, $NasFallbackServer) | Where-Object { $_ -and $_ -notmatch '^__.+__$' }
+    foreach ($hostName in $hosts) {
+        foreach ($target in @(
+            "https://${hostName}:$WebDavPort",
+            "https://${hostName}",
+            "${hostName}:$WebDavPort",
+            $hostName
+        )) {
+            & cmdkey /delete:$target 2>$null | Out-Null
+        }
+    }
+
+    Clear-JustPlayNasNetworkRegistry -Letters ($lettersToClear.ToArray())
+    Restart-JustPlayExplorerShell
 }
 
 function Save-WebDavCredentials {
@@ -1096,11 +1317,13 @@ function Connect-AllJustPlayNasShares {
     if ($null -eq $assignments -or $assignments.Count -lt 1) {
         throw @"
 Chua co share NAS trong bo cai.
-1) Vao Portal -> Thu vien -> Tai NAS -> tai lai ZIP moi
+1) Vao Portal -> NAS -> Tai NAS -> tai lai ZIP moi
 2) Dam bao tai khoan da gan phong ban hoac thu muc NAS (IT)
 Neu van loi, lien he IT.
 "@
     }
+
+    Clear-JustPlayNasWebDavSession
 
     $planBag = Resolve-NasConnectPlans
     $tlsHost = [string]$planBag[0].ConnectHost
@@ -1237,8 +1460,12 @@ function Connect-JustPlayNasShare {
 function Open-NasExplorerForMappedShares {
     param([object[]]$Mapped)
     if ($Mapped -and $Mapped.Count -gt 0) {
-        Start-Process explorer.exe 'shell:MyComputerFolder'
-        return 'May tinh (cac o NAS da gan)'
+        $first = [string]$Mapped[0].Letter
+        if ($first) {
+            $openPath = "${first}:\"
+            Start-Process explorer.exe $openPath
+            return $openPath
+        }
     }
     Start-Process explorer.exe 'shell:MyComputerFolder'
     return 'May tinh'
@@ -1256,14 +1483,17 @@ function Set-WinFormsRoundedRegion {
         [System.Windows.Forms.Control]$Control,
         [int]$Radius = 10
     )
-    if (-not $Control.Width -or -not $Control.Height) { return }
-    $r = [Math]::Min($Radius, [Math]::Floor([Math]::Min($Control.Width, $Control.Height) / 2))
+    $width = [int]$Control.Width
+    $height = [int]$Control.Height
+    if ($width -lt 4 -or $height -lt 4) { return }
+    $r = [Math]::Min($Radius, [Math]::Floor([Math]::Min($width, $height) / 2))
     if ($r -lt 2) { return }
+    $d = $r * 2
     $path = New-Object System.Drawing.Drawing2D.GraphicsPath
-    $path.AddArc(0, 0, $r * 2, $r * 2, 180, 90)
-    $path.AddArc($Control.Width - $r * 2, 0, $r * 2, $r * 2, 270, 90)
-    $path.AddArc($Control.Width - $r * 2, $Control.Height - $r * 2, $r * 2, $r * 2, 0, 90)
-    $path.AddArc(0, $Control.Height - $r * 2, $r * 2, $r * 2, 90, 90)
+    $path.AddArc(0, 0, $d, $d, 180, 90)
+    $path.AddArc(($width - $d), 0, $d, $d, 270, 90)
+    $path.AddArc(($width - $d), ($height - $d), $d, $d, 0, 90)
+    $path.AddArc(0, ($height - $d), $d, $d, 90, 90)
     $path.CloseAllFigures()
     $Control.Region = New-Object System.Drawing.Region($path)
 }
@@ -1276,22 +1506,30 @@ function Show-JustPlayNasDialog {
     $jpRedDark = [System.Drawing.Color]::FromArgb(185, 28, 28)
     $jpBg = [System.Drawing.Color]::FromArgb(248, 250, 252)
     $jpCard = [System.Drawing.Color]::White
+    $jpPlanBg = [System.Drawing.Color]::FromArgb(241, 245, 249)
     $jpMuted = [System.Drawing.Color]::FromArgb(100, 116, 139)
     $jpText = [System.Drawing.Color]::FromArgb(15, 23, 42)
-    $jpBorder = [System.Drawing.Color]::FromArgb(226, 232, 240)
     $fontUi = New-Object System.Drawing.Font('Segoe UI', 10)
     $fontTitle = New-Object System.Drawing.Font('Segoe UI', 16, [System.Drawing.FontStyle]::Bold)
     $fontSub = New-Object System.Drawing.Font('Segoe UI', 9.5)
     $fontLabel = New-Object System.Drawing.Font('Segoe UI', 9, [System.Drawing.FontStyle]::Bold)
+    $fontField = New-Object System.Drawing.Font('Segoe UI', 11)
 
+    $primaryShare = Get-PrimaryNasShareName
     $drivePlanLabel = Format-NasDriveAssignmentsLabel
     $assignments = Get-NasShareDriveAssignments
     $driveCount = if ($assignments) { $assignments.Count } else { 0 }
+    $planLines = if ($assignments -and $assignments.Count -gt 0) {
+        ($assignments | ForEach-Object { "$($_.Letter):  $($_.ShareName)" }) -join [Environment]::NewLine
+    } else {
+        'Chưa có share - tải lại ZIP từ Portal (NAS → Tải NAS).'
+    }
+    $planPanelHeight = [Math]::Min(28 + (22 * [Math]::Max($driveCount, 1)), 140)
 
     $form = New-Object System.Windows.Forms.Form
     $form.Text = 'JustPlay NAS'
     $form.Font = $fontUi
-    $form.ClientSize = New-Object System.Drawing.Size(420, 390)
+    $form.ClientSize = New-Object System.Drawing.Size(460, ($planPanelHeight + 434))
     $form.StartPosition = 'CenterScreen'
     $form.FormBorderStyle = 'FixedDialog'
     $form.MaximizeBox = $false
@@ -1302,57 +1540,81 @@ function Show-JustPlayNasDialog {
 
     $header = New-Object System.Windows.Forms.Panel
     $header.Dock = 'Top'
-    $header.Height = 88
+    $header.Height = 92
     $header.BackColor = $jpRed
     $form.Controls.Add($header)
 
     $lblBrand = New-Object System.Windows.Forms.Label
-    $lblBrand.Text = 'Kết nối NAS'
+    $lblBrand.Text = 'Kết nối NAS JustPlay'
     $lblBrand.Font = $fontTitle
     $lblBrand.ForeColor = [System.Drawing.Color]::White
     $lblBrand.AutoSize = $true
-    $lblBrand.Location = New-Object System.Drawing.Point(28, 20)
+    $lblBrand.Location = New-Object System.Drawing.Point(28, 18)
     $header.Controls.Add($lblBrand)
 
     $lblSub = New-Object System.Windows.Forms.Label
-    $lblSub.Text = if ($drivePlanLabel) {
-        "Gắn $driveCount ổ đĩa: $drivePlanLabel"
+    if ($driveCount -gt 0) {
+        $lblSub.Text = "Đăng nhập Portal để gắn $driveCount ổ đĩa qua WebDAV (cổng $WebDavPort)"
+    } elseif ($primaryShare) {
+        $lblSub.Text = "Chưa đọc được kế hoạch ổ đĩa - tải lại ZIP [$NasScriptVersion]"
     } else {
-        'Tải lại ZIP từ Portal (NAS → Tải NAS) nếu chưa có share'
+        $lblSub.Text = 'Chưa có share trong ZIP - tải lại từ Portal (NAS → Tải NAS)'
     }
     $lblSub.Font = $fontSub
     $lblSub.ForeColor = [System.Drawing.Color]::FromArgb(254, 226, 226)
-    $lblSub.AutoSize = $true
-    $lblSub.Location = New-Object System.Drawing.Point(30, 54)
+    $lblSub.AutoSize = $false
+    $lblSub.Size = New-Object System.Drawing.Size(404, 36)
+    $lblSub.Location = New-Object System.Drawing.Point(30, 52)
     $header.Controls.Add($lblSub)
 
+    $planPanel = New-Object System.Windows.Forms.Panel
+    $planPanel.Location = New-Object System.Drawing.Point(24, 104)
+    $planPanel.Size = New-Object System.Drawing.Size(412, $planPanelHeight)
+    $planPanel.BackColor = $jpPlanBg
+    $planPanel.BorderStyle = 'FixedSingle'
+    $form.Controls.Add($planPanel)
+
+    $lblPlanTitle = New-Object System.Windows.Forms.Label
+    $lblPlanTitle.Text = 'Kế hoạch gắn ổ đĩa'
+    $lblPlanTitle.Font = $fontLabel
+    $lblPlanTitle.ForeColor = $jpText
+    $lblPlanTitle.AutoSize = $true
+    $lblPlanTitle.Location = New-Object System.Drawing.Point(14, 10)
+    $planPanel.Controls.Add($lblPlanTitle)
+
+    $tbPlan = New-Object System.Windows.Forms.TextBox
+    $tbPlan.Font = New-Object System.Drawing.Font('Consolas', 9.5)
+    $tbPlan.Location = New-Object System.Drawing.Point(14, 32)
+    $tbPlan.Size = New-Object System.Drawing.Size(384, ($planPanelHeight - 44))
+    $tbPlan.Multiline = $true
+    $tbPlan.ReadOnly = $true
+    $tbPlan.BorderStyle = 'None'
+    $tbPlan.BackColor = $jpPlanBg
+    $tbPlan.ForeColor = $jpText
+    $tbPlan.TabStop = $false
+    $tbPlan.Text = $planLines
+    $planPanel.Controls.Add($tbPlan)
+
+    $loginTop = 104 + $planPanelHeight + 12
     $card = New-Object System.Windows.Forms.Panel
-    $card.Location = New-Object System.Drawing.Point(24, 104)
-    $card.Size = New-Object System.Drawing.Size(372, 178)
+    $card.Location = New-Object System.Drawing.Point(24, $loginTop)
+    $card.Size = New-Object System.Drawing.Size(412, 196)
     $card.BackColor = $jpCard
+    $card.BorderStyle = 'FixedSingle'
     $form.Controls.Add($card)
-    $card.Add_Paint({
-        param($sender, $e)
-        $g = $e.Graphics
-        $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
-        $rect = New-Object System.Drawing.Rectangle(0, 0, $sender.Width - 1, $sender.Height - 1)
-        $pen = New-Object System.Drawing.Pen($jpBorder)
-        $g.DrawRectangle($pen, $rect)
-        $pen.Dispose()
-    })
 
     $lblUser = New-Object System.Windows.Forms.Label
     $lblUser.Text = 'Tên đăng nhập Portal'
     $lblUser.Font = $fontLabel
     $lblUser.ForeColor = $jpMuted
     $lblUser.AutoSize = $true
-    $lblUser.Location = New-Object System.Drawing.Point(20, 18)
+    $lblUser.Location = New-Object System.Drawing.Point(18, 16)
     $card.Controls.Add($lblUser)
 
     $tbUser = New-Object System.Windows.Forms.TextBox
-    $tbUser.Font = New-Object System.Drawing.Font('Segoe UI', 11)
-    $tbUser.Location = New-Object System.Drawing.Point(20, 40)
-    $tbUser.Size = New-Object System.Drawing.Size(210, 30)
+    $tbUser.Font = $fontField
+    $tbUser.Location = New-Object System.Drawing.Point(18, 38)
+    $tbUser.Size = New-Object System.Drawing.Size(228, 30)
     $tbUser.BorderStyle = 'FixedSingle'
     if ($PortalUsernameHint) { $tbUser.Text = $PortalUsernameHint }
     $card.Controls.Add($tbUser)
@@ -1362,7 +1624,7 @@ function Show-JustPlayNasDialog {
     $lblSuffix.Font = New-Object System.Drawing.Font('Segoe UI', 9.5)
     $lblSuffix.ForeColor = $jpMuted
     $lblSuffix.AutoSize = $true
-    $lblSuffix.Location = New-Object System.Drawing.Point(238, 44)
+    $lblSuffix.Location = New-Object System.Drawing.Point(254, 42)
     $card.Controls.Add($lblSuffix)
 
     $lblPass = New-Object System.Windows.Forms.Label
@@ -1370,39 +1632,55 @@ function Show-JustPlayNasDialog {
     $lblPass.Font = $fontLabel
     $lblPass.ForeColor = $jpMuted
     $lblPass.AutoSize = $true
-    $lblPass.Location = New-Object System.Drawing.Point(20, 82)
+    $lblPass.Location = New-Object System.Drawing.Point(18, 82)
     $card.Controls.Add($lblPass)
 
     $tbPass = New-Object System.Windows.Forms.TextBox
-    $tbPass.Font = New-Object System.Drawing.Font('Segoe UI', 11)
-    $tbPass.Location = New-Object System.Drawing.Point(20, 104)
-    $tbPass.Size = New-Object System.Drawing.Size(332, 30)
+    $tbPass.Font = $fontField
+    $tbPass.Location = New-Object System.Drawing.Point(18, 104)
+    $tbPass.Size = New-Object System.Drawing.Size(376, 30)
     $tbPass.UseSystemPasswordChar = $true
     $tbPass.BorderStyle = 'FixedSingle'
     $card.Controls.Add($tbPass)
 
-    $lblStatus = New-Object System.Windows.Forms.Label
-    $lblStatus.Text = ''
-    $lblStatus.Font = New-Object System.Drawing.Font('Segoe UI', 8.75)
-    $lblStatus.ForeColor = $jpRed
-    $lblStatus.AutoSize = $false
-    $lblStatus.Size = New-Object System.Drawing.Size(332, 36)
-    $lblStatus.Location = New-Object System.Drawing.Point(20, 140)
-    $card.Controls.Add($lblStatus)
+    $chkShowPass = New-Object System.Windows.Forms.CheckBox
+    $chkShowPass.Text = 'Hiện mật khẩu'
+    $chkShowPass.Font = New-Object System.Drawing.Font('Segoe UI', 9)
+    $chkShowPass.ForeColor = $jpMuted
+    $chkShowPass.AutoSize = $true
+    $chkShowPass.Location = New-Object System.Drawing.Point(18, 142)
+    $chkShowPass.Cursor = [System.Windows.Forms.Cursors]::Hand
+    $chkShowPass.Add_CheckedChanged({
+        $tbPass.UseSystemPasswordChar = -not $chkShowPass.Checked
+    })
+    $card.Controls.Add($chkShowPass)
 
+    $lblHint = New-Object System.Windows.Forms.Label
+    $lblHint.Text = 'Dùng tài khoản và mật khẩu đăng nhập Portal. Sau khi kết nối, mở Máy tính để xem các ổ Z, Y, X...'
+    $lblHint.Font = New-Object System.Drawing.Font('Segoe UI', 8.5)
+    $lblHint.ForeColor = $jpMuted
+    $lblHint.AutoSize = $false
+    $lblHint.Size = New-Object System.Drawing.Size(376, 34)
+    $lblHint.Location = New-Object System.Drawing.Point(18, 164)
+    $card.Controls.Add($lblHint)
+
+    $btnTop = $loginTop + 196 + 16
     $btnConnect = New-Object System.Windows.Forms.Button
-    $btnConnect.Text = if ($driveCount -gt 1) { "Kết nối ($driveCount ổ)" } else { 'Kết nối NAS' }
-    $btnConnect.Font = New-Object System.Drawing.Font('Segoe UI', 10.5, [System.Drawing.FontStyle]::Bold)
+    $btnConnect.Text = if ($driveCount -gt 1) {
+        "Kết nối NAS ($driveCount ổ đĩa)"
+    } else {
+        'Kết nối NAS'
+    }
+    $btnConnect.Font = New-Object System.Drawing.Font('Segoe UI', 11, [System.Drawing.FontStyle]::Bold)
     $btnConnect.FlatStyle = 'Flat'
     $btnConnect.FlatAppearance.BorderSize = 0
     $btnConnect.BackColor = $jpRed
     $btnConnect.ForeColor = [System.Drawing.Color]::White
-    $btnConnect.Size = New-Object System.Drawing.Size(372, 44)
-    $btnConnect.Location = New-Object System.Drawing.Point(24, 296)
+    $btnConnect.Size = New-Object System.Drawing.Size(412, 46)
+    $btnConnect.Location = New-Object System.Drawing.Point(24, $btnTop)
     $btnConnect.Cursor = [System.Windows.Forms.Cursors]::Hand
+    Set-WinFormsRoundedRegion -Control $btnConnect -Radius 8
     $form.Controls.Add($btnConnect)
-    $btnConnect.Add_SizeChanged({ Set-WinFormsRoundedRegion -Control $btnConnect -Radius 12 })
-    Set-WinFormsRoundedRegion -Control $btnConnect -Radius 12
 
     $btnConnect.Add_MouseEnter({ $btnConnect.BackColor = $jpRedDark })
     $btnConnect.Add_MouseLeave({ $btnConnect.BackColor = $jpRed })
@@ -1413,26 +1691,40 @@ function Show-JustPlayNasDialog {
     $linkChange.ActiveLinkColor = $jpRedDark
     $linkChange.VisitedLinkColor = $jpRed
     $linkChange.AutoSize = $true
-    $linkChange.Location = New-Object System.Drawing.Point(24, 348)
+    $linkChange.Location = New-Object System.Drawing.Point(24, ($btnTop + 54))
     $linkChange.Cursor = [System.Windows.Forms.Cursors]::Hand
-    $linkChange.Add_LinkClicked({ Start-Process $PortalPasswordUrl })
+    $linkChange.Add_LinkClicked({
+        Start-Process $PortalPasswordUrl
+    })
     $form.Controls.Add($linkChange)
 
-    function Set-Status([string]$Text) {
-        $lblStatus.Text = $Text
-        $lblStatus.ForeColor = $jpRed
+    $script:connectUser = ''
+    $script:connectShare = ''
+    $script:connectBtnLabel = $btnConnect.Text
+
+    function Show-NasFormMessage {
+        param(
+            [string]$Text,
+            [System.Windows.Forms.MessageBoxButtons]$Buttons = 'OK',
+            [System.Windows.Forms.MessageBoxIcon]$Icon = 'Information'
+        )
+        $form.TopMost = $false
+        [System.Windows.Forms.Application]::DoEvents()
+        return [System.Windows.Forms.MessageBox]::Show($Text, 'JustPlay NAS', $Buttons, $Icon)
     }
 
     function Test-DefaultPasswordBlocked {
         if ($tbPass.Text -eq $BlockedDefaultPassword) {
-            Set-Status 'Mật khẩu mặc định không được phép. Hãy đổi mật khẩu trước.'
-            $ans = [System.Windows.Forms.MessageBox]::Show(
-                "Bạn đang dùng mật khẩu mặc định ($BlockedDefaultPassword).`n`nVui lòng đổi mật khẩu trên Portal rồi chạy lại.`n`nMở trang đổi mật khẩu ngay?",
-                'JustPlay NAS',
-                'YesNo',
-                'Warning'
-            )
-            if ($ans -eq 'Yes') { Start-Process $PortalPasswordUrl }
+            $ans = Show-NasFormMessage -Text @"
+Bạn đang dùng mật khẩu mặc định ($BlockedDefaultPassword).
+
+Vui lòng đổi mật khẩu trên Portal, sau đó chạy lại.
+
+Mở trang đổi mật khẩu ngay bây giờ?
+"@ -Buttons 'YesNo' -Icon 'Warning'
+            if ($ans -eq 'Yes') {
+                Start-Process $PortalPasswordUrl
+            }
             $tbPass.Clear()
             $tbPass.Focus() | Out-Null
             return $true
@@ -1441,15 +1733,14 @@ function Show-JustPlayNasDialog {
     }
 
     $btnConnect.Add_Click({
-        Set-Status ''
         $user = $tbUser.Text.Trim()
         if (-not $user) {
-            Set-Status 'Vui lòng nhập tên đăng nhập.'
+            [void](Show-NasFormMessage -Text 'Vui lòng nhập tên đăng nhập Portal.' -Icon 'Warning')
             $tbUser.Focus() | Out-Null
             return
         }
         if (-not $tbPass.Text) {
-            Set-Status 'Vui lòng nhập mật khẩu.'
+            [void](Show-NasFormMessage -Text 'Vui lòng nhập mật khẩu Portal.' -Icon 'Warning')
             $tbPass.Focus() | Out-Null
             return
         }
@@ -1457,47 +1748,50 @@ function Show-JustPlayNasDialog {
 
         $shareName = Resolve-SingleNasShareName (Get-PrimaryNasShareName)
         if (-not $shareName) {
-            Set-Status 'Chưa có share trong ZIP. Tải lại từ Portal (NAS → Tải NAS).'
+            [void](Show-NasFormMessage -Text 'Chưa có share trong ZIP. Tải lại từ Portal (NAS → Tải NAS).' -Icon 'Warning')
             return
         }
 
         $btnConnect.Enabled = $false
-        $mapCount = (Get-NasShareDriveAssignments).Count
-        $lblStatus.ForeColor = $jpMuted
-        $lblStatus.Text = "Đang kết nối $mapCount share qua WebDAV..."
+        $btnConnect.Text = 'Đang kết nối...'
+        $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
+        $script:connectUser = $user
+        $script:connectShare = $shareName
         [System.Windows.Forms.Application]::DoEvents()
 
         try {
             $result = Connect-AllJustPlayNasShares -Username $user -Password $tbPass.Text
-            $opened = Open-NasExplorerForMappedShares -Mapped $result.Mapped
-            $mapLines = ($result.Mapped | ForEach-Object { "$($_.Letter): → $($_.ShareName)" }) -join "`n"
             foreach ($m in $result.Mapped) {
                 Write-Log "OK: $($m.Letter): -> $($m.RemotePath) ($($m.Method))"
             }
+            $mapLines = ($result.Mapped | ForEach-Object { "$($_.Letter):  $($_.ShareName)" }) -join "`n"
             $warnText = ''
             if ($result.Errors -and $result.Errors.Count -gt 0) {
-                $warnText = "`n`nMột số share chưa gắn được:`n$($result.Errors -join "`n")"
+                $warnText = "`n`nCảnh báo (một số share không gắn được):`n$($result.Errors -join "`n")"
             }
-            [System.Windows.Forms.MessageBox]::Show(
-                "Đã gắn NAS thành công.`n`n$mapLines`n`nTài khoản WebDAV: $($result.WinUser)`nĐã mở: $opened$warnText",
-                'JustPlay NAS',
-                'OK',
-                'Information'
-            ) | Out-Null
+
+            $form.Cursor = [System.Windows.Forms.Cursors]::Default
+            $form.TopMost = $false
+            $form.Hide()
+            [System.Windows.Forms.Application]::DoEvents()
+
+            $opened = Open-NasExplorerForMappedShares -Mapped $result.Mapped
+            [void](Show-NasFormMessage -Text "Đã kết nối NAS thành công.`n`n$mapLines`n`nTài khoản WebDAV: $($result.WinUser)`nĐã mở: $opened$warnText")
+
             $form.DialogResult = [System.Windows.Forms.DialogResult]::OK
             $form.Close()
         } catch {
             $msg = $_.Exception.Message
             if (-not $msg) { $msg = [string]$_ }
-            Set-Status $msg
-            if ($msg.Length -gt 80) {
-                [System.Windows.Forms.MessageBox]::Show($msg, 'JustPlay NAS', 'OK', 'Error') | Out-Null
-            }
+            $form.Cursor = [System.Windows.Forms.Cursors]::Default
             $btnConnect.Enabled = $true
+            $btnConnect.Text = $script:connectBtnLabel
+            [void](Show-NasFormMessage -Text $msg -Icon 'Error')
         }
     })
 
     $form.AcceptButton = $btnConnect
+    $form.CancelButton = $null
     $tbUser.Add_KeyDown({
         if ($_.KeyCode -eq [System.Windows.Forms.Keys]::Enter) {
             $tbPass.Focus() | Out-Null
@@ -1512,12 +1806,14 @@ function Show-JustPlayNasDialog {
     })
 
     $form.Add_Shown({
-        if ($PortalUsernameHint) { $tbPass.Focus() | Out-Null }
-        else { $tbUser.Focus() | Out-Null }
+        if ($PortalUsernameHint) {
+            $tbPass.Focus() | Out-Null
+        } else {
+            $tbUser.Focus() | Out-Null
+        }
     })
     [void]$form.ShowDialog()
 }
-
 function Start-JustPlayNasMain {
     try {
         if (-not (Test-JustPlayNasBundleReady)) {
