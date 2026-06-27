@@ -90,6 +90,12 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
     MODULE_NAS_STORAGE: [
         {'key': 'browse', 'label': 'Duyệt thư mục', 'icon': 'bi-folder2-open'},
         {
+            'key': 'nas_download',
+            'label': 'Tải NAS',
+            'icon': 'bi-download',
+            'perm_view_only': True,
+        },
+        {
             'key': 'permissions',
             'label': 'Phân quyền thư mục NAS',
             'icon': 'bi-shield-lock',
@@ -99,12 +105,6 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
     MODULE_DOCUMENTS: [
         {'key': 'browse', 'label': 'Tài liệu', 'icon': 'bi-folder2-open'},
         {'key': 'qa', 'label': 'Hỏi đáp', 'icon': 'bi-chat-dots-fill'},
-        {
-            'key': 'nas_download',
-            'label': 'Tải NAS',
-            'icon': 'bi-hdd-network',
-            'perm_view_only': True,
-        },
         {'key': 'rustdesk_config', 'label': 'Cấu hình RustDesk', 'perm_label': 'Cấu hình RustDesk', 'icon': 'bi-pc-display-horizontal', 'perm_manage': True},
         {'key': 'equipment_scan', 'label': 'Quét thiết bị', 'perm_label': 'Quét thiết bị IT', 'icon': 'bi-cpu', 'perm_manage': True},
     ],
@@ -218,6 +218,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/kiotviet/khach-hang', MODULE_KIOTVIET, 'customers'),
     # NAS
     ('/thu-muc-nas/phan-quyen', MODULE_NAS_STORAGE, 'permissions'),
+    ('/thu-muc-nas/cai-dat', MODULE_NAS_STORAGE, 'nas_download'),
     ('/thu-muc-nas/', MODULE_NAS_STORAGE, 'browse'),
     # Tiện ích
     ('/tien-ich/ung-luong', MODULE_UTILITIES, 'salary_advance'),
@@ -225,7 +226,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     # Tài liệu
     ('/tai-lieu/quet-thiet-bi', MODULE_DOCUMENTS, 'equipment_scan'),
     ('/tai-lieu/cau-hinh-rustdesk', MODULE_DOCUMENTS, 'rustdesk_config'),
-    ('/tai-lieu/tai-nas', MODULE_DOCUMENTS, 'nas_download'),
+    ('/tai-lieu/tai-nas', MODULE_NAS_STORAGE, 'nas_download'),
     ('/tai-lieu/hoi-dap', MODULE_DOCUMENTS, 'qa'),
     ('/tai-lieu/admin', MODULE_DOCUMENTS, 'browse'),
     ('/tai-lieu/file', MODULE_DOCUMENTS, 'browse'),

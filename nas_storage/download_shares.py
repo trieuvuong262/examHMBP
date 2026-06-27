@@ -1,4 +1,4 @@
-"""Share NAS dùng cho bộ cài Windows (Thư viện → Tải NAS)."""
+"""Share NAS dùng cho bộ cài Windows (NAS → Tải NAS)."""
 
 from __future__ import annotations
 

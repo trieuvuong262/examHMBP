@@ -39,6 +39,7 @@ from nas_storage.share_access import (
     is_path_under_share,
     resolve_path_for_request,
 )
+from nas_storage.nas_download_access import user_can_nas_download
 from nas_storage.file_preview import (
     PREVIEWABLE_EXTENSIONS,
     inline_office_pdf_response,
@@ -116,21 +117,32 @@ def _browse_url(rel_path: str, *, refresh: bool = False, share_token: str = '') 
     return url
 
 
-def _browse_nav_context(request) -> dict:
+def nas_module_nav_context(request, active: str) -> dict:
     items = []
     if user_can_access_menu(request.user, MODULE_NAS_STORAGE, 'browse'):
         items.append({'key': 'browse', 'label': 'Duyệt thư mục', 'url': reverse('nas_storage:browse')})
+    if user_can_nas_download(request.user):
+        items.append({
+            'key': 'nas_download',
+            'label': 'Tải NAS',
+            'url': reverse('nas_storage:nas_download'),
+        })
     if user_can_access_menu(request.user, MODULE_NAS_STORAGE, 'permissions'):
         items.append({
             'key': 'permissions',
             'label': 'Phân quyền thư mục',
             'url': reverse('nas_storage:permissions_hub'),
         })
+    menu_key = active if active in ('browse', 'permissions', 'nas_download') else 'browse'
     return {
         'nas_nav_items': items,
-        'nas_nav_active': 'browse',
-        **menu_perm_context(request.user, MODULE_NAS_STORAGE, 'browse'),
+        'nas_nav_active': active,
+        **menu_perm_context(request.user, MODULE_NAS_STORAGE, menu_key),
     }
+
+
+def _browse_nav_context(request) -> dict:
+    return nas_module_nav_context(request, 'browse')
 
 
 @_access_required

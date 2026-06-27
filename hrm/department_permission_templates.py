@@ -138,7 +138,6 @@ def _it_documents_menus(*, manager: bool) -> dict:
     return {
         'browse': browse,
         'qa': browse,
-        'nas_download': browse,
         'rustdesk_config': MGR,
         'equipment_scan': MGR,
     }

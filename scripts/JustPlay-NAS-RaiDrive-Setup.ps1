@@ -1,4 +1,4 @@
-# JustPlay - tu dong gan o NAS qua WebDAV (cong 5678). Chi WebDAV, khong SMB.
+﻿# JustPlay - tu dong gan o NAS qua WebDAV (cong 5678). Chi WebDAV, khong SMB.
 # User/pass = tai khoan Portal (LDAP). Khong can cau hinh RaiDrive thu cong.
 #
 # Chay: double-click JustPlay-NAS-RaiDrive-Setup.bat
@@ -21,7 +21,7 @@ $NasPrimaryShare = '__NAS_PRIMARY_SHARE__'
 $DeptFolderCode = '__NAS_DEPT_CODE__'
 $DriveLetterRaw = '__NAS_DRIVE_LETTER__'
 $BlockedDefaultPassword = 'justplay@123'
-$NasScriptVersion = '2026.06.27.21'
+$NasScriptVersion = '2026.06.28.01'
 
 $Script:NasWebDavShareAliases = @{
     'KD-MKT' = '05_MARKETING'
@@ -1251,6 +1251,23 @@ function Open-NasExplorerPath {
     return $openPath
 }
 
+function Set-WinFormsRoundedRegion {
+    param(
+        [System.Windows.Forms.Control]$Control,
+        [int]$Radius = 10
+    )
+    if (-not $Control.Width -or -not $Control.Height) { return }
+    $r = [Math]::Min($Radius, [Math]::Floor([Math]::Min($Control.Width, $Control.Height) / 2))
+    if ($r -lt 2) { return }
+    $path = New-Object System.Drawing.Drawing2D.GraphicsPath
+    $path.AddArc(0, 0, $r * 2, $r * 2, 180, 90)
+    $path.AddArc($Control.Width - $r * 2, 0, $r * 2, $r * 2, 270, 90)
+    $path.AddArc($Control.Width - $r * 2, $Control.Height - $r * 2, $r * 2, $r * 2, 0, 90)
+    $path.AddArc(0, $Control.Height - $r * 2, $r * 2, $r * 2, 90, 90)
+    $path.CloseAllFigures()
+    $Control.Region = New-Object System.Drawing.Region($path)
+}
+
 function Show-JustPlayNasDialog {
     Add-Type -AssemblyName System.Windows.Forms
     Add-Type -AssemblyName System.Drawing
@@ -1261,22 +1278,20 @@ function Show-JustPlayNasDialog {
     $jpCard = [System.Drawing.Color]::White
     $jpMuted = [System.Drawing.Color]::FromArgb(100, 116, 139)
     $jpText = [System.Drawing.Color]::FromArgb(15, 23, 42)
+    $jpBorder = [System.Drawing.Color]::FromArgb(226, 232, 240)
     $fontUi = New-Object System.Drawing.Font('Segoe UI', 10)
-    $fontTitle = New-Object System.Drawing.Font('Segoe UI', 15, [System.Drawing.FontStyle]::Bold)
+    $fontTitle = New-Object System.Drawing.Font('Segoe UI', 16, [System.Drawing.FontStyle]::Bold)
     $fontSub = New-Object System.Drawing.Font('Segoe UI', 9.5)
     $fontLabel = New-Object System.Drawing.Font('Segoe UI', 9, [System.Drawing.FontStyle]::Bold)
 
-    $primaryShare = Get-PrimaryNasShareName
-    $allSharesLabel = Get-NasShareNamesLabel
     $drivePlanLabel = Format-NasDriveAssignmentsLabel
-    $shareLabel = if ($primaryShare) { $primaryShare } else { 'NAS' }
     $assignments = Get-NasShareDriveAssignments
     $driveCount = if ($assignments) { $assignments.Count } else { 0 }
 
     $form = New-Object System.Windows.Forms.Form
     $form.Text = 'JustPlay NAS'
     $form.Font = $fontUi
-    $form.ClientSize = New-Object System.Drawing.Size(440, 520)
+    $form.ClientSize = New-Object System.Drawing.Size(420, 390)
     $form.StartPosition = 'CenterScreen'
     $form.FormBorderStyle = 'FixedDialog'
     $form.MaximizeBox = $false
@@ -1287,51 +1302,57 @@ function Show-JustPlayNasDialog {
 
     $header = New-Object System.Windows.Forms.Panel
     $header.Dock = 'Top'
-    $header.Height = 96
+    $header.Height = 88
     $header.BackColor = $jpRed
     $form.Controls.Add($header)
 
     $lblBrand = New-Object System.Windows.Forms.Label
-    $lblBrand.Text = 'JustPlay NAS'
+    $lblBrand.Text = 'Kết nối NAS'
     $lblBrand.Font = $fontTitle
     $lblBrand.ForeColor = [System.Drawing.Color]::White
     $lblBrand.AutoSize = $true
-    $lblBrand.Location = New-Object System.Drawing.Point(28, 22)
+    $lblBrand.Location = New-Object System.Drawing.Point(28, 20)
     $header.Controls.Add($lblBrand)
 
     $lblSub = New-Object System.Windows.Forms.Label
     $lblSub.Text = if ($drivePlanLabel) {
-        "Gan $driveCount o dia: $drivePlanLabel | $NasScriptVersion"
-    } elseif ($primaryShare) {
-        "Chua gan duoc ke hoach o dia - tai lai ZIP [$NasScriptVersion]"
+        "Gắn $driveCount ổ đĩa: $drivePlanLabel"
     } else {
-        "Chua co share trong ZIP - tai lai tu Portal (Thu vien -> Tai NAS) [$NasScriptVersion]"
+        'Tải lại ZIP từ Portal (NAS → Tải NAS) nếu chưa có share'
     }
     $lblSub.Font = $fontSub
     $lblSub.ForeColor = [System.Drawing.Color]::FromArgb(254, 226, 226)
     $lblSub.AutoSize = $true
-    $lblSub.Location = New-Object System.Drawing.Point(30, 56)
+    $lblSub.Location = New-Object System.Drawing.Point(30, 54)
     $header.Controls.Add($lblSub)
 
     $card = New-Object System.Windows.Forms.Panel
-    $card.Location = New-Object System.Drawing.Point(24, 112)
-    $card.Size = New-Object System.Drawing.Size(392, 188)
+    $card.Location = New-Object System.Drawing.Point(24, 104)
+    $card.Size = New-Object System.Drawing.Size(372, 178)
     $card.BackColor = $jpCard
-    $card.BorderStyle = 'FixedSingle'
     $form.Controls.Add($card)
+    $card.Add_Paint({
+        param($sender, $e)
+        $g = $e.Graphics
+        $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+        $rect = New-Object System.Drawing.Rectangle(0, 0, $sender.Width - 1, $sender.Height - 1)
+        $pen = New-Object System.Drawing.Pen($jpBorder)
+        $g.DrawRectangle($pen, $rect)
+        $pen.Dispose()
+    })
 
     $lblUser = New-Object System.Windows.Forms.Label
-    $lblUser.Text = 'Ten dang nhap Portal'
+    $lblUser.Text = 'Tên đăng nhập Portal'
     $lblUser.Font = $fontLabel
     $lblUser.ForeColor = $jpMuted
     $lblUser.AutoSize = $true
-    $lblUser.Location = New-Object System.Drawing.Point(20, 20)
+    $lblUser.Location = New-Object System.Drawing.Point(20, 18)
     $card.Controls.Add($lblUser)
 
     $tbUser = New-Object System.Windows.Forms.TextBox
     $tbUser.Font = New-Object System.Drawing.Font('Segoe UI', 11)
-    $tbUser.Location = New-Object System.Drawing.Point(20, 44)
-    $tbUser.Size = New-Object System.Drawing.Size(220, 28)
+    $tbUser.Location = New-Object System.Drawing.Point(20, 40)
+    $tbUser.Size = New-Object System.Drawing.Size(210, 30)
     $tbUser.BorderStyle = 'FixedSingle'
     if ($PortalUsernameHint) { $tbUser.Text = $PortalUsernameHint }
     $card.Controls.Add($tbUser)
@@ -1341,192 +1362,77 @@ function Show-JustPlayNasDialog {
     $lblSuffix.Font = New-Object System.Drawing.Font('Segoe UI', 9.5)
     $lblSuffix.ForeColor = $jpMuted
     $lblSuffix.AutoSize = $true
-    $lblSuffix.Location = New-Object System.Drawing.Point(248, 48)
+    $lblSuffix.Location = New-Object System.Drawing.Point(238, 44)
     $card.Controls.Add($lblSuffix)
 
     $lblPass = New-Object System.Windows.Forms.Label
-    $lblPass.Text = 'Mat khau Portal'
+    $lblPass.Text = 'Mật khẩu Portal'
     $lblPass.Font = $fontLabel
     $lblPass.ForeColor = $jpMuted
     $lblPass.AutoSize = $true
-    $lblPass.Location = New-Object System.Drawing.Point(20, 88)
+    $lblPass.Location = New-Object System.Drawing.Point(20, 82)
     $card.Controls.Add($lblPass)
 
     $tbPass = New-Object System.Windows.Forms.TextBox
     $tbPass.Font = New-Object System.Drawing.Font('Segoe UI', 11)
-    $tbPass.Location = New-Object System.Drawing.Point(20, 112)
-    $tbPass.Size = New-Object System.Drawing.Size(352, 28)
+    $tbPass.Location = New-Object System.Drawing.Point(20, 104)
+    $tbPass.Size = New-Object System.Drawing.Size(332, 30)
     $tbPass.UseSystemPasswordChar = $true
     $tbPass.BorderStyle = 'FixedSingle'
     $card.Controls.Add($tbPass)
 
-    $lblHint = New-Object System.Windows.Forms.Label
-    $lblHint.Text = if ($driveCount -gt 1) {
-        "WebDAV cong $WebDavPort - gan $driveCount share (moi share mot o dia), mo May tinh sau khi dang nhap."
-    } else {
-        "WebDAV cong $WebDavPort - gan share NAS thanh o dia, mo May tinh sau khi dang nhap."
-    }
-    $lblHint.Font = New-Object System.Drawing.Font('Segoe UI', 8.5)
-    $lblHint.ForeColor = $jpMuted
-    $lblHint.AutoSize = $false
-    $lblHint.Size = New-Object System.Drawing.Size(352, 32)
-    $lblHint.Location = New-Object System.Drawing.Point(20, 148)
-    $card.Controls.Add($lblHint)
-
-    $logPanel = New-Object System.Windows.Forms.Panel
-    $logPanel.Location = New-Object System.Drawing.Point(24, 310)
-    $logPanel.Size = New-Object System.Drawing.Size(392, 132)
-    $logPanel.BackColor = [System.Drawing.Color]::FromArgb(254, 242, 242)
-    $logPanel.BorderStyle = 'FixedSingle'
-    $form.Controls.Add($logPanel)
-
-    $lblLogTitle = New-Object System.Windows.Forms.Label
-    $lblLogTitle.Text = 'Nhat ky / Loi (chon Ctrl+A de copy)'
-    $lblLogTitle.Font = $fontLabel
-    $lblLogTitle.ForeColor = $jpMuted
-    $lblLogTitle.AutoSize = $true
-    $lblLogTitle.Location = New-Object System.Drawing.Point(10, 8)
-    $logPanel.Controls.Add($lblLogTitle)
-
-    $tbLog = New-Object System.Windows.Forms.TextBox
-    $tbLog.Font = New-Object System.Drawing.Font('Consolas', 9)
-    $tbLog.Location = New-Object System.Drawing.Point(10, 30)
-    $tbLog.Size = New-Object System.Drawing.Size(292, 88)
-    $tbLog.Multiline = $true
-    $tbLog.ReadOnly = $true
-    $tbLog.ScrollBars = 'Vertical'
-    $tbLog.WordWrap = $true
-    $tbLog.BorderStyle = 'FixedSingle'
-    $tbLog.BackColor = [System.Drawing.Color]::White
-    $tbLog.ForeColor = $jpRed
-    $tbLog.TabStop = $true
-    $logPanel.Controls.Add($tbLog)
-
-    $btnCopyLog = New-Object System.Windows.Forms.Button
-    $btnCopyLog.Text = 'Sao chep'
-    $btnCopyLog.Font = New-Object System.Drawing.Font('Segoe UI', 9)
-    $btnCopyLog.FlatStyle = 'Flat'
-    $btnCopyLog.FlatAppearance.BorderColor = $jpRed
-    $btnCopyLog.ForeColor = $jpRed
-    $btnCopyLog.BackColor = [System.Drawing.Color]::White
-    $btnCopyLog.Size = New-Object System.Drawing.Size(76, 32)
-    $btnCopyLog.Location = New-Object System.Drawing.Point(306, 30)
-    $btnCopyLog.Enabled = $false
-    $btnCopyLog.Cursor = [System.Windows.Forms.Cursors]::Hand
-    $logPanel.Controls.Add($btnCopyLog)
-
-    $btnCopyAll = New-Object System.Windows.Forms.Button
-    $btnCopyAll.Text = 'Chon het'
-    $btnCopyAll.Font = New-Object System.Drawing.Font('Segoe UI', 8.5)
-    $btnCopyAll.FlatStyle = 'Flat'
-    $btnCopyAll.FlatAppearance.BorderColor = $jpMuted
-    $btnCopyAll.ForeColor = $jpMuted
-    $btnCopyAll.BackColor = [System.Drawing.Color]::White
-    $btnCopyAll.Size = New-Object System.Drawing.Size(76, 28)
-    $btnCopyAll.Location = New-Object System.Drawing.Point(306, 68)
-    $btnCopyAll.Enabled = $false
-    $btnCopyAll.Cursor = [System.Windows.Forms.Cursors]::Hand
-    $logPanel.Controls.Add($btnCopyAll)
+    $lblStatus = New-Object System.Windows.Forms.Label
+    $lblStatus.Text = ''
+    $lblStatus.Font = New-Object System.Drawing.Font('Segoe UI', 8.75)
+    $lblStatus.ForeColor = $jpRed
+    $lblStatus.AutoSize = $false
+    $lblStatus.Size = New-Object System.Drawing.Size(332, 36)
+    $lblStatus.Location = New-Object System.Drawing.Point(20, 140)
+    $card.Controls.Add($lblStatus)
 
     $btnConnect = New-Object System.Windows.Forms.Button
-    $btnConnect.Text = if ($driveCount -gt 1) {
-        "Ket noi NAS ($driveCount o dia)"
-    } else {
-        "Ket noi NAS"
-    }
+    $btnConnect.Text = if ($driveCount -gt 1) { "Kết nối ($driveCount ổ)" } else { 'Kết nối NAS' }
     $btnConnect.Font = New-Object System.Drawing.Font('Segoe UI', 10.5, [System.Drawing.FontStyle]::Bold)
     $btnConnect.FlatStyle = 'Flat'
     $btnConnect.FlatAppearance.BorderSize = 0
     $btnConnect.BackColor = $jpRed
     $btnConnect.ForeColor = [System.Drawing.Color]::White
-    $btnConnect.Size = New-Object System.Drawing.Size(392, 44)
-    $btnConnect.Location = New-Object System.Drawing.Point(24, 422)
+    $btnConnect.Size = New-Object System.Drawing.Size(372, 44)
+    $btnConnect.Location = New-Object System.Drawing.Point(24, 296)
     $btnConnect.Cursor = [System.Windows.Forms.Cursors]::Hand
     $form.Controls.Add($btnConnect)
+    $btnConnect.Add_SizeChanged({ Set-WinFormsRoundedRegion -Control $btnConnect -Radius 12 })
+    Set-WinFormsRoundedRegion -Control $btnConnect -Radius 12
 
     $btnConnect.Add_MouseEnter({ $btnConnect.BackColor = $jpRedDark })
     $btnConnect.Add_MouseLeave({ $btnConnect.BackColor = $jpRed })
 
     $linkChange = New-Object System.Windows.Forms.LinkLabel
-    $linkChange.Text = 'Doi mat khau tai Portal'
+    $linkChange.Text = 'Đổi mật khẩu trên Portal'
     $linkChange.LinkColor = $jpRed
     $linkChange.ActiveLinkColor = $jpRedDark
     $linkChange.VisitedLinkColor = $jpRed
     $linkChange.AutoSize = $true
-    $linkChange.Location = New-Object System.Drawing.Point(24, 474)
+    $linkChange.Location = New-Object System.Drawing.Point(24, 348)
     $linkChange.Cursor = [System.Windows.Forms.Cursors]::Hand
-    $linkChange.Add_LinkClicked({
-        Start-Process $PortalPasswordUrl
-    })
+    $linkChange.Add_LinkClicked({ Start-Process $PortalPasswordUrl })
     $form.Controls.Add($linkChange)
 
-    $script:connectUser = ''
-    $script:connectShare = ''
-
-    function Set-LogText {
-        param(
-            [string]$Text,
-            [ValidateSet('info', 'error', 'ok')]
-            [string]$Level = 'info'
-        )
-        $tbLog.Text = $Text
-        switch ($Level) {
-            'error' {
-                $tbLog.ForeColor = $jpRed
-                $logPanel.BackColor = [System.Drawing.Color]::FromArgb(254, 242, 242)
-            }
-            'ok' {
-                $tbLog.ForeColor = [System.Drawing.Color]::FromArgb(22, 101, 52)
-                $logPanel.BackColor = [System.Drawing.Color]::FromArgb(240, 253, 244)
-            }
-            default {
-                $tbLog.ForeColor = $jpMuted
-                $logPanel.BackColor = [System.Drawing.Color]::FromArgb(248, 250, 252)
-            }
-        }
-        $hasText = [bool]$Text
-        $btnCopyLog.Enabled = $hasText
-        $btnCopyAll.Enabled = $hasText
-        [System.Windows.Forms.Application]::DoEvents()
-    }
-
     function Set-Status([string]$Text) {
-        Set-LogText -Text $Text -Level error
+        $lblStatus.Text = $Text
+        $lblStatus.ForeColor = $jpRed
     }
-
-    function Copy-LogToClipboard {
-        param([switch]$SelectAll)
-        $text = $tbLog.Text
-        if (-not $text) { return }
-        if ($SelectAll) {
-            $tbLog.Focus() | Out-Null
-            $tbLog.SelectAll()
-        }
-        try {
-            [System.Windows.Forms.Clipboard]::SetText($text)
-            $btnCopyLog.Text = 'Da copy!'
-        } catch {
-            $tbLog.Focus() | Out-Null
-            $tbLog.SelectAll()
-            Set-LogText -Text ($text + "`n`n[Clipboard bi chan - bam vao o loi, Ctrl+A, Ctrl+C]") -Level error
-        }
-    }
-
-    $btnCopyLog.Add_Click({ Copy-LogToClipboard })
-    $btnCopyAll.Add_Click({ Copy-LogToClipboard -SelectAll })
 
     function Test-DefaultPasswordBlocked {
         if ($tbPass.Text -eq $BlockedDefaultPassword) {
-            Set-Status 'Mat khau mac dinh khong duoc phep. Hay doi mat khau truoc.'
+            Set-Status 'Mật khẩu mặc định không được phép. Hãy đổi mật khẩu trước.'
             $ans = [System.Windows.Forms.MessageBox]::Show(
-                "Ban dang dung mat khau mac dinh ($BlockedDefaultPassword).`n`nVui long doi mat khau tai Portal, sau do chay lai script nay.`n`nMo trang doi mat khau ngay bay gio?",
+                "Bạn đang dùng mật khẩu mặc định ($BlockedDefaultPassword).`n`nVui lòng đổi mật khẩu trên Portal rồi chạy lại.`n`nMở trang đổi mật khẩu ngay?",
                 'JustPlay NAS',
                 'YesNo',
                 'Warning'
             )
-            if ($ans -eq 'Yes') {
-                Start-Process $PortalPasswordUrl
-            }
+            if ($ans -eq 'Yes') { Start-Process $PortalPasswordUrl }
             $tbPass.Clear()
             $tbPass.Focus() | Out-Null
             return $true
@@ -1535,15 +1441,15 @@ function Show-JustPlayNasDialog {
     }
 
     $btnConnect.Add_Click({
-        Set-LogText '' -Level info
+        Set-Status ''
         $user = $tbUser.Text.Trim()
         if (-not $user) {
-            Set-Status 'Vui long nhap ten dang nhap Portal.'
+            Set-Status 'Vui lòng nhập tên đăng nhập.'
             $tbUser.Focus() | Out-Null
             return
         }
         if (-not $tbPass.Text) {
-            Set-Status 'Vui long nhap mat khau Portal.'
+            Set-Status 'Vui lòng nhập mật khẩu.'
             $tbPass.Focus() | Out-Null
             return
         }
@@ -1551,30 +1457,29 @@ function Show-JustPlayNasDialog {
 
         $shareName = Resolve-SingleNasShareName (Get-PrimaryNasShareName)
         if (-not $shareName) {
-            Set-Status 'Chua co share trong ZIP. Tai lai tu Portal (Thu vien -> Tai NAS).'
+            Set-Status 'Chưa có share trong ZIP. Tải lại từ Portal (NAS → Tải NAS).'
             return
         }
 
         $btnConnect.Enabled = $false
-        $script:connectUser = $user
-        $script:connectShare = $shareName
         $mapCount = (Get-NasShareDriveAssignments).Count
-        Set-LogText -Text "Dang ket noi $mapCount share NAS (toi da ~$($mapCount * 60)s)..." -Level info
+        $lblStatus.ForeColor = $jpMuted
+        $lblStatus.Text = "Đang kết nối $mapCount share qua WebDAV..."
         [System.Windows.Forms.Application]::DoEvents()
 
         try {
             $result = Connect-AllJustPlayNasShares -Username $user -Password $tbPass.Text
             $opened = Open-NasExplorerForMappedShares -Mapped $result.Mapped
-            $mapLines = ($result.Mapped | ForEach-Object { "$($_.Letter): -> $($_.ShareName)" }) -join "`n"
+            $mapLines = ($result.Mapped | ForEach-Object { "$($_.Letter): → $($_.ShareName)" }) -join "`n"
             foreach ($m in $result.Mapped) {
                 Write-Log "OK: $($m.Letter): -> $($m.RemotePath) ($($m.Method))"
             }
             $warnText = ''
             if ($result.Errors -and $result.Errors.Count -gt 0) {
-                $warnText = "`n`nCanh bao (mot so share khong gan duoc):`n$($result.Errors -join "`n")"
+                $warnText = "`n`nMột số share chưa gắn được:`n$($result.Errors -join "`n")"
             }
             [System.Windows.Forms.MessageBox]::Show(
-                "Da gan NAS thanh cong.`n`n$mapLines`n`nUser WebDAV: $($result.WinUser)`nDa mo: $opened$warnText",
+                "Đã gắn NAS thành công.`n`n$mapLines`n`nTài khoản WebDAV: $($result.WinUser)`nĐã mở: $opened$warnText",
                 'JustPlay NAS',
                 'OK',
                 'Information'
@@ -1585,12 +1490,14 @@ function Show-JustPlayNasDialog {
             $msg = $_.Exception.Message
             if (-not $msg) { $msg = [string]$_ }
             Set-Status $msg
+            if ($msg.Length -gt 80) {
+                [System.Windows.Forms.MessageBox]::Show($msg, 'JustPlay NAS', 'OK', 'Error') | Out-Null
+            }
             $btnConnect.Enabled = $true
         }
     })
 
     $form.AcceptButton = $btnConnect
-    $form.CancelButton = $null
     $tbUser.Add_KeyDown({
         if ($_.KeyCode -eq [System.Windows.Forms.Keys]::Enter) {
             $tbPass.Focus() | Out-Null
@@ -1605,11 +1512,8 @@ function Show-JustPlayNasDialog {
     })
 
     $form.Add_Shown({
-        if ($PortalUsernameHint) {
-            $tbPass.Focus() | Out-Null
-        } else {
-            $tbUser.Focus() | Out-Null
-        }
+        if ($PortalUsernameHint) { $tbPass.Focus() | Out-Null }
+        else { $tbUser.Focus() | Out-Null }
     })
     [void]$form.ShowDialog()
 }

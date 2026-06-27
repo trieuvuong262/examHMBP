@@ -1,6 +1,7 @@
 from django.urls import path
 
 from nas_storage import views
+from nas_storage import views_nas_download
 from nas_storage import views_permissions as perm_views
 
 app_name = 'nas_storage'
@@ -12,6 +13,8 @@ urlpatterns = [
     path('xem-truoc/', views.preview_file, name='preview'),
     path('tai-xuong/', views.download, name='download'),
     path('xoa/', views.delete_entry, name='delete'),
+    path('cai-dat/', views_nas_download.nas_download_page, name='nas_download'),
+    path('cai-dat/tai/', views_nas_download.nas_download_setup, name='nas_download_setup'),
     # Phân quyền thư mục NAS
     path('phan-quyen/', perm_views.permissions_hub, name='permissions_hub'),
     path('phan-quyen/ap-dung-tat-ca/', perm_views.apply_all_acl, name='apply_all_acl'),

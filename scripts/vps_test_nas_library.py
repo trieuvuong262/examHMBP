@@ -35,7 +35,7 @@ PS1_MARKERS = (
     "Connect-AllJustPlayNasShares",
     "Get-NasShareDriveAssignments",
     "Test-JustPlayNasBundleReady",
-    "NasScriptVersion = '2026.06.25.17'",
+    "NasScriptVersion = '2026.06.28.01'",
     "Resolve-SingleNasShareName",
     "NasPrimaryShare",
 )
@@ -94,8 +94,8 @@ def validate_zip_bundle(content: bytes, label: str) -> list[str]:
 
 def main():
     host = settings.ALLOWED_HOSTS[0]
-    url_page = reverse("documents:nas_download")
-    url_zip = reverse("documents:nas_download_setup")
+    url_page = reverse("nas_storage:nas_download")
+    url_zip = reverse("nas_storage:nas_download_setup")
     user = User.objects.filter(is_superuser=True).first()
     if not user:
         print("FAIL: no superuser")
@@ -121,7 +121,7 @@ def main():
         for marker in (
             "Tải NAS (Windows)",
             "không cần cài hay cấu hình RaiDrive",
-            "tai-nas/tai/",
+            "cai-dat/tai/",
             "JustPlay-NAS-RaiDrive-Setup",
         ):
             if marker not in html:
