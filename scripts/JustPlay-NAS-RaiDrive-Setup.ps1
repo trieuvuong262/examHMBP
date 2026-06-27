@@ -21,7 +21,7 @@ $NasPrimaryShare = '__NAS_PRIMARY_SHARE__'
 $DeptFolderCode = '__NAS_DEPT_CODE__'
 $DriveLetterRaw = '__NAS_DRIVE_LETTER__'
 $BlockedDefaultPassword = 'justplay@123'
-$NasScriptVersion = '2026.06.28.19'
+$NasScriptVersion = '2026.06.28.20'
 
 $Script:NasWebDavShareAliases = @{
     'KD-MKT' = '05_MARKETING'
@@ -530,7 +530,7 @@ function Ensure-WebClientServiceRunning {
         Start-Sleep -Milliseconds 800
         return
     } catch {}
-    $plan = Resolve-NasConnectPlans | Select-Object -First 1
+    $plan = Get-FirstNasConnectPlan
     if ($plan -and $plan.ConnectHost) {
         Invoke-JustPlayWebClientPrep -HostName ([string]$plan.ConnectHost) -DavPort ([int]$plan.Port)
     }
@@ -926,6 +926,12 @@ function Invoke-NasWebDavMapTimed {
         }
     }
     throw $lastErr
+}
+
+function Get-FirstNasConnectPlan {
+    $plans = Resolve-NasConnectPlans
+    if (-not $plans -or $plans.Count -lt 1) { return $null }
+    return $plans[0]
 }
 
 function Resolve-NasConnectPlans {
@@ -2164,7 +2170,7 @@ function Invoke-JustPlayNasCliFromExe {
 
     switch ($action) {
         'prep' {
-            $plan = Resolve-NasConnectPlans | Select-Object -First 1
+            $plan = Get-FirstNasConnectPlan
             if (-not $plan -or -not $plan.ConnectHost) {
                 Write-Error 'Khong co host NAS.'
                 exit 1
