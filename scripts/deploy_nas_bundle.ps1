@@ -23,7 +23,10 @@ $files = @(
     'scripts/Ket-Noi-NAS-JustPlay.exe',
     'scripts/JustPlay-NAS-RaiDrive-Setup.ps1',
     'scripts/Prepare-JustPlay-WebClient.ps1',
+    'scripts/JustPlay-RustDesk-Setup.ps1',
+    'scripts/JustPlay-Equipment-Scan.ps1',
     'scripts/JustPlay-NAS-Launcher.cs',
+    'scripts/vps_test_nas_library.py',
     'nas_storage/views_nas_download.py',
     'nas_storage/templates/nas_storage/nas_download.html'
 )
@@ -39,13 +42,16 @@ Write-Host "==> Validate NAS PS1 local"
 & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root 'test_nas_ps1_validate.ps1')
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-Write-Host "==> SSH ${user}@${host_}:${port} -> git pull + restart web"
+Write-Host "==> SSH ${user}@${host_}:${port} -> git pull + copy into web container + restart"
+$copyLines = ($files | ForEach-Object { "docker cp '$remote/$_' portaljustplay-web-1:/app/$_" }) -join "`n"
 $remoteCmd = @"
 set -Eeuo pipefail
 cd '$remote'
 git fetch origin main
 git reset --hard origin/main
+$copyLines
 docker compose restart web
+sleep 3
 docker compose exec -T web python scripts/vps_test_nas_library.py
 "@
 
