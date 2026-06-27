@@ -176,7 +176,8 @@ def nas_download_setup(request):
             _prepare_bat(
                 'JustPlay NAS - Ket noi WebDAV tu dong\r\n'
                 '1. Giai nen file ZIP (giu nguyen 5 file cung thu muc)\r\n'
-                '2. Chuot phai JustPlay-NAS-RaiDrive-Setup.bat -> Run as administrator\r\n'
+                '2. Double-click JustPlay-NAS-RaiDrive-Setup.bat (chap nhan UAC neu duoc hoi)\r\n'
+                '   KHONG chay Run as administrator — o dia se khong hien trong Explorer\r\n'
                 '3. Nhap ten dang nhap va mat khau Portal\r\n'
                 f'4. He thong tu gan moi share mot o dia: {share_line}\r\n'
                 f'5. WebDAV: https://{cfg["server"]}:{cfg["webdav_port"]}/<share>\r\n'

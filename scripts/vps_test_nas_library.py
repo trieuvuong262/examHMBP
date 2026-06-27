@@ -36,7 +36,7 @@ PS1_MARKERS = (
     "Connect-AllJustPlayNasShares",
     "Get-NasShareDriveAssignments",
     "Test-JustPlayNasBundleReady",
-    "NasScriptVersion = '2026.06.28.10'",
+    "NasScriptVersion = '2026.06.28.13'",
     "Resolve-SingleNasShareName",
     "NasPrimaryShare",
 )
@@ -87,6 +87,8 @@ def validate_zip_bundle(content: bytes, label: str) -> list[str]:
         bat = zf.read("JustPlay-NAS-RaiDrive-Setup.bat").decode("utf-8", errors="replace")
         if "-STA" not in bat:
             failed.append(f"{label}: bat missing -STA")
+        if "explorer.exe" not in bat.lower():
+            failed.append(f"{label}: bat missing explorer.exe user-session launch")
 
     if not failed:
         print(f"OK: zip bundle {label} shares={cfg.get('shares')}")

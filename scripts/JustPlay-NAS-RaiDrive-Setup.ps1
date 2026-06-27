@@ -21,7 +21,7 @@ $NasPrimaryShare = '__NAS_PRIMARY_SHARE__'
 $DeptFolderCode = '__NAS_DEPT_CODE__'
 $DriveLetterRaw = '__NAS_DRIVE_LETTER__'
 $BlockedDefaultPassword = 'justplay@123'
-$NasScriptVersion = '2026.06.28.12'
+$NasScriptVersion = '2026.06.28.13'
 
 $Script:NasWebDavShareAliases = @{
     'KD-MKT' = '05_MARKETING'
@@ -1161,18 +1161,35 @@ function Test-NasDriveLetterReady {
 }
 
 function Update-NasShellDriveNotify {
+    param([string[]]$Letters = @())
     try {
         if (-not ('ShellNotify' -as [type])) {
             Add-Type @"
 using System;
 using System.Runtime.InteropServices;
 public class ShellNotify {
+    public const int SHCNE_DRIVEADD = 0x00000100;
+    public const int SHCNE_DRIVEREMOVED = 0x00000080;
+    public const int SHCNF_PATH = 0x0001;
+    public const int SHCNF_FLUSH = 0x1000;
+    public const int SHCNE_ASSOCCHANGED = 0x08000000;
     [DllImport("shell32.dll")]
     public static extern void SHChangeNotify(int eventId, int flags, IntPtr item1, IntPtr item2);
 }
 "@
         }
-        [ShellNotify]::SHChangeNotify(0x8000000, 0x1000, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+        foreach ($letter in $Letters) {
+            $l = ([string]$letter).Trim().ToUpperInvariant()
+            if (-not $l) { continue }
+            $path = "${l}:\"
+            $ptr = [Runtime.InteropServices.Marshal]::StringToHGlobalUni($path)
+            try {
+                [ShellNotify]::SHChangeNotify([ShellNotify]::SHCNE_DRIVEADD, [ShellNotify]::SHCNF_PATH, $ptr, [IntPtr]::Zero) | Out-Null
+            } finally {
+                [Runtime.InteropServices.Marshal]::FreeHGlobal($ptr)
+            }
+        }
+        [ShellNotify]::SHChangeNotify([ShellNotify]::SHCNE_ASSOCCHANGED, [ShellNotify]::SHCNF_FLUSH, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
     } catch {}
 }
 
@@ -1402,7 +1419,7 @@ function Clear-JustPlayNasWebDavSession {
 
     Clear-JustPlayNasNetworkRegistry -Letters $lettersToClear
     Clear-JustPlayNasExplorerDriveRemnants -Letters $lettersToClear
-    Update-NasShellDriveNotify
+    Update-NasShellDriveNotify -Letters $lettersToClear
     Start-Sleep -Milliseconds 400
 }
 
@@ -1635,7 +1652,7 @@ Goi y:
         )
     }
 
-    Update-NasShellDriveNotify
+    Update-NasShellDriveNotify -Letters @($mapped | ForEach-Object { [string]$_.Letter })
     Start-Sleep -Milliseconds 300
 
     return @{
@@ -1672,15 +1689,28 @@ function Connect-JustPlayNasShare {
 
 function Open-NasExplorerForMappedShares {
     param([object[]]$Mapped)
-    Start-Sleep -Milliseconds 800
-    Update-NasShellDriveNotify
-    $driveList = if ($Mapped -and $Mapped.Count -gt 0) {
-        ($Mapped | ForEach-Object { "$($_.Letter):" }) -join ', '
-    } else {
-        'Z:, Y:, ...'
+    Start-Sleep -Milliseconds 600
+    $letters = @()
+    if ($Mapped -and $Mapped.Count -gt 0) {
+        $letters = @($Mapped | ForEach-Object { [string]$_.Letter } | Where-Object { $_ })
     }
-    Start-Process explorer.exe 'shell:MyComputerFolder'
-    return "May tinh (This PC) — mo $driveList"
+    Update-NasShellDriveNotify -Letters $letters
+    Start-Sleep -Milliseconds 400
+
+    $opened = @()
+    foreach ($letter in $letters) {
+        if (Test-NasDriveLetterReady -Letter $letter -Retries 10 -DelayMs 400) {
+            Start-Process explorer.exe "${letter}:\"
+            $opened += "${letter}:\"
+            break
+        }
+    }
+    if ($opened.Count -lt 1) {
+        Start-Process explorer.exe 'shell:MyComputerFolder'
+        $driveList = if ($letters.Count -gt 0) { ($letters | ForEach-Object { "${_}:" }) -join ', ' } else { 'Z:, Y:, ...' }
+        return "May tinh (This PC) — xem $driveList trong muc O dia mang"
+    }
+    return ($opened -join ', ')
 }
 
 function Open-NasExplorerPath {
@@ -2026,8 +2056,25 @@ Mở trang đổi mật khẩu ngay bây giờ?
     })
     [void]$form.ShowDialog()
 }
+function Start-JustPlayNasInInteractiveUserContext {
+    $guiPath = $Script:Ps1Path
+    if (-not $guiPath) {
+        $guiPath = $PSCommandPath
+    }
+    if (-not $guiPath) { return $false }
+    $argLine = "powershell.exe -STA -NoProfile -ExecutionPolicy Bypass -File `"$guiPath`""
+    Start-Process -FilePath 'explorer.exe' -ArgumentList $argLine | Out-Null
+    return $true
+}
+
 function Start-JustPlayNasMain {
     try {
+        if (Test-IsAdministrator) {
+            if (Start-JustPlayNasInInteractiveUserContext) {
+                Write-Log 'Chuyen GUI sang session user (de Explorer thay o Z:)'
+                exit 0
+            }
+        }
         if (-not (Test-JustPlayNasBundleReady)) {
             Show-JustPlayNasBundleError
             exit 1
