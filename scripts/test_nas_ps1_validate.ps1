@@ -17,12 +17,16 @@ if (-not (Test-Path -LiteralPath $ps1)) { Fail "missing $ps1" }
 
 # 0) Bundle files for Portal ZIP
 $bat = Join-Path $root 'JustPlay-NAS-RaiDrive-Setup.bat'
+$launcher = Join-Path $root 'Chay-Ket-Noi-NAS.ps1'
 $prep = Join-Path $root 'Prepare-JustPlay-WebClient.ps1'
-foreach ($f in @($bat, $prep)) {
+foreach ($f in @($bat, $launcher, $prep)) {
     if (-not (Test-Path -LiteralPath $f)) { Fail "missing bundle file $f" }
 }
-if ((Get-Content -LiteralPath $bat -Raw) -notmatch 'Prepare-JustPlay-WebClient\.ps1') {
-    Fail 'bat must call Prepare-JustPlay-WebClient.ps1'
+if ((Get-Content -LiteralPath $bat -Raw) -notmatch 'Chay-Ket-Noi-NAS\.ps1') {
+    Fail 'bat must call Chay-Ket-Noi-NAS.ps1'
+}
+if ((Get-Content -LiteralPath $launcher -Raw) -notmatch 'Unblock-File') {
+    Fail 'launcher must Unblock-File'
 }
 Ok 'bundle companion files'
 

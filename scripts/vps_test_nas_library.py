@@ -21,7 +21,9 @@ from django.test import Client
 from django.urls import reverse
 
 REQUIRED_ZIP = frozenset({
+    "Chay-Ket-Noi-NAS.ps1",
     "JustPlay-NAS-RaiDrive-Setup.bat",
+    "JustPlay-NAS-RaiDrive-Setup.cmd",
     "JustPlay-NAS-RaiDrive-Setup.ps1",
     "Prepare-JustPlay-WebClient.ps1",
     "JustPlay-NAS-Config.json",
@@ -36,7 +38,7 @@ PS1_MARKERS = (
     "Connect-AllJustPlayNasShares",
     "Get-NasShareDriveAssignments",
     "Test-JustPlayNasBundleReady",
-    "NasScriptVersion = '2026.06.28.13'",
+    "NasScriptVersion = '2026.06.28.14'",
     "Resolve-SingleNasShareName",
     "NasPrimaryShare",
 )
@@ -85,10 +87,13 @@ def validate_zip_bundle(content: bytes, label: str) -> list[str]:
                 )
 
         bat = zf.read("JustPlay-NAS-RaiDrive-Setup.bat").decode("utf-8", errors="replace")
-        if "-STA" not in bat:
-            failed.append(f"{label}: bat missing -STA")
-        if "explorer.exe" not in bat.lower():
-            failed.append(f"{label}: bat missing explorer.exe user-session launch")
+        if "Chay-Ket-Noi-NAS.ps1" not in bat:
+            failed.append(f"{label}: bat must call Chay-Ket-Noi-NAS.ps1")
+        launcher = zf.read("Chay-Ket-Noi-NAS.ps1").decode("utf-8-sig", errors="replace")
+        if "Unblock-File" not in launcher:
+            failed.append(f"{label}: launcher missing Unblock-File")
+        if "LOCALAPPDATA" not in launcher:
+            failed.append(f"{label}: launcher missing LocalAppData copy")
 
     if not failed:
         print(f"OK: zip bundle {label} shares={cfg.get('shares')}")

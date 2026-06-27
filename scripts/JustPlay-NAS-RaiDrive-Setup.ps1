@@ -1,7 +1,7 @@
 ﻿# JustPlay - tu dong gan o NAS qua WebDAV (cong 5678). Chi WebDAV, khong SMB.
 # User/pass = tai khoan Portal (LDAP). Khong can cau hinh RaiDrive thu cong.
 #
-# Chay: double-click JustPlay-NAS-RaiDrive-Setup.bat
+# Chay: double-click Chay-Ket-Noi-NAS.ps1 (Run with PowerShell) hoac .bat / .cmd
 
 $ErrorActionPreference = 'Stop'
 
@@ -21,7 +21,7 @@ $NasPrimaryShare = '__NAS_PRIMARY_SHARE__'
 $DeptFolderCode = '__NAS_DEPT_CODE__'
 $DriveLetterRaw = '__NAS_DRIVE_LETTER__'
 $BlockedDefaultPassword = 'justplay@123'
-$NasScriptVersion = '2026.06.28.13'
+$NasScriptVersion = '2026.06.28.14'
 
 $Script:NasWebDavShareAliases = @{
     'KD-MKT' = '05_MARKETING'
@@ -282,7 +282,7 @@ Vui long tai lai ZIP tu Thu vien -> Tai NAS (Ctrl+F5), giai nen va chay .bat tro
         $msg = @"
 Thieu file JustPlay-NAS-Config.json trong thu muc cai dat.
 
-Giai nen DAY DU file ZIP (4 file) roi chay JustPlay-NAS-RaiDrive-Setup.bat.
+Giai nen DAY DU file ZIP roi chay Chay-Ket-Noi-NAS.ps1 (Run with PowerShell).
 "@
     } else {
         $msg = @"
@@ -1708,7 +1708,7 @@ function Open-NasExplorerForMappedShares {
     if ($opened.Count -lt 1) {
         Start-Process explorer.exe 'shell:MyComputerFolder'
         $driveList = if ($letters.Count -gt 0) { ($letters | ForEach-Object { "${_}:" }) -join ', ' } else { 'Z:, Y:, ...' }
-        return "May tinh (This PC) — xem $driveList trong muc O dia mang"
+        return "May tinh (This PC) - xem $driveList trong muc O dia mang"
     }
     return ($opened -join ', ')
 }

@@ -138,8 +138,15 @@ def nas_download_setup(request):
     base = Path(settings.BASE_DIR) / 'scripts'
     ps1_path = base / 'JustPlay-NAS-RaiDrive-Setup.ps1'
     prep_path = base / 'Prepare-JustPlay-WebClient.ps1'
+    launcher_path = base / 'Chay-Ket-Noi-NAS.ps1'
     bat_path = base / 'JustPlay-NAS-RaiDrive-Setup.bat'
-    if not bat_path.is_file() or not ps1_path.is_file() or not prep_path.is_file():
+    cmd_path = base / 'JustPlay-NAS-RaiDrive-Setup.cmd'
+    if (
+        not bat_path.is_file()
+        or not ps1_path.is_file()
+        or not prep_path.is_file()
+        or not launcher_path.is_file()
+    ):
         return HttpResponse(
             'Không tìm thấy script cài NAS trên server.',
             status=404,
@@ -152,9 +159,18 @@ def nas_download_setup(request):
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as archive:
         archive.writestr(
+            'Chay-Ket-Noi-NAS.ps1',
+            _prepare_ps1(launcher_path.read_text(encoding='utf-8-sig')),
+        )
+        archive.writestr(
             'JustPlay-NAS-RaiDrive-Setup.bat',
             _prepare_bat(bat_path.read_text(encoding='utf-8')),
         )
+        if cmd_path.is_file():
+            archive.writestr(
+                'JustPlay-NAS-RaiDrive-Setup.cmd',
+                _prepare_bat(cmd_path.read_text(encoding='utf-8')),
+            )
         archive.writestr(
             'JustPlay-NAS-RaiDrive-Setup.ps1',
             _prepare_ps1(ps1_body),
@@ -175,15 +191,24 @@ def nas_download_setup(request):
             'HUONG-DAN.txt',
             _prepare_bat(
                 'JustPlay NAS - Ket noi WebDAV tu dong\r\n'
-                '1. Giai nen file ZIP (giu nguyen 5 file cung thu muc)\r\n'
-                '2. Double-click JustPlay-NAS-RaiDrive-Setup.bat (chap nhan UAC neu duoc hoi)\r\n'
-                '   KHONG chay Run as administrator — o dia se khong hien trong Explorer\r\n'
+                '\r\n'
+                'NEU WINDOWS CHAN FILE .BAT (SmartScreen / Mark of the Web):\r\n'
+                '  Cach 1 (khuyen dung): Chuot phai Chay-Ket-Noi-NAS.ps1 -> Run with PowerShell\r\n'
+                '  Cach 2: Chuot phai file ZIP -> Thuoc tinh -> Bo chan (Unblock) -> OK -> giai nen lai\r\n'
+                '  Cach 3: Double-click JustPlay-NAS-RaiDrive-Setup.cmd (neu .bat bi chan)\r\n'
+                '\r\n'
+                'CAC BUOC:\r\n'
+                '1. Giai nen file ZIP (giu nguyen tat ca file cung thu muc)\r\n'
+                '2. Chuot phai Chay-Ket-Noi-NAS.ps1 -> Run with PowerShell (chap nhan UAC neu duoc hoi)\r\n'
+                '   KHONG chon Run as administrator\r\n'
                 '3. Nhap ten dang nhap va mat khau Portal\r\n'
                 f'4. He thong tu gan moi share mot o dia: {share_line}\r\n'
                 f'5. WebDAV: https://{cfg["server"]}:{cfg["webdav_port"]}/<share>\r\n'
                 '\r\n'
                 'File trong ZIP:\r\n'
+                '- Chay-Ket-Noi-NAS.ps1 (chay file nay neu Windows chan .bat)\r\n'
                 '- JustPlay-NAS-RaiDrive-Setup.bat\r\n'
+                '- JustPlay-NAS-RaiDrive-Setup.cmd\r\n'
                 '- JustPlay-NAS-RaiDrive-Setup.ps1\r\n'
                 '- Prepare-JustPlay-WebClient.ps1\r\n'
                 '- JustPlay-NAS-Config.json\r\n'

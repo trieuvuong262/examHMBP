@@ -3,7 +3,6 @@ chcp 65001 >nul
 setlocal
 title JustPlay NAS - Ket noi WebDAV
 
-:: Neu Windows chan .bat: chuot phai Chay-Ket-Noi-NAS.ps1 -> Run with PowerShell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Chay-Ket-Noi-NAS.ps1"
 set "EC=%ERRORLEVEL%"
 if not "%EC%"=="0" pause
