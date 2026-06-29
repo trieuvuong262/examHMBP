@@ -27,6 +27,7 @@ REQUIRED_ZIP = frozenset({
     "JustPlay-NAS-Config.json",
     "Mo-Ket-Noi-NAS.ps1",
     "Chay-Ket-Noi-NAS.bat",
+    "KET-NOI-NAS.bat",
 })
 OPTIONAL_ZIP = frozenset({
     "JustPlay-RustDesk-Setup.ps1",

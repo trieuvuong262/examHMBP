@@ -25,6 +25,7 @@ $files = @(
     'scripts/Prepare-JustPlay-WebClient.ps1',
     'scripts/Mo-Ket-Noi-NAS.ps1',
     'scripts/Chay-Ket-Noi-NAS.bat',
+    'scripts/KET-NOI-NAS.bat',
     'scripts/JustPlay-RustDesk-Setup.ps1',
     'scripts/JustPlay-Equipment-Scan.ps1',
     'scripts/JustPlay-NAS-Launcher.cs',
