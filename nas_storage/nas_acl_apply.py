@@ -132,6 +132,32 @@ def principal_group_key(principal: str) -> str:
     return p.lower()
 
 
+def _nas_ldap_domain() -> str:
+    return (getattr(settings, 'NAS_LDAP_DOMAIN', 'ldap.justplay.local') or 'ldap.justplay.local').strip().lower()
+
+
+def is_fq_ldap_principal(principal: str) -> bool:
+    """Principal đầy đủ domain LDAP (@IT@ldap... hoặc user@ldap...)."""
+    p = (principal or '').strip()
+    if not p:
+        return False
+    domain = _nas_ldap_domain()
+    lower = p.lower()
+    return lower.endswith(f'@{domain}') or lower.endswith(domain)
+
+
+def principal_should_upgrade(existing: str, desired: str) -> bool:
+    """
+    NAS còn principal rút gọn (@IT, @HCNS) trong khi Portal dùng @IT@ldap.justplay.local.
+    WebDAV map theo nhóm LDAP đầy đủ — không coi @IT và @IT@ldap... là tương đương.
+    """
+    if not existing or not desired or existing == desired:
+        return False
+    if principal_group_key(existing) != principal_group_key(desired):
+        return False
+    return is_fq_ldap_principal(desired) and not is_fq_ldap_principal(existing)
+
+
 def parse_synoshare_list_acl(output: str) -> dict[str, set[str]]:
     buckets: dict[str, set[str]] = {'RW': set(), 'RO': set(), 'NA': set()}
     for line in (output or '').splitlines():
@@ -159,6 +185,29 @@ def portal_managed_group_keys() -> set[str]:
     return keys
 
 
+def _user_nas_principal(user) -> str:
+    domain = _nas_ldap_domain()
+    return f'{user.username}@{domain}'
+
+
+def _portal_synced_user_principals() -> set[str]:
+    """Principal user cần trên share ACL theo thành viên nhóm Portal (NasFolderPermission.group)."""
+    from nas_storage.models import NasFolderPermission
+    from nas_storage.portal_access import portal_users_for_access_group
+
+    principals: set[str] = set()
+    qs = NasFolderPermission.objects.filter(
+        group__isnull=False,
+        group__is_active=True,
+    ).select_related('group')
+    for perm in qs:
+        if not _share_access_level(perm):
+            continue
+        for user in portal_users_for_access_group(perm.group):
+            principals.add(_user_nas_principal(user))
+    return principals
+
+
 def portal_managed_user_keys() -> set[str]:
     from nas_storage.models import NasFolderPermission
 
@@ -169,6 +218,8 @@ def portal_managed_user_keys() -> set[str]:
     ):
         if username:
             keys.add(username.lower())
+    for principal in _portal_synced_user_principals():
+        keys.add(principal_group_key(principal))
     return keys
 
 
@@ -202,6 +253,8 @@ def _active_folder_permissions(folder):
 
 
 def _desired_share_acl_buckets(folder) -> dict[str, set[str]]:
+    from nas_storage.portal_access import portal_users_for_access_group
+
     buckets: dict[str, set[str]] = {'RW': set(), 'RO': set(), 'NA': set()}
     for perm in _active_folder_permissions(folder):
         level = _share_access_level(perm)
@@ -210,6 +263,9 @@ def _desired_share_acl_buckets(folder) -> dict[str, set[str]]:
         principal = perm.resolved_nas_principal()
         if principal:
             buckets[level].add(principal)
+        if perm.group_id:
+            for user in portal_users_for_access_group(perm.group):
+                buckets[level].add(_user_nas_principal(user))
     return buckets
 
 
@@ -245,7 +301,12 @@ def build_share_acl_sync_commands(
                 current.get(desired_level, set()),
                 principal_key,
             )
-            if not existing_desired:
+            if existing_desired and principal_should_upgrade(existing_desired, desired_principal):
+                commands.append(_synoshare_setuser_cmd(share, desired_level, '-', existing_desired))
+                commands.append(
+                    f'/usr/syno/sbin/synoshare --setuser {share} {desired_level} + {desired_principal}'
+                )
+            elif not existing_desired:
                 commands.append(
                     f'/usr/syno/sbin/synoshare --setuser {share} {desired_level} + {desired_principal}'
                 )

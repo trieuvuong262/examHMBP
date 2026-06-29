@@ -49,7 +49,27 @@ try {
 }
 
 Write-Host ''
-Write-Host '[4] net use (can user/pass)'
+Write-Host '[4] WebDAV PROPFIND (share — Windows can 207)'
+$shareTest = '00_QUY_DINH_CHUNG'
+$propUrl = "https://${hostName}:${port}/${shareTest}/"
+try {
+    if (Get-Command curl.exe -ErrorAction SilentlyContinue) {
+        $pfCode = & curl.exe -s -k -o NUL -w '%{http_code}' -X PROPFIND -H 'Depth: 0' $propUrl 2>$null
+        Write-Host "  PROPFIND $propUrl -> $pfCode"
+        if ($pfCode -eq '405') {
+            Write-Host '  LOI NAS: share tra 405 — WebClient khong map duoc (sua WebDAV/reverse proxy tren Synology)' -ForegroundColor Red
+        } elseif ($pfCode -eq '207') {
+            Write-Host '  OK: share ho tro WebDAV day du' -ForegroundColor Green
+        }
+    } else {
+        Write-Host '  Bo qua (khong co curl.exe)'
+    }
+} catch {
+    Write-Host "  LOI PROPFIND: $($_.Exception.Message)" -ForegroundColor Red
+}
+
+Write-Host ''
+Write-Host '[5] net use (can user/pass)'
 Write-Host '  Dat bien: $env:JUSTPLAY_NAS_TEST_USER va $env:JUSTPLAY_NAS_TEST_PASS roi chay lai script'
 $u = $env:JUSTPLAY_NAS_TEST_USER
 $p = $env:JUSTPLAY_NAS_TEST_PASS
@@ -75,7 +95,8 @@ if ($u -and $p) {
 
 Write-Host ''
 Write-Host '=== Ket luan nhanh ==='
-Write-Host '- TCP OK + net use FAIL 67 => sua DNS FortiGate (justplay.synology.me -> IP noi bo), tat SSL inspect'
+Write-Host '- PROPFIND share = 405 => sua WebDAV NAS (khong phai loi mat khau Portal)'
+Write-Host '- PROPFIND OK + net use FAIL 67 => DNS noi bo / prep WebClient (UAC)'
 Write-Host '- TCP FAIL => firewall / port 5678 bi chan'
-Write-Host '- Loi Persist trong EXE => tai ZIP script .23+'
+Write-Host '- Loi 1244 qua IP 100.x => dung hostname + cert NAS, khong map bang IP Tailscale'
 Write-Host '- Doi user Portal => Go mount truoc khi Ket noi'

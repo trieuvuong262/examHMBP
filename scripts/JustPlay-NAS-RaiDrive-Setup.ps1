@@ -21,7 +21,7 @@ $NasPrimaryShare = '__NAS_PRIMARY_SHARE__'
 $DeptFolderCode = '__NAS_DEPT_CODE__'
 $DriveLetterRaw = '__NAS_DRIVE_LETTER__'
 $BlockedDefaultPassword = 'justplay@123'
-$NasScriptVersion = '2026.06.28.23'
+$NasScriptVersion = '2026.06.29.24'
 
 $Script:NasWebDavShareAliases = @{
     'KD-MKT' = '05_MARKETING'
@@ -672,17 +672,77 @@ function Get-WNetErrorMessage {
     }
 }
 
+function Get-NasWebDavPropfindStatusCode {
+    param(
+        [string]$HostName,
+        [int]$DavPort,
+        [string]$ShareName = '00_QUY_DINH_CHUNG'
+    )
+    if (-not $HostName -or -not $ShareName) { return $null }
+    $url = "https://${HostName}:${DavPort}/${ShareName}/"
+    try {
+        if (Get-Command curl.exe -ErrorAction SilentlyContinue) {
+            $code = & curl.exe -s -k -o NUL -w '%{http_code}' -X PROPFIND -H 'Depth: 0' $url 2>$null
+            if ($code -match '^\d{3}$') { return [int]$code }
+        }
+        $req = [System.Net.HttpWebRequest]::Create($url)
+        $req.Method = 'PROPFIND'
+        $req.Headers.Add('Depth', '0')
+        $req.Timeout = 8000
+        $resp = $req.GetResponse()
+        $status = [int]$resp.StatusCode
+        $resp.Close()
+        return $status
+    } catch [System.Net.WebException] {
+        $resp = $_.Exception.Response
+        if ($resp) {
+            $status = [int]$resp.StatusCode
+            $resp.Close()
+            return $status
+        }
+    } catch {}
+    return $null
+}
+
 function Expand-NasMapErrorHint {
     param([string]$Message)
     if (-not $Message) { return $Message }
     $hints = New-Object System.Collections.Generic.List[string]
     if ($Message -match '(?i)67|network name cannot be found|khong tim thay ten mang') {
-        [void]$hints.Add(@'
+        $propfind = Get-NasWebDavPropfindStatusCode -HostName $Server -DavPort $WebDavPort
+        if ($propfind -eq 405) {
+            [void]$hints.Add(@'
+Loi 67 (WebClient): WebDAV tra PROPFIND HTTP 405 - user chua co quyen share tren NAS.
+Windows khong map duoc o Z:/Y: du mat khau dung.
+
+Portal (IT):
+- Vao NAS -> Phan quyen thu muc -> Ap dung quyen cho share bi loi
+- Neu user la thanh vien bo sung nhom (vd. HCNS vao nhom IT): Portal se dong bo principal user len NAS
+
+Test (thay TEN_SHARE):
+curl -k -u "Ten@ldap.justplay.local:MAT_KHAU" -X PROPFIND -H "Depth: 0" https://justplay.synology.me:5678/TEN_SHARE/ -> can 207
+'@.Trim())
+        } else {
+            $dnsAddrs = @()
+            try {
+                $dnsAddrs = @([System.Net.Dns]::GetHostAddresses($Server) | ForEach-Object { $_.IPAddressToString })
+            } catch {}
+            $publicDns = ($dnsAddrs -contains '14.161.25.119')
+            if ($publicDns) {
+                [void]$hints.Add(@'
 Loi 67 (WebClient): may trong LAN dang tro DNS justplay.synology.me ve IP PUBLIC.
-- FortiGate/modem moi: cau hinh DNS noi bo justplay.synology.me -> IP NAS noi bo (vd. 100.93.5.42 hoac IP LAN NAS)
-- Hoac bat hairpin NAT / NAT loopback tren modem VNPT
+- FortiGate: DNS noi bo justplay.synology.me -> IP NAS LAN (vd. 192.168.1.254) hoac Tailscale 100.93.5.42
 - FortiGate: tat SSL inspection cho justplay.synology.me:5678
 '@.Trim())
+            } else {
+                [void]$hints.Add(@'
+Loi 67 (WebClient): DNS noi bo OK nhung WebClient khong map duoc share.
+- Chay EXE -> chap nhan UAC (prep WebClient) roi Go mount -> Ket noi lai
+- IT NAS: kiem tra WebDAV cong 5678 (PROPFIND tren share phai tra 207, khong phai 405)
+- FortiGate DNS nen tro ve IP LAN NAS (192.168.1.254) thay vi chi Tailscale
+'@.Trim())
+            }
+        }
     }
     if ($Message -match '(?i)1244|not been authenticated') {
         [void]$hints.Add('Loi 1244: thu user UPN (Ten@ldap.justplay.local), mat khau Portal, chay prep WebClient (UAC Admin).')
@@ -966,6 +1026,15 @@ function Get-WebDavShareUrl {
     return "https://${HostName}:${DavPort}/${pathShare}/"
 }
 
+function Get-WebDavUncPathDirect {
+    param(
+        [string]$HostName,
+        [int]$DavPort,
+        [string]$ShareName
+    )
+    return "\\${HostName}@SSL@${DavPort}\${ShareName}"
+}
+
 function Get-WebDavUncPath {
     param(
         [string]$HostName,
@@ -973,6 +1042,24 @@ function Get-WebDavUncPath {
         [string]$ShareName
     )
     return "\\${HostName}@SSL@${DavPort}\DavWWWRoot\${ShareName}"
+}
+
+function Get-WebDavUncPathCandidates {
+    param(
+        [string]$HostName,
+        [int]$DavPort,
+        [string]$ShareName
+    )
+    $direct = Get-WebDavUncPathDirect -HostName $HostName -DavPort $DavPort -ShareName $ShareName
+    $legacy = Get-WebDavUncPath -HostName $HostName -DavPort $DavPort -ShareName $ShareName
+    $seen = @{}
+    $list = New-Object System.Collections.Generic.List[string]
+    foreach ($path in @($direct, $legacy)) {
+        if (-not $path -or $seen.ContainsKey($path)) { continue }
+        $seen[$path] = $true
+        [void]$list.Add($path)
+    }
+    return ,$list.ToArray()
 }
 
 function Invoke-NasWebDavNetUse {
@@ -1009,7 +1096,7 @@ function Invoke-NasWebDavMapTimed {
     }
     Remove-NasDriveMap -Letter $Letter
     $davUrl = Get-WebDavShareUrl -HostName $HostName -DavPort $DavPort -ShareName $ShareName
-    $davUnc = Get-WebDavUncPath -HostName $HostName -DavPort $DavPort -ShareName $ShareName
+    $uncCandidates = Get-WebDavUncPathCandidates -HostName $HostName -DavPort $DavPort -ShareName $ShareName
     $lastErr = $null
     for ($attempt = 1; $attempt -le 2; $attempt++) {
         if ($attempt -gt 1) {
@@ -1019,7 +1106,7 @@ function Invoke-NasWebDavMapTimed {
                 Save-WebDavCredentials -HostName $HostName -DavPort $DavPort -WinUser $WinUser -PlainPassword $PlainPassword
             }
         }
-        foreach ($spec in @($davUnc)) {
+        foreach ($spec in $uncCandidates) {
             foreach ($mapFn in @(
                 { param($s) Invoke-NasWebDavNetUse -Letter $Letter -RemoteSpec $s -WinUser $WinUser -PlainPassword $PlainPassword -Label "WebDAV $s" },
                 { param($s) Invoke-NasWebDavWNetMap -Letter $Letter -RemoteSpec $s -WinUser $WinUser -PlainPassword $PlainPassword }
@@ -1764,7 +1851,14 @@ Neu van loi, lien he IT.
                     $authOk = $null
                 }
                 if ($authOk -eq $false) {
-                    [void]$errors.Add("Share ${shareName}: khong co quyen WebDAV voi user $winUser")
+                    $propfind = $null
+                    try {
+                        $propfind = Get-NasWebDavPropfindStatusCode -HostName $resolvedServer -DavPort $connectPort -ShareName $shareName
+                    } catch {}
+                    $aclHint = if ($propfind -eq 405) {
+                        ' (PROPFIND 405: IT ap dung quyen NAS tren Portal cho share nay)'
+                    } else { '' }
+                    [void]$errors.Add("Share ${shareName}: khong co quyen WebDAV voi user $winUser$aclHint")
                     break
                 }
             }

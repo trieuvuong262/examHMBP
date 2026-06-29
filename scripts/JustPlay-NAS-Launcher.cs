@@ -8,6 +8,13 @@ using System.Windows.Forms;
 
 namespace JustPlay.NasLauncher
 {
+    internal sealed class PsRunResult
+    {
+        internal int ExitCode { get; set; }
+        internal string Stdout { get; set; }
+        internal string Stderr { get; set; }
+    }
+
     internal sealed class NasMainForm : Form
     {
         private readonly string _sourceDir;
@@ -219,7 +226,7 @@ namespace JustPlay.NasLauncher
             try
             {
                 var code = await RunPs1Async("prep", null, null).ConfigureAwait(true);
-                if (code != 0)
+                if (code.ExitCode != 0)
                 {
                     _lblStatus.Text = "WebClient: ch\u1ea5p nh\u1eadn UAC n\u1ebfu \u0111\u01b0\u1ee3c h\u1ecfi, r\u1ed3i th\u1eed K\u1ebft n\u1ed1i.";
                 }
@@ -236,6 +243,70 @@ namespace JustPlay.NasLauncher
             {
                 SetBusy(false, _lblStatus.Text);
             }
+        }
+
+        private static string FormatConnectSuccessMessage(string stdout)
+        {
+            var text = (stdout ?? string.Empty).Trim();
+            string okLine = null;
+            foreach (var line in text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                var trimmed = line.Trim();
+                if (trimmed.StartsWith("OK|", StringComparison.OrdinalIgnoreCase))
+                {
+                    okLine = trimmed;
+                    break;
+                }
+            }
+            if (string.IsNullOrEmpty(okLine))
+            {
+                return "\u0110\u00e3 k\u1ebft n\u1ed1i NAS th\u00e0nh c\u00f4ng.\nM\u1edf File Explorer \u0111\u1ec3 xem c\u00e1c \u1ed5 \u0111\u0129a.";
+            }
+            var parts = okLine.Split('|');
+            if (parts.Length >= 3 && !string.IsNullOrWhiteSpace(parts[2]))
+            {
+                var drives = parts[2].Replace("; ", "\n");
+                return "\u0110\u00e3 k\u1ebft n\u1ed1i NAS:\n" + drives + "\n\nM\u1edf File Explorer \u0111\u1ec3 duy\u1ec7t file.";
+            }
+            return "\u0110\u00e3 k\u1ebft n\u1ed1i NAS th\u00e0nh c\u00f4ng.";
+        }
+
+        private static string FormatConnectFailureMessage(string stdout, string stderr)
+        {
+            var detail = (stderr ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(detail))
+            {
+                foreach (var line in (stdout ?? string.Empty).Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var trimmed = line.Trim();
+                    if (trimmed.StartsWith("OK|", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+                    if (trimmed.StartsWith("[JustPlay]", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+                    if (!string.IsNullOrWhiteSpace(trimmed))
+                    {
+                        detail = trimmed;
+                        break;
+                    }
+                }
+            }
+            if (string.IsNullOrWhiteSpace(detail))
+            {
+                detail = (stdout ?? string.Empty).Trim();
+            }
+            if (string.IsNullOrWhiteSpace(detail))
+            {
+                return "Kh\u00f4ng k\u1ebft n\u1ed1i \u0111\u01b0\u1ee3c NAS.\nTh\u1eed G\u1ee1 mount, ki\u1ec3m tra m\u1eadt kh\u1ea9u Portal, r\u1ed3i K\u1ebft n\u1ed1i l\u1ea1i.";
+            }
+            if (detail.Length > 1200)
+            {
+                detail = detail.Substring(0, 1200) + "...";
+            }
+            return "Kh\u00f4ng k\u1ebft n\u1ed1i \u0111\u01b0\u1ee3c NAS:\n\n" + detail;
         }
 
         private async Task RunMountAsync()
@@ -257,15 +328,16 @@ namespace JustPlay.NasLauncher
             SetBusy(true, "\u0110ang k\u1ebft n\u1ed1i NAS...");
             try
             {
-                var code = await RunPs1Async("connect", user, _tbPass.Text).ConfigureAwait(true);
-                if (code != 0)
+                var result = await RunPs1Async("connect", user, _tbPass.Text).ConfigureAwait(true);
+                if (result.ExitCode != 0)
                 {
-                    MessageBox.Show(this, "Kh\u00f4ng k\u1ebft n\u1ed1i \u0111\u01b0\u1ee3c NAS.\nXem chi ti\u1ebft trong c\u1eeda s\u1ed5 PowerShell (n\u1ebfu c\u00f3).", Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    var failText = FormatConnectFailureMessage(result.Stdout, result.Stderr);
+                    MessageBox.Show(this, failText, Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
                     _lblStatus.Text = "K\u1ebft n\u1ed1i th\u1ea5t b\u1ea1i.";
                     return;
                 }
                 _lblStatus.Text = "\u0110\u00e3 k\u1ebft n\u1ed1i NAS.";
-                MessageBox.Show(this, "\u0110\u00e3 k\u1ebft n\u1ed1i NAS th\u00e0nh c\u00f4ng.\nM\u1edf File Explorer \u0111\u1ec3 xem Z, Y, X, W.", Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(this, FormatConnectSuccessMessage(result.Stdout), Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
@@ -283,8 +355,8 @@ namespace JustPlay.NasLauncher
             SetBusy(true, busyText);
             try
             {
-                var code = await RunPs1Async(action, null, null).ConfigureAwait(true);
-                if (code == 0)
+                var result = await RunPs1Async(action, null, null).ConfigureAwait(true);
+                if (result.ExitCode == 0)
                 {
                     _lblStatus.Text = action == "unmount"
                         ? "\u0110\u00e3 g\u1ee1 mount NAS."
@@ -377,7 +449,7 @@ namespace JustPlay.NasLauncher
             }
         }
 
-        private Task<int> RunPs1Async(string action, string user, string password)
+        private Task<PsRunResult> RunPs1Async(string action, string user, string password)
         {
             return Task.Run(() =>
             {
@@ -403,15 +475,17 @@ namespace JustPlay.NasLauncher
                 {
                     if (proc == null)
                     {
-                        return 1;
+                        return new PsRunResult { ExitCode = 1, Stdout = "", Stderr = "Khong khoi chay PowerShell." };
                     }
-                    var err = proc.StandardError.ReadToEnd();
+                    var stdout = proc.StandardOutput.ReadToEnd();
+                    var stderr = proc.StandardError.ReadToEnd();
                     proc.WaitForExit();
-                    if (proc.ExitCode != 0 && !string.IsNullOrWhiteSpace(err))
+                    return new PsRunResult
                     {
-                        throw new InvalidOperationException(err.Trim());
-                    }
-                    return proc.ExitCode;
+                        ExitCode = proc.ExitCode,
+                        Stdout = stdout ?? "",
+                        Stderr = stderr ?? "",
+                    };
                 }
             });
         }

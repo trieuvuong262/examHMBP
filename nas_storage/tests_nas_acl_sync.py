@@ -1,9 +1,11 @@
-﻿from django.test import TestCase
+from django.test import TestCase
 
 from nas_storage.nas_acl_apply import (
     build_share_acl_sync_commands,
+    is_fq_ldap_principal,
     parse_synoshare_list_acl,
     principal_group_key,
+    principal_should_upgrade,
 )
 
 
@@ -41,3 +43,18 @@ SYNOSHARE ACL Perm List:
         self.assertIn('IT@ldap.justplay.local', joined)
         self.assertIn(' - ', joined)
         self.assertNotIn('@administrators', joined)
+    def test_principal_should_upgrade_short_ldap_group(self):
+        self.assertTrue(principal_should_upgrade("@IT", "@IT@ldap.justplay.local"))
+        self.assertFalse(principal_should_upgrade("@IT@ldap.justplay.local", "@IT@ldap.justplay.local"))
+        self.assertTrue(is_fq_ldap_principal("@HCNS@ldap.justplay.local"))
+        self.assertFalse(is_fq_ldap_principal("@HCNS"))
+
+    def test_build_share_acl_sync_upgrades_short_it_principal(self):
+        current = {"RW": {"@IT", "@administrators"}, "RO": set(), "NA": set()}
+        desired = {"RW": {"@IT@ldap.justplay.local"}, "RO": set(), "NA": set()}
+        cmds = build_share_acl_sync_commands(
+            share="10_HE_THONG_CNTT", desired=desired, current=current,
+        )
+        joined = "\n".join(cmds)
+        self.assertIn(' - "@IT"', joined)
+        self.assertIn("+ @IT@ldap.justplay.local", joined)

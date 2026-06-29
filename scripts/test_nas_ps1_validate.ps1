@@ -97,6 +97,10 @@ Ok 'WebDAV URL format'
 
 $unc = Get-WebDavUncPath -HostName 'justplay.synology.me' -DavPort 5678 -ShareName '10_HE_THONG_CNTT'
 if ($unc -notmatch 'DavWWWRoot') { Fail "UNC path wrong: $unc" }
+$uncDirect = Get-WebDavUncPathDirect -HostName 'justplay.synology.me' -DavPort 5678 -ShareName '10_HE_THONG_CNTT'
+if ($uncDirect -ne '\\justplay.synology.me@SSL@5678\10_HE_THONG_CNTT') { Fail "UNC direct path wrong: $uncDirect" }
+$candidates = Get-WebDavUncPathCandidates -HostName 'justplay.synology.me' -DavPort 5678 -ShareName '10_HE_THONG_CNTT'
+if ($candidates[0] -ne $uncDirect) { Fail "UNC candidates must prefer direct path" }
 Ok 'WebDAV UNC format'
 
 # 5) TCP port 5678 reachable (WebDAV)

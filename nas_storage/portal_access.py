@@ -76,6 +76,26 @@ def users_excluded_from_nas_group(group_name: str, *, excluded_user_ids: set[int
     return [u for u in _users_for_department_nas_group(group_name) if u.pk in excluded_user_ids]
 
 
+def portal_users_for_access_group(group) -> list[User]:
+    """
+    Mọi user Portal thuộc nhóm NAS: map phòng ban + thành viên bổ sung, trừ loại trừ.
+    Dùng khi đồng bộ ACL share — WebDAV cần principal user nếu chưa nằm nhóm LDAP DSM.
+    """
+    from nas_storage.models import NasAccessGroup
+
+    if not isinstance(group, NasAccessGroup) or not group.is_active:
+        return []
+
+    excluded_user_ids = set(group.portal_excluded_members.values_list('pk', flat=True))
+    by_id: dict[int, User] = {}
+    for user in users_auto_in_nas_group(group.name, excluded_user_ids=excluded_user_ids):
+        by_id[user.pk] = user
+    for user in group.portal_members.filter(is_active=True):
+        if user.pk not in excluded_user_ids:
+            by_id[user.pk] = user
+    return list(by_id.values())
+
+
 def department_user_ids_for_nas_group(group_name: str) -> set[int]:
     return {u.pk for u in _users_for_department_nas_group(group_name)}
 
