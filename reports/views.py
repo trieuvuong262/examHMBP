@@ -157,7 +157,7 @@ _CK5_IMAGE_TYPES = frozenset({
     'image/jpeg', 'image/jpg', 'image/pjpeg', 'image/png', 'image/gif', 'image/webp',
     'image/bmp', 'image/x-ms-bmp', 'image/x-png',
 })
-_CK5_IMAGE_EXTS = frozenset({'.jpg', '.jpeg', '.png', '.gif', '.webp'})
+_CK5_IMAGE_EXTS = frozenset({'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'})
 _CK5_MAX_BYTES = 5 * 1024 * 1024
 
 
@@ -743,7 +743,7 @@ def today_report(request):
 @module_perm_required(MODULE_REPORTS, 'create')
 @require_POST
 def ckeditor5_upload(request):
-    upload = request.FILES.get('upload')
+    upload = request.FILES.get('upload') or request.FILES.get('file')
     if not upload:
         return _ckeditor_upload_error('Không có file.')
     if not _is_allowed_ckeditor_image(upload):

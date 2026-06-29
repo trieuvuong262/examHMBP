@@ -1,13 +1,13 @@
 (function () {
     'use strict';
 
+    function getCsrfToken() {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') : '';
+    }
+
     if (window.CKEDITOR) {
         CKEDITOR.config.versionCheck = false;
-
-        function getCsrfToken() {
-            var meta = document.querySelector('meta[name="csrf-token"]');
-            return meta ? meta.getAttribute('content') : '';
-        }
 
         CKEDITOR.on('instanceCreated', function (ev) {
             ev.editor.on('fileUploadRequest', function (evt) {
@@ -18,7 +18,8 @@
                 }
                 xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
                 var loader = evt.data.fileLoader;
-                var dateInput = document.getElementById('id_report_date');
+                var dateInput = document.getElementById('id_report_date')
+                    || document.querySelector('input[name="report_date"]');
                 if (loader && dateInput && dateInput.value) {
                     var join = loader.uploadUrl.indexOf('?') >= 0 ? '&' : '?';
                     loader.uploadUrl = loader.uploadUrl + join + 'report_date=' + encodeURIComponent(dateInput.value);
@@ -42,12 +43,25 @@
                 }
                 try {
                     var data = JSON.parse(response);
-                    if (!data.uploaded && data.url) {
-                        data.uploaded = 1;
-                        data.fileName = data.fileName || 'image';
-                        evt.data.response = JSON.stringify(data);
+                    if (data.error && data.error.message) {
+                        evt.cancel();
+                        evt.data.message = data.error.message;
+                        return;
                     }
-                } catch (err) {}
+                    if (data.url) {
+                        evt.data.url = data.url;
+                        if (!data.uploaded) {
+                            data.uploaded = 1;
+                            evt.data.response = JSON.stringify(data);
+                        }
+                        return;
+                    }
+                    evt.cancel();
+                    evt.data.message = 'Phản hồi upload thiếu URL ảnh.';
+                } catch (err) {
+                    evt.cancel();
+                    evt.data.message = 'Phản hồi upload không hợp lệ.';
+                }
             });
         });
     }
@@ -85,6 +99,7 @@
         removePlugins: 'exportpdf,image',
         image2_disableResizer: false,
         image2_prefillDimensions: true,
+        clipboard_handleImages: true,
         allowedContent: true,
         forcePasteAsPlainText: false,
         contentsCss: ['/static/css/reports-office-contents.css?v=20260628b'],
@@ -266,6 +281,124 @@
         return uploadEl && uploadEl.dataset.ckUploadUrl ? uploadEl.dataset.ckUploadUrl : '';
     }
 
+    function appendReportDateToUploadUrl(uploadUrl) {
+        if (!uploadUrl) {
+            return '';
+        }
+        const dateInput = document.getElementById('id_report_date')
+            || document.querySelector('input[name="report_date"]');
+        if (!dateInput || !dateInput.value) {
+            return uploadUrl;
+        }
+        const join = uploadUrl.indexOf('?') >= 0 ? '&' : '?';
+        return uploadUrl + join + 'report_date=' + encodeURIComponent(dateInput.value);
+    }
+
+    function dataUrlToBlob(dataUrl) {
+        const parts = dataUrl.split(',');
+        if (parts.length < 2) {
+            throw new Error('Ảnh dán không hợp lệ');
+        }
+        const meta = parts[0];
+        const raw = atob(parts[1]);
+        const mime = (meta.match(/data:([^;]+)/i) || [])[1] || 'image/png';
+        const bytes = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i += 1) {
+            bytes[i] = raw.charCodeAt(i);
+        }
+        return new Blob([bytes], { type: mime });
+    }
+
+    function uploadImageBlob(blob, fileName) {
+        const uploadUrl = appendReportDateToUploadUrl(resolveUploadUrl());
+        if (!uploadUrl) {
+            return Promise.reject(new Error('Chưa cấu hình upload ảnh báo cáo.'));
+        }
+        const formData = new FormData();
+        formData.append('upload', blob, fileName || 'paste.png');
+        return fetch(uploadUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: formData,
+        }).then(function (resp) {
+            return resp.json().then(function (data) {
+                if (!resp.ok || !data.url) {
+                    const msg = (data.error && data.error.message) || ('HTTP ' + resp.status);
+                    throw new Error(msg);
+                }
+                return data.url;
+            });
+        });
+    }
+
+    function editorHasDataUrlImages(editor) {
+        return /<img\b[^>]*\bsrc=["']data:image\//i.test(editor.getData() || '');
+    }
+
+    function uploadDataUrlImagesInEditor(editor) {
+        const html = editor.getData() || '';
+        const pattern = /<img\b([^>]*?)\bsrc=["'](data:image\/[^"']+)["']([^>]*)>/gi;
+        const tasks = [];
+        const replacements = [];
+        let match;
+        while ((match = pattern.exec(html)) !== null) {
+            const fullTag = match[0];
+            const dataUrl = match[2];
+            const ext = (dataUrl.match(/^data:image\/([a-z0-9+.-]+)/i) || [])[1] || 'png';
+            const fileName = 'paste.' + ext.replace('jpeg', 'jpg').replace('x-ms-bmp', 'bmp');
+            tasks.push(
+                uploadImageBlob(dataUrlToBlob(dataUrl), fileName).then(function (url) {
+                    replacements.push({ from: fullTag, to: fullTag.replace(dataUrl, url) });
+                }),
+            );
+        }
+        if (!tasks.length) {
+            return Promise.resolve();
+        }
+        return Promise.all(tasks).then(function () {
+            let next = html;
+            replacements.forEach(function (item) {
+                next = next.split(item.from).join(item.to);
+            });
+            editor.setData(next);
+            editor.updateElement();
+        });
+    }
+
+    function syncAllEditorsToTextarea() {
+        Object.keys(CKEDITOR.instances || {}).forEach(function (key) {
+            CKEDITOR.instances[key].updateElement();
+        });
+    }
+
+    function bindReportFormImageUpload() {
+        const form = document.getElementById('office-report-form');
+        if (!form || form.dataset.jpCkImageSubmitBound === '1') {
+            return;
+        }
+        form.dataset.jpCkImageSubmitBound = '1';
+        form.addEventListener('submit', function (evt) {
+            syncAllEditorsToTextarea();
+            const editor = Object.keys(CKEDITOR.instances || {})
+                .map(function (key) { return CKEDITOR.instances[key]; })
+                .find(function (inst) { return inst && inst.element; });
+            if (!editor || !editorHasDataUrlImages(editor)) {
+                return;
+            }
+            evt.preventDefault();
+            uploadDataUrlImagesInEditor(editor).then(function () {
+                syncAllEditorsToTextarea();
+                form.submit();
+            }).catch(function (err) {
+                window.alert('Không tải được ảnh dán trong văn bản: ' + (err.message || err));
+            });
+        });
+    }
+
     function buildConfig() {
         const cfg = Object.assign({}, window.JP_WORD_EDITOR_CFG);
         const inVanban = !!document.querySelector('.jp-vanban-viewport');
@@ -348,6 +481,7 @@
     }
 
     function boot() {
+        bindReportFormImageUpload();
         const wordTab = document.getElementById('vanban-tab');
         const wordPane = document.getElementById('vanban-pane');
         const vanbanViewport = document.querySelector('.jp-vanban-viewport');

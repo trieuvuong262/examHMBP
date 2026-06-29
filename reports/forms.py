@@ -159,7 +159,7 @@ class OfficeDailyWorkReportForm(forms.ModelForm):
                 links_text=cleaned.get('links') or '',
             ):
                 raise forms.ValidationError(
-                    'Khi nộp báo cáo, điền ít nhất một link, nội dung văn bản (≥ 50 ký tự), một ô trong bảng, hoặc tải file/ảnh.',
+                    'Khi nộp báo cáo, điền ít nhất một link, nội dung văn bản (≥ 50 ký tự hoặc có ảnh trong văn bản), một ô trong bảng, hoặc tải file/ảnh.',
                 )
         return cleaned
 

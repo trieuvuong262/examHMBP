@@ -202,4 +202,4 @@ def office_report_has_content(
     from reports.link_utils import parse_link_lines
     if parse_link_lines(links_text or ''):
         return True
-    return spreadsheet_has_content(data) or document_has_content(document_html)
+    return spreadsheet_has_content(data) or document_has_any_content(document_html)
