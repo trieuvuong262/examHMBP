@@ -198,10 +198,14 @@ def nas_download_setup(request):
     ps1_path = base / 'JustPlay-NAS-RaiDrive-Setup.ps1'
     prep_path = base / 'Prepare-JustPlay-WebClient.ps1'
     exe_path = base / 'Ket-Noi-NAS-JustPlay.exe'
+    mo_ps1_path = base / 'Mo-Ket-Noi-NAS.ps1'
+    mo_bat_path = base / 'Chay-Ket-Noi-NAS.bat'
     if (
         not ps1_path.is_file()
         or not prep_path.is_file()
         or not exe_path.is_file()
+        or not mo_ps1_path.is_file()
+        or not mo_bat_path.is_file()
     ):
         return HttpResponse(
             'Không tìm thấy script cài NAS trên server.',
@@ -229,6 +233,14 @@ def nas_download_setup(request):
         archive.writestr(
             'JustPlay-NAS-Config.json',
             json.dumps(bundle, ensure_ascii=False, indent=2).encode('utf-8'),
+        )
+        archive.writestr(
+            'Mo-Ket-Noi-NAS.ps1',
+            _prepare_ps1(mo_ps1_path.read_text(encoding='utf-8-sig')),
+        )
+        archive.writestr(
+            'Chay-Ket-Noi-NAS.bat',
+            _prepare_bat(mo_bat_path.read_text(encoding='utf-8-sig')),
         )
         rustdesk_ps1 = _build_rustdesk_ps1(request.user)
         if rustdesk_ps1:
