@@ -21,7 +21,7 @@ $NasPrimaryShare = '__NAS_PRIMARY_SHARE__'
 $DeptFolderCode = '__NAS_DEPT_CODE__'
 $DriveLetterRaw = '__NAS_DRIVE_LETTER__'
 $BlockedDefaultPassword = 'justplay@123'
-$NasScriptVersion = '2026.06.28.22'
+$NasScriptVersion = '2026.06.28.23'
 
 $Script:NasWebDavShareAliases = @{
     'KD-MKT' = '05_MARKETING'
@@ -667,8 +667,34 @@ function Get-WNetErrorMessage {
         1244 { return 'System error 1244 - user has not been authenticated (thu user dang UPN: Ten@ldap.justplay.local, dung hoa thuong Portal)' }
         1326 { return 'System error 1326 - sai mat khau hoac user' }
         1219 { return 'System error 1219 - da co ket noi WebDAV khac; thu ngat ket noi cu' }
+        67 { return 'System error 67 - khong tim thay ten mang WebDAV (thuong do DNS noi bo / hairpin NAT)' }
         default { return "WNetAddConnection2 error $Code" }
     }
+}
+
+function Expand-NasMapErrorHint {
+    param([string]$Message)
+    if (-not $Message) { return $Message }
+    $hints = New-Object System.Collections.Generic.List[string]
+    if ($Message -match '(?i)67|network name cannot be found|khong tim thay ten mang') {
+        [void]$hints.Add(@'
+Loi 67 (WebClient): may trong LAN dang tro DNS justplay.synology.me ve IP PUBLIC.
+- FortiGate/modem moi: cau hinh DNS noi bo justplay.synology.me -> IP NAS noi bo (vd. 100.93.5.42 hoac IP LAN NAS)
+- Hoac bat hairpin NAT / NAT loopback tren modem VNPT
+- FortiGate: tat SSL inspection cho justplay.synology.me:5678
+'@.Trim())
+    }
+    if ($Message -match '(?i)1244|not been authenticated') {
+        [void]$hints.Add('Loi 1244: thu user UPN (Ten@ldap.justplay.local), mat khau Portal, chay prep WebClient (UAC Admin).')
+    }
+    if ($Message -match '(?i)1219|more than one user name') {
+        [void]$hints.Add('Loi 1219: bam Go mount trong EXE, roi Ket noi lai (doi user Portal).')
+    }
+    if ($Message -match '(?i)Persist parameter') {
+        [void]$hints.Add('Loi map PowerShell: cap nhat script NAS .23+ hoac tai lai ZIP tu Portal.')
+    }
+    if ($hints.Count -lt 1) { return $Message }
+    return ($Message.Trim() + "`n`n" + ($hints -join "`n`n"))
 }
 
 function Get-NasShareDriveLetterPool {
@@ -993,11 +1019,10 @@ function Invoke-NasWebDavMapTimed {
                 Save-WebDavCredentials -HostName $HostName -DavPort $DavPort -WinUser $WinUser -PlainPassword $PlainPassword
             }
         }
-        foreach ($spec in @($davUnc, $davUrl)) {
+        foreach ($spec in @($davUnc)) {
             foreach ($mapFn in @(
                 { param($s) Invoke-NasWebDavNetUse -Letter $Letter -RemoteSpec $s -WinUser $WinUser -PlainPassword $PlainPassword -Label "WebDAV $s" },
-                { param($s) Invoke-NasWebDavWNetMap -Letter $Letter -RemoteSpec $s -WinUser $WinUser -PlainPassword $PlainPassword },
-                { param($s) Invoke-NasWebDavPsDriveMap -Letter $Letter -RemoteSpec $s -WinUser $WinUser -PlainPassword $PlainPassword }
+                { param($s) Invoke-NasWebDavWNetMap -Letter $Letter -RemoteSpec $s -WinUser $WinUser -PlainPassword $PlainPassword }
             )) {
                 try {
                     & $mapFn $spec
@@ -1005,6 +1030,7 @@ function Invoke-NasWebDavMapTimed {
                 } catch {
                     $lastErr = $_.Exception.Message
                     if (-not $lastErr) { $lastErr = [string]$_ }
+                    $lastErr = Expand-NasMapErrorHint $lastErr
                 }
             }
         }
@@ -1768,6 +1794,7 @@ Neu van loi, lien he IT.
             } catch {
                 $msg = $_.Exception.Message
                 if (-not $msg) { $msg = [string]$_ }
+                $msg = Expand-NasMapErrorHint $msg
                 [void]$errors.Add("Share ${shareName} (${letter}:): WebDAV $davTarget ($winUser): $msg")
                 Remove-NasDriveMap -Letter $letter
             }
