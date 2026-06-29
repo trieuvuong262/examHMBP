@@ -20,14 +20,15 @@
     {% if is_child and parent %}
     <div class="alert alert-light border small mb-3">
         Thêm thư mục con trong <code>{{ parent.portal_path_label }}</code> —
-        Portal sẽ <strong>tạo trên NAS</strong> khi lưu.
+        Portal <strong>chỉ đăng ký</strong> đường dẫn (không tạo thư mục trên NAS).
+        Tạo thư mục trên Synology trước khi dùng phân quyền.
         {% if not parent.is_root %}
         Chỉ nhập <strong>tên một cấp</strong> (vd. <code>_CHUNG</code>).
         {% endif %}
     </div>
     {% elif not is_child and not editing %}
     <div class="alert alert-light border small mb-3">
-        Thư mục gốc = shared folder NAS. Portal tạo share mới trên DSM nếu chưa tồn tại, hoặc dùng <strong>Quét từ NAS</strong> để đăng ký share có sẵn.
+        Thư mục gốc = shared folder NAS. Dùng <strong>Quét từ NAS</strong> để đăng ký share có sẵn trên Synology.
     </div>
     {% endif %}
 

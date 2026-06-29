@@ -32,7 +32,7 @@ from nas_storage.nas_acl_apply import (
     import_folder_tree_from_nas,
     _count_tree_children,
     nas_acl_ssh_configured,
-    provision_portal_folder_on_nas,
+    directory_exists_on_nas,
     revoke_user_folder_acl,
 )
 from nas_storage.portal_access import (
@@ -115,33 +115,30 @@ def _perm_page_ctx(request, perm_subnav: str, **extra) -> dict:
 
 
 def _provision_folder_after_save(request, folder) -> None:
-    """Lưu Portal xong → tạo thư mục/share trên NAS + áp dụng phân quyền."""
+    """Lưu Portal — chỉ áp dụng ACL nếu thư mục đã có sẵn trên NAS (không tự mkdir)."""
+    messages.success(request, 'Đã lưu trên Portal.')
     if not nas_acl_ssh_configured():
-        messages.success(
+        messages.info(
             request,
-            'Đã lưu trên Portal. Cấu hình SSH NAS để tự tạo thư mục trên thiết bị.',
+            'Cấu hình SSH NAS để áp dụng phân quyền. Thư mục phải tạo thủ công trên Synology.',
         )
         return
+    if folder.parent_id:
+        target = folder.resolved_volume_path()
+        if not directory_exists_on_nas(target, share_name=folder.share_name):
+            messages.info(
+                request,
+                f'Thư mục chưa có trên NAS ({target}). Tạo trên Synology trước khi áp dụng phân quyền.',
+            )
+            return
     try:
-        result = provision_portal_folder_on_nas(folder)
-        if result.get('action') == 'mkdir':
-            msg = f'Đã tạo thư mục {result["path"]} trên NAS.'
-        elif result.get('action') == 'share_add':
-            msg = f'Đã tạo share {result["share"]} trên NAS.'
-        elif result.get('reason') == 'share_exists':
-            msg = f'Share {result["share"]} đã có trên NAS — đã đăng ký Portal.'
-        else:
-            msg = 'Đã lưu và đồng bộ lên NAS.'
-        try:
-            apply_result = apply_folder_permissions(folder)
-            if apply_result.get('status') == 'ok':
-                msg += ' Đã áp dụng phân quyền.'
-        except NasAclApplyError as exc:
-            messages.warning(request, f'Đã tạo thư mục nhưng chưa áp dụng quyền: {exc}')
-        messages.success(request, msg)
+        apply_result = apply_folder_permissions(folder)
+        if apply_result.get('status') == 'ok':
+            messages.success(request, 'Đã áp dụng phân quyền lên NAS.')
+        elif apply_result.get('reason') == 'path_missing_on_nas':
+            messages.info(request, 'Bỏ qua áp dụng ACL — thư mục chưa tồn tại trên NAS.')
     except NasAclApplyError as exc:
-        messages.warning(request, f'Đã lưu Portal nhưng chưa tạo trên NAS: {exc}')
-        messages.success(request, 'Đã lưu trên Portal.')
+        messages.warning(request, f'Chưa áp dụng được quyền NAS: {exc}')
 
 
 @_perm_menu_required
@@ -442,12 +439,6 @@ def folder_edit(request, pk=None):
             folder = form.save()
             if instance:
                 messages.success(request, 'Đã lưu thư mục NAS.')
-                if nas_acl_ssh_configured() and is_child:
-                    try:
-                        provision_portal_folder_on_nas(folder)
-                        messages.info(request, 'Đã cập nhật thư mục trên NAS.')
-                    except NasAclApplyError as exc:
-                        messages.warning(request, f'Chưa cập nhật NAS: {exc}')
             else:
                 _provision_folder_after_save(request, folder)
             return redirect('nas_storage:folder_list')
@@ -491,36 +482,6 @@ def folder_child_create(request, parent_pk):
             'parent': parent,
         },
     )
-
-
-@_perm_menu_required
-@require_POST
-def folder_provision_nas(request, pk):
-    folder = get_object_or_404(NasShareFolder, pk=pk)
-    if not nas_acl_ssh_configured():
-        messages.error(request, 'Chưa cấu hình SSH NAS.')
-        return redirect('nas_storage:folder_list')
-    try:
-        from nas_storage.nas_paths import normalize_volume_path
-
-        if folder.is_root:
-            folder.volume_path = normalize_volume_path(
-                folder.volume_path,
-                share_name=folder.share_name,
-            )
-            folder.save(update_fields=['volume_path', 'updated_at'])
-        result = provision_portal_folder_on_nas(folder)
-        apply_folder_permissions(folder)
-        label = folder.portal_path_label()
-        if result.get('action') == 'mkdir':
-            messages.success(request, f'Đã tạo thư mục {result["path"]} trên NAS.')
-        elif result.get('action') == 'share_add':
-            messages.success(request, f'Đã tạo share {result["share"]} trên NAS.')
-        else:
-            messages.success(request, f'Đã đồng bộ «{label}» lên NAS.')
-    except NasAclApplyError as exc:
-        messages.error(request, str(exc))
-    return redirect('nas_storage:folder_list')
 
 
 @_perm_menu_required

@@ -321,6 +321,27 @@ def _find_principal_in_bucket(bucket: set[str], principal_key: str) -> str | Non
     return None
 
 
+def directory_exists_on_nas(path: str, *, share_name: str = '', client=None) -> bool:
+    """Kiểm tra thư mục đã tồn tại trên NAS (không tạo mới)."""
+    from nas_storage.nas_paths import NasPathError, normalize_volume_path
+
+    try:
+        target = normalize_volume_path(path, share_name=share_name)
+    except NasPathError:
+        return False
+    if not target.startswith('/volume'):
+        return False
+    if not nas_acl_ssh_configured():
+        return False
+    try:
+        out = _run_ssh_commands([
+            f'test -d {shlex.quote(target)} && echo YES || echo NO',
+        ], client=client)
+        return 'YES' in (out or '')
+    except NasAclApplyError:
+        return False
+
+
 def ensure_directory_on_nas(path: str, *, share_name: str = '', client=None) -> str:
     """Tạo thư mục trên NAS (mkdir -p) nếu chưa có."""
     from nas_storage.nas_paths import NasPathError, normalize_volume_path
@@ -389,9 +410,8 @@ def create_share_on_nas(folder) -> dict:
 
 def provision_portal_folder_on_nas(folder) -> dict:
     """
-    Tạo thư mục/share trên NAS khi lưu từ Portal — không chỉ map đường dẫn có sẵn.
-    - Thư mục con: mkdir -p
-    - Share gốc mới: synoshare --add (nếu chưa có trên NAS)
+    [Đã tắt trên Portal] Tạo thư mục/share qua SSH — chỉ dùng trong test/management command.
+    UI «Tạo trên NAS» đã gỡ; thư mục phải tạo thủ công trên Synology.
     """
     if not nas_acl_ssh_configured():
         raise NasAclApplyError('Chưa cấu hình SSH NAS.')
@@ -427,7 +447,9 @@ def apply_subfolder_permissions(folder, *, client=None) -> dict:
     effective = effective_folder_permissions(folder)
     local_perms = list(_active_folder_permissions(folder))
 
-    ensure_directory_on_nas(target, share_name=folder.share_name, client=client)
+    if not directory_exists_on_nas(target, share_name=folder.share_name, client=client):
+        return {'status': 'skipped', 'reason': 'path_missing_on_nas', 'path': target}
+
     commands = [f'/usr/syno/bin/synoacltool -get "{target}"']
     applied = 0
     for item in effective:
@@ -459,6 +481,13 @@ def apply_subfolder_permissions(folder, *, client=None) -> dict:
 def apply_folder_permissions(folder, *, client=None) -> dict:
     """Đồng bộ ACL NAS theo cấu hình Portal cho một thư mục (share gốc hoặc thư mục con)."""
     if folder.parent_id:
+        grant = private_user_folder_acl_grant_for_folder(folder)
+        if grant:
+            top = (grant.sub_path or '').strip().strip('/')
+            folder_seg = (folder.sub_path or '').strip().strip('/')
+            if folder_seg.lower() == top.lower():
+                return apply_user_folder_acl(grant, client=client)
+            return {'status': 'skipped', 'reason': 'under_private_user_folder'}
         return apply_subfolder_permissions(folder, client=client)
 
     share = folder.share_name
@@ -525,6 +554,63 @@ def revoke_user_folder_acl(grant) -> dict:
     }
 
 
+_SYNOACL_INDEX_LINE = re.compile(r'^\s*\[(\d+)\].*\(level:(\d+)\)\s*$')
+_SYNOACLTOL = '/usr/syno/bin/synoacltool'
+_PRIVATE_FOLDER_ADMIN_ACE = 'group:administrators:allow:rwxpdDaARWc--:fd--'
+
+
+def _synoacl_indices_at_level(get_output: str, *, level: int = 0) -> list[int]:
+    """Chỉ số ACE local (level 0) — xóa ngược để synoacltool -del không lệch index."""
+    indices: list[int] = []
+    for line in (get_output or '').splitlines():
+        m = _SYNOACL_INDEX_LINE.match(line.strip())
+        if not m:
+            continue
+        if int(m.group(2)) == level:
+            indices.append(int(m.group(1)))
+    return sorted(indices, reverse=True)
+
+
+def private_user_folder_acl_grant_for_folder(folder):
+    """
+    Grant NasUserFolderAcl nếu thư mục Portal là hoặc nằm dưới thư mục riêng user
+    (vd. 05_MARKETING/lvanhthu hoặc 05_MARKETING/lvanhthu/Download).
+    """
+    from nas_storage.models import NasShareFolder, NasUserFolderAcl
+
+    if not folder or not isinstance(folder, NasShareFolder):
+        return None
+
+    parts: list[str] = []
+    current = folder
+    while current:
+        seg = (current.sub_path or '').strip().strip('/')
+        if seg:
+            parts.insert(0, seg)
+        current = current.parent
+    if not parts:
+        return None
+
+    share_root = folder
+    while share_root.parent_id:
+        share_root = share_root.parent
+
+    top_seg = parts[0]
+    return (
+        NasUserFolderAcl.objects.filter(
+            folder_id=share_root.pk,
+            is_active=True,
+            sub_path__iexact=top_seg,
+        )
+        .select_related('user', 'folder')
+        .first()
+    )
+
+
+def is_private_user_folder_portal_record(folder) -> bool:
+    return private_user_folder_acl_grant_for_folder(folder) is not None
+
+
 def _portal_group_principals_for_share(share_name: str) -> list[str]:
     """Principal nhóm Portal trên share gốc — gỡ khỏi thư mục riêng user."""
     from nas_storage.models import NasShareFolder
@@ -548,24 +634,28 @@ def _portal_group_principals_for_share(share_name: str) -> list[str]:
     return principals
 
 
-def apply_user_folder_acl(grant) -> dict:
-    """Áp dụng ACL thư mục con cho một user (RaiDrive / SMB / synoacltool)."""
+def apply_user_folder_acl(grant, *, client=None) -> dict:
+    """Áp dụng ACL thư mục riêng — chỉ owner + administrators, không kế thừa MKT/TGD."""
     if not grant.is_active:
         return {'status': 'skipped', 'reason': 'inactive'}
 
     target = grant.volume_target_path()
     principal = grant.resolved_user_principal()
     mask = _synoacl_mask(grant.access_level)
-    ace = f'user:{principal}:allow:{mask}'
+    owner_ace = f'user:{principal}:allow:{mask}'
 
-    commands = [f'/usr/syno/bin/synoacltool -get "{target}"']
-    for group_principal in _portal_group_principals_for_share(grant.folder.share_name):
-        commands.append(f'/usr/syno/bin/synoacltool -del "{target}" group:{group_principal}:allow')
+    get_output = _run_ssh_commands([f'{_SYNOACLTOL} -get "{target}"'], client=client)
+    commands: list[str] = [
+        f'{_SYNOACLTOL} -del-archive "{target}" is_inherit',
+    ]
+    for idx in _synoacl_indices_at_level(get_output, level=0):
+        commands.append(f'{_SYNOACLTOL} -del "{target}" {idx}')
     commands.extend([
-        f'/usr/syno/bin/synoacltool -add "{target}" {ace}',
-        f'/usr/syno/bin/synoacltool -get "{target}"',
+        f'{_SYNOACLTOL} -add "{target}" {owner_ace}',
+        f'{_SYNOACLTOL} -add "{target}" {_PRIVATE_FOLDER_ADMIN_ACE}',
+        f'{_SYNOACLTOL} -get "{target}"',
     ])
-    output = _run_ssh_commands(commands)
+    output = _run_ssh_commands(commands, client=client)
     now = timezone.now()
     grant.last_applied_at = now
     grant.last_apply_status = 'ok'

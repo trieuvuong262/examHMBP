@@ -27,7 +27,6 @@ urlpatterns = [
     path('phan-quyen/thu-muc/<int:parent_pk>/them-con/', perm_views.folder_child_create, name='folder_child_create'),
     path('phan-quyen/thu-muc/<int:pk>/', perm_views.folder_edit, name='folder_edit'),
     path('phan-quyen/thu-muc/<int:pk>/xoa/', perm_views.folder_delete, name='folder_delete'),
-    path('phan-quyen/thu-muc/<int:pk>/tao-nas/', perm_views.folder_provision_nas, name='folder_provision_nas'),
     path('phan-quyen/thu-muc/<int:pk>/quyen/', perm_views.folder_permissions, name='folder_permissions'),
     path('phan-quyen/thu-muc/<int:folder_pk>/quyen/them/', perm_views.permission_edit, name='permission_create'),
     path('phan-quyen/thu-muc/<int:folder_pk>/quyen/<int:pk>/', perm_views.permission_edit, name='permission_edit'),
