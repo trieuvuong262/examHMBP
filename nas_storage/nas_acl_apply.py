@@ -525,6 +525,29 @@ def revoke_user_folder_acl(grant) -> dict:
     }
 
 
+def _portal_group_principals_for_share(share_name: str) -> list[str]:
+    """Principal nhóm Portal trên share gốc — gỡ khỏi thư mục riêng user."""
+    from nas_storage.models import NasShareFolder
+
+    folder = (
+        NasShareFolder.objects.filter(share_name=share_name, parent__isnull=True, is_active=True)
+        .first()
+    )
+    if not folder:
+        return []
+    principals: list[str] = []
+    seen: set[str] = set()
+    for perm in _active_folder_permissions(folder):
+        if not perm.group_id:
+            continue
+        principal = (perm.resolved_nas_principal() or '').strip().lstrip('@')
+        if not principal or principal in seen:
+            continue
+        seen.add(principal)
+        principals.append(principal)
+    return principals
+
+
 def apply_user_folder_acl(grant) -> dict:
     """Áp dụng ACL thư mục con cho một user (RaiDrive / SMB / synoacltool)."""
     if not grant.is_active:
@@ -535,11 +558,13 @@ def apply_user_folder_acl(grant) -> dict:
     mask = _synoacl_mask(grant.access_level)
     ace = f'user:{principal}:allow:{mask}'
 
-    commands = [
-        f'/usr/syno/bin/synoacltool -get "{target}"',
+    commands = [f'/usr/syno/bin/synoacltool -get "{target}"']
+    for group_principal in _portal_group_principals_for_share(grant.folder.share_name):
+        commands.append(f'/usr/syno/bin/synoacltool -del "{target}" group:{group_principal}:allow')
+    commands.extend([
         f'/usr/syno/bin/synoacltool -add "{target}" {ace}',
         f'/usr/syno/bin/synoacltool -get "{target}"',
-    ]
+    ])
     output = _run_ssh_commands(commands)
     now = timezone.now()
     grant.last_applied_at = now

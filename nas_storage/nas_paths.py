@@ -233,13 +233,20 @@ def department_default_nas_roots(user) -> list[NasRootEntry]:
 
 
 def get_user_nas_roots(user) -> list[NasRootEntry]:
-    from nas_storage.portal_access import all_share_portal_roots, user_has_portal_browse_all
+    from nas_storage.portal_access import (
+        all_share_portal_roots,
+        portal_roots_from_folder_permissions,
+        user_has_portal_browse_all,
+    )
     from nas_storage.user_folders import custom_roots_from_db, user_has_custom_nas_folders
 
     if user_has_custom_nas_folders(user):
         return custom_roots_from_db(user)
     if user_has_portal_browse_all(user):
         return all_share_portal_roots()
+    permission_roots = portal_roots_from_folder_permissions(user)
+    if permission_roots:
+        return permission_roots
     return []
 
 
@@ -304,6 +311,11 @@ def resolve_nas_path(user, rel_path: str) -> Path:
         raise NasPathError('Tài khoản chưa được gán phòng ban trên Portal.')
 
     if not any(rel == prefix or rel.startswith(prefix + '/') for prefix in allowed):
+        raise NasPathError('Bạn không có quyền truy cập thư mục này.')
+
+    from nas_storage.user_folder_privacy import user_can_access_private_nas_rel
+
+    if not user_can_access_private_nas_rel(user, rel):
         raise NasPathError('Bạn không có quyền truy cập thư mục này.')
 
     mount, rel = nas_mount_base_and_rel(user, rel_path)
@@ -378,7 +390,7 @@ def list_directory_with_source(
     if not fresh:
         try:
             if path.is_dir():
-                listing = _list_directory_local(path)
+                listing = _apply_listing_privacy(user, rel, _list_directory_local(path))
                 return listing, 'mount', False
         except NasPathError:
             pass
@@ -398,7 +410,7 @@ def list_directory_with_source(
                     'Liên hệ IT kiểm tra cấu hình rclone trên server.'
                 ) from None
 
-    listing = _list_directory_local(path)
+    listing = _apply_listing_privacy(user, rel, _list_directory_local(path))
     return listing, 'mount', bool(fresh and rel)
 
 
@@ -435,6 +447,17 @@ def _list_directory_local(path: Path) -> dict:
             item['mime'] = mimetypes.guess_type(entry.name)[0] or 'application/octet-stream'
             files.append(item)
     return {'folders': folders, 'files': files}
+
+
+def _apply_listing_privacy(user, rel_path: str, listing: dict) -> dict:
+    if user is None:
+        return listing
+    from nas_storage.user_folder_privacy import filter_listing_folders_for_user
+
+    return {
+        'folders': filter_listing_folders_for_user(user, rel_path, listing.get('folders', [])),
+        'files': listing.get('files', []),
+    }
 
 
 def _rclone_remote_path(rel_path: str, *, user=None) -> str:
@@ -555,6 +578,10 @@ def list_directory_via_rclone(rel_path: str, *, user=None, fresh: bool = False) 
     folders.sort(key=lambda x: x['name'].lower())
     files.sort(key=lambda x: x['name'].lower())
     listing = {'folders': folders, 'files': files}
+    if user is not None:
+        from nas_storage.user_folder_privacy import filter_listing_folders_for_user
+
+        listing['folders'] = filter_listing_folders_for_user(user, rel, listing['folders'])
     if cache_key:
         from django.core.cache import cache
 

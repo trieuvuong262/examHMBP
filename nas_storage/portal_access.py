@@ -104,6 +104,47 @@ def user_has_portal_browse_all(user: User) -> bool:
     return user_nas_access_groups(user).filter(portal_browse_all=True).exists()
 
 
+def portal_roots_from_folder_permissions(user: User) -> list[NasRootEntry]:
+    """Gốc duyệt NAS theo NasFolderPermission (nhóm / user) — không bao gồm thư mục riêng user khác."""
+    from nas_storage.dept_nas_config import is_portal_browse_hidden_share
+    from nas_storage.folder_permissions_resolved import effective_folder_permissions
+    from nas_storage.models import NasShareFolder
+    from nas_storage.permission_defs import has_read_access
+
+    group_ids = set(user_nas_access_groups(user).values_list('pk', flat=True))
+    entries: list[NasRootEntry] = []
+    seen: set[str] = set()
+
+    for folder in NasShareFolder.objects.filter(is_active=True).order_by('sort_order', 'share_name', 'id'):
+        if is_portal_browse_hidden_share(folder.share_name):
+            continue
+        matched = False
+        for item in effective_folder_permissions(folder):
+            perm = item.permission
+            if perm.permission_type != 'allow':
+                continue
+            if not has_read_access(perm.permission_flags()):
+                continue
+            if perm.user_id == user.pk or (perm.group_id and perm.group_id in group_ids):
+                matched = True
+                break
+        if not matched:
+            continue
+        rel = (folder.share_name or '').strip()
+        if not rel or rel in seen:
+            continue
+        seen.add(rel)
+        entries.append(
+            NasRootEntry(
+                key=f'perm_{folder.pk}',
+                label=folder.display_name or rel,
+                rel_path=rel,
+                description=(folder.description or rel).strip(),
+            ),
+        )
+    return entries
+
+
 def all_share_portal_roots() -> list[NasRootEntry]:
     """Danh sách gốc duyệt NAS — share đã đăng ký + thư mục trên mount (nếu có)."""
     from nas_storage.models import NasShareFolder

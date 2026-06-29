@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import logging
+
 from django.contrib.auth.models import User
 from django.db import connection
 
 from nas_storage.models import NasUserFolderAccess
 from nas_storage.nas_paths import NasRootEntry, normalize_rel_path
+
+logger = logging.getLogger(__name__)
 
 
 def portal_rel_path_for_acl(*, share_name: str, sub_path: str) -> str:
@@ -15,6 +19,55 @@ def portal_rel_path_for_acl(*, share_name: str, sub_path: str) -> str:
     if not share:
         return ''
     return normalize_rel_path(f'{share}/{sub}' if sub else share)
+
+
+def sync_user_folder_acl_grant(grant) -> dict:
+    """
+    Đồng bộ thư mục riêng: link Portal + ACL NAS (synoacltool).
+    Gọi sau khi lưu NasUserFolderAcl — kể cả tạo mới sau này.
+    """
+    from nas_storage.models import NasUserFolderAcl
+    from nas_storage.nas_acl_apply import (
+        NasAclApplyError,
+        apply_user_folder_acl,
+        nas_acl_ssh_configured,
+        revoke_user_folder_acl,
+    )
+
+    if not isinstance(grant, NasUserFolderAcl):
+        raise ValueError('grant không hợp lệ')
+
+    if getattr(grant, '_syncing_acl_grant', False):
+        return {'status': 'skipped', 'reason': 'recursive'}
+
+    rel_path = portal_rel_path_for_acl(
+        share_name=grant.folder.share_name,
+        sub_path=grant.sub_path,
+    )
+    grant._syncing_acl_grant = True
+    try:
+        if not grant.is_active:
+            if rel_path:
+                NasUserFolderAccess.objects.filter(user=grant.user, rel_path=rel_path).update(
+                    is_active=False,
+                )
+            if nas_acl_ssh_configured():
+                try:
+                    return revoke_user_folder_acl(grant)
+                except NasAclApplyError:
+                    logger.exception('Không gỡ ACL NAS cho %s', grant)
+            return {'status': 'revoked', 'nas': 'skipped'}
+
+        ensure_portal_link_for_acl(grant)
+        if not nas_acl_ssh_configured():
+            return {'status': 'saved', 'nas': 'skipped'}
+        try:
+            return apply_user_folder_acl(grant)
+        except NasAclApplyError:
+            logger.exception('Không áp dụng ACL NAS cho %s', grant)
+            return {'status': 'error', 'nas': 'failed'}
+    finally:
+        grant._syncing_acl_grant = False
 
 
 def ensure_portal_link_for_acl(grant) -> tuple[NasUserFolderAccess, bool]:

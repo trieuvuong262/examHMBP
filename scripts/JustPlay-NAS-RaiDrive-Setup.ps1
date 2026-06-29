@@ -13,6 +13,7 @@ $PortRaw = '__NAS_PORT__'
 $WebDavPortRaw = '__NAS_WEBDAV_PORT__'
 $SmbPortRaw = '__NAS_SMB_PORT__'
 $NasFallbackServer = '__NAS_FALLBACK_SERVER__'
+$NasLanServer = '__NAS_LAN_SERVER__'
 $LdapDomain = '__NAS_LDAP_DOMAIN__'
 $PortalPasswordUrl = '__PORTAL_PASSWORD_URL__'
 $PortalUsernameHint = '__PORTAL_USERNAME__'
@@ -21,7 +22,12 @@ $NasPrimaryShare = '__NAS_PRIMARY_SHARE__'
 $DeptFolderCode = '__NAS_DEPT_CODE__'
 $DriveLetterRaw = '__NAS_DRIVE_LETTER__'
 $BlockedDefaultPassword = 'justplay@123'
-$NasScriptVersion = '2026.06.29.24'
+$NasScriptVersion = '2026.06.29.29'
+$NasCurlMaxTimeSec = 15
+$NasWNetTimeoutSec = 20
+# Windows WebDAV mac dinh ~50MB — loi 0x800700DF khi copy file lon hon.
+$NasWebClientFileSizeLimitBytes = 4294967295
+$NasWebClientMinFileSizeBytes = 104857600
 
 $Script:NasWebDavShareAliases = @{
     'KD-MKT' = '05_MARKETING'
@@ -166,6 +172,9 @@ if ($Server -eq '__NAS_SERVER__') { $Server = 'justplay.synology.me' }
 if ($NasFallbackServer -eq '__NAS_FALLBACK_SERVER__' -or -not $NasFallbackServer) {
     $NasFallbackServer = '100.93.5.42'
 }
+if ($NasLanServer -eq '__NAS_LAN_SERVER__' -or -not $NasLanServer) {
+    $NasLanServer = '192.168.1.254'
+}
 if ($WebDavPortRaw -eq '__NAS_WEBDAV_PORT__') {
     if ($PortRaw -ne '__NAS_PORT__') { $WebDavPort = [int]$PortRaw } else { $WebDavPort = 5678 }
 } else {
@@ -304,13 +313,129 @@ $NasPortCheckTimeoutMs = 10000
 function Get-NasServerCandidates {
     $merged = New-Object System.Collections.Generic.List[string]
     $seen = @{}
-    foreach ($hostName in @($Server, $NasFallbackServer)) {
+    foreach ($hostName in @($Server, $NasFallbackServer, $NasLanServer)) {
         $n = [string]$hostName
         if (-not $n -or $seen.ContainsKey($n)) { continue }
         $seen[$n] = $true
         [void]$merged.Add($n)
     }
     return @($merged.ToArray())
+}
+
+function Get-LocalLanIpv4Addresses {
+    $ips = New-Object System.Collections.Generic.List[string]
+    try {
+        foreach ($nic in [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces()) {
+            if ($nic.OperationalStatus -ne [System.Net.NetworkInformation.OperationalStatus]::Up) { continue }
+            foreach ($addr in $nic.GetIPProperties().UnicastAddresses) {
+                if ($addr.Address.AddressFamily -ne [System.Net.Sockets.AddressFamily]::InterNetwork) { continue }
+                $ip = $addr.Address.ToString()
+                if ($ip -match '^(192\.168\.|10\.)') {
+                    [void]$ips.Add($ip)
+                }
+            }
+        }
+    } catch {}
+    return ,$ips.ToArray()
+}
+
+function Test-NasTcpPortOpen {
+    param(
+        [string]$TargetHost,
+        [int]$NasPort,
+        [int]$TimeoutMs = 3000
+    )
+    if (-not $TargetHost) { return $false }
+    $client = New-Object System.Net.Sockets.TcpClient
+    try {
+        $connect = $client.BeginConnect($TargetHost, $NasPort, $null, $null)
+        if (-not $connect.AsyncWaitHandle.WaitOne($TimeoutMs, $false)) { return $false }
+        $client.EndConnect($connect)
+        return $true
+    } catch {
+        return $false
+    } finally {
+        $client.Close()
+    }
+}
+
+function Get-NasHostsFilePath {
+    return Join-Path $env:windir 'System32\drivers\etc\hosts'
+}
+
+function Get-NasHostsMappingForServer {
+    param([string]$HostLabel = $Server)
+    $path = Get-NasHostsFilePath
+    if (-not (Test-Path -LiteralPath $path)) { return $null }
+    try {
+        foreach ($line in (Get-Content -LiteralPath $path -ErrorAction Stop)) {
+            $trim = ([string]$line).Trim()
+            if (-not $trim -or $trim.StartsWith('#')) { continue }
+            $parts = ($trim -split '\s+', 2) | Where-Object { $_ }
+            if ($parts.Count -lt 2) { continue }
+            $aliases = $parts[1] -split '\s+'
+            if ($aliases -contains $HostLabel) {
+                return [string]$parts[0]
+            }
+        }
+    } catch {}
+    return $null
+}
+
+function Test-NasOfficeDnsNeedsHostsFix {
+    $lanIps = Get-LocalLanIpv4Addresses
+    if (-not $lanIps -or $lanIps.Count -lt 1) { return $false }
+    $lanNas = [string]$NasLanServer
+    if (-not $lanNas) { return $false }
+
+    $dnsIps = @()
+    try {
+        $dnsIps = @([System.Net.Dns]::GetHostAddresses($Server) | ForEach-Object { $_.IPAddressToString })
+    } catch {
+        return $false
+    }
+    $dnsTailscale = ($dnsIps | Where-Object { $_ -match '^100\.' }).Count -gt 0
+    if (-not $dnsTailscale) { return $false }
+
+    $existing = Get-NasHostsMappingForServer
+    if ($existing -and $existing -eq $lanNas) { return $false }
+
+    if (-not (Test-NasTcpPortOpen -TargetHost $lanNas -NasPort $WebDavPort)) { return $false }
+    if (Test-NasTcpPortOpen -TargetHost $NasFallbackServer -NasPort $WebDavPort) { return $false }
+    return $true
+}
+
+function Ensure-NasOfficeHostsMapping {
+    if (-not (Test-NasOfficeDnsNeedsHostsFix)) { return $false }
+    if (-not (Test-IsAdministrator)) { return $false }
+
+    $lanNas = [string]$NasLanServer
+    $hostsPath = Get-NasHostsFilePath
+    $marker = '# JustPlay NAS LAN'
+    $entry = "${lanNas}`t${Server}    ${marker}"
+    try {
+        $content = @()
+        if (Test-Path -LiteralPath $hostsPath) {
+            $content = @(Get-Content -LiteralPath $hostsPath -ErrorAction Stop)
+        }
+        $filtered = New-Object System.Collections.Generic.List[string]
+        foreach ($line in $content) {
+            if (($line -match '(?i)justplay\.synology\.me') -or ($line -match [regex]::Escape($marker))) {
+                continue
+            }
+            [void]$filtered.Add($line)
+        }
+        while ($filtered.Count -gt 0 -and [string]::IsNullOrWhiteSpace($filtered[$filtered.Count - 1])) {
+            $filtered.RemoveAt($filtered.Count - 1)
+        }
+        [void]$filtered.Add($entry)
+        Set-Content -LiteralPath $hostsPath -Value $filtered.ToArray() -Encoding ASCII -ErrorAction Stop
+        Write-Log "DNS noi bo tro Tailscale nhung may khong vao mang TS — them hosts: $lanNas -> $Server"
+        return $true
+    } catch {
+        Write-Log "Khong sua duoc hosts ($hostsPath): $($_.Exception.Message)"
+        return $false
+    }
 }
 
 function Test-NasServerPort {
@@ -407,6 +532,38 @@ function Test-NasWebDavReachable {
     } finally {
         [System.Net.ServicePointManager]::ServerCertificateValidationCallback = $prevCb
     }
+}
+
+function Get-WebClientFileSizeLimitBytes {
+    $basicPath = 'HKLM:\SYSTEM\CurrentControlSet\Services\WebClient\Parameters'
+    if (-not (Test-Path -LiteralPath $basicPath)) { return $null }
+    try {
+        $raw = (Get-ItemProperty -Path $basicPath -Name FileSizeLimitInBytes -ErrorAction SilentlyContinue).FileSizeLimitInBytes
+        if ($null -eq $raw) { return $null }
+        return [uint32]$raw
+    } catch {
+        return $null
+    }
+}
+
+function Set-WebClientFileSizeLimit {
+    param(
+        [uint32]$LimitBytes = $NasWebClientFileSizeLimitBytes
+    )
+    $basicPath = 'HKLM:\SYSTEM\CurrentControlSet\Services\WebClient\Parameters'
+    if (-not (Test-Path -LiteralPath $basicPath)) { return $false }
+    $changed = $false
+    try {
+        $cur = Get-WebClientFileSizeLimitBytes
+        if ($null -eq $cur -or $cur -lt $NasWebClientMinFileSizeBytes) {
+            Set-ItemProperty -Path $basicPath -Name FileSizeLimitInBytes -Value $LimitBytes -Type DWord -ErrorAction Stop
+            $changed = $true
+            Write-Log "WebClient FileSizeLimitInBytes -> $LimitBytes (~4GB max WebDAV)"
+        }
+    } catch {
+        return $false
+    }
+    return $changed
 }
 
 function Set-WebClientAuthForwardHost {
@@ -510,6 +667,8 @@ function Test-WebClientRegistryReady {
         foreach ($need in (Get-WebClientAuthForwardEntries -HostName $HostName -DavPort $DavPort)) {
             if ($list -notcontains $need) { return $false }
         }
+        $sizeLimit = Get-WebClientFileSizeLimitBytes
+        if ($null -eq $sizeLimit -or $sizeLimit -lt $NasWebClientMinFileSizeBytes) { return $false }
         $svc = Get-Service WebClient -ErrorAction SilentlyContinue
         if (-not $svc -or $svc.Status -ne 'Running') { return $false }
         return $true
@@ -585,6 +744,7 @@ function Ensure-WebClientReady {
         }
     }
     $registryChanged = $false
+    $registryChanged = (Set-WebClientFileSizeLimit) -or $registryChanged
     foreach ($h in @($HostName, $Server, $NasFallbackServer)) {
         if ($h) {
             $registryChanged = (Set-WebClientAuthForwardHost -HostName $h -DavPort $DavPort) -or $registryChanged
@@ -598,6 +758,7 @@ function Ensure-WebClientReady {
             Write-Log 'Khong restart duoc WebClient - chay .bat bang quyen Administrator.'
         }
     }
+    Ensure-NasOfficeHostsMapping | Out-Null
 }
 
 function Get-NasPortalLoginNames {
@@ -682,7 +843,7 @@ function Get-NasWebDavPropfindStatusCode {
     $url = "https://${HostName}:${DavPort}/${ShareName}/"
     try {
         if (Get-Command curl.exe -ErrorAction SilentlyContinue) {
-            $code = & curl.exe -s -k -o NUL -w '%{http_code}' -X PROPFIND -H 'Depth: 0' $url 2>$null
+            $code = & curl.exe -s -k --max-time $NasCurlMaxTimeSec -o NUL -w '%{http_code}' -X PROPFIND -H 'Depth: 0' $url 2>$null
             if ($code -match '^\d{3}$') { return [int]$code }
         }
         $req = [System.Net.HttpWebRequest]::Create($url)
@@ -752,6 +913,30 @@ Loi 67 (WebClient): DNS noi bo OK nhung WebClient khong map duoc share.
     }
     if ($Message -match '(?i)Persist parameter') {
         [void]$hints.Add('Loi map PowerShell: cap nhat script NAS .23+ hoac tai lai ZIP tu Portal.')
+    }
+    if ($Message -match '(?i)timeout|Khong mo duoc cong|timed out|The operation has timed out') {
+        [void]$hints.Add(@'
+Loi MANG: may khong mo duoc cong 5678 toi NAS (timeout) — khong phai loi mat khau.
+
+Kiem tra tren may loi (PowerShell):
+  Test-NetConnection justplay.synology.me -Port 5678
+  TcpTestSucceeded phai la True
+
+Neu False:
+- Lam viec NGOAI van phong: cai Tailscale, dang nhap tai khoan cong ty — IP 100.93.5.42 chi truy cap duoc khi da vao mang Tailscale
+- Trong van phong: IT can DNS noi bo justplay.synology.me -> IP NAS LAN (FortiGate) va mo cong 5678
+- Mang nha / khach hang co the chan cong le — thu 4G hotspot hoac VPN cong ty
+- Tat tam Windows Firewall / antivirus de thu (neu OK thi them ngoai le cong 5678)
+- Chay Diagnose-JustPlay-Nas.ps1 trong ZIP va gui ket qua cho IT
+'@.Trim())
+    }
+    if ($Message -match '(?i)800700DF|file size exceeds the limit') {
+        [void]$hints.Add(@'
+Loi 0x800700DF: Windows gioi han WebDAV ~50MB (file cua ban lon hon).
+- Mo EXE NAS -> chap nhan UAC (prep WebClient) hoac Go mount -> Ket noi lai
+- Hoac chay Prepare-JustPlay-WebClient.ps1 bang quyen Administrator
+- Script moi dat FileSizeLimitInBytes ~4GB; can restart WebClient
+'@.Trim())
     }
     if ($hints.Count -lt 1) { return $Message }
     return ($Message.Trim() + "`n`n" + ($hints -join "`n`n"))
@@ -904,18 +1089,48 @@ function Invoke-NasWebDavWNetMap {
         [string]$Letter,
         [string]$RemoteSpec,
         [string]$WinUser,
-        [string]$PlainPassword
+        [string]$PlainPassword,
+        [int]$TimeoutSec = $NasWNetTimeoutSec
     )
     Initialize-NasWNetApi
     $localPath = "${Letter}:"
-    [void][NasWNet]::WNetCancelConnection2($localPath, 0, $true)
-    $nr = New-Object NasWNet+NETRESOURCE
-    $nr.lpLocalName = $localPath
-    $nr.lpRemoteName = $RemoteSpec
-    foreach ($flags in @(0x4, 0x1)) {
-        $rc = [NasWNet]::WNetAddConnection2($nr, $PlainPassword, $WinUser, $flags)
-        if ($rc -eq 0) { return }
+    $job = Start-Job -ArgumentList @($Letter, $RemoteSpec, $WinUser, $PlainPassword) -ScriptBlock {
+        param($Letter, $RemoteSpec, $WinUser, $PlainPassword)
+        $source = @'
+using System;
+using System.Runtime.InteropServices;
+public class NasWNetJob {
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    public class NETRESOURCE {
+        public int dwScope = 0; public int dwType = 1; public int dwDisplayType = 0; public int dwUsage = 0;
+        public string lpLocalName = null; public string lpRemoteName = null; public string lpComment = null; public string lpProvider = null;
     }
+    [DllImport("mpr.dll", CharSet = CharSet.Unicode)]
+    public static extern int WNetAddConnection2(NETRESOURCE lpNetResource, string lpPassword, string lpUsername, int dwFlags);
+    [DllImport("mpr.dll", CharSet = CharSet.Unicode)]
+    public static extern int WNetCancelConnection2(string lpName, int dwFlags, bool fForce);
+}
+'@
+        Add-Type -TypeDefinition $source -Language CSharp -ErrorAction Stop | Out-Null
+        $localPath = "${Letter}:"
+        [void][NasWNetJob]::WNetCancelConnection2($localPath, 0, $true)
+        $nr = New-Object NasWNetJob+NETRESOURCE
+        $nr.lpLocalName = $localPath
+        $nr.lpRemoteName = $RemoteSpec
+        foreach ($flags in @(0x4, 0x1)) {
+            $rc = [NasWNetJob]::WNetAddConnection2($nr, $PlainPassword, $WinUser, $flags)
+            if ($rc -eq 0) { return 0 }
+        }
+        return $rc
+    }
+    if (-not (Wait-Job -Job $job -Timeout $TimeoutSec)) {
+        Stop-Job -Job $job -ErrorAction SilentlyContinue
+        Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
+        throw "WNet map timeout (${TimeoutSec}s) $RemoteSpec"
+    }
+    $rc = Receive-Job -Job $job
+    Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
+    if ($rc -eq 0) { return }
     throw (Get-WNetErrorMessage $rc)
 }
 
@@ -954,27 +1169,42 @@ function Test-NasWebDavAuth {
     $prevCb = [System.Net.ServicePointManager]::ServerCertificateValidationCallback
     try {
         [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
+
+        function Test-NasWebDavStatusCode {
+            param([int]$Code)
+            if ($Code -eq 401) { return $false }
+            if ($Code -eq 404) { throw "Share khong ton tai tren WebDAV: $ShareName" }
+            if ($Code -eq 405) { return $false }
+            if ($Code -eq 207 -or $Code -eq 403) { return $true }
+            return ($Code -ge 200 -and $Code -lt 400)
+        }
+
+        # Synology WebDAV: HEAD co the tra 401 tren Windows du mat khau dung; PROPFIND 207 moi tin cay.
+        if (Get-Command curl.exe -ErrorAction SilentlyContinue) {
+            $curlCode = & curl.exe -s -k --max-time $NasCurlMaxTimeSec -o NUL -w '%{http_code}' -X PROPFIND -H 'Depth: 0' `
+                -u "${WinUser}:${PlainPassword}" $url 2>$null
+            if ($curlCode -match '^\d{3}$') {
+                return (Test-NasWebDavStatusCode -Code ([int]$curlCode))
+            }
+        }
+
         $req = [System.Net.HttpWebRequest]::Create($url)
-        $req.Method = 'HEAD'
-        $req.Timeout = 8000
+        $req.Method = 'PROPFIND'
+        $req.Headers.Add('Depth', '0')
+        $req.Timeout = 12000
         $req.Credentials = New-Object System.Net.NetworkCredential($WinUser, $PlainPassword)
         $req.PreAuthenticate = $true
         try {
             $resp = $req.GetResponse()
             $code = [int]$resp.StatusCode
             $resp.Close()
-            return ($code -ge 200 -and $code -lt 400)
+            return (Test-NasWebDavStatusCode -Code $code)
         } catch [System.Net.WebException] {
             $resp = $_.Exception.Response
             if (-not $resp) { throw $_.Exception.Message }
             $code = [int]$resp.StatusCode
             $resp.Close()
-            if ($code -eq 401) { return $false }
-            if ($code -eq 404) { throw "Share khong ton tai tren WebDAV: $ShareName" }
-            if ($code -eq 403) {
-                return $true
-            }
-            return ($code -ge 200 -and $code -lt 400)
+            return (Test-NasWebDavStatusCode -Code $code)
         }
     } finally {
         [System.Net.ServicePointManager]::ServerCertificateValidationCallback = $prevCb
@@ -984,14 +1214,19 @@ function Test-NasWebDavAuth {
 function Test-NasWebDavTlsTrust {
     param(
         [string]$HostName,
-        [int]$DavPort
+        [int]$DavPort,
+        [int]$TimeoutMs = $NasPortCheckTimeoutMs
     )
     if (-not $HostName) { return $true }
     $tcp = $null
     $ssl = $null
     try {
         $tcp = New-Object System.Net.Sockets.TcpClient
-        $tcp.Connect($HostName, $DavPort)
+        $connect = $tcp.BeginConnect($HostName, $DavPort, $null, $null)
+        if (-not $connect.AsyncWaitHandle.WaitOne($TimeoutMs, $false)) {
+            throw "TCP timeout ${TimeoutMs}ms toi ${HostName}:${DavPort}"
+        }
+        $tcp.EndConnect($connect)
         $ssl = New-Object System.Net.Security.SslStream($tcp.GetStream(), $false)
         $ssl.AuthenticateAsClient($HostName)
         return $true
@@ -1133,6 +1368,13 @@ function Get-FirstNasConnectPlan {
 }
 
 function Resolve-NasConnectPlans {
+    if (Test-NasOfficeDnsNeedsHostsFix) {
+        if (Test-IsAdministrator) {
+            Ensure-NasOfficeHostsMapping | Out-Null
+        } else {
+            Write-Log "DNS $Server -> Tailscale nhung may khong vao mang TS. Chap nhan UAC de script tu sua hosts -> $NasLanServer"
+        }
+    }
     $plans = New-Object System.Collections.Generic.List[object]
     $failures = New-Object System.Collections.Generic.List[string]
     foreach ($candidate in (Get-NasServerCandidates)) {
@@ -1171,10 +1413,20 @@ function Resolve-NasConnectPlans {
         $shareHint = Get-PrimaryNasShareName
         if (-not $shareHint) { $shareHint = 'TEN_SHARE' }
         throw @"
-Khong ket noi duoc NAS.
+Khong ket noi duoc NAS (loi mang — cong 5678 bi chan hoac timeout).
 $($failures -join "`n")
 
 Thu WebDAV: https://${Server}:${WebDavPort}/${shareHint}
+
+Goi y nhanh:
+- PowerShell: Test-NetConnection justplay.synology.me -Port 5678 (TcpTestSucceeded = True)
+- DNS dang tro $Server -> Tailscale (100.x) nhung may khong vao mang Tailscale:
+  + Trong van phong: chay lai EXE va CHAP NHAN UAC (script tu them hosts $NasLanServer)
+  + Hoac (Admin): them dong vao C:\Windows\System32\drivers\etc\hosts :
+    $NasLanServer    $Server
+  + IT: FortiGate DNS noi bo nen tro $Server -> $NasLanServer (khong phai 100.93.5.42)
+- Ngoai van phong: can Tailscale
+- Mang chan cong 5678: thu 4G hotspot hoac VPN
 "@
     }
     return ,$plans
@@ -1796,7 +2048,8 @@ function Invoke-NasSmbMapping {
 function Connect-AllJustPlayNasShares {
     param(
         [string]$Username,
-        [string]$Password
+        [string]$Password,
+        [scriptblock]$ProgressCallback = $null
     )
     $assignments = Get-NasShareDriveAssignments
     if ($null -eq $assignments -or $assignments.Count -lt 1) {
@@ -1824,11 +2077,20 @@ Neu van loi, lien he IT.
     $prepHost = $null
     $prepPort = 0
     $credentialSaved = $false
+    $trustWebDavAccess = $false
+    $shareTotal = $assignments.Count
+    $shareIndex = 0
 
     foreach ($item in $assignments) {
         $shareName = [string]$item.ShareName
         $letter = [string]$item.Letter
         $shareConnected = $false
+        $shareIndex++
+        if ($ProgressCallback) {
+            try {
+                & $ProgressCallback $shareIndex $shareTotal $shareName
+            } catch {}
+        }
 
         foreach ($plan in $planBag) {
             if (-not $plan -or -not $plan.ConnectHost) { continue }
@@ -1839,10 +2101,10 @@ Neu van loi, lien he IT.
                 $winUser = Resolve-NasWebDavWinUser -HostName $resolvedServer -DavPort $connectPort `
                     -ShareName $shareName -Username $Username -PlainPassword $Password
                 if (-not $winUser) {
-                    [void]$errors.Add("Share ${shareName}: mat khau sai hoac share khong ton tai tren WebDAV")
+                    [void]$errors.Add("Share ${shareName}: mat khau sai, share khong ton tai, hoac may khong ket noi duoc WebDAV (PROPFIND can 207)")
                     break
                 }
-            } else {
+            } elseif (-not $trustWebDavAccess) {
                 $authOk = $null
                 try {
                     $authOk = Test-NasWebDavAuth -HostName $resolvedServer -DavPort $connectPort `
@@ -1884,6 +2146,10 @@ Neu van loi, lien he IT.
                     Method     = "WebDAV ($resolvedServer`:$connectPort)"
                 })
                 $shareConnected = $true
+                if (-not $trustWebDavAccess) {
+                    $trustWebDavAccess = $true
+                    Write-Log "WebDAV OK share dau ($shareName) - bo qua PROPFIND cho $($shareTotal - $shareIndex) share con lai"
+                }
                 break
             } catch {
                 $msg = $_.Exception.Message
@@ -2103,7 +2369,7 @@ function Show-JustPlayNasDialog {
     $loginTop = 104 + $planPanelHeight + 12
     $card = New-Object System.Windows.Forms.Panel
     $card.Location = New-Object System.Drawing.Point(24, $loginTop)
-    $card.Size = New-Object System.Drawing.Size(412, 196)
+    $card.Size = New-Object System.Drawing.Size(412, 210)
     $card.BackColor = $jpCard
     $card.BorderStyle = 'FixedSingle'
     $form.Controls.Add($card)
@@ -2165,11 +2431,25 @@ function Show-JustPlayNasDialog {
     $lblHint.Font = New-Object System.Drawing.Font('Segoe UI', 8.5)
     $lblHint.ForeColor = $jpMuted
     $lblHint.AutoSize = $false
-    $lblHint.Size = New-Object System.Drawing.Size(376, 34)
+    $lblHint.Size = New-Object System.Drawing.Size(376, 28)
     $lblHint.Location = New-Object System.Drawing.Point(18, 164)
     $card.Controls.Add($lblHint)
 
-    $btnTop = $loginTop + 196 + 16
+    $lblVersion = New-Object System.Windows.Forms.Label
+    $versionLine = if ($driveCount -gt 0) {
+        "Phiên bản NAS: $NasScriptVersion · $driveCount ổ đĩa WebDAV"
+    } else {
+        "Phiên bản NAS: $NasScriptVersion · tải lại ZIP từ Portal"
+    }
+    $lblVersion.Text = $versionLine
+    $lblVersion.Font = New-Object System.Drawing.Font('Segoe UI', 8.5)
+    $lblVersion.ForeColor = $jpMuted
+    $lblVersion.AutoSize = $false
+    $lblVersion.Size = New-Object System.Drawing.Size(376, 18)
+    $lblVersion.Location = New-Object System.Drawing.Point(18, 186)
+    $card.Controls.Add($lblVersion)
+
+    $btnTop = $loginTop + 210 + 16
     $btnConnect = New-Object System.Windows.Forms.Button
     $btnConnect.Text = if ($driveCount -gt 1) {
         "Kết nối NAS ($driveCount ổ đĩa)"
@@ -2264,8 +2544,15 @@ Mở trang đổi mật khẩu ngay bây giờ?
         $script:connectShare = $shareName
         [System.Windows.Forms.Application]::DoEvents()
 
+        $progressCb = {
+            param($Index, $Total, $Share)
+            $btnConnect.Text = "Đang kết nối $Index/$Total..."
+            $lblHint.Text = "Share: $Share"
+            [System.Windows.Forms.Application]::DoEvents()
+        }
+
         try {
-            $result = Connect-AllJustPlayNasShares -Username $user -Password $tbPass.Text
+            $result = Connect-AllJustPlayNasShares -Username $user -Password $tbPass.Text -ProgressCallback $progressCb
             foreach ($m in $result.Mapped) {
                 Write-Log "OK: $($m.Letter): -> $($m.RemotePath) ($($m.Method))"
             }

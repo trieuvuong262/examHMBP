@@ -6,6 +6,15 @@
         return meta ? meta.getAttribute('content') : '';
     }
 
+    function parseCkUploadResponse(xhr, fallback) {
+        var text = (xhr && xhr.responseText) || fallback || '';
+        text = String(text).trim().replace(/^\uFEFF/, '');
+        if (!text) {
+            return null;
+        }
+        return JSON.parse(text);
+    }
+
     if (window.CKEDITOR) {
         CKEDITOR.config.versionCheck = false;
 
@@ -27,22 +36,32 @@
             });
 
             ev.editor.on('fileUploadResponse', function (evt) {
-                var xhr = evt.data.fileLoader.xhr;
-                var response = evt.data.response;
+                var loader = evt.data.fileLoader;
+                var xhr = loader && loader.xhr;
+                if (!xhr) {
+                    evt.cancel();
+                    evt.data.message = 'Phản hồi upload không hợp lệ.';
+                    return;
+                }
                 if (xhr.status >= 400) {
                     evt.cancel();
                     var message = 'Lỗi tải ảnh lên (HTTP ' + xhr.status + ').';
                     try {
-                        var parsed = JSON.parse(response);
-                        if (parsed.error && parsed.error.message) {
-                            message = parsed.error.message;
+                        var parsedErr = parseCkUploadResponse(xhr, evt.data.response);
+                        if (parsedErr && parsedErr.error && parsedErr.error.message) {
+                            message = parsedErr.error.message;
                         }
                     } catch (err) {}
                     evt.data.message = message;
                     return;
                 }
                 try {
-                    var data = JSON.parse(response);
+                    var data = parseCkUploadResponse(xhr, evt.data.response);
+                    if (!data) {
+                        evt.cancel();
+                        evt.data.message = 'Phản hồi upload trống.';
+                        return;
+                    }
                     if (data.error && data.error.message) {
                         evt.cancel();
                         evt.data.message = data.error.message;
@@ -50,9 +69,8 @@
                     }
                     if (data.url) {
                         evt.data.url = data.url;
-                        if (!data.uploaded) {
-                            data.uploaded = 1;
-                            evt.data.response = JSON.stringify(data);
+                        if (data.fileName) {
+                            evt.data.fileName = data.fileName;
                         }
                         return;
                     }

@@ -119,6 +119,16 @@ EXCEL_HR_HEADERS = [
 EXCEL_IMPORT_OPTIONAL_HEADERS = ['password', 'email']
 EXCEL_ALL_HEADERS = EXCEL_HR_HEADERS + EXCEL_IMPORT_OPTIONAL_HEADERS
 
+DEFAULT_PORTAL_PASSWORD = 'justplay@123'
+
+
+def user_export_password_hint(user, profile=None):
+    """Mật khẩu khi xuất Excel: trống nếu đã đăng nhập và đã đổi mật khẩu."""
+    profile = profile if profile is not None else getattr(user, 'profile', None)
+    if user.last_login and profile and not profile.must_change_password:
+        return ''
+    return DEFAULT_PORTAL_PASSWORD
+
 # Map tên cột Excel (lower, strip) → field profile
 EXCEL_COLUMN_MAP = {
     'ma_ns': 'employee_code',
@@ -308,7 +318,7 @@ def user_to_excel_row(user):
             else ''
         ),
         'Trạng thái': employment_excel_label(profile.is_employed if profile else True),
-        'password': '',
+        'password': user_export_password_hint(user, profile),
         'email': user.email or '',
     }
 

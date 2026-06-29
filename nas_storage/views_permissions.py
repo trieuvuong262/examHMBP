@@ -22,10 +22,9 @@ from nas_storage.forms import (
     NasUserFolderAclFormSet,
 )
 from nas_storage.models import NasAccessGroup, NasFolderPermission, NasShareFolder, NasUserFolderAcl
+from nas_storage.nas_acl_jobs import spawn_nas_acl_batch_job
 from nas_storage.nas_acl_apply import (
     NasAclApplyError,
-    apply_all_folder_permissions,
-    apply_all_user_folder_acls,
     apply_folder_permissions,
     apply_user_folder_acl,
     discover_shares_from_nas,
@@ -208,22 +207,13 @@ def _user_acl_formset(*, user: User, data=None):
 
 
 def _save_user_acl_formset(user: User, formset) -> list:
-    from nas_storage.user_folders import ensure_portal_link_for_acl
-
     saved: list = []
     instances = formset.save(commit=False)
     for obj in instances:
         obj.user = user
         obj.save()
-        if obj.is_active:
-            ensure_portal_link_for_acl(obj)
         saved.append(obj)
     for obj in formset.deleted_objects:
-        if obj.pk and nas_acl_ssh_configured():
-            try:
-                revoke_user_folder_acl(obj)
-            except NasAclApplyError:
-                pass
         obj.delete()
     return saved
 
@@ -297,24 +287,22 @@ def special_access_edit(request, user_id):
         formset = _user_acl_formset(user=user_obj, data=request.POST)
         if formset.is_valid():
             saved_grants = _save_user_acl_formset(user_obj, formset)
-            msg = f'Đã lưu quyền RaiDrive/SMB cho {user_obj.username}.'
-            if nas_acl_ssh_configured() and saved_grants:
-                applied = 0
-                apply_errors: list[str] = []
-                for grant in saved_grants:
-                    if not grant.is_active:
-                        continue
-                    try:
-                        apply_user_folder_acl(grant)
-                        applied += 1
-                    except NasAclApplyError as exc:
-                        apply_errors.append(str(exc))
-                if applied:
-                    msg += f' Đã áp dụng {applied} ACL lên NAS.'
-                if apply_errors:
+            msg = f'Đã lưu quyền thư mục riêng cho {user_obj.username}.'
+            if saved_grants:
+                nas_ok = sum(
+                    1 for g in saved_grants
+                    if g.is_active and (g.last_apply_status or '').startswith('ok')
+                )
+                nas_failed = [
+                    g for g in saved_grants
+                    if g.is_active and g.last_apply_status and not g.last_apply_status.startswith('ok')
+                ]
+                if nas_ok:
+                    msg += f' Đã áp dụng {nas_ok} ACL lên NAS.'
+                if nas_failed and nas_acl_ssh_configured():
                     messages.warning(
                         request,
-                        'Một số ACL chưa áp dụng được lên NAS: ' + '; '.join(apply_errors[:2]),
+                        'Một số ACL chưa áp dụng được lên NAS — thử nút «Áp dụng» từng dòng.',
                     )
             messages.success(request, msg)
             return redirect('nas_storage:special_access_edit', user_id=user_obj.pk)
@@ -355,17 +343,17 @@ def apply_user_acl(request, pk):
 @_perm_menu_required
 @require_POST
 def apply_all_user_acl(request):
-    try:
-        stats = apply_all_user_folder_acls()
-        if stats['errors']:
-            messages.warning(
-                request,
-                f"Áp dụng xong: {stats['ok']} OK. Lỗi: {'; '.join(stats['errors'][:3])}",
-            )
-        else:
-            messages.success(request, f'Đã áp dụng {stats["ok"]} quyền user lên NAS.')
-    except NasAclApplyError as exc:
-        messages.error(request, str(exc))
+    if spawn_nas_acl_batch_job('apply_nas_user_acl_all'):
+        messages.info(
+            request,
+            'Đã bắt đầu áp dụng quyền truy cập riêng lên NAS (chạy nền). '
+            'Quá trình có thể mất vài phút — tải lại trang sau.',
+        )
+    else:
+        messages.warning(
+            request,
+            'Đang có tiến trình áp dụng ACL NAS chạy nền. Vui lòng đợi vài phút rồi thử lại.',
+        )
     return redirect('nas_storage:special_access_list')
 
 
@@ -666,20 +654,22 @@ def apply_folder_acl(request, pk):
 def apply_all_acl(request):
     try:
         sync_browse_all_share_permissions()
-        stats = apply_all_folder_permissions()
-        if stats['errors']:
-            messages.warning(
-                request,
-                f"Áp dụng xong: {stats['ok']} OK, {stats['skipped']} bỏ qua. "
-                f"Lỗi: {'; '.join(stats['errors'][:3])}",
-            )
-        else:
-            messages.success(request, f'Đã áp dụng {stats["ok"]} thư mục lên NAS.')
-    except NasAclApplyError as exc:
-        messages.error(request, str(exc))
     except Exception as exc:
-        logger.exception('apply_all_acl failed')
-        messages.error(request, f'Lỗi khi áp dụng ACL lên NAS: {exc}')
+        logger.exception('sync_browse_all_share_permissions failed')
+        messages.error(request, f'Lỗi đồng bộ quyền Portal: {exc}')
+        return redirect('nas_storage:permissions_hub')
+
+    if spawn_nas_acl_batch_job('apply_nas_acl_all'):
+        messages.info(
+            request,
+            'Đã bắt đầu áp dụng ACL lên NAS (chạy nền). '
+            'Quá trình có thể mất 2–5 phút — không cần bấm lại. Tải lại trang Phân quyền sau.',
+        )
+    else:
+        messages.warning(
+            request,
+            'Đang có tiến trình áp dụng ACL NAS chạy nền. Vui lòng đợi vài phút rồi thử lại.',
+        )
     return redirect('nas_storage:permissions_hub')
 
 

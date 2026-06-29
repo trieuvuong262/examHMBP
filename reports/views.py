@@ -286,7 +286,11 @@ def _report_context_common(request, report_date, *, report_profile=None, report_
         'can_view_team': can_view_team_reports(request.user),
     }
     if report_profile:
-        ctx.update(page_tools_context_for_profile(report_profile, report_period=report_period))
+        ctx.update(page_tools_context_for_profile(
+            report_profile,
+            report_period=report_period,
+            user=request.user,
+        ))
     return ctx
 
 
@@ -454,7 +458,11 @@ def _delete_daily_attachments(report, attachment_ids):
 
 def _weekly_context_common(request, week_start, *, report_profile: str):
     prev_week = week_start - timedelta(days=7)
-    ctx = page_tools_context_for_profile(report_profile, report_period='weekly')
+    ctx = page_tools_context_for_profile(
+        report_profile,
+        report_period='weekly',
+        user=request.user,
+    )
     ctx.update({
         'week_start': week_start,
         'week_end': week_end(week_start),

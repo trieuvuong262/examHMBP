@@ -91,7 +91,17 @@ def weekly_url_for_user(user) -> str:
     return reverse(weekly_url_name_for_user(user))
 
 
+def user_has_dual_daily_report_submit(user) -> bool:
+    """User được nhập cả báo cáo SX và VP."""
+    return (
+        user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_CN)
+        and user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_VP)
+    )
+
+
 def my_url_name_for_user(user) -> str:
+    if user_has_dual_daily_report_submit(user):
+        return 'reports:my_vp'
     if user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_CN):
         return 'reports:my_cn'
     if user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_VP):
@@ -141,11 +151,28 @@ def my_url_for_profile(report_profile: str) -> str:
     return reverse(my_url_name_for_profile(report_profile))
 
 
-def page_tools_context_for_profile(report_profile: str, *, report_period: str = 'daily') -> dict:
+def my_url_name_for_history(user, report_profile: str) -> str:
+    """URL lịch sử cá nhân — user có cả SX và VP thì mặc định VP."""
+    if user_has_dual_daily_report_submit(user):
+        return 'reports:my_vp'
+    return my_url_name_for_profile(report_profile)
+
+
+def page_tools_context_for_profile(
+    report_profile: str,
+    *,
+    report_period: str = 'daily',
+    user=None,
+) -> dict:
     """Context cho nút Lịch sử / cấp dưới trên trang nhập báo cáo."""
+    my_url_name = (
+        my_url_name_for_history(user, report_profile)
+        if user is not None
+        else my_url_name_for_profile(report_profile)
+    )
     return {
         'report_period': report_period,
-        'my_url_name': my_url_name_for_profile(report_profile),
+        'my_url_name': my_url_name,
         'team_url_name': team_url_name_for_profile(report_profile),
         'team_weekly_url_name': team_weekly_url_name_for_profile(report_profile),
         'today_url_name': (

@@ -57,7 +57,7 @@ namespace JustPlay.NasLauncher
 
             Text = "JustPlay NAS";
             Font = new Font("Segoe UI", 10F);
-            ClientSize = new Size(460, 468);
+            ClientSize = new Size(460, 480);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             MinimizeBox = false;
@@ -125,9 +125,21 @@ namespace JustPlay.NasLauncher
             };
             card.Controls.Add(_tbPass);
 
-            _btnMount = MakeActionButton("K\u1ebft n\u1ed1i NAS", Color.FromArgb(220, 38, 38), 20, 148, 116);
-            _btnUnmount = MakeActionButton("G\u1ee1 mount", Color.FromArgb(71, 85, 105), 148, 148, 116);
-            _btnRefresh = MakeActionButton("L\u00e0m m\u1edbi Explorer", Color.FromArgb(71, 85, 105), 276, 148, 116);
+            var lblVersion = new Label
+            {
+                Text = string.Format("Phi\u00ean b\u1ea3n NAS: {0} \u00b7 {1} \u1ed5 \u0111\u0129a WebDAV", _version, _shareCount),
+                Font = new Font("Segoe UI", 8.5F),
+                ForeColor = Color.FromArgb(100, 116, 139),
+                AutoSize = false,
+                Size = new Size(372, 18),
+                Location = new Point(20, 132),
+                TextAlign = ContentAlignment.MiddleLeft,
+            };
+            card.Controls.Add(lblVersion);
+
+            _btnMount = MakeActionButton("K\u1ebft n\u1ed1i NAS", Color.FromArgb(220, 38, 38), 20, 156, 116);
+            _btnUnmount = MakeActionButton("G\u1ee1 mount", Color.FromArgb(71, 85, 105), 148, 156, 116);
+            _btnRefresh = MakeActionButton("L\u00e0m m\u1edbi Explorer", Color.FromArgb(71, 85, 105), 276, 156, 116);
             _btnMount.Click += async (s, e) => await RunMountAsync();
             _btnUnmount.Click += async (s, e) => await RunSimpleActionAsync("unmount", "G\u1ee1 mount...");
             _btnRefresh.Click += async (s, e) => await RunSimpleActionAsync("refresh", "L\u00e0m m\u1edbi Explorer...");
@@ -135,9 +147,9 @@ namespace JustPlay.NasLauncher
             card.Controls.Add(_btnUnmount);
             card.Controls.Add(_btnRefresh);
 
-            card.Controls.Add(MakeLabel("C\u00f4ng c\u1ee5 IT", 20, 196));
-            _btnRustdesk = MakeActionButton("C\u00e0i RustDesk", Color.FromArgb(37, 99, 235), 20, 218, 180);
-            _btnEquipment = MakeActionButton("Th\u00eam C\u1ea5u h\u00ecnh", Color.FromArgb(5, 150, 105), 212, 218, 180);
+            card.Controls.Add(MakeLabel("C\u00f4ng c\u1ee5 IT", 20, 204));
+            _btnRustdesk = MakeActionButton("C\u00e0i RustDesk", Color.FromArgb(37, 99, 235), 20, 226, 180);
+            _btnEquipment = MakeActionButton("Th\u00eam C\u1ea5u h\u00ecnh", Color.FromArgb(5, 150, 105), 212, 226, 180);
             _btnRustdesk.Enabled = _hasRustdesk;
             _btnEquipment.Enabled = _hasEquipmentScan;
             _btnRustdesk.Click += async (s, e) => await RunCompanionScriptAsync(
@@ -158,7 +170,7 @@ namespace JustPlay.NasLauncher
                 Text = "S\u1eb5n s\u00e0ng.",
                 AutoSize = false,
                 Size = new Size(412, 48),
-                Location = new Point(24, 386),
+                Location = new Point(24, 398),
                 ForeColor = Color.FromArgb(100, 116, 139),
             };
             Controls.Add(_lblStatus);
@@ -225,14 +237,18 @@ namespace JustPlay.NasLauncher
             SetBusy(true, "\u0110ang chu\u1ea9n b\u1ecb WebClient...");
             try
             {
-                var code = await RunPs1Async("prep", null, null).ConfigureAwait(true);
-                if (code.ExitCode != 0)
+                var code = await Task.Run(() => RunPrepElevated()).ConfigureAwait(true);
+                if (code == 0)
                 {
-                    _lblStatus.Text = "WebClient: ch\u1ea5p nh\u1eadn UAC n\u1ebfu \u0111\u01b0\u1ee3c h\u1ecfi, r\u1ed3i th\u1eed K\u1ebft n\u1ed1i.";
+                    _lblStatus.Text = "S\u1eb5n s\u00e0ng.";
+                }
+                else if (code == 1223)
+                {
+                    _lblStatus.Text = "Ch\u01b0a c\u1ea5u h\u00ecnh WebClient (UAC b\u1ecb h\u1ee7y). B\u1ea5m K\u1ebft n\u1ed1i NAS v\u00e0 ch\u1ea5p nh\u1eadn UAC.";
                 }
                 else
                 {
-                    _lblStatus.Text = "S\u1eb5n s\u00e0ng.";
+                    _lblStatus.Text = "WebClient ch\u01b0a s\u1eb5n s\u00e0ng \u2014 khi K\u1ebft n\u1ed1i NAS h\u00e3y ch\u1ea5p nh\u1eadn UAC (Administrator).";
                 }
             }
             catch (Exception ex)
@@ -242,6 +258,37 @@ namespace JustPlay.NasLauncher
             finally
             {
                 SetBusy(false, _lblStatus.Text);
+            }
+        }
+
+        private int RunPrepElevated()
+        {
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    Arguments = "-NoProfile -ExecutionPolicy Bypass -File \"" + _prepPs1 + "\"",
+                    UseShellExecute = true,
+                    Verb = "runas",
+                };
+                using (var proc = Process.Start(psi))
+                {
+                    if (proc == null)
+                    {
+                        return 1;
+                    }
+                    proc.WaitForExit();
+                    return proc.ExitCode;
+                }
+            }
+            catch (System.ComponentModel.Win32Exception ex)
+            {
+                if (ex.NativeErrorCode == 1223)
+                {
+                    return 1223;
+                }
+                throw;
             }
         }
 
@@ -269,6 +316,51 @@ namespace JustPlay.NasLauncher
                 return "\u0110\u00e3 k\u1ebft n\u1ed1i NAS:\n" + drives + "\n\nM\u1edf File Explorer \u0111\u1ec3 duy\u1ec7t file.";
             }
             return "\u0110\u00e3 k\u1ebft n\u1ed1i NAS th\u00e0nh c\u00f4ng.";
+        }
+
+        private void TryOpenFirstMappedDrive(string stdout)
+        {
+            try
+            {
+                string okLine = null;
+                foreach (var line in (stdout ?? string.Empty).Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var trimmed = line.Trim();
+                    if (trimmed.StartsWith("OK|", StringComparison.OrdinalIgnoreCase))
+                    {
+                        okLine = trimmed;
+                        break;
+                    }
+                }
+                if (string.IsNullOrEmpty(okLine))
+                {
+                    return;
+                }
+                var parts = okLine.Split('|');
+                if (parts.Length < 3)
+                {
+                    return;
+                }
+                var firstMap = parts[2].Split(';')[0].Trim();
+                var m = Regex.Match(firstMap, @"^([A-Z]):\s*(.*)$");
+                if (!m.Success)
+                {
+                    return;
+                }
+                var letter = m.Groups[1].Value;
+                var share = m.Groups[2].Value.Trim();
+                var user = (_tbUser.Text ?? string.Empty).Trim();
+                var path = letter + ":\\";
+                if (!string.IsNullOrEmpty(user) &&
+                    share.IndexOf("MARKETING", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    path = letter + ":\\" + user;
+                }
+                Process.Start("explorer.exe", path);
+            }
+            catch
+            {
+            }
         }
 
         private static string FormatConnectFailureMessage(string stdout, string stderr)
@@ -337,7 +429,15 @@ namespace JustPlay.NasLauncher
                     return;
                 }
                 _lblStatus.Text = "\u0110\u00e3 k\u1ebft n\u1ed1i NAS.";
-                MessageBox.Show(this, FormatConnectSuccessMessage(result.Stdout), Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                var successMsg = FormatConnectSuccessMessage(result.Stdout);
+                var portalUser = _tbUser.Text.Trim();
+                if (!string.IsNullOrEmpty(portalUser))
+                {
+                    successMsg += "\n\nThu muc rieng: Z:\\" + portalUser + " (trong o Z: 05_MARKETING)";
+                }
+                MessageBox.Show(this, successMsg, Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                TryOpenFirstMappedDrive(result.Stdout);
+                await RunPs1Async("refresh", null, null).ConfigureAwait(true);
             }
             catch (Exception ex)
             {
@@ -398,8 +498,15 @@ namespace JustPlay.NasLauncher
                 }
                 else
                 {
-                    MessageBox.Show(this, "Thao t\u00e1c th\u1ea5t b\u1ea1i. M\u00e3 l\u1ed7i: " + code, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    _lblStatus.Text = "Thao t\u00e1c th\u1ea5t b\u1ea1i.";
+                    var hint = fileName.IndexOf("RustDesk", StringComparison.OrdinalIgnoreCase) >= 0
+                        ? "Cần chấp nhận UAC (quyền Administrator).\n\n• Bấm Có khi Windows hỏi\n• Nếu đã bấm Không: chạy lại «Cài RustDesk»\n• Hoặc chuột phải JustPlay-RustDesk-Setup.cmd → Run as administrator"
+                        : "Tải lại ZIP từ Portal hoặc chạy script bằng quyền Administrator.";
+                    if (code == 1223)
+                    {
+                        hint = "Đã hủy UAC (Không nâng quyền Administrator).\nChạy lại và bấm Có khi Windows hỏi.";
+                    }
+                    MessageBox.Show(this, "Thao tác thất bại (mã lỗi " + code + ").\n\n" + hint, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    _lblStatus.Text = "Thao tác thất bại.";
                 }
             }
             catch (Exception ex)
@@ -431,21 +538,40 @@ namespace JustPlay.NasLauncher
             {
             }
 
+            var args = "-NoProfile -ExecutionPolicy Bypass -File \"" + destPs1 + "\"";
+            if (fileName.IndexOf("RustDesk", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                args += " -Elevated";
+            }
+
             var psi = new ProcessStartInfo
             {
                 FileName = "powershell.exe",
-                Arguments = "-NoProfile -ExecutionPolicy Bypass -File \"" + destPs1 + "\"",
+                Arguments = args,
                 WorkingDirectory = workDir,
                 UseShellExecute = true,
+                Verb = "runas",
             };
-            using (var proc = Process.Start(psi))
+            try
             {
-                if (proc == null)
+                using (var proc = Process.Start(psi))
                 {
-                    return 1;
+                    if (proc == null)
+                    {
+                        return 1;
+                    }
+                    proc.WaitForExit();
+                    return proc.ExitCode;
                 }
-                proc.WaitForExit();
-                return proc.ExitCode;
+            }
+            catch (System.ComponentModel.Win32Exception ex)
+            {
+                // UAC cancelled
+                if (ex.NativeErrorCode == 1223)
+                {
+                    return 1223;
+                }
+                throw;
             }
         }
 

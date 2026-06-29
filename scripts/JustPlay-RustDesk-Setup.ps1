@@ -1,3 +1,5 @@
+param([switch]$Elevated)
+
 $ErrorActionPreference = 'Stop'
 
 # --- Cau hinh (Portal thay khi tai file; hoac sua tay khi test local) ---
@@ -39,6 +41,29 @@ if ($AssignedUserText -like '*__ASSIGNED*') {
 }
 if ($DepartmentText -like '*__DEPARTMENT*') {
     $DepartmentText = ''
+}
+
+function Start-JustPlayRustDeskElevated {
+    $path = $PSCommandPath
+    if (-not $path) { $path = $MyInvocation.MyCommand.Path }
+    if (-not $path) {
+        Write-Host 'LOI: Khong xac dinh duong dan script.'
+        exit 1
+    }
+    Write-Host 'Can quyen Administrator - dang hoi UAC (bam Co)...'
+    try {
+        $argList = @(
+            '-NoProfile', '-ExecutionPolicy', 'Bypass',
+            '-File', "`"$path`"", '-Elevated'
+        )
+        $proc = Start-Process -FilePath 'powershell.exe' -Verb RunAs -ArgumentList $argList -Wait -PassThru
+        if ($proc) { exit $proc.ExitCode }
+        exit 1
+    } catch {
+        Write-Host 'UAC bi huy hoac khong nang quyen Administrator.'
+        Write-Host $_.Exception.Message
+        exit 1
+    }
 }
 
 function Test-IsAdmin {
@@ -652,8 +677,12 @@ Write-Host '========================================'
 Write-Host ''
 
 if (-not (Test-IsAdmin)) {
-    Write-Host 'Can quyen Administrator. Chuot phai file -> Run as administrator'
-    exit 1
+    if ($Elevated) {
+        Write-Host 'LOI: Van khong co quyen Administrator sau UAC.'
+        Write-Host 'Chuot phai JustPlay-RustDesk-Setup.cmd -> Run as administrator'
+        exit 1
+    }
+    Start-JustPlayRustDeskElevated
 }
 
 $exe = Ensure-RustDeskInstalled -Url $InstallerUrl

@@ -11,6 +11,21 @@ Write-Host '[1] DNS'
 try {
     $dns = [System.Net.Dns]::GetHostAddresses($hostName) | ForEach-Object { $_.IPAddressToString }
     Write-Host "  $hostName -> $($dns -join ', ')"
+    if ($dns -contains '100.93.5.42') {
+        $lanNas = '192.168.1.254'
+        $lanOk = $false
+        try {
+            $tcpLan = Test-NetConnection -ComputerName $lanNas -Port $port -WarningAction SilentlyContinue
+            $lanOk = [bool]$tcpLan.TcpTestSucceeded
+        } catch {}
+        if ($lanOk) {
+            Write-Host "  PHAT HIEN: DNS tro Tailscale nhung NAS LAN $lanNas`:$port mo duoc." -ForegroundColor Yellow
+            Write-Host "  => May trong van phong: them hosts (Admin): $lanNas $hostName" -ForegroundColor Yellow
+            Write-Host "  => Hoac chap nhan UAC khi mo EXE NAS (script .29+ tu sua hosts)" -ForegroundColor Yellow
+        } else {
+            Write-Host '  CANH BAO: DNS tro Tailscale 100.93.5.42 — can Tailscale hoac DNS noi bo -> IP NAS LAN' -ForegroundColor Yellow
+        }
+    }
     if ($dns -contains '14.161.25.119' -or ($dns | Where-Object { $_ -notmatch '^100\.|^192\.168\.|^10\.' })) {
         Write-Host '  CANH BAO: DNS tro IP PUBLIC — trong LAN de loi WebClient 67. Nen DNS noi bo -> IP NAS (100.93.5.42 / LAN).' -ForegroundColor Yellow
     }
@@ -42,6 +57,14 @@ if ($svc) {
 try {
     $p = Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Services\WebClient\Parameters' -ErrorAction Stop
     Write-Host "  BasicAuthLevel: $($p.BasicAuthLevel)"
+    $limit = $p.FileSizeLimitInBytes
+    if ($null -eq $limit) {
+        Write-Host '  FileSizeLimitInBytes: (mac dinh ~50MB) — file >50MB se loi 0x800700DF' -ForegroundColor Yellow
+    } else {
+        $mb = [math]::Round([uint32]$limit / 1MB, 1)
+        $color = if ([uint32]$limit -ge 100MB) { 'Green' } else { 'Yellow' }
+        Write-Host "  FileSizeLimitInBytes: $limit (~${mb} MB)" -ForegroundColor $color
+    }
     $fwd = ($p.AuthForwardServerList -split "`n" | Where-Object { $_ }) -join '; '
     if ($fwd) { Write-Host "  AuthForward: $fwd" }
 } catch {

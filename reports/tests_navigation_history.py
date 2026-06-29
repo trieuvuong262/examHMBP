@@ -49,7 +49,62 @@ class ReportHistoryNavigationTests(TestCase):
         self.assertContains(resp, reverse('reports:my_vp'))
         self.assertNotContains(resp, reverse('reports:my'))
 
+    def test_dual_submit_user_history_from_sx_page_links_to_vp(self):
+        from hrm.models import PermissionGroup
+
+        group = PermissionGroup.objects.create(
+            name='SX+VP daily',
+            slug='sx-vp-daily-nav',
+            module_permissions={
+                'reports': {
+                    'view': True,
+                    'create': True,
+                    'update': False,
+                    'delete': False,
+                    'export': False,
+                    'menus': {
+                        'daily_cn': {
+                            'view': True, 'create': True, 'update': False, 'delete': False, 'export': False,
+                        },
+                        'daily_vp': {
+                            'view': True, 'create': True, 'update': False, 'delete': False, 'export': False,
+                        },
+                    },
+                },
+            },
+        )
+        Profile.objects.filter(user=self.member).update(permission_group=group)
+        self.member.refresh_from_db()
+        self.client.force_login(self.member)
+
+        resp = self.client.get(reverse('reports:today_cn'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, reverse('reports:my_vp'))
+        self.assertNotContains(resp, reverse('reports:my_cn'))
+
     def test_today_cn_history_links_to_my_cn(self):
+        from hrm.models import PermissionGroup
+
+        group = PermissionGroup.objects.create(
+            name='SX only daily',
+            slug='sx-only-daily-nav',
+            module_permissions={
+                'reports': {
+                    'view': True,
+                    'create': True,
+                    'update': False,
+                    'delete': False,
+                    'export': False,
+                    'menus': {
+                        'daily_cn': {
+                            'view': True, 'create': True, 'update': False, 'delete': False, 'export': False,
+                        },
+                    },
+                },
+            },
+        )
+        Profile.objects.filter(user=self.member).update(permission_group=group)
+        self.member.refresh_from_db()
         self.client.force_login(self.member)
         resp = self.client.get(reverse('reports:today_cn'))
         self.assertEqual(resp.status_code, 200)
@@ -67,7 +122,7 @@ class ReportHistoryNavigationTests(TestCase):
         resp = self.client.get(reverse('reports:my'), {'period': 'weekly'})
         self.assertRedirects(
             resp,
-            f'{reverse("reports:my_cn")}?period=weekly',
+            f'{reverse("reports:my_vp")}?period=weekly',
             fetch_redirect_response=False,
         )
 
