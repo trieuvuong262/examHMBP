@@ -77,7 +77,7 @@ class MaterialForm(forms.ModelForm):
             'color': forms.Select(attrs={**FORM_SEARCH_SELECT, 'data-placeholder': 'Tìm màu...'}),
             'specification': forms.Select(attrs={**FORM_SEARCH_SELECT, 'data-placeholder': 'Tìm quy cách / khổ...'}),
             'unit': forms.Select(attrs=FORM_SELECT),
-            'supplier': forms.Select(attrs=FORM_SELECT),
+            'supplier': forms.Select(attrs={**FORM_SEARCH_SELECT, 'data-placeholder': 'Tìm NCC...'}),
             'min_stock': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0'}),
             'image': forms.ClearableFileInput(attrs={'class': 'form-control'}),
             'notes': forms.Textarea(attrs=FORM_TEXTAREA),
@@ -97,8 +97,12 @@ class MaterialForm(forms.ModelForm):
         self.fields['specification'].required = False
         self.fields['specification'].empty_label = '—'
         self.fields['unit'].queryset = Unit.objects.filter(is_active=True)
-        self.fields['supplier'].queryset = Supplier.objects.filter(is_active=True)
+        self.fields['supplier'].queryset = Supplier.objects.filter(is_active=True).order_by('name')
+        self.fields['supplier'].label_from_instance = lambda obj: (
+            f'{obj.name} ({obj.code})' + (f' — {obj.phone}' if obj.phone else '')
+        )
         self.fields['supplier'].required = False
+        self.fields['supplier'].empty_label = '—'
         self.fields['image'].required = False
         self.fields['is_active'].required = False
 
