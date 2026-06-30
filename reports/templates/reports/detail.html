@@ -5,12 +5,12 @@
 {% if report.is_production_report and hourly_grid or productivity %}
 <link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260628d">
 {% elif not report.is_production_report %}
-<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260630a">
+<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260630b">
 {% endif %}
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-reports-page jp-report-detail-page py-2 py-md-3 mb-3 mb-md-4">
+<div class="container-fluid px-2 px-md-3 jp-page jp-reports-page jp-report-detail-page py-2 py-md-3 mb-3 mb-md-4">
     <div class="jp-report-detail-hero mb-4">
         <div class="jp-report-detail-hero-top">
             <div class="jp-report-detail-hero-text">

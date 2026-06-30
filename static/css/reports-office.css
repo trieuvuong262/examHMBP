@@ -1254,6 +1254,44 @@
     margin: 0.75rem 0;
 }
 
+/* Chi tiết VP — văn bản chỉ đọc: full width, lề gọn (mọi màn hình) */
+.jp-report-detail-page .jp-report-vanban-card .card-header {
+    padding: 0.55rem 0.85rem;
+}
+
+.jp-report-detail-page .jp-word-desk-readonly {
+    padding: 0;
+    max-height: none;
+    background: #fff;
+}
+
+.jp-report-detail-page .jp-word-page-readonly {
+    max-width: none;
+    width: 100%;
+    margin: 0;
+    box-shadow: none;
+    border: none;
+    border-radius: 0;
+}
+
+.jp-report-detail-page .jp-word-page-body {
+    padding: 0.75rem 0.85rem 0.9rem;
+    font-size: 13pt;
+    line-height: 1.5;
+}
+
+.jp-report-detail-page .jp-word-page-body.jp-ckeditor-content > :first-child {
+    margin-top: 0;
+}
+
+.jp-report-detail-page .jp-word-page-body.jp-ckeditor-content p {
+    margin-bottom: 0.5em;
+}
+
+[data-theme="dark"] .jp-report-detail-page .jp-word-desk-readonly {
+    background: #fff;
+}
+
 /* Chi tiết VP — mobile/tablet: tối đa không gian nội dung */
 @media (max-width: 991.98px) {
     .jp-main-content .jp-report-detail-page.container {
@@ -1431,7 +1469,7 @@
 
 /* Chi tiết báo cáo VP */
 .jp-report-detail-page {
-    max-width: 1200px;
+    max-width: none;
 }
 
 .jp-report-detail-hero {
