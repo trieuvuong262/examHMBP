@@ -1,0 +1,14 @@
+<script>
+(function () {
+    if (typeof TomSelect === 'undefined') return;
+    document.querySelectorAll('select.jp-npl-search-select[data-placeholder]').forEach(function (el) {
+        if (el.tomselect) return;
+        new TomSelect(el, {
+            placeholder: el.getAttribute('data-placeholder') || 'Tìm...',
+            allowEmptyOption: true,
+            maxItems: 1,
+            dropdownParent: 'body',
+        });
+    });
+})();
+</script>

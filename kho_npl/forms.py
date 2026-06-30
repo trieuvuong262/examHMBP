@@ -38,6 +38,7 @@ User = get_user_model()
 
 FORM_CONTROL = {'class': 'form-control'}
 FORM_SELECT = {'class': 'form-select'}
+FORM_SEARCH_SELECT = {'class': 'form-select jp-npl-search-select'}
 FORM_TEXTAREA = {'class': 'form-control', 'rows': 3}
 FORM_ATTACHMENT = forms.ClearableFileInput(attrs={
     'class': 'form-control',
@@ -73,8 +74,8 @@ class MaterialForm(forms.ModelForm):
             'code': forms.TextInput(attrs={**FORM_CONTROL, 'placeholder': 'VD: VAI-001'}),
             'name': forms.TextInput(attrs=FORM_CONTROL),
             'category': forms.Select(attrs=FORM_SELECT),
-            'color': forms.Select(attrs=FORM_SELECT),
-            'specification': forms.Select(attrs=FORM_SELECT),
+            'color': forms.Select(attrs={**FORM_SEARCH_SELECT, 'data-placeholder': 'Tìm màu...'}),
+            'specification': forms.Select(attrs={**FORM_SEARCH_SELECT, 'data-placeholder': 'Tìm quy cách / khổ...'}),
             'unit': forms.Select(attrs=FORM_SELECT),
             'supplier': forms.Select(attrs=FORM_SELECT),
             'min_stock': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0'}),
@@ -89,6 +90,7 @@ class MaterialForm(forms.ModelForm):
         self.fields['category'].queryset = active_category_leaves()
         self.fields['category'].label_from_instance = lambda obj: f'{obj.parent.name} › {obj.name}'
         self.fields['color'].queryset = MaterialColor.objects.filter(is_active=True).order_by('sort_order', 'name')
+        self.fields['color'].label_from_instance = lambda obj: f'{obj.name} ({obj.hex_code})'
         self.fields['color'].required = False
         self.fields['color'].empty_label = '—'
         self.fields['specification'].queryset = MaterialSpecification.objects.filter(is_active=True).order_by('sort_order', 'name')

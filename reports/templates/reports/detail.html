@@ -5,12 +5,12 @@
 {% if report.is_production_report and hourly_grid or productivity %}
 <link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260628d">
 {% elif not report.is_production_report %}
-<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260625a">
+<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260630a">
 {% endif %}
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-reports-page jp-report-detail-page py-3 py-md-4 mb-5">
+<div class="container jp-page jp-reports-page jp-report-detail-page py-2 py-md-3 mb-3 mb-md-4">
     <div class="jp-report-detail-hero mb-4">
         <div class="jp-report-detail-hero-top">
             <div class="jp-report-detail-hero-text">
@@ -169,7 +169,7 @@
         {% endif %}
     {% else %}
     {% if has_office_document %}
-    <div class="card border-0 shadow-sm mb-4">
+    <div class="card border-0 shadow-sm mb-4 jp-report-vanban-card">
         <div class="card-header bg-white fw-bold border-bottom">Văn bản</div>
         {% if document_html_display %}
         <div class="jp-word-desk-readonly">
