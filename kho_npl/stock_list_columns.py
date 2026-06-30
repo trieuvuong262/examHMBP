@@ -3,8 +3,8 @@
 STOCK_LIST_COLUMNS = [
     {'key': 'code', 'label': 'Mã', 'default': True, 'required': True, 'weight': 100},
     {'key': 'name', 'label': 'Tên NPL', 'default': True, 'required': False, 'weight': 150},
-    {'key': 'category_parent', 'label': 'Nhóm cha', 'default': True, 'required': False, 'weight': 100},
-    {'key': 'category', 'label': 'Nhóm con', 'default': True, 'required': False, 'weight': 100},
+    {'key': 'category_parent', 'label': 'Nhóm cấp 1', 'default': True, 'required': False, 'weight': 100},
+    {'key': 'category', 'label': 'Nhóm cấp 2', 'default': True, 'required': False, 'weight': 100},
     {'key': 'color', 'label': 'Màu', 'default': True, 'required': False, 'weight': 100},
     {'key': 'unit', 'label': 'ĐVT', 'default': True, 'required': False, 'weight': 50},
     {'key': 'total_qty', 'label': 'Tồn hiện tại', 'default': True, 'required': False, 'weight': 100},

@@ -1,13 +1,15 @@
 """Smoke test các tính năng Kho NPL đã triển khai gần đây."""
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import reverse
 
 from django.core.management.base import BaseCommand
 
-from kho_npl.models import Material, MaterialCategory, MaterialColor, MaterialSpecification, StockIssue
-from kho_npl.choices import DOC_STATUS_POSTED
+from kho_npl.choices import DOC_STATUS_DRAFT, DOC_STATUS_POSTED
+from kho_npl.models import Material, MaterialCategory, MaterialColor, MaterialSpecification
+from kho_npl.models import StockDisposal, StockIssue, StockReceipt
 
 
 class Command(BaseCommand):
@@ -26,22 +28,24 @@ class Command(BaseCommand):
         spec_count = MaterialSpecification.objects.filter(is_active=True).count()
         roots = MaterialCategory.objects.filter(is_active=True, parent__isnull=True).count()
         leaves = MaterialCategory.objects.filter(is_active=True, parent__isnull=False).count()
-        self.stdout.write(f'  Màu sắc: {color_count} | Quy cách: {spec_count} | Nhóm cha: {roots} | Nhóm con: {leaves}')
+        self.stdout.write(
+            f'  Mau sac: {color_count} | Quy cach: {spec_count} | Nhom cha: {roots} | Nhom con: {leaves}'
+        )
         if color_count < 50:
             errors.append(f'Màu sắc thiếu (có {color_count}, cần >= 50).')
         if spec_count < 40:
             errors.append(f'Quy cách thiếu (có {spec_count}, cần >= 40).')
         if roots < 7:
-            errors.append(f'Nhóm cha thiếu (có {roots}, cần >= 7).')
+            errors.append(f'Nhóm cấp 1 thiếu (có {roots}, cần >= 7).')
         if leaves < 9:
-            errors.append(f'Nhóm con thiếu (có {leaves}, cần >= 9).')
+            errors.append(f'Nhóm cấp 2 thiếu (có {leaves}, cần >= 9).')
 
         mat_with_parent = Material.objects.filter(
             is_active=True, category__parent__isnull=False,
         ).count()
-        self.stdout.write(f'  NPL gắn nhóm con: {mat_with_parent}')
+        self.stdout.write(f'  NPL gan nhom con: {mat_with_parent}')
         if mat_with_parent == 0 and Material.objects.exists():
-            errors.append('Có NPL nhưng chưa gắn nhóm con (cấp 2).')
+            errors.append('Có NPL nhưng chưa gắn nhóm cấp 2.')
 
         if not user:
             self._finish(errors)
@@ -49,43 +53,62 @@ class Command(BaseCommand):
 
         client = Client()
         client.force_login(user)
+        host = 'portal.justplay.vn'
+        for candidate in (getattr(settings, 'ALLOWED_HOSTS', None) or []):
+            if candidate and candidate not in ('*', 'localhost', '127.0.0.1', 'testserver'):
+                host = candidate
+                break
+        extra = {'HTTP_HOST': host}
 
         pages = [
             ('Danh mục', reverse('kho_npl:material_list'), [
                 'data-col="category_parent"', 'bi-pencil', 'jp-npl-color-swatch',
-                'Nhóm cha', 'Nhóm con', '<optgroup',
+                'Nhóm cấp 1', 'Nhóm cấp 2', '<optgroup',
             ]),
             ('Tồn kho', reverse('kho_npl:material_stock'), [
-                'data-col="category_parent"', 'Nhóm cha', '<optgroup',
+                'data-col="category_parent"', 'Nhóm cấp 1', '<optgroup',
             ]),
-            ('Phiếu nhập', reverse('kho_npl:receipt_list'), ['bi-pencil', 'jp-mat-edit-btn']),
-            ('Phiếu xuất', reverse('kho_npl:issue_list'), ['bi-pencil']),
-            ('Phiếu hủy', reverse('kho_npl:disposal_list'), ['bi-pencil']),
-            ('Kiểm kê', reverse('kho_npl:stocktake_list'), ['bi-pencil']),
-            ('Thiết lập màu', reverse('kho_npl:settings_list', kwargs={'section': 'mau'}), ['bi-palette', 'jp-npl-color-swatch']),
+            ('Phieu nhap', reverse('kho_npl:receipt_list'), ['npl-receipt-table', 'jp-mat-edit-btn']),
+            ('Phieu xuat', reverse('kho_npl:issue_list'), ['npl-issue-table', 'jp-mat-edit-btn']),
+            ('Phieu huy', reverse('kho_npl:disposal_list'), ['npl-disposal-table', 'jp-mat-edit-btn']),
+            ('Kiem ke', reverse('kho_npl:stocktake_list'), ['jp-mat-edit-btn']),
+            ('Thiet lap mau', reverse('kho_npl:settings_list', kwargs={'section': 'mau'}), ['jp-npl-color-swatch', 'Mã hex']),
             ('Thiết lập quy cách', reverse('kho_npl:settings_list', kwargs={'section': 'quy-cach'}), ['Quy cách']),
-            ('Thiết lập nhóm', reverse('kho_npl:settings_list', kwargs={'section': 'nhom'}), ['Nhóm cha']),
+            ('Thiết lập nhóm', reverse('kho_npl:settings_list', kwargs={'section': 'nhom'}), ['Nhóm cấp 1']),
         ]
 
         for label, url, needles in pages:
-            resp = client.get(url)
+            resp = client.get(url, **extra)
             if resp.status_code != 200:
                 errors.append(f'{label}: HTTP {resp.status_code} ({url})')
                 continue
             html = resp.content.decode('utf-8', errors='replace')
             for needle in needles:
+                if needle == 'jp-mat-edit-btn' and needle not in html:
+                    # Icon chi hien khi co phieu nhap/xuat/huy/kiem ke duoc sua
+                    if label == 'Phieu nhap' and not StockReceipt.objects.filter(status=DOC_STATUS_DRAFT).exists():
+                        continue
+                    if label == 'Phieu xuat' and not StockIssue.objects.filter(status=DOC_STATUS_DRAFT).exists():
+                        continue
+                    if label == 'Phieu huy' and not StockDisposal.objects.filter(status=DOC_STATUS_DRAFT).exists():
+                        continue
+                    if label == 'Kiem ke':
+                        from kho_npl.choices import STOCKTAKE_STATUS_COUNTING
+                        from kho_npl.models import Stocktake
+                        if not Stocktake.objects.filter(status=STOCKTAKE_STATUS_COUNTING).exists():
+                            continue
                 if needle not in html:
-                    errors.append(f'{label}: thiếu "{needle}" trong HTML')
+                    errors.append(f'{label}: thieu "{needle}" trong HTML')
 
         # Ghi chú phiếu xuất đã ghi sổ
         issue = StockIssue.objects.filter(status=DOC_STATUS_POSTED).order_by('-pk').first()
         if issue:
             url = reverse('kho_npl:issue_update_notes', kwargs={'pk': issue.pk})
-            resp = client.post(url, {'notes': 'Smoke test ghi chú'}, follow=True)
+            resp = client.post(url, {'notes': 'Smoke test ghi chu'}, follow=True, **extra)
             if resp.status_code != 200:
                 errors.append(f'Ghi chú phiếu xuất: HTTP {resp.status_code}')
             issue.refresh_from_db()
-            if issue.notes != 'Smoke test ghi chú':
+            if issue.notes != 'Smoke test ghi chu':
                 errors.append('Ghi chú phiếu xuất: không lưu được notes')
             else:
                 self.stdout.write(f'  Ghi chú phiếu xuất #{issue.pk}: OK')

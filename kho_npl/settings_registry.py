@@ -25,7 +25,7 @@ SETTINGS_SECTIONS = {
         'order_by': ('sort_order', 'name'),
         'list_columns': (
             ('name', 'Tên nhóm'),
-            ('parent_name', 'Nhóm cha'),
+            ('parent_name', 'Nhóm cấp 1'),
             ('code', 'Mã'),
             ('sort_order', 'Thứ tự'),
         ),

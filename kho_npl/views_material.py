@@ -281,8 +281,8 @@ def material_stock_export(request):
         data.append({
             'Mã NPL': mat.code,
             'Tên NPL': mat.name,
-            'Nhóm cha': mat.category.parent.name if mat.category and mat.category.parent_id else '',
-            'Nhóm con': mat.category.name if mat.category_id else '',
+            'Nhóm cấp 1': mat.category.parent.name if mat.category and mat.category.parent_id else '',
+            'Nhóm cấp 2': mat.category.name if mat.category_id else '',
             'Màu': mat.color.name if mat.color_id else '',
             'ĐVT': mat.unit.name,
             'Tồn hiện tại': float(row['total_qty']),

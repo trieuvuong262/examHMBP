@@ -85,6 +85,7 @@ class MaterialForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['category'].label = 'Nhóm cấp 2'
         self.fields['category'].queryset = active_category_leaves()
         self.fields['category'].label_from_instance = lambda obj: f'{obj.parent.name} › {obj.name}'
         self.fields['color'].queryset = MaterialColor.objects.filter(is_active=True).order_by('sort_order', 'name')
@@ -841,8 +842,9 @@ class MaterialCategoryForm(forms.ModelForm):
         self.fields['is_active'].required = False
         root_qs = MaterialCategory.objects.filter(is_active=True, parent__isnull=True).order_by('sort_order', 'name')
         self.fields['parent'].queryset = root_qs
+        self.fields['parent'].label = 'Nhóm cấp 1'
         self.fields['parent'].required = False
-        self.fields['parent'].empty_label = '— Nhóm cha (cấp 1) —'
+        self.fields['parent'].empty_label = '— Là nhóm cấp 1 —'
         if self.instance.pk:
             self.fields['parent'].queryset = root_qs.exclude(pk=self.instance.pk)
 
@@ -854,7 +856,7 @@ class MaterialCategoryForm(forms.ModelForm):
         cleaned = super().clean()
         parent = cleaned.get('parent')
         if self.instance.pk and self.instance.children.exists() and parent:
-            raise ValidationError('Nhóm cha (cấp 1) không thể có nhóm cha.')
+            raise ValidationError('Nhóm cấp 1 (đã có nhóm cấp 2) không thể thuộc nhóm cấp 1 khác.')
         return cleaned
 
 

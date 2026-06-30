@@ -70,7 +70,7 @@ def active_category_leaves():
 
 
 def expand_category_filter_ids(category_ids: list[int]) -> list[int]:
-    """Mở rộng ID nhóm cha → tất cả nhóm con; giữ nguyên ID nhóm con."""
+    """Mở rộng ID nhóm cấp 1 → tất cả nhóm cấp 2; giữ nguyên ID nhóm cấp 2."""
     if not category_ids:
         return []
     expanded: set[int] = set()

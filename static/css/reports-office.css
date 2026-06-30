@@ -1254,6 +1254,39 @@
     margin: 0.75rem 0;
 }
 
+/* Chi tiết VP — mobile: tận dụng chiều ngang màn hình */
+@media (max-width: 767.98px) {
+    .jp-report-detail-page.container {
+        padding-left: max(0.5rem, env(safe-area-inset-left));
+        padding-right: max(0.5rem, env(safe-area-inset-right));
+    }
+
+    .jp-report-detail-page .card:has(.jp-word-desk-readonly) {
+        margin-left: calc(-1 * max(0.5rem, env(safe-area-inset-left)));
+        margin-right: calc(-1 * max(0.5rem, env(safe-area-inset-right)));
+        border-radius: 0;
+    }
+
+    .jp-report-detail-page .jp-word-desk-readonly {
+        padding: 0;
+        max-height: none;
+    }
+
+    .jp-report-detail-page .jp-word-page-readonly {
+        max-width: none;
+        margin: 0;
+        box-shadow: none;
+        border: none;
+        border-radius: 0;
+    }
+
+    .jp-report-detail-page .jp-word-page-body {
+        padding: 0.85rem 0.75rem 1.1rem;
+        font-size: 12pt;
+        line-height: 1.45;
+    }
+}
+
 .jp-office-actions {
     display: flex;
     flex-wrap: wrap;

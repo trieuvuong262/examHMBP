@@ -37,9 +37,9 @@
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
                     <dl class="row mb-0">
-                        <dt class="col-sm-4 text-muted">Nhóm cha</dt>
+                        <dt class="col-sm-4 text-muted">Nhóm cấp 1</dt>
                         <dd class="col-sm-8">{% if material.category.parent %}{{ material.category.parent.name }}{% else %}<span class="text-muted">—</span>{% endif %}</dd>
-                        <dt class="col-sm-4 text-muted">Nhóm con</dt><dd class="col-sm-8">{{ material.category.name }}</dd>
+                        <dt class="col-sm-4 text-muted">Nhóm cấp 2</dt><dd class="col-sm-8">{{ material.category.name }}</dd>
                         <dt class="col-sm-4 text-muted">Màu sắc</dt>
                         <dd class="col-sm-8">{% include 'kho_npl/includes/material_color_chip.html' with color=material.color %}</dd>
                         <dt class="col-sm-4 text-muted">ĐVT</dt><dd class="col-sm-8">{{ material.unit.name }}</dd>

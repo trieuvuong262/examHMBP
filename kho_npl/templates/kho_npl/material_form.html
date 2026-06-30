@@ -36,9 +36,9 @@
                         {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors }}</div>{% endif %}
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label fw-bold small" for="{{ form.category.id_for_label }}">Nhóm</label>
+                        <label class="form-label fw-bold small" for="{{ form.category.id_for_label }}">Nhóm cấp 2</label>
                         {{ form.category }}
-                        <div class="form-text">Nhóm con (cấp 2) — quản lý tại <a href="{% url 'kho_npl:settings_list' section='nhom' %}">Thiết lập → Nhóm NPL</a>.</div>
+                        <div class="form-text">Quản lý nhóm tại <a href="{% url 'kho_npl:settings_list' section='nhom' %}">Thiết lập → Nhóm NPL</a>.</div>
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-bold small" for="{{ form.unit.id_for_label }}">Đơn vị tính</label>

@@ -29,7 +29,7 @@ class MaterialCategory(models.Model):
         null=True,
         blank=True,
         related_name='children',
-        verbose_name='Nhóm cha',
+        verbose_name='Nhóm cấp 1',
     )
     sort_order = models.PositiveIntegerField(default=0, verbose_name='Thứ tự')
     is_active = models.BooleanField(default=True, verbose_name='Đang dùng')
