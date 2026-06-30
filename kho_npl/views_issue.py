@@ -136,12 +136,15 @@ def issue_create(request):
 @module_perm_required_methods(MODULE_KHO_NPL, post='update')
 def issue_update_notes(request, pk):
     issue = get_object_or_404(StockIssue, pk=pk)
+    if request.method != 'POST':
+        return redirect('kho_npl:issue_detail', pk=pk)
     if not issue_notes_editable(issue):
         messages.error(request, 'Chỉ phiếu đã ghi sổ mới được sửa ghi chú tại đây.')
         return redirect('kho_npl:issue_detail', pk=pk)
     form = StockIssueNotesForm(request.POST, instance=issue)
     if form.is_valid():
-        form.save(update_fields=['notes'])
+        obj = form.save(commit=False)
+        obj.save(update_fields=['notes'])
         messages.success(request, f'Đã cập nhật ghi chú phiếu {issue.number}.')
     else:
         messages.error(request, 'Không lưu được ghi chú — kiểm tra lại nội dung.')
