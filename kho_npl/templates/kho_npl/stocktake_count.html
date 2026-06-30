@@ -66,7 +66,7 @@
                         <tr class="jp-npl-stk-count-row"
                             data-mat-code="{{ line_form.instance.material.code }}"
                             data-mat-name="{{ line_form.instance.material.name }}"
-                            data-mat-search="{{ line_form.instance.material.code }} {{ line_form.instance.material.name }} {{ line_form.instance.material.color }} {{ line_form.instance.material.specification }}"
+                            data-mat-search="{{ line_form.instance.material.code }} {{ line_form.instance.material.name }} {% if line_form.instance.material.color %}{{ line_form.instance.material.color.name }}{% endif %} {% if line_form.instance.material.specification %}{{ line_form.instance.material.specification.name }}{% endif %}"
                             data-system-qty="{{ line_form.instance.system_qty }}">
                             {% for hidden in line_form.hidden_fields %}{{ hidden }}{% endfor %}
                             <td>

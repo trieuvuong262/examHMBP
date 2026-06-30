@@ -56,7 +56,7 @@ def _filter_alert_rows(rows, search_query: str):
         r for r in rows
         if q in r['material'].code.lower()
         or q in r['material'].name.lower()
-        or q in (r['material'].color or '').lower()
+        or q in (r['material'].color.name if r['material'].color_id else '').lower()
     ]
 
 
@@ -86,7 +86,7 @@ def _overview_filtered_rows(request):
         status = ''
 
     qs = Material.objects.filter(is_active=True).select_related(
-        'category', 'unit', 'supplier',
+        'category', 'unit', 'supplier', 'color', 'specification',
     )
     if category_ids:
         qs = qs.filter(category_id__in=category_ids)
@@ -94,8 +94,8 @@ def _overview_filtered_rows(request):
         qs = qs.filter(
             Q(code__icontains=search_query)
             | Q(name__icontains=search_query)
-            | Q(color__icontains=search_query)
-            | Q(specification__icontains=search_query),
+            | Q(color__name__icontains=search_query)
+            | Q(specification__name__icontains=search_query),
         )
 
     rows = material_stock_rows(qs)
@@ -144,7 +144,7 @@ def overview_export(request):
             'Mã NPL': mat.code,
             'Tên NPL': mat.name,
             'Nhóm': mat.category.name,
-            'Màu': mat.color or '',
+            'Màu': mat.color.name if mat.color_id else '',
             'ĐVT': mat.unit.name,
             'Tồn': float(row['total_qty']),
             'Tối thiểu': float(mat.min_stock),
@@ -361,7 +361,7 @@ def stock_cards_export(request):
             'Mã NPL': material.code,
             'Tên NPL': material.name,
             'Nhóm': material.category.name,
-            'Quy cách': material.specification or '',
+            'Quy cách': material.specification.name if material.specification_id else '',
             'Tồn': float(material.stock_total or 0),
             'ĐVT': material.unit.name,
         })

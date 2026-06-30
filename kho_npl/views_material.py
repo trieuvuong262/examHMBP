@@ -40,7 +40,8 @@ from kho_npl.stock_list_columns import (
     STOCK_LIST_SORT_FIELDS,
     STOCK_LIST_TOTAL_COL_WEIGHT,
 )
-from kho_npl.filter_utils import append_filter_params, parse_int_ids
+from kho_npl.category_tree import active_category_roots, category_filter_q
+from kho_npl.filter_utils import parse_int_ids
 from kho_npl.view_utils import nav_context, perm_context
 
 
@@ -68,13 +69,13 @@ def _parse_positive_int(value):
 def material_search(request):
     q = (request.GET.get('q') or '').strip()
     location_id = _parse_positive_int(request.GET.get('location_id'))
-    qs = Material.objects.filter(is_active=True).select_related('unit')
+    qs = Material.objects.filter(is_active=True).select_related('unit', 'color', 'specification')
     if q:
         qs = qs.filter(
             Q(code__icontains=q)
             | Q(name__icontains=q)
-            | Q(color__icontains=q)
-            | Q(specification__icontains=q),
+            | Q(color__name__icontains=q)
+            | Q(specification__name__icontains=q),
         )
     materials = list(qs.order_by('code')[:40])
     balance_map = {}
@@ -127,17 +128,17 @@ def _material_catalog_qs(request):
     search_query = get_search_query(request)
     category_ids = parse_int_ids(request, 'category')
     show_inactive = request.GET.get('inactive') == '1'
-    qs = Material.objects.select_related('category', 'unit', 'supplier')
+    qs = Material.objects.select_related('category', 'category__parent', 'unit', 'supplier', 'color', 'specification')
     if not show_inactive:
         qs = qs.filter(is_active=True)
     if category_ids:
-        qs = qs.filter(category_id__in=category_ids)
+        qs = qs.filter(category_filter_q(category_ids))
     if search_query:
         qs = qs.filter(
             Q(code__icontains=search_query)
             | Q(name__icontains=search_query)
-            | Q(color__icontains=search_query)
-            | Q(specification__icontains=search_query)
+            | Q(color__name__icontains=search_query)
+            | Q(specification__name__icontains=search_query)
         )
     return qs, search_query, category_ids, show_inactive
 
@@ -173,30 +174,30 @@ def material_list(request):
     search_query = get_search_query(request)
     category_ids = parse_int_ids(request, 'category')
     status = _material_list_status(request)
-    qs = Material.objects.select_related('category', 'unit', 'supplier')
+    qs = Material.objects.select_related('category', 'category__parent', 'unit', 'supplier', 'color', 'specification')
     if status == 'active':
         qs = qs.filter(is_active=True)
     elif status == 'inactive':
         qs = qs.filter(is_active=False)
     if category_ids:
-        qs = qs.filter(category_id__in=category_ids)
+        qs = qs.filter(category_filter_q(category_ids))
     if search_query:
         qs = qs.filter(
             Q(code__icontains=search_query)
             | Q(name__icontains=search_query)
-            | Q(color__icontains=search_query)
-            | Q(specification__icontains=search_query),
+            | Q(color__name__icontains=search_query)
+            | Q(specification__name__icontains=search_query),
         )
     sort_key, sort_dir, order_by = _material_list_sort(request)
     page_obj, query_string = paginate_queryset(request, qs.order_by(order_by, 'code'), per_page=25)
-    categories = MaterialCategory.objects.filter(is_active=True)
+    category_roots = active_category_roots()
     return render(request, 'kho_npl/material_list.html', {
         **nav_context('materials', user=request.user),
         **perm_context(request.user, 'materials'),
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
-        'categories': categories,
+        'category_roots': category_roots,
         'selected_categories': category_ids,
         'selected_status': status,
         'status_choices': MATERIAL_LIST_STATUS_CHOICES,
@@ -256,7 +257,7 @@ def material_stock_list(request):
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
-        'categories': MaterialCategory.objects.filter(is_active=True),
+        'category_roots': active_category_roots(),
         'locations': WarehouseLocation.objects.filter(is_active=True),
         'selected_categories': category_ids,
         'selected_locations': location_ids,
@@ -280,8 +281,9 @@ def material_stock_export(request):
         data.append({
             'Mã NPL': mat.code,
             'Tên NPL': mat.name,
-            'Nhóm': mat.category.name,
-            'Màu': mat.color or '',
+            'Nhóm cha': mat.category.parent.name if mat.category and mat.category.parent_id else '',
+            'Nhóm con': mat.category.name if mat.category_id else '',
+            'Màu': mat.color.name if mat.color_id else '',
             'ĐVT': mat.unit.name,
             'Tồn hiện tại': float(row['total_qty']),
             'Tối thiểu': float(mat.min_stock),
@@ -295,7 +297,7 @@ def material_stock_export(request):
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def material_detail(request, pk):
     material = get_object_or_404(
-        Material.objects.select_related('category', 'unit', 'supplier'),
+        Material.objects.select_related('category', 'category__parent', 'unit', 'supplier', 'color', 'specification'),
         pk=pk,
     )
     balances = material.balances.select_related('location').order_by('-quantity')

@@ -3,6 +3,7 @@
 
 {% block extra_head %}
 {% include 'kho_npl/includes/filter_multi_select_head.html' %}
+{% include 'kho_npl/includes/material_color_styles.html' %}
 <style>
 .jp-npl-material-catalog-page {
     --jp-npl-mat-ctl-h: 34px;
@@ -284,6 +285,10 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+.jp-npl-material-catalog-page #npl-material-table th[data-col="status"],
+.jp-npl-material-catalog-page #npl-material-table td[data-col="status"] {
+    min-width: 6.75rem;
+}
 .jp-npl-material-catalog-page #npl-material-table .jp-mat-code {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-size: 0.9em;
@@ -313,12 +318,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
         <form method="get" class="jp-npl-mat-topbar-search" id="npl-mat-search-form">
             <div class="jp-npl-mat-search-row">
                 <div class="jp-npl-mat-filter-field jp-npl-filter-multi">
-                    <select name="category" id="npl-cat" class="form-select form-select-sm jp-npl-multi-select" multiple
-                            data-placeholder="Nhóm" aria-label="Nhóm">
-                        {% for cat in categories %}
-                        <option value="{{ cat.id }}" {% if cat.id in selected_categories %}selected{% endif %}>{{ cat.name }}</option>
-                        {% endfor %}
-                    </select>
+                    {% include 'kho_npl/includes/material_category_filter.html' with select_id='npl-cat' %}
                 </div>
                 <div class="input-group input-group-sm jp-npl-mat-filter-field jp-npl-mat-search-input">
                     <input type="search" class="form-control" id="npl-q" name="q"
@@ -409,9 +409,12 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
                             <a href="{% url 'kho_npl:material_detail' material.pk %}" class="text-decoration-none fw-semibold">{{ material.code }}</a>
                         </td>
                         <td class="npl-col" data-col="name" title="{{ material.name }}">{{ material.name }}</td>
+                        <td class="npl-col" data-col="category_parent" title="{% if material.category.parent %}{{ material.category.parent.name }}{% endif %}">
+                            {% if material.category.parent %}{{ material.category.parent.name }}{% else %}<span class="text-muted">—</span>{% endif %}
+                        </td>
                         <td class="npl-col" data-col="category" title="{{ material.category.name }}">{{ material.category.name }}</td>
-                        <td class="npl-col" data-col="color">{{ material.color|default:'—' }}</td>
-                        <td class="npl-col" data-col="specification" title="{{ material.specification }}">{{ material.specification|default:'—' }}</td>
+                        <td class="npl-col" data-col="color">{% include 'kho_npl/includes/material_color_chip.html' with color=material.color %}</td>
+                        <td class="npl-col" data-col="specification" title="{% if material.specification %}{{ material.specification.name }}{% endif %}">{% include 'kho_npl/includes/material_spec_display.html' with spec=material.specification %}</td>
                         <td class="npl-col" data-col="unit">{{ material.unit.name }}</td>
                         <td class="npl-col" data-col="supplier" title="{{ material.supplier.name|default:'—' }}">{{ material.supplier.name|default:'—' }}</td>
                         <td class="text-end npl-col jp-mat-code" data-col="min_stock">{{ material.min_stock|npl_qty_with_unit:material.unit }}</td>

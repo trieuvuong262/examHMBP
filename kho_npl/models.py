@@ -23,6 +23,14 @@ from kho_npl.choices import (
 class MaterialCategory(models.Model):
     code = models.SlugField(max_length=40, unique=True, verbose_name='Mã nhóm')
     name = models.CharField(max_length=120, verbose_name='Tên nhóm')
+    parent = models.ForeignKey(
+        'self',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='children',
+        verbose_name='Nhóm cha',
+    )
     sort_order = models.PositiveIntegerField(default=0, verbose_name='Thứ tự')
     is_active = models.BooleanField(default=True, verbose_name='Đang dùng')
 
@@ -34,6 +42,18 @@ class MaterialCategory(models.Model):
     def __str__(self):
         return self.name
 
+    @property
+    def parent_name(self):
+        return self.parent.name if self.parent_id else '—'
+
+    @property
+    def is_root(self):
+        return self.parent_id is None
+
+    @property
+    def is_leaf(self):
+        return self.parent_id is not None
+
 
 class Unit(models.Model):
     code = models.SlugField(max_length=20, unique=True, verbose_name='Mã ĐVT')
@@ -44,6 +64,37 @@ class Unit(models.Model):
         ordering = ['name']
         verbose_name = 'Đơn vị tính'
         verbose_name_plural = 'Đơn vị tính'
+
+    def __str__(self):
+        return self.name
+
+
+class MaterialColor(models.Model):
+    code = models.SlugField(max_length=40, unique=True, verbose_name='Mã màu')
+    name = models.CharField(max_length=80, verbose_name='Tên màu')
+    hex_code = models.CharField(max_length=7, verbose_name='Mã hex')
+    sort_order = models.PositiveIntegerField(default=0, verbose_name='Thứ tự')
+    is_active = models.BooleanField(default=True, verbose_name='Đang dùng')
+
+    class Meta:
+        ordering = ['sort_order', 'name']
+        verbose_name = 'Màu sắc NPL'
+        verbose_name_plural = 'Màu sắc NPL'
+
+    def __str__(self):
+        return self.name
+
+
+class MaterialSpecification(models.Model):
+    code = models.SlugField(max_length=40, unique=True, verbose_name='Mã quy cách')
+    name = models.CharField(max_length=120, verbose_name='Quy cách / khổ')
+    sort_order = models.PositiveIntegerField(default=0, verbose_name='Thứ tự')
+    is_active = models.BooleanField(default=True, verbose_name='Đang dùng')
+
+    class Meta:
+        ordering = ['sort_order', 'name']
+        verbose_name = 'Quy cách NPL'
+        verbose_name_plural = 'Quy cách NPL'
 
     def __str__(self):
         return self.name
@@ -88,8 +139,22 @@ class Material(models.Model):
         related_name='materials',
         verbose_name='Nhóm',
     )
-    color = models.CharField(max_length=80, blank=True, verbose_name='Màu sắc')
-    specification = models.CharField(max_length=200, blank=True, verbose_name='Quy cách / khổ')
+    color = models.ForeignKey(
+        MaterialColor,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='materials',
+        verbose_name='Màu sắc',
+    )
+    specification = models.ForeignKey(
+        MaterialSpecification,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='materials',
+        verbose_name='Quy cách / khổ',
+    )
     unit = models.ForeignKey(
         Unit,
         on_delete=models.PROTECT,

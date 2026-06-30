@@ -1,6 +1,10 @@
 {% extends 'base.html' %}
 {% load npl_extras %}
 
+{% block extra_head %}
+{% include 'kho_npl/includes/material_color_styles.html' %}
+{% endblock %}
+
 {% block content %}
 <div class="container jp-page py-3 py-md-4 mb-5">
 
@@ -9,7 +13,7 @@
             <h2 class="fw-bold text-hm mb-1 jp-page-title">
                 {{ material.code }}
             </h2>
-            <p class="text-muted mb-0">{{ material.name }}{% if material.color %} · {{ material.color }}{% endif %}</p>
+            <p class="text-muted mb-0">{{ material.name }}{% if material.color %} · {% include 'kho_npl/includes/material_color_chip.html' with color=material.color %}{% endif %}</p>
         </div>
         <div class="d-flex flex-wrap gap-2">
             {% if can_update %}
@@ -33,9 +37,13 @@
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
                     <dl class="row mb-0">
-                        <dt class="col-sm-4 text-muted">Nhóm</dt><dd class="col-sm-8">{{ material.category.name }}</dd>
+                        <dt class="col-sm-4 text-muted">Nhóm cha</dt>
+                        <dd class="col-sm-8">{% if material.category.parent %}{{ material.category.parent.name }}{% else %}<span class="text-muted">—</span>{% endif %}</dd>
+                        <dt class="col-sm-4 text-muted">Nhóm con</dt><dd class="col-sm-8">{{ material.category.name }}</dd>
+                        <dt class="col-sm-4 text-muted">Màu sắc</dt>
+                        <dd class="col-sm-8">{% include 'kho_npl/includes/material_color_chip.html' with color=material.color %}</dd>
                         <dt class="col-sm-4 text-muted">ĐVT</dt><dd class="col-sm-8">{{ material.unit.name }}</dd>
-                        <dt class="col-sm-4 text-muted">Quy cách</dt><dd class="col-sm-8">{{ material.specification|default:'—' }}</dd>
+                        <dt class="col-sm-4 text-muted">Quy cách</dt><dd class="col-sm-8">{% include 'kho_npl/includes/material_spec_display.html' with spec=material.specification %}</dd>
                         <dt class="col-sm-4 text-muted">NCC chính</dt><dd class="col-sm-8">{{ material.supplier.name|default:'—' }}</dd>
                         <dt class="col-sm-4 text-muted">Tồn tối thiểu</dt><dd class="col-sm-8">{{ material.min_stock|npl_qty_with_unit:material.unit }}</dd>
                         <dt class="col-sm-4 text-muted">Trạng thái</dt>

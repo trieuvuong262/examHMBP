@@ -72,7 +72,7 @@
                         <td class="npl-col" data-col="issued_by">{% if issue.issued_by %}{{ issue.issued_by.get_full_name|default:issue.issued_by.username }}{% else %}—{% endif %}</td>
                         <td class="text-end text-nowrap npl-col" data-col="actions">
                             {% if can_update and issue.status == 'draft' %}
-                            <a href="{% url 'kho_npl:issue_edit' issue.pk %}" class="jp-mat-edit-btn" title="Sửa"></a>
+                            <a href="{% url 'kho_npl:issue_edit' issue.pk %}" class="jp-mat-edit-btn" title="Sửa"><i class="bi bi-pencil" aria-hidden="true"></i></a>
                             {% endif %}
                         </td>
                     </tr>

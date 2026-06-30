@@ -30,7 +30,7 @@ def stock_status_for_qty(quantity: Decimal, min_stock: Decimal) -> str:
 def material_stock_rows(queryset=None, location_ids: list[int] | None = None):
     """Tổng hợp tồn theo NPL — dùng cho tổng quan và danh sách tồn."""
     qs = queryset or Material.objects.filter(is_active=True).select_related(
-        'category', 'unit', 'supplier',
+        'category', 'unit', 'supplier', 'color', 'specification', 'category__parent',
     ).prefetch_related('balances__location')
     loc_set = set(location_ids or [])
     rows = []
@@ -91,7 +91,7 @@ def balance_stock_rows(
         qs = qs.filter(
             Q(material__code__icontains=q)
             | Q(material__name__icontains=q)
-            | Q(material__color__icontains=q)
+            | Q(material__color__name__icontains=q)
             | Q(location__code__icontains=q)
             | Q(location__name__icontains=q)
         )

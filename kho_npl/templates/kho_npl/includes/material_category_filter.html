@@ -1,0 +1,15 @@
+<select name="category" id="{{ select_id }}" class="form-select form-select-sm jp-npl-multi-select" multiple
+        data-placeholder="Nhóm" aria-label="Nhóm">
+    {% for root in category_roots %}
+    <optgroup label="{{ root.name }}">
+        <option value="{{ root.id }}" {% if root.id in selected_categories %}selected{% endif %}>
+            {{ root.name }} (tất cả)
+        </option>
+        {% for child in root.children.all %}
+        <option value="{{ child.id }}" {% if child.id in selected_categories %}selected{% endif %}>
+            {{ child.name }}
+        </option>
+        {% endfor %}
+    </optgroup>
+    {% endfor %}
+</select>

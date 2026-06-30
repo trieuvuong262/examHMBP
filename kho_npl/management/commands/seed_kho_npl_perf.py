@@ -42,6 +42,9 @@ from kho_npl.models import (
     Unit,
     WarehouseLocation,
 )
+from kho_npl.category_tree import ensure_material_category_tree
+from kho_npl.services.material_colors import resolve_material_color
+from kho_npl.services.material_specifications import resolve_material_specification
 from kho_npl.services.adjustments import approve_stock_adjustment, reject_stock_adjustment
 from kho_npl.services.issues import post_stock_issue
 from kho_npl.services.receipts import post_stock_receipt
@@ -228,9 +231,10 @@ class Command(BaseCommand):
         self.stdout.write(self.style.MIGRATE_HEADING('==> Seed kho NPL (PERF)'))
         t0 = timezone.now()
 
+        ensure_material_category_tree()
         locations = self._ensure_locations()
         suppliers = self._ensure_suppliers()
-        categories = {c.code: c for c in MaterialCategory.objects.filter(is_active=True)}
+        categories = {c.code: c for c in MaterialCategory.objects.filter(is_active=True, parent__isnull=False)}
         units = {u.code: u for u in Unit.objects.filter(is_active=True)}
         if not categories or not units.get('met'):
             raise CommandError('Thiếu master data — chạy migrate kho_npl trước.')
@@ -321,8 +325,8 @@ class Command(BaseCommand):
                 code=f'{MATERIAL_PREFIX}{seq:05d}',
                 name=name,
                 category=category,
-                color=color,
-                specification=spec,
+                color=resolve_material_color(color),
+                specification=resolve_material_specification(spec),
                 unit=unit,
                 supplier=supplier,
                 min_stock=min_stock,

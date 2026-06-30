@@ -14,6 +14,6 @@ STOCK_CARD_CATALOG_SORT_FIELDS = {
     'code': 'code',
     'name': 'name',
     'category': 'category__name',
-    'specification': 'specification',
+    'specification': 'specification__name',
     'stock_total': 'stock_total',
 }

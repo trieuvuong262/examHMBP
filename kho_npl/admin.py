@@ -3,6 +3,8 @@ from django.contrib import admin
 from kho_npl.models import (
     Material,
     MaterialCategory,
+    MaterialColor,
+    MaterialSpecification,
     StockAdjustment,
     StockAdjustmentLine,
     StockBalance,
@@ -21,8 +23,8 @@ from kho_npl.models import (
 
 @admin.register(MaterialCategory)
 class MaterialCategoryAdmin(admin.ModelAdmin):
-    list_display = ('code', 'name', 'sort_order', 'is_active')
-    list_filter = ('is_active',)
+    list_display = ('code', 'name', 'parent', 'sort_order', 'is_active')
+    list_filter = ('is_active', 'parent')
     search_fields = ('code', 'name')
 
 
@@ -70,11 +72,25 @@ class StockIssueAdmin(admin.ModelAdmin):
     inlines = [StockIssueLineInline]
 
 
+@admin.register(MaterialColor)
+class MaterialColorAdmin(admin.ModelAdmin):
+    list_display = ('code', 'name', 'hex_code', 'sort_order', 'is_active')
+    list_filter = ('is_active',)
+    search_fields = ('code', 'name')
+
+
+@admin.register(MaterialSpecification)
+class MaterialSpecificationAdmin(admin.ModelAdmin):
+    list_display = ('code', 'name', 'sort_order', 'is_active')
+    list_filter = ('is_active',)
+    search_fields = ('code', 'name')
+
+
 @admin.register(Material)
 class MaterialAdmin(admin.ModelAdmin):
-    list_display = ('code', 'name', 'category', 'unit', 'min_stock', 'is_active')
+    list_display = ('code', 'name', 'category', 'color', 'specification', 'unit', 'min_stock', 'is_active')
     list_filter = ('category', 'is_active')
-    search_fields = ('code', 'name', 'color')
+    search_fields = ('code', 'name', 'color__name', 'specification__name')
 
 
 @admin.register(StockBalance)

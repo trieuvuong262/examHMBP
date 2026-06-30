@@ -1,10 +1,19 @@
 from kho_npl.forms import (
     MaterialCategoryForm,
+    MaterialColorForm,
+    MaterialSpecificationForm,
     SupplierForm,
     UnitForm,
     WarehouseLocationForm,
 )
-from kho_npl.models import MaterialCategory, Supplier, Unit, WarehouseLocation
+from kho_npl.models import (
+    MaterialCategory,
+    MaterialColor,
+    MaterialSpecification,
+    Supplier,
+    Unit,
+    WarehouseLocation,
+)
 
 SETTINGS_SECTIONS = {
     'nhom': {
@@ -15,8 +24,9 @@ SETTINGS_SECTIONS = {
         'search_fields': ('code', 'name'),
         'order_by': ('sort_order', 'name'),
         'list_columns': (
-            ('code', 'Mã'),
             ('name', 'Tên nhóm'),
+            ('parent_name', 'Nhóm cha'),
+            ('code', 'Mã'),
             ('sort_order', 'Thứ tự'),
         ),
     },
@@ -30,6 +40,32 @@ SETTINGS_SECTIONS = {
         'list_columns': (
             ('code', 'Mã'),
             ('name', 'Tên ĐVT'),
+        ),
+    },
+    'mau': {
+        'title': 'Màu sắc',
+        'icon': 'bi-palette',
+        'model': MaterialColor,
+        'form_class': MaterialColorForm,
+        'search_fields': ('code', 'name', 'hex_code'),
+        'order_by': ('sort_order', 'name'),
+        'list_columns': (
+            ('name', 'Tên màu'),
+            ('hex_code', 'Mã hex'),
+            ('sort_order', 'Thứ tự'),
+        ),
+    },
+    'quy-cach': {
+        'title': 'Quy cách / khổ',
+        'icon': 'bi-aspect-ratio',
+        'model': MaterialSpecification,
+        'form_class': MaterialSpecificationForm,
+        'search_fields': ('code', 'name'),
+        'order_by': ('sort_order', 'name'),
+        'list_columns': (
+            ('name', 'Quy cách / khổ'),
+            ('code', 'Mã'),
+            ('sort_order', 'Thứ tự'),
         ),
     },
     'vi-tri': {

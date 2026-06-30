@@ -110,7 +110,7 @@
                 <tbody id="stk-detail-body">
                     {% for line in stocktake.lines.all %}
                     <tr class="jp-npl-stk-detail-row"
-                        data-mat-search="{{ line.material.code }} {{ line.material.name }} {{ line.material.color }} {{ line.material.specification }}">
+                        data-mat-search="{{ line.material.code }} {{ line.material.name }} {% if line.material.color %}{{ line.material.color.name }}{% endif %} {% if line.material.specification %}{{ line.material.specification.name }}{% endif %}">
                         <td class="npl-col jp-mat-code" data-col="material">
                             <span class="fw-semibold">{{ line.material.code }}</span>
                         </td>

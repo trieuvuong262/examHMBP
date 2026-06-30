@@ -1,8 +1,12 @@
 {% extends 'base.html' %}
 {% load npl_extras %}
 
+{% block extra_head %}
+{% include 'kho_npl/includes/catalog_grid_styles.html' %}
+{% endblock %}
+
 {% block content %}
-<div class="container jp-page py-3 py-md-4 mb-5">
+<div class="container jp-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
     <div class="jp-page-header mb-3 mb-md-4">
         <h2 class="fw-bold text-hm mb-0 jp-page-title">Phiếu điều chỉnh</h2>
         <p class="text-muted small mb-0 mt-1">Điều chỉnh có chọn lọc từng NPL — khác kiểm kê (toàn bộ kho).</p>
@@ -29,6 +33,7 @@
                         <th class="text-center">Số dòng</th>
                         <th>NPL điều chỉnh</th>
                         <th>Trạng thái</th>
+                        <th class="text-end" style="width:3rem;"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -47,9 +52,14 @@
                             {% if adj.line_count == 0 %}—{% endif %}
                         </td>
                         <td>{{ adj.get_status_display }}</td>
+                        <td class="text-end text-nowrap">
+                            {% if can_update and adj.status == 'pending' %}
+                            <a href="{% url 'kho_npl:adjustment_detail' adj.pk %}" class="jp-mat-edit-btn" title="Xử lý"><i class="bi bi-pencil" aria-hidden="true"></i></a>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="5" class="text-center text-muted py-4">Chưa có phiếu điều chỉnh.</td></tr>
+                    <tr><td colspan="6" class="text-center text-muted py-4">Chưa có phiếu điều chỉnh.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

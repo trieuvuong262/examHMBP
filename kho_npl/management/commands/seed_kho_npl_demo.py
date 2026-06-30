@@ -17,8 +17,11 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
+from kho_npl.services.material_colors import resolve_material_color
+from kho_npl.services.material_specifications import resolve_material_specification
+
+from kho_npl.category_tree import ensure_material_category_tree
 from kho_npl.choices import (
-    DEFAULT_MATERIAL_CATEGORIES,
     DISPOSAL_REASON_DAMAGED,
     ISSUE_TYPE_PRODUCTION,
     ISSUE_TYPE_SAMPLE,
@@ -353,11 +356,7 @@ class Command(BaseCommand):
         raise CommandError('Không tìm thấy user — tạo user hoặc truyền --user.')
 
     def _ensure_master_data(self) -> tuple[dict, dict]:
-        for code, name, sort_order in DEFAULT_MATERIAL_CATEGORIES:
-            MaterialCategory.objects.get_or_create(
-                code=code,
-                defaults={'name': name, 'sort_order': sort_order, 'is_active': True},
-            )
+        ensure_material_category_tree()
         for code, name in [
             ('met', 'Mét'),
             ('cuon', 'Cuộn'),
@@ -371,7 +370,7 @@ class Command(BaseCommand):
             code='MAIN',
             defaults={'name': 'Kho chính', 'is_active': True},
         )
-        categories = {c.code: c for c in MaterialCategory.objects.filter(is_active=True)}
+        categories = {c.code: c for c in MaterialCategory.objects.filter(is_active=True, parent__isnull=False)}
         units = {u.code: u for u in Unit.objects.filter(is_active=True)}
         return categories, units
 
@@ -406,8 +405,8 @@ class Command(BaseCommand):
                 code=full_code,
                 name=name,
                 category=categories[cat_code],
-                color=color,
-                specification=spec,
+                color=resolve_material_color(color),
+                specification=resolve_material_specification(spec),
                 unit=units[unit_code],
                 supplier=supplier_map.get(sup_code),
                 min_stock=Decimal(str(min_stock)),

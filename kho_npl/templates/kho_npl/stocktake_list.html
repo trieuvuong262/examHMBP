@@ -90,7 +90,7 @@
                         <td class="text-end text-nowrap npl-col" data-col="actions">
                             {% if can_update and st.status == 'counting' %}
                             <a href="{% url 'kho_npl:stocktake_count' st.pk %}" class="jp-mat-edit-btn" title="Nhập tồn thực tế"
-                               data-loading-message="Đang tải bảng kiểm kê…"></a>
+                               data-loading-message="Đang tải bảng kiểm kê…"><i class="bi bi-pencil" aria-hidden="true"></i></a>
                             {% endif %}
                         </td>
                     </tr>

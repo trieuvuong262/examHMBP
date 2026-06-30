@@ -1,5 +1,7 @@
 from decimal import Decimal
 
+import re
+
 from django import forms
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -9,6 +11,8 @@ from django.utils import timezone
 from kho_npl.models import (
     Material,
     MaterialCategory,
+    MaterialColor,
+    MaterialSpecification,
     StockAdjustment,
     StockAdjustmentLine,
     StockDisposal,
@@ -25,6 +29,7 @@ from kho_npl.models import (
     Unit,
     WarehouseLocation,
 )
+from kho_npl.category_tree import active_category_leaves
 from kho_npl.doc_attachment import DOC_ATTACHMENT_ACCEPT, validate_doc_attachment
 from kho_npl.services.scrap_warehouse import source_locations_qs
 from kho_npl.services.adjustments import balance_qty
@@ -68,8 +73,8 @@ class MaterialForm(forms.ModelForm):
             'code': forms.TextInput(attrs={**FORM_CONTROL, 'placeholder': 'VD: VAI-001'}),
             'name': forms.TextInput(attrs=FORM_CONTROL),
             'category': forms.Select(attrs=FORM_SELECT),
-            'color': forms.TextInput(attrs=FORM_CONTROL),
-            'specification': forms.TextInput(attrs=FORM_CONTROL),
+            'color': forms.Select(attrs=FORM_SELECT),
+            'specification': forms.Select(attrs=FORM_SELECT),
             'unit': forms.Select(attrs=FORM_SELECT),
             'supplier': forms.Select(attrs=FORM_SELECT),
             'min_stock': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0'}),
@@ -80,7 +85,14 @@ class MaterialForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['category'].queryset = MaterialCategory.objects.filter(is_active=True)
+        self.fields['category'].queryset = active_category_leaves()
+        self.fields['category'].label_from_instance = lambda obj: f'{obj.parent.name} › {obj.name}'
+        self.fields['color'].queryset = MaterialColor.objects.filter(is_active=True).order_by('sort_order', 'name')
+        self.fields['color'].required = False
+        self.fields['color'].empty_label = '—'
+        self.fields['specification'].queryset = MaterialSpecification.objects.filter(is_active=True).order_by('sort_order', 'name')
+        self.fields['specification'].required = False
+        self.fields['specification'].empty_label = '—'
         self.fields['unit'].queryset = Unit.objects.filter(is_active=True)
         self.fields['supplier'].queryset = Supplier.objects.filter(is_active=True)
         self.fields['supplier'].required = False
@@ -815,9 +827,72 @@ def _clean_unique_code(model, field_name, value, instance):
 class MaterialCategoryForm(forms.ModelForm):
     class Meta:
         model = MaterialCategory
-        fields = ['code', 'name', 'sort_order', 'is_active']
+        fields = ['code', 'name', 'parent', 'sort_order', 'is_active']
         widgets = {
             'code': forms.TextInput(attrs={**FORM_CONTROL, 'placeholder': 'vai-chinh'}),
+            'name': forms.TextInput(attrs=FORM_CONTROL),
+            'parent': forms.Select(attrs=FORM_SELECT),
+            'sort_order': forms.NumberInput(attrs={**FORM_CONTROL, 'min': '0'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['is_active'].required = False
+        root_qs = MaterialCategory.objects.filter(is_active=True, parent__isnull=True).order_by('sort_order', 'name')
+        self.fields['parent'].queryset = root_qs
+        self.fields['parent'].required = False
+        self.fields['parent'].empty_label = '— Nhóm cha (cấp 1) —'
+        if self.instance.pk:
+            self.fields['parent'].queryset = root_qs.exclude(pk=self.instance.pk)
+
+    def clean_code(self):
+        code = (self.cleaned_data.get('code') or '').strip().lower()
+        return _clean_unique_code(MaterialCategory, 'code', code, self.instance)
+
+    def clean(self):
+        cleaned = super().clean()
+        parent = cleaned.get('parent')
+        if self.instance.pk and self.instance.children.exists() and parent:
+            raise ValidationError('Nhóm cha (cấp 1) không thể có nhóm cha.')
+        return cleaned
+
+
+class MaterialColorForm(forms.ModelForm):
+    class Meta:
+        model = MaterialColor
+        fields = ['code', 'name', 'hex_code', 'sort_order', 'is_active']
+        widgets = {
+            'code': forms.TextInput(attrs={**FORM_CONTROL, 'placeholder': 'xanh-duong'}),
+            'name': forms.TextInput(attrs=FORM_CONTROL),
+            'hex_code': forms.TextInput(attrs={**FORM_CONTROL, 'placeholder': '#3B82F6'}),
+            'sort_order': forms.NumberInput(attrs={**FORM_CONTROL, 'min': '0'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['is_active'].required = False
+
+    def clean_code(self):
+        code = (self.cleaned_data.get('code') or '').strip().lower()
+        return _clean_unique_code(MaterialColor, 'code', code, self.instance)
+
+    def clean_hex_code(self):
+        hex_code = (self.cleaned_data.get('hex_code') or '').strip().upper()
+        if not hex_code.startswith('#'):
+            hex_code = f'#{hex_code}'
+        if not re.fullmatch(r'#[0-9A-F]{6}', hex_code):
+            raise ValidationError('Mã hex phải dạng #RRGGBB.')
+        return hex_code
+
+
+class MaterialSpecificationForm(forms.ModelForm):
+    class Meta:
+        model = MaterialSpecification
+        fields = ['code', 'name', 'sort_order', 'is_active']
+        widgets = {
+            'code': forms.TextInput(attrs={**FORM_CONTROL, 'placeholder': 'kho-1m6'}),
             'name': forms.TextInput(attrs=FORM_CONTROL),
             'sort_order': forms.NumberInput(attrs={**FORM_CONTROL, 'min': '0'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -829,7 +904,7 @@ class MaterialCategoryForm(forms.ModelForm):
 
     def clean_code(self):
         code = (self.cleaned_data.get('code') or '').strip().lower()
-        return _clean_unique_code(MaterialCategory, 'code', code, self.instance)
+        return _clean_unique_code(MaterialSpecification, 'code', code, self.instance)
 
 
 class UnitForm(forms.ModelForm):

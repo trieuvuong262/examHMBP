@@ -3,8 +3,10 @@ from decimal import Decimal, InvalidOperation
 import pandas as pd
 from django.http import HttpResponse
 
-from kho_npl.models import Material, MaterialCategory, Supplier, Unit
+from kho_npl.models import Material, MaterialCategory, MaterialColor, MaterialSpecification, Supplier, Unit
 from kho_npl.services.excel_export import dataframe_to_xlsx_response
+from kho_npl.services.material_colors import resolve_material_color
+from kho_npl.services.material_specifications import resolve_material_specification
 
 EXCEL_HEADERS = [
     'Mã NPL',
@@ -76,8 +78,8 @@ def material_to_row(material: Material) -> dict:
         'Mã NPL': material.code,
         'Tên NPL': material.name,
         'Mã nhóm': material.category.code,
-        'Màu sắc': material.color or '',
-        'Quy cách': material.specification or '',
+        'Màu sắc': material.color.name if material.color_id else '',
+        'Quy cách': material.specification.name if material.specification_id else '',
         'Mã ĐVT': material.unit.code,
         'Mã NCC': material.supplier.code if material.supplier_id else '',
         'Tồn tối thiểu': float(material.min_stock),
@@ -104,7 +106,7 @@ def sample_template_xlsx() -> HttpResponse:
         'Tên NPL': 'Vải cotton trắng',
         'Mã nhóm': 'vai-chinh',
         'Màu sắc': 'Trắng',
-        'Quy cách': '1.5m',
+        'Quy cách': 'Khổ 1m6',
         'Mã ĐVT': 'met',
         'Mã NCC': '',
         'Tồn tối thiểu': 10,
@@ -136,6 +138,8 @@ def import_materials_from_excel(file_obj) -> dict:
     categories = {c.code.lower(): c for c in MaterialCategory.objects.all()}
     units = {u.code.lower(): u for u in Unit.objects.all()}
     suppliers = {s.code.lower(): s for s in Supplier.objects.all()}
+    colors_by_name = {c.name.lower(): c for c in MaterialColor.objects.filter(is_active=True)}
+    specs_by_name = {s.name.lower(): s for s in MaterialSpecification.objects.filter(is_active=True)}
 
     created = 0
     updated = 0
@@ -182,11 +186,29 @@ def import_materials_from_excel(file_obj) -> dict:
                 skipped += 1
                 continue
 
+        color = None
+        color_name = str(row.get('Màu sắc', '') or '').strip()
+        if color_name and color_name.lower() not in ('nan', 'none'):
+            color = colors_by_name.get(color_name.lower()) or resolve_material_color(color_name)
+            if not color:
+                errors.append(f'Dòng {line_no} ({code}): không tìm thấy màu "{color_name}".')
+                skipped += 1
+                continue
+
+        specification = None
+        spec_name = str(row.get('Quy cách', '') or '').strip()
+        if spec_name and spec_name.lower() not in ('nan', 'none'):
+            specification = specs_by_name.get(spec_name.lower()) or resolve_material_specification(spec_name)
+            if not specification:
+                errors.append(f'Dòng {line_no} ({code}): không tìm thấy quy cách "{spec_name}".')
+                skipped += 1
+                continue
+
         defaults = {
             'name': name,
             'category': category,
-            'color': str(row.get('Màu sắc', '') or '').strip(),
-            'specification': str(row.get('Quy cách', '') or '').strip(),
+            'color': color,
+            'specification': specification,
             'unit': unit,
             'supplier': supplier,
             'min_stock': _parse_decimal(row.get('Tồn tối thiểu')),

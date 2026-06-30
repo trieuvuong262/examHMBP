@@ -68,7 +68,7 @@
                         <td class="npl-col" data-col="created_by">{% if disposal.created_by %}{{ disposal.created_by.get_full_name|default:disposal.created_by.username }}{% else %}—{% endif %}</td>
                         <td class="text-end text-nowrap npl-col" data-col="actions">
                             {% if can_update and disposal.status == 'draft' %}
-                            <a href="{% url 'kho_npl:disposal_edit' disposal.pk %}" class="jp-mat-edit-btn" title="Sửa"></a>
+                            <a href="{% url 'kho_npl:disposal_edit' disposal.pk %}" class="jp-mat-edit-btn" title="Sửa"><i class="bi bi-pencil" aria-hidden="true"></i></a>
                             {% endif %}
                         </td>
                     </tr>

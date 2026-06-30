@@ -18,7 +18,7 @@ OVERVIEW_LIST_SORT_FIELDS = {
     'code': lambda r: (r['material'].code or '').lower(),
     'name': lambda r: (r['material'].name or '').lower(),
     'category': lambda r: (r['material'].category.name or '').lower(),
-    'color': lambda r: (r['material'].color or '').lower(),
+    'color': lambda r: (r['material'].color.name if r['material'].color_id else '').lower(),
     'unit': lambda r: (r['material'].unit.name or '').lower(),
     'total_qty': lambda r: r['total_qty'],
     'min_stock': lambda r: r['material'].min_stock,

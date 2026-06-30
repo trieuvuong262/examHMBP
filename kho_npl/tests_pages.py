@@ -198,6 +198,6 @@ class KhoNplPageSmokeTests(TestCase):
 
     def test_settings_pages(self):
         self._assert_ok('kho_npl:settings_hub')
-        for section in ('nhom', 'dvt', 'vi-tri', 'ncc'):
+        for section in ('nhom', 'dvt', 'mau', 'quy-cach', 'vi-tri', 'ncc'):
             self._assert_ok('kho_npl:settings_list', section=section)
             self._assert_ok('kho_npl:settings_create', section=section)
