@@ -1,0 +1,88 @@
+<div class="jp-npl-color-picker" data-jp-color-picker>
+    <div class="jp-npl-color-picker-row">
+        <span class="jp-npl-color-picker-preview" data-jp-color-preview aria-hidden="true"
+              style="background-color: {{ field.value|default:'#3B82F6' }};"></span>
+        <input type="color" class="jp-npl-color-native" data-jp-color-native
+               value="{{ field.value|default:'#3B82F6'|lower }}" title="Chọn màu" aria-label="Chọn màu">
+        <div class="jp-npl-color-picker-hex flex-grow-1">
+            {{ field }}
+            <div class="form-text mb-0">Chọn từ bảng màu hoặc ô chọn màu — mã HEX tự điền chính xác.</div>
+        </div>
+    </div>
+    {% if color_palette %}
+    <div class="jp-npl-color-palette mt-3">
+        <div class="jp-npl-color-palette-title small fw-bold text-muted mb-2">Bảng màu gợi ý</div>
+        <div class="jp-npl-color-palette-grid" role="listbox" aria-label="Bảng màu gợi ý">
+            {% for name, hex in color_palette %}
+            <button type="button" class="jp-npl-color-palette-swatch{% if field.value|upper == hex|upper %} is-selected{% endif %}"
+                    data-jp-palette-hex="{{ hex }}"
+                    style="background-color: {{ hex }};"
+                    title="{{ name }} — {{ hex }}"
+                    aria-label="{{ name }} {{ hex }}"></button>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+<script>
+(function () {
+    var root = document.currentScript && document.currentScript.previousElementSibling;
+    if (!root || !root.matches('[data-jp-color-picker]')) {
+        root = document.querySelector('[data-jp-color-picker]');
+    }
+    if (!root) return;
+
+    var hexInput = root.querySelector('.jp-npl-hex-input');
+    var nativeInput = root.querySelector('[data-jp-color-native]');
+    var preview = root.querySelector('[data-jp-color-preview]');
+    if (!hexInput || !nativeInput || !preview) return;
+
+    function normalizeHex(value) {
+        var hex = (value || '').trim().toUpperCase();
+        if (!hex) return '';
+        if (hex.charAt(0) !== '#') hex = '#' + hex;
+        if (!/^#[0-9A-F]{6}$/.test(hex)) return null;
+        return hex;
+    }
+
+    function setSelectedSwatch(hex) {
+        root.querySelectorAll('[data-jp-palette-hex]').forEach(function (btn) {
+            btn.classList.toggle('is-selected', btn.getAttribute('data-jp-palette-hex').toUpperCase() === hex);
+        });
+    }
+
+    function applyHex(hex) {
+        if (!hex) return;
+        hexInput.value = hex;
+        nativeInput.value = hex.toLowerCase();
+        preview.style.backgroundColor = hex;
+        setSelectedSwatch(hex);
+    }
+
+    nativeInput.addEventListener('input', function () {
+        applyHex(nativeInput.value.toUpperCase());
+    });
+
+    hexInput.addEventListener('input', function () {
+        var hex = normalizeHex(hexInput.value);
+        if (!hex) return;
+        nativeInput.value = hex.toLowerCase();
+        preview.style.backgroundColor = hex;
+        setSelectedSwatch(hex);
+    });
+
+    hexInput.addEventListener('blur', function () {
+        var hex = normalizeHex(hexInput.value);
+        if (hex) applyHex(hex);
+    });
+
+    root.querySelectorAll('[data-jp-palette-hex]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            applyHex(btn.getAttribute('data-jp-palette-hex').toUpperCase());
+        });
+    });
+
+    var initial = normalizeHex(hexInput.value);
+    if (initial) applyHex(initial);
+})();
+</script>

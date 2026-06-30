@@ -1,5 +1,11 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}
+{% if section.key == 'mau' %}
+{% include 'kho_npl/includes/material_color_styles.html' %}
+{% endif %}
+{% endblock %}
+
 {% block content %}
 <div class="container jp-page py-3 py-md-4 mb-5">
 
@@ -20,12 +26,15 @@
                 {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
                 <div class="row g-3">
                     {% for field in form.visible_fields %}
-                    <div class="col-md-{% if field.name == 'notes' %}12{% elif field.name == 'is_active' %}12{% else %}6{% endif %}">
+                    <div class="col-md-{% if field.name == 'notes' or field.name == 'is_active' %}12{% elif field.name == 'hex_code' and section.key == 'mau' %}12{% else %}6{% endif %}">
                         {% if field.name == 'is_active' %}
                         <div class="form-check mt-2">
                             {{ field }}
                             <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
                         </div>
+                        {% elif section.key == 'mau' and field.name == 'hex_code' %}
+                        <label class="form-label fw-bold small" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {% include 'kho_npl/includes/material_color_picker_field.html' with field=field color_palette=color_palette %}
                         {% else %}
                         <label class="form-label fw-bold small" for="{{ field.id_for_label }}">{{ field.label }}</label>
                         {{ field }}

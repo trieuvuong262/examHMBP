@@ -867,7 +867,13 @@ class MaterialColorForm(forms.ModelForm):
         widgets = {
             'code': forms.TextInput(attrs={**FORM_CONTROL, 'placeholder': 'xanh-duong'}),
             'name': forms.TextInput(attrs=FORM_CONTROL),
-            'hex_code': forms.TextInput(attrs={**FORM_CONTROL, 'placeholder': '#3B82F6'}),
+            'hex_code': forms.TextInput(attrs={
+                **FORM_CONTROL,
+                'placeholder': '#3B82F6',
+                'class': 'form-control jp-npl-hex-input',
+                'autocomplete': 'off',
+                'spellcheck': 'false',
+            }),
             'sort_order': forms.NumberInput(attrs={**FORM_CONTROL, 'min': '0'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }

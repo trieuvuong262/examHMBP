@@ -13,6 +13,15 @@ from kho_npl.settings_registry import SETTINGS_SECTIONS, get_settings_section
 from kho_npl.view_utils import nav_context, perm_context
 
 
+def _settings_form_extra(config):
+    if config.get('key') == 'mau':
+        from kho_npl.choices import DEFAULT_MATERIAL_COLORS
+        return {
+            'color_palette': [(name, hex_code) for _, name, hex_code, _ in DEFAULT_MATERIAL_COLORS],
+        }
+    return {}
+
+
 def _section_or_404(section: str):
     config = get_settings_section(section)
     if not config:
@@ -64,6 +73,7 @@ def settings_create(request, section):
         'form': form,
         'is_edit': False,
         'cancel_url': reverse('kho_npl:settings_list', kwargs={'section': section}),
+        **_settings_form_extra(config),
     })
 
 
@@ -85,6 +95,7 @@ def settings_edit(request, section, pk):
         'is_edit': True,
         'obj': obj,
         'cancel_url': reverse('kho_npl:settings_list', kwargs={'section': section}),
+        **_settings_form_extra(config),
     })
 
 
