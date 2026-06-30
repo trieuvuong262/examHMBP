@@ -22,7 +22,7 @@ $NasPrimaryShare = '__NAS_PRIMARY_SHARE__'
 $DeptFolderCode = '__NAS_DEPT_CODE__'
 $DriveLetterRaw = '__NAS_DRIVE_LETTER__'
 $BlockedDefaultPassword = 'justplay@123'
-$NasScriptVersion = '2026.06.29.29'
+$NasScriptVersion = '2026.06.29.30'
 $NasCurlMaxTimeSec = 15
 $NasWNetTimeoutSec = 20
 # Windows WebDAV mac dinh ~50MB — loi 0x800700DF khi copy file lon hon.
@@ -382,11 +382,62 @@ function Get-NasHostsMappingForServer {
     return $null
 }
 
+function Get-NasResolverDnsAddress {
+    param([string]$HostLabel = $Server)
+    try {
+        $rec = @(Resolve-DnsName -Name $HostLabel -Type A -DnsOnly -ErrorAction Stop |
+            Where-Object { $_.IPAddress -and $_.Type -eq 'A' })
+        if ($rec.Count -gt 0) { return [string]$rec[0].IPAddress }
+    } catch {}
+    return $null
+}
+
+function Remove-NasStaleHostsMapping {
+    if (-not (Test-IsAdministrator)) { return $false }
+    $mapped = Get-NasHostsMappingForServer
+    if (-not $mapped) { return $false }
+    $lanNas = [string]$NasLanServer
+    if (-not $lanNas -or $mapped -ne $lanNas) { return $false }
+
+    $dnsOnly = Get-NasResolverDnsAddress
+    if (-not $dnsOnly) { return $false }
+    # hosts ép LAN nhưng DNS thật (nslookup) đã trỏ IP public — WebDAV LAN hay 401.
+    $dnsIsPublic = $dnsOnly -notmatch '^(100\.|192\.168\.|10\.)'
+    if (-not $dnsIsPublic) { return $false }
+
+    $hostsPath = Get-NasHostsFilePath
+    $marker = '# JustPlay NAS LAN'
+    try {
+        $content = @(Get-Content -LiteralPath $hostsPath -ErrorAction Stop)
+        $filtered = New-Object System.Collections.Generic.List[string]
+        $removed = $false
+        foreach ($line in $content) {
+            if (($line -match '(?i)justplay\.synology\.me') -or ($line -match [regex]::Escape($marker))) {
+                $removed = $true
+                continue
+            }
+            [void]$filtered.Add($line)
+        }
+        if (-not $removed) { return $false }
+        Set-Content -LiteralPath $hostsPath -Value $filtered.ToArray() -Encoding ASCII -ErrorAction Stop
+        Write-Log "Xoa hosts cu ($lanNas -> $Server): DNS that $dnsOnly (public), WebDAV qua LAN hay loi 401."
+        return $true
+    } catch {
+        Write-Log "Khong xoa duoc hosts ($hostsPath): $($_.Exception.Message)"
+        return $false
+    }
+}
+
 function Test-NasOfficeDnsNeedsHostsFix {
     $lanIps = Get-LocalLanIpv4Addresses
     if (-not $lanIps -or $lanIps.Count -lt 1) { return $false }
     $lanNas = [string]$NasLanServer
     if (-not $lanNas) { return $false }
+
+    $dnsOnly = Get-NasResolverDnsAddress
+    if ($dnsOnly -and $dnsOnly -notmatch '^(100\.|192\.168\.|10\.)') {
+        return $false
+    }
 
     $dnsIps = @()
     try {
@@ -1368,6 +1419,9 @@ function Get-FirstNasConnectPlan {
 }
 
 function Resolve-NasConnectPlans {
+    if (Test-IsAdministrator) {
+        Remove-NasStaleHostsMapping | Out-Null
+    }
     if (Test-NasOfficeDnsNeedsHostsFix) {
         if (Test-IsAdministrator) {
             Ensure-NasOfficeHostsMapping | Out-Null

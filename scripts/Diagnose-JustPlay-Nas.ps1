@@ -7,11 +7,32 @@ $tailscale = '100.93.5.42'
 Write-Host '=== JustPlay NAS — chan doan mang ===' -ForegroundColor Cyan
 Write-Host ''
 
-Write-Host '[1] DNS'
+Write-Host '[1] DNS / hosts'
 try {
-    $dns = [System.Net.Dns]::GetHostAddresses($hostName) | ForEach-Object { $_.IPAddressToString }
-    Write-Host "  $hostName -> $($dns -join ', ')"
-    if ($dns -contains '100.93.5.42') {
+    $dnsOnly = $null
+    try {
+        $rec = @(Resolve-DnsName -Name $hostName -Type A -DnsOnly -ErrorAction Stop | Where-Object { $_.IPAddress })
+        if ($rec.Count -gt 0) { $dnsOnly = [string]$rec[0].IPAddress }
+    } catch {}
+    $resolved = @([System.Net.Dns]::GetHostAddresses($hostName) | ForEach-Object { $_.IPAddressToString })
+    Write-Host "  nslookup (DNS that): $hostName -> $dnsOnly"
+    Write-Host "  Windows resolve (co hosts): $($resolved -join ', ')"
+
+    $hostsPath = Join-Path $env:windir 'System32\drivers\etc\hosts'
+    $hostsLines = @()
+    if (Test-Path -LiteralPath $hostsPath) {
+        $hostsLines = @(Get-Content -LiteralPath $hostsPath | Where-Object { $_ -match '(?i)justplay\.synology\.me' -and $_ -notmatch '^\s*#' })
+    }
+    if ($hostsLines.Count -gt 0) {
+        Write-Host "  HOSTS file ($($hostsLines.Count) dong):" -ForegroundColor Yellow
+        $hostsLines | ForEach-Object { Write-Host "    $_" -ForegroundColor Yellow }
+        if ($dnsOnly -and $resolved -contains '192.168.1.254' -and $dnsOnly -notmatch '^(192\.168\.|10\.|100\.)') {
+            Write-Host '  LOI: hosts ep LAN 192.168.1.254 nhung DNS that la IP public — WebDAV/RaiDrive hay 401!' -ForegroundColor Red
+            Write-Host '  => Xoa dong justplay trong hosts (Admin), ipconfig /flushdns, test lai curl HTTP:207' -ForegroundColor Red
+        }
+    }
+
+    if ($resolved -contains '100.93.5.42') {
         $lanNas = '192.168.1.254'
         $lanOk = $false
         try {
@@ -26,8 +47,10 @@ try {
             Write-Host '  CANH BAO: DNS tro Tailscale 100.93.5.42 — can Tailscale hoac DNS noi bo -> IP NAS LAN' -ForegroundColor Yellow
         }
     }
-    if ($dns -contains '14.161.25.119' -or ($dns | Where-Object { $_ -notmatch '^100\.|^192\.168\.|^10\.' })) {
-        Write-Host '  CANH BAO: DNS tro IP PUBLIC — trong LAN de loi WebClient 67. Nen DNS noi bo -> IP NAS (100.93.5.42 / LAN).' -ForegroundColor Yellow
+    if ($resolved -contains '14.161.25.119' -or ($resolved | Where-Object { $_ -notmatch '^100\.|^192\.168\.|^10\.' })) {
+        if (-not ($hostsLines.Count -gt 0 -and $resolved -contains '192.168.1.254')) {
+            Write-Host '  DNS/resolve tro IP PUBLIC — on neu khong co hosts ep LAN.' -ForegroundColor Green
+        }
     }
 } catch {
     Write-Host "  LOI DNS: $($_.Exception.Message)" -ForegroundColor Red
