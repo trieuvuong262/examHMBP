@@ -215,32 +215,55 @@
     font-size: 0.65rem;
     flex-shrink: 0;
 }
-.jp-npl-material-catalog-page .jp-npl-mat-thumb {
-    width: 2.5rem;
-    height: 2.5rem;
+.jp-npl-material-catalog-page .jp-npl-mat-avatar-btn {
+    display: inline-flex;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    border-radius: 50%;
+    line-height: 0;
+    cursor: zoom-in;
+    vertical-align: middle;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-avatar {
+    width: 2.25rem;
+    height: 2.25rem;
     object-fit: cover;
-    border-radius: 0.35rem;
-    border: 1px solid var(--bs-border-color);
+    border-radius: 50%;
+    border: 2px solid var(--bs-border-color);
     display: block;
+    background: var(--bs-light);
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.jp-npl-material-catalog-page .jp-npl-mat-thumb-btn:hover .jp-npl-mat-thumb {
-    border-color: rgba(220, 38, 38, 0.45);
-    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
+.jp-npl-material-catalog-page .jp-npl-mat-avatar-btn:hover .jp-npl-mat-avatar,
+.jp-npl-material-catalog-page .jp-npl-mat-avatar-btn:focus-visible .jp-npl-mat-avatar {
+    border-color: rgba(220, 38, 38, 0.55);
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+    transform: scale(1.06);
 }
-.jp-npl-material-catalog-page .jp-npl-mat-thumb-empty {
+.jp-npl-material-catalog-page .jp-npl-mat-avatar--empty {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 0.35rem;
-    border: 1px dashed var(--bs-border-color);
-    font-size: 1rem;
-    opacity: 0.55;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    border: 2px dashed var(--bs-border-color-translucent, var(--bs-border-color));
+    font-size: 0.95rem;
+    color: var(--bs-secondary-color);
+    background: var(--bs-light);
+    opacity: 0.75;
+    vertical-align: middle;
 }
 .jp-npl-material-catalog-page #npl-material-table td[data-col="image"] {
     overflow: visible;
     white-space: normal;
+    width: 3rem;
+    padding-left: 0.5rem;
+    padding-right: 0.35rem;
+}
+.jp-npl-material-catalog-page #npl-material-table th[data-col="image"] {
+    width: 3rem !important;
 }
 .jp-npl-material-catalog-page .jp-mat-col-resizer {
     position: absolute;
@@ -368,7 +391,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
                                 {% endif %}
                             </button>
                             {% else %}
-                            <span class="jp-mat-th-sort jp-mat-th-label text-muted">{{ col.label }}</span>
+                            <span class="jp-mat-th-sort jp-mat-th-label text-muted" title="Bấm ảnh để phóng to">{{ col.label }}</span>
                             {% endif %}
                             <span class="jp-mat-col-resizer" aria-hidden="true"></span>
                         </th>
@@ -606,7 +629,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
         document.querySelectorAll('#npl-material-table .npl-col').forEach(function (el) {
             const key = el.getAttribute('data-col');
             if (!key) return;
-            if (key === 'actions' || key === 'code') {
+            if (key === 'actions' || key === 'code' || key === 'image') {
                 el.classList.remove('d-none');
                 return;
             }
