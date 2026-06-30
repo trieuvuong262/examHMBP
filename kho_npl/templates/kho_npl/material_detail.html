@@ -49,8 +49,16 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm h-100">
+        <div class="col-md-4 d-flex flex-column gap-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom py-2">
+                    <h6 class="mb-0 fw-bold">Hình ảnh</h6>
+                </div>
+                <div class="card-body text-center">
+                    {% include 'kho_npl/includes/material_image_preview.html' %}
+                </div>
+            </div>
+            <div class="card border-0 shadow-sm">
                 <div class="card-body text-center">
                     <div class="text-muted small mb-1">Tồn hiện tại</div>
                     <div class="display-6 fw-bold text-hm">{{ total_qty|npl_qty_with_unit:material.unit }}</div>
@@ -87,4 +95,6 @@
         </div>
     </div>
 </div>
+
+{% include 'kho_npl/includes/material_image_modal.html' %}
 {% endblock %}

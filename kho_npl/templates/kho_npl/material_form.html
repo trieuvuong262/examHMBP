@@ -59,7 +59,9 @@
                         <label class="form-label fw-bold small" for="{{ form.image.id_for_label }}">Hình ảnh</label>
                         {{ form.image }}
                         {% if is_edit and material.image %}
-                        <div class="mt-1 small text-muted">Ảnh hiện tại: <a href="{{ material.image.url }}" target="_blank">xem</a></div>
+                        <div class="mt-2">
+                            {% include 'kho_npl/includes/material_image_preview.html' %}
+                        </div>
                         {% endif %}
                     </div>
                     <div class="col-12">
@@ -83,4 +85,7 @@
         </div>
     </div>
 </div>
+{% if is_edit and material.image %}
+{% include 'kho_npl/includes/material_image_modal.html' %}
+{% endif %}
 {% endblock %}

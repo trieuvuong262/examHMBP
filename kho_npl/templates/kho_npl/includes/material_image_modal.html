@@ -1,0 +1,62 @@
+<style>
+.jp-npl-mat-lightbox-img {
+    max-height: min(80vh, 42rem);
+    width: auto;
+    margin: 0 auto;
+}
+.jp-npl-mat-preview-img {
+    max-width: 100%;
+    max-height: 14rem;
+    object-fit: contain;
+    border-radius: 0.5rem;
+    border: 1px solid var(--bs-border-color);
+    background: var(--bs-light);
+}
+.jp-npl-mat-preview-btn:hover .jp-npl-mat-preview-img {
+    border-color: rgba(220, 38, 38, 0.45);
+}
+.jp-npl-mat-preview-empty {
+    padding: 2rem 1rem;
+    text-align: center;
+    border: 1px dashed var(--bs-border-color);
+    border-radius: 0.5rem;
+    background: var(--bs-light);
+}
+</style>
+<div class="modal fade" id="nplMaterialImageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 bg-transparent shadow-none">
+            <div class="modal-body p-0 text-center position-relative">
+                <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-2"
+                        data-bs-dismiss="modal" aria-label="Đóng"></button>
+                <img src="" alt="" id="nplMaterialImageModalImg" class="img-fluid rounded shadow jp-npl-mat-lightbox-img">
+                <p class="text-white small mt-2 mb-0 px-2" id="nplMaterialImageModalTitle"></p>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    var modalEl = document.getElementById('nplMaterialImageModal');
+    if (!modalEl || modalEl.dataset.nplBound) return;
+    modalEl.dataset.nplBound = '1';
+    var imgEl = document.getElementById('nplMaterialImageModalImg');
+    var titleEl = document.getElementById('nplMaterialImageModalTitle');
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-npl-material-image]');
+        if (!btn) return;
+        e.preventDefault();
+        var url = btn.getAttribute('data-npl-material-image');
+        if (!url || !imgEl) return;
+        imgEl.src = url;
+        imgEl.alt = btn.getAttribute('data-npl-material-image-title') || '';
+        if (titleEl) {
+            titleEl.textContent = btn.getAttribute('data-npl-material-image-title') || '';
+        }
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    });
+    modalEl.addEventListener('hidden.bs.modal', function () {
+        if (imgEl) imgEl.src = '';
+    });
+})();
+</script>

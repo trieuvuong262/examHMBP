@@ -142,7 +142,11 @@ class StockReceiptLineForm(forms.ModelForm):
         model = StockReceiptLine
         fields = ['material', 'ordered_qty', 'received_qty', 'location', 'notes']
         widgets = {
-            'material': forms.Select(attrs=FORM_SELECT),
+            'material': forms.Select(attrs={
+                **FORM_SELECT,
+                'class': 'form-select jp-npl-material-select',
+                'data-placeholder': 'Gõ tên hoặc mã NPL...',
+            }),
             'ordered_qty': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0'}),
             'received_qty': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0'}),
             'location': forms.Select(attrs=FORM_SELECT),
@@ -151,13 +155,31 @@ class StockReceiptLineForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['material'].queryset = Material.objects.filter(is_active=True).select_related('unit')
+        material_id = None
+        if self.instance.pk and self.instance.material_id:
+            material_id = self.instance.material_id
+        elif self.initial.get('material'):
+            material_id = self.initial['material']
+        if material_id:
+            self.fields['material'].queryset = (
+                Material.objects.filter(pk=material_id).select_related('unit')
+            )
+        else:
+            self.fields['material'].queryset = Material.objects.none()
+        self.fields['material'].empty_label = 'Gõ tên hoặc mã để tìm...'
         self.fields['location'].queryset = WarehouseLocation.objects.filter(is_active=True)
         self.fields['ordered_qty'].required = False
         self.fields['notes'].required = False
         default_location = WarehouseLocation.objects.filter(code='MAIN', is_active=True).first()
         if default_location and not self.instance.pk:
             self.initial.setdefault('location', default_location.pk)
+
+    def full_clean(self):
+        if self.data:
+            self.fields['material'].queryset = (
+                Material.objects.filter(is_active=True).select_related('unit')
+            )
+        super().full_clean()
 
 
 class BaseStockReceiptLineFormSet(BaseInlineFormSet):
@@ -231,6 +253,21 @@ class StockIssueForm(forms.ModelForm):
 
     def clean_attachment(self):
         return validate_doc_attachment(self.cleaned_data.get('attachment'))
+
+
+class StockIssueNotesForm(forms.ModelForm):
+    """Chỉ sửa ghi chú phiếu xuất đã ghi sổ — không đổi tồn hay chi tiết."""
+
+    class Meta:
+        model = StockIssue
+        fields = ['notes']
+        widgets = {
+            'notes': forms.Textarea(attrs={**FORM_TEXTAREA, 'placeholder': 'Ghi chú bổ sung sau khi xuất...'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['notes'].required = False
 
 
 class StockIssueLineForm(forms.ModelForm):

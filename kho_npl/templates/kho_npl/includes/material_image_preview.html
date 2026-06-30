@@ -1,0 +1,16 @@
+{% if material.image %}
+<div class="jp-npl-mat-preview-wrap">
+    <button type="button" class="btn p-0 border-0 jp-npl-mat-preview-btn"
+            data-npl-material-image="{{ material.image.url }}"
+            data-npl-material-image-title="{{ material.code }} — {{ material.name }}"
+            title="Phóng to ảnh">
+        <img src="{{ material.image.url }}" alt="{{ material.name }}" class="jp-npl-mat-preview-img">
+    </button>
+    <div class="small text-muted mt-2">Bấm ảnh để xem lớn</div>
+</div>
+{% else %}
+<div class="jp-npl-mat-preview-empty text-muted">
+    <i class="bi bi-image display-6 d-block mb-2 opacity-50"></i>
+    <span class="small">Chưa có hình ảnh</span>
+</div>
+{% endif %}

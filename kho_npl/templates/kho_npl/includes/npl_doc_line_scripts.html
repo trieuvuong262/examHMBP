@@ -35,6 +35,7 @@
     }
 
     function setStockDisplay(row, value, text) {
+        if (stockTarget === 'none') return;
         const el = rowStockEl(row);
         if (!el) return;
         if (stockTarget === 'field') {
@@ -45,6 +46,7 @@
     }
 
     function fetchStock(row) {
+        if (stockTarget === 'none') return Promise.resolve();
         const materialSelect = row?.querySelector('select.jp-npl-material-select');
         const materialId = materialSelect?.value;
         const locationId = rowLocationId(row);

@@ -1,0 +1,10 @@
+{% if material.image %}
+<button type="button" class="btn p-0 border-0 jp-npl-mat-thumb-btn"
+        data-npl-material-image="{{ material.image.url }}"
+        data-npl-material-image-title="{{ material.code }} — {{ material.name }}"
+        title="Xem ảnh">
+    <img src="{{ material.image.url }}" alt="" class="jp-npl-mat-thumb" loading="lazy">
+</button>
+{% else %}
+<span class="jp-npl-mat-thumb-empty text-muted" title="Chưa có ảnh"><i class="bi bi-image"></i></span>
+{% endif %}

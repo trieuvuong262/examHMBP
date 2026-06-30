@@ -9,8 +9,8 @@ from hrm.module_permissions import MODULE_KHO_NPL
 from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
-from kho_npl.choices import DOC_STATUS_DRAFT
-from kho_npl.forms import StockIssueForm, StockIssueLineFormSet
+from kho_npl.choices import DOC_STATUS_DRAFT, DOC_STATUS_POSTED
+from kho_npl.forms import StockIssueForm, StockIssueLineFormSet, StockIssueNotesForm
 from kho_npl.models import StockIssue
 from kho_npl.services.doc_numbers import next_issue_number
 from kho_npl.services.issues import (
@@ -79,6 +79,10 @@ def issue_list(request):
     })
 
 
+def issue_notes_editable(issue: StockIssue) -> bool:
+    return issue.status == DOC_STATUS_POSTED
+
+
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def issue_detail(request, pk):
     issue = get_object_or_404(
@@ -86,11 +90,16 @@ def issue_detail(request, pk):
         .prefetch_related('lines__material', 'lines__location'),
         pk=pk,
     )
+    perms = perm_context(request.user, 'issues')
+    can_edit_notes = issue_notes_editable(issue) and perms.get('can_update')
+    notes_form = StockIssueNotesForm(instance=issue) if can_edit_notes else None
     return render(request, 'kho_npl/issue_detail.html', {
         **nav_context('issues', user=request.user),
-        **perm_context(request.user, 'issues'),
+        **perms,
         'issue': issue,
         'is_editable': issue_is_editable(issue),
+        'can_edit_notes': can_edit_notes,
+        'notes_form': notes_form,
     })
 
 
@@ -122,6 +131,21 @@ def issue_create(request):
         'is_edit': False,
         'cancel_url': reverse('kho_npl:issue_list'),
     })
+
+
+@module_perm_required_methods(MODULE_KHO_NPL, post='update')
+def issue_update_notes(request, pk):
+    issue = get_object_or_404(StockIssue, pk=pk)
+    if not issue_notes_editable(issue):
+        messages.error(request, 'Chỉ phiếu đã ghi sổ mới được sửa ghi chú tại đây.')
+        return redirect('kho_npl:issue_detail', pk=pk)
+    form = StockIssueNotesForm(request.POST, instance=issue)
+    if form.is_valid():
+        form.save(update_fields=['notes'])
+        messages.success(request, f'Đã cập nhật ghi chú phiếu {issue.number}.')
+    else:
+        messages.error(request, 'Không lưu được ghi chú — kiểm tra lại nội dung.')
+    return redirect('kho_npl:issue_detail', pk=pk)
 
 
 @module_perm_required_methods(MODULE_KHO_NPL, get='update', post='update')

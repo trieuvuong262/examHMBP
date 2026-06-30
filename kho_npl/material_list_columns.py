@@ -2,6 +2,7 @@
 
 # weight: 100 = cột chuẩn; 150 = rộng hơn 50%; 50 = hẹp hơn 50%
 MATERIAL_LIST_COLUMNS = [
+    {'key': 'image', 'label': 'Ảnh', 'default': True, 'required': False, 'weight': 40, 'sortable': False},
     {'key': 'code', 'label': 'Mã', 'default': True, 'required': True, 'weight': 100},
     {'key': 'name', 'label': 'Tên NPL', 'default': True, 'required': False, 'weight': 150},
     {'key': 'category', 'label': 'Nhóm', 'default': True, 'required': False, 'weight': 150},

@@ -42,6 +42,7 @@ urlpatterns = [
     path('phieu-xuat/them/', views_issue.issue_create, name='issue_create'),
     path('phieu-xuat/<int:pk>/', views_issue.issue_detail, name='issue_detail'),
     path('phieu-xuat/<int:pk>/sua/', views_issue.issue_edit, name='issue_edit'),
+    path('phieu-xuat/<int:pk>/ghi-chu/', views_issue.issue_update_notes, name='issue_update_notes'),
     path('phieu-xuat/<int:pk>/ghi-so/', views_issue.issue_post, name='issue_post'),
     path('phieu-xuat/<int:pk>/huy/', views_issue.issue_cancel, name='issue_cancel'),
     path('chuyen-kho/', views_transfer.transfer_hub, name='transfer_hub'),
