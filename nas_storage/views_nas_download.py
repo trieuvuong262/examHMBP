@@ -24,7 +24,8 @@ from equipment.views_inventory_scan import _apply_script_tokens as apply_equipme
 from nas_storage.download_shares import WEBDAV_SHARE_ALIASES, nas_webdav_shares_for_user, resolve_webdav_share_name
 from nas_storage.nas_download_access import user_can_nas_download
 from nas_storage.nas_paths import user_department_folder_code
-from nas_storage.views import nas_module_nav_context
+from hrm.menu_permissions import menu_perm_context
+from hrm.module_permissions import MODULE_DOCUMENTS
 
 
 def nas_shares_for_user(user) -> list[str]:
@@ -50,8 +51,8 @@ def nas_download_config() -> dict:
 
 
 def _download_forbidden(request):
-    messages.error(request, 'Bạn không có quyền tải bộ cài NAS.')
-    return redirect('nas_storage:browse')
+    messages.error(request, 'Bạn không có quyền tải bộ cài.')
+    return redirect('documents:browse')
 
 
 def _dept_webdav_share_for_user(user) -> str | None:
@@ -93,7 +94,7 @@ def nas_download_page(request):
         for i, name in enumerate(shares)
     ]
     return render(request, 'nas_storage/nas_download.html', {
-        **nas_module_nav_context(request, 'nas_download'),
+        **menu_perm_context(request.user, MODULE_DOCUMENTS, 'nas_download'),
         'config': cfg,
         'user_shares': shares,
         'drive_preview': drive_preview,

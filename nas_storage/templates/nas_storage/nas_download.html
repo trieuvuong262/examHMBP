@@ -1,112 +1,41 @@
-{% extends "nas_storage/base_nas.html" %}
+{% extends 'base.html' %}
 
-{% block nas_loading_message %}Đang tải trang Tải NAS…{% endblock %}
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-4">
+        <h2 class="fw-bold text-hm mb-0">Tải bộ cài</h2>
+        <p class="text-muted mb-0 mt-2">Bộ cài kết nối NAS trên Windows (.zip)</p>
+    </div>
 
-{% block nas_content %}
-<div class="container-fluid jp-page jp-nas-download-page py-3 py-md-4 px-2 px-md-4 mb-5">
-    {% include "nas_storage/_nas_nav.html" %}
-
-    <div class="row justify-content-center">
-        <div class="col-lg-8 col-xl-7">
-            <div class="jp-nas-download-hero card border-0 shadow-sm mb-4">
-                <div class="card-body p-4 p-md-5 text-center">
-                    <div class="jp-nas-download-icon mx-auto mb-3" aria-hidden="true">
-                        <i class="bi bi-hdd-network"></i>
-                    </div>
-                    <h2 class="fw-bold text-dark mb-2">Tải NAS (Windows)</h2>
-                    <p class="text-muted mb-0 mx-auto jp-nas-download-lead">
-                        Gắn ổ NAS qua <strong>WebDAV</strong> cổng <strong>{{ config.webdav_port }}</strong>
-                        bằng <strong>cùng tài khoản Portal</strong>
-                        <code class="ms-1">{{ request.user.username }}@{{ config.ldap_domain }}</code>
-                    </p>
-                </div>
-            </div>
-
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-body p-4 p-md-5">
-                    <h3 class="h6 fw-bold text-uppercase text-muted mb-4">Cách dùng</h3>
-                    <ol class="jp-nas-download-steps mb-0 ps-3">
-                        <li class="mb-3">Giải nén ZIP — gồm <strong>EXE</strong>, script NAS, và (nếu có) RustDesk + quét cấu hình máy.</li>
-                        <li class="mb-3">
-                            Chạy <code>Chay-Ket-Noi-NAS.bat</code> hoặc <code>KET-NOI-NAS.bat</code>
-                            (khuyến nghị — tự gỡ chặn Windows; nếu EXE bị SmartScreen vẫn mở được giao diện NAS).
-                            Hoặc chuột phải EXE → Properties → tick <strong>Unblock</strong>.
-                        </li>
-                        <li class="mb-3">
-                            Có thể double-click <code>Ket-Noi-NAS-JustPlay.exe</code> nếu Windows không chặn — cửa sổ gồm
-                            đăng nhập, <strong>Kết nối NAS</strong>, <strong>Gỡ mount</strong>, <strong>Làm mới Explorer</strong>,
-                            <strong>Cài RustDesk</strong>, <strong>Thêm Cấu hình</strong>.
-                        </li>
-                        <li class="mb-3 text-muted small">
-                            <strong>Mạng:</strong> máy phải mở được cổng <strong>{{ config.webdav_port }}</strong> tới NAS.
-                            Làm việc ngoài văn phòng cần <strong>Tailscale</strong> (tài khoản công ty).
-                            Trong văn phòng IT cấu hình DNS nội bộ <code>justplay.synology.me</code> → IP NAS.
-                        </li>
-                        <li class="mb-3 text-muted small">
-                            Chấp nhận UAC khi được hỏi. Không chọn Run as administrator.
-                        </li>
-                        <li class="mb-3">Nhập <strong>tên đăng nhập</strong> và <strong>mật khẩu Portal</strong>.</li>
-                        <li>Script tự gắn ổ đĩa và mở File Explorer — không cần cài RaiDrive.</li>
-                    </ol>
-                </div>
-            </div>
-
-            {% if user_shares %}
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-body p-4">
-                    <h3 class="h6 fw-bold text-muted mb-3">Ổ đĩa dự kiến cho bạn</h3>
-                    <div class="d-flex flex-wrap gap-2">
-                        {% for row in drive_preview %}
-                        <span class="badge rounded-pill bg-light text-dark border px-3 py-2 fw-semibold">
-                            {{ row.letter }}: <code class="text-hm">{{ row.share }}</code>
-                        </span>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-            {% else %}
-            <div class="alert alert-warning border-0 shadow-sm mb-4">
-                Chưa gán share NAS cho tài khoản. Liên hệ IT để được cấp quyền trước khi kết nối.
-            </div>
-            {% endif %}
-
-            <div class="card border-0 shadow-sm">
-                <div class="card-body p-4 p-md-5 d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center justify-content-between gap-3">
-                    <div class="small text-muted">
-                        Mật khẩu mặc định <code>justplay@123</code> không dùng được — hãy đổi mật khẩu trên Portal trước.
-                    </div>
-                    <a href="{% url 'nas_storage:nas_download_setup' %}"
-                       class="btn btn-hm btn-lg rounded-pill px-4 fw-bold flex-shrink-0">
-                        <i class="bi bi-download me-2"></i>Tải bộ cài (.zip)
-                    </a>
-                </div>
+    {% if user_shares %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+            <h3 class="h6 fw-bold text-muted mb-3">Ổ đĩa dự kiến cho bạn</h3>
+            <div class="d-flex flex-wrap gap-2">
+                {% for row in drive_preview %}
+                <span class="badge rounded-pill bg-light text-dark border px-3 py-2 fw-semibold">
+                    {{ row.letter }}: <code class="text-hm">{{ row.share }}</code>
+                </span>
+                {% endfor %}
             </div>
         </div>
     </div>
-</div>
-{% endblock %}
+    {% else %}
+    <div class="alert alert-warning border-0 shadow-sm mb-4">
+        Chưa gán share NAS cho tài khoản. Liên hệ IT để được cấp quyền trước khi kết nối.
+    </div>
+    {% endif %}
 
-{% block nas_extra_head %}
-<style>
-.jp-nas-download-page .jp-nas-download-hero {
-    background: linear-gradient(135deg, #fff 0%, #fef2f2 100%);
-}
-.jp-nas-download-icon {
-    width: 4.5rem;
-    height: 4.5rem;
-    border-radius: 1.25rem;
-    background: rgba(220, 38, 38, 0.1);
-    color: #dc2626;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 2rem;
-}
-.jp-nas-download-lead {
-    max-width: 36rem;
-}
-.jp-nas-download-steps li {
-    line-height: 1.55;
-}
-</style>
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-4 p-md-5 d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center justify-content-between gap-3">
+            <div class="small text-muted">
+                Mật khẩu mặc định <code>justplay@123</code> không dùng được — hãy đổi mật khẩu trên Portal trước.
+            </div>
+            <a href="{% url 'documents:nas_download_setup' %}"
+               class="btn btn-hm btn-lg rounded-pill px-4 fw-bold flex-shrink-0">
+                <i class="bi bi-download me-2"></i>Tải bộ cài (.zip)
+            </a>
+        </div>
+    </div>
+</div>
 {% endblock %}

@@ -1,4 +1,4 @@
-"""Smoke + integration test Thư viện → Tải NAS — chạy trước deploy."""
+"""Smoke + integration test Thư viện → Tải bộ cài — chạy trước deploy."""
 import io
 import json
 import os
@@ -125,8 +125,8 @@ def validate_zip_bundle(content: bytes, label: str) -> list[str]:
 
 def main():
     host = settings.ALLOWED_HOSTS[0]
-    url_page = reverse("nas_storage:nas_download")
-    url_zip = reverse("nas_storage:nas_download_setup")
+    url_page = reverse("documents:nas_download")
+    url_zip = reverse("documents:nas_download_setup")
     user = User.objects.filter(is_superuser=True).first()
     if not user:
         print("FAIL: no superuser")
@@ -150,11 +150,9 @@ def main():
     else:
         html = resp.content.decode("utf-8", errors="replace")
         for marker in (
-            "Tải NAS (Windows)",
-            "không cần cài RaiDrive",
-            "cai-dat/tai/",
+            "Tải bộ cài",
+            "tai-nas/tai/",
             "Ket-Noi-NAS-JustPlay.exe",
-            "Cài RustDesk",
         ):
             if marker not in html:
                 failed.append(f"page missing: {marker}")

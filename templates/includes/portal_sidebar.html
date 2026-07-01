@@ -737,15 +737,6 @@
                     </a>
                 </li>
                 {% endif %}
-                {% jp_can_menu 'nas_storage' 'browse' as jp_can_nas_download_link %}
-                {% if jp_can_nas_download_link %}
-                <li>
-                    <a href="{% url 'nas_storage:nas_download' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'nas_download' %}active{% endif %}">
-                        <i class="bi bi-download"></i><span>Tải NAS</span>
-                    </a>
-                </li>
-                {% endif %}
                 {% jp_can_menu 'nas_storage' 'permissions' as jp_can_nas_permissions %}
                 {% if jp_can_nas_permissions %}
                 <li>
@@ -787,6 +778,15 @@
                     <a href="{% url 'documents:qa' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'qa' %}active{% endif %}">
                         <i class="bi bi-chat-dots-fill"></i><span>Hỏi đáp</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% jp_can_menu 'documents' 'nas_download' as jp_can_installer_download %}
+                {% if jp_can_installer_download %}
+                <li>
+                    <a href="{% url 'documents:nas_download' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if 'tai-nas' in request.path or 'cai-dat' in request.path %}active{% endif %}">
+                        <i class="bi bi-download"></i><span>Tải bộ cài</span>
                     </a>
                 </li>
                 {% endif %}

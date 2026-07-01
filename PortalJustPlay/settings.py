@@ -483,7 +483,7 @@ NAS_LDAP_BIND_DN = os.getenv(
 NAS_LDAP_BIND_PASSWORD = os.getenv('NAS_LDAP_BIND_PASSWORD', '').strip()
 NAS_LDAP_SYNC_SKIP_USERNAMES = os.getenv('NAS_LDAP_SYNC_SKIP_USERNAMES', 'admin,ductn').strip()
 NAS_LDAP_DOMAIN = os.getenv('NAS_LDAP_DOMAIN', 'ldap.justplay.local').strip()
-# RaiDrive / NAS ngoài (Thư viện → Tải NAS)
+# RaiDrive / NAS ngoài (Thư viện → Tải bộ cài)
 NAS_WEBDAV_PORT = int(os.getenv('NAS_WEBDAV_PORT', '5678') or '5678')
 NAS_SMB_PORT = int(os.getenv('NAS_SMB_PORT', '445') or '445')
 if NAS_SMB_PORT == 5678:
