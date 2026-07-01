@@ -16,7 +16,7 @@ from kho_npl.choices import (
     STOCK_STATUS_OK,
     STOCK_STATUS_OUT,
 )
-from kho_npl.category_tree import active_category_roots, category_cascade_for_filter, category_children_for_parent
+from kho_npl.category_tree import active_category_roots, category_cascade_for_filter, category_children_for_parent, category_filter_q
 from kho_npl.filter_utils import append_filter_params, parse_int_ids
 from kho_npl.models import Material, MaterialCategory, WarehouseLocation
 from kho_npl.overview_list_columns import (
@@ -93,7 +93,7 @@ def _overview_filtered_rows(request):
         'category', 'unit', 'supplier', 'color', 'specification',
     )
     if category_ids:
-        qs = qs.filter(category_id__in=category_ids)
+        qs = qs.filter(category_filter_q(category_ids))
     if search_query:
         qs = qs.filter(
             Q(code__icontains=search_query)
@@ -127,7 +127,7 @@ def overview(request):
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
-        'categories': MaterialCategory.objects.filter(is_active=True),
+        'category_roots': active_category_roots(),
         'selected_categories': category_ids,
         'selected_status': status,
         'status_choices': OVERVIEW_STOCK_STATUS_CHOICES,
