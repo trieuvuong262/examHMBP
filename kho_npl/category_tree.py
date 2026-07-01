@@ -4,7 +4,7 @@ from django.db.models import Prefetch, Q
 
 from kho_npl.choices import DEFAULT_MATERIAL_CATEGORY_TREE
 from kho_npl.filter_utils import parse_int_ids
-from kho_npl.models import MaterialCategory
+from kho_npl.models import Material, MaterialCategory
 
 
 def ensure_material_category_tree():
