@@ -38,6 +38,7 @@ from kho_npl.doc_attachment import (
     clean_required_doc_attachment,
     validate_doc_attachment,
 )
+from kho_npl.catalog_labels import color_label, spec_label, unit_label
 from kho_npl.services.scrap_warehouse import source_locations_qs
 from kho_npl.services.adjustments import balance_qty
 
@@ -160,13 +161,15 @@ class MaterialForm(forms.ModelForm):
             else f'{obj.name} (nhóm cấp 1 — nên chọn nhóm con)'
         )
         self.fields['color'].queryset = MaterialColor.objects.filter(is_active=True).order_by('sort_order', 'name')
-        self.fields['color'].label_from_instance = lambda obj: f'{obj.name} ({obj.hex_code})'
+        self.fields['color'].label_from_instance = lambda obj: f'{color_label(obj)} ({obj.hex_code})'
         self.fields['color'].required = False
         self.fields['color'].empty_label = '—'
         self.fields['specification'].queryset = MaterialSpecification.objects.filter(is_active=True).order_by('sort_order', 'name')
+        self.fields['specification'].label_from_instance = spec_label
         self.fields['specification'].required = False
         self.fields['specification'].empty_label = '—'
         self.fields['unit'].queryset = Unit.objects.filter(is_active=True)
+        self.fields['unit'].label_from_instance = unit_label
         self.fields['supplier'].queryset = Supplier.objects.filter(is_active=True).order_by('name')
         self.fields['supplier'].label_from_instance = lambda obj: (
             f'{obj.name} ({obj.code})' + (f' — {obj.phone}' if obj.phone else '')

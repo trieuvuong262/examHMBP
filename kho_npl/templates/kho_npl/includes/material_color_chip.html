@@ -1,7 +1,8 @@
+{% load npl_extras %}
 {% if color %}
-<span class="jp-npl-color-chip" title="{{ color.name }}">
+<span class="jp-npl-color-chip" title="{{ color|npl_color }}">
     <span class="jp-npl-color-swatch" style="background-color: {{ color.hex_code }};" aria-hidden="true"></span>
-    <span class="jp-npl-color-name">{{ color.name }}</span>
+    <span class="jp-npl-color-name">{{ color|npl_color }}</span>
 </span>
 {% else %}
 <span class="text-muted">—</span>

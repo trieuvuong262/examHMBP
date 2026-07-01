@@ -99,6 +99,14 @@ def _scope_label(location_ids: list[int] | None, location_id: int | None) -> tup
     return 'Tổng kho chứa', False
 
 
+def _display_order_stock_card_rows(rows: list[dict]) -> list[dict]:
+    """Phiếu mới nhất trên cùng; dòng tồn đầu kỳ (nếu có) ở cuối."""
+    opening_rows = [row for row in rows if row.get('kind') == 'opening']
+    txn_rows = [row for row in rows if row.get('kind') == 'txn']
+    txn_rows.reverse()
+    return txn_rows + opening_rows
+
+
 def build_material_stock_card(
     material: Material,
     *,
@@ -132,6 +140,7 @@ def build_material_stock_card(
         rows.append({
             'kind': 'opening',
             'txn_date': date_from,
+            'txn_datetime': None,
             'ref_number': '',
             'ref_type': '',
             'ref_type_label': 'Tồn đầu kỳ',
@@ -167,7 +176,7 @@ def build_material_stock_card(
         closing = ledger_total
 
     return {
-        'rows': rows,
+        'rows': _display_order_stock_card_rows(rows),
         'opening_balance': opening,
         'closing_balance': closing,
         'totals_in': totals_in,
@@ -271,7 +280,7 @@ def _txn_row(entry: StockLedger, balance_before: Decimal, balance_after: Decimal
     return {
         'kind': 'txn',
         'txn_date': timezone.localtime(entry.created_at).date(),
-        'txn_datetime': entry.created_at,
+        'txn_datetime': timezone.localtime(entry.created_at),
         'ref_number': entry.ref_number,
         'ref_type': entry.ref_type,
         'ref_type_label': REF_LABELS.get(entry.ref_type, entry.ref_type),

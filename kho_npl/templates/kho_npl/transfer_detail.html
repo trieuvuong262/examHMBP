@@ -135,7 +135,7 @@
                         <td class="fw-semibold">{{ line.material.code }}</td>
                         <td>{{ line.material.name }}</td>
                         <td class="text-end fw-semibold">{{ line.quantity|npl_qty_with_unit:line.material.unit }}</td>
-                        <td>{{ line.material.unit.code }}</td>
+                        <td>{{ line.material.unit.name }}</td>
                         <td class="text-muted small">{{ line.notes|default:'—' }}</td>
                     </tr>
                     {% empty %}

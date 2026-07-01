@@ -383,8 +383,8 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
                             <span class="jp-npl-stock-cell-clip">{{ row.material.category.name }}</span>
                         </td>
                         <td class="npl-col" data-col="color">{% include 'kho_npl/includes/material_color_chip.html' with color=row.material.color %}</td>
-                        <td class="npl-col" data-col="unit" title="{{ row.material.unit.name }}">
-                            <span class="jp-npl-stock-cell-clip">{{ row.material.unit.name }}</span>
+                        <td class="npl-col" data-col="unit" title="{{ row.material.unit|npl_unit }}">
+                            <span class="jp-npl-stock-cell-clip">{{ row.material.unit|npl_unit }}</span>
                         </td>
                         <td class="text-end npl-col jp-mat-code fw-semibold" data-col="total_qty" title="{{ row.total_qty|npl_qty_with_unit:row.material.unit }}">
                             <span class="jp-npl-stock-cell-clip">{{ row.total_qty|npl_qty_with_unit:row.material.unit }}</span>

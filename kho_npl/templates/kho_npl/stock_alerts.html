@@ -71,7 +71,7 @@
                             {% if row.material.color %}<span class="text-muted small">· {% include 'kho_npl/includes/material_color_chip.html' with color=row.material.color %}</span>{% endif %}
                         </td>
                         <td>{{ row.material.category.name }}</td>
-                        <td>{{ row.material.specification.name|default:'—' }}</td>
+                        <td>{% if row.material.specification %}{{ row.material.specification|npl_spec }}{% else %}—{% endif %}</td>
                         <td class="text-end">{{ row.total_qty|npl_qty_with_unit:row.material.unit }}</td>
                         <td class="text-end">{{ row.material.min_stock|npl_qty_with_unit:row.material.unit }}</td>
                         <td>{{ row.primary_location|default:'—' }}</td>

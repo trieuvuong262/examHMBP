@@ -2,6 +2,7 @@ from decimal import Decimal, InvalidOperation
 
 from django import template
 
+from kho_npl.catalog_labels import color_label, spec_label, unit_label as catalog_unit_label
 from kho_npl.doc_attachment import attachment_is_image as is_image_attachment
 
 register = template.Library()
@@ -32,11 +33,23 @@ def format_npl_qty(value, max_decimals: int = 3) -> str:
 
 
 def unit_label(unit) -> str:
-    if unit is None:
-        return ''
-    code = getattr(unit, 'code', None)
-    name = getattr(unit, 'name', None)
-    return (code or name or str(unit)).strip()
+    """Nhãn ĐVT hiển thị — ưu tiên tên, không dùng mã."""
+    return catalog_unit_label(unit)
+
+
+@register.filter
+def npl_unit(unit):
+    return unit_label(unit)
+
+
+@register.filter
+def npl_spec(spec):
+    return spec_label(spec)
+
+
+@register.filter
+def npl_color(color):
+    return color_label(color)
 
 
 @register.filter

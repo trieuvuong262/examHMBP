@@ -73,7 +73,7 @@
                         <td>{{ line.material.name }}</td>
                         <td class="text-end">{{ line.quantity|npl_qty_with_unit:line.material.unit }}</td>
                         <td>{{ line.location.display_label }}</td>
-                        <td>{{ line.material.unit.code }}</td>
+                        <td>{{ line.material.unit.name }}</td>
                         <td>{{ line.notes|default:'—' }}</td>
                     </tr>
                     {% empty %}

@@ -1,1 +1,2 @@
-{% if spec %}{{ spec.name }}{% else %}<span class="text-muted">—</span>{% endif %}
+{% load npl_extras %}
+{% if spec %}{{ spec|npl_spec }}{% else %}<span class="text-muted">—</span>{% endif %}

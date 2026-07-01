@@ -6,6 +6,7 @@ from django.http import HttpResponse
 from kho_npl.models import Material, MaterialCategory, MaterialColor, MaterialSpecification, Supplier, Unit
 from kho_npl.services.excel_export import dataframe_to_xlsx_response
 from kho_npl.services.material_colors import resolve_material_color
+from kho_npl.catalog_labels import spec_label
 from kho_npl.services.material_specifications import resolve_material_specification
 
 EXCEL_HEADERS = [
@@ -79,7 +80,7 @@ def material_to_row(material: Material) -> dict:
         'Tên NPL': material.name,
         'Mã nhóm': material.category.code,
         'Màu sắc': material.color.name if material.color_id else '',
-        'Quy cách': material.specification.name if material.specification_id else '',
+        'Quy cách': spec_label(material.specification) if material.specification_id else '',
         'Mã ĐVT': material.unit.code,
         'Mã NCC': material.supplier.code if material.supplier_id else '',
         'Tồn tối thiểu': float(material.min_stock),

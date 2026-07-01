@@ -26,7 +26,8 @@ from kho_npl.material_list_columns import (
 )
 from kho_npl.models import Material, MaterialCategory, StockBalance, WarehouseLocation
 from kho_npl.services.adjustments import balance_qty
-from kho_npl.templatetags.npl_extras import format_npl_qty, unit_label
+from kho_npl.catalog_labels import color_label, spec_label, unit_label
+from kho_npl.templatetags.npl_extras import format_npl_qty
 from kho_npl.services.excel_export import dataframe_to_xlsx_response
 from kho_npl.services.material_import_export import (
     MaterialImportError,
@@ -53,7 +54,7 @@ from kho_npl.view_utils import nav_context, perm_context
 
 
 def _material_search_label(material: Material) -> str:
-    return f'{material.code} — {material.name} ({material.unit.code})'
+    return f'{material.code} — {material.name} ({material.unit.name})'
 
 
 def _material_stock_label(material: Material, qty: Decimal) -> str:
@@ -100,7 +101,8 @@ def material_search(request):
                 Q(code__icontains=q)
                 | Q(name__icontains=q)
                 | Q(color__name__icontains=q)
-                | Q(specification__name__icontains=q),
+                | Q(specification__name__icontains=q)
+                | Q(specification__code__icontains=q),
             )
         browse_limit = 1000 if not q else 50
         materials = list(qs.order_by('name', 'code')[:browse_limit])
@@ -118,7 +120,8 @@ def material_search(request):
                 Q(code__icontains=q)
                 | Q(name__icontains=q)
                 | Q(color__name__icontains=q)
-                | Q(specification__name__icontains=q),
+                | Q(specification__name__icontains=q)
+                | Q(specification__code__icontains=q),
             )
         materials = list(qs.order_by('code')[:40])
         balance_map = {}
@@ -143,8 +146,11 @@ def material_search(request):
             'text': text,
             'code': material.code,
             'name': material.name,
-            'unit': material.unit.code,
+            'unit': unit_label(material.unit),
             'unit_name': material.unit.name,
+            'specification': spec_label(material.specification) if material.specification_id else '',
+            'specification_name': material.specification.name if material.specification_id else '',
+            'color': color_label(material.color) if material.color_id else '',
             'qty': float(balance_map.get(material.pk, Decimal('0'))) if location_id is not None else None,
             'qty_label': (
                 _material_qty_label(material, balance_map.get(material.pk, Decimal('0')))
@@ -194,6 +200,7 @@ def _material_catalog_qs(request):
             | Q(name__icontains=search_query)
             | Q(color__name__icontains=search_query)
             | Q(specification__name__icontains=search_query)
+            | Q(specification__code__icontains=search_query),
         )
     return qs, search_query, category_ids, category_parent_id, show_inactive
 
@@ -241,7 +248,8 @@ def material_list(request):
             Q(code__icontains=search_query)
             | Q(name__icontains=search_query)
             | Q(color__name__icontains=search_query)
-            | Q(specification__name__icontains=search_query),
+            | Q(specification__name__icontains=search_query)
+            | Q(specification__code__icontains=search_query),
         )
     sort_key, sort_dir, order_by = _material_list_sort(request)
     page_obj, query_string = paginate_queryset(request, qs.order_by(order_by, 'code'), per_page=25)
@@ -377,6 +385,7 @@ def material_stock_export(request):
             'Nhóm cấp 1': mat.category.parent.name if mat.category and mat.category.parent_id else '',
             'Nhóm cấp 2': mat.category.name if mat.category_id else '',
             'Màu': mat.color.name if mat.color_id else '',
+            'Quy cách': spec_label(mat.specification) if mat.specification_id else '',
             'ĐVT': mat.unit.name,
             'Tồn hiện tại': float(row['total_qty']),
             'Tối thiểu': float(mat.min_stock),

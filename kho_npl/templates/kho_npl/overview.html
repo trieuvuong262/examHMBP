@@ -305,7 +305,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
                         <td class="npl-col" data-col="name" title="{{ row.material.name }}">{{ row.material.name }}</td>
                         <td class="npl-col" data-col="category" title="{{ row.material.category.name }}">{{ row.material.category.name }}</td>
                         <td class="npl-col" data-col="color">{% include 'kho_npl/includes/material_color_chip.html' with color=row.material.color %}</td>
-                        <td class="npl-col" data-col="unit">{{ row.material.unit.name }}</td>
+                        <td class="npl-col" data-col="unit">{{ row.material.unit|npl_unit }}</td>
                         <td class="text-end npl-col jp-mat-code" data-col="total_qty">{{ row.total_qty|npl_qty_with_unit:row.material.unit }}</td>
                         <td class="text-end npl-col jp-mat-code" data-col="min_stock">{{ row.material.min_stock|npl_qty_with_unit:row.material.unit }}</td>
                         <td class="npl-col" data-col="primary_location">{{ row.primary_location|default:'—' }}</td>

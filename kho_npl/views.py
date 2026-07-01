@@ -31,6 +31,7 @@ from kho_npl.stock_card_catalog_columns import (
 )
 from kho_npl.services.excel_export import dataframe_to_xlsx_response
 from kho_npl.services.scrap_warehouse import filter_storage_location_ids, source_locations_qs
+from kho_npl.catalog_labels import spec_label
 from kho_npl.services.stock import material_stock_rows, overview_stats, stock_rows_for_status
 from kho_npl.services.stock_card import build_material_stock_card, diagnose_stock_mismatch
 from kho_npl.view_utils import nav_context, perm_context
@@ -98,7 +99,8 @@ def _overview_filtered_rows(request):
             Q(code__icontains=search_query)
             | Q(name__icontains=search_query)
             | Q(color__name__icontains=search_query)
-            | Q(specification__name__icontains=search_query),
+            | Q(specification__name__icontains=search_query)
+            | Q(specification__code__icontains=search_query),
         )
 
     rows = material_stock_rows(qs)
@@ -148,6 +150,7 @@ def overview_export(request):
             'Tên NPL': mat.name,
             'Nhóm': mat.category.name,
             'Màu': mat.color.name if mat.color_id else '',
+            'Quy cách': spec_label(mat.specification) if mat.specification_id else '',
             'ĐVT': mat.unit.name,
             'Tồn': float(row['total_qty']),
             'Tối thiểu': float(mat.min_stock),

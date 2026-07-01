@@ -501,7 +501,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
                 <thead class="table-light">
                     <tr>
                         <th>#</th>
-                        <th>Ngày</th>
+                        <th>Thời gian</th>
                         <th>Phiếu</th>
                         <th>Loại</th>
                         <th>Vị trí</th>
@@ -515,7 +515,13 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
                     {% for row in card.rows %}
                     <tr class="{% if row.kind == 'opening' %}table-light fw-semibold{% endif %}">
                         <td>{{ forloop.counter }}</td>
-                        <td>{% if row.txn_date %}{{ row.txn_date|date:'d/m/Y' }}{% else %}—{% endif %}</td>
+                        <td class="text-nowrap">
+                            {% if row.kind == 'opening' %}
+                            {% if row.txn_date %}{{ row.txn_date|date:'d/m/Y' }}{% else %}—{% endif %}
+                            {% elif row.txn_datetime %}
+                            {{ row.txn_datetime|date:'d/m/Y H:i:s' }}
+                            {% else %}—{% endif %}
+                        </td>
                         <td class="jp-npl-ledger-ref">
                             {% if row.ref_url and row.ref_number %}
                             <a href="{{ row.ref_url }}" class="text-decoration-none fw-semibold jp-npl-ledger-clip" title="{{ row.ref_number }}">{{ row.ref_number }}</a>
