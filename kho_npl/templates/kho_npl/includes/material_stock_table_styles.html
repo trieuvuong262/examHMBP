@@ -1,0 +1,156 @@
+<style>
+.jp-npl-material-catalog-page .jp-npl-mat-filter-field.jp-npl-mat-filter-loc {
+    min-width: 7.5rem;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-avatar-btn {
+    display: inline-flex;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    border-radius: 50%;
+    line-height: 0;
+    cursor: zoom-in;
+    vertical-align: middle;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-avatar {
+    width: 2.25rem;
+    height: 2.25rem;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 2px solid var(--bs-border-color);
+    display: block;
+    background: var(--bs-light);
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-avatar-btn:hover .jp-npl-mat-avatar,
+.jp-npl-material-catalog-page .jp-npl-mat-avatar-btn:focus-visible .jp-npl-mat-avatar {
+    border-color: rgba(220, 38, 38, 0.55);
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+    transform: scale(1.06);
+}
+.jp-npl-material-catalog-page .jp-npl-mat-avatar--empty {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    border: 2px dashed var(--bs-border-color-translucent, var(--bs-border-color));
+    font-size: 0.95rem;
+    color: var(--bs-secondary-color);
+    background: var(--bs-light);
+    opacity: 0.75;
+    vertical-align: middle;
+}
+.jp-npl-material-catalog-page #npl-stock-table td[data-col="image"] {
+    overflow: visible;
+    white-space: normal;
+    width: 3rem;
+    padding-left: 0.5rem;
+    padding-right: 0.35rem;
+}
+.jp-npl-material-catalog-page #npl-stock-table th[data-col="image"] {
+    width: 3rem !important;
+}
+.jp-npl-material-catalog-page #npl-stock-table td.npl-col {
+    overflow: hidden;
+    max-width: 0;
+}
+.jp-npl-material-catalog-page #npl-stock-table td.npl-col[data-col="image"],
+.jp-npl-material-catalog-page #npl-stock-table td.npl-col[data-col="detail"],
+.jp-npl-material-catalog-page #npl-stock-table td.npl-col[data-col="stock_status"],
+.jp-npl-material-catalog-page #npl-stock-table td.npl-col[data-col="color"] {
+    max-width: none;
+    overflow: visible;
+}
+.jp-npl-material-catalog-page #npl-stock-table .jp-npl-stock-cell-clip {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+.jp-npl-material-catalog-page #npl-stock-table td.text-end .jp-npl-stock-cell-clip {
+    text-align: end;
+}
+.jp-npl-material-catalog-page #npl-stock-table th[data-col="unit"],
+.jp-npl-material-catalog-page #npl-stock-table td[data-col="unit"] {
+    width: 3.25rem !important;
+    max-width: 4rem;
+}
+.jp-npl-material-catalog-page #npl-stock-table th[data-col="total_qty"],
+.jp-npl-material-catalog-page #npl-stock-table td[data-col="total_qty"] {
+    min-width: 6.5rem;
+}
+.jp-npl-material-catalog-page #npl-stock-table th[data-col="min_stock"],
+.jp-npl-material-catalog-page #npl-stock-table td[data-col="min_stock"] {
+    min-width: 5.5rem;
+}
+.jp-npl-material-catalog-page #npl-stock-table th[data-col="stock_status"],
+.jp-npl-material-catalog-page #npl-stock-table td[data-col="stock_status"] {
+    min-width: 6.75rem;
+}
+.jp-npl-material-catalog-page #npl-stock-table .jp-npl-stock-detail-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.55rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+.jp-npl-material-catalog-page #npl-stock-table .jp-npl-stock-detail-btn .bi {
+    font-size: 0.75rem;
+}
+.jp-npl-material-catalog-page #npl-stock-table tr.jp-npl-stock-row-expandable {
+    cursor: pointer;
+}
+.jp-npl-material-catalog-page #npl-stock-table tr.jp-npl-stock-row-expandable.is-expanded {
+    background: rgba(220, 38, 38, 0.04);
+}
+.jp-npl-material-catalog-page #npl-stock-table tr.jp-npl-stock-loc-row td {
+    background: rgba(15, 23, 42, 0.03);
+    font-size: 0.875rem;
+}
+.jp-npl-material-catalog-page #npl-stock-table tr.jp-npl-stock-loc-row td:not([data-col="name"]) {
+    max-width: none;
+    overflow: visible;
+    white-space: normal;
+}
+.jp-npl-material-catalog-page #npl-stock-table tr.jp-npl-stock-loc-row td[data-col="name"] {
+    overflow: visible;
+    max-width: none;
+}
+.jp-npl-material-catalog-page #npl-stock-table tr.jp-npl-stock-loc-row.is-collapsed {
+    display: none;
+}
+.jp-npl-material-catalog-page #npl-stock-table tr.jp-npl-stock-loc-row {
+    display: table-row;
+}
+.jp-npl-material-catalog-page #npl-stock-table .jp-npl-stock-loc-label {
+    padding-left: 2rem;
+    color: var(--bs-body-color);
+    font-size: 0.875rem;
+    white-space: nowrap;
+    overflow: visible;
+    line-height: 1.35;
+}
+.jp-npl-material-catalog-page #npl-stock-table .jp-npl-stock-loc-label::before {
+    content: '↳';
+    margin-right: 0.35rem;
+    color: var(--hm-red, #dc2626);
+    font-weight: 700;
+}
+.jp-npl-material-catalog-page #npl-stock-table .jp-npl-stock-loc-code {
+    font-weight: 600;
+}
+.jp-npl-material-catalog-page #npl-stock-table .jp-mat-th-label {
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: inherit;
+}
+</style>

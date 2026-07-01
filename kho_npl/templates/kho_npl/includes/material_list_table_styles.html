@@ -1,0 +1,59 @@
+<style>
+.jp-npl-material-catalog-page #npl-material-table .jp-npl-catalog-row[data-href] {
+    cursor: pointer;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-avatar-btn {
+    display: inline-flex;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    border-radius: 50%;
+    line-height: 0;
+    cursor: zoom-in;
+    vertical-align: middle;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-avatar {
+    width: 2.25rem;
+    height: 2.25rem;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 2px solid var(--bs-border-color);
+    display: block;
+    background: var(--bs-light);
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-avatar-btn:hover .jp-npl-mat-avatar,
+.jp-npl-material-catalog-page .jp-npl-mat-avatar-btn:focus-visible .jp-npl-mat-avatar {
+    border-color: rgba(220, 38, 38, 0.55);
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+    transform: scale(1.06);
+}
+.jp-npl-material-catalog-page .jp-npl-mat-avatar--empty {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    border: 2px dashed var(--bs-border-color-translucent, var(--bs-border-color));
+    font-size: 0.95rem;
+    color: var(--bs-secondary-color);
+    background: var(--bs-light);
+    opacity: 0.75;
+    vertical-align: middle;
+}
+.jp-npl-material-catalog-page #npl-material-table td[data-col="image"] {
+    overflow: visible;
+    white-space: normal;
+    width: 3rem;
+    padding-left: 0.5rem;
+    padding-right: 0.35rem;
+}
+.jp-npl-material-catalog-page #npl-material-table th[data-col="image"] {
+    width: 3rem !important;
+}
+.jp-npl-material-catalog-page #npl-material-table th[data-col="status"],
+.jp-npl-material-catalog-page #npl-material-table td[data-col="status"] {
+    min-width: 6.75rem;
+}
+</style>
