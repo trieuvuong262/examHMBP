@@ -63,6 +63,9 @@
     border-radius: 0.5rem 0.5rem 0 0;
     box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.08);
 }
+[data-theme="dark"] .jp-npl-stock-card-page .jp-npl-sc-catalog-section {
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
+}
 .jp-npl-stock-card-page .jp-npl-sc-catalog-section .jp-npl-mat-grid-wrap {
     max-height: var(--jp-npl-sc-catalog-grid-max-h);
     overflow: auto;
@@ -260,7 +263,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
 }
 @media (max-width: 767.98px) {
     .jp-npl-material-catalog-page.jp-npl-stock-card-page {
-        --jp-npl-sc-catalog-grid-max-h: min(34vh, 260px);
+        --jp-npl-sc-catalog-grid-max-h: min(30vh, 240px);
     }
     .jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-mat-topbar-search {
         flex: 1 1 100%; max-width: none; margin-left: 0; order: 3;
@@ -614,6 +617,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
             {% include 'includes/pagination.html' with page_obj=catalog_page query_string=catalog_query_string page_param='cat_page' %}
         </div>
         {% endif %}
+    </div>
     </div>
 </div>
 {% endblock %}
