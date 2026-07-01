@@ -87,10 +87,12 @@
                         <div class="jp-user-detail-avatar" id="jpUserDetailAvatar">
                             {% include 'includes/profile_avatar.html' with profile=profile user=user_instance img_class='jp-hrm-avatar jp-hrm-avatar-img rounded-circle' fallback_class='jp-hrm-avatar rounded-circle' zoomable=True %}
                                     </div>
+                        {% if can_update_user_avatar %}
                         <label class="jp-user-detail-avatar-btn jp-user-form--edit-only" for="id_avatar" title="Đổi avatar">
                             
                         </label>
                         <input type="file" name="avatar" id="id_avatar" class="visually-hidden" accept="image/*">
+                        {% endif %}
                                 </div>
                     <div class="jp-user-detail-hero-text">
                         <div class="jp-user-detail-badges d-flex flex-wrap align-items-center gap-2 mb-2">

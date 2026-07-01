@@ -2,6 +2,7 @@ from hrm.menu_permissions import (
     user_can_access_menu,
     user_can_edit_menu,
 )
+from hrm.avatar_permissions import user_can_update_own_avatar
 from hrm.module_permissions import (
     MODULE_AUDIT,
     MODULE_ANNOUNCEMENTS,
@@ -192,6 +193,7 @@ def portal_permissions(request):
             'jp_can_delete_kpi': False,
             'jp_can_create_equipment': False,
             'jp_can_update_equipment': False,
+            'jp_can_update_own_avatar': False,
             'jp_can_delete_equipment': False,
             'jp_can_create_nas_storage': False,
             'jp_can_delete_nas_storage': False,
@@ -317,6 +319,7 @@ def portal_permissions(request):
         'jp_can_delete_kpi': user_can_delete_module(user, MODULE_KPI),
         'jp_can_create_equipment': user_can_create_module(user, MODULE_EQUIPMENT),
         'jp_can_update_equipment': user_can_update_module(user, MODULE_EQUIPMENT),
+        'jp_can_update_own_avatar': user_can_update_own_avatar(user),
         'jp_can_delete_equipment': user_can_delete_module(user, MODULE_EQUIPMENT),
         'jp_can_create_nas_storage': user_can_create_module(user, MODULE_NAS_STORAGE),
         'jp_can_delete_nas_storage': user_can_delete_module(user, MODULE_NAS_STORAGE),

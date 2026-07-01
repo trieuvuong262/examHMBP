@@ -182,6 +182,31 @@
                                 {% endfor %}
                             </tr>
                             {% endfor %}
+                            {% for extra in row.extras %}
+                            <tr data-module="{{ row.key }}" data-extra="{{ extra.key }}" class="jp-perm-matrix-row jp-perm-submenu-row jp-perm-extra-row">
+                                <td class="jp-perm-sticky-col ps-3">
+                                    <div class="jp-perm-module-cell jp-perm-submenu-cell">
+                                        <span class="jp-perm-submenu-indent" aria-hidden="true"></span>
+                                        <span class="jp-perm-module-name">{{ extra.label }}</span>
+                                    </div>
+                                </td>
+                                <td class="text-center jp-perm-quick-col">
+                                    <span class="jp-perm-na" title="Bật/tắt bằng cột Sửa">—</span>
+                                </td>
+                                {% for action in perm_actions %}
+                                <td class="text-center jp-perm-action-cell jp-perm-col-{{ action }}{% if action != 'update' %} jp-perm-export-na{% endif %}">
+                                    {% if action == 'update' %}
+                                    <label class="jp-perm-switch mb-0">
+                                        {{ extra.field }}
+                                        <span class="jp-perm-switch-ui"></span>
+                                    </label>
+                                    {% else %}
+                                    <span class="jp-perm-na" title="Quyền bổ sung — chỉ cột Sửa">—</span>
+                                    {% endif %}
+                                </td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
                             {% endfor %}
                         </tbody>
                     </table>

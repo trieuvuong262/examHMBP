@@ -17,6 +17,7 @@ from hrm.models import (
     Profile,
     RoleModulePermission,
 )
+from hrm.avatar_permissions import EXTRA_UPDATE_OWN_AVATAR
 from hrm.module_permissions import (
     ALL_MODULE_KEYS,
     MODULE_CHOICES,
@@ -618,7 +619,17 @@ class RolePermissionFormTests(TestCase):
 class ProfileAvatarTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username='avatar_user', password='testpass123')
-        Profile.objects.filter(user=self.user).update(full_name='Avatar Test')
+        avatar_group = PermissionGroup.objects.create(
+            slug='avatar-test-group',
+            name='Avatar test',
+            module_permissions={
+                MODULE_HRM: {'extras': {EXTRA_UPDATE_OWN_AVATAR: True}},
+            },
+        )
+        Profile.objects.filter(user=self.user).update(
+            full_name='Avatar Test',
+            permission_group=avatar_group,
+        )
         self.client = Client()
         self.client.force_login(self.user)
 

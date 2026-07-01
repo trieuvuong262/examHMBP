@@ -3,8 +3,17 @@
         <div class="jp-office-section jp-office-section-vanban">
             <div class="jp-office-section-head">
                 <span class="jp-office-section-title"><i class="bi bi-file-earmark-richtext"></i> Văn bản</span>
+                <button type="button"
+                        class="jp-ck-ribbon-toggle d-md-none"
+                        id="jpCkRibbonToggle"
+                        aria-expanded="false"
+                        aria-controls="jpVanbanEditorRegion"
+                        hidden>
+                    <i class="bi bi-arrows-angle-expand" aria-hidden="true"></i>
+                    <span class="jp-ck-ribbon-toggle-label">Mở thanh công cụ</span>
+                </button>
             </div>
-            <div class="jp-vanban-viewport">
+            <div class="jp-vanban-viewport" id="jpVanbanEditorRegion">
                 <div class="jp-vanban-panel">
                     {{ form.document_html }}
                 </div>

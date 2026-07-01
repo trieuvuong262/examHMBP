@@ -193,6 +193,10 @@ def normalize_module_entry(raw, *, module_key: str) -> dict:
         aggregated = aggregate_module_from_menus(menus, module_key=module_key)
         for action in PERM_ACTIONS:
             five[action] = aggregated.get(action, False)
+
+    extras = entry.get('extras') if isinstance(entry, dict) else None
+    if isinstance(extras, dict) and extras:
+        five['extras'] = {key: bool(value) for key, value in extras.items() if value}
     return five
 
 
@@ -224,6 +228,7 @@ def permissions_from_legacy_role(role: str) -> dict:
 def get_user_group_permissions(user) -> dict:
     """Ma trận quyền hiệu lực của user — {module: {view, create, ...}}."""
     from hrm.module_permissions import bypass_department_modules
+    from hrm.models import PermissionGroup, Profile
 
     if bypass_department_modules(user):
         full = empty_module_perm()
@@ -231,8 +236,16 @@ def get_user_group_permissions(user) -> dict:
         return {key: dict(full) for key in ALL_MODULE_KEYS}
 
     profile = get_profile(user)
-    if profile and profile.permission_group_id:
-        return profile.permission_group.get_permissions()
+    if profile:
+        pg_id = profile.permission_group_id
+        if not pg_id:
+            pg_id = Profile.objects.filter(pk=profile.pk).values_list(
+                'permission_group_id', flat=True,
+            ).first()
+        if pg_id:
+            group = PermissionGroup.objects.filter(pk=pg_id).first()
+            if group:
+                return group.get_permissions()
 
     return permissions_from_legacy_role(user_role(user))
 

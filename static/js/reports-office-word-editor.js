@@ -417,6 +417,83 @@
         });
     }
 
+    function isMobileViewport() {
+        return window.matchMedia('(max-width: 767.98px)').matches;
+    }
+
+    function getRibbonToggleButton() {
+        return document.getElementById('jpCkRibbonToggle');
+    }
+
+    function getWordStudio() {
+        return document.querySelector('.jp-vanban-viewport .jp-word-studio');
+    }
+
+    function setRibbonCollapsed(collapsed) {
+        const studio = getWordStudio();
+        const toggle = getRibbonToggleButton();
+        if (!studio || !toggle) {
+            return;
+        }
+        studio.classList.toggle('is-ck-ribbon-collapsed', collapsed);
+        toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        const label = toggle.querySelector('.jp-ck-ribbon-toggle-label');
+        if (label) {
+            label.textContent = collapsed ? 'Mở thanh công cụ' : 'Thu gọn công cụ';
+        }
+        const icon = toggle.querySelector('i');
+        if (icon) {
+            icon.className = collapsed
+                ? 'bi bi-arrows-angle-expand'
+                : 'bi bi-arrows-angle-contract';
+        }
+        Object.keys(CKEDITOR.instances || {}).forEach(function (key) {
+            resizeEditor(CKEDITOR.instances[key]);
+        });
+    }
+
+    function syncRibbonToggleVisibility() {
+        const toggle = getRibbonToggleButton();
+        const studio = getWordStudio();
+        if (!toggle || !studio) {
+            return;
+        }
+        const mobile = isMobileViewport();
+        toggle.hidden = !mobile;
+        if (!mobile) {
+            studio.classList.remove('is-ck-ribbon-collapsed');
+            toggle.setAttribute('aria-expanded', 'true');
+            return;
+        }
+        if (!toggle.dataset.jpRibbonBound) {
+            return;
+        }
+        const collapsed = studio.classList.contains('is-ck-ribbon-collapsed');
+        toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    }
+
+    function bindMobileRibbonToggle() {
+        const toggle = getRibbonToggleButton();
+        const studio = getWordStudio();
+        if (!toggle || !studio || toggle.dataset.jpRibbonBound === '1') {
+            return;
+        }
+        toggle.dataset.jpRibbonBound = '1';
+        if (isMobileViewport()) {
+            studio.classList.add('is-ck-ribbon-collapsed');
+            toggle.setAttribute('aria-expanded', 'false');
+            const label = toggle.querySelector('.jp-ck-ribbon-toggle-label');
+            if (label) {
+                label.textContent = 'Mở thanh công cụ';
+            }
+        }
+        toggle.hidden = !isMobileViewport();
+        toggle.addEventListener('click', function () {
+            const collapsed = studio.classList.contains('is-ck-ribbon-collapsed');
+            setRibbonCollapsed(!collapsed);
+        });
+    }
+
     function buildConfig() {
         const cfg = Object.assign({}, window.JP_WORD_EDITOR_CFG);
         const inVanban = !!document.querySelector('.jp-vanban-viewport');
@@ -458,6 +535,8 @@
             if (document.getElementById('office-report-form')?.dataset.reportLocked) {
                 existing.setReadOnly(true);
             }
+            bindMobileRibbonToggle();
+            syncRibbonToggleVisibility();
             resizeEditor(existing);
             bindImageWidgetHooks(existing);
             initImageWidgets(existing);
@@ -490,6 +569,8 @@
             studio.classList.add('is-ready');
             window.JP_WORD_EDITOR_READY = true;
             bindImageWidgetHooks(editor);
+            bindMobileRibbonToggle();
+            syncRibbonToggleVisibility();
             resizeEditor(editor);
             initImageWidgets(editor);
             if (document.getElementById('office-report-form')?.dataset.reportLocked) {
@@ -523,6 +604,7 @@
         }
 
         window.addEventListener('resize', function () {
+            syncRibbonToggleVisibility();
             Object.keys(CKEDITOR.instances || {}).forEach(function (key) {
                 resizeEditor(CKEDITOR.instances[key]);
             });

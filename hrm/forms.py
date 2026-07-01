@@ -42,6 +42,11 @@ from hrm.group_permissions import (
     normalize_module_entry,
 )
 from hrm.submenu_registry import get_module_submenus, perm_field_name, submenu_perm_view_only
+from hrm.avatar_permissions import (
+    EXTRA_PERM_LABELS,
+    MODULE_EXTRA_PERMS,
+    extra_field_name,
+)
 from hrm.user_search import (
     subordinate_candidate_queryset,
     subordinate_scope_hint,
@@ -1052,6 +1057,28 @@ class PermissionGroupPermissionForm(forms.Form):
                         label=f'{PERM_ACTION_LABELS[action]} — {sm["label"]}',
                         widget=forms.CheckboxInput(attrs=dict(widget_attrs)),
                     )
+            extras = mod.get('extras') if isinstance(mod.get('extras'), dict) else {}
+            for extra_key in MODULE_EXTRA_PERMS.get(module_key, ()):
+                field_name = extra_field_name(module_key, extra_key)
+                self.fields[field_name] = forms.BooleanField(
+                    required=False,
+                    initial=bool(extras.get(extra_key)),
+                    label=EXTRA_PERM_LABELS.get(extra_key, extra_key),
+                    widget=forms.CheckboxInput(attrs={'class': 'jp-perm-switch-input'}),
+                )
+
+    def _module_extras_rows(self, module_key: str):
+        rows = []
+        for extra_key in MODULE_EXTRA_PERMS.get(module_key, ()):
+            field_name = extra_field_name(module_key, extra_key)
+            if field_name not in self.fields:
+                continue
+            rows.append({
+                'key': extra_key,
+                'label': EXTRA_PERM_LABELS.get(extra_key, extra_key),
+                'field': self[field_name],
+            })
+        return rows
 
     def module_rows(self):
         rows = []
@@ -1081,6 +1108,7 @@ class PermissionGroupPermissionForm(forms.Form):
                 'view_export_only': module_key in MODULE_VIEW_EXPORT_ONLY,
                 'has_submenus': bool(submenus),
                 'submenus': submenu_rows,
+                'extras': self._module_extras_rows(module_key),
                 'fields': {
                     action: self[perm_field_name(action, module_key)]
                     for action in PERM_ACTIONS
@@ -1131,6 +1159,7 @@ class PermissionGroupPermissionForm(forms.Form):
                         'view_export_only': False,
                         'has_submenus': True,
                         'submenus': hub_submenus,
+                        'extras': [],
                         'fields': {},
                     })
                     hub_inserted = True
@@ -1193,6 +1222,12 @@ class PermissionGroupPermissionForm(forms.Form):
                     entry[PERM_EXPORT] = False
                 if any(entry[a] for a in ('create', 'update', 'delete', 'export')):
                     entry['view'] = True
+            extras = {}
+            for extra_key in MODULE_EXTRA_PERMS.get(module_key, ()):
+                if self.cleaned_data.get(extra_field_name(module_key, extra_key)):
+                    extras[extra_key] = True
+            if extras:
+                entry['extras'] = extras
             result[module_key] = entry
         return {
             module_key: normalize_module_entry(entry, module_key=module_key)

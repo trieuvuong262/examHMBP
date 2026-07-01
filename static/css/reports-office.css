@@ -858,6 +858,47 @@
     color: var(--hm-primary, #dc2626);
 }
 
+/* Mobile — thu gọn / mở rộng ribbon CKEditor */
+.jp-ck-ribbon-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.65rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    background: #fff;
+    color: #334155;
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1.2;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.jp-ck-ribbon-toggle i {
+    font-size: 0.95rem;
+    color: var(--hm-primary, #dc2626);
+}
+
+@media (max-width: 767.98px) {
+    .jp-word-studio.is-ck-ribbon-collapsed .cke_top {
+        display: none !important;
+    }
+
+    .jp-vanban-viewport {
+        --jp-vanban-viewport-h: min(62vh, calc(100dvh - 11rem));
+    }
+
+    .jp-vanban-panel {
+        padding: 0.5rem;
+    }
+}
+
+[data-theme="dark"] .jp-ck-ribbon-toggle {
+    background: var(--jp-surface-bg, #1e293b);
+    border-color: var(--jp-surface-border, #334155);
+    color: var(--jp-text-primary, #e2e8f0);
+}
+
 .jp-sheet-tools-inline {
     padding: 0;
     background: transparent;

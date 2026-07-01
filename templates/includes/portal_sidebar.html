@@ -913,6 +913,7 @@
         <a href="{% url 'password_change' %}" class="jp-sidebar-link jp-sidebar-link-muted">
             <i class="bi bi-shield-lock"></i><span>Đổi mật khẩu</span>
         </a>
+        {% if jp_can_update_own_avatar %}
         <form action="{% url 'update_avatar' %}" method="post" enctype="multipart/form-data" class="m-0 jp-sidebar-avatar-form">
             {% csrf_token %}
             <input type="hidden" name="next" value="{{ request.get_full_path }}">
@@ -921,6 +922,7 @@
                 <i class="bi bi-camera"></i><span>Cập nhật avatar</span>
             </button>
         </form>
+        {% endif %}
         <form action="{% url 'logout' %}" method="POST" class="m-0">
             {% csrf_token %}
             <button type="submit" class="jp-sidebar-link jp-sidebar-link-muted jp-sidebar-logout w-100 border-0 bg-transparent text-start">

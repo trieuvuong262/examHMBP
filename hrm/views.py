@@ -157,6 +157,7 @@ def _user_edit_page_context(profile):
 
 
 def _user_edit_render_context(profile, user_obj, request, *, list_return_query: str = ''):
+    from hrm.avatar_permissions import user_can_update_profile_avatar
     from hrm.module_permissions import user_can_update_module
 
     if not list_return_query and request.method == 'POST':
@@ -169,6 +170,7 @@ def _user_edit_render_context(profile, user_obj, request, *, list_return_query: 
         **_user_edit_page_context(profile),
         'concurrent_slot_save_url': reverse('user_concurrent_slot_save', args=[user_obj.id]),
         'can_update_user': user_can_update_module(request.user, MODULE_HRM),
+        'can_update_user_avatar': user_can_update_profile_avatar(request.user, profile),
         'list_return_query': list_return_query,
         'user_list_url': (
             f"{reverse('user_list')}?{list_return_query}"
@@ -565,22 +567,27 @@ def user_edit(request, user_id):
 
             avatar_upload = request.FILES.get('avatar')
             if avatar_upload:
-                avatar_result = _save_profile_avatar(profile, avatar_upload, request)
-                if avatar_result is False:
-                    concurrent_formset = ProfileConcurrentPositionEditFormSet(
-                        instance=profile,
-                        prefix='concurrent',
-                    )
-                    return render(request, 'assessment/admin/user_form.html', {
-                        'form': form,
-                        'concurrent_formset': concurrent_formset,
-                        'title': profile.full_name or user_obj.username,
-                        'is_edit': True,
-                        'user_instance': user_obj,
-                        'profile': profile,
-                        'force_edit_mode': True,
-                        **_user_edit_render_context(profile, user_obj, request),
-                    })
+                from hrm.avatar_permissions import user_can_update_profile_avatar
+
+                if not user_can_update_profile_avatar(request.user, profile):
+                    messages.error(request, 'Bạn không có quyền cập nhật avatar cho nhân viên này.')
+                else:
+                    avatar_result = _save_profile_avatar(profile, avatar_upload, request)
+                    if avatar_result is False:
+                        concurrent_formset = ProfileConcurrentPositionEditFormSet(
+                            instance=profile,
+                            prefix='concurrent',
+                        )
+                        return render(request, 'assessment/admin/user_form.html', {
+                            'form': form,
+                            'concurrent_formset': concurrent_formset,
+                            'title': profile.full_name or user_obj.username,
+                            'is_edit': True,
+                            'user_instance': user_obj,
+                            'profile': profile,
+                            'force_edit_mode': True,
+                            **_user_edit_render_context(profile, user_obj, request),
+                        })
 
             messages.success(request, f"Cập nhật {profile.full_name} thành công!")
             return redirect_user_list_preserve_filters(request, from_post=True)
@@ -1583,6 +1590,12 @@ def update_avatar(request):
     if not profile:
         messages.error(request, 'Không tìm thấy hồ sơ nhân viên.')
         return redirect('home_portal')
+
+    from hrm.avatar_permissions import user_can_update_profile_avatar
+
+    if not user_can_update_profile_avatar(request.user, profile):
+        messages.error(request, 'Bạn không có quyền cập nhật avatar.')
+        return redirect(request.POST.get('next') or request.META.get('HTTP_REFERER') or reverse('home_portal'))
 
     if _save_profile_avatar(profile, upload, request) is False:
         return redirect(request.POST.get('next') or request.META.get('HTTP_REFERER') or reverse('home_portal'))
