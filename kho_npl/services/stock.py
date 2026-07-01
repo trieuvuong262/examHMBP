@@ -10,10 +10,13 @@ from kho_npl.choices import (
     STOCK_STATUS_OUT,
 )
 from kho_npl.models import Material, StockBalance
+from kho_npl.services.scrap_warehouse import exclude_scrap_locations
 
 
 def material_total_qty(material: Material) -> Decimal:
-    total = material.balances.aggregate(total=Sum('quantity'))['total']
+    total = exclude_scrap_locations(
+        StockBalance.objects.filter(material=material),
+    ).aggregate(total=Sum('quantity'))['total']
     return total or Decimal('0')
 
 
@@ -73,14 +76,17 @@ def stock_status_for_qty(quantity: Decimal, min_stock: Decimal) -> str:
 
 def material_stock_rows(queryset=None, location_ids: list[int] | None = None):
     """Tổng hợp tồn theo NPL — dùng cho tổng quan và danh sách tồn."""
+    from kho_npl.services.scrap_warehouse import source_locations_qs
+
+    storage_ids = set(source_locations_qs().values_list('pk', flat=True))
     qs = queryset or Material.objects.filter(is_active=True).select_related(
         'category', 'unit', 'supplier', 'color', 'specification', 'category__parent',
     ).prefetch_related('balances__location')
-    loc_set = set(location_ids or [])
+    loc_set = set(location_ids or []) & storage_ids if location_ids else storage_ids
     rows = []
     for material in qs:
-        balances = list(material.balances.all())
-        if loc_set:
+        balances = [b for b in material.balances.all() if b.location_id in storage_ids]
+        if loc_set != storage_ids:
             balances = [b for b in balances if b.location_id in loc_set]
         total = sum((b.quantity for b in balances), Decimal('0'))
         location_balances = sorted(
@@ -134,11 +140,13 @@ def balance_stock_rows(
     active_materials_only=True,
 ):
     """Tồn theo NPL × vị trí — màn Thẻ kho."""
-    qs = StockBalance.objects.select_related(
-        'material__category',
-        'material__unit',
-        'material__supplier',
-        'location',
+    qs = exclude_scrap_locations(
+        StockBalance.objects.select_related(
+            'material__category',
+            'material__unit',
+            'material__supplier',
+            'location',
+        ),
     )
     if active_materials_only:
         qs = qs.filter(material__is_active=True)

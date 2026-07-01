@@ -1,0 +1,73 @@
+{% load static %}
+<style>
+.jp-npl-inline-error-hidden {
+    display: none !important;
+}
+.jp-npl-validated-form .jp-npl-label-invalid,
+.jp-npl-doc-form .jp-npl-label-invalid,
+form.jp-npl-validated-form thead th.jp-npl-label-invalid,
+form.jp-npl-doc-form thead th.jp-npl-label-invalid {
+    color: var(--hm-red, #dc2626) !important;
+    font-weight: 700 !important;
+}
+.jp-npl-validated-form .is-invalid,
+.jp-npl-doc-form .is-invalid,
+.jp-npl-validated-form input.form-control.is-invalid,
+.jp-npl-doc-form input.form-control.is-invalid,
+.jp-npl-validated-form input.form-control.jp-npl-qty-invalid,
+.jp-npl-doc-form input.form-control.jp-npl-qty-invalid,
+.jp-npl-validated-form .ts-wrapper.is-invalid .ts-control,
+.jp-npl-doc-form .ts-wrapper.is-invalid .ts-control,
+.jp-npl-validated-form .ts-control.is-invalid,
+.jp-npl-doc-form .ts-control.is-invalid {
+    border-color: var(--hm-red, #dc2626) !important;
+    box-shadow: 0 0 0 0.15rem rgba(220, 38, 38, 0.12) !important;
+}
+.jp-npl-validated-form td.jp-npl-cell-invalid,
+.jp-npl-doc-form td.jp-npl-cell-invalid {
+    background-color: rgba(220, 38, 38, 0.04);
+}
+.jp-npl-validation-modal .modal-header {
+    border-bottom-color: rgba(220, 38, 38, 0.2);
+}
+.jp-npl-validation-modal .modal-title {
+    color: var(--hm-red, #dc2626);
+    font-weight: 700;
+}
+.jp-npl-validation-list {
+    margin: 0;
+    padding-left: 1.15rem;
+}
+.jp-npl-validation-list-item {
+    margin-bottom: 0.35rem;
+    font-weight: 600;
+}
+.jp-npl-validation-list-item:last-child {
+    margin-bottom: 0;
+}
+</style>
+
+<div class="modal fade jp-npl-validation-modal" id="jpNplValidationModal" tabindex="-1"
+     aria-labelledby="jpNplValidationModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header">
+                <h5 class="modal-title jp-npl-validation-title" id="jpNplValidationModalTitle">
+                    <i class="bi bi-exclamation-circle me-2"></i><span class="jp-npl-validation-title-text">Thiếu thông tin bắt buộc</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3 mb-md-3 jp-npl-validation-hint">
+                    Vui lòng bổ sung các trường sau trước khi lưu.
+                </p>
+                <ul class="jp-npl-validation-list"></ul>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-hm fw-bold px-4" data-bs-dismiss="modal">Đã hiểu</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'js/kho_npl/form_validation.js' %}?v=20260625f"></script>

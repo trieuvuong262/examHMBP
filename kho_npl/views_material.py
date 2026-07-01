@@ -34,6 +34,7 @@ from kho_npl.services.material_import_export import (
     import_materials_from_excel,
     sample_template_xlsx,
 )
+from kho_npl.services.scrap_warehouse import filter_storage_location_ids, source_locations_qs
 from kho_npl.services.stock import material_stock_rows
 from kho_npl.stock_list_columns import (
     STOCK_LIST_COLUMNS,
@@ -283,7 +284,7 @@ def _stock_list_sort(request):
 
 def _stock_filtered_rows(request):
     qs, search_query, category_ids, category_parent_id, show_inactive = _material_catalog_qs(request)
-    location_ids = parse_int_ids(request, 'location')
+    location_ids = filter_storage_location_ids(parse_int_ids(request, 'location'))
     status = (request.GET.get('status') or '').strip().lower()
     if status not in (STOCK_STATUS_OK, STOCK_STATUS_LOW, STOCK_STATUS_OUT):
         status = ''
@@ -312,7 +313,7 @@ def material_stock_list(request):
         'query_string': query_string,
         'search_query': search_query,
         'category_roots': active_category_roots(),
-        'locations': WarehouseLocation.objects.filter(is_active=True),
+        'locations': source_locations_qs(),
         'selected_categories': category_ids,
         'selected_locations': location_ids,
         'selected_status': status,
@@ -334,7 +335,7 @@ def material_stock_detail(request, pk):
         ),
         pk=pk,
     )
-    location_ids = parse_int_ids(request, 'location')
+    location_ids = filter_storage_location_ids(parse_int_ids(request, 'location'))
     rows = material_stock_rows(
         Material.objects.filter(pk=pk),
         location_ids=location_ids or None,

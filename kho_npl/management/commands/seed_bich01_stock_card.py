@@ -326,7 +326,6 @@ class Command(BaseCommand):
             disposal = StockDisposal.objects.create(
                 number=_num('PH', idx),
                 disposal_date=today - timedelta(days=74 - idx * 4),
-                from_location=loc_b2,
                 reason=reason,
                 created_by=user,
                 notes=f'Hủy bịch rách / lỗi in — {DEMO_NOTE}',
@@ -335,6 +334,7 @@ class Command(BaseCommand):
                 disposal=disposal,
                 material=material,
                 quantity=qty,
+                location=loc_b2,
                 notes='Lô demo',
             )
             post_stock_disposal(disposal, user)

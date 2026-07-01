@@ -3,6 +3,7 @@
 
 {% block extra_head %}
 {% include 'kho_npl/includes/stocktake_count_styles.html' %}
+{% include 'kho_npl/includes/form_validation_assets.html' %}
 {% endblock %}
 
 {% block content %}
@@ -15,7 +16,8 @@
             · {{ line_count }} dòng NPL
         </p>
     </div>
-    <form method="post" id="count-form" data-loading-message="Đang lưu kiểm kê…">{% csrf_token %}{{ formset.management_form }}
+    <form method="post" id="count-form" class="jp-npl-validated-form" data-loading-message="Đang lưu kiểm kê…">{% csrf_token %}{{ formset.management_form }}
+        {% if formset.non_form_errors %}<div class="alert alert-danger">{{ formset.non_form_errors }}</div>{% endif %}
 
         <div class="jp-npl-stk-count-actions">
             <button type="submit" name="action" value="save" class="btn btn-outline-hm fw-bold btn-sm">
@@ -30,10 +32,6 @@
                 <i class="bi bi-arrow-left me-1"></i>Quay lại
             </a>
         </div>
-
-        {% if formset.non_form_errors %}
-        <div class="alert alert-danger mb-3">{{ formset.non_form_errors }}</div>
-        {% endif %}
 
         <div class="card border-0 shadow-sm overflow-hidden mb-3">
             <div class="jp-npl-stk-count-toolbar">
@@ -74,8 +72,8 @@
                                 <div class="small text-muted">{{ line_form.instance.material.name }}</div>
                             </td>
                             <td class="text-end">{{ line_form.instance.system_qty|npl_qty_with_unit:line_form.instance.material.unit }}</td>
-                            <td>{{ line_form.actual_qty }}</td>
-                            <td>{{ line_form.notes }}</td>
+                            <td>{{ line_form.actual_qty }}{% if line_form.actual_qty.errors %}<div class="text-danger small">{{ line_form.actual_qty.errors }}</div>{% endif %}</td>
+                            <td>{{ line_form.notes }}{% if line_form.notes.errors %}<div class="text-danger small">{{ line_form.notes.errors }}</div>{% endif %}</td>
                         </tr>
                         {% endfor %}
                         <tr id="stk-count-empty" class="jp-npl-stk-count-empty">

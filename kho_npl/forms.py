@@ -875,7 +875,7 @@ class StockTransferForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.warehouse_locked = kwargs.pop('warehouse_locked', False)
         super().__init__(*args, **kwargs)
-        self.fields['notes'].required = True
+        self.fields['notes'].required = False
         self.fields['attachment'].required = True
         locations = WarehouseLocation.objects.filter(is_active=True)
         self.fields['from_location'].queryset = locations
@@ -946,6 +946,7 @@ class StockTransferLineForm(forms.ModelForm):
         else:
             self.fields['material'].queryset = Material.objects.none()
         self.fields['material'].empty_label = None
+        self.fields['notes'].required = False
 
     def _from_location_id_for_stock(self) -> str:
         lock = (self.data.get('wh_lock_from') or '').strip()
@@ -961,9 +962,6 @@ class StockTransferLineForm(forms.ModelForm):
             return cleaned
         material = cleaned.get('material')
         qty = cleaned.get('quantity')
-        notes = (cleaned.get('notes') or '').strip()
-        if material and not notes:
-            self.add_error('notes', 'Vui lòng nhập ghi chú dòng.')
         from_location_id = self._from_location_id_for_stock()
         if material and qty is not None and from_location_id.isdigit():
             location = WarehouseLocation.objects.filter(
@@ -1043,10 +1041,9 @@ StockTransferLineFormSet = inlineformset_factory(
 class StockDisposalForm(forms.ModelForm):
     class Meta:
         model = StockDisposal
-        fields = ['disposal_date', 'from_location', 'reason', 'notes', 'attachment']
+        fields = ['disposal_date', 'reason', 'notes', 'attachment']
         widgets = {
-            'disposal_date': forms.DateInput(attrs={**FORM_CONTROL, 'type': 'date'}),
-            'from_location': forms.Select(attrs=FORM_SELECT),
+            'disposal_date': forms.DateInput(attrs=DOC_DATE_INPUT, format=DOC_DATE_DISPLAY_FORMAT),
             'reason': forms.Select(attrs=FORM_SELECT),
             'notes': forms.Textarea(attrs=FORM_TEXTAREA),
             'attachment': FORM_ATTACHMENT,
@@ -1054,13 +1051,10 @@ class StockDisposalForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['from_location'].queryset = source_locations_qs()
         if not self.instance.pk:
             self.initial.setdefault('disposal_date', timezone.localdate())
-            default = source_locations_qs().filter(code='MAIN').first()
-            if default:
-                self.initial.setdefault('from_location', default.pk)
         self.fields['attachment'].required = False
+        self.fields['disposal_date'].input_formats = DOC_DATE_INPUT_FORMATS
 
     def clean_attachment(self):
         uploaded = self.cleaned_data.get('attachment')
@@ -1072,7 +1066,7 @@ class StockDisposalForm(forms.ModelForm):
 class StockDisposalLineForm(forms.ModelForm):
     class Meta:
         model = StockDisposalLine
-        fields = ['material', 'quantity', 'notes']
+        fields = ['material', 'quantity', 'location', 'notes']
         widgets = {
             'material': forms.Select(attrs={
                 **FORM_SELECT,
@@ -1080,7 +1074,8 @@ class StockDisposalLineForm(forms.ModelForm):
                 'data-placeholder': 'Gõ tên hoặc mã NPL...',
             }),
             'quantity': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0.001'}),
-            'notes': forms.TextInput(attrs=FORM_CONTROL),
+            'location': forms.Select(attrs=LOCATION_ROW_SELECT),
+            'notes': forms.TextInput(attrs={**FORM_CONTROL, 'class': 'form-control jp-npl-line-notes'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -1094,10 +1089,32 @@ class StockDisposalLineForm(forms.ModelForm):
             self.fields['material'].queryset = (
                 Material.objects.filter(pk=material_id).select_related('unit')
             )
+            self.fields['material'].label_from_instance = lambda material: material.name
         else:
             self.fields['material'].queryset = Material.objects.none()
-        self.fields['material'].empty_label = 'Gõ tên hoặc mã để tìm...'
+        self.fields['material'].empty_label = None
+        self.fields['location'].queryset = source_locations_qs().order_by('code')
+        self.fields['location'].label_from_instance = lambda obj: obj.display_label()
         self.fields['notes'].required = False
+        default_location = source_locations_qs().filter(code='MAIN').first()
+        if default_location and not self.instance.pk:
+            self.initial.setdefault('location', default_location.pk)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get('DELETE'):
+            return cleaned_data
+        material = cleaned_data.get('material')
+        location = cleaned_data.get('location')
+        qty = cleaned_data.get('quantity')
+        if material and location and qty is not None:
+            available = balance_qty(material, location)
+            if qty > available:
+                self.add_error(
+                    'quantity',
+                    f'Số lượng hủy vượt tồn tại vị trí (tồn {available}).',
+                )
+        return cleaned_data
 
     def full_clean(self):
         if self.data:

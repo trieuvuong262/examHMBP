@@ -58,11 +58,11 @@ class StockDisposalWorkflowTests(TestCase):
         disposal = StockDisposal.objects.create(
             number=f'PH-TEST-{StockDisposalWorkflowTests._seq:02d}',
             disposal_date=timezone.localdate(),
-            from_location=self.from_loc,
             created_by=self.user,
         )
         StockDisposalLine.objects.create(
             disposal=disposal, material=self.material, quantity=qty,
+            location=self.from_loc,
         )
         return disposal
 

@@ -1,6 +1,6 @@
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Min, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
@@ -56,15 +56,20 @@ def disposal_list(request):
     search_query = get_search_query(request)
     status = doc_status_filter(request, choices=DOC_STATUS_FILTER_CHOICES)
     sort_key, sort_dir, order = doc_list_sort(request, DISPOSAL_LIST_SORT_FIELDS, default_key='disposal_date')
-    qs = StockDisposal.objects.select_related('from_location', 'created_by', 'posted_by')
+    qs = (
+        StockDisposal.objects.select_related('created_by', 'posted_by')
+        .annotate(source_location_sort=Min('lines__location__name'))
+        .prefetch_related('lines__location')
+    )
     if status:
         qs = qs.filter(status=status)
     if search_query:
         qs = qs.filter(
             Q(number__icontains=search_query)
-            | Q(from_location__name__icontains=search_query)
+            | Q(lines__location__name__icontains=search_query)
+            | Q(lines__location__code__icontains=search_query)
             | Q(notes__icontains=search_query)
-        )
+        ).distinct()
     qs = qs.order_by(order, '-pk')
     page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'kho_npl/disposal_list.html', {
@@ -87,8 +92,8 @@ def disposal_list(request):
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def disposal_detail(request, pk):
     disposal = get_object_or_404(
-        StockDisposal.objects.select_related('from_location', 'created_by', 'posted_by')
-        .prefetch_related('lines__material__unit'),
+        StockDisposal.objects.select_related('created_by', 'posted_by')
+        .prefetch_related('lines__material__unit', 'lines__location'),
         pk=pk,
     )
     return render(request, 'kho_npl/disposal_detail.html', {

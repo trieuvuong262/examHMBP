@@ -19,7 +19,7 @@
         </a>
     </div>
 
-    <form method="post" id="issue-form" class="jp-npl-doc-form" enctype="multipart/form-data" novalidate
+    <form method="post" id="issue-form" class="jp-npl-doc-form jp-npl-validated-form" enctype="multipart/form-data" novalidate
           data-npl-doc-lines
           data-material-search-url="{% url 'kho_npl:material_search' %}"
           data-material-in-stock-only="1"
@@ -29,7 +29,8 @@
           data-employee-search-url="{% url 'kho_npl:recipient_search' %}"
           data-location-mode="row"
           data-stock-target="text"
-          data-validate-qty-stock="1">
+          data-validate-qty-stock="1"
+          data-validate-qty-zero="1">
         {% csrf_token %}
         {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
 

@@ -9,6 +9,7 @@ from django.db.models import Sum
 from django.utils import timezone
 
 from kho_npl.models import Material, StockBalance, StockLedger, WarehouseLocation
+from kho_npl.services.scrap_warehouse import exclude_scrap_locations, source_locations_qs
 from kho_npl.services.stock import material_total_qty
 
 REF_LABELS = {
@@ -26,7 +27,7 @@ def _apply_location_filter(qs, location_id: int | None = None, location_ids: lis
         return qs.filter(location_id__in=location_ids)
     if location_id:
         return qs.filter(location_id=location_id)
-    return qs
+    return exclude_scrap_locations(qs)
 
 
 def _ledger_qs(
@@ -59,9 +60,8 @@ def stock_balance_total(
     location_ids: list[int] | None = None,
 ) -> Decimal:
     if location_ids:
-        total = StockBalance.objects.filter(
-            material=material,
-            location_id__in=location_ids,
+        total = exclude_scrap_locations(
+            StockBalance.objects.filter(material=material, location_id__in=location_ids),
         ).aggregate(total=Sum('quantity'))['total']
         return total or Decimal('0')
     if location_id:
@@ -96,7 +96,7 @@ def _scope_label(location_ids: list[int] | None, location_id: int | None) -> tup
     if location_id:
         loc = WarehouseLocation.objects.filter(pk=location_id).first()
         return (loc.display_label() if loc else 'Vị trí'), True
-    return 'Tổng mọi kệ', False
+    return 'Tổng kho chứa', False
 
 
 def build_material_stock_card(
@@ -212,14 +212,18 @@ def diagnose_stock_mismatch(material: Material) -> dict:
     location_rows = []
 
     ledger_loc_ids = set(
-        StockLedger.objects.filter(material=material).values_list('location_id', flat=True).distinct(),
+        exclude_scrap_locations(
+            StockLedger.objects.filter(material=material),
+        ).values_list('location_id', flat=True).distinct(),
     )
     balance_loc_ids = set(
-        StockBalance.objects.filter(material=material).exclude(quantity=0).values_list('location_id', flat=True),
+        exclude_scrap_locations(
+            StockBalance.objects.filter(material=material),
+        ).exclude(quantity=0).values_list('location_id', flat=True),
     )
     loc_ids = ledger_loc_ids | balance_loc_ids
 
-    locations = WarehouseLocation.objects.filter(id__in=loc_ids).order_by('code')
+    locations = source_locations_qs().filter(id__in=loc_ids).order_by('code')
     for loc in locations:
         bal = StockBalance.objects.filter(material=material, location=loc).first()
         balance_qty = bal.quantity if bal else Decimal('0')

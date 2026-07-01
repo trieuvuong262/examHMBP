@@ -18,12 +18,14 @@
         </a>
     </div>
 
-    <form method="post" id="adjustment-form" enctype="multipart/form-data" novalidate
+    <form method="post" id="adjustment-form" class="jp-npl-validated-form" enctype="multipart/form-data" novalidate
           data-npl-doc-lines
           data-material-search-url="{% url 'kho_npl:material_search' %}"
           data-balance-url="{% url 'kho_npl:balance_lookup' %}"
           data-location-mode="row"
-          data-stock-target="field">
+          data-stock-target="field"
+          data-qty-field-suffix="actual_qty"
+          data-validate-qty-zero="1">
         {% csrf_token %}
         {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
 
@@ -33,10 +35,12 @@
                     <div class="col-md-4">
                         <label class="form-label fw-bold small">Ngày điều chỉnh</label>
                         {{ form.adjust_date }}
+                        {% if form.adjust_date.errors %}<div class="text-danger small">{{ form.adjust_date.errors }}</div>{% endif %}
                     </div>
                     <div class="col-12">
                         <label class="form-label fw-bold small">Lý do</label>
                         {{ form.reason }}
+                        {% if form.reason.errors %}<div class="text-danger small">{{ form.reason.errors }}</div>{% endif %}
                     </div>
                     {% include 'kho_npl/includes/doc_attachment_field.html' with field=form.attachment %}
                 </div>

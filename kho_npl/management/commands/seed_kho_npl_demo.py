@@ -631,7 +631,6 @@ class Command(BaseCommand):
         disposal = StockDisposal.objects.create(
             number=num,
             disposal_date=today - timedelta(days=6),
-            from_location=from_loc,
             reason=DISPOSAL_REASON_DAMAGED,
             created_by=user,
             notes=f'Hủy vải ố vàng do ẩm mốc — {DEMO_NOTE}',
@@ -640,6 +639,7 @@ class Command(BaseCommand):
             disposal=disposal,
             material=material_map['VAI-FLEECE-GRN'],
             quantity=Decimal('3'),
+            location=from_loc,
             notes='Cuộn bị thấm nước',
         )
         post_stock_disposal(disposal, user)

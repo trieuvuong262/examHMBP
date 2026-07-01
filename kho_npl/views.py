@@ -2,7 +2,7 @@ import json
 from datetime import date
 
 import pandas as pd
-from django.db.models import Q, Sum
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 
 from assessment.decorators import module_perm_required
@@ -30,6 +30,7 @@ from kho_npl.stock_card_catalog_columns import (
     STOCK_CARD_CATALOG_TOTAL_COL_WEIGHT,
 )
 from kho_npl.services.excel_export import dataframe_to_xlsx_response
+from kho_npl.services.scrap_warehouse import filter_storage_location_ids, source_locations_qs
 from kho_npl.services.stock import material_stock_rows, overview_stats, stock_rows_for_status
 from kho_npl.services.stock_card import build_material_stock_card, diagnose_stock_mismatch
 from kho_npl.view_utils import nav_context, perm_context
@@ -179,13 +180,10 @@ def _stock_card_catalog_sort(request):
     return sort_key, sort_dir, order
 
 
-def _stock_card_catalog_qs(request, location_ids):
+def _stock_card_catalog_qs(request):
     catalog_qs, search_query, category_ids, category_parent_id, _ = _material_catalog_qs(request)
-    stock_sum = Sum('balances__quantity')
-    if location_ids:
-        stock_sum = Sum('balances__quantity', filter=Q(balances__location_id__in=location_ids))
     sort_key, sort_dir, order = _stock_card_catalog_sort(request)
-    catalog_qs = catalog_qs.annotate(stock_total=stock_sum).order_by(order)
+    catalog_qs = catalog_qs.order_by(order)
     return catalog_qs, search_query, category_ids, category_parent_id, sort_key, sort_dir
 
 
@@ -281,17 +279,15 @@ def stock_cards(request):
         del params['page']
         return redirect(f'{request.path}?{params.urlencode()}')
 
-    location_ids = parse_int_ids(request, 'location')
+    location_ids = filter_storage_location_ids(parse_int_ids(request, 'location'))
     material_id = request.GET.get('material', '').strip()
     date_from = _parse_optional_date(request.GET.get('date_from'))
     date_to = _parse_optional_date(request.GET.get('date_to'))
     show_diagnosis = request.GET.get('diagnose') == '1'
 
-    catalog_qs, search_query, category_ids, category_parent_id, sort_key, sort_dir = _stock_card_catalog_qs(
-        request, location_ids,
-    )
+    catalog_qs, search_query, category_ids, category_parent_id, sort_key, sort_dir = _stock_card_catalog_qs(request)
     catalog_page, catalog_query_string = paginate_queryset(
-        request, catalog_qs, per_page=5, page_param='cat_page',
+        request, catalog_qs, per_page=4, page_param='cat_page',
     )
 
     selected_material = None
@@ -354,7 +350,7 @@ def stock_cards(request):
         **nav_context('stock_cards', user=request.user),
         **perm_context(request.user, 'stock_cards'),
         'search_query': search_query,
-        'locations': WarehouseLocation.objects.filter(is_active=True),
+        'locations': source_locations_qs(),
         'category_roots': active_category_roots(),
         'category_children': category_children_for_parent(category_parent_id),
         'category_cascade_json': json.dumps(category_cascade_for_filter()),

@@ -421,12 +421,6 @@ class StockIssueLine(models.Model):
 class StockDisposal(models.Model):
     number = models.CharField(max_length=30, unique=True, verbose_name='Mã phiếu hủy')
     disposal_date = models.DateField(verbose_name='Ngày hủy')
-    from_location = models.ForeignKey(
-        WarehouseLocation,
-        on_delete=models.PROTECT,
-        related_name='disposals_out',
-        verbose_name='Kho nguồn',
-    )
     reason = models.CharField(
         max_length=30,
         choices=DISPOSAL_REASON_CHOICES,
@@ -471,6 +465,15 @@ class StockDisposal(models.Model):
     def __str__(self):
         return self.number
 
+    def source_locations_display(self) -> str:
+        labels = []
+        seen = set()
+        for line in self.lines.select_related('location').all():
+            if line.location_id and line.location_id not in seen:
+                seen.add(line.location_id)
+                labels.append(line.location.display_label())
+        return ', '.join(sorted(labels)) if labels else '—'
+
 
 class StockDisposalLine(models.Model):
     disposal = models.ForeignKey(
@@ -490,6 +493,12 @@ class StockDisposalLine(models.Model):
         decimal_places=3,
         validators=[MinValueValidator(Decimal('0.001'))],
         verbose_name='Số lượng',
+    )
+    location = models.ForeignKey(
+        WarehouseLocation,
+        on_delete=models.PROTECT,
+        related_name='disposal_lines',
+        verbose_name='Vị trí kho',
     )
     notes = models.CharField(max_length=255, blank=True, verbose_name='Ghi chú')
 

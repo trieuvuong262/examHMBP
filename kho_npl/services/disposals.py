@@ -23,33 +23,34 @@ def post_stock_disposal(disposal: StockDisposal, user) -> StockDisposal:
         raise DisposalWorkflowError('Chỉ phiếu nháp mới được ghi sổ.')
 
     scrap_location = get_scrap_location()
-    if disposal.from_location_id == scrap_location.pk:
-        raise DisposalWorkflowError('Kho nguồn không được là kho hủy.')
-
-    lines = list(disposal.lines.select_related('material'))
+    lines = list(disposal.lines.select_related('material', 'location'))
     if not lines:
         raise DisposalWorkflowError('Phiếu hủy chưa có dòng chi tiết.')
 
     for line in lines:
         if line.quantity <= Decimal('0'):
             raise DisposalWorkflowError(f'Số lượng hủy của {line.material.code} phải lớn hơn 0.')
+        if not line.location_id:
+            raise DisposalWorkflowError(f'Dòng {line.material.code} chưa chọn vị trí kho.')
+        if line.location_id == scrap_location.pk:
+            raise DisposalWorkflowError('Vị trí nguồn không được là kho hủy.')
 
         source_balance = (
             StockBalance.objects.select_for_update()
-            .filter(material=line.material, location=disposal.from_location)
+            .filter(material=line.material, location=line.location)
             .first()
         )
         available = source_balance.quantity if source_balance else Decimal('0')
         if available < line.quantity:
             raise DisposalWorkflowError(
-                f'Tồn không đủ tại {disposal.from_location.display_label()}: {line.material.code} '
+                f'Tồn không đủ tại {line.location.display_label()}: {line.material.code} '
                 f'(có {available}, cần hủy {line.quantity}).'
             )
         source_balance.quantity -= line.quantity
         source_balance.save(update_fields=['quantity', 'updated_at'])
         StockLedger.objects.create(
             material=line.material,
-            location=disposal.from_location,
+            location=line.location,
             qty_delta=-line.quantity,
             balance_after=source_balance.quantity,
             ref_type=StockLedger.REF_DISPOSAL,
@@ -75,7 +76,7 @@ def post_stock_disposal(disposal: StockDisposal, user) -> StockDisposal:
             ref_id=disposal.pk,
             ref_number=disposal.number,
             created_by=user,
-            notes=f'Nhận hủy {disposal.number} từ {disposal.from_location.display_label()}',
+            notes=f'Nhận hủy {disposal.number} từ {line.location.display_label()}',
         )
 
     disposal.status = DOC_STATUS_POSTED

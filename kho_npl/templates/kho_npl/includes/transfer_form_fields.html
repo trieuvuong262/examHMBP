@@ -26,7 +26,7 @@
             </div>
             {% include 'kho_npl/includes/doc_attachment_field.html' with field=form.attachment required=True col_class='col-12 col-md-6 col-lg-3' %}
             <div class="col-12">
-                <label class="form-label fw-bold small">Ghi chú <span class="text-danger">*</span></label>
+                <label class="form-label fw-bold small">Ghi chú</label>
                 {{ form.notes }}
                 {% if form.notes.errors %}<div class="text-danger small">{{ form.notes.errors }}</div>{% endif %}
             </div>
@@ -41,11 +41,8 @@
 
 {{ formset.management_form }}
 <div class="card border-0 shadow-sm mb-4 jp-npl-transfer-lines-card">
-    <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+    <div class="card-header bg-white border-bottom py-3">
         <h5 class="mb-0 fw-bold">Chi tiết chuyển <span class="text-danger">*</span></h5>
-        <button type="button" class="btn btn-outline-hm btn-sm fw-bold" id="add-row">
-            <i class="bi bi-plus-lg me-1"></i>Thêm dòng
-        </button>
     </div>
     <div class="table-responsive jp-npl-transfer-lines-scroll">
         <table class="table table-sm align-middle mb-0 jp-npl-transfer-lines-table">
@@ -54,7 +51,8 @@
                     <th class="jp-npl-col-material">Nguyên phụ liệu <span class="text-danger">*</span></th>
                     <th class="jp-npl-col-stock text-end">Tồn</th>
                     <th class="jp-npl-col-qty text-end">Số lượng <span class="text-danger">*</span></th>
-                    <th class="jp-npl-col-line-notes">Ghi chú dòng <span class="text-danger">*</span></th>
+                    <th class="jp-npl-col-unit">ĐVT</th>
+                    <th class="jp-npl-col-line-notes">Ghi chú dòng</th>
                     <th class="jp-npl-col-actions"></th>
                 </tr>
             </thead>
@@ -73,6 +71,9 @@
                         {{ line_form.quantity }}
                         {% if line_form.quantity.errors %}<div class="text-danger small">{{ line_form.quantity.errors }}</div>{% endif %}
                     </td>
+                    <td class="jp-npl-line-unit-cell">
+                        <span class="jp-npl-line-unit text-muted small">{% if line_form.instance.material_id %}{{ line_form.instance.material.unit.name }}{% else %}—{% endif %}</span>
+                    </td>
                     <td class="jp-npl-line-notes-cell">
                         {{ line_form.notes }}
                         {% if line_form.notes.errors %}<div class="text-danger small">{{ line_form.notes.errors }}</div>{% endif %}
@@ -89,6 +90,11 @@
                 {% endfor %}
             </tbody>
         </table>
+    </div>
+    <div class="p-3 border-top bg-light">
+        <button type="button" class="btn btn-outline-hm btn-sm" id="add-row">
+            <i class="bi bi-plus-lg me-1"></i>Thêm dòng
+        </button>
     </div>
 </div>
 

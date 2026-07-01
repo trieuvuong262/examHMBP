@@ -37,7 +37,7 @@ ISSUE_LIST_SORT_FIELDS = {
 DISPOSAL_LIST_COLUMNS = [
     {'key': 'number', 'label': 'Số phiếu', 'default': True, 'required': True, 'weight': 100},
     {'key': 'disposal_date', 'label': 'Ngày hủy', 'default': True, 'required': False, 'weight': 100},
-    {'key': 'from_location', 'label': 'Kho nguồn', 'default': True, 'required': False, 'weight': 100},
+    {'key': 'from_location', 'label': 'Vị trí', 'default': True, 'required': False, 'weight': 100},
     {'key': 'reason', 'label': 'Lý do', 'default': True, 'required': False, 'weight': 120},
     {'key': 'status', 'label': 'Trạng thái', 'default': True, 'required': False, 'weight': 100},
     {'key': 'created_by', 'label': 'Người tạo', 'default': True, 'required': False, 'weight': 120},
@@ -46,7 +46,7 @@ DISPOSAL_LIST_TOTAL_COL_WEIGHT = sum(c['weight'] for c in DISPOSAL_LIST_COLUMNS)
 DISPOSAL_LIST_SORT_FIELDS = {
     'number': 'number',
     'disposal_date': 'disposal_date',
-    'from_location': 'from_location__name',
+    'from_location': 'source_location_sort',
     'reason': 'reason',
     'status': 'status',
     'created_by': 'created_by__username',

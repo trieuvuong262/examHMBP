@@ -167,6 +167,9 @@
 
     if (supplierSelect) {
         initSupplierSelect(supplierSelect);
+        if (window.jpNplValidationPopup && window.jpNplValidationPopup.refreshFormMarks) {
+            window.jpNplValidationPopup.refreshFormMarks(form);
+        }
     }
 
     const addBtn = document.getElementById('add-supplier-btn');

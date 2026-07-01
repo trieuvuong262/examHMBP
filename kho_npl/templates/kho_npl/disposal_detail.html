@@ -35,8 +35,6 @@
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
             <dl class="row mb-0">
-                <dt class="col-sm-3 text-muted">Kho nguồn</dt>
-                <dd class="col-sm-9">{{ disposal.from_location.name }}</dd>
                 <dt class="col-sm-3 text-muted">Kho đích</dt>
                 <dd class="col-sm-9">{{ scrap_warehouse_label }}</dd>
                 <dt class="col-sm-3 text-muted">Người tạo</dt>
@@ -63,6 +61,7 @@
                         <th>Mã NPL</th>
                         <th>Tên</th>
                         <th class="text-end">Số lượng</th>
+                        <th>Vị trí</th>
                         <th>ĐVT</th>
                         <th>Ghi chú</th>
                     </tr>
@@ -73,11 +72,12 @@
                         <td class="fw-semibold">{{ line.material.code }}</td>
                         <td>{{ line.material.name }}</td>
                         <td class="text-end">{{ line.quantity|npl_qty_with_unit:line.material.unit }}</td>
+                        <td>{{ line.location.display_label }}</td>
                         <td>{{ line.material.unit.code }}</td>
                         <td>{{ line.notes|default:'—' }}</td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="5" class="text-center text-muted py-4">Chưa có dòng chi tiết.</td></tr>
+                    <tr><td colspan="6" class="text-center text-muted py-4">Chưa có dòng chi tiết.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

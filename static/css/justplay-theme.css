@@ -6822,8 +6822,9 @@ body.jp-monitor-modal-open {
     width: 100%;
 }
 
-.jp-npl-transfer-lines-table .jp-npl-col-material { width: 58%; }
+.jp-npl-transfer-lines-table .jp-npl-col-material { width: 54%; }
 .jp-npl-transfer-lines-table .jp-npl-col-qty { width: 96px; }
+.jp-npl-transfer-lines-table .jp-npl-col-unit { width: 72px; }
 .jp-npl-transfer-lines-table .jp-npl-col-line-notes { width: auto; min-width: 120px; }
 .jp-npl-transfer-lines-table .jp-npl-col-actions { width: 36px; }
 

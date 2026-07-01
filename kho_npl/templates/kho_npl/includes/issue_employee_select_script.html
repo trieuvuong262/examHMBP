@@ -83,5 +83,8 @@
     }
 
     document.querySelectorAll('.jp-npl-employee-select').forEach(initEmployeeSelect);
+    if (form && window.jpNplValidationPopup && window.jpNplValidationPopup.refreshFormMarks) {
+        window.jpNplValidationPopup.refreshFormMarks(form);
+    }
 })();
 </script>

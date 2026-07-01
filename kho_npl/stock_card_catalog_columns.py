@@ -6,7 +6,6 @@ STOCK_CARD_CATALOG_COLUMNS = [
     {'key': 'category_parent', 'label': 'Nhóm cấp 1', 'default': True, 'required': False, 'weight': 110},
     {'key': 'category', 'label': 'Nhóm cấp 2', 'default': True, 'required': False, 'weight': 110},
     {'key': 'specification', 'label': 'Quy cách', 'default': True, 'required': False, 'weight': 100},
-    {'key': 'stock_total', 'label': 'Tồn', 'default': True, 'required': False, 'weight': 100},
 ]
 
 STOCK_CARD_CATALOG_TOTAL_COL_WEIGHT = sum(c['weight'] for c in STOCK_CARD_CATALOG_COLUMNS)
@@ -17,5 +16,4 @@ STOCK_CARD_CATALOG_SORT_FIELDS = {
     'category_parent': 'category__parent__name',
     'category': 'category__name',
     'specification': 'specification__name',
-    'stock_total': 'stock_total',
 }

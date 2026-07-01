@@ -87,10 +87,96 @@
         });
     });
 
+    function isCompleteQtyValue(raw) {
+        return /^\d+([.,]\d+)?$/.test(String(raw || '').trim());
+    }
+
+    function stocktakeQtyError(input) {
+        const row = input?.closest('.jp-npl-stk-count-row');
+        if (!row || !input) return null;
+        const raw = String(input.value || '').trim().replace(',', '.');
+        if (!raw || !isCompleteQtyValue(input.value)) return null;
+        const qty = parseFloat(raw);
+        if (!Number.isFinite(qty) || qty >= 0) return null;
+        const code = row.getAttribute('data-mat-code') || 'NPL';
+        return code + ': Tồn thực tế không được âm';
+    }
+
+    function validateStocktakeQty(input, showPopup) {
+        const api = window.jpNplValidationPopup;
+        if (!input) return null;
+        const message = stocktakeQtyError(input);
+        if (!message) {
+            if (api) api.clearQtyInvalid(input);
+            else {
+                input.classList.remove('is-invalid', 'jp-npl-qty-invalid');
+                input.removeAttribute('aria-invalid');
+            }
+            delete input.dataset.jpNplQtyPopupKey;
+            return null;
+        }
+        if (api) api.markQtyInvalid(input);
+        else {
+            input.classList.add('is-invalid', 'jp-npl-qty-invalid');
+            input.setAttribute('aria-invalid', 'true');
+        }
+        if (showPopup && input.dataset.jpNplQtyPopupKey !== message) {
+            input.dataset.jpNplQtyPopupKey = message;
+            api?.show({
+                items: [message],
+                title: 'Số lượng không hợp lệ',
+                hint: 'Vui lòng kiểm tra lại số lượng nhập trước khi lưu.',
+            });
+        }
+        return message;
+    }
+
+    function refreshStocktakeQtyInvalidStates() {
+        rows.forEach(function (row) {
+            const input = rowActualInput(row);
+            validateStocktakeQty(input, false);
+        });
+    }
+
+    document.addEventListener('jp-npl-validation-modal-hidden', refreshStocktakeQtyInvalidStates);
+
     tbody.addEventListener('input', function (e) {
         if (e.target.matches('input[name$="-actual_qty"]')) {
+            validateStocktakeQty(e.target, isCompleteQtyValue(e.target.value));
             if (activeFilter !== 'all') applyFilter();
         }
+    });
+
+    tbody.addEventListener('change', function (e) {
+        if (e.target.matches('input[name$="-actual_qty"]')) {
+            validateStocktakeQty(e.target, true);
+        }
+    });
+
+    const countForm = document.getElementById('count-form');
+    countForm?.addEventListener('submit', function (e) {
+        const messages = [];
+        const seen = new Set();
+        rows.forEach(function (row) {
+            const input = rowActualInput(row);
+            const message = validateStocktakeQty(input, false);
+            if (message && !seen.has(message)) {
+                seen.add(message);
+                messages.push(message);
+            }
+        });
+        if (!messages.length) return;
+        e.preventDefault();
+        const api = window.jpNplValidationPopup;
+        if (api) {
+            api.show({
+                items: messages,
+                title: 'Số lượng không hợp lệ',
+                hint: 'Vui lòng kiểm tra lại số lượng nhập trước khi lưu.',
+            });
+        }
+        const firstInvalid = tbody.querySelector('input[name$="-actual_qty"].is-invalid');
+        firstInvalid?.focus();
     });
 
     applyFilter();

@@ -4,16 +4,37 @@
 {% block extra_head %}
 {% include 'kho_npl/includes/filter_multi_select_head.html' %}
 <style>
+/* Khóa viewport — chỉ jp-npl-sc-body cuộn; catalog cố định đáy vùng main */
+body.jp-has-sidebar:has(.jp-npl-stock-card-page) {
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+}
+body.jp-has-sidebar:has(.jp-npl-stock-card-page) .jp-app-main {
+    height: 100dvh;
+    max-height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+}
 .jp-main-content:has(.jp-npl-stock-card-page) {
     display: flex;
     flex-direction: column;
     flex: 1 1 auto;
     min-height: 0;
+    max-height: 100%;
     overflow: hidden;
+    overflow-x: hidden;
 }
-.jp-main-content:has(.jp-npl-stock-card-page) > .container.jp-npl-stock-card-page,
+.jp-main-content:has(.jp-npl-stock-card-page) > .container-fluid,
 .jp-main-content:has(.jp-npl-stock-card-page) > .alert {
+    flex: 0 0 auto;
     flex-shrink: 0;
+}
+.jp-main-content:has(.jp-npl-stock-card-page) > .container.jp-npl-stock-card-page {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
 }
 .jp-npl-material-catalog-page.jp-npl-stock-card-page {
     --jp-npl-mat-ctl-h: 34px;
@@ -22,18 +43,17 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-    height: 100%;
     overflow: hidden;
     margin-bottom: 0 !important;
     padding-top: 1rem;
-    padding-bottom: 0;
+    padding-bottom: 0 !important;
 }
 .jp-npl-stock-card-page .jp-npl-sc-shell {
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
     min-height: 0;
-    height: 100%;
+    overflow: hidden;
 }
 .jp-npl-stock-card-page .jp-npl-sc-topbar {
     flex: 0 0 auto;
@@ -49,6 +69,24 @@
 .jp-npl-stock-card-page .jp-npl-sc-body .card {
     margin-bottom: 0 !important;
 }
+.jp-npl-stock-card-page .jp-npl-sc-body.is-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.jp-npl-stock-card-page .jp-npl-sc-empty-hint {
+    width: 100%;
+    max-width: 36rem;
+    margin: 0 auto;
+}
+.jp-npl-stock-card-page .jp-npl-sc-empty-hint .card-body {
+    padding: 2rem 1.25rem;
+}
+.jp-npl-stock-card-page .jp-npl-sc-empty-hint-icon {
+    font-size: 1.75rem;
+    color: var(--hm-red, #dc2626);
+    line-height: 1;
+}
 .jp-npl-stock-card-page .jp-npl-sc-catalog-section {
     flex: 0 0 auto;
     flex-shrink: 0;
@@ -56,7 +94,8 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-    margin-top: auto;
+    max-height: min(44vh, 380px);
+    overflow: hidden;
     z-index: 20;
     background: var(--jp-page-bg, var(--bs-body-bg));
     border-top: 1px solid var(--bs-border-color);
@@ -67,7 +106,9 @@
     box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
 }
 .jp-npl-stock-card-page .jp-npl-sc-catalog-section .jp-npl-mat-grid-wrap {
-    max-height: var(--jp-npl-sc-catalog-grid-max-h);
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
     overflow: auto;
 }
 .jp-npl-stock-card-page .jp-npl-catalog-row.is-selected td {
@@ -76,26 +117,65 @@
 .jp-npl-stock-card-page .jp-npl-catalog-row { cursor: pointer; }
 .jp-npl-stock-card-page .qty-in { color: #15803d; }
 .jp-npl-stock-card-page .qty-out { color: #dc2626; }
+.jp-npl-stock-card-page .jp-npl-sc-body.has-ledger {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.jp-npl-stock-card-page .jp-npl-sc-body .jp-npl-ledger-card {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+.jp-npl-stock-card-page .jp-npl-sc-body .jp-npl-ledger-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+}
 .jp-npl-stock-card-page .jp-npl-ledger-table thead th {
     font-size: 0.78rem;
     white-space: nowrap;
-}
-.jp-npl-stock-card-page .jp-npl-sc-body .table-responsive {
-    overflow-x: auto;
-    overflow-y: visible;
-}
-.jp-npl-stock-card-page .jp-npl-sc-body .jp-npl-ledger-table thead th {
     position: sticky;
     top: 0;
-    z-index: 2;
+    z-index: 3;
     background-color: var(--bs-table-bg, #f8f9fa);
     box-shadow: inset 0 -1px 0 var(--bs-border-color);
+}
+[data-theme="dark"] .jp-npl-stock-card-page .jp-npl-ledger-table thead.table-light th {
+    background-color: var(--bs-table-bg, #212529);
+}
+.jp-npl-stock-card-page .jp-npl-ledger-clip {
+    display: inline-block;
+    max-width: 11rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+}
+.jp-npl-stock-card-page .jp-npl-ledger-loc .jp-npl-ledger-clip {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.jp-npl-stock-card-page .jp-npl-ledger-notes .jp-npl-ledger-clip {
+    max-width: 14rem;
 }
 .jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-mat-topbar {
     display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem; margin-bottom: 1rem;
 }
 .jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-mat-topbar-title {
-    font-size: 1.35rem; font-weight: 700; color: var(--hm-red, #dc2626); margin: 0; flex: 0 0 auto;
+    font-size: 1.35rem; font-weight: 700; color: var(--hm-red, #dc2626); margin: 0;
+    flex: 1 1 12rem; min-width: 0; line-height: 1.3;
+}
+.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-mat-topbar-title .jp-npl-sc-mat-name {
+    color: var(--bs-body-color);
+    font-weight: 600;
 }
 .jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-mat-topbar-search {
     flex: 1 1 24rem; min-width: 14rem; max-width: 52rem; margin-left: auto;
@@ -145,30 +225,6 @@
 .jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-mat-topbar-actions {
     display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; position: relative;
 }
-.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-mat-col-picker { position: relative; }
-.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-mat-col-picker .jp-npl-mat-col-menu {
-    width: 14rem; min-width: 14rem; max-width: 14rem;
-    padding: 0; overflow: hidden; border: 1px solid var(--bs-border-color);
-}
-.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-mat-col-head {
-    padding: 0.5rem 0.75rem; font-size: 0.75rem; font-weight: 600;
-    color: var(--bs-secondary-color); border-bottom: 1px solid var(--bs-border-color);
-}
-.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-mat-col-list {
-    max-height: 15rem; overflow-y: auto; overflow-x: hidden; padding: 0.25rem 0;
-}
-.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-mat-col-item {
-    display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.75rem;
-    margin: 0; cursor: pointer; user-select: none; font-size: 0.8125rem;
-}
-.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-mat-col-item:hover { background: rgba(15, 23, 42, 0.04); }
-.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-mat-col-item input[type="checkbox"] {
-    flex: 0 0 1rem; width: 1rem; height: 1rem; margin: 0; cursor: pointer;
-}
-.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-mat-col-item span {
-    flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-mat-col-item.is-required span { color: var(--bs-secondary-color); }
 .jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-mat-grid-wrap { overflow: auto; }
 .jp-npl-material-catalog-page.jp-npl-stock-card-page #npl-stock-card-catalog-table {
     table-layout: fixed; width: 100%; margin-bottom: 0;
@@ -247,19 +303,14 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
     background-color: var(--bs-secondary-bg);
     cursor: not-allowed;
 }
-.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-sc-catalog-toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    padding: 0.65rem 1rem 0;
+.jp-npl-stock-card-page .jp-npl-sc-catalog-filter {
+    flex: 0 0 auto;
 }
-.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-sc-catalog-toolbar-title {
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: var(--bs-secondary-color);
-    margin: 0;
+.jp-npl-stock-card-page .jp-npl-sc-catalog-pagination {
+    flex: 0 0 auto;
+    margin-top: 0.5rem;
+    padding: 0.35rem 1rem 0.85rem;
+    border-top: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, 0.08));
 }
 @media (max-width: 767.98px) {
     .jp-npl-material-catalog-page.jp-npl-stock-card-page {
@@ -275,11 +326,13 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-npl-material-catalog-page jp-npl-stock-card-page py-md-4" data-loading-message="Đang tải thẻ kho…">
+<div class="container jp-page jp-npl-material-catalog-page jp-npl-stock-card-page pt-md-3 pb-0" data-loading-message="Đang tải thẻ kho…">
     <div class="jp-npl-sc-shell">
     <div class="jp-npl-sc-topbar">
     <div class="jp-npl-mat-topbar">
-        <h2 class="jp-npl-mat-topbar-title">Thẻ kho</h2>
+        <h2 class="jp-npl-mat-topbar-title">
+            Thẻ kho{% if selected_material %} - <span class="text-hm">{{ selected_material.code }}</span> — <span class="jp-npl-sc-mat-name">{{ selected_material.name }}</span>{% endif %}
+        </h2>
         <form method="get" class="jp-npl-mat-topbar-search" id="jp-stock-card-filters">
             <div class="jp-npl-mat-search-row">
                 {% if selected_material %}
@@ -329,25 +382,18 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
     </div>
     </div>
 
-    <div class="jp-npl-sc-body">
+    <div class="jp-npl-sc-body{% if not selected_material %} is-empty{% else %} has-ledger{% endif %}">
     {% if selected_material %}
-    <div class="card border-0 shadow-sm">
+    <div class="card border-0 shadow-sm jp-npl-ledger-card">
+        {% if card.scope_is_location or not card.is_consistent %}
         <div class="card-header bg-white border-bottom py-3">
-            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
-                <div>
-                    <h5 class="fw-bold mb-0">
-                        <span class="text-hm">{{ selected_material.code }}</span>
-                        — {{ selected_material.name }}
-                    </h5>
-                    {% if card.scope_is_location %}
-                    <p class="text-muted small mb-0 mt-1">
-                        Phạm vi sổ kho: <strong>{{ card.scope_label }}</strong>
-                    </p>
-                    {% endif %}
-                </div>
-            </div>
+            {% if card.scope_is_location %}
+            <p class="text-muted small mb-0{% if not card.is_consistent %} mb-3{% endif %}">
+                Phạm vi sổ kho: <strong>{{ card.scope_label }}</strong>
+            </p>
+            {% endif %}
             {% if not card.is_consistent %}
-            <div class="alert alert-warning border-0 py-2 px-3 mt-3 mb-0 small d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div class="alert alert-warning border-0 py-2 px-3 mb-0 small d-flex flex-wrap align-items-center justify-content-between gap-2">
                 <div>
                     
                     {% if card.scope_is_location %}
@@ -449,7 +495,8 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
             {% endif %}
             {% endif %}
         </div>
-        <div class="table-responsive">
+        {% endif %}
+        <div class="jp-npl-ledger-scroll">
             <table class="table table-sm table-hover align-middle mb-0 jp-npl-ledger-table">
                 <thead class="table-light">
                     <tr>
@@ -461,7 +508,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
                         <th class="text-end">SL nhập</th>
                         <th class="text-end">Số lượng xuất</th>
                         <th class="text-end">Tồn</th>
-                        <th>Ghi chú</th>
+                        <th class="text-end">Ghi chú</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -469,19 +516,23 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
                     <tr class="{% if row.kind == 'opening' %}table-light fw-semibold{% endif %}">
                         <td>{{ forloop.counter }}</td>
                         <td>{% if row.txn_date %}{{ row.txn_date|date:'d/m/Y' }}{% else %}—{% endif %}</td>
-                        <td>
+                        <td class="jp-npl-ledger-ref">
                             {% if row.ref_url and row.ref_number %}
-                            <a href="{{ row.ref_url }}" class="text-decoration-none fw-semibold">{{ row.ref_number }}</a>
+                            <a href="{{ row.ref_url }}" class="text-decoration-none fw-semibold jp-npl-ledger-clip" title="{{ row.ref_number }}">{{ row.ref_number }}</a>
                             {% else %}
-                            {{ row.ref_number|default:'—' }}
+                            <span class="jp-npl-ledger-clip"{% if row.ref_number %} title="{{ row.ref_number }}"{% endif %}>{{ row.ref_number|default:'—' }}</span>
                             {% endif %}
                         </td>
                         <td>{{ row.ref_type_label|default:'—' }}</td>
-                        <td>{{ row.location_code|default:'—' }}</td>
+                        <td class="jp-npl-ledger-loc">
+                            <span class="jp-npl-ledger-clip"{% if row.location_code %} title="{{ row.location_code }}"{% endif %}>{{ row.location_code|default:'—' }}</span>
+                        </td>
                         <td class="text-end qty-in">{% if row.qty_in %}+{{ row.qty_in|npl_qty }}{% else %}—{% endif %}</td>
                         <td class="text-end qty-out">{% if row.qty_out %}-{{ row.qty_out|npl_qty }}{% else %}—{% endif %}</td>
                         <td class="text-end fw-bold">{{ row.balance_after|npl_qty_with_unit:selected_material.unit }}</td>
-                        <td class="small text-muted">{{ row.notes|default:'' }}</td>
+                        <td class="text-end small text-muted jp-npl-ledger-notes">
+                            <span class="jp-npl-ledger-clip"{% if row.notes %} title="{{ row.notes }}"{% endif %}>{{ row.notes|default:'' }}</span>
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
@@ -495,7 +546,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
                 <tfoot class="table-light">
                     <tr class="fw-bold">
                         <td colspan="5" class="text-end">
-                            {% if card.scope_is_location %}Cộng kỳ / Tồn cuối tại {{ card.scope_label }}{% else %}Cộng kỳ / Tổng biến động sổ{% endif %}
+                            {% if card.scope_is_location %}Cộng kỳ / Tồn cuối tại {{ card.scope_label }}{% else %}Tổng{% endif %}
                         </td>
                         <td class="text-end qty-in">+{{ card.totals_in|npl_qty }}</td>
                         <td class="text-end qty-out">-{{ card.totals_out|npl_qty }}</td>
@@ -507,34 +558,23 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
             </table>
         </div>
     </div>
+    {% else %}
+    <div class="jp-npl-sc-empty-hint card border-0 shadow-sm">
+        <div class="card-body text-center">
+            <div class="jp-npl-sc-empty-hint-icon mb-2" aria-hidden="true">
+                <i class="bi bi-arrow-down-circle"></i>
+            </div>
+            <p class="mb-1 fw-semibold">Chọn nguyên phụ liệu để xem thẻ kho</p>
+            <p class="text-muted small mb-0">
+                Tìm hoặc bấm một dòng trong bảng <strong>Chọn nguyên phụ liệu</strong> ở cuối trang.
+                Có thể lọc nhóm NPL hoặc tìm theo mã, tên trước khi chọn.
+            </p>
+        </div>
+    </div>
     {% endif %}
     </div>
 
     <div class="card border-0 shadow-sm jp-npl-sc-catalog-section">
-        <div class="jp-npl-sc-catalog-toolbar">
-            <p class="jp-npl-sc-catalog-toolbar-title mb-0">Chọn nguyên phụ liệu</p>
-            <div class="dropdown jp-npl-mat-col-picker">
-                <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" id="npl-sc-col-btn"
-                        data-bs-toggle="dropdown" data-bs-auto-close="outside"
-                        aria-expanded="false" title="Chọn cột hiển thị">
-                    <i class="bi bi-layout-three-columns me-1"></i>Cột
-                </button>
-                <div class="dropdown-menu shadow-sm jp-npl-mat-col-menu" data-bs-popper="static">
-                    <div class="jp-npl-mat-col-head">Hiển thị cột</div>
-                    <div class="jp-npl-mat-col-list">
-                        {% for col in list_columns %}
-                        <label class="jp-npl-mat-col-item{% if col.required %} is-required{% endif %}" for="npl-sc-col-{{ col.key }}">
-                            <input class="npl-sc-col-toggle" type="checkbox"
-                                   id="npl-sc-col-{{ col.key }}" data-col="{{ col.key }}"
-                                   {% if col.default %}checked{% endif %}
-                                   {% if col.required %}disabled checked{% endif %}>
-                            <span>{{ col.label }}</span>
-                        </label>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-        </div>
         <form method="get" class="jp-npl-sc-catalog-filter" id="jp-stock-card-catalog-filters">
             <div class="jp-npl-mat-search-row">
                 {% if selected_material %}
@@ -575,7 +615,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
                 <thead class="table-light">
                     <tr>
                         {% for col in list_columns %}
-                        <th class="npl-col jp-mat-th{% if col.key == 'stock_total' %} text-end{% endif %}"
+                        <th class="npl-col jp-mat-th"
                             data-col="{{ col.key }}" style="width:{% widthratio col.weight total_col_weight 100 %}%">
                             <button type="button" class="jp-mat-th-sort{% if sort_key == col.key %} is-active{% endif %}"
                                     data-sort="{{ col.key }}" title="Sắp xếp theo {{ col.label }}">
@@ -600,7 +640,6 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
                         </td>
                         <td class="npl-col" data-col="category" title="{{ material.category.name }}">{{ material.category.name }}</td>
                         <td class="npl-col" data-col="specification">{% include 'kho_npl/includes/material_spec_display.html' with spec=material.specification %}</td>
-                        <td class="text-end npl-col jp-mat-code fw-semibold" data-col="stock_total">{{ material.stock_total|npl_qty_with_unit:material.unit }}</td>
                     </tr>
                     {% empty %}
                     <tr>
@@ -613,7 +652,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
             </table>
         </div>
         {% if catalog_page.paginator.num_pages > 1 %}
-        <div class="px-3 pb-3">
+        <div class="jp-npl-sc-catalog-pagination">
             {% include 'includes/pagination.html' with page_obj=catalog_page query_string=catalog_query_string page_param='cat_page' %}
         </div>
         {% endif %}
@@ -682,70 +721,6 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
             locSelect.addEventListener('change', submitCardFiltersIfMaterial);
         }
     }
-})();
-(function () {
-    function centerColMenu() {
-        var colPicker = document.querySelector('.jp-npl-mat-col-picker');
-        if (!colPicker) return;
-        var menu = colPicker.querySelector('.jp-npl-mat-col-menu');
-        var btn = document.getElementById('npl-sc-col-btn');
-        if (!menu || !btn || !menu.classList.contains('show')) return;
-        var rect = btn.getBoundingClientRect();
-        var menuWidth = menu.offsetWidth || 224;
-        var left = rect.left + (rect.width / 2) - (menuWidth / 2);
-        left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
-        menu.style.position = 'fixed';
-        menu.style.top = (rect.bottom + 6) + 'px';
-        menu.style.left = left + 'px';
-        menu.style.right = 'auto';
-        menu.style.transform = 'none';
-        menu.style.margin = '0';
-    }
-    var colPicker = document.querySelector('.jp-npl-mat-col-picker');
-    if (colPicker) {
-        colPicker.addEventListener('shown.bs.dropdown', centerColMenu);
-        window.addEventListener('resize', centerColMenu);
-        window.addEventListener('scroll', centerColMenu, true);
-    }
-})();
-(function () {
-    const STORAGE_KEY = 'kho_npl_stock_card_catalog_visible_cols';
-    const DEFAULT_COLS = [{% for col in list_columns %}{% if col.default %}'{{ col.key }}',{% endif %}{% endfor %}];
-    const REQUIRED = new Set([{% for col in list_columns %}{% if col.required %}'{{ col.key }}',{% endif %}{% endfor %}]);
-    function loadVisible() {
-        try {
-            const raw = localStorage.getItem(STORAGE_KEY);
-            if (!raw) return new Set(DEFAULT_COLS);
-            const parsed = JSON.parse(raw);
-            if (!Array.isArray(parsed)) return new Set(DEFAULT_COLS);
-            const set = new Set(parsed);
-            REQUIRED.forEach(function (k) { set.add(k); });
-            return set;
-        } catch (e) { return new Set(DEFAULT_COLS); }
-    }
-    function saveVisible(set) { localStorage.setItem(STORAGE_KEY, JSON.stringify([...set])); }
-    function applyColumns(visible) {
-        document.querySelectorAll('#npl-stock-card-catalog-table .npl-col').forEach(function (el) {
-            const key = el.getAttribute('data-col');
-            if (!key || key === 'code') { el.classList.remove('d-none'); return; }
-            el.classList.toggle('d-none', !visible.has(key));
-        });
-    }
-    const visible = loadVisible();
-    document.querySelectorAll('.npl-sc-col-toggle').forEach(function (cb) {
-        cb.checked = visible.has(cb.getAttribute('data-col'));
-        cb.addEventListener('change', function () {
-            const key = cb.getAttribute('data-col');
-            if (cb.checked) visible.add(key);
-            else if (!REQUIRED.has(key)) visible.delete(key);
-            saveVisible(visible);
-            applyColumns(visible);
-            document.querySelectorAll('.npl-sc-col-toggle').forEach(function (c) {
-                c.checked = visible.has(c.getAttribute('data-col'));
-            });
-        });
-    });
-    applyColumns(visible);
 })();
 (function () {
     var table = document.getElementById('npl-stock-card-catalog-table');

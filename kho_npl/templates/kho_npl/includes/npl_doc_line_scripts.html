@@ -46,90 +46,114 @@
         return parseQty(raw);
     }
 
-    function syncQtyInvalidState(qtyInput) {
+    function isCompleteQtyValue(raw) {
+        return /^\d+([.,]\d+)?$/.test(String(raw || '').trim());
+    }
+
+    function qtyPopupApi() {
+        return window.jpNplValidationPopup || null;
+    }
+
+    function shouldShowQtyPopup(qtyInput, message) {
+        if (!qtyInput || !message) return false;
+        if (qtyInput.dataset.jpNplQtyPopupKey === message) return false;
+        qtyInput.dataset.jpNplQtyPopupKey = message;
+        return true;
+    }
+
+    function clearQtyPopupKey(qtyInput) {
+        if (qtyInput) delete qtyInput.dataset.jpNplQtyPopupKey;
+    }
+
+    function showQtyValidationPopup(messages) {
+        const api = qtyPopupApi();
+        if (!api || !messages.length) return;
+        api.show({
+            items: messages,
+            title: 'Số lượng không hợp lệ',
+            hint: 'Vui lòng kiểm tra lại số lượng nhập trước khi lưu.',
+        });
+    }
+
+    function setQtyInvalidState(qtyInput, invalid) {
+        const api = qtyPopupApi();
         if (!qtyInput) return;
-        qtyInput.classList.toggle(
-            'is-invalid',
-            qtyInput.classList.contains('jp-npl-qty-stock-invalid')
-                || qtyInput.classList.contains('jp-npl-qty-zero-invalid'),
-        );
-    }
-
-    function setQtyStockWarning(row, show, message) {
-        if (!validateQtyStock || !row) return;
-        const qtyInput = rowQtyInput(row);
-        let warn = row.querySelector('.jp-npl-qty-stock-warn');
-        if (!warn && qtyInput && qtyInput.parentElement) {
-            warn = document.createElement('div');
-            warn.className = 'jp-npl-qty-stock-warn text-danger small mt-1 text-end';
-            warn.hidden = true;
-            qtyInput.parentElement.appendChild(warn);
-        }
-        if (warn) {
-            warn.textContent = message || '';
-            warn.hidden = !show;
-        }
-        if (qtyInput) {
-            qtyInput.classList.toggle('jp-npl-qty-stock-invalid', !!show);
-            syncQtyInvalidState(qtyInput);
+        if (invalid) {
+            if (api) api.markQtyInvalid(qtyInput);
+            else {
+                qtyInput.classList.add('is-invalid', 'jp-npl-qty-invalid');
+                qtyInput.setAttribute('aria-invalid', 'true');
+            }
+        } else {
+            if (api) api.clearQtyInvalid(qtyInput);
+            else {
+                qtyInput.classList.remove('is-invalid', 'jp-npl-qty-invalid');
+                qtyInput.removeAttribute('aria-invalid');
+            }
+            clearQtyPopupKey(qtyInput);
         }
     }
 
-    function setQtyZeroWarning(row, show, message) {
-        if (!validateQtyZero || !row) return;
-        const qtyInput = rowQtyInput(row);
-        let warn = row.querySelector('.jp-npl-qty-zero-warn');
-        if (!warn && qtyInput && qtyInput.parentElement) {
-            warn = document.createElement('div');
-            warn.className = 'jp-npl-qty-zero-warn text-danger small mt-1 text-end';
-            warn.hidden = true;
-            qtyInput.parentElement.appendChild(warn);
-        }
-        if (warn) {
-            warn.textContent = message || '';
-            warn.hidden = !show;
-        }
-        if (qtyInput) {
-            qtyInput.classList.toggle('jp-npl-qty-zero-invalid', !!show);
-            syncQtyInvalidState(qtyInput);
-        }
+    function qtyFieldLabel(row, qtyInput) {
+        const api = qtyPopupApi();
+        if (api) return api.qtyColumnLabel(qtyInput);
+        return 'Số lượng';
     }
 
-    function checkRowQtyZero(row) {
-        if (!validateQtyZero || !row) return false;
-        if (row.style.display === 'none') {
-            setQtyZeroWarning(row, false);
-            return false;
-        }
+    function resolveRowQtyError(row) {
+        if (!row || row.style.display === 'none') return null;
         const del = row.querySelector('input[type=checkbox][name$="-DELETE"]');
-        if (del && del.checked) {
-            setQtyZeroWarning(row, false);
-            return false;
-        }
+        if (del && del.checked) return null;
         const materialSelect = row.querySelector('select.jp-npl-material-select');
         const qtyInput = rowQtyInput(row);
-        if (!qtyInput || !materialSelect?.value) {
-            setQtyZeroWarning(row, false);
-            return false;
-        }
+        if (!qtyInput) return null;
+
         const qty = parseQty(qtyInput.value);
-        if (qty !== null && qty <= 0) {
-            setQtyZeroWarning(row, true, 'Số lượng phải lớn hơn 0');
-            return true;
+        if (qty === null) return null;
+
+        if (validateQtyZero && materialSelect?.value && qty <= 0) {
+            return qtyFieldLabel(row, qtyInput) + ': Số lượng phải lớn hơn 0';
         }
-        setQtyZeroWarning(row, false);
-        return false;
+        if (validateQtyStock && qty > 0) {
+            const stock = rowStockQty(row);
+            if (stock !== null && qty > stock) {
+                const stockEl = row.querySelector('.jp-npl-stock-qty');
+                const stockText = stockEl && stockEl.textContent.trim() !== '—'
+                    ? stockEl.textContent.trim()
+                    : String(stock);
+                return qtyFieldLabel(row, qtyInput) + ': Số lượng vượt tồn (tồn: ' + stockText + ')';
+            }
+        }
+        return null;
     }
 
-    function checkAllQtyZero() {
-        if (!validateQtyZero) return false;
-        let hasZero = false;
+    function validateRowQty(row, showPopup) {
+        const qtyInput = rowQtyInput(row);
+        const message = resolveRowQtyError(row);
+        setQtyInvalidState(qtyInput, !!message);
+        if (message && showPopup && shouldShowQtyPopup(qtyInput, message)) {
+            showQtyValidationPopup([message]);
+        }
+        return message;
+    }
+
+    function collectAllQtyErrors() {
+        const messages = [];
+        const seen = new Set();
         body.querySelectorAll('.line-row').forEach(function (row) {
-            if (checkRowQtyZero(row)) {
-                hasZero = true;
+            const message = resolveRowQtyError(row);
+            const qtyInput = rowQtyInput(row);
+            if (message) {
+                setQtyInvalidState(qtyInput, true);
+                if (!seen.has(message)) {
+                    seen.add(message);
+                    messages.push(message);
+                }
+            } else {
+                setQtyInvalidState(qtyInput, false);
             }
         });
-        return hasZero;
+        return messages;
     }
 
     function applyDefaultQtyOnMaterial(row) {
@@ -140,57 +164,8 @@
         const current = parseQty(qtyInput.value);
         if (current === null || current === 0) {
             qtyInput.value = defaultQtyOnMaterial;
-            checkRowQtyZero(row);
+            validateRowQty(row, false);
         }
-    }
-
-    function checkRowQtyStock(row) {
-        if (!validateQtyStock || !row) return false;
-        if (row.style.display === 'none') {
-            setQtyStockWarning(row, false);
-            return false;
-        }
-        const del = row.querySelector('input[type=checkbox][name$="-DELETE"]');
-        if (del && del.checked) {
-            setQtyStockWarning(row, false);
-            return false;
-        }
-        const stock = rowStockQty(row);
-        const qtyInput = rowQtyInput(row);
-        if (!qtyInput || stock === null) {
-            setQtyStockWarning(row, false);
-            return false;
-        }
-        const qty = parseQty(qtyInput.value);
-        if (qty === null || qty <= 0) {
-            setQtyStockWarning(row, false);
-            return false;
-        }
-        if (qty > stock) {
-            const stockEl = row.querySelector('.jp-npl-stock-qty');
-            const stockText = stockEl && stockEl.textContent.trim() !== '—'
-                ? stockEl.textContent.trim()
-                : String(stock);
-            setQtyStockWarning(
-                row,
-                true,
-                'Số lượng vượt tồn (tồn: ' + stockText + ')',
-            );
-            return true;
-        }
-        setQtyStockWarning(row, false);
-        return false;
-    }
-
-    function checkAllQtyStock() {
-        if (!validateQtyStock) return false;
-        let hasOver = false;
-        body.querySelectorAll('.line-row').forEach(function (row) {
-            if (checkRowQtyStock(row)) {
-                hasOver = true;
-            }
-        });
-        return hasOver;
     }
 
     function materialStockLabel(data) {
@@ -288,7 +263,7 @@
                         }
                         ts.updateOption(materialId, patch);
                     }
-                    checkRowQtyStock(row);
+                    validateRowQty(row, true);
                 }
                 if (showLineUnit && (data.unit_name || data.unit)) {
                     setLineUnit(row, data.unit_name || data.unit);
@@ -538,8 +513,7 @@
             materialSelect.value = '';
         }
         setStockDisplay(row, '', '—');
-        setQtyStockWarning(row, false);
-        setQtyZeroWarning(row, false);
+        setQtyInvalidState(rowQtyInput(row), false);
         setLineUnit(row, '');
     }
 
@@ -565,8 +539,8 @@
     body.addEventListener('input', function (e) {
         if (e.target.matches(qtyInputSelector)) {
             const row = e.target.closest('tr');
-            checkRowQtyStock(row);
-            checkRowQtyZero(row);
+            const showPopup = isCompleteQtyValue(e.target.value);
+            validateRowQty(row, showPopup);
             syncTransferWarehouseLock();
         }
     });
@@ -578,8 +552,7 @@
         }
         if (e.target.matches(qtyInputSelector)) {
             const row = e.target.closest('tr');
-            checkRowQtyStock(row);
-            checkRowQtyZero(row);
+            validateRowQty(row, true);
         }
     });
 
@@ -621,17 +594,21 @@
         syncTransferWarehouseLock();
     });
 
+    function refreshAllQtyInvalidStates() {
+        body.querySelectorAll('.line-row').forEach(function (row) {
+            const qtyInput = rowQtyInput(row);
+            setQtyInvalidState(qtyInput, !!resolveRowQtyError(row));
+        });
+    }
+
+    document.addEventListener('jp-npl-validation-modal-hidden', refreshAllQtyInvalidStates);
+
     form.addEventListener('submit', function (e) {
         syncTransferWarehouseLock();
-        let blocked = false;
-        if (validateQtyStock && checkAllQtyStock()) {
-            blocked = true;
-        }
-        if (validateQtyZero && checkAllQtyZero()) {
-            blocked = true;
-        }
-        if (!blocked) return;
+        const messages = collectAllQtyErrors();
+        if (!messages.length) return;
         e.preventDefault();
+        showQtyValidationPopup(messages);
         const firstInvalid = body.querySelector('.line-row ' + qtyInputSelector + '.is-invalid');
         if (firstInvalid) {
             firstInvalid.focus();
