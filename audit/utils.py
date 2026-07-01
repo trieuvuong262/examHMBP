@@ -7,7 +7,7 @@ from hrm.module_permissions import MODULE_LABELS, resolve_module_from_request
 from hrm.permissions import get_profile, user_role
 
 from .models import UserActivityLog
-from .summaries import build_detailed_summary, describe_post_highlights
+from .summaries import build_detailed_summary, describe_post_highlights, is_background_audit_url
 
 SENSITIVE_KEY_PATTERN = re.compile(
     r'(password|passwd|token|secret|csrf|api[_-]?key|authorization|credit|cvv|pin)',
@@ -415,6 +415,9 @@ def log_from_request(
     method = request.method.upper()
 
     if not is_auth and method == 'GET':
+        return None
+
+    if is_background_audit_url(request):
         return None
 
     status_code = getattr(response, 'status_code', None)

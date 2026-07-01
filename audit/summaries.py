@@ -364,10 +364,268 @@ PATH_PREFIXES: tuple[tuple[str, str], ...] = (
     ('/gop-y/', 'feedback'),
     ('/thu-muc-nas/', 'nas'),
     ('/cong-cu/', 'tools'),
+    ('/tien-ich/', 'utilities'),
     ('/tai-lieu/', 'documents'),
     ('/reports/', 'reports'),
     ('/announcements/', 'announcements'),
 )
+
+# Request nền (poll, metrics) — không ghi nhật ký để tránh nhiễu.
+AUDIT_SKIP_URL_NAMES = frozenset({
+    'push_poll',
+    'schedule_push_poll',
+    'push_status',
+    'push_vapid_public_key',
+    'push_subscribe',
+    'push_unsubscribe',
+    'vps_monitor_metrics',
+    'nas_monitor_metrics',
+    'kiotviet_sync_status',
+    'rustdesk_online_status',
+    'notes_api',
+    'note_detail_api',
+})
+
+# Nhãn trang theo url_name — bổ sung breadcrumb.
+URL_PAGE_LABELS: dict[str, str] = {
+    'hub': 'Trang chủ',
+    'today_vp': 'Nhập báo cáo',
+    'today_cn': 'Nhập báo cáo SX',
+    'weekly_vp': 'Nhập báo cáo tuần',
+    'weekly_cn': 'Nhập báo cáo tuần SX',
+    'my_vp': 'Lịch sử báo cáo',
+    'my_cn': 'Lịch sử báo cáo SX',
+    'team_vp': 'Báo cáo cấp dưới',
+    'team_cn': 'Báo cáo cấp dưới SX',
+    'detail_vp': 'Chi tiết báo cáo',
+    'detail_cn': 'Chi tiết báo cáo SX',
+    'detail_export_vp': 'Xuất Excel báo cáo',
+    'detail_export_cn': 'Xuất Excel báo cáo SX',
+    'copy_prev_vp': 'Sao chép kỳ trước',
+    'copy_prev_cn': 'Sao chép kỳ trước',
+    'copy_yesterday_vp': 'Sao chép hôm qua',
+    'copy_yesterday_cn': 'Sao chép hôm qua',
+    'ckeditor5_upload': 'Tải ảnh lên văn bản',
+    'schedule_reminder_home': 'Nhắc lịch',
+    'schedule_reminder': 'Nhắc lịch',
+    'schedule_reminder_delete': 'Xóa nhắc lịch',
+    'meal_home': 'Đặt cơm',
+    'salary_home': 'Ứng lương',
+    'utilities:hub': 'Trang chủ tiện ích',
+}
+
+REPORT_FORM_URL_NAMES = frozenset({
+    'today_vp', 'today_cn', 'today', 'weekly_vp', 'weekly_cn', 'weekly',
+})
+
+PATH_SEGMENT_LABELS: dict[str, str] = {
+    'vp': 'VP',
+    'sx': 'Sản xuất',
+    'cn': 'Sản xuất',
+    'today': 'Nhập báo cáo',
+    'weekly': 'Báo cáo tuần',
+    'my': 'Của tôi',
+    'team': 'Nhóm / cấp dưới',
+    'nhac-lich': 'Nhắc lịch',
+    'dat-com': 'Đặt cơm',
+    'ung-luong': 'Ứng lương',
+    'push': 'Thông báo đẩy',
+    'poll': 'Kiểm tra thông báo',
+    'schedule-poll': 'Kiểm tra nhắc lịch',
+    'nhat-ky': 'Nhật ký',
+    'cong-viec': 'Công việc',
+    'yeu-cau': 'Yêu cầu',
+    'gop-y': 'Góp ý',
+    'tai-lieu': 'Tài liệu',
+    'thiet-bi': 'Thiết bị',
+    'kho-npl': 'Kho NPL',
+    'kiotviet': 'KiotViet',
+    'announcements': 'Thông báo',
+    'reports': 'Báo cáo',
+    'tien-ich': 'Tiện ích',
+    'cong-cu': 'Công cụ',
+}
+
+PERIOD_LABELS: dict[str, str] = {
+    'day': 'Ngày',
+    'week': 'Tuần',
+    'month': 'Tháng',
+}
+
+
+def is_background_audit_url(request: HttpRequest) -> bool:
+    resolver = getattr(request, 'resolver_match', None)
+    if not resolver:
+        return False
+    url_name = getattr(resolver, 'url_name', '') or ''
+    app_name = getattr(resolver, 'app_name', '') or ''
+    if url_name in AUDIT_SKIP_URL_NAMES:
+        return True
+    if app_name and f'{app_name}:{url_name}' in AUDIT_SKIP_URL_NAMES:
+        return True
+    path = (request.path or '').lower()
+    if '/push/poll' in path or '/push/schedule-poll' in path:
+        return True
+    if path.endswith('/metrics/') or '/metrics/' in path and request.method == 'GET':
+        return True
+    return False
+
+
+def _report_period_label(request: HttpRequest) -> str:
+    period = (
+        request.GET.get('period')
+        or request.POST.get('period')
+        or ''
+    ).strip().lower()
+    return PERIOD_LABELS.get(period, '')
+
+
+def _page_label_for_url(url_name: str, app_name: str, kwargs: dict) -> str:
+    full_key = f'{app_name}:{url_name}' if app_name else url_name
+    if full_key in URL_PAGE_LABELS:
+        template = URL_PAGE_LABELS[full_key]
+    elif url_name in URL_PAGE_LABELS:
+        template = URL_PAGE_LABELS[url_name]
+    else:
+        return ''
+    return _format_template(template, kwargs)
+
+
+def _post_form_section_labels(request: HttpRequest, url_name: str) -> list[str]:
+    post = getattr(request, 'POST', None)
+    if not post:
+        return []
+    sections: list[str] = []
+    if url_name in REPORT_FORM_URL_NAMES or url_name in {'weekly_vp', 'weekly_cn', 'weekly'}:
+        action = (post.get('action') or '').strip().lower()
+        if action == 'submit':
+            sections.append('Gửi báo cáo')
+        elif action == 'save':
+            sections.append('Lưu nháp')
+        if (post.get('links') or '').strip():
+            sections.append('Link & đính kèm')
+        if (post.get('document_html') or '').strip():
+            sections.append('Văn bản')
+        if (post.get('spreadsheet_data') or '').strip():
+            sections.append('Bảng')
+        report_date = (post.get('report_date') or post.get('month') or '').strip()
+        if report_date:
+            sections.append(f'Ngày BC {report_date}')
+    else:
+        button = _detect_submit_button(request)
+        if button:
+            sections.append(f'Nút [{button}]')
+    return sections
+
+
+def build_portal_breadcrumb(
+    request: HttpRequest,
+    url_name: str = '',
+    kwargs: dict | None = None,
+) -> str:
+    """Breadcrumb tiếng Việt: Module — Menu — Trang — (kỳ) — (thao tác)."""
+    from hrm.menu_permissions import resolve_menu_from_request
+    from hrm.module_permissions import MODULE_LABELS
+    from hrm.submenu_registry import get_menu_label
+
+    kwargs = kwargs or {}
+    resolver = getattr(request, 'resolver_match', None)
+    app_name = getattr(resolver, 'app_name', '') or '' if resolver else ''
+    path = request.path
+    tab = (request.GET.get('tab') or '').strip()
+
+    module_key, menu_key = resolve_menu_from_request(path, tab or None)
+    parts: list[str] = []
+
+    if module_key:
+        module_label = MODULE_LABELS.get(module_key, module_key)
+        if module_label:
+            parts.append(module_label)
+    if module_key and menu_key:
+        menu_label = get_menu_label(module_key, menu_key)
+        if menu_label and menu_label not in parts:
+            parts.append(menu_label)
+
+    page_label = _page_label_for_url(url_name, app_name, kwargs)
+    if page_label and page_label not in parts:
+        parts.append(page_label)
+
+    period_label = _report_period_label(request)
+    if period_label and period_label not in parts:
+        parts.append(period_label)
+
+    if kwargs:
+        id_bits = []
+        for key in ('pk', 'user_id', 'report_pk', 'job_id', 'exam_id', 'course_id'):
+            if key in kwargs and kwargs[key] not in ('', None):
+                id_bits.append(f'#{kwargs[key]}')
+        if id_bits:
+            parts.append(' '.join(id_bits[:2]))
+
+    if len(parts) >= 2:
+        return ' — '.join(parts)
+
+    if parts:
+        return parts[0]
+
+    return _breadcrumb_from_path_segments(path)
+
+
+def _breadcrumb_from_path_segments(path: str) -> str:
+    segments = [s for s in path.strip('/').split('/') if s]
+    if not segments:
+        return 'Trang chủ'
+    labels: list[str] = []
+    for seg in segments:
+        if seg.isdigit():
+            labels.append(f'#{seg}')
+            continue
+        label = PATH_SEGMENT_LABELS.get(seg.lower())
+        if not label:
+            label = seg.replace('-', ' ').replace('_', ' ').strip()
+            if label:
+                label = label[:1].upper() + label[1:]
+        if label and (not labels or labels[-1] != label):
+            labels.append(label)
+    return ' — '.join(labels[:5]) if labels else path
+
+
+def _summary_from_breadcrumb(
+    request: HttpRequest,
+    breadcrumb: str,
+    url_name: str = '',
+) -> str:
+    method = request.method.upper()
+    if method == 'GET':
+        extras: list[str] = []
+        query_hint = describe_query_tab(request)
+        if query_hint:
+            extras.append(query_hint.replace(' · ', ' — '))
+        period = _report_period_label(request)
+        if period and period not in breadcrumb:
+            extras.append(period)
+        trail = ' — '.join([breadcrumb] + extras) if extras else breadcrumb
+        return f'xem trang {trail}'
+    if method == 'POST':
+        sections = _post_form_section_labels(request, url_name)
+        action = None
+        if sections and sections[0] in ('Gửi báo cáo', 'Lưu nháp'):
+            action = sections[0]
+            sections = sections[1:]
+        trail_parts = [breadcrumb]
+        for section in sections:
+            if section not in trail_parts:
+                trail_parts.append(section)
+        trail = ' — '.join(trail_parts)
+        if url_name not in REPORT_FORM_URL_NAMES and not sections:
+            post_hint = describe_post_highlights(request, url_name)
+            if post_hint and post_hint not in trail:
+                trail = f'{trail} — {post_hint}'
+        if action:
+            return f'{action.lower()} {trail}'
+        return f'thao tác {trail}'
+    return f'thao tác {breadcrumb}'
+
 
 NAMESPACE_URL_DESCRIPTIONS: dict[str, dict[str, str] | str] = {
     # Audit / quản trị hệ thống
@@ -520,6 +778,36 @@ NAMESPACE_URL_DESCRIPTIONS: dict[str, dict[str, str] | str] = {
     'tools:note_quick_add': 'thêm ghi chú nhanh',
     'tools:notes_api': 'API ghi chú',
     'tools:note_detail_api': 'API chi tiết ghi chú',
+    'tools:schedule_reminder': 'xem trang Nhắc lịch',
+
+    # Báo cáo
+    'reports:today_vp': {
+        'GET': 'xem trang Báo cáo — Báo cáo VP — Nhập báo cáo',
+        'POST': 'nhập báo cáo VP',
+    },
+    'reports:today_cn': {
+        'GET': 'xem trang Báo cáo — Báo cáo ngày (SX) — Nhập báo cáo',
+        'POST': 'nhập báo cáo sản xuất',
+    },
+    'reports:my_vp': 'xem trang Báo cáo — Báo cáo VP — Lịch sử báo cáo',
+    'reports:my_cn': 'xem trang Báo cáo — Báo cáo ngày (SX) — Lịch sử báo cáo',
+    'reports:team_vp': 'xem trang Báo cáo — Quản lý BC (VP) — Báo cáo cấp dưới',
+    'reports:team_cn': 'xem trang Báo cáo — Quản lý báo cáo (SX) — Báo cáo cấp dưới',
+    'reports:detail_vp': 'xem trang Báo cáo — Quản lý BC (VP) — Chi tiết báo cáo #{pk}',
+    'reports:detail_cn': 'xem trang Báo cáo — Quản lý báo cáo (SX) — Chi tiết báo cáo #{pk}',
+    'reports:hub': 'xem trang Báo cáo — Trang chủ',
+    'reports:ckeditor5_upload': 'tải ảnh vào văn bản báo cáo VP',
+
+    # Tiện ích
+    'utilities:schedule_reminder_home': 'xem trang Tiện ích — Nhắc lịch',
+    'utilities:schedule_reminder_delete': 'xóa nhắc lịch #{pk}',
+    'utilities:meal_home': 'xem trang Tiện ích — Đặt cơm',
+    'utilities:salary_home': 'xem trang Tiện ích — Ứng lương',
+    'utilities:hub': 'xem trang Tiện ích — Trang chủ',
+
+    # Thông báo
+    'announcements:list': 'xem trang Thông báo — Danh sách',
+    'announcements:detail': 'xem trang Thông báo — Chi tiết #{pk}',
 }
 
 # Field ưu tiên hiển thị trong mô tả theo url_name
@@ -548,6 +836,8 @@ URL_POST_HIGHLIGHTS: dict[str, list[str]] = {
     'admin_document_create': ['title', 'category', 'category_id'],
     'admin_document_edit': ['title', 'category', 'category_id'],
     'today': ['date', 'lines', 'content'],
+    'today_vp': ['report_date', 'links', 'document_html', 'spreadsheet_data', 'action'],
+    'today_cn': ['report_date', 'lines', 'content', 'action'],
     'grade_submission': ['score', 'feedback'],
     'take_exam': ['exam_id'],
     'password_change': ['old_password'],
@@ -783,17 +1073,27 @@ def resolve_url_description(request: HttpRequest, url_name: str) -> str:
         ns_base = _lookup_url_entry(ns_entry, method)
         if ns_base:
             ns_base = _format_template(ns_base, kwargs)
+            if namespace == 'reports' and method == 'POST':
+                breadcrumb = build_portal_breadcrumb(request, url_name, kwargs)
+                if breadcrumb:
+                    return _summary_from_breadcrumb(request, breadcrumb, url_name)
             extras = []
             if method == 'GET':
                 query_hint = describe_query_tab(request)
                 if query_hint:
                     extras.append(query_hint)
+                period = _report_period_label(request)
+                if period:
+                    extras.append(period)
             elif method == 'POST':
                 post_hint = describe_post_highlights(request, url_name or '')
                 if post_hint:
                     extras.append(post_hint)
             if extras:
-                return f'{ns_base} ({extras[0]})' if len(extras) == 1 else f'{ns_base} ({", ".join(extras)})'
+                joined = ' — '.join(extras)
+                if ' — ' in ns_base:
+                    return f'{ns_base} — {joined}'
+                return f'{ns_base} ({joined})'
             return ns_base
 
     # url_name trùng giữa app — phân biệt theo path
@@ -807,73 +1107,37 @@ def resolve_url_description(request: HttpRequest, url_name: str) -> str:
 
     entry = URL_DESCRIPTIONS.get(url_name or '')
     base = _lookup_url_entry(entry, method)
-    if not base:
-        base = _fallback_from_path(request.path, method)
-
     if base:
         base = _format_template(base, kwargs)
-    else:
-        base = _fallback_from_path(request.path, method)
+        extras = []
+        if method == 'GET':
+            query_hint = describe_query_tab(request)
+            if query_hint:
+                extras.append(query_hint)
+        elif method == 'POST':
+            post_hint = describe_post_highlights(request, url_name or '')
+            if post_hint:
+                extras.append(post_hint)
+        if extras:
+            return f'{base} ({extras[0]})' if len(extras) == 1 else f'{base} ({", ".join(extras)})'
+        return base
 
-    extras = []
-    if method == 'GET':
-        query_hint = describe_query_tab(request)
-        if query_hint:
-            extras.append(query_hint)
-    elif method == 'POST':
-        post_hint = describe_post_highlights(request, url_name or '')
-        if post_hint:
-            extras.append(post_hint)
+    breadcrumb = build_portal_breadcrumb(request, url_name or '', kwargs)
+    if breadcrumb:
+        return _summary_from_breadcrumb(request, breadcrumb, url_name or '')
 
-    if extras:
-        return f'{base} ({extras[0]})' if len(extras) == 1 else f'{base} ({", ".join(extras)})'
-    return base
+    return _fallback_from_path(request.path, method)
 
 
 def _fallback_from_path(path: str, method: str) -> str:
-    path = path.rstrip('/') or '/'
-    segments = [s for s in path.split('/') if s]
-
+    breadcrumb = _breadcrumb_from_path_segments(path)
     if method == 'GET':
-        verb = 'xem trang'
-    elif method == 'POST':
-        verb = 'gửi form'
-    elif method == 'DELETE':
-        verb = 'xóa'
-    else:
-        verb = 'thao tác'
-
-    if not segments:
-        return f'{verb} trang chủ'
-
-    last = segments[-1]
-    if last.isdigit():
-        resource = segments[-2] if len(segments) >= 2 else 'mục'
-        return f'{verb} {resource} #{last}'
-
-    action_tokens = {
-        'add': 'thêm mới',
-        'create': 'tạo mới',
-        'edit': 'chỉnh sửa',
-        'delete': 'xóa',
-        'remove': 'gỡ bỏ',
-        'export': 'xuất dữ liệu',
-        'import': 'nhập dữ liệu',
-        'download': 'tải xuống',
-        'upload': 'tải lên',
-        'permissions': 'phân quyền',
-        'reset-password': 'đặt lại mật khẩu',
-        'toggle-employed': 'đổi trạng thái làm việc',
-    }
-    for seg in reversed(segments):
-        if seg in action_tokens:
-            target = segments[segments.index(seg) - 1] if segments.index(seg) > 0 else ''
-            if target:
-                return f'{action_tokens[seg]} {target.replace("-", " ")}'
-            return action_tokens[seg]
-
-    readable = last.replace('-', ' ').replace('_', ' ')
-    return f'{verb} {readable}'
+        return f'xem trang {breadcrumb}'
+    if method == 'POST':
+        return f'gửi form {breadcrumb}'
+    if method == 'DELETE':
+        return f'xóa {breadcrumb}'
+    return f'thao tác {breadcrumb}'
 
 
 def build_detailed_summary(
@@ -927,7 +1191,7 @@ def build_detailed_summary(
     }
     prefix = prefix_map.get(action, 'đã')
 
-    if detail.startswith(('xem ', 'mở ', 'tải ', 'chuyển ')):
+    if detail.startswith(('xem ', 'mở ', 'tải ', 'chuyển ', 'thao tác ', 'gửi form ')):
         return f'{display} {detail}'
     if detail.startswith(('tạo ', 'cập nhật ', 'xóa ', 'lưu ', 'nộp ', 'đăng ', 'nhập ', 'xuất ', 'đặt ', 'bật/', 'chuyển ', 'đánh dấu ', 'bấm ', 'gửi ', 'thêm ', 'sửa ', 'đổi ')):
         return f'{display} {detail}'

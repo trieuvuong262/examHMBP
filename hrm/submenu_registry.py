@@ -64,6 +64,7 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
     MODULE_UTILITIES: [
         {'key': 'meal_ordering', 'label': 'Đặt cơm', 'icon': 'bi-cup-hot'},
         {'key': 'salary_advance', 'label': 'Ứng lương', 'icon': 'bi-cash-coin'},
+        {'key': 'schedule_reminder', 'label': 'Nhắc lịch', 'icon': 'bi-alarm'},
     ],
     MODULE_KHO_NPL: [
         {'key': 'overview', 'label': 'Tổng quan', 'icon': 'bi-speedometer2'},
@@ -192,6 +193,8 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     # Tiện ích
     ('/tien-ich/ung-luong', MODULE_UTILITIES, 'salary_advance'),
     ('/tien-ich/dat-com', MODULE_UTILITIES, 'meal_ordering'),
+    ('/tien-ich/nhac-lich', MODULE_UTILITIES, 'schedule_reminder'),
+    ('/cong-cu/nhac-lich', MODULE_UTILITIES, 'schedule_reminder'),
     # Góp ý
     ('/gop-y/danh-sach', MODULE_FEEDBACK, 'list'),
     ('/gop-y/tao', MODULE_FEEDBACK, 'create'),
@@ -220,9 +223,6 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/thu-muc-nas/phan-quyen', MODULE_NAS_STORAGE, 'permissions'),
     ('/thu-muc-nas/cai-dat', MODULE_NAS_STORAGE, 'nas_download'),
     ('/thu-muc-nas/', MODULE_NAS_STORAGE, 'browse'),
-    # Tiện ích
-    ('/tien-ich/ung-luong', MODULE_UTILITIES, 'salary_advance'),
-    ('/tien-ich/dat-com', MODULE_UTILITIES, 'meal_ordering'),
     # Tài liệu
     ('/tai-lieu/quet-thiet-bi', MODULE_DOCUMENTS, 'equipment_scan'),
     ('/tai-lieu/cau-hinh-rustdesk', MODULE_DOCUMENTS, 'rustdesk_config'),
