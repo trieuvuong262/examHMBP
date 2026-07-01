@@ -283,6 +283,9 @@ verify_migrations
 echo "==> 8b) Sync NPL category tree (nhóm cấp 1 + cấp 2)"
 compose exec -T web python manage.py seed_kho_npl_category_tree
 
+echo "==> 8c) Sync NPL colors + backfill material colors"
+compose exec -T web python manage.py seed_kho_npl_material_colors
+
 verify_nas_rclone() {
   echo "==> Verify NAS rclone in web container"
   if compose exec -T web rclone lsd synology: >/dev/null 2>&1; then

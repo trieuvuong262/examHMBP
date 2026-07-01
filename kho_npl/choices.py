@@ -272,6 +272,38 @@ DEFAULT_MATERIAL_COLORS = [
     ('xanh-thien', 'Xanh thiên thanh', '#7DD3FC', 50),
 ]
 
+# Màu bổ sung ngành may (ngoài bảng chuẩn 50 màu)
+EXTRA_MATERIAL_COLORS = [
+    ('navy', 'Navy', '#1E3A8A', 51),
+    ('xam-melange', 'Xám melange', '#9CA3AF', 52),
+    ('xam-chi', 'Xám chì', '#6B7280', 53),
+    ('xanh-den', 'Xanh đen', '#1F2937', 54),
+    ('bich', 'Bích', '#2563EB', 55),
+    ('kraft', 'Kraft', '#C4A574', 56),
+    ('trong', 'Trong', '#E5E7EB', 57),
+    ('trang-mo', 'Trắng mờ', '#F3F4F6', 58),
+    ('nau-carton', 'Nâu carton', '#A67C52', 59),
+    ('xanh-reu', 'Xanh rêu', '#4D5D53', 60),
+    ('hong-pastel', 'Hồng pastel', '#FBCFE8', 61),
+    ('vang-gao', 'Vàng gạo', '#F5F0E6', 62),
+    ('xanh-la-reu', 'Xanh lá rêu', '#3F6212', 63),
+    ('ghi', 'Ghi', '#94A3B8', 64),
+    ('den-tuyen', 'Đen tuyền', '#111827', 65),
+    # Mã màu nội bộ / tên vải JustPlay
+    ('bien', 'Biển', '#1D4ED8', 66),
+    ('co-vit', 'Cổ vịt', '#0D9488', 67),
+    ('long-cong', 'Lông công', '#9333EA', 68),
+    ('ngoc', 'Ngọc', '#059669', 69),
+    ('do-tim', 'Đô', '#6B21A8', 70),
+    ('ly-dam', 'Lý đậm', '#5B21B6', 71),
+    ('ly', 'Lý', '#8B5CF6', 72),
+    ('xanh-ket', 'Xanh két', '#14532D', 73),
+    ('vang-cuc', 'Vàng cúc', '#CA8A04', 74),
+    ('me-mua', 'Mè mưa', '#78716C', 75),
+]
+
+ALL_MATERIAL_COLORS = DEFAULT_MATERIAL_COLORS + EXTRA_MATERIAL_COLORS
+
 # code, tên hiển thị, thứ tự
 DEFAULT_MATERIAL_SPECIFICATIONS = [
     ('kho-1m5', 'Khổ 1m5', 1),
